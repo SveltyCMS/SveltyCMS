@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { openUserManagement } from "../../helpers/user-page";
 
 // Construct reliable file path for CI/CD environments
 // The shared test thumbnail lives at the e2e root (tests/e2e/testthumb.png),
@@ -58,14 +59,21 @@ test.describe.serial("User Profile Management", () => {
     // where Playwright treats clipped nodes as not visible even though they are in the DOM.
     await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
 
+    // Click the Settings tab to reveal appearance controls
+    await page.getByRole("tab", { name: /settings/i }).click();
+    await expect(page.getByTestId("user-settings-panel")).toBeVisible({ timeout: 10_000 });
+
+    // Compact density/card strip on Settings
+    await expect(page.getByTestId("user-quick-appearance")).toBeVisible({ timeout: 10_000 });
+
     const openLink = page.getByTestId("open-appearance-settings-btn");
     await expect(openLink).toBeAttached({ timeout: 20_000 });
-    await expect(openLink).toHaveAttribute("href", /\/config\/appearance/);
+    await expect(openLink).toHaveAttribute("href", /\/config\/design-system(\?tab=overrides)?/);
 
     // Navigate via the real href (SPA-safe); force-click as fallback if layout intercepts
     await openLink.scrollIntoViewIfNeeded().catch(() => {});
     await Promise.all([
-      page.waitForURL(/\/config\/appearance/, { timeout: 20_000 }),
+      page.waitForURL(/\/config\/design-system/, { timeout: 20_000 }),
       openLink.click({ force: true }),
     ]).catch(async () => {
       // Last resort: follow href attribute directly (still validates the link target)
@@ -74,21 +82,19 @@ test.describe.serial("User Profile Management", () => {
       await page.goto(href, { waitUntil: "domcontentloaded" });
     });
 
-    await expect(page).toHaveURL(/\/config\/appearance/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/config\/design-system/, { timeout: 15_000 });
     await expect(
       page
-        .getByRole("heading", { level: 1, name: /admin theme settings|appearance/i })
+        .getByRole("heading", { level: 1, name: /design system/i })
         .or(page.getByRole("heading", { name: /my overrides/i }))
         .first(),
     ).toBeVisible({ timeout: 20_000 });
   });
 
   test("Edit Avatar", async ({ page }) => {
-    // Ensure the test image exists before trying to upload
-    if (!fs.existsSync(AVATAR_PATH)) {
-      console.warn(`Test image not found at ${AVATAR_PATH}. Skipping avatar upload test.`);
-      return;
-    }
+    // Fixture is committed to the repo — a missing file is a broken checkout,
+    // not a reason to soft-skip (control-map row; soft-skips are banned).
+    expect(fs.existsSync(AVATAR_PATH), `Avatar fixture missing: ${AVATAR_PATH}`).toBe(true);
 
     await page.goto("/user");
 
@@ -106,13 +112,22 @@ test.describe.serial("User Profile Management", () => {
     await expect(fileInput).toBeAttached({ timeout: 5000 });
     await fileInput.setInputFiles(AVATAR_PATH);
 
-    // Upload triggers automatically on file change — assert success signal or avatar image
-    await expect(
-      page
-        .getByText(/avatar updated successfully/i)
-        .or(page.locator('img[alt*="avatar"i], .avatar-image'))
-        .first(),
-    ).toBeVisible({ timeout: 15_000 });
+    // Selecting a file only enables Save — the upload runs on form submit (no auto-upload).
+    const saveBtn = page.getByRole("button", { name: /^save$/i });
+    await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
+    await saveBtn.click();
+
+    // A "Replace Avatar" confirm appears when a custom avatar already exists (retry safety)
+    const confirmBtn = page.getByRole("button", { name: /confirm/i });
+    if (await confirmBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await confirmBtn.click();
+    }
+
+    // Upload outcome: the success toast is the real signal (the sidebar avatar img must
+    // NOT be used as a fallback — it matches even when no upload happened).
+    await expect(page.getByText(/avatar updated successfully/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("Delete Avatar", async ({ page }) => {
@@ -123,33 +138,26 @@ test.describe.serial("User Profile Management", () => {
 
     // The "Delete Avatar" button only renders when a custom avatar is set
     // (page.data.user.avatar !== '/Default_User.svg'). Edit Avatar (which runs
-    // before this test in serial mode) uploads one; if it skipped (no test
-    // image), there is nothing to delete, so skip gracefully rather than fail.
+    // before this test in serial mode) uploads one — so absence here is a REAL
+    // regression, not a reason to soft-skip (control-map row; soft-skips banned).
     const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
     await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
 
     const deleteBtn = page.getByRole("button", { name: "Delete Avatar" });
-    const deleteVisible = await deleteBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!deleteVisible) {
-      console.warn("Delete Avatar button not present (no custom avatar to delete). Skipping.");
-      return;
-    }
+    await expect(deleteBtn).toBeVisible({ timeout: 10_000 });
     await deleteBtn.click();
 
-    // Confirmation dialog appears — click Confirm
+    // Confirmation dialog appears — wait for it (AGENTS.md pitfall #13: the
+    // portal render gap means the dialog shell can be visible before content).
     const confirmBtn = page.getByRole("button", { name: /confirm/i });
-    if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await confirmBtn.click();
-    }
+    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+    await confirmBtn.click();
 
     // Assertion: a custom avatar is gone — the success toast "Avatar Deleted"
-    // appears and the profile avatar image src returns to the default. Scope
-    // to the profile info region so the 11+ imgs on the page (sidebar, table
-    // rows) don't trigger a strict-mode violation.
+    // appears and the profile avatar returns to the default initials state. Scope
+    // via the avatar button (sidebar + table avatars also expose role=img).
     await expect(page.getByText(/Avatar Deleted/i)).toBeVisible({ timeout: 10_000 });
-    const profileAvatar = page
-      .getByRole("img", { name: "AV", exact: true })
-      .or(page.locator('img[alt="User avatar"]').first());
+    const profileAvatar = page.getByTestId("edit-avatar-btn").getByRole("img").first();
     await expect(profileAvatar).toBeVisible();
   });
 
@@ -229,14 +237,20 @@ test.describe.serial("User Profile Management", () => {
   test("Registration Token Workflow", async ({ page }) => {
     await page.goto("/user");
 
+    // The email-registration-token control lives in the User Management tab.
+    await openUserManagement(page);
+
     await page.getByRole("button", { name: /Email User Registration token/i }).click();
 
     // Scoped to the token dialog
     const tokenDialog = page.getByRole("dialog", { name: /Edit Token Data/i });
     await expect(tokenDialog).toBeVisible({ timeout: 10_000 });
 
-    // Fill details
-    await tokenDialog.locator('input[name="email"]:not([disabled])').fill("newuser@test.ge");
+    // Unique email per run — a fixed address collides on reruns/retries
+    // (duplicate invite email), failing the control row.
+    await tokenDialog
+      .locator('input[name="email"]:not([disabled])')
+      .fill(`regtoken_${Date.now()}@test.ge`);
 
     // Select Role — chip buttons inside the dialog (role names: admin/developer/editor/user)
     const roleChip = tokenDialog.getByRole("button", { name: /^user$/i });
@@ -261,6 +275,9 @@ test.describe.serial("User Profile Management", () => {
   test("Toggle User Token Visibility", async ({ page }) => {
     await page.goto("/user");
 
+    // Token view lives inside the User Management tab.
+    await openUserManagement(page);
+
     // Switch to Invitations tab
     const tokensTab = page.getByTestId("admin-tab-tokens");
     await expect(tokensTab).toBeVisible({ timeout: 10_000 });
@@ -278,6 +295,9 @@ test.describe.serial("User Profile Management", () => {
 
   test("Toggle User List Visibility", async ({ page }) => {
     await page.goto("/user");
+
+    // User list view lives inside the User Management tab.
+    await openUserManagement(page);
 
     // Users tab should be active by default
     const usersTab = page.getByTestId("admin-tab-users");

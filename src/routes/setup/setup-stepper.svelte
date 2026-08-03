@@ -21,8 +21,8 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 	}
 </script>
 
-<div class="w-full shrink-0 h-full lg:w-64 xl:w-72">
-	<div class="flex flex-col h-full bg-white dark:bg-surface-800">
+<div class="h-full w-full shrink-0 lg:w-64 xl:w-72">
+	<div class="flex h-full flex-col bg-white dark:bg-surface-800">
 		<!-- Mobile: Horizontal step indicator -->
 		<div class="relative flex items-start justify-between p-4 lg:hidden" role="list" aria-label="Setup progress">
 			{#each steps as step, i (i)}
@@ -78,12 +78,13 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 			{/each}
 		</div>
 
-		<!-- Desktop: Vertical step indicator -->
-		<div class="hidden flex-1 flex-col overflow-hidden p-4 lg:flex">
-			<div class="flex-1 overflow-y-auto overflow-x-hidden pe-2 [scrollbar:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+		<!-- Desktop: Vertical step indicator — no overflow-y (steps + legend always fit; scrollbar was noise) -->
+		<div class="hidden min-h-0 flex-1 flex-col overflow-hidden p-4 lg:flex">
+			<div class="min-h-0 flex-1 overflow-x-hidden pe-1">
 				{#each steps as step, i (i)}
 					<div class="relative last:pb-0">
 						<button
+							type="button"
 							class="flex w-full items-start gap-4 rounded p-4 transition-all {stepClickable[i] || i === currentStep
 								? 'hover:bg-slate-50 dark:hover:bg-slate-800/70'
 								: 'cursor-not-allowed opacity-50'}"
@@ -112,7 +113,7 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 							>
 								<span class="text-[0.65rem]"> {stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'} </span>
 							</div>
-							<div class="text-start">
+							<div class="min-w-0 text-start">
 								<div
 									class="text-base font-medium {i < currentStep
 										? 'text-slate-800 dark:text-slate-200'
@@ -143,10 +144,10 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 					</div>
 				{/each}
 			</div>
-			<!-- Setup Steps Legend -->
-			<div class="mt-auto flex items-end gap-6 border-t border-surface-200 dark:border-surface-700 pt-6">
-				<div class="flex-1">
-					<h4 class="mb-4 text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">Legend</h4>
+			<!-- Setup Steps Legend — pinned, never in a scroll container -->
+			<div class="mt-auto shrink-0 border-t border-surface-200 pt-6 dark:border-surface-700">
+				<h4 class="mb-4 w-full text-center text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">Legend</h4>
+				<div class="flex items-end justify-between gap-4">
 					<ul class="space-y-2 text-xs">
 						{#each legendItems as item (item.key)}
 							<li class="grid grid-cols-[1.4rem_auto] items-center gap-x-3">
@@ -164,10 +165,10 @@ Shows horizontal stepper on mobile, vertical stepper on desktop with legend.
 							</li>
 						{/each}
 					</ul>
-				</div>
 
-				<!-- Version Check  -->
-				<div class="flex shrink-0 items-center"><VersionCheck /></div>
+					<!-- Version Check  -->
+					<div class="flex shrink-0 items-center"><VersionCheck /></div>
+				</div>
 			</div>
 		</div>
 	</div>

@@ -4,6 +4,7 @@
  * Optimized API Gatekeeper using dynamic chunked dispatching and fail-closed endpoint authorization.
  */
 
+import { logger } from "@utils/logger";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { xxhash64 } from "hash-wasm";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
@@ -16,6 +17,7 @@ import { isPublicRoute } from "@src/utils/hook-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import { getCorsHeaders } from "@utils/security/cors-utils";
 
 // Dynamic handlers map for build-time tree-shaking.
 // Hot handlers (collections, content, auth, system) are eager-preloaded at import
@@ -282,7 +284,9 @@ function checkEndpointPermission(
     }
     // If updating user attributes or saving avatar on self:
     if (
-      (action === "update-user-attributes" || action === "save-avatar") &&
+      (action === "update-user-attributes" ||
+        action === "save-avatar" ||
+        action === "delete-avatar") &&
       segments.length === 2
     ) {
       return true;
@@ -321,7 +325,7 @@ const _noCacheHeaders = Object.freeze({
  * Main API Dispatcher - Exported for internal testing only
  */
 export const _handler = async (event: RequestEvent) => {
-  if (process.env.BENCHMARK_DEBUG === "true") console.log(`🔥 Dispatcher: ${event.url.pathname}`);
+  if (process.env.BENCHMARK_DEBUG === "true") logger.debug(`🔥 Dispatcher: ${event.url.pathname}`);
   const { request, url, locals, cookies } = event;
 
   // 🚀 RESILIENCE: Always derive path from URL pathname to prevent route leakage/pollution in pooled servers
@@ -347,27 +351,17 @@ export const _handler = async (event: RequestEvent) => {
 
   // 🛡️ Global CORS Preflight handler
   if (request.method.toUpperCase() === "OPTIONS") {
-    const origin = request.headers.get("Origin") || "";
-    const allowedOrigins = [
-      process.env.ORIGIN || "",
-      "http://127.0.0.1:4173",
-      "http://localhost:4173",
-      "http://127.0.0.1:5173",
-      "http://localhost:5173",
-    ].filter(Boolean);
-    const corsOrigin =
-      allowedOrigins.includes(origin) || process.env.NODE_ENV !== "production"
-        ? origin || allowedOrigins[0]
-        : "";
+    const origin = request.headers.get("Origin") || null;
+    const corsHeaders = getCorsHeaders(origin, true);
+    const responseHeaders: Record<string, string> = {};
+    if (corsHeaders) {
+      for (const [key, value] of Object.entries(corsHeaders)) {
+        if (value) responseHeaders[key] = value;
+      }
+    }
     return new Response(null, {
       status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": corsOrigin,
-        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-tenant-id, cookie",
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Max-Age": "86400",
-      },
+      headers: responseHeaders,
     });
   }
 
@@ -519,9 +513,7 @@ export const _handler = async (event: RequestEvent) => {
   if (request.method === "GET") {
     const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
     if (cached) {
-      if (process.env.SVELTY_BENCHMARK_SUITE !== "true" && process.env.BENCHMARK !== "true") {
-        console.log(`[CacheHit] Hit: ${url.pathname + url.search}`);
-      }
+      // Per-request cache HIT is debug-only (default info/prod error stay quiet)
       // Cache tuple { body, etag } — pre-computed, zero hash overhead
       if (typeof cached === "object" && cached !== null && "body" in cached && "etag" in cached) {
         const entry = cached as { body: string; etag: string };

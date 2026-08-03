@@ -10,6 +10,7 @@
  * - Schema and ServiceProviderConfig discovery endpoints
  */
 
+import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
@@ -70,7 +71,7 @@ export async function handleScimRoutes(
         throw new AppError(`SCIM resource type '${resourceType}' not supported`, 404);
     }
   } catch (err: any) {
-    console.error(`[SCIM Route Error] ${segments.join("/")}:`, err);
+    logger.error(`[SCIM Route Error] ${segments.join("/")}:`, err);
     if (err instanceof AppError) throw err;
     throw new AppError(err.message || "SCIM operation failed", 500);
   }
@@ -162,6 +163,7 @@ async function handleScimUsers(
       email: body.userName,
       username: body.displayName || body.name?.givenName || body.userName.split("@")[0],
       lastName: body.name?.familyName || "",
+      role: "user", // SCIM provisions regular users; RBAC grants roles separately
       tenantId,
     });
     return json(buildScimUser(newUser, baseUrl), { status: 201 });

@@ -7,6 +7,7 @@
  */
 
 import { expect, type Page } from "@playwright/test";
+import { dismissCookieBanner } from "./auth";
 import { enablePlugin } from "./api";
 
 const WXR_FIXTURE = "tests/e2e/fixtures/sample-wordpress.wxr";
@@ -40,6 +41,12 @@ export async function ensureSmartImporterReady(page: Page, timeoutMs = 25_000) {
     waitUntil: "domcontentloaded",
     timeout: 30_000,
   });
+
+  // The GDPR cookie banner is a fixed bottom-left dialog that overlays the
+  // wizard's sticky Next buttons. loginAsAdmin's API path never stamps consent
+  // localStorage, so dismiss deterministically before interacting (parallel
+  // workers otherwise hit pointer-interception timeouts on step 2/3 clicks).
+  await dismissCookieBanner(page);
 
   // Prefer workspace dialog; also probe page-level input if sticky shell remounts.
   const fileInput = workspace(page)

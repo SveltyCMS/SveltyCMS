@@ -723,7 +723,7 @@ if (result.hasDataLoss) {
 - ⚡ **Performance** - SvelteKit's SSR and hydration outperforms React/Vue alternatives
 - 🔧 **Type Safety** - End-to-end TypeScript from schema to API to frontend
 - 🏢 **Multi-Tenant** - Built-in support for multiple sites/clients from one instance
-- 🔄 **Hot Reload** - Collections compile instantly via Vite watcher
+- 🔄 **Hot Reload** - ContentSync (`watcher` / `collection-save`) compiles atomically, provision models for changed schemas only, soft-invalidates UI (no full reload)
 
 **Extensible Widget Ecosystem:**
 
@@ -792,7 +792,8 @@ SveltyCMS is one of the few CMS platforms that uses **AST-based codemods** (`ts-
 
 ### Architecture
 
-- [Compilation Pipeline](/docs/reference/architecture/compilation-pipeline) - How collections are compiled (compile.ts + vite.config.ts)
+- [Compilation Pipeline](/docs/reference/architecture/compilation-pipeline) - compile + ContentSync HMR (`syncContentState`)
+- [Content System](/docs/reference/architecture/content-system) - Stores, loader, soft invalidate
 - [Initialization Workflow](/docs/reference/architecture/initialization-workflow) - System startup and collection loading
 
 ### Widgets

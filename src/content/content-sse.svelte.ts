@@ -46,7 +46,7 @@ export const contentLiveSync = {
         if (isContentUpdate) {
           if (debounceTimer) clearTimeout(debounceTimer);
           debounceTimer = setTimeout(async () => {
-            logger.info(`📡 Content update received [${data.type}]. Refreshing...`);
+            logger.debug(`📡 Content update received [${data.type}]. Refreshing...`);
             // Trigger a fast refresh (skip reconciliation on server, just sync state)
             await contentSystem.refresh(null, true);
             debounceTimer = null;

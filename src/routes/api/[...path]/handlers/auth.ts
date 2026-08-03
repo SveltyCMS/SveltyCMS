@@ -134,6 +134,10 @@ export async function handleAuthUserRoutes(
           : notAllowed();
       case "save-avatar":
         return reqMethod === "POST" ? handleSaveAvatarRoute(event, cms, tenantId) : notAllowed();
+      case "delete-avatar":
+        return reqMethod === "DELETE"
+          ? successResponse(event, await cms.auth.deleteAvatar({ userId: user._id, tenantId }))
+          : notAllowed();
       case "me":
         return reqMethod === "GET" ? successResponse(event, user) : notAllowed();
       case "update-roles":
@@ -162,7 +166,7 @@ export async function handleAuthUserRoutes(
     rethrow(err);
     // Expected AppErrors (validation, method not allowed) should not log noisy traces
     if (!isAppError(err)) {
-      console.error(`[AuthRoute Error] ${segments.join("/")}:`, err);
+      logger.error(`[AuthRoute Error] ${segments.join("/")}:`, err);
     }
     if (isAppError(err)) throw err;
     throw new AppError(err.message || "Authentication operation failed", 500);
@@ -269,13 +273,13 @@ async function handleTestLoginBypass(cms: LocalCMS, requestedEmail: string, tena
   let userResult;
   try {
     userResult = await cms.auth.getUserByEmail(requestedEmail, { tenantId });
-    logger.info(`[BypassDebug] getUserByEmail results`, {
+    logger.debug(`[TestLoginBypass] getUserByEmail`, {
       email: requestedEmail,
       tenantId,
-      result: userResult,
+      success: userResult?.success,
     });
   } catch (e: unknown) {
-    logger.error(`[BypassDebug] Error in getUserByEmail during test login`, {
+    logger.error(`[TestLoginBypass] getUserByEmail failed`, {
       email: requestedEmail,
       tenantId,
       error: e,
@@ -292,18 +296,16 @@ async function handleTestLoginBypass(cms: LocalCMS, requestedEmail: string, tena
       expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
       tenantId: tenantId as DatabaseId,
     });
-    logger.info(`[BypassDebug] Session successfully created in DB for user_id=${user._id}`, {
-      sessionId: session._id,
-    });
+    logger.debug(`[TestLoginBypass] session created for user_id=${user._id}`);
     return { user, session };
   }
 
   // Never mint a fake session — that poisons E2E/integration cookies
   // (`test-session-*`) and masks missing seed/admin. Callers must seed first.
-  logger.warn(
-    `[BypassDebug] getUserByEmail failed to find user or missing _id. Refusing dummy session.`,
-    { email: requestedEmail, tenantId },
-  );
+  logger.warn(`[TestLoginBypass] user not found or missing _id. Refusing dummy session.`, {
+    email: requestedEmail,
+    tenantId,
+  });
   throw new AppError(
     `Test login bypass: user not found for ${requestedEmail}. Seed admin via /api/testing action=seed first.`,
     401,

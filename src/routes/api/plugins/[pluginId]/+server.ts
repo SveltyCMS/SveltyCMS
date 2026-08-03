@@ -107,12 +107,31 @@ export const POST: RequestHandler = async ({ params, request: originalRequest, l
       if (ct.includes("application/json")) {
         parsedBody = await originalRequest.json().catch(() => null);
         actionName = parsedBody?.__action || parsedBody?.action;
+        // Handlers may re-parse request.json() (legacy form-action code) — hand
+        // them a fresh Request carrying the SAME parsed payload.
+        if (parsedBody) {
+          originalRequest = new Request(originalRequest.url, {
+            method: originalRequest.method,
+            headers: originalRequest.headers,
+            body: JSON.stringify(parsedBody),
+          });
+        }
       } else {
-        // FormData — parse once, extract action, keep for handler
+        // FormData — parse once for the action name, then give handlers a fresh
+        // Request with the SAME FormData so their request.formData() re-parse
+        // does not hit "Body has already been read".
         try {
           const fd = await originalRequest.formData();
           actionName = (fd.get("__action") as string) || null;
           parsedBody = fd;
+          const headers = new Headers(originalRequest.headers);
+          headers.delete("content-type"); // stale multipart boundary — fetch re-derives it
+          headers.delete("content-length"); // body length changes after re-encode
+          originalRequest = new Request(originalRequest.url, {
+            method: originalRequest.method,
+            headers,
+            body: fd,
+          });
         } catch {
           /* ignore */
         }

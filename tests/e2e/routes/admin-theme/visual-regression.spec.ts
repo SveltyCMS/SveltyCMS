@@ -71,7 +71,7 @@ test.describe("Admin Theme Visual Regression", () => {
 
   test("appearance settings — AdminPageShell", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/config/appearance", { waitUntil: "domcontentloaded" });
+    await page.goto("/config/design-system", { waitUntil: "domcontentloaded" });
     const shell = page.locator(".admin-theme-container").first();
     await expect(shell).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("My Overrides", { exact: true })).toBeVisible({
@@ -100,7 +100,7 @@ test.describe("Admin Theme Visual Regression", () => {
 
   test("design system playground — AdminPageShell", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/config/design-system", { waitUntil: "domcontentloaded" });
+    await page.goto("/config/design-system?tab=preview", { waitUntil: "domcontentloaded" });
     const shell = page.locator(".admin-theme-container").first();
     await expect(shell).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("Playground controls", { exact: true })).toBeVisible({

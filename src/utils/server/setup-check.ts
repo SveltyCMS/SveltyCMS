@@ -15,6 +15,7 @@
  * DO NOT add top-level imports that trigger SvelteKit runtime or project side-effects.
  */
 
+import { logger } from "@utils/logger";
 import fs from "node:fs";
 import path from "node:path";
 import type { DatabaseResult, Role } from "../../databases/db-interface";
@@ -87,9 +88,10 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     if (typeof dbAdapter.isConnected === "function" && !dbAdapter.isConnected()) return false;
 
     // Check Admin Users & Roles — use getUserCount which is more reliable than getAllUsers
-    const bypassOpts = { bypassTenantCheck: true } as const;
-    const adminCountResult = await dbAdapter.auth.getUserCount({ role: "admin" }, bypassOpts);
-    const roles: Role[] = await dbAdapter.auth.getAllRoles(bypassOpts);
+    const { withSystemScope } = await import("../../databases/system-tenant-scope");
+    const systemScope = withSystemScope("bootstrap");
+    const adminCountResult = await dbAdapter.auth.getUserCount({ role: "admin" }, systemScope);
+    const roles: Role[] = await dbAdapter.auth.getAllRoles(systemScope);
 
     const adminCount = unwrapAdapterCount(adminCountResult);
     const hasAdmin = adminCount > 0;
@@ -113,7 +115,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
     return true;
   } catch (err: any) {
     // Fail safe to false to stay in setup mode if DB is unreachable
-    console.error("[setupCheck] Deep check failed:", err);
+    logger.error("[setupCheck] Deep check failed:", err);
     return false;
   }
 }
@@ -171,7 +173,7 @@ export function getTestSecret(): string {
   // Generate a random secret for the test run instead of using a predictable one.
   const { generateSecureToken } = require("../native-utils");
   cachedTestSecret = generateSecureToken(32);
-  console.warn(
+  logger.warn(
     "[setupCheck] No TEST_API_SECRET env or test-secret.txt found. " +
       "Generated a random secret for this run. Set TEST_API_SECRET for reproducible tests.",
   );
@@ -193,9 +195,21 @@ export function invalidateSetupCache(
   }
 
   if (clearPrivateEnv) {
-    import("../../databases/db").then((db) => {
+    import("../../databases/db").then(async (db) => {
       if (typeof db.clearPrivateConfigCache === "function") {
         db.clearPrivateConfigCache(false);
+        // 🚀 CRITICAL: The cleared config must be reloaded immediately.
+        // Leaving privateEnv null makes concurrent settings-cache merges fall
+        // back to the raw config file (no env overrides) and stamp that stale
+        // entry as current — poisoning the cache for the whole TTL (e.g.
+        // PREVIEW_SECRET missing → preview bridge 503).
+        if (typeof db.loadPrivateConfig === "function") {
+          try {
+            await db.loadPrivateConfig();
+          } catch {
+            // Non-fatal: next request will reload via loadSettingsCache.
+          }
+        }
       }
     });
   }

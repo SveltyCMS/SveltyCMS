@@ -11,7 +11,7 @@
  * - Masking: lazy — only called when args are present
  */
 
-import { pc } from "./native-utils";
+import { pc } from "./native-utils.ts";
 
 // ── Types ──
 export type LogLevel = "none" | "fatal" | "error" | "warn" | "info" | "debug" | "trace";
@@ -38,32 +38,52 @@ const ICONS: Record<string, string> = {
   NONE: "",
 };
 
-// ── Environment flags (IIFE — cached at module load) ──────────────────────
+// ── Environment flags ─────────────────────────────────────────────────────
 const IS_BROWSER = typeof window !== "undefined";
 const ENV = IS_BROWSER ? (import.meta as any).env : process?.env;
-const IS_QUIET = ENV?.QUIET === "true" || ENV?.BENCHMARK === "true";
-const IS_BENCHMARK_DEBUG = ENV?.BENCHMARK_DEBUG === "true";
 
-const CURRENT_LOG_LEVEL = (() => {
+/**
+ * Pure env → config resolution (exported for unit testing).
+ * Higher priority number = more verbose; a level is emitted when its priority
+ * is <= the configured ceiling priority.
+ */
+export function resolveLogConfig(env: Record<string, string | undefined> | undefined): {
+  level: LogLevel;
+  priority: number;
+  quiet: boolean;
+  benchmarkDebug: boolean;
+} {
+  const quiet = env?.QUIET === "true" || env?.BENCHMARK === "true";
+  const benchmarkDebug = env?.BENCHMARK_DEBUG === "true";
   const raw = (
-    ENV?.LOG_LEVELS ??
-    ENV?.LOG_LEVEL ??
-    ENV?.VITE_LOG_LEVELS ??
-    (ENV?.NODE_ENV === "production" ? "error" : "info")
+    env?.LOG_LEVELS ??
+    env?.LOG_LEVEL ??
+    env?.VITE_LOG_LEVELS ??
+    (env?.NODE_ENV === "production" ? "error" : "info")
   )
     .split(",")[0]
     .trim()
     .toLowerCase() as LogLevel;
-  return PRIORITY[raw] !== undefined ? raw : "info";
-})();
+  const level: LogLevel = PRIORITY[raw] !== undefined ? raw : "info";
+  return { level, priority: PRIORITY[level], quiet, benchmarkDebug };
+}
 
-const CURRENT_PRIORITY = PRIORITY[CURRENT_LOG_LEVEL];
+const {
+  level: CURRENT_LOG_LEVEL,
+  priority: CURRENT_PRIORITY,
+  quiet: IS_QUIET,
+  benchmarkDebug: IS_BENCHMARK_DEBUG,
+} = resolveLogConfig(ENV);
 
 // ── Sensitive data masking (compiled regex — C++ native matching) ──────────
-const SENSITIVE_REGEX = /(password|passwd|pwd|token|secret|key|authorization|auth|api_key|apikey)/i;
+// Word-boundary aware: `password`/`token`/`secret`/`authorization` and standalone
+// `key`/`keys`/`auth` are redacted, but `keywords`, `authorId`, `cacheKey`, `monkey`
+// are NOT (they are context, not secrets — over-redaction hides real diagnostics).
+const SENSITIVE_REGEX =
+  /\b(pass(?:word)?|pwd|token|secret|authorization|api[_-]?keys?|apikeys?|access[_-]?keys?|secret[_-]?keys?|auth)\b|\bkeys?\b/i;
 const EMAIL_REGEX = /(email|mail|userid|username)/i;
 
-function mask(v: unknown, depth = 0, seen = new WeakSet()): unknown {
+export function mask(v: unknown, depth = 0, seen = new WeakSet()): unknown {
   if (depth > 10) return "[Max Depth Exceeded]";
   if (v === null || typeof v !== "object") return v;
   if (v instanceof Date || v instanceof RegExp) return v;
@@ -160,8 +180,45 @@ function log(level: LogLevel, msg: string, args: unknown[]) {
   }
 }
 
+// ── Once-per-process keys (boot chatter, not per-request spam) ─────────────
+const ONCE_KEYS = new Set<string>();
+
+function isEnabled(level: LogLevel): boolean {
+  if (PRIORITY[level] > CURRENT_PRIORITY) return false;
+  if (!IS_BROWSER && IS_QUIET && !IS_BENCHMARK_DEBUG && PRIORITY[level] > PRIORITY.warn) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Log at most once per process for a stable key.
+ * Use for boot banners ("watcher started"), not for per-request diagnostics.
+ * Returns true when the message was actually emitted (fresh key + level enabled).
+ */
+function once(key: string, level: LogLevel, msg: string, ...args: unknown[]): boolean {
+  if (ONCE_KEYS.has(key) || !isEnabled(level)) return false;
+  ONCE_KEYS.add(key);
+  log(level, msg, args);
+  return true;
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────
 export const logger = {
+  /** Current max level name (env-resolved at module load). */
+  get level(): LogLevel {
+    return CURRENT_LOG_LEVEL;
+  },
+
+  /** Cheap gate — use before building expensive messages/args. */
+  isEnabled,
+
+  /** Alias for isEnabled — reads well as `if (logger.isLevel("debug"))`. */
+  isLevel: isEnabled,
+
+  /** Log once per process key (boot / singleton notices). */
+  once,
+
   fatal: (m: string, ...a: unknown[]) => log("fatal", m, a),
   error: (m: string, ...a: unknown[]) => log("error", m, a),
   warn: (m: string, ...a: unknown[]) => log("warn", m, a),
@@ -176,6 +233,9 @@ export const logger = {
     info: (m: string, ...a: unknown[]) => log("info", `[${name}] ${m}`, a),
     debug: (m: string, ...a: unknown[]) => log("debug", `[${name}] ${m}`, a),
     trace: (m: string, ...a: unknown[]) => log("trace", `[${name}] ${m}`, a),
+    once: (key: string, level: LogLevel, m: string, ...a: unknown[]) =>
+      once(`${name}:${key}`, level, `[${name}] ${m}`, ...a),
+    isEnabled,
   }),
 
   dump: (data: unknown, label?: string) => {

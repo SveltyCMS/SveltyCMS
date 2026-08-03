@@ -21,6 +21,7 @@
 <script lang="ts">
   import { toast } from '@src/stores/toast.svelte';
   import { logger } from '@utils/logger';
+  import { clientJsonHeaders } from '@utils/security/client-csrf';
   import { fade, slide } from 'svelte/transition';
   import AdminCard from '@components/admin-card.svelte';
   import AdminPageShell from '@components/admin-page-shell.svelte';
@@ -251,7 +252,11 @@
 
       addLog('info', 'Starting import (SSE stream)...');
 
-      const response = await fetch('/api/migration/import', { method: 'POST', body: formData });
+      const response = await fetch('/api/migration/import', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': clientJsonHeaders()['X-CSRF-Token'] || '' },
+        body: formData,
+      });
       if (!response.ok) {
         const errText = await response.text();
         addLog('error', errText || `HTTP ${response.status}`);

@@ -35,9 +35,21 @@ type RawEnv = Partial<Record<string, string | number | boolean>>;
 let privateEnv: AppPrivateConfig | null = null;
 let loadPromise: Promise<AppPrivateConfig | null> | null = null;
 
+// Monotonic generation counter for the in-memory config. Consumers that cache
+// derived state (e.g. the settings cache) stamp their entries with this value
+// so a config reload (setPrivateEnv / clearPrivateConfigCache) invalidates
+// stale caches — including Redis-backed ones — without a 5-minute TTL wait.
+let configStamp = 0;
+
+/** Current config generation. Bumps on every replacement of `privateEnv`. */
+export function getConfigStamp(): number {
+  return configStamp;
+}
+
 export function setPrivateEnv(env: AppPrivateConfig | null) {
   privateEnv = env ? (Object.freeze(env) as AppPrivateConfig) : null;
   loadPromise = null;
+  configStamp++;
 }
 
 /**
@@ -112,7 +124,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       // 🚀 DEBUG: Trace benchmark configuration leakage
       if (isTest && (validated.DB_TYPE !== "sqlite" || env("BENCHMARK_DEBUG") === "true")) {
-        console.log(
+        logger.debug(
           `[Config] Loaded type: ${validated.DB_TYPE}, host: ${validated.DB_HOST}, name: ${validated.DB_NAME}`,
         );
       }
@@ -122,6 +134,7 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
 
       // 🚀 Architectural Refine: config is now immutable
       privateEnv = Object.freeze(validated) as AppPrivateConfig;
+      configStamp++;
 
       logger.debug(`Private config loaded and frozen successfully (DB_TYPE: ${validated.DB_TYPE})`);
 
@@ -237,6 +250,7 @@ function getEnvOverrides() {
   if (e.JWT_SECRET_KEY) overrides.JWT_SECRET_KEY = e.JWT_SECRET_KEY;
   if (e.ENCRYPTION_KEY) overrides.ENCRYPTION_KEY = e.ENCRYPTION_KEY;
   if (e.TEST_API_SECRET) overrides.TEST_API_SECRET = e.TEST_API_SECRET;
+  if (e.PREVIEW_SECRET) overrides.PREVIEW_SECRET = e.PREVIEW_SECRET;
   // Auth
   if (e.PASSWORD_MIN_LENGTH) overrides.PASSWORD_MIN_LENGTH = Number(e.PASSWORD_MIN_LENGTH);
 
@@ -295,9 +309,17 @@ async function enforceTestSafety(config: any) {
 }
 
 /** Optional: Decide when file config is still needed (e.g. during setup) */
-function shouldUseFileConfig(svelteEnv: any): boolean {
-  // Heuristic: Use file config if essential DB_TYPE is missing from env or if in dev mode
-  return !svelteEnv.DB_TYPE || env("NODE_ENV") === "development";
+function shouldUseFileConfig(_svelteEnv: any): boolean {
+  // Always load file config for env merging. In production, config/private.ts carries
+  // file-only settings (DEMO, MULTI_TENANT, USE_REDIS, etc.) that are NOT available in
+  // process env vars. Skipping the file when DB_TYPE is in env silently drops these
+  // settings on every server restart (e.g. after a code deploy), causing demo mode and
+  // multi-tenancy to reset.
+  //
+  // The merge order is: env vars - file config - env overrides, so env vars always win.
+  // There is no harm in loading the file when DB_TYPE is set - the env override step
+  // (getEnvOverrides) applies afterward with higher precedence.
+  return true;
 }
 
 // Sync getters (safe after loadPrivateConfig has been called at least once)
@@ -550,6 +572,7 @@ export function clearPrivateConfigCache(keepPrivateEnv = false) {
   if (!keepPrivateEnv) {
     privateEnv = null;
     loadPromise = null;
+    configStamp++;
   }
   dbConfigCache = null;
   redisConfigCache = null;

@@ -1,6 +1,10 @@
 /**
  * @file src/hooks/handle-token-resolution.ts
- * @description Hardened RBAC-aware token resolution with content-length synchronization and size-safety checks.
+ * @description
+ * Hardened RBAC-aware token resolution with content-length synchronization and size-safety checks.
+ *
+ * Rewrites token placeholders in JSON API payloads using the caller's roles/tenant.
+ * Rebuilds Response with mutable headers + updated Content-Length after mutation.
  */
 
 import { processTokensInResponse } from "@src/services/token/helper";

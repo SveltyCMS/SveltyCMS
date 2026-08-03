@@ -1,6 +1,17 @@
 /**
  * @file src/hooks/handle-security-headers.ts
- * @description Hardened security headers middleware with OPTIONS preflight support and safe header mutation.
+ * @description
+ * Hardened security headers middleware with OPTIONS preflight support and safe header mutation.
+ *
+ * ### Features:
+ * - CSP (page vs API vs GraphQL playground)
+ * - CORS allowlist via getCorsHeaders (never reflect Origin blindly)
+ * - COOP/COEP/CORP for API isolation
+ * - Permissions-Policy lockdown
+ * - Always clones resolve() headers (immutable Response safety)
+ *
+ * NOTE: The Handle export is optional — headers are also applied inline via
+ * `applyAllSecurityHeaders()` from turbo pipeline / turbo-get / error boundaries.
  */
 
 import type { Handle } from "@sveltejs/kit";

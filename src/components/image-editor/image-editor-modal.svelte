@@ -19,6 +19,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
     import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
     import type { MediaImage, WatermarkOptions } from '@src/utils/media/media-models';
     import { onMount, setContext } from 'svelte';
@@ -129,7 +130,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 
     function handleSaveError(err: Error) {
         error = `Failed to save: ${err.message}`;
-        console.error('[ImageEditorModal] Save error:', err);
+        logger.error('[ImageEditorModal] Save error:', err);
         isSaving = false;
     }
 

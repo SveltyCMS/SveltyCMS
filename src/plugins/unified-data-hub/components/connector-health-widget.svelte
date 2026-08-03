@@ -5,6 +5,7 @@
 <script lang="ts">
   import AdminCard from '@components/admin-card.svelte';
   import Badge from '@components/ui/badge.svelte';
+  import { clientJsonHeaders } from '@utils/security/client-csrf';
 
   interface ConnectorSummary {
     id: string;
@@ -27,7 +28,7 @@
       const res = await fetch('/api/plugins/unified-data-hub?action=getHealthSummary', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'x-plugin-action': 'getHealthSummary' },
+        headers: { ...clientJsonHeaders(), 'x-plugin-action': 'getHealthSummary' },
         body: JSON.stringify({}),
       });
       if (res.ok) summary = await res.json();

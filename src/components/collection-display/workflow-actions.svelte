@@ -3,8 +3,10 @@
 @component Workflow Transition Controls for Content Entries
  -->
 <script lang="ts">
+import { logger } from "@utils/logger";
 import { onMount } from "svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { slide } from "svelte/transition";
 import type { WorkflowDefinition, WorkflowInstance } from "@src/types/workflow-types";
 	import Button from '@components/ui/button.svelte';
@@ -39,7 +41,7 @@ onMount(async () => {
         if (wfData.success) workflow = wfData.data;
         if (instData.success) instance = instData.data;
     } catch (err) {
-        console.error("Failed to load workflow data:", err);
+        logger.error("Failed to load workflow data:", err);
     } finally {
         loading = false;
     }
@@ -50,7 +52,7 @@ async function triggerTransition(targetStateId: string) {
     try {
         const res = await fetch('/api/workflows', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: clientJsonHeaders(),
             body: JSON.stringify({
                 entryId,
                 targetStateId,

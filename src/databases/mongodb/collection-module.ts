@@ -4,7 +4,7 @@
  */
 
 import { DatabaseModule } from "../core/base-adapter";
-import type { ICollectionAdapter, DatabaseId, Schema } from "../db-interface";
+import type { BaseQueryOptions, ICollectionAdapter, DatabaseId, Schema } from "../db-interface";
 import type { MongoAdapterCore } from "./adapter-core";
 
 export class MongoCollectionModule
@@ -68,9 +68,9 @@ export class MongoCollectionModule
       .then((r: any) => ({ success: true, data: r }));
   }
 
-  async listSchemas(tenantId?: DatabaseId | null) {
+  async listSchemas(tenantId?: DatabaseId | null, options?: BaseQueryOptions) {
     return (await this._getMethods())
-      .listSchemas(tenantId)
+      .listSchemas(tenantId, options)
       .then((r: any) => ({ success: true, data: r }));
   }
 

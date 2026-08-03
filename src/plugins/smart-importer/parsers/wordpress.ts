@@ -1,4 +1,6 @@
 /**
+ * slop:suppress — XML tag/attr names in extract helpers come from hardcoded
+ * parser call sites (e.g. "content:encoded"), not user input.
  * @file src/plugins/smart-importer/parsers/wordpress.ts
  * @description WordPress WXR (WordPress eXtended RSS) parser.
  *

@@ -101,7 +101,7 @@ async function invalidateAllCaches(tenantId: DatabaseId) {
       await themeManager.refresh();
     }
   } catch (err) {
-    console.warn(`[TestingHandler] Non-fatal cache invalidation error: ${err}`);
+    logger.warn(`[TestingHandler] Non-fatal cache invalidation error: ${err}`);
   }
 }
 
@@ -117,7 +117,7 @@ async function wipeMediaFolder() {
       await fsp.rm(fullMediaRoot, { recursive: true, force: true });
       await fsp.mkdir(fullMediaRoot, { recursive: true });
     } catch (err) {
-      console.warn(`[TestingHandler] Failed to clear media folder: ${err}`);
+      logger.warn(`[TestingHandler] Failed to clear media folder: ${err}`);
     }
   }
 }
@@ -135,7 +135,7 @@ async function resetSystemStores() {
     const { resetRateLimitBuckets } = await import("@src/hooks/handle-rate-limit");
     resetRateLimitBuckets();
   } catch (err) {
-    console.warn(`[TestingHandler] Failed to reset rate limit buckets: ${err}`);
+    logger.warn(`[TestingHandler] Failed to reset rate limit buckets: ${err}`);
   }
 }
 
@@ -194,7 +194,7 @@ export async function handleTestingRoutes(
     // 🚀 HARDENING: Wait for database to be ready
     const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
     if (!isDbConnected()) {
-      logger.info("[testing] DB not connected, waiting for initialization...");
+      logger.debug("[testing] DB not connected, waiting for initialization...");
       await getDbInitPromise().catch((err) => {
         logger.error("[testing] getDbInitPromise failed:", err);
       });
@@ -202,7 +202,7 @@ export async function handleTestingRoutes(
       // Secondary poll for safety
       let retries = 15; // Increased for Windows/Slow DBs
       while (!isDbConnected() && retries-- > 0) {
-        logger.info(`[testing] Polling for DB connection... (${15 - retries}/15)`);
+        logger.debug(`[testing] Polling for DB connection... (${15 - retries}/15)`);
         await new Promise((r) => setTimeout(r, 1000));
       }
     }
@@ -246,7 +246,7 @@ export async function handleTestingRoutes(
           try {
             await fsp.unlink(privateConfigPath);
           } catch (err) {
-            console.warn(`[TestingHandler] Failed to delete config file: ${err}`);
+            logger.warn(`[TestingHandler] Failed to delete config file: ${err}`);
           }
         }
         return rawResponse({ success: true, message: "Transitioned to setup mode" });
@@ -350,9 +350,7 @@ export async function handleTestingRoutes(
           await (initializedAdapter as any).ensureSystem();
         }
       } catch (err) {
-        console.warn(
-          `[TestingHandler] Non-fatal database initialization error after reset: ${err}`,
-        );
+        logger.warn(`[TestingHandler] Non-fatal database initialization error after reset: ${err}`);
       }
 
       // 2. Wipe media and reset caches + state
@@ -386,13 +384,17 @@ export async function handleTestingRoutes(
       // Use action=reset when a true clean slate is required (serial auth-setup).
 
       const seedOpts = { tenantId } as any;
+      // Role defaults to admin for backward compatibility; tests that need a
+      // non-admin reset pass an explicit role (e.g. the p0 password afterEach).
+      const explicitRole = params.role ? String(params.role) : undefined;
+      const seedRole = explicitRole || "admin";
       let result: any = await cms.auth.createUser(
         {
           email,
           password,
           username: username || email.split("@")[0],
-          role: "admin",
-          isAdmin: true,
+          role: seedRole,
+          isAdmin: seedRole === "admin",
           isRegistered: true,
           emailVerified: true,
         },
@@ -402,13 +404,19 @@ export async function handleTestingRoutes(
         // User likely already exists — update password/role instead.
         const existing = await cms.auth.getUserByEmail(email, seedOpts);
         if (existing?.success && existing?.data) {
+          // 🛡️ PRESERVE ROLE on re-seed unless explicitly requested: the login
+          // retry seeds without a role, and forcing role=admin there silently
+          // turned test users into superusers — every permission-denial E2E
+          // assertion (media:write, config:accessManagement) then broke.
+          const currentRole = (existing.data as { role?: string }).role;
+          const resolvedRole = explicitRole || currentRole || "admin";
           await cms.auth.updateUserAttributes(
             (existing.data as { _id: string })._id,
             {
               password,
               username: username || email.split("@")[0],
-              role: "admin",
-              isAdmin: true,
+              role: resolvedRole,
+              isAdmin: explicitRole ? resolvedRole === "admin" : !!(existing.data as any).isAdmin,
               isRegistered: true,
               emailVerified: true,
               failedAttempts: 0,
@@ -652,12 +660,12 @@ export async function handleTestingRoutes(
       for (const schema of schemas) {
         const collectionId = schema._id || schema.id || schema.name;
         try {
-          logger.info(`[testing] Provisioning collection: ${collectionId}...`);
+          logger.debug(`[testing] Provisioning collection: ${collectionId}...`);
           await initializedAdapter.collection.createModel(schema);
-          logger.info(`[testing] Model created for: ${collectionId}`);
+          logger.debug(`[testing] Model created for: ${collectionId}`);
 
           if (initializedAdapter.content?.nodes?.upsertContentStructureNode) {
-            logger.info(
+            logger.debug(
               `[testing] Upserting content node for ${collectionId} (tenant: ${tenantId})`,
             );
             const node: any = {
@@ -672,7 +680,7 @@ export async function handleTestingRoutes(
             };
             const upsertRes =
               await initializedAdapter.content.nodes.upsertContentStructureNode(node);
-            logger.info(
+            logger.debug(
               `[testing] Content node upsert result for ${collectionId}: ${upsertRes.success ? "OK" : "FAILED"}`,
             );
             if (!upsertRes.success) {
@@ -826,6 +834,13 @@ export async function handleTestingRoutes(
         bypassTenantCheck: true,
       });
 
+      // Role writes via the testing API must invalidate the permission cache —
+      // see the update action below for the full rationale.
+      if (collectionId === "roles") {
+        const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
+        invalidatePermissionCache();
+      }
+
       const responseBody = result.success
         ? {
             success: true,
@@ -853,6 +868,15 @@ export async function handleTestingRoutes(
         tenantId,
         bypassTenantCheck: true,
       });
+
+      // Role mutations via the testing API bypass AuthNamespace.updateRoles (which
+      // invalidates the permission cache globally). Without this, hasPermissionWithRoles
+      // keeps serving the pre-removal grant for up to 5 minutes (PermissionCache TTL)
+      // and permission-removal E2E assertions flake.
+      if (collectionId === "roles") {
+        const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
+        invalidatePermissionCache();
+      }
 
       const responseBody = result.success
         ? {
@@ -1075,6 +1099,9 @@ export async function handleTestingRoutes(
         }
         user = { ...user, blocked: false };
       }
+      // NOTE: do NOT reset password/role for existing users here — the p0 password
+      // journey changes the editor password concurrently and a reset would race it.
+      // Use action=seed with an explicit role for a full reset.
 
       return rawResponse({ success: true, user });
     }
@@ -1200,11 +1227,13 @@ export async function handleTestingRoutes(
     if (action === "seed-unified-data-hub") {
       const { seedUnifiedDataHub } = await import("@plugins/unified-data-hub/server/hub-test-seed");
       try {
-        // String(null) === "null" was poisoning connector/schema tenantId rows so
-        // listVirtualCollections({ tenantId: null }) could never find them.
+        // The UDH runtime normalizes null/undefined tenants to "default" everywhere
+        // (query-planner, virtual-query-engine, sdk namespace). String(null) === "null"
+        // used to poison connector/schema tenantId rows so lookups could never find
+        // them; the seed must use the SAME normalization or nothing is readable.
         const hubTenantId =
           tenantId == null || tenantId === ("" as any) || String(tenantId) === "null"
-            ? "global"
+            ? "default"
             : String(tenantId);
         const result = await seedUnifiedDataHub(initializedAdapter, hubTenantId, {
           fixture: params.fixture || "postgres",
@@ -1705,23 +1734,33 @@ export async function handleTestingRoutes(
         .toLowerCase()
         .trim();
       const role = String(params.role || "editor");
-      const { auth: authFacade } = await import("@src/databases/db");
-      if (!authFacade) {
-        throw new AppError("Auth facade unavailable for seed-invite-token", 503);
-      }
       const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      const token = await authFacade.createToken({
-        user_id: "pending" as any,
-        expires,
-        type: "user_invite",
+      // Use the same namespace path as the UI invite flow (POST /api/token/create-token).
+      // NOTE: authFacade.createToken({ user_id: "pending" }) fails — that facade
+      // resolves a real user by id before creating the token, which never exists for
+      // email invites. tokens.create writes the token directly for the invited email.
+      const result = await cms.auth.tokens.create({
         email,
         role,
+        expires,
+        // auth_tokens.user_id is NOT NULL — "pending" marks an unregistered invite.
+        userId: "pending" as any,
         tenantId,
-      } as any);
-      if (!token || typeof token !== "string") {
-        throw new AppError("Failed to create user_invite token", 500);
+      });
+      if (!result?.success || !result.data) {
+        throw new AppError(
+          (result as { message?: string })?.message || "Failed to create user_invite token",
+          500,
+        );
       }
-      return rawResponse({ success: true, token, email, role, expires, type: "user_invite" });
+      return rawResponse({
+        success: true,
+        token: result.data,
+        email,
+        role,
+        expires,
+        type: "user_invite",
+      });
     }
 
     // ── Password-reset / media gallery test seeds ───────────────────────────

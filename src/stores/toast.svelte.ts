@@ -8,6 +8,7 @@
  * - promise loading
  */
 
+import { logger } from "@utils/logger";
 import { browser } from "$app/environment";
 import { screen, ScreenSize } from "@stores/screen-size-store.svelte.ts";
 
@@ -254,7 +255,7 @@ class ToastStore {
     try {
       storage.setItem(FLASH_KEY, JSON.stringify(flashData));
     } catch (e) {
-      console.warn("[ToastStore] Flash persist failed:", e);
+      logger.warn("[ToastStore] Flash persist failed:", e);
     }
   }
 
@@ -281,7 +282,7 @@ class ToastStore {
         });
       }
     } catch (e) {
-      console.error("[ToastStore] Invalid flash message:", e);
+      logger.error("[ToastStore] Invalid flash message:", e);
     }
   }
 
@@ -500,7 +501,7 @@ class ToastStore {
     try {
       storage.setItem(STORAGE_KEY, JSON.stringify(savable));
     } catch (e) {
-      console.warn("[ToastStore] Failed to persist:", e);
+      logger.warn("[ToastStore] Failed to persist:", e);
     }
   }
 
@@ -539,7 +540,7 @@ class ToastStore {
         });
       }, 0);
     } catch (e) {
-      console.error("[ToastStore] Hydration failed:", e);
+      logger.error("[ToastStore] Hydration failed:", e);
       try {
         storage.removeItem(STORAGE_KEY);
       } catch {}

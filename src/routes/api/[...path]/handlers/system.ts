@@ -3,6 +3,7 @@
  * @description System, Settings, Widgets, and Utility handlers for the dispatcher.
  */
 
+import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
@@ -218,6 +219,15 @@ export async function handleWebhookRoutes(
 ) {
   const { request, locals } = event;
   const { user } = locals;
+
+  // 🛡️ SECURITY: Admin-only for all webhook operations
+  // Defense-in-depth: handler-level check independent of the middleware pipeline.
+  if (!user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+  if (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin") {
+    throw new AppError("Admin access required for webhook management", 403, "FORBIDDEN");
+  }
 
   const isDirect = segments[0] === "webhooks" || segments[0] === "system-webhooks";
   const webhookId = isDirect ? segments[1] : segments[2];
@@ -754,14 +764,16 @@ export async function handleAutomationRoutes(
   const { user } = locals;
 
   // 🛡️ SECURITY: Admin verification for automation management
-  if (!["GET", "OPTIONS"].includes(request.method)) {
-    if (!user || (!user.isAdmin && user.role !== "admin")) {
-      throw new AppError("Admin access required for automation management", 403, "FORBIDDEN");
-    }
+  // Defense-in-depth: handler-level check independent of the middleware pipeline.
+  if (!user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+  if (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin") {
+    throw new AppError("Admin access required for automation management", 403, "FORBIDDEN");
   }
 
   if (process.env.VERBOSE_TESTS === "true") {
-    console.log(
+    logger.debug(
       `[handleAutomationRoutes] Method: ${request.method}, segments: ${segments.join(",")}, tenantId: ${tenantId}`,
     );
   }
@@ -885,18 +897,11 @@ export async function handlePreferenceRoutes(
   };
 
   if (request.method === "GET") {
-    console.log(
-      `[Preference API] GET key: ${key}, scope: ${scope}, userId: ${options.userId}, tenantId: ${options.tenantId}`,
-    );
     const result = await cms.db.system.preferences.get(key, options);
     if (!result.success) {
       throw new AppError(result.message || "Failed to get preference", 500);
     }
-    console.log(
-      `[Preference API] GET Result: success=${result.success}, data=${JSON.stringify(result.data)}`,
-    );
     if (result.data === null) {
-      console.warn(`[Preference API] NOT FOUND: ${key}`);
       throw new AppError("Preference not found", 404);
     }
     return rawResponse(event, result.data);
@@ -904,14 +909,10 @@ export async function handlePreferenceRoutes(
 
   if (request.method === "POST" || request.method === "PUT") {
     const value = body.value !== undefined ? body.value : body;
-    console.log(
-      `[Preference API] SET key: ${key}, value: ${JSON.stringify(value)}, options: ${JSON.stringify(options)}`,
-    );
     const result = await cms.db.system.preferences.set(key, value, {
       ...options,
       category: body.category,
     });
-    console.log(`[Preference API] SET Result: success=${result.success}`);
     if (!result.success) {
       throw new AppError(result.message || "Failed to set preference", 500);
     }

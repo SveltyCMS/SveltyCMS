@@ -28,11 +28,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw error(403, "Forbidden: You do not have permission to access this page.");
   }
 
-  // 4. Return safe data to the UI.
-  //    Only return non-sensitive information needed for display.
-  return {
-    user: {
-      email: user.email,
-    },
-  };
+  // NOTE: Do NOT return a `user` key here — the (app) layout already provides the
+  // authoritative data.user, and shadowing it with a partial shape (no _id/id) makes
+  // floatingNavStore.bindUser() alternate ids and trip Svelte's effect_update_depth_exceeded.
+  return {};
 };

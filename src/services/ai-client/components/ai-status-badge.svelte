@@ -12,7 +12,8 @@
  ### Features:
  - shows WebGPU / CPU / unavailable status
  - tooltip with detailed capability info
- - keyboard-accessible (Enter/Space to expand)
+ - keyboard-accessible (Enter/Space to expand, Escape to close)
+ - click-away to dismiss
 -->
 
 <script lang="ts">
@@ -31,6 +32,7 @@
   let capabilities = $state<AiCapabilities | null>(null);
   let isLoading = $state(false);
   let isExpanded = $state(false);
+  let triggerEl = $state<HTMLButtonElement | null>(null);
 
   /** Icon and color based on the active backend. */
   const statusInfo = $derived.by(() => {
@@ -68,10 +70,34 @@
   function toggleExpand() {
     isExpanded = !isExpanded;
   }
+
+  // Close on Escape (keyboard) or on any click outside the trigger button.
+  // This keeps the tooltip container free of event handlers so it stays
+  // non-interactive (role="tooltip") and fully keyboard-accessible.
+  $effect(() => {
+    if (!isExpanded) return;
+
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") isExpanded = false;
+    };
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (triggerEl && target instanceof Node && triggerEl.contains(target)) return;
+      isExpanded = false;
+    };
+
+    document.addEventListener("keydown", onKeydown);
+    document.addEventListener("click", onClick);
+    return () => {
+      document.removeEventListener("keydown", onKeydown);
+      document.removeEventListener("click", onClick);
+    };
+  });
 </script>
 
 <div class="ai-status">
   <button
+    bind:this={triggerEl}
     class="ai-status__trigger"
     onclick={toggleExpand}
     disabled={!capabilities}
@@ -87,12 +113,7 @@
   </button>
 
   {#if isExpanded && capabilities}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="ai-status__detail"
-      role="tooltip"
-      onclick={() => (isExpanded = false)}
-    >
+    <div class="ai-status__detail" role="tooltip">
       <div class="ai-status__detail-row">
         <span>Runtime</span>
         <span class="ai-status__detail-value {capabilities.runtimeReady ? 'text-success' : 'text-danger'}">

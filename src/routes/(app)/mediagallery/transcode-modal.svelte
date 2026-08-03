@@ -5,6 +5,7 @@
 <script lang="ts">
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { slide } from "svelte/transition";
 	import Button from '@components/ui/button.svelte';
 
@@ -30,7 +31,7 @@ async function startTranscoding() {
 	try {
 		const response = await fetch("/api/media/transcode", {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: clientJsonHeaders(),
 			body: JSON.stringify({
 				mediaId: video._id,
 				format,

@@ -217,6 +217,12 @@ class ContentStore {
       const schema = node.collectionDef;
       if (schema) {
         if (node.path) schema.path = node.path;
+        // Keep collection icon in sync with content-node (presets / builder define it on either)
+        if (!schema.icon && node.icon) {
+          schema.icon = node.icon;
+        } else if (schema.icon && !node.icon) {
+          node.icon = schema.icon;
+        }
         const schemaId = (schema._id || node._id) as string;
 
         this._schemas.set(schemaId, schema);

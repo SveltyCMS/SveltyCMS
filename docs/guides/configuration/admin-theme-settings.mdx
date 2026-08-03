@@ -1,12 +1,12 @@
 ---
 path: "docs/guides/configuration/admin-theme-settings.mdx"
-title: "Admin Theme Settings"
-description: "Customize the admin panel with multiple themes, density presets, visual styles, custom CSS, and live preview."
+title: "Design System & Admin Theme Settings"
+description: "Design System workspace: multi-theme management, density, visual styles, personal overrides, custom CSS, and live component preview."
 order: 7
-icon: "mdi:palette-outline"
+icon: "mdi:compass-outline"
 author: "SveltyCMS Team"
 created: "2026-06-04"
-updated: "2026-06-17"
+updated: "2026-07-30"
 tags:
   - "theme"
   - "appearance"
@@ -16,13 +16,19 @@ tags:
   - "configuration"
 ---
 
-# Admin Theme Settings
+# Design System & Admin Theme Settings
 
 SveltyCMS's admin theme system lets you create, switch, and customize **multiple named themes**, each with its own density, visual style, features, and custom CSS. Changes preview instantly before saving.
 
-The Appearance page is located at `/config/appearance`.
+**Sole route:** **`/config/design-system`** (Config → Design System). There is no separate Appearance page.
 
-The **Design System playground** (`/config/design-system`) provides an interactive catalog of native UI components, semantic color swatches, and live density/variant preview — useful for developers evaluating or extending the admin theme without Storybook.
+**Deep links (query `?tab=`):**
+
+| Tab                                                         | URL                                   | Audience                                 |
+| :---------------------------------------------------------- | :------------------------------------ | :--------------------------------------- |
+| **My Overrides**                                            | `/config/design-system?tab=overrides` | All users (linked from `/user` Settings) |
+| **Live Preview**                                            | `/config/design-system?tab=preview`   | Component catalog + token readout        |
+| **Themes / Presets / Layout / Style / Features / Advanced** | `?tab=themes` etc.                    | Workspace admins                         |
 
 ---
 
@@ -32,7 +38,7 @@ SveltyCMS supports multiple admin themes stored in the database. Each theme stor
 
 ### Themes Tab
 
-Navigate to **Config → Appearance → Themes**.
+Navigate to **Config → Design System → Themes**.
 
 | Action       | Description                                                        |
 | :----------- | :----------------------------------------------------------------- |
@@ -44,7 +50,7 @@ The active theme shows a green **Active** badge. The system default theme (creat
 
 ### Creating a Theme
 
-1.  Navigate to **Config → Appearance → Themes**.
+1.  Navigate to **Config → Design System → Themes**.
 2.  Enter a name (e.g., "Midnight Blue", "High Contrast Reader").
 3.  Click **Create**.
 
@@ -149,7 +155,7 @@ When **Sticky Action Bar** is enabled, any page can make its action buttons stic
 The buttons render **both** in their original position AND in the sticky bar at the bottom of the screen — no duplication in your code. The bar uses `role="toolbar"`, `aria-label="Page actions"`, and `aria-live="polite"` for screen reader compatibility.
 
 > [!TIP]
-> The sticky bar height adapts to density — 44px in compact, 56px in cozy, 64px in spacious. Toggle the feature per-theme in **Appearance → Features**.
+> The sticky bar height adapts to density — 44px in compact, 56px in cozy, 64px in spacious. Toggle the feature per-theme in **Design System → Features**.
 
 ---
 
@@ -172,10 +178,26 @@ Custom CSS is **sanitized server-side** before storage. Dangerous constructs (`u
 > [!CAUTION]
 > Custom CSS can override theme settings. If your density or variant changes don't appear to take effect, check your custom CSS for conflicting rules.
 
+### Palette studio (Design System → Palette & Import)
+
+A lightweight brand editor (Skeleton-inspired) lives on the **Palette & Import** tab:
+
+| Control                          | Purpose                                                                  |
+| :------------------------------- | :----------------------------------------------------------------------- |
+| **Primary / Tertiary / Surface** | Core seeds (color picker + hex)                                          |
+| **More colors**                  | Secondary, success, warning, error                                       |
+| **Live apply**                   | Pushes expanded shades into theme CSS immediately                        |
+| **Expanded shades**              | Shows 50 / 500 / 950 previews                                            |
+| **Apply / Reset / Clear**        | Commit, restore Corporate defaults, or remove only the palette CSS block |
+
+Seeds expand via `color-mix` into full scales and rebind `--admin-bg-*` (same path as theme JSON import). Manual **Advanced → Custom CSS** outside the `sveltycms-palette-start/end` markers is preserved. Click **Save Theme** to persist.
+
+For a full visual generator (typography, edges, etc.), use [Skeleton Theme Create](https://themes.skeleton.dev/themes/create) and import the JSON below.
+
 ### Export / Import
 
 - **Export Theme JSON**: Downloads the current theme (density, variant, features, custom CSS) as a portable JSON file.
-- **Import**: Paste SveltyCMS theme JSON or [Skeleton.dev](https://themes.skeleton.dev/themes/create) theme exports in the **Presets & Import** tab.
+- **Import**: Paste SveltyCMS theme JSON or [Skeleton.dev](https://themes.skeleton.dev/themes/create) theme exports in the **Palette & Import** tab.
 
 #### Default install (Corporate workspace)
 
@@ -185,7 +207,7 @@ Fresh installs seed the active theme from `/src/themes/default.json`:
 - **Branding:** `brandedLogin: true` — login shows tenant site name + accent colors immediately
 - **Palette:** teal primary (`#0f766e`), blue tertiary (`#1d4ed8`), warm professional tones
 
-Users land on a polished default — no need to discover Appearance first. Customize from **Config → Appearance** when ready.
+Users land on a polished default — no need to discover Design System first. Customize from **Config → Design System** when ready.
 
 #### Skeleton.dev color import
 
@@ -222,7 +244,7 @@ Skeleton CSS exports (`[data-theme='...'] { ... }`) pasted as JSON with a `css` 
 
 ### My Overrides (per-user preferences)
 
-All users can override density, card style, reduced motion, high contrast, and **layout regions** (sidebars, page header/footer) in **Appearance → My Overrides**. Use **My Layout** to set each region to visible, hidden, or theme default; click **Use current layout** to snapshot the panels as they are now. Sidebar toggles also auto-save to your profile after 2 seconds (non-admins store only differences from the tenant theme). Preferences apply **immediately** across the admin shell without a page reload (optimistic client overlay + `app:user-prefs` invalidation).
+All users can override density, card style, reduced motion, high contrast, and **layout regions** (sidebars, page header/footer) on **Design System → My Overrides** (`/config/design-system?tab=overrides`). **User → Settings** offers a compact density/card/a11y strip and links to the same deep link for full layout prefs. Use **My Layout** to set each region to visible, hidden, or theme default; click **Use current layout** to snapshot the panels as they are now. Sidebar toggles also auto-save to your profile after 2 seconds (non-admins store only differences from the tenant theme). Preferences apply **immediately** across the admin shell without a page reload (optimistic client overlay + `app:user-prefs` invalidation).
 
 ### Theme Files (`/src/themes/*.json`)
 
@@ -313,7 +335,7 @@ The **Danger Zone** in the Advanced tab resets all settings to factory defaults.
 
 ## ⚡ Live Preview
 
-All changes in the Appearance page are **applied instantly** via Svelte 5's reactive `$state`. The entire admin panel behind the settings page reflects your changes in real time — before you click Save.
+All changes in Design System are **applied instantly** via Svelte 5's reactive `$state`. The entire admin panel behind the settings page reflects your changes in real time — before you click Save.
 
 A sticky **Save Bar** appears at the bottom whenever there are unsaved changes:
 
@@ -460,9 +482,9 @@ This architecture provides a highly optimized toolbar, sidebar, and layout syste
 
 ## 🧱 Architecture
 
-The admin theme system is built on two pillars that work together:
+The admin theme system is built on three pillars that work together:
 
-### 1. CSS Variables (`--admin-*`)
+### 1. Structural CSS Variables (`--admin-*`)
 
 Defined in `src/utilities.css`, these variables control radii, shadows, sidebar width, header height, and density at the browser level. They cascade from the `data-density` attribute on the admin layout root element.
 
@@ -474,7 +496,21 @@ Defined in `src/utilities.css`, these variables control radii, shadows, sidebar 
 }
 ```
 
-### 2. Svelte 5 `AdminTheme` Context
+### 2. Semantic surface roles (`--admin-bg-*`, text, borders)
+
+Also defined in `src/utilities.css` (light defaults + `html.dark` elevation). Use these instead of hardcoding paired `dark:` surface classes on admin shells:
+
+| Token                                              | Role                                                                            |
+| :------------------------------------------------- | :------------------------------------------------------------------------------ |
+| `--admin-bg-page`                                  | Admin page canvas (`AdminPageShell`)                                            |
+| `--admin-bg-card`                                  | Elevated card surface (`AdminCard`, `.card`) — one step above page in dark mode |
+| `--admin-bg-sidebar`                               | Sidebar background                                                              |
+| `--admin-border-default` / `--admin-border-subtle` | Hairline borders                                                                |
+| `--admin-text-body` / `--admin-text-muted`         | Primary / secondary text                                                        |
+
+**Card shadows stay variant-driven** (`flat` / `bordered` / `elevated`) via `AdminTheme.cardShadow` and `--admin-shadow-*` — do not hardcode `hover:shadow-lg` on every card.
+
+### 3. Svelte 5 `AdminTheme` Context
 
 The `AdminTheme` class in `src/components/ui/theme-context.svelte.ts` is the reactive runtime state consumed by all 37+ native UI components (Button, Card, Input, Table, Modal, Drawer, etc.).
 

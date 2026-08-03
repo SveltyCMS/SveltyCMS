@@ -9,7 +9,12 @@
  * - Graceful fallback for missing widgets
  */
 
-import { coreModules, customModules } from "@src/widgets/scanner";
+import { coreModules, customModules, marketplaceModules } from "@src/widgets/scanner";
+import {
+  folderFromWidgetPath,
+  validateWidgetNaming,
+  type WidgetTier,
+} from "@src/widgets/widget-naming";
 import { logger } from "@utils/logger";
 import type { WidgetFactory, WidgetModule, WidgetType } from "@widgets/types";
 
@@ -33,12 +38,9 @@ function processWidgetModule(
   type: WidgetType,
 ): ProcessedWidget | null {
   try {
-    // Extract widget name from path (e.g., './core/input/index.ts' -> 'input')
-    const pathParts = path.split("/");
-    const name = pathParts.at(-2);
-
-    if (!name) {
-      logger.warn(`[Widget Proxy] Unable to extract widget name from path: ${path}`);
+    const folder = folderFromWidgetPath(path);
+    if (!folder) {
+      logger.warn(`[Widget Proxy] Unable to extract widget folder from path: ${path}`);
       return null;
     }
 
@@ -54,20 +56,25 @@ function processWidgetModule(
     }
 
     const factory = module.default as WidgetFactory;
+    const naming = validateWidgetNaming(folder, factory.Name, type as WidgetTier);
 
-    // Validate required factory properties
-    if (!factory.Name) {
-      logger.warn(`[Widget Proxy] Widget factory missing Name property: ${path}`);
+    for (const w of naming.warnings) {
+      logger.warn(`[Widget Proxy] ${type} "${folder}": ${w}`);
+    }
+    if (!naming.ok) {
+      logger.error(
+        `[Widget Proxy] Refusing ${type} widget at ${path}: ${naming.errors.join("; ")}`,
+      );
       return null;
     }
 
-    // Enhance factory with metadata
+    factory.Name = naming.name;
     factory.__widgetType = type;
 
-    logger.trace(`[Widget Proxy] Successfully loaded widget: ${name} (${type})`);
+    logger.trace(`[Widget Proxy] Loaded widget: ${naming.name} (${type})`);
 
     return {
-      name: factory.Name,
+      name: naming.name,
       factory,
       type,
       path,
@@ -121,33 +128,25 @@ const registry = new WidgetRegistryImpl();
 // Load Widgets
 // ============================================================================
 
-// Process core widgets
+// Process core + custom + marketplace (register under factory Name only)
 for (const [path, module] of Object.entries(coreModules)) {
   const processed = processWidgetModule(path, module as WidgetModule, "core");
   if (processed) {
     registry.register(processed.name, processed.factory, processed.type, processed.path);
-
-    // Register aliases (folder name if different)
-    const folderName = path.split("/").at(-2);
-    if (folderName && folderName !== processed.name) {
-      logger.trace(`[Widget Proxy] Alias: ${folderName} -> ${processed.name}`);
-      registry.register(folderName, processed.factory, processed.type, processed.path);
-    }
   }
 }
 
-// Process custom widgets
 for (const [path, module] of Object.entries(customModules)) {
   const processed = processWidgetModule(path, module as WidgetModule, "custom");
   if (processed) {
     registry.register(processed.name, processed.factory, processed.type, processed.path);
+  }
+}
 
-    // Register aliases (folder name if different)
-    const folderName = path.split("/").at(-2);
-    if (folderName && folderName !== processed.name) {
-      logger.trace(`[Widget Proxy] Alias: ${folderName} -> ${processed.name}`);
-      registry.register(folderName, processed.factory, processed.type, processed.path);
-    }
+for (const [path, module] of Object.entries(marketplaceModules)) {
+  const processed = processWidgetModule(path, module as WidgetModule, "marketplace");
+  if (processed) {
+    registry.register(processed.name, processed.factory, processed.type, processed.path);
   }
 }
 

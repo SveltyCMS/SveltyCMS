@@ -87,6 +87,7 @@ bulk actions, and predictive preloading.
 	import { cloneEntries, setEntriesStatus } from '@utils/entry-actions';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	// Native UI Components
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modal.svelte';
 	import { preloadEntry, reflectModeInURL } from '@utils/navigation';
@@ -457,7 +458,7 @@ bulk actions, and predictive preloading.
 			try {
 				await fetch('/api/collections/warm-cache', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: clientJsonHeaders(),
 					body: JSON.stringify({
 						collectionId: currentCollection._id,
 						entryIds
@@ -568,7 +569,7 @@ bulk actions, and predictive preloading.
 						};
 					}
 				} catch (e) {
-					console.error('Failed to load entry list settings', e);
+					logger.error('Failed to load entry list settings', e);
 				}
 			}
 		}
@@ -649,6 +650,8 @@ bulk actions, and predictive preloading.
 	const currentLanguage = $derived(propContentLanguage || currentStates.language);
 	const currentMode = $derived(currentStates.mode);
 	const currentCollection = $derived(currentStates.collection);
+	// Collection header icon (widget default if the collection has no custom icon)
+	const collectionIcon = $derived(currentCollection?.icon || 'bi:collection');
 
 	import { availablePlugins } from '@src/plugins/index';
 
@@ -984,9 +987,14 @@ bulk actions, and predictive preloading.
 					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-50 rtl:text-left">{categoryName}</div>
 				{/if}
 				<h1 class="-mt-2 flex justify-start text-sm font-bold capitalize dark:text-white md:text-2xl lg:text-xl">
-					{#if currentCollection?.icon}
-						<span> <iconify-icon icon={currentCollection.icon} width="24" class="me-1 text-error-500 sm:mr-2"></iconify-icon> </span>
-					{/if}
+					<span>
+						<iconify-icon
+							icon={collectionIcon}
+							width="24"
+							class="me-1 text-error-500 sm:me-2"
+							aria-hidden="true"
+						></iconify-icon>
+					</span>
 					{#if currentCollection?.name}
 						<div class="flex max-w-21.25 whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}

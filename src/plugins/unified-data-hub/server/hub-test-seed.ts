@@ -20,7 +20,12 @@ import { pluginRegistry } from "@src/plugins/registry";
 import { getIntegrationDbName } from "@src/utils/test-db-credentials";
 
 import type { ConnectorRecord, VirtualCollectionRecord } from "../types";
-import { saveConnector, saveVirtualCollection } from "./connector-registry";
+import {
+  saveConnector,
+  saveVirtualCollection,
+  CONNECTORS_COLLECTION,
+  SCHEMAS_COLLECTION,
+} from "./connector-registry";
 import {
   FIXTURE_AUTHORS_SLUG,
   FIXTURE_AUTHORS_TABLE,
@@ -102,6 +107,12 @@ async function seedPostgresHub(
 
   const connectorId = (options.connectorId || "udh-test-connector") as DatabaseId;
   const collectionId = (options.collectionId || "udh-test-vc") as DatabaseId;
+
+  // Force-recreate CMS-side fixtures: tenant-scoped upserts silently miss rows
+  // written under an older tenant convention ("global" vs "default"), leaving
+  // stale connectors/schemas that the runtime can never resolve.
+  await db.crud.deleteMany(CONNECTORS_COLLECTION, {}, { permanent: true });
+  await db.crud.deleteMany(SCHEMAS_COLLECTION, {}, { permanent: true });
 
   const connector: ConnectorRecord = {
     _id: connectorId,
@@ -225,6 +236,10 @@ async function seedWordPressHub(
     createdAt: "" as unknown as ISODateString,
     updatedAt: "" as unknown as ISODateString,
   };
+
+  // Same stale-row guard as seedPostgresHub — force-recreate CMS-side fixtures.
+  await db.crud.deleteMany(CONNECTORS_COLLECTION, {}, { permanent: true });
+  await db.crud.deleteMany(SCHEMAS_COLLECTION, {}, { permanent: true });
 
   const wpDef = buildWordPressVirtualCollection("posts", String(connectorId), tenantId);
   const collection: VirtualCollectionRecord = {

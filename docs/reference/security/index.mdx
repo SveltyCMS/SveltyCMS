@@ -588,12 +588,14 @@ SveltyCMS security features support compliance with:
 - ✅ Pinned GitHub Actions to specific commit SHAs
 - ✅ Enforced frozen lockfiles in CI/CD
 - ✅ Automated dependency updates with verification
+- ✅ CycloneDX SBOM generation (`bun run audit:sbom`)
 
 **Implementation:**
 
 - All GitHub workflows use immutable action references (e.g., `actions/checkout@11bd7...`) to prevent tag hijacking.
 - `bun install --frozen-lockfile` is enforced in all CI jobs to prevent lockfile poisoning.
 - Secure update scripts ensure lockfile integrity during maintenance.
+- `bun run update` regenerates the SBOM after dependency updates; the pre-commit hook also re-syncs `sbom.json` whenever `bun.lock`/`package.json` change. The SBOM (CycloneDX 1.5, SHA-512 hashes) provides a verifiable inventory of every dependency for vulnerability scanners (e.g., Dependency-Track, Grype) and SOC 2 / GDPR Art. 32 compliance.
 
 ---
 

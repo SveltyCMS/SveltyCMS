@@ -155,15 +155,19 @@ function normalizeJsonFieldValue(
   options?: { mariaDoubleParseJson?: boolean },
 ): unknown {
   let v = value;
-  if (isJsonString(v)) {
+  // Parse through every JSON-string layer — legacy rows may be double-encoded
+  // ("stringified string") from older write paths; a single pass leaves them
+  // as strings and permission bitsets silently degrade to empty.
+  const maxLayers = options?.mariaDoubleParseJson ? 3 : 3;
+  for (let i = 0; i < maxLayers; i++) {
+    if (!isJsonString(v)) break;
     try {
-      v = JSON.parse(v);
-    } catch {}
-  }
-  if (options?.mariaDoubleParseJson && isJsonString(v)) {
-    try {
-      v = JSON.parse(v);
-    } catch {}
+      const next = JSON.parse(v as string);
+      if (next === v) break;
+      v = next;
+    } catch {
+      break;
+    }
   }
   return v;
 }
@@ -336,9 +340,16 @@ export const convertUserToISO = convertDatesToISO;
 export const convertSessionToISO = convertDatesToISO;
 
 export const parseJsonField = <T = any>(v: any, fallback?: T): T => {
-  if (typeof v === "string" && (v.startsWith("{") || v.startsWith("["))) {
+  if (typeof v === "string" && (v.startsWith("{") || v.startsWith("[") || v.startsWith('"'))) {
     try {
-      return JSON.parse(v) as T;
+      let parsed: unknown = v;
+      for (let i = 0; i < 3; i++) {
+        const next = JSON.parse(parsed as string);
+        if (next === parsed) break;
+        parsed = next;
+        if (typeof parsed !== "string") break;
+      }
+      return parsed as T;
     } catch {
       return (fallback !== undefined ? fallback : v) as T;
     }

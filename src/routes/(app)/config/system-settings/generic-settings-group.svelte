@@ -748,6 +748,7 @@ onMount(() => {
 									</SystemTooltip>
 								</label>
 								<Select
+									id={defaultLangField.key}
 									bind:value={values[defaultLangField.key] as string}
 									options={((values.AVAILABLE_CONTENT_LANGUAGES as string[])?.length > 0
 										? (values.AVAILABLE_CONTENT_LANGUAGES as string[])
@@ -896,6 +897,7 @@ onMount(() => {
 									</SystemTooltip>
 								</label>
 								<Select
+									id={baseLocaleField.key}
 									bind:value={values[baseLocaleField.key] as string}
 									options={((values.LOCALES as string[])?.length > 0
 										? (values.LOCALES as string[])

@@ -93,9 +93,15 @@ function validateSchemaFields(schema: Schema): boolean {
     logger.error("Schema validation failed: missing or invalid 'name'");
     return false;
   }
-  if (!Array.isArray(schema.fields) || schema.fields.length === 0) {
-    logger.error(`Schema validation failed: 'fields' must be a non-empty array (${schema.name})`);
+  if (!Array.isArray(schema.fields)) {
+    logger.error(`Schema validation failed: 'fields' must be an array (${schema.name})`);
     return false;
+  }
+  // Empty fields are legitimate drafts (builder saves field-less scaffolds and the
+  // schema contract soft-approves them). Hard-rejecting here made the scanner
+  // delete the compiled .js + touch the source in an endless recompile loop.
+  if (schema.fields.length === 0) {
+    logger.warn(`Schema "${schema.name}" has no fields — loaded as draft`);
   }
 
   // Check for duplicate db_fieldName values (silent data corruption risk)
@@ -225,7 +231,7 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
       try {
         const entries = await fsPromises.readdir(dir, { withFileTypes: true });
         if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.info(`[Scanner] readdir ${dir} found ${entries.length} entries`);
+          logger.debug(`[Scanner] readdir ${dir} found ${entries.length} entries`);
         }
         await Promise.all(
           entries.map(async (entry) => {
@@ -264,8 +270,8 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
       );
 
       if (process.env.BENCHMARK_DEBUG === "true") {
-        logger.info(`[Scanner] Total files found: ${fileList.length}`);
-        logger.info(`[Scanner] Files needing scan: ${scanList.length}`);
+        logger.debug(`[Scanner] Total files found: ${fileList.length}`);
+        logger.debug(`[Scanner] Files needing scan: ${scanList.length}`);
       }
 
       if (scanList.length === 0) {
@@ -522,7 +528,7 @@ export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: 
     const { assertLiveDataWriteAllowed } = await import("@utils/benchmark-sandbox");
     assertLiveDataWriteAllowed(filePath);
     await fs.writeFile(filePath, content, "utf-8");
-    logger.info(
+    logger.debug(
       `[Bootstrap] Regenerated collection file: ${isTestCollection ? "config/test-collections/" : "config/collections/"}${fileName}`,
     );
   }
@@ -549,7 +555,7 @@ export const contentService = {
   ): Promise<void> {
     markFileDirty(changedFile);
     if (process.env.BENCHMARK_DEBUG === "true") {
-      logger.info(
+      logger.debug(
         `[RECONCILE] fullReload triggered. Tenant: ${tenantId}, target: ${changedFile || "ALL"}`,
       );
     }
@@ -731,14 +737,14 @@ export const contentService = {
 
       if (source === "filesystem" && dbNode.nodeType !== "category") {
         if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.info(
+          logger.debug(
             `[Reconcile] Pruning stale filesystem node: ${path} (type: ${dbNode.nodeType})`,
           );
         }
         if (path) prunedPaths.push(path);
       } else {
         if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.info(`[Reconcile] Preserving API/Internal node: ${path} (source: ${source})`);
+          logger.debug(`[Reconcile] Preserving API/Internal node: ${path} (source: ${source})`);
         }
         preservedNodes.push(dbNode);
       }
@@ -755,7 +761,7 @@ export const contentService = {
     dbAdapter: IDBAdapter,
   ) {
     if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
-      logger.info(
+      logger.debug(
         `[RECONCILE] Syncing ${operations.length} nodes and pruning ${prunedPaths.length} paths for tenant: ${tenantId || "global"}`,
       );
     }
@@ -863,6 +869,15 @@ export const contentService = {
       tenantId: tenantId as any,
     });
     contentStore.upsert(node);
+
+    // Diff-only physical model provision (single schema — no 50ms sleeps)
+    try {
+      await ensurePhysicalModels([schema], dbAdapter);
+    } catch (modelErr) {
+      logger.warn(
+        `[Incremental] createModel non-fatal for ${schema._id ?? schema.name}: ${modelErr}`,
+      );
+    }
 
     if (options?.broadcast !== false) {
       await notifyContentUpdate(tenantId);
@@ -1101,9 +1116,8 @@ let _pendingFullReload = false;
 export function startContentWatcher() {
   const targetDir = path.resolve(process.cwd(), ".compiledCollections");
 
-  if (process.env.BENCHMARK_DEBUG === "true") {
-    logger.info(`[Watcher] Monitoring collections at: ${targetDir}`);
-  }
+  // Once per process — not on every HMR re-entry of this module in theory, but key is stable
+  logger.once("content-watcher-start", "info", `[Watcher] Monitoring collections at: ${targetDir}`);
 
   if (!existsSync(targetDir)) {
     logger.warn(`[Watcher] Target directory does not exist: ${targetDir}`);
@@ -1130,7 +1144,7 @@ export function startContentWatcher() {
         await contentService.processChangedFiles(null, undefined, {
           requireFullReload: _pendingFullReload,
         });
-        logger.info(`[Watcher] Content system re-synchronized (batched)`);
+        logger.debug(`[Watcher] Content system re-synchronized (batched)`);
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         // Gracefully ignore — Vite module runner closes during dev server shutdown

@@ -259,7 +259,7 @@ Features:
 						Icon
 					</h3>
 
-					<label class="block" for="icon-picker">
+					<div class="block">
 						<span class="mb-2 block text-sm font-medium text-surface-700 dark:text-surface-200">
 							Choose an icon
 						</span>
@@ -273,7 +273,7 @@ Features:
 						{#if validationErrors.icon}
 							<span id="icon-error" class="mt-1 block text-xs text-error-500">{validationErrors.icon}</span>
 						{/if}
-					</label>
+					</div>
 				</AdminCard>
 
 				<!-- Live Preview Card -->

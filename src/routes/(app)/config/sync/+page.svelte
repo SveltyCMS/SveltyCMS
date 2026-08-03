@@ -5,6 +5,7 @@
 Allows synchronization between filesystem and database, and full system backup/restore.
 -->
 <script lang="ts">
+import { logger } from "@utils/logger";
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { onMount } from "svelte";
@@ -46,7 +47,7 @@ async function loadStatus() {
 		}
 		const payload = (result as { data?: ConfigStatus }).data ?? (result as unknown as ConfigStatus);
 		status = payload && typeof payload === "object" && "status" in payload ? payload : (result as any);
-		console.debug("[Config Sync] Received status:", $state.snapshot(status));
+		logger.debug("[Config Sync] Received status:", $state.snapshot(status));
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : String(err);
 		toast.error(`Failed to fetch status: ${errorMsg}`);

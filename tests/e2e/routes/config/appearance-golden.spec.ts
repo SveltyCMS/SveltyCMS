@@ -10,8 +10,11 @@ const ACTION_TIMEOUT = 25_000;
 
 async function openAdminThemes(page: Page) {
   await loginAsAdmin(page);
-  await page.goto("/config/appearance", { waitUntil: "domcontentloaded", timeout: 30_000 });
-  await expect(page.getByRole("heading", { level: 1, name: /admin theme settings/i })).toBeVisible({
+  await page.goto("/config/design-system?tab=themes", {
+    waitUntil: "domcontentloaded",
+    timeout: 30_000,
+  });
+  await expect(page.getByRole("heading", { level: 1, name: /design system/i })).toBeVisible({
     timeout: ACTION_TIMEOUT,
   });
   // Admin tabs only for isAdmin

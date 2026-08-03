@@ -1,34 +1,39 @@
 ---
 path: "docs/reference/architecture/compilation-pipeline.mdx"
 title: Compilation Pipeline
-description: Detailed architecture of the SveltyCMS compilation system, explaining how TypeScript collections are transformed into runtime-ready JavaScript with UUID syncing and robust validation.
+description: Detailed architecture of the SveltyCMS compilation system — TypeScript collections to runtime JS, unified ContentSync HMR, atomic writes, and hash-backed drift detection.
 author: "SveltyCMS Team"
 created: "2025-12-29"
-updated: "2026-07-15"
+updated: "2026-07-31"
 tags:
   - "architecture"
   - "compilation"
   - "pipeline"
+  - "hmr"
 ---
 
 # Compilation Pipeline
 
-The SveltyCMS compilation system is an enterprise-grade utility that transforms TypeScript collection configurations into runtime-optimized JavaScript. It ensures data integrity, maintains stable content IDs (UUIDs) across edits, and validates widgets during the build process.
+The SveltyCMS compilation system transforms TypeScript collection configurations into runtime-optimized JavaScript. It ensures data integrity, maintains stable field UUIDs and collection `_id`s across edits, and feeds a **single content-sync coordinator** so IDE edits and Collection Builder saves stay fully dynamic without session-breaking reloads.
 
 ## Architecture
 
-The system is modularized into three core components located in `src/utils/compilation/`:
+The system is modularized into three core components located in `src/utils/compilation/`, plus the content-sync coordinator:
 
 1.  **`compile.ts`** (The Orchestrator)
     - Manages the build lifecycle: scanning, detection, compilation, and cleanup.
     - Implements concurrency control for performance.
-    - Handles file persistence and UUID synchronization.
+    - **Atomic `.js` writes** (`atomicWriteFile`) + manifest atomic JSON.
+    - Returns `changedJsPaths`, `changedSourceFiles`, and `noOp` for surgical HMR.
 2.  **`transformers.ts`** (The AST Surgeon)
-    - Contains pure functions that manipulating TypeScript ASTs.
-    - Injects UUIDs, safely rewrites imports, and transforms widget calls.
+    - Single-pass composite AST transforms.
+    - Deterministic widget UUIDs, schema `_id`/`tenantId` injection, import rewrites.
 3.  **`types.ts`** (The Contract)
-    - Defines strict TypeScript interfaces for all system components.
-    - Ensures type safety across the entire compilation flow.
+    - `CompileOptions`, `ManifestEntry`, `CompilationResult` (including HMR fields).
+4.  **`src/content/sync-content-state.server.ts`** (ContentSync coordinator)
+    - Reasons: `boot` | `compile` | `gui-save` | `watcher` | `sidebar-reorder` | `collection-save`.
+    - GUI ↔ watcher **compile lock** (dedupe double compile after builder save).
+    - Hash-backed drift detection, metrics, structured HMR payload fields.
 
 ## Key Features
 
@@ -83,68 +88,123 @@ After full builds, the compiler:
 
 The manifest keys use absolute paths with compiled-dir prefix stripping so orphan cleanup never deletes freshly compiled output.
 
-## Integration
+## Integration (2026 unified path)
 
-The compilation pipeline is integrated into both the development server and the production build:
+All live updates go through **`syncContentState`** — never a one-off `compile()` + sequential `createModel` loop in Vite.
+
+```mermaid
+flowchart TD
+  TS["config/collections/**/*.ts"]
+  VITE["Vite sveltyCmsPlugin<br/>debounce 150ms"]
+  GUI["Collection Builder save"]
+  SYNC["syncContentState(reason)"]
+  LOCK["GUI compile lock<br/>watcher dedupe"]
+  COMP["compile(targetFile?)<br/>atomic .js + xxhash64"]
+  ENG["refreshContent / incremental<br/>+ ensurePhysicalModels"]
+  WS["svelty:content-update<br/>structured payload"]
+  UI["invalidate app:content<br/>content-registry + collection-store"]
+
+  TS --> VITE
+  GUI --> SYNC
+  VITE --> SYNC
+  SYNC --> LOCK
+  LOCK --> COMP
+  COMP --> ENG
+  ENG --> WS --> UI
+```
 
 ### Vite Plugin (`vite.config.ts`)
 
-In development mode, the `sveltyCmsPlugin()` invokes the compiler on file changes:
+In development, `sveltyCmsPlugin()` batches collection file events and calls:
 
 ```typescript
-// vite.config.ts — handleHmr inside sveltyCmsPlugin
-import { compile } from "./src/utils/compilation/compile";
-
-// On file change:
-const isLikelyMove = event === "unlink" && file.endsWith(".ts");
-await compile({
-  userCollections: paths.userCollections,
-  compiledCollections: paths.compiledCollections,
-  targetFile: isLikelyMove ? undefined : file, // Full compile on move
+// vite.config.ts — handleHmr (collections branch)
+await syncContentState({
+  reason: "watcher",
+  changedFile: absolutePath,
+  targetFile: relativeSource, // single-file incremental
+  fullBuild: deleteOrMultiFile, // unlink / multi-file → full + orphan cleanup
 });
+
+// noOp → skip generateContentTypes + skip client work
+// else → structured WS:
+// { reason, contentVersion, changedIds, processed, durationMs, noOp }
 ```
 
-When a file is moved/renamed (detected by `unlink` + `.ts`), the compiler runs a **full build** with orphan cleanup to ensure the old compiled file is removed and the new one is created.
+| Event                       | Compile mode                    | Notes                                    |
+| :-------------------------- | :------------------------------ | :--------------------------------------- |
+| Single `.ts` / `.js` change | `targetFile` incremental        | Hash skip when unchanged                 |
+| Multi-file batch            | Full build                      | Debounced set of paths                   |
+| `unlink` / `unlinkDir`      | Full build                      | Orphan cleanup                           |
+| GUI save in flight          | **Skipped** (`skippedByDedupe`) | `beginGuiCompileSession` lock + cooldown |
+| Compile `noOp`              | No types gen / soft HMR         | Client ignores when `noOp: true`         |
 
-### Server-Side Route (`+page.server.ts`)
+`.compiledCollections/**` is on Vite’s `watch.ignored` list so compiler writes do not re-enter the watcher.
 
-The Collection Builder UI triggers compilation when you save a collection:
+### Collection Builder (`+page.server.ts`)
 
+Schema save and delete use **`reason: "collection-save"`** (acquires GUI lock so Vite does not double-compile):
+
+```typescript
+await syncContentState({
+  reason: "collection-save",
+  tenantId,
+  targetFile: "posts.ts",
+  changedFile: collectionPath,
+  fullBuild: renamed, // rename → full build
+});
+// Returns { contentVersion, changedIds, metrics }
 ```
-// src/routes/(app)/config/collectionbuilder/.../+page.server.ts
+
+Organizational drag/save still uses **`reason: "gui-save"`** (structure ops + optional compile).
+
+Presets / quick-start use **`invalidate("app:content")`** — no `window.location.reload()` (session, consent, and editor context preserved).
+
+### Content types generation
+
+`scripts/generate-content-types.ts` rewrites `src/content/types.generated.ts` after a successful non-no-op compile (best-effort; missing/failing script must not break HMR).
+
+## Logging & metrics
+
+- **Compile logger** (`types.ts` `Logger`): quiet under Vitest/CI unless verbose.
+- **ContentSync metrics** on each `syncContentState` result:
+
+| Field       | Meaning                             |
+| :---------- | :---------------------------------- |
+| `totalMs`   | End-to-end coordinator time         |
+| `compileMs` | `compile()` duration                |
+| `refreshMs` | Engine refresh / incremental reload |
+| `processed` | Files written this run              |
+| `skipped`   | Hash-skipped files                  |
+| `orphaned`  | Orphaned compiled outputs removed   |
+
+## Schema integrity & drift
+
+| Layer                   | Location                         | Role                                                           |
+| :---------------------- | :------------------------------- | :------------------------------------------------------------- |
+| Compile transform       | `transformers.ts`                | Stable `_id`, deterministic widget UUIDs                       |
+| Post-load contract      | `src/content/schema-contract.ts` | Shape, duplicate `db_fieldName`; soft empty-fields draft       |
+| Engine hard validation  | `validateSchemaFields`           | Rejects empty/invalid before DB provision                      |
+| Offline drift           | `detectCompilationDrift`         | mtime prefilter + **manifest `sourceHash`** (xxhash64) confirm |
+| Org drift               | `detectOrganizationalDrift`      | Manifest order/structure vs DB                                 |
+| GUI destructive changes | MigrationEngine                  | Blocks field drops without confirmation                        |
+
+```typescript
 import { compile } from "@src/utils/compilation/compile";
+import { syncContentState } from "@src/content/sync-content-state.server";
 
-// ... inside save action
-await compile({ logger }); // Trigger full or partial compile
-```
-
-## Logging
-
-The system uses a unified `Logger` interface defined in `types.ts`. This allows it to adapt to different environments:
-
-- **Build Time**: Uses Vite's colored console output.
-- **Runtime**: Can use the server-side `logger` instance for persistent logs in `app.log`.
-
-## Schema Integrity & Drift Detection
-
-While the compilation pipeline handles the _transformation_ of code to checks, the system also now includes a **Drift Detection layer** (`src/utils/schema/comparison.ts`).
-
-- **Post-Compile Check**: After compilation, the system can compare the new `compiledCollections` (Code Truth) against the database state.
-- **Safety**: This ensures that changes made in code (e.g., removing a field) are flagged if they pose a risk to existing data in the database.
-
-To manually trigger compilation or use it in a script:
-
-```
-import { compile } from "@src/utils/compilation/compile";
-
+// Direct compile (scripts / tests)
 await compile({
   userCollections: "./config/collections",
-  compiledCollections: "./compiledCollections",
+  compiledCollections: "./.compiledCollections",
   concurrency: 10,
 });
+
+// Preferred runtime path (boot, watcher, GUI)
+await syncContentState({ reason: "boot", tenantId: null });
 ```
 
-The output of this pipeline is monitored by the **Content Engine (`src/content/engine.server.ts`)**, which reconciles the compiled JavaScript modules into the live system state.
+Compiled modules are loaded by **`loader.server.ts`** (path sandbox + optional worker pool) and reconciled by **`engine.server.ts`**.
 
 ## Manifest (`.compilation-manifest.json`)
 
@@ -177,7 +237,19 @@ Sidebar + Collection Builder (via contentStructure store)
 
 ## Related Documentation
 
-- [Collection Builder Guide](/docs/guides/content/collection-builder) - Visual collection builder with data loss warnings
-- [Initialization Workflow](./initialization-workflow.mdx) - How compilation fits into system startup
-- [Content System Architecture](./content-system.mdx) - Consumption of compiled modules
-- [Widget Architecture](/docs/development/widgets/development) - Understanding widget transformation
+- [Content System Architecture](./content-system.mdx) — ContentSync, stores, SSE, loader
+- [Collection Builder Architecture](./collection-builder-architecture.mdx) — GUI ↔ filesystem reconciliation
+- [Collection Builder Guide](/docs/guides/content/collection-builder) — Visual builder UX
+- [Initialization Workflow](./initialization-workflow.mdx) — Boot compile + drift
+- [Widget Architecture](/docs/development/widgets/development) — Widget transform surface
+
+### Tests
+
+| Layer       | Path                                                  | Covers                                        |
+| :---------- | :---------------------------------------------------- | :-------------------------------------------- |
+| Unit        | `tests/unit/compilation/compile-manifest.test.ts`     | Atomic output, `changedJsPaths`, `noOp`       |
+| Unit        | `tests/unit/content/sync-content-state.test.ts`       | Drift hash, GUI lock, boot/gui-save/watcher   |
+| Unit        | `tests/unit/content/schema-contract.test.ts`          | Post-load contract                            |
+| Unit        | `tests/unit/content/collection-save-sync.test.ts`     | collection-save compile, no-op, lock cooldown |
+| Integration | `tests/integration/collectionbuilder/`                | gui-save structure + parity                   |
+| E2E         | `tests/e2e/routes/collection-builder/builder.spec.ts` | Shell + soft-refresh + golden lifecycle       |

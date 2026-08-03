@@ -10,7 +10,7 @@ import {
   saveAdminTheme,
   updateUserThemePrefs,
   resetAdminTheme,
-} from "../../../src/routes/(app)/config/appearance/appearance-api";
+} from "../../../src/routes/(app)/config/design-system/appearance-api";
 import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 vi.mock("@src/stores/global-settings.svelte.ts", () => ({

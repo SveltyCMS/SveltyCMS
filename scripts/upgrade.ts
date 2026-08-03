@@ -12,6 +12,7 @@
  * | --skip-tests          | Skip unit tests after upgrade                        |
  * | --skip-benchmarks     | Skip benchmark matrix after upgrade                  |
  * | --skip-db             | Skip database migration step                         |
+ * | --skip-sbom           | Skip SBOM regeneration after install                  |
  * | --skip-merge          | Skip fetch+merge (resume after manual conflict fix)  |
  * | --force               | Continue even with uncommitted changes (auto-stash)  |
  * | --branch=<name>       | Upstream branch to merge from (default: next)        |
@@ -68,6 +69,7 @@ interface UpgradeOptions {
   skipTests: boolean;
   skipBenchmarks: boolean;
   skipDb: boolean;
+  skipSbom: boolean;
   skipMerge: boolean;
   force: boolean;
   branch: string;
@@ -92,6 +94,7 @@ function parseOptions(): UpgradeOptions {
     skipTests: process.argv.includes("--skip-tests"),
     skipBenchmarks: process.argv.includes("--skip-benchmarks"),
     skipDb: process.argv.includes("--skip-db"),
+    skipSbom: process.argv.includes("--skip-sbom"),
     skipMerge: process.argv.includes("--skip-merge"),
     force: process.argv.includes("--force"),
     branch: rawBranch,
@@ -368,6 +371,17 @@ async function stepDbMigration(): Promise<void> {
   await mustRun("bun", ["run", "db:push"], "db:push");
 }
 
+async function stepSbom(): Promise<void> {
+  step("Regenerating SBOM");
+
+  if (cli.dryRun) {
+    dryLog("bun run audit:sbom");
+    return;
+  }
+
+  await mustRun("bun", ["run", "audit:sbom"], "SBOM generation");
+}
+
 async function stepTests(): Promise<void> {
   step("Running unit tests");
 
@@ -479,6 +493,7 @@ async function main(): Promise<void> {
     }
 
     await stepInstall();
+    if (!cli.skipSbom) await stepSbom();
 
     if (!cli.skipDb) await stepDbMigration();
     if (!cli.skipTests) await stepTests();

@@ -17,10 +17,11 @@
   import MediaGridActionTooltip from "./media-grid-action-tooltip.svelte";
   import type { MediaBase, MediaImage } from "@utils/media/media-models";
   import {
-    beginMediaDrag,
-    endMediaDrag,
+    MEDIA_DRAG_CONTAINER,
     resolveMediaDragIds,
+    suppressNativeDragGhost,
   } from "@utils/media/media-dnd";
+  import { liftAndCarry } from "@utils/media/media-lift-drag";
   import { formatBytes } from "@utils/utils";
   import { SvelteSet } from "svelte/reactivity";
   import { fade, scale } from "svelte/transition";
@@ -49,9 +50,6 @@
     onOpenFileDetails = () => {},
   }: Props = $props();
 
-  /** Active drag count for card opacity feedback */
-  let draggingIds = $state(new SvelteSet<string>());
-
   const minColWidthCss = $derived(
     gridSize === "tiny"
       ? "clamp(88px, 22vw, 120px)"
@@ -66,6 +64,7 @@
   	let taggingFile = $state<MediaImage | null>(null);
   	let fileUploadInput = $state<HTMLInputElement>();
   	let failedImages = $state(new SvelteSet<string>());
+	let touchActiveId = $state<string | null>(null);
 
   const BATCH_SIZE = 60;
   let visibleCount = $state(BATCH_SIZE);
@@ -125,32 +124,6 @@
     } else {
       selectedFiles.add(fileId);
     }
-  }
-
-  function resolveFileId(file: MediaBase | MediaImage): string {
-    return file._id?.toString() || file.filename;
-  }
-
-  function handleDragStart(e: DragEvent, file: MediaBase | MediaImage) {
-    const target = e.target as HTMLElement | null;
-    // Don't start a media drag from interactive chrome (checkbox, action buttons)
-    if (target?.closest("[data-no-drag]")) {
-      e.preventDefault();
-      return;
-    }
-
-    const ids = resolveMediaDragIds(resolveFileId(file), selectedFiles);
-    const written = beginMediaDrag(e.dataTransfer, ids);
-    if (!written.length) {
-      e.preventDefault();
-      return;
-    }
-    draggingIds = new SvelteSet(written);
-  }
-
-  function handleDragEnd() {
-    draggingIds = new SvelteSet();
-    endMediaDrag();
   }
 
   function handleItemClick(file: MediaBase | MediaImage) {
@@ -228,6 +201,7 @@
   tabindex="-1"
   aria-label="Media asset grid"
   data-testid="media-grid"
+  ontouchstart={() => { touchActiveId = null; }}
 >
   {#if filteredFiles.length === 0}
     <div
@@ -268,23 +242,28 @@
     {#each visibleFiles as file (file._id || file.filename)}
       {const fileId = file._id?.toString() || file.filename}
       {const isSelected = selectedFiles.has(fileId)}
-      {const isDragging = draggingIds.has(fileId)}
 
       <div
         class="group relative flex h-full flex-col focus-within:outline-none cursor-grab active:cursor-grabbing
-          {isSelected ? 'ring-1 ring-inset ring-primary-500/50' : ''}
-          {isDragging ? 'opacity-50' : ''}"
+          {isSelected ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
         role="gridcell"
         tabindex="-1"
         aria-selected={isSelected}
-        aria-grabbed={isDragging}
-        draggable="true"
-        ondragstart={(e) => handleDragStart(e, file)}
-        ondragend={handleDragEnd}
+        use:liftAndCarry={{
+          container: MEDIA_DRAG_CONTAINER,
+          dragData: {
+            ids: resolveMediaDragIds(fileId, selectedFiles),
+            preview: { filename: file.filename, url: file.type === 'image' ? file.url : undefined, type: file.type },
+          },
+          interactive: ['[data-no-drag]'],
+          attributes: { draggingClass: 'opacity-50' },
+        }}
+        ondragstart={suppressNativeDragGhost}
         title="Drag to a folder in the sidebar to move"
         data-testid="media-item"
         data-media-id={fileId}
         in:fade={{ duration: 180 }}
+        ontouchstart={(e) => { e.stopPropagation(); touchActiveId = fileId; }}
       >
         {#if isSelected}
           <div class="absolute inset-y-0 inset-s-0 z-10 w-0.5 bg-primary-500" aria-hidden="true"></div>
@@ -364,7 +343,7 @@
 
 
             <div
-              class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+              class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId === fileId ? 'opacity-100' : 'opacity-0'}"
             >
               <p class="truncate text-[11px] font-medium leading-tight text-white" title={file.filename}>
                 {file.filename}
@@ -374,7 +353,7 @@
 
 
           <div
-            class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+            class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId === fileId ? 'opacity-100' : 'opacity-0'}"
             data-no-drag
             data-testid="media-grid-actions"
           >

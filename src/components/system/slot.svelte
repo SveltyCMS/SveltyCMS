@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	import '@src/plugins/index';
-	import { slotRegistry } from '@src/plugins/slot-registry';
+	import { slotRegistry } from '@src/plugins/slot-registry.svelte.ts';
 	import type { InjectionZone } from '@src/plugins/types';
 
 	// We can reuse WidgetLoader or create a simple loader since types definition says component is a promise
@@ -29,7 +29,15 @@
 	// Plugins usually register on startup. If this is client-side, we need to ensure registry is available.
 	// Assuming plugins register isomorphic slots.
 
-	const slots = $derived(slotRegistry.getSlots(name).filter(slot => !slot.condition || slot.condition(props)));
+	// Read `version` so late registrations (plugin index in lazy route nodes,
+	// onMount registrations) re-run this derived — otherwise slots registered
+	// after first render never appear.
+	const slots = $derived.by(() => {
+		void slotRegistry.version;
+		return slotRegistry
+			.getSlots(name)
+			.filter((slot) => !slot.condition || slot.condition(props));
+	});
 </script>
 
 <div class={inline ? 'contents' : 'slot-zone'} data-zone={name}>

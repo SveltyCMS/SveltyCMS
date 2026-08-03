@@ -12,7 +12,7 @@
  * - SettingsField type constraints
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   isMasked,
   getMaskedValue,
@@ -30,8 +30,6 @@ import type { SettingsPart } from "@src/plugins/settings-declaration";
 // ============================================================================
 // Encryption availability — requires SECRET_ENCRYPTION_KEY in env
 // ============================================================================
-
-const HAS_ENCRYPTION_KEY = typeof process !== "undefined" && !!process.env.SECRET_ENCRYPTION_KEY;
 
 describe("Plugin Settings Crypto — Masking", () => {
   it("should detect masked values", () => {
@@ -116,21 +114,30 @@ describe("Plugin Settings Crypto — processSecretFields", () => {
     expect(result.apiKey).toBe("");
   });
 
-  // This test only runs when SECRET_ENCRYPTION_KEY is set
-  (HAS_ENCRYPTION_KEY ? it : it.skip)(
-    "should encrypt new plaintext values when key is configured",
-    async () => {
+  // Encrypts with a deterministic test key injected per-run (module latches the key
+  // on first call, so a fresh module instance is loaded after the env is set).
+  it("should encrypt new plaintext values when key is configured", async () => {
+    const prev = process.env.SECRET_ENCRYPTION_KEY;
+    process.env.SECRET_ENCRYPTION_KEY =
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    vi.resetModules();
+    const fresh = await import("@src/plugins/settings-crypto");
+    try {
       const submitted = { apiKey: "sk_live_secret123" };
       const existing = null;
 
-      const result = await processSecretFields(submitted, existing, ["apiKey"]);
+      const result = await fresh.processSecretFields(submitted, existing, ["apiKey"]);
 
       // New value should be encrypted (not plaintext)
       expect(result.apiKey).not.toBe("sk_live_secret123");
       expect(typeof result.apiKey).toBe("string");
       expect((result.apiKey as string).length).toBeGreaterThan(20);
-    },
-  );
+    } finally {
+      if (prev === undefined) delete process.env.SECRET_ENCRYPTION_KEY;
+      else process.env.SECRET_ENCRYPTION_KEY = prev;
+      vi.resetModules();
+    }
+  });
 });
 
 describe("Plugin Settings Crypto — decryptSecretFields", () => {

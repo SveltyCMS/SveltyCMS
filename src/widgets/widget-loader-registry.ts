@@ -15,6 +15,7 @@
 
 import type { WidgetRegistry } from "@src/stores/widget-store.svelte";
 import { getComponentLoader, widgetComponents } from "./scanner";
+import { WIDGET_COMPONENT_ROOTS, widgetNameToFolder } from "./widget-naming";
 
 type SvelteModule = { default: unknown };
 type LoaderFn = () => Promise<SvelteModule>;
@@ -29,25 +30,26 @@ function loaderFromStorePath(
 ): LoaderFn | null {
   const fn = registry[widgetName];
   const storePath =
-    (fn as { componentPath?: string; inputComponentPath?: string } | undefined)?.componentPath ||
-    (fn as { componentPath?: string; inputComponentPath?: string } | undefined)?.inputComponentPath;
+    (
+      fn as
+        | { componentPath?: string; inputComponentPath?: string; __inputComponentPath?: string }
+        | undefined
+    )?.componentPath ||
+    (fn as { inputComponentPath?: string } | undefined)?.inputComponentPath ||
+    (fn as { __inputComponentPath?: string } | undefined)?.__inputComponentPath;
 
+  const folder = widgetNameToFolder(widgetName);
   const pathsToTry = [storePath].filter(Boolean) as string[];
-  const normalized = widgetName.toLowerCase();
-  pathsToTry.push(
-    `./core/${normalized}/${suffix}.svelte`,
-    `./custom/${normalized}/${suffix}.svelte`,
-  );
+  for (const root of WIDGET_COMPONENT_ROOTS) {
+    pathsToTry.push(`./${root}/${folder}/${suffix}.svelte`);
+  }
 
   for (const pattern of pathsToTry) {
     if (pattern && widgetComponents[pattern]) {
       return widgetComponents[pattern] as LoaderFn;
     }
     for (const path in widgetComponents) {
-      if (
-        path.endsWith(pattern) ||
-        path.toLowerCase().includes(`/${normalized}/${suffix}.svelte`)
-      ) {
+      if (path.endsWith(pattern) || path.toLowerCase().includes(`/${folder}/${suffix}.svelte`)) {
         return widgetComponents[path] as LoaderFn;
       }
     }

@@ -19,9 +19,59 @@
  * - Shared fail-closed gate for seed/reset testing actions
  */
 
-import { timingSafeEqual } from "node:crypto";
+import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 import type { RequestEvent } from "@sveltejs/kit";
 import { getTestSecret } from "@utils/server/setup-check";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
+
+// ── Shared test-secret resolution (single source for middleware gates) ─────
+// Moved here from handle-security.ts so the rate-limit hook does not depend on
+// the whole security handler module graph (v8, metrics, response-service).
+
+const TEST_API_SECRET =
+  typeof globalThis !== "undefined"
+    ? (globalThis as any).process?.env?.TEST_API_SECRET ||
+      (globalThis as any).process?.env?.VITE_TEST_API_SECRET
+    : undefined;
+let cachedMasterSecret: string | null = null;
+
+/**
+ * Resolve the master test secret: env first, then DB setting (cached).
+ * Shared by handle-security and handle-rate-limit test bypass gates.
+ */
+export function getMasterSecret(): string | undefined {
+  if (TEST_API_SECRET) return TEST_API_SECRET;
+  if (cachedMasterSecret !== null) return cachedMasterSecret || undefined;
+  try {
+    cachedMasterSecret = getPrivateSettingSync("TEST_API_SECRET") || "";
+  } catch {
+    cachedMasterSecret = "";
+  }
+  return cachedMasterSecret || undefined;
+}
+
+/**
+ * Timing-safe comparison (async HMAC via WebCrypto).
+ * Distinct from the internal sync `secretsMatch` (node:crypto) used by
+ * assertTestingApiAllowed — both are constant-time; callers pick per context.
+ */
+export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+  if (a.length !== b.length) return false;
+  const encoder = new TextEncoder();
+  const aBuf = encoder.encode(a);
+  const bBuf = encoder.encode(b);
+  const key = await globalThis.crypto.subtle.importKey(
+    "raw",
+    aBuf,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sigA = new Uint8Array(await globalThis.crypto.subtle.sign("HMAC", key, bBuf));
+  const sigB = new Uint8Array(await globalThis.crypto.subtle.sign("HMAC", key, aBuf));
+  if (sigA.length !== sigB.length) return false;
+  return sigA.every((v, i) => v === sigB[i]);
+}
 
 // 🛡️ Hardened Production Guard — never active in production
 function isProductionNodeEnv(): boolean {
@@ -60,7 +110,7 @@ export function isTestOrBenchmarkEnvironment(): boolean {
 function secretsMatch(incoming: string, expected: string): boolean {
   const a = Buffer.from(incoming);
   const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
+  return a.length === b.length && nodeTimingSafeEqual(a, b);
 }
 
 export type TestingApiGateResult =

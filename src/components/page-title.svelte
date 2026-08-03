@@ -29,7 +29,7 @@
 - `backUrl` {string} - Navigation URL for back button
 - `truncate` {boolean} - Enable title truncation (default: `true`)
 - `onBackClick` {function} - Custom back navigation callback
-- `color` {string} - Background/text color (default: `blue`)
+- `navColor` {string} - Tailwind bg class for FloatingNav spoke when favorited (default: `bg-amber-500`)
 
 #### Accessibility Features:
 - ARIA live region for title changes
@@ -42,10 +42,12 @@
 - Data attributes for CMS field mapping
 - Content editor hints
 - Fluid typography scaling
+- Floating-nav pin (star): toggles system defaults or custom favorites via `floatingNavStore` (synced with FloatingNav)
 -->
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { floatingNavStore, type NavFavoriteColor } from '@src/stores/floating-nav-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { page } from '$app/state';
 
@@ -66,6 +68,12 @@
 		truncate?: boolean;
 		/** Tighter title row with bottom border — for data-dense pages (e.g. media gallery). */
 		compact?: boolean;
+		/**
+		 * Tailwind bg class for FloatingNav favorite spoke — must be a
+		 * NAV_FAVORITE_COLORS literal (Tailwind JIT only emits source-scanned classes).
+		 * (e.g. `bg-teal-500`). System catalog routes ignore this (use fixed catalog colors).
+		 */
+		navColor?: NavFavoriteColor;
 	}
 
 	const {
@@ -80,12 +88,16 @@
 		description = '',
 		onBackClick,
 		compact = false,
+		borderless = false,
+		navColor = 'bg-amber-500',
 		children
 	}: Props = $props();
 
 	const titleParts = $derived.by(() => {
 		if (highlight && name.toLowerCase().includes(highlight.toLowerCase())) {
-			const regex = new RegExp(`(${highlight})`, 'gi');
+			// Escape regex metacharacters — highlight is user-supplied search input
+			const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const regex = new RegExp(`(${escaped})`, 'gi');
 			return name.split(regex);
 		}
 		return [name];
@@ -111,49 +123,35 @@
 		// Otherwise, let the <a> tag handle navigation with preloading
 	}
 
-	// Bookmark this page as a floating-nav favorite
-	const FAVORITES_KEY = 'floatingNav_favorites';
-	let isFavorited = $state(false);
+	// Floating nav: system default toggle OR custom favorite (shared store with FloatingNav).
+	// NOTE: do NOT call floatingNavStore.bindUser() here — the (app) layout already binds
+	// with the authoritative data.user. PageTitle's page.data.user can be shadowed by a
+	// page +page.server.ts (e.g. { user: { email } } without _id/id), which makes bindUser
+	// alternate between the real id and "anonymous" and trips Svelte's
+	// effect_update_depth_exceeded guard (infinite effect loop).
 
-	$effect(() => {
-		try {
-			const saved = localStorage.getItem(FAVORITES_KEY);
-			const existing = saved ? JSON.parse(saved) : [];
-			const pathname = page.url.pathname;
-			isFavorited = existing.some((f: { url?: { path?: string }; path?: string }) =>
-				(f.url?.path ?? f.path) === pathname
-			);
-		} catch { /* ignore */ }
-	});
+	const pathname = $derived(page.url.pathname);
+	const isFavorited = $derived(floatingNavStore.isActive(pathname));
+	const isFixedNavItem = $derived(floatingNavStore.isFixed(pathname));
 
 	function toggleFavorite() {
-		try {
-			const saved = localStorage.getItem(FAVORITES_KEY);
-			let favorites = saved ? JSON.parse(saved) : [];
-			const pathname = page.url.pathname;
-			if (isFavorited) {
-				favorites = favorites.filter((f: any) => f.path !== pathname);
-			} else {
-				favorites.push({
-					id: 'fav_' + Date.now(),
-					tooltip: name,
-					url: { external: false, path: pathname },
-					icon: icon || 'mdi:bookmark',
-					color: 'bg-amber-500',
-				});
-			}
-			localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
-			isFavorited = !isFavorited;
-			if (typeof window !== 'undefined') {
-				window.dispatchEvent(new CustomEvent('favorites_changed'));
-			}
-		} catch { /* ignore */ }
+		if (isFixedNavItem) return; // Home / Settings always stay on the radial
+		floatingNavStore.togglePage(pathname, { name, icon, color: navColor });
 	}
+
+	const favoriteTooltip = $derived(
+		isFixedNavItem
+			? 'Always available in floating navigation'
+			: isFavorited
+				? 'Remove from floating navigation'
+				: 'Pin to floating navigation'
+	);
 </script>
 
 <div
-	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between bg-surface-50/95 ps-5 pe-2 pt-2 backdrop-blur-sm dark:bg-surface-950/95
+	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between ps-5 pe-2 pt-2 backdrop-blur-sm
 		{compact || description ? 'min-h-12 gap-3 pb-2 sm:ps-6 sm:pe-3' : 'min-h-12 gap-4'}"
+	style="background-color: color-mix(in srgb, var(--admin-bg-page, var(--color-surface-50)) 95%, transparent); color: var(--admin-text-body, var(--color-surface-900)); {borderless ? '' : 'border-bottom: 1px solid color-mix(in srgb, var(--admin-border-default, var(--color-surface-200)) 80%, transparent);'}"
 >
 	<div class="flex min-w-0 items-center">
 		{#if ui.state.leftSidebar === 'hidden'}
@@ -161,7 +159,8 @@
 				type="button"
 				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="h-9 w-9 shrink-0 p-0! min-w-0 text-surface-700 hover:bg-surface-200/70 dark:text-surface-200 dark:hover:bg-surface-800/70"
+				class="h-9 w-9 shrink-0 p-0! min-w-0 hover:bg-(--admin-border-subtle)"
+				style="color: var(--admin-text-body)"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="22" aria-hidden="true"></iconify-icon>
 			</Button>
@@ -192,20 +191,25 @@
 					</span>
 				</h1>
 
-				<!-- Favorites control lives outside h1 so heading accessible name stays clean for E2E/a11y -->
-				<SystemTooltip title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}>
+				<!-- Floating-nav pin lives outside h1 so heading accessible name stays clean for E2E/a11y -->
+				<SystemTooltip title={favoriteTooltip}>
 					<button
 						type="button"
 						onclick={toggleFavorite}
-						aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-						class="ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors hover:text-amber-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited ? 'text-amber-500' : 'text-surface-400 opacity-60 hover:opacity-100 dark:text-surface-500'}"
+						aria-label={favoriteTooltip}
+						aria-pressed={isFavorited}
+						disabled={isFixedNavItem}
+						class="ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited
+							? 'text-amber-500 opacity-100'
+							: 'opacity-60 hover:opacity-100 hover:text-amber-500'} {isFixedNavItem ? 'cursor-default' : ''}"
+						style={isFavorited ? undefined : 'color: var(--admin-text-muted)'}
 					>
 						<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>
 					</button>
 				</SystemTooltip>
 			</div>
 			{#if description}
-				<span class="mt-0.5 text-xs font-medium text-surface-500 dark:text-surface-400 {compact ? '' : 'opacity-50'}">{description}</span>
+				<span class="mt-0.5 text-xs font-medium {compact ? '' : 'opacity-50'}" style="color: var(--admin-text-muted)">{description}</span>
 			{/if}
 		</div>
 	</div>
@@ -221,8 +225,9 @@
 					<a
 						href={backUrl}
 						aria-label="Go back"
-						class="flex shrink-0 items-center justify-center rounded-full border border-surface-500 transition-colors hover:bg-surface-500/10 dark:border-surface-200
+						class="flex shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-(--admin-border-subtle)
 							{compact ? 'h-9 w-9' : 'h-10 w-10'}"
+						style="border-color: var(--admin-border-default); color: var(--admin-text-body)"
 						data-cms-action="back"
 						data-sveltekit-preload-data="hover"
 						onclick={(e) => handleBackClick(e)}

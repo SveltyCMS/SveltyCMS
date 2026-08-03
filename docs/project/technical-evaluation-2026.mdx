@@ -103,9 +103,18 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
 
       - **L0 Session Memory Stability**: Refactored the `InMemorySessionManager` to utilize `WeakRef` for cached User objects. This allows the V8 engine to immediately garbage-collect inactive sessions, eliminating memory bloat and preventing OOM crashes during high-concurrency traffic spikes.
 
-    - **TOTP Timing Attack Mitigation**: Replaced standard string comparisons in the 2FA layer with `crypto.timingSafeEqual`, mathematically neutralizing nanosecond-level side-channel attacks on TOTP code verification.
+    - **TOTP Secret Encryption**: TOTP secrets are now encrypted at rest using AES-256-GCM under the instance
 
-      - **Fallback Garbage Collection Resilience**: Hardened the session cleanup loop to guarantee that in-memory fallback caches are continuously pruned even when a `RedisSessionManager` is actively managing the primary connection, ensuring zero memory leaks during Redis outages.
+- **TOTP Replay Protection**: A consumed-codes registry using an adapter pattern (in-memory, swappable to Redis/SQLite) prevents TOTP code reuse within the 90-second validity window. Fail-closed design — registry errors reject the code.
+- **TOTP Timing Attack Mitigation**: Replaced standard string comparisons in the 2FA layer with `crypto.timingSafeEqual`, mathematically neutralizing nanosecond-level side-channel attacks on TOTP code verification.
+
+      - **Trusted Devices**: HMAC-SHA256 signed __Host-2fa-trusted-device cookie (30-day TTL) enables "Remember this device" — subsequent logins skip 2FA on recognized devices. Forgery-proof design using the instance's ENCRYPTION_KEY.
+
+- **Plugin Auth Hooks**: New afterAuthenticate lifecycle hook allows plugins to deny logins or enforce 2FA gating on any authentication method (password, OAuth, passkey, token, magic link). Fires after credential verification but before session cookie issuance.
+- **Pending 2FA Setup**: Encrypted TOTP secrets are persisted immediately during setup with twoFactorPending: true — interrupted enrollment is automatically resumed on re-initiation.
+- **Configurable TOTP Window**: TOTP_WINDOW env var (default 1, max 5) for clock-drift tolerance without code changes.
+
+- **Fallback Garbage Collection Resilience**: Hardened the session cleanup loop to guarantee that in-memory fallback caches are continuously pruned even when a `RedisSessionManager` is actively managing the primary connection, ensuring zero memory leaks during Redis outages.
 
   - **May 2026 AI Bot Defense & Crypto Hardening**:
     - **AI Bot Detection & Blocking**: Proactive User-Agent fingerprinting detects and blocks 28 known AI crawler patterns (GPTBot, Claude, Perplexity, CommonCrawl, Bytespider) and reconnaissance tools (Nmap, SQLMap, Nikto, Burp Suite, Zgrab, Masscan, Nessus).

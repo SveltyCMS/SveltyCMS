@@ -391,4 +391,10 @@ class OutboxServiceImpl {
 
 // Singleton export
 export const outboxService = new OutboxServiceImpl();
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    outboxService.stopPolling();
+  });
+}
 export type OutboxService = OutboxServiceImpl;

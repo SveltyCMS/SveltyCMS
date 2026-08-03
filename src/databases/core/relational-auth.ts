@@ -202,6 +202,34 @@ export class RelationalAuthModule implements IAuthAdapter {
 
         const db = this.getDb(options);
 
+        // Fail closed on duplicate email — email is the primary login identifier.
+        // The DB unique indexes (email for null-tenant, email+tenantId otherwise)
+        // are the backstop; this explicit check keeps the error deterministic so
+        // callers (e.g. test seeding) can fall back to update-by-email without
+        // racing the index.
+        const email = normalizeEmail(userData.email || "");
+        if (email) {
+          const dupConditions = [eq(this.schema.authUsers.email, email)];
+          if (userData.tenantId !== undefined) {
+            dupConditions.push(
+              userData.tenantId === null
+                ? isNull(this.schema.authUsers.tenantId)
+                : eq(this.schema.authUsers.tenantId, userData.tenantId as string),
+            );
+          }
+          const [existing] = await db
+            .select({ _id: this.schema.authUsers._id })
+            .from(this.schema.authUsers)
+            .where(and(...dupConditions))
+            .limit(1);
+          if (existing) {
+            // Thrown (not returned) so wrap() maps it to DatabaseResult with the
+            // message preserved — callers (e.g. test seeding) fall back to
+            // update-by-email on !success.
+            throw new Error(`User with email ${email} already exists`);
+          }
+        }
+
         const preparedValues = utils.convertISOToDates(values);
 
         await db.insert(this.schema.authUsers).values(preparedValues);
@@ -228,12 +256,15 @@ export class RelationalAuthModule implements IAuthAdapter {
         const idCond = eq(this.schema.authUsers._id, String(userId));
         // Prefer id-only match when tenant check is bypassed or tenant is unset.
         // Explicit null tenantId previously forced isNull() and could miss rows
-        // after re-seed / session cache races in E2E.
+        // after re-seed / session cache races in E2E. "global" is the system-wide
+        // scope marker (gdpr-service falls back to it for null-tenant rows) — treat
+        // it like unset so id-only updates hit NULL-tenant (single-tenant) users.
         const applyTenant =
           !utils.shouldBypassTenantCheck(options) &&
           options?.tenantId !== undefined &&
-          options.tenantId !== null &&
-          options.tenantId !== "";
+          options?.tenantId !== null &&
+          options?.tenantId !== "" &&
+          options?.tenantId !== "global";
         const conditions = applyTenant
           ? [idCond, eq(this.schema.authUsers.tenantId, options!.tenantId as string)]
           : [idCond];
@@ -248,6 +279,13 @@ export class RelationalAuthModule implements IAuthAdapter {
         delete (rest as any)._id;
         delete (rest as any).id;
         delete (rest as any).passwordHash;
+
+        // Hash plaintext passwords before persisting (parity with createUser).
+        // Without this, admin/reset/seeding updates would store the raw password.
+        if (rest.password && !rest.password.startsWith("$argon2")) {
+          const { hashPassword } = await import("@src/utils/security/crypto");
+          rest.password = await hashPassword(rest.password);
+        }
 
         const updateData: any = {
           ...(rest as any),
@@ -367,6 +405,9 @@ export class RelationalAuthModule implements IAuthAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
           .from(this.schema.authUsers)
           .where(and(...conditions))
+          // Deterministic pick when legacy duplicate rows exist (pre unique-index):
+          // oldest account wins, matching the original-owner semantics.
+          .orderBy(asc(this.schema.authUsers.createdAt))
           .limit(1);
         return results.length > 0 ? this.mapUser(results[0]) : null;
       },
@@ -387,6 +428,13 @@ export class RelationalAuthModule implements IAuthAdapter {
           .from(this.schema.authUsers)
           .$dynamic();
         const conditions: any[] = [];
+        // Translate the Mongo-style filter ($or/$regex search, tenantId) into SQL.
+        // Previously ignored — the admin user-list search silently returned every
+        // user, so paginated rows beyond page 1 could never be found by search.
+        if (options?.filter && typeof options.filter === "object") {
+          const mapped = this.adapter.mapQuery(this.schema.authUsers, options.filter);
+          if (mapped) conditions.push(mapped);
+        }
         if (dbOptions?.tenantId !== undefined) {
           conditions.push(
             dbOptions.tenantId === null
@@ -958,7 +1006,10 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<Role>> {
     return this.adapter.wrap(
       async () => {
-        const id = utils.generateId();
+        // Honor an explicit _id (e.g. seedRoles wants stable ids like "admin") —
+        // fall back to a generated id for UI-created roles. Without this, seeding
+        // could never match its own existence check and duplicated roles every run.
+        const id = (roleData._id as string) || utils.generateId();
         const now = new Date();
         const values = {
           ...roleData,
@@ -968,10 +1019,22 @@ export class RelationalAuthModule implements IAuthAdapter {
         };
         const preparedValues = utils.convertISOToDates(values);
 
+        // drizzle json-mode columns must receive the raw array: convertISOToDates
+        // pre-stringifies JSON_FIELDS (permissions), and json mode would then
+        // stringify the string AGAIN → double-encoded rows that read back as
+        // strings and render as empty permission matrices.
+        if (typeof preparedValues.permissions === "string") {
+          try {
+            preparedValues.permissions = JSON.parse(preparedValues.permissions);
+          } catch {
+            /* keep as-is */
+          }
+        }
+
         const db = this.getDb(options);
 
         if (process.env.BENCHMARK_DEBUG === "true") {
-          console.log(`[RelationalAuth] Creating role ${values.name}:`, {
+          logger.debug(`[RelationalAuth] Creating role ${values.name}:`, {
             id,
             permissionsType: typeof preparedValues.permissions,
             permissions: preparedValues.permissions,
@@ -1006,6 +1069,14 @@ export class RelationalAuthModule implements IAuthAdapter {
           updatedAt: new Date(),
         };
         const preparedUpdate = utils.convertISOToDates(updateData);
+        // Same un-stringify as createRole — keep drizzle json-mode arrays raw.
+        if (typeof preparedUpdate.permissions === "string") {
+          try {
+            preparedUpdate.permissions = JSON.parse(preparedUpdate.permissions);
+          } catch {
+            /* keep as-is */
+          }
+        }
         await db
           .update(this.schema.roles)
           .set(preparedUpdate)

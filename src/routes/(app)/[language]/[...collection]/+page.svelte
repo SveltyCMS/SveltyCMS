@@ -101,7 +101,6 @@ $effect.pre(() => {
 
 		// Initialize validation for all required fields
 		const fields = collectionSchema.fields || [];
-		let errorCount = 0;
 		for (const field of fields) {
 			const fieldDef = field as any;
 			if (fieldDef.required) {
@@ -110,25 +109,13 @@ $effect.pre(() => {
 					fieldName,
 					`${fieldDef.label || fieldName} is required`,
 				);
-				errorCount++;
-				console.log(
-					"🔴 [Validation Init] Set error for required field:",
-					fieldName,
-				);
 			}
 		}
 
 		validationInitialized = true;
-		console.log(
-			"✅ [Validation Init] Initialized",
-			errorCount,
-			"required field errors, isValid:",
-			validationStore.isValid,
-		);
 	} else if (createParam !== "true") {
 		// Reset flag when leaving create mode
 		if (validationInitialized) {
-			console.log("🔄 [Validation Init] Resetting validation flag");
 			validationInitialized = false;
 		}
 	}
@@ -235,10 +222,6 @@ $effect(() => {
 
 	// CASE 1: Initial page load with ?edit=id
 	if (!hasInitiallyLoaded && editParam && entries && entries.length === 1) {
-		console.log("✅ [Debug Case 1] Edit mode detected", {
-			editParam,
-			entriesLen: entries.length,
-		});
 		hasInitiallyLoaded = true;
 		lastEditParam = editParam;
 		const entryData = entries[0];
@@ -252,15 +235,6 @@ $effect(() => {
 		initialCollectionValue = JSON.stringify(entryData);
 		lastUrlString = currentUrl;
 		return; // Exit early to avoid triggering URL change logic
-	}
-	if (!hasInitiallyLoaded && editParam) {
-		console.log("❌ [Debug Case 1] Failed condition", {
-			hasInitiallyLoaded,
-			editParam,
-			entriesExist: !!entries,
-			entriesLen: entries?.length,
-			entry0: entries?.[0],
-		});
 	}
 
 	// CASE 1b: Initial page load with ?create=true

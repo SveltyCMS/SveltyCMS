@@ -12,8 +12,8 @@
  */
 
 import path from "node:path";
-import { resolveCompiledCollectionsPath } from "./benchmark-sandbox";
-import { sveltyContext } from "./context";
+import { resolveCompiledCollectionsPath } from "./benchmark-sandbox.ts";
+import { sveltyContext } from "./context.ts";
 
 function getConfigRoot(): string {
   return path.join(process.cwd(), "config");

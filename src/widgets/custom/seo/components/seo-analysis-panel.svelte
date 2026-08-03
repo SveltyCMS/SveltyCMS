@@ -7,11 +7,13 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 -->
 
 <script lang="ts">
+import { logger } from "@utils/logger";
 	import Button from '@components/ui/button.svelte';
 	import { slide } from 'svelte/transition';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { SeoAnalysisResult } from '../seo-types';
 	import { getReadingEaseDescription } from '@src/utils/readability';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	interface Props {
 		analysisResult: SeoAnalysisResult | null;
 		content?: string;
@@ -42,7 +44,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		try {
 			const response = await fetch('/api/seo/link-suggestions', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({ content, currentId, collectionId }),
 				signal: abortController.signal
 			});
@@ -53,9 +55,9 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 			linkSuggestions = data.suggestions || [];
 		} catch (err: unknown) {
 			if ((err as any).name === 'AbortError') {
-				console.log('Fetch aborted');
+				logger.debug('Fetch aborted');
 			} else {
-				console.error('Failed to fetch link suggestions', err);
+				logger.error('Failed to fetch link suggestions', err);
 			}
 		} finally {
 			isFetchingLinks = false;

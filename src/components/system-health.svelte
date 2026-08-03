@@ -26,6 +26,7 @@ Displays real-time system state and individual service health with comprehensive
 	import type { ServiceHealth, SystemState } from '@src/stores/system/types';
 	import { formatDisplayDate } from '@utils/date';
 	import { logger } from '@utils/logger';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { onDestroy, onMount } from 'svelte';
 
@@ -207,9 +208,7 @@ Displays real-time system state and individual service health with comprehensive
 
 			const response = await fetch('/api/system', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({
 					action: 'reinitialize',
 					force: true

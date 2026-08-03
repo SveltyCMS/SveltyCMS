@@ -6,7 +6,7 @@ order: 51
 icon: "mdi:database-sync"
 author: "SveltyCMS Team"
 created: "2025-08-11"
-updated: "2026-03-27"
+updated: "2026-07-31"
 tags:
   - "developer"
   - "collections"
@@ -24,7 +24,9 @@ This document describes the **canonical data flow** for loading, editing, and sa
 This consolidation replaces the previous fragmented approach (`status-store`, `modeStateMachine`) to provide a single source of truth for **active collection data**.
 
 > [!NOTE]
-> **Distinction**: The `collection-store` manages the lifecycle of the _currently viewed/edited_ collection and its entries. The **Content System (5-Pillar Architecture)** manages the global tree of all collections and their metadata, orchestrated via `src/content/index.ts`.
+> **Distinction**: The `collection-store` manages the lifecycle of the _currently viewed/edited_ collection and its entries. The **Content System (5-Pillar Architecture)** manages the global tree of all collections and their metadata, orchestrated via `src/content/index.ts` / `content-registry.svelte.ts`.
+>
+> **HMR / recompile (2026):** Soft content updates call `invalidate("app:content")` only. They do **not** reset `mode`, `activeValue`, or `consent-store`. Use `patchActiveSchema(schema)` when the active collection definition changes in place so the open editor stays coherent without a full page reload. Structure updates use an FNV fingerprint circuit-breaker (not full `JSON.stringify`) to avoid reactivity loops.
 
 ## 🎯 Architecture: The "SvelteKit Way"
 

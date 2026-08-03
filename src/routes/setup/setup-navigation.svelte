@@ -98,10 +98,7 @@ Features:
 			{:else if currentStep === totalSteps - 1}
 				<SystemTooltip title={button_complete?.() || 'Complete'} positioning={{ placement: 'top', gutter: 8 }}>
 					<Button variant="tertiary"
-						onclick={() => {
-							console.log('🏁 SetupNavigation: Complete button clicked');
-							oncomplete();
-						}}
+						onclick={() => oncomplete()}
 						disabled={isLoading}
 						aria-disabled={isLoading}
 						aria-label={button_complete?.() || 'Complete setup'}

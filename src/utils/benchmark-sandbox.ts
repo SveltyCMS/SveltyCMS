@@ -17,7 +17,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { paths } from "./path-resolver";
+import { paths } from "./path-resolver.ts";
 
 export type BenchmarkProfile = "local" | "ci-fresh";
 

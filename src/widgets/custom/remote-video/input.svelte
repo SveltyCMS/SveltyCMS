@@ -35,6 +35,7 @@ Part of the Three Pillars Architecture for widget system.
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { logger } from '@utils/logger';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { debounce, getFieldName } from '@utils/utils';
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
@@ -203,7 +204,7 @@ Part of the Three Pillars Architecture for widget system.
 				// Call API endpoint to fetch metadata securely
 				const response = await fetch('/api/remoteVideo', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: clientJsonHeaders(),
 					// Send a JSON object
 					body: JSON.stringify({
 						url,

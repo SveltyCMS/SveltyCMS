@@ -3,6 +3,7 @@
  * @description Unified dashboard API handler for metrics, system info, and content insights.
  */
 
+import { logger } from "@utils/logger";
 import { AppError, isAppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
@@ -46,10 +47,6 @@ export async function handleDashboardRoutes(
 ) {
   const { url } = event;
   const method = (segments[1] || segments[0] || "").toLowerCase();
-
-  if (typeof process !== "undefined" && process.env.NODE_ENV === "production") {
-    console.log(`[DashboardRoute] method=${method}, segments=${segments.join(",")}`);
-  }
 
   try {
     const query: DashboardQuery = {
@@ -193,7 +190,7 @@ export async function handleDashboardRoutes(
         try {
           report = metricsService.getReport(tid);
         } catch (err) {
-          console.error("[DashboardRoute] metrics getReport failed:", err);
+          logger.error("[DashboardRoute] metrics getReport failed:", err);
           report = {
             timestamp: Date.now(),
             uptime: 0,
@@ -496,7 +493,7 @@ export async function handleDashboardRoutes(
         try {
           stats = await cacheService.getStats();
         } catch (err) {
-          console.error("[DashboardRoute] cache-metrics getStats failed:", err);
+          logger.error("[DashboardRoute] cache-metrics getStats failed:", err);
         }
 
         const total = (Number(stats?.hits) || 0) + (Number(stats?.misses) || 0);
@@ -558,7 +555,7 @@ export async function handleDashboardRoutes(
   } catch (err: any) {
     // Expected AppErrors (validation, not found) should not log noisy traces
     if (!isAppError(err)) {
-      console.error(`[DashboardRoute Error] ${segments.join("/")}:`, err);
+      logger.error(`[DashboardRoute Error] ${segments.join("/")}:`, err);
     }
     if (isAppError(err)) throw err;
     throw new AppError(err.message || "Dashboard operation failed", 500);

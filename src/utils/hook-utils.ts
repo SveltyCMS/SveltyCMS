@@ -10,6 +10,7 @@
  * - Token validation uses regex capture group (zero allocation)
  */
 
+import { logger } from "@utils/logger";
 import { isSiteStarterPublicPath } from "@src/services/site/site-config.server";
 import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
@@ -18,11 +19,22 @@ import { BASE_HEADERS } from "./security/constants";
 // 🚀 Pre-cache to avoid Object.entries allocation on every request
 const BASE_HEADERS_ENTRIES = Object.entries(BASE_HEADERS);
 
-// 🚀 Cache static environment flag at module load
-const IS_TEST_MODE = (() => {
+// 🚀 Cache static environment flag at module load.
+// SINGLE source of truth for middleware test-mode detection (was duplicated with
+// divergent env sets in handle-security / handle-rate-limit). NOTE: deliberately
+// NOT production-gated — the E2E/benchmark preview servers rely on these flags
+// even when NODE_ENV is unset/"production". The /api/testing gate in
+// test-bypass.server.ts keeps its own stricter production hard-gate.
+export const IS_TEST_MODE = (() => {
   if (typeof globalThis === "undefined") return false;
   const env = (globalThis as any).process?.env;
-  return env?.TEST_MODE === "true" || env?.VITE_TEST_MODE === "true" || env?.BENCHMARK === "true";
+  return (
+    env?.TEST_MODE === "true" ||
+    env?.VITE_TEST_MODE === "true" ||
+    env?.PLAYWRIGHT_TEST === "true" ||
+    env?.BENCHMARK === "true" ||
+    env?.SVELTY_BENCHMARK_SUITE === "true"
+  );
 })();
 
 // ─── Pre-compiled classification matchers ─────────────────────────────────
@@ -162,12 +174,44 @@ export function getClientIp(event: RequestEvent): string {
     return event.getClientAddress();
   } catch (err: any) {
     if (process.env.BENCHMARK_DEBUG === "true") {
-      console.log(
+      logger.debug(
         `[getClientIp] Failed: ${err.message}. Defaulting to 0.0.0.0 to prevent IP spoofing.`,
       );
     }
     return "0.0.0.0";
   }
+}
+
+/**
+ * Clone a SvelteKit/upstream Response into a new one with mutable headers.
+ * `resolve()` responses often expose immutable Headers — mutating them throws
+ * `TypeError: Headers are immutable`. Always use this before setting headers.
+ */
+export function withMutableHeaders(
+  response: Response,
+  mutate: (headers: Headers) => void,
+): Response {
+  const headers = new Headers(response.headers);
+  mutate(headers);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+/**
+ * Whether the client prefers a JSON error body over HTML.
+ * Used by rate-limit / security middleware so API clients don't get HTML 429/5xx pages.
+ */
+export function prefersJsonResponse(event: RequestEvent): boolean {
+  if (event.url.pathname.startsWith("/api/")) return true;
+  const accept = event.request.headers.get("Accept") || "";
+  if (!accept || accept === "*/*") return false;
+  const jsonIdx = accept.indexOf("application/json");
+  if (jsonIdx === -1) return false;
+  const htmlIdx = accept.indexOf("text/html");
+  return htmlIdx === -1 || jsonIdx < htmlIdx;
 }
 
 export function isBootstrapRoute(pathname: string): boolean {

@@ -756,7 +756,7 @@ export class BackupService {
 
     const valid = errors.length === 0;
 
-    logger.info(
+    logger.debug(
       `[BackupService] Validation result: valid=${valid}, checksums=${checksumsValid}, version=${versionCompatible}, adapter=${adapterMatch}`,
     );
 
@@ -813,7 +813,7 @@ export class BackupService {
       };
     }
 
-    logger.info(
+    logger.debug(
       `[BackupService] Creating restore plan from: ${backupPath}, tenant=${targetTenant}`,
     );
 
@@ -977,7 +977,7 @@ export class BackupService {
 
     this.restorePlans.set(planId, plan);
 
-    logger.info(
+    logger.debug(
       `[BackupService] Restore plan created: planId=${planId}, ${plan.summary.totalCollections} collections, ${plan.summary.totalEntries} entries`,
     );
 
@@ -1050,7 +1050,7 @@ export class BackupService {
       };
     }
 
-    logger.info(
+    logger.debug(
       `[BackupService] Starting restore: backup=${backupPath}, tenant=${targetTenant}, entries=${manifest.resources.entries}`,
     );
 

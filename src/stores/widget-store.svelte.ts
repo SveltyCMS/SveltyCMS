@@ -17,7 +17,13 @@ import { type WidgetDefinition, type WidgetFactory, type WidgetRecord } from "@s
 import type { Schema, FieldDefinition } from "@src/content/types";
 import type { WidgetPlaceholder } from "@widgets/placeholder";
 export type { WidgetDefinition, WidgetFactory };
+import {
+  folderFromWidgetPath,
+  validateWidgetNaming,
+  type WidgetTier,
+} from "@src/widgets/widget-naming";
 import { logger } from "@utils/logger";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 
 export type WidgetStatus = "active" | "inactive";
 
@@ -149,8 +155,9 @@ class WidgetState {
         if (typeof process !== "undefined" && process.env.VERBOSE_TESTS === "true") {
           wsLogger.info(`Initializing for tenant: ${tenantId}`);
         }
-        // 1. Load modules from scanner
-        const { coreModules, customModules } = await import("@src/widgets/scanner");
+        // 1. Load modules from scanner (core + custom + marketplace portable modules)
+        const { coreModules, customModules, marketplaceModules } =
+          await import("@src/widgets/scanner");
 
         const newWidgetFunctions: WidgetRegistry = {};
         const newCoreWidgets: string[] = [];
@@ -159,80 +166,68 @@ class WidgetState {
 
         wsLogger.trace(`Core modules available: ${Object.keys(coreModules).length}`);
         wsLogger.trace(`Custom modules available: ${Object.keys(customModules).length}`);
+        wsLogger.trace(
+          `Marketplace modules available: ${Object.keys(marketplaceModules || {}).length}`,
+        );
 
-        // Process core widgets
-        for (const [path, module] of Object.entries(coreModules)) {
-          const name = path.split("/").at(-2);
-          if (!name) {
-            continue;
+        const registerTier = (
+          modules: Record<string, unknown>,
+          tier: WidgetTier,
+          bucket: string[],
+        ) => {
+          for (const [path, module] of Object.entries(modules)) {
+            const folder = folderFromWidgetPath(path);
+            if (!folder) continue;
+
+            try {
+              wsLogger.trace(`Processing ${tier} module at ${path}`);
+              const fn = (module as { default: WidgetFactory }).default;
+              if (typeof fn !== "function") {
+                wsLogger.warn(
+                  `Module at ${path} default export is NOT a function: ${typeof fn}. Keys: ${Object.keys(module || {})}`,
+                );
+                continue;
+              }
+
+              const naming = validateWidgetNaming(folder, fn.Name, tier);
+              for (const w of naming.warnings) {
+                logger.warn(`[WidgetStore] ${tier} "${folder}": ${w}`);
+              }
+              if (!naming.ok) {
+                logger.error(
+                  `[WidgetStore] Refusing ${tier} widget at ${path}: ${naming.errors.join("; ")}`,
+                );
+                continue;
+              }
+
+              const widgetName = naming.name;
+              if (typeof process !== "undefined" && process.env.BENCHMARK_DEBUG === "true") {
+                logger.debug(
+                  `[WidgetStore] Registered ${tier} widget: ${widgetName} (has modifyRequest: ${!!fn.modifyRequest})`,
+                );
+              }
+              fn.Name = widgetName;
+              fn.__widgetType = tier;
+
+              // Register under factory Name only (schemas use widget: { Name: "…" })
+              newWidgetFunctions[widgetName] = fn;
+              bucket.push(widgetName);
+
+              const deps = (fn as any).__dependencies;
+              if (deps && Array.isArray(deps) && deps.length > 0) {
+                newDependencyMap[widgetName] = deps;
+              }
+            } catch (err) {
+              logger.error(`[WidgetStore] Failed to load ${tier} widget at ${path}:`, err);
+            }
           }
+        };
 
-          try {
-            wsLogger.trace(`Processing module at ${path}`);
-            const fn = (module as { default: WidgetFactory }).default;
-            if (typeof fn !== "function") {
-              wsLogger.warn(
-                `Module at ${path} default export is NOT a function: ${typeof fn}. Keys: ${Object.keys(module || {})}`,
-              );
-              continue;
-            }
-
-            const widgetName = fn.Name || name;
-            if (typeof process !== "undefined" && process.env.BENCHMARK_DEBUG === "true") {
-              console.info(
-                `[WidgetStore] Registered core widget: ${widgetName} (has modifyRequest: ${!!fn.modifyRequest})`,
-              );
-            }
-            fn.Name = widgetName;
-            fn.__widgetType = "core";
-
-            newWidgetFunctions[widgetName] = fn;
-            newCoreWidgets.push(widgetName);
-
-            const deps = (fn as any).__dependencies;
-            if (deps && Array.isArray(deps) && deps.length > 0) {
-              newDependencyMap[widgetName] = deps;
-            }
-
-            if (name && name !== widgetName) {
-              newWidgetFunctions[name] = fn;
-            }
-          } catch (err) {
-            logger.error(`[WidgetStore] Failed to load core widget at ${path}:`, err);
-          }
-        }
-
-        // Process custom widgets
-        for (const [path, module] of Object.entries(customModules)) {
-          const name = path.split("/").at(-2);
-          if (!name) {
-            continue;
-          }
-
-          try {
-            const fn = (module as { default: WidgetFactory }).default;
-            if (typeof fn !== "function") {
-              continue;
-            }
-
-            const widgetName = fn.Name || name;
-            fn.Name = widgetName;
-            fn.__widgetType = "custom";
-
-            newWidgetFunctions[widgetName] = fn;
-            newCustomWidgets.push(widgetName);
-
-            const deps = (fn as any).__dependencies;
-            if (deps && Array.isArray(deps) && deps.length > 0) {
-              newDependencyMap[widgetName] = deps;
-            }
-
-            if (name && name !== widgetName) {
-              newWidgetFunctions[name] = fn;
-            }
-          } catch (err) {
-            logger.error(`[WidgetStore] Failed to load custom widget at ${path}:`, err);
-          }
+        registerTier(coreModules, "core", newCoreWidgets);
+        registerTier(customModules, "custom", newCustomWidgets);
+        // Marketplace packages discovered via Vite glob (optional dir)
+        if (marketplaceModules && Object.keys(marketplaceModules).length > 0) {
+          registerTier(marketplaceModules, "marketplace", newCustomWidgets);
         }
 
         this.widgetFunctions = newWidgetFunctions;
@@ -381,7 +376,7 @@ class WidgetState {
       const res = await fetch("/api/widgets/status", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          ...clientJsonHeaders(),
           "X-Tenant-ID": tenantId,
         },
         body: JSON.stringify({ widgetName: name, isActive: active }),

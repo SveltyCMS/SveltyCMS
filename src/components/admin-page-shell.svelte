@@ -19,6 +19,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 - `spaceY` ('4' | '6' | '8'): Vertical rhythm between sections.
 - `titleCompact` (boolean): Tighter PageTitle row with bottom border.
 - `animate` (boolean): Apply standard page entry fade (respects reduced motion).
+- `navColor` (string): Tailwind bg class for FloatingNav favorite spoke (default `bg-amber-500`).
 - `children` (Snippet): Page body content.
 - `actions` (Snippet): Trailing header actions for PageTitle.
 
@@ -30,8 +31,9 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 - full Svelte 5 runes
 -->
 
-<script lang="ts">
+	<script lang="ts">
 	import PageTitle from '@components/page-title.svelte';
+	import type { NavFavoriteColor } from '@src/stores/floating-nav-store.svelte.ts';
 	import { adminFade } from '@utils/admin-transitions';
 
 	interface Props {
@@ -44,7 +46,10 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		fullHeight?: boolean;
 		spaceY?: '4' | '6' | '8';
 		titleCompact?: boolean;
+		titleBorderless?: boolean;
 		animate?: boolean;
+		/** Tailwind bg class for FloatingNav favorite spoke — NAV_FAVORITE_COLORS literal (default `bg-amber-500`). */
+		navColor?: NavFavoriteColor;
 		children?: import('svelte').Snippet;
 		actions?: import('svelte').Snippet;
 	}
@@ -59,7 +64,9 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		fullHeight = false,
 		spaceY = '6',
 		titleCompact = false,
+		titleBorderless = false,
 		animate = true,
+		navColor,
 		children,
 		actions
 	}: Props = $props();
@@ -69,9 +76,10 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 </script>
 
 <div
-	class="admin-theme-container absolute inset-0 bg-surface-50 {fullHeight
+	class="admin-theme-container absolute inset-0 {fullHeight
 		? 'flex flex-col overflow-hidden'
 		: 'overflow-y-auto'}"
+	style="background-color: var(--admin-bg-page, var(--color-surface-50)); color: var(--admin-text-body, var(--color-surface-900));"
 	in:adminFade={animate ? { duration: 200 } : undefined}
 >
 	<PageTitle
@@ -82,6 +90,8 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		{backUrl}
 		{highlight}
 		compact={titleCompact}
+		borderless={titleBorderless}
+		{navColor}
 	>
 		{#if actions}
 			{@render actions()}

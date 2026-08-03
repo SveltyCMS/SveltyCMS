@@ -42,7 +42,7 @@ This guide walks you through migrating a WordPress site to SveltyCMS. It covers 
 | WordPress Feature                      | Why                       | SveltyCMS Alternative                                                                         |
 | :------------------------------------- | :------------------------ | :-------------------------------------------------------------------------------------------- |
 | **Plugins** (Yoast, WooCommerce, etc.) | PHP code, not data        | [Plugins](/docs/guides/development/plugin/architecture.mdx) — Stripe, SEO, etc.               |
-| **Themes**                             | PHP/CSS templates         | [Appearance](/docs/guides/configuration/appearance) — admin theme + Tailwind v4               |
+| **Themes**                             | PHP/CSS templates         | [Design System](/docs/guides/configuration/admin-theme-settings) — admin theme + Tailwind v4  |
 | **Widgets** (sidebar)                  | PHP widgets               | [Widget System](/docs/widgets) — Svelte 5 native                                              |
 | **Shortcodes**                         | PHP-rendered placeholders | [Token System](/docs/architecture/token-system.mdx) — auto-converted during import            |
 | **User Accounts**                      | Different auth system     | Manually recreate in [Access Management](/docs/guides/configuration/access-management)        |

@@ -18,6 +18,7 @@
  * @see docs/reference/components/smart-table.mdx
  */
 
+import { logger } from "@utils/logger";
 import type { SmartTableLayoutPrefs, SmartTableSort } from "@components/ui/smart-table/types";
 import type { CollectionFilterMap } from "@utils/collection-query-filters";
 
@@ -60,7 +61,7 @@ export function listSavedViews(scope: string): SmartTableSavedView[] {
     // 🛡️ Structural validation: discard malformed entries injected by extensions/console
     return parsed.filter((v) => v && typeof v === "object" && "id" in v && "name" in v);
   } catch (e) {
-    console.error(`[SmartTable] Failed to parse views for scope: ${scope}`, e);
+    logger.error(`[SmartTable] Failed to parse views for scope: ${scope}`, e);
     return [];
   }
 }
@@ -74,7 +75,7 @@ function writeViews(scope: string, views: SmartTableSavedView[]): void {
     localStorage.setItem(storageKey(scope), JSON.stringify(views));
   } catch (e) {
     // Quota management: log failure if storage is full
-    console.error("[SmartTable] Storage quota exceeded", e);
+    logger.error("[SmartTable] Storage quota exceeded", e);
   }
 }
 

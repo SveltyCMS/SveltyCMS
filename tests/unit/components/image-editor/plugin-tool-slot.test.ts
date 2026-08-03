@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { slotRegistry } from "@src/plugins/slot-registry";
+import { slotRegistry } from "@src/plugins/slot-registry.svelte.ts";
 import type { PluginSlot, InjectionZone } from "@src/plugins/types";
 
 // Verify the zone is in the type system (compile-time check)

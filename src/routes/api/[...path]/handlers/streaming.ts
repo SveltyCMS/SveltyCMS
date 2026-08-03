@@ -10,6 +10,7 @@
  * - Server-Sent Events (SSE) helper for real-time push streams
  */
 
+import { logger } from "@utils/logger";
 // ─── Streaming JSON Response ─────────────────────────────────────────────────
 
 /**
@@ -69,7 +70,7 @@ export function streamingJsonResponse(
 
         controller.enqueue(encoder.encode(`]${metadata}}`));
       } catch (err) {
-        console.error("[Streaming] Error during JSON stream:", err);
+        logger.error("[Streaming] Error during JSON stream:", err);
         // Send partial data with error marker rather than corrupting the JSON
         try {
           controller.enqueue(encoder.encode(`],"error":"Stream interrupted"}`));
@@ -198,7 +199,7 @@ export function sseStreamingResponse(
           controller.enqueue(encoder.encode(payload));
         }
       } catch (err) {
-        console.error("[SSE] Error during event stream:", err);
+        logger.error("[SSE] Error during event stream:", err);
         try {
           controller.enqueue(
             encoder.encode(

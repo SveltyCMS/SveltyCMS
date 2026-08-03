@@ -14,9 +14,14 @@
  *
  * Prefer `data-testid` over fragile heading text: cards no longer use
  * "Identity" / "Security" as page headings (those are tab labels).
+ *
+ * The consent banner renders as `div[role="dialog"]` and overlays the page (it can
+ * cover dialog confirm buttons and trips `getByRole("dialog")` strict mode) — it is
+ * dismissed on every tab selection so dialog flows are not blocked.
  */
 
 import { expect, type Page } from "@playwright/test";
+import { dismissCookieBanner } from "./auth";
 
 export const USER_ACTION_TIMEOUT = 20_000;
 
@@ -53,6 +58,9 @@ export async function selectUserTab(
   options?: { timeout?: number },
 ) {
   const timeout = options?.timeout ?? USER_ACTION_TIMEOUT;
+  // The consent banner appears on first navigation after API-only logins and can
+  // overlay the whole page — remove it before interacting with any tab content.
+  await dismissCookieBanner(page);
   const tabBtn = page.getByTestId(`tab-${tab}`);
   await expect(tabBtn).toBeVisible({ timeout });
   const selected = await tabBtn.getAttribute("aria-selected");
@@ -194,4 +202,37 @@ export async function clearTableSearch(page: Page) {
     await page.waitForTimeout(400);
     await refetch;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Role-based aliases used by the user E2E specs (dismiss the consent banner too).
+// ---------------------------------------------------------------------------
+
+/** Click an account-section tab by accessible name (Identity | Security | Settings | User Management). */
+export async function openUserTab(page: Page, name: RegExp): Promise<void> {
+  await dismissCookieBanner(page);
+  const tab = page.getByRole("tab", { name });
+  await expect(tab).toBeVisible({ timeout: USER_ACTION_TIMEOUT });
+  await tab.click({ timeout: USER_ACTION_TIMEOUT });
+}
+
+/** Open the User Management tab and wait for the AdminArea to render. */
+export async function openUserManagement(page: Page): Promise<void> {
+  await openUserTab(page, /user management/i);
+  await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: USER_ACTION_TIMEOUT });
+}
+
+/** Open the Settings tab (Privacy & Data / GDPR controls live there). */
+export async function openUserSettings(page: Page): Promise<void> {
+  await openUserTab(page, /^settings$/i);
+  await expect(page.getByTestId("user-settings-panel")).toBeVisible({
+    timeout: USER_ACTION_TIMEOUT,
+  });
+}
+
+/** Switch the AdminArea to the Invitations (token) view. */
+export async function openTokenView(page: Page): Promise<void> {
+  const tokensTab = page.getByTestId("admin-tab-tokens");
+  await expect(tokensTab).toBeVisible({ timeout: USER_ACTION_TIMEOUT });
+  await tokensTab.click({ timeout: USER_ACTION_TIMEOUT });
 }

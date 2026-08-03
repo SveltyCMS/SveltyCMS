@@ -57,10 +57,24 @@ class UIStore {
   // UI toggles
   manualOverrideActive = $state(false);
   headerShowMore = $state(false);
+  /** @deprecated Prefer isCommandBarVisible — kept in sync for legacy callers */
   isSearchVisible = $state(false);
+  /** Unified global search / command palette visibility */
   isCommandBarVisible = $state(false);
   // Sticky action bar: pages set their action buttons here
   stickyActionContent = $state<import("svelte").Snippet | null>(null);
+
+  /** Open/close the Gin-style global search (Alt+G / Mod+K). */
+  toggleGlobalSearch(force?: boolean): void {
+    const next = force ?? !this.isCommandBarVisible;
+    this.isCommandBarVisible = next;
+    this.isSearchVisible = next;
+  }
+
+  closeGlobalSearch(): void {
+    this.isCommandBarVisible = false;
+    this.isSearchVisible = false;
+  }
 
   // Internal state
   private manualTimer: ReturnType<typeof setTimeout> | null = null;
@@ -153,9 +167,9 @@ class UIStore {
 
     const showPageHeader = ["edit", "create", "modify"].includes(currentMode);
 
-    // Mobile
+    // Mobile — sidebar is hidden by default, user opens via hamburger overlay
     if (size === ScreenSize.XS || size === ScreenSize.SM) {
-      this.state.leftSidebar = "collapsed";
+      this.state.leftSidebar = "hidden";
       this.state.rightSidebar = "hidden";
       this.state.pageheader = showPageHeader ? "full" : "hidden";
       this.state.pagefooter = "hidden";

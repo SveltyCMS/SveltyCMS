@@ -33,6 +33,7 @@ get_estimate_sec() {
   case "$label" in
     *Database*safety*)  echo 2  ;;
     *Format*|*lint*)    echo 3  ;;
+    *SBOM*)             echo 2  ;;
     *Lint-staged*)      echo 3  ;;
     *Unit*)             echo 38 ;;
     *Build*|*build*)    echo 90 ;;

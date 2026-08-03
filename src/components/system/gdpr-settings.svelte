@@ -18,6 +18,7 @@
 	import Button from '@components/ui/button.svelte';
 		import Input from '@components/ui/input.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import type { SettingGroup } from '../../routes/(app)/config/system-settings/settings-groups';
 
 	interface Props {
@@ -40,6 +41,7 @@
 		try {
 			const res = await fetch('/api/gdpr', {
 				method: 'POST',
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({ action: 'export', userId: userIdExport })
 			});
 			const result = await res.json();
@@ -81,6 +83,7 @@
 		try {
 			const res = await fetch('/api/gdpr', {
 				method: 'POST',
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({ action: 'anonymize', userId: userIdAnonymize })
 			});
 			const result = await res.json();

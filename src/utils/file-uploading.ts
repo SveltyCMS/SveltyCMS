@@ -107,7 +107,7 @@ export async function uploadFile(
       writeStream.end((err?: Error) => (err ? reject(err) : resolve()));
     });
 
-    logger.info(`File saved successfully: ${filePath}`);
+    logger.debug(`File saved successfully: ${filePath}`);
     return { success: true, path: filePath, filename: safeFilename };
   } catch (err) {
     logger.error("Error uploading file:", err);
@@ -126,7 +126,7 @@ export async function createDirectory(relativePath: string) {
     // recursive: true makes this idempotent (won't fail if exists)
     await fs.mkdir(directoryPath, { recursive: true });
 
-    logger.info(`Directory ensured: ${directoryPath}`);
+    logger.debug(`Directory ensured: ${directoryPath}`);
     return { success: true, path: directoryPath };
   } catch (err) {
     logger.error("Error creating directory:", err);
@@ -150,7 +150,7 @@ export async function deleteDirectory(folder: string, force = false) {
     await fs.access(directoryPath);
     await fs.rm(directoryPath, { recursive: force, force });
 
-    logger.info(`Directory deleted: ${directoryPath}`);
+    logger.debug(`Directory deleted: ${directoryPath}`);
     return { success: true, path: directoryPath };
   } catch (err) {
     logger.error("Error deleting directory:", err);

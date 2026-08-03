@@ -45,10 +45,10 @@ import type { PageData } from "./$types";
 import { systemPreferences } from "@src/stores/dashboard-preferences.svelte.ts";
 // Stores
 import { themeStore } from "@src/stores/theme-store.svelte.ts";
-import { page } from "$app/state";
 
 // System logger
 import { logger } from "@utils/logger";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { generateUUID } from "@utils/native-utils";
 import { retryDynamicImport } from "@src/utils/retry-dynamic-import";
 	import Button from '@components/ui/button.svelte';
@@ -58,13 +58,6 @@ import { retryDynamicImport } from "@src/utils/retry-dynamic-import";
 // Lucide Icons
 
 const { data }: { data: PageData } = $props();
-
-function csrfJsonHeaders(): Record<string, string> {
-	const headers: Record<string, string> = { "Content-Type": "application/json" };
-	const token = (page.data as { csrfToken?: string })?.csrfToken;
-	if (token) headers["X-CSRF-Token"] = token;
-	return headers;
-}
 
 // Define the types for the widget registry
 interface WidgetRegistryEntry {
@@ -127,7 +120,7 @@ async function toggleAiMode() {
 		// For now, we use a default high-quality prompt that leverages the MCP knowledge.
 		const response = await fetch("/api/ai/generate-layout", {
 			method: "POST",
-			headers: csrfJsonHeaders(),
+			headers: clientJsonHeaders(),
 			body: JSON.stringify({
 				prompt:
 					"Generate a professional system monitoring dashboard with a welcome header and a summary of active users.",

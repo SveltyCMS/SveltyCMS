@@ -23,6 +23,11 @@ import "../app.css";
 // Register Iconify custom element globally
 import "iconify-icon";
 
+// Plugin UI slot registration MUST run with the app shell — bundlers hoist this
+// side-effect module into lazy route nodes when only route pages import it,
+// leaving plugin workspaces (and other zones) unregistered on first load.
+import "@src/plugins/index";
+
 import { onMount, untrack } from "svelte";
 import { browser } from "$app/environment";
 import { page } from "$app/state";
@@ -59,7 +64,7 @@ import {
 	themeStore,
 } from "@src/stores/theme-store.svelte";
 import { screen } from "@src/stores/screen-size-store.svelte";
-
+import { logger } from "@utils/logger";
 
 // Props
 interface Props {
@@ -129,7 +134,6 @@ afterNavigate(() => {
 		if (lastFocusedSelector) {
 			const target = document.querySelector(lastFocusedSelector) as HTMLElement;
 			if (target) {
-				console.log(`[A11y] Restoring focus to state-bound selector: ${lastFocusedSelector}`);
 				target.focus();
 			}
 		}
@@ -218,8 +222,6 @@ $effect(() => {
 // ============================================================================
 
 onMount(() => {
-	console.log("[RootLayout] Mounting in", browser ? "browser" : "server");
-
 	// Initialize screen size tracking (resize listener + window.innerWidth)
 	// Without this, screen.isMobile/isDesktop use SSR defaults (1024px)
 	screen.mount();
@@ -231,9 +233,6 @@ onMount(() => {
 		availableLocales.includes(urlLocale as any) &&
 		app.systemLanguage !== urlLocale
 	) {
-		console.log(
-			`[RootLayout] Aligning store (${app.systemLanguage}) to URL (${urlLocale})`,
-		);
 		app.systemLanguage = urlLocale as any;
 		currentLocale = urlLocale;
 	}
@@ -255,12 +254,12 @@ onMount(() => {
 	if (browser) {
 		// Tiny delay to ensure polyfill overrides are settled
 		setTimeout(() => {
-			initWebMCP().catch(console.error);
+			initWebMCP().catch((err) => logger.error("[WebMCP] init failed:", err));
 		}, 100);
 	}
 
 	// Register audit history slot for entry edit sidebar
-	import('@src/plugins/slot-registry').then(({ slotRegistry }) => {
+	import('@src/plugins/slot-registry.svelte.ts').then(({ slotRegistry }) => {
 		slotRegistry.register({
 			id: 'audit-history',
 			zone: 'entry_edit_sidebar',
@@ -329,8 +328,6 @@ $effect(() => {
 			availableLocales.includes(desired as any) &&
 			current !== desired
 		) {
-			console.log("[RootLayout] Store changed, updating locale:", desired);
-
 			// Update Paraglide locale (handles routing internally)
 			setLocale(desired as any, { reload: false });
 			currentLocale = desired as any;
@@ -359,7 +356,7 @@ $effect(() => {
 
 	const interval = 30 * 60 * 1000; // 30 minutes
 	const intervalId = setInterval(() => {
-		initializeThemeStore().catch(console.error);
+		initializeThemeStore().catch((err) => logger.error("[Theme] init failed:", err));
 	}, interval);
 
 	return () => clearInterval(intervalId);
@@ -439,7 +436,7 @@ onMount(() => {
 				}
 			});
 		} catch (err) {
-			console.error("Failed to setup global keyboard shortcuts:", err);
+			logger.error("Failed to setup global keyboard shortcuts:", err);
 		}
 	})();
 

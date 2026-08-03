@@ -1,6 +1,13 @@
 /**
  * @file src/hooks/handle-content-initialization.ts
- * @description Hardened multi-tenant content initialization with flight deduplication and request-scoped state.
+ * @description
+ * Hardened multi-tenant content initialization with flight deduplication and request-scoped state.
+ *
+ * ### Features:
+ * - Coalesced per-tenant `ensureContentInitialized` (stampede protection)
+ * - Fresh-install redirects (admin → collectionbuilder, others → profile)
+ * - Whitelist for zero-collection routes (setup, admin, config, …)
+ * - Static imports only — no per-request dynamic import microtasks
  */
 
 import { redirect, type Handle } from "@sveltejs/kit";
@@ -34,7 +41,7 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
   await getDbInitPromise(false, "CORE");
 
   // Phase 2: Coalesced content system initialization (prevents thundering herd)
-  if (!contentSystem.isInitializedForTenant(tenantId)) {
+  if (tenantId && !contentSystem.isInitializedForTenant(tenantId)) {
     let initPromise = tenantInitializationFlights.get(tenantId);
 
     if (!initPromise) {
@@ -45,7 +52,7 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
           );
         })
         .finally(() => {
-          tenantInitializationFlights.delete(tenantId);
+          tenantInitializationFlights.delete(tenantId!);
         });
       tenantInitializationFlights.set(tenantId, initPromise);
     }
@@ -60,14 +67,14 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
   }
 
   // Phase 3: Auth & fresh install redirects (no global store — request-scoped only)
-  if (locals.user) {
+  if (locals.user && tenantId) {
     let collections = contentSystem.getCollections(tenantId);
 
     if (collections.length === 0 && !contentSystem.isInitializedForTenant(tenantId)) {
       let activeFlight = tenantInitializationFlights.get(tenantId);
       if (!activeFlight) {
         activeFlight = contentSystem.initialize(tenantId, false).finally(() => {
-          tenantInitializationFlights.delete(tenantId);
+          tenantInitializationFlights.delete(tenantId!);
         });
         tenantInitializationFlights.set(tenantId, activeFlight);
       }

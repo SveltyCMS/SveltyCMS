@@ -196,8 +196,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           let row: any = null;
           if (client.query) {
             row = client
-              .query(`SELECT data FROM content_nodes WHERE _id = '${cleanName}' LIMIT 1`)
-              .get();
+              .query(`SELECT data FROM content_nodes WHERE _id = ? LIMIT 1`)
+              .get(cleanName);
           } else if (client.prepare) {
             row = client
               .prepare(`SELECT data FROM content_nodes WHERE _id = ? LIMIT 1`)
@@ -923,7 +923,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
         const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "status" TEXT DEFAULT 'draft', "isDeleted" INTEGER DEFAULT 0, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
         if (debugMode && !isBenchSuite)
-          console.log(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
+          logger.debug(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
         await this.raw.execute(ddl);
 
         const columns = [
@@ -976,14 +976,16 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         const addedColumns = new Set<string>();
         for (const col of allColumnsToEnsure) {
           try {
+            // Defense-in-depth: schema-defined column names are interpolated as identifiers
+            const safeColName = utils.assertSafeSqlIdentifier(col.name, "column");
             const tableInfo = await this.raw.execute(`PRAGMA table_info("${physicalName}")`);
-            const exists = tableInfo.some((c: any) => c.name === col.name);
+            const exists = tableInfo.some((c: any) => c.name === safeColName);
             if (!exists) {
               await this.raw.execute(
-                `ALTER TABLE "${physicalName}" ADD COLUMN "${col.name}" ${col.type}`,
+                `ALTER TABLE "${physicalName}" ADD COLUMN "${safeColName}" ${col.type}`,
               );
             }
-            addedColumns.add(col.name);
+            addedColumns.add(safeColName);
           } catch {
             /* safe — column may already exist or ALTER TABLE unsupported */
           }

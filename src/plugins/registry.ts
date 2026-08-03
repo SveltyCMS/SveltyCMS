@@ -30,7 +30,7 @@ import type {
   PluginSSRHook,
 } from "./types";
 
-class PluginRegistry implements IPluginService {
+export class PluginRegistry implements IPluginService {
   private readonly plugins: Map<string, PluginRegistryEntry> = new Map();
   private settingsService: PluginSettingsService | null = null;
   private initialized = false;
@@ -39,7 +39,7 @@ class PluginRegistry implements IPluginService {
   async register(plugin: Plugin): Promise<DatabaseResult<void>> {
     try {
       if (this.plugins.has(plugin.metadata.id)) {
-        logger.info(`Plugin ${plugin.metadata.id} is already registered. Overwriting.`);
+        logger.debug(`Plugin ${plugin.metadata.id} is already registered. Overwriting.`);
       }
 
       this.plugins.set(plugin.metadata.id, {
@@ -136,7 +136,7 @@ class PluginRegistry implements IPluginService {
         .sort((a, b) => a.version - b.version);
 
       for (const migration of pending) {
-        logger.info(
+        logger.debug(
           `📝 Running plugin migration: ${pluginId} -> ${migration.id} (v${migration.version})`,
         );
         await migration.up(dbAdapter);
@@ -265,6 +265,59 @@ class PluginRegistry implements IPluginService {
     }
 
     return hooks;
+  }
+
+  /**
+   * Run afterAuthenticate hooks across all enabled plugins.
+   *
+   * Auth hooks fire on every successful login regardless of collection state.
+   * Plugins must be globally enabled.
+   *
+   * @returns The first deny result (blocking), or the first requires2FA result,
+   *          or null if no plugin intervenes.
+   */
+  async runAuthHooks(
+    event: import("./types").AuthHookEvent,
+  ): Promise<import("./types").AuthHookResult | null> {
+    let requires2FA = false;
+
+    for (const entry of this.plugins.values()) {
+      const plugin = entry.plugin;
+      if (!plugin.metadata.enabled) continue;
+
+      const hooks = plugin.hooks;
+      if (!hooks?.afterAuthenticate) continue;
+
+      try {
+        const result = await hooks.afterAuthenticate(event);
+        if (!result) continue;
+
+        // Deny takes immediate priority — block the login
+        if (result.deny) {
+          logger.warn(`[PluginRegistry] Auth denied by plugin "${plugin.metadata.id}"`, {
+            userId: String(event.user._id),
+            message: result.message,
+          });
+          return { deny: true, message: result.message || "Access denied by security policy." };
+        }
+
+        // Requires2FA can be raised by any plugin
+        if (result.requires2FA) {
+          requires2FA = true;
+          logger.info(`[PluginRegistry] 2FA required by plugin "${plugin.metadata.id}"`, {
+            userId: String(event.user._id),
+          });
+        }
+      } catch (err: any) {
+        // Fail-open for auth hooks — a broken plugin should not block login
+        logger.error(`[PluginRegistry] afterAuthenticate hook failed for "${plugin.metadata.id}"`, {
+          error: err.message,
+          userId: String(event.user._id),
+        });
+      }
+    }
+
+    return requires2FA ? { requires2FA: true } : null;
   }
 
   // Check if a plugin is enabled for a specific collection and tenant
@@ -445,7 +498,9 @@ class PluginRegistry implements IPluginService {
                 `[PluginRegistry] Schema "${schema.name}" from plugin "${pluginId}" should use "${expectedPrefix}" prefix to avoid collisions with core collections`,
               );
             }
-            logger.info(`[PluginRegistry] Plugin "${pluginId}" contributes schema: ${schema.name}`);
+            logger.debug(
+              `[PluginRegistry] Plugin "${pluginId}" contributes schema: ${schema.name}`,
+            );
           }
           break;
         }
@@ -559,13 +614,18 @@ class PluginRegistry implements IPluginService {
     const table = "pluginMigrations";
     try {
       // Use createModel to ensure physical table exists in SQL adapters
-      await dbAdapter.collection.createModel({
-        _id: table,
-        name: table,
-        slug: table,
-        fields: [],
-        status: "publish",
-      } as any);
+      const { withSystemScope } = await import("@src/databases/system-tenant-scope");
+      await dbAdapter.collection.createModel(
+        {
+          _id: table,
+          name: table,
+          slug: table,
+          fields: [],
+          status: "publish",
+        } as any,
+        false,
+        withSystemScope("bootstrap"),
+      );
     } catch (error) {
       logger.error(`[PluginRegistry] Failed to ensure migration table:`, error);
     }

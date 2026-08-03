@@ -451,6 +451,33 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   const email = ADMIN_CREDENTIALS.email;
   const password = ADMIN_CREDENTIALS.password;
 
+  // Intercept cross-origin icon CDN requests to strip Playwright's test headers
+  // that cause CORS failures. Applies to all icon CDNs used by iconify-icon.
+  await page.route("https://api.iconify.design/**", async (route) => {
+    try {
+      const response = await route.fetch();
+      await route.fulfill({ response });
+    } catch {
+      // Test may have ended before icon fetch completed — ignore silently
+    }
+  });
+  await page.route("https://api.unisvg.com/**", async (route) => {
+    try {
+      const response = await route.fetch();
+      await route.fulfill({ response });
+    } catch {
+      // Test may have ended before icon fetch completed — ignore silently
+    }
+  });
+  await page.route("https://api.simplesvg.com/**", async (route) => {
+    try {
+      const response = await route.fetch();
+      await route.fulfill({ response });
+    } catch {
+      // Test may have ended before icon fetch completed — ignore silently
+    }
+  });
+
   // Prefer existing storageState / cookie jar from auth-setup — avoid re-seed races.
   // Verify session by actually checking for admin shell testid, not just URL (SPA auth
   // can render auth page without redirect, leaving URL unchanged).
@@ -695,10 +722,16 @@ export async function dismissCookieBanner(page: Page): Promise<void> {
     })
     .catch(() => {});
 
-  // Defense-in-depth: click the accept button if the banner already rendered
+  // Defense-in-depth: click the accept button if the banner already rendered or
+  // hydrates shortly after the stamp (Svelte hydration race). Bounded to a single
+  // waitFor so tab switches don't burn ~6s polling when the banner is absent.
   const acceptBtn = page.getByTestId("cookie-accept-all");
-  if (await acceptBtn.isVisible({ timeout: 1_500 }).catch(() => false)) {
-    await acceptBtn.click();
-    await page.waitForTimeout(200);
+  const shown = await acceptBtn
+    .waitFor({ state: "visible", timeout: 1_500 })
+    .then(() => true)
+    .catch(() => false);
+  if (shown) {
+    await acceptBtn.click({ timeout: 1_000 }).catch(() => {});
+    await page.waitForTimeout(150);
   }
 }

@@ -5,6 +5,7 @@
  * Consolidates permission checks, token validation, and stateless threat scanning.
  */
 
+import { logger } from "@utils/logger";
 import { auth } from "@src/databases/db";
 import { SECURITY_PATTERNS } from "./patterns";
 import type { User, Role } from "@src/databases/auth/types";
@@ -24,7 +25,7 @@ export class AuthGuardService {
     const { getAuth } = await import("@src/databases/db");
     const authService = getAuth();
     if (!authService) {
-      console.warn(`[AuthGuardService] Auth service NOT available for sessionId: ${sessionId}`);
+      logger.warn(`[AuthGuardService] Auth service NOT available for sessionId: ${sessionId}`);
       return null;
     }
     const result = await authService.validateSession(sessionId as any, {

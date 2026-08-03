@@ -16,8 +16,8 @@
  * - Data encoding helpers (Base64/Yjs)
  */
 
-import { logger } from "./logger";
-import { AppError } from "./error-handling";
+import { logger } from "./logger.ts";
+import { AppError } from "./error-handling.ts";
 
 // Memoized multi-tenant check with 5-second TTL
 let _multiTenantCached: boolean | null = null;

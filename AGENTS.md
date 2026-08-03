@@ -85,7 +85,7 @@ To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs
 
 - **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime)
 - **Code Quality**: SveltyCMS uses a **tiered validation pipeline** via git hooks:
-  - **Pre-commit** (`git commit`): check-test-db-safety → format+lint → lint-staged → **unit tests** (~40s). Docs-only commits skip unit tests.
+  - **Pre-commit** (`git commit`): check-test-db-safety → format+lint → lint-staged → **unit tests** (~40s) → **SBOM sync** (auto-regenerates `sbom.json` when `bun.lock`/`package.json` changed). Docs-only commits skip unit tests.
   - **Pre-push** (`git push` / `bun run gate` / `bun run prepush`): production build (4 adapters) → **SQLite integration** (`bun test tests/integration/`) ~5 min. Multi-DB matrix, E2E, and benchmarks are CI-only.
   - **CI** (GitHub PR/push to `next`/`main`): whitebox → build → DB matrix (4 adapters) → core benchmarks → E2E prep + 6 named groups → all-green.
   - Manual: `bun run check`, `bun run test:unit`, `bun run test:security`, `bun run test:doctor` (unit + SQLite integration + gate map), `bun run gate` (pre-push), `bun run test:e2e`.
@@ -342,6 +342,8 @@ When generating/modifying code:
       - **CI `db-tests` missing `TEST_API_SECRET`** → The `db-tests` job in `.github/workflows/ci.yml` must pass `TEST_API_SECRET` (from bootstrap) into integration env. Without it, testing-API and auth seed paths fail. Always keep `TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}` (or repo secret) alongside `JWT_SECRET_KEY` and `ENCRYPTION_KEY`.
       - **`config/collections/` directory missing in e2e-prep** → The collection builder save action calls `fs.writeFileSync(collectionPath, content)` which throws if the parent directory doesn't exist (Node.js `writeFileSync` does NOT auto-create parents). The e2e-prep job must `mkdir -p config/collections` and include it in the E2E environment archive.
       - **E2E soft-skips for empty lists** → Never `test.skip` because a control-map route has no data. Seed via `/api/testing` (`tests/e2e/helpers/api.ts`) so happy paths always run.
+      - **Media URL cache staleness** → `getUrl()` in `src/utils/media/storage-adapters.ts` caches path→URL mappings for 5min. If you change storage adapter config or add a new CDN endpoint, call `invalidateMediaUrlCache()` to clear it. The metadata cache in `media-processing.server.ts` uses file hash keys — no manual invalidation needed (immutable per hash).
+      - **Integration tests fail with `Content node upsert result for iso_tenant_fixture: FAILED`** → The `bulk-seed` testing action requires the target collection to exist. The test provisions it in `beforeAll` via `create-collection`. If the fixture name (`iso_tenant_fixture`) was previously used with a different schema, the upsert can fail. Reset by deleting the collection or using `ISO_TEST_COLLECTION` env var to pick a fresh name.
 20. **E2E Control-Map Policy (CRITICAL)**: See [E2E & Control-Map Testing Policy](#e2e--control-map-testing-policy). Soft-skips on control rows are banned; seed fixtures instead.
 
 ## E2E & Control-Map Testing Policy
@@ -750,26 +752,32 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 > [!TIP]
 > Every test suite has corresponding documentation. When modifying tests, update the linked docs.
 
-| Test File                                          | Documentation                                                                                       |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `tests/unit/hooks/defense-in-depth.test.ts`        | `docs/reference/security/index.mdx`, `docs/tests/security-testing.mdx`                              |
-| `tests/unit/hooks/authentication.test.ts`          | `docs/reference/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`                   |
-| `tests/unit/hooks/authorization.test.ts`           | `docs/tests/rbac-testing.mdx`, `docs/reference/security/index.mdx`                                  |
-| `tests/unit/hooks/system-state.test.ts`            | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`             |
-| `tests/unit/hooks/setup.test.ts`                   | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                   |
-| `tests/unit/hooks/security-headers.test.ts`        | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                            |
-| `tests/unit/auth/role-permission-access.test.ts`   | `docs/tests/rbac-testing.mdx`                                                                       |
-| `tests/unit/api/media-security.test.ts`            | `docs/reference/security/widget-security.mdx`                                                       |
-| `tests/unit/services/media-manipulation.test.ts`   | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx` |
-| `tests/unit/services/media-service.test.ts`        | `docs/tests/utility-test-coverage.mdx`                                                              |
-| `tests/benchmarks/security-audit.test.ts`          | `docs/reference/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx`                 |
-| `tests/benchmarks/**/*.test.ts`                    | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                              |
-| `tests/e2e/accessibility.spec.ts`                  | `docs/tests/accessibility-audit.mdx`                                                                |
-| `tests/e2e/branding.spec.ts`                       | `docs/reference/architecture/multi-tenancy.mdx`                                                     |
-| `tests/e2e/visual-regression.spec.ts`              | `docs/tests/accessibility-audit.mdx`                                                                |
-| `tests/unit/security/token-secret-leakage.test.ts` | `docs/reference/security/secrets-inventory.mdx`                                                     |
-| `tests/unit/scripts/scan-secret-misuse.test.ts`    | `docs/reference/security/secrets-inventory.mdx`                                                     |
-| `tests/unit/widgets/core/*.test.ts`                | `docs/tests/widget-test-coverage.mdx`                                                               |
+| Test File                                             | Documentation                                                                                                             |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `tests/unit/hooks/defense-in-depth.test.ts`           | `docs/reference/security/index.mdx`, `docs/tests/security-testing.mdx`                                                    |
+| `tests/unit/hooks/authentication.test.ts`             | `docs/reference/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`                                         |
+| `tests/unit/hooks/authorization.test.ts`              | `docs/tests/rbac-testing.mdx`, `docs/reference/security/index.mdx`                                                        |
+| `tests/unit/hooks/system-state.test.ts`               | `docs/tests/hook-test-coverage.mdx`, `docs/reference/architecture/state-management.mdx`                                   |
+| `tests/unit/hooks/setup.test.ts`                      | `docs/tests/hook-test-coverage.mdx`, `docs/guides/configuration/setup-wizard.mdx`                                         |
+| `tests/unit/hooks/security-headers.test.ts`           | `docs/tests/hook-test-coverage.mdx`, `docs/reference/security/index.mdx`                                                  |
+| `tests/unit/auth/role-permission-access.test.ts`      | `docs/tests/rbac-testing.mdx`                                                                                             |
+| `tests/unit/api/media-security.test.ts`               | `docs/reference/security/widget-security.mdx`                                                                             |
+| `tests/unit/services/media-manipulation.test.ts`      | `docs/tests/utility-test-coverage.mdx`, `docs/reference/architecture/live-preview-architecture.mdx`                       |
+| `tests/unit/services/media-service.test.ts`           | `docs/tests/utility-test-coverage.mdx`                                                                                    |
+| `tests/benchmarks/security-audit.test.ts`             | `docs/reference/security/quantum-security.mdx`, `docs/project/benchmarks/index.mdx`                                       |
+| `tests/benchmarks/**/*.test.ts`                       | `docs/tests/benchmark-matrix.mdx`, `docs/project/benchmarks/index.mdx`                                                    |
+| `tests/e2e/accessibility.spec.ts`                     | `docs/tests/accessibility-audit.mdx`                                                                                      |
+| `tests/e2e/branding.spec.ts`                          | `docs/reference/architecture/multi-tenancy.mdx`                                                                           |
+| `tests/e2e/visual-regression.spec.ts`                 | `docs/tests/accessibility-audit.mdx`                                                                                      |
+| `tests/unit/security/token-secret-leakage.test.ts`    | `docs/reference/security/secrets-inventory.mdx`                                                                           |
+| `tests/unit/scripts/scan-secret-misuse.test.ts`       | `docs/reference/security/secrets-inventory.mdx`                                                                           |
+| `tests/unit/widgets/core/*.test.ts`                   | `docs/tests/widget-test-coverage.mdx`                                                                                     |
+| `tests/unit/content/sync-content-state.test.ts`       | `docs/reference/architecture/content-system.mdx`, `docs/reference/architecture/compilation-pipeline.mdx`                  |
+| `tests/unit/content/collection-save-sync.test.ts`     | `docs/reference/architecture/compilation-pipeline.mdx`, `docs/reference/architecture/collection-builder-architecture.mdx` |
+| `tests/unit/content/schema-contract.test.ts`          | `docs/reference/architecture/content-system.mdx`                                                                          |
+| `tests/unit/compilation/compile-manifest.test.ts`     | `docs/reference/architecture/compilation-pipeline.mdx`                                                                    |
+| `tests/integration/collectionbuilder/*`               | `docs/reference/architecture/collection-builder-architecture.mdx`                                                         |
+| `tests/e2e/routes/collection-builder/builder.spec.ts` | `docs/guides/content/collection-builder.mdx`, `docs/reference/architecture/collection-builder-architecture.mdx`           |
 
 ## Key Files Reference
 
@@ -777,7 +785,8 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **DB & Auth**   | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                                                                                                                           |
 | **Security**    | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts`                                                                                                          |
-| **Content**     | `types.ts`, `collectionScanner.ts`, `config/collections/`                                                                                                                                                        |
+| **Content**     | `sync-content-state.server.ts`, `engine.server.ts`, `loader.server.ts`, `schema-contract.ts`, `config/collections/` → `.compiledCollections/`                                                                    |
+| **Compile/HMR** | `src/utils/compilation/*`, `vite.config.ts` (`sveltyCmsPlugin`), `scripts/generate-content-types.ts`                                                                                                             |
 | **Widgets**     | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                                                                                                    |
 | **API**         | `routes/api/`, `hooks.server.ts`                                                                                                                                                                                 |
 | **Admin Theme** | `admin-page-shell.svelte`, `admin-card.svelte`, `theme-context.svelte.ts`, `theme-merge.ts`                                                                                                                      |

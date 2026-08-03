@@ -27,11 +27,11 @@ interface FilterWorkerOutput {
   message?: string;
 }
 
-function clamp(value: number): number {
+export function clamp(value: number): number {
   return Math.max(0, Math.min(255, value));
 }
 
-function buildFilterString(filters: Record<string, number>): string {
+export function buildFilterString(filters: Record<string, number>): string {
   const parts: string[] = [];
 
   if (filters.brightness) parts.push(`brightness(${100 + filters.brightness}%)`);
@@ -92,7 +92,7 @@ function buildFilterString(filters: Record<string, number>): string {
   return parts.join(" ");
 }
 
-function applySharpness(
+export function applySharpness(
   imageData: ImageData,
   width: number,
   height: number,
@@ -240,31 +240,36 @@ function applySharpness(
   return imageData;
 }
 
-self.onmessage = (e: MessageEvent<FilterWorkerInput>) => {
-  const { type, imageData, width, height, filters } = e.data;
-  try {
-    if (type === "buildFilterString" && filters) {
-      const data = buildFilterString(filters);
-      self.postMessage({
-        type: "filterString",
-        data,
-      } satisfies FilterWorkerOutput);
-    } else if (type === "applySharpness" && imageData && width && height && filters) {
-      const data = applySharpness(imageData, width, height, filters);
-      // Transfer the buffer back (zero-copy)
-      self.postMessage({ type: "sharpnessApplied", data } satisfies FilterWorkerOutput, [
-        data.data.buffer,
-      ]);
-    } else {
+// Guard: only register the message handler when running inside a Web Worker.
+// When imported outside a Worker (e.g., in tests), only the exported functions
+// are used and the message handler is skipped.
+if (typeof self !== "undefined") {
+  self.onmessage = (e: MessageEvent<FilterWorkerInput>) => {
+    const { type, imageData, width, height, filters } = e.data;
+    try {
+      if (type === "buildFilterString" && filters) {
+        const data = buildFilterString(filters);
+        self.postMessage({
+          type: "filterString",
+          data,
+        } satisfies FilterWorkerOutput);
+      } else if (type === "applySharpness" && imageData && width && height && filters) {
+        const data = applySharpness(imageData, width, height, filters);
+        // Transfer the buffer back (zero-copy)
+        self.postMessage({ type: "sharpnessApplied", data } satisfies FilterWorkerOutput, [
+          data.data.buffer,
+        ]);
+      } else {
+        self.postMessage({
+          type: "error",
+          message: "Invalid worker input",
+        } satisfies FilterWorkerOutput);
+      }
+    } catch (err) {
       self.postMessage({
         type: "error",
-        message: "Invalid worker input",
+        message: (err as Error).message,
       } satisfies FilterWorkerOutput);
     }
-  } catch (err) {
-    self.postMessage({
-      type: "error",
-      message: (err as Error).message,
-    } satisfies FilterWorkerOutput);
-  }
-};
+  };
+}

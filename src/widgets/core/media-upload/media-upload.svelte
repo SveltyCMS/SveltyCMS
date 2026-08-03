@@ -48,6 +48,7 @@ functionality for image editing and basic file information display.
 	import { getFieldName } from '@utils/utils';
 	import { formatDateString } from '@utils/date';
 	import { modalState } from '@utils/modal.svelte';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import Badge from '@components/ui/badge.svelte';
 	import AspectPreviewModal from '@components/media/aspect-preview-modal.svelte';
 	import { page } from '$app/state';
@@ -153,9 +154,7 @@ functionality for image editing and basic file information display.
 			// --- SERVER-SIDE BAKING ---
 			const response = await fetch(`/api/media/manipulate/${mediaId}`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
+				headers: clientJsonHeaders(),
 				body: JSON.stringify(manipulations)
 			});
 
@@ -369,7 +368,7 @@ functionality for image editing and basic file information display.
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${getFieldName(field)}-error`} class="absolute -bottom-4 start-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${getFieldName(field)}-error`} class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500" role="alert">
 			{validationError}
 		</p>
 	{/if}

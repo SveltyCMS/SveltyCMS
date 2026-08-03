@@ -24,6 +24,8 @@ export interface TwoFactorSetupResponse {
     digits: number;
     period: number;
   };
+  /** True when setup is in progress but not yet verified. Secret is persisted encrypted. */
+  pending?: boolean;
   qrCodeURL: string;
   secret: string;
 }

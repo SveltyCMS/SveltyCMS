@@ -1,6 +1,7 @@
 /**
  * @file src/hooks/handle-turbo-pipeline.server.ts
- * @description Consolidated high-performance middleware pipeline for SveltyCMS.
+ * @description
+ * Consolidated high-performance middleware pipeline for SveltyCMS.
  *
  * ### Pipeline (in order of execution cost)
  * 1. Static Asset Fast Exit      — regex match + zero logic
@@ -8,8 +9,10 @@
  * 3. System State Gate           — block if FAILED or INITIALIZING
  * 4. Setup Completeness Gate     — redirect to /setup if config missing
  * 5. CORS Preflight Fast Exit    — handle OPTIONS requests
+ * 6. Post-resolve security headers + immutable static cache headers
  *
  * Optimized to minimize work for hot paths and static content.
+ * All post-resolve header writes use `withMutableHeaders` (immutable Response safety).
  */
 
 import { dev } from "$app/environment";
@@ -30,8 +33,13 @@ import {
   STATIC_ASSET_REGEX,
   restrictedResponse,
   boundaryResponse,
+  withMutableHeaders,
 } from "@src/utils/hook-utils";
-import { API_CONTENT_SECURITY_POLICY, BASE_HEADERS } from "../utils/security/constants";
+import {
+  API_CONTENT_SECURITY_POLICY,
+  BASE_HEADERS,
+  MEDIA_RESOURCE_HEADERS,
+} from "../utils/security/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { logger } from "@src/utils/logger";
 // Hook is initialized lazily
@@ -196,22 +204,25 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
   // 🚀 ONE-SHOT CLASSIFICATION: Computes isStatic/isApi/isBootstrap/isPublic once.
   // All downstream hooks read from locals.__flags via getRequestFlags().
-  classifyRequest(pathname, event.locals as any);
+  const flags = classifyRequest(pathname, event.locals as any);
 
   // ── 0. STATIC ASSET DELEGATION (before test bypass) ─────────────────────
   // Playwright attaches x-test-secret to every request; test bypass must not
   // skip CORP/cache headers or setup gates for uploaded media at /files/.
-  if (pathname.length > 1 && isStaticOrInternalRequest(pathname)) {
+  // Uses the already-computed flags (no second regex/prefix walk per request).
+  if (pathname.length > 1 && flags.isStatic) {
     const response = await resolve(event);
-    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-    if (pathname.startsWith("/files/")) {
-      const { MEDIA_RESOURCE_HEADERS } = await import("@root/src/utils/security/constants");
-      for (const [key, value] of Object.entries(MEDIA_RESOURCE_HEADERS)) {
-        response.headers.set(key, value);
+    // Clone headers — resolve() Responses can be immutable
+    const out = withMutableHeaders(response, (headers) => {
+      headers.set("Cache-Control", "public, max-age=31536000, immutable");
+      if (pathname.startsWith("/files/")) {
+        for (const [key, value] of Object.entries(MEDIA_RESOURCE_HEADERS)) {
+          headers.set(key, value);
+        }
       }
-    }
-    if (dev) logRequest(event, performance.now() - requestStart, response.status);
-    return response;
+    });
+    if (dev) logRequest(event, performance.now() - requestStart, out.status);
+    return out;
   }
 
   // ── 0a. TERMINAL TEST BYPASS ──────────────────────────────────────────
@@ -534,8 +545,12 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         return restrictedResponse("FAILED", isApiRoute, baseHeaderMap);
       }
     } else if (systemState.overallState === "FAILED" && !pathname.includes("/health")) {
-      const response = restrictedResponse("FAILED", isApiRoute, baseHeaderMap);
-      response.headers.set("X-Request-ID", requestId.toString());
+      const response = withMutableHeaders(
+        restrictedResponse("FAILED", isApiRoute, baseHeaderMap),
+        (headers) => {
+          headers.set("X-Request-ID", requestId.toString());
+        },
+      );
       if (dev) logRequest(event, performance.now() - requestStart, response.status);
       return response;
     }
@@ -600,19 +615,24 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     // ── 10. POST-RESOLVE: Security Headers + Static Asset Caching ──────────
     // Consolidated here to reduce Promise chain depth by 2 hooks.
-    if (!STATIC_ASSET_REGEX.test(pathname)) {
-      applyAllSecurityHeaders(response.headers, isHttps, origin, pathname);
-    } else {
-      response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-    }
+    // Always clone headers — resolve() Responses are often immutable.
+    const out = withMutableHeaders(response, (headers) => {
+      if (!STATIC_ASSET_REGEX.test(pathname)) {
+        applyAllSecurityHeaders(headers, isHttps, origin, pathname);
+      } else {
+        headers.set("Cache-Control", "public, max-age=31536000, immutable");
+      }
+      headers.set("X-Request-ID", requestId.toString());
+    });
 
-    if (dev) logRequest(event, performance.now() - requestStart, response.status);
-    return response;
+    if (dev) logRequest(event, performance.now() - requestStart, out.status);
+    return out;
   } catch (err: unknown) {
     if (isRedirect(err) || isHttpError(err)) throw err;
     logger.error(`[Turbo] Pipeline error:`, err);
     const fallback = boundaryResponse(err, isHttps);
-    fallback.headers.set("X-Request-ID", requestId.toString());
-    return fallback;
+    return withMutableHeaders(fallback, (headers) => {
+      headers.set("X-Request-ID", requestId.toString());
+    });
   }
 };

@@ -10,6 +10,7 @@
  * - System reinitialization for recovery scenarios
  */
 
+import { logger } from "@utils/logger";
 import { AppError, isAppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
@@ -74,7 +75,7 @@ export async function handleSetupRoutes(
   } catch (err: any) {
     // Expected AppErrors (setup already complete, etc.) should not log noisy traces
     if (!isAppError(err)) {
-      console.error(`[SetupRoute Error] ${action}:`, err);
+      logger.error(`[SetupRoute Error] ${action}:`, err);
     }
     if (isAppError(err)) throw err;
     throw new AppError(err.message || "Setup operation failed", 500);
@@ -135,7 +136,7 @@ async function handleTestDatabase(event: RequestEvent) {
       throw new AppError(`Connection failed: ${healthCheck.message}`, 400, "DB_CONNECT_FAILED");
     }
   } catch (e: any) {
-    console.error("Database setup test error:", e);
+    logger.error("Database setup test error:", e);
     throw new AppError(`Failed to connect/test DB: ${e.message}`, 400, "DB_CONNECT_ERROR");
   } finally {
     if (adapterWrapper?.dbAdapter?.disconnect) {

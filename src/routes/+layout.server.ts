@@ -15,6 +15,7 @@
  * - Content Versioning is cached
  */
 
+import { logger } from "@utils/logger";
 import type { NavigationNode } from "@src/content";
 import type { Locale } from "@src/paraglide/runtime";
 import { isMultiTenantEnabled } from "@utils/tenant";
@@ -55,7 +56,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     const settingsResult = await loadSettingsCache();
     publicSettings = settingsResult.public;
   } catch (error) {
-    console.error("[Layout] Settings load failed (preview mode?):", error);
+    logger.error("[Layout] Settings load failed (preview mode?):", error);
     // Return minimal valid data structure
     return {
       systemLanguage: "en" as Locale,
@@ -112,7 +113,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
         locals.tenantId,
       )) || "";
   } catch (error) {
-    console.error("[Layout]ContentSystem error (preview mode?):", error);
+    logger.error("[Layout]ContentSystem error (preview mode?):", error);
     // Continue with empty navigation - don't block page load
   }
 

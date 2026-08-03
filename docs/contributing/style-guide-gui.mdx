@@ -6,10 +6,79 @@ order: 3
 icon: "mdi:palette"
 author: "SveltyCMS Team"
 created: "2025-11-04"
-updated: "2026-07-13"
+updated: "2026-07-30"
 tags:
   - "gui"
   - "styling"
   - "ux"
   - "accessibility"
 ---
+
+# GUI Styling & UX Guide
+
+SveltyCMS admin UI is built on **native Svelte 5 components**, Tailwind CSS v4, and the **admin theme token system**. Prefer composition of shell + primitives over one-off page chrome.
+
+## Mandatory shells
+
+| Component            | Use for                                                                      |
+| :------------------- | :--------------------------------------------------------------------------- |
+| **`AdminPageShell`** | Every `(app)` page root — title, back link, spacing, `admin-theme-container` |
+| **`AdminCard`**      | Content blocks — semantic card surface, density radii, theme shadows         |
+| **`PageTitle`**      | Only via `AdminPageShell` (do not invent inline `<h1>` headers)              |
+
+```svelte
+<AdminPageShell title="Example" icon="mdi:cog" description="…">
+  <AdminCard class="p-4">…</AdminCard>
+</AdminPageShell>
+```
+
+## Native primitives
+
+Always prefer:
+
+- `<Button>`, `<Badge>`, `<Input>`, `<Select>`, `<Textarea>`, `<Toggle>`, `<Checkbox>`, `<Modal>`
+
+Never mix component CSS classes (`class="badge"` on a `<Button>`, `class="btn"` on a `<Badge>`).
+
+## Semantic admin surfaces
+
+Use **role tokens** from `src/utilities.css` instead of paired light/dark surface classes for admin chrome:
+
+| Token                                              | Role                                      |
+| :------------------------------------------------- | :---------------------------------------- |
+| `--admin-bg-page`                                  | Page canvas                               |
+| `--admin-bg-card`                                  | Elevated card (dark mode sits above page) |
+| `--admin-bg-sidebar`                               | Sidebar                                   |
+| `--admin-border-default` / `--admin-border-subtle` | Borders                                   |
+| `--admin-text-body` / `--admin-text-muted`         | Text                                      |
+
+Shadows and border **width** follow **card variant** (`flat` | `bordered` | `elevated`) via `AdminTheme.cardShadow` / `cardBorder`. Do **not** hardcode `hover:shadow-lg` on every card — that breaks **flat** themes.
+
+Skeleton/shorthand palette import maps `surface` into full shade scales and rebinds `--admin-bg-*` in generated `customCss` (`theme-preset-mapper.ts`).
+
+## Design System workspace
+
+**Canonical route:** `/config/design-system`
+
+| Tab              | Purpose                                                          |
+| :--------------- | :--------------------------------------------------------------- |
+| `?tab=overrides` | Per-user density, card style, a11y, layout — linked from `/user` |
+| `?tab=preview`   | Live component catalog + token readout                           |
+| `?tab=presets`   | **Palette studio** (seed colors → runtime CSS) + Skeleton import |
+| `?tab=themes` …  | Admin workspace themes, layout density, features, advanced       |
+
+Palette studio writes a marked `customCss` block via `buildPaletteCssFromSeeds` / `mergePaletteCssIntoCustomCss` — do not invent a second token system.
+
+See [Design System & Admin Theme Settings](../guides/configuration/admin-theme-settings.mdx).
+
+## Accessibility
+
+- Interactive controls need accessible names
+- Prefer logical Tailwind properties (`ps-`, `pe-`) for RTL
+- Respect theme **Reduced Motion** and **High Contrast**
+
+## What not to do
+
+- ❌ Parallel global token systems that collide with `surface-*` palettes
+- ❌ Hand-rolled page shells instead of `AdminPageShell`
+- ❌ Soft-skipping E2E because lists are empty — seed fixtures instead

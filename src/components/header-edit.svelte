@@ -45,6 +45,7 @@
 	import { deleteCurrentEntry, saveEntry } from '@utils/entry-actions';
 	// --- Derived from page & stores ---
 	import { logger } from '@utils/logger';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { showCloneModal, showScheduleModal } from '@utils/modal.svelte';
 	import { navigationManager } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -165,7 +166,7 @@
 
 			const res = await fetch('/api/system-jobs', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({
 					taskType: 'status-transition',
 					payload,
@@ -177,7 +178,7 @@
 				const err = await res.json().catch(() => ({}));
 				logger.error('[HeaderEdit] Failed to create schedule job:', err);
 			} else {
-				logger.info('[HeaderEdit] Schedule job created successfully');
+				logger.debug('[HeaderEdit] Schedule job created successfully');
 			}
 		} catch (err) {
 			logger.error('[HeaderEdit] Error creating schedule job:', err);

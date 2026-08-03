@@ -93,7 +93,7 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
       if (tables.length > 0) {
         // Drop all tables with CASCADE to handle foreign keys
         for (const table of tables) {
-          await this.sql.unsafe(`DROP TABLE IF EXISTS "${table}" CASCADE`);
+          await this.sql.unsafe(`DROP TABLE IF EXISTS "${table.replace(/"/g, '""')}" CASCADE`);
         }
       }
 

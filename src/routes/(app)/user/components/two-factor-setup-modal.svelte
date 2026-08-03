@@ -27,6 +27,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	import { toast } from '@src/stores/toast.svelte.ts';
 	// Utils
 	import { logger } from '@utils/logger';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import QrCode from '@components/ui/qr-code.svelte';
 
 	// Native UI Components
@@ -103,7 +104,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		try {
 			const response = await fetch('/api/auth/2fa/verify-setup', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: clientJsonHeaders(),
 				body: JSON.stringify({ code: verificationCode.trim() })
 			});
 

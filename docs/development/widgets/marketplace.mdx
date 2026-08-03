@@ -26,14 +26,64 @@ All marketplace widgets are "Portable Modules". They are self-contained and incl
 - Must follow the 3-Pillar Architecture.
 - Must include unit tests in a `tests/` folder.
 - Must be accessible (WCAG 2.2 AA).
+- **Must follow the single naming convention** (below). Invalid packages are **not registered**.
+
+## Naming Convention (required)
+
+Custom widgets (`src/widgets/custom/`) and marketplace packages (`src/widgets/marketplace/`) share one rule set with core:
+
+| Layer              | Format                   | Example                           |
+| ------------------ | ------------------------ | --------------------------------- |
+| **Folder**         | kebab-case               | `phone-number/`                   |
+| **Factory `Name`** | PascalCase (or acronyms) | `Name: "PhoneNumber"`             |
+| **Schema field**   | factory Name only        | `widget: { Name: "PhoneNumber" }` |
+
+**Invariant:** `widgetNameToFolder(Name) === folderName`
+
+| Folder          | `Name`         | Status                         |
+| --------------- | -------------- | ------------------------------ |
+| `phone-number`  | `PhoneNumber`  | ✅                             |
+| `seo`           | `SEO`          | ✅                             |
+| `ai-enrichment` | `AIEnrichment` | ✅                             |
+| `PhoneNumber`   | `PhoneNumber`  | ❌ folder not kebab-case       |
+| `phone-number`  | `phone-number` | ❌ Name not PascalCase         |
+| `phone-number`  | `Phone`        | ❌ Name does not map to folder |
+
+Helpers live in `src/widgets/widget-naming.ts`. Registration (store, proxy, `WidgetRegistryService`) **fails closed** for custom/marketplace when naming is invalid, so loaders never look for the wrong path.
+
+### Scaffold
+
+```text
+src/widgets/marketplace/phone-number/
+  index.ts          # createWidget({ Name: "PhoneNumber", … })
+  input.svelte
+  display.svelte
+  tests/
+```
+
+```typescript
+// index.ts — Name must match folder via widgetNameToFolder
+export default createWidget({
+  Name: "PhoneNumber", // → folder phone-number
+  Icon: "mdi:phone",
+  // …
+});
+```
+
+Schemas always use the factory Name (never the folder string):
+
+```typescript
+fields: [{ db_fieldName: "phone", widget: { Name: "PhoneNumber" } }];
+```
 
 ## 🚀 System Discovery & Autoloading
 
 Marketplace widgets do not require compile-time registration or hardcoded static imports. SveltyCMS automatically registers optional/marketplace modules:
 
-1. **Dynamic Scanning**: During boot, `WidgetRegistryService` scans the directory `src/widgets/marketplace/` dynamically.
-2. **Eager Loading**: Any discovered directory with an `index.ts` containing a default export function matching the `WidgetModule` interface is registered automatically.
-3. This allows developers to drag-and-drop or install/delete marketplace widgets on disk with zero configuration.
+1. **Vite glob**: `src/widgets/marketplace/*/index.ts` and `*.svelte` (same as custom) when packages exist at build time.
+2. **Dynamic scan**: At boot, `WidgetRegistryService` also scans `src/widgets/marketplace/` for packages added on disk.
+3. **Naming gate**: Folder must be kebab-case; factory `Name` must satisfy the invariant above or the package is skipped with an error log.
+4. Drag-and-drop install/delete works with zero config **only if** naming is correct.
 
 ---
 

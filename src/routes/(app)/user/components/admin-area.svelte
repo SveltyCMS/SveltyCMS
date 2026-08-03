@@ -197,7 +197,7 @@
 	// Custom event handler for updates from Multibutton
 	function handleBatchUpdate(data: { ids: string[]; action: string; type: 'user' | 'token' }) {
 		const { ids, action, type } = data;
-		console.log(`[AdminArea] handleBatchUpdate: ${action} on ${type}`, ids);
+		logger.debug(`[AdminArea] handleBatchUpdate: ${action} on ${type}`, { count: ids.length });
 
 		if (action === 'refresh') {
 			fetchData().catch(() => {});
@@ -247,10 +247,9 @@
 				});
 
 				if (updated) {
-					console.log(`[AdminArea] Updating tableData locally for ${action}`);
 					smartTable.setRows([...updatedData] as TableDataType[]);
 				} else {
-					console.warn(`[AdminArea] No items matched for ${action} in current tableData`);
+					logger.debug(`[AdminArea] No items matched for ${action} in current tableData`);
 				}
 			}
 
@@ -365,7 +364,10 @@
 		modalState.trigger(
 			ModalEditToken as any,
 			{
-				token: tokenData.token,
+				// Use the row _id as the resource id — the list exposes the *hashed* token
+				// value (never the raw credential), so row.token cannot resolve via
+				// getTokenByValue (it re-hashes). tokenData._id hits getTokenById instead.
+				token: tokenData._id,
 				email: tokenData.email,
 				role: tokenData.role,
 				expires: convertDateToExpiresFormat(tokenData.expires),
@@ -575,7 +577,9 @@
 	}
 
 	async function performTokenBlockAction(token: Token, action: string, actionPastTense: string) {
-		if (!token.token) return;
+		// Use the row _id — the list exposes the hashed token value, which batch's
+		// findToken cannot resolve (getTokenByValue re-hashes the input).
+		if (!token._id) return;
 
 		try {
 			const response = await fetch('/api/token/batch', {
@@ -585,7 +589,7 @@
 					'X-CSRF-Token': page.data.csrfToken || ''
 				},
 				body: JSON.stringify({
-					tokenIds: [token.token],
+					tokenIds: [token._id],
 					action
 				})
 			});

@@ -12,7 +12,7 @@ export * from "./storage";
 
 import { pluginServerRegistry } from "./plugin-server-registry";
 import { pluginRegistry } from "./registry";
-import { slotRegistry } from "./slot-registry";
+import { slotRegistry } from "./slot-registry.svelte.ts";
 export { pluginRegistry, pluginServerRegistry, slotRegistry };
 
 import { logger } from "@utils/logger";

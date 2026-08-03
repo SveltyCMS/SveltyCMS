@@ -1,6 +1,13 @@
 /**
  * @file src/hooks/handle-authorization.ts
- * @description Hardened multi-tenant authorization with cache stampede protection and strict type-safe role matching.
+ * @description
+ * Hardened multi-tenant authorization with cache stampede protection and strict type-safe role matching.
+ *
+ * ### Features:
+ * - Role/permission resolution with TTL caches
+ * - Turbo auth context hand-off for GET fast-path
+ * - Admin / first-user / site-starter gates
+ * - Public-route allowlist short-circuit
  */
 
 import { AuthGuardService } from "@src/services/security/auth-guard";
@@ -208,7 +215,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     if (pathname === "/" && !locals.isFirstUser && !user) {
       const { isSiteStarterEnabled } = await import("@src/services/site/site-config.server");
       if (!isSiteStarterEnabled()) {
-        logger.info("[Authz] Redirecting unauthenticated user from / to /login");
+        logger.debug("[Authz] Redirecting unauthenticated user from / to /login");
         throw redirect(302, "/login");
       }
     }
@@ -266,7 +273,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
         AuthGuardService.checkPermissions(user, "manage", "user", undefined, activeRoles);
       if (isPublic && !isApi) throw redirect(302, "/");
     } else {
-      logger.info(`[Authz] No user, path=${pathname}, redirecting to /login`);
+      logger.debug(`[Authz] No user, path=${pathname}, redirecting to /login`);
       if (isApi) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
       throw redirect(302, "/login");
     }

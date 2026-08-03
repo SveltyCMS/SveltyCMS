@@ -1,7 +1,7 @@
 ---
 path: "docs/tests/routes/appearance.mdx"
 title: "Appearance Tests — Control Map"
-description: "Coverage for /config/appearance admin themes and user overrides."
+description: "Coverage for /config/design-system (Appearance + Live Preview) and user overrides."
 order: 27
 icon: "mdi:palette"
 author: "SveltyCMS Team"
@@ -14,22 +14,27 @@ tags: ["testing", "e2e", "appearance"]
 
 ## Product surface
 
-| Piece               | Role                                     |
-| ------------------- | ---------------------------------------- |
-| `+page.svelte`      | Themes, presets, layout, user overrides  |
-| `appearance-api.ts` | Theme CRUD + prefs via `fetchApi` (CSRF) |
+| Piece                          | Role                                                        |
+| ------------------------------ | ----------------------------------------------------------- |
+| `/config/design-system`        | **Only** workspace (Appearance + Live Preview)              |
+| `design-system/+page.svelte`   | Tabs: overrides, preview, themes, presets, layout, style, … |
+| `design-system-preview.svelte` | Live Preview component catalog                              |
+| `appearance-api.ts`            | Theme CRUD + prefs via `fetchApi` (CSRF)                    |
+| `/user` Settings               | Quick density/variant strip + link to `?tab=overrides`      |
 
 ## Control → test matrix
 
-| Control                       | Unit           | E2E                  |
-| ----------------------------- | -------------- | -------------------- |
-| User prefs save/clear/reload  | appearance-api | ✅ appearance.spec   |
-| Themes tab shell              | —              | ✅ appearance-golden |
-| **Golden create→list→delete** | appearance-api | ✅ appearance-golden |
+| Control                       | Unit                | E2E                   |
+| ----------------------------- | ------------------- | --------------------- |
+| User prefs save/clear/reload  | appearance-api      | ✅ appearance.spec    |
+| Themes tab shell              | —                   | ✅ appearance-golden  |
+| **Golden create→list→delete** | appearance-api      | ✅ appearance-golden  |
+| Live Preview tab              | —                   | ✅ design-system.spec |
+| Surface → `--admin-bg-card`   | theme-preset-mapper | unit                  |
 
 ## Run
 
 ```bash
-bun run test:unit -- tests/unit/config/appearance-api.test.ts
-bun x playwright test tests/e2e/routes/config/appearance.spec.ts tests/e2e/routes/config/appearance-golden.spec.ts
+bun run test:unit -- tests/unit/config/appearance-api.test.ts tests/unit/theme-preset-mapper.test.ts
+bun x playwright test tests/e2e/routes/config/design-system.spec.ts tests/e2e/routes/config/appearance.spec.ts tests/e2e/routes/config/appearance-golden.spec.ts
 ```

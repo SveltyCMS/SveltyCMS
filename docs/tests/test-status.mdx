@@ -1,37 +1,38 @@
 ---
 path: "docs/tests/test-status.mdx"
 title: "Test Status"
-description: "Human-readable live dashboard: health by layer, open gaps, what to run. Detail and history live in the archive."
+description: "Single live testing dashboard: health by layer, hot areas, open gaps, and what to run. GitHub Actions is the source of truth for pass/fail counts."
 order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-07-20"
+updated: "2026-07-31"
 tags:
   - "testing"
   - "status"
   - "dashboard"
   - "coverage"
+  - "content-sync"
 ---
 
 # Test Status
 
 > [!IMPORTANT]
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
-> Deep inventories and “what we shipped when” live in **[Test Status Archive](./test-status-archive.mdx)**.
+> This page is the **only** test-status dashboard — route maps, inventories, and deep strategy live in the linked docs below (no separate archive).
 
-**Dashboard updated:** 2026-07-26 (GraphQL response cache verified; 4-DB matrix clean; CVEs resolved)
+**Dashboard updated:** 2026-07-31 — **ContentSync** unification (compile/HMR/builder), schema contract (Valibot), soft HMR + surgical client patch, tenant path roots, docs + unit/E2E coverage.
 
 ---
 
 ## 1. Snapshot
 
-| Question                          | Answer                                                                                                     |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Are the gates healthy?**        | Design A++: unit → security → push (+ SQLite smoke on DB/plugin) → CI multi-DB + E2E                       |
-| **Where to look first when red?** | Failing CI job name → matching section in [archive](./test-status-archive.mdx) or route doc                |
-| **Biggest recent win**            | **Databases unit green** + whitebox Auth/Cache/boot; outbox, plugin storage, schema hooks with real proofs |
-| **Biggest open risk (product)**   | Multi-tenant browser isolation (`MULTI_TENANT=true` env gate; E2E spec exists, needs CI job)               |
+| Question                          | Answer                                                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Are the gates healthy?**        | Design A++: unit → security → push (+ SQLite smoke on DB/plugin) → CI multi-DB + E2E                   |
+| **Where to look first when red?** | Failing CI job name → matching **hot area** below or [route control map](./e2e-coverage-matrix.mdx)    |
+| **Biggest recent win**            | **ContentSync** single coordinator + schema contract + soft/surgical HMR (no session-breaking reloads) |
+| **Biggest open risk (product)**   | Multi-tenant browser isolation (`MULTI_TENANT=true` env gate; E2E spec exists, needs CI job)           |
 
 > [!TIP]
 > **Headless-first:** adapters + session + RBAC are P0. Admin E2E is golden-only. Full tier table: **[Headless-First Test Inventory](./headless-test-inventory.mdx)**.
@@ -52,7 +53,7 @@ tags:
 
 | Tier               | Command               | Time    | Coverage                               |
 | ------------------ | --------------------- | ------- | -------------------------------------- |
-| **Pre-commit**     | `bun run test:unit`   | ~60s    | 2822 unit tests                        |
+| **Pre-commit**     | `bun run test:unit`   | ~35s    | 2989 unit tests (0 skipped)            |
 | **Pre-push**       | Automatic gate        | ~1.5min | Build + SQLite integration (595 tests) |
 | **Pre-CI** (local) | `bun run test:matrix` | ~8min   | All 4 DBs (2380 tests)                 |
 | **CI**             | GitHub Actions        | ~30min  | Full matrix + E2E (100%)               |
@@ -74,11 +75,21 @@ tags:
 | `bun test tests/integration/` | bun test native output — per-file ✓/×, summary, no custom JSON                                   |
 | All Green                     | `scripts/ci-report-all-green.ts` — job matrix + fix order                                        |
 
-Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status-archive.mdx#4-ci-pipeline-gates)
+Details: [git-workflow.mdx](./git-workflow.mdx)
 
 ---
 
 ## 3. Hot areas (recent)
+
+### ContentSync / compilation / Collection Builder (2026-07-31)
+
+|             |                                                                                                                                                                                                                                   |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**  | **Unified coordinator** — IDE edit + GUI save + boot share one path; soft HMR; surgical client patch when possible                                                                                                                |
+| **Product** | `syncContentState` reasons: `boot` · `watcher` · `collection-save` · `gui-save` · `sidebar-reorder`; GUI compile lock; atomic `.js`; hash-backed drift; tenant paths via `tenant.server`                                          |
+| **Unit**    | `sync-content-state` (13+), `collection-save-sync` (2), `schema-contract` (6+ Valibot), `compile-manifest` (atomic/`noOp`/`changedJsPaths`), `collection-store-reactive` (`patchActiveSchema`)                                    |
+| **E2E**     | `collection-builder/builder.spec.ts` — shell + **soft-refresh** (in-page mark survives save) + golden schema→entry→API                                                                                                            |
+| **Docs**    | [compilation-pipeline](../reference/architecture/compilation-pipeline.mdx) · [content-system](../reference/architecture/content-system.mdx) · [collection-builder](../reference/architecture/collection-builder-architecture.mdx) |
 
 ### `/user` — profile & management (2026-07-19)
 
@@ -196,12 +207,21 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 
 ### Ultra-smart auth & client safety (2026-07-18)
 
-|                 |                                                                                                                                |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Status**      | **P0 hardened** — loopback cookies, testing dual-write, **exhaustive** import-boundary, session→**18** admin pages             |
-| **Unit**        | `session-cookies`, `client-import-boundary` (full client-root walk), login-cookie contract, `page-guards`, builder page.server |
-| **Integration** | session-page-load · webhooks · automations · config-admin-surface · collection-structure · security-negative config matrix     |
-| **Docs**        | [headless-test-inventory.mdx](./headless-test-inventory.mdx)                                                                   |
+|                 |                                                                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**      | **P0 hardened** — loopback cookies, testing dual-write, **exhaustive** import-boundary, session→**18** admin pages                                                       |
+| **Unit**        | `session-cookies`, `client-import-boundary` (full client-root walk), login-cookie contract, `page-guards`, builder page.server, `totp-encryption`, `registry-auth-hooks` |
+| **Integration** | session-page-load · webhooks · automations · config-admin-surface · collection-structure · security-negative config matrix                                               |
+| **Docs**        | [headless-test-inventory.mdx](./headless-test-inventory.mdx) · [auth.mdx](../reference/api/auth.mdx)                                                                     |
+
+### 2FA Hardening & Plugin Auth Hooks (2026-07-30)
+
+|             |                                                                                                                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**  | **35 new unit tests** — AES-256-GCM TOTP encryption (round-trip, tamper detection, legacy compat), trusted device tokens (gen/verify/reject), `afterAuthenticate` hook (deny/requires2FA/fail-open/skip disabled), configurable TOTP window |
+| **Unit**    | `tests/unit/auth/totp-encryption.test.ts` (20 tests), `tests/unit/plugins/registry-auth-hooks.test.ts` (15 tests)                                                                                                                           |
+| **Product** | TOTP secrets encrypted at rest; pending setup state (resumable enrollment); `__Host-2fa-trusted-device` cookie; plugin auth hooks in `signInInternal`                                                                                       |
+| **Docs**    | [auth.mdx](../reference/api/auth.mdx) · [authentication-system.mdx](../reference/security/authentication-system.mdx) · [plugin architecture](../development/plugins/architecture.mdx)                                                       |
 
 ### Databases whitebox + enterprise storage (2026-07-20)
 
@@ -216,23 +236,25 @@ Details: [git-workflow.mdx](./git-workflow.mdx) · [archive § CI](./test-status
 
 ### Other solid areas (summary)
 
-| Area                   | Notes                                                                              |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| Auth & users API       | Strong integration (login, batch, avatar, sessions, 2FA) + **page-load session**   |
-| Security hooks         | Dedicated regression suite in pre-commit/push                                      |
-| Collection builder     | **E2E = shell + 1 golden only** (`builder.spec.ts`); structure/utils in unit+integ |
-| Site starter / preview | Smoke E2E + unit; deep iframe edit still open                                      |
-| Data operations        | Strong **unit**; thin browser E2E                                                  |
-| Multi-tenant           | Unit/guard coverage; E2E isolation spec exists, gated behind `MULTI_TENANT=true`   |
-| Stores unit            | `tests/unit/stores/` cleaned (string enums, stale headers, real assertions)        |
+| Area                   | Notes                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Auth & users API       | Strong integration (login, batch, avatar, sessions, 2FA) + **page-load session**                                                     |
+| Security hooks         | Dedicated regression suite in pre-commit/push                                                                                        |
+| Collection builder     | **E2E = shell + soft-refresh + golden** (`builder.spec.ts`); structure/utils unit+integ; ContentSync unit suite                      |
+| Content / compile      | ContentSync coordinator + schema contract + compile manifest; see hot area above                                                     |
+| Site starter / preview | Smoke E2E + unit; deep iframe edit still open                                                                                        |
+| Data operations        | Strong **unit**; thin browser E2E                                                                                                    |
+| Multi-tenant           | Unit/guard coverage; E2E isolation spec exists, gated behind `MULTI_TENANT=true`                                                     |
+| Stores unit            | `tests/unit/stores/` (reactivity, `patchActiveSchema`, structure fingerprint, `floating-nav-store` 22)                               |
+| Admin chrome           | `command-palette` (18) + `floating-nav-store` (22) + `logger` (7) + `widget-naming` (12) unit tests; hotkeys `Mod+K`/`Alt+G` unified |
 
-Full suite catalogs → [archive](./test-status-archive.mdx) · tiers → [headless inventory](./headless-test-inventory.mdx).
+Deeper inventories: [headless-test-inventory](./headless-test-inventory.mdx) · [e2e-coverage-matrix](./e2e-coverage-matrix.mdx) · [three-layer-completeness](./three-layer-completeness.mdx).
 
 ---
 
 ## 4. Open gaps (actionable only)
 
-Resolved historical items are **not** listed here — see [archive gaps](./test-status-archive.mdx#5-gaps--whats-not-tested).
+Only **open** product/test risks. Closed items stay in route docs / ADR changelog — not duplicated here.
 
 | Gap                                           | Priority  | Why it matters                                                                     |
 | --------------------------------------------- | --------- | ---------------------------------------------------------------------------------- |
@@ -268,12 +290,21 @@ bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/cli
 # Databases whitebox + Auth lockout (real CacheService / Auth / boot)
 bun test tests/unit/databases/ tests/unit/auth/auth-lockout.test.ts
 
+# 2FA encryption + trusted devices + plugin auth hooks (35 tests)
+bun test tests/unit/auth/totp-encryption.test.ts tests/unit/plugins/registry-auth-hooks.test.ts
+
+# ContentSync / compile / schema contract / builder soft-HMR slice
+bun run test:unit -- tests/unit/content/sync-content-state.test.ts tests/unit/content/collection-save-sync.test.ts tests/unit/content/schema-contract.test.ts tests/unit/compilation/compile-manifest.test.ts tests/unit/stores/collection-store-reactive.test.ts tests/unit/collectionbuilder/
+
 # Integration (SQLite) — session-page-load, webhooks, automations, config surface, security-negative
 bun run test:integration
 # or reuse build: bun test --timeout 300000 tests/integration/
 
 # E2E CI-parity (preview :4173 — not Vite)
 bun run test:e2e
+
+# Collection Builder shell + soft-refresh + golden
+bun run test:e2e --project=chromium tests/e2e/routes/collection-builder/builder.spec.ts
 
 # Focused residual config/user goldens (example)
 bun run test:e2e --project=chromium "--grep=redirects|Edit User Details|website tokens|automations|workflows|webhooks|Dashboard shell|create role"
@@ -288,16 +319,17 @@ Safety: tests must never point at production DBs — see test-config safety guar
 
 ## 6. Where to dig deeper
 
-| Need                                        | Doc                                                                                                             |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Headless-first tiers & route↔layer map**  | [headless-test-inventory.mdx](./headless-test-inventory.mdx)                                                    |
-| This dashboard’s history & unit inventories | [test-status-archive.mdx](./test-status-archive.mdx)                                                            |
-| Strategy & three-layer goal                 | [testing-strategy.mdx](./testing-strategy.mdx) · [three-layer-completeness.mdx](./three-layer-completeness.mdx) |
-| Route E2E matrices                          | [e2e-coverage-matrix.mdx](./e2e-coverage-matrix.mdx) · [routes/webhooks.mdx](./routes/webhooks.mdx)             |
-| `/user` control map                         | [routes/user.mdx](./routes/user.mdx)                                                                            |
-| Security testing                            | [security-testing.mdx](./security-testing.mdx)                                                                  |
-| Benchmarks                                  | [docs/project/benchmarks](../project/benchmarks/index.mdx)                                                      |
-| API coverage                                | [api-testing.mdx](./api-testing.mdx) · [api-test-coverage.mdx](./api-test-coverage.mdx)                         |
+| Need                                       | Doc                                                                                                                                           |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Headless-first tiers & route↔layer map** | [headless-test-inventory.mdx](./headless-test-inventory.mdx)                                                                                  |
+| Strategy & three-layer goal                | [testing-strategy.mdx](./testing-strategy.mdx) · [three-layer-completeness.mdx](./three-layer-completeness.mdx)                               |
+| ADR (pyramid, soft-skip ban, goldens)      | [adr-testing-2026.mdx](./adr-testing-2026.mdx)                                                                                                |
+| Route E2E matrices                         | [e2e-coverage-matrix.mdx](./e2e-coverage-matrix.mdx) · [routes/webhooks.mdx](./routes/webhooks.mdx)                                           |
+| Collection Builder / ContentSync           | [routes/collection-builder.mdx](./routes/collection-builder.mdx) · [compilation-pipeline](../reference/architecture/compilation-pipeline.mdx) |
+| `/user` control map                        | [routes/user.mdx](./routes/user.mdx)                                                                                                          |
+| Security testing                           | [security-testing.mdx](./security-testing.mdx)                                                                                                |
+| Benchmarks                                 | [docs/project/benchmarks](../project/benchmarks/index.mdx)                                                                                    |
+| API coverage                               | [api-testing.mdx](./api-testing.mdx) · [api-test-coverage.mdx](./api-test-coverage.mdx)                                                       |
 
 ---
 
@@ -305,6 +337,6 @@ Safety: tests must never point at production DBs — see test-config safety guar
 
 When you ship a meaningful test or stability change:
 
-1. Update **this file** only if health, open gaps, or “hot areas” change (few sentences + table rows).
-2. Put deep numbers, file inventories, and “resolved” write-ups in the **[archive](./test-status-archive.mdx)** (or route-specific docs).
-3. Never treat static totals as CI truth — link to Actions.
+1. Update **this file** if health, open gaps, or **hot areas** change (few sentences + table rows).
+2. Put deep control maps and file-level inventories in **route docs** or [headless-test-inventory](./headless-test-inventory.mdx) — not a separate archive.
+3. Never treat static totals as CI truth — GitHub Actions is the live board.

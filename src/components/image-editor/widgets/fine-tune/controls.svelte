@@ -111,12 +111,12 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 
 <div class="flex flex-col flex-[0_0_auto] gap-1.5 items-stretch w-full min-w-0 h-auto leading-none" role="toolbar" aria-label="Fine-tune controls">
 	{#if onCategoryChange}
-		<div class="flex flex-wrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full gap-1.5 items-center justify-center w-full px-0.5" role="tablist" aria-label="Adjustment categories">
+		<div class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5" role="tablist" aria-label="Adjustment categories">
 			<div class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0">
 				{#each categories as cat (cat)}
 					<button
 						type="button"
-						class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+						class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 						class:text-white={activeCategory === cat}
 						onclick={() => onCategoryChange(cat as 'basic' | 'tone' | 'color' | 'detail')}
 						role="tab"
@@ -132,7 +132,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 			{#if showPresets && onPresetApply}
 				<button
 					type="button"
-					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 					class:text-white={showPresetsPanel}
 					onclick={() => (showPresetsPanel = !showPresetsPanel)}
 					title="Presets"
@@ -143,7 +143,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 			{/if}
 
 			{#if onAutoAdjust}
-				<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35" onclick={onAutoAdjust} title="Auto adjust (Shift+A)">
+				<button type="button" class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35" onclick={onAutoAdjust} title="Auto adjust (Shift+A)">
 					<iconify-icon icon="mdi:auto-fix" width="15" aria-hidden="true"></iconify-icon>
 					<span>Auto</span>
 				</button>
@@ -152,7 +152,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 			{#if onCompareToggle}
 				<button
 					type="button"
-					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 					class:text-white={isComparing}
 					onclick={onCompareToggle}
 					title="Compare (C)"
@@ -166,11 +166,11 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 	{/if}
 
 	{#if showPresetsPanel && onPresetApply}
-		<div class="flex flex-wrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full gap-1.5 items-center justify-center w-full px-0.5">
+		<div class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5">
 			{#each FILTER_PRESETS as preset (preset.name)}
 				<button
 					type="button"
-					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 					onclick={() => {
 						onPresetApply(preset.name);
 						showPresetsPanel = false;
@@ -185,14 +185,14 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 		</div>
 	{/if}
 
-	<div class="flex flex-wrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full gap-1.5 items-center justify-center w-full px-0.5 max-lg:justify-start" role="group" aria-label="Adjustments">
+	<div class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5 max-lg:justify-start" role="group" aria-label="Adjustments">
 		<div class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0">
 			{#each getAdjustmentsByCategory(activeCategory as 'basic' | 'tone' | 'color' | 'detail') as adj (adj.key)}
 				{@const adjConfig = getAdjustmentConfig(adj.key)}
 				{@const hasChange = (adjustments?.[adj.key] ?? 0) !== 0}
 				<button
 					type="button"
-					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 					class:text-white={activeAdjustment === adj.key}
 					class:text-[rgba(255,255,255,0.85)]={hasChange && activeAdjustment !== adj.key}
 					onclick={() => onAdjustmentChange(adj.key)}
@@ -219,7 +219,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 					{step}
 					{value}
 					oninput={handleSliderInput}
-					class="relative z-2 w-full flex-1 h-1 m-0 appearance-none cursor-pointer bg-white/[0.18] rounded-full [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:bg-[--editor-accent-hover,var(--color-warning-400,#ffd43b)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)] [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:bg-[--editor-accent-hover,var(--color-warning-400,#ffd43b)] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[rgba(0,0,0,0.15)] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)]"
+					class="relative z-2 w-full flex-1 h-1 m-0 appearance-none cursor-pointer bg-white/18 rounded-full [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:bg-[--editor-accent-hover,var(--color-warning-400,#ffd43b)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)] [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:bg-[--editor-accent-hover,var(--color-warning-400,#ffd43b)] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[rgba(0,0,0,0.15)] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)]"
 					style:background={sliderFillStyle}
 					aria-valuemin={min}
 					aria-valuemax={max}
@@ -231,7 +231,7 @@ Pintura-style fine-tune dock — compact pills, inline accent slider, aligned ro
 		<div class="inline-flex flex-[0_0_auto] gap-0.5 items-center justify-center h-auto min-h-0 p-0.5 px-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0 max-lg:order-3">
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/[0.09] hover:not-disabled:border-white/[0.12] disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onReset}
 				disabled={value === 0}
 				title="Reset to 0"

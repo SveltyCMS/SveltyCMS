@@ -26,7 +26,9 @@ describe("sync +page.server", () => {
     const data: any = await loadSync({
       locals: { user: { _id: "u1", email: "a@b.co" }, isAdmin: true },
     } as any);
-    expect(data.user.email).toBe("a@b.co");
+    // Contract: the page no longer shadows page.data.user (partial shapes broke
+    // floatingNavStore.bindUser) — admin access resolves with an empty payload.
+    expect(data).toEqual({});
   });
 
   it("throws 403 for non-admin", async () => {

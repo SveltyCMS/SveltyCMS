@@ -9,6 +9,7 @@
  * - Clean, modern, and free of legacy patterns.
  */
 
+import { logger } from "@utils/logger";
 import type { FieldInstance } from "@src/content/types";
 import type { SchemaHooks } from "@src/content/schema-hooks";
 import { registerForJsonRender } from "@src/services/json-render/catalog";
@@ -186,7 +187,7 @@ async function validateWidgetAccessibility(name: string, componentPath: string) 
     }
 
     if (issues.length > 0) {
-      console.warn(
+      logger.warn(
         `\x1b[33m[Accessibility Warning] Widget '${name}' has potential WCAG compliance issues in '${componentPath}':\n` +
           issues.map((i) => `  - ${i}`).join("\n") +
           `\x1b[0m`,
@@ -205,6 +206,14 @@ async function validateWidgetAccessibility(name: string, componentPath: string) 
 export function createWidget<TProps extends WidgetProps = WidgetProps>(
   config: WidgetConfig<TProps>,
 ): WidgetFactory<TProps> {
+  // Enforce factory Name convention (PascalCase / acronyms like SEO)
+  if (typeof config.Name !== "string" || !/^[A-Z][A-Za-z0-9]*$/.test(config.Name)) {
+    throw new Error(
+      `[createWidget] Name "${config.Name}" must be PascalCase (e.g. PhoneNumber, SEO). ` +
+        `Folder must be kebab-case matching widgetNameToFolder(Name). See docs/development/widgets/.`,
+    );
+  }
+
   if (config.inputComponentPath) {
     validateWidgetAccessibility(config.Name, config.inputComponentPath);
   }

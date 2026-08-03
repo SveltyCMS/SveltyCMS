@@ -5,6 +5,7 @@
 <script lang="ts">
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
+import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { slide } from "svelte/transition";
 import type { SvelteSet } from "svelte/reactivity";
 import AdminCard from '@components/admin-card.svelte';
@@ -41,7 +42,7 @@ async function runBatch() {
 	try {
 		const response = await fetch("/api/media/batch-process", {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: clientJsonHeaders(),
 			body: JSON.stringify({
 				ids,
 				operation,

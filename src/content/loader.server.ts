@@ -18,6 +18,7 @@ import { pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import { logger } from "@utils/logger";
+import { assertCompiledSchema } from "./schema-contract";
 import type { Schema } from "./types";
 
 // ─── Runtime mode ────────────────────────────────────────────────────────────
@@ -114,26 +115,21 @@ function createFallbackWidget(name: string) {
 }
 
 function normalizeLoadedSchema(moduleData: unknown, filePath: string): { schema?: Schema } | null {
-  let schema = moduleData as any;
-  if (schema?.default && typeof schema.default === "object") {
-    schema = schema.default?.default || schema.default || schema.schema;
-  } else if (schema?.schema) {
-    schema = schema.schema;
-  }
-
-  if (schema && typeof schema === "object" && Array.isArray(schema.fields)) {
-    if (!schema.name) {
-      const fileBase = path.basename(filePath, path.extname(filePath));
-      schema.name = fileBase;
+  const result = assertCompiledSchema(moduleData, filePath);
+  if (!result.ok || !result.schema) {
+    for (const err of result.errors) {
+      logger.warn(`[Loader] Schema contract failed: ${err}`);
     }
-    if (!schema._id) {
-      schema._id = schema.name.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+    if (!result.errors.length) {
+      logger.warn(`[Loader] No valid schema in ${path.basename(filePath)}`);
     }
-    return { schema: schema as Schema };
+    return null;
   }
-
-  logger.warn(`[Loader] No valid schema in ${path.basename(filePath)}`);
-  return null;
+  // Soft warnings (e.g. empty fields draft) — do not reject
+  for (const warn of result.errors) {
+    logger.debug(`[Loader] Schema contract note: ${warn}`);
+  }
+  return { schema: result.schema };
 }
 
 /** Production uses worker pool; dev/test/benchmarks use fast native import. */
@@ -374,7 +370,7 @@ export function getModuleWorkerPool(): ModuleWorkerPool {
 export function warmupWorkerPool(): void {
   const pool = getModuleWorkerPool();
   if (pool.stats.total === 0) {
-    logger.info(`[WorkerPool] Warming up workers...`);
+    logger.debug(`[WorkerPool] Warming up workers...`);
   }
 }
 
