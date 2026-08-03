@@ -16,6 +16,7 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import TreeView from '@components/ui/tree-view.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { media_root_title } from '@src/paraglide/messages';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
@@ -487,35 +488,39 @@
 
 <div class="space-y-1" role="navigation" aria-label="Media folders">
 	<!-- Search Header -->
-	<div class="flex items-center gap-1">
-		<div class="relative w-full min-w-0">
-			<Input aria-label="Search folders"
-					type="text"
+	{#if isSidebarFull}
+		<div class="flex items-center gap-1">
+			<div class="relative w-full min-w-0">
+				{#snippet searchIcon()}
+					<iconify-icon icon="ic:outline-search" width="20" class="text-surface-400"></iconify-icon>
+				{/snippet}
+
+				{#snippet clearIcon()}
+					{#if search}
+						<Button
+							variant="ghost"
+							type="button"
+							onclick={() => (search = '')}
+							class="p-0.5 min-w-0 rounded-full hover:bg-surface-700"
+							aria-label="Clear search"
+						>
+							<iconify-icon icon="ic:round-close" width="18"></iconify-icon>
+						</Button>
+					{/if}
+				{/snippet}
+
+				<Input
+					id="media-folders-search"
+					type="search"
 					bind:value={search}
 					placeholder="Search folders..."
-					inputClass="h-9 w-full min-w-0 rounded border border-surface-300 bg-surface-50 px-2.5 py-1 text-[15px] outline-none transition-all hover:border-surface-400 focus:border-tertiary-500 dark:border-surface-600 dark:bg-surface-800 {isSidebarFull ? 'pe-10' : 'pe-2'}"
+					pre={searchIcon}
+					post={clearIcon}
+					inputClass="w-full text-xs"
+					aria-label="Search folders"
 				/>
-			{#if isSidebarFull && search}
-				<div class="absolute inset-e-0 top-0 flex h-full items-center">
-					<Button
-						variant="outline"
-						type="button"
-						onclick={() => (search = '')}
-						aria-label="Clear search"
-						class="me-0.5 h-8 w-8 rounded-full preset-outline-surface-500"
-					>
-						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
-					</Button>
-				</div>
-			{:else if isSidebarFull && !search}
-				<div class="absolute inset-e-0 top-0 flex h-full items-center">
-					<div class="me-0.5 flex h-8 w-8 items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700">
-						<iconify-icon icon="ic:outline-search" width={20}></iconify-icon>
-					</div>
-				</div>
-			{/if}
-		</div>
-		{#if isSidebarFull}
+			</div>
+
 			<Button
 				variant="warning"
 				type="button"
@@ -527,8 +532,22 @@
 			>
 				<iconify-icon icon={isEditMode ? 'bi:check-circle' : 'bi:pencil'} width="16"></iconify-icon>
 			</Button>
-		{/if}
-	</div>
+		</div>
+	{:else}
+		<div class="flex flex-col items-center gap-2">
+			<SystemTooltip title="Search Folders" positioning={{ placement: 'right' }}>
+				<Button
+					variant="ghost"
+					type="button"
+					onclick={() => ui.toggle('leftSidebar', 'full')}
+					aria-label="Search folders"
+					class="flex h-9 w-9 items-center justify-center rounded-lg p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-800"
+				>
+					<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
+				</Button>
+			</SystemTooltip>
+		</div>
+	{/if}
 
 	{#if isEditMode && isSidebarFull}
 		<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3 text-xs text-warning-700 dark:text-warning-400">

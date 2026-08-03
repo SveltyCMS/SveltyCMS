@@ -24,6 +24,8 @@ Provides an organized interface for navigating hierarchical content structures.
 			import Loader from '@components/ui/loader.svelte';
 			import Select from '@components/ui/select.svelte';
 			import TreeView from '@components/ui/tree-view.svelte';
+			import Popover from '@components/ui/popover.svelte';
+			import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
 	import { collection, contentStructure } from '@src/stores/collection-store.svelte.ts';
@@ -532,47 +534,60 @@ Provides an organized interface for navigating hierarchical content structures.
 	<!-- Search -->
 	{#if isFullSidebar}
 		<div class="relative w-full">
+			{#snippet searchIcon()}
+				<iconify-icon icon="ic:outline-search" width="20" class="text-surface-400"></iconify-icon>
+			{/snippet}
+
+			{#snippet clearIcon()}
+				{#if isSearching}
+					<Loader variant="circle" width="size-2" height="size-2" />
+				{:else if search}
+					<Button
+						variant="ghost"
+						type="button"
+						onclick={() => (search = '')}
+						class="p-0.5 min-w-0 rounded-full hover:bg-surface-700"
+						aria-label="Clear search"
+					>
+						<iconify-icon icon="ic:round-close" width="18"></iconify-icon>
+					</Button>
+				{/if}
+			{/snippet}
+
 			<Input
 				id="collections-search"
 				type="search"
 				bind:value={search}
 				placeholder="Search collections..."
-				inputClass="pe-11 bg-surface-800/50 border-surface-700 text-white placeholder:text-surface-400 focus-visible:ring-primary-500 h-12 py-3"
+				pre={searchIcon}
+				post={clearIcon}
+				inputClass="w-full text-xs"
 				aria-label="Search collections"
 			/>
-
-			<div class="absolute inset-e-0 top-0 flex h-full items-center">
-				{#if isSearching}
-					<div class="flex h-10 w-10 items-center justify-center">
-						<Loader variant="circle" width="size-2" height="size-2" />
-					</div>
-				{:else if search}
-					<Button
-						variant="outline"
-						type="button"
-						onclick={() => (search = '')}
-						class="rounded-full h-9 w-9 mt-0.5 me-0.5"
-					>
-						<iconify-icon icon="ic:round-close" width={24}></iconify-icon>
-					</Button>
-				{:else}
-					<div class="flex items-center justify-center rounded-e bg-secondary-100 dark:bg-surface-700 h-9 w-9 mt-0.5 me-0.5">
-						<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
-					</div>
-				{/if}
-			</div>
 		</div>
 	{:else}
-		<div class="flex justify-center">
-			<Button
-				variant="ghost"
-				type="button"
-				onclick={() => ui.toggle('leftSidebar', 'full')}
-				aria-label="Search collections"
-				class="p-1"
-			>
-				<iconify-icon icon="ic:outline-search" width={24}></iconify-icon>
-			</Button>
+		<div class="flex flex-col items-center gap-2">
+			<SystemTooltip title="Search Collections" positioning={{ placement: 'right' }}>
+				<Button
+					variant="ghost"
+					type="button"
+					onclick={() => ui.toggle('leftSidebar', 'full')}
+					aria-label="Search collections"
+					class="flex h-9 w-9 items-center justify-center rounded-lg p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-800"
+				>
+					<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
+				</Button>
+			</SystemTooltip>
+
+			<SystemTooltip title="Go to Collection Builder" positioning={{ placement: 'right' }}>
+				<a
+					href="/config/collectionbuilder"
+					aria-label="Go to Collection Builder"
+					class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600/10 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 hover:bg-primary-500 hover:text-white transition-colors"
+				>
+					<iconify-icon icon="ic:round-add" width="18"></iconify-icon>
+				</a>
+			</SystemTooltip>
 		</div>
 	{/if}
 
@@ -590,25 +605,30 @@ Provides an organized interface for navigating hierarchical content structures.
 	<div class="collections-list" role="tree" aria-label="Collection tree">
 		{#if treeNodes.length === 0}
 			{#if !isFullSidebar}
-				<div class="flex items-center justify-center py-4 text-surface-500">
-					{#if !widgets.isLoaded}
+				{#if !widgets.isLoaded}
+					<div class="flex items-center justify-center py-3 text-surface-500">
 						<div class="h-5 w-5 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
-					{:else}
-						<iconify-icon icon="bi:collection" width={24}></iconify-icon>
-					{/if}
-				</div>
+					</div>
+				{/if}
 			{:else}
-				<div class="flex flex-col items-center justify-center gap-2 p-6 text-center text-surface-500">
+				<div class="flex flex-col items-center justify-center gap-3 p-6 text-center text-surface-900 dark:text-white">
 					{#if !widgets.isLoaded}
 						<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
-						<p class="text-xs">Loading collections…</p>
+						<p class="text-xs text-surface-600 dark:text-surface-300">Loading collections…</p>
 					{:else if search || showOnlyFavorites || selectedTagFilter}
-						<iconify-icon icon="bi:search" width={28}></iconify-icon>
-						<p class="text-sm">No collections match your current filters.</p>
+						<iconify-icon icon="bi:search" width={28} class="text-surface-400"></iconify-icon>
+						<p class="text-sm text-surface-900 dark:text-white">No collections match your current filters.</p>
 						<Button variant="outline" type="button" size="sm" onclick={clearAllFilters}>Clear filters</Button>
 					{:else}
-						<iconify-icon icon="bi:collection" width={28}></iconify-icon>
-						<p class="text-sm">No collections found.</p>
+						<iconify-icon icon="bi:collection" width={32} class="opacity-60 text-surface-400 dark:text-surface-300"></iconify-icon>
+						<p class="text-sm font-semibold text-surface-900 dark:text-white">No collections found.</p>
+						<a
+							href="/config/collectionbuilder"
+							class="inline-flex items-center gap-1.5 rounded-md bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-500 no-underline!"
+						>
+							<iconify-icon icon="ic:round-add" width="16"></iconify-icon>
+							<span>Add Collection</span>
+						</a>
 					{/if}
 				</div>
 			{/if}

@@ -46,6 +46,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		fullHeight?: boolean;
 		spaceY?: '4' | '6' | '8';
 		titleCompact?: boolean;
+		titleBorderless?: boolean;
 		animate?: boolean;
 		/** Tailwind bg class for FloatingNav favorite spoke — NAV_FAVORITE_COLORS literal (default `bg-amber-500`). */
 		navColor?: NavFavoriteColor;
@@ -63,6 +64,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		fullHeight = false,
 		spaceY = '6',
 		titleCompact = false,
+		titleBorderless = false,
 		animate = true,
 		navColor,
 		children,
@@ -88,6 +90,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		{backUrl}
 		{highlight}
 		compact={titleCompact}
+		borderless={titleBorderless}
 		{navColor}
 	>
 		{#if actions}

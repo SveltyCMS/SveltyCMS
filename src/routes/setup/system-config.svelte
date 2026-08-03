@@ -459,7 +459,7 @@ Features:
 						</SystemTooltip>
 					</label>
 
-					<Select bind:value={systemSettings.mediaStorageType} options={mediaStorageOptions} placeholder="Select storage type..." />
+					<Select id="media-storage-type" bind:value={systemSettings.mediaStorageType} options={mediaStorageOptions} placeholder="Select storage type..." />
 				</div>
 
 				<!-- Media Folder Path -->
@@ -518,6 +518,7 @@ Features:
 					<p class="text-[10px] text-slate-500 dark:text-white/40" id="system-lang-help">Select the primary language for the admin interface.</p>
 
 					<Select
+						id="default-system-lang"
 						bind:value={systemSettings.defaultSystemLanguage}
 						options={systemLanguageOptions}
 						placeholder="Select system language..."

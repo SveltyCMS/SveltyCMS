@@ -651,7 +651,7 @@ function modalLoadPreset(): void {
     });
 </script>
 
-<AdminPageShell title={collection_pagetitle()} icon="mdi:database-cog-outline" showBackButton={true} backUrl="/config">
+<AdminPageShell title={collection_pagetitle()} icon="mdi:database-cog-outline" showBackButton={true} backUrl="/config" titleBorderless={true}>
     {#snippet actions()}
         {#if currentConfig.length > 0}
             <Button variant="tertiary"
