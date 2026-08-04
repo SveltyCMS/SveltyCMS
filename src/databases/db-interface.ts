@@ -200,6 +200,47 @@ export interface FindOptions<T> extends BaseQueryOptions {
   hints?: QueryOptimizationHints;
 }
 
+/**
+ * Count accuracy mode (shared by all adapters).
+ * - `exact` — true cardinality (always scan/index count)
+ * - `estimate` — metadata/stats when filter is empty & untenanted; else exact
+ * - `auto` — estimate when safe, otherwise exact (default)
+ */
+export type CountMode = "exact" | "estimate" | "auto";
+
+export type CountOptions = BaseQueryOptions & {
+  includeDeleted?: boolean;
+  /** Accuracy mode. Default `auto`. */
+  mode?: CountMode;
+};
+
+/**
+ * Page fetch without mandatory COUNT(*).
+ * Fetches `limit + 1` rows to set `hasMore`; total is opt-in.
+ */
+export type FindPageTotalMode = "none" | CountMode;
+
+export interface FindPageOptions<T> extends FindOptions<T> {
+  /**
+   * Include total row count with this accuracy.
+   * Default `none` — list UIs should use `hasMore` only.
+   */
+  total?: FindPageTotalMode;
+}
+
+export interface FindPageResult<T> {
+  items: T[];
+  /** True when at least one more page exists (from limit+1 fetch). */
+  hasMore: boolean;
+  pageSize: number;
+  /** Last item `_id` when hasMore (opaque keyset starter). */
+  nextCursor?: string;
+  /** Present only when `total` was not `"none"`. */
+  total?: number;
+  /** True when `total` came from an estimate path. */
+  totalEstimated?: boolean;
+}
+
 export interface QueryOptimizationHints {
   /** Max documents to return in a single batch */
   batchSize?: number;
@@ -793,8 +834,17 @@ export interface ICrudAdapter {
   count<T extends BaseEntity>(
     collection: string,
     query?: QueryFilter<T>,
-    options?: BaseQueryOptions & { includeDeleted?: boolean },
+    options?: CountOptions,
   ): Promise<DatabaseResult<number>>;
+  /**
+   * List page with hasMore (limit+1) — avoids COUNT(*) on default list UIs.
+   * Optional `total` mode for dashboards that need a number.
+   */
+  findPage<T extends BaseEntity>(
+    collection: string,
+    query?: QueryFilter<T>,
+    options?: FindPageOptions<T>,
+  ): Promise<DatabaseResult<FindPageResult<T>>>;
   delete(
     collection: string,
     id: DatabaseId,

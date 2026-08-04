@@ -269,8 +269,12 @@ export async function ensureFullInitialization(): Promise<any | null> {
       try {
         const { createTenantGuardedCrud, createTenantGuardedNamespace } =
           await import("./crud-tenant-guard");
+        const { createCountCachedCrud } = await import("./core/count-cache");
         const originalCrud = adapter.crud;
-        (adapter as any).crud = createTenantGuardedCrud(originalCrud, "reject");
+        // Tenant guard first (fail-closed), then short-lived count cache (equal on all DBs).
+        (adapter as any).crud = createCountCachedCrud(
+          createTenantGuardedCrud(originalCrud, "reject"),
+        );
 
         for (const ns of ["auth", "content", "media", "collection", "system"] as const) {
           const original = (adapter as any)[ns];

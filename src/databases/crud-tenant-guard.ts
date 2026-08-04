@@ -106,6 +106,9 @@ export function createTenantGuardedCrud(
     findMany: async (collection, query, options) =>
       inner.findMany(collection, query, g(options, "findMany")),
 
+    findPage: async (collection, query, options) =>
+      inner.findPage(collection, query, g(options, "findPage")),
+
     findOne: async (collection, query, options) =>
       inner.findOne(collection, query, g(options, "findOne")),
 

@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/database/index.mdx"
 title: "Database Documentation Hub"
-description: "Central hub for SveltyCMS database architecture — 2027-ready allocation-floor engine with 4 production adapters, schema-aware conversion, ring-buffer pooling, and zero-tax LocalCMS."
+description: "Central hub for SveltyCMS database architecture — 4 production adapters, findPage/hasMore, count modes + cache, allocation-floor engine, and zero-tax LocalCMS."
 order: 1
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-06-22"
+updated: "2026-08-04"
 tags:
   - "database"
   - "architecture"
@@ -26,13 +26,13 @@ Welcome to the SveltyCMS Database Engine documentation. Our architecture is buil
 - **[Core Infrastructure](./core-infrastructure.mdx)** — `db.ts` lifecycle, self-healing proxy, plugin-registry topological boot, LocalCMS SDK
 - **[Database Methods Interface](./database-methods.mdx)** — `IDBAdapter` namespaces: `auth`, `crud`, `content`, `media`, `system`, `batch`, `collection`
 - **[Database Resilience](./database-resilience.mdx)** — Error handling, retry logic, circuit breaker, connection health monitoring
-- **[Performance Architecture](./performance-architecture.mdx)** — 2027 allocation-floor optimizations, schema-aware conversion, ring-buffer pools, cross-database impact
+- **[Performance Architecture](./performance-architecture.mdx)** — `findPage` / count modes / count cache (equal on all engines), allocation-floor, schema-aware conversion, ring-buffer pools
 
 ### 2. Engine Implementations
 
 - **[SQLite Implementation](./sqlite-implementation.mdx)** ✅ **Platinum** — Default for local/edge. Sub-ms CRUD, WAL mode, zero network overhead.
 - **[PostgreSQL Implementation](./postgresql-implementation.mdx)** ✅ **Production** — Enterprise scaling, native JSONB, GIN indexing, PgBouncer support.
-- **[MariaDB Implementation](./mariadb-implementation.mdx)** 🟡 **Planned** — High-concurrency pooling via `mysql2`, optimized relational schemas.
+- **[MariaDB Implementation](./mariadb-implementation.mdx)** ✅ **Production** — High-concurrency pooling via `mysql2`, shared `findPage` / count estimate path.
 - **[MongoDB Implementation](./mongodb-implementation.mdx)** ✅ **Production** — NoSQL engine, safeQuery security, wire compression.
 
 ---
@@ -53,9 +53,9 @@ graph TD
         F[7 Namespaced Interfaces]
         G[DatabaseResult Contract]
     end
-    subgraph Adapters["3 Production + 1 Planned"]
+    subgraph Adapters["4 Production Engines"]
         H[(MongoDB)]
-        I[(MariaDB 🟡 Planned)]
+        I[(MariaDB)]
         J[(PostgreSQL)]
         K[(SQLite)]
     end
@@ -63,6 +63,16 @@ graph TD
     Core --> Interface
     Interface --> H & I & J & K
 ```
+
+### Shared list & count contract (all adapters)
+
+| API                    | Default product use               | Benefit                                     |
+| ---------------------- | --------------------------------- | ------------------------------------------- |
+| `crud.findPage`        | Admin/API lists (`total: "none"`) | One query; `hasMore` via limit+1 — no COUNT |
+| `crud.count({ mode })` | Badges / dashboards               | `exact` \| `estimate` \| `auto`             |
+| Count L1 cache (30s)   | Repeated tenant counts            | ~0.024 ms hits after warm (all engines)     |
+
+Details and measured gains: [Performance Architecture](./performance-architecture.mdx#product-layer-list--count-equal-on-all-engines) · method signatures: [Database Methods](./database-methods.mdx#-crud-namespace).
 
 ---
 

@@ -1395,6 +1395,12 @@ const mockDbAdapter = {
     updateMany: mock(() => Promise.resolve({ success: true })),
     findOne: mock(() => Promise.resolve({ success: true, data: null })),
     findMany: mock(() => Promise.resolve({ success: true, data: [] })),
+    findPage: mock(() =>
+      Promise.resolve({
+        success: true,
+        data: { items: [], hasMore: false, pageSize: 50 },
+      }),
+    ),
     delete: mock(() => Promise.resolve({ success: true })),
     deleteMany: mock(() => Promise.resolve({ success: true })),
     upsert: mock(() => Promise.resolve({ success: true })),

@@ -19,9 +19,12 @@ import { BaseAdapter } from "./base-adapter";
 import type {
   BaseEntity,
   BaseQueryOptions,
+  CountOptions,
   DatabaseResult,
   DatabaseId,
   FindOptions,
+  FindPageOptions,
+  FindPageResult,
   EntityCreate,
   EntityUpdate,
   QueryFilter,
@@ -48,6 +51,7 @@ import { RelationalMediaModule } from "./relational-media";
 import { RelationalSystemModule } from "./relational-system";
 import { BatchModule } from "./batch-module";
 import { CollectionModule } from "./collection-module";
+import { buildFindPageResult, DEFAULT_PAGE_SIZE, shouldUseEstimateCount } from "./page-utils";
 
 // ============================================================================
 // Abstract SqlAdapterCore — shared base for all SQL adapters
@@ -783,6 +787,59 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   // --------------------------------------------------------------------------
+  // CRUD: findPage (limit+1 hasMore — shared product path)
+  // --------------------------------------------------------------------------
+
+  async findPage<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T> = {},
+    options: FindPageOptions<T> = {},
+  ): Promise<DatabaseResult<FindPageResult<T>>> {
+    const pageSize = options.limit && options.limit > 0 ? options.limit : DEFAULT_PAGE_SIZE;
+    const fetchOpts: FindOptions<T> = {
+      ...options,
+      limit: pageSize + 1,
+    };
+    const rowsRes = await this.findMany<T>(collection, query, fetchOpts);
+    if (!rowsRes.success) {
+      return {
+        success: false,
+        message: rowsRes.message,
+        error: rowsRes.error,
+      };
+    }
+
+    const totalMode = options.total ?? "none";
+    let totalMeta: { total: number; estimated: boolean } | undefined;
+    if (totalMode !== "none") {
+      const countRes = await this.count(collection, query, {
+        tenantId: options.tenantId,
+        systemScope: options.systemScope,
+        bypassTenantCheck: options.bypassTenantCheck,
+        includeDeleted: options.includeDeleted,
+        bypassSafeQuery: options.bypassSafeQuery,
+        skipMeta: true,
+        mode: totalMode,
+      });
+      if (countRes.success && typeof countRes.data === "number") {
+        totalMeta = {
+          total: countRes.data,
+          estimated: shouldUseEstimateCount(query, {
+            mode: totalMode,
+            tenantId: options.tenantId,
+            includeDeleted: options.includeDeleted,
+          }),
+        };
+      }
+    }
+
+    return {
+      success: true,
+      data: buildFindPageResult(rowsRes.data ?? [], pageSize, totalMeta),
+    };
+  }
+
+  // --------------------------------------------------------------------------
   // CRUD: findById
   // --------------------------------------------------------------------------
 
@@ -871,24 +928,92 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   async count<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T> = {},
-    options: BaseQueryOptions = {},
+    options: CountOptions = {},
   ): Promise<DatabaseResult<number>> {
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      const where = this.mapQuery(table, query || {}, options);
-      try {
-        const result = await this.getDrizzleInstance(options)
-          .select({ count: drizzleCount() })
-          .from(table)
-          .where(where);
-        return result[0].count;
-      } catch (err: any) {
-        if (this.isMissingTableError(err)) {
-          return 0;
+    return this.wrap(
+      async () => {
+        const table = this.getTable(collection);
+        if (!table) return 0;
+
+        // 🚀 ESTIMATE PATH: metadata/stats when unfiltered + untenanted (all SQL dialects).
+        if (
+          shouldUseEstimateCount(query, {
+            mode: options.mode,
+            tenantId: options.tenantId,
+            includeDeleted: options.includeDeleted,
+          })
+        ) {
+          const estimated = await this.estimateTableRows(table, collection);
+          if (estimated !== null && estimated >= 0) return estimated;
+          // Fall through to exact COUNT(*) if stats unavailable
         }
-        throw err;
+
+        const where = this.mapQuery(table, query || {}, options);
+        try {
+          const result = await this.getDrizzleInstance(options)
+            .select({ count: drizzleCount() })
+            .from(table)
+            .where(where);
+          return result[0].count;
+        } catch (err: any) {
+          if (this.isMissingTableError(err)) {
+            return 0;
+          }
+          throw err;
+        }
+      },
+      "COUNT_FAILED",
+      undefined,
+      { skipMeta: options.skipMeta, bypassSafeQuery: options.bypassSafeQuery },
+    );
+  }
+
+  /**
+   * Dialect-aware approximate row count from engine statistics.
+   * Returns null when stats are unavailable (caller falls back to exact COUNT).
+   */
+  protected async estimateTableRows(table: any, _collection: string): Promise<number | null> {
+    const tableName = getTableName(table);
+    if (!tableName) return null;
+
+    try {
+      const dbType = (this.type || "").toLowerCase();
+
+      if (dbType === "postgresql" || dbType === "postgres") {
+        // pg_class.reltuples — planner estimate; free vs sequential COUNT(*)
+        const rows = await this.raw.execute(
+          `SELECT GREATEST(reltuples::bigint, 0) AS n FROM pg_class WHERE relname = $1 LIMIT 1`,
+          [tableName],
+        );
+        const n = extractEstimateNumber(rows, "n");
+        return n;
       }
-    }, "COUNT_FAILED");
+
+      if (dbType === "mariadb" || dbType === "mysql") {
+        const rows = await this.raw.execute(
+          `SELECT TABLE_ROWS AS n FROM information_schema.TABLES
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? LIMIT 1`,
+          [tableName],
+        );
+        return extractEstimateNumber(rows, "n");
+      }
+
+      if (dbType === "sqlite") {
+        // sqlite_stat1 after ANALYZE; if missing, exact COUNT is already sub-ms
+        const rows = await this.raw.execute(
+          `SELECT SUM(CAST(substr(stat, 1, instr(stat || ' ', ' ') - 1) AS INTEGER)) AS n
+           FROM sqlite_stat1 WHERE tbl = ?`,
+          [tableName],
+        );
+        const n = extractEstimateNumber(rows, "n");
+        // null/0 from missing ANALYZE → fall through to exact
+        if (n === null || n === 0) return null;
+        return n;
+      }
+    } catch {
+      return null;
+    }
+    return null;
   }
 
   // --------------------------------------------------------------------------
@@ -1327,4 +1452,22 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   public override destroy(): void {
     if (this.preparedStatements.size > 0) this.preparedStatements.clear();
   }
+}
+
+/** Normalize raw.execute / driver rows into a non-negative integer estimate. */
+function extractEstimateNumber(rows: unknown, field: string): number | null {
+  if (rows == null) return null;
+  let row: any;
+  if (Array.isArray(rows)) {
+    row = rows[0];
+  } else if (typeof rows === "object" && rows !== null && "rows" in (rows as object)) {
+    row = (rows as any).rows?.[0];
+  } else if (typeof rows === "object") {
+    row = rows;
+  }
+  if (!row) return null;
+  const raw = row[field] ?? row[0];
+  const n = typeof raw === "bigint" ? Number(raw) : Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
 }

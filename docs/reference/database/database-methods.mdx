@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/database/database-methods.mdx"
 title: "Database Methods Interface"
-description: "Comprehensive reference for the IDBAdapter interface and its modular namespaces, ensuring consistent behavior across MongoDB, PostgreSQL, MariaDB, and SQLite."
+description: "Comprehensive reference for the IDBAdapter interface and its modular namespaces, including findPage, count modes, and shared count caching across MongoDB, PostgreSQL, MariaDB, and SQLite."
 order: 6
 icon: "mdi:database-cog"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-06-22"
+updated: "2026-08-04"
 tags:
   - "database"
   - "interface"
@@ -82,14 +82,75 @@ export type DatabaseResult<T> =
 
 **Responsibility:** High-performance, standardized data operations.
 
-| Method                                | Description                                                   |
-| :------------------------------------ | :------------------------------------------------------------ |
-| `find(collection, criteria, options)` | Advanced filtering with inlined Query IR translation support. |
-| `findOne(collection, criteria)`       | Single record retrieval fast-path.                            |
-| `insert(collection, data, options)`   | Standard record creation.                                     |
-| `update(collection, criteria, data)`  | Scoped updates with multi-tenant safety.                      |
-| `delete(collection, criteria)`        | Permanent or soft-deletion of records.                        |
-| `upsert(collection, criteria, data)`  | Atomic "Update or Insert" operation.                          |
+| Method                                 | Description                                                                     |
+| :------------------------------------- | :------------------------------------------------------------------------------ |
+| `find(collection, criteria, options)`  | Advanced filtering (fused mapQuery — no IR).                                    |
+| `findMany(collection, query, options)` | Multi-row read with limit/offset/fields/sort.                                   |
+| `findPage(collection, query, options)` | **Preferred list API** — `limit+1` → `{ items, hasMore, nextCursor?, total? }`. |
+| `findOne(collection, criteria)`        | Single record retrieval fast-path.                                              |
+| `findByIds(collection, ids, options)`  | Batch PK lookup (relational widgets / loaders).                                 |
+| `count(collection, query, options)`    | Cardinality with `mode: "exact" \| "estimate" \| "auto"`.                       |
+| `exists(collection, query, options)`   | Existence check (`LIMIT 1` / lean projection) — prefer over `count > 0`.        |
+| `insert` / `insertMany`                | Standard and bulk create.                                                       |
+| `update` / `updateMany`                | Scoped updates with multi-tenant safety.                                        |
+| `delete` / `deleteMany`                | Permanent or soft-deletion.                                                     |
+| `upsert` / `upsertMany`                | Atomic update-or-insert.                                                        |
+| `streamMany`                           | Async-iterable scan for export / migration.                                     |
+
+### `findPage` (shared product path)
+
+Use for admin tables, media grids, and REST/GraphQL list connections. Avoids a default `COUNT(*)`.
+
+```typescript
+import type { FindPageResult } from "@src/databases/db-interface";
+
+const res = await db.crud.findPage<Post>("posts", filter, {
+  limit: 50,
+  tenantId,
+  sort: { updatedAt: -1 },
+  fields: ["_id", "title", "status", "updatedAt"],
+  total: "none", // or "exact" | "estimate" | "auto"
+});
+
+if (res.success) {
+  const { items, hasMore, nextCursor, total, totalEstimated }: FindPageResult<Post> = res.data;
+}
+```
+
+| `options.total`    | Effect                                                  |
+| :----------------- | :------------------------------------------------------ |
+| `"none"` (default) | No count query — use `hasMore` only                     |
+| `"exact"`          | Always exact count (after page fetch)                   |
+| `"estimate"`       | Stats/metadata when unfiltered + untenanted; else exact |
+| `"auto"`           | Same eligibility as estimate                            |
+
+**Files:** `core/sql-adapter-core.ts`, `mongodb/crud-methods.ts`, `core/page-utils.ts`.
+
+### `count` modes & short-lived cache
+
+```typescript
+// Exact (billing / RBAC)
+await db.crud.count("posts", { status: "publish" }, { tenantId, mode: "exact" });
+
+// Estimate when empty + no tenant (dashboard global size)
+await db.crud.count("posts", {}, { mode: "estimate" });
+
+// Force skip L1/L2 count cache
+await db.crud.count("posts", filter, { tenantId, bypassCache: true });
+```
+
+| Layer          | Module                                          | Role                                                      |
+| :------------- | :---------------------------------------------- | :-------------------------------------------------------- |
+| Modes          | `core/page-utils.ts` → `shouldUseEstimateCount` | Shared eligibility (tenant-safe)                          |
+| SQL estimate   | `SqlAdapterCore.estimateTableRows`              | PG `reltuples`, Maria `TABLE_ROWS`, SQLite `sqlite_stat1` |
+| Mongo estimate | `MongoCrudMethods.count`                        | `estimatedDocumentCount()`                                |
+| Cache          | `core/count-cache.ts` → `createCountCachedCrud` | 30s L1/L2; wired in `db.ts` after tenant guard            |
+| Invalidation   | `BaseAdapter.invalidateQueryCache`              | Clears `count:{collection}:*` + tag `count:{collection}`  |
+
+> [!IMPORTANT]
+> Tenant-scoped counts never use whole-table estimates. Prefer `findPage` + `hasMore` for list UIs; use cached exact counts for badges; use estimate only for unscoped dashboards.
+
+See [Performance Architecture — Product-layer list & count](./performance-architecture.mdx#product-layer-list--count-equal-on-all-engines).
 
 ---
 

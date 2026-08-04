@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     8 | 🟢     | —       | 0      |
+| **Core**       |    12 | 🟢     | —       | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -64,14 +64,18 @@ tags:
 
 | Scenario                 | Latency | Trend                             | Budget | Result |
 | ------------------------ | ------- | --------------------------------- | ------ | ------ |
-| **Database Performance** | 2.267ms | ⚪ established at 2.27ms (1 run)  | < 5ms  | 🟢     |
-| **Database Performance** | 0.853ms | ⚪ established at 0.853ms (1 run) | < 5ms  | 🟢     |
-| **Database Performance** | 0.924ms | ⚪ established at 0.924ms (1 run) | < 5ms  | 🟢     |
-| **Database Performance** | 2.156ms | ⚪ established at 2.16ms (1 run)  | < 5ms  | 🟢     |
-| **Database Performance** | 2.090ms | ⚪ established at 2.09ms (1 run)  | < 5ms  | 🟢     |
-| **Database Performance** | 0.967ms | ⚪ established at 0.967ms (1 run) | < 5ms  | 🟢     |
-| **Database Performance** | 2.090ms | ⚪ established at 2.09ms (1 run)  | < 5ms  | 🟢     |
-| **Database Performance** | 7.367ms | ⚪ established at 7.37ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 2.221ms | ⚪ established at 2.22ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 0.855ms | ⚪ established at 0.855ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.968ms | ⚪ established at 0.968ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 1.006ms | ⚪ established at 1.01ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 4.845ms | ⚪ established at 4.84ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 2.231ms | ⚪ established at 2.23ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 2.044ms | ⚪ established at 2.04ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 2.160ms | ⚪ established at 2.16ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 0.721ms | ⚪ established at 0.721ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.024ms | ⚪ established at 0.024ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 2.060ms | ⚪ established at 2.06ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 7.285ms | ⚪ established at 7.29ms (1 run)  | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -79,7 +83,7 @@ tags:
 
 | Metric                                          | Trend | Sparkline | Latest  |
 | ----------------------------------------------- | ----- | --------- | ------- |
-| database performance (BULK INSERT (100)) (warm) | 🟢    | `▁`       | 7.367ms |
+| database performance (BULK INSERT (100)) (warm) | 🟢    | `█▁`      | 7.285ms |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
@@ -111,18 +115,22 @@ xychart-beta
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `aa261371-be23-4fd6-a334-dd641d7f5365` · **Tests invoked:** 1 · **Metrics:** 8 · **DB:** postgresql
+**Run ID:** `e07a1a07-6721-48e1-9c85-c924bb926b53` · **Tests invoked:** 1 · **Metrics:** 12 · **DB:** postgresql
 
-| Test                 | Metric               | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                            |
-| -------------------- | -------------------- | -------- | -------- | ---- | ----- | --------------------------------- |
-| Database Performance | INSERT               | 2.267    | 2.943    | 389  | 🟢    | ⚪ established at 2.27ms (1 run)  |
-| Database Performance | FIND ONE             | 0.853    | 1.009    | 1022 | 🟢    | ⚪ established at 0.853ms (1 run) |
-| Database Performance | FIND MANY (limit 50) | 0.924    | 1.071    | 951  | 🟢    | ⚪ established at 0.924ms (1 run) |
-| Database Performance | UPDATE               | 2.156    | 2.562    | 418  | 🟢    | ⚪ established at 2.16ms (1 run)  |
-| Database Performance | NATIVE UPSERT        | 2.090    | 2.576    | 418  | 🟢    | ⚪ established at 2.09ms (1 run)  |
-| Database Performance | COUNT                | 0.967    | 1.121    | 895  | 🟢    | ⚪ established at 0.967ms (1 run) |
-| Database Performance | DELETE               | 2.090    | 2.679    | 456  | 🟢    | ⚪ established at 2.09ms (1 run)  |
-| Database Performance | BULK INSERT (100)    | 7.367    | 9.394    | 134  | 🟢    | ⚪ established at 7.37ms (1 run)  |
+| Test                 | Metric                 | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                            |
+| -------------------- | ---------------------- | -------- | -------- | ----- | ----- | --------------------------------- |
+| Database Performance | INSERT                 | 2.221    | 2.910    | 396   | 🟢    | ⚪ established at 2.22ms (1 run)  |
+| Database Performance | FIND ONE               | 0.855    | 0.967    | 1030  | 🟢    | ⚪ established at 0.855ms (1 run) |
+| Database Performance | FIND MANY (limit 50)   | 0.968    | 1.158    | 907   | 🟢    | ⚪ established at 0.968ms (1 run) |
+| Database Performance | FIND PAGE (50 hasMore) | 1.006    | 1.332    | 843   | 🟢    | ⚪ established at 1.01ms (1 run)  |
+| Database Performance | LIST+COUNT (legacy)    | 4.845    | 6.095    | 200   | 🟢    | ⚪ established at 4.84ms (1 run)  |
+| Database Performance | UPDATE                 | 2.231    | 2.799    | 403   | 🟢    | ⚪ established at 2.23ms (1 run)  |
+| Database Performance | NATIVE UPSERT          | 2.044    | 2.454    | 434   | 🟢    | ⚪ established at 2.04ms (1 run)  |
+| Database Performance | COUNT                  | 2.160    | 2.570    | 411   | 🟢    | ⚪ established at 2.16ms (1 run)  |
+| Database Performance | COUNT ESTIMATE         | 0.721    | 0.829    | 1223  | 🟢    | ⚪ established at 0.721ms (1 run) |
+| Database Performance | COUNT CACHED           | 0.024    | 0.026    | 40330 | 🟢    | ⚪ established at 0.024ms (1 run) |
+| Database Performance | DELETE                 | 2.060    | 2.482    | 480   | 🟢    | ⚪ established at 2.06ms (1 run)  |
+| Database Performance | BULK INSERT (100)      | 7.285    | 9.192    | 135   | 🟢    | ⚪ established at 7.29ms (1 run)  |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
@@ -138,7 +146,7 @@ xychart-beta
 
 | Metric                      | Trend | Sparkline (last 7) | Latest  |
 | --------------------------- | ----- | ------------------ | ------- |
-| DATABASE PERFORMANCE (warm) | 🟢    | `▂▇▁▁█▇▇`          | 2.156ms |
+| DATABASE PERFORMANCE (warm) | 🟢    | `▁▁▁▃█▃▃`          | 2.231ms |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 
@@ -291,23 +299,27 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:DB_RAW_P95:START -->
 <details id="section-db_raw_p95">
-<summary><strong>🏷️ database performance</strong> · 🟢 7.367ms · ➡️ ⚪ established at 7.37ms (1 run) (2026-08-04 11:17:26) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ database performance</strong> · 🟢 7.285ms · ➡️ ⚪ established at 7.29ms (1 run) (2026-08-04 11:45:25) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                  SVELTYCMS — DATABASE ADAPTER PERFORMANCE (POSTGRESQL)                  ║
 ║                   File: tests/benchmarks/database-performance.test.ts                   ║
-║                                Ran: 2026-08-04 11:17:26                                 ║
+║                                Ran: 2026-08-04 11:45:25                                 ║
 ║   Measures raw CRUD performance, indexing efficiency, and connection pool resilience    ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                         │        2.267 ms │ p95:        2.943 ms │ RPS:        389 ║
-║ FIND ONE                       │        0.853 ms │ p95:        1.009 ms │ RPS:      1,022 ║
-║ FIND MANY (limit 50)           │        0.924 ms │ p95:        1.071 ms │ RPS:        951 ║
-║ UPDATE                         │        2.156 ms │ p95:        2.562 ms │ RPS:        418 ║
-║ NATIVE UPSERT                  │        2.090 ms │ p95:        2.576 ms │ RPS:        418 ║
-║ COUNT                          │        0.967 ms │ p95:        1.121 ms │ RPS:        895 ║
-║ DELETE                         │        2.090 ms │ p95:        2.679 ms │ RPS:        456 ║
-║ BULK INSERT (100)              │        7.367 ms │ p95:        9.394 ms │ RPS:        134 ║
+║ INSERT                         │        2.221 ms │ p95:        2.910 ms │ RPS:        396 ║
+║ FIND ONE                       │        0.855 ms │ p95:        0.967 ms │ RPS:      1,030 ║
+║ FIND MANY (limit 50)           │        0.968 ms │ p95:        1.158 ms │ RPS:        907 ║
+║ FIND PAGE (50 hasMore)         │        1.006 ms │ p95:        1.332 ms │ RPS:        843 ║
+║ LIST+COUNT (legacy)            │        4.845 ms │ p95:        6.095 ms │ RPS:        200 ║
+║ UPDATE                         │        2.231 ms │ p95:        2.799 ms │ RPS:        403 ║
+║ NATIVE UPSERT                  │        2.044 ms │ p95:        2.454 ms │ RPS:        434 ║
+║ COUNT                          │        2.160 ms │ p95:        2.570 ms │ RPS:        411 ║
+║ COUNT ESTIMATE                 │        0.721 ms │ p95:        0.829 ms │ RPS:      1,223 ║
+║ COUNT CACHED                   │        0.024 ms │ p95:        0.026 ms │ RPS:     40,330 ║
+║ DELETE                         │        2.060 ms │ p95:        2.482 ms │ RPS:        480 ║
+║ BULK INSERT (100)              │        7.285 ms │ p95:        9.192 ms │ RPS:        135 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->

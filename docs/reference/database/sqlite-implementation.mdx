@@ -54,6 +54,7 @@ Key SQLite highlights:
 - **Cache L1 hit at 0.000 ms**, miss at 0.338 ms. INSERT 0.107 ms, FIND ONE 0.076 ms.
 - **WAL Mode** enabled by default for concurrent read/write performance.
 - **Runtime Agnostic**: Optimized for both `bun:sqlite` and `node:sqlite`.
+- **findPage / count modes**: Shared `SqlAdapterCore` path — FIND PAGE **0.073 ms** vs legacy LIST+COUNT **0.191 ms** (~2.6×); COUNT CACHED **0.024 ms** (2026-08-04). See [Performance Architecture](./performance-architecture.mdx#product-layer-list--count-equal-on-all-engines).
 
 ### Key Optimizations
 
