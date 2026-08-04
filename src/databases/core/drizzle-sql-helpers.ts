@@ -35,6 +35,15 @@ import {
 import type { FindOptions, QueryCondition } from "../db-interface";
 import * as utils from "./relational-utils";
 
+/**
+ * Escape LIKE wildcards in user input so `%`, `_` and `\` are matched
+ * literally. Callers MUST pair the result with `ESCAPE '\'` (bound as a
+ * parameter — never inlined, see `$regex` below) on every LIKE expression.
+ */
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (m) => `\\${m}`);
+}
+
 // 🚀 CENTRALIZED TABLE ALIASES: Shared across all SQL adapters.
 export const SQL_TABLE_ALIASES: Record<string, string> = {
   media: "mediaItems",
@@ -650,7 +659,7 @@ function addSingleCondition(
       const anchorEnd = raw.endsWith("$");
       const core = anchorStart ? raw.slice(1) : raw;
       const noTrailing = anchorEnd ? core.slice(0, -1) : core;
-      const escaped = noTrailing.replace(/[\\%_]/g, (m) => `\\${m}`);
+      const escaped = escapeLikePattern(noTrailing);
       const pattern = `${anchorStart ? "" : "%"}${escaped}${anchorEnd ? "" : "%"}`;
       const caseInsensitive = String(operators?.["$options"] ?? "")
         .toLowerCase()

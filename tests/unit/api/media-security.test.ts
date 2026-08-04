@@ -176,6 +176,24 @@ const mediaDeleteHandler = {
   },
 };
 
+const mediaShareHandler = {
+  POST: (event: any) => {
+    const mockEvent = {
+      ...createMockRequestEvent({
+        method: "POST",
+        url: "http://localhost/api/media/share/media-1",
+        user: event.locals?.user,
+        tenantId: event.locals?.tenantId,
+        roles: event.locals?.roles,
+        dbAdapter: event.locals?.dbAdapter || dbAdapter,
+        body: { expiryHours: 24 },
+      }),
+      params: { path: "media/share/media-1" },
+    };
+    return dispatcherPOST(mockEvent as any);
+  },
+};
+
 const mediaProcessHandler = {
   POST: (event: any) => {
     const mockEvent = {
@@ -205,6 +223,42 @@ describe("Media API Security Unit Tests", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe("POST /api/media/share/:id", () => {
+    it("denies share-link creation to a read-only user (403 FORBIDDEN)", async () => {
+      // media:read passes the dispatcher gate, but creating a share link is a
+      // write-class action (anonymous download exposure) and must be denied.
+      const readOnlyUser = {
+        _id: "user-ro",
+        email: "ro@test.com",
+        role: "editor",
+        isAdmin: false,
+        permissions: ["media:read"],
+        tenantId,
+      };
+      const editorRoles = [
+        { _id: "editor", name: "Editor", isAdmin: false, permissions: ["media:read"] },
+      ];
+
+      const response = mediaShareHandler.POST({
+        locals: { user: readOnlyUser, roles: editorRoles, tenantId, isAdmin: false },
+      });
+      await expect(response).rejects.toThrow("Insufficient permissions for share-link creation");
+    });
+
+    it("allows share-link creation for admins", async () => {
+      (dbAdapter!.crud.findOne as any).mockResolvedValue({
+        success: true,
+        data: { _id: "media-1", tenantId, metadata: {} },
+      });
+      (dbAdapter!.crud.update as any).mockResolvedValue({ success: true });
+
+      const response = await mediaShareHandler.POST({
+        locals: { user, roles, tenantId, isAdmin: true },
+      });
+      expect(response.status).toBe(200);
+    });
   });
 
   describe("GET /api/media/[id]", () => {

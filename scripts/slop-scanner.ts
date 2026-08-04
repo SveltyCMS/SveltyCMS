@@ -510,7 +510,7 @@ function scanRawSqlRisk(relPath: string, content: string) {
     // SQL statement position: backtick followed by an uppercase SQL DML/DDL verb.
     // Case-sensitive so English verbs ("Select", "Update") in UI strings don't match.
     if (
-      !/`\s*(?:INSERT(?:\s+(?:OR\s+IGNORE|INTO))?|UPDATE|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE|SELECT)\b/.test(
+      !/`\s*(?:INSERT(?:\s+(?:OR\s+IGNORE|INTO))?|UPDATE|DELETE\s+FROM|CREATE\s+(?:UNIQUE\s+)?INDEX(?:\s+IF\s+NOT\s+EXISTS)?|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE|SELECT)\b/.test(
         line,
       )
     ) {

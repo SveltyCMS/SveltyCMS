@@ -12,6 +12,7 @@ import type {
   ISqlAdapter,
 } from "../db-interface";
 import { DatabaseModule } from "./base-adapter";
+import { assertSafeSqlIdentifier } from "./relational-utils";
 import { logger } from "@src/utils/logger";
 
 export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICollectionAdapter {
@@ -81,7 +82,10 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
 
   async createIndexes(id: string, schema: Schema): Promise<DatabaseResult<void>> {
     return this.adapter.wrap(async () => {
-      const tableName = `collection_${id}`;
+      // Identifiers are embedded in DDL — assert they are safe (collection ids
+      // and db_fieldNames are config-derived, but field LABELS are admin-typed
+      // text and must never break out of the quoted identifier).
+      const safeTableName = assertSafeSqlIdentifier(`collection_${id}`, "table");
       const fields = (schema.fields || []) as any[];
 
       // SQLite-specific indexing (Hardened)
@@ -93,11 +97,11 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
 
       for (const field of fields) {
         if (field.unique || field.indexed) {
-          const fieldName = field.db_fieldName || field.label;
-          const indexName = `idx_${id}_${fieldName}`;
+          const fieldName = assertSafeSqlIdentifier(field.db_fieldName || field.label, "field");
+          const indexName = assertSafeSqlIdentifier(`idx_${id}_${fieldName}`, "index");
           const unique = field.unique ? "UNIQUE " : "";
           try {
-            const sql = `CREATE ${unique}INDEX IF NOT EXISTS "${indexName}" ON "${tableName}" ("${fieldName}")`;
+            const sql = `CREATE ${unique}INDEX IF NOT EXISTS "${indexName}" ON "${safeTableName}" ("${fieldName}")`;
             if (typeof client.exec === "function") client.exec(sql);
             else if (typeof client.run === "function") client.run(sql);
           } catch (e) {

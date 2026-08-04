@@ -677,15 +677,21 @@ export async function handleMediaShareCreate(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
-  _user: any,
+  user: any,
   segments: string[],
 ) {
   const mediaId = segments[2];
   if (!mediaId)
     throw new AppError("Media record targeted tracking location identifier required", 400);
 
+  // 🛡️ Share links expose the asset to anonymous download — creating one is a
+  // write-class action and must not ride on the read-only dispatcher gate.
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for share-link creation", 403, "FORBIDDEN");
+  }
+
   const { expiryHours, password } = await event.request.json().catch(() => ({}));
-  const link = createLink(mediaId as DatabaseId, "system" as DatabaseId, {
+  const link = createLink(mediaId as DatabaseId, String(user?._id ?? "system") as DatabaseId, {
     hours: expiryHours ? Number(expiryHours) : 24,
     passwordHash: password ? crypto.createHash("sha256").update(password).digest("hex") : undefined,
   });

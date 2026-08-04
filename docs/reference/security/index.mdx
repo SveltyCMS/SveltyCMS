@@ -379,13 +379,15 @@ bun test tests/integration/api/security.test.ts
 
 ### Security Vulnerabilities Fixed
 
-| Issue                                                                                   | File                                                    | Fix Date                |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------------- | ----------------------- |
-| Rate limiting bypass (localhost)                                                        | `src/hooks/handle-rate-limit.ts`                        | March 2026 (Protected)  |
-| Firewall bypass (TEST_MODE)                                                             | `src/hooks/handle-firewall.ts`                          | March 2026 (Protected)  |
-| Stale RBAC/roles after config import (incorrect permission decisions up to 1h)          | `ConfigService.performImport` + permission/roles caches | August 2026 (Protected) |
-| Credential material (password hash, TOTP secret, backup codes) in session caches/stores | `session-user.ts` (credential-free snapshots)           | August 2026 (Protected) |
-| Untagged cache delete not propagated to remote nodes (multi-node stale data)            | `cache-service.ts` (key-pattern invalidation publish)   | August 2026 (Protected) |
+| Issue                                                                                                    | File                                                                                | Fix Date                |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------- |
+| Rate limiting bypass (localhost)                                                                         | `src/hooks/handle-rate-limit.ts`                                                    | March 2026 (Protected)  |
+| Firewall bypass (TEST_MODE)                                                                              | `src/hooks/handle-firewall.ts`                                                      | March 2026 (Protected)  |
+| Stale RBAC/roles after config import (incorrect permission decisions up to 1h)                           | `ConfigService.performImport` + permission/roles caches                             | August 2026 (Protected) |
+| Credential material (password hash, TOTP secret, backup codes) in session caches/stores                  | `session-user.ts` (credential-free snapshots)                                       | August 2026 (Protected) |
+| Untagged cache delete not propagated to remote nodes (multi-node stale data)                             | `cache-service.ts` (key-pattern invalidation publish)                               | August 2026 (Protected) |
+| LIKE wildcard pattern injection in media search / JSON-path `contains` (`%` widened filters to all rows) | `escapeLikePattern` + bound `ESCAPE` in `relational-media.ts`, `media-json-path.ts` | August 2026 (Protected) |
+| Share-link creation rode on read-only gate (anonymous download exposure)                                 | `handleMediaShareCreate` now requires `media:write`                                 | August 2026 (Protected) |
 
 See [Tested Security Features](./tested-security-features.mdx) for details.
 
@@ -397,6 +399,16 @@ Recommended security testing tools:
 - **Burp Suite** - Security testing platform
 - **SQLMap** - SQL injection testing
 - **XSStrike** - XSS vulnerability scanner
+
+### External NVD Pipeline (`cms_security_data.py`, ops-side)
+
+Run 2026-08-04: 116 deps scanned, 0 CVEs (0 HIGH/CRITICAL). Two detector-noise classes worth fixing in the external script so future runs don't cry wolf:
+
+- `fetch_nvd_cves()` crashes on `TimeoutError` (only `HTTPError`/`URLError`/`JSONDecodeError` are caught) — add `TimeoutError` + a retry.
+- `raw_sql_injection_risk` flags every bare `${...}` template literal (Tailwind classes, localStorage keys, URLs) — require SQL context (SQL verb near the interpolation).
+- `path_traversal_risk` matches `../` in relative imports — require `fs.`/`path.resolve` usage with dynamic input.
+
+In-repo equivalent: `slop-scanner.ts` raw-SQL check is SQL-verb-gated and identifier-guard-aware (see `scanRawSqlRisk`) — no such false-positive class.
 
 ---
 

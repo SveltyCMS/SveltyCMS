@@ -18,6 +18,7 @@
  * - multi-clause AND
  */
 
+import { escapeLikePattern } from "./drizzle-sql-helpers";
 import { sql, type SQL } from "drizzle-orm";
 import { type JsonPathClause, type JsonPathOp, parseJsonPathFilter } from "@utils/json-path-filter";
 
@@ -69,11 +70,14 @@ function stringCompareSql(
   value: string,
 ): SQL {
   const lowerVal = value.toLowerCase();
+  // Escape LIKE wildcards (bound ESCAPE char — never inline the backslash).
+  const containsPattern = `%${escapeLikePattern(lowerVal)}%`;
+  const ESCAPE_CHAR = "\\";
   // MariaDB doesn't support CAST(... AS TEXT) — JSON_UNQUOTE already returns LONGTEXT
   const skipCast = dialect === "mariadb" || dialect === "mysql";
   if (skipCast) {
     if (op === "contains") {
-      return sql`lower(${extract}) LIKE ${"%" + lowerVal + "%"}`;
+      return sql`lower(${extract}) LIKE ${containsPattern} ESCAPE ${ESCAPE_CHAR}`;
     }
     if (op === "neq") {
       return sql`lower(${extract}) != ${lowerVal}`;
@@ -81,7 +85,7 @@ function stringCompareSql(
     return sql`lower(${extract}) = ${lowerVal}`;
   }
   if (op === "contains") {
-    return sql`lower(CAST(${extract} AS TEXT)) LIKE ${"%" + lowerVal + "%"}`;
+    return sql`lower(CAST(${extract} AS TEXT)) LIKE ${containsPattern} ESCAPE ${ESCAPE_CHAR}`;
   }
   if (op === "neq") {
     return sql`lower(CAST(${extract} AS TEXT)) != ${lowerVal}`;
