@@ -14,8 +14,8 @@ export interface CollectionMap {
   pages: CollectionEntry & {
     title: string;
     slug: string;
-    pageType: string;
-    template: string;
+    pageType: "static" | "template";
+    template: "homepage" | "default" | "search" | "product-detail";
     heroHeading: string;
     heroSubheading: string;
     body: string;
