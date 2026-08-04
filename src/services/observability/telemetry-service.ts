@@ -288,6 +288,8 @@ export class TelemetryService {
           is_ephemeral: environment === "development" || environment === "test",
           stable_id: stableId,
           db_type: dbType,
+          repository_url: "https://github.com/SveltyCMS/SveltyCMS",
+          package_name: "SveltyCMS",
           location: Object.values(location).some((v) => v !== undefined) ? location : undefined,
           usage_metrics: {
             users: userCount,
