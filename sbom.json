@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:83065537-07fc-4784-98d0-6376a01d0e91",
+  "serialNumber": "urn:uuid:978dc898-831d-4e1a-b07a-da29af614128",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-04T10:54:06.898Z",
+    "timestamp": "2026-08-04T13:03:53.513Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -5417,13 +5417,13 @@
     {
       "type": "library",
       "name": "brace-expansion",
-      "version": "5.0.8",
-      "purl": "pkg:npm/brace-expansion@5.0.8",
+      "version": "5.0.9",
+      "purl": "pkg:npm/brace-expansion@5.0.9",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-JZyDyq3D4AUifKTPOB7DELf6XsB3WdPuNxCtob1vFXPsSXhdAiHBWJ/tJ8HAc9aH84BK+5JFZLNkJKx3G9kzQg=="
+          "content": "sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg=="
         }
       ]
     },
@@ -6431,13 +6431,13 @@
     {
       "type": "library",
       "name": "fast-uri",
-      "version": "3.1.4",
-      "purl": "pkg:npm/fast-uri@3.1.4",
+      "version": "4.1.2",
+      "purl": "pkg:npm/fast-uri@4.1.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-8JnbkQ4juDyvYs4mgFGQqg4yCYtFDtUtmp2QIQq11ZZe5CFQ5wcqm1rqDgAh/QdMySuBnPzMUiJUNZG5N/AiQw=="
+          "content": "sha512-TyGmBcbDTZXcb2cj5MV89DrF42DKvb3y5DDUNh95iO+IMeAzMkVSxK1PZRrRIpc9yg8U2GhGdbofNa0LS/a4Bw=="
         }
       ]
     },
@@ -8095,13 +8095,13 @@
     {
       "type": "library",
       "name": "nanoid",
-      "version": "3.3.15",
-      "purl": "pkg:npm/nanoid@3.3.15",
+      "version": "3.3.17",
+      "purl": "pkg:npm/nanoid@3.3.17",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-y7Wygv/7mEOvxTuEQDB8StXdMRBWf1kR/tlhAzBRUFkB2jfcLOAxO/SHmOO2zgz1pVgK29/kyupn059/bCHdjA=="
+          "content": "sha512-xQLf0A3HOMlgHq0n247/LRuAOYmB7dXJ/DvAxGvsSBij45XtBSmQycu+F8ODbHwns/XyFZagyL1+J0Offw1E0g=="
         }
       ]
     },
@@ -8472,13 +8472,13 @@
     {
       "type": "library",
       "name": "postcss",
-      "version": "8.5.19",
-      "purl": "pkg:npm/postcss@8.5.19",
+      "version": "8.5.25",
+      "purl": "pkg:npm/postcss@8.5.25",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Mz8SaolMd8nB+G13WkORcxQKHZ/NE4xXevtkJHVuG+guo9/wYKlIMTKAqGdEmYOXR2ijPjTYNHssizdaVSUNdQ=="
+          "content": "sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw=="
         }
       ]
     },
