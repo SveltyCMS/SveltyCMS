@@ -678,6 +678,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
     // 🛡️ Request-scoped tenant binding (early — refined after session/user load).
     // System/scheduler: use locals.dbAdapterUnscoped + bypassTenantCheck.
+    // The tenant resolved before the session lookup is captured so the post-
+    // user bind below is skipped when nothing changed (avoids a duplicate
+    // tenant-injecting proxy wrap on every authenticated multi-tenant request).
+    const preUserTenant = locals.tenantId as DatabaseId | null | undefined;
     {
       const { bindRequestDbAdapter } = await import("@src/databases/tenant-adapter");
       const bound = bindRequestDbAdapter(
@@ -748,7 +752,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           if (!locals.tenantId && user.tenantId) {
             locals.tenantId = user.tenantId as DatabaseId;
           }
-          if ((multiTenant || testMode) && locals.tenantId) {
+          // Re-bind only when the tenant changed during user resolution (e.g.
+          // hostname had no tenant and the user's tenantId was adopted). The
+          // common case — hostname tenant == user tenant — keeps the first
+          // binding and skips a redundant proxy wrap.
+          if ((multiTenant || testMode) && locals.tenantId && locals.tenantId !== preUserTenant) {
             const { bindRequestDbAdapter } = await import("@src/databases/tenant-adapter");
             const bound = bindRequestDbAdapter(
               (locals as any).dbAdapterUnscoped || dbAdapter,

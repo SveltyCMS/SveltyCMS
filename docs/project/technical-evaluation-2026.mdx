@@ -850,6 +850,29 @@ A focused security sprint addressing RBAC cache staleness, path traversal defens
 - `scripts/security-audit.ts` now supports `--full` flag: OWASP scanner + secret misuse scan + code quality (slop) scan in one pass.
 - `slop-scanner.ts` enhanced: invalid Button variant detection (with autofix: `destructive`→`error`), `@apply` misuse detection outside `app.css`, `goto()` navigation anti-pattern detection.
 
+### 3.8 August 2026 — Session, RBAC & Extension Security Sprint
+
+Three consecutive hardening rounds (see also [Login Security](../reference/security/login-security.mdx)) closed the session-management and permission-propagation gaps identified in the July audit.
+
+**Shipped (self-verified, `next` as of 2026-08-04):**
+
+- **Session device policy** — `SESSION_DEVICE_POLICY`: `single-per-device` (default), `single-per-user`, `allow-multiple`; enforced at the `createSession` chokepoint.
+- **Session lifetime & idle controls** — `SESSION_TTL_HOURS` (absolute) and `SESSION_IDLE_HOURS` (sliding, zero-query via the cache LRU).
+- **Immediate block propagation** — block/unblock/delete purges every session layer; the DB re-validation path enforces the `blocked` flag; permission, roles-list, and turbo-auth caches are invalidated on every mutation path (including config import).
+- **Credential-free session snapshots** — password hashes, TOTP secrets, backup codes, and reset/refresh tokens never enter session caches or stores; password-verifying endpoints re-fetch from the DB.
+- **Step-up re-auth for session management** — cross-session revoke requires a fresh password proof (stateless HMAC, 5-min, session-bound).
+- **Session context anomaly (log-only)** — IP/user-agent drift flagged once per session per hour; no false-positive lockouts.
+- **Max sessions per user** — `SESSION_MAX_PER_USER` LRU-evicts the least recently active session.
+- **Session cleanup as a scheduled job** — expired session/token rows purged every 5 minutes via the job queue.
+
+**Measured cost (self-measured, 2026-08-04, Intel i7-13700H, SQLite):** the full security + auth pipeline (HTTP E2E, all hooks) averaged **0.881 ms** over 7 recorded runs vs. a 0.856 ms July baseline — **+0.025 ms (~3%)** for the entire session/RBAC hardening stack. Static-asset and turbo baselines were at parity. Earlier +25% readings were traced to host CPU power-saving mode; re-measured at parity on the same machine at standard power.
+
+#### Engineering summary
+
+The safe/performant combination is unusual in the CMS landscape because most platforms optimize one axis: enterprise-grade security with heavyweight architecture, or lightweight speed with permissive defaults. SveltyCMS combines **fail-closed authorization enforced at the API dispatcher** (unmapped namespaces return 403) with a **cache hierarchy that makes the checks nearly free** — the entire session/RBAC hardening stack measured above adds ~0.03 ms to the full HTTP pipeline. The cost of enterprise session controls is not a per-request tax; it is amortized across cache layers, single-flight coalescing, and zero-query design choices.
+
+For the full gap register (distributed SSO, adaptive auth, ecosystem depth, field-level permissions, passkey UI, third-party pentest) with closure paths, see the [2026 Roadmap](./roadmap-2026.mdx).
+
 ## 4. Final Sprint Achievements (March 2026)
 
 Having secured the "Engine War" with superior performance and security, SveltyCMS has now closed the **Editorial Depth** gap.

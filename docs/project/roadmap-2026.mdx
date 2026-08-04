@@ -130,6 +130,25 @@ Product-layer APIs equal on SQLite, PostgreSQL, MariaDB, MongoDB:
 - **Autonomous Import Optimization**, per-content-type collection split
 - **Content branching**, Dynamic admin theme system
 - **SvelteKit 3.0**, **TypeScript 7** (transformers test blocked on TS7 API)
+- **Field-level permission filters** — Directus-style per-field read/write policy per role; parity review of `docs/reference/security/field-level-access-control.mdx` first
+- **Third-party pentest** — engage a pentest lab before enterprise GA (0 CVEs on record today, self-checked via NVD / GitHub Advisory DB)
+
+---
+
+## 🧩 Gap Register & Non-Goals (August 2026)
+
+Honest assessment against reference platforms, based on publicly available documentation as of 2026-08-04. Closure paths link to the roadmap items above; shipped items are tracked in the [Technical Evaluation](./technical-evaluation-2026.mdx).
+
+| Capability                               | Reference platforms (public docs)                                                      | Our current state                                                                                                          | Gap & closure path                                                                                                                                                              |
+| :--------------------------------------- | :------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Distributed SSO realm sessions**       | Keycloak documents realm-wide session clustering and cross-application SSO propagation | Single-instance session store (L1/L2 + DB); OIDC login flow in progress; SAML and all three OIDC logout mechanisms shipped | No cross-application session propagation yet. Closure: OIDC login page + PKCE (roadmap P1); distributed session clustering with the managed-cloud / Docker enterprise pack (P2) |
+| **Adaptive / risk-based authentication** | Keycloak documents conditional authentication flows (step-up, risk-based)              | Static lockout, TTL/idle controls, step-up re-auth for session management                                                  | No policy engine for adaptive challenges. Closure: roadmap candidate; the shipped log-only anomaly detection feeds future alerting                                              |
+| **Module ecosystem depth**               | Drupal's public module directory lists tens of thousands of modules                    | Plugin `page` part, widgets, and dashboard widget packages provide first-class admin extension points                      | Catalog is young. Closure: marketplace in-app catalog + one-click install (P1); ecosystem launch items on the roadmap                                                           |
+| **Field-level permissions**              | Directus documents per-field read/write policy per role                                | `docs/reference/security/field-level-access-control.mdx` exists                                                            | Parity review pending. Closure: roadmap candidate (field-level permission filters)                                                                                              |
+| **Passkey UI polish**                    | WebAuthn/passkeys widely deployed in consumer-grade UX                                 | WebAuthn/passkey support exists; UI polish pending                                                                         | Small, contained; tracked in the security scorecard                                                                                                                             |
+| **Independent verification**             | Enterprise platforms publish third-party pentest / audit reports                       | 0 CVEs on record (NVD / GitHub Advisory DB, self-checked); internal scanners enforced in CI                                | No third-party pentest yet. Closure: engage a pentest lab before enterprise GA                                                                                                  |
+
+**Strategic non-goals (explicit):** matching WordPress/PHP's install base or module count is not a design target — the extension surface is deliberately typed and tree-shaken (plugins, widgets, dashboard packages) rather than a generic runtime hook bus.
 
 ---
 

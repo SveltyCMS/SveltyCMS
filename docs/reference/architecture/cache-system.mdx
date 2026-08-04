@@ -87,6 +87,10 @@ Hash-keyed entries — **never store plaintext bearer tokens in L1/L2**:
 
 **Session user snapshots are credential-free**: the session cache (L1 LRU + L2 Redis) and the in-memory/Redis session store strip credential material (`password`, `totpSecret`, `backupCodes`, `resetToken`, `googleRefreshToken`, `twoFactorTrustedDevices`) at every write boundary (`toSafeSessionUser` in `src/databases/auth/session-user.ts`). The zero-allocation fast path returns the original reference when no sensitive field is present. Password-verifying endpoints fetch a fresh user from the DB instead of reading the snapshot.
 
+**Delete propagation (untagged entries)**: `cacheService.delete()` publishes the logical key as an invalidation pattern (plus the key as a tag). The pub/sub subscriber applies **both** channels — tags for the L1 tag index and the pattern for untagged entries (settings cache, session entries, user counts) — so a delete on one node purges the remote L1 immediately instead of lingering until LRU eviction. This closes a cross-node staleness hole for untagged keys in Redis deployments.
+
+**L2 contract suite**: `tests/unit/databases/cache-service-l2-contract.test.ts` runs the full distributed path (cross-instance hits, write batching, stampede locks, tenant-scoped tag sets, pattern scans, pub/sub) against an in-memory `FakeRedis` on every run, and against a real Redis when `TEST_REDIS_URL` is set — same contract, two drivers.
+
 ### Permission Cache (RBAC)
 
 `hasPermissionWithRoles()` consults this cache on every permission check (after the admin fast-path), keyed by `{userId}:{permissionId}:{sortedRoleIds}`. On a miss it evaluates via the memoized role bitsets and stores the boolean result:

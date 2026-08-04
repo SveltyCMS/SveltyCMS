@@ -21,7 +21,7 @@ tags:
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
 > This page is the **only** test-status dashboard — route maps, inventories, and deep strategy live in the linked docs below (no separate archive).
 
-**Dashboard updated:** 2026-08-04 — **List/count product layer** (`findPage`, count modes, L1 count cache, keyset cursor) + CollectionService/media wiring + marketplace in-app tab + OIDC login/JWKS; ContentSync hot area still primary for HMR.
+**Dashboard updated:** 2026-08-04 — **List/count product layer** (`findPage`, count modes, L1 count cache, keyset cursor) + CollectionService/media wiring + marketplace in-app tab + OIDC login/JWKS + **session/RBAC hardening** (credential-free snapshots, anomaly log, max sessions); ContentSync hot area still primary for HMR.
 
 ---
 
@@ -53,7 +53,7 @@ tags:
 
 | Tier               | Command               | Time    | Coverage                               |
 | ------------------ | --------------------- | ------- | -------------------------------------- |
-| **Pre-commit**     | `bun run test:unit`   | ~35s    | 2989 unit tests (0 skipped)            |
+| **Pre-commit**     | `bun run test:unit`   | ~35s    | 3073 unit tests (0 skipped)            |
 | **Pre-push**       | Automatic gate        | ~1.5min | Build + SQLite integration (595 tests) |
 | **Pre-CI** (local) | `bun run test:matrix` | ~8min   | All 4 DBs (2380 tests)                 |
 | **CI**             | GitHub Actions        | ~30min  | Full matrix + E2E (100%)               |
@@ -101,6 +101,18 @@ Details: [git-workflow.mdx](./git-workflow.mdx)
 | **Product**  | Extensions **Marketplace** tab; `GET /api/marketplace`; `oidc-login` / `oidc-callback` |
 | **Unit/E2E** | No dedicated E2E yet — add seed-backed golden when install + IdP UI ship               |
 | **Docs**     | [roadmap-2026](../project/roadmap-2026.mdx)                                            |
+
+### Session & RBAC hardening (2026-08-04)
+
+|                 |                                                                                                                                                                                                                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**      | **Shipped** — three hardening rounds; full unit suite green (3073)                                                                                                                                                                                                                                                       |
+| **Product**     | Device policy (`single-per-device` / `single-per-user` / `allow-multiple`), `SESSION_TTL_HOURS`, `SESSION_IDLE_HOURS`, block propagation purge, credential-free session snapshots, log-only IP/UA anomaly detection, `SESSION_MAX_PER_USER` LRU cap, step-up re-auth for cross-session revoke, admin session console API |
+| **Unit**        | `tests/unit/auth/auth-lockout.test.ts` (device policy, TTL, max sessions) · `tests/unit/auth/session-user.test.ts` (snapshot stripping, store hygiene, anomaly evaluation) · `tests/unit/hooks/authentication.test.ts` (stripping, warm-cache, anomaly) · `tests/unit/api/user.test.ts` (reauth proof, admin console)    |
+| **Integration** | Covered by existing auth integration suites (session create/revoke/rotate)                                                                                                                                                                                                                                               |
+| **Bench**       | `tests/benchmarks/hooks-performance.test.ts` — full auth pipeline **0.881 ms avg** (7 runs, 🟢 stable) vs 0.856 ms July baseline                                                                                                                                                                                         |
+| **Docs**        | [login-security](../reference/security/login-security.mdx) · [cache-system](../reference/architecture/cache-system.mdx) · [hook-test-coverage](./hook-test-coverage.mdx) · [roadmap](../project/roadmap-2026.mdx)                                                                                                        |
+| **Open**        | Admin session console **UI** (Access Management); browser golden for revoke flow; anomaly → alerting integration                                                                                                                                                                                                         |
 
 ### ContentSync / compilation / Collection Builder (2026-07-31)
 
@@ -277,21 +289,22 @@ Deeper inventories: [headless-test-inventory](./headless-test-inventory.mdx) · 
 
 Only **open** product/test risks. Closed items stay in route docs / ADR changelog — not duplicated here.
 
-| Gap                                           | Priority  | Why it matters                                                                     |
-| --------------------------------------------- | --------- | ---------------------------------------------------------------------------------- |
-| **Multi-DB contract without asterisks**       | 🟠 High   | Headless ship gate — all adapters must match contract suite                        |
-| **Multi-tenant browser isolation**            | 🟡 Medium | E2E spec exists (`isolation.spec.ts`), gated behind `MULTI_TENANT=true` env        |
-| **Session vs DB identity after wizard reset** | 🟡 Medium | Phase-1 wizard can race firstuser; profile has email fallback — harden setup order |
-| **Redirects/queue remotes (no REST)**         | ✅ Closed | Remote admin + **redirectsMV primary** + unit; queue-actions                       |
-| **Config residual goldens (access/auto/wf)**  | ✅ Closed | Local focused chromium 16/16 (2026-07-19) after product fixes                      |
-| **Data operations deep E2E**                  | 🟢 Lower  | Sync/trash shells covered; migration wizard still plugin-gated                     |
-| **Cache L2 (Redis) integration**              | 🟡 Medium | L1 whitebox + contract strong; Redis L2 path still thin                            |
-| **GraphQL browser E2E**                       | ❌ Skip   | Integration only — do not add browser GraphQL as a gate                            |
-| **SSO/OAuth real IdP**                        | 🟡 Medium | OIDC login/JWKS code landed; still mock/no live IdP in CI; PKCE + login UI open    |
-| **List UI full findPage adoption**            | 🟡 Medium | Service/adapters ready; users/media saved views + more goldens still thin          |
-| **Marketplace install path**                  | 🟢 Lower  | Browse/catalog in-app; one-click install still incomplete                          |
-| **Builder E2E sprawl**                        | ✅ Closed | Consolidated to shell + golden; 8 specs removed                                    |
-| Plugin deep E2E, breadcrumb media drag-move   | 🟢 Low    | Optional polish                                                                    |
+| Gap                                           | Priority  | Why it matters                                                                                                                                                      |
+| --------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Multi-DB contract without asterisks**       | 🟠 High   | Headless ship gate — all adapters must match contract suite                                                                                                         |
+| **Multi-tenant browser isolation**            | 🟡 Medium | E2E spec exists (`isolation.spec.ts`), gated behind `MULTI_TENANT=true` env                                                                                         |
+| **Session vs DB identity after wizard reset** | 🟡 Medium | Phase-1 wizard can race firstuser; profile has email fallback — harden setup order                                                                                  |
+| **Redirects/queue remotes (no REST)**         | ✅ Closed | Remote admin + **redirectsMV primary** + unit; queue-actions                                                                                                        |
+| **Config residual goldens (access/auto/wf)**  | ✅ Closed | Local focused chromium 16/16 (2026-07-19) after product fixes                                                                                                       |
+| **Data operations deep E2E**                  | 🟢 Lower  | Sync/trash shells covered; migration wizard still plugin-gated                                                                                                      |
+| **Cache L2 (Redis) integration**              | ✅ Closed | **L2 contract suite** (`cache-service-l2-contract.test.ts`) — FakeRedis always-on + real Redis via `TEST_REDIS_URL`; fixed untagged delete propagation to remote L1 |
+| **GraphQL browser E2E**                       | ❌ Skip   | Integration only — do not add browser GraphQL as a gate                                                                                                             |
+| **SSO/OAuth real IdP**                        | 🟡 Medium | OIDC login/JWKS code landed; still mock/no live IdP in CI; PKCE + login UI open                                                                                     |
+| **List UI full findPage adoption**            | 🟡 Medium | Service/adapters ready; users/media saved views + more goldens still thin                                                                                           |
+| **Marketplace install path**                  | 🟢 Lower  | Browse/catalog in-app; one-click install still incomplete                                                                                                           |
+| **Session revoke browser golden**             | 🟢 Lower  | Re-auth proof + admin console API unit-covered; E2E golden when Access Mgmt UI ships                                                                                |
+| **Builder E2E sprawl**                        | ✅ Closed | Consolidated to shell + golden; 8 specs removed                                                                                                                     |
+| Plugin deep E2E, breadcrumb media drag-move   | 🟢 Low    | Optional polish                                                                                                                                                     |
 
 ---
 
