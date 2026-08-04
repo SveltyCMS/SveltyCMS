@@ -539,7 +539,8 @@ export async function handleOidcLoginCallback(
     expires: new Date(Date.now() + 86_400_000).toISOString() as any,
   });
   if (!sessionRes?.success || !sessionRes.data) {
-    throw new AppError(sessionRes?.message || "Failed to create session after OIDC login", 500);
+    const sessionErrMsg = sessionRes && "message" in sessionRes ? sessionRes.message : undefined;
+    throw new AppError(sessionErrMsg || "Failed to create session after OIDC login", 500);
   }
   const sessionId = String((sessionRes.data as any)._id || sessionRes.data);
   if (!sessionId) throw new AppError("Session id missing after OIDC login", 500);

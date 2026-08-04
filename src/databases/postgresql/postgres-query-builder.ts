@@ -204,10 +204,10 @@ export class PostgresQueryBuilder<T extends BaseEntity> implements QueryBuilder<
       if (idCol) {
         if (direction === "after") {
           this.conditions.push(sql`${idCol} > ${options.cursor}`);
-          this.sortOptions.push({ field: "_id" as keyof T, direction: "asc" });
+          this.sort("_id" as keyof T, "asc");
         } else {
           this.conditions.push(sql`${idCol} < ${options.cursor}`);
-          this.sortOptions.push({ field: "_id" as keyof T, direction: "desc" });
+          this.sort("_id" as keyof T, "desc");
         }
       }
       this.limitValue = options.pageSize || options.limit || 20;

@@ -1,0 +1,67 @@
+---
+path: "src/routes/(app)/dashboard/widgets/system-messages/system-messages-widget.mdx"
+title: "System Messages Dashboard Widget"
+description: "Important system notifications with severity indicators. Included with SveltyCMS — free."
+order: 100
+icon: "mdi:message-alert-outline"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "messages"
+  - "notifications"
+  - "free"
+---
+
+# System Messages Widget
+
+Important system notifications with severity indicators. Messages are derived from recent audit activity and categorized by severity so admins never miss critical events.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature         | Description                                     |
+| :-------------- | :---------------------------------------------- |
+| Severity badges | Low / medium / high / critical indicators       |
+| Recent messages | Latest system notifications (default 10)        |
+| Action context  | Related action and actor attribution            |
+| Compact mode    | Single-row notification chips (h:1 widget size) |
+| Rich layout     | Expandable message cards (h:2+ widget size)     |
+| Auto-polling    | Data refreshes every 30 seconds                 |
+
+---
+
+## Data Source
+
+| Endpoint                             | Description                                    |
+| :----------------------------------- | :--------------------------------------------- |
+| `GET /api/dashboard/system-messages` | Recent system messages categorized by severity |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "System Messages",
+  icon: "mdi:message-alert-outline",
+  description: "Important system notifications with severity indicators",
+  defaultSize: { w: 1, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [System Health Widget](./system-health-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

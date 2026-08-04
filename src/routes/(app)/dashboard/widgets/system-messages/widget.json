@@ -1,0 +1,14 @@
+{
+  "id": "system-messages",
+  "name": "System Messages",
+  "description": "Important system notifications with severity indicators",
+  "icon": "mdi:message-alert-outline",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "system-messages-widget",
+  "defaultSize": { "w": 1, "h": 2 },
+  "category": "logs"
+}

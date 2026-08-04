@@ -1,0 +1,79 @@
+---
+path: "docs/development/dashboard/index.mdx"
+title: "Dashboard Widget Development"
+description: "Hub for building, packaging, and publishing SveltyCMS dashboard widgets — self-contained marketplace-portable packages."
+order: 5
+icon: "mdi:view-dashboard"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "widgets"
+  - "development"
+  - "marketplace"
+---
+
+# Dashboard Widget Development
+
+The admin Dashboard is a widget-based grid. Each widget is a **self-contained package** living in its own kebab-case folder under `src/routes/(app)/dashboard/widgets/<folder>/`. Packages are discovered at build time by Vite `import.meta.glob` — no manual registration, no runtime filesystem scans.
+
+## 📚 Documentation Map
+
+| Guide                                  | Description                                                        |
+| :------------------------------------- | :----------------------------------------------------------------- |
+| **[Architecture](./architecture.mdx)** | Folder structure, `widget.json` manifest, registry, and licensing. |
+| **[Development](./development.mdx)**   | Step-by-step guide to building your own dashboard widget.          |
+| **[Marketplace](./marketplace.mdx)**   | Publishing dashboard widgets to marketplace.sveltycms.com.         |
+
+---
+
+## 🗂️ Package Layout (1 folder = 1 widget)
+
+Every dashboard widget **must** ship a co-located `.mdx` file that describes the widget — the marketplace uses it for the package listing card and detail page:
+
+```text
+src/routes/(app)/dashboard/widgets/
+  system-health/
+    system-health-widget.svelte   # Component (filename = stable registry key)
+    widget.json                   # Marketplace manifest (required)
+    system-health-widget.mdx      # Marketplace description (REQUIRED)
+  logs/
+    logs-widget.svelte
+    widget.json
+    logs-widget.mdx
+```
+
+- **Folder** — kebab-case package id (`system-health`, `logs`, `last5-content`).
+- **Component** — keeps its descriptive filename; the filename (minus `.svelte`) is the **registry key** saved in user layouts, so renaming the folder never breaks saved dashboards.
+- **`widget.json`** — machine-readable metadata for the marketplace, the in-app catalog, and telemetry.
+- **`<component>.mdx`** — human-readable marketplace description: features, licensing, data source, and metadata. Required for every package.
+
+## 🔍 How Discovery Works
+
+| Layer                    | Mechanism                                                             |
+| :----------------------- | :-------------------------------------------------------------------- |
+| **Client registry**      | `+page.svelte` — `import.meta.glob("./widgets/*/*.svelte")`           |
+| **Server widget picker** | `+page.server.ts` — eager glob, pre-computed at module load           |
+| **Manifest registry**    | `manifest-registry.ts` — `import.meta.glob("./*/widget.json")`        |
+| **Telemetry**            | Reports installed package ids via the manifest registry               |
+| **Marketplace catalog**  | Local packages appear in `GET /api/marketplace` (offline-first merge) |
+
+Drop a new folder into `widgets/`, restart the dev server, and the widget appears in the picker — the same flow a marketplace install uses.
+
+---
+
+## 🧪 Testing Policy
+
+- **Shell tests** (`tests/unit/routes/dashboard-page-server.test.ts`) assert the registry **shape**, never a fixed widget list — the catalog is install-specific.
+- **Widget defaults** are unit-tested in `tests/unit/dashboard/widget-defaults.test.ts`.
+- **Per-widget tests** live in the widget's own folder (`widgets/<folder>/tests/`) — optional but encouraged for marketplace submissions.
+
+---
+
+## Related
+
+- [Development Overview](../index.mdx)
+- [Dashboard API & Widgets Reference](../../reference/api/dashboard.mdx)
+- [Dashboard System Architecture](../../reference/architecture/dashboard-system.mdx)
+- [Marketplace System](../../reference/architecture/marketplace.mdx)

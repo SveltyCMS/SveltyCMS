@@ -1,0 +1,67 @@
+---
+path: "src/routes/(app)/dashboard/widgets/memory/memory-widget.mdx"
+title: "Memory Usage Dashboard Widget"
+description: "Real-time memory usage monitoring with used/total breakdown and adaptive layouts. Included with SveltyCMS — free."
+order: 100
+icon: "mdi:memory"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "memory"
+  - "monitoring"
+  - "free"
+---
+
+# Memory Usage Widget
+
+Real-time memory usage monitoring with formatted used/total values and utilization bars. Compact mode shows a single usage chip; larger sizes add detailed breakdowns.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature      | Description                             |
+| :----------- | :-------------------------------------- |
+| Used / total | Formatted memory values (MB/GB)         |
+| Utilization  | Percentage bar with color-coded status  |
+| Compact mode | Single-row usage chip (h:1 widget size) |
+| Rich layout  | Detailed breakdown (h:2+ widget size)   |
+| Auto-polling | Data refreshes every 10 seconds         |
+
+---
+
+## Data Source
+
+| Endpoint                                     | Description                   |
+| :------------------------------------------- | :---------------------------- |
+| `GET /api/dashboard/system-info?type=memory` | Memory totals and free memory |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Memory Usage",
+  icon: "mdi:memory",
+  description: "Real-time memory usage monitoring",
+  defaultSize: { w: 1, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [CPU Usage Widget](./cpu-widget.mdx)
+- [Disk Usage Widget](./disk-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

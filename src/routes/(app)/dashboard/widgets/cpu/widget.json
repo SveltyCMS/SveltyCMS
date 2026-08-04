@@ -1,0 +1,14 @@
+{
+  "id": "cpu",
+  "name": "CPU Usage",
+  "description": "Real-time CPU usage monitoring with per-core breakdown",
+  "icon": "mdi:cpu-64-bit",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "cpu-widget",
+  "defaultSize": { "w": 1, "h": 2 },
+  "category": "monitoring"
+}

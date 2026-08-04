@@ -21,6 +21,7 @@
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { mediaFolderTree } from '@src/stores/media-folder-tree.svelte.ts';
+	import type { Snippet } from 'svelte';
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { droppable, dndState, type DragDropState } from '@thisux/sveltednd';
@@ -514,8 +515,8 @@
 					type="search"
 					bind:value={search}
 					placeholder="Search folders..."
-					pre={searchIcon}
-					post={clearIcon}
+					pre={searchIcon as Snippet}
+					post={clearIcon as Snippet}
 					inputClass="w-full text-xs"
 					aria-label="Search folders"
 				/>

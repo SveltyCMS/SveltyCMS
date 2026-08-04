@@ -1,0 +1,14 @@
+{
+  "id": "unified-metrics",
+  "name": "Unified Metrics",
+  "description": "Comprehensive system performance and security metrics with trend sparklines",
+  "icon": "mdi:chart-donut",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "freemium",
+  "price": 14.99,
+  "component": "unified-metrics-widget",
+  "defaultSize": { "w": 2, "h": 3 },
+  "category": "monitoring"
+}

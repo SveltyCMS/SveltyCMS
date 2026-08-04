@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { BaseEntity } from "@src/content/types";
 import {
   buildFindPageResult,
   decodePageCursor,
@@ -81,7 +82,7 @@ describe("buildFindPageResult", () => {
       _id: `id-${i}`,
       createdAt: "2026-01-01T00:00:00.000Z" as any,
       updatedAt: "2026-01-01T00:00:00.000Z" as any,
-    }));
+    })) as BaseEntity[];
     const page = buildFindPageResult(rows, 50, undefined, { field: "_id", direction: "desc" });
     expect(page.hasMore).toBe(true);
     expect(page.items).toHaveLength(50);
@@ -93,7 +94,7 @@ describe("buildFindPageResult", () => {
   });
 
   it("hasMore false when rows <= pageSize", () => {
-    const rows = [{ _id: "a", createdAt: "" as any, updatedAt: "" as any }];
+    const rows = [{ _id: "a", createdAt: "" as any, updatedAt: "" as any }] as BaseEntity[];
     const page = buildFindPageResult(rows, 50);
     expect(page.hasMore).toBe(false);
     expect(page.nextCursor).toBeUndefined();

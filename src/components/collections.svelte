@@ -24,7 +24,6 @@ Provides an organized interface for navigating hierarchical content structures.
 			import Loader from '@components/ui/loader.svelte';
 			import Select from '@components/ui/select.svelte';
 			import TreeView from '@components/ui/tree-view.svelte';
-			import Popover from '@components/ui/popover.svelte';
 			import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
@@ -38,6 +37,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { validateSchemaWidgets } from '@widgets/widget-validation';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import type { Snippet } from 'svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -532,35 +532,35 @@ Provides an organized interface for navigating hierarchical content structures.
 	{/if}
 
 	<!-- Search -->
+	{#snippet searchIcon()}
+		<iconify-icon icon="ic:outline-search" width="20" class="text-surface-400"></iconify-icon>
+	{/snippet}
+
+	{#snippet clearIcon()}
+		{#if isSearching}
+			<Loader variant="circle" width="size-2" height="size-2" />
+		{:else if search}
+			<Button
+				variant="ghost"
+				type="button"
+				onclick={() => (search = '')}
+				class="p-0.5 min-w-0 rounded-full hover:bg-surface-700"
+				aria-label="Clear search"
+			>
+				<iconify-icon icon="ic:round-close" width="18"></iconify-icon>
+			</Button>
+		{/if}
+	{/snippet}
+
 	{#if isFullSidebar}
 		<div class="relative w-full">
-			{#snippet searchIcon()}
-				<iconify-icon icon="ic:outline-search" width="20" class="text-surface-400"></iconify-icon>
-			{/snippet}
-
-			{#snippet clearIcon()}
-				{#if isSearching}
-					<Loader variant="circle" width="size-2" height="size-2" />
-				{:else if search}
-					<Button
-						variant="ghost"
-						type="button"
-						onclick={() => (search = '')}
-						class="p-0.5 min-w-0 rounded-full hover:bg-surface-700"
-						aria-label="Clear search"
-					>
-						<iconify-icon icon="ic:round-close" width="18"></iconify-icon>
-					</Button>
-				{/if}
-			{/snippet}
-
 			<Input
 				id="collections-search"
 				type="search"
 				bind:value={search}
 				placeholder="Search collections..."
-				pre={searchIcon}
-				post={clearIcon}
+				pre={searchIcon as Snippet}
+				post={clearIcon as Snippet}
 				inputClass="w-full text-xs"
 				aria-label="Search collections"
 			/>

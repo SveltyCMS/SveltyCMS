@@ -61,6 +61,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		class?: string;
 		allowEmptySelection?: boolean;
 		onchange?: (value: string) => void;
+		data_testid?: string;
 	}
 
 	let {

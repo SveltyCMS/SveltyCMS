@@ -32,7 +32,7 @@ flowchart TD
         API["GET /api/marketplace"]
         SVC["MarketplaceService"]
         CLIENT["marketplace-client"]
-        INSTALL["installPlugin() / installTheme()"]
+        INSTALL["installPlugin() / installDashboardWidget() / installTheme()"]
         SCAFFOLD["AI Widget Scaffolder"]
     end
 
@@ -53,7 +53,7 @@ flowchart TD
 
     ADMIN -->|"search / type filter"| API
     API --> SVC
-    SVC -->|"local themes + plugin stubs"| LOCAL_LIST["src/themes / plugins"]
+    SVC -->|"local themes + plugin stubs + dashboard widgets"| LOCAL_LIST["src/themes / plugins / dashboard widgets"]
     SVC -->|"best-effort remote"| CLIENT
     CLIENT -->|"30 min cache"| PACKAGES
     CLI -->|"browse/search"| PACKAGES
@@ -67,6 +67,7 @@ flowchart TD
 
     SCAFFOLD -->|"generate from config"| LOCAL_WIDGETS["src/widgets/core/"]
     INSTALL -->|"write files"| LOCAL_PLUGINS["src/plugins/"]
+    INSTALL -->|"write package folder"| DASHBOARD_WIDGETS["dashboard/widgets/<folder>/"]
 
     AUTH --> STORE[(Marketplace DB)]
     REGISTER --> STORE
@@ -95,11 +96,17 @@ flowchart TD
 | `GET`  | `/api/v1/extensions`                 | List available extension types                     |
 | `POST` | `/api/v1/extensions/{type}/{action}` | Premium extension logic                            |
 
-### Local CMS license gates
+### Security & license enforcement
 
-Which plugins/widgets call `checkExtensionLicense` and how fail-open works is documented in:
+The marketplace surface is protected at multiple layers:
 
-**[License Gate Inventory](../security/license-endpoint-inventory.mdx)**
+1. **License manager** — `checkExtensionLicense(type, id)` verifies keys against the marketplace (`POST /api/v1/license/verify`), falls back to the local 14-day key-less trial, and is fail-open only when a license key is configured (marketplace-outage resilience). See [License Gate Inventory](../security/license-endpoint-inventory.mdx).
+2. **Client-side gates** — premium widgets/plugins resolve `/api/system/license-status` and render an upgrade prompt instead of content when the trial expired without a key.
+3. **Server-side gates (defense-in-depth)** — premium dashboard endpoints (`dashboard-license.ts`) call `checkExtensionLicense("dashboard", widgetId)` and return `403 LICENSE_REQUIRED`; plugin lifecycle hooks gate premium paths identically. Premium data is never served without entitlement.
+4. **Admin-gated catalog & install** — `GET /api/marketplace` and `POST /api/marketplace/install` are admin-only; the install handler validates `locals.isAdmin` / role `admin` before any write.
+5. **Fail-closed dispatcher** — the `marketplace` namespace is mapped in `ENDPOINT_PERMISSIONS`; unmapped namespaces return `403` by default.
+6. **Plugin route security** — `definePlugin` requires `requiredCapabilities` on every `route` part (compile-time error when omitted): `[]` = auth-only, `"public"` = explicit unauthenticated opt-out.
+7. **No secrets in code** — marketplace license keys live in system settings (`LICENSE_KEY`, `LICENSE_KEY_{TYPE}_{ID}`), never in source.
 
 ## In-App Catalog (Phase 2)
 
@@ -113,7 +120,7 @@ Which plugins/widgets call `checkExtensionLicense` and how fail-open works is do
 
 ### Offline-first merge
 
-1. **Always** include local built-in themes (`adminThemeService.listThemes`) and known plugin stubs (e.g. Unified Data Hub listing).
+1. **Always** include local built-in themes (`adminThemeService.listThemes`), dashboard widget packages (`getInstalledDashboardWidgets()`), and known plugin stubs (e.g. Unified Data Hub listing).
 2. **Best-effort** call `marketplace.list()` against marketplace.sveltycms.com.
 3. Deduplicate by `id` / slug; set `source` to `local` | `remote` | `mixed` and `remoteAvailable` accordingly.
 4. Apply optional `type` / `search` filters on the merged list.
@@ -143,14 +150,16 @@ Response shape (via `successResponse`):
 > [!NOTE]
 > **Still open (Phase 2 follow-ups):** full one-click install pipeline for remote packages, richer package cards, and in-app license UX. See [Roadmap 2026](../../project/roadmap-2026.mdx).
 
+The Marketplace tab's type filter includes **`dashboard`** — local dashboard widget packages (from `widgets/<folder>/widget.json`) appear with their license model (Free / Freemium / Paid) and price, sourced from the offline-first merge.
+
 ## Two Paths to Extend
 
-| Path                    | How                                                     | Best For                                 |
-| ----------------------- | ------------------------------------------------------- | ---------------------------------------- |
-| **Marketplace Install** | Browse (in-app or CLI) → Download → `installPlugin()`   | Ready-made plugins, themes, integrations |
-| **AI Scaffolder**       | Describe → `scaffoldWidget(config)` → 3 files generated | Custom widgets unique to your project    |
+| Path                    | How                                                                                | Best For                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **Marketplace Install** | Browse (in-app or CLI) → Download → `installPlugin()` / `installDashboardWidget()` | Ready-made plugins, dashboard widgets, themes, integrations |
+| **AI Scaffolder**       | Describe → `scaffoldWidget(config)` → 3 files generated                            | Custom widgets unique to your project                       |
 
-The marketplace hosts community-built plugins. The scaffolder generates custom code on demand. Together they cover the full spectrum from "I need a Stripe integration" to "I need a very specific testimonial carousel."
+Dashboard widget packages install into `src/routes/(app)/dashboard/widgets/<folder>/` and appear in the dashboard picker after restart — no registration step. The marketplace hosts community-built plugins, widgets, and dashboard widgets; the scaffolder generates custom code on demand.
 
 ## Marketplace Client API
 
@@ -181,6 +190,16 @@ const plugin = await installPlugin("svelty-stripe");
 // → Downloads files, creates src/plugins/stripe/, writes all files
 ```
 
+### Install a dashboard widget
+
+```typescript
+import { installDashboardWidget } from "@src/services/intelligence/marketplace-client";
+
+const widget = await installDashboardWidget("request-rate");
+// → Downloads files, creates src/routes/(app)/dashboard/widgets/request-rate/,
+//   writes component + widget.json + docs; visible in the picker after restart
+```
+
 ### License management
 
 ```typescript
@@ -207,16 +226,16 @@ const updates = await marketplace.checkUpdates([
 
 ## Extension Types
 
-| Type        | Install Path      | Example                           | Migration Status                     |
-| ----------- | ----------------- | --------------------------------- | ------------------------------------ |
-| `widget`    | `src/widgets/`    | Star rating, testimonial carousel | Core in repo → custom to marketplace |
-| `plugin`    | `src/plugins/`    | Stripe, PageSpeed, Sitemap        | In repo → phased migration           |
-| `theme`     | `src/themes/`     | Dark Corporate, Minimal Blog      | Marketplace-only (target)            |
-| `dashboard` | `src/dashboards/` | Analytics, activity feed          | Marketplace-only (planned)           |
-| `extension` | `src/extensions/` | Slack webhook, GA, webhooks       | Marketplace-only (planned)           |
+| Type        | Install Path                                                     | Example                           | Migration Status                     |
+| ----------- | ---------------------------------------------------------------- | --------------------------------- | ------------------------------------ |
+| `widget`    | `src/widgets/`                                                   | Star rating, testimonial carousel | Core in repo → custom to marketplace |
+| `plugin`    | `src/plugins/`                                                   | Stripe, PageSpeed, Sitemap        | In repo → phased migration           |
+| `theme`     | `src/themes/`                                                    | Dark Corporate, Minimal Blog      | Marketplace-only (target)            |
+| `dashboard` | `src/routes/(app)/dashboard/widgets/<folder>/` (package folders) | Analytics, activity feed          | 🏗️ In progress — folder packages     |
+| `extension` | `src/extensions/`                                                | Slack webhook, GA, webhooks       | Marketplace-only (planned)           |
 
 > [!NOTE]
-> **Phased Migration**: Widgets, plugins, themes, dashboards, and extensions will gradually move from the GitHub monorepo to `marketplace.sveltycms.com`. Core widgets (checkbox, input, rich-text, etc.) remain in the repo as the essential building blocks. Community and premium extensions become marketplace-exclusive for discovery, licensing, and distribution.
+> **Dashboard widget packages** ship as self-contained kebab-case folders (`widgets/<folder>/<component>.svelte` + `widget.json`) and are discovered via `import.meta.glob` — installing a package folder makes the widget appear in the dashboard picker without registration. The core bundled packages live in the repo; community and premium widgets become marketplace-exclusive for discovery, licensing, and distribution. See [Dashboard Widget Development](../../development/dashboard/index.mdx).
 
 ## License Tiers
 
@@ -248,6 +267,9 @@ const updates = await marketplace.checkUpdates([
 | DB Pool Diagnostics           | Dashboard Widget | Freemium | €9.99  | `mdi:database-cog`        | Free: live status; Pro: historical tracking, query analysis, alerting                       |
 | SCIM Status                   | Dashboard Widget | Paid     | €12.99 | `mdi:cloud-sync`          | License required, no free tier                                                              |
 
+> [!NOTE]
+> **Additional premium dashboard widgets** — Cache Performance, Performance Monitor, and Online Users are trial-gated in code (14-day key-less trial, then `403 LICENSE_REQUIRED` without a key); their prices are configured in the marketplace listing.
+
 ## Performance
 
 | Operation             | Latency                      | Cached      |
@@ -259,18 +281,32 @@ const updates = await marketplace.checkUpdates([
 
 The marketplace client is **offline-resilient**: if marketplace.sveltycms.com is unreachable, it serves cached listings and degrades gracefully.
 
+Local **dashboard widget packages** (core bundled) and built-in themes always appear in `GET /api/marketplace` (type `dashboard`) so the in-app catalog works offline; the remote catalog adds marketplace-published widgets when reachable.
+
+## Telemetry & Ecosystem Health
+
+SveltyCMS measures extension adoption anonymously through the [Security Updates & Telemetry](./telemetry-ecology.mdx) heartbeat, which now reports the marketplace ecosystem:
+
+| Payload field       | Content                                                                      |
+| :------------------ | :--------------------------------------------------------------------------- |
+| `widgets`           | Custom content widget names                                                  |
+| `dashboard_widgets` | Installed dashboard widget package ids (from `widgets/<folder>/widget.json`) |
+| `plugins`           | Installed plugin ids                                                         |
+
+This powers the BSL 1.1 economy (small business free, enterprise licensed), update/security alerts, and adoption prioritization — without tracking content, credentials, or raw IPs. See [Telemetry Server Implementation](./telemetry-server-implementation.mdx) for the receiver contract.
+
 ## Phased Migration & Documentation Federation
 
 As extensions migrate from the monorepo to `marketplace.sveltycms.com`, their co-located `.mdx` documentation leaves the local source tree. This creates a challenge for `docs.sveltycms.com`, which generates `llms-full.txt` and subset variants (`llms-api.txt`, `llms-dev.txt`, `llms-guides.txt`) by scanning local `{name}/{name}.mdx` files.
 
 ### Migration Phases
 
-| Phase       | Scope                                                                                                                       | Status         |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| **Phase 1** | Core widgets stay in repo (checkbox, input, rich-text, etc.); all widget `.mdx` files follow `{name}/{name}.mdx` convention | ✅ Complete    |
-| **Phase 2** | **In-app catalog** (Extensions Marketplace tab + offline-first API) + custom widgets toward marketplace with **doc stubs**  | 🏗️ In Progress |
-| **Phase 3** | Plugins move to marketplace; doc stubs remain                                                                               | 🚀 Planned     |
-| **Phase 4** | Themes, dashboards, extensions — marketplace-only with federated docs                                                       | 🚀 Planned     |
+| Phase       | Scope                                                                                                                       | Status                                                                                         |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Phase 1** | Core widgets stay in repo (checkbox, input, rich-text, etc.); all widget `.mdx` files follow `{name}/{name}.mdx` convention | ✅ Complete                                                                                    |
+| **Phase 2** | **In-app catalog** (Extensions Marketplace tab + offline-first API) + custom widgets toward marketplace with **doc stubs**  | 🏗️ In Progress                                                                                 |
+| **Phase 3** | Plugins move to marketplace; doc stubs remain                                                                               | 🚀 Planned                                                                                     |
+| **Phase 4** | Themes, dashboards, extensions — marketplace-only with federated docs                                                       | 🏗️ In Progress — dashboard widget package folders live in repo; marketplace publishing follows |
 
 ### Doc Stub Pattern
 

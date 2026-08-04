@@ -1,0 +1,14 @@
+{
+  "id": "media-storage-analytics",
+  "name": "Media Storage",
+  "description": "Media library storage analytics, quota usage, and insights",
+  "icon": "mdi:chart-pie",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "media-storage-analytics-widget",
+  "defaultSize": { "w": 2, "h": 2 },
+  "category": "static"
+}

@@ -81,10 +81,21 @@ Hash-keyed entries — **never store plaintext bearer tokens in L1/L2**:
 
 - **Per-user**: Called after `Auth.updateUser()` — clears cached permission checks for the modified user so RBAC changes take effect immediately.
 - **Global**: Called after `AuthNamespace.updateRoles()` — clears all entries since any role change can affect many users' cached checks.
+- **Config import**: `ConfigService.performImport()` (config sync, `/api/config/import`, GraphQL `configApply`, LocalCMS `performImport`) writes roles directly through the DB adapter. It now invalidates the roles list cache **and** the permission cache whenever a `role` entity is upserted or deleted, so imported role changes take effect immediately instead of after the 1h roles-cache TTL.
 - **Turbo auth**: `invalidateTurboAuthForUser(userId)` in `hooks.server.ts` clears the turbo auth cache entry so the next GET request re-validates the session with fresh permissions.
 
 > [!IMPORTANT]
 > Before July 2026, `invalidatePermissionCache` was defined but **never called**. Stale DENY results survived up to 5 minutes after privilege changes. The hardening ensures immediate propagation.
+
+### Roles List Cache (Authorization Hook)
+
+The `handleAuthorization` hook maintains a tenant-scoped list of all roles (`src/hooks/handle-authorization.ts`), used to hydrate `locals.roles` for page loaders and permission checks:
+
+| Key                               | TTL | Invalidation                                         |
+| --------------------------------- | --- | ---------------------------------------------------- |
+| `roles:{tenantKey}` (L1 Map + L2) | 1h  | `invalidateRolesCache(tenantId)` after role mutation |
+
+**Invalidation triggers**: `AuthNamespace.updateRoles()` (admin UI), the testing API role mutations, and `ConfigService.performImport()` for imported/deleted role entities. Any role mutation path that bypasses `AuthNamespace.updateRoles` **must** call `invalidateRolesCache()` — otherwise stale role lists can surface as incorrect permission-denied errors for up to 1 hour.
 
 > [!NOTE]
 > Use `clearByPattern("schema:")` — not `invalidateByCategory(SCHEMA)` — because schema keys are prefixed with `schema:`, not `*:schema:`.

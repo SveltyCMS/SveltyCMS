@@ -33,6 +33,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 
 	<script lang="ts">
 	import PageTitle from '@components/page-title.svelte';
+	import AdminZone from '@src/components/system/admin-zone.svelte';
 	import type { NavFavoriteColor } from '@src/stores/floating-nav-store.svelte.ts';
 	import { adminFade } from '@utils/admin-transitions';
 
@@ -98,7 +99,11 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		{/if}
 	</PageTitle>
 
+	<AdminZone zone="content-header" inline={true} />
+
 	<div class="px-2 pb-2 pt-4 {spaceClass} {fullHeight ? 'flex min-h-0 flex-1 flex-col' : ''}">
 		{@render children?.()}
 	</div>
+
+	<AdminZone zone="content-footer" inline={true} />
 </div>

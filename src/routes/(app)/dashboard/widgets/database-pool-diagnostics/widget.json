@@ -1,0 +1,14 @@
+{
+  "id": "database-pool-diagnostics",
+  "name": "Database Pool",
+  "description": "Monitor database connection pool health and diagnostics",
+  "icon": "mdi:database-cog",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "freemium",
+  "price": 9.99,
+  "component": "database-pool-diagnostics",
+  "defaultSize": { "w": 2, "h": 3 },
+  "category": "monitoring"
+}

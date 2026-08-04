@@ -126,7 +126,7 @@ export class AuthNamespace {
         ];
       }
 
-      const sortOption: Record<string, "asc" | "desc" | 1 | -1> = {};
+      const sortOption: Record<string, "asc" | "desc"> = {};
       if (sort) {
         sortOption[sort] = order === "asc" ? "asc" : "desc";
       } else {
@@ -145,7 +145,7 @@ export class AuthNamespace {
           tenantId: tenantId as DatabaseId,
           limit,
           offset: (page - 1) * limit,
-          sort: sortOption as any,
+          sort: sortOption,
           total: "exact",
           skipMeta: true,
         });

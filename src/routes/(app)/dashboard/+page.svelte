@@ -25,6 +25,7 @@ import WelcomeThemePicker from "@src/components/admin/welcome-theme-picker.svelt
 import AdminCard from "@components/admin-card.svelte";
 import AdminPageShell from "@components/admin-page-shell.svelte";
 import Slot from "@src/components/system/slot.svelte";
+import AdminZone from "@src/components/system/admin-zone.svelte";
 import type {
 	DashboardWidgetConfig,
 	DropIndicator,
@@ -63,6 +64,7 @@ const { data }: { data: PageData } = $props();
 interface WidgetRegistryEntry {
 	component: any;
 	description: string;
+	folder: string;
 	icon: string;
 	name: string;
 	widgetMeta: WidgetMeta;
@@ -173,18 +175,22 @@ async function toggleAiMode() {
 }
 
 async function loadWidgetRegistry() {
-	const modules = import.meta.glob("./widgets/*.svelte");
+	const modules = import.meta.glob("./widgets/*/*.svelte");
 	const registry: typeof widgetRegistry = {};
 	for (const path in modules) {
 		if (Object.hasOwn(modules, path)) {
-			const name = path.split("/").pop()?.replace(".svelte", "");
-			if (name) {
+			// path like "./widgets/system-health/system-health-widget.svelte"
+			const segments = path.split("/");
+			const folder = segments[segments.length - 2];
+			const name = segments[segments.length - 1]?.replace(".svelte", "");
+			if (name && folder) {
 				const module = (await modules[path]()) as {
 					default: WidgetComponent;
 					widgetMeta: WidgetMeta;
 				};
 				registry[name] = {
 					component: module.default,
+					folder,
 					name: module.widgetMeta?.name || name,
 					description: module.widgetMeta?.description || "",
 					icon: module.widgetMeta?.icon || "mdi:widgets",
@@ -205,9 +211,11 @@ async function loadWidgetComponent(widgetId: string, componentName: string) {
 	}
 
 	try {
-			// Dynamically import the widget component with retry on transient failures
+			// Resolve the package folder from the registry (fallback to component name)
+			const folder = widgetRegistry[componentName]?.folder || componentName;
+			// Dynamically import the widget component from its package folder, with retry on transient failures
 			const module = await retryDynamicImport(
-				() => import(`./widgets/${componentName}.svelte`),
+				() => import(`./widgets/${folder}/${componentName}.svelte`),
 				{ maxRetries: 2, baseDelayMs: 500 },
 			);
 			loadedWidgets.set(widgetId, module.default);
@@ -795,8 +803,8 @@ onMount(() => {
 					</div>
 				{/if}
 
-				<!-- Dashboard Injection Zone (plugins may inject install-specific chrome) -->
-				<section class="w-full px-4 mb-8" data-testid="dashboard-plugin-slot"><Slot name="dashboard" /></section>
+					<!-- Dashboard Injection Zone (plugins may inject install-specific chrome) -->
+					<section class="w-full px-4 mb-8" data-testid="dashboard-plugin-slot"><Slot name="dashboard" /><AdminZone zone="dashboard" /></section>
 			</GenerativeDashboard>
 		</section>
 	</div>

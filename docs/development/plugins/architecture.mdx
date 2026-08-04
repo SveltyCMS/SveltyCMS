@@ -6,7 +6,7 @@ icon: "mdi:puzzle-outline"
 order: 10
 author: "SveltyCMS Team"
 created: 2026-02-05
-updated: "2026-07-10"
+updated: "2026-08-04"
 tags:
   - plugins
   - architecture
@@ -149,6 +149,84 @@ Plugins inject UI components into predefined zones. All zones are rendered via t
 <Slot name="user_profile" />
 <Slot name="collection_builder" />
 ```
+
+---
+
+## Plugin Admin Pages & Declarative Nav
+
+Plugins can contribute **full admin pages** — mounted under `/plugin/<path>` inside the admin shell — plus declarative sidebar nav items. This is the Drupal-style "module page" pattern: a plugin page is a real URL with server data loading, RBAC gating, and a nav entry, not an overlay.
+
+### 1. The `page` part
+
+Declared via `definePlugin` (`src/plugins/define-plugin.ts`):
+
+```typescript
+import { definePlugin } from "@src/plugins/define-plugin";
+
+export const recaptchaPlugin = definePlugin({
+  metadata: { id: "recaptcha", name: "reCAPTCHA", version: "1.0.0", description: "..." },
+  parts: [
+    {
+      type: "page",
+      pages: [
+        {
+          id: "recaptcha:console",
+          path: "recaptcha", // → /plugin/recaptcha
+          title: "reCAPTCHA Console",
+          component: () => import("./RecaptchaPage.svelte"), // lazy, tree-shaken
+          load: async ({ tenantId, user }) => ({
+            siteKey: await getSiteKey(tenantId), // server-only; never leaks secrets
+          }),
+          nav: { group: "Security", label: "reCAPTCHA", icon: "mdi:captcha", order: 10 },
+          requiredCapabilities: ["manage:settings"], // mandatory (TS error when omitted)
+        },
+      ],
+    },
+  ],
+});
+```
+
+### 2. How it mounts
+
+- **Registration is isomorphic** — `src/plugins/index.ts` registers `page` parts into `pluginPageRegistry` on client and server (same pattern as slots).
+- **Route** — a single catch-all `src/routes/(app)/plugin/[...path]/` resolves the page by path.
+- **Server load** (`+page.server.ts`) — enforces `requiredCapabilities` (**403 fail-closed**; admins bypass via fast-path, roles must carry every required capability), runs the page's optional `load` hook, and returns `{ pageId, title, props }`.
+- **Client** (`+page.svelte`) — looks up the lazy component by `pageId` and renders it inside `<AdminPageShell>` with the server props.
+- `/plugin` redirects to the first nav item (or `/config` when none).
+
+### 3. Declarative sidebar nav
+
+The `nav` field renders a **Plugins** section in the left sidebar (`LeftSidebar`) with `data-sveltekit-preload-data="hover"` links. Items are grouped and ordered; capability filtering is a UX nicety — the route enforces 403 regardless.
+
+### 4. Admin zones (dormant registries, now rendered)
+
+Two previously declared-but-unrendered systems are now rendered by `<AdminZone>` (`src/components/system/admin-zone.svelte`):
+
+| System               | Zones                                                                 | How to contribute                     |
+| :------------------- | :-------------------------------------------------------------------- | :------------------------------------ |
+| `adminTool` part     | `sidebar` · `toolbar` · `dashboard` · `config`                        | `{ type: "adminTool", tools: [...] }` |
+| `AdminAreaExtension` | `sidebar` · `header` · `footer` · `content-header` · `content-footer` | `registerAdminAreaExtension(ext)`     |
+
+```typescript
+parts: [
+  {
+    type: "adminTool",
+    tools: [
+      {
+        id: "status",
+        label: "Status",
+        icon: "mdi:heart-pulse",
+        component: () => import("./StatusTool.svelte"),
+        zone: "toolbar",
+        order: 5,
+        requiredCapabilities: ["dashboard:read"], // default: ["admin"]
+      },
+    ],
+  },
+],
+```
+
+Zones are wired into the shell: `header`/`toolbar`/`footer` in `(app)/+layout.svelte`, `sidebar` in `LeftSidebar`, `dashboard` in the dashboard page, `config` in the config page, `content-header`/`content-footer` in `AdminPageShell`. Components are lazy-loaded, ordered, and gated by an optional `condition(context)`.
 
 ---
 

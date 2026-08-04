@@ -95,7 +95,8 @@ Product-layer APIs equal on SQLite, PostgreSQL, MariaDB, MongoDB:
 
 ## 🏗️ In Progress
 
-- 🏗️ **Marketplace Phase 2 (in-app catalog)** — **August 2026 progress:** Extensions page **Marketplace** tab + `marketplace-view.svelte` + `GET /api/marketplace` offline-first merge (local listings + `marketplace-client` remote). Still open: one-click install pipeline, richer package cards, license UX.
+- 🏗️ **Marketplace Phase 2 (in-app catalog)** — **August 2026 progress:** Extensions page **Marketplace** tab + `marketplace-view.svelte` + `GET /api/marketplace` offline-first merge (local listings + `marketplace-client` remote). Dashboard widgets refactored into **marketplace-portable package folders** (`widgets/<folder>/<component>.svelte` + required `widget.json` + `.mdx`) with `installDashboardWidget()` and local catalog listings (type filter incl. `dashboard`, license/price badges). **Licensing aligned with widgets/plugins/site starter**: Free / Freemium (14-day key-less trial) / Paid via `checkExtensionLicense("dashboard", id)` — client-side upgrade prompts **and** server-side `403 LICENSE_REQUIRED` gates on premium dashboard endpoints (see [license-endpoint-inventory](../reference/security/license-endpoint-inventory.mdx)). Still open: one-click install pipeline for remote packages, richer package cards, in-app license UX.
+- 🏗️ **Plugin Admin Pages (`page` part)** — plugins contribute full admin pages under `/plugin/<path>` with server `load`, RBAC gating (403), declarative sidebar nav, and the `<AdminZone>` renderer for `adminTool` + `AdminAreaExtension` zones. See [Plugin Architecture](../development/plugins/architecture.mdx).
 - 🏗️ **Published DB Adapters**: `sveltycms-sqlite|mongodb|mariadb|postgresql` npm packages — extraction + CI publish pending.
 
 ---

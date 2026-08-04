@@ -68,6 +68,8 @@
 		truncate?: boolean;
 		/** Tighter title row with bottom border — for data-dense pages (e.g. media gallery). */
 		compact?: boolean;
+		/** Remove the bottom border under the title row. */
+		borderless?: boolean;
 		/**
 		 * Tailwind bg class for FloatingNav favorite spoke — must be a
 		 * NAV_FAVORITE_COLORS literal (Tailwind JIT only emits source-scanned classes).

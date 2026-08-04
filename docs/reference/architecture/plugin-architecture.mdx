@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:puzzle-outline"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-07-17"
+updated: "2026-08-04"
 tags:
   - "plugins"
   - "architecture"
@@ -22,7 +22,7 @@ SveltyCMS features a robust, enterprise-grade plugin architecture. The authorita
 
 → **[Plugin Types Reference](/src/plugins/types.ts)** — Full TypeScript type definitions.
 
-### Plugin Boot Lifecycle
+## Plugin Boot Lifecycle
 
 ```mermaid
 flowchart TD
@@ -442,6 +442,7 @@ export interface AdminAreaContext {
 ### Example: Sidebar Extension
 
 ```typescript
+import { registerAdminAreaExtension } from "@src/plugins/admin-zone-registry.svelte.ts";
 import type { AdminAreaExtension } from "@plugins/admin-area";
 
 const sidebarWidget: AdminAreaExtension = {
@@ -453,7 +454,13 @@ const sidebarWidget: AdminAreaExtension = {
   condition: (ctx) => ctx.collection !== undefined, // Show only on collection routes
   props: { title: "Quick Actions" },
 };
+
+registerAdminAreaExtension(sidebarWidget);
 ```
+
+### Rendering
+
+Admin shell zones are rendered by `<AdminZone>` (`src/components/system/admin-zone.svelte`), which also renders `adminTool` plugin parts into `sidebar` · `toolbar` · `dashboard` · `config`. Zones are wired into the layout (`header`/`toolbar`/`footer`), `LeftSidebar` (`sidebar`), the dashboard and config pages, and `AdminPageShell` (`content-header`/`content-footer`). Entries are lazy-loaded, ordered, and gated behind optional `condition(context)` and a client capability checker (the server enforces 403 regardless).
 
 See [admin-area.ts](/src/plugins/admin-area.ts) for the full type definitions.
 

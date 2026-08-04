@@ -1,11 +1,11 @@
 /**
  * @file src/services/core/marketplace-service.ts
- * @description Offline-first marketplace catalog for themes, plugins, and packages.
+ * @description Offline-first marketplace catalog for themes, plugins, dashboard widgets, and packages.
  *
- * Merges local themes/plugin listings with remote marketplace.sveltycms.com
- * via marketplace-client (30 min cache). Powers GET /api/marketplace and the
- * Extensions → Marketplace tab (Phase 2). Theme install is available;
- * full remote one-click package install remains a follow-up.
+ * Merges local themes/plugin/dashboard-widget listings with remote
+ * marketplace.sveltycms.com via marketplace-client (30 min cache). Powers
+ * GET /api/marketplace and the Extensions → Marketplace tab (Phase 2). Theme
+ * install is available; full remote one-click package install remains a follow-up.
  */
 
 import { adminThemeService } from "./admin-theme-service";
@@ -17,11 +17,13 @@ export interface MarketplaceItem {
   version: string;
   author: string;
   installed: boolean;
-  type: "theme" | "widget" | "preset" | "plugin";
+  type: "theme" | "widget" | "preset" | "plugin" | "dashboard";
   previewUrl?: string;
   downloadUrl?: string;
   source?: string;
   price?: number;
+  /** Monetization model — free | freemium (14-day trial) | paid. */
+  license?: string;
   rating?: number;
   downloads?: number;
   createdAt?: string;
@@ -95,6 +97,28 @@ export class MarketplaceService {
       });
     }
 
+    // Local dashboard widget packages (marketplace-portable folders)
+    try {
+      const { getInstalledDashboardWidgets } =
+        await import("@src/routes/(app)/dashboard/widgets/manifest-registry");
+      for (const w of getInstalledDashboardWidgets()) {
+        items.push({
+          id: `dashboard-widget-${w.id}`,
+          name: w.name,
+          description: w.description || "Dashboard widget",
+          version: w.version,
+          author: w.author,
+          installed: true,
+          type: "dashboard",
+          price: w.price,
+          license: w.license,
+          source: "local",
+        });
+      }
+    } catch {
+      // manifest-registry is compile-time (import.meta.glob) — skip if unavailable
+    }
+
     // Local plugin stubs (always present offline)
     try {
       const listingMod = await import("@src/plugins/unified-data-hub/marketplace-listing");
@@ -136,7 +160,7 @@ export class MarketplaceService {
       const { marketplace } = await import("@src/services/intelligence/marketplace-client");
       const remote = await marketplace.list({
         query: search,
-        type: type as "plugin" | "widget" | "theme" | "preset" | undefined,
+        type: type as "plugin" | "widget" | "theme" | "preset" | "dashboard" | undefined,
         limit: 50,
       });
       const remoteList = remote.plugins || [];

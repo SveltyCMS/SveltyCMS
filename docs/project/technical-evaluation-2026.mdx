@@ -664,6 +664,31 @@ The marketplace exposes a REST API + License v1 (`POST /api/v1/license/verify`) 
 
 **Knowledge-limited (June 2026 public docs):** Server-side behavioral learning + LLM widget scaffolding + hosted marketplace license verify is a combination we document for SveltyCMS. SaaS CMSs may offer overlapping AI/marketplace features under different packaging; this is not an exclusivity claim.
 
+#### August 2026 — Marketplace Phase 2: In-App Catalog & Dashboard Widget Packages
+
+The August sprint turned dashboard widgets into a marketplace-ready extension surface and shipped the in-app catalog: **Extensions → Marketplace** tab backed by `GET /api/marketplace` with an **offline-first merge** — local themes and dashboard widget packages always appear when marketplace.sveltycms.com is unreachable.
+
+**Dashboard widgets as packages**
+
+- Each widget ships in its own kebab-case folder: `widgets/<folder>/<component>.svelte` + a required `widget.json` manifest (id, name, license, price, defaultSize) + a required `.mdx` marketplace description. Discovery stays compile-time (`import.meta.glob`) — zero runtime FS scans, lazy chunks only.
+- `installDashboardWidget()` writes a package into the widgets folder; saved layouts keep working because the component filename (not the folder) is the registry key.
+- The Marketplace tab filters by type (incl. `dashboard`) and shows license/price badges sourced from the manifests.
+
+**Licensing — consistent with widgets, plugins, and the site starter**
+
+| Model        | Behavior                                                                | Examples                                                                   |
+| :----------- | :---------------------------------------------------------------------- | :------------------------------------------------------------------------- |
+| **Free**     | Bundled/community packages, no gates                                    | System Health, CPU, Media Storage                                          |
+| **Freemium** | 14-day key-less trial; premium features gate on `checkExtensionLicense` | Audit Log (€24.99), Unified Metrics (€14.99), Logs (€6.99), Smart Importer |
+| **Paid**     | License required; upgrade prompt otherwise                              | SCIM Status (€12.99), Editable Website (€14.99)                            |
+
+Enforced on **both** sides, mirroring custom widgets and plugins:
+
+- **Client-side**: each widget checks `/api/system/license-status?type=dashboard&id=<id>` and renders an upgrade prompt when the trial expired without a key.
+- **Server-side**: premium dashboard endpoints call `checkExtensionLicense("dashboard", widgetId)` and return `403 LICENSE_REQUIRED` when the check fails (see [license-endpoint-inventory](../reference/security/license-endpoint-inventory.mdx)) — premium data is never served without entitlement, matching the plugin lifecycle-hook pattern.
+
+**Knowledge-limited (August 2026 public docs):** package-folder distribution with required manifests + two-sided license gates for dashboard widgets is what we document for SveltyCMS; other CMSs may ship similar marketplace packaging under different terms. This is not an exclusivity claim.
+
 ### 3.4.1 LiteRT.js AI Client — Client-Side Browser Inference (July 2026)
 
 SveltyCMS integrated [LiteRT.js](https://developers.googleblog.com/litertjs-googles-high-performance-web-ai-inference/) (Google's high-performance Web AI runtime, announced July 9, 2026) for **client-side ML inference** — entirely in the browser, with zero server cost and zero data egress.
@@ -1023,6 +1048,8 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 
 - **AI Widget Scaffolder (June 2026)**: On-demand code generation for custom 3-pillar widgets from a config object.
 - **Hosted Marketplace (June 2026)**: Plugin/widget ecosystem at marketplace.sveltycms.com with REST API, Stripe checkout, and License v1 verification.
+- **Marketplace Phase 2 — In-App Catalog & Dashboard Widget Packages (August 2026)**: Extensions → Marketplace tab with `GET /api/marketplace` offline-first merge; dashboard widgets refactored into marketplace-portable package folders (`widgets/<folder>/` + required `widget.json` + `.mdx`); `installDashboardWidget()`; local catalog listings with license/price badges. Server-side license gates for premium dashboard endpoints (`dashboard-license.ts` → `403 LICENSE_REQUIRED`, 14-day key-less trial) alongside client-side upgrade prompts — one Free / Freemium / Paid model shared with widgets, plugins, and the site starter. 18/18 core dashboard packages validated by `scripts/check-dashboard-widget-packages.mjs` (part of `bun run check`).
+- **Plugin Admin Pages (`page` part, August 2026)**: plugins contribute full admin pages under `/plugin/<path>` (catch-all route + isomorphic registry + server `load` + RBAC 403 gate) with declarative sidebar nav, plus the `<AdminZone>` renderer that activates the previously dormant `adminTool` and `AdminAreaExtension` registries (sidebar/header/footer/toolbar/dashboard/config/content zones).
 - **LiteRT.js AI Client (July 2026)**: Client-side browser ML inference via LiteRT.js in an isolated Web Worker — WebGPU primary, XNNPACK fallback, transparent Ollama fallback. First use case: alt-text generation (`ai.generateAltText()`) for direct WCAG/ATAG compliance. CSP-safe — admin page security headers never modified. SvelteKit remote function API (`import { ai } from \"@services/ai-client\"`). Dedicated `/ai/worker` endpoint with isolated WASM-allowing CSP. 13 files, 3K+ lines, 100% TypeScript, 4 unit tests.
 
 - **Unified Data Hub v2.4.0 (REST write-back)**: All 5 connector types (Postgres, MariaDB, SQLite, MongoDB, REST) support read+write. REST writes are opt-in (`writesEnabled`), SSRF-safe, with Idempotency-Key dedup and circuit breaker. GraphQL mutations (`createVirtualEntry`, `updateVirtualEntry`, `deleteVirtualEntry`) for headless clients. Full API parity across LocalCMS, HTTP, GraphQL, and WebMCP agents. 96 unit tests.

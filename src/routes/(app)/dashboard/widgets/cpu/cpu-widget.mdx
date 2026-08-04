@@ -1,0 +1,67 @@
+---
+path: "src/routes/(app)/dashboard/widgets/cpu/cpu-widget.mdx"
+title: "CPU Usage Dashboard Widget"
+description: "Real-time CPU usage monitoring with per-core breakdown, load averages, and adaptive layouts. Included with SveltyCMS — free."
+order: 100
+icon: "mdi:cpu-64-bit"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "cpu"
+  - "monitoring"
+  - "free"
+---
+
+# CPU Usage Widget
+
+Real-time CPU usage monitoring with support for dynamic sizing, light/dark mode, and accessibility. Compact mode shows overall utilization; larger sizes add per-core breakdowns.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature        | Description                                         |
+| :------------- | :-------------------------------------------------- |
+| Overall usage  | Total CPU utilization percentage                    |
+| Per-core stats | Individual core utilization bars (h:2+ widget size) |
+| Load average   | System load indicator                               |
+| Compact mode   | Single-row utilization chip (h:1 widget size)       |
+| Auto-polling   | Data refreshes every 5 seconds                      |
+
+---
+
+## Data Source
+
+| Endpoint                                  | Description                       |
+| :---------------------------------------- | :-------------------------------- |
+| `GET /api/dashboard/system-info?type=cpu` | CPU model, cores, and utilization |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "CPU Usage",
+  icon: "mdi:cpu-64-bit",
+  description: "Real-time CPU usage monitoring with per-core breakdown",
+  defaultSize: { w: 1, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Memory Usage Widget](./memory-widget.mdx)
+- [Disk Usage Widget](./disk-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

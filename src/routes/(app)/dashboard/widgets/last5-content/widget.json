@@ -1,0 +1,14 @@
+{
+  "id": "last5-content",
+  "name": "Last 5 Content",
+  "description": "Recently updated content entries across all collections",
+  "icon": "mdi:file-document-multiple-outline",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "last5-content-widget",
+  "defaultSize": { "w": 1, "h": 2 },
+  "category": "content"
+}

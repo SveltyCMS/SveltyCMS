@@ -44,6 +44,8 @@ import { widgets } from "@src/stores/widget-store.svelte.ts";
 import Portal from "@components/ui/portal.svelte";
 import BackToTop from "@components/ui/back-to-top.svelte";
 import Slot from "@components/system/slot.svelte";
+import AdminZone from "@components/system/admin-zone.svelte";
+import { setAdminZoneCapabilityChecker } from "@src/plugins/admin-zone-registry.svelte.ts";
 import PluginWorkspaceOverlay from "@components/system/plugin-workspace-overlay.svelte";
 import { setThemeContext } from "@src/components/ui/theme-context.svelte";
 // Utils
@@ -138,6 +140,16 @@ $effect(() => {
 // Per-user floating nav (system defaults + PageTitle favorites) — bind early so mobile FAB + stars stay in sync
 $effect(() => {
 	floatingNavStore.bindUser(data.user ?? null);
+});
+
+// Client-side capability gate for plugin admin zones (server enforces 403 too).
+$effect(() => {
+	const u = data.user as any;
+	setAdminZoneCapabilityChecker((required: string[]) => {
+		if (!u) return false;
+		const isAdmin = !!u.isAdmin || u.role === "admin" || u.role === "super-admin";
+		return isAdmin || required.length === 0;
+	});
 });
 
 $effect(() => {
@@ -419,6 +431,8 @@ afterNavigate(() => {
 			{#if ui.state.header !== 'hidden'}
 				<header class="sticky top-0 z-10" style="height: var(--admin-header-height, 32px); min-height: 4px;">
 					<Slot name="global-toolbar" />
+					<AdminZone zone="header" inline={true} />
+					<AdminZone zone="toolbar" inline={true} />
 				</header>
 			{/if}
 
@@ -520,6 +534,7 @@ afterNavigate(() => {
 			{#if ui.state.footer !== 'hidden'}
 				<footer style="min-height: var(--admin-header-height, 24px);">
 					<Slot name="global-footer" />
+					<AdminZone zone="footer" inline={true} />
 				</footer>
 			{/if}
 		</div>

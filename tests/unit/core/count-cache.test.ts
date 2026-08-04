@@ -9,7 +9,12 @@ import {
   createCountCachedCrud,
   COUNT_CACHE_TTL_SECONDS,
 } from "@src/databases/core/count-cache";
-import type { ICrudAdapter } from "@src/databases/db-interface";
+import type {
+  BaseEntity,
+  DatabaseId,
+  ICrudAdapter,
+  QueryFilter,
+} from "@src/databases/db-interface";
 
 const mockGet = vi.fn();
 const mockSet = vi.fn();
@@ -49,7 +54,7 @@ describe("createCountCachedCrud", () => {
   it("returns cached number without calling inner on hit", async () => {
     mockGet.mockResolvedValue(42);
     const wrapped = createCountCachedCrud(inner);
-    const res = await wrapped.count("posts", {}, { tenantId: "t1" });
+    const res = await wrapped.count("posts", {}, { tenantId: "t1" as DatabaseId });
     expect(res).toEqual({ success: true, data: 42 });
     expect(innerCount).not.toHaveBeenCalled();
   });
@@ -60,12 +65,12 @@ describe("createCountCachedCrud", () => {
     mockSet.mockResolvedValue(undefined);
 
     const wrapped = createCountCachedCrud(inner);
-    const res = await wrapped.count(
-      "posts",
-      { status: "active" },
-      { tenantId: "t1", mode: "exact" },
-    );
+    const res = await wrapped.count("posts", { status: "active" } as QueryFilter<BaseEntity>, {
+      tenantId: "t1" as DatabaseId,
+      mode: "exact",
+    });
 
+    if (!res.success) throw new Error("expected count to succeed");
     expect(res.data).toBe(7);
     expect(innerCount).toHaveBeenCalledOnce();
     expect(mockSet).toHaveBeenCalledWith(

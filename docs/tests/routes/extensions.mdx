@@ -6,7 +6,7 @@ order: 24
 icon: "mdi:puzzle"
 author: "SveltyCMS Team"
 created: "2026-07-18"
-updated: "2026-07-18"
+updated: "2026-08-04"
 tags: ["testing", "e2e", "extensions"]
 ---
 
@@ -14,21 +14,24 @@ tags: ["testing", "e2e", "extensions"]
 
 ## Surface
 
-| Piece                 | Role                                        |
-| --------------------- | ------------------------------------------- |
-| `+page.server.ts`     | Admin via `locals.isAdmin`; plugin registry |
-| `+page.svelte`        | Plugins / Widgets / Themes tabs             |
-| `plugins-view.svelte` | Toggle enable (CSRF + toast)                |
+| Piece                     | Role                                                                          |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| `+page.server.ts`         | Admin via `locals.isAdmin`; plugin registry                                   |
+| `+page.svelte`            | Plugins / Widgets / Themes / Marketplace tabs                                 |
+| `plugins-view.svelte`     | Toggle enable (CSRF + toast)                                                  |
+| `marketplace-view.svelte` | In-app catalog: search, type filter (incl. `dashboard`), license/price badges |
 
-Plugin catalogs **vary by install**.
+Plugin and widget catalogs **vary by install**. The Marketplace tab merges local listings (themes + dashboard widget packages) with the remote catalog offline-first via `GET /api/marketplace`.
 
 ## Control → test matrix
 
-| Control              | Unit | E2E |
-| -------------------- | ---- | --- |
-| Admin gate           | ✅   | —   |
-| Three tabs + panels  | —    | ✅  |
-| Plugins grid / empty | —    | ✅  |
+| Control                                   | Unit | E2E |
+| ----------------------------------------- | ---- | --- |
+| Admin gate                                | ✅   | —   |
+| Four tabs + panels                        | —    | ✅  |
+| Plugins grid / empty                      | —    | ✅  |
+| Marketplace type filter incl. `dashboard` | —    | ✅  |
+| Dashboard widget cards (license/price)    | —    | ✅  |
 
 ## Run
 

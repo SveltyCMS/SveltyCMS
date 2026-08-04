@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:view-dashboard"
 author: "SveltyCMS Team"
 created: "2025-10-17"
-updated: "2026-06-15"
+updated: "2026-08-04"
 tags:
   - "dashboard"
   - "widgets"
@@ -95,20 +95,21 @@ All dashboard widgets extend the `base-widget.svelte` component, which provides:
 
 ### Widget Registration
 
-Widgets use **dual discovery**:
+Each widget is a **self-contained package** in its own kebab-case folder: `widgets/<folder>/<component>.svelte` plus a `widget.json` manifest. Widgets use **dual discovery**:
 
-1. **Client** (`+page.svelte`) — Vite `import.meta.glob("./widgets/*.svelte")` builds the runtime registry for lazy-loaded rendering.
-2. **Server** (`+page.server.ts`) — `readdirSync` scans all `*.svelte` files in `widgets/` and dynamically imports `widgetMeta` for the widget picker.
+1. **Client** (`+page.svelte`) — Vite `import.meta.glob("./widgets/*/*.svelte")` builds the runtime registry for lazy-loaded rendering. The registry maps the component filename → package folder for dynamic imports.
+2. **Server** (`+page.server.ts`) — eager glob over `widgets/*/*.svelte` imports each file's `widgetMeta` for the widget picker.
 
 ```
 // Client registry in +page.svelte
-const modules = import.meta.glob("./widgets/*.svelte");
+const modules = import.meta.glob("./widgets/*/*.svelte");
+// → { "./widgets/system-health/system-health-widget.svelte": () => import(...), … }
 
 // Server discovery in +page.server.ts
-const files = readdirSync(widgetsPath).filter(
-  (file) => file.isFile() && file.name.endsWith(".svelte"),
-);
+const _widgetModules = import.meta.glob<{ widgetMeta?: … }>("./widgets/*/*.svelte", { eager: true });
 ```
+
+The **component filename** (not the folder) is the registry key persisted in `system-preferences`, so saved layouts survive package upgrades. The `widget.json` manifest powers the marketplace catalog and telemetry via `manifest-registry.ts`.
 
 ### Generative Dashboard
 
@@ -935,15 +936,18 @@ beforeAll(async () => {
 
 ### Adding New Widgets
 
-1. **Create Widget File**: `src/routes/(app)/dashboard/widgets/my-widget.svelte`
-2. **Export Metadata**: Include `widgetMeta` object
-3. **Extend base-widget**: Use provided component infrastructure
-4. **Auto-Registration**: Widget appears automatically in picker
+1. **Create Package Folder**: `src/routes/(app)/dashboard/widgets/my-widget/`
+2. **Add the Component**: `my-widget.svelte` inside the folder, with a `widgetMeta` export
+3. **Add the Manifest**: `widget.json` (id, name, icon, license, defaultSize, …)
+4. **Extend base-widget**: Use the provided component infrastructure (`../../base-widget.svelte`)
+5. **Auto-Registration**: The widget appears automatically in the picker after the next build/restart
+
+See [Dashboard Widget Development](../../development/dashboard/index.mdx) for the full guide.
 
 ### Widget Development Best Practices
 
 ```
-// Example widget structure
+// Example widget structure — widgets/my-widget/my-widget.svelte
 <script lang="ts" module>
   export const widgetMeta = {
     name: 'My Custom Widget',
@@ -954,14 +958,15 @@ beforeAll(async () => {
 </script>
 
 <script lang="ts">
+  import BaseWidget from '../../base-widget.svelte';
   // Widget logic, data loading, state management
 </script>
 
-<base-widget {label} {size} {onSizeChange}>
+<BaseWidget {label} {size} {onSizeChange}>
   {#snippet children()}
     <!-- Widget content -->
   {/snippet}
-</base-widget>
+</BaseWidget>
 ```
 
 ### Configuration Persistence

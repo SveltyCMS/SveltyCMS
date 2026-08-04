@@ -804,7 +804,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     options: FindPageOptions<T> = {},
   ): Promise<DatabaseResult<FindPageResult<T>>> {
     const pageSize = options.limit && options.limit > 0 ? options.limit : DEFAULT_PAGE_SIZE;
-    const sortOpt = options.sort ?? defaultPageSortOption();
+    const sortOpt = (options.sort ?? defaultPageSortOption()) as FindOptions<T>["sort"];
     const resolvedSort = resolvePageSort(sortOpt);
     const cursor = decodePageCursor(options.cursor);
     const pageQuery = cursor

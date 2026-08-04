@@ -1,0 +1,169 @@
+---
+path: "docs/development/dashboard/architecture.mdx"
+title: "Dashboard Widget Architecture"
+description: "Technical deep-dive into dashboard widget packages — folder structure, widget.json manifest, dual registration, and licensing gates."
+order: 6
+icon: "mdi:widgets-outline"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "widgets"
+  - "architecture"
+  - "development"
+---
+
+# Dashboard Widget Architecture
+
+## 1. Package Model
+
+Every dashboard widget is a **Portable Module**: a self-contained folder that can be shipped, uploaded to `marketplace.sveltycms.com`, and installed into any SveltyCMS installation without touching dashboard core code.
+
+```text
+widgets/<kebab-folder>/
+├── <component>.svelte    # Required — the widget component
+├── widget.json           # Required — marketplace/telemetry manifest
+├── <component>.mdx       # Required — marketplace description (features, licensing, data source)
+└── tests/                # Optional — unit tests
+```
+
+### Why a folder per widget?
+
+- **Marketplace uploads** — the marketplace API accepts package folders directly; `widget.json` is the package manifest and the co-located `<component>.mdx` is the package description used for the marketplace listing.
+- **Clean installs** — `installDashboardWidget()` writes the whole folder via the package `installPath`, no file-by-file merging.
+- **Stable registry keys** — the component filename (not the folder) is the key persisted in `system-preferences`, so upgrading or renaming a package does not reset user layouts.
+
+## 2. The `widget.json` Manifest
+
+```json
+{
+  "id": "system-health",
+  "name": "System Health",
+  "description": "Monitor system services and overall health",
+  "icon": "mdi:heart-pulse",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "system-health-widget",
+  "defaultSize": { "w": 2, "h": 2 },
+  "category": "monitoring"
+}
+```
+
+| Field         | Type                                              | Description                                          |
+| :------------ | :------------------------------------------------ | :--------------------------------------------------- |
+| `id`          | `string`                                          | Kebab-case folder name (package id).                 |
+| `name`        | `string`                                          | Display name shown in the picker / marketplace.      |
+| `description` | `string`                                          | Short description for cards and listings.            |
+| `icon`        | `string`                                          | Iconify icon id.                                     |
+| `version`     | `string`                                          | Semver package version.                              |
+| `type`        | `"dashboard-widget"`                              | Fixed type discriminator.                            |
+| `author`      | `string`                                          | Publisher name.                                      |
+| `license`     | `"free" \| "freemium" \| "paid"`                  | Monetization model.                                  |
+| `price`       | `number`                                          | EUR price (`0` for free).                            |
+| `component`   | `string`                                          | Component filename without `.svelte` (registry key). |
+| `defaultSize` | `{ w: 1-4, h: 1-4 }`                              | Recommended grid size.                               |
+| `category`    | `"monitoring" \| "logs" \| "content" \| "static"` | Default fetch/cache/refresh behavior group.          |
+
+The manifest **must** agree with the component's `widgetMeta` export (`name`, `icon`, `description`, `defaultSize`). `manifest-registry.ts` reads manifests at build time via `import.meta.glob("./*/widget.json", { eager: true })`.
+
+## 3. Dual Registration
+
+Widgets are registered in two places, both compile-time:
+
+1. **Client runtime** — `+page.svelte` globs `./widgets/*/*.svelte` to build the lazy-loading registry. The registry entry maps the component key → package folder for dynamic imports:
+
+```typescript
+// +page.svelte — path like "./widgets/system-health/system-health-widget.svelte"
+const segments = path.split("/");
+const folder = segments[segments.length - 2];
+const name = segments[segments.length - 1]?.replace(".svelte", "");
+registry[name] = { component: module.default, folder, ... };
+```
+
+2. **Server metadata** — `+page.server.ts` eagerly globs the same pattern and pre-computes `availableWidgets` (name, icon, description, folder) for the widget picker dropdown.
+
+Because both layers key off the **component filename**, layouts saved before an upgrade (`component: "system-health-widget"`) resolve to the new folder automatically.
+
+## 4. Base Widget Contract
+
+All widgets compose `base-widget.svelte`, which provides fetch/poll/retry/cache/refresh chrome, the header, resize handles, and keyboard-accessible controls:
+
+```svelte
+<BaseWidget
+  {label} {theme} {icon} {widgetId} {size}
+  endpoint="/api/dashboard/health"
+  pollInterval={5000}
+  onSizeChange={onSizeChange}
+  onCloseRequest={onRemove}
+>
+  {#snippet children({ data, error, isLoading, refresh })}
+    <!-- render data -->
+  {/snippet}
+</BaseWidget>
+```
+
+The `children` snippet receives `{ data, updateWidgetState, getWidgetState, refresh, isLoading, error }`.
+
+## 5. Component Metadata (`widgetMeta`)
+
+Each component exports module-level metadata that the picker and registry read directly:
+
+```typescript
+<script lang="ts" module>
+  export const widgetMeta = {
+    name: "System Health",
+    icon: "mdi:heart-pulse",
+    description: "Monitor system services and overall health",
+    defaultSize: { w: 2, h: 2 },
+  };
+</script>
+```
+
+`widgetMeta` drives the UI; `widget.json` drives packaging, catalog, and telemetry. Keep them in sync.
+
+## 6. 🔑 Licensing Gates
+
+Dashboard widgets use the same license model as content widgets and plugins:
+
+| Model        | Behavior                                                                   |
+| :----------- | :------------------------------------------------------------------------- |
+| **Free**     | No checks; bundled or community packages.                                  |
+| **Freemium** | 14-day key-less trial; premium features gate on `checkExtensionLicense`.   |
+| **Paid**     | License required from install; widget renders an upgrade prompt otherwise. |
+
+- **Client-side gating** — `checkExtensionLicense("dashboard", widgetId)`; on failure render `<UpgradePrompt extensionId="dashboard:<widgetId>" price="…" />` instead of content.
+- **Server-side gating** — premium dashboard endpoints are gated in `src/routes/api/[...path]/handlers/dashboard-license.ts` (`requireDashboardWidgetLicense`), which calls `checkExtensionLicense("dashboard", widgetId)` and returns `403 LICENSE_REQUIRED` when the trial expired without a license. The endpoint → widget-id map (`DASHBOARD_ENDPOINT_LICENSE`) covers `/api/dashboard/{audit, logs, security, scim, cache-metrics, online-user, metrics}` and `/api/database/pool-diagnostics`. Free widgets are not gated. When you add a premium widget backed by a new endpoint, register it in that map.
+
+Example (`cache-monitor-widget.svelte`):
+
+```svelte
+{#if licenseStatus && !licenseStatus.active && !licenseStatus.hasLicense}
+  <!-- Upgrade prompt -->
+{:else}
+  <BaseWidget endpoint="/api/dashboard/cache-metrics" ...>…</BaseWidget>
+{/if}
+```
+
+## 7. Installed-Package Inventory
+
+`manifest-registry.ts` exposes the installed inventory for consumers that must not compile Svelte:
+
+```typescript
+import { getInstalledDashboardWidgets } from "./widgets/manifest-registry";
+
+const packages = getInstalledDashboardWidgets(); // sorted by name
+// → [{ id: "system-health", name: "System Health", license: "free", … }]
+```
+
+Used by the marketplace catalog (`marketplace-service.ts`) and telemetry (`telemetry-service.ts`).
+
+## Related
+
+- [Dashboard Widget Development](./development.mdx)
+- [Dashboard Widget Marketplace](./marketplace.mdx)
+- [Dashboard System Architecture](../../reference/architecture/dashboard-system.mdx)
+- [Marketplace System](../../reference/architecture/marketplace.mdx)

@@ -1,0 +1,14 @@
+{
+  "id": "security",
+  "name": "Security Monitor",
+  "description": "Advanced security threat monitoring and incident response",
+  "icon": "mdi:shield-alert",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "freemium",
+  "price": 19.99,
+  "component": "security-widget",
+  "defaultSize": { "w": 2, "h": 3 },
+  "category": "static"
+}

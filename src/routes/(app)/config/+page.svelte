@@ -7,6 +7,7 @@
 <script lang="ts">
 import AdminPageShell from "@components/admin-page-shell.svelte";
 import Slot from "@components/system/slot.svelte";
+import AdminZone from "@src/components/system/admin-zone.svelte";
 import PermissionGuard from "@src/components/permission-guard.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { ui } from "@src/stores/ui-store.svelte.ts";
@@ -370,6 +371,7 @@ const configItems = [
 		</div>
 
 		<Slot name="config" props={{ pluginStates: data?.pluginStates ?? {} }} />
+		<AdminZone zone="config" context={{ pluginStates: data?.pluginStates ?? {} }} />
 	</div>
 </div>
 </AdminPageShell>

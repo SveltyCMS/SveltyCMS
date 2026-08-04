@@ -1,0 +1,68 @@
+---
+path: "src/routes/(app)/dashboard/widgets/last5-content/last5-content-widget.mdx"
+title: "Last 5 Content Dashboard Widget"
+description: "Recently updated content entries across all collections with collection badges and relative timestamps. Included with SveltyCMS — free."
+order: 100
+icon: "mdi:file-document-multiple-outline"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "content"
+  - "activity"
+  - "free"
+---
+
+# Last 5 Content Widget
+
+Clean, performant "Last 5 Content" widget with a modern responsive layout. Surfaces the most recently updated content entries across all collections so editors can jump back into active work quickly.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature            | Description                                   |
+| :----------------- | :-------------------------------------------- |
+| Recent entries     | Latest updated content across all collections |
+| Collection badge   | Collection name shown per entry               |
+| Relative dates     | "2h ago" style timestamps                     |
+| Author attribution | Creator shown per entry                       |
+| Click-through      | Entries link to their editor pages            |
+| Compact mode       | Condensed list (h:1 widget size)              |
+| Auto-polling       | Data refreshes every 30 seconds               |
+
+---
+
+## Data Source
+
+| Endpoint                           | Description                                                 |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `GET /api/dashboard/last5-content` | Recent content via `LocalCMS.collections.search` (limit: 5) |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Last 5 Content",
+  icon: "mdi:file-document-multiple-outline",
+  description: "Recently updated content entries across all collections",
+  defaultSize: { w: 1, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Last 5 Media Widget](./last5-media-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

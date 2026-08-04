@@ -768,9 +768,9 @@ A dashboard widget available to all tenant admins showing their own tenant's usa
 | Content entries       | `db.crud.count()` across all tenant collections    |
 | 24h request activity  | Filtered audit log entries                         |
 
-**Widget** (`src/routes/(app)/dashboard/widgets/tenant-analytics-widget.svelte`):
+**Widget** (`src/routes/(app)/dashboard/widgets/tenant-analytics/tenant-analytics-widget.svelte`):
 
-- Auto-discovered via `import.meta.glob("./widgets/*.svelte")` — no registration needed
+- Auto-discovered via `import.meta.glob("./widgets/*/*.svelte")` — no registration needed
 - Compact mode (1 row): shows key stats inline
 - Rich mode (2+ rows): 6-card grid with storage quota bar and activity counter
 - 60-second auto-refresh via `BaseWidget`

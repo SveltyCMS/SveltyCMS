@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2025-12-02"
-updated: "2026-03-27"
+updated: "2026-08-04"
 tags:
   - "telemetry"
   - "server"
@@ -56,6 +56,11 @@ interface TelemetryPayload {
   // Authentication fields (REQUIRED)
   timestamp: number; // Unix timestamp in milliseconds
   signature: string; // HMAC-SHA256 signature (hex)
+
+  // Extension ecosystem (optional, aggregate)
+  widgets?: string[]; // custom content widget names
+  dashboard_widgets?: string[]; // installed dashboard widget package ids
+  plugins?: string[]; // installed plugin ids
 
   // ... rest of payload
 }

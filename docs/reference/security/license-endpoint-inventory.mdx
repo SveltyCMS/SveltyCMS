@@ -6,7 +6,7 @@ order: 12
 icon: "mdi:license"
 author: "SveltyCMS Team"
 created: "2026-07-20"
-updated: "2026-07-20"
+updated: "2026-08-04"
 tags:
   - "security"
   - "license"
@@ -42,16 +42,26 @@ if (!status.active && !status.hasLicense) {
 
 ## Gated extensions (inventory)
 
-| Extension            | Type   | Gate location                                         | What is blocked without license                           |
-| :------------------- | :----- | :---------------------------------------------------- | :-------------------------------------------------------- |
-| **PageSpeed**        | plugin | `src/plugins/pagespeed/index.server.ts`               | Bulk, scheduled, historical analytics (single-page free)  |
-| **WebMCP**           | plugin | `src/plugins/webmcp/index.ts`                         | All gateway operations (403)                              |
-| **Stripe**           | plugin | `src/plugins/stripe/index.ts`                         | Premium field payloads stripped                           |
-| **Unified Data Hub** | plugin | `src/plugins/unified-data-hub/index.server.ts`        | Federation / connector premium paths (`LICENSE_REQUIRED`) |
-| **Editable Website** | plugin | `src/plugins/editable-website/license-gate.server.ts` | Premium visual editing features                           |
-| **SEO widget**       | widget | `src/widgets/custom/seo/index.ts`                     | Premium SEO analysis                                      |
-| **Smart Importer**   | plugin | `src/plugins/smart-importer/ai-co-pilot.ts`           | AI co-pilot when `hasLicense` false                       |
-| **Remote Video**     | widget | `src/widgets/custom/remote-video/`                    | Premium remote sources (if gated)                         |
+| Extension               | Type      | Gate location                                            | What is blocked without license                           |
+| :---------------------- | :-------- | :------------------------------------------------------- | :-------------------------------------------------------- |
+| **PageSpeed**           | plugin    | `src/plugins/pagespeed/index.server.ts`                  | Bulk, scheduled, historical analytics (single-page free)  |
+| **WebMCP**              | plugin    | `src/plugins/webmcp/index.ts`                            | All gateway operations (403)                              |
+| **Stripe**              | plugin    | `src/plugins/stripe/index.ts`                            | Premium field payloads stripped                           |
+| **Unified Data Hub**    | plugin    | `src/plugins/unified-data-hub/index.server.ts`           | Federation / connector premium paths (`LICENSE_REQUIRED`) |
+| **Editable Website**    | plugin    | `src/plugins/editable-website/license-gate.server.ts`    | Premium visual editing features                           |
+| **SEO widget**          | widget    | `src/widgets/custom/seo/index.ts`                        | Premium SEO analysis                                      |
+| **Smart Importer**      | plugin    | `src/plugins/smart-importer/ai-co-pilot.ts`              | AI co-pilot when `hasLicense` false                       |
+| **Remote Video**        | widget    | `src/widgets/custom/remote-video/`                       | Premium remote sources (if gated)                         |
+| **Audit Log**           | dashboard | `src/routes/api/[...path]/handlers/dashboard-license.ts` | `GET /api/dashboard/audit` (403)                          |
+| **System Logs**         | dashboard | `src/routes/api/[...path]/handlers/dashboard-license.ts` | `GET /api/dashboard/logs` (403)                           |
+| **Security Monitor**    | dashboard | `src/routes/api/[...path]/handlers/dashboard-license.ts` | `GET /api/dashboard/security` (403)                       |
+| **SCIM Status**         | dashboard | `src/routes/api/[...path]/handlers/dashboard-license.ts` | `GET /api/dashboard/scim` (403)                           |
+| **Cache Performance**   | dashboard | `src/routes/api/[...path]/handlers/dashboard-license.ts` | `GET /api/dashboard/cache-metrics` (403)                  |
+| **Online Users**        | dashboard | `src/routes/api/[...path]/handlers/dashboard-license.ts` | `GET /api/dashboard/online-user` (403)                    |
+| **Unified Metrics**     | dashboard | `src/routes/api/[...path]/handlers/dashboard-license.ts` | `GET /api/dashboard/metrics` (403)                        |
+| **DB Pool Diagnostics** | dashboard | `src/routes/api/[...path]/handlers/database.ts`          | `GET /api/database/pool-diagnostics` (403)                |
+
+> Dashboard widgets use the same `checkExtensionLicense("dashboard", id)` manager as plugins/widgets, with an endpoint → widget-id map in `dashboard-license.ts`. The license-status endpoint (`/api/system/license-status`) exposes the same result to the client-side gates. Free dashboard widgets are not gated.
 
 > When adding a marketplace extension, **register it in this table** and call `checkExtensionLicense` on every mutating / premium route.
 

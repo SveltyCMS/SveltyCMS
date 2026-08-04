@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:e479c7c4-293c-448f-a4a1-c837cd8f7e76",
+  "serialNumber": "urn:uuid:0bd5a89f-e6a1-4fdf-a0ad-b23ff1f31f30",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-04T13:22:56.822Z",
+    "timestamp": "2026-08-04T18:22:05.005Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -7952,13 +7952,13 @@
     {
       "type": "library",
       "name": "nodemailer",
-      "version": "9.0.3",
-      "purl": "pkg:npm/nodemailer@9.0.3",
+      "version": "9.0.4",
+      "purl": "pkg:npm/nodemailer@9.0.4",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-n+YP+NKwR5zRWa60k3GiQ6Q3B4KXCoAw40dAKeCtYn020iNN74aWK2liXIC3ZEATeGql7we3tE3t8QwhY0eskw=="
+          "content": "sha512-LmJNRVRtfSCULxcZpy0Cpg4WWenlUZ9+zbmTO+S7v9wD6XreYLjXRFtDjtV/4F0HT5p1GyZfA0Ux/myxHb18CQ=="
         }
       ]
     },
@@ -10832,19 +10832,6 @@
         {
           "alg": "SHA-512",
           "content": "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "svelte",
-      "version": "5.56.4",
-      "purl": "pkg:npm/svelte@5.56.4",
-      "scope": "excluded",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-/d0QHehmRuJW8gVz395MTkPcPozxzdjBMBE8oEYGz8O3b9KTMzzQ9ZHJQLuFKOHOPQbU6kx/X4iid/EBBzH7iw=="
         }
       ]
     },

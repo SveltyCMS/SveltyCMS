@@ -32,11 +32,16 @@
 		homepageUrl?: string;
 		rating?: number;
 		downloads?: number;
+		price?: number;
+		license?: string;
 	}
 
 	let { initialItems = [] }: { initialItems?: CatalogItem[] } = $props();
-
-	let items = $state<CatalogItem[]>([...initialItems]);
+		
+	let items = $state<CatalogItem[]>([]);
+	$effect(() => {
+		items = [...initialItems];
+	});
 	let loading = $state(false);
 	let query = $state('');
 	let typeFilter = $state('all');
@@ -47,6 +52,7 @@
 		{ value: 'all', label: 'All types' },
 		{ value: 'plugin', label: 'Plugins' },
 		{ value: 'widget', label: 'Widgets' },
+		{ value: 'dashboard', label: 'Dashboard widgets' },
 		{ value: 'theme', label: 'Themes' },
 		{ value: 'preset', label: 'Presets' },
 	];
@@ -104,8 +110,7 @@
 				id="mp-type"
 				bind:value={typeFilter}
 				options={typeOptions}
-				aria-label="Filter by type"
-				data-testid="marketplace-type-filter"
+				data_testid="marketplace-type-filter"
 			/>
 		</div>
 		<Button variant="primary" onclick={() => loadCatalog()} data-testid="marketplace-refresh">
@@ -151,7 +156,31 @@
 								{item.author} · v{item.version}
 							</p>
 						</div>
-						<Badge variant="outline">{item.type}</Badge>
+						<div class="flex flex-col items-end gap-1">
+							<Badge variant="outline">{item.type}</Badge>
+							{#if item.license}
+								<Badge
+									variant={item.license === 'free'
+										? 'success'
+										: item.license === 'paid'
+											? 'warning'
+											: 'tertiary'}
+									size="sm"
+									data-testid={`marketplace-license-${item.id}`}
+								>
+									{item.license === 'free'
+										? 'Free'
+										: item.license === 'paid'
+											? 'Paid'
+											: 'Freemium'}
+								</Badge>
+							{/if}
+							{#if item.price != null && item.price > 0}
+								<span class="text-xs font-semibold text-surface-600 dark:text-surface-300">
+									€{item.price.toFixed(2)}
+								</span>
+							{/if}
+						</div>
 					</div>
 					<p class="line-clamp-3 flex-1 text-sm text-surface-600 dark:text-surface-300">
 						{item.description || 'No description'}

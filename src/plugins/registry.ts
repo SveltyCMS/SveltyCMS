@@ -474,9 +474,11 @@ export class PluginRegistry implements IPluginService {
    * - `schema` → logs collection registration for content system.
    * - `schemaTransform` → registers sugar type builders via `registerSugarType`.
    * - `route` → validates `requiredCapabilities` is defined on every route.
+   * - `page` → validates `requiredCapabilities`/path uniqueness; registered
+   *   isomorphically in `src/plugins/index.ts` (page registry + sidebar nav).
    * - `capability` → registers capabilities in the merged catalog.
    * - `settings` → merges declaration into the plugin's `settings` field.
-   * - `adminTool` → logs tool registration for UI slot injection.
+   * - `adminTool` → validates zone; registered isomorphically in `index.ts`.
    * - `fieldComponent` → logs field component registration.
    * - `documentAction` → logs document action registration.
    *
@@ -561,12 +563,40 @@ export class PluginRegistry implements IPluginService {
           break;
         }
 
+        case "page": {
+          for (const page of part.pages) {
+            // Security: requiredCapabilities MUST be defined (compile-time error when omitted)
+            if (page.requiredCapabilities === undefined) {
+              throw new Error(
+                `[Security Violation] Plugin "${pluginId}" attempted to register page "${page.path}" without requiredCapabilities. Use [] for auth-only or a string[] of specific capabilities.`,
+              );
+            }
+            if (!page.id || !page.path) {
+              throw new Error(
+                `[Security Violation] Plugin "${pluginId}" page requires both an id and a path.`,
+              );
+            }
+            if (page.load && !page.component) {
+              throw new Error(
+                `[PluginRegistry] Plugin "${pluginId}" page "${page.path}" declares a load hook but no component.`,
+              );
+            }
+            logger.debug(
+              `[PluginRegistry] Plugin "${pluginId}" page "${page.id}" mounted at /plugin/${page.path} (nav: ${page.nav ? "yes" : "no"})`,
+            );
+          }
+          break;
+        }
+
         case "adminTool": {
           for (const tool of part.tools) {
-            // UI parts are lazily loaded — registered in a deferred map,
-            // not resolved during the critical boot path.
+            if (!["sidebar", "toolbar", "dashboard", "config"].includes(tool.zone)) {
+              logger.warn(
+                `[PluginRegistry] Plugin "${pluginId}" admin tool "${tool.id}" has invalid zone "${tool.zone}"`,
+              );
+            }
             logger.debug(
-              `[PluginRegistry] Plugin "${pluginId}" admin tool "${tool.id}" registered for lazy loading (zone: "${tool.zone}")`,
+              `[PluginRegistry] Plugin "${pluginId}" admin tool "${tool.id}" validated for zone "${tool.zone}"`,
             );
           }
           break;

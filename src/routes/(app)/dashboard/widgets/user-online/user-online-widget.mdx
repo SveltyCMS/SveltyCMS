@@ -1,0 +1,75 @@
+---
+path: "src/routes/(app)/dashboard/widgets/user-online/user-online-widget.mdx"
+title: "Online Users Dashboard Widget"
+description: "Currently active users with role indicators and session information. Premium extension — 14-day trial included; a license is required after the trial."
+order: 100
+icon: "mdi:account-multiple-outline"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "users"
+  - "sessions"
+  - "freemium"
+---
+
+# Online Users Widget
+
+Shows currently active users with role indicators and session details. Session duration is estimated from expiry minus the configured session TTL — no `Math.random()`.
+
+---
+
+## 💰 Licensing
+
+**Premium extension** with a **14-day free trial** (no key required). After the trial expires a valid marketplace license is required — the widget then shows an upgrade prompt. Pricing is configured in the marketplace listing.
+
+### License Verification
+
+The widget checks license status via the internal API on mount:
+
+```
+GET /api/system/license-status?type=dashboard&id=user-online
+```
+
+---
+
+## Features
+
+| Feature         | Description                                  |
+| :-------------- | :------------------------------------------- |
+| Active sessions | Users with live sessions                     |
+| Role indicators | Role badge per user                          |
+| Session info    | Estimated session duration and last activity |
+| Compact mode    | Count chip with avatars (h:1 widget size)    |
+| Rich layout     | Detailed user list (h:2+ widget size)        |
+| Auto-polling    | Data refreshes every 45 seconds              |
+
+---
+
+## Data Source
+
+| Endpoint                         | Description                |
+| :------------------------------- | :------------------------- |
+| `GET /api/dashboard/online-user` | Users with active sessions |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Online Users",
+  icon: "mdi:account-multiple-outline",
+  description: "Currently active users with role indicators",
+  defaultSize: { w: 1, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Security Monitor Widget](./security-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

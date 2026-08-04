@@ -6,7 +6,7 @@ order: 19
 icon: "mdi:view-dashboard-outline"
 author: "SveltyCMS Team"
 created: "2026-03-24"
-updated: "2026-06-15"
+updated: "2026-08-04"
 tags:
   - "api"
   - "dashboard"
@@ -18,7 +18,7 @@ tags:
 
 # Dashboard API & Widgets Reference
 
-The Dashboard API provides real-time visibility into system performance, health, user activity, and cache efficiency. These endpoints power the 16 dashboard widgets in the admin Studio.
+The Dashboard API provides real-time visibility into system performance, health, user activity, and cache efficiency. These endpoints power the dashboard widgets in the admin Studio.
 
 All dashboard routes require an authenticated session and the `dashboard:read` permission (admins bypass via the fast-path). Use kebab-case paths (`system-info`, `last5-content`, `system-messages`, `online-user`).
 
@@ -196,39 +196,51 @@ Returns users with active sessions. Session duration is estimated from expiry mi
 
 ## 4. Dashboard Widgets (UI)
 
-The admin dashboard is composed of 16 modular Svelte 5 widgets, each backed by one or more API endpoints:
+The admin dashboard is composed of modular Svelte 5 widget packages (one folder per widget), each backed by one or more API endpoints. The widget catalog is **install-specific** — the core packages bundled with SveltyCMS are listed below, and the [marketplace](../architecture/marketplace.mdx) can add more (counts are never fixed):
 
-| Widget              | File                            | Data Source                              |
-| :------------------ | :------------------------------ | :--------------------------------------- |
-| **System Health**   | `system-health-widget.svelte`   | `/api/dashboard/health`                  |
-| **Unified Metrics** | `unified-metrics-widget.svelte` | `/api/dashboard/metrics`                 |
-| **CPU Monitor**     | `cpu-widget.svelte`             | `/api/dashboard/system-info?type=cpu`    |
-| **Memory Monitor**  | `memory-widget.svelte`          | `/api/dashboard/system-info?type=memory` |
-| **Disk Monitor**    | `disk-widget.svelte`            | `/api/dashboard/system-info?type=disk`   |
+| Widget              | File                                            | Data Source                              |
+| :------------------ | :---------------------------------------------- | :--------------------------------------- |
+| **System Health**   | `system-health/system-health-widget.svelte`     | `/api/dashboard/health`                  |
+| **Unified Metrics** | `unified-metrics/unified-metrics-widget.svelte` | `/api/dashboard/metrics`                 |
+| **CPU Monitor**     | `cpu/cpu-widget.svelte`                         | `/api/dashboard/system-info?type=cpu`    |
+| **Memory Monitor**  | `memory/memory-widget.svelte`                   | `/api/dashboard/system-info?type=memory` |
+| **Disk Monitor**    | `disk/disk-widget.svelte`                       | `/api/dashboard/system-info?type=disk`   |
 
-| Widget              | File                            | Data Source                            |
-| :------------------ | :------------------------------ | :------------------------------------- |
-| **Cache Monitor**   | `cache-monitor-widget.svelte`   | `/api/dashboard/cache-metrics`         |
-| **Performance**     | `performance-widget.svelte`     | `/api/dashboard/metrics?detailed=true` |
-| **Audit Log**       | `audit-log-widget.svelte`       | `/api/dashboard/audit`                 |
-| **Activity Logs**   | `logs-widget.svelte`            | `/api/dashboard/logs`                  |
-| **System Messages** | `system-messages-widget.svelte` | `/api/dashboard/system-messages`       |
+| Widget              | File                                            | Data Source                            |
+| :------------------ | :---------------------------------------------- | :------------------------------------- |
+| **Cache Monitor**   | `cache-monitor/cache-monitor-widget.svelte`     | `/api/dashboard/cache-metrics`         |
+| **Performance**     | `performance/performance-widget.svelte`         | `/api/dashboard/metrics?detailed=true` |
+| **Audit Log**       | `audit-log/audit-log-widget.svelte`             | `/api/dashboard/audit`                 |
+| **Activity Logs**   | `logs/logs-widget.svelte`                       | `/api/dashboard/logs`                  |
+| **System Messages** | `system-messages/system-messages-widget.svelte` | `/api/dashboard/system-messages`       |
 
-| Widget                        | File                               | Data Source                      |
-| :---------------------------- | :--------------------------------- | :------------------------------- |
-| **Last 5 Content**            | `last5-content-widget.svelte`      | `/api/dashboard/last5-content`   |
-| **Last 5 Media**              | `last5-media-widget.svelte`        | `/api/dashboard/last5media`      |
-| **Online Users**              | `user-online-widget.svelte`        | `/api/dashboard/online-user`     |
-| **Security**                  | `security-widget.svelte`           | `/api/dashboard/security`        |
-| **Database Pool Diagnostics** | `database-pool-diagnostics.svelte` | `/api/database/pool-diagnostics` |
-| **SCIM Status**               | `scim-status-widget.svelte`        | `/api/dashboard/scim`            |
+| Widget                        | File                                                            | Data Source                       |
+| :---------------------------- | :-------------------------------------------------------------- | :-------------------------------- |
+| **Last 5 Content**            | `last5-content/last5-content-widget.svelte`                     | `/api/dashboard/last5-content`    |
+| **Last 5 Media**              | `last5-media/last5-media-widget.svelte`                         | `/api/dashboard/last5media`       |
+| **Online Users**              | `user-online/user-online-widget.svelte`                         | `/api/dashboard/online-user`      |
+| **Security**                  | `security/security-widget.svelte`                               | `/api/dashboard/security`         |
+| **Database Pool Diagnostics** | `database-pool-diagnostics/database-pool-diagnostics.svelte`    | `/api/database/pool-diagnostics`  |
+| **SCIM Status**               | `scim-status/scim-status-widget.svelte`                         | `/api/dashboard/scim`             |
+| **Media Storage Analytics**   | `media-storage-analytics/media-storage-analytics-widget.svelte` | `/api/media/analytics`            |
+| **Tenant Analytics**          | `tenant-analytics/tenant-analytics-widget.svelte`               | `/api/dashboard/tenant-analytics` |
 
-### Widget Discovery (dual registration)
+### Widget Discovery (dual registration + package folders)
+
+Each dashboard widget is a **self-contained package** in its own kebab-case folder under `src/routes/(app)/dashboard/widgets/<folder>/`, containing the component, a `widget.json` manifest, and optional `.mdx` docs:
+
+```text
+widgets/system-health/
+  system-health-widget.svelte   # component (filename = stable registry key)
+  widget.json                   # marketplace manifest
+```
 
 Widgets are registered in two places:
 
-1. **Client runtime** — `+page.svelte` uses `import.meta.glob("./widgets/*.svelte")` to build the widget registry for rendering and lazy loading.
-2. **Server metadata** — `+page.server.ts` scans `src/routes/(app)/dashboard/widgets/*.svelte` and imports each file's `widgetMeta` for the widget picker.
+1. **Client runtime** — `+page.svelte` uses `import.meta.glob("./widgets/*/*.svelte")` to build the widget registry for rendering and lazy loading. The registry maps the component filename → package folder for dynamic imports.
+2. **Server metadata** — `+page.server.ts` eagerly globs the same pattern and pre-computes `availableWidgets` (name, icon, description, folder) for the widget picker.
+
+The **component filename** (not the folder) is the registry key persisted in `system-preferences`, so saved layouts survive package upgrades and renames. The `widget.json` manifest drives the marketplace catalog and telemetry via `manifest-registry.ts`. See [Dashboard Widget Development](../../development/dashboard/index.mdx).
 
 Each widget exports optional `widgetMeta` for display metadata:
 
@@ -247,12 +259,25 @@ export const widgetMeta = {
 
 ### 🔑 Licensing & Monetization for Dashboard Widgets
 
-Certain advanced dashboard widgets are designated as premium features (e.g. SCIM Status, Unified Metrics, DB Pool Diagnostics, Security Overview).
+Certain advanced dashboard widgets are designated as premium features (e.g. SCIM Status, Unified Metrics, DB Pool Diagnostics, Security Overview). Their `widget.json` manifest declares `license: "freemium" | "paid"`.
 
 - **14-day trials**: Like plugins and custom collection widgets, all premium dashboard widgets feature a built-in key-less 14-day trial period from initial installation.
-- **Licensing check**: To gate premium widgets, they evaluate license status client-side or server-side:
-  - **Client-side gating**: Verify key validity via `checkExtensionLicense("dashboard", widgetId)`. If the trial is expired and no valid `SLM-` or `SLM-DEMO-` key is configured, the widget renders an upgrade prompt instead of dashboard content.
-  - **Server-side gating**: The backing API endpoint checks `checkExtensionLicense` and returns `403 Forbidden` for data requests when license check fails.
+- **Licensing check**: Premium widgets are gated on **both** sides, mirroring custom widgets and plugins:
+  - **Client-side gating**: Each widget checks `checkExtensionLicense("dashboard", widgetId)` (via `GET /api/system/license-status?type=dashboard&id=<widget-id>`) and renders an upgrade prompt instead of dashboard content when the trial expired and no `SLM-`/`SLM-DEMO-` key is configured.
+  - **Server-side gating**: The backing API endpoints call `checkExtensionLicense` and return **`403 LICENSE_REQUIRED`** when the check fails — premium data is never served without entitlement. See `dashboard-license.ts` in the dashboard handler for the endpoint → widget-id map:
+
+| Endpoint                             | Gating widget id            | License  |
+| :----------------------------------- | :-------------------------- | :------- |
+| `GET /api/dashboard/audit`           | `audit-log`                 | freemium |
+| `GET /api/dashboard/logs`            | `logs`                      | freemium |
+| `GET /api/dashboard/security`        | `security`                  | freemium |
+| `GET /api/dashboard/scim`            | `scim-status`               | paid     |
+| `GET /api/dashboard/cache-metrics`   | `cache-monitor`             | freemium |
+| `GET /api/dashboard/online-user`     | `user-online`               | freemium |
+| `GET /api/dashboard/metrics`         | `unified-metrics`           | freemium |
+| `GET /api/database/pool-diagnostics` | `database-pool-diagnostics` | freemium |
+
+Free widgets (health, system-info, last5-content, last5media, system-messages, tenant-analytics, media-storage-analytics) are **not** gated. Endpoints consumed by multiple widgets use the install-wide trial model, so one gate covers them all (e.g. `metrics` powers both Unified Metrics and Performance).
 
 ---
 
