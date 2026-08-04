@@ -1165,6 +1165,7 @@ const cacheMock = {
   getMany: mock(async (keys: string[]) => Array(keys.length).fill(null)),
   set: mock(async () => {}),
   setWithCategory: mock(async () => {}),
+  connectL2ForTest: mock(async () => {}),
   delete: mock(async () => {}),
   clearByPattern: mock(async () => true),
   clearByTags: mock(async () => {}),

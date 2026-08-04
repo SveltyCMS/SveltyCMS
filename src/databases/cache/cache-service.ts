@@ -271,6 +271,19 @@ export class CacheService {
     }
   }
 
+  /**
+   * Test seam: attach pre-built L2 + subscriber clients (no network I/O).
+   * Lets the L2 contract suite drive the full distributed path (get/set/del,
+   * write batching, locks, tag sets, pattern scan, pub/sub) against an
+   * in-memory fake or a real Redis instance without touching config files.
+   */
+  async connectL2ForTest(l2Client: any, subscriberClient?: any): Promise<void> {
+    await this.cleanup();
+    this.l2 = l2Client;
+    this.subscriber = subscriberClient ?? l2Client;
+    await this.subscribeToInvalidations();
+  }
+
   private async subscribeToInvalidations() {
     if (!this.subscriber || !this.subscriber.isOpen) return;
 
@@ -280,9 +293,13 @@ export class CacheService {
           const { pattern, tags, tenantId, nodeId } = JSON.parse(message);
           if (nodeId === this.nodeId) return;
 
+          // Apply BOTH channels: tags purge the L1 tag index; the pattern
+          // purges untagged entries (exact keys from delete()) and patterns
+          // from clearByPattern() — they are independent and non-overlapping.
           if (tags && tags.length > 0) {
             this.clearLocalL1ByTags(tags, tenantId);
-          } else if (pattern) {
+          }
+          if (pattern) {
             this.clearLocalL1ByPattern(pattern, tenantId);
           }
         } catch (err) {
@@ -1036,7 +1053,18 @@ export class CacheService {
         }
       }
     }
-    await this.publishInvalidation(null, tenantId, keys);
+    // Propagate to other nodes: publish the LOGICAL key as a pattern so the
+    // remote L1 is purged even for UNTAGGED entries (settings, sessions,
+    // counts) — tags alone only reach entries in the L1 tag index. The
+    // subscriber re-prefixes with its tenantId (generateKey), so the full key
+    // must NOT be sent. Keys also ride as tags for tag-index cleanup.
+    if (keys.length === 1) {
+      await this.publishInvalidation(keys[0], tenantId, keys);
+    } else {
+      for (const k of keys) {
+        await this.publishInvalidation(k, tenantId, [k]);
+      }
+    }
   }
 
   async clearByTags(tags: string[], tenantId: string | null = "*"): Promise<void> {
