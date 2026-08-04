@@ -522,6 +522,17 @@ export const settingsGroups: SettingGroup[] = [
         max: 720,
         placeholder: "0",
       },
+      {
+        key: "SESSION_MAX_PER_USER",
+        label: "Max Sessions Per User",
+        description:
+          "Maximum concurrent sessions per user (0 = unlimited, default). When the cap is exceeded the least recently active session is signed out. Recommended with the allow-multiple device policy.",
+        type: "number",
+        category: "public",
+        min: 0,
+        max: 100,
+        placeholder: "0",
+      },
     ],
   },
   {

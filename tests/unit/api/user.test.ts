@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockUser, createDbAdapterStub } from "../utils/mock-factories";
 import { invokeApi, expectApi } from "../utils/mock-event";
+import { hashPassword } from "@utils/security/crypto";
 
 const dbAdapter = createDbAdapterStub();
 
@@ -238,6 +239,60 @@ describe("User API Unit Tests", () => {
           },
         ],
       });
+    });
+
+    it("POST user/sessions/reauth verifies against a fresh DB read (credential-free cache safe)", async () => {
+      // Session-cache snapshots carry no password hash — reauth must fetch the
+      // fresh user from the DB before verifying.
+      (dbAdapter as any).auth.getUserById = vi.fn().mockResolvedValue({
+        success: true,
+        data: { ...adminUser, password: await hashPassword("ValidPass1!") },
+      });
+      const response = await invokeApi("POST", {
+        path: "user/sessions/reauth",
+        body: { password: "ValidPass1!" },
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data.token).toBeDefined();
+      expect(result.data.expiresIn).toBe(300);
+    });
+
+    it("POST user/sessions/reauth rejects a wrong password (403)", async () => {
+      (dbAdapter as any).auth.getUserById = vi.fn().mockResolvedValue({
+        success: true,
+        data: { ...adminUser, password: await hashPassword("ValidPass1!") },
+      });
+      const response = await invokeApi("POST", {
+        path: "user/sessions/reauth",
+        body: { password: "WrongPass1!" },
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(403);
+      expect(await response.text()).toContain("INVALID_PASSWORD");
+    });
+
+    it("POST user/sessions/reauth requires a password (400)", async () => {
+      const response = await invokeApi("POST", {
+        path: "user/sessions/reauth",
+        body: {},
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain("PASSWORD_REQUIRED");
     });
 
     it("cross-session revoke requires a re-auth token (403 REAUTH_REQUIRED)", async () => {

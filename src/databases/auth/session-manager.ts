@@ -22,6 +22,7 @@ import { isoDateStringToDate } from "@utils/date";
 // System Logger
 import { logger } from "@utils/logger";
 import type { SessionStore } from "./types";
+import { toSafeSessionUser } from "./session-user";
 
 // Redis client interface to avoid direct dependency on a specific Redis library
 interface RedisLike {
@@ -58,8 +59,10 @@ class InMemorySessionManager implements SessionStore {
 
   async set(sessionId: string, user: User, expiration: ISODateString): Promise<void> {
     const expirationDate = isoDateStringToDate(expiration);
+    // Defense-in-depth: never retain credential material (password hash, TOTP
+    // secret, backup codes, reset/refresh tokens) in the session store.
     this.sessions.set(sessionId, {
-      user: new WeakRef(user),
+      user: new WeakRef(toSafeSessionUser(user)),
       expiresAt: expirationDate,
     });
   }
@@ -148,7 +151,8 @@ class RedisSessionManager implements SessionStore {
 
   async set(sessionId: string, user: User, expiration: ISODateString): Promise<void> {
     const expirationDate = isoDateStringToDate(expiration);
-    const sessionData = { user, expiresAt: expirationDate };
+    // Defense-in-depth: never retain credential material in Redis either.
+    const sessionData = { user: toSafeSessionUser(user), expiresAt: expirationDate };
 
     try {
       if (this.redisClient) {

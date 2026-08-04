@@ -44,6 +44,7 @@ import {
 import { hashCredentialSha256HexSync } from "@src/utils/security/credential-hash";
 import type { DatabaseId } from "../content/types";
 import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
+import { evaluateSessionAnomaly, toSafeSessionUser } from "@src/databases/auth/session-user";
 
 import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
 import { metricsService } from "@src/services/observability/metrics-service";
@@ -164,6 +165,14 @@ const SESSION_ROTATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes — per indus
 const negativeCache = new BloomFilter(100000, 0.0001); // 2392x speedup for repeat misses
 
 /**
+ * Cooldown for log-only session-context anomaly warnings (per session).
+ * IP / user-agent drift is reported at most once per hour per session to keep
+ * rotating-NAT / mobile-network noise out of the logs.
+ */
+const SESSION_ANOMALY_LOG_COOLDOWN_MS = 60 * 60 * 1000;
+const lastAnomalyLog = new Map<string, number>();
+
+/**
  * Gets a session from the cache (LRU eviction, no WeakRef).
  */
 function getSessionFromCache(sessionId: string): SessionCacheEntry | null {
@@ -206,6 +215,9 @@ if (typeof setInterval !== "undefined" && !(globalThis as any)[SESSION_CLEANUP_K
         if (now - timestamp > SESSION_ROTATION_INTERVAL_MS * 2)
           lastRotationAttempt.delete(sessionId);
       }
+      for (const [sessionId, timestamp] of lastAnomalyLog.entries()) {
+        if (now - timestamp > SESSION_ANOMALY_LOG_COOLDOWN_MS * 2) lastAnomalyLog.delete(sessionId);
+      }
       // Periodically reset negative cache to allow for eventual consistency
       if (Math.random() < 0.1) negativeCache.clear();
     },
@@ -224,10 +236,44 @@ function getIdleWindowMs(): number {
   return hours > 0 ? hours * 60 * 60 * 1000 : 0;
 }
 
+/** Log-only IP/user-agent drift detection (OWASP session guidance). */
+function recordSessionAnomaly(
+  sessionId: string,
+  clientIp: string | null | undefined,
+  userAgent: string | null | undefined,
+  sessionRecord: {
+    ipAddress?: string | null;
+    ip?: string | null;
+    userAgent?: string | null;
+  } | null,
+): void {
+  const record = sessionRecord ?? null;
+  const drift = evaluateSessionAnomaly({
+    currentIp: clientIp,
+    currentUserAgent: userAgent,
+    storedIp: record?.ipAddress ?? record?.ip ?? null,
+    storedUserAgent: record?.userAgent ?? null,
+  });
+  if (!drift.ipChanged && !drift.userAgentChanged) return;
+
+  const now = Date.now();
+  const last = lastAnomalyLog.get(sessionId);
+  if (last && now - last < SESSION_ANOMALY_LOG_COOLDOWN_MS) return;
+  lastAnomalyLog.set(sessionId, now);
+
+  logger.warn(
+    `[Auth] Session context change (log-only, no action taken): session=${sessionId.slice(0, 8)}...` +
+      (drift.ipChanged ? " ip changed" : "") +
+      (drift.userAgentChanged ? " user-agent changed" : ""),
+  );
+}
+
 /** Multi-layer user session retrieval (in-memory → distributed → DB) */
 async function getUserFromSession(
   sessionId: string,
   tenantId?: DatabaseId | null,
+  clientIp?: string | null,
+  userAgent?: string | null,
 ): Promise<SessionResolution> {
   // --- Performance Tweak: Negative Caching ---
   const isTestMode = process.env.TEST_MODE === "true";
@@ -255,10 +301,13 @@ async function getUserFromSession(
   try {
     const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
     const store = getDefaultSessionStore();
+    // Credential stripping at the store boundary (defense-in-depth: the store
+    // already strips on set, but a stale pre-strip entry must never leak).
     const storedUser = await store.get(sessionId as DatabaseId);
     if (storedUser) {
-      setSessionInCache(sessionId, { user: storedUser, timestamp: now });
-      return { status: "ok", user: storedUser };
+      const safeStoredUser = toSafeSessionUser(storedUser);
+      setSessionInCache(sessionId, { user: safeStoredUser, timestamp: now });
+      return { status: "ok", user: safeStoredUser };
     }
   } catch (err: any) {
     logger.trace(`SessionStore lookup failed: ${err.message}`);
@@ -274,8 +323,8 @@ async function getUserFromSession(
         negativeCache.add(sessionId);
         return { status: "invalid" };
       }
-      setSessionInCache(sessionId, redisCached);
-      return { status: "ok", user: redisCached.user };
+      setSessionInCache(sessionId, { user: toSafeSessionUser(redisCached.user), timestamp: now });
+      return { status: "ok", user: toSafeSessionUser(redisCached.user) };
     }
   } catch (err: any) {
     logger.warn(`Redis session read failed: ${err.message}`);
@@ -344,16 +393,20 @@ async function getUserFromSession(
             negativeCache.add(sessionId);
             return { status: "invalid" };
           }
+          // 🛡️ Session-context drift (IP / user-agent) — log-only per OWASP
+          // session-management guidance. Never blocks, never logs the actor out.
+          recordSessionAnomaly(sessionId, clientIp, userAgent, sessionResult.data as any);
           logger.debug(
             `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${maskEmail((user as any).email)}`,
           );
-          const sessionData: SessionCacheEntry = { user, timestamp: now };
+          const safeUser = toSafeSessionUser(user);
+          const sessionData: SessionCacheEntry = { user: safeUser, timestamp: now };
           setSessionInCache(sessionId, sessionData);
           const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
           await cacheService
             .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
             .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
-          return { status: "ok", user };
+          return { status: "ok", user: safeUser };
         } else {
           // Definitive: User not found in DB
           logger.debug(`[Auth] User not found in DB: ${sessionResult.data.user_id}`);
@@ -441,7 +494,7 @@ async function handleSessionRotation(
 
       await auth.destroySession(oldSessionId as DatabaseId).catch(() => {});
       invalidateSessionCache(oldSessionId, event.locals.tenantId as DatabaseId);
-      setSessionInCache(newSessionId, { user, timestamp: now });
+      setSessionInCache(newSessionId, { user: toSafeSessionUser(user), timestamp: now });
       lastRotationAttempt.set(newSessionId, now);
       event.locals.session_id = newSessionId;
     }
@@ -658,6 +711,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         const resolution = await getUserFromSession(
           sessionId as string,
           locals.tenantId as DatabaseId,
+          getClientIp(event),
+          event.request.headers.get("user-agent") || "",
         );
         const user = resolution.status === "ok" ? resolution.user : null;
         logger.debug(
@@ -1017,6 +1072,7 @@ export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId 
   sessionCache.delete(sessionId);
   lastRefreshAttempt.delete(sessionId);
   lastRotationAttempt.delete(sessionId);
+  lastAnomalyLog.delete(sessionId);
 
   // 🚀 Turbo GET: Also invalidate the auth context cache so a revoked
   // session can't access cached API responses within the TTL window.
@@ -1056,6 +1112,7 @@ export function clearAllSessionCaches(): void {
   sessionCache.clear();
   lastRefreshAttempt.clear();
   lastRotationAttempt.clear();
+  lastAnomalyLog.clear();
   negativeCache.clear();
   multiTenantCached = null;
   demoModeCached = null;
@@ -1067,7 +1124,9 @@ export function clearAllSessionCaches(): void {
  */
 export function primeSessionMemoryCache(sessionId: string, user: User): void {
   negativeCache.clear();
-  const entry: SessionCacheEntry = { user, timestamp: Date.now() };
+  // Credential-free snapshot — the in-memory cache must never hold password
+  // hashes, TOTP secrets, backup codes, or reset/refresh tokens.
+  const entry: SessionCacheEntry = { user: toSafeSessionUser(user), timestamp: Date.now() };
   setSessionInCache(sessionId, entry);
 }
 

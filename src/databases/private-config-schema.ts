@@ -141,6 +141,7 @@ export const privateConfigSchema = object({
   ),
   SESSION_TTL_HOURS: optional(coercedNumber),
   SESSION_IDLE_HOURS: optional(coercedNumber),
+  SESSION_MAX_PER_USER: optional(coercedNumber),
 
   // --- CORS Configuration ---
   CORS_ENABLED: optional(coercedBoolean),

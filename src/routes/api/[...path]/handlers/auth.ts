@@ -130,7 +130,9 @@ export async function handleAuthUserRoutes(
 
       // Password verification (own profile only)
       case "verify-password":
-        return reqMethod === "POST" ? handleVerifyPassword(event, user) : notAllowed();
+        return reqMethod === "POST"
+          ? handleVerifyPassword(event, cms, tenantId, user)
+          : notAllowed();
 
       // User Management
       case "create-user":
@@ -686,7 +688,12 @@ export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenan
  * SECURITY: Only verifies the calling user's own password — not an arbitrary user.
  * This prevents password-guessing attacks via the API.
  */
-export async function handleVerifyPassword(event: RequestEvent, user: any) {
+export async function handleVerifyPassword(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+) {
   const body = await event.request.json();
   const { password } = body;
 
@@ -694,13 +701,20 @@ export async function handleVerifyPassword(event: RequestEvent, user: any) {
     return successResponse(event, { valid: false });
   }
 
+  // The session-cache user snapshot is credential-free by design — fetch the
+  // fresh user (with the argon2id hash) from the DB for verification.
+  const freshResult = await cms.auth.getUserById(String(user._id ?? user.id ?? ""), {
+    tenantId,
+  });
+  const freshUser = freshResult?.success ? freshResult.data : null;
+
   // Must be authenticated with a real user (not API key / token virtual user)
-  if (!user?.password) {
+  if (!freshUser?.password) {
     return successResponse(event, { valid: false });
   }
 
   try {
-    const valid = await verifyPassword(user.password, password);
+    const valid = await verifyPassword(freshUser.password, password);
     return successResponse(event, { valid });
   } catch {
     return successResponse(event, { valid: false });
@@ -946,12 +960,22 @@ function verifyReauthToken(
  * Password re-authentication for sensitive session management (Laravel-style).
  * POST /api/user/sessions/reauth { password } → { token } (5-min, session-bound).
  */
-async function handleSessionReauth(event: RequestEvent, user: any): Promise<Response> {
+async function handleSessionReauth(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+): Promise<Response> {
   const body = await event.request.json().catch(() => ({}));
   const password = typeof body?.password === "string" ? body.password : "";
   if (!password) throw new AppError("Password required", 400, "PASSWORD_REQUIRED");
 
-  const hash = user?.password;
+  // Session-cache snapshots are credential-free — verify against a fresh DB
+  // read so the re-auth proof still works after the credential stripping.
+  const freshResult = await cms.auth.getUserById(String(user._id ?? user.id ?? ""), {
+    tenantId,
+  });
+  const hash = freshResult?.success ? freshResult.data?.password : null;
   if (!hash || !(await verifyPassword(hash, password))) {
     throw new AppError("Invalid password", 403, "INVALID_PASSWORD");
   }
@@ -987,7 +1011,7 @@ export async function handleSessionsRoutes(
   const sessionId = pathParts.length > 3 ? pathParts[3] : null;
 
   if (sessionId === "reauth" && event.request.method === "POST") {
-    return handleSessionReauth(event, user);
+    return handleSessionReauth(event, cms, tenantId, user);
   }
 
   const isAdmin = user.isAdmin === true || user.role === "admin";
@@ -1135,7 +1159,13 @@ export async function handle2FARoutes(
       if (event.request.method !== "POST") throw notAllowed();
       const { password } = await event.request.json().catch(() => ({}));
       if (!password) throw new AppError("Password required", 400);
-      const isValid = user.password ? await verifyPassword(user.password, password) : false;
+      // Session-cache snapshots are credential-free — verify against a fresh DB
+      // read so disabling 2FA still requires the real password.
+      const freshResult = await cms.auth.getUserById(String(user._id ?? user.id ?? ""), {
+        tenantId,
+      });
+      const freshHash = freshResult?.success ? freshResult.data?.password : null;
+      const isValid = freshHash ? await verifyPassword(freshHash, password) : false;
       if (!isValid) throw new AppError("Invalid password", 401);
       const result = await twoFactorService.disable2FA(user._id, tenantId);
       if (!result) throw new AppError("Failed to disable 2FA", 400);

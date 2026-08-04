@@ -49,6 +49,9 @@ Product-layer APIs equal on SQLite, PostgreSQL, MariaDB, MongoDB:
 - [x] Blocked/deleted users cut off immediately (session purge on block/unblock/delete + DB-path check)
 - [x] Transient-safe validation: single-flight coalescing, cookie kept on DB blips (no cold-start logouts)
 - [x] Cross-session revoke re-auth (password proof, stateless HMAC, 5-min)
+- [x] Credential-free session snapshots — password hashes / TOTP secrets / backup codes / reset & refresh tokens stripped at every cache/store write boundary
+- [x] Session context anomaly (log-only) — IP/user-agent drift flagged once per session per hour
+- [x] Max sessions per user (`SESSION_MAX_PER_USER`) — LRU eviction of the least recently active session
 - [x] Session-cleanup scheduled job (expired sessions/tokens purged every 5 min)
 - [x] RBAC permission cache wired into the hot path + roles/turbo invalidation on all mutation paths
 

@@ -144,6 +144,10 @@ SveltyCMS security architecture includes:
 - ✅ Internal System Authorization using shared secrets (JWT_SECRET_KEY) for system-to-system calls
 - ✅ **Cascading Password Change**: All other active sessions across all devices immediately invalidated on password change (L0/L1/L2 purge)
 - ✅ **Session & Device Tracking**: User-Agent and IP captured at session creation for auditing; Active Devices API for session management (`GET/DELETE /api/user/sessions`)
+- ✅ **Credential-Free Session Cache**: password hashes, TOTP secrets, backup codes, and reset/refresh tokens never enter session caches or stores; password-verifying endpoints re-fetch from the DB
+- ✅ **Session Context Anomaly Detection** (log-only): IP / user-agent drift flagged once per session per hour, no false-positive lockouts
+- ✅ **Max Sessions Per User** (`SESSION_MAX_PER_USER`): LRU eviction of the least recently active session when the cap is exceeded (Keycloak-style)
+- ✅ **Step-Up Re-Authentication** for session management: cross-session revoke requires a fresh password proof (stateless HMAC, 5-min, session-bound)
 
 **Implementation:**
 

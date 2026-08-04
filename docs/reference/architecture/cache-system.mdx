@@ -85,6 +85,8 @@ Hash-keyed entries — **never store plaintext bearer tokens in L1/L2**:
 
 **Auth middleware**: `handle-authentication.ts` hashes once (`hashCredentialSha256HexSync` for website tokens / `hashApiKeyWithLegacy` for API keys), looks up by hash via `getByTokenHash`, caches with `CacheCategory.SESSION`.
 
+**Session user snapshots are credential-free**: the session cache (L1 LRU + L2 Redis) and the in-memory/Redis session store strip credential material (`password`, `totpSecret`, `backupCodes`, `resetToken`, `googleRefreshToken`, `twoFactorTrustedDevices`) at every write boundary (`toSafeSessionUser` in `src/databases/auth/session-user.ts`). The zero-allocation fast path returns the original reference when no sensitive field is present. Password-verifying endpoints fetch a fresh user from the DB instead of reading the snapshot.
+
 ### Permission Cache (RBAC)
 
 `hasPermissionWithRoles()` consults this cache on every permission check (after the admin fast-path), keyed by `{userId}:{permissionId}:{sortedRoleIds}`. On a miss it evaluates via the memoized role bitsets and stores the boolean result:

@@ -1210,6 +1210,11 @@ export const defaultPublicSettings: Array<{
     description: "Sign out after this many idle hours (0 = disabled)",
   },
   {
+    key: "SESSION_MAX_PER_USER",
+    value: 0,
+    description: "Maximum concurrent sessions per user (0 = unlimited)",
+  },
+  {
     key: "SITE_NAME",
     value: "SveltyCMS",
     description: "The public name of the website",

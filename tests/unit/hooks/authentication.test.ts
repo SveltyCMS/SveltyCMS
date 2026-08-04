@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { RequestEvent } from "@sveltejs/kit";
+import { logger } from "@utils/logger";
 
 // Mock @src/databases/db — getDb() must return same reference as dbAdapter
 vi.mock("@src/databases/db", () => {
@@ -290,6 +291,144 @@ describe("handleAuthentication Middleware", () => {
       } finally {
         vi.useRealTimers();
         mockPrivateSettings.delete("SESSION_IDLE_HOURS");
+      }
+    });
+  });
+
+  describe("Credential-Free Session Snapshots", () => {
+    it("strips credential material from the validated user", async () => {
+      const userData = {
+        _id: "user1",
+        email: "test@test.com",
+        role: "admin",
+        tenantId: "t1",
+        password: "$argon2id$fake-hash",
+        totpSecret: "encrypted-envelope",
+        backupCodes: ["hashed-code-1"],
+        resetToken: "reset-secret",
+        googleRefreshToken: "refresh-secret",
+        twoFactorTrustedDevices: ["fp-1"],
+      };
+      setupSessionMock(userData);
+      const event = createMockEvent("/dashboard", "cred-session");
+      const resolve = vi.fn(() => Promise.resolve(new Response("OK")));
+      await handleAuthentication({ event, resolve });
+
+      const u = event.locals.user as any;
+      expect(resolve).toHaveBeenCalled();
+      expect(u.email).toBe("test@test.com");
+      expect(u.role).toBe("admin");
+      expect(u.password).toBeUndefined();
+      expect(u.totpSecret).toBeUndefined();
+      expect(u.backupCodes).toBeUndefined();
+      expect(u.resetToken).toBeUndefined();
+      expect(u.googleRefreshToken).toBeUndefined();
+      expect(u.twoFactorTrustedDevices).toBeUndefined();
+    });
+
+    it("serves credential-free snapshots from the warm session cache", async () => {
+      const userData = {
+        _id: "user1",
+        email: "test@test.com",
+        role: "admin",
+        tenantId: "t1",
+        password: "$argon2id$fake-hash",
+      };
+      setupSessionMock(userData);
+      const resolve = vi.fn(() => Promise.resolve(new Response("OK")));
+
+      // First request cold-validates against the DB (populates the cache)
+      await handleAuthentication({
+        event: createMockEvent("/dashboard", "warm-cred"),
+        resolve,
+      });
+      // Second request must be served from the in-memory cache — no DB re-read
+      const second = createMockEvent("/dashboard", "warm-cred");
+      await handleAuthentication({
+        event: second,
+        resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+      });
+
+      expect((dbAdapter as any).auth.getUserById).toHaveBeenCalledTimes(1);
+      expect((second.locals.user as any).password).toBeUndefined();
+      expect((second.locals.user as any).email).toBe("test@test.com");
+    });
+  });
+
+  describe("Session Context Anomaly (log-only)", () => {
+    it("logs a user-agent change but keeps the session valid", async () => {
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+      try {
+        const base = createMockEvent("/dashboard", "drift-session");
+        const event = {
+          ...base,
+          request: new Request(base.url.toString(), {
+            headers: { "user-agent": "UA-Firefox/New" },
+          }),
+        } as any;
+        // Stored session was created from a different browser
+        (dbAdapter as any).auth = {
+          getSessionTokenData: vi.fn().mockResolvedValue({
+            success: true,
+            data: {
+              user_id: "user1",
+              expiresAt: futureExpiry,
+              ipAddress: "127.0.0.1",
+              userAgent: "UA-Chrome/Stored",
+            },
+          }),
+          getUserById: vi.fn().mockResolvedValue({
+            success: true,
+            data: { _id: "user1", email: "test@test.com", role: "admin", tenantId: "t1" },
+          }),
+        };
+
+        const resolve = vi.fn(() => Promise.resolve(new Response("OK")));
+        await handleAuthentication({ event, resolve });
+
+        expect(resolve).toHaveBeenCalled();
+        // Log-only: the session stays valid and the cookie is not deleted
+        expect(event.locals.user).not.toBeNull();
+        expect(event.cookies.delete).not.toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Session context change"));
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it("does not log when the context matches", async () => {
+      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+      try {
+        const base = createMockEvent("/dashboard", "match-session");
+        const event = {
+          ...base,
+          request: new Request(base.url.toString(), {
+            headers: { "user-agent": "UA-Chrome/Stored" },
+          }),
+        } as any;
+        (dbAdapter as any).auth = {
+          getSessionTokenData: vi.fn().mockResolvedValue({
+            success: true,
+            data: {
+              user_id: "user1",
+              expiresAt: futureExpiry,
+              ipAddress: "127.0.0.1",
+              userAgent: "UA-Chrome/Stored",
+            },
+          }),
+          getUserById: vi.fn().mockResolvedValue({
+            success: true,
+            data: { _id: "user1", email: "test@test.com", role: "admin", tenantId: "t1" },
+          }),
+        };
+
+        await handleAuthentication({
+          event,
+          resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+        });
+        expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining("Session context change"));
+      } finally {
+        warnSpy.mockRestore();
       }
     });
   });

@@ -363,6 +363,12 @@ describe("2FA API Unit Tests", () => {
         is2FAEnabled: true,
         password: "hashed_password",
       } as any);
+      // Session snapshots are credential-free — the handler verifies against a
+      // fresh DB read, so the adapter must return the user with its hash.
+      (mockDbAdapter.auth as any).getUserById = vi.fn().mockResolvedValue({
+        success: true,
+        data: { _id: "user-1", password: "hashed_password" },
+      });
       mockVerifyPassword.mockResolvedValue(true);
       mockTwoFactorService.disable2FA.mockResolvedValue(true);
 
@@ -381,6 +387,10 @@ describe("2FA API Unit Tests", () => {
         _id: "user-1",
         password: "hashed_password",
       } as any);
+      (mockDbAdapter.auth as any).getUserById = vi.fn().mockResolvedValue({
+        success: true,
+        data: { _id: "user-1", password: "hashed_password" },
+      });
       mockVerifyPassword.mockResolvedValue(true);
       mockTwoFactorService.disable2FA.mockResolvedValue(false);
 

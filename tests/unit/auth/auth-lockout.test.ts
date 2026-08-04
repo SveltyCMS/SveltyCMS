@@ -19,6 +19,8 @@ import { createLockedUser } from "./utils/auth-test-utils";
 let sessionDevicePolicy: string | null = null;
 // Session TTL override (null = default 24h)
 let sessionTtlHours: number | null = null;
+// Max concurrent sessions per user override (null = default 0 / unlimited)
+let sessionMaxPerUser: number | null = null;
 
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn((key: string) => {
@@ -26,6 +28,7 @@ vi.mock("@src/services/core/settings-service", () => ({
     if (key === "MULTI_TENANT") return false;
     if (key === "SESSION_DEVICE_POLICY") return sessionDevicePolicy;
     if (key === "SESSION_TTL_HOURS") return sessionTtlHours;
+    if (key === "SESSION_MAX_PER_USER") return sessionMaxPerUser;
     return null;
   }),
   getPublicSettingSync: vi.fn(() => undefined),
@@ -126,6 +129,7 @@ describe("Auth.authenticate (real Auth class — lockout & sessions)", () => {
     passwordHash = await hashPassword("ValidPass1!");
     sessionDevicePolicy = null;
     sessionTtlHours = null;
+    sessionMaxPerUser = null;
   });
 
   it("rejects authentication while account is locked", async () => {
@@ -342,6 +346,79 @@ describe("Auth.authenticate (real Auth class — lockout & sessions)", () => {
     const diffHours = (new Date(sessionData.expires).getTime() - Date.now()) / 3_600_000;
     expect(diffHours).toBeGreaterThan(1.5);
     expect(diffHours).toBeLessThan(2.5);
+  });
+
+  it("caps concurrent sessions via SESSION_MAX_PER_USER (evicts oldest)", async () => {
+    sessionDevicePolicy = "allow-multiple";
+    sessionMaxPerUser = 2;
+    const { auth, dbAdapter } = createAuthHarness({
+      email: "cap@test.com",
+      password: passwordHash,
+    });
+    dbAdapter.auth.getActiveSessions.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          _id: "sess-oldest",
+          user_id: "user-1",
+          rotated: false,
+          lastAccess: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          _id: "sess-mid",
+          user_id: "user-1",
+          rotated: false,
+          lastAccess: "2026-02-01T00:00:00.000Z",
+        },
+        {
+          _id: "sess-newest",
+          user_id: "user-1",
+          rotated: false,
+          lastAccess: "2026-03-01T00:00:00.000Z",
+        },
+      ],
+    });
+
+    const result = await auth.authenticate("cap@test.com", "ValidPass1!", undefined, undefined, {
+      userAgent: "UA-Chrome/Windows",
+    });
+    expect(result).not.toBeNull();
+    // Cap 2 → 3 existing + 1 new = 4 → the two least recently active are evicted
+    expect(dbAdapter.auth.deleteSession).toHaveBeenCalledWith("sess-oldest", undefined);
+    expect(dbAdapter.auth.deleteSession).toHaveBeenCalledWith("sess-mid", undefined);
+    expect(dbAdapter.auth.deleteSession).not.toHaveBeenCalledWith("sess-newest", undefined);
+  });
+
+  it("SESSION_MAX_PER_USER = 0 leaves concurrent sessions untouched", async () => {
+    sessionDevicePolicy = "allow-multiple";
+    sessionMaxPerUser = 0;
+    const { auth, dbAdapter } = createAuthHarness({
+      email: "nocap@test.com",
+      password: passwordHash,
+    });
+    dbAdapter.auth.getActiveSessions.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          _id: "sess-a",
+          user_id: "user-1",
+          rotated: false,
+          lastAccess: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          _id: "sess-b",
+          user_id: "user-1",
+          rotated: false,
+          lastAccess: "2026-02-01T00:00:00.000Z",
+        },
+      ],
+    });
+
+    const result = await auth.authenticate("nocap@test.com", "ValidPass1!", undefined, undefined, {
+      userAgent: "UA-Chrome/Windows",
+    });
+    expect(result).not.toBeNull();
+    expect(dbAdapter.auth.deleteSession).not.toHaveBeenCalled();
   });
 });
 

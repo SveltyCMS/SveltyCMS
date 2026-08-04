@@ -446,6 +446,18 @@ export class Auth {
       }
     }
 
+    // Max concurrent sessions per user (SESSION_MAX_PER_USER, 0 = unlimited):
+    // when the cap is exceeded the least recently active session is evicted
+    // (Keycloak-style). Complements the device policy — best-effort only.
+    try {
+      const maxSessions = Number(getPrivateSettingSync("SESSION_MAX_PER_USER")) || 0;
+      if (maxSessions > 0) {
+        await this.enforceMaxSessionsPerUser(session, maxSessions, options);
+      }
+    } catch (err) {
+      logger.debug("Max-session eviction skipped", { error: (err as Error).message });
+    }
+
     return session;
   }
 
@@ -484,6 +496,50 @@ export class Auth {
       logger.info(
         `[SessionPolicy] Evicted ${evicted} session(s) for user ${String(newSession.user_id)}` +
           ` (${evictAllDevices ? "single-per-user" : "single-per-device"})`,
+      );
+    }
+  }
+
+  /**
+   * Caps concurrent sessions per user (SESSION_MAX_PER_USER, 0 = unlimited).
+   * When the cap is exceeded the least recently active non-rotated sessions are
+   * evicted (excluding the freshly created one), purging DB row, session store,
+   * and the 3-layer session cache — Keycloak-style LRU eviction.
+   */
+  private async enforceMaxSessionsPerUser(
+    newSession: Session,
+    maxSessions: number,
+    options?: BaseQueryOptions,
+  ): Promise<void> {
+    if (maxSessions < 1) return;
+    const result = await this.db.auth.getActiveSessions(newSession.user_id, options);
+    if (!result?.success) return;
+    const sessions = Array.isArray(result.data) ? result.data : [];
+    if (sessions.length <= maxSessions) return;
+
+    const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+    const tenantId =
+      (options?.tenantId as DatabaseId | null | undefined) ?? newSession.tenantId ?? null;
+
+    // Oldest-first by last activity (fall back to creation time for legacy rows).
+    const evictable = sessions
+      .filter((s: any) => !s.rotated && String(s._id) !== String(newSession._id))
+      .sort((a: any, b: any) => {
+        const aTime = new Date(a.lastAccess ?? a.lastActiveAt ?? a.createdAt ?? 0).getTime() || 0;
+        const bTime = new Date(b.lastAccess ?? b.lastActiveAt ?? b.createdAt ?? 0).getTime() || 0;
+        return aTime - bTime;
+      });
+
+    const excess = evictable.length + 1 - maxSessions;
+    const toEvict = evictable.slice(0, Math.max(0, excess));
+    for (const old of toEvict) {
+      await this.db.auth.deleteSession(old._id, options).catch(() => {});
+      await this.sessionStore.delete(old._id).catch(() => {});
+      invalidateSessionCache(String(old._id), tenantId);
+    }
+    if (toEvict.length > 0) {
+      logger.info(
+        `[SessionPolicy] Evicted ${toEvict.length} oldest session(s) — cap ${maxSessions} reached for user ${String(newSession.user_id)}`,
       );
     }
   }

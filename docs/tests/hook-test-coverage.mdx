@@ -27,7 +27,7 @@ Complete test coverage for all 17 SvelteKit middleware hooks and security test s
 
 | Test Suite                 | Tests | Coverage    | File                                                  |
 | -------------------------- | ----- | ----------- | ----------------------------------------------------- |
-| Authentication             | 21    | ✅ Complete | `tests/unit/hooks/authentication.test.ts`             |
+| Authentication             | 25    | ✅ Complete | `tests/unit/hooks/authentication.test.ts`             |
 | API Keys Authentication    | 12    | ✅ Complete | `tests/unit/hooks/api-keys-authentication.test.ts`    |
 | Bearer Authentication      | 18    | ✅ Complete | `tests/unit/hooks/bearer-authentication.test.ts`      |
 | Guest Authentication       | 8     | ✅ Complete | `tests/unit/hooks/guest-authentication.test.ts`       |
@@ -43,7 +43,7 @@ Complete test coverage for all 17 SvelteKit middleware hooks and security test s
 | Defense-in-Depth    | 25    | ✅ Complete | `tests/unit/hooks/defense-in-depth.test.ts` |
 | Adversarial Testing | 20    | ✅ Complete | `tests/unit/hooks/adversarial.test.ts`      |
 
-| **Total** | **305** | **100%** | **16 files** |
+| **Total** | **309** | **100%** | **16 files** |
 
 ## Performance Benchmarks (Audit)
 
@@ -248,6 +248,9 @@ it("should allow /setup route when setup incomplete", async () => {
 - ✅ Session Device Policy eviction (`single-per-device` / `single-per-user` / `allow-multiple`)
 - ✅ `SESSION_TTL_HOURS` applied at login and rotation
 - ✅ **Idle timeout** (`SESSION_IDLE_HOURS`) — sliding clock on the session-cache LRU, signs out idle sessions
+- ✅ **Credential-free session snapshots** — password hash / TOTP secret / backup codes / reset & refresh tokens never enter caches or stores; password-verifying endpoints re-fetch from DB
+- ✅ **Session context anomaly (log-only)** — IP/user-agent drift logged once per session per hour, never locks out
+- ✅ **Max sessions per user** (`SESSION_MAX_PER_USER`) — LRU eviction of the least recently active session at login
 - ✅ **Cross-session revoke re-auth** (stateless HMAC proof, `REAUTH_REQUIRED` enforcement)
 - ✅ **Admin session console API** (list/revoke another user's sessions)
 - ✅ Tenant Isolation
@@ -447,6 +450,7 @@ The following files test specific authentication mechanisms beyond the core hand
 | Bearer Authentication       | `tests/unit/hooks/bearer-authentication.test.ts`            |
 | Guest Authentication        | `tests/unit/hooks/guest-authentication.test.ts`             |
 | Magic Links Authentication  | `tests/unit/hooks/magic-links-authentication.test.ts`       |
+| Session Snapshots & Anomaly | `tests/unit/auth/session-user.test.ts`                      |
 
 ---
 
