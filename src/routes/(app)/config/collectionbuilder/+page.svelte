@@ -462,7 +462,7 @@ function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = u
             body: existingCategory
                 ? "Modify Category Details"
 : "Enter a name and icon for your new category",
-            size: "lg",
+            size: "xl",
         },
         async (
             response:
@@ -592,6 +592,7 @@ function modalLoadPreset(): void {
         {
             title: "Load Starter Preset",
             body: "Select a preset to load into your project. This will copy preset collections and build the project.",
+            size: "xl",
         },
         async (response: { presetId: string } | null) => {
             if (!response || !response.presetId) return;
@@ -629,7 +630,7 @@ function modalLoadPreset(): void {
             ModalQuickStart as any,
             {
                 title: "Quick-Start Templates",
-                body: "Choose a template to instantly create collections.",
+                size: "xl",
             },
             async (response: { installed: boolean; collections?: string[] } | null) => {
                 if (!response || !response.installed) return;

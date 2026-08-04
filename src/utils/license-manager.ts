@@ -142,7 +142,12 @@ async function computeTrialStatus(): Promise<LicenseStatus | null> {
       // adapter — unwrap before the Array.isArray check, otherwise the trial
       // NEVER activates and the extension is permanently LICENSE_REQUIRED.
       const usersResult = await db.auth.getAllUsers();
-      const users = Array.isArray(usersResult) ? usersResult : (usersResult?.data ?? []);
+      // Prefer DatabaseResult unwrap; only accept a real User[] payload.
+      const users = Array.isArray(usersResult)
+        ? usersResult
+        : usersResult?.success && Array.isArray(usersResult.data)
+          ? usersResult.data
+          : [];
       if (users.length === 0) return null;
 
       // Single O(n) pass — no sort

@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:978dc898-831d-4e1a-b07a-da29af614128",
+  "serialNumber": "urn:uuid:e479c7c4-293c-448f-a4a1-c837cd8f7e76",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-04T13:03:53.513Z",
+    "timestamp": "2026-08-04T13:22:56.822Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -1953,214 +1953,6 @@
         {
           "alg": "SHA-512",
           "content": "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-darwin-aarch64",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-darwin-aarch64@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-Omj20SuiHBOUjUBIyqtkNjSUIjOtEOJwmbix/ZyFH4BaQ6OZTaaRWIR4TjHVz0yadHgli6lLTiAh1uarnvD49A=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-darwin-x64",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-darwin-x64@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-FFj3QdU/OhlDyZOJ8CWfN5eWLpRlT4qjZg7lMQi7jA6GuoY5ajlO1zWLP/MuHYRSbXQUvV52RejNi8DVnAp13w=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-darwin-x64-baseline",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-darwin-x64-baseline@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-OSfsTZstc898HHElhU4NccaBGOSSDn5VfahiVTnidZ9B/+wb7WTyfZJaBeJcfjwJ9H2W9uTh2TGtl3UfcXgV9g=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-freebsd-aarch64",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-freebsd-aarch64@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-LIKrXaFxAHybVO5Pf+9XP2FHUj/5APvXTUKk9dqHm5iFz4oH+W24cmhjkJirNujh9hKeTyrpWSe3no9JZKowIw=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-freebsd-x64",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-freebsd-x64@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-uwD+fGUH1ADpIF3B1U2jWzzb20QwRLZfj5QZ28GUCGrAJ/nTmWrD6YYGsblCY1wuhldRez3lU40AyuvSCyLYmw=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-linux-aarch64",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-linux-aarch64@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-X5SsPZHs+iYO8R/efIcRtc7gT2Q2DgPfliCxEkx4cXBumwkw0c/EsHMNwH3EgGpCDaZ7IYVPhpCG/xBOQHEwZw=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-linux-aarch64-android",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-linux-aarch64-android@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-y4kq5b85lsrmFb9Xvi4w9mA5IEFJkLMrSmYn06q24KjL9rUWDWO3VFZEtteZxUN5+ec3Zm5S8OnJw1umaCbVjA=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-linux-aarch64-musl",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-linux-aarch64-musl@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-jmqOA92Cd1NL/1XBd4bFkJLxQ86K0RW7ohxS2qzzAvuitO4JiIxjjTeCspoU44zCozH72HpfZfUE2On31OjnWA=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-linux-x64",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-linux-x64@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-7OVTAKvwfPmSbIV1HpdOoVVx5VRc427GuPPne93N6vk4eQBPId9nXmZDh9/zGaKPdbVjVtQSZafWQoUjx38Utw=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-linux-x64-android",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-linux-x64-android@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-qe9e1d+3VAEU7nAA2ol9Jvmy/o99PVMSgZhHn7Q/9O3YcDrfEqyQ8zm4zoe5qTEo8HZH0dN03Le0Ys2eQPs7eg=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-linux-x64-baseline",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-linux-x64-baseline@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-q/8EdOC0yUE8FPeoOVq8/Pw5I9/tJaYmUfO/uDUAREx8IUnOJH1RJ5A3BjFqre8pvJoiZA9AovPJq5FnNNjSxA=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-linux-x64-musl",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-linux-x64-musl@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-GBCB/k/sIqcr06eTNgg7g46qiUv35Jasx4XiccJ/n7RGqrE4RWUD/XJBbWFprVPjvqd59+QtSnS99XGqvftHfg=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-linux-x64-musl-baseline",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-linux-x64-musl-baseline@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-n6iE71G4lQE4XkrZhQQcL5YUlxDbnq6nqV7zeQi33PMsLT/0kYE+RvHOtBWZ3w0wMdXZfINmp63hIb9ijUBGtw=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-windows-aarch64",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-windows-aarch64@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-T7s3x/BsVKQObGU6QDkZeI6wKynzqGbBH1yI77jrrj5siElclxr3DQrDIk8CV4G5/SJq2HHq4kpLyYY2DKCSmA=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-windows-x64",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-windows-x64@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-mUFWL3BoYkNpjd8e9PqROiFF/1Xeotq20mABJsiQH62jM1g5zqWh4khw1RZ6bX8Q8fWvlPaxG1PjofkmjUi3vg=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@oven/bun-windows-x64-baseline",
-      "version": "1.3.14",
-      "purl": "pkg:npm/@oven/bun-windows-x64-baseline@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-uIjLUC1S9DWgICzuoMba7vurBJnBruE4S5CxnvmZkdqWVXRzx1Rgu636HoH+k0qeaQCFh3jeG3JQ1y6fRHv0sw=="
         }
       ]
     },
@@ -5450,19 +5242,6 @@
         {
           "alg": "SHA-512",
           "content": "sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "bun",
-      "version": "1.3.14",
-      "purl": "pkg:npm/bun@1.3.14",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-aB6GVd42x1Y5ie1K16SF+oLGtgSkwX9hgoDdIW88pjvfTccU8F1vfpoOt34QLv0dZ1v3XimtaxPlZUG81Gx9Zg=="
         }
       ]
     },

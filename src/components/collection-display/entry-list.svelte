@@ -965,101 +965,96 @@ bulk actions, and predictive preloading.
 		</p>
 	</div>
 {:else}
-	<!-- Header -->
-	<div class="ms-2 mb-2 flex justify-between dark:text-white">
-		<!-- Row 1 for Mobile -->
-		<div class="flex items-center justify-between">
-			<!-- Hamburger -->
+	<!-- Header Bar -->
+	<div class="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
+		<!-- Left: Sidebar Toggle, Title, Category Breadcrumb, Count -->
+		<div class="flex items-center gap-3 min-w-0">
 			{#if ui.state.leftSidebar === 'hidden'}
 				<Button variant="outline"
 					type="button"
-					onkeydown={() => {}}
 					onclick={() => ui.toggle('leftSidebar', screen.isDesktop ? 'full' : 'collapsed')}
 					aria-label="open-sidebar"
-				 class="p-0! min-w-0 mt-1">
-					<iconify-icon icon="mingcute:menu-fill" width={24}></iconify-icon>
+					class="h-9 w-9 p-0 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-700">
+					<iconify-icon icon="mingcute:menu-fill" width="20"></iconify-icon>
 				</Button>
 			{/if}
 
-			<!-- Collection type with icon -->
-			<div class="me-1 flex flex-col {!ui.state.leftSidebar ? 'ms-2' : 'ms-1 sm:ms-2'}">
+			<div class="flex flex-col min-w-0">
 				{#if categoryName}
-					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-50 rtl:text-left">{categoryName}</div>
+					<span class="text-[11px] font-medium tracking-wide uppercase text-surface-400 dark:text-surface-400 truncate">{categoryName}</span>
 				{/if}
-				<h1 class="-mt-2 flex justify-start text-sm font-bold capitalize dark:text-white md:text-2xl lg:text-xl">
-					<span>
-						<iconify-icon
-							icon={collectionIcon}
-							width="24"
-							class="me-1 text-error-500 sm:me-2"
-							aria-hidden="true"
-						></iconify-icon>
-					</span>
+				<div class="flex items-center gap-2">
+					<iconify-icon icon={collectionIcon} width="22" class="text-primary-500 shrink-0"></iconify-icon>
 					{#if currentCollection?.name}
-						<div class="flex max-w-21.25 whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
+						<h1 class="text-lg md:text-xl font-bold tracking-tight text-surface-900 dark:text-surface-50 truncate">
 							{currentCollection.name}
-							{#if collectionStats}
-								<span class="ms-2 text-xs font-normal text-surface-500">({collectionStats.count})</span>
-							{/if}
-						</div>
+						</h1>
 					{/if}
-				</h1>
+					{#if collectionStats}
+						<span class="rounded-full bg-surface-200 dark:bg-surface-800 px-2 py-0.5 text-xs font-semibold text-surface-600 dark:text-surface-300">
+							{collectionStats.count}
+						</span>
+					{/if}
+				</div>
 			</div>
 		</div>
-		<div class="flex items-center justify-between gap-1 overflow-x-auto shrink-0 max-w-full">
-			<!-- Expand/Collapse -->
+
+		<!-- Right: Action Buttons (Create / MultiButton) -->
+		<div class="flex items-center gap-2 shrink-0">
+			<!-- Mobile Filter Toggle -->
 			<Button variant="outline"
 				type="button"
-				onkeydown={() => {}}
 				onclick={() => (expand = !expand)}
 				aria-label="expand-collapse-filters"
-			 class="p-0! min-w-0 sm:hidden">
-				<iconify-icon icon="material-symbols:filter-list-rounded" width={24}></iconify-icon>
+				class="h-10 px-3 rounded-xl sm:hidden border border-surface-300 dark:border-surface-700">
+				<iconify-icon icon="material-symbols:filter-list-rounded" width="20"></iconify-icon>
 			</Button>
 
-			<!-- Translation Content Language - Mobile -->
-			<div class="mt-1 sm:hidden"><TranslationStatus /></div>
-
-			<!-- Table Filter with Translation Content Language - Desktop -->
-			<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
-				<TableFilter
-					bind:globalSearchValue
-					bind:filterShow
-					bind:columnShow
-					bind:density={entryListPaginationSettings.density}
-				/>
-				<SmartTableSavedViewsMenu
-					scope={viewsScope}
-					getSnapshot={getSavedViewSnapshot}
-					onApply={applySavedView}
-				/>
-				<SmartTableMetricsBadge summary={listMetrics} />
-				<TranslationStatus />
-			</div>
-
-			<!-- MultiButton -->
-			<div class="flex items-center justify-end sm:mt-0 sm:w-auto sshrink-0">
-				<EntryListMultiButton
-					isCollectionEmpty={tableData?.length === 0}
-					{hasSelections}
-					selectedCount={smartTable.selectedCount}
-					selectedItems={getSelectedRawEntries()}
-					bind:showDeleted
-					publish={onPublish}
-					unpublish={onUnpublish}
-					schedule={onSchedule}
-					delete={onDelete}
-					draft={onDraft}
-					clone={onClone}
-					create={onCreate}
-				/>
-			</div>
+			<!-- MultiButton Group -->
+			<EntryListMultiButton
+				isCollectionEmpty={tableData?.length === 0}
+				{hasSelections}
+				selectedCount={smartTable.selectedCount}
+				selectedItems={getSelectedRawEntries()}
+				bind:showDeleted
+				publish={onPublish}
+				unpublish={onUnpublish}
+				schedule={onSchedule}
+				delete={onDelete}
+				draft={onDraft}
+				clone={onClone}
+				create={onCreate}
+			/>
 		</div>
 	</div>
 
-	<!-- Table  Start-->
+	<!-- Control Toolbar Card -->
+	<div class="mb-3 p-2 rounded-xl border border-surface-200/80 dark:border-surface-800 bg-surface-50/80 dark:bg-surface-900/60 backdrop-blur-sm flex flex-wrap items-center justify-between gap-2 shadow-xs">
+		<!-- Search & Filter Controls -->
+		<div class="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+			<TableFilter
+				bind:globalSearchValue
+				bind:filterShow
+				bind:columnShow
+				bind:density={entryListPaginationSettings.density}
+			/>
+			<SmartTableSavedViewsMenu
+				scope={viewsScope}
+				getSnapshot={getSavedViewSnapshot}
+				onApply={applySavedView}
+			/>
+		</div>
+
+		<!-- Language & Metrics Badge -->
+		<div class="flex items-center gap-2 shrink-0">
+			<SmartTableMetricsBadge summary={listMetrics} />
+			<TranslationStatus />
+		</div>
+	</div>
+
+	<!-- Mobile Expanded Filters -->
 	{#if expand}
-		<div class="mb-2 flex flex-wrap items-center justify-center gap-2 sm:hidden">
+		<div class="mb-3 flex flex-wrap items-center justify-center gap-2 sm:hidden p-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-100 dark:bg-surface-800">
 			<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density={entryListPaginationSettings.density} />
 			<SmartTableSavedViewsMenu
 				scope={viewsScope}
@@ -1071,7 +1066,7 @@ bulk actions, and predictive preloading.
 	{/if}
 
 	<!-- Status facet chips (server counts) -->
-	<div class="mb-1 shrink-0">
+	<div class="mb-2 shrink-0">
 		<SmartTableStatusFacets
 			facets={statusFacets}
 			active={activeStatusFacet}
@@ -1158,7 +1153,7 @@ bulk actions, and predictive preloading.
 		<div
 			bind:this={scrollContainerEl}
 			onscroll={onVirtualScroll}
-			class="{SMART_TABLE_SCROLL} max-h-[calc(100dvh)]"
+			class="{SMART_TABLE_SCROLL} max-h-[calc(100vh-14rem)] overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-800 shadow-xs"
 		>
 			<table class={SMART_TABLE}>
 				<!-- Table Header -->
@@ -1175,9 +1170,9 @@ bulk actions, and predictive preloading.
 						/>
 					{/if}
 
-					<tr class="border-b border-black dark:border-white">
+					<tr class="border-b border-surface-200 dark:border-surface-700/80 bg-surface-100/80 dark:bg-surface-900/90">
 						<TableIcons
-							cellClass={`w-10 ${pinCellClass('start')} ${hasSelections ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
+							cellClass={`w-10 ${pinCellClass('start')} ${hasSelections ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
 							checked={SelectAll.value}
 							onCheck={(checked: boolean) => {
 								SelectAll.value = checked;
@@ -1187,7 +1182,7 @@ bulk actions, and predictive preloading.
 						{#each visibleTableHeaders as header (header.id)}
 							{@const colKey = ((header as TableHeader).name || header.id) as string}
 							<th
-								class="relative text-center text-xs sm:text-sm {cellPaddingClass}"
+								class="relative text-center text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-300 {cellPaddingClass}"
 								style={smartTable.getColumnWidthStyle(colKey)}
 								aria-sort={(header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy
 									? entryListPaginationSettings.sorting.isSorted === 1
@@ -1197,10 +1192,10 @@ bulk actions, and predictive preloading.
 							>
 								<Button
 									variant="ghost"
-									class="flex w-full items-center justify-center font-bold uppercase focus:outline-none {(header as TableHeader).name ===
+									class="flex w-full items-center justify-center font-semibold text-xs tracking-wider focus:outline-none {(header as TableHeader).name ===
 									entryListPaginationSettings.sorting.sortedBy
-										? 'text-tertiary-500 dark:text-primary-500'
-										: 'text-tertiary-500 dark:text-primary-500'}"
+										? 'text-primary-600 dark:text-primary-400 font-bold'
+										: 'text-surface-700 dark:text-surface-300 hover:text-primary-500'}"
 									onclick={() => onSortChange((header as TableHeader).name || '')}
 									aria-label="sort-column"
 								>
@@ -1215,7 +1210,7 @@ bulk actions, and predictive preloading.
 						{/each}
 					</tr>
 				</thead>
-				<tbody>
+				<tbody class="divide-y divide-surface-200/60 dark:divide-surface-800/60">
 					{#if useRowVirtualization && spacerTop > 0}
 						<tr style="height: {spacerTop}px" aria-hidden="true"></tr>
 					{/if}
@@ -1224,13 +1219,13 @@ bulk actions, and predictive preloading.
 							{@const rowId = String(entry._id ?? '')}
 							{@const rowSelected = smartTable.isSelected(rowId)}
 							<tr
-								class="{rowSelected ? 'bg-tertiary-500 dark:bg-primary-500' : ''}"
+								class="transition-colors duration-150 {rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : 'hover:bg-surface-100/60 dark:hover:bg-surface-800/50'}"
 								style={useRowVirtualization ? 'content-visibility: auto; contain-intrinsic-size: 48px;' : undefined}
 								onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
 								onmouseleave={handleRowHoverEnd}
 							>
 								<TableIcons
-									cellClass={`w-10 text-center ${rowSelected ? 'bg-tertiary-500 dark:bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
+									cellClass={`w-10 text-center ${rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
 									checked={rowSelected}
 									onCheck={() => {
 										if (rowId) smartTable.toggleSelect(rowId);
@@ -1240,9 +1235,9 @@ bulk actions, and predictive preloading.
 									{#each visibleTableHeaders as header (header.id)}
 										{@const cellKey = ((header as TableHeader).name || header.id) as string}
 										<td
-											class="text-center {cellPaddingClass} text-xs font-bold sm:text-sm {(header as TableHeader).name !== 'status'
-												? 'cursor-pointer transition-colors duration-200 hover:bg-tertiary-500 dark:bg-primary-500/10 dark:hover:bg-secondary-500/20'
-												: 'hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
+											class="text-center {cellPaddingClass} text-xs sm:text-sm text-surface-800 dark:text-surface-200 {(header as TableHeader).name !== 'status'
+												? 'cursor-pointer transition-colors duration-150 hover:bg-surface-200/50 dark:hover:bg-surface-700/50'
+												: ''}"
 											style={smartTable.getColumnWidthStyle(cellKey)}
 											onclick={async () => {
 												if ((header as TableHeader).name === 'status') {
@@ -1382,11 +1377,24 @@ bulk actions, and predictive preloading.
 {/if}
 
 <style>
-	div::-webkit-scrollbar-thumb {
-		background-color: #0ec423;
-		border-radius: 50px;
-	}
 	div::-webkit-scrollbar {
-		width: 10px;
+		width: 6px;
+		height: 6px;
+	}
+	div::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	div::-webkit-scrollbar-thumb {
+		background-color: rgba(156, 163, 175, 0.4);
+		border-radius: 9999px;
+	}
+	div::-webkit-scrollbar-thumb:hover {
+		background-color: rgba(156, 163, 175, 0.7);
+	}
+	:global(.dark) div::-webkit-scrollbar-thumb {
+		background-color: rgba(75, 85, 99, 0.5);
+	}
+	:global(.dark) div::-webkit-scrollbar-thumb:hover {
+		background-color: rgba(107, 114, 128, 0.8);
 	}
 </style>

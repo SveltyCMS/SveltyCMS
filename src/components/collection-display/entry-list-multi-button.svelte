@@ -103,7 +103,7 @@
 			label: entrylist_multibutton_create(),
 			gradient: 'gradient-tertiary',
 			icon: 'ic:round-plus',
-			textColor: 'text-white',
+			textColor: 'text-white dark:text-white',
 			shortcut: 'Alt+N',
 			shortcutKey: 'n',
 			requiresSelection: false,
@@ -114,7 +114,7 @@
 			label: entrylist_multibutton_publish(),
 			gradient: 'gradient-primary',
 			icon: 'bi:hand-thumbs-up-fill',
-			textColor: 'text-white',
+			textColor: 'text-white dark:text-white',
 			shortcut: 'Alt+P',
 			shortcutKey: 'p',
 			requiresSelection: true,
@@ -125,7 +125,7 @@
 			label: entrylist_multibutton_unpublish(),
 			gradient: 'gradient-warning',
 			icon: 'bi:pause-circle',
-			textColor: 'text-black',
+			textColor: 'text-black dark:text-black',
 			shortcut: 'Alt+U',
 			shortcutKey: 'u',
 			requiresSelection: true,
@@ -136,7 +136,7 @@
 			label: 'Draft',
 			gradient: 'gradient-secondary',
 			icon: 'ic:baseline-edit-note',
-			textColor: 'text-white',
+			textColor: 'text-white dark:text-white',
 			shortcut: 'Alt+D',
 			shortcutKey: 'd',
 			requiresSelection: true,
@@ -147,7 +147,7 @@
 			label: entrylist_multibutton_schedule(),
 			gradient: 'gradient-tertiary',
 			icon: 'ic:round-schedule',
-			textColor: 'text-white',
+			textColor: 'text-white dark:text-white',
 			requiresSelection: true,
 			dangerLevel: 'low'
 		},
@@ -156,7 +156,7 @@
 			label: entrylist_multibutton_clone(),
 			gradient: 'gradient-secondary',
 			icon: 'ic:round-content-copy',
-			textColor: 'text-white',
+			textColor: 'text-white dark:text-white',
 			requiresSelection: true,
 			dangerLevel: 'low'
 		},
@@ -165,7 +165,7 @@
 			label: button_delete(),
 			gradient: 'gradient-error',
 			icon: 'ic:round-delete-forever',
-			textColor: 'text-white',
+			textColor: 'text-white dark:text-white',
 			shortcut: 'Alt+Del',
 			shortcutKey: 'Delete',
 			requiresSelection: true,
@@ -460,140 +460,152 @@
 </script>
 
 <!-- Multi-button group -->
-<div class="relative flex items-center" bind:this={dropdownRef}>
-	<div class="flex items-center gap-0">
-		<!-- Archive Toggle -->
-		<SystemTooltip title={showDeleted ? entrylist_multibutton_show_active() : entrylist_multibutton_show_archived()}>
-			<Button variant="error"
-				type="button"
-				onclick={() => (showDeleted = !showDeleted)}
-				aria-label={showDeleted ? entrylist_multibutton_viewing_archived() : entrylist_multibutton_viewing_active()}
-				aria-pressed={showDeleted}
-			 class="mt-1 rounded-full me-2 transition-all active:scale-90 {!showDeleted ? ' ' : ' text-white ring-2 ring-error-500 animate-pulse'}">
-				<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="24"></iconify-icon>
-			</Button>
-		</SystemTooltip>
+<div class="relative flex items-center gap-2" bind:this={dropdownRef}>
+	<!-- Archive Toggle -->
+	<SystemTooltip title={showDeleted ? entrylist_multibutton_show_active() : entrylist_multibutton_show_archived()}>
+		<Button variant="ghost"
+			type="button"
+			onclick={() => (showDeleted = !showDeleted)}
+			aria-label={showDeleted ? entrylist_multibutton_viewing_archived() : entrylist_multibutton_viewing_active()}
+			aria-pressed={showDeleted}
+			class="h-10 w-10 p-0 flex items-center justify-center rounded-xl border transition-all active:scale-95 {!showDeleted ? 'border-surface-300/60 dark:border-surface-700/60 bg-surface-100/80 dark:bg-surface-800/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700' : 'border-error-500/80 bg-error-500/15 text-error-600 dark:text-error-400 ring-2 ring-error-500/30'}">
+			<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="20"></iconify-icon>
+		</Button>
+	</SystemTooltip>
 
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 {!hasSelections
-				? 'active:scale-95 cursor-pointer'
-				: ''} rounded-l-full rounded-r-md border border-white/20"
-			onclick={!hasSelections ? handleMainButtonClick : undefined}
-		>
-			<!-- Main Contextual Button -->
+	<!-- Main Action / Split Button Group -->
+	<div class="relative flex items-center shadow-lg rounded-xl overflow-visible transition-all duration-200">
+		{#if !hasSelections}
+			<!-- Single Action Button (e.g. Create New) when no entries are selected -->
 			<Button
 				variant="ghost"
 				data-testid="entry-list-action-{currentAction}"
 				onclick={handleMainButtonClick}
 				disabled={isProcessing}
-				class="h-10 min-w-15 md:min-w-35 rtl:rotate-180 font-bold transition-all duration-200
-					active:scale-95
+				class="h-10 px-5 rounded-xl font-semibold text-sm transition-all duration-200
+					active:scale-95 shadow-md hover:shadow-lg
 					{currentConfig.gradient} {currentConfig.textColor}
-					rounded-l-full rounded-r-none px-6 flex items-center gap-2 border-e border-white
+					flex items-center gap-2 border border-white/20
 					disabled:opacity-50 disabled:cursor-not-allowed"
 				aria-label={dynamicLabel}
 				aria-busy={isProcessing}
 			>
 				{#if isProcessing}
-					<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500 dark:border-surface-600 dark:border-t-primary-500"></div>
+					<div class="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white"></div>
 				{:else}
-					<iconify-icon icon={currentConfig.icon} width="24"></iconify-icon>
+					<iconify-icon icon={currentConfig.icon} width="20"></iconify-icon>
 				{/if}
-				<span class="hidden md:inline-block">{dynamicLabel}</span>
+				<span>{dynamicLabel}</span>
 			</Button>
-
-			<!-- Selection Badge -->
-			{#if hasSelections && selectedCount > 0}
-				<span
-					class="absolute -top-2 inset-s-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-surface-900 border border-white/20 text-[10px] font-bold text-white shadow-xl z-20 px-1"
-					transition:scale={{ duration: 200, easing: quintOut }}
-				>
-					{selectedCount}
-				</span>
-			{/if}
-
-			<!-- Dropdown Toggle -->
-			{#if !isCollectionEmpty}
+		{:else}
+			<!-- Split Action Button with Dropdown when entries are selected -->
+			<div class="flex items-center rounded-xl overflow-hidden border border-white/20 shadow-md">
 				<Button
 					variant="ghost"
-					onclick={hasSelections ? toggleDropdown : undefined}
-					disabled={!hasSelections || isProcessing}
-					class="h-10 w-8 border-s border-white/20 transition-all duration-200 text-white flex items-center justify-center shadow-inner
-						{hasSelections && !isProcessing
-						? 'bg-surface-500 hover:bg-surface-400 active:scale-95 cursor-pointer'
-						: currentConfig.gradient + ' pointer-events-none opacity-90'}"
+					data-testid="entry-list-action-{currentAction}"
+					onclick={handleMainButtonClick}
+					disabled={isProcessing}
+					class="h-10 px-4 rounded-l-xl rounded-r-none font-semibold text-sm transition-all duration-200
+						active:scale-95
+						{currentConfig.gradient} {currentConfig.textColor}
+						flex items-center gap-2 border-e border-white/20
+						disabled:opacity-50 disabled:cursor-not-allowed"
+					aria-label={dynamicLabel}
+					aria-busy={isProcessing}
+				>
+					{#if isProcessing}
+						<div class="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white"></div>
+					{:else}
+						<iconify-icon icon={currentConfig.icon} width="20"></iconify-icon>
+					{/if}
+					<span>{dynamicLabel}</span>
+				</Button>
+
+				<!-- Selection Badge -->
+				{#if selectedCount > 0}
+					<span
+						class="absolute -top-2 inset-s-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-surface-900 border border-white/20 text-[10px] font-bold text-white shadow-xl z-20 px-1.5"
+						transition:scale={{ duration: 200, easing: quintOut }}
+					>
+						{selectedCount}
+					</span>
+				{/if}
+
+				<!-- Dropdown Toggle -->
+				<Button
+					variant="ghost"
+					onclick={toggleDropdown}
+					disabled={isProcessing}
+					class="h-10 w-9 rounded-r-xl rounded-l-none border-s border-white/20 transition-all duration-200 text-white flex items-center justify-center
+						{currentConfig.gradient} hover:brightness-110 active:scale-95 cursor-pointer"
 					aria-haspopup="menu"
 					aria-expanded={isDropdownOpen}
 					aria-label={entrylist_multibutton_toggle_menu()}
 				>
-					{#if hasSelections}
-						<iconify-icon
-							icon="ic:round-keyboard-arrow-down"
-							width="20"
-							class="transition-transform duration-200 {isDropdownOpen ? 'rotate-180' : ''}"
-						></iconify-icon>
-					{/if}
+					<iconify-icon
+						icon="ic:round-keyboard-arrow-down"
+						width="20"
+						class="transition-transform duration-200 {isDropdownOpen ? 'rotate-180' : ''}"
+					></iconify-icon>
 				</Button>
-			{/if}
+			</div>
+		{/if}
 
-			<!-- Dropdown Menu -->
-			{#if isDropdownOpen}
-				<div
-					class="absolute inset-e-0 top-full z-50 mt-2 w-64 overflow-hidden rounded bg-surface-800 shadow-2xl ring-1 ring-white/10 backdrop-blur-md"
-					role="menu"
-					aria-label={entrylist_multibutton_available_actions()}
-					transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
-				>
-					<div class="max-h-75 overflow-y-auto custom-scrollbar">
-						<ul class="flex flex-col p-1">
-							{#each availableActions as config (config.type)}
-								<li
-									class="relative mb-1 last:mb-0"
-									role="none"
-									onmouseenter={() => (hoveredAction = config.type)}
-									onmouseleave={() => (hoveredAction = null)}
+		<!-- Dropdown Menu -->
+		{#if isDropdownOpen}
+			<div
+				class="absolute inset-e-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl bg-surface-800/95 shadow-2xl ring-1 ring-white/10 backdrop-blur-md"
+				role="menu"
+				aria-label={entrylist_multibutton_available_actions()}
+				transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
+			>
+				<div class="max-h-75 overflow-y-auto custom-scrollbar">
+					<ul class="flex flex-col p-1.5 gap-0.5">
+						{#each availableActions as config (config.type)}
+							<li
+								class="relative"
+								role="none"
+								onmouseenter={() => (hoveredAction = config.type)}
+								onmouseleave={() => (hoveredAction = null)}
+							>
+								<Button
+									variant="ghost"
+									onclick={(e: MouseEvent) => handleOptionClick(e, config.type)}
+									role="menuitem"
+									class="group/item relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-start text-white transition-all duration-150 hover:bg-white/10"
+									aria-label="{config.label} {config.shortcut ? `(${config.shortcut})` : ''}"
 								>
-									<Button
-										variant="ghost"
-										onclick={(e: MouseEvent) => handleOptionClick(e, config.type)}
-										role="menuitem"
-										class="group/item relative flex w-full items-center gap-3 rounded px-3 py-2.5 text-start text-white transition-all duration-200 hover:bg-white/5"
-										aria-label="{config.label} {config.shortcut ? `(${config.shortcut})` : ''}"
+									<!-- Icon -->
+									<div
+										class="relative z-10 flex h-7 w-7 items-center justify-center rounded-lg bg-surface-700/60 ring-1 ring-white/10 transition-transform group-hover/item:scale-105"
 									>
-										<!-- Icon -->
-										<div
-											class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 ring-1 ring-white/10 transition-transform group-hover/item:scale-110 group-active/item:scale-95"
-										>
-											<iconify-icon icon={config.icon} width="16" class={hoveredAction === config.type ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-300'}
-											></iconify-icon>
-										</div>
+										<iconify-icon icon={config.icon} width="16" class={hoveredAction === config.type ? 'text-primary-400' : 'text-surface-300'}
+										></iconify-icon>
+									</div>
 
-										<!-- Label & Shortcut -->
-										<div class="relative z-10 flex-1 min-w-0">
-											<div class="font-medium text-sm truncate">{config.label}</div>
-											{#if config.shortcut}
-												<div class="text-[10px] text-surface-400">{config.shortcut}</div>
-											{/if}
-										</div>
-
-										<!-- Danger Badge -->
-										{#if config.dangerLevel === 'high'}
-											<span
-												class="relative z-10 flex items-center justify-center rounded-full bg-error-500/20 px-2 py-0.5 text-[10px] font-bold text-error-500 ring-1 ring-error-500/30"
-											>
-												Warn
-											</span>
+									<!-- Label & Shortcut -->
+									<div class="relative z-10 flex-1 min-w-0">
+										<div class="font-medium text-xs truncate">{config.label}</div>
+										{#if config.shortcut}
+											<div class="text-[10px] text-surface-400">{config.shortcut}</div>
 										{/if}
-									</Button>
-								</li>
-							{/each}
-						</ul>
-					</div>
+									</div>
+
+									<!-- Danger Badge -->
+									{#if config.dangerLevel === 'high'}
+										<span
+											class="relative z-10 flex items-center justify-center rounded-md bg-error-500/20 px-1.5 py-0.5 text-[10px] font-bold text-error-400 ring-1 ring-error-500/30"
+										>
+											Warn
+										</span>
+									{/if}
+								</Button>
+							</li>
+						{/each}
+					</ul>
 				</div>
-			{/if}
-		</div>
+			</div>
+		{/if}
 	</div>
 </div>
 
