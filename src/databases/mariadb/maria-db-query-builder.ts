@@ -183,7 +183,24 @@ export class MariaDBQueryBuilder<T extends BaseEntity> implements QueryBuilder<T
   }
 
   paginate(options: PaginationOptions): this {
-    if (options.page && options.pageSize) {
+    // Keyset cursor pagination: O(1) seek via index instead of O(N) offset skip
+    if (options.cursor) {
+      const direction = options.cursorDirection || "after";
+      const idCol = (
+        this.table as unknown as Record<string, import("drizzle-orm/mysql-core").MySqlColumn>
+      )["_id"];
+      if (idCol) {
+        if (direction === "after") {
+          this.conditions.push(sql`${idCol} > ${options.cursor}`);
+          this.sortOptions.push({ field: "_id" as keyof T, direction: "asc" });
+        } else {
+          this.conditions.push(sql`${idCol} < ${options.cursor}`);
+          this.sortOptions.push({ field: "_id" as keyof T, direction: "desc" });
+        }
+      }
+      this.limitValue = options.pageSize || options.limit || 20;
+    } else if (options.page && options.pageSize) {
+      // Fallback: offset-based pagination
       this.skipValue = (options.page - 1) * options.pageSize;
       this.limitValue = options.pageSize;
     }

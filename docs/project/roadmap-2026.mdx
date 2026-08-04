@@ -142,3 +142,34 @@ Additional integrations: advanced-search.ts (media library modal), webgpu-proces
 - **TypeScript 7 Upgrade** _(evaluated 2026-07)_: `tsc --noEmit` runs in ~3.3s (vs ~20s on TS 6), but the `"typescript"` namespace API (`ts.SourceFile`, `ts.createSourceFile`, `ts.transform`, `ts.createPrinter`) has breaking changes in TS 7.0.2. Blocks `tests/unit/utils/transformers.test.ts`. Pending: upstream API migration or TS 7.x patch.
 
 ---
+
+## 📣 Future Improvements to Get Noticed (Priority Order)
+
+### 🔴 High — Do Next
+
+1. **Marketplace Static Sync**: `og-marketplace.png` exists in repo/build but 404s live (nginx docroot is a separate copy) — sync the vhost docroot or symlink it to `build/client`.
+2. **"Was this page helpful?" Widget**: Docs articles feedback widget — the `/api/feedback` endpoint exists in backend but is currently uncalled (Payload parity).
+3. **Framework Quickstart Tabs & Role Segmentation**: Add SvelteKit / Next.js / Nuxt / Astro quickstart tabs and developer/editor role segmentation on docs landing (Directus/Sanity parity).
+4. **Targeted SEO & Comparison Blogs**: Publish keyword-targeted comparison blogs (“best open source headless CMS for SvelteKit”, “Strapi alternative”, migration tutorial) — comparison content is the primary B2B acquisition channel.
+5. **`FUNDING.yml` & Sponsor Section**: GitHub Sponsor button and contributor sustainability section.
+6. **Ecosystem Launch Activities**: Execute distribution plan across Product Hunt, “Show HN”, `awesome-svelte`, `awesome-headless-cms`, AlternativeTo, Jamstack.org, and SvelteSociety.
+
+### 🟡 Medium Priority
+
+7. **Versioned Docs System**: Build `versions.json` from git tags (fixing selector redirects to obsolete hosts).
+8. **Per-Page OG Image Generation**: Dynamic social card previews per documentation page (replacing global `SveltyCMS.png`).
+9. **Telemetry SSR of First-Paint Stats**: Hydrate performance benchmark metrics server-side so search/AI crawlers parse real metrics rather than UI skeletons.
+10. **Canonical Discord Community Invite**: Consolidate invite links across Footer, JSON-LD `sameAs`, docs landing, and marketing docs to a single canonical code (reconciling `VrvZF6e2sC` and `PX7FzbrsKt`).
+11. **Stripe Subscription Renewal Logic**: Fix `invoice.parent.subscription_details.subscription` casting to ensure recurring invoice renewal webhooks trigger correctly.
+12. **"Enterprise Governance" Feature Page**: Market hidden features: GDPR erasure/portability, AES-256-GCM encrypted backups, PII anonymized sync, anomaly detection, and sandboxed plugins.
+
+### 🤖 GEO / AI Engine Optimization
+
+13. **Agent-Prompt Onboarding**: Provide zero-friction "Copy Agent Prompt" snippet ("paste this prompt into your AI coding agent") inspired by Sanity.
+14. **Structured FAQ & JSON-LD**: Comprehensive `FAQPage` schema markup and expanded FAQ accordions across feature landing pages.
+15. **Verifiable & Dated Technical Claims**: Enforce strict EU Directive 2006/114/EC and German UWG §6 compliance with dated citations for maximum AI engine trust & retrieval indexing.
+
+### 📈 Measurement & Traction KPIs
+
+16. **Analytics & Search Console**: Google Search Console verification, Plausible/GA4 privacy-first telemetry, DR tracking (Ahrefs/Semrush).
+    - **Target KPIs**: 100+ referring domains within 6 months, organic non-brand keyword ranking, GitHub star momentum.
