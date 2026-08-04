@@ -387,15 +387,19 @@ async function signInInternal(event: RequestEvent, input: any) {
       ok = true;
     } else return { success: false, message: tr.message || "Invalid token." };
   } else {
-    const ar = await auth.authenticate(e, p, undefined, {
-      bypassTenantCheck: true,
-    });
+    const ip = getClientIp(event);
+    const ua = event.request.headers.get("user-agent") || "";
+    const ar = await auth.authenticate(
+      e,
+      p,
+      undefined,
+      { bypassTenantCheck: true },
+      { userAgent: ua, ipAddress: ip },
+    );
     if (ar?.user) {
       user = ar.user;
 
       // ── Plugin Auth Hooks ──────────────────────────────────────────────
-      const ip = getClientIp(event);
-      const ua = event.request.headers.get("user-agent") || "";
       const authHookEvent: AuthHookEvent = {
         user,
         method: "password",

@@ -39,6 +39,21 @@ vi.mock("$app/navigation", () => ({
   beforeNavigate: vi.fn(),
 }));
 
+// Match sibling hook suites: keep the session-cache LRU usable for full-TTL
+// tests (the global unit setup lowers SESSION_CACHE_TTL_MS to 1h).
+vi.mock("@src/databases/cache/cache-service", () => ({
+  SESSION_CACHE_TTL_MS: 86400000,
+  cacheService: {
+    get: vi.fn().mockResolvedValue(null),
+    getSync: vi.fn().mockReturnValue(null),
+    set: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(true),
+    isNegativeHit: vi.fn().mockReturnValue(false),
+    recordMiss: vi.fn(),
+    invalidateAll: vi.fn(),
+  },
+}));
+
 const { handleAuthentication, clearAllSessionCaches } =
   await import("@src/hooks/handle-authentication");
 const { dbAdapter } = await import("@src/databases/db");
@@ -78,6 +93,14 @@ function setupSessionMock(userData: Record<string, unknown>) {
 
 function setupInvalidSession() {
   (dbAdapter as any).auth = {
+    // success:true + data:null = session row definitively does not exist
+    getSessionTokenData: vi.fn().mockResolvedValue({ success: true, data: null }),
+  };
+}
+
+function setupTransientSession() {
+  (dbAdapter as any).auth = {
+    // success:false = lookup failed (DB error) — transient, cookie must be kept
     getSessionTokenData: vi.fn().mockResolvedValue({ success: false }),
   };
 }
@@ -121,6 +144,153 @@ describe("handleAuthentication Middleware", () => {
       const resolve = vi.fn(() => Promise.resolve(new Response("OK")));
       await handleAuthentication({ event, resolve });
       expect(event.cookies.delete).toHaveBeenCalled();
+    });
+
+    it("keeps the session cookie on transient validation failure (DB error)", async () => {
+      const event = createMockEvent("/dashboard", "flaky");
+      setupTransientSession();
+      const resolve = vi.fn(() => Promise.resolve(new Response("OK")));
+      await handleAuthentication({ event, resolve });
+      expect(event.cookies.delete).not.toHaveBeenCalled();
+      expect(event.locals.user).toBeNull();
+    });
+
+    it("revokes a cached session when the user becomes blocked", async () => {
+      const userData = {
+        _id: "user1",
+        email: "test@test.com",
+        role: "admin",
+        tenantId: "t1",
+        blocked: false,
+      };
+      setupSessionMock(userData);
+      const event1 = createMockEvent("/dashboard", "valid-session");
+      await handleAuthentication({
+        event: event1,
+        resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+      });
+      expect(event1.locals.user).not.toBeNull();
+
+      // User gets blocked and the admin action purges the session caches
+      // (batchAction → invalidateSessionCache). The next request re-validates
+      // against the DB, where the blocked check cuts the session off.
+      clearAllSessionCaches();
+      (dbAdapter as any).auth.getUserById = vi
+        .fn()
+        .mockResolvedValue({ success: true, data: { ...userData, blocked: true } });
+      const event2 = createMockEvent("/dashboard", "valid-session");
+      await handleAuthentication({
+        event: event2,
+        resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+      });
+      expect(event2.locals.user).toBeNull();
+      expect(event2.cookies.delete).toHaveBeenCalled();
+    });
+
+    it("coalesces concurrent cold session validations (single-flight)", async () => {
+      // Gate the DB lookup so both requests are in flight before it resolves
+      let resolveDb: ((v: unknown) => void) | undefined;
+      const gate = new Promise<unknown>((r) => (resolveDb = r));
+      (dbAdapter as any).auth = {
+        getSessionTokenData: vi.fn(() => gate),
+        getUserById: vi.fn().mockResolvedValue({
+          success: true,
+          data: { _id: "user1", email: "test@test.com", role: "admin", tenantId: "t1" },
+        }),
+      };
+
+      const eventA = createMockEvent("/dashboard", "cold-session");
+      const eventB = createMockEvent("/dashboard", "cold-session");
+      const promiseA = handleAuthentication({
+        event: eventA,
+        resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+      });
+      const promiseB = handleAuthentication({
+        event: eventB,
+        resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+      });
+
+      resolveDb!({ success: true, data: { user_id: "user1", expiresAt: futureExpiry } });
+      await Promise.all([promiseA, promiseB]);
+
+      // One DB lookup served both concurrent requests — no deny-and-logout race
+      expect((dbAdapter as any).auth.getSessionTokenData).toHaveBeenCalledTimes(1);
+      expect(eventA.locals.user).not.toBeNull();
+      expect(eventB.locals.user).not.toBeNull();
+      expect(eventB.cookies.delete).not.toHaveBeenCalled();
+    });
+
+    it("idle timeout signs out a warm session after SESSION_IDLE_HOURS without activity", async () => {
+      mockPrivateSettings.set("SESSION_IDLE_HOURS", 12);
+      setupSessionMock({
+        _id: "user1",
+        email: "test@test.com",
+        role: "admin",
+        tenantId: "t1",
+        blocked: false,
+      });
+      const event1 = createMockEvent("/dashboard", "idle-session");
+      await handleAuthentication({
+        event: event1,
+        resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+      });
+      expect(event1.locals.user).not.toBeNull();
+
+      vi.useFakeTimers();
+      try {
+        // 13h idle > 12h window (still within the 24h session-cache TTL)
+        vi.advanceTimersByTime(13 * 60 * 60 * 1000);
+        const event2 = createMockEvent("/dashboard", "idle-session");
+        await handleAuthentication({
+          event: event2,
+          resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+        });
+        expect(event2.locals.user).toBeNull();
+        expect(event2.cookies.delete).toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+        mockPrivateSettings.delete("SESSION_IDLE_HOURS");
+      }
+    });
+
+    it("slides the idle clock on activity (idle timeout does not fire)", async () => {
+      mockPrivateSettings.set("SESSION_IDLE_HOURS", 12);
+      setupSessionMock({
+        _id: "user1",
+        email: "test@test.com",
+        role: "admin",
+        tenantId: "t1",
+        blocked: false,
+      });
+      const event1 = createMockEvent("/dashboard", "active-session");
+      await handleAuthentication({
+        event: event1,
+        resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+      });
+
+      vi.useFakeTimers();
+      try {
+        vi.advanceTimersByTime(10 * 60 * 60 * 1000); // 10h — under the window
+        const event2 = createMockEvent("/dashboard", "active-session");
+        await handleAuthentication({
+          event: event2,
+          resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+        });
+        expect(event2.locals.user).not.toBeNull();
+        expect(event2.cookies.delete).not.toHaveBeenCalled();
+
+        // Activity slid the clock: another 10h later still within the window
+        vi.advanceTimersByTime(10 * 60 * 60 * 1000);
+        const event3 = createMockEvent("/dashboard", "active-session");
+        await handleAuthentication({
+          event: event3,
+          resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+        });
+        expect(event3.locals.user).not.toBeNull();
+      } finally {
+        vi.useRealTimers();
+        mockPrivateSettings.delete("SESSION_IDLE_HOURS");
+      }
     });
   });
 

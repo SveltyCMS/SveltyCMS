@@ -1194,6 +1194,22 @@ export const defaultPublicSettings: Array<{
     description: "Minimum length for user passwords",
   },
   {
+    key: "SESSION_DEVICE_POLICY",
+    value: "single-per-device",
+    description:
+      "Active session policy: single-per-device (default), single-per-user, or allow-multiple",
+  },
+  {
+    key: "SESSION_TTL_HOURS",
+    value: 24,
+    description: "Active session lifetime in hours (applied at login and rotation)",
+  },
+  {
+    key: "SESSION_IDLE_HOURS",
+    value: 0,
+    description: "Sign out after this many idle hours (0 = disabled)",
+  },
+  {
     key: "SITE_NAME",
     value: "SveltyCMS",
     description: "The public name of the website",

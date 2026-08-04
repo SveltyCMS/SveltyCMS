@@ -15,15 +15,27 @@ import { hashPassword } from "@utils/security/crypto";
 import { dateToISODateString } from "@src/utils/date";
 import { createLockedUser } from "./utils/auth-test-utils";
 
+// Session device policy override (null = default single-per-device)
+let sessionDevicePolicy: string | null = null;
+// Session TTL override (null = default 24h)
+let sessionTtlHours: number | null = null;
+
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn((key: string) => {
     if (key === "PASSWORD_MIN_LENGTH") return 8;
     if (key === "MULTI_TENANT") return false;
+    if (key === "SESSION_DEVICE_POLICY") return sessionDevicePolicy;
+    if (key === "SESSION_TTL_HOURS") return sessionTtlHours;
     return null;
   }),
   getPublicSettingSync: vi.fn(() => undefined),
   getPrivateSetting: vi.fn(async () => null),
   getPublicSetting: vi.fn(async () => null),
+}));
+
+// Session cache purge is called by device-session eviction — keep it a no-op spy
+vi.mock("@src/hooks/handle-authentication", () => ({
+  invalidateSessionCache: vi.fn(),
 }));
 
 function createMemorySessionStore(): SessionStore {
@@ -94,6 +106,8 @@ function createAuthHarness(userSeed: Partial<User> & { password: string }) {
       }),
       updateUserAttributes,
       createSession,
+      getActiveSessions: vi.fn(async () => ({ success: true, data: [] })),
+      deleteSession: vi.fn(async () => ({ success: true })),
       createUser: vi.fn(async (data: Partial<User>) => ({
         success: true,
         data: { _id: "new-user", ...data },
@@ -110,6 +124,8 @@ describe("Auth.authenticate (real Auth class — lockout & sessions)", () => {
 
   beforeEach(async () => {
     passwordHash = await hashPassword("ValidPass1!");
+    sessionDevicePolicy = null;
+    sessionTtlHours = null;
   });
 
   it("rejects authentication while account is locked", async () => {
@@ -193,6 +209,139 @@ describe("Auth.authenticate (real Auth class — lockout & sessions)", () => {
     const result = await auth.authenticate("nobody@test.com", "ValidPass1!");
     expect(result).toBeNull();
     expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("evicts the previous same-device session on re-login (one per user per device)", async () => {
+    const { auth, dbAdapter, createSession } = createAuthHarness({
+      email: "device@test.com",
+      password: passwordHash,
+    });
+    const invalidateSessionCache = (await import("@src/hooks/handle-authentication"))
+      .invalidateSessionCache as ReturnType<typeof vi.fn>;
+    dbAdapter.auth.getActiveSessions.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          _id: "sess-old-device",
+          user_id: "user-1",
+          userAgent: "UA-Chrome/Windows",
+          rotated: false,
+        },
+        { _id: "sess-phone", user_id: "user-1", userAgent: "UA-Safari/iPhone", rotated: false },
+        { _id: "sess-rotated", user_id: "user-1", userAgent: "UA-Chrome/Windows", rotated: true },
+      ],
+    });
+
+    const result = await auth.authenticate("device@test.com", "ValidPass1!", undefined, undefined, {
+      userAgent: "UA-Chrome/Windows",
+      ipAddress: "1.2.3.4",
+    });
+    expect(result).not.toBeNull();
+
+    // Device info is stored on the new session
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ userAgent: "UA-Chrome/Windows", ipAddress: "1.2.3.4" }),
+    );
+    // Same-device non-rotated session is evicted from DB + cache
+    expect(dbAdapter.auth.deleteSession).toHaveBeenCalledWith("sess-old-device", undefined);
+    expect(invalidateSessionCache).toHaveBeenCalledWith("sess-old-device", null);
+    // Other devices and rotated sessions are untouched
+    expect(dbAdapter.auth.deleteSession).not.toHaveBeenCalledWith("sess-phone", undefined);
+    expect(dbAdapter.auth.deleteSession).not.toHaveBeenCalledWith("sess-rotated", undefined);
+  });
+
+  it("keeps other-device sessions when logging in from a new device", async () => {
+    const { auth, dbAdapter } = createAuthHarness({
+      email: "d2@test.com",
+      password: passwordHash,
+    });
+    dbAdapter.auth.getActiveSessions.mockResolvedValue({
+      success: true,
+      data: [
+        { _id: "sess-laptop", user_id: "user-1", userAgent: "UA-Chrome/Windows", rotated: false },
+      ],
+    });
+
+    const result = await auth.authenticate("d2@test.com", "ValidPass1!", undefined, undefined, {
+      userAgent: "UA-Safari/iPhone",
+    });
+    expect(result).not.toBeNull();
+    expect(dbAdapter.auth.deleteSession).not.toHaveBeenCalled();
+  });
+
+  it("does not evict when no device info is provided", async () => {
+    const { auth, dbAdapter } = createAuthHarness({
+      email: "legacy@test.com",
+      password: passwordHash,
+    });
+    dbAdapter.auth.getActiveSessions.mockResolvedValue({
+      success: true,
+      data: [
+        { _id: "sess-old", user_id: "user-1", userAgent: "UA-Chrome/Windows", rotated: false },
+      ],
+    });
+
+    const result = await auth.authenticate("legacy@test.com", "ValidPass1!");
+    expect(result).not.toBeNull();
+    expect(dbAdapter.auth.deleteSession).not.toHaveBeenCalled();
+  });
+
+  it("honors allow-multiple policy (no eviction)", async () => {
+    sessionDevicePolicy = "allow-multiple";
+    const { auth, dbAdapter } = createAuthHarness({
+      email: "multi@test.com",
+      password: passwordHash,
+    });
+    dbAdapter.auth.getActiveSessions.mockResolvedValue({
+      success: true,
+      data: [
+        { _id: "sess-old", user_id: "user-1", userAgent: "UA-Chrome/Windows", rotated: false },
+      ],
+    });
+
+    const result = await auth.authenticate("multi@test.com", "ValidPass1!", undefined, undefined, {
+      userAgent: "UA-Chrome/Windows",
+    });
+    expect(result).not.toBeNull();
+    expect(dbAdapter.auth.deleteSession).not.toHaveBeenCalled();
+  });
+
+  it("single-per-user policy evicts sessions on other devices too", async () => {
+    sessionDevicePolicy = "single-per-user";
+    const { auth, dbAdapter } = createAuthHarness({
+      email: "one@test.com",
+      password: passwordHash,
+    });
+    dbAdapter.auth.getActiveSessions.mockResolvedValue({
+      success: true,
+      data: [
+        { _id: "sess-laptop", user_id: "user-1", userAgent: "UA-Chrome/Windows", rotated: false },
+        { _id: "sess-phone", user_id: "user-1", userAgent: "UA-Safari/iPhone", rotated: false },
+      ],
+    });
+
+    const result = await auth.authenticate("one@test.com", "ValidPass1!", undefined, undefined, {
+      userAgent: "UA-Chrome/Windows",
+    });
+    expect(result).not.toBeNull();
+    // Both other-device sessions are evicted under single-per-user
+    expect(dbAdapter.auth.deleteSession).toHaveBeenCalledWith("sess-laptop", undefined);
+    expect(dbAdapter.auth.deleteSession).toHaveBeenCalledWith("sess-phone", undefined);
+  });
+
+  it("applies SESSION_TTL_HOURS to the created session expiry", async () => {
+    sessionTtlHours = 2;
+    const { auth, createSession } = createAuthHarness({
+      email: "ttl@test.com",
+      password: passwordHash,
+    });
+
+    const result = await auth.authenticate("ttl@test.com", "ValidPass1!");
+    expect(result).not.toBeNull();
+    const sessionData = createSession.mock.calls.at(-1)?.[0];
+    const diffHours = (new Date(sessionData.expires).getTime() - Date.now()) / 3_600_000;
+    expect(diffHours).toBeGreaterThan(1.5);
+    expect(diffHours).toBeLessThan(2.5);
   });
 });
 

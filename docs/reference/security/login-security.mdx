@@ -96,11 +96,52 @@ When a user logs in, the following data is captured and stored with the session 
 
 ### Active Devices UI
 
-Users can view and manage their active sessions from the User Settings page (API-ready; UI component pending):
+Users can view and manage their active sessions from **User Settings → Security** (`/user`):
 
-- **View**: List of all active sessions with device info, last activity time, and current session indicator
-- **Revoke**: One-click session termination that purges the session from all 3 cache layers (memory, Redis, database)
-- **Auto-Cleanup**: Sessions not belonging to the password-changer are automatically invalidated on password change
+- **View**: Sessions grouped by device/browser (user-agent parsed into Mac / PC / phone / tablet with browser label), last activity time, and current-session indicator
+- **Revoke**: Per-device revoke (signs out that browser immediately) or "revoke all others" — cross-session revokes require re-authentication with your current password (5-min proof, see Session Validation Layers); the action purges the session from all cache layers (turbo, LRU, Redis, database)
+- **Auto-Cleanup**: Sessions not belonging to the password-changer are automatically invalidated on password change; blocked/deleted users are cut off immediately (see Session Validation Layers)
+
+### Session Device Policy
+
+By default each user holds **one active session per device** (`SESSION_DEVICE_POLICY = "single-per-device"`): a new login on a device invalidates that device's previous session (exact user-agent match), while other devices stay signed in. Re-login on the same device reuses the existing session where possible instead of churning new ones.
+
+The policy is enterprise-configurable via **System Settings → Security → Session Device Policy** (seeded by default, editable per deployment):
+
+| Value                         | Behavior                                                                                                                               |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `single-per-device` (default) | One session per user per device — new logins evict the previous session of that device (same user-agent); other devices are unaffected |
+| `single-per-user`             | One active session per user in total — any new login evicts all other sessions across all devices                                      |
+| `allow-multiple`              | No eviction — unlimited concurrent sessions (dedup/reuse disabled)                                                                     |
+
+**Implementation notes**:
+
+- Eviction is **best-effort and never blocks a login** (availability-first; failures are logged and the session proceeds).
+- An evicted session is purged from every layer: database row, in-memory/Redis session store, session cache, and turbo-auth context.
+- Rotated sessions and the freshly created session are never evicted.
+- **Device identity** is the exact user-agent string captured at login — two browsers on one machine count as different devices; the same browser on two machines counts as the same device class. IP is stored for auditing but deliberately **not** used for device matching (privacy + NAT friendliness).
+- Device/IP data lives only as long as the session row; expired rows are purged by the background `session-cleanup` queue task (every 5 minutes).
+- Logins without a user-agent (legacy clients) skip eviction entirely.
+
+### Session Validation Layers & Lifecycle
+
+Session validation is a **4-layer pipeline** (fastest first):
+
+1. **Turbo auth context** (in-memory, 60s absolute TTL) — GET/HEAD/OPTIONS fast path; skips all validation below; never slides on access (anti timing-attack).
+2. **Session cache** (in-memory LRU, 10k entries) — validated sessions with a 24h trust window.
+3. **Distributed cache** (Redis `session:{tenant}:{id}`) + in-memory/Redis session store — cross-node fallback.
+4. **Database** (`getSessionTokenData` + `getUserById`) — cold path, **single-flight coalesced** (concurrent cold requests await one validation instead of racing).
+
+Lifecycle semantics:
+
+- **Definitive invalidation** (expired, revoked, user deleted, session row gone) → cookie deleted immediately.
+- **Transient failures** (DB blip, in-flight coalesce) → request proceeds unauthenticated but the **cookie is kept**; the next request retries. A momentary failure never logs the user out.
+- **Blocked users** are cut off immediately: `block`/`unblock`/`delete` purges every session layer for the affected users (LRU cache, turbo, session store, Redis) and the DB re-validation path enforces the `blocked` flag. Deleted users are likewise cut off at validation time.
+- **Session lifetime** (`SESSION_TTL_HOURS`, default 24h, configurable in System Settings → Security) is applied at login **and** session rotation — rotation never extends the session beyond the configured policy.
+- **Idle timeout** (`SESSION_IDLE_HOURS`, default 0 = disabled) signs the session out after N hours without any request. It rides entirely on the session-cache LRU timestamps (sliding on every authenticated request, enforced on warm hits and distributed entries) — **zero extra queries or writes**. After a restart the clock restarts from the first validated request; the absolute lifetime still bounds the session.
+- **Re-authentication for session management** (Laravel-style): revoking any _other_ session (device revoke, "sign out all others") requires the current password. `POST /api/user/sessions/reauth` verifies it and returns a **stateless HMAC proof** (5 minutes, bound to the current session, `JWT_SECRET_KEY`-signed, constant-time verified). Ending the current session (logout) needs no proof. A stolen session therefore cannot revoke the real user's other devices.
+- **Admin session console** (API): `GET /api/user/sessions?admin=1&userId=X` lists another user's active sessions (admins only); `DELETE /api/user/sessions/:id?admin=1` revokes without a re-auth proof. UI is planned (Access Management).
+- **Negative Bloom cache** short-circuits repeat lookups of revoked/expired sessions (~2392x speedup on repeated misses); the 60s refresh cooldown prevents DB stampedes.
 
 ### API Endpoints
 

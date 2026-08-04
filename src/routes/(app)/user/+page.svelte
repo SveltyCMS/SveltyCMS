@@ -15,6 +15,7 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
 	import Avatar from '@components/ui/avatar.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
@@ -54,7 +55,7 @@
 	import ModalEditAvatar from './components/modal-edit-avatar.svelte';
 	import ModalEditForm from './components/modal-edit-form.svelte';
 	import ModalPrivacyData from './components/modal-privacy-data.svelte';
-	import { getActiveSessions, revokeSession } from './user.remote';
+	import { getActiveSessions, revokeSession, reauthForSessionManagement } from './user.remote';
 
 	const { data } = $props();
 	const { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
@@ -405,11 +406,11 @@
 	 * Individual session revoke buttons removed — one group-level button per device.
 	 */
 
-	async function revokeSessionIds(ids: string[]): Promise<boolean> {
+	async function revokeSessionIds(ids: string[], reauthToken?: string): Promise<boolean> {
 		for (const id of ids) {
 			if (!id) continue;
 			try {
-				const result = await revokeSession(id);
+				const result = await revokeSession({ sessionId: id, reauthToken });
 				if (!result.success) {
 					toast.error({
 						title: 'Revoke failed',
@@ -454,12 +455,7 @@
 			body: 'That device or browser will be signed out immediately. You can keep using this tab.',
 			theme: { variant: 'filled', color: 'error' },
 			confirmText: 'Revoke',
-			onConfirm: async () => {
-				const ok = await revokeSessionIds([mid]);
-				if (!ok) return;
-				toast.success({ title: 'Session revoked', description: 'That sign-in is no longer valid.' });
-				await loadSessions();
-			}
+			onConfirm: () => requestReauthAndRevoke([mid])
 		});
 	}
 
@@ -482,17 +478,7 @@
 			body,
 			theme: { variant: 'filled', color: 'error' },
 			confirmText: group.isCurrent ? 'Sign out others' : 'Revoke all',
-			onConfirm: async () => {
-				const ok = await revokeSessionIds(ids);
-				if (!ok) return;
-				toast.success({
-					title: 'Sessions revoked',
-					description: group.isCurrent
-						? 'Other sessions on this device were signed out.'
-						: `Signed out on ${group.deviceLabel}.`
-				});
-				await loadSessions();
-			}
+			onConfirm: () => requestReauthAndRevoke(ids)
 		});
 	}
 
@@ -514,16 +500,47 @@
 			body: `This ends ${others.length} other active session${others.length === 1 ? '' : 's'} on every device. This tab stays signed in.`,
 			theme: { variant: 'filled', color: 'error' },
 			confirmText: 'Sign out others',
-			onConfirm: async () => {
-				const ok = await revokeSessionIds(others);
-				if (!ok) return;
+			onConfirm: () => requestReauthAndRevoke(others)
+		});
+	}
+
+	// ── Re-authentication for cross-session revocation (Laravel-style) ────────
+	let reauthOpen = $state(false);
+	let reauthPassword = $state('');
+	let reauthShowPassword = $state(false);
+	let reauthError = $state('');
+	let reauthBusy = $state(false);
+	let pendingRevokeIds: string[] = $state([]);
+
+	/** After the user confirms the revoke, ask for the password proof once. */
+	async function requestReauthAndRevoke(ids: string[]): Promise<void> {
+		pendingRevokeIds = ids;
+		reauthPassword = '';
+		reauthError = '';
+		reauthOpen = true;
+	}
+
+	async function submitReauthAndRevoke(): Promise<void> {
+		reauthBusy = true;
+		reauthError = '';
+		try {
+			const res = await reauthForSessionManagement(reauthPassword);
+			if (!res.token) {
+				reauthError = res.error || 'Verification failed';
+				return;
+			}
+			reauthOpen = false;
+			const ok = await revokeSessionIds(pendingRevokeIds, res.token);
+			if (ok) {
 				toast.success({
-					title: 'Other sessions ended',
-					description: 'Only this tab remains signed in.'
+					title: 'Sessions revoked',
+					description: 'The selected sessions have been signed out.'
 				});
 				await loadSessions();
 			}
-		});
+		} finally {
+			reauthBusy = false;
+		}
 	}
 
 	const otherSessionCount = $derived(sessions.filter((s) => !s.isCurrent).length);
@@ -1497,3 +1514,59 @@
 		</div>
 	</div>
 </AdminPageShell>
+
+{#if reauthOpen}
+	<!-- Password re-authentication for cross-session revocation (Laravel-style) -->
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+		role="presentation"
+	>
+		<div
+			class="w-full max-w-sm rounded-2xl bg-surface-50 p-6 shadow-xl dark:bg-surface-900"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="reauth-title"
+		>
+			<h3 id="reauth-title" class="text-lg font-semibold text-surface-900 dark:text-surface-100">
+				Confirm your password
+			</h3>
+			<p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
+				Required to sign out other sessions or devices.
+			</p>
+			<form
+				class="mt-4 space-y-4"
+				onsubmit={(e) => {
+					e.preventDefault();
+					submitReauthAndRevoke();
+				}}
+			>
+				<FloatingInput
+					type="security"
+					name="reauth-password"
+					id="reauth-password"
+					label="Current password"
+					bind:value={reauthPassword}
+					bind:showPassword={reauthShowPassword}
+					autocomplete="current-password"
+					icon="mdi:password"
+				/>
+				{#if reauthError}
+					<p class="text-sm text-error-500" role="alert">{reauthError}</p>
+				{/if}
+				<div class="flex justify-end gap-2">
+					<Button
+						variant="ghost"
+						type="button"
+						onclick={() => (reauthOpen = false)}
+						disabled={reauthBusy}
+					>
+						Cancel
+					</Button>
+					<Button type="submit" variant="primary" disabled={reauthBusy || !reauthPassword}>
+						{reauthBusy ? 'Verifying…' : 'Confirm'}
+					</Button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}

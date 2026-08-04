@@ -83,7 +83,7 @@ Hash-keyed entries — **never store plaintext bearer tokens in L1/L2**:
 
 **Negative misses**: `cacheService.isNegativeHit()` / `recordMiss()` — Bloom filter per cache-system (not plaintext module bloom).
 
-**Auth middleware**: `handle-authentication.ts` hashes once (`hashCredentialSha256HexSync` / `hashApiKey`), looks up by hash via `getByTokenHash`, caches with `CacheCategory.SESSION`.
+**Auth middleware**: `handle-authentication.ts` hashes once (`hashCredentialSha256HexSync` for website tokens / `hashApiKeyWithLegacy` for API keys), looks up by hash via `getByTokenHash`, caches with `CacheCategory.SESSION`.
 
 ### Permission Cache (RBAC)
 

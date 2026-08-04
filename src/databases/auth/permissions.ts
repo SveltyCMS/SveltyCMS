@@ -578,17 +578,6 @@ export function checkPermissions(user: User, permissionIds: string[], roles: Rol
   );
 }
 
-export function getUserRole(user: User, roles: Role[] = []): Role | undefined {
-  const safeRoles = roles || [];
-  return safeRoles.find((role) => role._id === user.role);
-}
-
-export function getUserRoles(user: User, roles: Role[] = []): Role[] {
-  const safeRoles = roles || [];
-  const userRole = getUserRole(user, safeRoles);
-  return userRole ? [userRole] : [];
-}
-
 /** Registered permission for Collection Builder create/edit operations */
 export const COLLECTION_BUILDER_PERMISSION_ID = "config:collectionbuilder";
 

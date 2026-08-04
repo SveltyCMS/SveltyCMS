@@ -35,6 +35,7 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { generateCsrfToken } from "@utils/security/csrf-utils";
 import { logger } from "@utils/logger";
 import { generateSecureToken } from "@utils/native-utils";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -528,21 +529,62 @@ export async function handleOidcLoginCallback(
     );
   }
 
-  // Create session via adapter Auth (user_id contract used by relational/mongo auth)
+  // Create session via adapter Auth (user_id contract used by relational/mongo auth).
+  // One session per user per device: reuse an existing non-rotated session from
+  // this device (exact user-agent match), mirroring AuthNamespace.login dedup.
   const auth = (await import("@src/databases/db")).getDb()?.auth;
   if (!auth?.createSession) {
     throw new AppError("Auth adapter createSession unavailable", 500);
   }
-  const sessionRes = await auth.createSession({
-    user_id: user._id as any,
-    tenantId: tenantId as any,
-    expires: new Date(Date.now() + 86_400_000).toISOString() as any,
-  });
-  if (!sessionRes?.success || !sessionRes.data) {
-    const sessionErrMsg = sessionRes && "message" in sessionRes ? sessionRes.message : undefined;
-    throw new AppError(sessionErrMsg || "Failed to create session after OIDC login", 500);
+  const userAgent = event.request.headers.get("user-agent") || undefined;
+  const ipAddress =
+    event.getClientAddress?.() ||
+    event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    undefined;
+  // SESSION_DEVICE_POLICY: single-per-device (default) / single-per-user / allow-multiple
+  const devicePolicy = String(
+    getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
+  );
+  let sessionId: string;
+  const existingDeviceSession = await (async () => {
+    if (
+      devicePolicy === "allow-multiple" ||
+      !userAgent ||
+      typeof auth.getActiveSessions !== "function"
+    )
+      return null;
+    try {
+      const res = await auth.getActiveSessions(user._id as any, {
+        tenantId: tenantId as any,
+        bypassTenantCheck: true,
+      });
+      const list = res?.success && Array.isArray(res.data) ? res.data : [];
+      return (
+        list.find(
+          (s: any) =>
+            !s.rotated && (devicePolicy === "single-per-user" || s.userAgent === userAgent),
+        ) ?? null
+      );
+    } catch {
+      return null;
+    }
+  })();
+  if (existingDeviceSession) {
+    sessionId = String((existingDeviceSession as any)._id);
+  } else {
+    const sessionRes = await auth.createSession({
+      user_id: user._id as any,
+      tenantId: tenantId as any,
+      expires: new Date(Date.now() + 86_400_000).toISOString() as any,
+      userAgent,
+      ipAddress,
+    });
+    if (!sessionRes?.success || !sessionRes.data) {
+      const sessionErrMsg = sessionRes && "message" in sessionRes ? sessionRes.message : undefined;
+      throw new AppError(sessionErrMsg || "Failed to create session after OIDC login", 500);
+    }
+    sessionId = String((sessionRes.data as any)._id || sessionRes.data);
   }
-  const sessionId = String((sessionRes.data as any)._id || sessionRes.data);
   if (!sessionId) throw new AppError("Session id missing after OIDC login", 500);
 
   if (exchanged.idToken) {
@@ -861,10 +903,75 @@ export async function handleUpdateRoles(
 
 // ─── Session Management Handlers ─────────────────────────────────────────────
 
+/** Re-auth proof lifetime (5 minutes) — Laravel-style password confirmation. */
+const REAUTH_TOKEN_TTL_MS = 5 * 60 * 1000;
+
 /**
- * Handles active session management for the current user:
- * - GET  → list all active sessions with device info
- * - DELETE /:sessionId → revoke a specific session
+ * Sign a re-auth proof: HMAC-SHA256(userId:sessionId:exp) with the server secret.
+ * Stateless — no server-side storage, verifiable by any node.
+ */
+function signReauthToken(userId: string, sessionId: string, exp: number): string {
+  const secret = String(getPrivateSettingSync("JWT_SECRET_KEY") || "");
+  const sig = createHmac("sha256", secret)
+    .update(`${userId}:${sessionId}:${exp}`)
+    .digest("base64url");
+  return `${exp}:${sig}`;
+}
+
+/** Verify a re-auth proof and return true when valid, fresh, and bound to this session. */
+function verifyReauthToken(
+  token: string | null | undefined,
+  userId: string,
+  sessionId: string,
+): boolean {
+  if (!token) return false;
+  const parts = token.split(":");
+  if (parts.length !== 2) return false;
+  const exp = Number(parts[0]);
+  if (!Number.isFinite(exp) || exp - Date.now() > REAUTH_TOKEN_TTL_MS || exp < Date.now())
+    return false;
+  const secret = String(getPrivateSettingSync("JWT_SECRET_KEY") || "");
+  if (!secret) return false;
+  const expected = createHmac("sha256", secret)
+    .update(`${userId}:${sessionId}:${exp}`)
+    .digest("base64url");
+  try {
+    return timingSafeEqual(Buffer.from(parts[1]), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Password re-authentication for sensitive session management (Laravel-style).
+ * POST /api/user/sessions/reauth { password } → { token } (5-min, session-bound).
+ */
+async function handleSessionReauth(event: RequestEvent, user: any): Promise<Response> {
+  const body = await event.request.json().catch(() => ({}));
+  const password = typeof body?.password === "string" ? body.password : "";
+  if (!password) throw new AppError("Password required", 400, "PASSWORD_REQUIRED");
+
+  const hash = user?.password;
+  if (!hash || !(await verifyPassword(hash, password))) {
+    throw new AppError("Invalid password", 403, "INVALID_PASSWORD");
+  }
+
+  const sessionId = String(event.locals.session_id ?? "");
+  if (!sessionId) throw new AppError("Session required", 401, "UNAUTHORIZED");
+  const userId = String(user._id ?? user.id ?? "");
+  return successResponse(event, {
+    token: signReauthToken(userId, sessionId, Date.now() + REAUTH_TOKEN_TTL_MS),
+    expiresIn: REAUTH_TOKEN_TTL_MS / 1000,
+  });
+}
+
+/**
+ * Handles active session management:
+ * - GET            → list current user's sessions (device info)
+ * - GET ?userId=X  → admin session console (admins only)
+ * - POST /reauth   → password proof for cross-session revocation
+ * - DELETE /:id    → revoke; cross-session revokes require a fresh re-auth token
+ *                    (admins may bypass via ?admin=1 for the console)
  */
 export async function handleSessionsRoutes(
   event: RequestEvent,
@@ -879,16 +986,41 @@ export async function handleSessionsRoutes(
   // Expected: ["api", "user", "sessions"] or ["api", "user", "sessions", "<sessionId>"]
   const sessionId = pathParts.length > 3 ? pathParts[3] : null;
 
+  if (sessionId === "reauth" && event.request.method === "POST") {
+    return handleSessionReauth(event, user);
+  }
+
+  const isAdmin = user.isAdmin === true || user.role === "admin";
+  const adminConsole = event.url.searchParams.get("admin") === "1";
+
   if (sessionId && event.request.method === "DELETE") {
-    // Revoke a specific session
+    const currentSessionId = String(
+      event.locals.session_id ??
+        event.cookies.get(getSessionCookieName(event.url.protocol === "https:")) ??
+        "",
+    );
+    const isCurrent = currentSessionId.length > 0 && sessionId === currentSessionId;
+    const adminBypass = adminConsole && isAdmin;
+
+    // Cross-session revocation requires a fresh password proof — a stolen
+    // session must not be able to revoke the real user's other devices.
+    if (!isCurrent && !adminBypass) {
+      const reauth = event.request.headers.get("x-reauth-token");
+      const userId = String(user._id ?? user.id ?? "");
+      if (!verifyReauthToken(reauth, userId, currentSessionId)) {
+        throw new AppError("Re-authentication required to revoke sessions", 403, "REAUTH_REQUIRED");
+      }
+    }
+
     await cms.auth.logout(sessionId);
     invalidateSessionCache(sessionId, tenantId);
     return successResponse(event, { message: "Session revoked successfully" });
   }
 
   if (event.request.method === "GET") {
-    // List all active sessions for the current user
-    const userId = user._id || user.id;
+    // Admin session console: ?userId=X lists another user's sessions (admins only)
+    const targetUserId = adminConsole && isAdmin ? event.url.searchParams.get("userId") : null;
+    const userId = targetUserId || user._id || user.id;
     if (!userId) {
       throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     }

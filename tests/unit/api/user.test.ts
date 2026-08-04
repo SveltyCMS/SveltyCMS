@@ -13,6 +13,10 @@ import { invokeApi, expectApi } from "../utils/mock-event";
 
 const dbAdapter = createDbAdapterStub();
 
+const { mockPrivateSettings } = vi.hoisted(() => ({
+  mockPrivateSettings: new Map<string, unknown>(),
+}));
+
 // Ensure batch paths have the methods LocalCMS.auth.batchAction calls
 (dbAdapter as any).auth.deleteUsers = vi.fn().mockResolvedValue({
   success: true,
@@ -42,8 +46,8 @@ vi.mock("@src/databases/db", () => {
 });
 
 vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(false),
-  getPublicSettingSync: vi.fn().mockReturnValue(true),
+  getPrivateSettingSync: vi.fn((key: string) => mockPrivateSettings.get(key)),
+  getPublicSettingSync: vi.fn(() => true),
 }));
 
 // Do NOT mock apiHandler — need AppError → HTTP Response conversion.
@@ -217,5 +221,75 @@ describe("User API Unit Tests", () => {
       bypass: true,
     });
     expect([200, 403]).toContain(response.status);
+  });
+
+  describe("Session management (sessions API)", () => {
+    beforeEach(() => {
+      mockPrivateSettings.clear();
+      (dbAdapter as any).auth.deleteSession = vi.fn().mockResolvedValue({ success: true });
+      (dbAdapter as any).auth.getActiveSessions = vi.fn().mockResolvedValue({
+        success: true,
+        data: [
+          {
+            _id: "sess-other",
+            user_id: "u2",
+            userAgent: "UA-Chrome/Windows",
+            rotated: false,
+          },
+        ],
+      });
+    });
+
+    it("cross-session revoke requires a re-auth token (403 REAUTH_REQUIRED)", async () => {
+      const response = await invokeApi("DELETE", {
+        path: "user/sessions/sess-other",
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(403);
+      expect(await response.text()).toContain("REAUTH_REQUIRED");
+      expect((dbAdapter as any).auth.deleteSession).not.toHaveBeenCalled();
+    });
+
+    it("cross-session revoke succeeds with a valid re-auth token", async () => {
+      mockPrivateSettings.set("JWT_SECRET_KEY", "test-jwt-secret");
+      const crypto = await import("node:crypto");
+      const exp = Date.now() + 5 * 60 * 1000;
+      const sig = crypto
+        .createHmac("sha256", "test-jwt-secret")
+        .update(`u1:sess-current:${exp}`)
+        .digest("base64url");
+
+      const response = await invokeApi("DELETE", {
+        path: "user/sessions/sess-other",
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        headers: { "x-reauth-token": `${exp}:${sig}` },
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(200);
+      expect((dbAdapter as any).auth.deleteSession).toHaveBeenCalledWith("sess-other");
+    });
+
+    it("admin session console lists another user's sessions", async () => {
+      const response = await invokeApi("GET", {
+        path: "user/sessions?admin=1&userId=u2",
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(200);
+      expect((dbAdapter as any).auth.getActiveSessions).toHaveBeenCalledWith(
+        "u2",
+        expect.anything(),
+      );
+    });
   });
 });

@@ -41,6 +41,19 @@ Product-layer APIs equal on SQLite, PostgreSQL, MariaDB, MongoDB:
 
 ---
 
+## ✅ Shipped — Session & RBAC Hardening (August 2026)
+
+- [x] Session device policy (`SESSION_DEVICE_POLICY`: single-per-device / single-per-user / allow-multiple) enforced at the `createSession` chokepoint, OIDC dedup, login-page threading
+- [x] Session lifetime (`SESSION_TTL_HOURS`) applied at login + rotation (rotation no longer extends sessions)
+- [x] Idle timeout (`SESSION_IDLE_HOURS`) on the session-cache LRU — sliding, zero-query
+- [x] Blocked/deleted users cut off immediately (session purge on block/unblock/delete + DB-path check)
+- [x] Transient-safe validation: single-flight coalescing, cookie kept on DB blips (no cold-start logouts)
+- [x] Cross-session revoke re-auth (password proof, stateless HMAC, 5-min)
+- [x] Session-cleanup scheduled job (expired sessions/tokens purged every 5 min)
+- [x] RBAC permission cache wired into the hot path + roles/turbo invalidation on all mutation paths
+
+---
+
 ## 📊 CMS Tables & List Platform (Smart Table)
 
 **Shipped foundation** (July 2026): headless controller, schema-aware server filters, QueryBuilder IR, SWR/cache hash, shared UX primitives. Collections stay **server-secure**.
@@ -104,6 +117,7 @@ Product-layer APIs equal on SQLite, PostgreSQL, MariaDB, MongoDB:
 ## 🚀 Planned
 
 - **OIDC login flow** — **August 2026 progress:** Discovery (auth/token/jwks/logout), JWKS verify for back-channel logout + id_token, `GET /api/auth/oidc-login` + `oidc-callback` (authorization code → local session for existing users). Still open: auto-provision policy, PKCE, IdP UI on login page, full ES256 test matrix.
+- **Admin Session Console (UI)** — API shipped (`GET/DELETE /api/user/sessions?admin=1&userId=X`); Access Management UI for browsing/revoking sessions per user is planned.
 - **Cross-Source Merge Execution (v3.1 → stable)**
 - **Visual Studio Query Builder**
 - **GraphQL Supergraph / Federation**

@@ -329,6 +329,22 @@ export class Auth {
     } catch {
       // Non-critical — turbo contexts expire naturally after TTL
     }
+
+    // Purge the user's sessions from every layer (LRU cache, turbo, session
+    // store, Redis) so a deleted user loses access immediately, not after the
+    // 24h session-cache TTL.
+    try {
+      const res = await this.db.auth.getActiveSessions(userId, options);
+      const active = res?.success && Array.isArray(res.data) ? res.data : [];
+      if (active.length > 0) {
+        const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+        for (const s of active) {
+          invalidateSessionCache(String(s._id), options?.tenantId ?? null);
+        }
+      }
+    } catch {
+      // Non-critical — expired entries are purged by the session-cleanup job
+    }
   }
   async getAllUsers(options?: PaginationOptions, dbOptions?: BaseQueryOptions): Promise<User[]> {
     const result = await this.db.auth.getAllUsers(options, dbOptions);
@@ -356,8 +372,10 @@ export class Auth {
       user_id: DatabaseId;
       expires: ISODateString;
       tenantId?: DatabaseId | null;
+      userAgent?: string;
+      ipAddress?: string;
     },
-    _options?: BaseQueryOptions,
+    options?: BaseQueryOptions,
   ): Promise<Session> {
     const sr = (await this.db.auth.createSession(sessionData)) as unknown;
     let session: Session | null = null;
@@ -403,7 +421,71 @@ export class Auth {
     }
 
     await this.sessionStore.set(session._id, user, sessionData.expires);
+
+    // Session device policy (enterprise-configurable):
+    //   single-per-device (default) — evict other non-rotated sessions of this
+    //     user that share the same device fingerprint (exact user-agent match)
+    //   single-per-user            — evict ALL other non-rotated sessions
+    //   allow-multiple             — no eviction (unlimited concurrent sessions)
+    // Best-effort — never fail the login on eviction errors.
+    if (sessionData.userAgent) {
+      try {
+        const policy = String(
+          getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
+        );
+        if (policy !== "allow-multiple") {
+          await this.evictSameDeviceSessions(
+            session,
+            sessionData.userAgent,
+            policy === "single-per-user",
+            options,
+          );
+        }
+      } catch (err) {
+        logger.debug("Device-session eviction skipped", { error: (err as Error).message });
+      }
+    }
+
     return session;
+  }
+
+  /**
+   * Delete active sessions per the device policy, excluding the freshly created
+   * session. Purges DB row, in-memory/Redis session store, and the 3-layer
+   * session cache (incl. turbo auth). `evictAllDevices` = single-per-user mode.
+   */
+  private async evictSameDeviceSessions(
+    newSession: Session,
+    userAgent: string,
+    evictAllDevices: boolean,
+    options?: BaseQueryOptions,
+  ): Promise<void> {
+    const result = await this.db.auth.getActiveSessions(newSession.user_id, options);
+    if (!result?.success) return;
+    const sessions = Array.isArray(result.data) ? result.data : [];
+    if (sessions.length === 0) return;
+
+    const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+    let evicted = 0;
+    for (const old of sessions) {
+      if (old.rotated) continue;
+      if (String(old._id) === String(newSession._id)) continue;
+      if (!evictAllDevices && old.userAgent !== userAgent) continue;
+
+      await this.db.auth.deleteSession(old._id, options).catch(() => {});
+      await this.sessionStore.delete(old._id).catch(() => {});
+      invalidateSessionCache(
+        String(old._id),
+        (options?.tenantId as DatabaseId | null | undefined) ?? newSession.tenantId ?? null,
+      );
+      evicted++;
+    }
+    if (evicted > 0) {
+      logger.info(
+        `[SessionPolicy] Evicted ${evicted} session(s) for user ${String(newSession.user_id)}` +
+          ` (${evictAllDevices ? "single-per-user" : "single-per-device"})`,
+      );
+    }
   }
 
   async validateSession(sessionId: DatabaseId, options?: BaseQueryOptions): Promise<User | null> {
@@ -667,6 +749,7 @@ export class Auth {
     password: string,
     tenantId?: DatabaseId | null,
     options?: { bypassTenantCheck?: boolean },
+    sessionMeta?: { userAgent?: string; ipAddress?: string },
   ): Promise<{ user: User; sessionId: DatabaseId } | null> {
     try {
       const user = await this.getUserByEmail({ email, tenantId }, options);
@@ -743,12 +826,15 @@ export class Auth {
         );
       }
 
-      const expiresAt = dateToISODateString(new Date(Date.now() + 24 * 60 * 60 * 1000)); // 24 hours
+      const ttlHours = Number(getPrivateSettingSync("SESSION_TTL_HOURS")) || 24;
+      const expiresAt = dateToISODateString(new Date(Date.now() + ttlHours * 60 * 60 * 1000));
       const session = await this.createSession(
         {
           user_id: user._id,
           expires: expiresAt,
           tenantId,
+          userAgent: sessionMeta?.userAgent,
+          ipAddress: sessionMeta?.ipAddress,
         },
         options,
       );

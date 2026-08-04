@@ -256,25 +256,5 @@ export function getDefaultSessionManager(): SessionStore {
   return manager;
 }
 
-export function setDefaultSessionManager(manager: SessionStore): void {
-  (globalThis as Record<string, unknown>)[SESSION_STORE_GLOBAL_KEY] = manager;
-}
-
-// Legacy aliases for backward compatibility
+// Legacy alias for backward compatibility
 export const getDefaultSessionStore = getDefaultSessionManager;
-export const setDefaultSessionStore = setDefaultSessionManager;
-
-// Session cleanup utility
-export function startSessionCleanup(manager: SessionStore, intervalMs = 60_000): NodeJS.Timeout {
-  return setInterval(() => {
-    if (manager instanceof InMemorySessionManager) {
-      manager.cleanup();
-    } else if (manager instanceof RedisSessionManager) {
-      // Redis handles its own TTL automatically, but we must clean up the fallback in-memory manager
-      const fallback = (manager as any).fallbackManager;
-      if (fallback && typeof fallback.cleanup === "function") {
-        fallback.cleanup();
-      }
-    }
-  }, intervalMs);
-}

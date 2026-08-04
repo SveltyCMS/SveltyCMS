@@ -27,7 +27,7 @@ Complete test coverage for all 17 SvelteKit middleware hooks and security test s
 
 | Test Suite                 | Tests | Coverage    | File                                                  |
 | -------------------------- | ----- | ----------- | ----------------------------------------------------- |
-| Authentication             | 33    | ✅ Complete | `tests/unit/hooks/authentication.test.ts`             |
+| Authentication             | 21    | ✅ Complete | `tests/unit/hooks/authentication.test.ts`             |
 | API Keys Authentication    | 12    | ✅ Complete | `tests/unit/hooks/api-keys-authentication.test.ts`    |
 | Bearer Authentication      | 18    | ✅ Complete | `tests/unit/hooks/bearer-authentication.test.ts`      |
 | Guest Authentication       | 8     | ✅ Complete | `tests/unit/hooks/guest-authentication.test.ts`       |
@@ -43,7 +43,7 @@ Complete test coverage for all 17 SvelteKit middleware hooks and security test s
 | Defense-in-Depth    | 25    | ✅ Complete | `tests/unit/hooks/defense-in-depth.test.ts` |
 | Adversarial Testing | 20    | ✅ Complete | `tests/unit/hooks/adversarial.test.ts`      |
 
-| **Total** | **317** | **100%** | **16 files** |
+| **Total** | **305** | **100%** | **16 files** |
 
 ## Performance Benchmarks (Audit)
 
@@ -232,7 +232,7 @@ it("should allow /setup route when setup incomplete", async () => {
 
 ### 4. handleAuthentication
 
-**Purpose**: Enterprise session management with 3-layer caching
+**Purpose**: Enterprise session management with 4-layer caching (turbo → LRU → Redis/store → DB)
 
 **Test Categories**:
 
@@ -240,9 +240,16 @@ it("should allow /setup route when setup incomplete", async () => {
 - ✅ Internal Route Bypass
 - ✅ Multi-Tenancy Detection
 - ✅ Session Validation
-- ✅ 3-Layer Cache (Memory → Redis → DB)
-- ✅ WeakRef Cache Management
-- ✅ Session Rotation (15-minute interval)
+- ✅ 4-Layer Cache (Turbo → Memory → Redis → DB)
+- ✅ **Single-Flight Coalescing** (concurrent cold validations → one DB lookup, no logout race)
+- ✅ **Transient vs Invalid** (DB blip keeps the cookie; definitive invalidation deletes it)
+- ✅ **Blocked-User Cut-Off** (block → cache purge → DB re-validation rejects)
+- ✅ Session Rotation (15-minute interval, TTL-bounded, device info carried)
+- ✅ Session Device Policy eviction (`single-per-device` / `single-per-user` / `allow-multiple`)
+- ✅ `SESSION_TTL_HOURS` applied at login and rotation
+- ✅ **Idle timeout** (`SESSION_IDLE_HOURS`) — sliding clock on the session-cache LRU, signs out idle sessions
+- ✅ **Cross-session revoke re-auth** (stateless HMAC proof, `REAUTH_REQUIRED` enforcement)
+- ✅ **Admin session console API** (list/revoke another user's sessions)
 - ✅ Tenant Isolation
 - ✅ Metrics Tracking
 

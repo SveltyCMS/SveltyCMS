@@ -134,10 +134,26 @@ interface SessionCacheEntry {
   user: User;
 }
 
+/**
+ * Result of a session resolution attempt.
+ * - ok        → valid user (all cache layers + DB)
+ * - invalid   → definitively invalid (expired / revoked / user deleted / blocked)
+ * - transient → could not be resolved right now (DB blip, in-flight coalesce);
+ *               the caller must NOT delete the session cookie on this status
+ */
+export type SessionResolution =
+  | { status: "ok"; user: User }
+  | { status: "invalid" }
+  | { status: "transient" };
+
 const MAX_SESSION_CACHE = 10_000;
 const sessionCache = new Map<string, SessionCacheEntry>();
 const lastRefreshAttempt = new Map<string, number>();
 const lastRotationAttempt = new Map<string, number>();
+
+// Single-flight: coalesce concurrent cold-session validations instead of
+// denying the losers (which previously logged users out on cold start).
+const inflightSessionChecks = new Map<string, Promise<SessionResolution>>();
 
 /**
  * Session rotation interval: 60 minutes
@@ -199,19 +215,40 @@ if (typeof setInterval !== "undefined" && !(globalThis as any)[SESSION_CLEANUP_K
 
 // --- UTILITY FUNCTIONS ---
 
+/**
+ * Idle timeout window (ms) from SESSION_IDLE_HOURS (0 = disabled).
+ * Rides on the session-cache LRU timestamps — no extra queries or writes.
+ */
+function getIdleWindowMs(): number {
+  const hours = Number(getPrivateSettingSync("SESSION_IDLE_HOURS")) || 0;
+  return hours > 0 ? hours * 60 * 60 * 1000 : 0;
+}
+
 /** Multi-layer user session retrieval (in-memory → distributed → DB) */
 async function getUserFromSession(
   sessionId: string,
   tenantId?: DatabaseId | null,
-): Promise<User | null> {
+): Promise<SessionResolution> {
   // --- Performance Tweak: Negative Caching ---
   const isTestMode = process.env.TEST_MODE === "true";
-  if (!isTestMode && negativeCache.has(sessionId)) return null;
+  if (!isTestMode && negativeCache.has(sessionId)) return { status: "invalid" };
 
   const now = Date.now();
+  const idleMs = getIdleWindowMs();
   const memCached = getSessionFromCache(sessionId);
   if (memCached) {
-    return memCached.user;
+    // Idle timeout: the LRU entry timestamp is the sliding last-activity clock.
+    if (idleMs > 0 && now - memCached.timestamp > idleMs) {
+      invalidateSessionCache(sessionId, tenantId);
+      negativeCache.add(sessionId);
+      return { status: "invalid" };
+    }
+    // Slide the clock — the entry object is shared with the Map.
+    memCached.timestamp = now;
+    // NOTE: cached users are snapshots — a NEW block is detected via cache
+    // invalidation on block/unblock/delete (batchAction purge), after which the
+    // next request re-validates against the DB and hits the blocked check below.
+    return { status: "ok", user: memCached.user };
   }
 
   // Fallback to checking the default SessionStore (holds active in-memory/Redis sessions)
@@ -221,7 +258,7 @@ async function getUserFromSession(
     const storedUser = await store.get(sessionId as DatabaseId);
     if (storedUser) {
       setSessionInCache(sessionId, { user: storedUser, timestamp: now });
-      return storedUser;
+      return { status: "ok", user: storedUser };
     }
   } catch (err: any) {
     logger.trace(`SessionStore lookup failed: ${err.message}`);
@@ -231,87 +268,119 @@ async function getUserFromSession(
     const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
     const redisCached = await cacheService.get<SessionCacheEntry>(cacheKey, tenantId ?? undefined);
     if (redisCached && now - redisCached.timestamp < SESSION_CACHE_TTL_MS) {
+      // Idle timeout applies to distributed entries too.
+      if (idleMs > 0 && now - redisCached.timestamp > idleMs) {
+        invalidateSessionCache(sessionId, tenantId);
+        negativeCache.add(sessionId);
+        return { status: "invalid" };
+      }
       setSessionInCache(sessionId, redisCached);
-      return redisCached.user;
+      return { status: "ok", user: redisCached.user };
     }
   } catch (err: any) {
     logger.warn(`Redis session read failed: ${err.message}`);
   }
 
+  // Single-flight: another request is already validating this session — await
+  // its outcome instead of denying (denial used to delete the session cookie
+  // and log users out on cold start / cache flush).
+  const inflight = inflightSessionChecks.get(sessionId);
+  if (inflight) return inflight;
+
   const lastAttempt = lastRefreshAttempt.get(sessionId);
   if (!isTestMode && lastAttempt && now - lastAttempt < 60_000) {
-    return null;
+    // A previous validation completed recently but left no cache entry (e.g.
+    // transient failure). Do not hammer the DB — stay unauthenticated for this
+    // request WITHOUT deleting the cookie; the next request retries.
+    return { status: "transient" };
   }
 
-  const { getDb } = await import("@src/databases/db");
-  const adapter = getDb();
-  if (!adapter) {
+  // dbAdapter is imported at module top; the hook bails earlier when it is
+  // missing (pre-CORE boot). Using it directly avoids a dynamic import on the
+  // cold path and keeps the single-flight section fully synchronous.
+  if (!dbAdapter) {
     logger.warn(`[Auth] No DB adapter available for session validation: ${sessionId}`);
-    return null;
+    return { status: "transient" };
   }
 
   // Use a short-lived pending marker to prevent stampedes while validating
   lastRefreshAttempt.set(sessionId, now);
 
-  try {
-    const sessionResult = await adapter.auth.getSessionTokenData(sessionId as any);
+  const work = (async (): Promise<SessionResolution> => {
+    try {
+      const sessionResult = await dbAdapter.auth.getSessionTokenData(sessionId as any);
 
-    if (!sessionResult?.success) {
-      logger.debug(
-        `[Auth] getSessionTokenData unsuccessful for sessionId=${sessionId.slice(0, 12)}...`,
-      );
-      return null;
-    }
-
-    if (!sessionResult.data) {
-      logger.debug(
-        `[Auth] getSessionTokenData returned null data for sessionId=${sessionId.slice(0, 12)}...`,
-      );
-      negativeCache.add(sessionId);
-      return null;
-    }
-
-    const expiresAt = new Date(sessionResult.data.expiresAt).getTime();
-    if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
-      negativeCache.add(sessionId);
-      return null;
-    }
-
-    const userResult = await adapter.auth.getUserById(sessionResult.data.user_id as any, {
-      suppressErrorLog: true,
-    });
-
-    if (userResult?.success) {
-      if (userResult.data) {
-        const user = userResult.data;
+      if (!sessionResult?.success) {
         logger.debug(
-          `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${maskEmail((user as any).email)}`,
+          `[Auth] getSessionTokenData unsuccessful for sessionId=${sessionId.slice(0, 12)}...`,
         );
-        const sessionData: SessionCacheEntry = { user, timestamp: now };
-        setSessionInCache(sessionId, sessionData);
-        const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
-        await cacheService
-          .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
-          .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
-        return user;
-      } else {
-        // Definitive: User not found in DB
-        logger.debug(`[Auth] User not found in DB: ${sessionResult.data.user_id}`);
-        negativeCache.add(sessionId);
+        return { status: "transient" };
       }
-    } else {
-      // Transient user lookup error or DB locked. Clear the cooldown to allow immediate retry on next request.
+
+      if (!sessionResult.data) {
+        logger.debug(
+          `[Auth] getSessionTokenData returned null data for sessionId=${sessionId.slice(0, 12)}...`,
+        );
+        negativeCache.add(sessionId);
+        return { status: "invalid" };
+      }
+
+      const expiresAt = new Date(sessionResult.data.expiresAt).getTime();
+      if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
+        negativeCache.add(sessionId);
+        return { status: "invalid" };
+      }
+
+      const userResult = await dbAdapter.auth.getUserById(sessionResult.data.user_id as any, {
+        suppressErrorLog: true,
+      });
+
+      if (userResult?.success) {
+        if (userResult.data) {
+          const user = userResult.data;
+          // 🛡️ Blocked users are cut off at DB re-validation time (not just
+          // cached entries) — a block must take effect immediately.
+          if (user.blocked) {
+            negativeCache.add(sessionId);
+            return { status: "invalid" };
+          }
+          logger.debug(
+            `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${maskEmail((user as any).email)}`,
+          );
+          const sessionData: SessionCacheEntry = { user, timestamp: now };
+          setSessionInCache(sessionId, sessionData);
+          const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
+          await cacheService
+            .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
+            .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
+          return { status: "ok", user };
+        } else {
+          // Definitive: User not found in DB
+          logger.debug(`[Auth] User not found in DB: ${sessionResult.data.user_id}`);
+          negativeCache.add(sessionId);
+          return { status: "invalid" };
+        }
+      } else {
+        // Transient user lookup error or DB locked. Clear the cooldown to allow immediate retry on next request.
+        lastRefreshAttempt.delete(sessionId);
+        logger.warn(
+          `[Auth] Session validation error for ${sessionId.slice(0, 8)}...: ${userResult?.message || "Unknown"}`,
+        );
+        return { status: "transient" };
+      }
+    } catch (err: any) {
       lastRefreshAttempt.delete(sessionId);
-      logger.warn(
-        `[Auth] Session validation error for ${sessionId.slice(0, 8)}...: ${userResult?.message || "Unknown"}`,
-      );
-      return null;
+      logger.error(`Session validation crashed: ${err.message}`);
+      return { status: "transient" };
     }
-  } catch (err: any) {
-    lastRefreshAttempt.delete(sessionId);
-    logger.error(`Session validation crashed: ${err.message}`);
+  })();
+
+  inflightSessionChecks.set(sessionId, work);
+  try {
+    return await work;
+  } finally {
+    inflightSessionChecks.delete(sessionId);
   }
-  return null;
 }
 
 /**
@@ -341,10 +410,19 @@ async function handleSessionRotation(
   try {
     if (!(auth?.createSession && auth?.destroySession)) return;
 
+    // Rotated sessions keep the configured session lifetime (SESSION_TTL_HOURS,
+    // default 24h) — rotation must NOT extend the session beyond the policy,
+    // and device info is carried over for the device-policy + sessions UI.
+    const ttlHours = Number(getPrivateSettingSync("SESSION_TTL_HOURS")) || 24;
     const newSession = await auth.createSession({
       user_id: user._id as DatabaseId,
-      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() as ISODateString,
+      expires: new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString() as ISODateString,
       tenantId: event.locals.tenantId as DatabaseId,
+      userAgent: event.request.headers.get("user-agent") || undefined,
+      ipAddress:
+        event.getClientAddress?.() ||
+        event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        undefined,
     });
 
     if (newSession && newSession._id !== oldSessionId) {
@@ -577,7 +655,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           return await resolve(event);
         }
 
-        const user = await getUserFromSession(sessionId as string, locals.tenantId as DatabaseId);
+        const resolution = await getUserFromSession(
+          sessionId as string,
+          locals.tenantId as DatabaseId,
+        );
+        const user = resolution.status === "ok" ? resolution.user : null;
         logger.debug(
           `[Auth] getUserFromSession: ${user ? "FOUND " + maskEmail(user.email) + " (" + user.role + ")" : "NULL"} path=${event.url.pathname} tenantId=${locals.tenantId}`,
         );
@@ -621,7 +703,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             locals.dbAdapter = bound.dbAdapter as any;
           }
           await handleSessionRotation(event, user, sessionId);
-        } else {
+        } else if (resolution.status === "invalid") {
           logger.warn(`[Auth] Invalid session or user not found: ${sessionId}`, {
             cookieName,
             hasSession: !!sessionId,
@@ -634,6 +716,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           // the dead cookie.
           (locals as any).returningUser = true;
           cookies.delete(cookieName, { path: getCookiePath() });
+        } else {
+          // Transient (DB blip / in-flight coalesce): keep the cookie so the user
+          // is NOT logged out by a momentary failure. Stay unauthenticated for
+          // this request; the next request re-validates.
+          logger.debug(
+            `[Auth] Session validation transient (cookie kept): ${sessionId.slice(0, 12)}...`,
+          );
         }
       } catch (err: unknown) {
         // Intentional security failures (tenant isolation, etc.) must surface as

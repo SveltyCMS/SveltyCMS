@@ -135,6 +135,12 @@ export const privateConfigSchema = object({
   PASSWORD_MIN_LENGTH: optional(coercedNumber),
   PREVIEW_SECRET: optional(string()),
   RATE_LIMIT_SECRET: optional(string()),
+  SESSION_DEVICE_POLICY: optional(
+    union([literal("single-per-device"), literal("single-per-user"), literal("allow-multiple")]),
+    "single-per-device",
+  ),
+  SESSION_TTL_HOURS: optional(coercedNumber),
+  SESSION_IDLE_HOURS: optional(coercedNumber),
 
   // --- CORS Configuration ---
   CORS_ENABLED: optional(coercedBoolean),
