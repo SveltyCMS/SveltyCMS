@@ -51,6 +51,16 @@ export async function runRbacMatrix(rows: RbacMatrixRow[]): Promise<void> {
       throw new Error(`[rbac] ${row.name}: set expectedStatus and/or expectedNotStatus`);
     }
 
+    // Each row is an independent world state — role fixtures may reuse role ids
+    // with different permission arrays, so never let the permission result cache
+    // (5-min TTL) leak a decision from a previous row.
+    try {
+      const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
+      invalidatePermissionCache();
+    } catch {
+      // Module mocked in some suites — cache hygiene is best-effort there
+    }
+
     const res = await invokeApi(row.method, {
       path: row.path,
       body: row.body,

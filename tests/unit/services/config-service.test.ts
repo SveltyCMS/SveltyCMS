@@ -43,6 +43,10 @@ const { mockInvalidateRolesCache, mockInvalidatePermissionCache } = vi.hoisted((
   mockInvalidatePermissionCache: vi.fn(),
 }));
 
+const { mockClearTurboAuthCache } = vi.hoisted(() => ({
+  mockClearTurboAuthCache: vi.fn(),
+}));
+
 // Mock node:fs/promises
 vi.mock("node:fs/promises", () => ({
   default: { mkdir: mockMkdir, writeFile: mockWriteFile, readFile: vi.fn(), readdir: vi.fn() },
@@ -145,6 +149,10 @@ vi.mock("@src/hooks/handle-authorization", () => ({
 
 vi.mock("@src/databases/auth/permissions", () => ({
   invalidatePermissionCache: mockInvalidatePermissionCache,
+}));
+
+vi.mock("@src/hooks/handle-turbo-get", () => ({
+  clearTurboAuthCache: mockClearTurboAuthCache,
 }));
 
 // Mock @src/content/index.server — used by source scanners
@@ -521,6 +529,7 @@ describe("ConfigService", () => {
 
       expect(mockInvalidateRolesCache).toHaveBeenCalledWith("t-1");
       expect(mockInvalidatePermissionCache).toHaveBeenCalled();
+      expect(mockClearTurboAuthCache).toHaveBeenCalled();
     });
 
     it("invalidates caches when a role is deleted via import", async () => {
@@ -535,6 +544,7 @@ describe("ConfigService", () => {
 
       expect(mockInvalidateRolesCache).toHaveBeenCalledWith("t-1");
       expect(mockInvalidatePermissionCache).toHaveBeenCalled();
+      expect(mockClearTurboAuthCache).toHaveBeenCalled();
     });
 
     it("does not invalidate caches when no role entities are imported", async () => {
@@ -549,6 +559,7 @@ describe("ConfigService", () => {
 
       expect(mockInvalidateRolesCache).not.toHaveBeenCalled();
       expect(mockInvalidatePermissionCache).not.toHaveBeenCalled();
+      expect(mockClearTurboAuthCache).not.toHaveBeenCalled();
     });
   });
 

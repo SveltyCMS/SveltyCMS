@@ -292,6 +292,15 @@ export class Auth {
     } catch {
       // Non-critical — permission cache will expire naturally after TTL
     }
+
+    // Turbo auth contexts cache per-session user/roles/bitsets. Clear the user's
+    // sessions so privilege changes apply immediately instead of after the 60s TTL.
+    try {
+      const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
+      invalidateTurboAuthForUser(userId as string);
+    } catch {
+      // Non-critical — turbo contexts expire naturally after TTL
+    }
   }
 
   async deleteUser(userId: DatabaseId, options?: BaseQueryOptions): Promise<void> {
@@ -310,6 +319,15 @@ export class Auth {
     if (user?.email) {
       const emailCacheKey = `user:email:${normalizeEmail(user.email)}`;
       await cacheService.delete(emailCacheKey, options?.tenantId);
+    }
+
+    // Turbo auth contexts cache per-session user/roles/bitsets and skip session
+    // re-validation — a deleted user's warm context must not survive.
+    try {
+      const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
+      invalidateTurboAuthForUser(userId as string);
+    } catch {
+      // Non-critical — turbo contexts expire naturally after TTL
     }
   }
   async getAllUsers(options?: PaginationOptions, dbOptions?: BaseQueryOptions): Promise<User[]> {

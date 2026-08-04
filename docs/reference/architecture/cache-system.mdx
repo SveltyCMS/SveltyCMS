@@ -32,6 +32,23 @@ Layer 2: Redis (Optional)     → <1ms (distributed, cross-node)
 Layer 3: Database (Persistent) → Sub-ms CRUD (0.042-3.261ms)
 ```
 
+```mermaid
+flowchart TD
+    REQ[Request] --> L1{L1 In-Memory LRU}
+    L1 -->|hit| HIT[Serve response - sub-µs, zero allocation]
+    L1 -->|miss| NEG{Negative Bloom filter?}
+    NEG -->|known missing| NF[Skip DB - fast 404]
+    NEG -->|not negative| L2{L2 Redis}
+    L2 -->|hit| L2HIT[Promote to L1 + serve]
+    L2 -->|miss| SF{Single-flight active?}
+    SF -->|yes| WAIT[Coalesce - await winner]
+    SF -->|no| DB[(Database)]
+    DB --> STORE[Populate L1 + L2, open SWR window]
+    STORE --> HIT
+    L2HIT --> HIT
+    WAIT --> HIT
+```
+
 ### Key: L1 is In-Memory, L2 is Redis
 
 The L1 cache is a local `LRUCache` instance (not Redis). Redis is the optional L2 layer for distributed deployments. This means even without Redis, the cache system is fully operational with sub-µs L1 hits.
@@ -70,19 +87,38 @@ Hash-keyed entries — **never store plaintext bearer tokens in L1/L2**:
 
 ### Permission Cache (RBAC)
 
+`hasPermissionWithRoles()` consults this cache on every permission check (after the admin fast-path), keyed by `{userId}:{permissionId}:{sortedRoleIds}`. On a miss it evaluates via the memoized role bitsets and stores the boolean result:
+
 | Key prefix                                | TTL  | Invalidation                                            |
 | ----------------------------------------- | ---- | ------------------------------------------------------- |
 | `{userId}:{permissionId}:{sortedRoleIds}` | 5min | `invalidatePermissionCache(userId)` on user update      |
 |                                           |      | `invalidatePermissionCache()` (global) on role mutation |
 
-**Helpers**: `src/databases/auth/permissions.ts` (`invalidatePermissionCache`), `src/utils/security/permission-cache.ts` (`PermissionCache`).
+**Helpers**: `src/databases/auth/permissions.ts` (`hasPermissionWithRoles`, `invalidatePermissionCache`), `src/utils/security/permission-cache.ts` (`PermissionCache`).
 
 **Invalidation policy**:
 
 - **Per-user**: Called after `Auth.updateUser()` — clears cached permission checks for the modified user so RBAC changes take effect immediately.
 - **Global**: Called after `AuthNamespace.updateRoles()` — clears all entries since any role change can affect many users' cached checks.
 - **Config import**: `ConfigService.performImport()` (config sync, `/api/config/import`, GraphQL `configApply`, LocalCMS `performImport`) writes roles directly through the DB adapter. It now invalidates the roles list cache **and** the permission cache whenever a `role` entity is upserted or deleted, so imported role changes take effect immediately instead of after the 1h roles-cache TTL.
-- **Turbo auth**: `invalidateTurboAuthForUser(userId)` in `hooks.server.ts` clears the turbo auth cache entry so the next GET request re-validates the session with fresh permissions.
+- **Turbo auth**: Turbo contexts (`src/hooks/handle-turbo-get.ts`, 60s TTL) cache per-session `user`/`roles`/`bitset` and skip session re-validation on cacheable API GETs, so stale permission state can persist up to 60s after a change. Invalidation coverage:
+  - `clearTurboAuthCache()` — full clear after `AuthNamespace.updateRoles()` (a role change can affect any user), `ConfigService.performImport()` role imports/deletes, and testing-API role mutations.
+  - `invalidateTurboAuthForUser(userId)` — per-user clear after `Auth.updateUser()` (role/status edits) and `Auth.deleteUser()`; `batchAction()` block/delete/unblock already clears the affected users.
+
+```mermaid
+flowchart LR
+    MUT[Role or user mutation] --> PATH{Which path?}
+    PATH -->|AuthNamespace.updateRoles| R1[invalidateRolesCache + invalidatePermissionCache + clearTurboAuthCache]
+    PATH -->|Auth.updateUser| R2[invalidatePermissionCache user + invalidateTurboAuthForUser user]
+    PATH -->|Auth.deleteUser| R3[invalidateTurboAuthForUser user]
+    PATH -->|ConfigService.performImport roles| R4[invalidateRolesCache + invalidatePermissionCache + clearTurboAuthCache]
+    PATH -->|Testing API role write| R5[invalidatePermissionCache + clearTurboAuthCache]
+    R1 --> FRESH[Fresh permission state on next request]
+    R2 --> FRESH
+    R3 --> FRESH
+    R4 --> FRESH
+    R5 --> FRESH
+```
 
 > [!IMPORTANT]
 > Before July 2026, `invalidatePermissionCache` was defined but **never called**. Stale DENY results survived up to 5 minutes after privilege changes. The hardening ensures immediate propagation.
@@ -251,4 +287,4 @@ Hits serve L1 (and L2 if Redis is configured) without re-running SQL/Mongo COUNT
 
 ---
 
-**Last Updated**: 2026-07-15 (collection list SWR keys with filter hash; entry-list / createSmartFilter alignment)
+**Last Updated**: 2026-08-04 (RBAC permission cache wired into `hasPermissionWithRoles`; turbo-auth invalidation on all role/user mutation paths; architecture + invalidation mermaid diagrams)

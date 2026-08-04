@@ -107,6 +107,30 @@ export function hasPermissionWithRoles(
 
   const safeRoles = roles || [];
 
+  // Permission result cache (5-min TTL, LRU) — keyed by user + permission + role ids.
+  // Invalidated per-user on Auth.updateUser() and globally on every role mutation
+  // (AuthNamespace.updateRoles, config import, testing API), so cached DENY results
+  // never outlive privilege changes.
+  if (user._id) {
+    const roleIds = safeRoles.map((r) => String(r._id));
+    const cached = permissionCache.get(String(user._id), permissionId, roleIds);
+    if (cached !== null) return cached;
+  }
+
+  const granted = evaluatePermissionWithRoles(user, permissionId, safeRoles);
+
+  if (user._id) {
+    const roleIds = safeRoles.map((r) => String(r._id));
+    permissionCache.set(String(user._id), permissionId, roleIds, granted);
+  }
+  return granted;
+}
+
+/**
+ * Un-cached permission evaluation — the decision engine behind hasPermissionWithRoles.
+ * Split out so the result can be cached (and invalidated) as a unit.
+ */
+function evaluatePermissionWithRoles(user: User, permissionId: string, safeRoles: Role[]): boolean {
   // Find ALL roles matching the user (supports multiple roles)
   const userRoles = safeRoles.filter((role) => {
     if (role._id === user.role) return true;
@@ -167,7 +191,7 @@ export function hasPermissionWithRoles(
     userId: user._id,
     userRoleIds: userRoles.map((r) => r._id),
     permissionId,
-    rolesAvailable: roles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
+    rolesAvailable: safeRoles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
   });
   logger.trace("Permission check for user", {
     permissionId,
@@ -202,24 +226,13 @@ export function hasPermissionByAction(
     return false;
   }
 
-  let roles: Role[] = userRoles || []; // If no roles provided, try to get them from a global location
+  const roles: Role[] = userRoles || [];
+  // No global roles fallback: callers must supply roles. (The former `__ROLES_CACHE__`
+  // global was never written anywhere and has been removed.) Deny when missing rather
+  // than guessing — permission checks fail closed.
   if (!userRoles) {
-    try {
-      // Try to access roles from a different location
-      if (
-        typeof globalThis !== "undefined" &&
-        (globalThis as unknown as { __ROLES_CACHE__?: Role[] }).__ROLES_CACHE__
-      ) {
-        roles = (globalThis as unknown as { __ROLES_CACHE__: Role[] }).__ROLES_CACHE__;
-      } else {
-        // Last resort - empty array
-        logger.warn("No roles available for permission check - defaulting to deny");
-        return false;
-      }
-    } catch (error: unknown) {
-      logger.error("Failed to load roles for hasPermissionByAction:", error);
-      return false;
-    }
+    logger.warn("No roles available for permission check - defaulting to deny");
+    return false;
   }
 
   const safeRoles = roles || [];

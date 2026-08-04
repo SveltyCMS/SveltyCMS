@@ -382,6 +382,10 @@ export class ConfigService {
         await invalidateRolesCache(tenantId);
         const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
         invalidatePermissionCache();
+        // Turbo auth contexts cache per-session roles/bitsets — a role import can
+        // affect any user, so drop all sessions to force fresh permission resolution.
+        const { clearTurboAuthCache } = await import("@src/hooks/handle-turbo-get");
+        clearTurboAuthCache();
       } catch (err) {
         logger.warn(
           `Role cache invalidation after config import failed: ${(err as Error).message}`,

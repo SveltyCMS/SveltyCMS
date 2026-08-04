@@ -517,11 +517,12 @@ export class AuthNamespace {
       // clearing all entries is the safest approach after a role mutation.
       invalidatePermissionCache();
 
-      // Invalidate turbo-auth cache for this user so privilege changes take effect immediately
-      const userId = user._id as string;
+      // Invalidate turbo-auth cache for ALL sessions — a role change can affect any
+      // user's cached roles/bitset, not just the acting admin's. Turbo contexts expire
+      // after 60s (TURBO_AUTH_TTL_MS), but permission changes must apply immediately.
       try {
-        const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
-        invalidateTurboAuthForUser(userId);
+        const { clearTurboAuthCache } = await import("@src/hooks/handle-turbo-get");
+        clearTurboAuthCache();
       } catch {}
 
       await auditLogService.logEvent({

@@ -25,6 +25,7 @@ import {
   hasCollectionBuilderPermission,
   hasPermissionByAction,
   hasPermissionWithRoles,
+  invalidatePermissionCache,
   isAdminRoleWithRoles,
   registerPermission,
 } from "@src/databases/auth/permissions";
@@ -66,6 +67,10 @@ const mockRoles: Role[] = [
 
 describe("Role and Permission Access Management", () => {
   beforeEach(() => {
+    // Reset the permission result cache so cached grants/denies never leak
+    // between tests now that hasPermissionWithRoles consults it.
+    invalidatePermissionCache();
+
     // Register test permissions
     registerPermission({
       _id: "collection:create" as DatabaseId,
@@ -169,6 +174,104 @@ describe("Role and Permission Access Management", () => {
       mockRoles,
     );
     expect(canDelete).toBe(false);
+  });
+
+  test("fails closed when no roles are supplied (no global fallback)", () => {
+    // The former `__ROLES_CACHE__` global fallback was removed — callers must
+    // supply roles, otherwise the check denies instead of consulting a cache
+    // that could hold stale permissions.
+    const editorUser: User = {
+      _id: "user1" as DatabaseId,
+      email: "editor@example.com",
+      role: "editor",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    const canCreate = hasPermissionByAction(
+      editorUser,
+      PermissionAction.CREATE,
+      PermissionType.COLLECTION,
+    );
+    expect(canCreate).toBe(false);
+
+    // Even an admin cannot be resolved without roles — fail closed.
+    const canAdmin = hasPermissionByAction(
+      { ...editorUser, role: "admin" },
+      PermissionAction.CREATE,
+      PermissionType.COLLECTION,
+    );
+    expect(canAdmin).toBe(false);
+  });
+
+  describe("Permission result caching", () => {
+    test("serves cached results within the TTL window and refreshes after invalidation", () => {
+      const editorUser: User = {
+        _id: "cache-user-1" as DatabaseId,
+        email: "editor@example.com",
+        role: "editor",
+        permissions: [],
+        createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+        updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+      };
+
+      expect(hasPermissionWithRoles(editorUser, "collection:read", mockRoles)).toBe(true);
+
+      // Simulate a role permission removal (fresh role objects, as a DB refetch returns —
+      // note: no `__bitset` memoization property, unlike spreading the original role)
+      const revokedRoles = mockRoles.map((r) =>
+        r._id === "editor"
+          ? {
+              _id: r._id,
+              name: r.name,
+              description: r.description,
+              permissions: [],
+              isAdmin: false,
+            }
+          : r,
+      );
+
+      // Still granted — served from the 5-minute result cache
+      expect(hasPermissionWithRoles(editorUser, "collection:read", revokedRoles)).toBe(true);
+
+      invalidatePermissionCache();
+      expect(hasPermissionWithRoles(editorUser, "collection:read", revokedRoles)).toBe(false);
+    });
+
+    test("per-user invalidation clears only that user's entries", () => {
+      const makeUser = (id: string): User => ({
+        _id: id as DatabaseId,
+        email: `${id}@example.com`,
+        role: "editor",
+        permissions: [],
+        createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+        updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+      });
+      const userA = makeUser("cache-user-a");
+      const userB = makeUser("cache-user-b");
+
+      expect(hasPermissionWithRoles(userA, "collection:read", mockRoles)).toBe(true);
+      expect(hasPermissionWithRoles(userB, "collection:read", mockRoles)).toBe(true);
+
+      const revokedRoles = mockRoles.map((r) =>
+        r._id === "editor"
+          ? {
+              _id: r._id,
+              name: r.name,
+              description: r.description,
+              permissions: [],
+              isAdmin: false,
+            }
+          : r,
+      );
+
+      invalidatePermissionCache(userA._id as string);
+
+      // A re-evaluates (denied), B still served from cache (granted)
+      expect(hasPermissionWithRoles(userA, "collection:read", revokedRoles)).toBe(false);
+      expect(hasPermissionWithRoles(userB, "collection:read", revokedRoles)).toBe(true);
+    });
   });
 
   test("Admin role detection", () => {
