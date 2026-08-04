@@ -33,7 +33,6 @@ Features:
 	import type { ContentNode } from "@root/src/databases/db-interface";
 	import Button from "@components/ui/button.svelte";
 	import Input from "@components/ui/input.svelte";
-	import AdminCard from "@components/admin-card.svelte";
 
 	interface Props {
 		body?: string;
@@ -195,9 +194,9 @@ Features:
 	const isEditing = $derived(!!existingCategory._id);
 </script>
 
-<div class="modal-category-container min-w-[32rem] sm:min-w-[40rem] md:min-w-[48rem]">
+<div class="modal-category-container">
 	{#if formError}
-		<div class="mb-4 rounded-md bg-error-500/10 p-3 text-sm text-error-600 dark:text-error-400" role="alert">
+		<div class="mb-4 rounded-lg border border-error-500/20 bg-error-500/10 p-3 text-sm text-error-600 dark:text-error-400" role="alert">
 			{formError}
 		</div>
 	{/if}
@@ -207,8 +206,8 @@ Features:
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-5">
 			<!-- Left column: Form fields (3/5 width) -->
 			<div class="flex flex-col gap-4 md:col-span-3">
-				<AdminCard class="p-5 space-y-4">
-					<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-300 uppercase tracking-wide">
+				<div class="space-y-4">
+					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-300">
 						Category Details
 					</h3>
 
@@ -248,14 +247,14 @@ Features:
 						class="opacity-70"
 						data-testid="category-slug-display"
 					/>
-				</AdminCard>
+				</div>
 			</div>
 
 			<!-- Right column: Icon picker + Preview (2/5 width) -->
 			<div class="flex flex-col gap-4 md:col-span-2">
-				<!-- Icon Picker Card -->
-				<AdminCard class="p-5 space-y-4">
-					<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-300 uppercase tracking-wide">
+				<!-- Icon Picker -->
+				<div class="space-y-3">
+					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-300">
 						Icon
 					</h3>
 
@@ -263,7 +262,7 @@ Features:
 						<span class="mb-2 block text-sm font-medium text-surface-700 dark:text-surface-200">
 							Choose an icon
 						</span>
-						<div class="min-h-[220px]">
+						<div class="min-h-[220px] rounded-lg border border-surface-200 bg-surface-50 p-2 dark:border-surface-700 dark:bg-surface-800/40">
 							<IconifyIconsPicker
 								bind:iconselected={formData.newCategoryIcon}
 								icon={previewIcon}
@@ -274,22 +273,22 @@ Features:
 							<span id="icon-error" class="mt-1 block text-xs text-error-500">{validationErrors.icon}</span>
 						{/if}
 					</div>
-				</AdminCard>
+				</div>
 
-				<!-- Live Preview Card -->
-				<AdminCard class="p-5 space-y-3">
-					<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-300 uppercase tracking-wide">
+				<!-- Live Preview -->
+				<div class="space-y-3">
+					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-300">
 						Preview
 					</h3>
 					<div
-						class="flex items-center gap-3 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50 p-4"
+						class="flex items-center gap-3 rounded-lg border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-800/40"
 						data-testid="category-preview"
 					>
-						<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-500">
-							<iconify-icon icon={previewIcon} width="28" height="28"></iconify-icon>
+						<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-500/10 dark:text-primary-400">
+							<iconify-icon icon={previewIcon} width="28" height="28" aria-hidden="true"></iconify-icon>
 						</div>
 						<div class="min-w-0 flex-1">
-							<div class="truncate text-base font-semibold text-surface-900 dark:text-surface-100">
+							<div class="truncate text-base font-semibold text-surface-900 dark:text-white">
 								{formData.newCategoryName || "Category name"}
 							</div>
 							{#if formData.newCategoryDescription}
@@ -299,7 +298,7 @@ Features:
 							{/if}
 						</div>
 					</div>
-				</AdminCard>
+				</div>
 			</div>
 		</div>
 
@@ -319,7 +318,7 @@ Features:
 			{/if}
 
 			<div class="flex gap-2">
-				<Button variant="outline" type="button" onclick={() => close?.(null)} disabled={isSubmitting}>
+				<Button variant="ghost" type="button" onclick={() => close?.(null)} disabled={isSubmitting}>
 					{button_cancel()}
 				</Button>
 				<Button

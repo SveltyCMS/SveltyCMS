@@ -551,6 +551,8 @@ async function handleCreateFolder() {
 			body: "Enter a name for the new folder:",
 			value: "",
 			type: "text",
+			size: "md",
+			contentClass: "min-w-80 sm:min-w-sm",
 		},
 		async (name: string | null) => {
 			if (!name?.trim()) return;
@@ -659,7 +661,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				onclick={handleCreateFolder}
 				aria-label="Create new virtual folder"
 				data-testid="media-create-folder"
-				class="h-9 gap-1.5 px-2 text-surface-600 sm:px-3 dark:text-surface-300"
+				class="h-9 gap-1.5 px-2 sm:px-3"
 			>
 				<iconify-icon icon="mdi:folder-plus" width="18"></iconify-icon>
 				<span class="hidden sm:inline">New Folder</span>
@@ -937,13 +939,13 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 								<Button type="button" variant={view === 'grid' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'grid')} aria-label="Grid view" aria-pressed={view === 'grid'} class="h-10! w-10! px-0!">
 									<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
 								</Button>
-								<Button type="button" variant={view === 'table' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'table')} aria-label="Table view" aria-pressed={view === 'table'} class="h-10! w-10! px-0! border-l border-surface-300 dark:border-surface-600">
+								<Button type="button" variant={view === 'table' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'table')} aria-label="Table view" aria-pressed={view === 'table'} class="h-10! w-10! px-0! border-s border-surface-300 dark:border-surface-600">
 									<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
 								</Button>
 							</div>
 							{#if view === 'grid'}
 								<div class="flex overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
-									{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i}
+									{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i (size)}
 										<Button
 											type="button"
 											variant={gridSize === size ? 'primary' : 'ghost'}
@@ -951,7 +953,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 											onclick={() => (gridSize = size)}
 											aria-label="{size} grid"
 											aria-pressed={gridSize === size}
-											class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-l border-surface-300 dark:border-surface-600' : ''}"
+											class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-s border-surface-300 dark:border-surface-600' : ''}"
 										>
 											{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
 										</Button>
@@ -1044,7 +1046,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					<button
 						type="button"
 						onclick={() => (view = 'table')}
-						class="relative inline-flex h-10 w-10 min-w-0 items-center justify-center border-l border-surface-300 p-0 text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:border-surface-600 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view === 'table'
+						class="relative inline-flex h-10 w-10 min-w-0 items-center justify-center border-s border-surface-300 p-0 text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:border-surface-600 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view === 'table'
 							? 'bg-primary-500 text-white'
 							: 'text-surface-500 dark:text-surface-400'}"
 						aria-label="Table view"
@@ -1057,7 +1059,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 
 				{#if view === 'grid'}
 					<div class="flex shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
-						{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i}
+						{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i (size)}
 							<Button
 								type="button"
 								variant={gridSize === size ? 'primary' : 'ghost'}
@@ -1065,7 +1067,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 								onclick={() => (gridSize = size)}
 								aria-label="{size} grid"
 								aria-pressed={gridSize === size}
-								class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-l border-surface-300 dark:border-surface-600' : ''}"
+								class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-s border-surface-300 dark:border-surface-600' : ''}"
 							>
 								{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
 							</Button>

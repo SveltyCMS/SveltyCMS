@@ -168,7 +168,7 @@
 		<div class="flex min-w-0 flex-col justify-center">
 			<div class="flex min-w-0 items-center gap-1">
 				<h1
-					class="transition-max-width h1 relative flex min-w-0 items-center gap-1 leading-none font-bold"
+					class="transition-max-width h1 relative flex min-w-0 items-center gap-1 leading-tight font-bold"
 					style="font-size: {compact ? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)' : 'clamp(1.25rem, 2vw + 0.75rem, 1.75rem)'};"
 					aria-live="polite"
 					data-cms-field="pageTitle"
