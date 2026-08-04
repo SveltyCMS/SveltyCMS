@@ -68,7 +68,7 @@ Do **not** use raw `console.log` / `console.info` for app diagnostics. Those byp
 
 **Allowed raw `console.*` (not app runtime):** CLI entrypoints (e.g. smart-importer CLI), Vite plugins, compile/link-validator/benchmark sandbox reports, and the logger implementation itself.
 
-> **Note:** `src/utils/logger.server.ts` implements an optional **file sink** (rotation, batching, HMAC chain). It is **not** the day-to-day import. File logging only activates if that module is loaded (e.g. registered from server boot). Prefer stdout + platform log shipping in containers. See [Server file sink](#server-file-sink-optional) below.
+> **Note:** `src/utils/logger.server.ts` implements an optional **file sink** (rotation, batching, HMAC chain). It is **not** the day-to-day import. File logging only activates if that module is loaded (e.g. registered from server boot). Prefer stdout + platform log shipping in containers. See [Server file sink](#server-file-sink-boot-wired) below.
 
 ---
 

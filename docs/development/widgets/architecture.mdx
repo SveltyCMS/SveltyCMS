@@ -12,3 +12,27 @@ tags:
   - "architecture"
   - "core"
 ---
+
+# Widget Architecture
+
+SveltyCMS widgets are built on a strict **3-Pillar pattern** — a Valibot-validated definition (`index.ts`), an input component (`Input.svelte`), and a display component (`Display.svelte`) — composed via `createWidget()` from the widget factory.
+
+## Guides
+
+- **[Widget Development](/docs/development/widgets/development.mdx)** — Quick start, lifecycle, and Input/Display component contracts.
+- **[Widget Marketplace](/docs/development/widgets/marketplace.mdx)** — Packaging widgets for marketplace.sveltycms.com.
+- **[Widget System Overview](/docs/development/widgets/widget-system-overview.mdx)** — Widget store, runtime integration, and lazy loading.
+- **[Widget Development Guide](/docs/development/widgets/widget-development-guide.mdx)** — Step-by-step walkthrough for building custom widgets.
+
+## Core Pattern
+
+```typescript
+import { createWidget } from "@widgets/widgetFactory";
+import * as v from "valibot";
+
+export default createWidget<{ maxLength?: number }>({
+  Name: "myWidget",
+  validationSchema: (field) => v.string([v.maxLength(field.maxLength ?? 100)]),
+  GuiSchema: { maxLength: { widget: "number", label: "Max Length" } },
+});
+```

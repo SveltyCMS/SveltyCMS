@@ -171,7 +171,7 @@ Synchronize editorial content between environments via configurable **channels**
 
 Apply versioned, idempotent transformations to your schema and content — useful when upgrading SveltyCMS versions or evolving your data model.
 
-### Workflow
+### Workflow {#data-migrations-workflow}
 
 1. Go to **Admin → Operations → Migrations**.
 2. View migration history — all applied and pending migrations with their `planHash`.
@@ -179,7 +179,7 @@ Apply versioned, idempotent transformations to your schema and content — usefu
 4. **Apply** — each migration runs exactly once (idempotent via `planHash` deduplication).
 5. **Verify** — confirm the migration produced the expected result.
 
-### Safety Features
+### Safety Features {#data-migrations-safety}
 
 - **Cross-adapter locking** — Prevents concurrent migration runs across all database adapters.
 - **Risk scoring** — Destructive migrations (column drops, data deletion) are flagged.
