@@ -14,6 +14,7 @@
 	import PluginsView from './plugins-view.svelte';
 	import ThemesView from './themes-view.svelte';
 	import WidgetDashboard from './widget-dashboard.svelte';
+	import MarketplaceView from './marketplace-view.svelte';
 
 	let { data }: { data: any } = $props();
 
@@ -23,6 +24,7 @@
 		{ id: 'plugins', label: 'Plugins', icon: 'mdi:puzzle' },
 		{ id: 'widgets', label: 'Widgets', icon: 'mdi:widgets' },
 		{ id: 'themes', label: 'Themes', icon: 'ph:layout' },
+		{ id: 'marketplace', label: 'Marketplace', icon: 'mdi:store' },
 	] as const;
 </script>
 
@@ -57,19 +59,18 @@
 					{/each}
 				</div>
 
-				<a
-					href="https://marketplace.sveltycms.com"
-					target="_blank"
-					rel="noopener noreferrer"
+				<button
+					type="button"
 					class="hidden items-center gap-2 rounded bg-surface-100 px-4 py-2 text-sm font-medium transition-colors hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 sm:flex"
 					data-testid="extensions-marketplace"
+					onclick={() => (activeTab = 'marketplace')}
 				>
 					<iconify-icon icon="mdi:store" width={24} class="text-lg"></iconify-icon>
 					<span>Marketplace</span>
 					<span class="rounded bg-tertiary-100 px-1.5 py-0.5 text-[10px] uppercase text-tertiary-500 dark:bg-primary-900/30 dark:text-primary-500">
-						Beta
+						In-app
 					</span>
-				</a>
+				</button>
 			</div>
 
 			<div class="min-h-125" data-testid={`extensions-panel-${activeTab}`} role="tabpanel">
@@ -77,6 +78,8 @@
 					<PluginsView {data} />
 				{:else if activeTab === 'widgets'}
 					<WidgetDashboard {data} />
+				{:else if activeTab === 'marketplace'}
+					<MarketplaceView />
 				{:else if activeTab === 'themes'}
 					<ThemesView />
 				{/if}

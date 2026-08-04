@@ -67,6 +67,8 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/oidc-logout",
+  "/api/auth/oidc-login",
+  "/api/auth/oidc-callback",
   "/api/auth/frontchannel-logout",
   "/api/auth/backchannel-logout",
   "/api/preview",

@@ -75,6 +75,9 @@ export async function runDatabaseBenchmark() {
       { name: "FIND MANY (limit 50)", fn: createFindManyTest(db) },
       // 🚀 findPage: limit+1 hasMore without COUNT(*) — product list default
       { name: "FIND PAGE (50 hasMore)", fn: createFindPageTest(db) },
+      // Keyset second page (cursor) vs OFFSET deep page
+      { name: "FIND PAGE keyset", fn: createFindPageKeysetTest(db) },
+      { name: "FIND MANY offset 50", fn: createFindManyOffsetTest(db) },
       // Legacy dual-query list+count for before/after comparison
       { name: "LIST+COUNT (legacy)", fn: createLegacyListCountTest(db) },
       { name: "UPDATE", fn: createUpdateTest(db) },
@@ -309,6 +312,49 @@ function createFindPageTest(db: any) {
   return async () => {
     const res = await db.crud.findPage(COLLECTION_ID, queryFilter, pageOpts);
     assertSuccess(res, "findPage");
+  };
+}
+
+/** Warm a cursor once, then measure keyset second-page latency. */
+function createFindPageKeysetTest(db: any) {
+  const queryFilter = Object.freeze({ tenantId: TEST_TENANT });
+  let cursor: string | undefined;
+  return async () => {
+    if (!cursor) {
+      const first = await db.crud.findPage(COLLECTION_ID, queryFilter, {
+        limit: 20,
+        tenantId: TEST_TENANT,
+        total: "none",
+        skipMeta: true,
+      });
+      assertSuccess(first, "findPage warm");
+      cursor = first.data?.nextCursor;
+      if (!cursor) {
+        // Not enough rows for hasMore — still exercise first page path
+        return;
+      }
+    }
+    const res = await db.crud.findPage(COLLECTION_ID, queryFilter, {
+      limit: 20,
+      tenantId: TEST_TENANT,
+      total: "none",
+      skipMeta: true,
+      cursor,
+    });
+    assertSuccess(res, "findPage keyset");
+  };
+}
+
+function createFindManyOffsetTest(db: any) {
+  const queryFilter = Object.freeze({ tenantId: TEST_TENANT });
+  return async () => {
+    const res = await db.crud.findMany(COLLECTION_ID, queryFilter, {
+      limit: 20,
+      offset: 50,
+      tenantId: TEST_TENANT,
+      skipMeta: true,
+    });
+    assertSuccess(res, "findMany offset");
   };
 }
 

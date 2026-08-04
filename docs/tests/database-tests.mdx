@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:database-check"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-07-05"
+updated: "2026-08-04"
 tags:
   - "testing"
   - "database"
@@ -204,7 +204,30 @@ To ensure identical behavior across all 4 database adapters, SveltyCMS now runs 
 | `transaction-contract.test.ts` | 5 | Commit, rollback, orphan prevention |
 | `bulk-operations-contract.test.ts` | 10 | insertMany, updateMany, deleteMany, upsertMany, atomicIncrement |
 | `advanced-crud-contract.test.ts` | 9 | streamMany, findByIds, aggregate, restore, exists |
+| `find-page-count-contract.test.ts` | 9 | **findPage** hasMore/total/**keyset cursor**, **count** modes, count cache |
 | `health-contract.test.ts` | 12 | Connection health, pool stats, queryBuilder, tenant policy |
+
+### Three-layer mapping: list / count product APIs
+
+Respect the pyramid in [Testing index](./index.mdx) — **do not** put adapter contracts in Playwright.
+
+| Layer | What | Files | Command |
+| :---- | :--- | :---- | :------ |
+| **Unit** (white-box) | Pure eligibility + page slicing + count-cache proxy (mocked L1) | `tests/unit/core/page-utils.test.ts`, `tests/unit/core/count-cache.test.ts` | `bun run test:unit` / pre-commit |
+| **Integration** (black-box adapter) | Real `ensureFullInitialization` + live CRUD on active `DB_TYPE` | `tests/integration/databases/find-page-count-contract.test.ts` | `bun run test:integration` / pre-push SQLite; CI multi-DB |
+| **E2E** | Only after UI/list routes **call** `findPage` (golden journey) | *none yet* — not an adapter-only concern | — |
+| **Benchmark** | Latency truth tables (not a gate substitute) | `tests/benchmarks/database-performance.test.ts` | `BENCHMARK_RECORD=1 bun test tests/benchmarks/database-performance.test.ts` |
+
+```bash
+# Unit only (pure helpers)
+bun test tests/unit/core/page-utils.test.ts tests/unit/core/count-cache.test.ts
+
+# Integration contract (SQLite local default)
+bun test --timeout 300000 tests/integration/databases/find-page-count-contract.test.ts
+
+# Same contract on a Docker engine
+DB_TYPE=postgresql bun test --timeout 300000 tests/integration/databases/find-page-count-contract.test.ts
+```
 
 **Run against a specific adapter**:
 ```bash

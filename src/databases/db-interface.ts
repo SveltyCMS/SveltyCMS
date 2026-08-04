@@ -226,6 +226,12 @@ export interface FindPageOptions<T> extends FindOptions<T> {
    * Default `none` — list UIs should use `hasMore` only.
    */
   total?: FindPageTotalMode;
+  /**
+   * Opaque keyset cursor from a previous `FindPageResult.nextCursor`.
+   * Prefer over `offset` for deep pages (O(1) seek vs OFFSET scan).
+   * When set, `offset` is ignored.
+   */
+  cursor?: string;
 }
 
 export interface FindPageResult<T> {
@@ -233,7 +239,10 @@ export interface FindPageResult<T> {
   /** True when at least one more page exists (from limit+1 fetch). */
   hasMore: boolean;
   pageSize: number;
-  /** Last item `_id` when hasMore (opaque keyset starter). */
+  /**
+   * Opaque keyset cursor for the next page (encode of id + optional sort field).
+   * Pass as `options.cursor` on the next `findPage` call.
+   */
   nextCursor?: string;
   /** Present only when `total` was not `"none"`. */
   total?: number;

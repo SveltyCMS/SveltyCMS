@@ -116,6 +116,12 @@ export async function handleAuthUserRoutes(
         return reqMethod === "POST" || reqMethod === "GET"
           ? handleOidcLogout(event, cms, tenantId, cookies)
           : notAllowed();
+      case "oidc-login":
+        return reqMethod === "GET" ? handleOidcLoginStart(event) : notAllowed();
+      case "oidc-callback":
+        return reqMethod === "GET"
+          ? handleOidcLoginCallback(event, cms, tenantId, cookies)
+          : notAllowed();
       case "frontchannel-logout":
         return reqMethod === "GET" ? handleFrontChannelLogoutRoute(event) : notAllowed();
       case "backchannel-logout":
@@ -424,6 +430,150 @@ export async function handleOidcLogout(
   }
 
   return successResponse(event, { message: "Logged out successfully" });
+}
+
+/**
+ * Start OIDC authorization-code login: redirect to OP authorize endpoint.
+ * Query: provider (required), redirect_uri (optional — defaults to /api/auth/oidc-callback)
+ */
+export async function handleOidcLoginStart(event: RequestEvent) {
+  const providerId = event.url.searchParams.get("provider") || "";
+  if (!providerId) throw new AppError("provider query param is required", 400);
+
+  const { buildOidcAuthorizationUrl, getSsoProvider, loadSsoProvidersFromSettings } =
+    await import("@src/databases/auth/sso-session");
+  loadSsoProvidersFromSettings();
+  if (!getSsoProvider(providerId)) {
+    throw new AppError(`Unknown OIDC provider: ${providerId}`, 404);
+  }
+
+  const origin = event.url.origin;
+  const redirectUri =
+    event.url.searchParams.get("redirect_uri") || `${origin}/api/auth/oidc-callback`;
+  const state = globalThis.crypto.randomUUID();
+  const nonce = globalThis.crypto.randomUUID();
+
+  // Short-lived cookie for CSRF state (HttpOnly)
+  event.cookies.set("oidc_login_state", JSON.stringify({ state, nonce, providerId, redirectUri }), {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: event.url.protocol === "https:",
+    maxAge: 600,
+  });
+
+  const built = await buildOidcAuthorizationUrl(providerId, {
+    redirectUri,
+    state,
+    nonce,
+  });
+  if (!built.success) throw new AppError(built.message, 400);
+
+  return new Response(null, {
+    status: 302,
+    headers: { Location: built.url },
+  });
+}
+
+/**
+ * OIDC callback: exchange code, verify id_token (JWKS), create local session when possible.
+ */
+export async function handleOidcLoginCallback(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  cookies: any,
+) {
+  const code = event.url.searchParams.get("code") || "";
+  const state = event.url.searchParams.get("state") || "";
+  const err = event.url.searchParams.get("error");
+  if (err) throw new AppError(`OIDC error: ${err}`, 400);
+  if (!code || !state) throw new AppError("code and state are required", 400);
+
+  let stored: { state: string; nonce: string; providerId: string; redirectUri: string };
+  try {
+    stored = JSON.parse(cookies.get("oidc_login_state") || "{}");
+  } catch {
+    throw new AppError("Missing OIDC login state", 400);
+  }
+  cookies.delete("oidc_login_state", { path: "/" });
+  if (!stored.state || stored.state !== state) {
+    throw new AppError("OIDC state mismatch", 400);
+  }
+
+  const { exchangeOidcCode, setSsoSessionMetadata } =
+    await import("@src/databases/auth/sso-session");
+  const exchanged = await exchangeOidcCode(stored.providerId, {
+    code,
+    redirectUri: stored.redirectUri,
+  });
+  if (!exchanged.success) throw new AppError(exchanged.message, 401);
+
+  const email =
+    (exchanged.payload?.email as string) || (exchanged.payload?.preferred_username as string) || "";
+  if (!email) {
+    return successResponse(event, {
+      message: "OIDC login succeeded but no email claim — link account manually",
+      provider: stored.providerId,
+      claims: exchanged.payload,
+    });
+  }
+
+  const userRes = await cms.auth.getUserByEmail(email, { tenantId });
+  const user = userRes?.success ? userRes.data : null;
+  if (!user?._id) {
+    throw new AppError(
+      `No local user for ${email}. Create the user or enable invite-based provisioning.`,
+      403,
+    );
+  }
+
+  // Create session via adapter Auth (user_id contract used by relational/mongo auth)
+  const auth = (await import("@src/databases/db")).getDb()?.auth;
+  if (!auth?.createSession) {
+    throw new AppError("Auth adapter createSession unavailable", 500);
+  }
+  const sessionRes = await auth.createSession({
+    user_id: user._id as any,
+    tenantId: tenantId as any,
+    expires: new Date(Date.now() + 86_400_000).toISOString() as any,
+  });
+  if (!sessionRes?.success || !sessionRes.data) {
+    throw new AppError(sessionRes?.message || "Failed to create session after OIDC login", 500);
+  }
+  const sessionId = String((sessionRes.data as any)._id || sessionRes.data);
+  if (!sessionId) throw new AppError("Session id missing after OIDC login", 500);
+
+  if (exchanged.idToken) {
+    try {
+      setSsoSessionMetadata(sessionId, {
+        provider: stored.providerId,
+        idTokenHint: exchanged.idToken,
+        createdAt: new Date().toISOString(),
+      });
+    } catch {
+      // non-fatal
+    }
+  }
+
+  {
+    const { getSessionCookieName, SESSION_COOKIE_NAME } =
+      await import("@src/databases/auth/constants");
+    const isSecure = event.url.protocol === "https:";
+    const name = getSessionCookieName(isSecure) || SESSION_COOKIE_NAME;
+    cookies.set(name, sessionId, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "strict" as const,
+      secure: isSecure,
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
+
+  return new Response(null, {
+    status: 302,
+    headers: { Location: "/dashboard" },
+  });
 }
 
 /**

@@ -51,7 +51,10 @@ SveltyCMS delivers enterprise-grade performance through its database-agnostic ar
 
 ### Credential list hot-path
 
-`system.websiteTokens.getAll()` issues the row query and `COUNT(*)` in parallel on all four engines (`Promise.all` in `relational-system.ts` and `website-token-methods.ts`). Combined with the `{ tenantId, name }` compound index, admin token tables stay sub-millisecond even under multi-tenant filtering.
+`system.websiteTokens.getAll()` keeps admin tables sub-millisecond under multi-tenant filtering (`{ tenantId, name }` compound index):
+
+- **MongoDB** — `crud.findPage` with `limit+1` hasMore + `total: "exact"` (count goes through the 30s L1 wrapper)
+- **SQL engines** — parallel `SELECT … LIMIT n+1` + `COUNT(*)` (`Promise.all` in `relational-system.ts`); sentinel row trimmed before scrubbing hashes
 
 ## Product-layer list & count (equal on all engines)
 
@@ -80,7 +83,18 @@ const page = await db.crud.findPage(
 | `total: "exact"`               | Adds exact `count` after the page fetch                 |
 | `total: "estimate"` / `"auto"` | Adds approximate total when safe (see count modes)      |
 
-**Implementation:** `SqlAdapterCore.findPage`, `MongoCrudMethods.findPage`, pure helpers in `core/page-utils.ts`. Tenant guard forwards `findPage`.
+**Implementation:** `SqlAdapterCore.findPage`, `MongoCrudMethods.findPage`, pure helpers in `core/page-utils.ts`. Tenant guard forwards `findPage`. Schema proxy: `db.posts.findPage({ filter, limit, cursor })`.
+
+### Keyset cursor (deep pages)
+
+`nextCursor` is an opaque base64url payload (`id` + optional sort field/value + direction). Pass it as `options.cursor` on the next call:
+
+- **Ignores `offset`** when cursor is set (avoids `OFFSET N` scans)
+- Filter merge uses Mongo-style `$lt`/`$gt`/`$or`/`$and` — SQL `mapQuery` and Mongo both understand them
+- Default sort when omitted: `{ _id: -1 }` for stable keyset order
+- Legacy plain `_id` strings still decode as cursors
+
+When `total` is requested, **findMany and count run in parallel** (count still hits the 30s L1 cache).
 
 ### Unified `count(..., { mode })`
 
@@ -110,24 +124,26 @@ const page = await db.crud.findPage(
 
 Equal benefit: after the first miss, repeated admin badge / dashboard counts hit L1 (~0.024 ms on all engines in the 2026-08-04 re-baseline).
 
-### Verified gains (2026-08-04, local Docker / embedded)
+### Verified gains (2026-08-04 re-bench, local Docker / embedded)
 
 Suite: `BENCHMARK_RECORD=1 bun test tests/benchmarks/database-performance.test.ts`  
-Hardware: same host as prior adapter baseline. Redis disabled.
+Hardware: same host as prior adapter baseline. Redis disabled. Includes keyset scenarios.
 
-| Scenario                             |    SQLite | PostgreSQL |   MariaDB |    MongoDB |
-| ------------------------------------ | --------: | ---------: | --------: | ---------: |
-| **FIND PAGE (50 hasMore)**           |  0.073 ms |   1.006 ms |  0.660 ms |   0.833 ms |
-| **LIST+COUNT (legacy)**              |  0.191 ms |   4.845 ms |  0.928 ms |   4.904 ms |
-| **findPage vs legacy**               | **~2.6×** |  **~4.8×** | **~1.4×** |  **~5.9×** |
-| **COUNT exact** (filtered, no cache) |  0.119 ms |   2.160 ms |  0.779 ms |   4.607 ms |
-| **COUNT ESTIMATE** (unfiltered)      |  0.024 ms |   0.721 ms |  0.423 ms |   0.435 ms |
-| **COUNT CACHED** (L1 hit)            |  0.024 ms |   0.024 ms |  0.024 ms |   0.024 ms |
-| **estimate vs exact**                |   **~5×** |    **~3×** | **~1.8×** | **~10.6×** |
-| **cached vs exact**                  |   **~5×** |   **~90×** |  **~32×** |  **~192×** |
+| Scenario                             |    SQLite | PostgreSQL |   MariaDB |   MongoDB |
+| ------------------------------------ | --------: | ---------: | --------: | --------: |
+| **FIND PAGE (50 hasMore)**           |  0.086 ms |   1.008 ms |  0.664 ms |  0.867 ms |
+| **LIST+COUNT (legacy)**              |  0.192 ms |   2.233 ms |  1.086 ms |  4.925 ms |
+| **findPage vs legacy**               | **~2.2×** |  **~2.2×** | **~1.6×** | **~5.7×** |
+| **FIND PAGE keyset** (page 2)        |  0.072 ms |   0.996 ms |  0.645 ms |  0.748 ms |
+| **FIND MANY offset 50**              |  0.050 ms |   0.904 ms |  0.585 ms |  0.705 ms |
+| **COUNT exact** (filtered, no cache) |  0.120 ms |   2.197 ms |  0.936 ms |  3.817 ms |
+| **COUNT ESTIMATE** (unfiltered)      |  0.023 ms |   0.745 ms |  0.502 ms |  0.492 ms |
+| **COUNT CACHED** (L1 hit)            |  0.024 ms |   0.024 ms |  0.029 ms |  0.025 ms |
+| **estimate vs exact**                |   **~5×** |    **~3×** | **~1.9×** | **~7.8×** |
+| **cached vs exact**                  |   **~5×** |   **~90×** |  **~32×** | **~150×** |
 
 > [!NOTE]
-> Networked engines benefit most from dropping the second round-trip (`LIST+COUNT` → `findPage`) and from count cache. SQLite already has a tiny floor; product defaults still remove wasted exact counts under poll storms.
+> Networked engines benefit most from dropping the second round-trip (`LIST+COUNT` → `findPage`) and from count cache. Keyset vs shallow `OFFSET 50` is near-parity; prefer `cursor` for deep pages (`OFFSET` 10k+) where cost grows with N.
 
 `getCollectionData` now uses `findPage` with `total: "auto"` only when `includeMetadata` is true; list-only paths skip count entirely.
 

@@ -117,7 +117,8 @@ export class AuthNamespace {
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
 
-      const filter: Record<string, any> = { tenantId: tenantId as DatabaseId };
+      const filter: Record<string, any> = {};
+      if (tenantId) filter.tenantId = tenantId as DatabaseId;
       if (search) {
         filter.$or = [
           { email: { $regex: search, $options: "i" } },
@@ -125,11 +126,41 @@ export class AuthNamespace {
         ];
       }
 
-      const sortOption: any = {};
+      const sortOption: Record<string, "asc" | "desc" | 1 | -1> = {};
       if (sort) {
-        sortOption[sort] = order === "asc" ? 1 : -1;
+        sortOption[sort] = order === "asc" ? "asc" : "desc";
       } else {
-        sortOption.createdAt = -1;
+        sortOption.createdAt = "desc";
+      }
+
+      // 🚀 Prefer crud.findPage (limit+1 hasMore + optional total via cached count)
+      // when no complex $or search — falls back to auth.getAllUsers otherwise.
+      const useFindPage =
+        !search &&
+        typeof this._dbAdapter?.crud?.findPage === "function" &&
+        typeof this._dbAdapter?.crud?.count === "function";
+
+      if (useFindPage) {
+        const pageRes = await this._dbAdapter.crud.findPage("auth_users", filter, {
+          tenantId: tenantId as DatabaseId,
+          limit,
+          offset: (page - 1) * limit,
+          sort: sortOption as any,
+          total: "exact",
+          skipMeta: true,
+        });
+        if (!pageRes.success) throw new AppError(pageRes.message || "listUsers failed", 500);
+        const totalItems = pageRes.data.total ?? pageRes.data.items.length;
+        return {
+          data: pageRes.data.items,
+          pagination: {
+            totalItems,
+            page,
+            limit,
+            totalPages: Math.ceil(totalItems / limit) || 1,
+            hasMore: pageRes.data.hasMore,
+          },
+        };
       }
 
       const [usersResult, totalResult] = await Promise.all([

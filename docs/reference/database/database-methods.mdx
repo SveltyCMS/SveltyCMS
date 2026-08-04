@@ -213,10 +213,10 @@ SveltyCMS treats website tokens and `sck_` API keys as **credentials**, not user
 
 ### Per-engine implementation
 
-| Engine                            | Module                             | Storage                                                                                | Soft-delete                                          | List performance                 |
-| :-------------------------------- | :--------------------------------- | :------------------------------------------------------------------------------------- | :--------------------------------------------------- | :------------------------------- |
-| **MongoDB**                       | `mongodb/website-token-methods.ts` | `system_website_tokens` collection; `strict: true` schema with `tenantId`, `isDeleted` | `safeQuery` + `{ $ne: true }` via `MongoCrudMethods` | `Promise.all([findMany, count])` |
-| **PostgreSQL / MariaDB / SQLite** | `core/relational-system.ts`        | `website_tokens` table via Drizzle                                                     | Hard delete (no `isDeleted` column)                  | `Promise.all([select, count])`   |
+| Engine                            | Module                             | Storage                                                                                | Soft-delete                                          | List performance                                                                 |
+| :-------------------------------- | :--------------------------------- | :------------------------------------------------------------------------------------- | :--------------------------------------------------- | :------------------------------------------------------------------------------- |
+| **MongoDB**                       | `mongodb/website-token-methods.ts` | `system_website_tokens` collection; `strict: true` schema with `tenantId`, `isDeleted` | `safeQuery` + `{ $ne: true }` via `MongoCrudMethods` | `crud.findPage` (`limit+1` hasMore) + `total: "exact"` (count hits 30s L1 cache) |
+| **PostgreSQL / MariaDB / SQLite** | `core/relational-system.ts`        | `website_tokens` table via Drizzle                                                     | Hard delete (no `isDeleted` column)                  | Parallel `select limit+1` + `COUNT(*)` (`Promise.all`); trim sentinel row        |
 
 ### Indexes (all SQL engines + MongoDB)
 

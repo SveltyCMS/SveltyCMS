@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/architecture/collection-filtering.mdx"
 title: "Collection Filtering Platform"
-description: "Schema-driven, secure, cache-aware collection filtering as a core CMS capability — reusable beyond entry-list."
+description: "Schema-driven, secure, cache-aware collection filtering — findPage/hasMore load path, count L1 cache, reusable beyond entry-list."
 order: 6
 icon: "mdi:filter-cog"
 author: "SveltyCMS Team"
 created: "2026-07-15"
-updated: "2026-07-15"
+updated: "2026-08-04"
 tags:
   - "architecture"
   - "filtering"
@@ -28,6 +28,7 @@ It is CMS-native, secure, cache-aware, and schema-driven — reusable beyond `en
 | **Schema + widgets**               | Control types derived from field widgets (`Input`, `Select`, `Date`, `Number`, `Checkbox`, …)            |
 | **RBAC / field-level permissions** | `canAccessField` (FLAC) drops fields the user cannot read before compile                                 |
 | **Cacheable + invalidatable**      | Stable `queryHash` → L1/L2 SWR keys under `collection:{id}:query:{hash}:…`                               |
+| **List load efficiency**           | `pageSize+1` hasMore + parallel exact count (L1-cached when equality-only)                               |
 | **Zero frontend deps**             | Pure defs in `@utils/collection-filter-defs` (no DB/cache/auth imports)                                  |
 | **Security at query builder**      | Compile to portable `where` / `whereBetween` / `search` — never raw `{ contains }` objects into SQL `eq` |
 
@@ -129,7 +130,24 @@ This replaces the previous anti-pattern of passing `{ field: { contains: "x" } }
 
 ---
 
+## List load path (`CollectionService`)
+
+Editorial lists do **not** require a full `findMany` + uncached `COUNT` on every request:
+
+1. **Compile** filters → portable QueryBuilder IR (FLAC + whitelist already applied).
+2. **Page rows** with `paginate({ page, pageSize: pageSize + 1 })` — extra row is the **hasMore** sentinel (same contract as `crud.findPage`).
+3. **Count in parallel**:
+   - **Equality-only** filters (no search, ranges, `in`, null checks, text search) → `dbAdapter.crud.count(..., { mode: "exact" })` which hits the **30s L1 count cache** (`core/count-cache.ts`).
+   - **Complex** filters → QueryBuilder `.count()` (cannot use simple filter hash safely).
+4. If the first page is short and count fails, `totalItems = entries.length` as a safe lower bound.
+
+Prefer raw `crud.findPage` / LocalCMS list APIs with `total: "none"` when the UI only needs infinite-scroll `hasMore` and no badge total. See [Performance Architecture](../database/performance-architecture.mdx) and [Database Methods](../database/database-methods.mdx).
+
+---
+
 ## Caching (L1 + optional Redis)
+
+### Full list page (SWR)
 
 | Item                | Value                                                                                  |
 | ------------------- | -------------------------------------------------------------------------------------- |
@@ -142,7 +160,18 @@ This replaces the previous anti-pattern of passing `{ field: { contains: "x" } }
 
 User id is part of the key so FLAC-different roles never share a poisoned cache entry.
 
----
+### Short-lived count cache (adapter layer)
+
+| Item        | Value                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------- |
+| **Wrapper** | `createCountCachedCrud` in `src/databases/core/count-cache.ts` (wired after tenant guard) |
+| **Key**     | `count:{collection}:{mode}:{includeDeleted}:{filterHash}`                                 |
+| **TTL**     | **30s** (`COUNT_CACHE_TTL_SECONDS`) · `CacheCategory.CONTENT`                             |
+| **Tags**    | `count`, `count:{collection}`, `collection:{collection}`                                  |
+| **Bypass**  | `count(..., { bypassCache: true })`                                                       |
+| **Scope**   | Tenant-scoped via `cacheService` namespace; exact counts only for filtered/tenant queries |
+
+## Content mutations that call `invalidateCollection` also clear count tags sharing the collection prefix.
 
 ## Reuse beyond entry-list
 
@@ -176,7 +205,8 @@ qb = applyFiltersToQueryBuilder(qb, compiled, {
 ## Related documentation
 
 - [entry-list](../components/entry-list.mdx) — admin table UI
-- [Cache System](./cache-system.mdx) — L1/L2, SWR, prefix invalidation
+- [Cache System](./cache-system.mdx) — L1/L2, SWR, count cache, prefix invalidation
+- [Performance Architecture](../database/performance-architecture.mdx) — findPage / count modes
 - [Content API](../api/content.mdx) — URL query params vs global search
 - [Data Operations](./data-operations.mdx) — invalidate after import/sync
 - Field access: `src/utils/field-access.ts` (`canAccessField`)

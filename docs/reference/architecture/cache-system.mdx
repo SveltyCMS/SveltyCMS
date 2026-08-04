@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/architecture/cache-system.mdx"
 title: "Cache System"
-description: "SveltyCMS dual-layer cache (L1: In-Memory LRU, L2: Redis) with stampede protection, single-flight coalescing, negative Bloom filter, predictive warming, and stale-while-revalidate."
+description: "SveltyCMS dual-layer cache (L1: In-Memory LRU, L2: Redis) with stampede protection, single-flight coalescing, negative Bloom filter, predictive warming, SWR, and short-lived crud.count cache."
 order: 5
 icon: "mdi:database-clock"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-07-15"
+updated: "2026-08-04"
 tags:
   - "cache"
   - "redis"
@@ -188,7 +188,24 @@ return cacheService.getOrSetSWR(
 > After content mutations (create/update/delete/status/import/sync), always invalidate with the **collection id prefix** so every filtered page, sort, and search variant is cleared:
 > `await cacheService.invalidateCollection(collectionId)`.
 
-**Related**: [Collection Filtering Platform](./collection-filtering.mdx) · [entry-list](../components/entry-list.mdx) · [Content API filters](../api/content.mdx) · [Data Operations](./data-operations.mdx)
+### Short-lived `crud.count` cache (30s)
+
+List badges and pagination totals call `dbAdapter.crud.count` frequently. A thin proxy wraps every adapter after the tenant guard:
+
+| Item                | Value                                                                          |
+| ------------------- | ------------------------------------------------------------------------------ |
+| **Module**          | `src/databases/core/count-cache.ts` → `createCountCachedCrud`                  |
+| **Key**             | `count:{collection}:{mode}:{includeDeleted}:{filterHash}` (`hashQueryPayload`) |
+| **TTL**             | **30 seconds**                                                                 |
+| **Category / tags** | `CONTENT` · `count` · `count:{collection}` · `collection:{collection}`         |
+| **Bypass**          | `options.bypassCache: true`                                                    |
+| **Modes**           | Key includes `exact` \| `estimate` \| `auto` so modes never collide            |
+
+Hits serve L1 (and L2 if Redis is configured) without re-running SQL/Mongo COUNT. Misses still execute the engine path (exact vs `estimatedDocumentCount` / table statistics). **Tenant isolation** is enforced by `cacheService` tenant namespacing — unscoped whole-table estimates are never shared with tenant-scoped keys.
+
+`findPage` itself is **not** count-cached; when `total: "exact"|"auto"` is requested, the parallel count still goes through this wrapper. Prefer `total: "none"` + `hasMore` for scroll UIs.
+
+**Related**: [Collection Filtering Platform](./collection-filtering.mdx) · [Performance Architecture](../database/performance-architecture.mdx) · [entry-list](../components/entry-list.mdx) · [Content API filters](../api/content.mdx) · [Data Operations](./data-operations.mdx)
 
 ## Cache Categories
 

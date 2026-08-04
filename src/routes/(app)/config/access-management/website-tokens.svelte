@@ -56,6 +56,8 @@ import {
 	deleteWebsiteTokenById,
 	bulkDeleteWebsiteTokens as apiBulkDeleteWebsiteTokens,
 } from "./website-tokens-api";
+import SmartTableSavedViewsMenu from "@components/ui/smart-table/smart-table-saved-views-menu.svelte";
+import type { SmartTableSavedView } from "@utils/smart-table-saved-views";
 
 interface TableHeader {
 	id: string;
@@ -99,6 +101,23 @@ const smartTable = createSmartTable({
 		fetchTokens().catch(() => {});
 	},
 });
+
+const viewsScope = "website-tokens";
+function getSavedViewSnapshot() {
+	return {
+		filters: { ...filters } as Record<string, string>,
+		search: globalSearchValue,
+		sort: smartTable.sort,
+		pageSize: smartTable.pagination.pageSize,
+	};
+}
+function applySavedView(view: SmartTableSavedView) {
+	if (view.filters) filters = { ...view.filters } as Record<string, string | undefined>;
+	if (view.search != null) globalSearchValue = view.search;
+	if (view.sort?.sortedBy) smartTable.setSort(view.sort.sortedBy, { emit: false });
+	if (view.pageSize) smartTable.setPageSize(view.pageSize, { emit: false });
+	fetchTokens().catch(() => {});
+}
 
 const tokens = $derived(smartTable.rows as unknown as WebsiteToken[]);
 const totalItems = $derived(smartTable.pagination.totalItems);
@@ -531,13 +550,18 @@ $effect(() => {
 						</Button>
 					{/if}
 				</div>
-				<div class="order-3 sm:order-2">
+				<div class="order-3 flex flex-wrap items-center gap-2 sm:order-2">
 					<TableFilter
 						bind:globalSearchValue
 						bind:searchShow
 						bind:filterShow
 						bind:columnShow
 						bind:density
+					/>
+					<SmartTableSavedViewsMenu
+						scope={viewsScope}
+						getSnapshot={getSavedViewSnapshot}
+						onApply={applySavedView}
 					/>
 				</div>
 			</div>

@@ -119,34 +119,32 @@ export class MongoWebsiteTokenMethods {
         }
       }
 
+      // Mongoose sort: 1 | -1 (not "asc"/"desc")
       const sort: Record<string, 1 | -1> =
         options.sort && options.order
           ? { [options.sort]: options.order === "desc" ? -1 : 1 }
           : { createdAt: -1 };
 
-      const queryOpts = {
+      // 🚀 findPage: limit+1 hasMore path + parallel exact total (count is L1-cached)
+      const pageRes = await this.crud.findPage(sanitizedFilter as QueryFilter<WebsiteToken>, {
         ...this._tenantOpts(tenantId),
         limit: options.limit || 100,
         offset: options.skip,
         sort: sort as any,
-      };
+        total: "exact",
+        skipMeta: true,
+      });
 
-      const [dataRes, totalRes] = await Promise.all([
-        this.crud.findMany(sanitizedFilter as QueryFilter<WebsiteToken>, queryOpts),
-        this.crud.count(sanitizedFilter as QueryFilter<WebsiteToken>, this._tenantOpts(tenantId)),
-      ]);
+      if (!pageRes.success) return pageRes as any;
 
-      if (!dataRes.success) return dataRes as any;
-      if (!totalRes.success) return totalRes as any;
-
-      const scrubbedData = dataRes.data.map((t) => {
+      const scrubbedData = pageRes.data.items.map((t) => {
         const { token: _, ...rest } = t;
         return rest as WebsiteToken;
       });
 
       return {
         success: true,
-        data: { data: scrubbedData, total: totalRes.data },
+        data: { data: scrubbedData, total: pageRes.data.total ?? scrubbedData.length },
       };
     } catch (error: any) {
       return {

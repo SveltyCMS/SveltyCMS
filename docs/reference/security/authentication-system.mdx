@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/security/authentication-system.mdx"
 title: "Authentication & Authorization"
-description: "SveltyCMS 3-layer session caching, secure rotation, RBAC, Multi-Tenancy 2.0, 2FA, Enterprise SSO (SAML 2.0), API Keys, Magic Links, Guest Auth, and WebAuthn/Passkeys."
+description: "SveltyCMS 3-layer session caching, secure rotation, RBAC, Multi-Tenancy 2.0, 2FA, Enterprise SSO (SAML 2.0 + OIDC), API Keys, Magic Links, Guest Auth, and WebAuthn/Passkeys."
 order: 6
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-22"
+updated: "2026-08-04"
 tags:
   - "security"
   - "auth"
@@ -15,6 +15,7 @@ tags:
   - "rbac"
   - "2fa"
   - "sso"
+  - "oidc"
   - "api-keys"
   - "magic-links"
   - "webauthn"
@@ -103,9 +104,20 @@ Integrated via **@node-saml/node-saml (latest)**, a lightweight SAML SP implemen
 - **Multiple IdPs**: Okta, Azure AD, Auth0, etc.
 - **Certificate Management**: Automated handling of SAML assertions.
 
-### OAuth 2.0 / OpenID Connect
+### OpenID Connect (OIDC) SSO
 
-OOTB support for **Google** and **GitHub** authentication.
+Full **authorization-code** relying-party flow plus **RP-Initiated Logout**, implemented in `src/databases/auth/sso-session.ts` and `handlers/auth.ts`.
+
+| Capability       | Detail                                                                                                 |
+| :--------------- | :----------------------------------------------------------------------------------------------------- |
+| **Login**        | `GET /api/auth/oidc-login?provider=` → 302 to OP authorize; HttpOnly `state`/`nonce` cookie            |
+| **Callback**     | `GET /api/auth/oidc-callback` — code exchange, **JWKS** id_token verify, local session                 |
+| **Logout**       | `GET\|POST /api/auth/oidc-logout` — local session clear + optional OP `end_session_endpoint`           |
+| **Discovery**    | `/.well-known/openid-configuration` (cached) fills authorize/token/jwks/logout endpoints               |
+| **Providers**    | Multi-provider registry via `SSO_PROVIDERS` setting (`SsoProviderConfig`)                              |
+| **Provisioning** | Email claim must match an **existing** local user (or invite flow) — no silent create on OIDC callback |
+
+Also supports social OAuth-style providers (**Google**, **GitHub**) where configured as OIDC/OAuth clients in settings. See [Auth API — OIDC](../api/auth.mdx#4-oidc-sso-openid-connect) for request parameters and security notes.
 
 ---
 

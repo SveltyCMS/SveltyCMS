@@ -986,6 +986,9 @@ export class RelationalSystemModule implements ISystemAdapter {
         utils.applyTenantFilter(tenantConditions, this.schema.websiteTokens.tenantId, opts);
         const tenantWhere = tenantConditions.length > 0 ? and(...tenantConditions) : undefined;
 
+        // 🚀 Parallel list + count (count path uses short-TTL L1 when via crud;
+        // here we keep one-round-trip parallel SQL and limit+1 is not needed because
+        // admin UI requires exact total. Prefer findPage at API layer for hasMore-only UIs.
         let q = this.db
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
@@ -995,8 +998,12 @@ export class RelationalSystemModule implements ISystemAdapter {
           const orderFn = opts.order === "desc" ? desc : asc;
           const column = (this.schema.websiteTokens as any)[opts.sort];
           if (column) q = q.orderBy(orderFn(column));
+        } else {
+          q = q.orderBy(desc(this.schema.websiteTokens.createdAt));
         }
-        if (opts.limit) q = q.limit(opts.limit);
+        // Fetch limit+1 so callers can detect hasMore without a second page fetch
+        const pageLimit = opts.limit && opts.limit > 0 ? opts.limit : 100;
+        q = q.limit(pageLimit + 1);
         if (opts.skip) q = q.offset(opts.skip);
 
         let countQ = this.db
@@ -1011,8 +1018,10 @@ export class RelationalSystemModule implements ISystemAdapter {
         const stored = utils.convertArrayDatesToISO(results, {
           mariaDoubleParseJson: this.adapter.type === "mariadb",
         }) as unknown as import("../db-interface").WebsiteToken[];
+        // Trim limit+1 sentinel row (hasMore signal for internal use; API keeps exact total)
+        const pageRows = stored.length > pageLimit ? stored.slice(0, pageLimit) : stored;
         // Scrub token hashes from list responses for security
-        const scrubbed = stored.map((t) => {
+        const scrubbed = pageRows.map((t) => {
           const { token: _, ...rest } = t as any;
           return rest as import("../db-interface").WebsiteToken;
         });

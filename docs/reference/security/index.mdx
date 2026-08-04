@@ -49,7 +49,7 @@ SveltyCMS security architecture includes:
 
 **Weighted**: 25.0 + 15.0 + 9.8 + 19.8 + 14.85 + 14.85 = **~99/100**
 
-> Self-assessed (July 2026). Gaps: 3rd-party pentest, WebAuthn passkey UI, SSO/OIDC logout audit (when implemented), DOMPurify 3.4.13+ (CVEs mitigated by explicit configs).
+> Self-assessed (August 2026). Gaps: 3rd-party pentest, WebAuthn passkey UI polish, deeper SSO/OIDC audit logging. OIDC login/callback/RP-logout are implemented (`sso-session.ts`). DOMPurify CVEs mitigated by explicit configs.
 
 > **July 25, 2026 Hardening**: Permission cache instant invalidation. Media bulk delete (4x concurrency). DOMPurify toast configs restricted. Path traversal resolve() prefix checks. Required-fields publish validation (media/relations data-integrity guard).
 

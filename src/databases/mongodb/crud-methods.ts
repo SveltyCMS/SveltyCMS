@@ -20,7 +20,15 @@ import type {
   EntityUpdate,
 } from "../db-interface";
 import { createDatabaseError, generateId, processDates } from "./mongodb-utils";
-import { buildFindPageResult, DEFAULT_PAGE_SIZE, shouldUseEstimateCount } from "../core/page-utils";
+import {
+  buildFindPageResult,
+  DEFAULT_PAGE_SIZE,
+  decodePageCursor,
+  defaultPageSortOption,
+  mergeKeysetFilter,
+  resolvePageSort,
+  shouldUseEstimateCount,
+} from "../core/page-utils";
 
 export class MongoCrudMethods<T extends BaseEntity> {
   public readonly model: Model<T>;
@@ -867,7 +875,39 @@ export class MongoCrudMethods<T extends BaseEntity> {
     options: FindPageOptions<T> = {},
   ): Promise<DatabaseResult<FindPageResult<T>>> {
     const pageSize = options.limit && options.limit > 0 ? options.limit : DEFAULT_PAGE_SIZE;
-    const rowsRes = await this.findMany(query, { ...options, limit: pageSize + 1 });
+    const sortOpt = (options.sort ?? defaultPageSortOption()) as FindOptions<T>["sort"];
+    const resolvedSort = resolvePageSort(sortOpt);
+    const cursor = decodePageCursor(options.cursor);
+    const pageQuery = cursor
+      ? (mergeKeysetFilter(query as Record<string, unknown>, cursor) as QueryFilter<T>)
+      : query;
+
+    const fetchOpts: FindOptions<T> = {
+      ...options,
+      sort: sortOpt,
+      limit: pageSize + 1,
+      offset: cursor ? 0 : options.offset,
+    };
+
+    const totalMode = options.total ?? "none";
+    const countPromise =
+      totalMode !== "none"
+        ? this.count(query, {
+            tenantId: options.tenantId,
+            systemScope: options.systemScope,
+            bypassTenantCheck: options.bypassTenantCheck,
+            includeDeleted: options.includeDeleted,
+            bypassSafeQuery: options.bypassSafeQuery,
+            skipMeta: true,
+            mode: totalMode,
+          })
+        : null;
+
+    const [rowsRes, countRes] = await Promise.all([
+      this.findMany(pageQuery, fetchOpts),
+      countPromise ?? Promise.resolve(null),
+    ]);
+
     if (!rowsRes.success) {
       return {
         success: false,
@@ -876,33 +916,21 @@ export class MongoCrudMethods<T extends BaseEntity> {
       };
     }
 
-    const totalMode = options.total ?? "none";
     let totalMeta: { total: number; estimated: boolean } | undefined;
-    if (totalMode !== "none") {
-      const countRes = await this.count(query, {
-        tenantId: options.tenantId,
-        systemScope: options.systemScope,
-        bypassTenantCheck: options.bypassTenantCheck,
-        includeDeleted: options.includeDeleted,
-        bypassSafeQuery: options.bypassSafeQuery,
-        skipMeta: true,
-        mode: totalMode,
-      });
-      if (countRes.success && typeof countRes.data === "number") {
-        totalMeta = {
-          total: countRes.data,
-          estimated: shouldUseEstimateCount(query, {
-            mode: totalMode,
-            tenantId: options.tenantId as string | null | undefined,
-            includeDeleted: options.includeDeleted,
-          }),
-        };
-      }
+    if (countRes && countRes.success && typeof countRes.data === "number") {
+      totalMeta = {
+        total: countRes.data,
+        estimated: shouldUseEstimateCount(query, {
+          mode: totalMode === "none" ? "auto" : totalMode,
+          tenantId: options.tenantId as string | null | undefined,
+          includeDeleted: options.includeDeleted,
+        }),
+      };
     }
 
     return {
       success: true,
-      data: buildFindPageResult(rowsRes.data ?? [], pageSize, totalMeta),
+      data: buildFindPageResult(rowsRes.data ?? [], pageSize, totalMeta, resolvedSort),
     };
   }
 

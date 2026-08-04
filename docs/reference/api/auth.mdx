@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/api/auth.mdx"
 title: "Authentication & Identity API Reference"
-description: "Programmatic API reference for the SveltyCMS identity layer — login, profiles, 2FA, SAML SSO, RBAC permissions, API Keys, Magic Links, and WebAuthn/Passkeys."
+description: "Programmatic API reference for the SveltyCMS identity layer — login, profiles, 2FA, SAML SSO, OIDC login/callback/logout, RBAC permissions, API Keys, Magic Links, and WebAuthn/Passkeys."
 order: 45
 icon: "mdi:shield-account-outline"
 author: "SveltyCMS Team"
 created: "2026-04-12"
-updated: "2026-07-30"
+updated: "2026-08-04"
 tags:
   - "api"
   - "auth"
@@ -32,20 +32,22 @@ The Authentication API handles the complete lifecycle of a user identity within 
 
 ## ⚡ Quick Reference
 
-| Feature          | HTTP Endpoint                | Method      | Permission Required |
-| :--------------- | :--------------------------- | :---------- | :------------------ |
-| **Login**        | `/api/auth/login`            | `POST`      | **Public**          |
-| **Logout**       | `/api/auth/logout`           | `POST`      | **Authenticated**   |
-| **OIDC Logout**  | `/api/auth/oidc-logout`      | `GET, POST` | **Public**          |
-| **Current User** | `/api/auth`                  | `GET`       | **Authenticated**   |
-| **List Users**   | `/api/user`                  | `GET`       | `manage:user`       |
-| **Create User**  | `/api/auth/create-user`      | `POST`      | `manage:user`       |
-| **API Keys**     | `/api/api-keys`              | `GET`       | **Authenticated**   |
-| **Create Key**   | `/api/api-keys`              | `POST`      | **Authenticated**   |
-| **Revoke Key**   | `/api/api-keys/{id}`         | `DELETE`    | Owner or Admin      |
-| **Magic Link**   | `auth.remote.ts` (remote fn) | `POST`      | **Public**          |
-| **Passkey Auth** | `auth.remote.ts` (remote fn) | `POST`      | **Public**          |
-| **Passkey Reg**  | `auth.remote.ts` (remote fn) | `POST`      | **Authenticated**   |
+| Feature           | HTTP Endpoint                | Method      | Permission Required |
+| :---------------- | :--------------------------- | :---------- | :------------------ |
+| **Login**         | `/api/auth/login`            | `POST`      | **Public**          |
+| **Logout**        | `/api/auth/logout`           | `POST`      | **Authenticated**   |
+| **OIDC Login**    | `/api/auth/oidc-login`       | `GET`       | **Public**          |
+| **OIDC Callback** | `/api/auth/oidc-callback`    | `GET`       | **Public**          |
+| **OIDC Logout**   | `/api/auth/oidc-logout`      | `GET, POST` | **Public**          |
+| **Current User**  | `/api/auth`                  | `GET`       | **Authenticated**   |
+| **List Users**    | `/api/user`                  | `GET`       | `manage:user`       |
+| **Create User**   | `/api/auth/create-user`      | `POST`      | `manage:user`       |
+| **API Keys**      | `/api/api-keys`              | `GET`       | **Authenticated**   |
+| **Create Key**    | `/api/api-keys`              | `POST`      | **Authenticated**   |
+| **Revoke Key**    | `/api/api-keys/{id}`         | `DELETE`    | Owner or Admin      |
+| **Magic Link**    | `auth.remote.ts` (remote fn) | `POST`      | **Public**          |
+| **Passkey Auth**  | `auth.remote.ts` (remote fn) | `POST`      | **Public**          |
+| **Passkey Reg**   | `auth.remote.ts` (remote fn) | `POST`      | **Authenticated**   |
 
 | **2FA Status** | `/api/auth/2fa/status` | `GET` | **Authenticated** |
 | **2FA Setup** | `/api/auth/2fa/setup` | `POST` | **Authenticated** |
@@ -181,7 +183,41 @@ The system automatically creates user records upon the first successful SAML log
 
 ## 4. OIDC SSO (OpenID Connect)
 
-OpenID Connect RP-Initiated Logout enables federated single sign-out across all applications in an OIDC session. When a user logs out of SveltyCMS, the browser is redirected to the OP's `end_session_endpoint` to terminate the session at the identity provider as well.
+SveltyCMS acts as an OpenID Connect **relying party** for enterprise SSO: authorization-code login with OIDC discovery + JWKS verification, local session creation, and RP-Initiated Logout.
+
+Implementation: `src/databases/auth/sso-session.ts` · handlers in `handlers/auth.ts` (`oidc-login`, `oidc-callback`, `oidc-logout`).
+
+### Authorization-code login
+
+**Start** — `GET /api/auth/oidc-login`
+
+| Query | Required | Description |
+| :---- | :------- | :---------- |
+| `provider` | Yes | Provider `id` from `SSO_PROVIDERS` (e.g. `azure-ad`, `auth0`) |
+| `redirect_uri` | No | Defaults to `{origin}/api/auth/oidc-callback` |
+
+**Flow**:
+1. Load providers from settings; 404 if `provider` unknown
+2. Generate `state` + `nonce` (CSPRNG); store in short-lived HttpOnly cookie `oidc_login_state` (10 min, `SameSite=Lax`)
+3. OIDC discovery (`/.well-known/openid-configuration`) populates authorize/token/jwks/end_session when not set manually
+4. **302** redirect to OP `authorization_endpoint` (`openid profile email` by default)
+
+**Callback** — `GET /api/auth/oidc-callback`
+
+| Query | Required | Description |
+| :---- | :------- | :---------- |
+| `code` | Yes | Authorization code from OP |
+| `state` | Yes | Must match cookie `state` |
+| `error` | No | OP error → 400 |
+
+**Flow**:
+1. Validate `state` against cookie; clear cookie
+2. Exchange `code` at token endpoint (`client_id` / `client_secret` from provider config)
+3. Verify `id_token` signature via **JWKS** (RS256/ES256; 1h JWKS cache). Without `jwks_uri`, only structural claim checks
+4. Resolve email from `email` or `preferred_username` claims
+5. Look up existing local user by email (no silent JIT create on this path — create user or invite first)
+6. `auth.createSession({ user_id, tenantId, expires })` + session cookie (`getSessionCookieName`)
+7. Attach SSO metadata (`id_token_hint`, provider) for RP logout
 
 ### RP-Initiated Logout
 
@@ -197,17 +233,27 @@ OpenID Connect RP-Initiated Logout enables federated single sign-out across all 
 **Flow**:
 1. Browser sends logout request with OIDC params
 2. SveltyCMS terminates the local session and clears cookies
-3. If the OP has an `end_session_endpoint`, the browser is redirected there for federated logout
+3. If the OP has an `end_session_endpoint` (config or discovery), the browser is redirected there for federated logout
 4. On success, the browser lands at `post_logout_redirect_uri` (if provided and valid)
 
-**Provider Configuration**: SSO providers are registered via the `SSO_PROVIDERS` system setting (JSON array of `SsoProviderConfig` objects). Each provider specifies its `issuer`, `allowedRedirectUris`, and optional `endSessionEndpoint`.
+### Provider configuration
+
+SSO providers are registered via the `SSO_PROVIDERS` system setting (JSON array of `SsoProviderConfig`):
+
+| Field | Purpose |
+| :---- | :------ |
+| `id`, `issuer` | Provider key + OIDC issuer URL |
+| `clientId`, `clientSecret` | Authorization-code client credentials |
+| `allowedRedirectUris` | Allowlist for logout (and callback) redirect URIs; supports `*` suffix |
+| `authorizationEndpoint`, `tokenEndpoint`, `jwksUri`, `endSessionEndpoint` | Optional overrides; filled from discovery when omitted |
+| `scopes` | Default `openid profile email` |
 
 **Security**:
-- `post_logout_redirect_uri` is validated against the provider's allowlist (supports wildcard patterns)
-- Non-SSO sessions (local auth) gracefully fall through to standard logout
-- Provider registry supports multiple OIDC providers simultaneously
-
-See `src/databases/auth/sso-session.ts` for implementation details.
+- Login CSRF via HttpOnly `state` cookie; `nonce` bound into authorize request
+- `post_logout_redirect_uri` validated against provider allowlist
+- Secrets never returned to the client; JWKS fetch timeouts (5s)
+- Non-SSO sessions fall through to standard logout
+- Multiple OIDC providers supported simultaneously
 
 ---
 
