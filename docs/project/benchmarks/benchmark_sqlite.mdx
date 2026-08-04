@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     5 | 🟢     | -12%    | 0      |
+| **Core**       |     8 | 🟢     | -5%     | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,20 +62,24 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario       | Latency | Trend                                    | Budget | Result |
-| -------------- | ------- | ---------------------------------------- | ------ | ------ |
-| **Middleware** | 0.476ms | ⚪ stable at 0.494ms (±0.017ms) (4 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.287ms | ⚪ stable at 0.301ms (±0.032ms) (4 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.845ms | ⚪ stable at 0.857ms (±0.007ms) (4 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.849ms | ⚪ stable at 0.893ms (±0.078ms) (4 runs) | < 5ms  | 🟢     |
-| **Middleware** | 2.272ms | ⚪ stable at 2.59ms (±0.456ms) (4 runs)  | < 5ms  | 🟢     |
+| Scenario                 | Latency | Trend                                    | Budget | Result |
+| ------------------------ | ------- | ---------------------------------------- | ------ | ------ |
+| **Database Performance** | 0.073ms | ⚪ stable at 0.074ms (±0.028ms) (4 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.053ms | ⚪ stable at 0.054ms (±0.011ms) (4 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.068ms | ⚪ stable at 0.069ms (±0.014ms) (4 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.074ms | ⚪ stable at 0.073ms (±0.031ms) (4 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.049ms | ⚪ stable at 0.050ms (±0.007ms) (4 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.118ms | ⚪ stable at 0.120ms (±0.033ms) (4 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 0.030ms | ⚪ stable at 0.030ms (±0.002ms) (4 runs) | < 5ms  | 🟢     |
+| **Database Performance** | 2.248ms | ⚪ stable at 2.36ms (±0.206ms) (4 runs)  | < 5ms  | 🟢     |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric | Trend | Sparkline | Latest |
-| ------ | ----- | --------- | ------ |
+| Metric                                          | Trend | Sparkline | Latest  |
+| ----------------------------------------------- | ----- | --------- | ------- |
+| database performance (BULK INSERT (100)) (warm) | 🟢    | `▂█▆▁▁`   | 2.248ms |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
@@ -86,22 +90,6 @@ xychart-beta
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
-```
-
-</details>
-<details>
-<summary>📊 Regression severity matrix (quadrant)</summary>
-
-```mermaid
-quadrantChart
-  title "Regression severity (impact vs delta)"
-  x-axis Low latency impact --> High latency impact
-  y-axis Low delta --> High delta
-  quadrant-1 Monitor
-  quadrant-2 Investigate soon
-  quadrant-3 Acceptable variance
-  quadrant-4 Critical — fix first
-    Middleware: [0.95, 0.61]
 ```
 
 </details>
@@ -117,37 +105,41 @@ quadrantChart
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-07-31)
+### Current Run Summary (2026-08-04)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `2124cffa-7b52-4163-8de1-1c58c37ca942` · **Tests invoked:** 1 · **Metrics:** 5 · **DB:** sqlite
+**Run ID:** `2b5fa7a6-112c-4ff6-8923-58c5b7895895` · **Tests invoked:** 1 · **Metrics:** 8 · **DB:** sqlite
 
-| Test              | Metric                        | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                   |
-| ----------------- | ----------------------------- | -------- | -------- | ---- | ----- | ---------------------------------------- |
-| Hooks Performance | Static Asset (No Middleware)  | 0.476    | 0.575    | 1983 | 🟢    | ⚪ stable at 0.494ms (±0.017ms) (4 runs) |
-| Hooks Performance | Turbo Pipeline (Light)        | 0.287    | 0.356    | 3290 | 🟢    | ⚪ stable at 0.301ms (±0.032ms) (4 runs) |
-| Hooks Performance | Full Security + Auth Pipeline | 0.845    | 1.110    | 1027 | 🟢    | ⚪ stable at 0.857ms (±0.007ms) (4 runs) |
-| Hooks Performance | REST with API Caching         | 0.849    | 1.064    | 1063 | 🟢    | ⚪ stable at 0.893ms (±0.078ms) (4 runs) |
-| Hooks Performance | Mutation + Audit Logging      | 2.272    | 3.410    | 414  | 🟢    | ⚪ stable at 2.59ms (±0.456ms) (4 runs)  |
+| Test                 | Metric               | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                                   |
+| -------------------- | -------------------- | -------- | -------- | ----- | ----- | ---------------------------------------- |
+| Database Performance | INSERT               | 0.073    | 0.095    | 6534  | 🟢    | ⚪ stable at 0.074ms (±0.028ms) (4 runs) |
+| Database Performance | FIND ONE             | 0.053    | 0.061    | 17382 | 🟢    | ⚪ stable at 0.054ms (±0.011ms) (4 runs) |
+| Database Performance | FIND MANY (limit 50) | 0.068    | 0.078    | 13830 | 🟢    | ⚪ stable at 0.069ms (±0.014ms) (4 runs) |
+| Database Performance | UPDATE               | 0.074    | 0.087    | 11237 | 🟢    | ⚪ stable at 0.073ms (±0.031ms) (4 runs) |
+| Database Performance | NATIVE UPSERT        | 0.049    | 0.055    | 16875 | 🟢    | ⚪ stable at 0.050ms (±0.007ms) (4 runs) |
+| Database Performance | COUNT                | 0.118    | 0.126    | 8223  | 🟢    | ⚪ stable at 0.120ms (±0.033ms) (4 runs) |
+| Database Performance | DELETE               | 0.030    | 0.035    | 25965 | 🟢    | ⚪ stable at 0.030ms (±0.002ms) (4 runs) |
+| Database Performance | BULK INSERT (100)    | 2.248    | 4.022    | 203   | 🟢    | ⚪ stable at 2.36ms (±0.206ms) (4 runs)  |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-07-31)
+### Historical Trends (2026-08-04)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
 **Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='sqlite' AND redis=0 ORDER BY timestamp DESC`
 
-**Series:** 1 · **DB:** sqlite
+**Series:** 2 · **DB:** sqlite
 
-| Metric                   | Trend | Sparkline (last 7) | Latest  |
-| ------------------------ | ----- | ------------------ | ------- |
-| HOOKS PERFORMANCE (warm) | 🟢    | `▃▁▃█▃▂▁`          | 0.287ms |
+| Metric                      | Trend | Sparkline (last 7) | Latest  |
+| --------------------------- | ----- | ------------------ | ------- |
+| DATABASE PERFORMANCE (warm) | 🟢    | `█▁▄▃▄▃▅`          | 0.074ms |
+| HOOKS PERFORMANCE (warm)    | 🟢    | `▃▁▃█▃▂▁`          | 0.287ms |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 
@@ -370,23 +362,23 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:DB_RAW_P95:START -->
 <details id="section-db_raw_p95">
-<summary><strong>🏷️ database performance</strong> · 🟢 0.131ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ database performance</strong> · 🟢 2.248ms · ➡️ ⚪ stable at 2.36ms (±0.206ms) (4 runs) (2026-08-04 10:58:16) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                    SVELTYCMS — DATABASE ADAPTER PERFORMANCE (SQLITE)                    ║
 ║                   File: tests/benchmarks/database-performance.test.ts                   ║
-║                                Ran: 2026-07-26 10:30:37                                 ║
+║                                Ran: 2026-08-04 10:58:16                                 ║
 ║   Measures raw CRUD performance, indexing efficiency, and connection pool resilience    ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                         │        0.131 ms │ p95:        0.196 ms │ RPS:      3,073 ║
-║ FIND ONE                       │        0.084 ms │ p95:        0.106 ms │ RPS:     10,846 ║
-║ FIND MANY (limit 50)           │        0.101 ms │ p95:        0.124 ms │ RPS:      9,020 ║
-║ UPDATE                         │        0.110 ms │ p95:        0.139 ms │ RPS:      7,035 ║
-║ NATIVE UPSERT                  │        0.075 ms │ p95:        0.097 ms │ RPS:     10,797 ║
-║ COUNT                          │        0.183 ms │ p95:        0.217 ms │ RPS:      4,834 ║
-║ DELETE                         │        0.045 ms │ p95:        0.058 ms │ RPS:     16,424 ║
-║ BULK INSERT (100)              │        3.288 ms │ p95:        5.223 ms │ RPS:        136 ║
+║ INSERT                         │        0.073 ms │ p95:        0.095 ms │ RPS:      6,534 ║
+║ FIND ONE                       │        0.053 ms │ p95:        0.061 ms │ RPS:     17,382 ║
+║ FIND MANY (limit 50)           │        0.068 ms │ p95:        0.078 ms │ RPS:     13,830 ║
+║ UPDATE                         │        0.074 ms │ p95:        0.087 ms │ RPS:     11,237 ║
+║ NATIVE UPSERT                  │        0.049 ms │ p95:        0.055 ms │ RPS:     16,875 ║
+║ COUNT                          │        0.118 ms │ p95:        0.126 ms │ RPS:      8,223 ║
+║ DELETE                         │        0.030 ms │ p95:        0.035 ms │ RPS:     25,965 ║
+║ BULK INSERT (100)              │        2.248 ms │ p95:        4.022 ms │ RPS:        203 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->

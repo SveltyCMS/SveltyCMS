@@ -45,13 +45,13 @@ tags:
 > [!NOTE]
 > **Partial update** — dimension rollups and issues reflect only tests invoked in this run.
 
-**✅ PASS** _(partial invocation)_ · 1/35 tests · 34 skipped · **mongodb** · standalone run
+**✅ PASS** _(partial invocation)_ · 1/36 tests · 35 skipped · **mongodb** · standalone run
 
 ### Dimension health
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     4 | 🟢     | —       | 0      |
+| **Core**       |     8 | 🟢     | —       | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,20 +62,24 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario     | Latency  | Trend                             | Budget | Result |
-| ------------ | -------- | --------------------------------- | ------ | ------ |
-| **System**   | 3.827ms  | ⚪ established at 3.83ms (1 run)  | < 5ms  | 🟢     |
-| **Metadata** | 5.424ms  | ⚪ established at 5.42ms (1 run)  | < 5ms  | 🟢     |
-| **CRUD**     | 8.637ms  | ⚪ established at 8.64ms (1 run)  | < 5ms  | 🟢     |
-| **CRUD**     | 10.200ms | ⚪ established at 10.20ms (1 run) | < 5ms  | 🟢     |
+| Scenario                 | Latency | Trend                             | Budget | Result |
+| ------------------------ | ------- | --------------------------------- | ------ | ------ |
+| **Database Performance** | 0.773ms | ⚪ established at 0.773ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.712ms | ⚪ established at 0.712ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.978ms | ⚪ established at 0.978ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 1.044ms | ⚪ established at 1.04ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 0.884ms | ⚪ established at 0.884ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 4.009ms | ⚪ established at 4.01ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 1.005ms | ⚪ established at 1.00ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 4.635ms | ⚪ established at 4.63ms (1 run)  | < 5ms  | 🟢     |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric                      | Trend | Sparkline | Latest  |
-| --------------------------- | ----- | --------- | ------- |
-| database performance (warm) | 🟢    | `▁`       | 3.476ms |
+| Metric                                          | Trend | Sparkline | Latest  |
+| ----------------------------------------------- | ----- | --------- | ------- |
+| database performance (BULK INSERT (100)) (warm) | 🟢    | `▁`       | 4.635ms |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
@@ -101,41 +105,40 @@ xychart-beta
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-07-04)
+### Current Run Summary (2026-08-04)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `fd5ec950-3c82-4fb3-bd8e-e3430fcb1e49` · **Tests invoked:** 1 · **Metrics:** 4 · **DB:** mongodb
+**Run ID:** `35445876-72d4-4e24-9771-4c1d681051b8` · **Tests invoked:** 1 · **Metrics:** 8 · **DB:** mongodb
 
-| Test                 | Metric                 | Avg (ms) | p95 (ms) | RPS | Trend | Detail                            |
-| -------------------- | ---------------------- | -------- | -------- | --- | ----- | --------------------------------- |
-| Rest Api Performance | Health Check           | 3.827    | 7.675    | 261 | 🟢    | ⚪ established at 3.83ms (1 run)  |
-| Rest Api Performance | Collection Schema      | 5.424    | 9.021    | 184 | 🟢    | ⚪ established at 5.42ms (1 run)  |
-| Rest Api Performance | Collection Find (List) | 8.637    | 14.902   | 116 | 🟢    | ⚪ established at 8.64ms (1 run)  |
-| Rest Api Performance | Collection Search      | 10.200   | 17.145   | 98  | 🟢    | ⚪ established at 10.20ms (1 run) |
+| Test                 | Metric               | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                            |
+| -------------------- | -------------------- | -------- | -------- | ---- | ----- | --------------------------------- |
+| Database Performance | INSERT               | 0.773    | 0.981    | 997  | 🟢    | ⚪ established at 0.773ms (1 run) |
+| Database Performance | FIND ONE             | 0.712    | 0.898    | 1152 | 🟢    | ⚪ established at 0.712ms (1 run) |
+| Database Performance | FIND MANY (limit 50) | 0.978    | 1.335    | 850  | 🟢    | ⚪ established at 0.978ms (1 run) |
+| Database Performance | UPDATE               | 1.044    | 1.658    | 725  | 🟢    | ⚪ established at 1.04ms (1 run)  |
+| Database Performance | NATIVE UPSERT        | 0.884    | 1.193    | 842  | 🟢    | ⚪ established at 0.884ms (1 run) |
+| Database Performance | COUNT                | 4.009    | 5.687    | 247  | 🟢    | ⚪ established at 4.01ms (1 run)  |
+| Database Performance | DELETE               | 1.005    | 1.933    | 844  | 🟢    | ⚪ established at 1.00ms (1 run)  |
+| Database Performance | BULK INSERT (100)    | 4.635    | 7.568    | 201  | 🟢    | ⚪ established at 4.63ms (1 run)  |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-07-04)
+### Historical Trends (2026-08-04)
 
-> **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below).
+> **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
 **Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='mongodb' AND redis=0 ORDER BY timestamp DESC`
 
-**Series:** 6 · **DB:** mongodb
+**Series:** 1 · **DB:** mongodb
 
-| Metric                      | Trend | Sparkline (last 12) | Latest  | Runs |
-| --------------------------- | ----- | ------------------- | ------- | ---- |
-| CACHE PERFORMANCE (warm)    | 🟢    | `▁`                 | 0.853ms | 1    |
-| DATABASE PERFORMANCE (warm) | 🟢    | `▁`                 | 3.476ms | 1    |
-| HOOKS PERFORMANCE (warm)    | 🟢    | `▁`                 | 0.318ms | 1    |
-| REST API PERFORMANCE (warm) | 🟢    | `▁`                 | 3.827ms | 1    |
-| TRANSACTION ACID (warm)     | 🟢    | `▁`                 | 0.002ms | 1    |
-| TRUTH LATENCY (warm)        | 🟢    | `▁`                 | 0.001ms | 1    |
+| Metric                      | Trend | Sparkline (last 7) | Latest  |
+| --------------------------- | ----- | ------------------ | ------- |
+| DATABASE PERFORMANCE (warm) | 🟢    | `█▂▂▁▁▁▂`          | 1.044ms |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 
@@ -260,30 +263,26 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:STATE_MACHINE:END -->
 
 <!-- SECTION:DB_RAW_P95:START -->
-
 <details id="section-db_raw_p95">
-<summary><strong>🏷️ Database Adapter Raw CRUD</strong> · 🟢 1.371ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
-
+<summary><strong>🏷️ database performance</strong> · 🟢 4.635ms · ➡️ ⚪ established at 4.63ms (1 run) (2026-08-04 11:20:00) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                   SVELTYCMS — DATABASE ADAPTER PERFORMANCE (MONGODB)                    ║
 ║                   File: tests/benchmarks/database-performance.test.ts                   ║
-║                                Ran: 2026-07-26 10:50:20                                 ║
+║                                Ran: 2026-08-04 11:20:00                                 ║
 ║   Measures raw CRUD performance, indexing efficiency, and connection pool resilience    ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                         │        1.371 ms │ p95:        1.868 ms │ RPS:        549 ║
-║ FIND ONE                       │        1.129 ms │ p95:        1.489 ms │ RPS:        700 ║
-║ FIND MANY (limit 50)           │        1.695 ms │ p95:        2.178 ms │ RPS:        467 ║
-║ UPDATE                         │        1.599 ms │ p95:        2.369 ms │ RPS:        445 ║
-║ NATIVE UPSERT                  │        1.545 ms │ p95:        2.220 ms │ RPS:        467 ║
-║ COUNT                          │        7.316 ms │ p95:        9.885 ms │ RPS:        137 ║
-║ DELETE                         │        1.704 ms │ p95:        3.724 ms │ RPS:        478 ║
-║ BULK INSERT (100)              │        7.948 ms │ p95:       11.078 ms │ RPS:        120 ║
+║ INSERT                         │        0.773 ms │ p95:        0.981 ms │ RPS:        997 ║
+║ FIND ONE                       │        0.712 ms │ p95:        0.898 ms │ RPS:      1,152 ║
+║ FIND MANY (limit 50)           │        0.978 ms │ p95:        1.335 ms │ RPS:        850 ║
+║ UPDATE                         │        1.044 ms │ p95:        1.658 ms │ RPS:        725 ║
+║ NATIVE UPSERT                  │        0.884 ms │ p95:        1.193 ms │ RPS:        842 ║
+║ COUNT                          │        4.009 ms │ p95:        5.687 ms │ RPS:        247 ║
+║ DELETE                         │        1.005 ms │ p95:        1.933 ms │ RPS:        844 ║
+║ BULK INSERT (100)              │        4.635 ms │ p95:        7.568 ms │ RPS:        201 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>

@@ -45,13 +45,13 @@ tags:
 > [!NOTE]
 > **Partial update** — dimension rollups and issues reflect only tests invoked in this run.
 
-**✅ PASS** _(partial invocation)_ · 1/41 tests · 40 skipped · **mariadb** · standalone run
+**✅ PASS** _(partial invocation)_ · 1/42 tests · 41 skipped · **mariadb** · standalone run
 
 ### Dimension health
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     5 | 🟢     | +6099%  | 0      |
+| **Core**       |     8 | 🟢     | —       | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,22 +62,24 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario       | Latency | Trend                                         | Budget | Result |
-| -------------- | ------- | --------------------------------------------- | ------ | ------ |
-| **Middleware** | 0.074ms | ⚪ stable at 0.085ms (±0.096ms) (3 runs)      | < 5ms  | 🟢     |
-| **Middleware** | 0.808ms | 🔴 slower: 0.085ms → 0.808ms (+851%) (3 runs) | < 5ms  | 🟢     |
-| **Middleware** | 1.048ms | 🔴 slower: 0.085ms → 1.05ms (+1133%) (3 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.926ms | 🔴 slower: 0.085ms → 0.926ms (+989%) (3 runs) | < 5ms  | 🟢     |
-| **Middleware** | 5.269ms | 🔴 slower: 0.085ms → 5.27ms (+6099%) (3 runs) | < 5ms  | 🟢     |
+| Scenario                 | Latency | Trend                             | Budget | Result |
+| ------------------------ | ------- | --------------------------------- | ------ | ------ |
+| **Database Performance** | 1.712ms | ⚪ established at 1.71ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 0.494ms | ⚪ established at 0.494ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.638ms | ⚪ established at 0.638ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.984ms | ⚪ established at 0.984ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.447ms | ⚪ established at 0.447ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 0.790ms | ⚪ established at 0.790ms (1 run) | < 5ms  | 🟢     |
+| **Database Performance** | 1.618ms | ⚪ established at 1.62ms (1 run)  | < 5ms  | 🟢     |
+| **Database Performance** | 9.217ms | ⚪ established at 9.22ms (1 run)  | < 5ms  | 🟢     |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric                      | Trend | Sparkline | Latest      |
-| --------------------------- | ----- | --------- | ----------- |
-| cold start phased (cold)    | 🟢    | `▁`       | 31976.981ms |
-| database performance (warm) | 🟢    | `▁▇█`     | 2.652ms     |
+| Metric                                          | Trend | Sparkline | Latest  |
+| ----------------------------------------------- | ----- | --------- | ------- |
+| database performance (BULK INSERT (100)) (warm) | 🟢    | `▁`       | 9.217ms |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
@@ -88,26 +90,6 @@ xychart-beta
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
-```
-
-</details>
-<details>
-<summary>📊 Regression severity matrix (quadrant)</summary>
-
-```mermaid
-quadrantChart
-  title "Regression severity (impact vs delta)"
-  x-axis Low latency impact --> High latency impact
-  y-axis Low delta --> High delta
-  quadrant-1 Monitor
-  quadrant-2 Investigate soon
-  quadrant-3 Acceptable variance
-  quadrant-4 Critical — fix first
-    Middleware: [0.05, 0.05]
-    Middleware: [0.15, 0.14]
-    Middleware: [0.20, 0.19]
-    Middleware: [0.18, 0.16]
-    Middleware: [0.95, 0.95]
 ```
 
 </details>
@@ -123,43 +105,40 @@ quadrantChart
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-07-07)
+### Current Run Summary (2026-08-04)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `f43331ff-473a-4ed3-9235-319efb91f320` · **Tests invoked:** 1 · **Metrics:** 5 · **DB:** mariadb
+**Run ID:** `bc2af811-c692-427d-a89a-549e00782dd1` · **Tests invoked:** 1 · **Metrics:** 8 · **DB:** mariadb
 
-| Test              | Metric                        | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                                        |
-| ----------------- | ----------------------------- | -------- | -------- | ----- | ----- | --------------------------------------------- |
-| Hooks Performance | Static Asset (No Middleware)  | 0.074    | 0.111    | 11842 | 🟢    | ⚪ stable at 0.085ms (±0.096ms) (3 runs)      |
-| Hooks Performance | Turbo Pipeline (Light)        | 0.808    | 1.268    | 1148  | ⚪    | 🔴 slower: 0.085ms → 0.808ms (+851%) (3 runs) |
-| Hooks Performance | Full Security + Auth Pipeline | 1.048    | 1.472    | 954   | ⚪    | 🔴 slower: 0.085ms → 1.05ms (+1133%) (3 runs) |
-| Hooks Performance | REST with API Caching         | 0.926    | 1.344    | 1020  | ⚪    | 🔴 slower: 0.085ms → 0.926ms (+989%) (3 runs) |
-| Hooks Performance | Mutation + Audit Logging      | 5.269    | 6.187    | 179   | ⚪    | 🔴 slower: 0.085ms → 5.27ms (+6099%) (3 runs) |
+| Test                 | Metric               | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                            |
+| -------------------- | -------------------- | -------- | -------- | ---- | ----- | --------------------------------- |
+| Database Performance | INSERT               | 1.712    | 2.218    | 501  | 🟢    | ⚪ established at 1.71ms (1 run)  |
+| Database Performance | FIND ONE             | 0.494    | 0.587    | 1782 | 🟢    | ⚪ established at 0.494ms (1 run) |
+| Database Performance | FIND MANY (limit 50) | 0.638    | 0.719    | 1389 | 🟢    | ⚪ established at 0.638ms (1 run) |
+| Database Performance | UPDATE               | 0.984    | 1.149    | 891  | 🟢    | ⚪ established at 0.984ms (1 run) |
+| Database Performance | NATIVE UPSERT        | 0.447    | 0.515    | 1955 | 🟢    | ⚪ established at 0.447ms (1 run) |
+| Database Performance | COUNT                | 0.790    | 0.910    | 1100 | 🟢    | ⚪ established at 0.790ms (1 run) |
+| Database Performance | DELETE               | 1.618    | 2.031    | 612  | 🟢    | ⚪ established at 1.62ms (1 run)  |
+| Database Performance | BULK INSERT (100)    | 9.217    | 24.594   | 80   | 🟢    | ⚪ established at 9.22ms (1 run)  |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-07-07)
+### Historical Trends (2026-08-04)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
 **Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='mariadb' AND redis=0 ORDER BY timestamp DESC`
 
-**Series:** 7 · **DB:** mariadb
+**Series:** 1 · **DB:** mariadb
 
-| Metric                      | Trend | Sparkline (last 7) | Latest      |
-| --------------------------- | ----- | ------------------ | ----------- |
-| CACHE PERFORMANCE (warm)    | 🟢    | `▁`                | 0.385ms     |
-| COLD START PHASED (cold)    | 🟢    | `▁`                | 31976.981ms |
-| DATABASE PERFORMANCE (warm) | 🟢    | `▁▇█`              | 2.652ms     |
-| HOOKS PERFORMANCE (warm)    | 🟢    | `▂█▁▁`             | 0.074ms     |
-| REST API PERFORMANCE (warm) | 🟢    | `▁`                | 0.638ms     |
-| TRANSACTION ACID (warm)     | 🟢    | `▁`                | 2.385ms     |
-| TRUTH LATENCY (warm)        | 🟢    | `▁`                | 0.001ms     |
+| Metric                      | Trend | Sparkline (last 7) | Latest  |
+| --------------------------- | ----- | ------------------ | ------- |
+| DATABASE PERFORMANCE (warm) | 🟢    | `▃▇▂▁█▁▄`          | 0.984ms |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 
@@ -320,30 +299,26 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:STATE_MACHINE:END -->
 
 <!-- SECTION:DB_RAW_P95:START -->
-
 <details id="section-db_raw_p95">
-<summary><strong>🏷️ Database Adapter Raw CRUD</strong> · 🟢 2.553ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
-
+<summary><strong>🏷️ database performance</strong> · 🟢 9.217ms · ➡️ ⚪ established at 9.22ms (1 run) (2026-08-04 11:18:48) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                   SVELTYCMS — DATABASE ADAPTER PERFORMANCE (MARIADB)                    ║
 ║                   File: tests/benchmarks/database-performance.test.ts                   ║
-║                                Ran: 2026-07-21 16:13:04                                 ║
+║                                Ran: 2026-08-04 11:18:48                                 ║
 ║   Measures raw CRUD performance, indexing efficiency, and connection pool resilience    ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                         │        2.553 ms │ p95:        4.373 ms │ RPS:        350 ║
-║ FIND ONE                       │        0.648 ms │ p95:        0.903 ms │ RPS:      1,304 ║
-║ FIND MANY (limit 50)           │        0.809 ms │ p95:        1.130 ms │ RPS:      1,067 ║
-║ UPDATE                         │        1.342 ms │ p95:        1.991 ms │ RPS:        626 ║
-║ NATIVE UPSERT                  │        0.581 ms │ p95:        0.796 ms │ RPS:      1,448 ║
-║ COUNT                          │        0.773 ms │ p95:        0.884 ms │ RPS:      1,148 ║
-║ DELETE                         │        1.595 ms │ p95:        1.955 ms │ RPS:        670 ║
-║ BULK INSERT (100)              │        8.159 ms │ p95:       19.669 ms │ RPS:         91 ║
+║ INSERT                         │        1.712 ms │ p95:        2.218 ms │ RPS:        501 ║
+║ FIND ONE                       │        0.494 ms │ p95:        0.587 ms │ RPS:      1,782 ║
+║ FIND MANY (limit 50)           │        0.638 ms │ p95:        0.719 ms │ RPS:      1,389 ║
+║ UPDATE                         │        0.984 ms │ p95:        1.149 ms │ RPS:        891 ║
+║ NATIVE UPSERT                  │        0.447 ms │ p95:        0.515 ms │ RPS:      1,955 ║
+║ COUNT                          │        0.790 ms │ p95:        0.910 ms │ RPS:      1,100 ║
+║ DELETE                         │        1.618 ms │ p95:        2.031 ms │ RPS:        612 ║
+║ BULK INSERT (100)              │        9.217 ms │ p95:       24.594 ms │ RPS:         80 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>

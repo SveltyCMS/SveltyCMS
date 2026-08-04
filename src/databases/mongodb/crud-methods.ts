@@ -835,7 +835,13 @@ export class MongoCrudMethods<T extends BaseEntity> {
           systemScope: options.systemScope,
         }),
       );
-      const count = await this.model.countDocuments(secureQuery);
+      const isUnfiltered = !query || Object.keys(query).length === 0;
+      const count =
+        isUnfiltered &&
+        !options.tenantId &&
+        typeof (this.model as any).estimatedDocumentCount === "function"
+          ? await (this.model as any).estimatedDocumentCount()
+          : await this.model.countDocuments(secureQuery);
       return { success: true, data: count };
     } catch (error) {
       return {
