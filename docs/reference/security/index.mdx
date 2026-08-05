@@ -393,6 +393,13 @@ See [Tested Security Features](./tested-security-features.mdx) for details.
 
 ### External Advisory Reviews
 
+> [!NOTE]
+> This section is an **assessment log** for vulnerability _classes_ in other CMSs — not a
+> dependency scan. Standing checks against the global directories run automatically:
+> `bun audit` (GitHub Advisory DB, pre-push gate) and the ops-side NVD pipeline cover our
+> npm dependency tree. Ecosystem advisories are reviewed here only when a class could
+> plausibly exist in our own code.
+
 Assessed against SveltyCMS `next` on 2026-08-05 — **not affected**. Neither advisory ships WordPress code; the classes were mapped to equivalent in-tree controls:
 
 | Advisory (published 2026-07-17)                | Vulnerability class                                                            | SveltyCMS equivalent control (verified in code)                                                                                                                                                                                                                                                                                                                                                    |
