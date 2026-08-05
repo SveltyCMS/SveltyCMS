@@ -395,13 +395,14 @@ See [Tested Security Features](./tested-security-features.mdx) for details.
 
 Every commit runs a **full risk audit** (`.githooks/pre-commit` → `bun run risk:audit`). It covers the layers no single tool can:
 
-| Layer                          | Check                           | What it catches                                                                                                                                                                                        |
-| ------------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Our code (global, all src)** | `scripts/scan-security-risk.ts` | SQL value/concat interpolation (4 adapters), MongoDB `$where`/`$function`, dynamic code execution, shell interpolation, path traversal, SSRF, XSS sinks, regex injection, SvelteKit CSRF/cookie config |
-| **Our code (secrets)**         | `scripts/scan-secret-misuse.ts` | Hardcoded credentials, comparison backdoors, weak randomness                                                                                                                                           |
-| **Our code (quality)**         | `scripts/slop-scanner.ts`       | XSS, RTL, security architecture rules                                                                                                                                                                  |
-| **Dependencies (npm)**         | `bun audit`                     | GitHub Advisory DB for the npm tree (SvelteKit/Svelte/Vite advisories included)                                                                                                                        |
-| **Global database**            | `scripts/scan-osv.ts` → OSV.dev | GHSA + NVD + 20+ feeds in one query, from SBOM purls (24h cache)                                                                                                                                       |
+| Layer                          | Check                               | What it catches                                                                                                                                                                                        |
+| ------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Our code (global, all src)** | `scripts/scan-security-risk.ts`     | SQL value/concat interpolation (4 adapters), MongoDB `$where`/`$function`, dynamic code execution, shell interpolation, path traversal, SSRF, XSS sinks, regex injection, SvelteKit CSRF/cookie config |
+| **Our code (secrets)**         | `scripts/scan-secret-misuse.ts`     | Hardcoded credentials, comparison backdoors, weak randomness                                                                                                                                           |
+| **Our code (quality)**         | `scripts/slop-scanner.ts`           | XSS, RTL, security architecture rules                                                                                                                                                                  |
+| **Dependencies (npm)**         | `bun audit`                         | GitHub Advisory DB for the npm tree (SvelteKit/Svelte/Vite advisories included)                                                                                                                        |
+| **Global database**            | `scripts/scan-osv.ts` → OSV.dev     | GHSA + NVD + 20+ feeds in one query, from SBOM purls (24h cache)                                                                                                                                       |
+| **CI semantic analysis**       | GitHub CodeQL (`security-extended`) | Complements the custom scanners — different engine, same classes; runs on push/PR/weekly                                                                                                               |
 
 Cross-CMS advisories (e.g. WordPress) are **not** monitored — only the vulnerability _class_ matters, and those classes are checked directly against our own code in `scan-security-risk.ts`.
 
@@ -674,9 +675,11 @@ SveltyCMS security features support compliance with:
 
 For security-related questions or to report vulnerabilities:
 
-- **Security Email**: security@sveltycms.org
+- **Security Email**: security@sveltycms.com
 - **GitHub Security Advisories**: [Private Reporting](https://github.com/SveltyCMS/SveltyCMS/security/advisories)
+- **security.txt (RFC 9116)**: [`/.well-known/security.txt`](https://sveltycms.com/.well-known/security.txt) — machine-readable policy + contacts
 - **Bug Bounty**: Coming soon
+- **Disclosure policy**: [SECURITY.md](https://github.com/SveltyCMS/SveltyCMS/blob/next/SECURITY.md) — staged timeline (critical 7d / high 30d / medium-low 90d)
 
 **Response Time**:
 

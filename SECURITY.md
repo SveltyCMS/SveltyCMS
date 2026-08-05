@@ -2,16 +2,16 @@
 
 SveltyCMS is built with **defense-in-depth security** featuring 4-layer zero-trust authorization, AI bot defense, zero-bias cryptography, cross-origin isolation, and 5 authentication methods (password, API Keys, Magic Links, SAML SSO, WebAuthn/Passkeys).
 
-| Dimension             | Score | Detail                                                                                    |
-| --------------------- | ----- | ----------------------------------------------------------------------------------------- |
-| CVE Track Record      | 100   | 0 published CVEs — verifiable via NVD, GitHub Advisory DB                                 |
-| Cryptography          | 100   | AES-256-GCM, SHA-256 chain, timing-safe, key rotation documented, all secrets inventoried |
-| Auth & Session        | 98    | Argon2id, CSPRNG, __Host- cookies, 2FA, lockout, API Keys, Magic Links, WebAuthn          |
-| Input Validation      | 95    | Valibot + DOMPurify + Drizzle + body limit + SVG                                          |
-| Disclosure & Response | 99    | security.txt, incident runbook, secrets inventory, runtime audit, static misuse scanner   |
-| Dependency Hygiene    | 92    | Override-pinned, node-forge-free, osv-scanner/audit:deps                                  |
+| Dimension             | Score | Detail                                                                                                      |
+| --------------------- | ----- | ----------------------------------------------------------------------------------------------------------- |
+| CVE Track Record      | 100   | 0 published CVEs — verifiable via NVD, GitHub Advisory DB                                                   |
+| Cryptography          | 100   | AES-256-GCM, SHA-256 chain, timing-safe, key rotation documented, all secrets inventoried                   |
+| Auth & Session        | 98    | Argon2id, CSPRNG, __Host- cookies, 2FA, lockout, API Keys, Magic Links, WebAuthn                            |
+| Input Validation      | 95    | Valibot + DOMPurify + Drizzle + body limit + SVG                                                            |
+| Disclosure & Response | 99    | security.txt (RFC 9116), staged disclosure, incident runbook, secrets inventory, commit-gate static scanner |
+| Dependency Hygiene    | 92    | Override-pinned, node-forge-free, OSV.dev global scan (GHSA + NVD + 20 feeds) + bun audit in commit gate    |
 
-**Weighted: ~98/100** — self-assessed (July 2026). Improvements: secrets inventory, bootstrap slimmed, content token leak prevention, static misuse scanner, API key hardcoded detection. Remaining: WebAuthn passkey management UI, third-party penetration test, CI-integrated runtime secret audit.
+**Weighted: ~98/100** — self-assessed (August 2026). Improvements: global security risk scanner over all of `src/` (SQL/NoSQL injection across 4 adapters, eval, shell, paths, SSRF, XSS), OSV.dev global dependency check, pre-auth DDL SQLi + shell-interpolation fixes in the setup wizard, CodeQL security-extended in CI. Remaining: WebAuthn passkey management UI, third-party penetration test, bug-bounty program.
 
 📖 **Full Security Docs**: [docs/reference/security/index.mdx](./docs/reference/security/index.mdx)
 🔑 **Secrets Inventory**: [docs/reference/security/secrets-inventory.mdx](./docs/reference/security/secrets-inventory.mdx)
@@ -37,7 +37,9 @@ Always upgrade before reporting.
 2. Use the private form (GitHub will notify only maintainers)
 
 **Alternative:**
-Open a **private** issue or email security@sveltycms.com (PGP key available on request).
+Email security@sveltycms.com (PGP key available on request).
+
+**Machine-readable endpoint:** [`/.well-known/security.txt`](https://sveltycms.com/.well-known/security.txt) (RFC 9116) points to this policy.
 
 **What to include:**
 
@@ -46,8 +48,21 @@ Open a **private** issue or email security@sveltycms.com (PGP key available on r
 - Impact (e.g. unauthenticated access, data leak, RCE)
 - Any PoC or screenshot
 
-We aim to reply within **48 hours** and fix critical issues within **7 days**.  
-You will be credited in the release notes and SECURITY.md unless you prefer to stay anonymous.
+We aim to reply within **48 hours** and fix critical issues within **7 days**.
+
+## Staged Disclosure Timeline (coordinated)
+
+Follows the coordinated-disclosure model used by mature OSS CMS projects: reporters get credit, fixes ship before public details, and the community gets a complete advisory at patch time.
+
+| Severity                                   | Initial reply | Fix window | Advisory publication                                      |
+| ------------------------------------------ | ------------- | ---------- | --------------------------------------------------------- |
+| **Critical** (RCE, auth bypass, data leak) | 48h           | 7 days     | GHSA + release notes at patch time; full details same day |
+| **High** (privilege escalation, XSS, SSRF) | 48h           | 30 days    | GHSA + release notes at patch time                        |
+| **Medium/Low**                             | 72h           | 90 days    | Coordinated with reporter; GHSA on patch                  |
+
+- **Embargo**: public disclosure of a non-public report is expected to wait for the fix (or 90 days, whichever is earlier) so users can patch.
+- **Credit**: reporters are credited in release notes and this file unless they prefer anonymity.
+- **Scope**: `src/`, `scripts/`, `tests/`, `config/`, `static/`. Third-party dependencies are excluded unless you demonstrate exploitable integration.
 
 ## Responsible Disclosure
 
@@ -61,7 +76,7 @@ SveltyCMS is an open-source project. While we cannot offer monetary bounties, we
 
 - Vulnerability must be in the `next` branch, not in dependencies or configuration
 - No automated scanning without prior approval — contact security@sveltycms.com first
-- Allow 90 days before public disclosure
+- Allow 90 days before public disclosure (see staged timeline above)
 
 **Scope**: `src/`, `scripts/`, `tests/`, `config/`, `static/`. Third-party dependencies are excluded unless you demonstrate exploitable integration.
 
