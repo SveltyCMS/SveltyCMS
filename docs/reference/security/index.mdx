@@ -391,6 +391,15 @@ bun test tests/integration/api/security.test.ts
 
 See [Tested Security Features](./tested-security-features.mdx) for details.
 
+### External Advisory Reviews
+
+Assessed against SveltyCMS `next` on 2026-08-05 — **not affected**. Neither advisory ships WordPress code; the classes were mapped to equivalent in-tree controls:
+
+| Advisory (published 2026-07-17)                | Vulnerability class                                                            | SveltyCMS equivalent control (verified in code)                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GHSA-fpp7-x2x2-2mjf (CVE-2026-60137, Moderate) | Value interpolation into SQL for a `not-in` filter (`WP_Query author__not_in`) | No `NOT IN`/`$nin` list interpolation exists anywhere in `src/databases/`. All values use bound parameters (`?`) — e.g. `adapter-core.ts` raw `findById` (both `query` and `prepare` paths). LIKE wildcards are escaped (`escapeLikePattern`, August 2026). Identifiers are quoted via escape-doubling (`""` / backtick doubling) and DDL identifier guards are enforced.                          |
+| GHSA-ff9f-jf42-662q (CVE-2026-63030, Critical) | REST API batch-route confusion → privilege escalation → RCE                    | No generic sub-route dispatch exists. `/api/user/batch` accepts a closed action union (`delete`/`block`/`unblock`) with `default → 400`; collections bulk ops use whitelisted verbs; GraphQL HTTP batching caps at 10 queries under the same auth context. The API dispatcher is fail-closed (`ENDPOINT_PERMISSIONS`, unmapped namespaces → 403) and non-admin batch access requires `user:write`. |
+
 ### Penetration Testing
 
 Recommended security testing tools:
