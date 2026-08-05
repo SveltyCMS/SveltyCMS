@@ -405,6 +405,15 @@ Every commit runs a **full risk audit** (`.githooks/pre-commit` → `bun run ris
 
 Cross-CMS advisories (e.g. WordPress) are **not** monitored — only the vulnerability _class_ matters, and those classes are checked directly against our own code in `scan-security-risk.ts`.
 
+**Audit commands** (how they differ):
+
+| Command                   | Type    | What it runs                                                             | Server needed? |
+| ------------------------- | ------- | ------------------------------------------------------------------------ | -------------- |
+| `bun run risk:audit`      | Static  | The 5 commit-gate checks above (code scan + secrets + slop + deps + OSV) | No (~5s)       |
+| `bun run security`        | Dynamic | OWASP A01–A07 probes against a running server (default `:4173`)          | Yes            |
+| `bun run security:auth`   | Dynamic | Same probes with an authenticated session (builds + seeds first)         | Starts its own |
+| `bun run security --full` | Both    | Dynamic probes + secret scan + slop + `bun audit`                        | Yes            |
+
 ### Penetration Testing
 
 Recommended security testing tools:
