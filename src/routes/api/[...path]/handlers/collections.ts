@@ -390,10 +390,14 @@ export async function handleCollectionCreate(
     const items = await Promise.all(
       rawData.map((item) => validateWritePayload(cms, collectionId, tenantId, item)),
     );
-    const result = await cms.crud.insertMany(collectionId, items, {
-      user: user!,
-      tenantId,
-    });
+    const result = await cms.db.crud.insertMany(
+      collectionId,
+      items as any,
+      {
+        user: user!,
+        tenantId,
+      } as any,
+    );
     return successResponse(event, result, 201);
   }
 

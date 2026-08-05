@@ -72,7 +72,7 @@ const SAFE_EXPR =
   /(?:sql\.(?:raw|identifier|join|param)\s*\(|\.replace\s*\(|escapeSqlIdentifier\s*\(|quoteIdentifier\s*\(|quoteMariaIdentifier\s*\(|\b(?:esc|escape|escId|escSql|quote)\w*\s*\()/;
 // Simple interpolation expressions only — excludes nested templates/parens that
 // break line-based matching (e.g. `${columns.map((c) => `new."${c}"`).join(", ")}`).
-const SIMPLE_EXPR = /^[A-Za-z0-9_.\[\]'" ]+$/;
+const SIMPLE_EXPR = /^[A-Za-z0-9_.[\]'" ]+$/;
 
 function stripComments(line: string): string {
   return line.replace(/\/\/.*$/, "").replace(/\/\*[\s\S]*?\*\//g, "");
