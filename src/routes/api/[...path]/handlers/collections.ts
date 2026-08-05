@@ -384,6 +384,19 @@ export async function handleCollectionCreate(
   collectionId: string,
 ) {
   const rawData = await event.request.json();
+
+  if (Array.isArray(rawData)) {
+    // 🚀 BATCH SEEDING FAST-PATH: Array payload in POST /api/collections/[collection]
+    const items = await Promise.all(
+      rawData.map((item) => validateWritePayload(cms, collectionId, tenantId, item)),
+    );
+    const result = await cms.crud.insertMany(collectionId, items, {
+      user: user!,
+      tenantId,
+    });
+    return successResponse(event, result, 201);
+  }
+
   const data = await validateWritePayload(cms, collectionId, tenantId, rawData);
   const result = await cms.collections.create(collectionId, data, {
     user: user!,
