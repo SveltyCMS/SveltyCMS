@@ -8,7 +8,10 @@
   "author": "SveltyCMS",
   "license": "freemium",
   "price": 6.99,
-  "component": "logs-widget",
-  "defaultSize": { "w": 2, "h": 2 },
+  "component": "index",
+  "defaultSize": {
+    "w": 2,
+    "h": 2
+  },
   "category": "logs"
 }

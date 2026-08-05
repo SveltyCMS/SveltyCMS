@@ -4,7 +4,7 @@
  *
  * Each dashboard widget lives in its own kebab-case folder under
  * `widgets/<folder>/` with a `widget.json` manifest (marketplace-portable
- * package). The co-located `<component>.mdx` marketplace description is a
+ * package). The co-located `readme.mdx` marketplace description is a
  * required package file, enforced by `scripts/check-dashboard-widget-packages.mjs`
  * (filesystem scan — MDX is not a Vite module type in the CMS build).
  *

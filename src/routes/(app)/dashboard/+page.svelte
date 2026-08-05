@@ -63,6 +63,8 @@ const { data }: { data: PageData } = $props();
 // Define the types for the widget registry
 interface WidgetRegistryEntry {
 	component: any;
+	/** Entry filename without .svelte ("index" for index.svelte packages). */
+	entryFile: string;
 	description: string;
 	folder: string;
 	icon: string;
@@ -79,6 +81,7 @@ let mainContainerEl: HTMLElement | null = $state(null);
 let dropdownOpen = $state(false);
 let searchQuery = $state("");
 let registryLoaded = $state(false);
+/** Folder id → entry (the folder is the package identity). */
 let widgetRegistry: WidgetRegistry = $state({});
 
 // Lazy loading state for widgets
@@ -179,7 +182,7 @@ async function loadWidgetRegistry() {
 	const registry: typeof widgetRegistry = {};
 	for (const path in modules) {
 		if (Object.hasOwn(modules, path)) {
-			// path like "./widgets/system-health/system-health-widget.svelte"
+			// path like "./widgets/system-health/index.svelte" — the FOLDER is the key.
 			const segments = path.split("/");
 			const folder = segments[segments.length - 2];
 			const name = segments[segments.length - 1]?.replace(".svelte", "");
@@ -188,8 +191,9 @@ async function loadWidgetRegistry() {
 					default: WidgetComponent;
 					widgetMeta: WidgetMeta;
 				};
-				registry[name] = {
+				registry[folder] = {
 					component: module.default,
+					entryFile: name,
 					folder,
 					name: module.widgetMeta?.name || name,
 					description: module.widgetMeta?.description || "",
@@ -211,18 +215,18 @@ async function loadWidgetComponent(widgetId: string, componentName: string) {
 	}
 
 	try {
-			// Resolve the package folder from the registry (fallback to component name)
-			const folder = widgetRegistry[componentName]?.folder || componentName;
-			// Dynamically import the widget component from its package folder, with retry on transient failures
-			const module = await retryDynamicImport(
-				() => import(`./widgets/${folder}/${componentName}.svelte`),
-				{ maxRetries: 2, baseDelayMs: 500 },
-			);
-			loadedWidgets.set(widgetId, module.default);
-		} catch (error) {
-			logger.error(`Failed to load widget: ${componentName}`, error);
-			loadedWidgets.set(widgetId, null); // Mark as failed
-		}
+		// componentName is the package folder id; entry file is index.svelte.
+		const folder = componentName;
+		const entryFile = widgetRegistry[folder]?.entryFile || "index";
+		const module = await retryDynamicImport(
+			() => import(`./widgets/${folder}/${entryFile}.svelte`),
+			{ maxRetries: 2, baseDelayMs: 500 },
+		);
+		loadedWidgets.set(widgetId, module.default);
+	} catch (error) {
+		logger.error(`Failed to load widget: ${componentName}`, error);
+		loadedWidgets.set(widgetId, null); // Mark as failed
+	}
 }
 
 // Setup intersection observer for lazy loading (Svelte action)
@@ -255,14 +259,12 @@ function setupWidgetObserver(element: HTMLElement, params: [string, string]) {
 
 const widgetComponentRegistry = $derived(widgetRegistry);
 const currentPreferences = $derived(systemPreferences.preferences || []);
+const installedWidgetFolders = $derived(
+	new Set(currentPreferences.map((item: DashboardWidgetConfig) => item.component)),
+);
 const availableWidgets = $derived(
 	registryLoaded && currentPreferences
-		? Object.keys(widgetComponentRegistry).filter(
-				(name) =>
-					!currentPreferences.some(
-						(item: DashboardWidgetConfig) => item.component === name,
-					),
-			)
+		? Object.keys(widgetComponentRegistry).filter((name) => !installedWidgetFolders.has(name))
 		: [],
 );
 const filteredWidgets = $derived(
@@ -369,6 +371,7 @@ function ensureWidgetOrder() {
 }
 
 function addNewWidget(componentName: string) {
+	// componentName is the package folder id.
 	const componentInfo = widgetComponentRegistry[componentName];
 	if (!componentInfo) {
 		logger.error(

@@ -8,7 +8,10 @@
   "author": "SveltyCMS",
   "license": "free",
   "price": 0,
-  "component": "system-health-widget",
-  "defaultSize": { "w": 2, "h": 2 },
+  "component": "index",
+  "defaultSize": {
+    "w": 2,
+    "h": 2
+  },
   "category": "monitoring"
 }

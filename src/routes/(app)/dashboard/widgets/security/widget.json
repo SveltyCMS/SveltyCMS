@@ -8,7 +8,10 @@
   "author": "SveltyCMS",
   "license": "freemium",
   "price": 19.99,
-  "component": "security-widget",
-  "defaultSize": { "w": 2, "h": 3 },
+  "component": "index",
+  "defaultSize": {
+    "w": 2,
+    "h": 3
+  },
   "category": "static"
 }

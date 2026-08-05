@@ -8,7 +8,10 @@
   "author": "SveltyCMS",
   "license": "freemium",
   "price": 9.99,
-  "component": "database-pool-diagnostics",
-  "defaultSize": { "w": 2, "h": 3 },
+  "component": "index",
+  "defaultSize": {
+    "w": 2,
+    "h": 3
+  },
   "category": "monitoring"
 }

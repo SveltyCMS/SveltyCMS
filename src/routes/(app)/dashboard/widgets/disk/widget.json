@@ -8,7 +8,10 @@
   "author": "SveltyCMS",
   "license": "free",
   "price": 0,
-  "component": "disk-widget",
-  "defaultSize": { "w": 1, "h": 2 },
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 2
+  },
   "category": "monitoring"
 }

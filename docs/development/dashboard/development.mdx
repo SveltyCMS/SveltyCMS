@@ -20,19 +20,21 @@ This guide walks through building a complete dashboard widget package.
 
 ## 1. Scaffold the Folder
 
-Create a kebab-case folder under `src/routes/(app)/dashboard/widgets/`:
+Create a kebab-case folder under `src/routes/(app)/dashboard/widgets/` — every dashboard widget package has exactly three required files:
 
 ```text
 widgets/request-rate/
-├── request-rate-widget.svelte
-└── widget.json
+├── index.svelte    # entry component (required, fixed name)
+├── widget.json     # marketplace manifest (required)
+└── readme.mdx      # marketplace description (required, fixed name)
 ```
 
-> **Naming rules (enforced by convention, checked by `bun run check`)**
+> **Naming rules (enforced by `bun run check`)**
 >
-> - Folder: kebab-case (`request-rate`).
-> - Component filename: kebab-case ending in `-widget.svelte` (`request-rate-widget.svelte`).
-> - The component filename becomes the registry key saved in user layouts — **never rename it after users have saved layouts**.
+> - Folder = package id: kebab-case (`request-rate`), unique, never renamed.
+> - Entry component: **`index.svelte`** — fixed name for every package (like `src/widgets/custom/*/index.ts`).
+> - Marketplace docs: **`readme.mdx`** — fixed name for every package.
+> - The **folder id** is the registry key saved in user layouts — the entry filename is an implementation detail and can never break a layout.
 
 ## 2. Write the Manifest
 
@@ -47,21 +49,21 @@ widgets/request-rate/
   "author": "YourName",
   "license": "free",
   "price": 0,
-  "component": "request-rate-widget",
+  "component": "index",
   "defaultSize": { "w": 1, "h": 2 },
   "category": "monitoring"
 }
 ```
 
-See [Architecture → widget.json](./architecture.mdx#2-the-widgetjson-manifest) for the full schema.
+See [Architecture → widget.json](./architecture.mdx#2-the-widgetjson-manifest) for the full schema. `component` is always `"index"` — the checker verifies it matches `index.svelte`.
 
-## 3. Write the Marketplace Docs (`<component>.mdx`)
+## 3. Write the Marketplace Docs (`readme.mdx`)
 
-Every dashboard widget **must** ship a co-located `.mdx` file — the marketplace uses it to render the package listing card and detail page. Follow the frontmatter + section pattern used by all core widgets:
+Every dashboard widget **must** ship `readme.mdx` — the marketplace uses it to render the package listing card and detail page. Follow the frontmatter + section pattern used by all core widgets:
 
 ````markdown
 ---
-path: "src/routes/(app)/dashboard/widgets/request-rate/request-rate-widget.mdx"
+path: "src/routes/(app)/dashboard/widgets/request-rate/readme.mdx"
 title: "Request Rate Dashboard Widget"
 description: "Live API request throughput with trend sparkline"
 order: 100
@@ -125,11 +127,11 @@ export const widgetMeta = {
 
 Keep the `description` in sync with `widget.json` and `widgetMeta`. Paid/freemium widgets also document their license verification endpoint (`GET /api/system/license-status?type=dashboard&id=<widget-id>`).
 
-## 4. Build the Component
+## 4. Build the Component (`index.svelte`)
 
 ```svelte
 <!--
-@file src/routes/(app)/dashboard/widgets/request-rate/request-rate-widget.svelte
+@file src/routes/(app)/dashboard/widgets/request-rate/index.svelte
 @component
 **Request Rate Widget — live throughput with trend sparkline**
 -->
@@ -229,7 +231,9 @@ All endpoints require `dashboard:read` (admins bypass via the fast-path). If you
 bun run dev
 ```
 
-Open `/dashboard`, click **Add widget**, search for "Request Rate" — it appears automatically. Drop it on the grid; it renders and polls. The layout (including `component: "request-rate-widget"`) is persisted via `system-preferences`.
+Open `/dashboard`, click **Add widget**, search for "Request Rate" — it appears automatically. Drop it on the grid; it renders and polls. The layout (persisting `component: "request-rate"` — the folder id) is saved via `system-preferences`.
+
+> **Hot add/remove (dev)**: the Vite plugin watches `src/routes/(app)/dashboard/widgets/**` — creating a new package folder (or removing one) triggers a full reload, and the new widget appears in the picker. No manual restart needed.
 
 ## 7. Test
 

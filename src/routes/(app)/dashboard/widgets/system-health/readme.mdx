@@ -1,0 +1,70 @@
+---
+path: "src/routes/(app)/dashboard/widgets/system-health/readme.mdx"
+title: "System Health Dashboard Widget"
+description: "Monitor system services and overall health with service status feed, uptime, and latency sparklines. Included with SveltyCMS — free."
+order: 100
+icon: "mdi:heart-pulse"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "health"
+  - "monitoring"
+  - "free"
+---
+
+# System Health Widget
+
+Monitor system services and overall health with a live status feed, uptime, per-service latency sparklines, and a one-click system reinitialize action.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature            | Description                                              |
+| :----------------- | :------------------------------------------------------- |
+| Overall status     | READY / DEGRADED / FAILED / INITIALIZING state indicator |
+| Service feed       | Per-service health cards (database, auth, cache, …)      |
+| Uptime             | System uptime display                                    |
+| Latency sparklines | Native SVG trend charts per service                      |
+| Reinitialize       | One-click system reinitialization action (admin)         |
+| Compact mode       | Status chips (h:1 widget size)                           |
+| Rich layout        | Full service feed (h:2+ widget size)                     |
+| Auto-polling       | Data refreshes every 5 seconds                           |
+
+---
+
+## Data Source
+
+| Endpoint                    | Description                       |
+| :-------------------------- | :-------------------------------- |
+| `GET /api/dashboard/health` | System health status and services |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "System Health",
+  icon: "mdi:heart-pulse",
+  description: "Monitor system services and overall health",
+  defaultSize: { w: 2, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Security Monitor Widget](./security-widget.mdx)
+- [System Messages Widget](./system-messages-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

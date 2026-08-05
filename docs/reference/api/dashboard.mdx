@@ -198,49 +198,52 @@ Returns users with active sessions. Session duration is estimated from expiry mi
 
 The admin dashboard is composed of modular Svelte 5 widget packages (one folder per widget), each backed by one or more API endpoints. The widget catalog is **install-specific** — the core packages bundled with SveltyCMS are listed below, and the [marketplace](../architecture/marketplace.mdx) can add more (counts are never fixed):
 
-| Widget              | File                                            | Data Source                              |
-| :------------------ | :---------------------------------------------- | :--------------------------------------- |
-| **System Health**   | `system-health/system-health-widget.svelte`     | `/api/dashboard/health`                  |
-| **Unified Metrics** | `unified-metrics/unified-metrics-widget.svelte` | `/api/dashboard/metrics`                 |
-| **CPU Monitor**     | `cpu/cpu-widget.svelte`                         | `/api/dashboard/system-info?type=cpu`    |
-| **Memory Monitor**  | `memory/memory-widget.svelte`                   | `/api/dashboard/system-info?type=memory` |
-| **Disk Monitor**    | `disk/disk-widget.svelte`                       | `/api/dashboard/system-info?type=disk`   |
+| Widget              | File                           | Data Source                              |
+| :------------------ | :----------------------------- | :--------------------------------------- |
+| **System Health**   | `system-health/index.svelte`   | `/api/dashboard/health`                  |
+| **Unified Metrics** | `unified-metrics/index.svelte` | `/api/dashboard/metrics`                 |
+| **CPU Monitor**     | `cpu/index.svelte`             | `/api/dashboard/system-info?type=cpu`    |
+| **Memory Monitor**  | `memory/index.svelte`          | `/api/dashboard/system-info?type=memory` |
+| **Disk Monitor**    | `disk/index.svelte`            | `/api/dashboard/system-info?type=disk`   |
 
-| Widget              | File                                            | Data Source                            |
-| :------------------ | :---------------------------------------------- | :------------------------------------- |
-| **Cache Monitor**   | `cache-monitor/cache-monitor-widget.svelte`     | `/api/dashboard/cache-metrics`         |
-| **Performance**     | `performance/performance-widget.svelte`         | `/api/dashboard/metrics?detailed=true` |
-| **Audit Log**       | `audit-log/audit-log-widget.svelte`             | `/api/dashboard/audit`                 |
-| **Activity Logs**   | `logs/logs-widget.svelte`                       | `/api/dashboard/logs`                  |
-| **System Messages** | `system-messages/system-messages-widget.svelte` | `/api/dashboard/system-messages`       |
+| Widget              | File                           | Data Source                            |
+| :------------------ | :----------------------------- | :------------------------------------- |
+| **Cache Monitor**   | `cache-monitor/index.svelte`   | `/api/dashboard/cache-metrics`         |
+| **Performance**     | `performance/index.svelte`     | `/api/dashboard/metrics?detailed=true` |
+| **Audit Log**       | `audit-log/index.svelte`       | `/api/dashboard/audit`                 |
+| **Activity Logs**   | `logs/index.svelte`            | `/api/dashboard/logs`                  |
+| **System Messages** | `system-messages/index.svelte` | `/api/dashboard/system-messages`       |
 
-| Widget                        | File                                                            | Data Source                       |
-| :---------------------------- | :-------------------------------------------------------------- | :-------------------------------- |
-| **Last 5 Content**            | `last5-content/last5-content-widget.svelte`                     | `/api/dashboard/last5-content`    |
-| **Last 5 Media**              | `last5-media/last5-media-widget.svelte`                         | `/api/dashboard/last5media`       |
-| **Online Users**              | `user-online/user-online-widget.svelte`                         | `/api/dashboard/online-user`      |
-| **Security**                  | `security/security-widget.svelte`                               | `/api/dashboard/security`         |
-| **Database Pool Diagnostics** | `database-pool-diagnostics/database-pool-diagnostics.svelte`    | `/api/database/pool-diagnostics`  |
-| **SCIM Status**               | `scim-status/scim-status-widget.svelte`                         | `/api/dashboard/scim`             |
-| **Media Storage Analytics**   | `media-storage-analytics/media-storage-analytics-widget.svelte` | `/api/media/analytics`            |
-| **Tenant Analytics**          | `tenant-analytics/tenant-analytics-widget.svelte`               | `/api/dashboard/tenant-analytics` |
+| Widget                        | File                                     | Data Source                       |
+| :---------------------------- | :--------------------------------------- | :-------------------------------- |
+| **Last 5 Content**            | `last5-content/index.svelte`             | `/api/dashboard/last5-content`    |
+| **Last 5 Media**              | `last5-media/index.svelte`               | `/api/dashboard/last5media`       |
+| **Online Users**              | `user-online/index.svelte`               | `/api/dashboard/online-user`      |
+| **Security**                  | `security/index.svelte`                  | `/api/dashboard/security`         |
+| **Database Pool Diagnostics** | `database-pool-diagnostics/index.svelte` | `/api/database/pool-diagnostics`  |
+| **SCIM Status**               | `scim-status/index.svelte`               | `/api/dashboard/scim`             |
+| **Media Storage Analytics**   | `media-storage-analytics/index.svelte`   | `/api/media/analytics`            |
+| **Tenant Analytics**          | `tenant-analytics/index.svelte`          | `/api/dashboard/tenant-analytics` |
+| **TODO List**                 | `todo-list/index.svelte`                 | — (client-side, static)           |
+| **Calendar View**             | `calendar-view/index.svelte`             | — (client-side, static)           |
 
 ### Widget Discovery (dual registration + package folders)
 
-Each dashboard widget is a **self-contained package** in its own kebab-case folder under `src/routes/(app)/dashboard/widgets/<folder>/`, containing the component, a `widget.json` manifest, and optional `.mdx` docs:
+Each dashboard widget is a **self-contained package** in its own kebab-case folder under `src/routes/(app)/dashboard/widgets/<folder>/`, containing the entry component `index.svelte`, a `widget.json` manifest, and the required `readme.mdx` marketplace description (enforced by `scripts/check-dashboard-widget-packages.mjs`):
 
 ```text
 widgets/system-health/
-  system-health-widget.svelte   # component (filename = stable registry key)
-  widget.json                   # marketplace manifest
+  index.svelte   # entry component (fixed name)
+  widget.json    # marketplace manifest
+  readme.mdx     # marketplace description (fixed name)
 ```
 
 Widgets are registered in two places:
 
-1. **Client runtime** — `+page.svelte` uses `import.meta.glob("./widgets/*/*.svelte")` to build the widget registry for rendering and lazy loading. The registry maps the component filename → package folder for dynamic imports.
+1. **Client runtime** — `+page.svelte` uses `import.meta.glob("./widgets/*/*.svelte")` to build the widget registry for rendering and lazy loading. The registry is keyed by the **folder id** (`widget.json.id`); each entry stores its entry filename for the dynamic import.
 2. **Server metadata** — `+page.server.ts` eagerly globs the same pattern and pre-computes `availableWidgets` (name, icon, description, folder) for the widget picker.
 
-The **component filename** (not the folder) is the registry key persisted in `system-preferences`, so saved layouts survive package upgrades and renames. The `widget.json` manifest drives the marketplace catalog and telemetry via `manifest-registry.ts`. See [Dashboard Widget Development](../../development/dashboard/index.mdx).
+The **folder id** (not the filename) is the registry key persisted in `system-preferences`, so saved layouts survive entry renames. In dev, the Vite plugin watches `src/routes/(app)/dashboard/widgets/**` and full-reloads on package add/remove so new widgets appear without a manual restart. The `widget.json` manifest drives the marketplace catalog and telemetry via `manifest-registry.ts`. See [Dashboard Widget Development](../../development/dashboard/index.mdx).
 
 Each widget exports optional `widgetMeta` for display metadata:
 

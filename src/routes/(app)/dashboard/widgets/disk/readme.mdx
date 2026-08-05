@@ -1,0 +1,68 @@
+---
+path: "src/routes/(app)/dashboard/widgets/disk/readme.mdx"
+title: "Disk Usage Dashboard Widget"
+description: "High-performance disk usage monitoring with multi-disk support, free space indicators, and native SVG rendering. Included with SveltyCMS — free."
+order: 100
+icon: "mdi:disk"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "disk"
+  - "monitoring"
+  - "free"
+---
+
+# Disk Usage Widget
+
+High-performance disk usage widget using native CSS + SVG with multi-disk support. Shows total, used, and free space with usage bars for the root filesystem and any mounted volumes.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature      | Description                                  |
+| :----------- | :------------------------------------------- |
+| Multi-disk   | Root and additional mounted filesystems      |
+| Usage bars   | Native SVG/CSS utilization indicators        |
+| Free space   | Available space with formatted sizes (GB/TB) |
+| Used percent | Percentage of disk consumed                  |
+| Compact mode | Single-row summary (h:1 widget size)         |
+| Auto-polling | Data refreshes every 10 seconds              |
+
+---
+
+## Data Source
+
+| Endpoint                                   | Description                    |
+| :----------------------------------------- | :----------------------------- |
+| `GET /api/dashboard/system-info?type=disk` | Per-filesystem disk statistics |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Disk Usage",
+  icon: "mdi:disk",
+  description: "High-performance disk usage monitoring with multi-disk support",
+  defaultSize: { w: 1, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [CPU Usage Widget](./cpu-widget.mdx)
+- [Memory Usage Widget](./memory-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

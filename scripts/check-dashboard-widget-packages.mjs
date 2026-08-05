@@ -4,7 +4,8 @@
  * @description Validates dashboard widget package folders are marketplace-ready.
  *
  * Every folder under `src/routes/(app)/dashboard/widgets/<id>/` must contain:
- * - exactly one `.svelte` component (kebab-case, ending in `-widget.svelte`),
+ * - exactly one `.svelte` component — `index.svelte` (preferred for new
+ *   packages) or the folder-named `{id}.svelte` / `{id}-widget.svelte` legacy form,
  * - a valid `widget.json` manifest (required fields),
  * - a REQUIRED co-located `.mdx` marketplace description.
  *
@@ -60,19 +61,14 @@ for (const entry of entries) {
     fail(`${folder}/ folder is not kebab-case`);
   }
 
-  // 2. Exactly one .svelte component — kebab-case, named `<folder>.svelte` or `<folder>-widget.svelte`
+  // 2. Exactly one .svelte component — must be `index.svelte`
   const svelteFiles = readdirSync(dir).filter((f) => f.endsWith(".svelte"));
   if (svelteFiles.length !== 1) {
     fail(`${folder}/ must contain exactly one .svelte component (found ${svelteFiles.length})`);
-  } else {
-    const base = svelteFiles[0].replace(/\.svelte$/, "");
-    const validName =
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(base) && (base === folder || base === `${folder}-widget`);
-    if (!validName) {
-      fail(
-        `${folder}/${svelteFiles[0]} must be kebab-case and named \`${folder}.svelte\` or \`${folder}-widget.svelte\``,
-      );
-    }
+  } else if (svelteFiles[0] !== "index.svelte") {
+    fail(
+      `${folder}/${svelteFiles[0]} must be named \`index.svelte\` (folder id is the package identity)`,
+    );
   }
 
   // 3. widget.json manifest — present, valid JSON, required fields
@@ -112,10 +108,12 @@ for (const entry of entries) {
     }
   }
 
-  // 4. REQUIRED co-located .mdx marketplace description
+  // 4. REQUIRED co-located readme.mdx marketplace description
   const mdxFiles = readdirSync(dir).filter((f) => f.endsWith(".mdx"));
-  if (mdxFiles.length === 0) {
-    fail(`${folder}/ is missing its REQUIRED .mdx marketplace description`);
+  if (mdxFiles.length !== 1 || mdxFiles[0] !== "readme.mdx") {
+    fail(
+      `${folder}/ must contain exactly one \`readme.mdx\` marketplace description (found: ${mdxFiles.join(", ") || "none"})`,
+    );
   } else {
     ok(`${folder}/ manifest + ${svelteFiles.length} svelte + ${mdxFiles.length} mdx`);
   }

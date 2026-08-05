@@ -1,0 +1,70 @@
+---
+path: "src/routes/(app)/dashboard/widgets/tenant-analytics/readme.mdx"
+title: "Tenant Analytics Dashboard Widget"
+description: "Per-tenant usage statistics — storage, users, collections, and activity. Included with SveltyCMS — free."
+order: 100
+icon: "mdi:chart-bar"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "tenant"
+  - "analytics"
+  - "multi-tenancy"
+  - "free"
+---
+
+# Tenant Analytics Widget
+
+Per-tenant usage statistics showing collections, active users, media storage, content entries, and 24h activity. All data is scoped to the authenticated user's tenant context.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature         | Description                                  |
+| :-------------- | :------------------------------------------- |
+| Collections     | Collection count for the current tenant      |
+| Active users    | User count scoped to the tenant              |
+| Media & storage | Media file count and storage usage           |
+| Content entries | Entry count across tenant collections        |
+| 24h activity    | Recent request/audit activity                |
+| Compact mode    | Key stats inline (1 row)                     |
+| Rich layout     | 6-card grid with storage quota bar (2+ rows) |
+| Auto-polling    | Data refreshes every 60 seconds              |
+
+---
+
+## Data Source
+
+| Endpoint                              | Description                    |
+| :------------------------------------ | :----------------------------- |
+| `GET /api/dashboard/tenant-analytics` | Tenant-scoped usage statistics |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Tenant Analytics",
+  icon: "mdi:chart-bar",
+  description: "Per-tenant usage statistics — storage, users, collections, and activity",
+  defaultSize: { w: 2, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Multi-Tenancy Architecture](/docs/reference/architecture/multi-tenancy.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

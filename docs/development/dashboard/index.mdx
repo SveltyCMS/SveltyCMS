@@ -35,13 +35,13 @@ Every dashboard widget **must** ship a co-located `.mdx` file that describes the
 ```text
 src/routes/(app)/dashboard/widgets/
   system-health/
-    system-health-widget.svelte   # Component (filename = stable registry key)
-    widget.json                   # Marketplace manifest (required)
-    system-health-widget.mdx      # Marketplace description (REQUIRED)
+    index.svelte    # Entry component (fixed name)
+    widget.json     # Marketplace manifest (required)
+    readme.mdx      # Marketplace description (REQUIRED, fixed name)
   logs/
-    logs-widget.svelte
+    index.svelte
     widget.json
-    logs-widget.mdx
+    readme.mdx
 ```
 
 - **Folder** — kebab-case package id (`system-health`, `logs`, `last5-content`).

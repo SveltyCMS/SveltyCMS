@@ -1,0 +1,67 @@
+---
+path: "src/routes/(app)/dashboard/widgets/last5-media/readme.mdx"
+title: "Last 5 Media Dashboard Widget"
+description: "Recently uploaded media files with thumbnail previews and adaptive layouts. Included with SveltyCMS — free."
+order: 100
+icon: "mdi:image-multiple-outline"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "media"
+  - "activity"
+  - "free"
+---
+
+# Last 5 Media Widget
+
+Modern "Last 5 Media" widget showing recent uploads with thumbnail previews. Adaptive layouts: horizontal file chips at height 1, rich scrollable cards at height 2+.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature       | Description                               |
+| :------------ | :---------------------------------------- |
+| Thumbnails    | Image previews for recent uploads         |
+| File metadata | Name, type, and upload timestamp per item |
+| Compact mode  | Horizontal file chips (h:1 widget size)   |
+| Rich layout   | Scrollable media cards (h:2+ widget size) |
+| Click-through | Items link to the media gallery           |
+| Auto-polling  | Data refreshes every 30 seconds           |
+
+---
+
+## Data Source
+
+| Endpoint                        | Description                        |
+| :------------------------------ | :--------------------------------- |
+| `GET /api/dashboard/last5media` | Most recently uploaded media items |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Last 5 Media",
+  icon: "mdi:image-multiple-outline",
+  description: "Recently uploaded media files with thumbnail previews",
+  defaultSize: { w: 1, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Last 5 Content Widget](./last5-content-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

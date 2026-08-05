@@ -8,7 +8,10 @@
   "author": "SveltyCMS",
   "license": "freemium",
   "price": 24.99,
-  "component": "audit-log-widget",
-  "defaultSize": { "w": 1, "h": 2 },
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 2
+  },
   "category": "logs"
 }

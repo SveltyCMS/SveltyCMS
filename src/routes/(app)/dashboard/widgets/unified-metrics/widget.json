@@ -8,7 +8,10 @@
   "author": "SveltyCMS",
   "license": "freemium",
   "price": 14.99,
-  "component": "unified-metrics-widget",
-  "defaultSize": { "w": 2, "h": 3 },
+  "component": "index",
+  "defaultSize": {
+    "w": 2,
+    "h": 3
+  },
   "category": "monitoring"
 }

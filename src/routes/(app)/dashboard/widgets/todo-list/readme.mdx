@@ -1,0 +1,67 @@
+---
+path: "src/routes/(app)/dashboard/widgets/todo-list/readme.mdx"
+title: "TODO List Dashboard Widget"
+description: "Interactive admin task manager for tracking pending tasks and checklist items. Included with SveltyCMS — free."
+order: 100
+icon: "mdi:checkbox-marked-outline"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-05"
+tags:
+  - "dashboard"
+  - "tasks"
+  - "productivity"
+  - "free"
+---
+
+# TODO List Widget
+
+The **TODO List** dashboard widget allows administrators to organize, add, and complete daily maintenance tasks and pending content approvals directly from their main SveltyCMS dashboard.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature          | Description                                           |
+| :--------------- | :---------------------------------------------------- |
+| Add task         | Create a new task from the inline input               |
+| Toggle complete  | Mark tasks as done / open with a single click         |
+| Delete task      | Remove tasks that are no longer relevant              |
+| Open-task badge  | Live count of pending tasks in the widget header      |
+| Client-side only | No API dependency — works offline, state is in-memory |
+| Compact mode     | Fits the default 1×1 grid cell                        |
+
+---
+
+## Data Source
+
+| Endpoint | Description                                          |
+| :------- | :--------------------------------------------------- |
+| —        | Static widget — all state is client-side (in-memory) |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "TODO List",
+  icon: "mdi:checkbox-marked-outline",
+  description: "Interactive admin task manager for tracking pending CMS tasks.",
+  defaultSize: { w: 1, h: 1 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Calendar View Widget](./calendar-view.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)
