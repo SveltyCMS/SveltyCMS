@@ -1,11 +1,12 @@
 /**
- * @file tests/unit/scripts/scan-db-risk.test.ts
- * @description Unit tests for the DB-layer risk scanner (SQL/NoSQL injection
- * classes across all 4 adapters + SvelteKit config risks).
+ * @file tests/unit/scripts/scan-security-risk.test.ts
+ * @description Unit tests for the GLOBAL security risk scanner — DB injection
+ * classes (all 4 adapters), command injection, dynamic code execution, path
+ * traversal, SSRF, XSS sinks, and SvelteKit config risks.
  */
 
 import { describe, it, expect } from "vitest";
-import { scanDbRisk, scanSvelteKitRisk } from "../../../scripts/scan-db-risk";
+import { scanDbRisk, scanGlobalRisk, scanSvelteKitRisk } from "../../../scripts/scan-security-risk";
 
 describe("scanDbRisk — SQL value interpolation (SQLi class)", () => {
   it("flags interpolated values inside quoted SQL strings", () => {
@@ -95,6 +96,87 @@ describe("scanDbRisk — regex interpolation", () => {
     ].join("\n");
     const violations = scanDbRisk("escaped.ts", content);
     expect(violations.some((v) => v.category === "regex-interpolation")).toBe(false);
+  });
+});
+
+describe("scanGlobalRisk — command injection", () => {
+  it("flags shell command interpolation", () => {
+    const violations = scanGlobalRisk("setup.ts", "exec(`npm install ${packageName}`);");
+    expect(violations.some((v) => v.category === "shell-interpolation")).toBe(true);
+  });
+
+  it("does NOT flag execFile with an args array or dot-methods", () => {
+    expect(
+      scanGlobalRisk("setup.ts", 'execFile(pm, ["add", packageName]);').some(
+        (v) => v.category === "shell-interpolation",
+      ),
+    ).toBe(false);
+    expect(
+      scanGlobalRisk("db.ts", 'this.sqlite.exec(`DROP TABLE IF EXISTS "${t}"`);').some(
+        (v) => v.category === "shell-interpolation",
+      ),
+    ).toBe(false);
+  });
+
+  it("flags spawn with shell:true", () => {
+    const violations = scanGlobalRisk("x.ts", "spawn(cmd, { shell: true });");
+    expect(violations.some((v) => v.category === "shell-enabled")).toBe(true);
+  });
+});
+
+describe("scanGlobalRisk — dynamic code execution", () => {
+  it("flags eval and new Function", () => {
+    expect(
+      scanGlobalRisk("x.ts", "eval(userCode);").some(
+        (v) => v.category === "dynamic-code-execution",
+      ),
+    ).toBe(true);
+    expect(
+      scanGlobalRisk("x.ts", "new Function('return ' + input)();").some(
+        (v) => v.category === "dynamic-code-execution",
+      ),
+    ).toBe(true);
+  });
+
+  it("allows the bun:sqlite dynamic-import workaround", () => {
+    const violations = scanGlobalRisk(
+      "adapter.ts",
+      "new Function('return import(\"bun:sqlite\")')();",
+    );
+    expect(violations.some((v) => v.category === "dynamic-code-execution")).toBe(false);
+  });
+});
+
+describe("scanGlobalRisk — path traversal / SSRF / XSS", () => {
+  it("flags fs calls with member-access path interpolation", () => {
+    const violations = scanGlobalRisk("x.ts", 'fs.readFile(`${req.files.path}`, "utf8");');
+    expect(violations.some((v) => v.category === "path-interpolation")).toBe(true);
+  });
+
+  it("passes internally derived paths and guarded files", () => {
+    expect(scanGlobalRisk("x.ts", "fs.writeFile(`${rotated}.gz`, data);")).toHaveLength(0);
+    expect(
+      scanGlobalRisk(
+        "guard.ts",
+        'fs.readFile(`${entry.path}`, "utf8");\nconst resolvePath = (p) => path.resolve(base, p);',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("flags request-derived fetch URLs, passes configured endpoints", () => {
+    expect(
+      scanGlobalRisk("services/x.ts", "fetch(`${request.url}/api`);").some(
+        (v) => v.category === "ssrf-fetch",
+      ),
+    ).toBe(true);
+    expect(scanGlobalRisk("services/x.ts", "fetch(`${ollamaUrl}/api/embeddings`);")).toHaveLength(
+      0,
+    );
+  });
+
+  it("flags DOM XSS sinks", () => {
+    const violations = scanGlobalRisk("comp.svelte", "el.innerHTML = userHtml;");
+    expect(violations.some((v) => v.category === "xss-sink")).toBe(true);
   });
 });
 

@@ -5,9 +5,11 @@
  * Full risk audit for commits — runs every fast, stateless security check in
  * one gate. Covers the layers no single tool can:
  *
- *   1. scan-db-risk     — OUR code: SQL/NoSQL injection classes across all 4
- *                         adapters (SQLite, MariaDB, PostgreSQL, MongoDB) +
- *                         SvelteKit CSRF/cookie config risks
+ *   1. scan-security-risk — OUR code: SQL/NoSQL injection classes across all
+ *                        4 adapters (SQLite, MariaDB, PostgreSQL, MongoDB),
+ *                        command injection, dynamic code execution, path
+ *                        traversal, SSRF, XSS sinks + SvelteKit CSRF/cookie
+ *                        config — over the ENTIRE src tree
  *   2. scan-secret-misuse — hardcoded credentials / comparison backdoors
  *   3. slop-scanner     — XSS, RTL, security architecture rules
  *   4. bun audit        — GitHub Advisory DB for the npm dependency tree
@@ -21,8 +23,8 @@ import { spawnSync } from "node:child_process";
 
 const STEPS: { name: string; args: string[] }[] = [
   {
-    name: "🛡️  DB risk scan (4 adapters + SvelteKit)",
-    args: ["run", "scripts/scan-db-risk.ts", "--strict"],
+    name: "🛡️  Global security risk scan (all src)",
+    args: ["run", "scripts/scan-security-risk.ts", "--strict"],
   },
   { name: "🔑  Secret misuse scan", args: ["run", "scripts/scan-secret-misuse.ts", "--strict"] },
   {

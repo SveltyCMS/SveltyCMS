@@ -655,6 +655,11 @@ export async function probeRedis() {
 
 // ── internal helpers ──
 async function dropDatabase(db: any) {
+  // Pre-auth wizard input reaches raw DDL below — allowlist the identifier
+  // instead of relying on escaping alone (escId/escSql can't stop stacked
+  // statements; a plain identifier allowlist can).
+  const { assertSafeSqlIdentifier } = await import("@databases/core/relational-utils");
+  assertSafeSqlIdentifier(db.name, "database name");
   if (db.type === "mongodb" || db.type === "mongodb+srv") {
     const m = (await import("mongoose")).default;
     const uri = db.host.includes("://")
@@ -716,6 +721,9 @@ async function dropDatabase(db: any) {
   }
 }
 async function createDatabase(db: any) {
+  // Same allowlist as dropDatabase — db.name must never reach raw DDL unvalidated.
+  const { assertSafeSqlIdentifier } = await import("@databases/core/relational-utils");
+  assertSafeSqlIdentifier(db.name, "database name");
   if (db.type === "sqlite") {
     const { buildDatabaseConnectionString } = await import("./utils");
     mkdirSync(dirname(buildDatabaseConnectionString(db)), { recursive: true });

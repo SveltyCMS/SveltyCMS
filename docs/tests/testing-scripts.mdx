@@ -138,23 +138,28 @@ bun run scripts/scan-secret-misuse.ts          # scan all files
 bun run scripts/scan-secret-misuse.ts --strict # CI mode (exit 1 on findings)
 ```
 
-### `scripts/scan-db-risk.ts` — DB-Layer Risk Scanner (all 4 adapters)
+### `scripts/scan-security-risk.ts` — Global Security Risk Scanner (entire `src/`)
 
-Static scanner for injection classes in OUR adapter code — the layer no external database can cover. Scopes `src/databases/`, `src/plugins/`, `src/services/`:
+Static scanner for vulnerability classes in OUR code — the layer no external database can cover. Scans all files under `src/` (vendored `src/types/`, `node_modules`, generated `src/paraglide/` excluded):
 
 | Rule                         | Severity | Detects                                                                                                                |
 | ---------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
 | SQL value interpolation      | error    | `'${value}'` inside SQL strings — the `author__not_in` SQLi class; values must be bound parameters or tagged templates |
 | SQL string concatenation     | error    | `"..." + value + "..."` SQL assembly                                                                                   |
 | MongoDB JS execution         | error    | `$where` / `$function` / `$accumulator` — server-side JS (RCE class)                                                   |
+| Dynamic code execution       | error    | `eval(` / `new Function(` (RCE sinks; `bun:sqlite` import workaround allowlisted)                                      |
 | SvelteKit CSRF disabled      | error    | `csrf: { checkOrigin: false }` / `csrf: false`                                                                         |
-| Non-httpOnly cookie          | error    | `httpOnly: false` on auth/session cookies                                                                              |
+| Non-httpOnly cookie          | error    | `httpOnly: false` (double-submit CSRF cookie exempted by design)                                                       |
+| Shell command interpolation  | warning  | `exec(\`...${...}\`)` — use execFile/spawn with an args array (`.exec()` DB methods, WAF regex literals excluded)      |
+| Path interpolation           | warning  | `fs.*` with member-access `${x.y}` paths or quote-concat — path-traversal class; guarded files + bare locals pass      |
+| SSRF                         | warning  | `fetch()` with request-derived URL (configured endpoints like `ollamaUrl`/`this.baseUrl` pass)                         |
+| XSS sinks                    | warning  | `innerHTML=`, `outerHTML=`, `insertAdjacentHTML(`, `document.write(`                                                   |
+| Regex interpolation          | warning  | `new RegExp(\`...${x}...\`)` without escaping (escape helpers, `\$&` idiom, constants, `\\${` pass)                    |
 | SQL identifier interpolation | warning  | Unescaped identifiers (skipped in files with `assertSafeSqlIdentifier`-style guards)                                   |
-| Regex interpolation          | warning  | `new RegExp(\`...${x}...\`)`without the`\$&` escape idiom                                                              |
 
 ```bash
-bun run scripts/scan-db-risk.ts          # scan (warnings tolerated)
-bun run scripts/scan-db-risk.ts --strict # exit 1 on errors (pre-commit)
+bun run scripts/scan-security-risk.ts          # scan (warnings tolerated)
+bun run scripts/scan-security-risk.ts --strict # exit 1 on errors (pre-commit)
 ```
 
 ### `scripts/scan-osv.ts` — Global Vulnerability Check (OSV.dev)
@@ -171,7 +176,7 @@ bun run scripts/scan-osv.ts --fresh  # ignore cache
 
 Runs all fast, stateless security checks in one gate (wired into `.githooks/pre-commit`):
 
-1. `scan-db-risk --strict` — our DB code (4 adapters) + SvelteKit config
+1. `scan-security-risk --strict` — global scan: DB (4 adapters) + command injection, eval, paths, SSRF, XSS + SvelteKit config
 2. `scan-secret-misuse --strict` — hardcoded credentials
 3. `slop-scanner --strict` — XSS/RTL/security architecture
 4. `bun audit` — GitHub Advisory DB (npm tree)
