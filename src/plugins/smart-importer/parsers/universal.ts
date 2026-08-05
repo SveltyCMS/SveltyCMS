@@ -604,7 +604,10 @@ function detectSQLColumnTypes(
     const colDefs = match[1].split(",");
     for (const def of colDefs) {
       for (const col of columns) {
-        const colRegex = new RegExp(`\`?${col}\`?\\s+(\\w+)`, "i");
+        // Regex-escape the column name: DDL text is user-pasted, and unescaped
+        // metacharacters would both break parsing and enable regex injection.
+        const escapedCol = col.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const colRegex = new RegExp(`\`?${escapedCol}\`?\\s+(\\w+)`, "i");
         const colMatch = colRegex.exec(def.trim());
         if (colMatch) {
           const sqlType = colMatch[1].toLowerCase();

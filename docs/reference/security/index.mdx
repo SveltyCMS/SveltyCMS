@@ -391,21 +391,19 @@ bun test tests/integration/api/security.test.ts
 
 See [Tested Security Features](./tested-security-features.mdx) for details.
 
-### External Advisory Reviews
+### Stack Risk Audit (Commit Gate)
 
-> [!NOTE]
-> This section is an **assessment log** for vulnerability _classes_ in other CMSs — not a
-> dependency scan. Standing checks against the global directories run automatically:
-> `bun audit` (GitHub Advisory DB, pre-push gate) and the ops-side NVD pipeline cover our
-> npm dependency tree. Ecosystem advisories are reviewed here only when a class could
-> plausibly exist in our own code.
+Every commit runs a **full risk audit** (`.githooks/pre-commit` → `bun run risk:audit`). It covers the layers no single tool can:
 
-Assessed against SveltyCMS `next` on 2026-08-05 — **not affected**. Neither advisory ships WordPress code; the classes were mapped to equivalent in-tree controls:
+| Layer                            | Check                           | What it catches                                                                                                                                                        |
+| -------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Our DB code (all 4 adapters)** | `scripts/scan-db-risk.ts`       | SQL value/identifier interpolation, string-concat SQL, MongoDB `$where`/`$function`/`$accumulator` (server-side JS), regex interpolation, SvelteKit CSRF/cookie config |
+| **Our code (secrets)**           | `scripts/scan-secret-misuse.ts` | Hardcoded credentials, comparison backdoors, weak randomness                                                                                                           |
+| **Our code (quality)**           | `scripts/slop-scanner.ts`       | XSS, RTL, security architecture rules                                                                                                                                  |
+| **Dependencies (npm)**           | `bun audit`                     | GitHub Advisory DB for the npm tree (SvelteKit/Svelte/Vite advisories included)                                                                                        |
+| **Global database**              | `scripts/scan-osv.ts` → OSV.dev | GHSA + NVD + 20+ feeds in one query, from SBOM purls (24h cache)                                                                                                       |
 
-| Advisory (published 2026-07-17)                | Vulnerability class                                                            | SveltyCMS equivalent control (verified in code)                                                                                                                                                                                                                                                                                                                                                    |
-| ---------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GHSA-fpp7-x2x2-2mjf (CVE-2026-60137, Moderate) | Value interpolation into SQL for a `not-in` filter (`WP_Query author__not_in`) | No `NOT IN`/`$nin` list interpolation exists anywhere in `src/databases/`. All values use bound parameters (`?`) — e.g. `adapter-core.ts` raw `findById` (both `query` and `prepare` paths). LIKE wildcards are escaped (`escapeLikePattern`, August 2026). Identifiers are quoted via escape-doubling (`""` / backtick doubling) and DDL identifier guards are enforced.                          |
-| GHSA-ff9f-jf42-662q (CVE-2026-63030, Critical) | REST API batch-route confusion → privilege escalation → RCE                    | No generic sub-route dispatch exists. `/api/user/batch` accepts a closed action union (`delete`/`block`/`unblock`) with `default → 400`; collections bulk ops use whitelisted verbs; GraphQL HTTP batching caps at 10 queries under the same auth context. The API dispatcher is fail-closed (`ENDPOINT_PERMISSIONS`, unmapped namespaces → 403) and non-admin batch access requires `user:write`. |
+Cross-CMS advisories (e.g. WordPress) are **not** monitored — only the vulnerability _class_ matters, and those classes are checked directly against our own code in `scan-db-risk.ts`.
 
 ### Penetration Testing
 

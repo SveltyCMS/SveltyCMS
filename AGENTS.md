@@ -85,7 +85,7 @@ To stay ahead: benchmark Core Web Vitals, maintain EU-compliant competitive docs
 
 - **Modern Stack**: Latest TypeScript (^5.9.3), Node.js (>=24), Svelte 5 (^5.46.4), Vite 7 (^7.3.1), Bun (3-4x faster runtime)
 - **Code Quality**: SveltyCMS uses a **tiered validation pipeline** via git hooks:
-  - **Pre-commit** (`git commit`): check-test-db-safety → format+lint → lint-staged → **unit tests** (~40s) → **SBOM sync** (auto-regenerates `sbom.json` when `bun.lock`/`package.json` changed). Docs-only commits skip unit tests.
+  - **Pre-commit** (`git commit`): check-test-db-safety → format+lint → lint-staged → **full risk audit** (`bun run risk:audit`: DB-injection scan across all 4 adapters + secret misuse + slop + `bun audit` + OSV.dev global check) → **unit tests** (~40s) → **SBOM sync** (auto-regenerates `sbom.json` when `bun.lock`/`package.json` changed). Docs-only commits skip risk audit + unit tests.
   - **Pre-push** (`git push` / `bun run gate` / `bun run prepush`): production build (4 adapters) → **SQLite integration** (`bun test tests/integration/`) ~5 min. Multi-DB matrix, E2E, and benchmarks are CI-only.
   - **CI** (GitHub PR/push to `next`/`main`): whitebox → build → DB matrix (4 adapters) → core benchmarks → E2E prep + 6 named groups → all-green.
   - Manual: `bun run check`, `bun run test:unit`, `bun run test:security`, `bun run test:doctor` (unit + SQLite integration + gate map), `bun run gate` (pre-push), `bun run test:e2e`.
@@ -256,14 +256,16 @@ To maintain our **A++ Security Grade**, agents must adhere to these strictly enf
 
 ### 12. Security Scanners (Pre-Commit + CI)
 
-Two scanners enforce these rules at the code level:
+Four scanners enforce these rules at the code level:
 
-| Scanner                 | Command                                          | Rules                                                      |
-| ----------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
-| `scan-secret-misuse.ts` | `bun run scripts/scan-secret-misuse.ts --strict` | 6 rules: API keys, comparison backdoors, entropy, exposure |
-| `slop-scanner.ts`       | `bun run slop --strict`                          | Code quality + 6 security architecture rules               |
+| Scanner                 | Command                                          | Rules                                                                                                                      |
+| ----------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `scan-secret-misuse.ts` | `bun run scripts/scan-secret-misuse.ts --strict` | 6 rules: API keys, comparison backdoors, entropy, exposure                                                                 |
+| `slop-scanner.ts`       | `bun run slop --strict`                          | Code quality + 6 security architecture rules                                                                               |
+| `scan-db-risk.ts`       | `bun run scripts/scan-db-risk.ts --strict`       | SQL value/concat interpolation, Mongo `$where`/`$function`, regex injection, SvelteKit CSRF/cookie config (all 4 adapters) |
+| `scan-osv.ts`           | `bun run scripts/scan-osv.ts --strict`           | OSV.dev global DB (GHSA + NVD + 20+ feeds) from SBOM purls, 24h cache                                                      |
 
-Both run in CI. The slop scanner also catches XSS (`{@html}`), RTL violations, and button variant misuse. Add `slop:suppress` to files that need permanent exemptions.
+All four + `bun audit` run together via `bun run risk:audit` in the pre-commit hook. Add `slop:suppress` to files that need permanent exemptions.
 
 ## AI Agent Best Practices
 

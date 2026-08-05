@@ -106,6 +106,7 @@
     "-- ANALYSIS -------------------------------------------": "",
     "security": "bun run scripts/security-audit.ts",
     "security:auth": "bun run scripts/security-audit.ts --auth",
+    "risk:audit": "bun run scripts/risk-audit.ts",
     "slop": "bun run scripts/slop-scanner.ts",
     "audit:backdoor": "bun run scripts/verify-prod-build-backdoor.ts",
     "verify:benchmark-local": "bun run scripts/verify-benchmark-local.ts",
