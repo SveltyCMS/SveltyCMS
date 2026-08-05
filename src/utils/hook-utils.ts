@@ -37,6 +37,19 @@ export const IS_TEST_MODE = (() => {
   );
 })();
 
+/** Standardized user ID string extraction for cache key isolation. */
+export function getUserCacheId(user: { _id?: unknown; id?: unknown } | null | undefined): string {
+  if (!user) return "";
+  const rawId = user._id ?? user.id;
+  return rawId != null ? String(rawId) : "";
+}
+
+/** Builds a user-isolated cache key for API and Turbo GET responses. */
+export function buildUserCacheKey(pathname: string, search: string, userId: string): string {
+  if (!userId) return `${pathname}${search}`;
+  return `${pathname}${search}:u:${userId}`;
+}
+
 // ─── Pre-compiled classification matchers ─────────────────────────────────
 
 export const INTERNAL_PATH_REGEX =

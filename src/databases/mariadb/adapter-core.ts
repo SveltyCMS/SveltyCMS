@@ -63,7 +63,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
   // --------------------------------------------------------------------------
 
   protected get convertDatesOptions(): Record<string, any> {
-    return { mariaDoubleParseJson: true };
+    return { mariaDoubleParseJson: true, inPlace: true };
   }
 
   protected isMissingTableError(err: any): boolean {

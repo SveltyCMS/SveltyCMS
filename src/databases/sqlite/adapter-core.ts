@@ -1156,15 +1156,26 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         /* safe */
       }
     };
+
+    const VALID_SYNC_MODES = new Set(["OFF", "NORMAL", "FULL", "EXTRA"]);
+    const rawSync = process.env.SQLITE_SYNCHRONOUS?.toUpperCase().trim();
+    const syncMode = rawSync && VALID_SYNC_MODES.has(rawSync) ? rawSync : "NORMAL";
+
+    const rawTimeout = process.env.SQLITE_BUSY_TIMEOUT?.trim();
+    const busyTimeout = rawTimeout && /^\d+$/.test(rawTimeout) ? rawTimeout : "30000";
+
+    const rawCheckpoint = process.env.SQLITE_WAL_AUTOCHECKPOINT?.trim();
+    const walCheckpoint = rawCheckpoint && /^\d+$/.test(rawCheckpoint) ? rawCheckpoint : "2000";
+
     safeExec("PRAGMA journal_mode=WAL");
-    safeExec("PRAGMA synchronous=NORMAL");
+    safeExec(`PRAGMA synchronous=${syncMode}`);
     safeExec("PRAGMA foreign_keys=ON");
     safeExec("PRAGMA page_size=8192");
-    safeExec("PRAGMA busy_timeout=5000");
+    safeExec(`PRAGMA busy_timeout=${busyTimeout}`);
     safeExec("PRAGMA temp_store=MEMORY");
     safeExec("PRAGMA mmap_size=536870912");
     safeExec("PRAGMA cache_size=-20000");
-    safeExec("PRAGMA wal_autocheckpoint=1000");
+    safeExec(`PRAGMA wal_autocheckpoint=${walCheckpoint}`);
   }
 
   private async resolvePath(config: string | SQLiteConfig): Promise<string> {

@@ -371,6 +371,10 @@ export abstract class BaseAdapter {
         await cacheService.clearByTags([`count:${collection}`], tenantId);
       }
 
+      // 🚀 TURBO & API CACHE: purge API path keys for collection on all writes
+      await cacheService.clearByPattern(`/api/collections/${collection}*`, tenantId);
+      await cacheService.clearByPattern(`/api/content/${collection}*`, tenantId);
+
       if (options?.ids && options.ids.length > 0) {
         const idTags = options.ids.map((id) => `doc:${collection}:${id}`);
         await cacheService.clearByTags(idTags, tenantId);

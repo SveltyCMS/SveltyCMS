@@ -23,6 +23,7 @@ import type {
 } from "../db-interface";
 import { hashQueryPayload } from "@src/utils/collection-query-filters";
 import { CacheCategory } from "../cache/types";
+import { cacheService } from "../cache/cache-service";
 
 /** Short TTL so admin badges stay fresh without hammering COUNT. */
 export const COUNT_CACHE_TTL_SECONDS = 30;
@@ -55,7 +56,6 @@ export function createCountCachedCrud(inner: ICrudAdapter): ICrudAdapter {
             return target.count(collection, query, options);
           }
 
-          const { cacheService } = await import("../cache/cache-service");
           const key = buildCountCacheKey(collection, query, options);
           const tenantId = options?.tenantId ?? null;
 

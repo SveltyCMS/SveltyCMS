@@ -3,25 +3,8 @@
  * @description Unified Audit Service providing high-integrity, multi-tenant audit logging.
  */
 
-// Lazy Node API accessors — completely tree-shaken during client builds (import.meta.env.SSR is false)
-// Vitest sets import.meta.env.SSR = true in vitest.config.ts for integration tests.
-let _createHash: typeof import("node:crypto").createHash | undefined;
-async function _getCreateHash() {
-  if (!_createHash && import.meta.env.SSR) {
-    _createHash = (await import("node:crypto")).createHash;
-  }
-  if (!_createHash) throw new Error("createHash not available (server-only)");
-  return _createHash;
-}
-let _fsPromises: typeof import("node:fs/promises") | undefined;
-async function _getFsPromises() {
-  if (!_fsPromises && import.meta.env.SSR) {
-    _fsPromises = await import("node:fs/promises");
-  }
-  if (!_fsPromises) throw new Error("fs/promises not available (server-only)");
-  return _fsPromises;
-}
-
+import { createHash } from "node:crypto";
+import fsPromises from "node:fs/promises";
 import path from "node:path";
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
 import type {
@@ -157,12 +140,12 @@ export class AuditService {
       }
 
       const logData = entriesToFlush.map((e) => JSON.stringify(e)).join("\n") + "\n";
-      await (await _getFsPromises()).appendFile(this.logFile, logData);
+      await fsPromises.appendFile(this.logFile, logData);
     } catch (error) {
       if (this.isMissingAuditStoreError(error)) {
         logger.warn("[Audit] Audit store unavailable during flush; dropping buffered entries");
         const logData = entriesToFlush.map((e) => JSON.stringify(e)).join("\n") + "\n";
-        await (await _getFsPromises()).appendFile(this.logFile, logData).catch(() => {});
+        await fsPromises.appendFile(this.logFile, logData).catch(() => {});
         return;
       }
 
@@ -198,10 +181,10 @@ export class AuditService {
       id: "global-audit",
       type: "after",
       action: "insert",
-      handler: async (collection: string, data: any, options: any) => {
+      handler: (collection: string, data: any, options: any) => {
         if (collection === this.collectionName) return;
 
-        await this.log(
+        this.log(
           "Automatic Audit",
           {
             id: "system" as DatabaseId,
@@ -213,7 +196,7 @@ export class AuditService {
           "low",
           { data },
           options?.tenantId,
-        );
+        ).catch((err) => logger.warn("[Audit] Hook log failed:", err));
       },
     });
     logger.info("[Audit] Registered global Titan Tier hooks.");
@@ -226,12 +209,14 @@ export class AuditService {
       return;
     }
     try {
-      await (await _getFsPromises()).mkdir(path.dirname(this.logFile), { recursive: true });
+      await fsPromises.mkdir(path.dirname(this.logFile), { recursive: true });
       this.initialized = true;
     } catch (err) {
       logger.error("Failed to initialize AuditService storage", err);
     }
   }
+
+  private chainLock: Promise<void> = Promise.resolve();
 
   async log(
     action: string,
@@ -245,34 +230,43 @@ export class AuditService {
   ): Promise<void> {
     if (process.env.DISABLE_AUDIT_LOGS === "true") return;
 
-    const timestamp = new Date().toISOString();
-    const entry: Omit<AuditLogEntry, "_id"> = {
-      action,
-      actorId: actor.id,
-      actorEmail: actor.email,
-      actorRole: actor.role,
-      actorIp: actor.ip,
-      targetId: resource.id,
-      targetType: resource.type,
-      eventType,
-      severity,
-      details,
-      tenantId,
-      result,
-      timestamp,
-      createdAt: timestamp as any,
-      updatedAt: timestamp as any,
-      previousHash: this.lastHash,
-    };
+    // Serialized hash-chain queue to guarantee tamper-evident crypto chain integrity under concurrent writes
+    this.chainLock = this.chainLock
+      .then(() => {
+        const timestamp = new Date().toISOString();
+        const entry: Omit<AuditLogEntry, "_id"> = {
+          action,
+          actorId: actor.id,
+          actorEmail: actor.email,
+          actorRole: actor.role,
+          actorIp: actor.ip,
+          targetId: resource.id,
+          targetType: resource.type,
+          eventType,
+          severity,
+          details,
+          tenantId,
+          result,
+          timestamp,
+          createdAt: timestamp as any,
+          updatedAt: timestamp as any,
+          previousHash: this.lastHash,
+        };
 
-    const hash = (await _getCreateHash())("sha256").update(JSON.stringify(entry)).digest("hex");
-    const fullEntry = { ...entry, hash };
-    this.lastHash = hash;
+        const hash = createHash("sha256").update(JSON.stringify(entry)).digest("hex");
+        const fullEntry = { ...entry, hash };
+        this.lastHash = hash;
 
-    this.buffer.push(fullEntry);
-    if (this.buffer.length >= this.MAX_BUFFER_SIZE) {
-      this.flush();
-    }
+        this.buffer.push(fullEntry);
+        if (this.buffer.length >= this.MAX_BUFFER_SIZE) {
+          this.flush().catch((err) =>
+            logger.error("[AuditService] Failed to flush audit logs:", err),
+          );
+        }
+      })
+      .catch((err) => logger.warn("[AuditService] Chain lock error:", err));
+
+    return this.chainLock;
   }
 
   async queryLogs(options: any = {}): Promise<DatabaseResult<AuditLogEntry[]>> {

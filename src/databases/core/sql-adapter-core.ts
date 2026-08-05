@@ -106,7 +106,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
   /** Options bag passed to convertDatesToISO / convertArrayDatesToISO. */
   protected get convertDatesOptions(): Record<string, any> {
-    return {};
+    return { inPlace: true };
   }
 
   /**

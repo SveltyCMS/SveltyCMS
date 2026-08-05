@@ -48,10 +48,17 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
       if (!isNaN(contentLength) && contentLength > MAX_JSON_SIZE) return response;
     }
 
-    const clonedResponse = response.clone();
-    const responseText = await clonedResponse.text();
+    const apiBody = (event.locals as any).apiBody;
+    let responseText: string;
 
-    if (responseText.length > MAX_JSON_SIZE) return response;
+    if (typeof apiBody === "string") {
+      responseText = apiBody;
+    } else {
+      const clonedResponse = response.clone();
+      responseText = await clonedResponse.text();
+    }
+
+    if (responseText.length > MAX_JSON_SIZE || !responseText.includes("{{")) return response;
 
     let body: any;
     try {

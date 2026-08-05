@@ -60,8 +60,10 @@ export function applyAllSecurityHeaders(
   if (pathname.startsWith("/api/")) {
     const corsHeaders = getCorsHeaders(origin, true);
     if (corsHeaders) {
-      for (const [key, value] of Object.entries(corsHeaders)) {
-        headers.set(key, value as string);
+      for (const key in corsHeaders) {
+        if (Object.prototype.hasOwnProperty.call(corsHeaders, key)) {
+          headers.set(key, corsHeaders[key]);
+        }
       }
     }
     headers.append("Vary", "Origin");

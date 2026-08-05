@@ -29,19 +29,24 @@ import { cacheService } from "@src/databases/cache/cache-service";
  */
 function setApiDataHash(event: RequestEvent, data: any) {
   if (!data) return;
-  const entries = Array.isArray(data) ? data : data.data ? data.data : [data];
+  if (!Array.isArray(data)) {
+    const single = data.data !== undefined ? data.data : data;
+    if (single && !Array.isArray(single)) {
+      if (single.updatedAt) {
+        (event.locals as any).apiDataHash = single.updatedAt;
+        return;
+      }
+    }
+  }
+  const entries = Array.isArray(data) ? data : data.data ? data.data : null;
   if (!Array.isArray(entries) || entries.length === 0) return;
 
-  // Use max updatedAt as the hash token — changes only when entries change
   let maxTs = "";
-  for (const entry of entries) {
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
     if (entry?.updatedAt && entry.updatedAt > maxTs) maxTs = entry.updatedAt;
   }
-  if (!maxTs) {
-    // Fallback: use entry count as a version indicator
-    maxTs = `count:${entries.length}`;
-  }
-  (event.locals as any).apiDataHash = maxTs;
+  (event.locals as any).apiDataHash = maxTs || `count:${entries.length}`;
 }
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────

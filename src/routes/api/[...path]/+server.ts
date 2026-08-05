@@ -13,7 +13,7 @@ import { AppError } from "@utils/error-handling";
 import { getDb, getDbInitPromise, isDbConnected } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
-import { isPublicRoute } from "@src/utils/hook-utils";
+import { isPublicRoute, getUserCacheId, buildUserCacheKey } from "@src/utils/hook-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
@@ -511,7 +511,9 @@ export const _handler = async (event: RequestEvent) => {
 
   // 🚀 PERFORMANCE: L1 Synchronous Cache Hit AFTER Auth — pre-computed ETag avoids re-hash
   if (request.method === "GET") {
-    const cached = cacheService.getSync?.(url.pathname + url.search, tenantId);
+    const userIdStr = getUserCacheId(user);
+    const dispatchCacheKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
+    const cached = cacheService.getSync?.(dispatchCacheKey, tenantId);
     if (cached) {
       // Per-request cache HIT is debug-only (default info/prod error stay quiet)
       // Cache tuple { body, etag } — pre-computed, zero hash overhead
@@ -613,8 +615,9 @@ export const _handler = async (event: RequestEvent) => {
       pathStr.includes("/api/themes") ||
       pathStr.includes("/api/config");
 
-    // 🚀 HYPER-PERFORMANCE: Read body once for ETag — cache only if cacheable
-    const responseBody = await response.text();
+    // 🚀 HYPER-PERFORMANCE: Read body once for ETag — use stashed apiBody when available
+    const apiBody = (locals as any).apiBody;
+    const responseBody = typeof apiBody === "string" ? apiBody : await response.text();
 
     // Compute ETag once — works for both cacheable (cache + 304) and non-cacheable (304 only)
     let etag = "";
@@ -627,14 +630,10 @@ export const _handler = async (event: RequestEvent) => {
     if (isCacheable && etag) {
       // Only cache cacheable endpoints — non-cacheable still get ETag for 304 support
       const { CacheCategory } = await import("@src/databases/cache/types");
+      const userIdStr = getUserCacheId(user);
+      const dispatchCacheKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
       cacheService
-        .set(
-          url.pathname + url.search,
-          { body: responseBody, etag },
-          300,
-          tenantId,
-          CacheCategory.API,
-        )
+        .set(dispatchCacheKey, { body: responseBody, etag }, 300, tenantId, CacheCategory.API)
         .catch(() => {});
     }
 

@@ -33,6 +33,7 @@ export function createSelfHealingProxy<T extends object>(
 ): T {
   const proxyCache = sharedCache ?? new Map<string, any>();
   const boundFunctionsCache = new WeakMap<object, Map<string | symbol, Function>>();
+  const namespaceSet = new Set(namespaceKeys);
 
   const createProxy = (targetProp?: string): any => {
     const cacheKey = targetProp || "root";
@@ -46,7 +47,7 @@ export function createSelfHealingProxy<T extends object>(
         const instance = getInstance();
 
         // Recurse into namespace sub-proxies
-        if (typeof prop === "string" && namespaceKeys.includes(prop)) {
+        if (typeof prop === "string" && namespaceSet.has(prop)) {
           return createProxy(prop);
         }
 

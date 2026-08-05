@@ -70,10 +70,16 @@ export function errorResponse(event: RequestEvent, message: string, status = 400
  * instead of ["api", "user", "me"].
  */
 export function getSegments(path: string): string[] {
-  return path
-    .split("/")
-    .filter(Boolean)
-    .filter((s) => s !== "api");
+  if (!path) return [];
+  const parts = path.split("/");
+  const segments: string[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    const s = parts[i];
+    if (s && s !== "api") {
+      segments.push(s);
+    }
+  }
+  return segments;
 }
 
 /**
@@ -98,7 +104,14 @@ export function notAllowed(): never {
 
 // ─── Internal ────────────────────────────────────────────────────────────────
 
-/** Stores response data in event.locals for middleware/logging/debugging. */
+/** Stores response data and pre-serialized string in event.locals for single-pass middleware. */
 function stashInLocals(event: RequestEvent, data: any) {
-  if (event?.locals) (event.locals as any).apiData = data;
+  if (event?.locals) {
+    (event.locals as any).apiData = data;
+    try {
+      (event.locals as any).apiBody = typeof data === "string" ? data : JSON.stringify(data);
+    } catch {
+      /* non-serializable payload fallback */
+    }
+  }
 }

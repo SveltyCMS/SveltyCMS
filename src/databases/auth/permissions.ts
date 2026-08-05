@@ -93,6 +93,13 @@ export function getRoleBitset(role: Role): Uint32Array {
   return bitset;
 }
 
+const DEFAULT_ROLE_NAMES: Record<string, string> = {
+  admin: "Administrator",
+  developer: "Developer",
+  editor: "Editor",
+  author: "Author",
+};
+
 // Check if a user has a specific permission (with roles parameter to avoid circular dependency)
 // Supports multiple roles — grants access if ANY role has the permission.
 export function hasPermissionWithRoles(
@@ -106,22 +113,19 @@ export function hasPermissionWithRoles(
   }
 
   const safeRoles = roles || [];
+  const userId = user._id ? String(user._id) : null;
+  let roleIds: string[] | undefined;
 
-  // Permission result cache (5-min TTL, LRU) — keyed by user + permission + role ids.
-  // Invalidated per-user on Auth.updateUser() and globally on every role mutation
-  // (AuthNamespace.updateRoles, config import, testing API), so cached DENY results
-  // never outlive privilege changes.
-  if (user._id) {
-    const roleIds = safeRoles.map((r) => String(r._id));
-    const cached = permissionCache.get(String(user._id), permissionId, roleIds);
+  if (userId) {
+    roleIds = safeRoles.length === 0 ? [] : safeRoles.map((r) => String(r._id));
+    const cached = permissionCache.get(userId, permissionId, roleIds);
     if (cached !== null) return cached;
   }
 
   const granted = evaluatePermissionWithRoles(user, permissionId, safeRoles);
 
-  if (user._id) {
-    const roleIds = safeRoles.map((r) => String(r._id));
-    permissionCache.set(String(user._id), permissionId, roleIds, granted);
+  if (userId && roleIds) {
+    permissionCache.set(userId, permissionId, roleIds, granted);
   }
   return granted;
 }
@@ -134,13 +138,6 @@ function evaluatePermissionWithRoles(user: User, permissionId: string, safeRoles
   // Find ALL roles matching the user (supports multiple roles)
   const userRoles = safeRoles.filter((role) => {
     if (role._id === user.role) return true;
-    // Fallback: match by name for default roles
-    const DEFAULT_ROLE_NAMES: Record<string, string> = {
-      admin: "Administrator",
-      developer: "Developer",
-      editor: "Editor",
-      author: "Author",
-    };
     const roleName = DEFAULT_ROLE_NAMES[(user.role || "").toLowerCase()];
     return roleName ? role.name === roleName : false;
   });
