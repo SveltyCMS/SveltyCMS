@@ -535,7 +535,11 @@ describe("User API Extended Integration", () => {
         return;
       }
 
-      sessionIdToRevoke = sessions[0]._id || sessions[0].id;
+      // Revoke the *current* session (the one matching the request cookie).
+      // Cross-session revocation requires a fresh password proof and returns
+      // 403 REAUTH_REQUIRED — that path is exercised separately below.
+      const currentSession = sessions.find((s: any) => s.isCurrent === true) || sessions[0];
+      sessionIdToRevoke = currentSession._id || currentSession.id;
       expect(sessionIdToRevoke).toBeTruthy();
 
       const revokeResp = await safeFetch(`${API_BASE_URL}/api/user/sessions/${sessionIdToRevoke}`, {
