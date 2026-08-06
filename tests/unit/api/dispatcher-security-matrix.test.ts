@@ -70,16 +70,6 @@ vi.mock("@src/services/core/settings-service", () => ({
   invalidateSettingsCache: vi.fn(),
 }));
 
-vi.mock("@utils/logger", () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    trace: vi.fn(),
-  },
-}));
-
 // Keep apiHandler real → status codes on Response, not throws.
 
 const editor = createMockUser({

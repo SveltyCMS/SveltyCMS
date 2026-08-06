@@ -1,7 +1,7 @@
 <!--
-@file src/routes/(app)/config/collectionbuilder/NestedContent/TreeViewBoard.svelte
+@file src/routes/(app)/config/collectionbuilder/nested-content/tree-view-board.svelte
 @component
-**Enhanced Board component for managing nested collections using @thisux/sveltednd**
+**Enhanced Board for nested collections using @thisux/sveltednd (migrated from svelte-dnd-action)**
 
 ### Props
 - `contentNodes` {ContentNode[]} - Array of content nodes representing collections and categories
@@ -11,8 +11,10 @@
 - `onDuplicateNode` {Function} - Callback function to handle node duplication
 
 ### Features:
-- Drag and drop reordering of collections using @thisux/sveltednd
-- Support for nested categories with cross-level drag
+- Drag and drop via @thisux/sveltednd (replaces former `svelte-dnd-action` / `dndzone`)
+- Free nesting: drop on category **middle** = inside; top/bottom edge = sibling before/after
+- Nested category drop zones auto-expand while dragging
+- Preserves full ContentNode payloads (collectionDef, etc.) so sidebar stays coherent
 - Cycle detection (prevents dropping parent into own child)
 - Race condition prevention with hash synchronization
 - Search/Filter functionality with auto-expand
@@ -28,7 +30,7 @@ import type { ContentNode, DatabaseId } from "@databases/db-interface";
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 import { sortContentNodes } from "@src/content";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { tick } from "svelte";
+import { onMount, tick } from "svelte";
 import { flip } from "svelte/animate";
 import { draggable, droppable, dndState } from '@thisux/sveltednd';
 import type { DragDropState } from '@thisux/sveltednd';
@@ -90,6 +92,25 @@ let lastPushedHash = $state("");
 /** Last structureKey we saw; when it changes, clear hash guards to force rebuild from server order. */
 let lastStructureKey = $state(0);
 let rebuildTimeout: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Full ContentNode snapshots keyed by id — tree UI only keeps display/DnD fields,
+ * but sidebar + save need collectionDef / source / translations, etc.
+ */
+let sourceNodesById = new SvelteMap<string, ContentNode>();
+
+/** Last pointer for before/after/inside thirds on category rows (sveltednd only exposes before|after). */
+let lastPointerY = 0;
+let lastPointerX = 0;
+
+onMount(() => {
+	const onMove = (e: PointerEvent) => {
+		lastPointerX = e.clientX;
+		lastPointerY = e.clientY;
+	};
+	window.addEventListener("pointermove", onMove, { passive: true });
+	return () => window.removeEventListener("pointermove", onMove);
+});
 
 // Accessibility State
 let announcement = $state("");
@@ -165,6 +186,13 @@ $effect(() => {
 				if (orderDiff !== 0) return orderDiff;
 				return (a.name ?? "").localeCompare(b.name ?? "");
 			});
+
+			// Keep full node payloads for merge on save / sidebar sync
+			const nextSource = new SvelteMap<string, ContentNode>();
+			for (const n of sortedNodes) {
+				nextSource.set(String(n._id), n);
+			}
+			sourceNodesById = nextSource;
 
 			const flatItems: TreeViewItem[] = sortedNodes.map((n) => ({
 				id: String(n._id),
@@ -380,6 +408,53 @@ function announce(message: string) {
 
 // --- Drag & Drop Handler ---
 
+/**
+ * sveltednd only reports before|after. For tree nesting we add "inside" on category
+ * rows using the same 28%/44%/28% thirds as the shared TreeView (left sidebar).
+ */
+function resolveTreeDropIntent(
+	targetItemId: string | null,
+	dropPosition: "before" | "after" | null,
+): "before" | "after" | "inside" {
+	if (!targetItemId) return dropPosition ?? "after";
+	const targetNode = findNode(treeRoots, targetItemId);
+	if (!targetNode || targetNode.nodeType !== "category") {
+		return dropPosition ?? "after";
+	}
+
+	const wrapper = document.querySelector(
+		`[data-item-id="${CSS.escape(targetItemId)}"]`,
+	) as HTMLElement | null;
+	if (!wrapper) return dropPosition ?? "after";
+
+	// Prefer the category header row, not the whole subtree (nested zone height)
+	const header =
+		(wrapper.querySelector(
+			':scope > .tree-node-outer > [role="button"]',
+		) as HTMLElement | null) ??
+		(wrapper.querySelector('[role="button"]') as HTMLElement | null) ??
+		wrapper;
+	const rect = header.getBoundingClientRect();
+	const y = lastPointerY - rect.top;
+	const h = Math.max(rect.height, 1);
+	if (y < h * 0.28) return "before";
+	if (y > h * 0.72) return "after";
+	return "inside";
+}
+
+/** Auto-expand categories while dragging so nested drop zones appear. */
+function handleCategoryDragOver(state: DragDropState<{ itemId: string }>) {
+	const el = state.targetElement;
+	if (!(el instanceof Element)) return;
+	const itemEl = el.closest("[data-item-id]") as HTMLElement | null;
+	const id = itemEl?.dataset?.itemId;
+	if (!id) return;
+	const node = findNode(treeRoots, id);
+	if (node?.nodeType === "category" && !expandedNodes.has(id)) {
+		expandedNodes.add(id);
+	}
+}
+
 function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
 	const dragged = state.draggedItem;
 	if (!dragged) return;
@@ -388,58 +463,103 @@ function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
 	const targetContainer = state.targetContainer || state.sourceContainer;
 	const dropPosition = state.dropPosition;
 
-	// Find the target item element via data-item-id (only present on item wrappers)
-	const targetItemEl = state.targetElement?.closest('[data-item-id]') as HTMLElement | null;
-	const targetItemId = targetItemEl?.dataset?.itemId;
+	// Prefer the *deepest* data-item-id under the pointer (not an ancestor wrapper)
+	const under =
+		typeof document !== "undefined" && lastPointerX && lastPointerY
+			? document.elementFromPoint(lastPointerX, lastPointerY)
+			: null;
+	const targetItemEl =
+		(under instanceof Element
+			? (under.closest("[data-item-id]") as HTMLElement | null)
+			: null) ??
+		(state.targetElement?.closest("[data-item-id]") as HTMLElement | null);
+	const targetItemId = targetItemEl?.dataset?.itemId ?? null;
 
-	// Convert container names to parent IDs
-	const targetParentId = targetContainer === 'root'
-		? null
-		: targetContainer.replace('children:', '');
+	// Default parent from container name (nested zones = children:<parentId>)
+	let targetParentId: string | null =
+		targetContainer === "root" ? null : targetContainer.replace("children:", "");
+
+	const intent = resolveTreeDropIntent(targetItemId, dropPosition);
+
+	// Drop on category middle → nest inside that category (free sub-region drag)
+	if (intent === "inside" && targetItemId) {
+		targetParentId = targetItemId;
+		expandedNodes.add(targetItemId);
+	}
 
 	// CYCLE DETECTION
 	const draggedNode = findNode(treeRoots, draggedId);
 	if (!draggedNode) return;
-	if (targetParentId && draggedNode.nodeType === 'category' && isAncestorOf(draggedId, targetParentId, treeRoots)) {
-		announce(`Cannot move "${draggedNode?.name || 'item'}" into its own sub-category`);
+	if (
+		targetParentId &&
+		(targetParentId === draggedId ||
+			isAncestorOf(draggedId, targetParentId, treeRoots))
+	) {
+		announce(
+			`Cannot move "${draggedNode?.name || "item"}" into its own sub-category`,
+		);
+		toast.warning("Cannot drop a category into itself or its descendants.");
 		return;
+	}
+
+	// Only categories accept children — never nest under a collection
+	if (targetParentId) {
+		const parentNode = findNode(treeRoots, targetParentId);
+		if (parentNode && parentNode.nodeType !== "category") {
+			// Treat as sibling of that collection under the same parent
+			targetParentId = parentNode.parent ?? null;
+		}
 	}
 
 	// DUPLICATE NAME DETECTION
 	const siblingList = targetParentId
-		? (findNode(treeRoots, targetParentId)?.children || [])
+		? findNode(treeRoots, targetParentId)?.children || []
 		: treeRoots;
 	const nameNorm = (n: string) => n.trim().toLowerCase();
-	const draggedName = nameNorm(draggedNode.name || '');
-	if (draggedName && siblingList.some(n => n.id !== draggedId && nameNorm(n.name || '') === draggedName)) {
+	const draggedName = nameNorm(draggedNode.name || "");
+	if (
+		draggedName &&
+		siblingList.some(
+			(n) => n.id !== draggedId && nameNorm(n.name || "") === draggedName,
+		)
+	) {
 		announce("A collection with this name already exists in the target category.");
-		toast.warning("A collection with this name already exists in the target category.");
+		toast.warning(
+			"A collection with this name already exists in the target category.",
+		);
 		return;
 	}
 
 	// Get full node data before removal
-	const fullNode = { ...draggedNode, children: [...(draggedNode.children || [])] };
+	const fullNode = {
+		...draggedNode,
+		children: [...(draggedNode.children || [])],
+	};
 
 	// Remove from source
 	removeFromTree(treeRoots, draggedId);
 
-	// Calculate insertion position (after removal, so indices are stable for the target list)
+	// Resolve target list after removal
 	const targetList = targetParentId
-		? (findNode(treeRoots, targetParentId)?.children || [])
+		? findNode(treeRoots, targetParentId)?.children || []
 		: treeRoots;
 
 	let targetIndex: number;
-	if (targetItemId) {
-		const foundIndex = targetList.findIndex(n => n.id === targetItemId);
+	if (intent === "inside") {
+		// Nest: append to end of category (stable, predictable)
+		targetIndex = targetList.length;
+	} else if (targetItemId && intent !== "inside") {
+		// Sibling reorder relative to target — skip when target is the nest parent
+		const foundIndex = targetList.findIndex((n) => n.id === targetItemId);
 		if (foundIndex >= 0) {
-			targetIndex = dropPosition === 'after' ? foundIndex + 1 : foundIndex;
+			targetIndex = intent === "after" ? foundIndex + 1 : foundIndex;
 		} else {
 			targetIndex = targetList.length;
 		}
 	} else {
 		targetIndex = targetList.length;
 	}
-	targetIndex = Math.min(targetIndex, targetList.length);
+	targetIndex = Math.min(Math.max(0, targetIndex), targetList.length);
 
 	targetList.splice(targetIndex, 0, fullNode);
 
@@ -450,8 +570,13 @@ function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
 	const treeWithPaths = buildTree(withPaths);
 	treeRoots = $state.snapshot(treeWithPaths) as EnhancedTreeViewItem[];
 
-	// Save immediately (optimistic persistence)
+	// Optimistic local persistence + parent/sidebar sync
 	saveTreeData();
+	announce(
+		intent === "inside"
+			? `Moved ${draggedNode.name} into category`
+			: `Moved ${draggedNode.name}`,
+	);
 }
 
 // Helper: Remove node from tree
@@ -553,20 +678,42 @@ function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
 
 function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
 	return flatItems.map((item) => {
-		return {
+		const id = String(item._id || item.id);
+		const original = sourceNodesById.get(id);
+		// Merge DnD position fields onto the full original payload so sidebar / save keep collectionDef etc.
+		const merged = {
+			...original,
 			...item,
-			_id: item._id || item.id,
-			id: undefined,
+			_id: (item._id || item.id) as DatabaseId,
 			// Send null for root so server persists it (undefined is omitted by JSON and DB keeps old parent).
-			parentId: item.parent != null ? item.parent : null,
-			name: item.name,
-			icon: item.icon,
-			nodeType: item.nodeType,
+			parentId: item.parent != null ? (item.parent as DatabaseId) : null,
+			name: item.name ?? original?.name,
+			icon: item.icon ?? original?.icon,
+			nodeType: item.nodeType ?? original?.nodeType,
 			path: item.path,
 			order: item.order ?? 0,
-			parent: undefined,
-			text: undefined,
-		} as unknown as ContentNode;
+			slug: item.slug ?? original?.slug,
+			description: item.description ?? original?.description,
+		} as unknown as ContentNode & {
+			id?: unknown;
+			parent?: unknown;
+			text?: unknown;
+			children?: unknown;
+			level?: unknown;
+			isDraggable?: unknown;
+			isDropAllowed?: unknown;
+		};
+		// Strip tree-only fields
+		delete (merged as any).id;
+		delete (merged as any).parent;
+		delete (merged as any).text;
+		delete (merged as any).children;
+		delete (merged as any).level;
+		delete (merged as any).isDraggable;
+		delete (merged as any).isDropAllowed;
+		// Keep source map fresh for subsequent moves before parent rebuilds
+		sourceNodesById.set(id, merged as ContentNode);
+		return merged as ContentNode;
 	});
 }
 
@@ -946,7 +1093,10 @@ const flipDurationMs = 200;
 			class:dropping={dndState.isDragging}
 			use:droppable={{
 				container: 'root',
-				callbacks: { onDrop: handleTreeDrop },
+				callbacks: {
+					onDrop: handleTreeDrop,
+					onDragOver: handleCategoryDragOver,
+				},
 				direction: 'vertical',
 				attributes: {
 					dragOverClass: 'drag-over-zone'
@@ -958,14 +1108,28 @@ const flipDurationMs = 200;
 				<div
 					class="tree-node-wrapper mb-2"
 					class:hidden={!isNodeVisible(item, searchText)}
+					class:drop-inside-hint={dndState.isDragging && item.nodeType === 'category'}
 					animate:flip={{ duration: flipDurationMs }}
 					role="treeitem"
 					aria-expanded={expandedNodes.has(item.id)}
 					aria-selected="false"
 					data-item-id={item.id}
 					data-node-type={item.nodeType}
-					use:draggable={{ container: 'root', dragData: { itemId: item.id }, disabled: !!searchText, keyboard: true }}
-					use:droppable={{ container: 'root', callbacks: { onDrop: handleTreeDrop }, direction: 'vertical', attributes: { dragOverClass: 'drag-over-item' } }}
+					use:draggable={{
+						container: 'root',
+						dragData: { itemId: item.id },
+						disabled: !!searchText,
+						keyboard: true,
+					}}
+					use:droppable={{
+						container: 'root',
+						callbacks: {
+							onDrop: handleTreeDrop,
+							onDragOver: handleCategoryDragOver,
+						},
+						direction: 'vertical',
+						attributes: { dragOverClass: 'drag-over-item' },
+					}}
 				>
 					{@render treeNode(item, 0)}
 				</div>
@@ -1000,14 +1164,18 @@ const flipDurationMs = 200;
 			tabindex={rovingTabIndex === item.id ? 0 : -1}
 		/>
 
-		{#if expandedNodes.has(item.id)}
+		{#if expandedNodes.has(item.id) || (dndState.isDragging && item.nodeType === 'category')}
 			{#if item.children?.length > 0 || item.nodeType === 'category'}
 				<div
 					class="dnd-zone nested-zone mt-2"
+					class:dropping={dndState.isDragging}
 					style="margin-left: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem; padding-left: 0.5rem; border-left: 2px solid rgb(var(--color-surface-300));"
 					use:droppable={{
 						container: 'children:' + item.id,
-						callbacks: { onDrop: handleTreeDrop },
+						callbacks: {
+							onDrop: handleTreeDrop,
+							onDragOver: handleCategoryDragOver,
+						},
 						direction: 'vertical',
 						attributes: {
 							dragOverClass: 'drag-over-zone'
@@ -1021,21 +1189,35 @@ const flipDurationMs = 200;
 							<div
 								class="tree-node-wrapper mb-2"
 								class:hidden={!isNodeVisible(child, searchText)}
+								class:drop-inside-hint={dndState.isDragging && child.nodeType === 'category'}
 								animate:flip={{ duration: flipDurationMs }}
 								role="treeitem"
 								aria-expanded={expandedNodes.has(child.id)}
 								aria-selected="false"
 								data-item-id={child.id}
 								data-node-type={child.nodeType}
-								use:draggable={{ container: 'children:' + item.id, dragData: { itemId: child.id }, disabled: !!searchText, keyboard: true }}
-								use:droppable={{ container: 'children:' + item.id, callbacks: { onDrop: handleTreeDrop }, direction: 'vertical', attributes: { dragOverClass: 'drag-over-item' } }}
+								use:draggable={{
+									container: 'children:' + item.id,
+									dragData: { itemId: child.id },
+									disabled: !!searchText,
+									keyboard: true,
+								}}
+								use:droppable={{
+									container: 'children:' + item.id,
+									callbacks: {
+										onDrop: handleTreeDrop,
+										onDragOver: handleCategoryDragOver,
+									},
+									direction: 'vertical',
+									attributes: { dragOverClass: 'drag-over-item' },
+								}}
 							>
 								{@render treeNode(child, level + 1)}
 							</div>
 						{/each}
 					{:else if dndState.isDragging}
-						<!-- Only show empty drop zone during active dragging -->
-						<div class="empty-drop-zone min-h-10" role="none"></div>
+						<!-- Empty category: explicit drop surface while dragging -->
+						<div class="empty-drop-zone min-h-10" role="none" aria-hidden="true"></div>
 					{/if}
 				</div>
 			{/if}
@@ -1114,10 +1296,16 @@ const flipDurationMs = 200;
 		outline: 2px dashed rgb(var(--color-primary-500)) !important;
 	}
 
-	/* Drop target on individual item */
+	/* Drop target on individual item (sibling before/after) */
 	:global(.tree-node-wrapper.drag-over-item) {
 		outline: 2px dashed rgb(var(--color-primary-400)) !important;
 		outline-offset: 2px;
+		border-radius: 0.5rem;
+	}
+
+	/* Hint that category middle accepts nesting */
+	:global(.tree-node-wrapper.drop-inside-hint) {
+		box-shadow: inset 0 0 0 1px rgb(var(--color-tertiary-500) / 0.25);
 		border-radius: 0.5rem;
 	}
 
@@ -1125,6 +1313,7 @@ const flipDurationMs = 200;
 	:global(.nested-zone.drag-over-zone) {
 		background: rgb(var(--color-tertiary-500) / 0.1) !important;
 		outline: 2px dashed rgb(var(--color-tertiary-500)) !important;
+		min-height: 48px;
 	}
 
 	/* Disable selection during drag */

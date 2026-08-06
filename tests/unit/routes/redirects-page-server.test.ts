@@ -15,17 +15,6 @@ vi.mock("@utils/logger", () => ({
   },
 }));
 
-vi.mock("@utils/page-guards.server", () => ({
-  getAuthenticatedUser: vi.fn((locals: any) => {
-    if (!locals?.user) {
-      const err = new Error("redirect") as Error & { status: number };
-      err.status = 302;
-      throw err;
-    }
-    return locals.user;
-  }),
-}));
-
 const findManyMock = vi.fn();
 const collectionFindMock = vi.fn();
 

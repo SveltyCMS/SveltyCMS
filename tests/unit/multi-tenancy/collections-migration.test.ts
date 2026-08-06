@@ -8,12 +8,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 
-// Mock the logger to avoid noise
-vi.mock("@utils/logger", () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-}));
-
-// Mock settings-service for isMultiTenantEnabled
 const mockRequire = vi.fn();
 (globalThis as any).require = mockRequire;
 

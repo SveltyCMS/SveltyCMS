@@ -3,18 +3,7 @@
  * @description Admin gate for /config/workflows page.server.
  */
 
-import { describe, it, expect, vi } from "vitest";
-
-vi.mock("@utils/page-guards.server", () => ({
-  getAuthenticatedUser: vi.fn((locals: any) => {
-    if (!locals.user) {
-      const err: any = new Error("Unauthorized");
-      err.status = 401;
-      throw err;
-    }
-    return locals.user;
-  }),
-}));
+import { describe, it, expect } from "vitest";
 
 describe("workflows +page.server admin gate", () => {
   it("allows admin", async () => {

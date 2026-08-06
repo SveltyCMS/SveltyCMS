@@ -8,27 +8,9 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Only mock the license manager seam — use real raise/AppError + logger from core.
 vi.mock("@src/utils/license-manager", () => ({
   checkExtensionLicense: vi.fn(),
-}));
-
-vi.mock("@utils/error-handling", () => ({
-  raise: vi.fn((status: number, message: string, code?: string) => {
-    const err = new Error(message) as Error & { status: number; code?: string };
-    err.status = status;
-    err.code = code;
-    throw err;
-  }),
-}));
-
-vi.mock("@utils/logger", () => ({
-  logger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-    trace: vi.fn(),
-  },
 }));
 
 import { checkExtensionLicense } from "@src/utils/license-manager";

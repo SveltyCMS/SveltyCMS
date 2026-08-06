@@ -106,13 +106,6 @@ vi.mock("@utils/tenant", () => ({
   getTenantIdFromHostname: vi.fn().mockReturnValue(null),
 }));
 
-vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(false),
-  getPublicSettingSync: vi.fn().mockReturnValue(false),
-  loadSettingsCache: vi.fn(),
-  invalidateSettingsCache: vi.fn(),
-}));
-
 vi.mock("@src/services/token/engine", () => ({
   replaceTokens: vi.fn().mockImplementation((text) => Promise.resolve(text)),
 }));
@@ -129,13 +122,6 @@ vi.mock("@utils/api-handler", () => ({
 
 vi.mock("@src/routes/api/collections/modify-request", () => ({
   modifyRequest: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("node:crypto", () => ({
-  randomUUID: vi.fn().mockReturnValue("test-uuid-12345"),
-  default: {
-    randomUUID: vi.fn().mockReturnValue("test-uuid-12345"),
-  },
 }));
 
 import { createMockRequestEvent } from "../utils/mock-event";

@@ -12,10 +12,6 @@ import {
 } from "../../../src/routes/(app)/config/extensions/widgets-api";
 import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
-vi.mock("@src/stores/global-settings.svelte.ts", () => ({
-  publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
-}));
-
 describe("widgets-api", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 

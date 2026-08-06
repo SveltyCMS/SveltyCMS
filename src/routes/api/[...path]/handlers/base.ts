@@ -19,27 +19,69 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  * Automatically detects and unwraps DatabaseResult objects to prevent
  * nested `{ success: true, data: { success: true, data: ... } }` patterns.
  */
+import {
+  responseCache,
+  buildUserResponseCacheKey,
+  generateContentEtag,
+} from "@src/services/cache/response-cache";
+
 export function successResponse(event: RequestEvent, result: any, status = 200) {
+  let body: any;
   if (isDatabaseResult(result)) {
     if (!result.success) {
       return json(result, { status: result.error?.status || 400 });
     }
-    const body = { success: true, data: result.data, meta: result.meta };
-    stashInLocals(event, body);
-    return json(body, { status });
+    body = { success: true, data: result.data, meta: result.meta };
+  } else {
+    body = { success: true, data: result };
   }
 
-  const body = { success: true, data: result };
   stashInLocals(event, body);
+
+  if (event.request.method === "GET" && status === 200) {
+    try {
+      const userId = event.locals.user?._id || event.locals.user?.id || null;
+      const cacheKey = buildUserResponseCacheKey(event.url.pathname, event.url.search, userId);
+      const jsonStr = JSON.stringify(body);
+      const etag = generateContentEtag(jsonStr);
+      responseCache.set(
+        cacheKey,
+        { body: jsonStr, etag },
+        300_000,
+        event.locals.tenantId as string,
+      );
+      return new Response(jsonStr, {
+        status,
+        headers: { "Content-Type": "application/json", ETag: etag },
+      });
+    } catch {}
+  }
+
   return json(body, { status });
 }
 
-/**
- * Raw response for endpoints that need custom shapes (legacy APIs,
- * third-party integrations, dashboard widgets, etc.).
- */
 export function rawResponse(event: RequestEvent, data: any, status = 200) {
   stashInLocals(event, data);
+
+  if (event.request.method === "GET" && status === 200) {
+    try {
+      const userId = event.locals.user?._id || event.locals.user?.id || null;
+      const cacheKey = buildUserResponseCacheKey(event.url.pathname, event.url.search, userId);
+      const jsonStr = JSON.stringify(data);
+      const etag = generateContentEtag(jsonStr);
+      responseCache.set(
+        cacheKey,
+        { body: jsonStr, etag },
+        300_000,
+        event.locals.tenantId as string,
+      );
+      return new Response(jsonStr, {
+        status,
+        headers: { "Content-Type": "application/json", ETag: etag },
+      });
+    } catch {}
+  }
+
   return json(data, { status });
 }
 

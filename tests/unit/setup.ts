@@ -7,7 +7,6 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 import { CORE_WIDGETS, CUSTOM_WIDGETS } from "./widgets/widget-constants";
 import { widgetNameToFolder } from "@src/widgets/widget-naming";
-
 const isBun = typeof Bun !== "undefined";
 
 // 🚀 CRITICAL: Detect benchmark mode early
@@ -21,7 +20,9 @@ const isBenchmark =
   currentTest?.includes("benchmark");
 
 // Quiet progress loggers (compile, etc.) for all unit runs — not just benchmarks.
+// QUIET silences the real logger so suites need not re-mock @utils/logger.
 (globalThis as any).__SVELTY_QUIET__ = true;
+process.env.QUIET = process.env.QUIET || "true";
 process.env.TEST_MODE = process.env.TEST_MODE || "true";
 if (isBenchmark) {
   process.env.BENCHMARK_MODE = process.env.BENCHMARK_MODE || "true";
@@ -248,7 +249,152 @@ const isTestTarget = (path: string) => {
   return normalizedCurrentTest ? matchesTestFile(normalizedCurrentTest) : false;
 };
 
-// --- TOP LEVEL MOCKS (Hoisted) ---
+// --- TOP LEVEL MOCKS (Hoisted — reliable under Vitest; doMock alone is not) ---
+// Factories MUST be defined inside vi.hoisted (cannot use outer ESM imports — TDZ).
+// Keep helpers/default-module-mocks.ts as the documented copy for per-file reuse.
+const { mockLogger, settingsExports, globalSettingsExports, kitMock } = vi.hoisted(() => {
+  const makeFn = (impl?: (...args: any[]) => any) => {
+    const viRef = (globalThis as any).vi;
+    if (viRef?.fn) return viRef.fn(impl);
+    const f: any = (...args: any[]) => (impl ? impl(...args) : undefined);
+    f.mockClear = () => f;
+    f.mockReset = () => f;
+    f.mockImplementation = (next: any) => {
+      impl = next;
+      return f;
+    };
+    f.mockReturnValue = (val: any) => {
+      impl = () => val;
+      return f;
+    };
+    f.mockResolvedValue = (val: any) => {
+      impl = () => Promise.resolve(val);
+      return f;
+    };
+    return f;
+  };
+
+  const mockLogger: Record<string, any> = {
+    level: "info",
+    isEnabled: makeFn((level: string) => {
+      const order = ["none", "fatal", "error", "warn", "info", "debug", "trace"];
+      return order.indexOf(level) <= order.indexOf("info") && order.indexOf(level) > 0;
+    }),
+    once: makeFn(() => {}),
+    fatal: makeFn((msg: any) => {
+      if (process.env.VERBOSE_TESTS) console.error(`[FATAL] ${msg}`);
+    }),
+    error: makeFn((msg: any, details?: any) => {
+      if (process.env.VERBOSE_TESTS) console.error(`[ERROR] ${msg}`, details || "");
+    }),
+    warn: makeFn((msg: any) => {
+      if (process.env.VERBOSE_TESTS) console.warn(`[WARN] ${msg}`);
+    }),
+    info: makeFn(() => {}),
+    debug: makeFn(() => {}),
+    trace: makeFn(() => {}),
+    dump: makeFn(() => {}),
+  };
+  mockLogger.isLevel = makeFn((level: string) => mockLogger.isEnabled(level));
+  mockLogger.channel = makeFn(() => ({ ...mockLogger, once: mockLogger.once }));
+
+  const settingsMock = {
+    getPrivateSettingSync: makeFn((key: string) => {
+      const env = (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
+      if (env && key in env) return env[key];
+      const defaults: Record<string, any> = {
+        DB_TYPE: "mongodb",
+        MULTI_TENANT: false,
+        FIREWALL_ENABLED: true,
+        USE_REDIS: false,
+      };
+      return defaults[key];
+    }),
+    getPublicSettingSync: makeFn((key: string) =>
+      key === "SITE_NAME" ? "SveltyCMS Test" : undefined,
+    ),
+    getPrivateSetting: makeFn(async (key: string) => {
+      const env = (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
+      if (env && key in env) return env[key];
+      return "mongodb";
+    }),
+    getPublicSetting: makeFn(async () => "test"),
+    loadSettingsCache: makeFn(async () => ({ loaded: true, private: {}, public: {} })),
+    setSettingsCache: makeFn(async () => {}),
+    invalidateSettingsCache: makeFn(async () => {}),
+    isCacheLoaded: makeFn(() => true),
+    getAllSettings: makeFn(async () => ({ public: {}, private: {} })),
+    updateSettingsFromSnapshot: makeFn(async () => ({ updated: 0 })),
+    getUntypedSetting: makeFn(async () => undefined),
+  };
+
+  const settingsExports = {
+    settingsService: settingsMock,
+    loadSettingsCache: settingsMock.loadSettingsCache,
+    invalidateSettingsCache: settingsMock.invalidateSettingsCache,
+    getPrivateSetting: settingsMock.getPrivateSetting,
+    getPublicSetting: settingsMock.getPublicSetting,
+    getUntypedSetting: settingsMock.getUntypedSetting,
+    getPublicSettingSync: settingsMock.getPublicSettingSync,
+    getPrivateSettingSync: settingsMock.getPrivateSettingSync,
+    getAllSettings: settingsMock.getAllSettings,
+    setPrivateSetting: settingsMock.setSettingsCache,
+    updateSettingsFromSnapshot: settingsMock.updateSettingsFromSnapshot,
+    default: settingsMock,
+    __settingsMock: settingsMock,
+  };
+
+  const publicEnvState: Record<string, any> = {
+    DEFAULT_CONTENT_LANGUAGE: "en",
+    SITE_NAME: "SveltyCMS Test",
+  };
+  const globalSettingsExports = {
+    publicEnv: publicEnvState,
+    isPublicEnvReady: () => true,
+    initPublicEnv: (env: Record<string, any>) => {
+      Object.assign(publicEnvState, env);
+    },
+    updatePublicEnv: (key: string, value: any) => {
+      publicEnvState[key] = value;
+    },
+    getPublicSetting: (key: string) => publicEnvState[key],
+    getPublicEnv: () => publicEnvState,
+  };
+
+  const kitMock = {
+    json: makeFn((data: any, init?: any) => {
+      const res = new Response(JSON.stringify(data), {
+        status: init?.status || 200,
+        headers: { "Content-Type": "application/json", ...init?.headers },
+      });
+      (res as any)._data = data;
+      return res;
+    }),
+    error: makeFn((status: number, message: string | { message: string }) => {
+      const msg = typeof message === "string" ? message : message.message;
+      const err = new Error(msg) as any;
+      err.status = status;
+      err.statusCode = status;
+      err.body = { message: msg };
+      err.__is_http_error = true;
+      throw err;
+    }),
+    redirect: makeFn((status: number, location: string) => {
+      const err = new Error("Redirect") as any;
+      err.status = status;
+      err.location = location;
+      err.__isRedirect = true;
+      throw err;
+    }),
+    isRedirect: (err: any) => !!(err && err.__isRedirect === true),
+    isHttpError: (err: any) =>
+      !!(err && (err.__is_http_error === true || typeof err?.status === "number")),
+    fail: makeFn((status: number, data?: any) => ({ type: "failure", status, data })),
+  };
+
+  return { mockLogger, settingsExports, globalSettingsExports, kitMock };
+});
+
 vi.mock("$app/navigation", () => ({
   goto: vi.fn(),
   preloadData: vi.fn(),
@@ -279,6 +425,34 @@ vi.mock("$app/server", () => ({
     },
   })),
 }));
+
+// Logger — prefer real QUIET logger when possible; mock keeps spies stable across files.
+vi.mock("@utils/logger", () => ({ logger: mockLogger, default: mockLogger }));
+vi.mock("@src/utils/logger", () => ({ logger: mockLogger, default: mockLogger }));
+vi.mock("@src/utils/logger.server", () => ({ logger: mockLogger, default: mockLogger }));
+
+// Settings service defaults — use real module when testing settings-service itself.
+vi.mock("@src/services/core/settings-service", async (importOriginal) => {
+  const testingSelf = process.argv.some((a) => a.replace(/\\/g, "/").includes("settings-service"));
+  if (testingSelf || process.env.BUN_TEST_MOCKS === "false") {
+    return await importOriginal<typeof import("@src/services/core/settings-service")>();
+  }
+  return settingsExports;
+});
+vi.mock("@services/core/settings-service", async (importOriginal) => {
+  const testingSelf = process.argv.some((a) => a.replace(/\\/g, "/").includes("settings-service"));
+  if (testingSelf || process.env.BUN_TEST_MOCKS === "false") {
+    return await importOriginal();
+  }
+  return settingsExports;
+});
+
+// Browser API clients read publicEnv.DEFAULT_CONTENT_LANGUAGE.
+vi.mock("@src/stores/global-settings.svelte.ts", () => globalSettingsExports);
+vi.mock("@src/stores/global-settings.svelte", () => globalSettingsExports);
+
+// Real page-guards use redirect()/error() — keep kit surface complete enough for them.
+vi.mock("@sveltejs/kit", () => kitMock);
 
 // 1. EARLY DOM SHIMS (Critical for Bun; Vitest uses native jsdom)
 
@@ -487,53 +661,12 @@ moduleMock("@src/databases/cache/types", () => ({
   default: CacheCategory,
 }));
 
-const mockOnceKeys = new Set<string>();
-const mockLogger = {
-  level: "info" as const,
-  isEnabled: mock((level: string) => {
-    const order = ["none", "fatal", "error", "warn", "info", "debug", "trace"];
-    return order.indexOf(level) <= order.indexOf("info") && order.indexOf(level) > 0;
-  }),
-  isLevel: mock((level: string) => mockLogger.isEnabled(level)),
-  once: mock((key: string, level: string, msg: string, ...args: any[]) => {
-    if (mockOnceKeys.has(key)) return;
-    mockOnceKeys.add(key);
-    const fn = (mockLogger as any)[level];
-    if (typeof fn === "function") fn(msg, ...args);
-  }),
-  fatal: mock((msg: any) => {
-    if (process.env.VERBOSE_TESTS) console.error(`[FATAL] ${msg}`);
-  }),
-  error: mock((msg: any, details?: any) => {
-    if (process.env.VERBOSE_TESTS) console.error(`[ERROR] ${msg}`, details || "");
-  }),
-  warn: mock((msg: any) => {
-    if (process.env.VERBOSE_TESTS) console.warn(`[WARN] ${msg}`);
-  }),
-  info: mock(() => {}),
-  debug: mock(() => {}),
-  trace: mock(() => {}),
-  channel: mock((name: string) => ({
-    ...mockLogger,
-    once: mock((key: string, level: string, msg: string, ...args: any[]) =>
-      mockLogger.once(`${name}:${key}`, level, msg, ...args),
-    ),
-  })),
-  dump: mock(() => {}),
-};
-
-moduleMock("@utils/logger", () => ({
-  logger: mockLogger,
-  default: mockLogger,
-}));
-moduleMock("@src/utils/logger", () => ({
-  logger: mockLogger,
-  default: mockLogger,
-}));
-moduleMock("@src/utils/logger.server", () => ({
-  logger: mockLogger,
-  default: mockLogger,
-}));
+// Logger / kit / settings / global-settings: registered via top-level vi.mock above.
+// Keep Bun moduleMock mirrors so bun:test runners still resolve the same factories.
+moduleMock("@utils/logger", () => ({ logger: mockLogger, default: mockLogger }));
+moduleMock("@src/utils/logger", () => ({ logger: mockLogger, default: mockLogger }));
+moduleMock("@src/utils/logger.server", () => ({ logger: mockLogger, default: mockLogger }));
+moduleMock("@sveltejs/kit", () => kitMock);
 
 moduleMock("$app/environment", () => ({
   browser: false,
@@ -560,36 +693,6 @@ moduleMock("$app/navigation", () => ({
   preloadCode: mock(() => Promise.resolve()),
   pushState: mock(() => {}),
   replaceState: mock(() => {}),
-}));
-
-moduleMock("@sveltejs/kit", () => ({
-  json: mock((data: any, init?: any) => {
-    const res = new Response(JSON.stringify(data), {
-      status: init?.status || 200,
-      headers: { "Content-Type": "application/json", ...init?.headers },
-    });
-    // In tests, we sometimes want to inspect the raw data synchronously
-    (res as any)._data = data;
-    return res;
-  }),
-  error: mock((status: number, message: string | { message: string }) => {
-    const msg = typeof message === "string" ? message : message.message;
-    const err = new Error(msg) as any;
-    err.status = status;
-    err.statusCode = status; // Fallback for some tests
-    err.body = { message: msg };
-    err.__is_http_error = true;
-    throw err;
-  }),
-  redirect: mock((status: number, location: string) => {
-    const err = new Error("Redirect") as any;
-    err.status = status;
-    err.location = location;
-    err.__isRedirect = true;
-    throw err;
-  }),
-  isRedirect: (err: any) => err && err.__isRedirect === true,
-  isHttpError: (err: any) => err && err.__is_http_error === true,
 }));
 
 moduleMock("svelte/reactivity", () => ({
@@ -897,85 +1000,8 @@ class AppError extends Error {
 }
 setGlobal("AppError", AppError);
 
-const isAppError = (v: any): v is AppError => {
-  if (!v || typeof v !== "object") return false;
-  return v instanceof AppError || v.name === "AppError" || v.__isAppError === true;
-};
-(AppError.prototype as any).__isAppError = true;
-
-const isHttpError = (v: any) => v !== null && typeof v === "object" && typeof v.status === "number";
-
-const getErrorMessage = (error: any): string => {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  if (typeof error === "object" && error !== null && "body" in error) {
-    const body = (error as { body: { message?: string } }).body;
-    if (body?.message) return String(body.message);
-  }
-  if (typeof error === "object" && error !== null) {
-    if ("message" in error) return String((error as any).message);
-    try {
-      const str = JSON.stringify(error);
-      return str === "{}" ? "[object Object]" : str;
-    } catch {
-      return "[object Object]";
-    }
-  }
-  return String(error);
-};
-
-const wrapError = (error: any, message = "An unexpected error occurred", status = 500) => {
-  if (isAppError(error)) return error;
-  if (isHttpError(error)) {
-    const bodyMsg = (error as any).body?.message;
-    return new AppError(bodyMsg || message, error.status, `HTTP_${error.status}`, error);
-  }
-  const errorMsg = getErrorMessage(error);
-  const finalMessage = errorMsg || message;
-  return new AppError(finalMessage, status, "INTERNAL_ERROR", error);
-};
-
-/** Shared mock factory for error-handling (must export rethrow — media handlers import it). */
-const createErrorHandlingMock = () => ({
-  AppError,
-  isAppError,
-  isHttpError,
-  getErrorMessage,
-  wrapError,
-  // Match production rethrow: only re-throw framework redirects/HTTP errors
-  rethrow: (err: unknown) => {
-    if (isHttpError(err)) throw err;
-  },
-  handleApiError: mock((err: any) => {
-    const status = err?.status || (isHttpError(err) ? (err as any).status : 500);
-    // Don't log expected errors during tests unless requested
-    if (status >= 500 && process.env.VERBOSE_TEST !== "true") {
-      // Quiet mode for tests
-    } else if (status >= 500) {
-      console.error("--- handleApiError Details:", {
-        message: getErrorMessage(err),
-        status,
-        code: err?.code,
-        stack: err instanceof Error ? err.stack : undefined,
-        err,
-      });
-    }
-    return new Response(
-      JSON.stringify({
-        success: false,
-        message: getErrorMessage(err),
-        code: err?.code || (isHttpError(err) ? `HTTP_${err.status}` : "INTERNAL_ERROR"),
-      }),
-      {
-        status,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }),
-});
-
-moduleMock("@src/utils/error-handling", createErrorHandlingMock);
-moduleMock("@utils/error-handling", createErrorHandlingMock);
+// error-handling: use real CMS core (raise, AppError, rethrow). Kit is mocked above
+// so isRedirect/isHttpError from production code resolve against kitMock.
 
 // ============================================================================
 // WIDGET INFRASTRUCTURE MOCKS
@@ -1261,62 +1287,24 @@ moduleMock("sharp", () => {
   };
 });
 
-const settingsMock = {
-  getPrivateSettingSync: mock((key: string) => {
-    const env = (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
-    if (env && key in env) return env[key];
-    const defaults: Record<string, any> = {
-      DB_TYPE: "mongodb",
-      MULTI_TENANT: false,
-      FIREWALL_ENABLED: true,
-      USE_REDIS: false,
-    };
-    return defaults[key];
-  }),
-  getPublicSettingSync: mock((key: string) => (key === "SITE_NAME" ? "SveltyCMS Test" : undefined)),
-  getPrivateSetting: mock(async (key: string) => {
-    const env = (globalThis as any).privateEnv || (globalThis as any).__privateEnv;
-    if (env && key in env) return env[key];
-    return "mongodb";
-  }),
-  getPublicSetting: mock(async (_key: string) => "test"),
-  loadSettingsCache: mock(async () => ({
-    loaded: true,
-    private: {},
-    public: {},
-  })),
-  setSettingsCache: mock(async () => {}),
-  invalidateSettingsCache: mock(async () => {}),
-  isCacheLoaded: mock(() => true),
-  getAllSettings: mock(async () => ({ public: {}, private: {} })),
-  updateSettingsFromSnapshot: mock(async () => ({ updated: 0 })),
-  getUntypedSetting: mock(async () => undefined),
-};
+// settingsExports already registered via top-level vi.mock; Bun mirror + global for tests.
+const settingsMock = (settingsExports as any).__settingsMock ?? settingsExports;
 if (!isTestTarget("settings-service")) {
-  const factory = () => ({
-    settingsService: settingsMock,
-    loadSettingsCache: settingsMock.loadSettingsCache,
-    invalidateSettingsCache: settingsMock.invalidateSettingsCache,
-    getPrivateSetting: settingsMock.getPrivateSetting,
-    getPublicSetting: settingsMock.getPublicSetting,
-    getUntypedSetting: settingsMock.getUntypedSetting,
-    getPublicSettingSync: settingsMock.getPublicSettingSync,
-    getPrivateSettingSync: settingsMock.getPrivateSettingSync,
-    getAllSettings: settingsMock.getAllSettings,
-    setPrivateSetting: settingsMock.setSettingsCache,
-    updateSettingsFromSnapshot: settingsMock.updateSettingsFromSnapshot,
-    default: settingsMock,
-  });
+  const factory = () => settingsExports;
   try {
-    const sPath = import.meta.resolve("@src/services/core/settings-service");
-    mock.module(sPath, factory);
-    mock.module(sPath.replace(".ts", ""), factory);
+    if (isBun && mock?.module) {
+      const sPath = import.meta.resolve("@src/services/core/settings-service");
+      mock.module(sPath, factory);
+      mock.module(sPath.replace(".ts", ""), factory);
+    }
   } catch {
     /* ignore */
   }
   moduleMock("@src/services/core/settings-service", factory);
   moduleMock("@services/core/settings-service", factory);
 }
+setGlobal("settingsMock", settingsMock);
+setGlobal("mockLogger", mockLogger);
 
 const mockAuditLog = {
   log: mock(() => Promise.resolve()),

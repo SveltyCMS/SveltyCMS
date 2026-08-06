@@ -162,6 +162,7 @@ class WidgetState {
         const newWidgetFunctions: WidgetRegistry = {};
         const newCoreWidgets: string[] = [];
         const newCustomWidgets: string[] = [];
+        const newMarketplaceWidgets: string[] = [];
         const newDependencyMap: Record<string, string[]> = {};
 
         wsLogger.trace(`Core modules available: ${Object.keys(coreModules).length}`);
@@ -227,12 +228,13 @@ class WidgetState {
         registerTier(customModules, "custom", newCustomWidgets);
         // Marketplace packages discovered via Vite glob (optional dir)
         if (marketplaceModules && Object.keys(marketplaceModules).length > 0) {
-          registerTier(marketplaceModules, "marketplace", newCustomWidgets);
+          registerTier(marketplaceModules, "marketplace", newMarketplaceWidgets);
         }
 
         this.widgetFunctions = newWidgetFunctions;
         this.coreWidgets = newCoreWidgets;
         this.customWidgets = newCustomWidgets;
+        this.marketplaceWidgets = newMarketplaceWidgets;
         this.dependencyMap = newDependencyMap;
 
         // 2. Load active status from DB if available

@@ -11,10 +11,6 @@ import {
 } from "../../../src/routes/(app)/config/trash/trash-api";
 import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
-vi.mock("@src/stores/global-settings.svelte.ts", () => ({
-  publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
-}));
-
 describe("trash-api", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 

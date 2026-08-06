@@ -60,7 +60,6 @@ vi.mock("@src/services/core/settings-service", () => ({
   getUntypedSetting: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Mock logger
 vi.mock("@utils/logger", () => ({
   logger: {
     info: vi.fn(),

@@ -18,6 +18,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { FakeRedis } from "./fake-redis";
+import { isDockerRunning } from "../../integration/helpers/docker";
 
 async function getCacheServiceClass(): Promise<any> {
   const module = await import("@src/databases/cache/cache-service?bun-unmock=" + Date.now());
@@ -32,6 +33,12 @@ interface L2Driver {
 
 /** Deterministic flush wait for the 15ms write-batch timer. */
 const flushWrites = () => new Promise((resolve) => setTimeout(resolve, 40));
+
+/**
+ * Real Redis pub/sub is async — L1 on peer nodes is not guaranteed to clear
+ * in the same tick as `delete()` / `clearByTags()`. FakeRedis delivers inline.
+ */
+const settleInvalidation = () => new Promise((resolve) => setTimeout(resolve, 80));
 
 function runL2Contract(label: string, driver: L2Driver) {
   describe(`CacheService L2 contract — ${label}`, () => {
@@ -75,6 +82,7 @@ function runL2Contract(label: string, driver: L2Driver) {
       await expect(serviceB.get("del-key", "t1")).resolves.toBe("value");
 
       await serviceA.delete("del-key", "t1");
+      await settleInvalidation();
       await expect(serviceB.get("del-key", "t1")).resolves.toBeUndefined();
     });
 
@@ -97,6 +105,7 @@ function runL2Contract(label: string, driver: L2Driver) {
 
       // Only tenant-a's tag set is cleared — tenant-b keeps its entry.
       await serviceA.clearByTags(["shared-tag"], "tenant-a");
+      await settleInvalidation();
       await expect(serviceB.get("tagged-a", "tenant-a")).resolves.toBeUndefined();
       await expect(serviceB.get("tagged-b", "tenant-b")).resolves.toBe("vb");
     });
@@ -123,6 +132,7 @@ function runL2Contract(label: string, driver: L2Driver) {
 
       // A invalidates → B's L1 must be purged (B would re-read L2, also deleted).
       await serviceA.delete("pubsub-key", "t1");
+      await settleInvalidation();
       await expect(serviceB.get("pubsub-key", "t1")).resolves.toBeUndefined();
     });
 
@@ -180,28 +190,33 @@ describe("CacheService L2 contract — in-memory FakeRedis (always on)", () => {
   });
 });
 
-const redisUrl = process.env.TEST_REDIS_URL;
+/** Prefer TEST_REDIS_URL; auto-detect local docker redis when unset. */
+const redisUrl =
+  process.env.TEST_REDIS_URL || (isDockerRunning("redis") ? "redis://127.0.0.1:6379" : undefined);
 
-describe.skipIf(!redisUrl)("CacheService L2 contract — real Redis (TEST_REDIS_URL)", () => {
-  const openClients: any[] = [];
+describe.skipIf(!redisUrl)(
+  "CacheService L2 contract — real Redis (TEST_REDIS_URL or Docker)",
+  () => {
+    const openClients: any[] = [];
 
-  runL2Contract("real", {
-    makeService: async () => {
-      const { createClient } = await import("redis");
-      const CacheServiceClass = await getCacheServiceClass();
-      const client = createClient({ url: redisUrl });
-      client.on("error", () => {});
-      await client.connect();
-      openClients.push(client);
-      const service = new CacheServiceClass();
-      await service.connectL2ForTest(client, client);
-      return service;
-    },
-    teardown: async () => {
-      while (openClients.length > 0) {
-        const client = openClients.pop();
-        await client?.quit().catch(() => {});
-      }
-    },
-  });
-});
+    runL2Contract("real", {
+      makeService: async () => {
+        const { createClient } = await import("redis");
+        const CacheServiceClass = await getCacheServiceClass();
+        const client = createClient({ url: redisUrl });
+        client.on("error", () => {});
+        await client.connect();
+        openClients.push(client);
+        const service = new CacheServiceClass();
+        await service.connectL2ForTest(client, client);
+        return service;
+      },
+      teardown: async () => {
+        while (openClients.length > 0) {
+          const client = openClients.pop();
+          await client?.quit().catch(() => {});
+        }
+      },
+    });
+  },
+);

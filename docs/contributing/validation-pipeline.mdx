@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2026-01-27"
-updated: "2026-07-20"
+updated: "2026-08-06"
 tags:
   - "validation"
   - "ci-cd"
@@ -19,32 +19,42 @@ tags:
 SveltyCMS uses a **three-tier validation architecture** that balances developer velocity with code safety. Every tier catches a different class of defect at the right stage of the development lifecycle.
 
 > [!TIP]
-> New to the repo? Run **`bun run test:doctor --list`** for the live gate map, or **`bun run test:doctor`** to run unit + SQLite integration.
+> New to the repo? Run **`bun run test:doctor --list`** for the live gate map, or **`bun run test:doctor`** to run unit + SQLite integration. Live dashboard: [Test Status](../tests/test-status.mdx).
 
-## Tier 1 — Pre-commit (~40s)
+## Tier 1 — Pre-commit (~40–60s)
 
 Hook: `.githooks/pre-commit` · Manual: `bun run precommit`
 
 1. `scripts/check-test-db-safety.ts` — never point tests at a live DB name
 2. `bun run check` — format (oxfmt) + lint (oxlint)
 3. `bun run gate:fast` — lint-staged
-4. `bun run test:unit` — full Vitest suite (skipped if only docs changed)
+4. **`bun run risk:audit`** — security-risk scan (all adapters) + secret misuse + slop + `bun audit` + OSV (skipped if only docs changed)
+5. `bun run test:unit` — full Vitest suite (skipped if only docs changed)
+6. **SBOM sync** — `bun run audit:sbom` when `bun.lock` / `package.json` changed
 
-## Tier 2 — Pre-push (~5 min)
+## Tier 2 — Pre-push (~5–8 min)
 
 Hook: `.githooks/pre-push` · Manual: **`bun run gate`** or `bun run prepush`
 
 1. Production build with `COMPILE_ALL_ADAPTERS=true`
-2. SQLite integration: `bun test --timeout 300000 tests/integration/`  
+2. **Prod build backdoor verify** — `scripts/verify-prod-build-backdoor.ts --mode=bench`
+3. **Bundle size gate** — `scripts/check-bundle-size.ts`
+4. `bun run check` — TypeScript / Svelte quality gate
+5. Secret misuse scan — `scripts/scan-secret-misuse.ts --strict`
+6. **Tenant isolation** — `bun run test:tenant`
+7. SQLite integration: `bun test --timeout 300000 tests/integration/`  
    (in-suite harness starts preview + `config/private.test.ts`)
 
-Multi-DB matrix, benchmarks, and Playwright E2E are **not** on pre-push — they run in CI.
+Docs-only pushes skip build + integration. Multi-DB matrix, benchmarks, and Playwright E2E are **not** on pre-push — they run in CI.
+
+> [!IMPORTANT]
+> **No double-run rule:** full unit suite runs on pre-commit only. Pre-push does **not** re-run all unit tests.
 
 ## Tier 3 — GitHub Actions
 
 Workflow: `.github/workflows/ci.yml`
 
-bootstrap → whitebox (format / lint / check / unit / CVE / secrets / backdoor probe) → build → db-tests × 4 → bench-core × 4 → e2e-prep → e2e × 6 named groups → all-green
+bootstrap → whitebox (format / lint / check / unit / tenant / secrets / CVE / backdoor probe) → build → db-tests × 4 → bench-core × 4 → e2e-prep → e2e × 6 named groups → all-green
 
 ## Manual commands
 
@@ -52,6 +62,7 @@ bootstrap → whitebox (format / lint / check / unit / CVE / secrets / backdoor 
 | :---------------------- | :----------------------------------- |
 | `bun run test:doctor`   | Gate map + unit + SQLite integration |
 | `bun run test:security` | Focused hooks security suite         |
+| `bun run risk:audit`    | Full pre-commit security scanners    |
 | `bun run test:smart`    | Git-diff suite picker                |
 | `bun run test:e2e`      | CI-parity Playwright                 |
 | `bun run gate`          | Same as pre-push                     |
@@ -60,4 +71,4 @@ bootstrap → whitebox (format / lint / check / unit / CVE / secrets / backdoor 
 
 Local automated runs use **`config/private.test.ts` only**. Never read or write the developer’s live `config/private.ts`. CI may create an ephemeral `private.ts` on the runner only.
 
-Full detail: [docs/tests/git-workflow.mdx](../tests/git-workflow.mdx) · [docs/tests/index.mdx](../tests/index.mdx)
+Full detail: [docs/tests/git-workflow.mdx](../tests/git-workflow.mdx) · [docs/tests/index.mdx](../tests/index.mdx) · [AGENTS.md](../../AGENTS.md) technical standards

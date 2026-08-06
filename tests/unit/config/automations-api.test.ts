@@ -14,10 +14,6 @@ import {
 } from "../../../src/routes/(app)/config/automations/automations-api";
 import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
-vi.mock("@src/stores/global-settings.svelte.ts", () => ({
-  publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
-}));
-
 describe("unwrapFlowList", () => {
   it("returns empty on failure", () => {
     expect(unwrapFlowList({ success: false })).toEqual([]);

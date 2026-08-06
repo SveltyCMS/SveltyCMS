@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database-clock"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-08-04"
+updated: "2026-08-06"
 tags:
   - "cache"
   - "redis"
@@ -14,6 +14,7 @@ tags:
   - "metrics"
   - "optimization"
   - "architecture"
+  - "response-cache"
 ---
 
 # Cache System
@@ -21,6 +22,10 @@ tags:
 ## Overview
 
 SveltyCMS implements a **dual-layer caching system**: L1 is an in-memory LRU cache (500K entries, sub-µs access), L2 is optional Redis for distributed deployments. The system includes stampede protection, single-flight coalescing, negative caching, predictive warming, and stale-while-revalidate.
+
+### HTTP response cache (turbo GET + GraphQL)
+
+Separate from `cacheService` entity keys: **`responseCache`** (`src/services/cache/response-cache.ts`) stores user-scoped pre-stringified API/GraphQL bodies + ETags for the **Request Lane Router** (`HYPER_TURBO` / handler-level GraphQL HIT). Keys are `u:{userId}:…` with deep-sorted variables; mutations invalidate `res:*` / GraphQL patterns. See [performance-architecture](../database/performance-architecture.mdx) and [server-hooks](./server-hooks.mdx).
 
 ## Architecture
 

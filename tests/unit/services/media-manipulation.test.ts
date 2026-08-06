@@ -20,16 +20,6 @@ vi.mock("@src/utils/media/media-storage.server", () => ({
   fileExists: vi.fn(),
 }));
 
-vi.mock("@utils/logger", () => ({
-  logger: {
-    info: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    warn: vi.fn(),
-    trace: vi.fn(),
-  },
-}));
-
 // ── Tests ──
 
 const TEST_IMAGE = path.resolve("tests/e2e/testthumb.png");

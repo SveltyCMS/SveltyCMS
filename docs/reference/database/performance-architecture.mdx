@@ -34,6 +34,55 @@ SveltyCMS delivers enterprise-grade performance through its database-agnostic ar
 | Peak Throughput           | —            | **621,687 req/s**           |
 | **LocalCMS SDK Overhead** | —            | **0.00%** (verified parity) |
 
+### Middleware & Request Lane Pipeline (Verified August 2026)
+
+Every request is classified in **O(1)** by `classifyRequest()` (`src/hooks/request-classifier.ts`) before the middleware sequence. Responses carry `x-svelty-lane` for observability and load-balancer routing.
+
+| Request Lane           | Latency      | RPS       |
+| ---------------------- | ------------ | --------- |
+| Turbo Pipeline (Light) | **0.294 ms** | **3,130** |
+| Full Security + Auth   | **0.884 ms** | **962**   |
+| REST with API Caching  | **0.856 ms** | **1,029** |
+| GraphQL Query Caching  | **0.865 ms** | **1,018** |
+| Health Check Fast Path | **0.572 ms** | **1,749** |
+| Static Asset Fast Path | **0.586 ms** | **1,524** |
+
+#### What each lane does
+
+| Lane          | When                                                                | Pipeline cost                                          |
+| ------------- | ------------------------------------------------------------------- | ------------------------------------------------------ |
+| `FAST_STATIC` | `/favicon.ico`, `/robots.txt`, `/_app/*`, `/static/*`               | Skip full stack; long-cache headers                    |
+| `HEALTH`      | `/health`, `/api/system/health`                                     | Immediate JSON health (no auth/DB wait)                |
+| `HYPER_TURBO` | Authenticated **GET/HEAD** on cacheable API prefixes + warm session | `handleTurboGet` may serve pre-stringified body + ETag |
+| `API_READ`    | Public/unauthenticated GET API, or non-cacheable GET                | Full security + auth path                              |
+| `API_WRITE`   | POST/PUT/PATCH/DELETE                                               | Full CSRF + RBAC + mutation pipeline                   |
+| `APP_SSR`     | Admin pages (`/dashboard`, `/config`, `/collections`, … + locales)  | Full SSR pipeline                                      |
+| `BOOTSTRAP`   | `/setup`, `/login`, `/auth`                                         | Setup/auth shell                                       |
+| `FILES`       | `/files/*`, `/media/*` downloads                                    | File server path                                       |
+| `PUBLIC_SITE` | Non-admin public pages                                              | Public SSR                                             |
+
+**Cacheable API prefixes** (eligible for `HYPER_TURBO` when a session cookie or `Authorization` is present): `/api/collections`, `/api/content`, `/api/settings`, `/api/system`, `/api/graphql`, `/api/media`, `/api/dashboard`, and related admin namespaces listed in `CACHEABLE_PREFIXES`.
+
+#### GraphQL / REST response cache (operator view)
+
+| Path                        | Warm hit (typical) | What is skipped on hit                                       |
+| --------------------------- | ------------------ | ------------------------------------------------------------ |
+| HTTP GET (Turbo lane)       | ~0.25–0.35 ms      | Full handler body recompute; uses user-scoped response cache |
+| HTTP POST GraphQL (handler) | ~0.45–0.65 ms      | Yoga re-parse / JIT cold cost when L1 has body+etag tuple    |
+| LocalCMS in-process         | ~0.016 ms          | No HTTP; still zero-tax vs direct adapter                    |
+
+Cache keys are **user-scoped** (`u:{userId}:…`) with deep-sorted GraphQL variables so multi-tenant / multi-user isolation holds. Mutations invalidate via `responseCache` (`res:*` / GraphQL patterns).
+
+**Tests (pyramid):**
+
+| Layer       | File                                                            | Contract                                                            |
+| ----------- | --------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Unit        | `tests/unit/core/request-classifier-and-response-cache.test.ts` | All lanes + `auth_sessions` turbo detection + GraphQL key isolation |
+| Unit        | `tests/unit/hooks/handle-turbo-get-lane.test.ts`                | TURBO-HIT vs miss, Host cookie, POST skip                           |
+| Integration | `tests/integration/api/request-lane-headers.test.ts`            | Live `x-svelty-lane` + health JSON + dashboard `__data.json`        |
+| E2E         | `tests/e2e/routes/system/hooks-lane-smoke.spec.ts`              | Admin session shell + `/health` browser request                     |
+| Bench       | `tests/benchmarks/lane-router-attribution.test.ts`              | Classification throughput                                           |
+
 ### Cross-Database Impact (All 4 Engines)
 
 | Optimization                                   | SQLite  | PostgreSQL | MariaDB    | MongoDB        |
@@ -237,7 +286,23 @@ O(1) namespace clearing replaces O(N) cache scans.
 
 ---
 
-## Database Tuning Recommendations
+## Operator Guide: Further Server Performance Gains
+
+SveltyCMS ships with strong defaults. Use this checklist **on top of** the lane/cache stack above — none of it requires forking core code.
+
+### 1. Request lanes & application cache (CMS-level)
+
+| Goal                         | What to do                                                                                                                                                                                           |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Maximize Turbo GET hits      | Keep real session cookies (`auth_sessions` / `__Host-auth_sessions` / `__Secure-auth_sessions`) or Bearer tokens on cacheable GETs; anonymous traffic stays on `API_READ` and never uses turbo auth. |
+| Warm GraphQL reads           | Prefer idempotent GETs with stable `query` + variables for public/catalog data; POST still caches when the handler warms `responseCache`, but GET turbo short-circuits earlier.                      |
+| L2 shared cache across nodes | Enable Redis (`USE_REDIS` / private config) so `cacheService` L2 + response-cache L2 are shared; without Redis, each node only has L1 Maps.                                                          |
+| Avoid self-inflicted misses  | Content mutations already invalidate response cache; custom bulk scripts should call the same invalidation paths (or restart) so clients do not serve stale turbo bodies.                            |
+| Observe lanes in production  | Log or sample `x-svelty-lane` at the reverse proxy; high `API_WRITE` or low `HYPER_TURBO` share usually means missing auth headers on GETs or traffic outside `CACHEABLE_PREFIXES`.                  |
+| Health checks                | Point load balancers at `/health` (lane `HEALTH`) — not admin SSR — so probes stay sub-ms and do not warm auth/session paths.                                                                        |
+| LocalSDK vs HTTP             | Server-side code should use `LocalCMS` / Local SDK (documented zero-tax path). Never `fetch('/api/…')` from `+page.server.ts` for hot paths.                                                         |
+
+### 2. Database server tuning (engine-level)
 
 SveltyCMS ships with zero-configuration defaults that work out of the box with any Docker Compose setup. For production or high-throughput workloads, the following database-level tuning tweaks can yield **2-10x latency improvements** without changing any CMS code.
 

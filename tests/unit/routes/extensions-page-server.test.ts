@@ -5,17 +5,6 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@utils/logger", () => ({
-  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn(), trace: vi.fn() },
-}));
-
-vi.mock("@utils/page-guards.server", () => ({
-  getAuthenticatedUser: vi.fn((locals: any) => {
-    if (!locals?.user) throw Object.assign(new Error("redirect"), { status: 302 });
-    return locals.user;
-  }),
-}));
-
 vi.mock("@src/plugins", () => ({
   pluginRegistry: {
     getAll: vi.fn(() => [

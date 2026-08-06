@@ -60,10 +60,18 @@ info "Pre-commit already verified: format, lint, unit tests."
 info "Pre-push: build + CVE audit + secret scan + SQLite integration"
 echo ""
 
-TOTAL=6; OK=0
+TOTAL=8; OK=0
 
-# Step 1 — Production build
+# Step 1 — Production build (mirrors CI build job)
 if run "🏗️  Build (4 adapters)" env COMPILE_ALL_ADAPTERS=true $RUN_CMD build; then
+  OK=$((OK + 1))
+fi
+
+# Step 1b — Post-build verifiers (mirrors CI build job steps)
+if run "🚪  Prod build backdoor (bench mode)" $RUN_CMD scripts/verify-prod-build-backdoor.ts --mode=bench; then
+  OK=$((OK + 1))
+fi
+if run "📦  Bundle size gate" $RUN_CMD scripts/check-bundle-size.ts; then
   OK=$((OK + 1))
 fi
 

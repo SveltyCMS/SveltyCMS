@@ -12,13 +12,15 @@ search filtering, and RTL support.
 - `selectedId` (string | null): The ID of the currently selected node.
 - `search` (string): Search filter string — auto-expands matching nodes.
 - `expandedIds` (Set<string>): Bindable set of expanded node IDs.
-- `allowDragDrop` (boolean): Enable drag-and-drop reordering.
+- `allowDragDrop` (boolean): Enable HTML5 drag-and-drop reordering (before / after / **inside**).
 - `compact` (boolean): Shorthand for compact density.
 - `density` ('compact' | 'comfortable' | 'spacious'): Fine-grained density control.
 - `iconColorClass` (string): Tailwind color class for node icons (default: 'text-surface-400').
 - `showBadges` (boolean): Show count badges on nodes (default: false).
 - `ariaLabel` (string): Accessible label for the tree (default: 'Navigation tree').
 - `dir` ('ltr' | 'rtl' | 'auto'): Text direction for RTL language support.
+- `variant` ('default' | 'media'): Media gallery folder styling (root + guide lines).
+- `externalDrop` (object): Optional @thisux/sveltednd drop targets (e.g. media files → folders).
 - `class` (string): Additional CSS classes.
 
 ### TreeItem Shape
@@ -72,6 +74,7 @@ search filtering, and RTL support.
 - per-node action buttons revealed on hover
 - loading spinners per node
 - drag-and-drop with before/after/inside position indicators
+- optional external drop (sveltednd) for media → folder moves
 - search with auto-expand and keyboard accessibility
 - vertical guide lines matching node depth
 - expand/collapse fly transitions with reduced-motion awareness
@@ -91,6 +94,9 @@ search filtering, and RTL support.
         disabled?: boolean;
         isLoading?: boolean;
         isExpanded?: boolean;   // Initial expanded state (synced to expandedIds)
+        /** Semantic kind — categories/folders accept "inside" drops; collections/files do not. */
+        type?: 'category' | 'collection' | 'folder' | string;
+        nodeType?: 'category' | 'collection' | 'folder' | string;
         badge?: {
             count?: number;
             visible?: boolean;
@@ -108,6 +114,19 @@ search filtering, and RTL support.
         metadata?: any;
         [key: string]: any;
     }
+
+	/** External drop (e.g. media gallery items → folder nodes) via @thisux/sveltednd. */
+	export interface TreeExternalDrop {
+		enabled: boolean;
+		/** CSS classes when target is valid */
+		okClass?: string;
+		/** CSS classes when drop would be a no-op (already in folder) */
+		sameClass?: string;
+		isSameTarget?: (nodeId: string) => boolean;
+		onDrop: (nodeId: string, state: unknown) => void | Promise<void>;
+		onDragEnter?: (nodeId: string) => void;
+		onDragLeave?: (nodeId: string) => void;
+	}
 </script>
 
 <script lang="ts">
@@ -115,6 +134,8 @@ search filtering, and RTL support.
     import { SvelteSet } from 'svelte/reactivity';
     import { fly, scale } from 'svelte/transition';
     import { onMount } from 'svelte';
+    import { droppable } from '@thisux/sveltednd';
+    import type { DragDropState } from '@thisux/sveltednd';
 
     interface Props {
         items?: TreeItem[];
@@ -130,6 +151,8 @@ search filtering, and RTL support.
         ariaLabel?: string;
         dir?: 'ltr' | 'rtl' | 'auto';
         variant?: 'default' | 'media';
+        /** Media-file (or other) external drops onto folder/category rows */
+        externalDrop?: TreeExternalDrop | null;
         class?: string;
         // Callbacks
         onselect?: (item: TreeItem) => void;
@@ -156,6 +179,7 @@ search filtering, and RTL support.
         ariaLabel = 'Navigation tree',
         dir = 'ltr',
         variant = 'default',
+        externalDrop = null,
         class: className,
         onselect,
         onSelect,
@@ -414,6 +438,16 @@ search filtering, and RTL support.
         if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
     }
 
+    /** Categories / folders accept "inside" reparent; collections/files only reorder as siblings. */
+    function canNestInto(node: TreeItem): boolean {
+        if (variant === 'media') return true; // all virtual-folder nodes are nestable (incl. root)
+        const kind = (node.type || node.nodeType || '').toString().toLowerCase();
+        if (kind === 'collection' || kind === 'file') return false;
+        if (kind === 'category' || kind === 'folder') return true;
+        // Empty container nodes often omit type but still have children slots
+        return Array.isArray(node.children);
+    }
+
     function handleDragOver(e: DragEvent, node: TreeItem) {
         if (!allowDragDrop || !draggedNode || draggedNode.id === node.id) return;
 
@@ -431,9 +465,41 @@ search filtering, and RTL support.
         const y = e.clientY - rect.top;
         const h = rect.height;
 
-        if (y < h * 0.25) dropPosition = 'before';
-        else if (y > h * 0.75) dropPosition = 'after';
-        else dropPosition = 'inside';
+        if (y < h * 0.25) {
+            dropPosition = 'before';
+        } else if (y > h * 0.75) {
+            dropPosition = 'after';
+        } else if (canNestInto(node)) {
+            dropPosition = 'inside';
+            // Spring-open collapsed folders/categories so nested targets appear
+            if (!expandedIds.has(node.id) && (node.children?.length || canNestInto(node))) {
+                setNodeExpanded(node.id, true);
+                handleExpand?.(node);
+            }
+        } else {
+            // Collections: middle of row = after (sibling)
+            dropPosition = 'after';
+        }
+    }
+
+    function externalDroppableOptions(nodeId: string) {
+        const cfg = externalDrop;
+        if (!cfg?.enabled) {
+            return { container: nodeId, disabled: true };
+        }
+        const same = cfg.isSameTarget?.(nodeId) ?? false;
+        return {
+            container: nodeId,
+            disabled: !cfg.enabled,
+            attributes: {
+                dragOverClass: same ? (cfg.sameClass ?? '') : (cfg.okClass ?? ''),
+            },
+            callbacks: {
+                onDrop: (state: DragDropState<unknown>) => cfg.onDrop(nodeId, state),
+                onDragEnter: () => cfg.onDragEnter?.(nodeId),
+                onDragLeave: () => cfg.onDragLeave?.(nodeId),
+            },
+        };
     }
 
     function handleDragLeave() {
@@ -493,7 +559,13 @@ search filtering, and RTL support.
     {const mediaSelectedText = 'text-amber-400 dark:text-amber-300'}
     {const mediaGuideLine = 'bg-surface-600/50 dark:bg-white/10'}
 
-    <div class="flex flex-col group/item relative">
+    <div
+        class="flex flex-col group/item relative"
+        data-item-id={node.id}
+        data-node-type={node.type || node.nodeType || (isMedia ? 'folder' : undefined)}
+        data-media-drop-target={externalDrop?.enabled ? node.id : undefined}
+        use:droppable={externalDroppableOptions(node.id)}
+    >
         <!-- Drag drop indicator: before -->
         {#if dragOverNode?.id === node.id && dropPosition === 'before'}
             <div class="absolute -top-0.5 inset-s-0 inset-e-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
@@ -530,7 +602,7 @@ search filtering, and RTL support.
                         isFocused && 'ring-2 ring-primary-500/50 shadow-sm',
                     ),
                 draggedNode?.id === node.id && 'opacity-40 grayscale',
-                dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-tertiary-500! dark:bg-primary-500/20! border-tertiary-500! dark:border-primary-500!',
+                dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-tertiary-500/20! dark:bg-primary-500/20! border-tertiary-500! dark:border-primary-500!',
                 node.disabled && 'opacity-50 cursor-not-allowed'
             )}
             style={!isMedia

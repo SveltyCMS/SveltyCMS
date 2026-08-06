@@ -14,10 +14,6 @@ import {
 } from "../../../src/routes/(app)/config/webhooks/webhooks-api";
 import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
-vi.mock("@src/stores/global-settings.svelte.ts", () => ({
-  publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
-}));
-
 describe("unwrapWebhookList", () => {
   it("returns empty on failure", () => {
     expect(unwrapWebhookList({ success: false, message: "no" })).toEqual([]);

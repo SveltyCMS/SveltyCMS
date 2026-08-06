@@ -140,40 +140,48 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       ]);
     });
 
-    // User data is critical for shell, but we try to use session data if fast
-    // refreshUser is reasonably fast, so we can await it or stream it too
-    const freshUser = await refreshUser(sessionUser, tenantId);
+    // Parallelize critical layout queries with short-lived 30s L1 cache
+    const userCountKey = `layout:userCount:${tenantId || "global"}`;
+    const aiSettingKey = `layout:aiEnabled`;
 
-    // Get total user count for smart UI logic (like hiding chat for single users)
-    let totalUsers = 1;
-    try {
-      totalUsers = (await auth?.getUserCount?.({}, { tenantId: tenantId as DatabaseId })) ?? 1;
-    } catch {
-      totalUsers = 1;
-    }
-
-    // Check if AI features are enabled for solo user assistant
-    let aiEnabled = !!publicEnv.USE_AI_TAGGING;
-    try {
-      const aiModelChat = await getPrivateSetting("AI_MODEL_CHAT");
-      aiEnabled = !!(publicEnv.USE_AI_TAGGING || (aiModelChat && aiModelChat !== ""));
-    } catch {
-      /* settings optional */
-    }
+    const [freshUser, totalUsers, aiEnabled] = await Promise.all([
+      refreshUser(sessionUser, tenantId),
+      (async () => {
+        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const cached = cacheService.getSync<number>(userCountKey, tenantId);
+        if (cached !== null) return cached;
+        try {
+          const count = (await auth?.getUserCount?.({}, { tenantId: tenantId as DatabaseId })) ?? 1;
+          cacheService.set(userCountKey, count, 30_000, tenantId);
+          return count;
+        } catch {
+          return 1;
+        }
+      })(),
+      (async () => {
+        const { cacheService } = await import("@src/databases/cache/cache-service");
+        const cached = cacheService.getSync<boolean>(aiSettingKey);
+        if (cached !== null) return cached;
+        try {
+          const aiModelChat = await getPrivateSetting("AI_MODEL_CHAT");
+          const enabled = !!(publicEnv.USE_AI_TAGGING || (aiModelChat && aiModelChat !== ""));
+          cacheService.set(aiSettingKey, enabled, 30_000);
+          return enabled;
+        } catch {
+          return !!publicEnv.USE_AI_TAGGING;
+        }
+      })(),
+    ]);
 
     // Plugin enablement states for client-side feature gating
-    // (non-blocking — resolves instantly from in-memory registry, fallback to metadata.enabled)
     const pluginStates: Record<string, boolean> = {};
     try {
       for (const plugin of pluginRegistry.getAll()) {
-        // Only load state for plugins with UI slots (avoids loading all plugins)
         if (!plugin.ui?.slots?.length) continue;
         const state = await pluginRegistry.getPluginState(plugin.metadata.id, tid);
         pluginStates[plugin.metadata.id] = state?.enabled ?? plugin.metadata.enabled;
       }
-    } catch {
-      // Plugin state check is non-critical
-    }
+    } catch {}
 
     let safeTheme = DEFAULT_THEME;
     try {

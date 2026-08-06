@@ -42,11 +42,6 @@ vi.mock("@src/databases/db", () => {
   };
 });
 
-vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(false),
-  getPublicSettingSync: vi.fn().mockReturnValue(true),
-}));
-
 vi.mock("@utils/api-handler", () => ({
   apiHandler: (fn: any) => fn,
 }));

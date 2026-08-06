@@ -5,17 +5,6 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@utils/logger", () => ({
-  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn(), trace: vi.fn() },
-}));
-
-vi.mock("@utils/page-guards.server", () => ({
-  getAuthenticatedUser: vi.fn((locals: any) => {
-    if (!locals?.user) throw Object.assign(new Error("redirect"), { status: 302 });
-    return locals.user;
-  }),
-}));
-
 import { load as loadSync } from "../../../src/routes/(app)/config/sync/+page.server";
 import { load as loadTrash } from "../../../src/routes/(app)/config/trash/+page.server";
 

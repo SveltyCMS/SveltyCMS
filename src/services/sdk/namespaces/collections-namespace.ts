@@ -563,17 +563,18 @@ export class CollectionsNamespace {
       } catch {}
     }
 
-    const result = await this._dbAdapter.crud.findMany(
-      this.getCollectionName(schema._id as string),
-      query,
-      {
+    const fetchFromDb = () =>
+      this._dbAdapter.crud.findMany(this.getCollectionName(schema._id as string), query, {
         limit,
         offset,
         sort,
         fields: options.fields,
         populate: options.populate,
-      },
-    );
+      });
+
+    const result = cacheKey
+      ? await cacheService.coalesceQuery(cacheKey, fetchFromDb)
+      : await fetchFromDb();
 
     if (result.success && result.data && Array.isArray(result.data)) {
       const hasActiveWidgets = (schema.fields as any)._hasActiveWidgets ?? true;
@@ -1032,14 +1033,14 @@ export class CollectionsNamespace {
         ...(tenantId && { tenantId: tenantId as DatabaseId }),
       };
 
-      const result = await this._dbAdapter.crud.findMany(
-        this.getCollectionName(schema._id as string),
-        query,
-        {
+      const batchCacheKey = `${loaderKey}:${ids.sort().join(",")}`;
+      const fetchBatchFromDb = () =>
+        this._dbAdapter.crud.findMany(this.getCollectionName(schema._id as string), query, {
           limit: ids.length,
           tenantId: tenantId as DatabaseId,
-        },
-      );
+        });
+
+      const result = await cacheService.coalesceQuery(batchCacheKey, fetchBatchFromDb);
 
       const foundItems = (result.success && result.data ? result.data : []) as any[];
 
@@ -1412,6 +1413,8 @@ export class CollectionsNamespace {
   private async invalidateCache(schema: Schema, tenantId?: DatabaseId | null) {
     // 1. Clear L1 (In-Memory) Cache
     CollectionsNamespace._requestCache.clear();
+    const { responseCache } = await import("@src/services/cache/response-cache");
+    await responseCache.invalidateAll((tenantId || undefined) as string | undefined);
 
     // 2. Clear L2 (External) Cache
     const patterns = [`cms:content_structure:${tenantId || "global"}`];

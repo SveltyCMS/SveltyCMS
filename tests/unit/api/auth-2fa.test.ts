@@ -79,20 +79,6 @@ vi.mock("@utils/tenant", () => ({
   getTenantIdFromHostname: vi.fn().mockReturnValue(null),
 }));
 
-vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(false),
-  getPublicSettingSync: vi.fn().mockReturnValue(undefined),
-}));
-
-vi.mock("@utils/logger", () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  },
-}));
-
 vi.mock("@utils/api-handler", () => ({
   apiHandler: (fn: any) => fn,
 }));

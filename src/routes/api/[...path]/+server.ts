@@ -658,7 +658,9 @@ export const _handler = async (event: RequestEvent) => {
         ETag: etag,
       };
       response.headers.forEach((val, key) => {
-        if (!respHeaders[key]) respHeaders[key] = val;
+        const lowerKey = key.toLowerCase();
+        const exists = Object.keys(respHeaders).some((k) => k.toLowerCase() === lowerKey);
+        if (!exists) respHeaders[key] = val;
       });
       return new Response(responseBody, {
         status: response.status,

@@ -168,6 +168,12 @@ async function handleNodeUpdate(updatedNodes: ContentNode[]) {
     logger.debug("[CollectionBuilder] Hierarchy updated via DnD");
     currentConfig = updatedNodes;
 
+    // Keep left sidebar (and any other contentStructure consumers) in sync immediately.
+    // Previously only save/delete called setContentStructure — DnD left the sidebar stale.
+    untrack(() => {
+        setContentStructure(updatedNodes);
+    });
+
     // Stage all nodes: keep existing 'create' so duplicated collections get their files created on save
     updatedNodes.forEach((node) => {
         const id = node._id.toString();
@@ -310,6 +316,7 @@ function handleDuplicateNode(node: Partial<ContentNode>) {
             createdAt: now,
         };
         currentConfig = [...currentConfig, newNode];
+        setContentStructure(currentConfig);
         nodesToSave[newNode._id?.toString() ?? ""] = {
             type: "create",
             node: newNode,
@@ -356,6 +363,7 @@ function handleDuplicateNode(node: Partial<ContentNode>) {
     }
 
     currentConfig = [...currentConfig, newNode];
+    setContentStructure(currentConfig);
     nodesToSave[newId.toString()] = { type: "create", node: newNode };
     toast.success("Item duplicated. Click Save to persist change.");
 }
@@ -725,7 +733,7 @@ function modalLoadPreset(): void {
     </div>
 
     <p class="mb-4 text-center text-sm text-surface-600 dark:text-surface-300" role="note">
-        Templates apply immediately. Category changes are saved instantly. Layout changes require <strong>Save</strong>.
+        Templates apply immediately. Category changes are saved instantly. Drag items onto a <strong>category</strong> (middle of the row) to nest; use the top/bottom edge to reorder as siblings. Layout changes require <strong>Save</strong> to persist.
     </p>
 
     <div class="max-h-[calc(100vh-120px)] overflow-auto p-4" data-testid="collection-builder-board">

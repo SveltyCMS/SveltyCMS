@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:test-tube"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-08-04"
+updated: "2026-08-06"
 tags:
   - "testing"
   - "documentation"
@@ -15,24 +15,27 @@ tags:
   - "vitest"
   - "bun"
   - "playwright"
+  - "lane-router"
 ---
 
 # SveltyCMS Testing Documentation
 
 > [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** August 4, 2026  
+**Last Updated:** August 6, 2026  
 **Source of Truth:** `.githooks/*` + `package.json` + GitHub Actions on the current branch/PR  
-**Core Gates:** White-box unit, black-box integration (SQLite locally), Playwright E2E (`bun run test:e2e` = CI-parity preview)  
+**Core Gates:** Pre-commit (unit + `risk:audit`) → pre-push (build 4 adapters + tenant + SQLite integration) → CI multi-DB + E2E  
 **Start here:** `bun run test:doctor` (prints the gate map and runs unit + SQLite integration)  
 **Primary Goal:** [100% three-layer completeness](./three-layer-completeness.mdx) (critical inventory, not vanity line %)  
-**Primary Safety Rule:** Local and CI tests must never use live credentials or production data
+**Primary Safety Rule:** Local and CI tests must never use live credentials or production data  
+**Recent hot area:** Request Lane Router + response cache — see [Test Status](./test-status.mdx) and [performance-architecture](../reference/database/performance-architecture.mdx)
 
 ## Layer ownership (where new work goes)
 
 | Concern                                                       | Unit               | Integration                                         | E2E                      |
 | :------------------------------------------------------------ | :----------------- | :-------------------------------------------------- | :----------------------- |
 | Pure helpers / eligibility (`page-utils`, count-cache keying) | ✅                 | —                                                   | —                        |
+| Lane classifier + response-cache keying                       | ✅                 | ✅ `request-lane-headers`                           | ✅ `hooks-lane-smoke`    |
 | Adapter contracts (`findPage`, count modes, DB result shapes) | mocks only         | ✅ `tests/integration/databases/*-contract.test.ts` | —                        |
 | Full HTTP middleware + API envelopes                          | dispatcher helpers | ✅ `tests/integration/api/`                         | golden journeys only     |
 | Browser UX / control-map routes                               | —                  | —                                                   | ✅ seed-first Playwright |

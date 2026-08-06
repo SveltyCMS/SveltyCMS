@@ -74,13 +74,15 @@ describe("Error Handling - Type Guards", () => {
   });
 
   it("should identify HttpError-like objects", () => {
+    // Production isHttpError requires status (4xx/5xx) AND body (cross-bundle safe).
     const httpError = {
       status: 404,
       body: { message: "Not found" },
     };
 
     expect(isHttpError(httpError)).toBe(true);
-    expect(isHttpError({ status: 500 })).toBe(true);
+    expect(isHttpError({ status: 500 })).toBe(false); // missing body
+    expect(isHttpError({ status: 500, body: {} })).toBe(true);
     expect(isHttpError({ body: {} })).toBe(false);
     expect(isHttpError(new Error("test"))).toBe(false);
   });
@@ -115,11 +117,10 @@ describe("Error Handling - Error Messages", () => {
   });
 
   it("should handle unknown error types", () => {
-    // getErrorMessage stringifies objects or calls String()
-    expect(getErrorMessage(null)).toBe("null");
+    // Production: falsy errors → ""; primitives via String(); empty object special-cased
+    expect(getErrorMessage(null)).toBe("");
     expect(getErrorMessage(123)).toBe("123");
     expect(getErrorMessage(true)).toBe("true");
-    // Empty object returns '[object Object]' via String()
     expect(getErrorMessage({})).toBe("[object Object]");
   });
 
@@ -168,13 +169,11 @@ describe("Error Handling - Wrap Error", () => {
   });
 
   it("should use default message for unknown errors", () => {
+    // null → getErrorMessage "" → falls back to provided default
     const wrapped = wrapError(null, "Custom default");
-
-    // getErrorMessage returns 'null' for null
-    expect(wrapped.message).toBe("null");
+    expect(wrapped.message).toBe("Custom default");
     expect(wrapped.status).toBe(500);
 
-    // Test with empty object - returns '[object Object]'
     const wrapped2 = wrapError({}, "Custom default");
     expect(wrapped2.message).toBe("[object Object]");
   });

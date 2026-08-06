@@ -851,7 +851,7 @@ export async function setupBenchmarkServer() {
       NODE_ENV: "test",
     },
     stdio: "pipe",
-    shell: process.platform === "win32",
+    shell: false,
   });
 
   // Forward server stderr for visibility into startup failures
@@ -868,17 +868,34 @@ export async function setupBenchmarkServer() {
   let healthy = false;
   for (let attempt = 0; attempt < 90; attempt++) {
     try {
-      const res = await fetch(healthUrl, { signal: AbortSignal.timeout(2000) });
+      const res = await fetch(healthUrl, {
+        headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
+        signal: AbortSignal.timeout(2000),
+      });
       // Accept any non-5xx response during startup — server may return 202/503/533
       if (res.status < 500) {
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         const status = String(data.overallStatus ?? data.status ?? "").toUpperCase();
         const db = data.database;
         // SETUP/IDLE states legitimately report disconnected — only gate on db for READY+
-        const dbOk = status === "SETUP" || status === "IDLE" || db === true || db === "connected";
+        const dbOk =
+          status === "SETUP" ||
+          status === "IDLE" ||
+          status === "INITIALIZING" ||
+          db === true ||
+          db === "connected";
         // Match integration test: accept SETUP, READY, WARMED, DEGRADED, etc.
         if (
-          ["READY", "SETUP", "WARMED", "WARMING", "DEGRADED", "HEALTHY", "IDLE"].includes(status) &&
+          [
+            "READY",
+            "SETUP",
+            "WARMED",
+            "WARMING",
+            "DEGRADED",
+            "HEALTHY",
+            "IDLE",
+            "INITIALIZING",
+          ].includes(status) &&
           dbOk
         ) {
           healthy = true;

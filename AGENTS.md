@@ -333,10 +333,17 @@ When generating/modifying code:
     - Run `bun run scripts/validate-links.ts` before shipping to catch broken internal links.
     - Flags missing `data-preload` attributes on collection entry links.
     - **Reference**: `src/utils/link-validator.ts`
-19. **Always Fix Pre-Existing Issues Found During Work**: When working on a task and you encounter pre-existing bugs, lint warnings, type errors, or test failures that are not directly related to your changes, fix them anyway. Do not leave the codebase in a worse state than you found it. If you see an opportunity to further optimize or enhance code you are already modifying, do so. Leaving pre-existing issues unfixed creates technical debt and can mask regressions. The only exception is if the fix would take significantly longer than the original task — in that case, document the issue and move on.
+19. **Unit/Integration Mock Discipline (CRITICAL)**: Prefer real CMS core code over incomplete stubs.
+    - **Rule of thumb**: mock **boundaries** (DB, network, FS writes, IdP). Never partially mock stdlib (`node:crypto`, `node:path`) or core error/hash utilities (`@utils/error-handling`, ETag/`createHash`).
+    - Use shared defaults in `tests/unit/setup.ts` + `tests/unit/helpers/default-module-mocks.ts` (logger, settings-service, global-settings, kit redirect/error). Override per-file only when a suite needs special return values.
+    - Prefer real `getAuthenticatedUser` / `page-guards.server` with kit `redirect`/`error` mocks over hand-rolled 302 stubs.
+    - Prefer real `raise`/`AppError` over a partial `error-handling` mock that omits exports.
+    - Integration tests should stay on the real stack (SQLite/harness); mock only external plugins or SvelteKit virtual modules.
+20. **Always Fix Pre-Existing Issues Found During Work**: When working on a task and you encounter pre-existing bugs, lint warnings, type errors, or test failures that are not directly related to your changes, fix them anyway. Do not leave the codebase in a worse state than you found it. If you see an opportunity to further optimize or enhance code you are already modifying, do so. Leaving pre-existing issues unfixed creates technical debt and can mask regressions. The only exception is if the fix would take significantly longer than the original task — in that case, document the issue and move on.
     - **Common patterns to watch for**:
       - **`bun:test` imports** → Always use `vi.fn()` from `vitest`, never `mock` from `bun:test`. Vitest is the canonical test runner.
       - **`vi.mock` module-scope leakage** → `vi.mock` calls in one test file pollute subsequent files. When adding a `vi.mock`, add a matching one in affected test files to restore the real module.
+      - **Incomplete module mocks** → Never stub only one export of `node:crypto` / `error-handling` / similar; use the real module or a full surface via `importOriginal`.
       - **`response.clone()`** → When recreating a Response with modified headers, clone the body first to avoid `ReadableStream already used` errors from upstream hooks.
       - **Dead code in middleware** → Check for duplicate handler sections in the pipeline that became unreachable after refactoring.
       - **`cacheService` mock gaps** → When adding a new public method to the real `CacheService` class (e.g., `invalidateCollection`), add a matching mock entry to `tests/unit/setup.ts` `cacheMock`. Tests that exercise mutation paths (create/update/delete) will call it and fail with `is not a function`.
@@ -346,7 +353,7 @@ When generating/modifying code:
       - **E2E soft-skips for empty lists** → Never `test.skip` because a control-map route has no data. Seed via `/api/testing` (`tests/e2e/helpers/api.ts`) so happy paths always run.
       - **Media URL cache staleness** → `getUrl()` in `src/utils/media/storage-adapters.ts` caches path→URL mappings for 5min. If you change storage adapter config or add a new CDN endpoint, call `invalidateMediaUrlCache()` to clear it. The metadata cache in `media-processing.server.ts` uses file hash keys — no manual invalidation needed (immutable per hash).
       - **Integration tests fail with `Content node upsert result for iso_tenant_fixture: FAILED`** → The `bulk-seed` testing action requires the target collection to exist. The test provisions it in `beforeAll` via `create-collection`. If the fixture name (`iso_tenant_fixture`) was previously used with a different schema, the upsert can fail. Reset by deleting the collection or using `ISO_TEST_COLLECTION` env var to pick a fresh name.
-20. **E2E Control-Map Policy (CRITICAL)**: See [E2E & Control-Map Testing Policy](#e2e--control-map-testing-policy). Soft-skips on control rows are banned; seed fixtures instead.
+21. **E2E Control-Map Policy (CRITICAL)**: See [E2E & Control-Map Testing Policy](#e2e--control-map-testing-policy). Soft-skips on control rows are banned; seed fixtures instead.
 
 ## E2E & Control-Map Testing Policy
 
@@ -733,7 +740,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 2.  **HMR Reloads**: Expected for collections/widgets. Full page reload is normal.
 3.  **Setup Wizard**: Let it generate `config/private.ts`. Do NOT create manually.
 4.  **Black-Box Testing**: Local integration/E2E use **`config/private.test.ts` only** (generated by runners under `TEST_MODE`). **Never** mutate the developer's `config/private.ts`. CI may create ephemeral `private.ts` on the runner only (`ci.yml` / `isCiRunner()`). Wizard E2E may still exercise setup under `TEST_MODE` (writes `private.test.ts`). **Do not soft-skip control-map E2E** — seed via `/api/testing`.
-5.  **White-Box Unit Testing**: Use purely in-memory mocks (configured in `tests/unit/bun-preload.ts`) for configuration and database adapters. Unit tests must remain decoupled from the physical filesystem and should not depend on a pre-existing `config/private.ts`.
+5.  **White-Box Unit Testing**: Use purely in-memory mocks (configured in `tests/unit/setup.ts` / `tests/unit/helpers/default-module-mocks.ts`) for configuration and database adapters. Unit tests must remain decoupled from the physical filesystem and should not depend on a pre-existing `config/private.ts`. **Mock boundaries only** (DB, network, FS writes, IdP) — never partially mock stdlib or core error/hash utilities; prefer real CMS core (`raise`, `page-guards`, `node:crypto`, `node:path`).
 6.  **Strict Case-Sensitivity (Linux/CI)**: ALL `.svelte` files and ALL widget folders MUST be strictly lowercase (kebab-case). Linux-based CI runners will fail with "Module not found" or "404" errors if imports or glob patterns do not match the exact casing on disk. Standardize all imports to lowercase.
 7.  **Robust Path Aliases**: Always use standard path aliases (`@src`, `@widgets`, `@utils`, etc.) instead of fragile relative paths like `../../../src/...`. Ensure aliases are synchronized via `bun x svelte-kit sync` before running checks.
 8.  **DB Seeding**: Safety checks prevent accidental production seeding.

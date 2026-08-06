@@ -4,46 +4,58 @@ title: Hook Test Coverage
 description: Comprehensive testing documentation for all SveltyCMS middleware hooks
 author: "SveltyCMS Team"
 created: "2025-12-16"
-updated: "2026-06-14"
+updated: "2026-08-06"
 tags:
   - "testing"
   - "hooks"
   - "middleware"
   - "fail-closed"
+  - "lane-router"
 ---
 
 # Hook Test Coverage
 
-Complete test coverage for all 17 SvelteKit middleware hooks and security test suites in the SveltyCMS system.
+Complete test coverage for SvelteKit middleware hooks, the **Request Lane Router**, and security suites in the SveltyCMS system.
+
+> [!NOTE]
+> Per-file test counts drift — treat the table as a **file map**, not a live ledger. Live health: [Test Status](./test-status.mdx). Always use **`vitest`** imports (`vi.fn()`), never `bun:test`.
 
 ## Test Suite Overview
 
-| Test Suite            | Tests | Coverage    | File                                             |
-| --------------------- | ----- | ----------- | ------------------------------------------------ |
-| Static Asset Caching  | 6     | ✅ Complete | `tests/unit/hooks/static-asset-caching.test.ts`  |
-| System State          | 26    | ✅ Complete | `tests/unit/hooks/system-state.test.ts`          |
-| System State Security | 14    | ✅ Complete | `tests/unit/hooks/system-state-security.test.ts` |
-| Setup                 | 16    | ✅ Complete | `tests/unit/hooks/setup.test.ts`                 |
+| Test Suite            | Coverage    | File                                             |
+| --------------------- | ----------- | ------------------------------------------------ |
+| Static Asset Caching  | ✅ Complete | `tests/unit/hooks/static-asset-caching.test.ts`  |
+| System State          | ✅ Complete | `tests/unit/hooks/system-state.test.ts`          |
+| System State Security | ✅ Complete | `tests/unit/hooks/system-state-security.test.ts` |
+| Setup                 | ✅ Complete | `tests/unit/hooks/setup.test.ts`                 |
+| Rate Limit            | ✅ Complete | `tests/unit/hooks/rate-limit.test.ts`            |
+| Route Access Audit    | ✅ Complete | `tests/unit/hooks/route-access-audit.test.ts`    |
+| File Server Tenant    | ✅ Complete | `tests/unit/hooks/file-server-tenant.test.ts`    |
 
-| Test Suite                 | Tests | Coverage    | File                                                  |
-| -------------------------- | ----- | ----------- | ----------------------------------------------------- |
-| Authentication             | 25    | ✅ Complete | `tests/unit/hooks/authentication.test.ts`             |
-| API Keys Authentication    | 12    | ✅ Complete | `tests/unit/hooks/api-keys-authentication.test.ts`    |
-| Bearer Authentication      | 18    | ✅ Complete | `tests/unit/hooks/bearer-authentication.test.ts`      |
-| Guest Authentication       | 8     | ✅ Complete | `tests/unit/hooks/guest-authentication.test.ts`       |
-| Magic Links Authentication | 10    | ✅ Complete | `tests/unit/hooks/magic-links-authentication.test.ts` |
+| Test Suite                 | Coverage    | File                                                  |
+| -------------------------- | ----------- | ----------------------------------------------------- |
+| Authentication             | ✅ Complete | `tests/unit/hooks/authentication.test.ts`             |
+| API Keys Authentication    | ✅ Complete | `tests/unit/hooks/api-keys-authentication.test.ts`    |
+| Bearer Authentication      | ✅ Complete | `tests/unit/hooks/bearer-authentication.test.ts`      |
+| Guest Authentication       | ✅ Complete | `tests/unit/hooks/guest-authentication.test.ts`       |
+| Magic Links Authentication | ✅ Complete | `tests/unit/hooks/magic-links-authentication.test.ts` |
 
-| Test Suite          | Tests | Coverage    | File                                        |
-| ------------------- | ----- | ----------- | ------------------------------------------- |
-| Authorization       | 23    | ✅ Complete | `tests/unit/hooks/authorization.test.ts`    |
-| API Requests        | 28    | ✅ Complete | `tests/unit/hooks/api-requests.test.ts`     |
-| Token Resolution    | 5     | ✅ Complete | `tests/unit/hooks/token-resolution.test.ts` |
-| Security Headers    | 38    | ✅ Complete | `tests/unit/hooks/security-headers.test.ts` |
-| CSP Headers         | 10    | ✅ Complete | `tests/unit/hooks/csp-headers.test.ts`      |
-| Defense-in-Depth    | 25    | ✅ Complete | `tests/unit/hooks/defense-in-depth.test.ts` |
-| Adversarial Testing | 20    | ✅ Complete | `tests/unit/hooks/adversarial.test.ts`      |
+| Test Suite          | Coverage    | File                                        |
+| ------------------- | ----------- | ------------------------------------------- |
+| Authorization       | ✅ Complete | `tests/unit/hooks/authorization.test.ts`    |
+| API Requests        | ✅ Complete | `tests/unit/hooks/api-requests.test.ts`     |
+| Token Resolution    | ✅ Complete | `tests/unit/hooks/token-resolution.test.ts` |
+| Security Headers    | ✅ Complete | `tests/unit/hooks/security-headers.test.ts` |
+| CSP Headers         | ✅ Complete | `tests/unit/hooks/csp-headers.test.ts`      |
+| Defense-in-Depth    | ✅ Complete | `tests/unit/hooks/defense-in-depth.test.ts` |
+| Adversarial Testing | ✅ Complete | `tests/unit/hooks/adversarial.test.ts`      |
 
-| **Total** | **309** | **100%** | **16 files** |
+| Test Suite (Lane Router / Turbo)    | Coverage     | File                                                            |
+| ----------------------------------- | ------------ | --------------------------------------------------------------- |
+| Request classifier + response cache | ✅ Complete  | `tests/unit/core/request-classifier-and-response-cache.test.ts` |
+| Turbo GET lane                      | ✅ Complete  | `tests/unit/hooks/handle-turbo-get-lane.test.ts`                |
+| Lane headers (integration)          | ✅ Live HTTP | `tests/integration/api/request-lane-headers.test.ts`            |
+| Hooks lane smoke (E2E)              | ✅ Browser   | `tests/e2e/routes/system/hooks-lane-smoke.spec.ts`              |
 
 ## Performance Benchmarks (Audit)
 
@@ -62,28 +74,31 @@ All hooks are benchmarked via `tests/benchmarks/hooks-performance.test.ts` which
 
 ## Middleware Sequence
 
-The hooks run in this specific order:
+Production order (READY pipeline) after O(1) **lane classification**. Full reference: [server-hooks](../reference/architecture/server-hooks.mdx).
 
-````mermaid
+```mermaid
 graph TD
-    A[Request] --> B[handleStaticAssetCaching]
-    B --> C[handleSystemState]
-    C --> D[handleSetup]
-    D --> E[handleAuthentication]
-    E --> F[handleAuthorization]
-    F --> G[handleApiRequests]
-    G --> H[addSecurityHeaders]
-    H --> I[Response]
-```text
+    A[Request] --> L[classifyRequest O1]
+    L -->|FAST_STATIC / HEALTH| R[withLane fast response]
+    L --> B[handleHyperTurbo + turbo-pipeline]
+    B --> C[test-isolation + security + rate-limit]
+    C --> D[handleSystemState]
+    D --> E[handleTurboGet]
+    E --> F[redirects … preferences]
+    F --> G[handleAuthentication]
+    G --> H[handleAuthorization]
+    H --> I[local-sdk … api-requests … token-resolution]
+    I --> J[withLane + security headers]
+```
 
 ## Test Patterns and Best Practices
 
 ### Standard Test Structure
 
-All hook tests follow this consistent pattern:
+All hook tests follow this consistent pattern (**Vitest**, not `bun:test`):
 
-```
-import { describe, it, expect, beforeEach, mock } from "bun:test";
+````
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { hookName } from "@src/hooks/hookName";
 import type { RequestEvent } from "@sveltejs/kit";
 
@@ -92,10 +107,10 @@ function createMockEvent(pathname: string, ...args): RequestEvent {
 }
 
 describe("hookName Middleware", () => {
-  let mockResolve: ReturnType<typeof mock>;
+  let mockResolve: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    mockResolve = mock(() => Promise.resolve(new Response("OK")));
+    mockResolve = vi.fn(() => Promise.resolve(new Response("OK")));
   });
 
   describe("Feature Category", () => {
@@ -113,30 +128,32 @@ describe("hookName Middleware", () => {
 
 Each test file has a `createMockEvent()` helper that creates consistent `RequestEvent` mocks:
 
-```
-function createMockEvent(
-  pathname: string,
-  method: string = "GET",
-  headers: Record<string, string> = {},
-  cookies: Record<string, string> = {},
-): RequestEvent {
-  const url = new URL(pathname, "http://localhost");
-  const requestHeaders = new Headers(headers);
+````
 
-  return {
-    url,
-    request: new Request(url.toString(), { method, headers: requestHeaders }),
-    cookies: {
-      get: (name: string) => cookies[name],
-      set: mock(() => {}),
-      delete: mock(() => {}),
-    },
-    locals: {
-      tenantId: "test-tenant",
-      roles: [{ name: "admin", isAdmin: true, permissions: [] }],
-    },
-  } as unknown as RequestEvent;
+function createMockEvent(
+pathname: string,
+method: string = "GET",
+headers: Record<string, string> = {},
+cookies: Record<string, string> = {},
+): RequestEvent {
+const url = new URL(pathname, "http://localhost");
+const requestHeaders = new Headers(headers);
+
+return {
+url,
+request: new Request(url.toString(), { method, headers: requestHeaders }),
+cookies: {
+get: (name: string) => cookies[name],
+set: vi.fn(() => {}),
+delete: vi.fn(() => {}),
+},
+locals: {
+tenantId: "test-tenant",
+roles: [{ name: "admin", isAdmin: true, permissions: [] }],
+},
+} as unknown as RequestEvent;
 }
+
 ```text
 
 ## Individual Hook Test Coverage
@@ -156,16 +173,18 @@ function createMockEvent(
 **Key Tests**:
 
 ```
-it("should match /_app/ paths", () => {
-  expect("/_app/immutable/chunks/index.js").toMatch(STATIC_ASSET_REGEX);
+
+it("should match /\_app/ paths", () => {
+expect("/\_app/immutable/chunks/index.js").toMatch(STATIC_ASSET_REGEX);
 });
 
 it("should add aggressive cache headers for static assets", async () => {
-  const event = createMockEvent("/_app/immutable/chunks/index.js");
-  const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
+const event = createMockEvent("/\_app/immutable/chunks/index.js");
+const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
 
-  expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
 });
+
 ```text
 
 ### 2. handleSystemState
@@ -183,16 +202,18 @@ it("should add aggressive cache headers for static assets", async () => {
 **Key Tests**:
 
 ```
-it("should block routes when state is INITIALIZING", async () => {
-  mockGetSystemState.mockReturnValue("INITIALIZING");
-  const event = createMockEvent("/dashboard");
 
-  try {
-    await handleSystemState({ event, resolve: mockResolve });
-  } catch (err: unknown) {
-    expect((err as Error).message).toContain("initializing");
-  }
+it("should block routes when state is INITIALIZING", async () => {
+mockGetSystemState.mockReturnValue("INITIALIZING");
+const event = createMockEvent("/dashboard");
+
+try {
+await handleSystemState({ event, resolve: mockResolve });
+} catch (err: unknown) {
+expect((err as Error).message).toContain("initializing");
+}
 });
+
 ```text
 
 ### 3. handleSetup
@@ -212,22 +233,24 @@ it("should block routes when state is INITIALIZING", async () => {
 **Key Tests**:
 
 ```
-it("should redirect /dashboard to /setup when config missing", async () => {
-  const event = createMockEvent("/dashboard", false);
 
-  try {
-    await handleSetup({ event, resolve: mockResolve });
-  } catch (err) {
-    expect(err).toBeDefined(); // Redirect expected
-  }
+it("should redirect /dashboard to /setup when config missing", async () => {
+const event = createMockEvent("/dashboard", false);
+
+try {
+await handleSetup({ event, resolve: mockResolve });
+} catch (err) {
+expect(err).toBeDefined(); // Redirect expected
+}
 });
 
 it("should allow /setup route when setup incomplete", async () => {
-  const event = createMockEvent("/setup", false);
-  const response = await handleSetup({ event, resolve: mockResolve });
+const event = createMockEvent("/setup", false);
+const response = await handleSetup({ event, resolve: mockResolve });
 
-  expect(response.status).toBe(200);
+expect(response.status).toBe(200);
 });
+
 ```text
 
 ### 4. handleAuthentication
@@ -259,19 +282,21 @@ it("should allow /setup route when setup incomplete", async () => {
 **Key Tests**:
 
 ```
-it("should skip authentication for /login", async () => {
-  const event = createMockEvent("/login");
-  await handleAuthentication({ event, resolve: mockResolve });
 
-  expect(mockResolve).toHaveBeenCalled();
+it("should skip authentication for /login", async () => {
+const event = createMockEvent("/login");
+await handleAuthentication({ event, resolve: mockResolve });
+
+expect(mockResolve).toHaveBeenCalled();
 });
 
 it("should extract tenantId from hostname (subdomain)", async () => {
-  const event = createMockEvent("/dashboard", "session123", "tenant1.example.com");
-  await handleAuthentication({ event, resolve: mockResolve });
+const event = createMockEvent("/dashboard", "session123", "tenant1.example.com");
+await handleAuthentication({ event, resolve: mockResolve });
 
-  expect(mockResolve).toHaveBeenCalled();
+expect(mockResolve).toHaveBeenCalled();
 });
+
 ```text
 
 ### 5. handleAuthorization
@@ -292,25 +317,27 @@ it("should extract tenantId from hostname (subdomain)", async () => {
 **Key Tests**:
 
 ```
-it("should redirect to /login for protected routes", async () => {
-  const event = createMockEvent("/dashboard");
 
-  try {
-    await handleAuthorization({ event, resolve: mockResolve });
-  } catch (err) {
-    expect(err).toBeDefined(); // Redirect expected
-  }
+it("should redirect to /login for protected routes", async () => {
+const event = createMockEvent("/dashboard");
+
+try {
+await handleAuthorization({ event, resolve: mockResolve });
+} catch (err) {
+expect(err).toBeDefined(); // Redirect expected
+}
 });
 
 it("should redirect to /setup when no roles found", async () => {
-  const event = createMockEvent("/dashboard");
+const event = createMockEvent("/dashboard");
 
-  try {
-    await handleAuthorization({ event, resolve: mockResolve });
-  } catch (err) {
-    expect(err).toBeDefined();
-  }
+try {
+await handleAuthorization({ event, resolve: mockResolve });
+} catch (err) {
+expect(err).toBeDefined();
+}
 });
+
 ```text
 
 ### 6. handleApiRequests
@@ -333,20 +360,22 @@ it("should redirect to /setup when no roles found", async () => {
 **Key Tests**:
 
 ```
-it("should cache successful GET responses", async () => {
-  const event = createMockEvent("/api/collections", "GET", mockUser);
-  const response = await handleApiRequests({ event, resolve: mockResolve });
 
-  expect(response.headers.get("X-Cache")).toBeDefined();
+it("should cache successful GET responses", async () => {
+const event = createMockEvent("/api/collections", "GET", mockUser);
+const response = await handleApiRequests({ event, resolve: mockResolve });
+
+expect(response.headers.get("X-Cache")).toBeDefined();
 });
 
 it("should invalidate cache on POST", async () => {
-  const event = createMockEvent("/api/collections", "POST", mockUser);
-  await handleApiRequests({ event, resolve: mockResolve });
+const event = createMockEvent("/api/collections", "POST", mockUser);
+await handleApiRequests({ event, resolve: mockResolve });
 
-  // Cache invalidated for /api/collections/*
-  expect(mockResolve).toHaveBeenCalled();
+// Cache invalidated for /api/collections/\*
+expect(mockResolve).toHaveBeenCalled();
 });
+
 ```text
 
 ### 7. addSecurityHeaders
@@ -367,20 +396,22 @@ it("should invalidate cache on POST", async () => {
 **Key Tests**:
 
 ```
-it("should add X-Frame-Options: SAMEORIGIN header", async () => {
-  const event = createMockEvent("/dashboard");
-  const response = await addSecurityHeaders({ event, resolve: mockResolve });
 
-  expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+it("should add X-Frame-Options: SAMEORIGIN header", async () => {
+const event = createMockEvent("/dashboard");
+const response = await addSecurityHeaders({ event, resolve: mockResolve });
+
+expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
 });
 
 it("should add HSTS header for HTTPS in production", async () => {
-  const event = createMockEvent("/dashboard", "https:");
-  const response = await addSecurityHeaders({ event, resolve: mockResolve });
+const event = createMockEvent("/dashboard", "https:");
+const response = await addSecurityHeaders({ event, resolve: mockResolve });
 
-  const hsts = response.headers.get("Strict-Transport-Security");
-  expect(hsts).toContain("max-age=31536000");
+const hsts = response.headers.get("Strict-Transport-Security");
+expect(hsts).toContain("max-age=31536000");
 });
+
 ```text
 
 ### 8. Token Resolution
@@ -472,27 +503,35 @@ The following files test specific authentication mechanisms beyond the core hand
 ### Run All Hook Tests
 
 ```
+
 bun test tests/unit/hooks/
+
 ```text
 
 ### Run Individual Hook Test
 
 ```
+
 bun run test:unit -- static-asset-caching
 bun run test:unit -- authentication
 bun run test:unit -- security-headers
+
 ```text
 
 ### Run with Coverage
 
 ```
+
 bun test --coverage tests/unit/hooks/
+
 ```text
 
 ### Watch Mode
 
 ```
+
 bun test --watch tests/unit/hooks/
+
 ```text
 
 ## Test Metrics
@@ -526,53 +565,61 @@ bun test --watch tests/unit/hooks/
 ### Testing Redirects
 
 ```
-it("should redirect to /login for protected routes", async () => {
-  const event = createMockEvent("/dashboard");
 
-  try {
-    await handleAuthorization({ event, resolve: mockResolve });
-    expect(true).toBe(false); // Should not reach here
-  } catch (err) {
-    expect(err).toBeDefined(); // Redirect throws
-  }
+it("should redirect to /login for protected routes", async () => {
+const event = createMockEvent("/dashboard");
+
+try {
+await handleAuthorization({ event, resolve: mockResolve });
+expect(true).toBe(false); // Should not reach here
+} catch (err) {
+expect(err).toBeDefined(); // Redirect throws
+}
 });
+
 ```text
 
 ### Testing Error Responses
 
 ```
-it("should return 401 for unauthenticated API requests", async () => {
-  const event = createMockEvent("/api/collections");
 
-  try {
-    await handleApiRequests({ event, resolve: mockResolve });
-  } catch (err) {
-    expect(err).toBeDefined(); // Error thrown
-  }
+it("should return 401 for unauthenticated API requests", async () => {
+const event = createMockEvent("/api/collections");
+
+try {
+await handleApiRequests({ event, resolve: mockResolve });
+} catch (err) {
+expect(err).toBeDefined(); // Error thrown
+}
 });
+
 ```text
 
 ### Testing Cache Operations
 
 ```
-it("should cache successful GET responses", async () => {
-  const event = createMockEvent("/api/data", "GET", mockUser);
-  const response = await handleApiRequests({ event, resolve: mockResolve });
 
-  expect(response.headers.get("X-Cache")).toBe("MISS");
+it("should cache successful GET responses", async () => {
+const event = createMockEvent("/api/data", "GET", mockUser);
+const response = await handleApiRequests({ event, resolve: mockResolve });
+
+expect(response.headers.get("X-Cache")).toBe("MISS");
 });
+
 ```text
 
 ### Testing Headers
 
 ```
-it("should add security headers", async () => {
-  const event = createMockEvent("/dashboard");
-  const response = await addSecurityHeaders({ event, resolve: mockResolve });
 
-  expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
-  expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+it("should add security headers", async () => {
+const event = createMockEvent("/dashboard");
+const response = await addSecurityHeaders({ event, resolve: mockResolve });
+
+expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
 });
+
 ```text
 
 ## Continuous Integration
@@ -584,9 +631,12 @@ All hook tests run automatically on:
 - Pre-release validation
 
 ```
+
 # .github/workflows/test.yml
+
 - name: Run Hook Tests
   run: bun test tests/unit/hooks/
+
 ```text
 
 ## Contributing
@@ -605,4 +655,4 @@ When adding new middleware hooks:
 - [Widget Test Coverage](./widget-test-coverage.mdx)
 - [Testing Guide](./strategy.mdx)
 - [Architecture: Middleware Hooks](../reference/architecture/server-hooks.mdx)
-````
+```

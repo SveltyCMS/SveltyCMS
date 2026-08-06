@@ -29,10 +29,6 @@ vi.mock("@utils/page-guards.server", () => ({
   getAuthenticatedUser: vi.fn(() => ({ _id: "admin-user" })),
 }));
 
-vi.mock("@utils/logger", () => ({
-  logger: { error: vi.fn(), debug: vi.fn() },
-}));
-
 vi.mock("@src/routes/(app)/config/collectionbuilder/collectionbuilder-local.server", () => ({
   getCollectionBuilderCms: vi.fn(async () => ({
     contentStructure: { deleteByIds },

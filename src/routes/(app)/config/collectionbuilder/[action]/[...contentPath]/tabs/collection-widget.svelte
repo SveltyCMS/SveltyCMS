@@ -1,6 +1,6 @@
 <!--
 @file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/collection-widget.svelte
-@component Collection Widgets — Tab 2: 2-column (left: drag/drop widget list, right: searchable sidebar)
+@component Collection Widgets — Tab 2: field canvas (DnD) + available / marketplace palette
  -->
 <script lang="ts">
 import { SvelteSet } from "svelte/reactivity";
@@ -16,10 +16,11 @@ import { getWidgetFunction, widgetStoreActions } from "@src/stores/widget-store.
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { modalState } from "@utils/modal.svelte";
 import { getGuiFields } from "@utils/utils";
-import { untrack } from "svelte";
+import { logger } from "@utils/logger";
+import { onMount, untrack } from "svelte";
 import { flip } from "svelte/animate";
-import { draggable, droppable } from '@thisux/sveltednd';
-import type { DragDropState } from '@thisux/sveltednd';
+import { draggable, droppable } from "@thisux/sveltednd";
+import type { DragDropState } from "@thisux/sveltednd";
 import ModalSelectWidget from "./collection-widget/modal-select-widget.svelte";
 import ModalWidgetForm from "./collection-widget/modal-widget-form.svelte";
 import Button from "@src/components/ui/button.svelte";
@@ -28,20 +29,22 @@ import FloatingInput from "@components/ui/floating-input.svelte";
 
 type WidgetListItem = FieldInstance & { id: number; _dragId: string };
 
+/** Palette → canvas drag payload */
+type PaletteDrag = { kind: "palette"; widgetKey: string };
+/** Canvas reorder payload */
+type FieldDrag = { kind: "field"; dragId: string };
+
 let { fields = [], roles = [] } = $props<{
 	fields: FieldInstance[];
 	roles?: Role[];
 }>();
 
-// ── Drag and drop state ──
 let dragIdsByIndex = $state<Record<number, string>>({});
 
 let items = $state<WidgetListItem[]>(
 	untrack(() =>
 		(fields ?? []).map((f: FieldInstance, i: number) => {
-			const id = (dragIdsByIndex[i] ??= Math.random()
-				.toString(36)
-				.substring(7));
+			const id = (dragIdsByIndex[i] ??= crypto.randomUUID().slice(0, 8));
 			return { id: i + 1, ...f, _dragId: id } as WidgetListItem;
 		}),
 	),
@@ -54,7 +57,7 @@ $effect(() => {
 	let added = false;
 	for (let i = 0; i < nextFields.length; i++) {
 		if (nextDragIds[i] === undefined) {
-			nextDragIds[i] = Math.random().toString(36).substring(7);
+			nextDragIds[i] = crypto.randomUUID().slice(0, 8);
 			added = true;
 		}
 	}
@@ -62,51 +65,11 @@ $effect(() => {
 	items = nextFields.map((f: FieldInstance, i: number) => ({
 		id: i + 1,
 		...f,
-		_dragId: nextDragIds[i] ?? Math.random().toString(36).substring(7),
+		_dragId: nextDragIds[i] ?? crypto.randomUUID().slice(0, 8),
 	})) as WidgetListItem[];
 });
 
-const flipDurationMs = 200;
-
-function handleFieldDrop(state: DragDropState<WidgetListItem>) {
-	const dragged = state.draggedItem;
-	if (!dragged) return;
-
-	const fromIndex = items.indexOf(dragged);
-	if (fromIndex < 0) return;
-
-	// Find target item via DOM data attribute
-	const targetEl = state.targetElement?.closest('[data-field-name]') as HTMLElement | null;
-	const targetFieldName = targetEl?.dataset?.fieldName;
-
-	let targetIndex: number;
-	if (targetFieldName) {
-		targetIndex = items.findIndex(i => (i.db_fieldName || '') === targetFieldName);
-		if (state.dropPosition === 'after') targetIndex++;
-	} else {
-		targetIndex = items.length;
-	}
-	targetIndex = Math.max(0, Math.min(targetIndex, items.length));
-
-	if (fromIndex === targetIndex) return;
-
-	items = untrack(() => {
-		const newItems = [...items];
-		newItems.splice(fromIndex, 1);
-		const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
-		newItems.splice(adjusted, 0, dragged);
-		return newItems;
-	});
-
-	dragIdsByIndex = items.reduce(
-		(acc, it, i) => {
-			acc[i] = it._dragId;
-			return acc;
-		},
-		{} as Record<number, string>,
-	);
-	updateStore();
-}
+const flipDurationMs = 180;
 
 function updateStore() {
 	if (collection.value) {
@@ -117,6 +80,59 @@ function updateStore() {
 	}
 }
 
+function reindexDragIds() {
+	dragIdsByIndex = items.reduce(
+		(acc, it, i) => {
+			acc[i] = it._dragId;
+			return acc;
+		},
+		{} as Record<number, string>,
+	);
+}
+
+/** Reorder existing fields (same container) */
+function handleFieldDrop(state: DragDropState<FieldDrag | PaletteDrag>) {
+	const dragged = state.draggedItem;
+	if (!dragged) return;
+
+	// Palette widget dropped onto canvas
+	if (dragged.kind === "palette") {
+		void addSidebarWidget(dragged.widgetKey);
+		return;
+	}
+
+	if (dragged.kind !== "field") return;
+
+	const fromIndex = items.findIndex((i) => i._dragId === dragged.dragId);
+	if (fromIndex < 0) return;
+
+	const targetEl = state.targetElement?.closest(
+		"[data-drag-id]",
+	) as HTMLElement | null;
+	const targetDragId = targetEl?.dataset?.dragId;
+
+	let targetIndex: number;
+	if (targetDragId) {
+		targetIndex = items.findIndex((i) => i._dragId === targetDragId);
+		if (state.dropPosition === "after") targetIndex++;
+	} else {
+		targetIndex = items.length;
+	}
+	targetIndex = Math.max(0, Math.min(targetIndex, items.length));
+	if (fromIndex === targetIndex || fromIndex + 1 === targetIndex) return;
+
+	const moving = items[fromIndex];
+	items = untrack(() => {
+		const next = [...items];
+		next.splice(fromIndex, 1);
+		const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+		next.splice(adjusted, 0, moving);
+		return next.map((it, i) => ({ ...it, id: i + 1 }));
+	});
+	reindexDragIds();
+	updateStore();
+}
+
 // ── Widget Actions ──
 function addField() {
 	modalState.trigger(
@@ -124,59 +140,51 @@ function addField() {
 		{
 			title: "Add New Field",
 			body: "Select a widget type to add to your collection",
+			size: "xl",
 		},
-		(r: { selectedWidget: string } | undefined) => {
-			if (!r) return;
-			const widgetInstance = getWidgetFunction(r.selectedWidget);
-			if (widgetInstance) {
-				const newWidget = {
-					widget: { key: r.selectedWidget, Name: r.selectedWidget } as any,
-					GuiFields: getGuiFields(
-						{ key: r.selectedWidget },
-						(widgetInstance.GuiSchema as any),
-					),
-					permissions: {},
-				};
-				editField(newWidget);
-			}
+		(r: { selectedWidget: string } | false | undefined) => {
+			if (!r || typeof r !== "object" || !("selectedWidget" in r)) return;
+			void addSidebarWidget(r.selectedWidget, true);
 		},
 	);
 }
 
-function editField(field: any) {
-  // Persist current field to store, then open modal
-  const idx = items.findIndex((i: WidgetListItem) => i.id === field.id);
-  setTargetWidget({ ...field, __fieldIndex: idx >= 0 ? idx : undefined });
+function editField(field: WidgetListItem) {
+	const idx = items.findIndex((i) => i._dragId === field._dragId);
+	setTargetWidget({ ...field, __fieldIndex: idx >= 0 ? idx : undefined });
 
-  modalState.trigger(
-    ModalWidgetForm as any,
-    {
-      title: "Edit Field",
-      body: "Configure field properties and permissions.",
-      value: { ...field, __fieldIndex: idx >= 0 ? idx : undefined },
-      roles,
-    },
-    (r: any) => {
-      if (!r) return;
-      if (r.__delete) {
-        deleteField(field.id);
-        return;
-      }
-      if (r.__duplicate) {
-        duplicateField(field);
-        return;
-      }
-      handleInspectorSave(r);
-    },
-  );
+	modalState.trigger(
+		ModalWidgetForm as any,
+		{
+			title: "Edit Field",
+			body: "Configure field properties and permissions.",
+			value: { ...field, __fieldIndex: idx >= 0 ? idx : undefined },
+			roles,
+			size: "lg",
+		},
+		(r: any) => {
+			if (!r || r === false) return;
+			if (r.__delete) {
+				deleteField(field._dragId);
+				return;
+			}
+			if (r.__duplicate) {
+				duplicateField(field);
+				return;
+			}
+			handleInspectorSave(r);
+		},
+	);
 }
 
 function handleInspectorSave(updated: any) {
 	const idx = items.findIndex(
-		(i: WidgetListItem) => i.id === updated.id || i._dragId === updated._dragId,
+		(i) =>
+			i._dragId === updated._dragId ||
+			(updated.id != null && i.id === updated.id),
 	);
 	const existingNames = new SvelteSet(
-		items.map((i) => i.db_fieldName).filter(Boolean),
+		items.map((i) => i.db_fieldName).filter(Boolean) as string[],
 	);
 
 	const ensureFieldName = (obj: Record<string, unknown>): string => {
@@ -205,139 +213,198 @@ function handleInspectorSave(updated: any) {
 
 	if (idx !== -1) {
 		items = items.map((item, i) =>
-			i === idx ? ({ ...item, ...normalized } as WidgetListItem) : item,
+			i === idx
+				? ({ ...item, ...normalized, _dragId: item._dragId, id: item.id } as WidgetListItem)
+				: item,
 		);
 	} else {
+		const newDragId = crypto.randomUUID().slice(0, 8);
 		const newIndex = items.length;
-		const newDragId = Math.random().toString(36).substring(7);
 		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
-		items = [
-			...items,
-			{ id: newIndex + 1, _dragId: newDragId, ...normalized } as WidgetListItem,
-		];
-	}
-	updateStore();
-}
-
-function deleteField(id: number) {
-	items = items
-		.filter((i: WidgetListItem) => i.id !== id)
-		.map((item, idx) => ({ ...item, id: idx + 1 }));
-	dragIdsByIndex = items.reduce(
-		(acc, it, i) => {
-			acc[i] = it._dragId;
-			return acc;
-		},
-		{} as Record<number, string>,
-	);
-	updateStore();
-	toast.info("Field removed");
-}
-
-function duplicateField(field: WidgetListItem) {
-	const newIndex = items.length;
-	const newDragId = Math.random().toString(36).substring(7);
-	dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
-	const newField = {
-		...field,
-		id: newIndex + 1,
-		_dragId: newDragId,
-		label: `${field.label} (Copy)`,
-		db_fieldName: field.db_fieldName
-			? `${field.db_fieldName}_copy`
-			: field.db_fieldName,
-	} as WidgetListItem;
-	items = [...items, newField];
-	updateStore();
-	toast.success("Field duplicated");
-}
-
-async function addSidebarWidget(key: string) {
-	await widgetStoreActions.initializeWidgets();
-	const widgetInstance = getWidgetFunction(key);
-	if (widgetInstance) {
-		const newIndex = items.length;
-		const newDragId = Math.random().toString(36).substring(7);
-		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
-		const newWidget = {
-			label: `New ${key}`,
-			db_fieldName: `new_${key.toLowerCase()}`,
-			widget: { key, Name: key } as any,
-			icon: (widgetInstance as any).Icon || "mdi:widgets",
-			GuiFields: getGuiFields({ key }, (widgetInstance.GuiSchema as any)),
-			permissions: {},
-		};
 		items = [
 			...items,
 			{
 				id: newIndex + 1,
 				_dragId: newDragId,
-				...newWidget,
-			} as unknown as WidgetListItem,
+				...normalized,
+			} as WidgetListItem,
 		];
-		updateStore();
-		toast.success(`Added ${key} field`);
+	}
+	updateStore();
+	toast.success("Field updated");
+}
+
+function deleteField(dragId: string) {
+	items = items
+		.filter((i) => i._dragId !== dragId)
+		.map((item, idx) => ({ ...item, id: idx + 1 }));
+	reindexDragIds();
+	updateStore();
+	toast.info("Field removed");
+}
+
+function duplicateField(field: WidgetListItem) {
+	const newDragId = crypto.randomUUID().slice(0, 8);
+	const newIndex = items.length;
+	dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
+	const baseName = field.db_fieldName || "field";
+	const existing = new SvelteSet(
+		items.map((i) => i.db_fieldName).filter(Boolean) as string[],
+	);
+	let copyName = `${baseName}_copy`;
+	let n = 1;
+	while (existing.has(copyName)) copyName = `${baseName}_copy_${++n}`;
+
+	items = [
+		...items,
+		{
+			...field,
+			id: newIndex + 1,
+			_dragId: newDragId,
+			label: `${field.label || "Field"} (Copy)`,
+			db_fieldName: copyName,
+		} as WidgetListItem,
+	];
+	updateStore();
+	toast.success("Field duplicated");
+}
+
+async function addSidebarWidget(key: string, openEditor = false) {
+	await widgetStoreActions.initializeWidgets();
+	const widgetInstance = getWidgetFunction(key);
+	if (!widgetInstance) {
+		toast.error(`Widget "${key}" is not installed`);
+		return;
+	}
+
+	const existing = new SvelteSet(
+		items.map((i) => i.db_fieldName).filter(Boolean) as string[],
+	);
+	const base =
+		key
+			.toLowerCase()
+			.replace(/\s+/g, "_")
+			.replace(/[^a-z0-9_]/g, "") || "field";
+	let dbName = `new_${base}`;
+	let n = 0;
+	while (existing.has(dbName)) dbName = `new_${base}_${++n}`;
+
+	const newDragId = crypto.randomUUID().slice(0, 8);
+	const newIndex = items.length;
+	dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
+
+	const newWidget = {
+		id: newIndex + 1,
+		_dragId: newDragId,
+		label: `New ${key}`,
+		db_fieldName: dbName,
+		widget: { key, Name: key } as any,
+		icon: (widgetInstance as any).Icon || "mdi:widgets",
+		GuiFields: getGuiFields({ key }, widgetInstance.GuiSchema as any),
+		permissions: {},
+	} as unknown as WidgetListItem;
+
+	items = [...items, newWidget];
+	updateStore();
+	toast.success(`Added ${key} field`);
+
+	if (openEditor) {
+		// Open editor after a tick so list has the new row
+		queueMicrotask(() => editField(newWidget));
 	}
 }
 
-// ── Sidebar State ──
+// ── Sidebar / marketplace ──
 let sidebarSearch = $state("");
+let remoteMarketplace = $state<
+	Array<{ id: string; name: string; description?: string; version?: string }>
+>([]);
+let remoteLoading = $state(false);
+let remoteError = $state<string | null>(null);
+
+const MARKETPLACE_BROWSE =
+	"https://marketplace.sveltycms.com/browse?type=widget";
+
+onMount(() => {
+	void loadRemoteMarketplace();
+});
+
+async function loadRemoteMarketplace() {
+	remoteLoading = true;
+	remoteError = null;
+	try {
+		const { marketplace } = await import(
+			"@src/services/intelligence/marketplace-client"
+		);
+		const res = await marketplace.list({ type: "widget", limit: 24 });
+		const list = (res.plugins || []) as any[];
+		remoteMarketplace = list.map((p) => ({
+			id: String(p.id || p.slug || p.name),
+			name: p.name || p.slug || "Widget",
+			description: p.description || "",
+			version: p.version,
+		}));
+	} catch (err) {
+		remoteError = "Marketplace offline — browse the site for more widgets";
+		logger.warn("[CollectionWidget] marketplace list failed", err);
+	} finally {
+		remoteLoading = false;
+	}
+}
 
 const availableWidgets = $derived(widgets.widgetFunctions || {});
 
-// Organize widgets into categories
-const coreWidgets = $derived(
-	(widgets.coreWidgets || [])
-		.filter((key: string) =>
-			!sidebarSearch || key.toLowerCase().includes(sidebarSearch.toLowerCase())
+function mapKeys(keys: string[]) {
+	return keys
+		.filter(
+			(key) =>
+				!sidebarSearch ||
+				key.toLowerCase().includes(sidebarSearch.toLowerCase()),
 		)
-		.map((key: string) => ({
+		.map((key) => ({
 			key,
 			label: key,
 			icon: (availableWidgets[key] as any)?.Icon || "mdi:puzzle",
 			description: (availableWidgets[key] as any)?.Description || "",
-		}))
-);
+		}));
+}
 
-const customWidgets = $derived(
-	(widgets.customWidgets || [])
-		.filter((key: string) =>
-			!sidebarSearch || key.toLowerCase().includes(sidebarSearch.toLowerCase())
-		)
-		.map((key: string) => ({
-			key,
-			label: key,
-			icon: (availableWidgets[key] as any)?.Icon || "mdi:puzzle",
-			description: (availableWidgets[key] as any)?.Description || "",
-		}))
-);
+const coreWidgets = $derived(mapKeys(widgets.coreWidgets || []));
+const customWidgets = $derived(mapKeys(widgets.customWidgets || []));
+const installedMarketplace = $derived(mapKeys(widgets.marketplaceWidgets || []));
 
-const marketplaceWidgets = $derived(
-	(widgets.marketplaceWidgets || [])
-		.filter((key: string) =>
-			!sidebarSearch || key.toLowerCase().includes(sidebarSearch.toLowerCase())
-		)
-		.map((key: string) => ({
-			key,
-			label: key,
-			icon: (availableWidgets[key] as any)?.Icon || "mdi:store",
-			description: (availableWidgets[key] as any)?.Description || "",
-		}))
+const remoteFiltered = $derived(
+	remoteMarketplace.filter(
+		(w) =>
+			!sidebarSearch ||
+			w.name.toLowerCase().includes(sidebarSearch.toLowerCase()) ||
+			(w.description || "").toLowerCase().includes(sidebarSearch.toLowerCase()),
+	),
 );
 </script>
 
-<div class="flex h-full gap-0">
-	<!-- ═══ LEFT COLUMN: Widget Canvas / Drag-and-drop List ═══ -->
-	<div class="flex-1 min-w-0 flex flex-col border-e border-surface-200 dark:border-surface-700">
-
-		<!-- Quick Add Bar -->
-		<div class="shrink-0 p-4 border-b border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900">
-			<div class="flex items-center gap-3">
-				<div class="flex items-center gap-2 text-sm font-semibold text-surface-700 dark:text-surface-300">
-					<iconify-icon icon="mdi:widgets" width="20" class="text-primary-500"></iconify-icon>
-					<span>{items.length} {items.length === 1 ? 'Widget' : 'Widgets'}</span>
-				</div>
-				<div class="flex-1"></div>
+<div
+	class="flex h-full min-h-[28rem] w-full flex-col lg:flex-row"
+	data-testid="collection-widgets-tab"
+>
+	<!-- ═══ LEFT: Field canvas ═══ -->
+	<div
+		class="flex min-h-0 min-w-0 flex-1 flex-col border-surface-200 dark:border-surface-700 lg:border-e"
+	>
+		<div
+			class="flex shrink-0 flex-wrap items-center gap-3 border-b border-surface-200 bg-surface-50 px-4 py-3 dark:border-surface-700 dark:bg-surface-900 sm:px-6"
+		>
+			<div class="flex items-center gap-2 text-sm font-semibold text-surface-700 dark:text-surface-300">
+				<iconify-icon icon="mdi:widgets" width="20" class="text-primary-500"></iconify-icon>
+				<span
+					>{items.length}
+					{items.length === 1 ? "Widget" : "Widgets"}</span
+				>
+			</div>
+			<p class="hidden text-xs text-surface-500 sm:block">
+				Drag to reorder · Drop widgets from the palette · Edit / clone / delete on each row
+			</p>
+			<div class="ms-auto">
 				<Button
 					variant="primary"
 					size="sm"
@@ -350,85 +417,137 @@ const marketplaceWidgets = $derived(
 			</div>
 		</div>
 
-		<!-- Drag-and-drop Widget List -->
-		<div class="flex-1 overflow-y-auto min-h-0 p-4">
+		<div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 			<div
 				use:droppable={{
-					container: 'widget-fields',
+					container: "widget-fields",
 					callbacks: { onDrop: handleFieldDrop },
-					direction: 'vertical',
-					attributes: { dragOverClass: 'bg-secondary-200' }
+					direction: "vertical",
+					attributes: { dragOverClass: "ring-2 ring-primary-500/40 bg-primary-500/5" },
 				}}
-				class="space-y-3 min-h-50"
+				class="mx-auto min-h-50 max-w-4xl space-y-3 rounded-xl p-1"
 				data-testid="widget-fields-list"
 				role="list"
 				aria-label="Widget fields list"
 			>
 				{#each items as item (item._dragId)}
-					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 					<div
-						use:draggable={{ container: 'widget-fields', dragData: item, keyboard: true }}
-						use:droppable={{ container: 'widget-fields', callbacks: { onDrop: handleFieldDrop }, direction: 'vertical', attributes: { dragOverClass: 'bg-secondary-200' } }}
+						use:draggable={{
+							container: "widget-fields",
+							dragData: { kind: "field", dragId: item._dragId } satisfies FieldDrag,
+							keyboard: true,
+							handle: ".field-drag-handle",
+						}}
+						use:droppable={{
+							container: "widget-fields",
+							callbacks: { onDrop: handleFieldDrop },
+							direction: "vertical",
+							attributes: { dragOverClass: "ring-2 ring-primary-400/50" },
+						}}
 						animate:flip={{ duration: flipDurationMs }}
 						class="group relative"
 						data-testid="widget-field-row"
 						data-field-name={item.db_fieldName || ""}
+						data-drag-id={item._dragId}
 						role="listitem"
-						tabindex="0"
 					>
-						<Card class="flex items-center gap-4 p-3 pe-4 transition-all hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/5 bg-white dark:bg-surface-800">
-							<!-- Drag Handle -->
-							<div class="cursor-grab text-surface-300 active:cursor-grabbing group-hover:text-primary-500 transition-colors">
+						<Card
+							class="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:gap-4 sm:pe-4 transition-all hover:border-primary-500 hover:shadow-md bg-white dark:bg-surface-800"
+						>
+							<div
+								class="field-drag-handle flex cursor-grab items-center justify-center self-start rounded p-1 text-surface-300 active:cursor-grabbing group-hover:text-primary-500 sm:self-center"
+								aria-hidden="true"
+							>
 								<iconify-icon icon="mdi:drag-vertical" width="24"></iconify-icon>
 							</div>
 
-							<!-- Field Icon -->
-							<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-700">
-								<iconify-icon icon={item.icon || (item.widget as any)?.key ? (availableWidgets[(item.widget as any)?.key] as any)?.Icon || 'mdi:widgets' : 'mdi:widgets'} width="20" class="text-primary-500"></iconify-icon>
+							<div
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-surface-200 bg-surface-100 dark:border-surface-700 dark:bg-surface-900"
+							>
+								<iconify-icon
+									icon={item.icon ||
+										(availableWidgets[(item.widget as any)?.key] as any)?.Icon ||
+										"mdi:widgets"}
+									width="20"
+									class="text-primary-500"
+								></iconify-icon>
 							</div>
 
-							<!-- Field Info — click opens editor (stable E2E path) -->
 							<button
 								type="button"
-								class="flex-1 min-w-0 pe-4 text-start cursor-pointer bg-transparent border-0 p-0"
+								class="min-w-0 flex-1 border-0 bg-transparent p-0 text-start"
 								onclick={() => editField(item)}
 								data-testid="widget-field-open"
 								aria-label={`Edit field ${item.label || "Unnamed Field"}`}
 							>
-								<div class="flex items-center gap-2 mb-0.5">
-									<span class="font-bold truncate text-sm sm:text-base">{item.label || 'Unnamed Field'}</span>
-									<span class="px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider uppercase bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400">
-										{(item.widget as { key?: string })?.key || 'Generic'}
+								<div class="mb-0.5 flex flex-wrap items-center gap-2">
+									<span class="truncate text-sm font-bold sm:text-base"
+										>{item.label || "Unnamed Field"}</span
+									>
+									<span
+										class="rounded bg-surface-200 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-surface-600 uppercase dark:bg-surface-700 dark:text-surface-400"
+									>
+										{(item.widget as { key?: string })?.key ||
+											(item.widget as { Name?: string })?.Name ||
+											"Generic"}
 									</span>
 								</div>
-								<div class="flex items-center gap-3">
-									<code class="text-[10px] text-surface-400 dark:text-surface-50 bg-surface-100 dark:bg-surface-900 px-1 rounded truncate">
-										{item.db_fieldName || 'unnamed_field'}
+								<div class="flex flex-wrap items-center gap-3">
+									<code
+										class="truncate rounded bg-surface-100 px-1 text-[10px] text-surface-400 dark:bg-surface-900 dark:text-surface-50"
+									>
+										{item.db_fieldName || "unnamed_field"}
 									</code>
 									{#if item.required}
-										<span class="text-[9px] font-bold text-error-500 flex items-center gap-0.5">
+										<span class="flex items-center gap-0.5 text-[9px] font-bold text-error-500">
 											<iconify-icon icon="mdi:asterisk" width="8"></iconify-icon> Required
 										</span>
 									{/if}
 								</div>
 							</button>
 
-							<!-- Actions -->
-							<div class="flex gap-1.5 items-center">
+							<div class="flex shrink-0 items-center gap-1 sm:gap-1.5">
 								<Button
 									variant="ghost"
 									size="sm"
-									onclick={() => editField(item)}
+									type="button"
+									onclick={(e: MouseEvent) => {
+										e.stopPropagation();
+										editField(item);
+									}}
 									title="Edit"
 									data-testid="widget-field-edit"
 									aria-label="Edit field"
 								>
 									<iconify-icon icon="mdi:pencil" width="18"></iconify-icon>
 								</Button>
-								<Button variant="ghost" size="sm" onclick={() => duplicateField(item)} title="Duplicate">
+								<Button
+									variant="ghost"
+									size="sm"
+									type="button"
+									onclick={(e: MouseEvent) => {
+										e.stopPropagation();
+										duplicateField(item);
+									}}
+									title="Duplicate"
+									data-testid="widget-field-clone"
+									aria-label="Duplicate field"
+								>
 									<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
 								</Button>
-								<Button variant="ghost" size="sm" onclick={() => deleteField(item.id)} class="text-error-500 hover:bg-error-500/10" title="Remove">
+								<Button
+									variant="ghost"
+									size="sm"
+									type="button"
+									onclick={(e: MouseEvent) => {
+										e.stopPropagation();
+										deleteField(item._dragId);
+									}}
+									class="text-error-500 hover:bg-error-500/10"
+									title="Remove"
+									data-testid="widget-field-delete"
+									aria-label="Remove field"
+								>
 									<iconify-icon icon="mdi:trash-can" width="18"></iconify-icon>
 								</Button>
 							</div>
@@ -437,22 +556,30 @@ const marketplaceWidgets = $derived(
 				{/each}
 
 				{#if items.length === 0}
-					<div class="flex h-48 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/30 dark:bg-surface-900/10 text-surface-400 dark:text-surface-50">
-						<iconify-icon icon="mdi:widgets-outline" width="48" class="mb-3 opacity-20"></iconify-icon>
+					<div
+						class="flex h-56 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-surface-200 bg-surface-50/30 text-surface-400 dark:border-surface-700 dark:bg-surface-900/10 dark:text-surface-50"
+					>
+						<iconify-icon icon="mdi:widgets-outline" width="48" class="mb-3 opacity-20"
+						></iconify-icon>
 						<p class="text-sm font-medium">Add your first widget to start building</p>
-						<p class="mt-1 text-xs opacity-60">Click a widget from the sidebar or use the Add Widget button</p>
+						<p class="mt-1 max-w-xs text-center text-xs opacity-60">
+							Click or drag a widget from the right palette, or use Add Widget
+						</p>
 					</div>
 				{/if}
 			</div>
 		</div>
 	</div>
 
-	<!-- ═══ RIGHT COLUMN: Widget Sidebar ═══ -->
-	<div class="w-72 lg:w-80 shrink-0 flex flex-col bg-surface-50/50 dark:bg-surface-900/50 border-s border-surface-200 dark:border-surface-700">
-
-		<!-- Sidebar Header & Search -->
-		<div class="shrink-0 p-4 border-b border-surface-200 dark:border-surface-700">
-			<h3 class="text-sm font-bold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+	<!-- ═══ RIGHT: Palette ═══ -->
+	<aside
+		class="flex w-full shrink-0 flex-col border-t border-surface-200 bg-surface-50/80 dark:border-surface-700 dark:bg-surface-900/50 lg:w-80 lg:border-t-0 xl:w-96"
+		data-testid="widget-palette"
+	>
+		<div class="shrink-0 space-y-3 border-b border-surface-200 p-4 dark:border-surface-700">
+			<h3
+				class="flex items-center gap-2 text-sm font-bold tracking-wider text-surface-500 uppercase dark:text-surface-400"
+			>
 				<iconify-icon icon="mdi:view-grid-plus-outline" width="16"></iconify-icon>
 				Available Widgets
 			</h3>
@@ -463,107 +590,127 @@ const marketplaceWidgets = $derived(
 				aria-label="Search widgets"
 				inputClass="h-9 text-sm rounded"
 			/>
+			<p class="text-[11px] text-surface-500">
+				Click to add, or drag onto the field list.
+			</p>
 		</div>
 
-		<!-- Widget Categories -->
-		<div class="flex-1 overflow-y-auto min-h-0 p-3 space-y-5">
-			<!-- Core Widgets -->
-			{#if coreWidgets.length > 0}
-				<div>
-					<h4 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-surface-400 px-1">Core</h4>
-					<div class="grid grid-cols-2 gap-2">
-						{#each coreWidgets as w (w.key)}
-							<button
-								type="button"
-								onclick={() => addSidebarWidget(w.key)}
-								data-testid={`quick-add-${w.key.toLowerCase()}`}
-								aria-label={`Add ${w.label} widget`}
-								class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3 transition-all hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-start"
-							>
-								<div class="flex h-9 w-9 items-center justify-center rounded bg-surface-100 dark:bg-surface-700 text-surface-500 group-hover:bg-primary-500 group-hover:text-white transition-colors">
-									<iconify-icon icon={w.icon} width="20"></iconify-icon>
-								</div>
-								<div class="text-center">
-									<span class="text-[11px] font-semibold text-surface-700 dark:text-surface-300 block leading-tight">{w.label}</span>
-									{#if w.description}
-										<span class="text-[9px] text-surface-400 dark:text-surface-500 line-clamp-1">{w.description}</span>
-									{/if}
-								</div>
-							</button>
-						{/each}
+		<div class="min-h-0 flex-1 space-y-5 overflow-y-auto p-3 sm:p-4">
+			{#snippet paletteSection(title: string, list: typeof coreWidgets, tone: 'core' | 'custom' | 'market')}
+				{#if list.length > 0}
+					<div>
+						<h4
+							class="mb-2 px-1 text-[10px] font-bold tracking-widest text-surface-400 uppercase"
+						>
+							{title}
+						</h4>
+						<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">
+							{#each list as w (w.key)}
+								<button
+									type="button"
+									use:draggable={{
+										container: "widget-palette",
+										dragData: { kind: "palette", widgetKey: w.key } satisfies PaletteDrag,
+										keyboard: true,
+									}}
+									onclick={() => addSidebarWidget(w.key)}
+									data-testid={`quick-add-${w.key.toLowerCase()}`}
+									aria-label={`Add ${w.label} widget`}
+									class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-200 bg-white p-3 text-center transition-all hover:border-primary-500 hover:bg-primary-50 dark:border-surface-700 dark:bg-surface-800 dark:hover:bg-primary-900/20 {tone === 'market' ? 'hover:border-warning-500' : ''}"
+								>
+									<div
+										class="flex h-9 w-9 items-center justify-center rounded bg-surface-100 text-surface-500 transition-colors group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 {tone === 'market' ? 'text-warning-500 group-hover:bg-warning-500' : ''}"
+									>
+										<iconify-icon icon={w.icon} width="20"></iconify-icon>
+									</div>
+									<span
+										class="text-[11px] leading-tight font-semibold text-surface-700 dark:text-surface-300"
+										>{w.label}</span
+									>
+								</button>
+							{/each}
+						</div>
 					</div>
-				</div>
-			{/if}
+				{/if}
+			{/snippet}
 
-			<!-- Custom Widgets -->
-			{#if customWidgets.length > 0}
-				<div>
-					<h4 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-surface-400 px-1">Custom</h4>
-					<div class="grid grid-cols-2 gap-2">
-						{#each customWidgets as w (w.key)}
-							<button
-								type="button"
-								onclick={() => addSidebarWidget(w.key)}
-								data-testid={`quick-add-${w.key.toLowerCase()}`}
-								aria-label={`Add ${w.label} widget`}
-								class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3 transition-all hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-start"
-							>
-								<div class="flex h-9 w-9 items-center justify-center rounded bg-surface-100 dark:bg-surface-700 text-surface-500 group-hover:bg-primary-500 group-hover:text-white transition-colors">
-									<iconify-icon icon={w.icon} width="20"></iconify-icon>
-								</div>
-								<div class="text-center">
-									<span class="text-[11px] font-semibold text-surface-700 dark:text-surface-300 block leading-tight">{w.label}</span>
-									{#if w.description}
-										<span class="text-[9px] text-surface-400 dark:text-surface-500 line-clamp-1">{w.description}</span>
-									{/if}
-								</div>
-							</button>
-						{/each}
-					</div>
-				</div>
-			{/if}
+			{@render paletteSection("Core", coreWidgets, "core")}
+			{@render paletteSection("Custom", customWidgets, "custom")}
+			{@render paletteSection("Installed from Marketplace", installedMarketplace, "market")}
 
-			<!-- Marketplace Widgets -->
-			{#if marketplaceWidgets.length > 0}
-				<div>
-					<h4 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-surface-400 px-1">Marketplace</h4>
-					<div class="grid grid-cols-2 gap-2">
-						{#each marketplaceWidgets as w (w.key)}
-							<button
-								type="button"
-								onclick={() => addSidebarWidget(w.key)}
-								data-testid={`quick-add-${w.key.toLowerCase()}`}
-								aria-label={`Add ${w.label} widget`}
-								class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3 transition-all hover:border-warning-500 hover:bg-warning-50 dark:hover:bg-warning-900/20 text-start"
+			<!-- Remote marketplace catalog -->
+			<div>
+				<div class="mb-2 flex items-center justify-between px-1">
+					<h4 class="text-[10px] font-bold tracking-widest text-surface-400 uppercase">
+						Marketplace
+					</h4>
+					{#if remoteLoading}
+						<span class="text-[10px] text-surface-400">Loading…</span>
+					{/if}
+				</div>
+
+				{#if remoteError}
+					<p class="mb-2 px-1 text-[11px] text-warning-600 dark:text-warning-400">{remoteError}</p>
+				{/if}
+
+				{#if remoteFiltered.length > 0}
+					<div class="space-y-2">
+						{#each remoteFiltered as w (w.id)}
+							<div
+								class="rounded-lg border border-warning-200/60 bg-white p-3 dark:border-warning-800/40 dark:bg-surface-800"
 							>
-								<div class="flex h-9 w-9 items-center justify-center rounded bg-surface-100 dark:bg-surface-700 text-warning-500 group-hover:bg-warning-500 group-hover:text-white transition-colors">
-									<iconify-icon icon={w.icon} width="20"></iconify-icon>
+								<div class="flex items-start gap-2">
+									<div
+										class="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-warning-500/10 text-warning-600"
+									>
+										<iconify-icon icon="mdi:store" width="18"></iconify-icon>
+									</div>
+									<div class="min-w-0 flex-1">
+										<p class="truncate text-xs font-semibold">{w.name}</p>
+										{#if w.description}
+											<p class="line-clamp-2 text-[10px] text-surface-500">{w.description}</p>
+										{/if}
+									</div>
 								</div>
-								<div class="text-center">
-									<span class="text-[11px] font-semibold text-surface-700 dark:text-surface-300 block leading-tight">{w.label}</span>
-									{#if w.description}
-										<span class="text-[9px] text-surface-400 dark:text-surface-500 line-clamp-1">{w.description}</span>
-									{/if}
-								</div>
-							</button>
+								<a
+									href={`${MARKETPLACE_BROWSE}&q=${encodeURIComponent(w.name)}`}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-warning-600 hover:underline dark:text-warning-400"
+								>
+									View on Marketplace
+									<iconify-icon icon="mdi:open-in-new" width="12"></iconify-icon>
+								</a>
+							</div>
 						{/each}
 					</div>
-				</div>
-			{/if}
+				{:else if !remoteLoading}
+					<p class="px-1 text-[11px] text-surface-500">
+						No remote widgets listed. Browse the full catalog below.
+					</p>
+				{/if}
+			</div>
 		</div>
 
-		<!-- Marketplace Link -->
-		<div class="shrink-0 p-3 border-t border-surface-200 dark:border-surface-700">
+		<div class="shrink-0 space-y-2 border-t border-surface-200 p-3 dark:border-surface-700">
 			<a
-				href="/config/extension"
-				class="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-warning-300 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/20 p-3 text-sm font-semibold text-warning-600 dark:text-warning-400 hover:bg-warning-100 dark:hover:bg-warning-900/40 transition-colors"
+				href={MARKETPLACE_BROWSE}
+				target="_blank"
+				rel="noopener noreferrer"
+				data-testid="browse-marketplace-widgets"
+				class="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-warning-300 bg-warning-50 p-3 text-sm font-semibold text-warning-600 transition-colors hover:bg-warning-100 dark:border-warning-700 dark:bg-warning-900/20 dark:text-warning-400 dark:hover:bg-warning-900/40"
 			>
 				<iconify-icon icon="mdi:store-outline" width="18"></iconify-icon>
-				Browse Marketplace
-				<iconify-icon icon="mdi:arrow-right" width="16"></iconify-icon>
+				Browse Widget Marketplace
+				<iconify-icon icon="mdi:open-in-new" width="16"></iconify-icon>
+			</a>
+			<a
+				href="/config/extension"
+				class="flex items-center justify-center gap-2 rounded-lg border border-surface-200 p-2 text-xs font-medium text-surface-600 hover:bg-surface-100 dark:border-surface-700 dark:text-surface-300 dark:hover:bg-surface-800"
+			>
+				<iconify-icon icon="mdi:puzzle-outline" width="16"></iconify-icon>
+				Installed extensions & widgets
 			</a>
 		</div>
-	</div>
-
-
+	</aside>
 </div>

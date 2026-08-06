@@ -26,10 +26,6 @@ vi.mock("$app/environment", () => ({
   dev: true,
 }));
 
-vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(false),
-}));
-
 describe("Authorization Hook Unit Tests", () => {
   const createMockEvent = (path: string, user: any = null) => {
     return {

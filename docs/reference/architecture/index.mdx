@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:office-building-cog"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-07-10"
+updated: "2026-08-06"
 tags:
   - "architecture"
   - "svelte5"
@@ -25,7 +25,8 @@ SveltyCMS is built with the **"High-Performance Edge"** philosophy: zero-runtime
 
 The heart of SveltyCMS — from the reactive Svelte 5 engine to the request processing pipeline.
 
-- [⚙️ **Component Lifecycle**](./server-hooks.mdx) — The 15-stage middleware pipeline in SveltyCMS.
+- [⚙️ **Server Hooks & Lanes**](./server-hooks.mdx) — O(1) request lane router + READY/SETUP middleware pipeline.
+- [🚀 **Performance Architecture**](../database/performance-architecture.mdx) — Lane table, turbo GET, findPage/count cache, operator guide.
 - [🔄 **Initialization Workflow**](./initialization-workflow.mdx) — The step-by-step startup process for the CMS.
 - [🧪 **Self-Healing State**](./state-management.mdx) — The system's resilience state machine (IDLE → READY).
 - [📁 **Code Structure**](./code-structure.mdx) — Directory organization and internal module boundaries.

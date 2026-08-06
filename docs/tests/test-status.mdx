@@ -6,13 +6,14 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-08-04"
+updated: "2026-08-06"
 tags:
   - "testing"
   - "status"
   - "dashboard"
   - "coverage"
   - "content-sync"
+  - "lane-router"
 ---
 
 # Test Status
@@ -21,18 +22,18 @@ tags:
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
 > This page is the **only** test-status dashboard — route maps, inventories, and deep strategy live in the linked docs below (no separate archive).
 
-**Dashboard updated:** 2026-08-04 — **List/count product layer** (`findPage`, count modes, L1 count cache, keyset cursor) + CollectionService/media wiring + marketplace in-app tab + OIDC login/JWKS + **session/RBAC hardening** (credential-free snapshots, anomaly log, max sessions); ContentSync hot area still primary for HMR.
+**Dashboard updated:** 2026-08-06 — **Request Lane Router + response cache** (hooks O(1) classification, `x-svelty-lane`, turbo GET, GraphQL/REST user-scoped cache) + pyramid tests unit→integration→E2E smoke; prior hot areas (findPage/count cache, session/RBAC, ContentSync) still in force. Local SQLite integration last measured **617 pass / 0 fail** (with fixed hooks build).
 
 ---
 
 ## 1. Snapshot
 
-| Question                          | Answer                                                                                                                       |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **Are the gates healthy?**        | Design A++: unit → security → push (+ SQLite smoke on DB/plugin) → CI multi-DB + E2E                                         |
-| **Where to look first when red?** | Failing CI job name → matching **hot area** below or [route control map](./e2e-coverage-matrix.mdx)                          |
-| **Biggest recent win**            | **findPage / count cache** (adapter + CollectionService) + unit/integration contracts; ContentSync still the compile/HMR win |
-| **Biggest open risk (product)**   | Multi-tenant browser isolation (`MULTI_TENANT=true` env gate; E2E spec exists, needs CI job)                                 |
+| Question                          | Answer                                                                                                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Are the gates healthy?**        | Design A++: pre-commit (unit + `risk:audit`) → pre-push (build 4 adapters + tenant + SQLite integration) → CI multi-DB + E2E                            |
+| **Where to look first when red?** | Failing CI job name → matching **hot area** below or [route control map](./e2e-coverage-matrix.mdx)                                                     |
+| **Biggest recent win**            | **Lane router + turbo response cache** (classifier uses real `auth_sessions` cookie; hooks health/static fast-paths; test pyramid for lane attribution) |
+| **Biggest open risk (product)**   | Multi-tenant browser isolation (`MULTI_TENANT=true` env gate; E2E spec exists, needs dedicated CI job); E2E still CI-only (not pre-commit)              |
 
 > [!TIP]
 > **Headless-first:** adapters + session + RBAC are P0. Admin E2E is golden-only. Full tier table: **[Headless-First Test Inventory](./headless-test-inventory.mdx)**.
@@ -41,31 +42,31 @@ tags:
 
 ## 2. Health by layer
 
-| Layer                       | Confidence    | What it proves                                                                               | How to run                                                              |
-| --------------------------- | ------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| **Unit** (Vitest)           | **A++**       | Auth cookies, **CacheService/Auth whitebox**, import-boundary, page gates, widgets, security | `bun run test:unit` · coverage: `test:unit:coverage`                    |
-| **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth (~2s local)                                                    | See AGENTS.md security command                                          |
-| **Integration** (black-box) | **A++**       | HTTP + DB; crash restart; multi-adapter matrix in CI                                         | `bun run test:integration` (SQLite) · `bun run test:matrix` (all 4 DBs) |
-| **E2E** (Playwright)        | **A++**       | Browser goldens / P0 journeys; CI-parity preview :4173                                       | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`                 |
-| **Benchmarks**              | **Selective** | Perf matrix; full suite is long — not every PR                                               | See [benchmarks](../project/benchmarks/index.mdx)                       |
+| Layer                       | Confidence    | What it proves                                                                                                 | How to run                                                              |
+| --------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Unit** (Vitest)           | **A++**       | ~355 files / **~3163 tests** — auth, lanes/turbo cache, CacheService, page gates, widgets, security            | `bun run test:unit` · coverage: `test:unit:coverage`                    |
+| **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth + full `risk:audit` (security-risk, secrets, slop, OSV) on pre-commit            | `bun run test:security` · `bun run risk:audit`                          |
+| **Integration** (black-box) | **A++**       | ~65 files / **~617 tests** SQLite local; multi-adapter matrix in CI; lane headers + session page-load canaries | `bun run test:integration` (SQLite) · `bun run test:matrix` (all 4 DBs) |
+| **E2E** (Playwright)        | **A++**       | ~44 specs — browser goldens / P0 journeys; hooks-lane smoke; CI-parity preview :4173                           | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`                 |
+| **Benchmarks**              | **Selective** | Perf matrix + lane-router attribution; full suite is long — not every PR                                       | See [benchmarks](../project/benchmarks/index.mdx)                       |
 
 ## 3. Testing tiers
 
-| Tier               | Command               | Time    | Coverage                               |
-| ------------------ | --------------------- | ------- | -------------------------------------- |
-| **Pre-commit**     | `bun run test:unit`   | ~35s    | 3073 unit tests (0 skipped)            |
-| **Pre-push**       | Automatic gate        | ~1.5min | Build + SQLite integration (595 tests) |
-| **Pre-CI** (local) | `bun run test:matrix` | ~8min   | All 4 DBs (2380 tests)                 |
-| **CI**             | GitHub Actions        | ~30min  | Full matrix + E2E (100%)               |
+| Tier               | Command               | Time     | Coverage (approx., drifts — trust CI)                                   |
+| ------------------ | --------------------- | -------- | ----------------------------------------------------------------------- |
+| **Pre-commit**     | git commit / hooks    | ~40–60s  | Unit (~3163) + `risk:audit` + format/lint + SBOM when lock changes      |
+| **Pre-push**       | `bun run gate`        | ~5–8min  | Build 4 adapters + backdoor/bundle gates + tenant + SQLite integ (~617) |
+| **Pre-CI** (local) | `bun run test:matrix` | ~8–15min | All 4 DBs via Docker profiles                                           |
+| **CI**             | GitHub Actions        | ~30min   | Whitebox + build + db-tests matrix + E2E + benchmarks                   |
 
-**Gates (local → CI)**
+**Gates (local → CI)** — source of truth: `.githooks/pre-commit`, `.githooks/pre-push`, `.github/workflows/ci.yml`
 
-| When       | What runs (summary)                                                                          |
-| ---------- | -------------------------------------------------------------------------------------------- |
-| Pre-commit | 1. Database safety (`check-test-db-safety.ts`) 2. Format + lint 3. Lint-staged 4. Unit tests |
-| Pre-push   | 1. Production build (4 adapters) 2. `bun test tests/integration/` (`bun run gate`)           |
-| Manual     | `bun run test:doctor` (gate map + unit + SQLite integration) · `bun run test:security`       |
-| CI         | Matrix whitebox → build → db-tests (4 DBs) → E2E prep + named groups → benchmarks            |
+| When       | What runs (summary)                                                                                                                                       |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pre-commit | 1. DB safety 2. Format + lint (`check`) 3. Lint-staged 4. **`risk:audit`** 5. **Unit** 6. SBOM sync (if lock/package changed)                             |
+| Pre-push   | 1. Build (`COMPILE_ALL_ADAPTERS=true`) 2. Backdoor verify (bench) 3. Bundle size 4. `check` 5. Secret scan 6. **`test:tenant`** 7. **SQLite integration** |
+| Manual     | `bun run test:doctor` · `bun run test:security` · `bun run test:e2e`                                                                                      |
+| CI         | Whitebox (format/lint/check/unit/tenant/secrets/probe) → build → db-tests (4 DBs) → E2E prep + groups → benchmarks                                        |
 
 **CI smart reporting** (job Summary tab + annotations):
 
@@ -80,6 +81,19 @@ Details: [git-workflow.mdx](./git-workflow.mdx)
 ---
 
 ## 3. Hot areas (recent)
+
+### Request Lane Router + response cache (2026-08-06)
+
+|                 |                                                                                                                                                                                                                                  |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**      | **Shipped** — O(1) `classifyRequest` in `hooks.server.ts`; `x-svelty-lane` on responses; turbo GET + GraphQL/REST user-scoped `responseCache`; fixed session cookie name (`auth_sessions`, not `svelty_session`) for HYPER_TURBO |
+| **Product**     | Lanes: FAST_STATIC, HEALTH, HYPER_TURBO, API_READ/WRITE, APP_SSR, BOOTSTRAP, FILES, PUBLIC_SITE; health/static fast-paths; `handleTurboGet` TURBO-HIT when warm turbo-auth + L1 body                                             |
+| **Unit**        | `tests/unit/core/request-classifier-and-response-cache.test.ts` · `tests/unit/hooks/handle-turbo-get-lane.test.ts`                                                                                                               |
+| **Integration** | `tests/integration/api/request-lane-headers.test.ts` (`x-svelty-lane`, health JSON, dashboard `__data.json`) · session-page-load still P0 for auth→SSR                                                                           |
+| **E2E**         | `tests/e2e/routes/system/hooks-lane-smoke.spec.ts` — admin session shell + `/health`                                                                                                                                             |
+| **Bench**       | `tests/benchmarks/lane-router-attribution.test.ts`                                                                                                                                                                               |
+| **Docs**        | [performance-architecture](../reference/database/performance-architecture.mdx) (operator guide + lane table)                                                                                                                     |
+| **Open**        | Optional: assert TURBO-HIT under live integration with seeded turbo-auth warm path; multi-node Redis L2 load tests                                                                                                               |
 
 ### List / count product layer (2026-08-04)
 
@@ -292,6 +306,7 @@ Only **open** product/test risks. Closed items stay in route docs / ADR changelo
 | Gap                                           | Priority  | Why it matters                                                                                                                                                      |
 | --------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Multi-DB contract without asterisks**       | 🟠 High   | Headless ship gate — all adapters must match contract suite                                                                                                         |
+| **Lane TURBO-HIT live warm path**             | 🟢 Lower  | Unit covers TURBO-HIT; full HTTP warm turbo-auth seed in integration optional                                                                                       |
 | **Multi-tenant browser isolation**            | 🟡 Medium | E2E spec exists (`isolation.spec.ts`), gated behind `MULTI_TENANT=true` env                                                                                         |
 | **Session vs DB identity after wizard reset** | 🟡 Medium | Phase-1 wizard can race firstuser; profile has email fallback — harden setup order                                                                                  |
 | **Redirects/queue remotes (no REST)**         | ✅ Closed | Remote admin + **redirectsMV primary** + unit; queue-actions                                                                                                        |
@@ -311,14 +326,21 @@ Only **open** product/test risks. Closed items stay in route docs / ADR changelo
 ## 5. What to run locally
 
 ```bash
-# Pre-commit (full suite)
-bun run precommit
+# Pre-commit parity (format + risk + unit)
+bun run check
+bun run risk:audit
+bun run test:unit
 
-# Before push
-bun run prepush
+# Before push (mirrors .githooks/pre-push)
+bun run gate
 
 # Unit only
 bun run test:unit
+
+# Lane router + turbo cache (2026-08-06)
+bun run test:unit -- tests/unit/core/request-classifier-and-response-cache.test.ts tests/unit/hooks/handle-turbo-get-lane.test.ts
+# After build: lane HTTP headers
+bun run scripts/run-integration.ts --no-build tests/integration/api/request-lane-headers.test.ts
 
 # Ultra-smart unit slice (auth, boundary, queue/redirects remotes)
 bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/client-import-boundary.test.ts tests/unit/api/testing-login-cookie-contract.test.ts tests/unit/utils/page-guards.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts tests/unit/routes/queue-remote-admin.test.ts tests/unit/routes/queue-actions.server.test.ts tests/unit/routes/redirects-remote-admin.test.ts tests/unit/api/namespace-ownership.test.ts
@@ -336,12 +358,14 @@ bun test tests/unit/auth/totp-encryption.test.ts tests/unit/plugins/registry-aut
 # ContentSync / compile / schema contract / builder soft-HMR slice
 bun run test:unit -- tests/unit/content/sync-content-state.test.ts tests/unit/content/collection-save-sync.test.ts tests/unit/content/schema-contract.test.ts tests/unit/compilation/compile-manifest.test.ts tests/unit/stores/collection-store-reactive.test.ts tests/unit/collectionbuilder/
 
-# Integration (SQLite) — session-page-load, webhooks, automations, config surface, security-negative
+# Integration (SQLite) — session-page-load, lane headers, webhooks, security-negative
 bun run test:integration
-# or reuse build: bun test --timeout 300000 tests/integration/
+# reuse build: bun run scripts/run-integration.ts --no-build
 
 # E2E CI-parity (preview :4173 — not Vite)
 bun run test:e2e
+# Hooks/lane smoke (needs auth-setup admin.json):
+# bun run test:e2e:quick -- tests/e2e/routes/system/hooks-lane-smoke.spec.ts
 
 # Collection Builder shell + soft-refresh + golden
 bun run test:e2e --project=chromium tests/e2e/routes/collection-builder/builder.spec.ts

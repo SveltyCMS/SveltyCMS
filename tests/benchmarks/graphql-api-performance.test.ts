@@ -59,6 +59,20 @@ async function graphqlPost(
   headers: Record<string, string>,
   bodyObj: Record<string, unknown>,
 ): Promise<Response> {
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      return await fetch(`${baseUrl}/api/graphql`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(bodyObj),
+      });
+    } catch (err: any) {
+      retries--;
+      if (retries === 0) throw err;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+  }
   return fetch(`${baseUrl}/api/graphql`, {
     method: "POST",
     headers,

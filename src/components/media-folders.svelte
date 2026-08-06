@@ -1,14 +1,19 @@
 <!--
 @file src/components/media-folders.svelte
-@component MediaFolders – Tree-based media folder navigation & management
+@component MediaFolders – Virtual folder tree for the media gallery sidebar
+
+Uses the same shared TreeView as collections:
+- **Folders** = categories (nestable)
+- **Media files** = dropped onto folders (external sveltednd drop)
+- HTML5 drag in edit mode = reorder / reparent folders (before | after | inside)
 
 ### Features:
-- Hierarchical tree view with root node
+- Shared `TreeView` (`variant="media"`) for full + compact sidebar
 - Click navigation (closes sidebar on mobile)
-- Edit mode: drag & drop reordering, rename/delete via TreeView
+- Edit mode: drag & drop reordering / nesting via TreeView
 - Accept media drag-and-drop from media-grid (move into virtual folder)
+- Spring-open collapsed folders while a media drag hovers
 - Persistent loading/error/empty states
-- Responsive (compact mode when sidebar narrow)
 - Event-driven refresh on folder changes
 -->
 
@@ -16,6 +21,7 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import TreeView from '@components/ui/tree-view.svelte';
+	import type { TreeExternalDrop, TreeItem } from '@components/ui/tree-view.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { media_root_title } from '@src/paraglide/messages';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
@@ -24,7 +30,7 @@
 	import type { Snippet } from 'svelte';
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { droppable, dndState, type DragDropState } from '@thisux/sveltednd';
+	import { dndState, type DragDropState } from '@thisux/sveltednd';
 	import {
 		MEDIA_DRAG_CONTAINER,
 		MEDIA_DROP_OK,
@@ -38,28 +44,18 @@
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { page } from '$app/state';
 
-	interface FolderNode {
+	interface FolderNode extends TreeItem {
 		children?: FolderNode[];
 		depth?: number;
-		icon?: string;
-		id: string;
-		name: string;
-		nodeType: 'virtual';
-		onClick?: () => void;
+		nodeType: 'folder' | 'virtual';
 		order: number;
 		parentId?: string | null;
 		path: string;
-		actions?: {
-			icon: string;
-			label: string;
-			onClick: (node: any, event: MouseEvent) => void;
-			colorClass?: string;
-		}[];
+		type: 'folder';
 	}
 
 	// Mutable UI state (folder data lives in mediaFolderTree)
-	let rootExpanded = $state(true);
-	let folderExpanded = $state(new SvelteSet<string>());
+	let folderExpanded = $state(new SvelteSet<string>(['root']));
 	let activeFolderId = $state('root');
 	let isEditMode = $state(false);
 	let search = $state('');
@@ -71,42 +67,24 @@
 
 	/** True only while a media-gallery card (not a folder-reorder drag) is in flight */
 	const isMediaDragActive = $derived(
-		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER
+		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER,
 	);
-	/** The sidebar tree is the only media drop surface on every viewport. On mobile
-	 *  it is the overlay drawer, opened for the drag by useMediaDragSidebar. */
-	const mediaDropEnabled = $derived(isMediaDragActive);
 
-	// Derived UI state
 	let isSidebarFull = $derived(ui.state.leftSidebar === 'full');
 	let isMobile = $derived(screen.isMobile);
 
 	function setFolderExpanded(id: string, open: boolean): void {
 		const next = new SvelteSet(folderExpanded);
-		if (open) {
-			next.add(id);
-		} else {
-			next.delete(id);
-		}
+		if (open) next.add(id);
+		else next.delete(id);
 		folderExpanded = next;
 	}
 
-	function isFolderExpanded(id: string): boolean {
-		return folderExpanded.has(id);
-	}
-
 	// ── Spring-load: hovering a collapsed folder during a media drag opens it ──
-	// Without this you have to expand a branch by hand *before* starting the drag
-	// to reach a nested folder. Same dwell behaviour as the mobile folder rail.
-
-	/** Dwell before a collapsed folder springs open — matches the mobile rail. */
 	const SPRING_OPEN_MS = 500;
-
 	let springTimer: ReturnType<typeof setTimeout> | null = null;
 	let springHoverId: string | null = null;
-	/** Folders opened by spring-load, so a cancelled drag leaves the tree as it was. */
 	let springExpanded = new Set<string>();
-	/** Folder that actually received a drop, so its branch stays open afterwards. */
 	let springDropTarget: string | null = null;
 
 	function clearSpringTimer(): void {
@@ -117,29 +95,31 @@
 		springHoverId = null;
 	}
 
-	function onFolderDragEnter(node: FolderNode): void {
-		if (!mediaDropEnabled || springHoverId === node.id) return;
+	function onFolderDragEnter(nodeId: string): void {
+		if (!isMediaDragActive || springHoverId === nodeId) return;
 		clearSpringTimer();
-		const hasChildren = (node.children?.length ?? 0) > 0;
-		if (!hasChildren || isFolderExpanded(node.id)) return;
-		springHoverId = node.id;
+		// Root is always expandable via TreeView; spring-open nested ids that are collapsed
+		if (folderExpanded.has(nodeId)) return;
+		const hasChildren =
+			nodeId === 'root'
+				? folders.some((f) => !f.parentId)
+				: folders.some((f) => f.parentId === nodeId);
+		if (!hasChildren) return;
+		springHoverId = nodeId;
 		springTimer = setTimeout(() => {
-			springExpanded.add(node.id);
-			setFolderExpanded(node.id, true);
+			springExpanded.add(nodeId);
+			setFolderExpanded(nodeId, true);
 			springTimer = null;
 		}, SPRING_OPEN_MS);
 	}
 
-	function onFolderDragLeave(node: FolderNode): void {
-		if (springHoverId !== node.id) return;
+	function onFolderDragLeave(nodeId: string): void {
+		if (springHoverId !== nodeId) return;
 		clearSpringTimer();
 	}
 
-	// Drop a pending spring timer if the sidebar unmounts mid-drag
 	$effect(() => () => clearSpringTimer());
 
-	// Drag over: collapse anything spring-load opened, except the branch that
-	// received the drop — landing there and finding it closed again is jarring.
 	$effect(() => {
 		if (isMediaDragActive) return;
 		untrack(() => {
@@ -161,6 +141,11 @@
 	// Sync selection from URL (browser back/forward)
 	$effect(() => {
 		activeFolderId = page.url.searchParams.get('folderId') || 'root';
+		if (activeFolderId !== 'root') {
+			expandAncestorChain(activeFolderId);
+			setFolderExpanded(activeFolderId, true);
+		}
+		setFolderExpanded('root', true);
 	});
 
 	async function loadFolders(): Promise<void> {
@@ -170,14 +155,15 @@
 		}
 	}
 
-	// Build hierarchical tree
-	let tree = $derived.by(() => {
+	// Build hierarchical tree for TreeView (same shape as collections: folders = categories)
+	let tree = $derived.by((): FolderNode[] => {
 		const root: FolderNode = {
 			id: 'root',
 			name: media_root_title(),
 			path: '/',
 			icon: 'mdi:home-outline',
-			nodeType: 'virtual',
+			nodeType: 'folder',
+			type: 'folder',
 			order: 0,
 			depth: 0,
 			children: [],
@@ -197,28 +183,37 @@
 		filteredFolders.forEach((f) => {
 			const isPinned = pinnedStore.isPinned(f.id);
 			map.set(f.id, {
-				...f,
+				id: f.id,
+				name: f.name,
+				path: f.path,
+				parentId: f.parentId,
+				order: f.order,
 				icon: 'mdi:folder-outline',
-				nodeType: 'virtual' as const,
+				nodeType: 'folder',
+				type: 'folder',
 				children: [],
 				depth: 0,
 				onClick: () => selectFolder(f.id),
-				actions: [
-					{
-						icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
-						label: isPinned ? 'Unpin Folder' : 'Pin Folder',
-						colorClass: isPinned ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500',
-						onClick: (_treeNode: any, _event: MouseEvent) => {
-							pinnedStore.togglePin({
-								id: f.id,
-								name: f.name,
-								type: 'folder',
-								path: `/mediagallery?folderId=${f.id}`,
-								icon: 'mdi:folder-outline',
-							});
-						},
-					},
-				],
+				actions: isSidebarFull
+					? [
+							{
+								icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
+								label: isPinned ? 'Unpin Folder' : 'Pin Folder',
+								colorClass: isPinned
+									? 'text-tertiary-500 dark:text-primary-500'
+									: 'text-surface-500',
+								onClick: () => {
+									pinnedStore.togglePin({
+										id: f.id,
+										name: f.name,
+										type: 'folder',
+										path: `/mediagallery?folderId=${f.id}`,
+										icon: 'mdi:folder-outline',
+									});
+								},
+							},
+						]
+					: undefined,
 			});
 		});
 
@@ -236,9 +231,7 @@
 			nodes.sort((a, b) => a.order - b.order);
 			nodes.forEach((n) => {
 				n.depth = depth;
-				if (n.children?.length) {
-					sortAndSetDepth(n.children, depth + 1);
-				}
+				if (n.children?.length) sortAndSetDepth(n.children, depth + 1);
 			});
 		}
 
@@ -253,50 +246,32 @@
 			setFolderExpanded(current.parentId, true);
 			current = folders.find((f) => f.id === current!.parentId);
 		}
+		setFolderExpanded('root', true);
 	}
 
 	function selectFolder(id: string): void {
 		const resolved = id === 'root' ? 'root' : id;
 		activeFolderId = resolved;
 		if (resolved === 'root') {
-			rootExpanded = true;
+			setFolderExpanded('root', true);
 		} else {
 			expandAncestorChain(resolved);
 			setFolderExpanded(resolved, true);
 		}
 		if (isMobile) {
-			// 'hidden' is mobile's closed state — the overlay drawer in +layout.svelte
-			// renders for any value other than 'hidden', so 'collapsed' would leave it up.
 			ui.toggle('leftSidebar', 'hidden');
 		}
 		const path = resolved === 'root' ? '/mediagallery' : `/mediagallery?folderId=${resolved}`;
 		goto(path);
 	}
 
-	function handleRootClick(): void {
-		if (activeFolderId !== 'root') {
-			selectFolder('root');
-			return;
-		}
-		if ((tree[0]?.children?.length ?? 0) > 0) {
-			rootExpanded = !rootExpanded;
-		}
-	}
-
-	function handleFolderClick(node: FolderNode): void {
-		selectFolder(node.id);
-	}
-
-	function toggleFolderBranch(node: FolderNode, event: MouseEvent): void {
-		event.stopPropagation();
-		setFolderExpanded(node.id, !isFolderExpanded(node.id));
-	}
-
-	// Drag & drop reordering (folder → folder, edit mode only)
-	async function reorder(draggedId: string, targetId: string, position: 'before' | 'after' | 'inside'): Promise<void> {
-		if (!isEditMode) {
-			return;
-		}
+	/** Folder reorder / reparent — mirrors collections TreeView (before | after | inside). */
+	async function reorder(
+		draggedId: string,
+		targetId: string,
+		position: 'before' | 'after' | 'inside',
+	): Promise<void> {
+		if (!isEditMode || draggedId === 'root' || draggedId === targetId) return;
 
 		let newParentId: string | null = null;
 		if (position === 'inside') {
@@ -306,20 +281,61 @@
 			newParentId = target?.parentId ?? null;
 		}
 
+		// Cycle guard
+		if (newParentId) {
+			let walk: string | null | undefined = newParentId;
+			const seen = new Set<string>();
+			while (walk) {
+				if (walk === draggedId) {
+					toast.warning('Cannot move a folder into itself or its descendants.');
+					return;
+				}
+				if (seen.has(walk)) break;
+				seen.add(walk);
+				walk = folders.find((f) => f.id === walk)?.parentId;
+			}
+		}
+
+		// Sibling order: place relative to target among same parent
+		const siblings = folders
+			.filter((f) =>
+				newParentId == null
+					? !f.parentId && f.id !== draggedId
+					: f.parentId === newParentId && f.id !== draggedId,
+			)
+			.sort((a, b) => a.order - b.order);
+
+		let insertAt = siblings.length;
+		if (position !== 'inside') {
+			const ti = siblings.findIndex((f) => f.id === targetId);
+			insertAt = ti < 0 ? siblings.length : position === 'after' ? ti + 1 : ti;
+		}
+
+		const orderUpdates: Array<{ folderId: string; order: number; parentId: string | null }> = [];
+		const dragged = folders.find((f) => f.id === draggedId);
+		if (!dragged) return;
+
+		const next = [...siblings];
+		next.splice(insertAt, 0, { ...dragged, parentId: newParentId });
+		next.forEach((f, i) => {
+			orderUpdates.push({ folderId: f.id, order: i, parentId: newParentId });
+		});
+
 		try {
 			const res = await fetch('/api/system-virtual-folder', {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken ?? '' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': page.data.csrfToken ?? '',
+				},
 				body: JSON.stringify({
 					action: 'reorder',
 					parentId: newParentId,
-					orderUpdates: [{ folderId: draggedId, order: 0, parentId: newParentId }]
-				})
+					orderUpdates,
+				}),
 			});
 
-			if (!res.ok) {
-				throw new Error('Failed');
-			}
+			if (!res.ok) throw new Error('Failed');
 			toast.success('Folder moved');
 			await loadFolders();
 		} catch (e) {
@@ -328,25 +344,22 @@
 		}
 	}
 
-	// ── Media drag → folder drop (grid assets into virtual folders) ──────────
-
 	async function handleMediaFolderDrop(
-		state: DragDropState<MediaDragData>,
-		folderId: string,
+		nodeId: string,
+		state: unknown,
 	): Promise<void> {
-		const ids = state.draggedItem?.ids ?? [];
+		const drag = state as DragDropState<MediaDragData>;
+		const ids = drag.draggedItem?.ids ?? [];
 		if (!ids.length) {
 			toast.error('No media to move');
 			return;
 		}
 
-		// Keep this branch open once the drag ends (see the spring-load cleanup effect)
-		springDropTarget = folderId;
+		springDropTarget = nodeId;
 		clearSpringTimer();
 
-		// No-op when dropping into the folder already being viewed
 		const currentId = activeFolderId === 'root' ? null : activeFolderId;
-		const targetId = folderId === 'root' ? null : folderId;
+		const targetId = nodeId === 'root' ? null : nodeId;
 		if (currentId === targetId) {
 			toast.info('Already in this folder');
 			return;
@@ -360,9 +373,9 @@
 				csrfToken: page.data.csrfToken,
 			});
 			const folderLabel =
-				folderId === 'root'
+				nodeId === 'root'
 					? media_root_title()
-					: folders.find((f) => f.id === folderId)?.name ?? 'folder';
+					: (folders.find((f) => f.id === nodeId)?.name ?? 'folder');
 			toast.success(
 				moved.movedCount === 1
 					? `Moved 1 item to ${folderLabel}`
@@ -377,7 +390,16 @@
 		}
 	}
 
-	// Initial load + refresh on global events
+	const externalDrop = $derived.by((): TreeExternalDrop => ({
+		enabled: isMediaDragActive,
+		okClass: MEDIA_DROP_OK,
+		sameClass: MEDIA_DROP_SAME,
+		isSameTarget: (nodeId) => activeFolderId === nodeId,
+		onDrop: handleMediaFolderDrop,
+		onDragEnter: onFolderDragEnter,
+		onDragLeave: onFolderDragLeave,
+	}));
+
 	$effect(() => {
 		loadFolders();
 
@@ -393,99 +415,6 @@
 		};
 	});
 </script>
-
-{#snippet mediaFolderRow(node: FolderNode, depth: number)}
-	{@const hasChildren = (node.children?.length ?? 0) > 0}
-	{@const selected = activeFolderId === node.id}
-	{@const expanded = folderExpanded.has(node.id)}
-	{@const indent = depth * 12}
-	{@const dropHighlight = isMediaDragActive && dndState.targetContainer === node.id}
-	{@const sameFolder = activeFolderId === node.id}
-
-	<div class="group/folder relative flex flex-col">
-		<div
-			role="listitem"
-			class="flex w-full items-center gap-1 rounded py-0.5 text-start text-[15px] font-medium leading-none transition-colors"
-			style="padding-inline-start: {indent}px"
-			use:droppable={{
-				container: node.id,
-				disabled: !mediaDropEnabled,
-				attributes: { dragOverClass: sameFolder ? MEDIA_DROP_SAME : MEDIA_DROP_OK },
-				callbacks: {
-					onDrop: (state: DragDropState<MediaDragData>) => handleMediaFolderDrop(state, node.id),
-					onDragEnter: () => onFolderDragEnter(node),
-					onDragLeave: () => onFolderDragLeave(node),
-				},
-			}}
-			data-media-drop-target={node.id}
-		>
-			{#if hasChildren}
-				<Button
-						variant="ghost"
-						type="button"
-						class="flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-60"
-						onclick={(e: MouseEvent) => toggleFolderBranch(node, e)}
-						aria-label={expanded ? 'Collapse folder' : 'Expand folder'}
-						aria-expanded={expanded}
-					>
-						<iconify-icon
-							icon="mdi:chevron-right"
-							width="16"
-							class="transition-transform duration-200 {expanded ? 'rotate-90' : ''}"
-							aria-hidden="true"
-						></iconify-icon>
-					</Button>
-			{:else}
-				<span class="w-5 shrink-0" aria-hidden="true"></span>
-			{/if}
-
-			<Button
-					variant="ghost"
-					type="button"
-					class="flex min-w-0 flex-1 items-center gap-1.5 rounded-none py-0 text-start
-						{selected ? 'text-amber-400 dark:text-amber-300' : 'text-surface-300 dark:text-surface-300'}"
-					onclick={() => handleFolderClick(node)}
-					aria-selected={selected}
-					role="treeitem"
-				>
-					<iconify-icon
-						icon={dropHighlight ? 'mdi:folder-move-outline' : 'mdi:folder-outline'}
-						width="18"
-						class="shrink-0 {dropHighlight
-							? sameFolder
-								? 'text-error-500'
-								: 'text-primary-500'
-							: 'text-surface-400'}"
-						aria-hidden="true"
-					></iconify-icon>
-					<span class="truncate">{node.name}</span>
-				</Button>
-
-			{#if node.actions?.length}
-				<div class="flex shrink-0 items-center opacity-0 transition-opacity group-hover/folder:opacity-100">
-					{#each node.actions as action (action.label)}
-						<Button
-								variant="ghost"
-								type="button"
-								class="flex h-6 w-6 items-center justify-center rounded {action.colorClass ?? ''}"
-								onclick={(e: MouseEvent) => action.onClick(node, e)}
-								aria-label={action.label}
-								title={action.label}
-							>
-								<iconify-icon icon={action.icon} width="14"></iconify-icon>
-							</Button>
-					{/each}
-				</div>
-			{/if}
-		</div>
-
-		{#if hasChildren && expanded}
-			{#each node.children ?? [] as child (child.id)}
-				{@render mediaFolderRow(child, depth + 1)}
-			{/each}
-		{/if}
-	</div>
-{/snippet}
 
 <div class="space-y-1" role="navigation" aria-label="Media folders">
 	<!-- Search Header -->
@@ -553,21 +482,24 @@
 	{#if isEditMode && isSidebarFull}
 		<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3 text-xs text-warning-700 dark:text-warning-400">
 			<iconify-icon icon="bi:info-circle" width={24}></iconify-icon>
-			<p>Drag folders to reorder or move. Use node actions for rename/delete.</p>
+			<p>
+				Drag folders to reorder. Drop onto the <strong>middle</strong> of a folder to nest (same as
+				collections). Use pin actions for quick access.
+			</p>
 		</div>
 	{/if}
 
-	<!-- Folder tree (Media Root + folders) -->
 	<div class="media-folders-list" role="tree" aria-label="Folder tree">
-		<!-- Spinner only when there is nothing to show. A refresh (folderCreated, or
-			 the mobile drawer mounting mid-drag) keeps the cached tree on screen
-			 instead of blanking it, so a drag never loses its drop targets. -->
 		{#if isLoading && folders.length === 0}
 			<div class="flex flex-col items-center justify-center gap-3 p-6">
 				<div class="flex gap-2">
 					<div class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
-					<div class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500 [animation-delay:0.1s]"></div>
-					<div class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500 [animation-delay:0.2s]"></div>
+					<div
+						class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500 [animation-delay:0.1s]"
+					></div>
+					<div
+						class="h-3 w-3 animate-bounce rounded-full bg-tertiary-500 dark:bg-primary-500 [animation-delay:0.2s]"
+					></div>
 				</div>
 				<p class="text-sm text-surface-600 dark:text-surface-50">Loading folders...</p>
 			</div>
@@ -581,97 +513,20 @@
 				</Button>
 			</div>
 		{:else if tree.length > 0}
-			{#if isSidebarFull}
-				{@const rootNode = tree[0]}
-				{@const rootHasChildren = (rootNode.children?.length ?? 0) > 0}
-				{@const rootSelected = activeFolderId === 'root'}
-				{@const rootDropHighlight = isMediaDragActive && dndState.targetContainer === 'root'}
-				{@const rootSameFolder = activeFolderId === 'root'}
-				<div class="flex flex-col" role="tree" aria-label="Media folder tree">
-					<div class="group/root relative flex flex-col">
-						<div
-							role="listitem"
-							class="rounded transition-colors"
-							use:droppable={{
-								container: 'root',
-								disabled: !mediaDropEnabled,
-								attributes: { dragOverClass: rootSameFolder ? MEDIA_DROP_SAME : MEDIA_DROP_OK },
-								callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleMediaFolderDrop(state, 'root') },
-							}}
-							data-media-drop-target="root"
-						>
-							<Button
-								variant="ghost"
-								type="button"
-								class="flex w-full items-center gap-1.5 rounded-none py-1 text-start text-[15px] font-medium leading-none transition-colors
-									{rootSelected ? 'text-amber-400 dark:text-amber-300' : 'text-surface-200 dark:text-surface-200'}"
-								onclick={handleRootClick}
-								aria-expanded={rootHasChildren ? rootExpanded : undefined}
-								aria-selected={rootSelected}
-								role="treeitem"
-							>
-								{#if rootHasChildren}
-									<iconify-icon
-										icon="mdi:chevron-right"
-										width="16"
-										class="shrink-0 opacity-60 transition-transform duration-200 {rootExpanded ? 'rotate-90' : ''}"
-										aria-hidden="true"
-									></iconify-icon>
-								{/if}
-								<iconify-icon
-									icon={rootDropHighlight ? 'mdi:folder-move-outline' : 'mdi:home-outline'}
-									width="18"
-									class="shrink-0 {rootDropHighlight
-										? rootSameFolder
-											? 'text-error-500'
-											: 'text-primary-500'
-										: ''}"
-									aria-hidden="true"
-								></iconify-icon>
-								<span class="truncate">{rootNode.name}</span>
-							</Button>
-						</div>
-
-						{#if rootHasChildren && rootExpanded}
-							<div class="relative">
-								<div
-									class="pointer-events-none absolute bottom-0 inset-s-5.5 top-0 w-px bg-surface-600/50 dark:bg-white/10"
-									aria-hidden="true"
-								></div>
-								{#each rootNode.children ?? [] as folder (folder.id)}
-									{@render mediaFolderRow(folder, 1)}
-								{/each}
-							</div>
-						{/if}
-					</div>
-				</div>
-			{:else}
-				<!-- Compact sidebar: wrap TreeView with a single media drop target (TreeView
-					 renders no per-row folder id, so drops always target the active folder —
-					 which is always "already here", so use the reject/error ring). -->
-				<div
-					role="region"
-					aria-label="Media drop target"
-					class="rounded transition-colors"
-					use:droppable={{
-						container: activeFolderId,
-						disabled: !mediaDropEnabled,
-						attributes: { dragOverClass: MEDIA_DROP_SAME },
-						callbacks: { onDrop: (state: DragDropState<MediaDragData>) => handleMediaFolderDrop(state, activeFolderId) },
-					}}
-					data-media-drop-target={activeFolderId}
-				>
-					<TreeView
-						nodes={tree}
-						selectedId={activeFolderId}
-						compact={true}
-						iconColorClass="text-surface-400 dark:text-surface-500"
-						showBadges={false}
-						allowDragDrop={isEditMode}
-						onReorder={reorder}
-					/>
-				</div>
-			{/if}
+			<!-- Single TreeView for full + compact — same UX as collections -->
+			<TreeView
+				nodes={tree}
+				selectedId={activeFolderId}
+				bind:expandedIds={folderExpanded}
+				compact={!isSidebarFull}
+				variant="media"
+				iconColorClass="text-surface-400 dark:text-surface-500"
+				showBadges={false}
+				allowDragDrop={isEditMode}
+				{externalDrop}
+				onReorder={reorder}
+				ariaLabel="Media virtual folders"
+			/>
 		{:else}
 			<div class="flex flex-col items-center justify-center gap-2 p-6 text-center">
 				<iconify-icon icon="bi:folder" width={24}></iconify-icon>

@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:git"
 author: "SveltyCMS Team"
 created: "2025-09-28"
-updated: "2026-07-20"
+updated: "2026-08-06"
 tags:
   - "git"
   - "workflow"
@@ -46,36 +46,44 @@ git config core.hooksPath .githooks
 
 SveltyCMS uses native Git hooks for local quality gates — no external precheck orchestrator script required.
 
-#### Pre-commit (`check-test-db-safety.ts` → format+lint → lint-staged → unit tests)
+#### Pre-commit (`DB safety` → format+lint → lint-staged → **risk:audit** → unit → SBOM)
 
 `.githooks/pre-commit` runs:
 
 1. **Database safety** — `scripts/check-test-db-safety.ts` blocks unsafe `private.test.ts`, live `private.ts` pointing at test DBs, and **matching live/test DB names** (user data protection).
 2. **Format + lint** — `bun run check` (oxfmt + oxlint).
 3. **Lint-staged** — `bun run gate:fast`.
-4. **Unit tests** — `vitest run` (skipped if only docs changed).
+4. **`risk:audit`** — security-risk scan (all adapters) + secret misuse + slop + `bun audit` + OSV (skipped if only docs changed).
+5. **Unit tests** — `vitest run` (skipped if only docs changed).
+6. **SBOM sync** — when `bun.lock` / `package.json` changed.
 
 > [!IMPORTANT]
-> **No double-run rule:** the full unit suite (including hooks security tests) runs on **pre-commit only**. Pre-push runs build + SQLite integration — do not re-run the entire unit suite on push. Focused re-run: `bun run test:security`.
+> **No double-run rule:** the full unit suite (including hooks security tests) runs on **pre-commit only**. Pre-push runs build + post-build verifiers + tenant + SQLite integration — do not re-run the entire unit suite on push. Focused re-run: `bun run test:security`.
 >
 > **Live data rule:** automated local runs never use `config/private.ts` or the user database — only `private.test.ts` + isolated DB names.
 
-#### Pre-push (~5 min) — production build + SQLite integration tests
+#### Pre-push (~5–8 min) — production build + verifiers + tenant + SQLite integration
 
 `.githooks/pre-push` runs:
 
-| Check                         | Command                                   | Est.     |
-| :---------------------------- | :---------------------------------------- | :------- |
-| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build` | ~45–120s |
-| SQLite integration tests      | `bun test tests/integration/`             | ~60–180s |
+| Check                         | Command                                              | Est.     |
+| :---------------------------- | :--------------------------------------------------- | :------- |
+| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build`            | ~45–120s |
+| Prod backdoor verify          | `scripts/verify-prod-build-backdoor.ts --mode=bench` | ~5–15s   |
+| Bundle size gate              | `scripts/check-bundle-size.ts`                       | ~5–15s   |
+| Quality gate                  | `bun run check`                                      | ~15–40s  |
+| Secret misuse scan            | `scripts/scan-secret-misuse.ts --strict`             | ~5–15s   |
+| Tenant isolation              | `bun run test:tenant`                                | ~5–20s   |
+| SQLite integration tests      | `bun test tests/integration/`                        | ~60–180s |
 
-**Security regression is not re-run on push.** DB integration (multi-adapter matrix) and benchmarks are CI-only.
+**Full unit suite is not re-run on push.** Multi-adapter DB matrix, E2E, and benchmarks are CI-only. Docs-only pushes skip build + integration.
 
 ```bash
-bun run gate                               # pre-push gate (build + SQLite integration)
+bun run gate                               # pre-push gate (build + verifiers + tenant + SQLite)
 bun run prepush                            # same as gate
 bun test --timeout 300000 tests/integration/   # Integration only (needs build/)
 bun run test:doctor                        # unit + SQLite integration + gate map
+bun run risk:audit                         # same scanners as pre-commit step 4
 ```
 
 ---
@@ -174,33 +182,37 @@ SveltyCMS uses a **three-tier testing strategy** that balances developer velocit
 
 ```mermaid
 flowchart LR
-    A["git commit"] -->|"~40s"| B["Pre-Commit<br/>DB safety → format+lint<br/>→ lint-staged → unit tests"]
-    C["git push"] -->|"~5 min"| D["Pre-Push<br/>Production build (4 adapters)<br/>→ bun test tests/integration/"]
+    A["git commit"] -->|"~40–60s"| B["Pre-Commit<br/>DB safety → format+lint<br/>→ lint-staged → risk:audit → unit"]
+    C["git push"] -->|"~5–8 min"| D["Pre-Push<br/>Build 4 adapters → backdoor/bundle<br/>→ check → secrets → tenant → SQLite integ"]
 ```
 
 ### Tier 1: Pre-Commit (`.githooks/pre-commit`) — Fast Feedback
 
-Runs automatically on every `git commit`. Target: **~40 seconds** (full unit suite; skipped if only docs changed).
+Runs automatically on every `git commit`. Target: **~40–60 seconds** (full unit suite + risk audit; skipped if only docs changed).
 
 | Check              | Tool                             |
 | :----------------- | :------------------------------- |
 | Test config safety | `check-test-db-safety.ts`        |
 | Format + lint      | `bun run check` (oxfmt + oxlint) |
 | Lint-staged        | `bun run gate:fast`              |
+| Risk audit         | `bun run risk:audit`             |
 | Unit tests         | `bun run test:unit` (Vitest)     |
+| SBOM sync          | `audit:sbom` (if lock changed)   |
 
 ### Tier 2: Pre-Push (`.githooks/pre-push`) — Production Build + Integration
 
 Runs automatically on every `git push`. Catches build and integration failures before they reach CI.
 
-| Check                         | Command                                   |
-| :---------------------------- | :---------------------------------------- |
-| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build` |
-| SQLite integration tests      | `bun test tests/integration/`             |
+| Check                         | Command                                            |
+| :---------------------------- | :------------------------------------------------- |
+| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build`          |
+| Prod backdoor + bundle gates  | `verify-prod-build-backdoor` + `check-bundle-size` |
+| Quality + secrets + tenant    | `check` + secret scan + `test:tenant`              |
+| SQLite integration tests      | `bun test tests/integration/`                      |
 
-**Multi-adapter DB integration + benchmarks are CI-only.**
+**Multi-adapter DB integration + E2E + benchmarks are CI-only.**
 
-Manual equivalent: `bun run prepush` (alias for pre-push hook via hardened git wrapper).
+Manual equivalent: `bun run prepush` / `bun run gate` (via hardened git wrapper).
 
 > [!CAUTION]
 > `--no-verify` is blocked by `scripts/git-safe.ts`. Use `bun run git push` — bypassing requires the system `git` binary path deliberately.

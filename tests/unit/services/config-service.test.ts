@@ -47,21 +47,13 @@ const { mockClearTurboAuthCache } = vi.hoisted(() => ({
   mockClearTurboAuthCache: vi.fn(),
 }));
 
-// Mock node:fs/promises
+// Isolate filesystem side-effects only. Use real node:path (pure, complete API).
 vi.mock("node:fs/promises", () => ({
   default: { mkdir: mockMkdir, writeFile: mockWriteFile, readFile: vi.fn(), readdir: vi.fn() },
   mkdir: mockMkdir,
   writeFile: mockWriteFile,
-}));
-
-// Mock node:path
-vi.mock("node:path", () => ({
-  default: {
-    resolve: vi.fn((...args: string[]) => args.join("/")),
-    join: vi.fn((...args: string[]) => args.join("/")),
-  },
-  resolve: vi.fn((...args: string[]) => args.join("/")),
-  join: vi.fn((...args: string[]) => args.join("/")),
+  readFile: vi.fn(),
+  readdir: vi.fn(),
 }));
 
 // Mock @src/databases/db — full adapter surface for all 8 resource types
@@ -393,9 +385,10 @@ describe("ConfigService", () => {
 
       const result = await service.performExport({ tenantId: "tenant-1" });
 
-      // Verify directory path
-      expect(result.dirPath).toContain("config/sync");
-      expect(result.dirPath).toContain("export_tenant-1_");
+      // Verify directory path (real node:path → platform separators)
+      const normalizedDir = result.dirPath.replace(/\\/g, "/");
+      expect(normalizedDir).toContain("config/sync");
+      expect(normalizedDir).toContain("export_tenant-1_");
       expect(mockMkdir).toHaveBeenCalled();
 
       // Verify at least one writeFile call

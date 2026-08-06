@@ -7,10 +7,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { togglePlugin } from "../../../src/routes/(app)/config/extensions/plugins-api";
 import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
-vi.mock("@src/stores/global-settings.svelte.ts", () => ({
-  publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
-}));
-
 describe("plugins-api", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 

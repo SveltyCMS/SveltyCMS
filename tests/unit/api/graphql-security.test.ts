@@ -41,22 +41,6 @@ vi.mock("@utils/tenant", () => ({
   getTenantIdFromHostname: vi.fn().mockReturnValue(null),
 }));
 
-vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(false),
-  getPublicSettingSync: vi.fn().mockReturnValue(false),
-  getUntypedSetting: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("@utils/logger", () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    trace: vi.fn(),
-  },
-}));
-
 describe("GraphQL Whitebox Native Security Rules", () => {
   beforeEach(() => {
     vi.clearAllMocks();

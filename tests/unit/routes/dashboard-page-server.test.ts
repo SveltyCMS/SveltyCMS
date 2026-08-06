@@ -7,27 +7,6 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@utils/logger", () => ({
-  logger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-    trace: vi.fn(),
-  },
-}));
-
-vi.mock("@utils/page-guards.server", () => ({
-  getAuthenticatedUser: vi.fn((locals: any) => {
-    if (!locals?.user) {
-      const err = new Error("redirect") as Error & { status: number };
-      err.status = 302;
-      throw err;
-    }
-    return locals.user;
-  }),
-}));
-
 vi.mock("@src/services/intelligence/behavioral-learner", () => ({
   getHotCollections: vi.fn().mockReturnValue([]),
 }));

@@ -27,14 +27,16 @@ Provides an organized interface for navigating hierarchical content structures.
 			import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
-	import { collection, contentStructure } from '@src/stores/collection-store.svelte.ts';
+	import { collection, contentStructure, setContentStructure } from '@src/stores/collection-store.svelte.ts';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { app } from '@src/stores/store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { debounce } from '@utils/utils';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import { logger } from '@utils/logger';
 	import { validateSchemaWidgets } from '@widgets/widget-validation';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import type { Snippet } from 'svelte';
@@ -401,23 +403,157 @@ Provides an organized interface for navigating hierarchical content structures.
 		return sorted.map(n => mapToTreeNode(n));
 	});
 
-	// === Drag & Drop handler with flat lookup + collision-free reindexing ===
-	function handleTreeReorder(draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') {
-		// Note: 'inside' treated as 'after' (no reparenting in current v1)
-		if (position === 'inside') position = 'after';
+	// === Drag & Drop: sibling reorder + category reparent (inside) ===
 
-		// Use flatNodeMap for reliable nested lookup
-		const targetNode = flatNodeMap.get(targetId);
-		const targetOrder = orderOverrides.get(targetId) ?? targetNode?.order ?? 0;
+	function isAncestorOf(ancestorId: string, nodeId: string): boolean {
+		let current: ExtendedContentNode | undefined = flatNodeMap.get(nodeId);
+		const seen = new Set<string>();
+		while (current?.parentId) {
+			const pid = String(current.parentId);
+			if (pid === ancestorId) return true;
+			if (seen.has(pid)) break;
+			seen.add(pid);
+			current = flatNodeMap.get(pid);
+		}
+		return false;
+	}
 
-		let newOrder = targetOrder + (position === 'after' ? 1 : -1);
-		orderOverrides.set(draggedId, newOrder);
+	/**
+	 * TreeView reports before | after | inside.
+	 * - inside a **category** → reparent under that category
+	 * - inside a **collection** is coerced to after (files are not folders)
+	 * - before/after → sibling of target under the same parent
+	 */
+	function handleTreeReorder(
+		draggedId: string,
+		targetId: string,
+		position: 'before' | 'after' | 'inside',
+	) {
+		if (draggedId === targetId) return;
 
-		// Re-index siblings to guarantee unique sequential orders
-		reindexSiblings(targetNode?.parentId ?? null);
+		const structure = [...(contentStructure.value ?? [])] as ExtendedContentNode[];
+		const byId = new Map(structure.map((n) => [String(n._id), { ...n }]));
+		const dragged = byId.get(draggedId);
+		const target = byId.get(targetId);
+		if (!dragged || !target) return;
 
-		// Persist to manifest via API
+		// Cycle guard
+		if (position === 'inside' && (targetId === draggedId || isAncestorOf(draggedId, targetId))) {
+			toast.warning('Cannot move a category into itself or its descendants.');
+			return;
+		}
+
+		let intent = position;
+		// Only categories accept children (folders); collections are "files"
+		if (intent === 'inside' && target.nodeType !== 'category') {
+			intent = 'after';
+		}
+
+		const oldParentId = dragged.parentId != null ? String(dragged.parentId) : null;
+		const newParentId: string | null =
+			intent === 'inside'
+				? targetId
+				: target.parentId != null
+					? String(target.parentId)
+					: null;
+
+		const siblingsOf = (parentId: string | null) =>
+			Array.from(byId.values())
+				.filter((n) => {
+					const p = n.parentId != null ? String(n.parentId) : null;
+					return p === parentId && String(n._id) !== draggedId;
+				})
+				.sort((a, b) => {
+					const oa = orderOverrides.get(String(a._id)) ?? a.order ?? 0;
+					const ob = orderOverrides.get(String(b._id)) ?? b.order ?? 0;
+					return oa - ob || String(a.name).localeCompare(String(b.name));
+				});
+
+		const destSiblings = siblingsOf(newParentId);
+		let insertIndex = destSiblings.length;
+		if (intent !== 'inside') {
+			const ti = destSiblings.findIndex((n) => String(n._id) === targetId);
+			insertIndex = ti < 0 ? destSiblings.length : intent === 'after' ? ti + 1 : ti;
+		}
+
+		dragged.parentId = (newParentId ?? undefined) as ExtendedContentNode['parentId'];
+		const nextDest = [...destSiblings];
+		nextDest.splice(insertIndex, 0, dragged);
+
+		nextDest.forEach((n, i) => {
+			n.order = i;
+			orderOverrides.set(String(n._id), i);
+			byId.set(String(n._id), n);
+		});
+
+		if (oldParentId !== newParentId) {
+			siblingsOf(oldParentId).forEach((n, i) => {
+				n.order = i;
+				orderOverrides.set(String(n._id), i);
+				byId.set(String(n._id), n);
+			});
+		}
+
+		// Rebuild id-based paths from roots (stable for DB / builder)
+		const childrenByParent = new Map<string | null, ExtendedContentNode[]>();
+		for (const n of byId.values()) {
+			const p = n.parentId != null ? String(n.parentId) : null;
+			if (!childrenByParent.has(p)) childrenByParent.set(p, []);
+			childrenByParent.get(p)!.push(n);
+		}
+		const walkPaths = (parentId: string | null, parentPath: string) => {
+			const kids = [...(childrenByParent.get(parentId) ?? [])].sort(
+				(a, b) => (a.order ?? 0) - (b.order ?? 0),
+			);
+			for (const kid of kids) {
+				const id = String(kid._id);
+				kid.path = parentPath ? `${parentPath}.${id}` : id;
+				byId.set(id, kid);
+				walkPaths(id, kid.path);
+			}
+		};
+		walkPaths(null, '');
+
+		const nextStructure = Array.from(byId.values());
+		setContentStructure(nextStructure as ContentNode[]);
+
+		void persistStructure(nextStructure);
 		persistOrder();
+	}
+
+	let _structureTimer: ReturnType<typeof setTimeout> | undefined;
+	function persistStructure(nodes: ExtendedContentNode[]) {
+		clearTimeout(_structureTimer);
+		_structureTimer = setTimeout(async () => {
+			const items = nodes.map((n) => ({
+				id: String(n._id),
+				parentId: n.parentId != null ? String(n.parentId) : null,
+				order: orderOverrides.get(String(n._id)) ?? n.order ?? 0,
+				path: n.path || String(n._id),
+			}));
+			try {
+				const res = await fetch('/api/content-structure', {
+					method: 'POST',
+					headers: clientJsonHeaders(),
+					body: JSON.stringify({
+						action: 'reorderContentStructure',
+						items,
+					}),
+				});
+				if (!res.ok) {
+					const body = await res.json().catch(() => ({}));
+					throw new Error(body?.message || body?.error || `HTTP ${res.status}`);
+				}
+				const body = await res.json().catch(() => ({}));
+				const updated = body?.data?.contentStructure ?? body?.contentStructure;
+				if (Array.isArray(updated)) {
+					setContentStructure(updated);
+				}
+			} catch (err) {
+				logger.error('[Collections] Structure reorder failed', err);
+				toast.error('Failed to save hierarchy — try again or use Collection Builder');
+			}
+		}, 280);
 	}
 
 	let _persistTimer: ReturnType<typeof setTimeout>;
@@ -425,20 +561,24 @@ Provides an organized interface for navigating hierarchical content structures.
 		clearTimeout(_persistTimer);
 		_persistTimer = setTimeout(async () => {
 			const order: Record<string, number> = {};
-			orderOverrides.forEach((v, k) => { order[k] = v; });
+			orderOverrides.forEach((v, k) => {
+				order[k] = v;
+			});
 			try {
 				await fetch('/api/collections/reorder', {
 					method: 'POST',
 					headers: clientJsonHeaders(),
 					body: JSON.stringify({ order }),
 				});
-			} catch { /* non-critical */ }
+			} catch {
+				/* non-critical display order */
+			}
 		}, 300);
 	}
 
 	function reindexSiblings(parentId: string | null) {
-		const siblings = Array.from(flatNodeMap.values()).filter(n =>
-			parentId === null ? !n.parentId : String(n.parentId) === parentId
+		const siblings = Array.from(flatNodeMap.values()).filter((n) =>
+			parentId === null ? !n.parentId : String(n.parentId) === parentId,
 		);
 
 		siblings.sort((a, b) => {

@@ -561,7 +561,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
       const data = results.length
         ? (utils.convertDatesToISO(results[0], {
-            ...this.convertDatesOptions,
+            inPlace: true,
             table: collection,
           }) as T)
         : null;
@@ -725,7 +725,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       }
 
       const data = utils.convertArrayDatesToISO(results as any, {
-        ...this.convertDatesOptions,
+        inPlace: true,
         table: collection,
       }) as T[];
       return this.hooks.length > 0

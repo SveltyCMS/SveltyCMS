@@ -26,15 +26,30 @@
     title?: string;
     body?: string;
     value: any;
+    /** Injected by DialogManager — prefer this over modalState.close for result payload */
+    close?: (result?: any) => void;
+    /** @deprecated DialogManager does not pass response; use close() */
     response?: (r: any) => void;
     roles?: Role[];
   }
 
   const {
     value,
+    close,
     response,
     roles: rolesProp = [],
   }: Props = $props() as Props;
+
+  /** Always resolve via close(value) so DialogManager / modalState fire the trigger callback once. */
+  function resolve(result: any) {
+    // Prefer injected close — it already invokes the trigger response handler.
+    if (typeof close === "function") {
+      close(result);
+      return;
+    }
+    // Fallback: do not call response + close (double-fire).
+    modalState.close(result);
+  }
 
   // --- Tab state ---
   let activeTab = $state("default");
@@ -100,12 +115,8 @@
   // --- Save ---
   function handleSave() {
     if (!local) return;
-    // Sync local back to store
     setTargetWidget(local);
-    if (response) {
-      response(local);
-    }
-    modalState.close();
+    resolve(local);
   }
 
   // --- Delete ---
@@ -113,24 +124,18 @@
     if (!local) return;
     const confirmMsg = "Are you sure you want to delete this widget?";
     if (!confirm(confirmMsg)) return;
-    if (response) {
-      response({ ...local, __delete: true });
-    }
-    modalState.close();
+    resolve({ ...local, __delete: true });
   }
 
   // --- Duplicate ---
   function handleDuplicate() {
     if (!local) return;
-    if (response) {
-      response({ ...local, __duplicate: true });
-    }
-    modalState.close();
+    resolve({ ...local, __duplicate: true });
   }
 
   // --- Cancel ---
   function handleCancel() {
-    modalState.close();
+    resolve(undefined);
   }
 
   // --- Permissions helpers ---
@@ -231,7 +236,10 @@
             <span class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">
               Icon
             </span>
-            <IconifyIconsPicker bind:icon={local.icon} />
+            <IconifyIconsPicker
+              bind:iconselected={local.icon}
+              bind:icon={local.icon}
+            />
           </div>
 
           <Input

@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:90df3c69-bc6d-48fd-a6a9-7aaf7f2b5d11",
+  "serialNumber": "urn:uuid:f5359882-953d-4e6e-a765-83b2d7771f72",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-05T23:35:26.983Z",
+    "timestamp": "2026-08-06T12:31:54.436Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -7510,13 +7510,13 @@
     {
       "type": "library",
       "name": "maplibre-gl",
-      "version": "6.1.0",
-      "purl": "pkg:npm/maplibre-gl@6.1.0",
+      "version": "6.2.0",
+      "purl": "pkg:npm/maplibre-gl@6.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-vLRukjvbUai4SXW2/jKo8rPsw6YMXuA/b4fKFVSulZKFVRHkOvk4ZmNlDSVZpTYPV0/7/iTqq8ltYdyr764b7w=="
+          "content": "sha512-PaNYtxWmYgIdDHshXsnU3Pho+H9IPme9H6dTjZbFWNazi+Q5QgKgIlu2GiSGVtOZ77/Fz3n5/1/kGM6ETzu0Lg=="
         }
       ]
     },
@@ -9577,13 +9577,13 @@
     {
       "type": "library",
       "name": "tsx",
-      "version": "4.23.8",
-      "purl": "pkg:npm/tsx@4.23.8",
+      "version": "4.23.9",
+      "purl": "pkg:npm/tsx@4.23.9",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-8W675THjbzfFmLOQzjDBIBna+WjqMGIxmSZ1mMc1+o9qoVsEuAgQu5j5ueLhau8inOkDu9OslVg0FmfBs1RIHw=="
+          "content": "sha512-6q8uTORRGauQVjqMQnKUucLFoeXZAfw6zKvG35GLbdKWbLdeOtZ3H4mhyA5mxuUd2o2cRTskhj59nLLQseUvUw=="
         }
       ]
     },

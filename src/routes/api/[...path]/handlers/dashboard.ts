@@ -65,132 +65,150 @@ export async function handleDashboardRoutes(
       case "stats":
       case "dashboard":
       case "dashboard-stats": {
-        const [collectionsRes, usersRes, mediaRes] = await Promise.all([
-          (cms.db.crud as any).listCollections(tenantId),
-          cms.auth.listUsers({ tenantId, limit: 1 }),
-          cms.media.find({ tenantId, limit: 1 }),
-        ]);
+        const cacheKey = `dashboard:stats:${tenantId || "global"}`;
+        const cachedStats = cacheService.getSync<any>(cacheKey, tenantId);
+        if (cachedStats) return rawResponse(event, cachedStats);
 
-        return rawResponse(event, {
-          contentCount: collectionsRes.success ? collectionsRes.data.length : 0,
-          userCount: usersRes?.success ? (usersRes.data?.pagination?.totalItems ?? 0) : 0,
-          mediaCount: mediaRes.success ? (mediaRes.data?.total ?? 0) : 0,
-          storageUsed: "0 MB", // Calculated on-demand via media collection
-          healthStatus: "healthy",
-          uptime: process.uptime(),
-          timestamp: new Date().toISOString(),
-        });
+        const fetchStats = async () => {
+          const [collectionsRes, usersRes, mediaRes] = await Promise.all([
+            (cms.db.crud as any).listCollections(tenantId),
+            cms.auth.listUsers({ tenantId, limit: 1 }),
+            cms.media.find({ tenantId, limit: 1 }),
+          ]);
+
+          const statsPayload = {
+            contentCount: collectionsRes.success ? collectionsRes.data.length : 0,
+            userCount: usersRes?.success ? (usersRes.data?.pagination?.totalItems ?? 0) : 0,
+            mediaCount: mediaRes.success ? (mediaRes.data?.total ?? 0) : 0,
+            storageUsed: "0 MB",
+            healthStatus: "healthy",
+            uptime: process.uptime(),
+            timestamp: new Date().toISOString(),
+          };
+          cacheService.set(cacheKey, statsPayload, 5000, tenantId);
+          return statsPayload;
+        };
+
+        const statsData = await cacheService.coalesceQuery(cacheKey, fetchStats);
+        return rawResponse(event, statsData);
       }
 
       case "tenant-analytics": {
-        const [collectionsRes, usersRes, mediaCountRes] = await Promise.all([
-          (cms.db.crud as any).listCollections(tenantId),
-          cms.auth.listUsers({ tenantId, limit: 1 }),
-          cms.db.crud.count("media", {}, { tenantId }),
-        ]);
+        const cacheKey = `dashboard:tenant-analytics:${tenantId || "global"}`;
+        const cachedAnalytics = cacheService.getSync<any>(cacheKey, tenantId);
+        if (cachedAnalytics) return rawResponse(event, cachedAnalytics);
 
-        const collections = collectionsRes.success ? collectionsRes.data || [] : [];
-        const collectionCount = collections.length;
-        const userCount = usersRes?.success ? (usersRes.data?.pagination?.totalItems ?? 0) : 0;
-        const mediaCount = mediaCountRes.success ? (mediaCountRes.data ?? 0) : 0;
+        const fetchAnalytics = async () => {
+          const [collectionsRes, usersRes, mediaCountRes] = await Promise.all([
+            (cms.db.crud as any).listCollections(tenantId),
+            cms.auth.listUsers({ tenantId, limit: 1 }),
+            cms.db.crud.count("media", {}, { tenantId }),
+          ]);
 
-        // Sample media items to calculate total storage used
-        let totalStorageBytes = 0;
-        try {
-          const mediaListRes = await cms.media.find({ tenantId, limit: 2000 });
-          const mediaItems =
-            mediaListRes.success && mediaListRes.data?.items ? mediaListRes.data.items : [];
-          totalStorageBytes = mediaItems.reduce(
-            (sum: number, item: any) => sum + (item.size || 0),
-            0,
-          );
+          const collections = collectionsRes.success ? collectionsRes.data || [] : [];
+          const collectionCount = collections.length;
+          const userCount = usersRes?.success ? (usersRes.data?.pagination?.totalItems ?? 0) : 0;
+          const mediaCount = mediaCountRes.success ? (mediaCountRes.data ?? 0) : 0;
 
-          // If we got all items (less than limit), the sum is exact;
-          // otherwise estimate by extrapolating from the sample.
-          if (mediaCount > 2000 && mediaItems.length > 0) {
-            const avgSize = totalStorageBytes / mediaItems.length;
-            totalStorageBytes = Math.round(avgSize * mediaCount);
-          }
-        } catch {
-          // Best-effort storage calculation
-        }
+          let totalStorageBytes = 0;
+          try {
+            const mediaListRes = await cms.media.find({ tenantId, limit: 2000 });
+            const mediaItems =
+              mediaListRes.success && mediaListRes.data?.items ? mediaListRes.data.items : [];
+            totalStorageBytes = mediaItems.reduce(
+              (sum: number, item: any) => sum + (item.size || 0),
+              0,
+            );
 
-        // Count content entries across all collection tables
-        let contentEntryCount = 0;
-        if (collections.length > 0) {
-          const countResults = await Promise.allSettled(
-            collections.map((col: any) => cms.db.crud.count(col._id || col.name, {}, { tenantId })),
-          );
-          for (const r of countResults) {
-            if (r.status === "fulfilled" && r.value.success) {
-              contentEntryCount += r.value.data ?? 0;
+            if (mediaCount > 2000 && mediaItems.length > 0) {
+              const avgSize = totalStorageBytes / mediaItems.length;
+              totalStorageBytes = Math.round(avgSize * mediaCount);
+            }
+          } catch {}
+
+          let contentEntryCount = 0;
+          if (collections.length > 0) {
+            const countResults = await Promise.allSettled(
+              collections.map((col: any) =>
+                cms.db.crud.count(col._id || col.name, {}, { tenantId }),
+              ),
+            );
+            for (const r of countResults) {
+              if (r.status === "fulfilled" && r.value.success) {
+                contentEntryCount += r.value.data ?? 0;
+              }
             }
           }
-        }
 
-        // Query recent audit activity (last 24h) for request count
-        let recentRequestCount = 0;
-        try {
-          const auditResult = await auditLogService.queryLogs({
-            limit: 1000,
-            tenantId: tenantId || undefined,
-          });
-          if (auditResult.success && Array.isArray(auditResult.data)) {
-            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-            recentRequestCount = auditResult.data.filter(
-              (log: any) => log.timestamp >= oneDayAgo,
-            ).length;
-          }
-        } catch {
-          // Best-effort request count
-        }
+          let recentRequestCount = 0;
+          try {
+            const auditResult = await auditLogService.queryLogs({
+              limit: 1000,
+              tenantId: tenantId || undefined,
+            });
+            if (auditResult.success && Array.isArray(auditResult.data)) {
+              const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+              recentRequestCount = auditResult.data.filter(
+                (log: any) => log.timestamp >= oneDayAgo,
+              ).length;
+            }
+          } catch {}
 
-        // Format storage for display
-        const units = ["B", "KB", "MB", "GB", "TB"];
-        const unitIdx =
-          totalStorageBytes === 0
-            ? 0
-            : Math.min(Math.floor(Math.log(totalStorageBytes) / Math.log(1024)), units.length - 1);
-        const formattedStorage =
-          totalStorageBytes === 0
-            ? "0 B"
-            : `${(totalStorageBytes / 1024 ** unitIdx).toFixed(1)} ${units[unitIdx]}`;
+          const units = ["B", "KB", "MB", "GB", "TB"];
+          const unitIdx =
+            totalStorageBytes === 0
+              ? 0
+              : Math.min(
+                  Math.floor(Math.log(totalStorageBytes) / Math.log(1024)),
+                  units.length - 1,
+                );
+          const formattedStorage =
+            totalStorageBytes === 0
+              ? "0 B"
+              : `${(totalStorageBytes / 1024 ** unitIdx).toFixed(1)} ${units[unitIdx]}`;
 
-        return rawResponse(event, {
-          storage: {
-            bytes: totalStorageBytes,
-            formatted: formattedStorage,
-          },
-          users: {
-            total: userCount,
-          },
-          media: {
-            total: mediaCount,
-          },
-          collections: collectionCount,
-          contentEntries: contentEntryCount,
-          recentRequests: {
-            last24h: recentRequestCount,
-          },
-          timestamp: new Date().toISOString(),
-        });
+          const payload = {
+            storage: {
+              bytes: totalStorageBytes,
+              formatted: formattedStorage,
+            },
+            users: {
+              total: userCount,
+            },
+            media: {
+              total: mediaCount,
+            },
+            collections: collectionCount,
+            contentEntries: contentEntryCount,
+            recentRequests: {
+              last24h: recentRequestCount,
+            },
+            timestamp: new Date().toISOString(),
+          };
+          cacheService.set(cacheKey, payload, 5000, tenantId);
+          return payload;
+        };
+
+        const analyticsData = await cacheService.coalesceQuery(cacheKey, fetchAnalytics);
+        return rawResponse(event, analyticsData);
       }
 
       case "health":
-        // Delegate to the public /health endpoint (handled by hooks.server.ts fast-return)
         const healthUrl = new URL("/health", event.url.origin);
         const healthRes = await event.fetch(healthUrl.toString());
         return rawResponse(event, await healthRes.json());
 
       case "metrics":
       case "unified": {
-        // Coerce tenant key — branded DatabaseId objects break Map keys in metricsService
         const tid =
           tenantId == null || tenantId === ""
             ? null
             : typeof tenantId === "string"
               ? tenantId
               : String(tenantId);
+        const cacheKey = `dashboard:metrics:${tid || "global"}:${query.detailed ? "1" : "0"}`;
+        const cachedMetrics = cacheService.getSync<any>(cacheKey, tid);
+        if (cachedMetrics) return rawResponse(event, cachedMetrics);
         let report: ReturnType<typeof metricsService.getReport>;
         try {
           report = metricsService.getReport(tid);
@@ -222,25 +240,29 @@ export async function handleDashboardRoutes(
           };
         }
 
-        if (query.detailed) {
-          const sysInfo = await getSystemInfo().catch(() => ({}));
-          return rawResponse(event, {
-            ...report,
-            system: {
-              memory: {
-                used: (sysInfo as any).memory?.usedBytes || 0,
-                total: (sysInfo as any).memory?.totalBytes || 0,
+        const sysInfo = await getSystemInfo().catch(() => ({}));
+        const payload = query.detailed
+          ? {
+              ...report,
+              system: {
+                memory: {
+                  used: (sysInfo as any).memory?.usedBytes || 0,
+                  total: (sysInfo as any).memory?.totalBytes || 0,
+                },
+                uptime: (sysInfo as any).os?.uptime ?? process.uptime(),
+                nodeVersion: process.version,
               },
-              uptime: (sysInfo as any).os?.uptime ?? process.uptime(),
-              nodeVersion: process.version,
-            },
-          });
-        }
-
-        return rawResponse(event, report);
+            }
+          : report;
+        cacheService.set(cacheKey, payload, 5000, tid);
+        return rawResponse(event, payload);
       }
 
       case "system-info": {
+        const sysCacheKey = `dashboard:system-info:${query.type || "full"}`;
+        const cachedSysInfo = cacheService.getSync<any>(sysCacheKey);
+        if (cachedSysInfo) return rawResponse(event, cachedSysInfo);
+
         const info = (await getSystemInfo().catch(() => ({}))) as any;
 
         const response = {
@@ -250,18 +272,26 @@ export async function handleDashboardRoutes(
           diskInfo: info.disk || { root: { totalGb: 0, usedGb: 0, freeGb: 0 } },
         };
 
+        let resultPayload;
         switch (query.type) {
           case "cpu":
-            return rawResponse(event, { cpuInfo: response.cpuInfo });
+            resultPayload = { cpuInfo: response.cpuInfo };
+            break;
           case "memory":
-            return rawResponse(event, { memoryInfo: response.memoryInfo });
+            resultPayload = { memoryInfo: response.memoryInfo };
+            break;
           case "disk":
-            return rawResponse(event, { diskInfo: response.diskInfo });
+            resultPayload = { diskInfo: response.diskInfo };
+            break;
           case "os":
-            return rawResponse(event, { osInfo: response.osInfo });
+            resultPayload = { osInfo: response.osInfo };
+            break;
           default:
-            return rawResponse(event, response);
+            resultPayload = response;
+            break;
         }
+        cacheService.set(sysCacheKey, resultPayload, 5000);
+        return rawResponse(event, resultPayload);
       }
 
       case "scim": {

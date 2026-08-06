@@ -13,10 +13,6 @@ import {
 } from "../../../src/routes/(app)/config/access-management/website-tokens-api";
 import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
-vi.mock("@src/stores/global-settings.svelte.ts", () => ({
-  publicEnv: { DEFAULT_CONTENT_LANGUAGE: "en" },
-}));
-
 describe("website-tokens-api", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 

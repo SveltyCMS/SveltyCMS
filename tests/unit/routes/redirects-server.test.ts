@@ -7,13 +7,6 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@utils/page-guards.server", () => ({
-  getAuthenticatedUser: vi.fn((locals: any) => {
-    if (!locals?.user) throw Object.assign(new Error("auth"), { status: 302 });
-    return locals.user;
-  }),
-}));
-
 const insertMock = vi.fn().mockResolvedValue({ success: true, data: { _id: "new-id" } });
 const updateMock = vi.fn().mockResolvedValue({ success: true });
 const deleteMock = vi.fn().mockResolvedValue({ success: true });

@@ -14,11 +14,10 @@ export async function startServer(
   port: number,
   dbName: string,
 ): Promise<{ stop: () => Promise<void>; coldStartMs: number }> {
-  // Prefer index.cjs (Yjs /ws). Fall back to adapter-node entry.
   const entryPoint =
     [
-      path.join(process.cwd(), "index.cjs"),
       path.join(process.cwd(), "build", "index.js"),
+      path.join(process.cwd(), "index.cjs"),
       path.join(process.cwd(), "build", "server", "index.js"),
     ].find((p) => fs.existsSync(p)) || "";
   if (!entryPoint) throw new Error("No build found. Run 'bun run build' first.");

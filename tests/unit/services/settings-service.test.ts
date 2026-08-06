@@ -4,6 +4,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Exercise real settings-service (setup's default mock must not apply here).
+vi.mock("@src/services/core/settings-service", async (importOriginal) => {
+  return await importOriginal<typeof import("@src/services/core/settings-service")>();
+});
+
 import { loadSettingsCache, invalidateSettingsCache } from "@src/services/core/settings-service";
 
 describe("SettingsService - Dynamic Scaling Infrastructure", () => {

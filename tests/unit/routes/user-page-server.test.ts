@@ -10,15 +10,6 @@ vi.mock("@src/services/core/settings-service", () => ({
   getUntypedSetting: vi.fn().mockReturnValue(false),
 }));
 
-vi.mock("@utils/logger", () => ({
-  logger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  },
-}));
-
 vi.mock("@utils/page-guards.server", () => ({
   getAuthenticatedUser: vi.fn((locals: any) => {
     if (!locals?.user) {

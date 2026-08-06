@@ -37,6 +37,11 @@
 		} = modalState.active.props;
 		return rest;
 	});
+
+	/** Prefer a single close(result) so modal content can return data without a separate response prop. */
+	function closeWithResult(result?: unknown) {
+		modalState.close(result);
+	}
 </script>
 
 <Modal bind:open {title} {size} class={modalClasses} {dialogClass} {contentClass}>
@@ -44,7 +49,11 @@
 		<div
 			class="modal-body min-h-0 overflow-hidden {size === 'fullscreen' || size === 'editor' ? 'flex h-full flex-1 flex-col' : ''}"
 		>
-			<ActiveComponent {...componentProps} close={modalState.close.bind(modalState)} />
+			<ActiveComponent
+				{...componentProps}
+				close={closeWithResult}
+				response={modalState.active?.response}
+			/>
 		</div>
 	{/if}
 </Modal>

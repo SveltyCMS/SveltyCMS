@@ -5,17 +5,6 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@utils/page-guards.server", () => ({
-  getAuthenticatedUser: vi.fn((locals: any) => {
-    if (!locals?.user) {
-      const err = new Error("redirect") as Error & { status: number };
-      err.status = 302;
-      throw err;
-    }
-    return locals.user;
-  }),
-}));
-
 const listMock = vi.fn();
 const countMock = vi.fn();
 

@@ -29,6 +29,8 @@ import CollectionForm from "./tabs/collection-form.svelte";
 import CollectionWidget from "./tabs/collection-widget.svelte";
 import CollectionPermissions from "./tabs/collection-permissions.svelte";
 import Tabs from "@src/components/ui/tabs.svelte";
+import Stepper from "@components/ui/stepper.svelte";
+import type { StepperStep } from "@components/ui/stepper.svelte";
 import Button from '@components/ui/button.svelte';
 
 const action = $derived(page.params.action);
@@ -66,7 +68,7 @@ const editorSyncKey = $derived(
 		: `new:${String(page.params.contentPath ?? "")}`,
 );
 
-// ── Tab state ──
+// ── Tab / wizard progress ──
 let activeTab = $state("define");
 
 const editorTabs = [
@@ -74,6 +76,105 @@ const editorTabs = [
 	{ id: "widgets", label: "Widgets", icon: "mdi:widgets" },
 	{ id: "permissions", label: "Permissions", icon: "mdi:shield-lock" },
 ];
+
+const TAB_ORDER = ["define", "widgets", "permissions"] as const;
+
+/** Step completion for create/edit wizard UX */
+const stepProgress = $derived.by(() => {
+	const c = collection.value;
+	const nameOk = !!(c?.name && c.name.trim() && c.name.trim() !== "new");
+	const iconOk = !!(c?.icon && String(c.icon).trim());
+	const fields = (c?.fields as FieldInstance[] | undefined) ?? [];
+	const widgetsOk = fields.length > 0;
+	const defineOk = nameOk && iconOk;
+	const meta = [
+		{
+			id: "define",
+			label: "Define",
+			icon: "mdi:information",
+			done: defineOk,
+			description: !nameOk
+				? "Name required"
+				: !iconOk
+					? "Pick an icon"
+					: "Ready",
+		},
+		{
+			id: "widgets",
+			label: "Widgets",
+			icon: "mdi:widgets",
+			done: widgetsOk,
+			description: widgetsOk
+				? `${fields.length} field${fields.length === 1 ? "" : "s"}`
+				: "Add at least one field",
+		},
+		{
+			id: "permissions",
+			label: "Permissions",
+			icon: "mdi:shield-lock",
+			done: true,
+			description: "Optional",
+		},
+	] as const;
+	const completedCount = meta.filter((s) => s.done).length;
+	const allRequiredDone = defineOk && widgetsOk;
+	const currentIndex = Math.max(
+		0,
+		TAB_ORDER.indexOf(activeTab as (typeof TAB_ORDER)[number]),
+	);
+	const stepperSteps: StepperStep[] = meta.map((s) => ({
+		id: s.id,
+		label: s.label,
+		icon: s.icon,
+		description: s.description,
+	}));
+	const completedFlags = meta.map((s) => s.done);
+	// Allow free navigation between define / widgets / permissions (edit-friendly)
+	const clickable = meta.map(() => true);
+	return {
+		steps: meta,
+		stepperSteps,
+		completedFlags,
+		clickable,
+		currentIndex,
+		completedCount,
+		total: meta.length,
+		defineOk,
+		widgetsOk,
+		allRequiredDone,
+	};
+});
+
+const canGoNext = $derived.by(() => {
+	if (activeTab === "define") return stepProgress.defineOk;
+	if (activeTab === "widgets") return true;
+	return false;
+});
+
+function goToTab(tabId: string) {
+	activeTab = tabId;
+}
+
+function goToStepIndex(index: number) {
+	const id = TAB_ORDER[index];
+	if (id) activeTab = id;
+}
+
+function goNext() {
+	const idx = TAB_ORDER.indexOf(activeTab as (typeof TAB_ORDER)[number]);
+	if (activeTab === "define" && !stepProgress.defineOk) {
+		toast.error("Complete name and icon before continuing");
+		return;
+	}
+	if (idx >= 0 && idx < TAB_ORDER.length - 1) {
+		activeTab = TAB_ORDER[idx + 1];
+	}
+}
+
+function goBack() {
+	const idx = TAB_ORDER.indexOf(activeTab as (typeof TAB_ORDER)[number]);
+	if (idx > 0) activeTab = TAB_ORDER[idx - 1];
+}
 
 onMount(() => {
 	widgetStoreActions.initializeWidgets();
@@ -185,7 +286,7 @@ $effect(() => {
 	animate={false}
 >
 	{#snippet actions()}
-		<div class="flex gap-2">
+		<div class="flex flex-wrap items-center gap-2">
 			{#if action === 'edit'}
 				<Button
 					variant="error"
@@ -198,53 +299,149 @@ $effect(() => {
 					<span class="hidden sm:inline">{button_delete()}</span>
 				</Button>
 			{/if}
-			<StickyActions>
+
+			{#if activeTab !== 'define'}
 				<Button
-					variant="tertiary"
-					onclick={() => handleCollectionSave()}
-					disabled={isLoading}
-					aria-label="Save collection"
-					data-testid="save-collection-button"
-					class="dark: flex items-center gap-1 min-w-25"
+					variant="outline"
+					onclick={goBack}
+					aria-label="Previous step"
+					data-testid="collection-step-back"
+					class="flex items-center gap-1"
 				>
-					{#if isLoading}
-						<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
-					{:else}
-						<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
-					{/if}
-					<span>{button_save()}</span>
+					<iconify-icon icon="mdi:arrow-left" width="18"></iconify-icon>
+					<span class="hidden sm:inline">Back</span>
 				</Button>
-			</StickyActions>
+			{/if}
+
+			{#if !stepProgress.allRequiredDone || activeTab !== 'permissions'}
+				<Button
+					variant="primary"
+					onclick={goNext}
+					disabled={activeTab === 'define' && !canGoNext}
+					aria-label="Next step"
+					data-testid="collection-step-next"
+					class="flex items-center gap-1"
+				>
+					<span>Next</span>
+					<iconify-icon icon="mdi:arrow-right" width="18"></iconify-icon>
+				</Button>
+			{/if}
+
+			{#if stepProgress.allRequiredDone || action === 'edit'}
+				<StickyActions>
+					<Button
+						variant="tertiary"
+						onclick={() => handleCollectionSave()}
+						disabled={isLoading || !stepProgress.defineOk}
+						aria-label="Save collection"
+						data-testid="save-collection-button"
+						class="flex min-w-25 items-center gap-1"
+					>
+						{#if isLoading}
+							<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
+						{:else}
+							<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
+						{/if}
+						<span>{button_save()}</span>
+					</Button>
+				</StickyActions>
+			{/if}
 		</div>
 	{/snippet}
 
+	<!-- Wizard progress — shared UI Stepper (same component as Setup) -->
+	<div
+		class="shrink-0 border-b border-surface-200 bg-surface-50/80 px-3 py-3 dark:border-surface-800 dark:bg-surface-900/50 sm:px-4"
+		data-testid="collection-wizard-progress"
+		role="status"
+		aria-live="polite"
+	>
+		<div class="mx-auto flex max-w-5xl flex-col gap-2">
+			<Stepper
+				steps={stepProgress.stepperSteps}
+				currentStep={stepProgress.currentIndex}
+				completedSteps={stepProgress.completedFlags}
+				stepClickable={stepProgress.clickable}
+				orientation="horizontal"
+				variant="default"
+				compact={false}
+				onStepClick={goToStepIndex}
+				class="w-full"
+			/>
+			<p class="text-center text-xs text-surface-500 dark:text-surface-400 sm:text-start">
+				{stepProgress.completedCount}/{stepProgress.total} steps ready
+				{#if !stepProgress.allRequiredDone}
+					<span class="text-warning-600 dark:text-warning-400">
+						— finish Define + Widgets to save a complete collection</span
+					>
+				{/if}
+			</p>
+		</div>
+	</div>
+
 	<!-- Tab Navigation -->
 	<div
-		class="px-4 pt-4 border-b border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm z-20 shrink-0"
+		class="z-20 shrink-0 border-b border-surface-200 bg-white px-4 pt-2 dark:border-surface-800 dark:bg-surface-900 shadow-sm"
 		data-testid="collection-editor-tabs"
 	>
 		<Tabs
 			tabs={editorTabs}
 			activeTab={activeTab}
-			onTabChange={(tabId: string) => activeTab = tabId}
+			onTabChange={(tabId: string) => goToTab(tabId)}
 			variant="underline"
 		/>
 	</div>
 
 	<div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-		<div class="flex-1 overflow-y-auto w-full scroll-smooth">
-			<div class="h-full {activeTab === 'define' ? 'mx-auto max-w-5xl p-4 sm:p-6 lg:p-10' : 'p-0'}">
+		<div class="w-full flex-1 overflow-y-auto scroll-smooth">
+			<div
+				class="h-full min-h-0 {activeTab === 'define'
+					? 'mx-auto max-w-5xl p-4 sm:p-6 lg:p-10'
+					: activeTab === 'widgets'
+						? 'flex h-full min-h-[32rem] flex-col p-0'
+						: 'mx-auto max-w-5xl p-4 sm:p-6'}"
+			>
 				{#if activeTab === 'define'}
 					<div class="animate-in fade-in slide-in-from-bottom-4 duration-500" role="tabpanel" id="tabpanel-define" aria-labelledby="tab-define">
 						<CollectionForm data={collection.value} syncKey={editorSyncKey} />
+						<div class="mt-8 flex justify-end gap-2 border-t border-surface-200 pt-6 dark:border-surface-700">
+							<Button
+								variant="primary"
+								onclick={goNext}
+								disabled={!stepProgress.defineOk}
+								data-testid="collection-define-next"
+								class="flex items-center gap-2"
+							>
+								Continue to Widgets
+								<iconify-icon icon="mdi:arrow-right" width="18"></iconify-icon>
+							</Button>
+						</div>
 					</div>
 				{:else if activeTab === 'widgets'}
-					<div class="h-full animate-in fade-in slide-in-from-right-4 duration-700" role="tabpanel" id="tabpanel-widgets" aria-labelledby="tab-widgets">
+					<div class="flex h-full min-h-0 flex-1 flex-col animate-in fade-in slide-in-from-right-4 duration-500" role="tabpanel" id="tabpanel-widgets" aria-labelledby="tab-widgets">
 						<CollectionWidget fields={(collection.value?.fields as FieldInstance[]) || []} roles={data.roles || []} />
 					</div>
 				{:else if activeTab === 'permissions'}
-					<div class="animate-in fade-in slide-in-from-right-4 duration-700" role="tabpanel" id="tabpanel-permissions" aria-labelledby="tab-permissions">
+					<div class="animate-in fade-in slide-in-from-right-4 duration-500" role="tabpanel" id="tabpanel-permissions" aria-labelledby="tab-permissions">
 						<CollectionPermissions roles={data.roles as any || []} />
+						<div class="mt-8 flex flex-wrap justify-between gap-2 border-t border-surface-200 pt-6 dark:border-surface-700">
+							<Button variant="outline" onclick={goBack} class="flex items-center gap-1">
+								<iconify-icon icon="mdi:arrow-left" width="18"></iconify-icon>
+								Back
+							</Button>
+							{#if stepProgress.allRequiredDone}
+								<Button
+									variant="tertiary"
+									onclick={() => handleCollectionSave()}
+									disabled={isLoading}
+									data-testid="save-collection-footer"
+									class="flex items-center gap-1"
+								>
+									<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+									{button_save()}
+								</Button>
+							{/if}
+						</div>
 					</div>
 				{/if}
 			</div>

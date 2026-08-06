@@ -6,27 +6,6 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@utils/logger", () => ({
-  logger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-    trace: vi.fn(),
-  },
-}));
-
-vi.mock("@utils/page-guards.server", () => ({
-  getAuthenticatedUser: vi.fn((locals: any) => {
-    if (!locals?.user) {
-      const err = new Error("redirect") as Error & { status: number };
-      err.status = 302;
-      throw err;
-    }
-    return locals.user;
-  }),
-}));
-
 const mockGetContentStructure = vi.fn();
 const mockInitialize = vi.fn();
 const mockIsInitialized = false;
@@ -50,7 +29,6 @@ vi.mock("@src/databases/auth/permissions", () => ({
 
 import { load } from "../../../src/routes/(app)/config/collectionbuilder/+page.server";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
-import { getAuthenticatedUser } from "@utils/page-guards.server";
 
 function makeLocals(overrides: Record<string, unknown> = {}) {
   return {
@@ -120,11 +98,11 @@ describe("collectionbuilder +page.server load", () => {
     expect(typeof data.contentStructure[0]._id).toBe("string");
   });
 
-  it("redirects via getAuthenticatedUser when session missing", async () => {
+  it("redirects via real page-guards when session missing", async () => {
+    // Real getAuthenticatedUser throws kit redirect(302, "/login")
     await expect(load({ locals: makeLocals({ user: null }) } as any)).rejects.toMatchObject({
       status: 302,
     });
-    expect(getAuthenticatedUser).toHaveBeenCalled();
   });
 
   it("denies non-admin without collection builder permission", async () => {

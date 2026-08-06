@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:server-network"
 author: "SveltyCMS Team"
 created: "2025-10-12"
-updated: "2026-07-26"
+updated: "2026-08-06"
 tags:
   - "architecture"
   - "hooks"
@@ -14,6 +14,7 @@ tags:
   - "performance"
   - "security"
   - "state-management"
+  - "lane-router"
 ---
 
 # Server Hooks & Middleware Architecture
@@ -32,7 +33,7 @@ The middleware architecture is built on **core enterprise principles**:
 
 3.  **Unified Metrics & Monitoring**: All hooks integrate with the **MetricsService** for comprehensive performance and security monitoring.
 
-4.  **Production-Optimized**: WeakRef-based memory management, non-blocking streaming, and distributed rate limiting for clustered deployments.
+4.  **Production-Optimized**: WeakRef-based memory management, non-blocking streaming, and distributed rate limiting for clustered deployments. **O(1) request lane classification** routes health/static/turbo traffic before the full sequence.
 
 5.  **Framework-Native**: Leverages SvelteKit's built-in CSP and optimizes around framework capabilities.
 
@@ -46,15 +47,43 @@ Both the trace-enabled and production fast paths use a `try/catch` wrapper that 
 
 ---
 
+## 🚦 Request Lane Router (O(1) pre-pipeline)
+
+**Before** the READY/SETUP sequence runs, `export const handle` classifies every request with `classifyRequest()` (`src/hooks/request-classifier.ts`) and stamps the response with **`x-svelty-lane`**.
+
+| Lane          | When                                                                  | Behavior                                                                |
+| ------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `FAST_STATIC` | `/favicon.ico`, `/robots.txt`, `/_app/*`, `/static/*`                 | Skip full stack; long-cache headers                                     |
+| `HEALTH`      | `/health`, `/api/system/health`                                       | Immediate JSON health (no auth / full pipeline)                         |
+| `HYPER_TURBO` | Authenticated **GET/HEAD** on cacheable API prefixes + session cookie | Eligible for `handleTurboGet` TURBO-HIT via user-scoped `responseCache` |
+| `API_READ`    | Other GET API                                                         | Full security + auth path                                               |
+| `API_WRITE`   | POST/PUT/PATCH/DELETE                                                 | Full CSRF + RBAC + mutation pipeline                                    |
+| `APP_SSR`     | Admin pages                                                           | Full SSR pipeline                                                       |
+| `BOOTSTRAP`   | `/setup`, `/login`, `/auth`                                           | Setup/auth shell                                                        |
+| `FILES`       | `/files/*`, `/media/*`                                                | File server path                                                        |
+| `PUBLIC_SITE` | Non-admin public pages                                                | Public SSR                                                              |
+
+**Session cookie for turbo detection:** `auth_sessions` (and `__Host-` / `__Secure-` variants) — **not** a legacy `svelty_session` name. Classifier stores the lane on `event.locals.lane`.
+
+**Operator guide + benchmarks:** [performance-architecture](../database/performance-architecture.mdx) · **Tests:** unit classifier/cache + `handle-turbo-get-lane`, integration `request-lane-headers`, E2E `hooks-lane-smoke`.
+
+```
+Request → classifyRequest (O(1))
+  ├─ FAST_STATIC / HEALTH → withLane(fast response)  [no full sequence]
+  └─ other lanes → getPipeline() sequence → withLane(response)
+```
+
+---
+
 ## 🏗️ Middleware Pipeline (2026 Optimized)
 
-The pipeline is **dynamically dispatched** based on system state, with **two cached sequences**:
+The pipeline is **dynamically dispatched** based on system state, with **two cached sequences** (after lane classification):
 
 - **READY pipeline** (19 hooks): Full production middleware chain
 - **SETUP pipeline** (3 hooks): Minimal bootstrap chain during installation
 
 ```typescript
-// READY Pipeline (production order):
+// READY Pipeline (production order) — after classifyRequest + HEALTH/STATIC fast-paths:
 const pipeline = [
   handleHyperTurbo, //  1. BENCHMARK AUTH
   handleTurboPipeline, //  2. CONSOLIDATED GATEWAY
@@ -62,7 +91,7 @@ const pipeline = [
   handleSecurity, //  4. Firewall, GraphQL Shield
   handleRateLimit, //  5. Per-IP Sliding Window Rate Limiting
   handleSystemState, //  6. AUTHORITATIVE GATEKEEPER
-  handleTurboGet, //  7. 🚀 TURBO GET (session cache + pre-compressed)
+  handleTurboGet, //  7. 🚀 TURBO GET (session cache + responseCache L1)
   handleRedirects, //  8. SEO Redirects (tenant header post-auth only)
   handleContentNegotiation, //  9. AI Agent Markdown Negotiation
   handleCompression, // 10. ESM-Native Streaming
@@ -77,6 +106,8 @@ const pipeline = [
   handleTokenResolution, // 19. RBAC Token Replacement
 ];
 ```
+
+> **2026-08 Request Lane Router**: O(1) `classifyRequest` + `x-svelty-lane` on all responses; HEALTH/FAST_STATIC short-circuit before the sequence; HYPER_TURBO keys off `auth_sessions` cookie; user-scoped GraphQL/REST `responseCache` (`src/services/cache/response-cache.ts`).
 
 > **2026-07 Security Hardening**: Turbo-auth restricted to GET/HEAD/OPTIONS (mutations pass through CSRF). `x-tenant-id` header only trusted when user is authenticated. Turbo-auth cache invalidated on role change, block, delete, and unblock. Auth methods use `safeCall` pattern (return `DatabaseResult` instead of throwing). `invalidateTurboAuthForUser()` exported for programmatic session revocation.
 
@@ -444,19 +475,20 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 ### handleTurboGet - Turbo GET Fast-Path 🚀
 
-**File**: `src/hooks/handle-turbo-get.ts`
-**Purpose**: Serves pre-encoded cached API responses BEFORE the auth/authz middleware chain, using a pre-computed session auth context cache.
+**File**: `src/hooks/handle-turbo-get.ts`  
+**Classifier:** Only meaningful when the request was already tagged `HYPER_TURBO` (authenticated GET/HEAD on cacheable prefixes).  
+**Purpose**: Serves pre-encoded cached API responses BEFORE the auth/authz middleware chain, using a pre-computed session auth context cache + user-scoped `responseCache` L1 body/ETag.
 
 **Architecture**:
 
 ```
-Request → ... → compression → ⚡ TURBO GET ⚡
+Request → classifyRequest → … → security → rate-limit → system-state → ⚡ TURBO GET ⚡
   ├─ Gate 1: GET/HEAD/OPTIONS only (no mutation bypass)
-  ├─ Gate 2: Cacheable API path? (8 prefixes: collections, content, settings, system, schema, navigation, themes, config)
-  ├─ Gate 3: Session cookie present?
-  ├─ Gate 4: Auth context in turbo cache? (60s TTL, LRU 1000 entries)
-  ├─ Gate 5: Response in L1 memory cache?
-  ├─ HIT  → Return pre-encoded response + security headers (skip auth/authz entirely)
+  ├─ Gate 2: Cacheable API path? (CACHEABLE_PREFIXES: collections, content, settings, system, graphql, media, dashboard, …)
+  ├─ Gate 3: Session cookie (`auth_sessions` / Host|Secure prefix) or Authorization present?
+  ├─ Gate 4: Auth context in turbo cache? (60s TTL, LRU)
+  ├─ Gate 5: Response body in responseCache L1 (user-scoped key)?
+  ├─ HIT  → Return pre-encoded response + security headers + x-svelty-lane (skip auth/authz)
   └─ MISS → Inject auth context into locals → passthrough to normal pipeline
 ```
 

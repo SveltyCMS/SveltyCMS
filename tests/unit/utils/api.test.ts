@@ -16,12 +16,6 @@ import {
 import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
 
 // Mock the publicEnv to avoid unresolved imports
-vi.mock("@src/stores/global-settings.svelte.ts", () => ({
-  publicEnv: {
-    DEFAULT_CONTENT_LANGUAGE: "en",
-  },
-}));
-
 describe("API Client Utilities", () => {
   let globalFetchMock: Mock;
 

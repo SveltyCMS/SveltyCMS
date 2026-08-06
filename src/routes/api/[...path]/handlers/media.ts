@@ -265,16 +265,25 @@ export async function handleMediaList(
   tenantId: DatabaseId,
   url: URL,
 ) {
-  return rawResponse(
-    event,
-    await cms.media.find({
+  const { cacheService } = await import("@src/databases/cache/cache-service");
+  const cacheKey = `media:list:${tenantId || "global"}:${url.search}`;
+  const cached = cacheService.getSync<any>(cacheKey, tenantId as string);
+  if (cached) return rawResponse(event, cached);
+
+  const fetchList = () =>
+    cms.media.find({
       tenantId,
       limit: Number(url.searchParams.get("limit")) || 100,
       folderId: url.searchParams.get("folderId") || undefined,
       recursive: url.searchParams.get("recursive") === "true",
       prefix: url.searchParams.get("prefix") || undefined,
-    }),
-  );
+    });
+
+  const res = await cacheService.coalesceQuery(cacheKey, fetchList);
+  if (res && res.success) {
+    cacheService.set(cacheKey, res, 5000, tenantId as string);
+  }
+  return rawResponse(event, res);
 }
 
 /**

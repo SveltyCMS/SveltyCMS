@@ -20,7 +20,7 @@ import iso6391 from "@utils/iso639-1.json";
 import { getLanguageName } from "@utils/language-utils";
 import { logger } from "@utils/logger";
 import { showConfirm } from "@utils/modal.svelte";
-import { onMount, tick } from "svelte";
+import { onMount, tick, untrack } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
 import Alert from "@components/ui/alert.svelte";
 import Checkbox from "@components/ui/checkbox.svelte";
@@ -79,7 +79,10 @@ let error = $state<string | null>(null);
 // Eagerly initialize with safe defaults: binding `undefined` into a `$bindable()`
 // prop with a fallback (e.g. <Select value=$bindable('')>) throws
 // `props_invalid_value` during hydration. loadSettings() later replaces values.
-let values = $state<Record<string, unknown>>(initializeGroupValues(group.fields, {}));
+// untrack: intentional one-time seed from initial group prop (not reactive re-init).
+let values = $state<Record<string, unknown>>(
+	untrack(() => initializeGroupValues(group.fields, {})),
+);
 let originalValues = $state<Record<string, unknown>>({}); // Track original values
 let errors = $state<Record<string, string>>({});
 let hasEmptyRequiredFields = $state(false);

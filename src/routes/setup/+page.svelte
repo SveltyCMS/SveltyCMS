@@ -51,10 +51,11 @@
 	import SetupCardHeader from './setup-card-header.svelte';
 	import SetupHeader from './setup-header.svelte';
 	import SetupNavigation from './setup-navigation.svelte';
-	import SetupStepper from './setup-stepper.svelte';
 	import SystemConfig from './system-config.svelte';
 	// Step Content Components
 	import WelcomeModal from './welcome-modal.svelte';
+	import Stepper from '@components/ui/stepper.svelte';
+	import VersionCheck from '@src/components/version-check.svelte';
 	import { logger } from '@src/utils/logger.ts';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
@@ -186,6 +187,13 @@
 		}
 	}
 
+	async function selectSetupStep(index: number) {
+		if (setupStore.stepClickable[index] || index === wizard.currentStep) {
+			wizard.currentStep = index;
+			await focusStepContent();
+		}
+	}
+
 	async function nextStep() {
 		if (!setupStore.canProceed) {
 			if (wizard.currentStep === 2 && wizard.systemSettings.useRedis && !setupStore.wizard.redisTestPassed) {
@@ -263,36 +271,62 @@
 	</header>
 
 	<div class="flex min-h-0 flex-1 overflow-hidden">
-		<!-- Left Sidebar: Stepper — no overflow-y; steps + legend fit without scroll on desktop -->
+		<!-- Left Sidebar: shared Stepper + legend (desktop) -->
 		<aside class="hidden h-full w-64 shrink-0 flex-col overflow-hidden border-e border-surface-200 bg-white dark:border-surface-700 dark:bg-surface-800 lg:flex xl:w-72">
-			<SetupStepper
-				{steps}
-				currentStep={wizard.currentStep}
-				stepCompleted={setupStore.stepCompleted}
-				stepClickable={setupStore.stepClickable}
-				{legendItems}
-				onselectStep={async (e: number) => {
-					wizard.currentStep = e;
-					await focusStepContent();
-				}}
-			/>
+			<div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden p-4">
+				<div class="min-h-0 flex-1 overflow-x-hidden pe-1">
+					<Stepper
+						{steps}
+						currentStep={wizard.currentStep}
+						completedSteps={setupStore.stepCompleted}
+						stepClickable={setupStore.stepClickable}
+						orientation="vertical"
+						variant="setup"
+						onStepClick={selectSetupStep}
+					/>
+				</div>
+				<div class="mt-auto shrink-0 border-t border-surface-200 pt-6 dark:border-surface-700">
+					<h4 class="mb-4 w-full text-center text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">
+						Legend
+					</h4>
+					<div class="flex items-end justify-between gap-4">
+						<ul class="space-y-2 text-xs">
+							{#each legendItems as item (item.key)}
+								<li class="grid grid-cols-[1.4rem_auto] items-center gap-x-3">
+									<div
+										class="flex h-5 w-5 items-center justify-center rounded-full font-semibold leading-none
+										{item.key === 'completed'
+											? ' bg-tertiary-500 dark:bg-primary-500 text-white'
+											: item.key === 'current'
+												? 'bg-error-500 text-white shadow-sm'
+												: 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'}"
+									>
+										<span class="text-[0.65rem]">{item.content}</span>
+									</div>
+									<span class="text-slate-600 dark:text-slate-400">{item.label}</span>
+								</li>
+							{/each}
+						</ul>
+						<div class="flex shrink-0 items-center"><VersionCheck /></div>
+					</div>
+				</div>
+			</div>
 		</aside>
 
 		<!-- Main: absolute footer so Redis / multi-tenant expand cannot reflow navigation -->
 		<main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-100 dark:bg-surface-800">
 			<DialogManager />
-			<!-- Mobile Stepper (only visible on small screens) -->
-			<div class="z-10 shrink-0 border-b border-surface-200 bg-white p-2 dark:border-surface-700 dark:bg-surface-800 lg:hidden">
-				<SetupStepper
+			<!-- Mobile Stepper (shared UI Stepper) -->
+			<div class="z-10 shrink-0 border-b border-surface-200 bg-white p-4 dark:border-surface-700 dark:bg-surface-800 lg:hidden">
+				<Stepper
 					{steps}
 					currentStep={wizard.currentStep}
-					stepCompleted={setupStore.stepCompleted}
+					completedSteps={setupStore.stepCompleted}
 					stepClickable={setupStore.stepClickable}
-					{legendItems}
-					onselectStep={async (e: number) => {
-						wizard.currentStep = e;
-						await focusStepContent();
-					}}
+					orientation="horizontal"
+					variant="setup"
+					mobileTruncate={true}
+					onStepClick={selectSetupStep}
 				/>
 			</div>
 

@@ -52,10 +52,6 @@ vi.mock("@src/databases/cache/cache-service", () => ({
   },
 }));
 
-vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(false),
-}));
-
 function createMockEvent(pathname: string, authHeader?: string): RequestEvent {
   const url = new URL(pathname, "http://localhost");
   const headers = new Headers();

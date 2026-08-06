@@ -14,6 +14,7 @@
 import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
+import { isRedirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 // 🔐 ENTERPRISE: chained audit file sink (logs/app.log) — activates once per boot.
 import "@utils/logger.server";
@@ -35,7 +36,14 @@ if (typeof (globalThis as any).__dirname === "undefined") {
 }
 
 import { isSetupComplete } from "./utils/setup-check-fast";
+import { classifyRequest, RequestLane } from "./hooks/request-classifier";
 import { resetIdCounters } from "@utils/id-generator";
+import { handleApiError } from "@utils/error-handling";
+import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
+import { handleTurboGet, turboAuthCache } from "./hooks/handle-turbo-get";
+import { handleCompression } from "./hooks/handle-compression";
+import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
+import { getTestSecret } from "@utils/server/setup-check";
 
 // 🚀 ZERO-RESTART ARCHITECTURE:
 // We track the setup state dynamically to allow the system to switch from
@@ -49,13 +57,6 @@ let setupComplete =
 if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
   (globalThis as any).__SVELTY_NODE_ID__ = crypto.randomUUID();
 }
-
-import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
-import { handleTurboGet, turboAuthCache } from "./hooks/handle-turbo-get";
-import { handleCompression } from "./hooks/handle-compression";
-import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
-
-import { getTestSecret } from "@utils/server/setup-check";
 
 // 🚀 HYPER-TURBO BYPASS (Enterprise)
 // In benchmark mode, injects a system admin user for non-auth requests
@@ -167,9 +168,6 @@ if (setupComplete) {
 
 const IS_BENCHMARK = typeof process !== "undefined" && process.env.BENCHMARK === "true";
 const IS_QUIET = typeof process !== "undefined" && process.env.QUIET === "true";
-
-import { isRedirect } from "@sveltejs/kit";
-import { handleApiError } from "@utils/error-handling";
 
 // --- Server Startup Logic ---
 if (!building) {
@@ -497,8 +495,33 @@ const getPipeline = () => {
  * 🛡️ GLOBAL SECURITY GUARD
  * Ensures that EVERY response (including 302 redirects, 404s, and 500 errors)
  * carries the full suite of security headers.
+ *
+ * Request Lane Router: O(1) classification for health/static/turbo fast-paths
+ * before the full middleware sequence.
  */
+function withLane(res: Response, lane: RequestLane): Response {
+  const headers = new Headers(res.headers);
+  headers.set("x-svelty-lane", lane);
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers,
+  });
+}
+
+// ─── Operational Request Lane Router ───────────────────────────────────────
 export const handle: Handle = async ({ event, resolve }) => {
+  const lane = classifyRequest(event.url, event.request.method, event.request.headers);
+  (event.locals as any).lane = lane;
+
+  if (lane === RequestLane.FAST_STATIC) {
+    if (event.url.pathname === "/favicon.ico")
+      return withLane(new Response(null, { status: 204 }), lane);
+    const res = await resolve(event);
+    res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    return withLane(res, lane);
+  }
+
   const pathname = event.url.pathname;
 
   // 🚀 HOT-SWAP CHECK: Dynamically synchronize setup state on every request
@@ -519,18 +542,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // 🚀 Fast-return for known static/missing paths (avoids ALL middleware + trace overhead)
   if (pathname === "/favicon.ico") {
-    return new Response(null, { status: 204 });
+    return withLane(new Response(null, { status: 204 }), lane);
   }
 
   // 🚀 Health check fast-return: skip trace setup, context, and full pipeline
-  // This prevents memory pressure from trace object creation at high RPS
-  if (pathname === "/api/system/health" || pathname === "/health") {
+  if (lane === RequestLane.HEALTH || pathname === "/api/system/health" || pathname === "/health") {
     inFlightRequests++;
     try {
       const state =
         (globalThis as any).__SYSTEM_OVERALL_STATE__ || (setupComplete ? "READY" : "SETUP");
 
-      // 🚀 Trigger database boot in background if setup is complete and system is IDLE
       if (
         setupComplete &&
         (state === "IDLE" || (globalThis as any).__SYSTEM_OVERALL_STATE__ === undefined)
@@ -547,7 +568,7 @@ export const handle: Handle = async ({ event, resolve }) => {
       const isDbConnected = state !== "SETUP" && state !== "IDLE" && state !== "FAILED";
       const mem = process.memoryUsage();
       const hooks = getHookTimings();
-      return Response.json(
+      const healthRes = Response.json(
         {
           status: isReady ? "healthy" : "unhealthy",
           overallStatus: state,
@@ -572,6 +593,7 @@ export const handle: Handle = async ({ event, resolve }) => {
           },
         },
       );
+      return withLane(healthRes, lane);
     } finally {
       inFlightRequests--;
     }
@@ -592,7 +614,8 @@ export const handle: Handle = async ({ event, resolve }) => {
     (event.locals as any).requestId = traceId;
     try {
       const pipeline = getPipeline();
-      return await pipeline({ event, resolve });
+      const res = await pipeline({ event, resolve });
+      return withLane(res, lane);
     } catch (err: any) {
       if (!isRedirect(err)) {
         logger.error(`[Guard] Unhandled error in middleware chain:`, err);
@@ -603,7 +626,7 @@ export const handle: Handle = async ({ event, resolve }) => {
           event.request.headers.get("Origin"),
           event.url.pathname,
         );
-        return errorResponse;
+        return withLane(errorResponse, lane);
       }
       throw err;
     } finally {
@@ -639,7 +662,7 @@ export const handle: Handle = async ({ event, resolve }) => {
               response.headers.set("x-svelty-trace-spans", JSON.stringify(trace.spans));
             }
           }
-          return response;
+          return withLane(response, lane);
         } catch (err: any) {
           if (isRedirect(err)) {
             throw err;
@@ -664,7 +687,7 @@ export const handle: Handle = async ({ event, resolve }) => {
             }
           }
 
-          return errorResponse;
+          return withLane(errorResponse, lane);
         } finally {
           inFlightRequests--;
         }

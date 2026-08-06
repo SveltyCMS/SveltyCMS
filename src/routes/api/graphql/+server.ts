@@ -20,8 +20,11 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { createYoga, createSchema } from "graphql-yoga";
 import { NoSchemaIntrospectionCustomRule } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
-import { cacheService } from "@src/databases/cache/cache-service";
-import { CacheCategory } from "@src/databases/cache/types";
+import {
+  responseCache,
+  buildGraphQLResponseCacheKey,
+  generateContentEtag,
+} from "@src/services/cache/response-cache";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
@@ -79,15 +82,6 @@ import { LocalCMS } from "@src/services/sdk";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-
-function hashStr(s: string): string {
-  let hash = 0;
-  for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i);
-    hash = ((hash << 5) - hash + c) | 0;
-  }
-  return Math.abs(hash).toString(36);
-}
 
 import { registerPermission } from "@src/databases/auth/permissions";
 import { PermissionAction, PermissionType } from "@src/databases/auth/types";
@@ -276,11 +270,66 @@ async function handleRequest(event: RequestEvent) {
     throw new AppError("Unauthorized: Login required for GraphQL", 401);
   }
 
+  const url = new URL(request.url);
+  const publicationFilterParam = url.searchParams.get("publicationFilter");
+  const publicationFilterHeader = request.headers.get("x-publication-filter");
+  const publicationFilter = (publicationFilterParam || publicationFilterHeader || "all") as
+    | "published"
+    | "draft"
+    | "all";
+
+  let query = "";
+  let variables: any = {};
+  let isQuery = true;
+  let bodyText = "";
+
+  if (request.method === "POST") {
+    bodyText = await request.text().catch(() => "");
+    try {
+      const body = JSON.parse(bodyText);
+      query = body?.query || "";
+      variables = body?.variables || {};
+    } catch {}
+  } else if (request.method === "GET") {
+    query = url.searchParams.get("query") || "";
+    const varsParam = url.searchParams.get("variables");
+    if (varsParam) {
+      try {
+        variables = JSON.parse(varsParam);
+      } catch {}
+    }
+  }
+
+  if (query && (/\bmutation\b/i.test(query) || /\bsubscription\b/i.test(query))) {
+    isQuery = false;
+  }
+
+  const userId = locals.user?._id || locals.user?.id || null;
+  const cacheKey =
+    isQuery && query
+      ? buildGraphQLResponseCacheKey(query, variables, publicationFilter, userId)
+      : null;
+
+  // 🚀 FAST-PATH: Return cached response immediately before content/DB/Yoga setup
+  if (cacheKey) {
+    const cached = responseCache.get(cacheKey, locals.tenantId as string);
+    if (cached?.body) {
+      return new Response(cached.body, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ETag: cached.etag,
+          "X-Cache": "HIT",
+        },
+      });
+    }
+  }
+
+  // ── CACHE MISS PATH: Load content system, DB adapter & Yoga app ──
   const { contentSystem } = await import("@src/content/index.server");
   await contentSystem.waitForReload();
 
   let adapter = locals.dbAdapter;
-  // 🚀 HARDENING: If adapter is missing or disconnected (e.g. after reinitialize), refresh it
   if (!adapter || (typeof adapter.isConnected === "function" && !adapter.isConnected())) {
     const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
     if (!isDbConnected()) {
@@ -297,44 +346,16 @@ async function handleRequest(event: RequestEvent) {
     sharedCMS = new LocalCMS(adapter);
   }
   const cms = sharedCMS;
-
-  const url = new URL(request.url);
-  const publicationFilterParam = url.searchParams.get("publicationFilter");
-  const publicationFilterHeader = request.headers.get("x-publication-filter");
-  const publicationFilter = (publicationFilterParam || publicationFilterHeader || "all") as
-    | "published"
-    | "draft"
-    | "all";
-
   let _loaders: any = null;
 
   try {
-    // ── Response cache: clone request to read body, original stays intact for Yoga ──
-    const cacheReq = request.clone();
-    const bodyText = await cacheReq.text().catch(() => "");
-    let body: any = {};
-    try {
-      body = JSON.parse(bodyText);
-    } catch {}
-    const query = body?.query || "";
-    const variables = body?.variables || {};
-
-    if (query && request.method === "POST") {
-      const cacheKey = `gql:resp:${hashStr(String(query) + JSON.stringify(variables))}:${locals.tenantId || "global"}:${locals.user?.role || "anon"}`;
-      const cached = cacheService.getSync<{ body: string; status: number }>(
-        cacheKey,
-        locals.tenantId as string,
-      );
-      if (cached?.body) {
-        return new Response(cached.body, {
-          status: cached.status || 200,
-          headers: { "Content-Type": "application/json", "X-Cache": "HIT" },
-        });
-      }
-    }
+    const yogaRequest =
+      request.method === "POST"
+        ? new Request(request.url, { method: "POST", headers: request.headers, body: bodyText })
+        : request;
 
     const yogaApp = await _getYogaApp(adapter, locals.tenantId);
-    const yogaResponse = await yogaApp.handleRequest(request, {
+    const yogaResponse = await yogaApp.handleRequest(yogaRequest, {
       user: locals.user,
       tenantId: locals.tenantId,
       dbAdapter: adapter,
@@ -353,17 +374,23 @@ async function handleRequest(event: RequestEvent) {
 
     const responseBody = await yogaResponse.text();
 
-    // Cache successful query responses (same key as lookup)
-    if (query && request.method === "POST" && yogaResponse.status === 200) {
-      const cacheKey = `gql:resp:${hashStr(String(query) + JSON.stringify(variables))}:${locals.tenantId || "global"}:${locals.user?.role || "anon"}`;
+    // 🛡️ Do not cache error-shaped responses (errors array in JSON)
+    if (cacheKey && yogaResponse.status === 200) {
       try {
-        await cacheService.set(
-          cacheKey,
-          { body: responseBody, status: yogaResponse.status },
-          30,
-          locals.tenantId as string,
-          CacheCategory.API,
-        );
+        const parsedBody = JSON.parse(responseBody);
+        if (
+          !parsedBody?.errors ||
+          !Array.isArray(parsedBody.errors) ||
+          parsedBody.errors.length === 0
+        ) {
+          const etag = generateContentEtag(responseBody);
+          responseCache.set(
+            cacheKey,
+            { body: responseBody, etag },
+            60_000,
+            locals.tenantId as string,
+          );
+        }
       } catch {}
     }
 
