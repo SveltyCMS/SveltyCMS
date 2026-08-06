@@ -7,18 +7,12 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
-import { isDockerRunning } from "../helpers/docker";
+import { connectWithRetry, shouldRunAdapterSuite } from "./adapter-test-env";
 
-// Only run when Docker has Postgres AND this matrix job is configured for it.
-// CI sets isDockerRunning()=true globally, so DB_TYPE is required to avoid
-// ECONNREFUSED when the sqlite/mongo/maria jobs do not expose PostgreSQL.
-const pgDockerRunning = isDockerRunning("postgres");
-const pgDbType = (process.env.DB_TYPE || "").toLowerCase() === "postgresql";
-const describePostgres = pgDockerRunning && pgDbType ? describe : describe.skip;
-if (!pgDockerRunning || !pgDbType) {
-  console.log(
-    `⏭️ PostgreSQL adapter suite skipped — Docker=${pgDockerRunning} DB_TYPE=${process.env.DB_TYPE || "none"}`,
-  );
+const gate = shouldRunAdapterSuite("postgresql");
+const describePostgres = gate.run ? describe : describe.skip;
+if (!gate.run) {
+  console.log(`⏭️ PostgreSQL adapter suite skipped — ${gate.reason}`);
 }
 
 describePostgres("PostgreSQL Adapter Integration", () => {
@@ -31,26 +25,18 @@ describePostgres("PostgreSQL Adapter Integration", () => {
         await import("../../../src/databases/postgresql/postgres-adapter");
       db = new PostgreSQLAdapter() as any;
 
-      // Docker-compose defaults — isolated DB name for this suite.
-      const host = "127.0.0.1";
-      const port = "5432";
-      const user = "postgres";
-      const pass = "postgres";
-      const dbName = "sveltycms_test";
-
-      const connStr = `postgres://${user}:${pass}@${host}:${port}/${dbName}`;
-
-      const result = await db!.connect(connStr);
-      if (!result.success) {
-        throw new Error(result.message);
-      }
+      await connectWithRetry("postgresql", async (uri) => {
+        const result = await db!.connect(uri);
+        return { success: !!result?.success, message: result?.message };
+      });
       await (db as any).provision?.();
-    } catch (err: any) {
-      console.warn("PostgreSQL not available. Failing suite.", err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[PostgreSQL Adapter Integration] setup failed: ${msg}`);
       db = null;
-      throw err;
+      throw new Error(`PostgreSQL Adapter Integration setup failed: ${msg}`);
     }
-  });
+  }, 90_000);
 
   afterAll(async () => {
     if (db && db.isConnected()) {

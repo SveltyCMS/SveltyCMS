@@ -97,7 +97,8 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         family: 4,
         connectTimeoutMS: 10000,
         waitQueueTimeoutMS: 10000,
-        ...(isTestMode ? ({ w: 1, j: false } as any) : {}),
+        // Prefer `journal` over deprecated `j` (driver warns / may reject in newer majors)
+        ...(isTestMode ? ({ w: 1, journal: false } as any) : {}),
         ...(compressors.length > 0 ? { compressors: compressors as any } : {}),
       };
 

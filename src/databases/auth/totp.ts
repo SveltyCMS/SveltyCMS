@@ -129,8 +129,8 @@ export async function encryptTotpSecret(secret: string): Promise<string> {
 export async function decryptTotpSecret(stored: string): Promise<string | null> {
   if (!stored) return null;
 
-  // Backward compatibility: if it looks like a base32 TOTP secret, it's legacy plaintext
-  if (/^[A-Z2-7]+=*$/.test(stored) && stored.length >= 16) {
+  // Backward compatibility: if it looks like a base32 TOTP secret and NOT an envelope, it's legacy plaintext
+  if (!stored.startsWith("AQ") && /^[A-Z2-7]+=*$/.test(stored) && stored.length >= 16) {
     return stored;
   }
 
@@ -156,8 +156,9 @@ export async function decryptTotpSecret(stored: string): Promise<string | null> 
     const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     return decrypted.toString("utf8");
   } catch {
-    // If decryption fails and it looks like a base32 secret, return as legacy plaintext
-    if (/^[A-Z2-7]+=*$/.test(stored) && stored.length >= 16) return stored;
+    // If decryption fails and it looks like a base32 secret (not an envelope), return as legacy plaintext
+    if (!stored.startsWith("AQ") && /^[A-Z2-7]+=*$/.test(stored) && stored.length >= 16)
+      return stored;
     return null;
   }
 }

@@ -500,13 +500,8 @@ const getPipeline = () => {
  * before the full middleware sequence.
  */
 function withLane(res: Response, lane: RequestLane): Response {
-  const headers = new Headers(res.headers);
-  headers.set("x-svelty-lane", lane);
-  return new Response(res.body, {
-    status: res.status,
-    statusText: res.statusText,
-    headers,
-  });
+  res.headers.set("x-svelty-lane", lane);
+  return res;
 }
 
 // ─── Operational Request Lane Router ───────────────────────────────────────

@@ -7,24 +7,12 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
-import { isDockerRunning } from "../helpers/docker";
+import { connectWithRetry, shouldRunAdapterSuite } from "./adapter-test-env";
 
-// 1. CONFIGURATION (Isolation for CI)
-// @ts-ignore - optional test config
-const { privateEnv: _privateEnv } = (await import("../../../config/private.test").catch(() => ({
-  _privateEnv: { DB_TYPE: process.env.DB_TYPE || "sqlite" },
-}))) as any;
-
-// Only run when Docker has MariaDB AND this matrix job is configured for it.
-// CI sets isDockerRunning()=true globally, so DB_TYPE is required to avoid
-// ECONNREFUSED when the sqlite/mongo/pg jobs do not expose MariaDB.
-const mariadbDockerRunning = isDockerRunning("mariadb");
-const mariadbDbType = (process.env.DB_TYPE || "").toLowerCase() === "mariadb";
-const describeMariaDB = mariadbDockerRunning && mariadbDbType ? describe : describe.skip;
-if (!mariadbDockerRunning || !mariadbDbType) {
-  console.log(
-    `⏭️ MariaDB adapter suite skipped — Docker=${mariadbDockerRunning} DB_TYPE=${process.env.DB_TYPE || "none"}`,
-  );
+const gate = shouldRunAdapterSuite("mariadb");
+const describeMariaDB = gate.run ? describe : describe.skip;
+if (!gate.run) {
+  console.log(`⏭️ MariaDB adapter suite skipped — ${gate.reason}`);
 }
 
 describeMariaDB("MariaDB Adapter Integration", () => {
@@ -36,29 +24,18 @@ describeMariaDB("MariaDB Adapter Integration", () => {
       const { MariaDBAdapter } = await import("../../../src/databases/mariadb/mariadb-adapter");
       db = new MariaDBAdapter() as any;
 
-      // Always use Docker-compose defaults for this in-process suite (not CMS DB_TYPE).
-      const host = "127.0.0.1";
-      const port = "3306";
-      const user = "root";
-      const pass = "mariadb";
-      const dbName = "sveltycms_test";
-
-      const connStr = `mariadb://${user}:${pass}@${host}:${port}/${dbName}`;
-
-      const result = await db!.connect(connStr);
-      if (!result.success) {
-        throw new Error(result.message);
-      }
+      await connectWithRetry("mariadb", async (uri) => {
+        const result = await db!.connect(uri);
+        return { success: !!result?.success, message: result?.message };
+      });
       await (db as any).provision?.();
-    } catch (err: any) {
-      console.warn(
-        "MariaDB not available on 127.0.0.1/sveltycms_test. Failing suite.",
-        err.message,
-      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[MariaDB Adapter Integration] setup failed: ${msg}`);
       db = null;
-      throw err;
+      throw new Error(`MariaDB Adapter Integration setup failed: ${msg}`);
     }
-  });
+  }, 90_000);
 
   afterAll(async () => {
     if (db && db.isConnected()) {

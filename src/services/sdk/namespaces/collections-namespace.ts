@@ -1411,39 +1411,40 @@ export class CollectionsNamespace {
   }
 
   private async invalidateCache(schema: Schema, tenantId?: DatabaseId | null) {
-    // 1. Clear L1 (In-Memory) Cache
+    // 1. Clear L1 (In-Memory) Cache synchronously (0ms)
     CollectionsNamespace._requestCache.clear();
-    const { responseCache } = await import("@src/services/cache/response-cache");
-    await responseCache.invalidateAll((tenantId || undefined) as string | undefined);
 
-    // 2. Clear L2 (External) Cache
-    const patterns = [`cms:content_structure:${tenantId || "global"}`];
-    if (schema._id) {
-      patterns.push(
-        `collection:${schema._id}:*`,
-        `cms:content_structure:${tenantId || "global"}:${schema._id}`,
-        `/api/collections/${schema._id.toLowerCase()}*`,
-        `/api/collections/${schema._id}*`,
-      );
-    }
-    for (const pattern of patterns) {
-      await cacheService
-        .clearByPattern(pattern, (tenantId || undefined) as string | undefined)
-        .catch((err) => {
-          logger.warn(`[Cache] L2 clearByPattern failed for "${pattern}": ${err?.message || err}`, {
-            tenantId,
-            collectionId: String(schema._id ?? "unknown"),
-          });
-        });
-    }
-    // Fallback: explicit collection invalidation in case pattern-based clear missed keys
-    if (schema._id) {
-      await cacheService
-        .invalidateCollection(String(schema._id), (tenantId || undefined) as string | undefined)
-        .catch((err) =>
-          logger.warn(`[Cache] Collection invalidation fallback failed: ${err?.message || err}`),
+    // 2. Dispatch L2 pattern clears asynchronously in background
+    queueMicrotask(async () => {
+      try {
+        const { responseCache } = await import("@src/services/cache/response-cache");
+        responseCache.invalidateAll((tenantId || undefined) as string | undefined).catch(() => {});
+
+        const patterns = [`cms:content_structure:${tenantId || "global"}`];
+        if (schema._id) {
+          patterns.push(
+            `collection:${schema._id}:*`,
+            `cms:content_structure:${tenantId || "global"}:${schema._id}`,
+            `/api/collections/${schema._id.toLowerCase()}*`,
+            `/api/collections/${schema._id}*`,
+          );
+        }
+
+        await Promise.all(
+          patterns.map((pattern) =>
+            cacheService
+              .clearByPattern(pattern, (tenantId || undefined) as string | undefined)
+              .catch(() => {}),
+          ),
         );
-    }
+
+        if (schema._id) {
+          cacheService
+            .invalidateCollection(String(schema._id), (tenantId || undefined) as string | undefined)
+            .catch(() => {});
+        }
+      } catch {}
+    });
   }
 
   /**

@@ -15,18 +15,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../../../src/utils/v8-shim";
 
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
-import { isDockerRunning } from "../helpers/docker";
+import { connectWithRetry, shouldRunAdapterSuite } from "./adapter-test-env";
 
-// Only run when Docker has Mongo AND this matrix job is configured for it.
-// CI sets isDockerRunning()=true globally, so DB_TYPE is required to avoid
-// ECONNREFUSED when the sqlite/maria/pg jobs do not expose MongoDB.
-const mongoDockerRunning = isDockerRunning("mongo");
-const mongoDbType = (process.env.DB_TYPE || "").toLowerCase() === "mongodb";
-const describeMongo = mongoDockerRunning && mongoDbType ? describe : describe.skip;
-if (!mongoDockerRunning || !mongoDbType) {
-  console.log(
-    `⏭️ MongoDB adapter suite skipped — Docker=${mongoDockerRunning} DB_TYPE=${process.env.DB_TYPE || "none"}`,
-  );
+const gate = shouldRunAdapterSuite("mongodb");
+const describeMongo = gate.run ? describe : describe.skip;
+if (!gate.run) {
+  console.log(`⏭️ MongoDB adapter suite skipped — ${gate.reason}`);
 }
 
 describeMongo("MongoDB Adapter Integration", () => {
@@ -41,35 +35,28 @@ describeMongo("MongoDB Adapter Integration", () => {
       const { MongoDBAdapter } = await import("../../../src/databases/mongodb/mongo-db-adapter");
 
       db = new MongoDBAdapter();
+      if (!db) throw new Error("Failed to initialize MongoDB adapter");
 
-      if (!db) {
-        throw new Error("Failed to initialize MongoDB adapter");
-      }
-
-      // Docker mongo:latest — no auth by default (tests/docker-compose.yml).
-      const noAuthUri = "mongodb://127.0.0.1:27017/sveltycms_test";
-
-      const result = await db.connect(noAuthUri, {
-        serverSelectionTimeoutMS: 8000,
-        connectTimeoutMS: 8000,
-      } as any);
-
-      if (!result?.success) {
-        throw new Error(
-          `Failed to connect to MongoDB: ${(result as any)?.message || "unknown error"}`,
-        );
-      }
+      await connectWithRetry("mongodb", async (uri) => {
+        const result = await db!.connect(uri, {
+          serverSelectionTimeoutMS: 8000,
+          connectTimeoutMS: 8000,
+        } as any);
+        return { success: !!result?.success, message: (result as any)?.message };
+      });
 
       await db.ensureSystem?.();
       await db.ensureContent?.();
       await db.ensureMedia?.();
       await db.ensureAuth?.();
     } catch (err) {
-      console.error("MongoDB setup failed.", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[MongoDB Adapter Integration] setup failed: ${msg}`);
       db = null;
-      throw err;
+      // Re-throw with suite name so bun doesn't only print "(unnamed)"
+      throw new Error(`MongoDB Adapter Integration setup failed: ${msg}`);
     }
-  }, 60000);
+  }, 90_000);
 
   afterAll(async () => {
     try {
