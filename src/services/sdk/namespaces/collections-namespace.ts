@@ -576,7 +576,17 @@ export class CollectionsNamespace {
       : await fetchFromDb();
 
     if (result.success && result.data && Array.isArray(result.data)) {
-      const hasActiveWidgets = (schema.fields as any)._hasActiveWidgets ?? true;
+      let hasActiveWidgets = (schema.fields as any)?._hasActiveWidgets;
+      if (hasActiveWidgets === undefined && schema.fields) {
+        const { widgetRegistryService } =
+          await import("@src/services/core/widget-registry-service");
+        hasActiveWidgets = (schema.fields as FieldInstance[]).some((f) => {
+          const wFn = widgetRegistryService.getWidgetSync(f.widget?.Name);
+          return Boolean(wFn && (wFn as any).modifyRequest);
+        });
+        (schema.fields as any)._hasActiveWidgets = hasActiveWidgets;
+      }
+
       if (hasActiveWidgets) {
         let collectionModel = (schema as any)._collectionModel;
         if (!collectionModel) {
@@ -1371,11 +1381,6 @@ export class CollectionsNamespace {
     options: LocalApiOptions,
     schema: Schema,
   ): Promise<any> {
-    // ⚡ Fast-path for benchmarks or when no plugins have registered hooks
-    if (process.env.BENCHMARK_MODE === "true") {
-      return data;
-    }
-
     const plugins = pluginRegistry.getAll();
     if (plugins.length === 0) {
       return data;
@@ -1504,15 +1509,11 @@ export class CollectionsNamespace {
       if (result?.success) {
         const id = getId(result);
         if (id) {
-          await this.emitOutboxEvent(
-            schema,
-            tenantId,
-            action,
-            id,
-            getData(result),
-            user,
-            txOpts.transaction ? { transaction: txOpts.transaction } : undefined,
-          );
+          queueMicrotask(() => {
+            this.emitOutboxEvent(schema, tenantId, action, id, getData(result), user).catch(
+              () => {},
+            );
+          });
         }
       }
       return result;

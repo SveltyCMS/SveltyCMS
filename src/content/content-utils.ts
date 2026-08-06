@@ -407,21 +407,29 @@ export function sanitizeCollectionFields(
     }>;
   },
 ): Record<string, unknown> {
-  if (!schema.fields) return data;
-  const sanitized = { ...data };
+  if (!data || !schema.fields || schema.fields.length === 0) return data;
+  let sanitized: Record<string, unknown> | null = null;
 
-  for (const field of schema.fields) {
-    const value = sanitized[field.db_fieldName];
+  for (let i = 0; i < schema.fields.length; i++) {
+    const field = schema.fields[i];
+    if (!field) continue;
+    const type = field.type;
+    if (type !== "richtext" && type !== "markdown" && type !== "text" && type !== "textarea") {
+      continue;
+    }
+    const value = data[field.db_fieldName];
     if (typeof value !== "string") continue;
 
-    if (field.type === "richtext" || field.type === "markdown") {
+    if (!sanitized) sanitized = { ...data };
+
+    if (type === "richtext" || type === "markdown") {
       sanitized[field.db_fieldName] = sanitizeHtml(value);
-    } else if (field.type === "text" || field.type === "textarea") {
+    } else if (type === "text" || type === "textarea") {
       sanitized[field.db_fieldName] = stripHtml(value);
     }
   }
 
-  return sanitized;
+  return sanitized || data;
 }
 
 // ─────────────────────────────────────────────────────────────

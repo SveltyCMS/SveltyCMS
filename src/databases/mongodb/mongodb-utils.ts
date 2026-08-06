@@ -127,12 +127,14 @@ export function processDates<T>(data: T): T {
     return data;
   }
 
-  // Handle Dates
+  // Fast path for Date instances
+  if (data instanceof Date) {
+    return data.toISOString() as unknown as T;
+  }
+
+  // Handle Duck-typed Dates (cross-realm / cross-chunk Date objects)
   if (isDateLike(data)) {
-    // 🚀 CROSS-CONTEXT FIX: Always re-wrap if it looks like a Date.
-    // This handles cases where 'instanceof Date' fails due to multiple constructor instances (cross-chunk).
-    const realDate =
-      (data as any) instanceof Date ? (data as any) : new Date((data as any).getTime());
+    const realDate = new Date((data as any).getTime());
     return realDate.toISOString() as unknown as T;
   }
 
@@ -156,12 +158,17 @@ export function processDates<T>(data: T): T {
   let result: any = null;
   let hasChanges = false;
 
-  for (const key in data as Record<string, unknown>) {
-    if (!Object.hasOwn(data, key)) continue;
+  const obj = data as Record<string, unknown>;
+  for (const key in obj) {
+    if (!Object.hasOwn(obj, key)) continue;
 
-    const val = (data as Record<string, any>)[key];
+    const val = obj[key];
+    // Primitive fast-path (strings, numbers, booleans, null, undefined)
+    if (val === null || val === undefined || typeof val !== "object") {
+      continue;
+    }
+
     const processed = processDates(val);
-
     if (processed !== val) {
       if (!hasChanges) {
         result = { ...data };

@@ -438,6 +438,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           if (
             typeof val === "string" &&
             val.length > 5 &&
+            (k === "createdAt" ||
+              k === "updatedAt" ||
+              k.endsWith("Date") ||
+              k.endsWith("At") ||
+              isPhysical?.dataType === "date" ||
+              (isPhysical?.columnType && isPhysical.columnType.includes("Timestamp"))) &&
             /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)
           ) {
             const ts = Date.parse(val);
