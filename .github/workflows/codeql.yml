@@ -5,23 +5,21 @@ name: CodeQL
 # secret-misuse). Different engine, same philosophy: catch vulnerability
 # classes in OUR code, not just dependency CVEs.
 #
-# Runs on push to next/main, PRs to next, and weekly (Monday 03:17 UTC).
-# JavaScript/TypeScript analysis needs no build step (build-mode: none).
+# IMPORTANT: GitHub "default setup" for CodeQL cannot coexist with advanced
+# workflow SARIF upload on the same repo. While default setup is enabled under
+# Settings → Code security, this workflow must NOT upload on push (upload fails
+# with: "CodeQL analyses from advanced configurations cannot be processed when
+# the default setup is enabled").
+#
+# - Default setup: continuous results on push/PR (GitHub-managed)
+# - This workflow: manual / weekly advanced queries (security-extended), no upload
+#   when default setup is on. Re-enable upload after disabling default setup.
 
 on:
-  push:
-    branches: [next, main]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - ".vscode/**"
-  pull_request:
-    branches: [next, main]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
+  workflow_dispatch:
   schedule:
     - cron: "17 3 * * 1"
+  # Intentionally no push/PR while default CodeQL setup is enabled (see above).
 
 concurrency:
   group: codeql-${{ github.ref }}
@@ -51,3 +49,6 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:javascript-typescript"
+          # Avoid SARIF upload conflict with default setup; still fails the job
+          # if analysis itself fails.
+          upload: never

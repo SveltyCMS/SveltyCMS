@@ -211,9 +211,16 @@ describe("CacheService L2 contract — in-memory FakeRedis (always on)", () => {
   });
 });
 
-/** Prefer TEST_REDIS_URL; auto-detect local docker redis when unset. */
+/**
+ * Real Redis: only when explicitly configured.
+ * Do NOT use isDockerRunning() under CI — that helper always returns true when
+ * `CI=true`, which would enable this suite on unit jobs without a Redis service
+ * and hang afterEach on connect/quit (hook timeout 10s).
+ * Local: auto-detect docker redis when not in CI.
+ */
 const redisUrl =
-  process.env.TEST_REDIS_URL || (isDockerRunning("redis") ? "redis://127.0.0.1:6379" : undefined);
+  process.env.TEST_REDIS_URL ||
+  (process.env.CI !== "true" && isDockerRunning("redis") ? "redis://127.0.0.1:6379" : undefined);
 
 describe.skipIf(!redisUrl)(
   "CacheService L2 contract — real Redis (TEST_REDIS_URL or Docker)",
