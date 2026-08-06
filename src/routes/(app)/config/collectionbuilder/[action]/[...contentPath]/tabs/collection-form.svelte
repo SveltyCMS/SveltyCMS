@@ -64,18 +64,25 @@ $effect(() => {
 	});
 });
 
-// Sync all fields into the collection store
+// Sync all fields into the collection store (include slug for save action)
 $effect(() => {
 	const currentName = name;
 	const currentDescription = description;
 	const currentIcon = selectedIcon;
+	const currentSlug = DB_NAME
+		? currentName
+				.toLowerCase()
+				.replace(/\s+/g, "-")
+				.replace(/[^a-z0-9-]/g, "")
+		: "";
 
 	untrack(() => {
 		if (!collection.value) return;
 		if (
 			collection.value.name === currentName &&
 			collection.value.description === currentDescription &&
-			collection.value.icon === currentIcon
+			collection.value.icon === currentIcon &&
+			collection.value.slug === currentSlug
 		)
 			return;
 
@@ -83,7 +90,8 @@ $effect(() => {
 			...collection.value,
 			name: currentName,
 			description: currentDescription,
-			icon: currentIcon,
+			icon: currentIcon || "bi:collection",
+			slug: currentSlug || collection.value.slug,
 		});
 	});
 });

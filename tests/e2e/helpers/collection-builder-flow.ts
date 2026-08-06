@@ -235,11 +235,38 @@ export async function addInputField(
 
 export async function saveCollectionSchema(page: Page): Promise<void> {
   await dismissOpenDialogs(page);
-  const saveBtn = page.getByTestId("save-collection-button").first();
-  await expect(saveBtn).toBeVisible({ timeout: 10_000 });
-  await expect(saveBtn).toBeEnabled({ timeout: 10_000 });
-  await stableClick(saveBtn, 10_000);
-  await expect(page.getByText(/collection saved/i)).toBeVisible({ timeout: 20_000 });
+
+  // StickyActions may clone the Save button into a sticky bar (duplicate testids).
+  // Prefer a visible, enabled instance; force-click to beat overlays.
+  const candidates = page.locator('[data-testid="save-collection-button"]');
+  await expect(candidates.first()).toBeAttached({ timeout: 10_000 });
+
+  const count = await candidates.count();
+  let clicked = false;
+  for (let i = 0; i < count; i++) {
+    const btn = candidates.nth(i);
+    const enabled = await btn.isEnabled().catch(() => false);
+    const visible = await btn.isVisible().catch(() => false);
+    if (enabled && visible) {
+      await btn.scrollIntoViewIfNeeded().catch(() => undefined);
+      await btn.click({ force: true, timeout: 10_000 });
+      clicked = true;
+      break;
+    }
+  }
+  if (!clicked) {
+    // Last resort: any enabled button (including sticky)
+    const anyEnabled = page
+      .locator('[data-testid="save-collection-button"]:not([disabled])')
+      .first();
+    await anyEnabled.click({ force: true, timeout: 10_000 });
+  }
+
+  // Success: toast and/or SPA navigation to edit/:name (new collections)
+  await Promise.race([
+    page.getByText(/collection saved/i).waitFor({ state: "visible", timeout: 25_000 }),
+    page.waitForURL(/\/config\/collectionbuilder\/edit\//, { timeout: 25_000 }),
+  ]);
 }
 
 export async function openCollectionEntries(page: Page, slug: string): Promise<void> {

@@ -224,8 +224,21 @@ export const actions: Actions = {
         }
       }
 
-      // Widgets Fields
-      const fields = JSON.parse(fieldsData) as FieldsData;
+      // Widgets Fields — empty / missing is valid for first-save name-only collections
+      let fields: FieldsData = {} as FieldsData;
+      if (fieldsData) {
+        try {
+          const parsed = JSON.parse(fieldsData);
+          // Accept array (store shape) or object map
+          fields = (
+            Array.isArray(parsed)
+              ? Object.fromEntries(parsed.map((f: any, i: number) => [String(i), f]))
+              : parsed
+          ) as FieldsData;
+        } catch {
+          return { status: 400, error: "Invalid fields JSON" };
+        }
+      }
 
       // 1. Drift Detection & Safety Check
       // Construct a temporary schema for comparison

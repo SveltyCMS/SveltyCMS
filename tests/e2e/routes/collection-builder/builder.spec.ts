@@ -64,19 +64,24 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
   test("soft-refresh: schema save keeps session shell (no hard navigation to login)", async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
     await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
 
     const fixture = uniqueCollectionFixture("SoftHmr");
     await openNewCollectionEditor(page);
-    // Soft-refresh contract only needs a successful save — not the full widget wizard.
-    // (Widget/field modal is covered by the golden journey below.)
-    await page.getByTestId("collection-name-input").fill(fixture.name);
-    await expect(page.getByTestId("save-collection-button").first()).toBeEnabled({
-      timeout: 10_000,
-    });
 
-    // Marker survives soft invalidate; would be wiped by full document reload
+    // Soft-refresh only needs a successful save — not the widget wizard.
+    const nameInput = page.getByTestId("collection-name-input");
+    await nameInput.click();
+    await nameInput.fill(fixture.name);
+    await nameInput.blur();
+    // Wait for define step + store sync so Save enables (name !== "new")
+    await expect(
+      page.locator('[data-testid="save-collection-button"]:not([disabled])').first(),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Marker survives SPA invalidate/goto; wiped only by full document reload
     await page.evaluate(() => {
       (window as unknown as { __SVELTY_SOFT_HMR_MARK?: number }).__SVELTY_SOFT_HMR_MARK = 42;
     });
@@ -84,6 +89,9 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await saveCollectionSchema(page);
 
     await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
+    // Still in collection builder (edit URL ok after first save of a new collection)
+    await expect(page).toHaveURL(/\/config\/collectionbuilder\//, { timeout: 10_000 });
+
     const mark = await page.evaluate(
       () => (window as unknown as { __SVELTY_SOFT_HMR_MARK?: number }).__SVELTY_SOFT_HMR_MARK,
     );

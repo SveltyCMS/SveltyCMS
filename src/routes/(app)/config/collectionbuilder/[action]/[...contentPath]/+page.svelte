@@ -208,7 +208,8 @@ async function handleCollectionSave(confirmDeletions = false) {
 	validationStore.clearAllErrors();
 
 	// Validate required name client-side
-	if (!collection.value?.name?.trim()) {
+	const name = collection.value?.name?.trim() ?? "";
+	if (!name || name === "new") {
 		validationStore.setError("name", "Collection name is required");
 		toast.error("Collection name is required");
 		return;
@@ -216,20 +217,64 @@ async function handleCollectionSave(confirmDeletions = false) {
 
 	try {
 		isLoading = true;
-		const payload = { originalName, ...collection.value };
+		// Ensure fields always serializes as JSON array for the server action
+		const payload = {
+			originalName,
+			...collection.value,
+			name,
+			fields: collection.value?.fields ?? [],
+			icon: collection.value?.icon || "bi:collection",
+			slug:
+				collection.value?.slug ||
+				name
+					.toLowerCase()
+					.replace(/\s+/g, "-")
+					.replace(/[^a-z0-9-]/g, ""),
+		};
 		if (confirmDeletions) (payload as any).confirmDeletions = "true";
 
 		const response = await fetch("?/saveCollection", {
 			method: "POST",
-			body: obj2formData(payload),
+			body: obj2formData(payload as Record<string, unknown>),
 		});
 
-		if (response.ok) {
-			toast.success("Collection Saved Successfully");
-			if (originalName !== collection.value?.name) {
-				originalName = String(collection.value?.name);
-				goto(`/config/collectionbuilder/edit/${originalName}`);
-			}
+		const result = await response.json().catch(() => ({} as any));
+		// SvelteKit action wrappers: prefer nested data.status when present
+		const status =
+			typeof result?.data?.status === "number"
+				? result.data.status
+				: typeof result?.status === "number"
+					? result.status
+					: response.ok
+						? 200
+						: response.status;
+		const actionError =
+			result?.data?.error || result?.error || result?.data?.message || result?.message;
+
+		if (status === 202 || result?.data?.driftDetected || result?.driftDetected) {
+			toast.warning("Schema drift detected — confirm deletions and save again");
+			return;
+		}
+
+		if (!response.ok || (status >= 400 && status !== 202)) {
+			const msg =
+				typeof actionError === "string" && actionError
+					? actionError
+					: "Failed to save collection";
+			logger.error("Save failed", msg);
+			toast.error(msg);
+			return;
+		}
+
+		toast.success("Collection Saved Successfully");
+		// Client-side route update only (preserves SPA shell / soft-refresh contracts)
+		if (originalName !== name) {
+			originalName = name;
+			await goto(`/config/collectionbuilder/edit/${encodeURIComponent(name)}`, {
+				invalidateAll: false,
+				noScroll: true,
+				keepFocus: true,
+			});
 		}
 	} catch (error) {
 		logger.error("Save failed", error);
