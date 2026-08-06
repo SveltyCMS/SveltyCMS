@@ -40,6 +40,23 @@ const flushWrites = () => new Promise((resolve) => setTimeout(resolve, 40));
  */
 const settleInvalidation = () => new Promise((resolve) => setTimeout(resolve, 80));
 
+/** Hard cap so afterEach never hangs the suite (node-redis quit can stall). */
+async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T | void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      p,
+      new Promise<void>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+      }),
+    ]);
+  } catch {
+    // Teardown best-effort — never fail the suite on cleanup
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 function runL2Contract(label: string, driver: L2Driver) {
   describe(`CacheService L2 contract — ${label}`, () => {
     let serviceA: any;
@@ -51,11 +68,14 @@ function runL2Contract(label: string, driver: L2Driver) {
     });
 
     afterEach(async () => {
-      await driver.teardown?.(serviceA);
-      await driver.teardown?.(serviceB);
-      await serviceA?.cleanup?.().catch(() => {});
-      await serviceB?.cleanup?.().catch(() => {});
-    });
+      // Service cleanup first (unsubscribe + flush), then driver client close.
+      await withTimeout(Promise.resolve(serviceA?.cleanup?.()), 3_000, "serviceA.cleanup");
+      await withTimeout(Promise.resolve(serviceB?.cleanup?.()), 3_000, "serviceB.cleanup");
+      await withTimeout(Promise.resolve(driver.teardown?.(serviceA)), 3_000, "teardown A");
+      await withTimeout(Promise.resolve(driver.teardown?.(serviceB)), 3_000, "teardown B");
+      serviceA = null;
+      serviceB = null;
+    }, 15_000);
 
     it("serves a value written by another instance (L2 hit)", async () => {
       await serviceA.set("shared-key", { hello: "world" }, 60, "t1");
@@ -167,6 +187,7 @@ function runL2Contract(label: string, driver: L2Driver) {
       await flushWrites();
 
       await serviceA.invalidateAll();
+      await settleInvalidation();
       await expect(serviceB.get("all-a", "t1")).resolves.toBeUndefined();
       await expect(serviceB.get("all-b", "t2")).resolves.toBeUndefined();
     });
@@ -197,24 +218,36 @@ const redisUrl =
 describe.skipIf(!redisUrl)(
   "CacheService L2 contract — real Redis (TEST_REDIS_URL or Docker)",
   () => {
-    const openClients: any[] = [];
-
     runL2Contract("real", {
       makeService: async () => {
         const { createClient } = await import("redis");
         const CacheServiceClass = await getCacheServiceClass();
-        const client = createClient({ url: redisUrl });
-        client.on("error", () => {});
-        await client.connect();
-        openClients.push(client);
+        // Separate clients for commands vs pub/sub — node-redis requires this.
+        const cmd = createClient({ url: redisUrl });
+        const sub = createClient({ url: redisUrl });
+        cmd.on("error", () => {});
+        sub.on("error", () => {});
+        await Promise.all([cmd.connect(), sub.connect()]);
         const service = new CacheServiceClass();
-        await service.connectL2ForTest(client, client);
+        await service.connectL2ForTest(cmd, sub);
+        // Stash for teardown (avoid shared openClients array races)
+        (service as any).__testClients = [cmd, sub];
         return service;
       },
-      teardown: async () => {
-        while (openClients.length > 0) {
-          const client = openClients.pop();
-          await client?.quit().catch(() => {});
+      teardown: async (service: any) => {
+        const clients: any[] = service?.__testClients ?? [];
+        service.__testClients = [];
+        for (const client of clients) {
+          // disconnect is more reliable than quit under active subscriptions
+          if (client?.isOpen) {
+            await withTimeout(
+              Promise.resolve(
+                typeof client.disconnect === "function" ? client.disconnect() : client.quit(),
+              ),
+              2_000,
+              "redis client close",
+            );
+          }
         }
       },
     });

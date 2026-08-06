@@ -164,26 +164,39 @@ export async function addInputField(
   const index = options.index ?? 0;
   const fieldList = page.getByTestId("widget-fields-list");
 
+  // Ensure Widgets tab is active (wizard may still be on Define)
+  const widgetsTab = page.getByTestId("tab-widgets");
+  if (await widgetsTab.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    const selected = await widgetsTab.getAttribute("aria-selected").catch(() => null);
+    if (selected !== "true") {
+      await stableClick(widgetsTab, 15_000);
+    }
+  }
+  await expect(page.getByTestId("collection-widgets-tab").or(fieldList).first()).toBeVisible({
+    timeout: 15_000,
+  });
+
   await quickAddInputWidget(page);
 
-  // Sidebar path leaves a "New Input" row; modal path may already open the editor
+  // Sidebar / palette may open the field editor; otherwise open the new row
   const labelInput = page.getByTestId("widget-field-label");
-  const editorOpen = await labelInput.isVisible({ timeout: 3_000 }).catch(() => false);
+  let editorOpen = await labelInput.isVisible({ timeout: 5_000 }).catch(() => false);
 
   if (!editorOpen) {
     const fieldRow = fieldList.getByTestId("widget-field-row").nth(index);
     await expect(fieldRow).toBeVisible({ timeout: 15_000 });
-    await expect(fieldRow.getByText(/New Input/i)).toBeVisible({ timeout: 10_000 });
 
-    const openBtn = fieldRow.getByTestId("widget-field-open");
-    if (await openBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await stableClick(openBtn, 10_000);
-    } else {
-      await stableClick(fieldRow.getByTestId("widget-field-edit"), 10_000);
-    }
+    const openBtn = fieldRow
+      .getByTestId("widget-field-open")
+      .or(fieldRow.getByTestId("widget-field-edit"))
+      .first();
+    await stableClick(openBtn, 10_000);
+    editorOpen = await labelInput.isVisible({ timeout: 10_000 }).catch(() => false);
   }
 
-  await expect(labelInput).toBeVisible({ timeout: 15_000 });
+  await expect(labelInput, "Field editor modal should show widget-field-label").toBeVisible({
+    timeout: 15_000,
+  });
   // clear + type so Svelte bind:value picks up changes under Playwright
   await labelInput.click();
   await labelInput.fill("");

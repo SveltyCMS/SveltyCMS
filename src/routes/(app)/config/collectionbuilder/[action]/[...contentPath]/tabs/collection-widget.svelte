@@ -269,13 +269,21 @@ function duplicateField(field: WidgetListItem) {
 	toast.success("Field duplicated");
 }
 
-async function addSidebarWidget(key: string, openEditor = false) {
+async function addSidebarWidget(key: string, openEditor = true) {
 	await widgetStoreActions.initializeWidgets();
-	const widgetInstance = getWidgetFunction(key);
+	// Resolve case-insensitive so "input" / "Input" both work from E2E + palette
+	const resolvedKey =
+		getWidgetFunction(key)
+			? key
+			: Object.keys(widgets.widgetFunctions || {}).find(
+					(k) => k.toLowerCase() === key.toLowerCase(),
+				) || key;
+	const widgetInstance = getWidgetFunction(resolvedKey);
 	if (!widgetInstance) {
 		toast.error(`Widget "${key}" is not installed`);
 		return;
 	}
+	key = resolvedKey;
 
 	const existing = new SvelteSet(
 		items.map((i) => i.db_fieldName).filter(Boolean) as string[],

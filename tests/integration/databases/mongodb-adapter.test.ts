@@ -17,12 +17,16 @@ import "../../../src/utils/v8-shim";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 import { isDockerRunning } from "../helpers/docker";
 
-// Run whenever Docker has Mongo — suite opens its own adapter connection
-// (does not require CMS process DB_TYPE=mongodb).
+// Only run when Docker has Mongo AND this matrix job is configured for it.
+// CI sets isDockerRunning()=true globally, so DB_TYPE is required to avoid
+// ECONNREFUSED when the sqlite/maria/pg jobs do not expose MongoDB.
 const mongoDockerRunning = isDockerRunning("mongo");
-const describeMongo = mongoDockerRunning ? describe : describe.skip;
-if (!mongoDockerRunning) {
-  console.log(`⏭️ MongoDB adapter suite skipped — Docker mongo container not running`);
+const mongoDbType = (process.env.DB_TYPE || "").toLowerCase() === "mongodb";
+const describeMongo = mongoDockerRunning && mongoDbType ? describe : describe.skip;
+if (!mongoDockerRunning || !mongoDbType) {
+  console.log(
+    `⏭️ MongoDB adapter suite skipped — Docker=${mongoDockerRunning} DB_TYPE=${process.env.DB_TYPE || "none"}`,
+  );
 }
 
 describeMongo("MongoDB Adapter Integration", () => {

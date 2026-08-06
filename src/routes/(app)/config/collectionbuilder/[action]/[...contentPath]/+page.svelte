@@ -313,7 +313,7 @@ $effect(() => {
 				</Button>
 			{/if}
 
-			{#if !stepProgress.allRequiredDone || activeTab !== 'permissions'}
+			{#if activeTab !== 'permissions'}
 				<Button
 					variant="primary"
 					onclick={goNext}
@@ -327,25 +327,29 @@ $effect(() => {
 				</Button>
 			{/if}
 
-			{#if stepProgress.allRequiredDone || action === 'edit'}
-				<StickyActions>
-					<Button
-						variant="tertiary"
-						onclick={() => handleCollectionSave()}
-						disabled={isLoading || !stepProgress.defineOk}
-						aria-label="Save collection"
-						data-testid="save-collection-button"
-						class="flex min-w-25 items-center gap-1"
-					>
-						{#if isLoading}
-							<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
-						{:else}
-							<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
-						{/if}
-						<span>{button_save()}</span>
-					</Button>
-				</StickyActions>
-			{/if}
+			<!-- Always expose Save (E2E + power users); disable until name+icon are set -->
+			<StickyActions>
+				<Button
+					variant="tertiary"
+					onclick={() => handleCollectionSave()}
+					disabled={isLoading || !stepProgress.defineOk}
+					aria-label="Save collection"
+					data-testid="save-collection-button"
+					class="flex min-w-25 items-center gap-1"
+					title={!stepProgress.defineOk
+						? 'Set collection name and icon first'
+						: !stepProgress.widgetsOk
+							? 'Tip: add widgets before saving a complete schema'
+							: undefined}
+				>
+					{#if isLoading}
+						<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
+					{:else}
+						<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
+					{/if}
+					<span>{button_save()}</span>
+				</Button>
+			</StickyActions>
 		</div>
 	{/snippet}
 

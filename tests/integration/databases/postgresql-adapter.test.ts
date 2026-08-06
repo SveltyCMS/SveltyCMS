@@ -9,12 +9,16 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { IDBAdapter, DatabaseId } from "../../../src/databases/db-interface";
 import { isDockerRunning } from "../helpers/docker";
 
-// Run whenever Docker has Postgres — suite opens its own adapter connection
-// (does not require CMS process DB_TYPE=postgresql).
+// Only run when Docker has Postgres AND this matrix job is configured for it.
+// CI sets isDockerRunning()=true globally, so DB_TYPE is required to avoid
+// ECONNREFUSED when the sqlite/mongo/maria jobs do not expose PostgreSQL.
 const pgDockerRunning = isDockerRunning("postgres");
-const describePostgres = pgDockerRunning ? describe : describe.skip;
-if (!pgDockerRunning) {
-  console.log(`⏭️ PostgreSQL adapter suite skipped — Docker postgres container not running`);
+const pgDbType = (process.env.DB_TYPE || "").toLowerCase() === "postgresql";
+const describePostgres = pgDockerRunning && pgDbType ? describe : describe.skip;
+if (!pgDockerRunning || !pgDbType) {
+  console.log(
+    `⏭️ PostgreSQL adapter suite skipped — Docker=${pgDockerRunning} DB_TYPE=${process.env.DB_TYPE || "none"}`,
+  );
 }
 
 describePostgres("PostgreSQL Adapter Integration", () => {
