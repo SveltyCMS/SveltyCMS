@@ -571,6 +571,20 @@ export class CacheService {
   }
 
   /**
+   * Single-flight query coalescing: Coalesces concurrent database lookups for the exact same key.
+   */
+  async coalesceQuery<T>(key: string, queryFn: () => Promise<T>): Promise<T> {
+    if (this.pendingRequests.has(key)) {
+      return this.pendingRequests.get(key) as Promise<T>;
+    }
+    const promise = queryFn().finally(() => {
+      this.pendingRequests.delete(key);
+    });
+    this.pendingRequests.set(key, promise);
+    return promise;
+  }
+
+  /**
    * High-performance synchronous L1 cache lookup.
    * Bypasses async micro-task overhead for "hot" items.
    */

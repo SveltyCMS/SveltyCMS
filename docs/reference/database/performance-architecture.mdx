@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-08-04"
+updated: "2026-08-06"
 tags:
   - "performance"
   - "optimization"
@@ -22,16 +22,16 @@ tags:
 
 SveltyCMS delivers enterprise-grade performance through its database-agnostic architecture. For the complete set of verified benchmarks, stress test results, and hardware context, please refer to the [Performance Benchmarks](/docs/project/benchmarks/index) document.
 
-### SQLite — Local/Edge (Verified June 2026)
+### SQLite — Local/Edge (Verified August 2026)
 
 | Operation                 | Latency      | RPS                         |
 | ------------------------- | ------------ | --------------------------- |
-| FIND ONE                  | **0.090 ms** | 10,386                      |
-| FIND MANY (50)            | **0.109 ms** | 8,863                       |
-| INSERT                    | **0.142 ms** | 2,657                       |
-| DELETE                    | **0.051 ms** | 14,447                      |
-| NATIVE UPSERT             | **0.093 ms** | 9,102                       |
-| Peak Throughput           | —            | **15,617 req/s**            |
+| FIND ONE                  | **0.060 ms** | 13,999                      |
+| FIND MANY (50)            | **0.068 ms** | 13,111                      |
+| INSERT                    | **0.085 ms** | 5,099                       |
+| DELETE                    | **0.031 ms** | 23,847                      |
+| NATIVE UPSERT             | **0.054 ms** | 14,829                      |
+| Peak Throughput           | —            | **621,687 req/s**           |
 | **LocalCMS SDK Overhead** | —            | **0.00%** (verified parity) |
 
 ### Cross-Database Impact (All 4 Engines)

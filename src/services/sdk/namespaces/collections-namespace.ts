@@ -1568,20 +1568,24 @@ export class CollectionsNamespace {
       const { contentStore } = await import("@src/stores/content-registry.svelte");
       contentStore.updateVersion();
     } catch {}
-    try {
-      const { pubSub } = await import("@src/services/background/pub-sub");
-      pubSub.publish("entryUpdated", {
-        collection: schema.name || (schema._id as string),
-        id,
-        action,
-        data,
-        timestamp: new Date().toISOString(),
-        user,
-      });
-    } catch {}
 
-    if (!opts?.skipOutbox) {
-      await this.emitOutboxEvent(schema, tenantId, action, id, data, user);
-    }
+    // 🚀 ASYNC NON-BLOCKING DEFERRAL: PubSub and outbox emissions run in background microtask
+    queueMicrotask(async () => {
+      try {
+        const { pubSub } = await import("@src/services/background/pub-sub");
+        pubSub.publish("entryUpdated", {
+          collection: schema.name || (schema._id as string),
+          id,
+          action,
+          data,
+          timestamp: new Date().toISOString(),
+          user,
+        });
+      } catch {}
+
+      if (!opts?.skipOutbox) {
+        await this.emitOutboxEvent(schema, tenantId, action, id, data, user);
+      }
+    });
   }
 }
