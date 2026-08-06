@@ -63,7 +63,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
   // --------------------------------------------------------------------------
 
   protected get convertDatesOptions(): Record<string, any> {
-    return { mariaDoubleParseJson: true };
+    return { mariaDoubleParseJson: true, inPlace: true };
   }
 
   protected isMissingTableError(err: any): boolean {
@@ -306,7 +306,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
   async isEmpty(): Promise<DatabaseResult<boolean>> {
     if (!this.pool) return this.notConnectedError();
     try {
-      const [rows] = await this.pool.query(
+      const [rows] = await this.pool.execute(
         "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = ?",
         [this.activeDatabaseName],
       );
@@ -388,7 +388,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
     return {
       execute: async (sqlText: string, params: any[] = []) => {
         if (!this.pool) throw new Error("Database not connected");
-        const [rows] = await this.pool.query(sqlText, params);
+        const [rows] = await this.pool.execute(sqlText, params);
         return rows;
       },
       client: this.pool,

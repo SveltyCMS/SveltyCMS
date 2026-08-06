@@ -5,8 +5,8 @@
 import { AppError, getErrorMessage, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { verifyPassword } from "@utils/security/crypto";
-import { parseSessionDuration } from "@utils/security/auth-utils";
 import { isMultiTenantEnabled } from "@utils/tenant";
+import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions, invalidatePermissionCache } from "@src/databases/auth/permissions";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { withTenant } from "@src/databases/core/db-adapter-wrapper";
@@ -117,7 +117,8 @@ export class AuthNamespace {
       const auth = await this.getAuth();
       if (!auth) throw new AppError("Authentication system not initialized", 500);
 
-      const filter: Record<string, any> = { tenantId: tenantId as DatabaseId };
+      const filter: Record<string, any> = {};
+      if (tenantId) filter.tenantId = tenantId as DatabaseId;
       if (search) {
         filter.$or = [
           { email: { $regex: search, $options: "i" } },
@@ -125,11 +126,41 @@ export class AuthNamespace {
         ];
       }
 
-      const sortOption: any = {};
+      const sortOption: Record<string, "asc" | "desc"> = {};
       if (sort) {
-        sortOption[sort] = order === "asc" ? 1 : -1;
+        sortOption[sort] = order === "asc" ? "asc" : "desc";
       } else {
-        sortOption.createdAt = -1;
+        sortOption.createdAt = "desc";
+      }
+
+      // 🚀 Prefer crud.findPage (limit+1 hasMore + optional total via cached count)
+      // when no complex $or search — falls back to auth.getAllUsers otherwise.
+      const useFindPage =
+        !search &&
+        typeof this._dbAdapter?.crud?.findPage === "function" &&
+        typeof this._dbAdapter?.crud?.count === "function";
+
+      if (useFindPage) {
+        const pageRes = await this._dbAdapter.crud.findPage("auth_users", filter, {
+          tenantId: tenantId as DatabaseId,
+          limit,
+          offset: (page - 1) * limit,
+          sort: sortOption,
+          total: "exact",
+          skipMeta: true,
+        });
+        if (!pageRes.success) throw new AppError(pageRes.message || "listUsers failed", 500);
+        const totalItems = pageRes.data.total ?? pageRes.data.items.length;
+        return {
+          data: pageRes.data.items,
+          pagination: {
+            totalItems,
+            page,
+            limit,
+            totalPages: Math.ceil(totalItems / limit) || 1,
+            hasMore: pageRes.data.hasMore,
+          },
+        };
       }
 
       const [usersResult, totalResult] = await Promise.all([
@@ -337,24 +368,35 @@ export class AuthNamespace {
         }
       }
 
-      // Device dedup: reuse existing session for the same device instead of creating new
+      // Device dedup (SESSION_DEVICE_POLICY):
+      //   single-per-device (default) — reuse the existing session from this device
+      //   single-per-user            — reuse ANY existing non-rotated session
+      //   allow-multiple             — skip dedup, always create a new session
       if (sessionMeta?.userAgent) {
         try {
-          const sessionsResult = await auth.getActiveSessions(user._id as DatabaseId, {
-            tenantId: tenantId as DatabaseId,
-            bypassTenantCheck: true,
-          });
-          if (sessionsResult.success) {
-            const sessions = Array.isArray(sessionsResult.data) ? sessionsResult.data : [];
-            const existing = sessions.find(
-              (s: any) => s.userAgent === sessionMeta.userAgent && !s.rotated,
-            );
-            if (existing) {
-              logger.debug("Login: Reusing existing session for device", {
-                userId: user._id,
-                sessionId: existing._id,
-              });
-              return { user, session: existing };
+          const policy = String(
+            getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
+          );
+          if (policy !== "allow-multiple") {
+            const sessionsResult = await auth.getActiveSessions(user._id as DatabaseId, {
+              tenantId: tenantId as DatabaseId,
+              bypassTenantCheck: true,
+            });
+            if (sessionsResult.success) {
+              const sessions = Array.isArray(sessionsResult.data) ? sessionsResult.data : [];
+              const existing = sessions.find(
+                (s: any) =>
+                  !s.rotated &&
+                  (policy === "single-per-user" || s.userAgent === sessionMeta.userAgent),
+              );
+              if (existing) {
+                logger.debug("Login: Reusing existing session for device", {
+                  userId: user._id,
+                  sessionId: existing._id,
+                  policy,
+                });
+                return { user, session: existing };
+              }
             }
           }
         } catch {
@@ -365,7 +407,9 @@ export class AuthNamespace {
       const sessionResult = await auth.createSession({
         user_id: user._id as DatabaseId,
         tenantId: tenantId as DatabaseId,
-        expires: new Date(Date.now() + parseSessionDuration("1d")).toISOString() as ISODateString,
+        expires: new Date(
+          Date.now() + (Number(getPrivateSettingSync("SESSION_TTL_HOURS")) || 24) * 60 * 60 * 1000,
+        ).toISOString() as ISODateString,
         userAgent: sessionMeta?.userAgent,
         ipAddress: sessionMeta?.ipAddress,
       });
@@ -486,11 +530,12 @@ export class AuthNamespace {
       // clearing all entries is the safest approach after a role mutation.
       invalidatePermissionCache();
 
-      // Invalidate turbo-auth cache for this user so privilege changes take effect immediately
-      const userId = user._id as string;
+      // Invalidate turbo-auth cache for ALL sessions — a role change can affect any
+      // user's cached roles/bitset, not just the acting admin's. Turbo contexts expire
+      // after 60s (TURBO_AUTH_TTL_MS), but permission changes must apply immediately.
       try {
-        const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
-        invalidateTurboAuthForUser(userId);
+        const { clearTurboAuthCache } = await import("@src/hooks/handle-turbo-get");
+        clearTurboAuthCache();
       } catch {}
 
       await auditLogService.logEvent({
@@ -571,6 +616,23 @@ export class AuthNamespace {
           const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
           for (const userId of userIds) {
             invalidateTurboAuthForUser(userId);
+          }
+        } catch {}
+        // Purge every session layer (LRU cache, turbo, session store, Redis) for
+        // affected users — blocked/deleted users must lose access immediately,
+        // not after the 24h session-cache TTL.
+        try {
+          const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+          for (const userId of userIds) {
+            const activeRes = await auth.getActiveSessions(userId as DatabaseId, {
+              tenantId: tenantId as DatabaseId,
+              bypassTenantCheck: true,
+            });
+            const active =
+              activeRes?.success && Array.isArray(activeRes.data) ? activeRes.data : [];
+            for (const s of active) {
+              invalidateSessionCache(String(s._id), tenantId as DatabaseId);
+            }
           }
         } catch {}
       }

@@ -31,6 +31,8 @@ Route-driven sidebar content (no dual collapsible section headers):
 	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
 	// System Components
 	import Slot from '@src/components/system/slot.svelte';
+	import AdminZone from '@src/components/system/admin-zone.svelte';
+	import { pluginPageRegistry } from '@src/plugins/plugin-page-registry.svelte.ts';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import ThemeToggle from '@src/components/theme-toggle.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
@@ -101,6 +103,17 @@ Route-driven sidebar content (no dual collapsible section headers):
 			return `/${getLocale()}${pathValue.startsWith("/") ? pathValue : `/${pathValue}`}`;
 		}
 		return '/collections';
+	});
+
+	// Plugin pages (declarative nav) — capability-filtered for UX; the server
+	// enforces 403 on the route regardless.
+	const pluginNavItems = $derived.by(() => {
+		void pluginPageRegistry.version;
+		const u = page.data.user as any;
+		const isAdmin = !!u?.isAdmin || u?.role === 'admin' || u?.role === 'super-admin';
+		return pluginPageRegistry.getNavItems().filter((item) =>
+			item.requiredCapabilities.length === 0 || isAdmin
+		);
 	});
 
 	const availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));
@@ -405,8 +418,41 @@ Route-driven sidebar content (no dual collapsible section headers):
 		{/if}
 	</div>
 
-	<!-- Plugin Sidebar Items -->
-	<div class="mt-2 w-full px-1"><Slot name="sidebar" /></div>
+	<!-- Plugin Pages (declarative nav) -->
+	{#if pluginNavItems.length > 0}
+		<div class="mt-2 w-full px-1" data-testid="sidebar-plugin-nav">
+			<div class="mb-1 px-2 text-[10px] font-bold uppercase tracking-wider text-surface-500">
+				Plugins
+			</div>
+			<div class="space-y-0.5">
+				{#each pluginNavItems as item (item.id)}
+					<SystemTooltip title={item.label} positioning={{ placement: 'right' }} triggerClass="w-full">
+						<a
+							href={item.path}
+							data-sveltekit-preload-data="hover"
+							aria-label={item.label}
+							class="flex items-center gap-2 rounded px-2 py-2 text-sm no-underline! transition-colors hover:bg-surface-200/70 dark:hover:bg-surface-800"
+							style="color: var(--admin-text-body)"
+							onclick={() => {
+								if (isMobile()) toggleUIElement('leftSidebar', 'hidden');
+							}}
+						>
+							<iconify-icon icon={item.icon} width="16" class="shrink-0 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							{#if isSidebarFull}
+								<span class="truncate">{item.label}</span>
+							{/if}
+						</a>
+					</SystemTooltip>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
+	<!-- Plugin Sidebar Items (component slots + admin zones) -->
+	<div class="mt-2 w-full px-1">
+		<Slot name="sidebar" />
+		<AdminZone zone="sidebar" />
+	</div>
 	<!-- Footer -->
 	<div class="mb-2 mt-auto w-full px-1">
 		<div class="mx-1 mb-2 border-0 border-t" style="border-color: var(--admin-border-subtle)"></div>

@@ -8,7 +8,7 @@ import {
   getWidgetDefaults,
   WIDGET_DEFAULTS,
   type WidgetCategory,
-} from "../../../src/routes/(app)/dashboard/widgets/widget-defaults";
+} from "../../../src/routes/(app)/dashboard/widget-defaults";
 
 describe("WIDGET_DEFAULTS catalog", () => {
   const categories: WidgetCategory[] = ["monitoring", "logs", "content", "static"];

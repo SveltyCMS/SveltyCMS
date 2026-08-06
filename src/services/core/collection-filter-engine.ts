@@ -528,22 +528,41 @@ export async function countStatusFacets(input: {
   collectionTableName: string;
   baseWhere?: Record<string, unknown>;
   statuses?: string[];
+  /**
+   * Optional CRUD count (uses L1 count cache when wired on adapter).
+   * Prefer over queryBuilder.count for repeated facet chips.
+   */
+  crudCount?: (
+    collection: string,
+    filter: Record<string, unknown>,
+    options?: { tenantId?: string | null; mode?: "exact"; skipMeta?: boolean },
+  ) => Promise<{ success: boolean; data?: number }>;
+  tenantId?: string | null;
 }): Promise<StatusFacetCounts> {
   const {
     queryBuilder,
     collectionTableName,
     baseWhere = {},
     statuses = ["publish", "draft", "unpublish", "schedule", "archive"],
+    crudCount,
+    tenantId,
   } = input;
 
   const counts: StatusFacetCounts = {};
   await Promise.all(
     statuses.map(async (status) => {
       try {
-        const qb = queryBuilder(collectionTableName).where({
-          ...baseWhere,
-          status,
-        } as Record<string, unknown>);
+        const filter = { ...baseWhere, status } as Record<string, unknown>;
+        if (crudCount) {
+          const result = await crudCount(collectionTableName, filter, {
+            tenantId,
+            mode: "exact",
+            skipMeta: true,
+          });
+          counts[status] = result.success ? Number(result.data ?? 0) : 0;
+          return;
+        }
+        const qb = queryBuilder(collectionTableName).where(filter);
         const result = await qb.count();
         counts[status] = result.success ? Number(result.data ?? 0) : 0;
       } catch {

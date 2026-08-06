@@ -1,0 +1,17 @@
+{
+  "id": "logs",
+  "name": "System Logs",
+  "description": "Recent system activity with filtering and search",
+  "icon": "mdi:text-box-outline",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "freemium",
+  "price": 6.99,
+  "component": "index",
+  "defaultSize": {
+    "w": 2,
+    "h": 2
+  },
+  "category": "logs"
+}

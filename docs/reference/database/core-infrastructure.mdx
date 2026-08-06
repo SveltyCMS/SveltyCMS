@@ -153,6 +153,11 @@ let adapter = await loadAdapters(cfg);
 // Dynamically imports: sqlite/sqlite-adapter, postgresql/postgres-adapter,
 //                      mariadb/mariadb-adapter, or mongodb/mongo-db-adapter
 
+// 2b. CRUD wrappers (db.ts — after load, before READY)
+// adapter.crud = createCountCachedCrud(createTenantGuardedCrud(originalCrud))
+// - Tenant guard: fail-closed MULTI_TENANT (zero overhead when single-tenant)
+// - Count cache: 30s L1/L2 for crud.count (equal benefit on all engines)
+
 // 3. Connection (with DatabaseResilience circuit breaker + exponential backoff)
 const connectionResult = await adapter.connect();
 if (!connectionResult.success) {

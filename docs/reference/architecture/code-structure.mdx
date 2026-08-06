@@ -309,7 +309,7 @@ Handles user authentication, authorization, and session management.
 login() → validateCredentials() → generateJWT() → createSession()
 
 // Authorization flow
-checkPermission() → getUserRole() → validatePermission() → allow/deny
+hasPermissionWithRoles() → role bitset lookup → allow/deny
 ```
 
 **Security Measures:**

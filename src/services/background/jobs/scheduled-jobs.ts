@@ -149,3 +149,55 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
     }
   }
 };
+
+/**
+ * Periodic maintenance job: purge expired session/token rows and sweep the
+ * in-memory session store. Replaces the old unwired `session-cleanup.ts` timer
+ * — running inside the job queue means failures are logged and retried like
+ * any other background job, and it is disabled in benchmark mode.
+ */
+export const sessionCleanupHandler: JobHandler = async (_payload, _job) => {
+  const db = getDb();
+  if (!db || !db.auth) return;
+  if (typeof db.isConnected === "function" && !db.isConnected()) return;
+
+  const cleaned: string[] = [];
+
+  // 1. Purge expired DB session + token rows (implemented by all adapters)
+  for (const method of ["deleteExpiredSessions", "deleteExpiredTokens"] as const) {
+    if (typeof (db.auth as any)[method] === "function") {
+      try {
+        const r = await (db.auth as any)[method]();
+        if (r?.success) cleaned.push(`${method}=${r.data}`);
+      } catch (err) {
+        logger.warn(`[SessionCleanup] ${method} failed: ${(err as Error).message}`);
+      }
+    }
+  }
+
+  // 2. Rotated-session cleanup (Mongo only; SQL adapters no-op)
+  if (typeof (db.auth as any).cleanupRotatedSessions === "function") {
+    try {
+      const r = await (db.auth as any).cleanupRotatedSessions();
+      if (r?.success) cleaned.push(`cleanupRotatedSessions=${r.data}`);
+    } catch (err) {
+      logger.warn(`[SessionCleanup] cleanupRotatedSessions failed: ${(err as Error).message}`);
+    }
+  }
+
+  // 3. Sweep the in-memory session store (lazy get() expires entries on read;
+  //    the periodic sweep reclaims entries that are never accessed again)
+  try {
+    const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
+    const store = getDefaultSessionStore();
+    if (store && typeof (store as any).cleanup === "function") {
+      (store as any).cleanup();
+    }
+  } catch {
+    // Non-critical — store cleanup is best-effort
+  }
+
+  if (cleaned.length > 0) {
+    logger.debug(`[SessionCleanup] ${cleaned.join(", ")}`);
+  }
+};

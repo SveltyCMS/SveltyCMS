@@ -1,0 +1,127 @@
+---
+path: "docs/development/dashboard/marketplace.mdx"
+title: "Dashboard Widget Marketplace"
+description: "Publishing dashboard widgets to marketplace.sveltycms.com — package format, install path, licensing models, and update flow."
+order: 8
+icon: "mdi:store"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "widgets"
+  - "marketplace"
+  - "guide"
+---
+
+# Dashboard Widget Marketplace
+
+Dashboard widgets are first-class marketplace extensions alongside content widgets, plugins, and themes. This guide covers packaging, publishing, installing, and monetizing them.
+
+## 🏪 Portable Packages
+
+A dashboard widget package is the **whole folder**: component, `widget.json` manifest, optional `.mdx` docs, and optional tests. Uploading a package to marketplace.sveltycms.com distributes the folder as-is; installing writes it back unchanged.
+
+### Required package contents
+
+| File                 | Required | Purpose                                                                                                                 |
+| :------------------- | :------- | :---------------------------------------------------------------------------------------------------------------------- |
+| `<component>.svelte` | ✅       | Widget component (with `widgetMeta`).                                                                                   |
+| `widget.json`        | ✅       | Manifest — id, name, license, size, …                                                                                   |
+| `<component>.mdx`    | ✅       | **Marketplace description** — features, licensing, data source, metadata. Used for the package listing and detail page. |
+| `tests/`             | optional | Unit tests run in CI for your package.                                                                                  |
+
+### Manifest
+
+```json
+{
+  "id": "logs",
+  "name": "System Logs",
+  "description": "Recent system activity with filtering and search",
+  "icon": "mdi:text-box-outline",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "freemium",
+  "price": 6.99,
+  "component": "logs-widget",
+  "defaultSize": { "w": 2, "h": 2 },
+  "category": "logs"
+}
+```
+
+`type` is always `"dashboard-widget"`. The marketplace catalog (`GET /api/packages?type=dashboard-widget`) and the in-app catalog (`GET /api/marketplace?type=dashboard`) use it for filtering.
+
+## 📥 Install Path
+
+Marketplace installs target `src/routes/(app)/dashboard/widgets/<folder>/` (the package's `installPath`). Discovery is file-based (`import.meta.glob`), so **no registration step** is needed — restart the dev server and the widget appears in the picker.
+
+### Client-side install
+
+```typescript
+import { installDashboardWidget } from "@src/services/intelligence/marketplace-client";
+
+const widget = await installDashboardWidget("request-rate");
+// → writes src/routes/(app)/dashboard/widgets/request-rate/…
+//   (component + widget.json + docs)
+```
+
+`installDashboardWidget` delegates to the shared installer, so it honors the same license verification and offline fallbacks as `installPlugin`.
+
+### Uninstall
+
+Remove the package folder. The next build drops it from the registry; saved layouts referencing it render the built-in "widget unavailable" error card until removed.
+
+## 💰 Monetization & Licensing Models
+
+| Tier                  | Payment | Trial  | Description                                                      |
+| :-------------------- | :------ | :----- | :--------------------------------------------------------------- |
+| **Free**              | None    | N/A    | Available to all installations indefinitely.                     |
+| **Hybrid (Freemium)** | Paid    | 14-Day | Basic view is free; advanced features require an active license. |
+| **Fully Paid**        | Paid    | 14-Day | The entire widget is locked behind a license gate.               |
+
+- **14-day key-less trial** — calculated from the first registered admin's creation timestamp; `checkExtensionLicense` returns `active: true` during the window.
+- **Demo keys** — superadmins can provision `SLM-DEMO-` keys extending access by 14 days.
+
+### Gate the UI
+
+```svelte
+<script lang="ts">
+  import { checkExtensionLicense } from "@src/utils/license-manager";
+  import UpgradePrompt from '@components/ui/upgrade-prompt.svelte';
+  let status = $state({ active: true, hasLicense: false });
+  $effect(() => {
+    checkExtensionLicense("dashboard", "logs").then((s) => (status = s));
+  });
+</script>
+
+{#if status.active}
+  <!-- widget content -->
+{:else}
+  <UpgradePrompt extensionId="dashboard:logs" price="€6.99" />
+{/if}
+```
+
+### Gate the data (server-side)
+
+The backing API endpoint should also call `checkExtensionLicense` and return `403 Forbidden` when the check fails, so premium data is never served to unlicensed clients.
+
+## 🔄 Updates
+
+Installed packages appear in `marketplace.checkUpdates([{ id, version }])` results when a newer version is published. The update flow replaces the package folder contents; the component filename stays stable so user layouts survive upgrades.
+
+## ✅ Submission Standards
+
+- Folder kebab-case = package id; entry component is `index.svelte`; docs are `readme.mdx`.
+- `widget.json` present and valid; matches `widgetMeta` in the component.
+- **`<component>.mdx` required** — marketplace description with features, licensing model, data source endpoint(s), and widget metadata.
+- WCAG 2.2 AA (keyboard navigation, ARIA, contrast, focus states).
+- No hardcoded secrets; no `Math.random()` in security-sensitive paths.
+- Optional `tests/` folder.
+
+## Related
+
+- [Dashboard Widget Development](./development.mdx)
+- [Marketplace System](../../reference/architecture/marketplace.mdx)
+- [Widget Marketplace](../widgets/marketplace.mdx)
+- [License Gate Inventory](../../reference/security/license-endpoint-inventory.mdx)

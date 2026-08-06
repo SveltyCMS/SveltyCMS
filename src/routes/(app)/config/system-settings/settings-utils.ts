@@ -42,7 +42,18 @@ export function defaultFieldValue(field: SettingField): unknown {
   ) {
     return [];
   }
-  if (field.type === "number") return null;
+  // Number fields must never default to null: the settings UI binds the value
+  // into <Input value?: string | number | string[]>, and Svelte 5 throws
+  // `props_invalid_value` when null is bound into a number-typed input.
+  // The placeholder is the documented default (e.g. SESSION_TTL_HOURS → 24);
+  // fall back to the field minimum so the value always validates.
+  if (field.type === "number") {
+    const placeholder = Number(field.placeholder);
+    if (field.placeholder !== undefined && Number.isFinite(placeholder)) {
+      return placeholder;
+    }
+    return field.min ?? 0;
+  }
   return "";
 }
 

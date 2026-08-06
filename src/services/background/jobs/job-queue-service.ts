@@ -18,7 +18,7 @@ import { processMediaHandler } from "./media-jobs";
 import { webhookDeliveryHandler } from "./webhook-jobs";
 import { importDataHandler } from "./import-jobs";
 import { bulkTranslateHandler } from "./translation-jobs";
-import { scheduledPublishHandler } from "./scheduled-jobs";
+import { scheduledPublishHandler, sessionCleanupHandler } from "./scheduled-jobs";
 
 const HANDLER_IMPORTS: Record<string, () => Promise<JobHandler>> = {
   "process-media": () => Promise.resolve(processMediaHandler),
@@ -26,6 +26,7 @@ const HANDLER_IMPORTS: Record<string, () => Promise<JobHandler>> = {
   "import-data": () => Promise.resolve(importDataHandler),
   "bulk-translate": () => Promise.resolve(bulkTranslateHandler),
   "publish-scheduled": () => Promise.resolve(scheduledPublishHandler),
+  "session-cleanup": () => Promise.resolve(sessionCleanupHandler),
 };
 
 import os from "node:os";
@@ -39,6 +40,7 @@ class JobQueueService {
   private pollInterval: NodeJS.Timeout | null = null;
   private currentRunning = 0;
   private lastScheduleCheck = 0;
+  private lastCleanupCheck = 0;
 
   // Adaptive concurrency: 50% of cores, min 5, max 50
   private readonly CONCURRENT_MAX = Math.min(50, Math.max(5, Math.floor(os.cpus().length * 0.5)));
@@ -50,6 +52,7 @@ class JobQueueService {
     this.handlerLoaders.set("import-data", HANDLER_IMPORTS["import-data"]);
     this.handlerLoaders.set("bulk-translate", HANDLER_IMPORTS["bulk-translate"]);
     this.handlerLoaders.set("publish-scheduled", HANDLER_IMPORTS["publish-scheduled"]);
+    this.handlerLoaders.set("session-cleanup", HANDLER_IMPORTS["session-cleanup"]);
   }
 
   /**
@@ -293,7 +296,15 @@ class JobQueueService {
         );
       }
 
-      // 3. Clean up temp store every ~10 cycles
+      // 3. Session/token maintenance tick (every 5 min)
+      if (now - this.lastCleanupCheck >= 300000) {
+        this.lastCleanupCheck = now;
+        this.dispatch("session-cleanup", {}).catch((err) =>
+          logger.error("[JobQueue] Failed to dispatch session cleanup", err),
+        );
+      }
+
+      // 4. Clean up temp store every ~10 cycles
       // cleanupTempStore is synchronous — never call .catch on its void return
       // (that threw TypeError and crashed the process via uncaughtException).
       if (Math.random() > 0.9) {

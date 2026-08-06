@@ -14,6 +14,7 @@ import type { DatabaseId } from "@src/content/types";
 import { successResponse } from "./base";
 import { getDatabaseResilience } from "@src/databases/database-resilience";
 import { getSystemStatus } from "@src/databases/resilience-integration";
+import { requireDashboardWidgetLicense } from "./dashboard-license";
 
 /**
  * Validates admin authorization against the standardized SvelteKit locals context.
@@ -41,6 +42,8 @@ export async function handleDatabaseRoutes(
   if (action === "pool-diagnostics") {
     if (method !== "GET")
       throw new AppError(`Method ${method} not allowed`, 405, "METHOD_NOT_ALLOWED");
+    // Premium dashboard widget data source — license gate (defense-in-depth).
+    await requireDashboardWidgetLicense("database-pool-diagnostics");
     const resilience = getDatabaseResilience();
     const diagnostics = await resilience.getPoolDiagnostics();
     return successResponse(event, diagnostics);

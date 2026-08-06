@@ -57,6 +57,14 @@ export async function createConnection(
     }
   } catch {}
 
+  const rawSync = process.env.PG_SYNCHRONOUS_COMMIT?.toLowerCase().trim();
+  const VALID_SYNC_MODES = new Set(["on", "off", "local", "remote_write", "remote_apply"]);
+  const syncCommitSetting = rawSync && VALID_SYNC_MODES.has(rawSync) ? rawSync : undefined;
+
+  const rawWorkMem = process.env.PG_WORK_MEM?.trim();
+  const workMemSetting =
+    rawWorkMem && /^\d+(kB|MB|GB)?$/i.test(rawWorkMem) ? rawWorkMem : undefined;
+
   sql = postgres({
     host: config.host,
     port: effectivePort || 6432, // 6432 common for PgBouncer
@@ -71,6 +79,17 @@ export async function createConnection(
     onnotice: () => {
       /* Suppress notice messages */
     },
+    onconnect:
+      syncCommitSetting || workMemSetting
+        ? async (conn) => {
+            if (syncCommitSetting) {
+              await conn.simple(`SET synchronous_commit = '${syncCommitSetting}';`);
+            }
+            if (workMemSetting) {
+              await conn.simple(`SET work_mem = '${workMemSetting}';`);
+            }
+          }
+        : undefined,
     transform: {
       undefined: null, // Transform undefined to null
     },

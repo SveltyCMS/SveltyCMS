@@ -17,7 +17,13 @@ import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle } from "@sveltejs/kit";
 import { AppError, getErrorMessage, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { isAdmin, isPublicRoute, withMutableHeaders } from "@utils/hook-utils";
+import {
+  isAdmin,
+  isPublicRoute,
+  withMutableHeaders,
+  getUserCacheId,
+  buildUserCacheKey,
+} from "@utils/hook-utils";
 import { xxhash64 } from "hash-wasm";
 import {
   compressSync,
@@ -167,20 +173,24 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             });
           }
 
-          const apiData = (locals as { apiData?: unknown }).apiData;
+          const apiBody = (locals as any).apiBody;
+          const apiData = (locals as { apiData?: unknown }).apiData || (locals as any).__apiData;
           let responseBody: string | null = null;
-          let responseData: unknown = null;
+          let responseData: unknown = apiData || null;
 
-          if (apiData !== undefined) {
-            responseData = apiData;
-            responseBody = JSON.stringify(apiData);
+          if (typeof apiBody === "string") {
+            responseBody = apiBody;
+          } else if (apiData !== undefined) {
+            responseBody = typeof apiData === "string" ? apiData : JSON.stringify(apiData);
           } else {
             const clone = response.clone();
             responseBody = await clone.text();
-            try {
-              responseData = JSON.parse(responseBody);
-            } catch {
-              /* non-JSON body — still cache raw if needed */
+            if (contentType?.includes("application/json")) {
+              try {
+                responseData = JSON.parse(responseBody);
+              } catch {
+                /* non-JSON body */
+              }
             }
           }
 
@@ -232,19 +242,20 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                   // Atomic: wait for all compression variants before cache write
                   await Promise.all(compressionTasks);
 
-                  await cacheService.set(
-                    cacheKey,
-                    {
-                      data: responseData,
-                      body: responseBody,
-                      compressed: Object.keys(compressedPayloads).length
-                        ? compressedPayloads
-                        : undefined,
-                      headers: headersSnapshot,
-                    },
-                    API_CACHE_TTL_S,
-                    currentTenantId,
-                  );
+                  const userIdStr = getUserCacheId(locals.user);
+                  const turboPathKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
+                  const cacheEntry = {
+                    data: responseData,
+                    body: responseBody,
+                    compressed: Object.keys(compressedPayloads).length
+                      ? compressedPayloads
+                      : undefined,
+                    headers: headersSnapshot,
+                  };
+                  await Promise.all([
+                    cacheService.set(cacheKey, cacheEntry, API_CACHE_TTL_S, currentTenantId),
+                    cacheService.set(turboPathKey, cacheEntry, API_CACHE_TTL_S, currentTenantId),
+                  ]);
                 } catch (e) {
                   logger.error(`Background cache compression failed: ${getErrorMessage(e)}`);
                 }
@@ -271,7 +282,10 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             ? `/api/local/${apiEndpoint}`
             : `/api/${apiEndpoint}`;
           const pattern = `api:${tenantIdString || "global"}:${String(locals.user!._id)}:${apiPathPrefix}`;
-          await cacheService.clearByPattern(`${pattern}*`, currentTenantId);
+          await Promise.all([
+            cacheService.clearByPattern(`${pattern}*`, currentTenantId),
+            cacheService.clearByPattern(`${apiPathPrefix}*`, currentTenantId),
+          ]);
 
           if (
             ["POST", "PUT", "PATCH"].includes(request.method) &&

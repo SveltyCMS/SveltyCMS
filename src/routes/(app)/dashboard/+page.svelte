@@ -25,6 +25,7 @@ import WelcomeThemePicker from "@src/components/admin/welcome-theme-picker.svelt
 import AdminCard from "@components/admin-card.svelte";
 import AdminPageShell from "@components/admin-page-shell.svelte";
 import Slot from "@src/components/system/slot.svelte";
+import AdminZone from "@src/components/system/admin-zone.svelte";
 import type {
 	DashboardWidgetConfig,
 	DropIndicator,
@@ -62,7 +63,10 @@ const { data }: { data: PageData } = $props();
 // Define the types for the widget registry
 interface WidgetRegistryEntry {
 	component: any;
+	/** Entry filename without .svelte ("index" for index.svelte packages). */
+	entryFile: string;
 	description: string;
+	folder: string;
 	icon: string;
 	name: string;
 	widgetMeta: WidgetMeta;
@@ -77,6 +81,7 @@ let mainContainerEl: HTMLElement | null = $state(null);
 let dropdownOpen = $state(false);
 let searchQuery = $state("");
 let registryLoaded = $state(false);
+/** Folder id → entry (the folder is the package identity). */
 let widgetRegistry: WidgetRegistry = $state({});
 
 // Lazy loading state for widgets
@@ -173,18 +178,23 @@ async function toggleAiMode() {
 }
 
 async function loadWidgetRegistry() {
-	const modules = import.meta.glob("./widgets/*.svelte");
+	const modules = import.meta.glob("./widgets/*/*.svelte");
 	const registry: typeof widgetRegistry = {};
 	for (const path in modules) {
 		if (Object.hasOwn(modules, path)) {
-			const name = path.split("/").pop()?.replace(".svelte", "");
-			if (name) {
+			// path like "./widgets/system-health/index.svelte" — the FOLDER is the key.
+			const segments = path.split("/");
+			const folder = segments[segments.length - 2];
+			const name = segments[segments.length - 1]?.replace(".svelte", "");
+			if (name && folder) {
 				const module = (await modules[path]()) as {
 					default: WidgetComponent;
 					widgetMeta: WidgetMeta;
 				};
-				registry[name] = {
+				registry[folder] = {
 					component: module.default,
+					entryFile: name,
+					folder,
 					name: module.widgetMeta?.name || name,
 					description: module.widgetMeta?.description || "",
 					icon: module.widgetMeta?.icon || "mdi:widgets",
@@ -205,16 +215,18 @@ async function loadWidgetComponent(widgetId: string, componentName: string) {
 	}
 
 	try {
-			// Dynamically import the widget component with retry on transient failures
-			const module = await retryDynamicImport(
-				() => import(`./widgets/${componentName}.svelte`),
-				{ maxRetries: 2, baseDelayMs: 500 },
-			);
-			loadedWidgets.set(widgetId, module.default);
-		} catch (error) {
-			logger.error(`Failed to load widget: ${componentName}`, error);
-			loadedWidgets.set(widgetId, null); // Mark as failed
-		}
+		// componentName is the package folder id; entry file is index.svelte.
+		const folder = componentName;
+		const entryFile = widgetRegistry[folder]?.entryFile || "index";
+		const module = await retryDynamicImport(
+			() => import(`./widgets/${folder}/${entryFile}.svelte`),
+			{ maxRetries: 2, baseDelayMs: 500 },
+		);
+		loadedWidgets.set(widgetId, module.default);
+	} catch (error) {
+		logger.error(`Failed to load widget: ${componentName}`, error);
+		loadedWidgets.set(widgetId, null); // Mark as failed
+	}
 }
 
 // Setup intersection observer for lazy loading (Svelte action)
@@ -247,14 +259,12 @@ function setupWidgetObserver(element: HTMLElement, params: [string, string]) {
 
 const widgetComponentRegistry = $derived(widgetRegistry);
 const currentPreferences = $derived(systemPreferences.preferences || []);
+const installedWidgetFolders = $derived(
+	new Set(currentPreferences.map((item: DashboardWidgetConfig) => item.component)),
+);
 const availableWidgets = $derived(
 	registryLoaded && currentPreferences
-		? Object.keys(widgetComponentRegistry).filter(
-				(name) =>
-					!currentPreferences.some(
-						(item: DashboardWidgetConfig) => item.component === name,
-					),
-			)
+		? Object.keys(widgetComponentRegistry).filter((name) => !installedWidgetFolders.has(name))
 		: [],
 );
 const filteredWidgets = $derived(
@@ -361,6 +371,7 @@ function ensureWidgetOrder() {
 }
 
 function addNewWidget(componentName: string) {
+	// componentName is the package folder id.
 	const componentInfo = widgetComponentRegistry[componentName];
 	if (!componentInfo) {
 		logger.error(
@@ -795,8 +806,8 @@ onMount(() => {
 					</div>
 				{/if}
 
-				<!-- Dashboard Injection Zone (plugins may inject install-specific chrome) -->
-				<section class="w-full px-4 mb-8" data-testid="dashboard-plugin-slot"><Slot name="dashboard" /></section>
+					<!-- Dashboard Injection Zone (plugins may inject install-specific chrome) -->
+					<section class="w-full px-4 mb-8" data-testid="dashboard-plugin-slot"><Slot name="dashboard" /><AdminZone zone="dashboard" /></section>
 			</GenerativeDashboard>
 		</section>
 	</div>

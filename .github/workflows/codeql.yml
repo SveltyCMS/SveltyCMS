@@ -1,0 +1,53 @@
+name: CodeQL
+
+# CodeQL semantic analysis (security-extended) — complements the custom static
+# scanners in the pre-commit gate (scripts/scan-security-risk.ts + slop +
+# secret-misuse). Different engine, same philosophy: catch vulnerability
+# classes in OUR code, not just dependency CVEs.
+#
+# Runs on push to next/main, PRs to next, and weekly (Monday 03:17 UTC).
+# JavaScript/TypeScript analysis needs no build step (build-mode: none).
+
+on:
+  push:
+    branches: [next, main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".vscode/**"
+  pull_request:
+    branches: [next, main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  schedule:
+    - cron: "17 3 * * 1"
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  codeql:
+    name: CodeQL (JS/TS, security-extended)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+          build-mode: none
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript"

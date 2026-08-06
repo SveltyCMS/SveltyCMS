@@ -487,6 +487,52 @@ export const settingsGroups: SettingGroup[] = [
         category: "private",
         sensitive: true,
       },
+      {
+        key: "SESSION_DEVICE_POLICY",
+        label: "Session Device Policy",
+        description:
+          "How many active sessions a user may hold: single-per-device (one per browser/device, default), single-per-user (one session total), or allow-multiple (unlimited concurrent sessions).",
+        type: "select",
+        category: "public",
+        options: [
+          { value: "single-per-device", label: "Single per device (default)" },
+          { value: "single-per-user", label: "Single per user" },
+          { value: "allow-multiple", label: "Allow multiple" },
+        ],
+      },
+      {
+        key: "SESSION_TTL_HOURS",
+        label: "Session Lifetime (hours)",
+        description:
+          "Active session lifetime in hours (default 24). Applied at login and session rotation — rotation never extends the session beyond this policy.",
+        type: "number",
+        category: "public",
+        min: 1,
+        max: 720,
+        placeholder: "24",
+      },
+      {
+        key: "SESSION_IDLE_HOURS",
+        label: "Session Idle Timeout (hours)",
+        description:
+          "Sign out sessions after this many hours without any request (0 = disabled, default). Enforced via the session-cache layer — no extra queries. Typical enterprise values: 1–12h.",
+        type: "number",
+        category: "public",
+        min: 0,
+        max: 720,
+        placeholder: "0",
+      },
+      {
+        key: "SESSION_MAX_PER_USER",
+        label: "Max Sessions Per User",
+        description:
+          "Maximum concurrent sessions per user (0 = unlimited, default). When the cap is exceeded the least recently active session is signed out. Recommended with the allow-multiple device policy.",
+        type: "number",
+        category: "public",
+        min: 0,
+        max: 100,
+        placeholder: "0",
+      },
     ],
   },
   {

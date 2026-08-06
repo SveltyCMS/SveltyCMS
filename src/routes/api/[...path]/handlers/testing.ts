@@ -839,6 +839,8 @@ export async function handleTestingRoutes(
       if (collectionId === "roles") {
         const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
         invalidatePermissionCache();
+        const { clearTurboAuthCache } = await import("@src/hooks/handle-turbo-get");
+        clearTurboAuthCache();
       }
 
       const responseBody = result.success
@@ -876,6 +878,8 @@ export async function handleTestingRoutes(
       if (collectionId === "roles") {
         const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
         invalidatePermissionCache();
+        const { clearTurboAuthCache } = await import("@src/hooks/handle-turbo-get");
+        clearTurboAuthCache();
       }
 
       const responseBody = result.success

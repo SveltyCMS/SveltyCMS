@@ -76,7 +76,10 @@ let {
 
 let loading = $state(true);
 let error = $state<string | null>(null);
-let values = $state<Record<string, unknown>>({});
+// Eagerly initialize with safe defaults: binding `undefined` into a `$bindable()`
+// prop with a fallback (e.g. <Select value=$bindable('')>) throws
+// `props_invalid_value` during hydration. loadSettings() later replaces values.
+let values = $state<Record<string, unknown>>(initializeGroupValues(group.fields, {}));
 let originalValues = $state<Record<string, unknown>>({}); // Track original values
 let errors = $state<Record<string, string>>({});
 let hasEmptyRequiredFields = $state(false);

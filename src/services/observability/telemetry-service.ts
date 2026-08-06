@@ -119,6 +119,27 @@ export class TelemetryService {
           logger.debug("[Telemetry] Failed to collect widget info:", err);
         }
 
+        // Installed dashboard widget packages (marketplace-portable folders)
+        let dashboardWidgets: string[] = [];
+        try {
+          const { getInstalledDashboardWidgets } =
+            await import("../../routes/(app)/dashboard/widgets/manifest-registry");
+          dashboardWidgets = getInstalledDashboardWidgets().map((w) => w.id);
+        } catch (err) {
+          logger.debug("[Telemetry] Failed to collect dashboard widget info:", err);
+        }
+
+        // Installed plugins (from the merged plugin catalog)
+        let plugins: string[] = [];
+        try {
+          const { availablePlugins } = await import("@src/plugins/index");
+          plugins = (availablePlugins || [])
+            .map((p: { metadata?: { id?: string } }) => p.metadata?.id)
+            .filter((id): id is string => Boolean(id));
+        } catch (err) {
+          logger.debug("[Telemetry] Failed to collect plugin info:", err);
+        }
+
         // Use direct env access for infrastructure config
         const privateEnv = getPrivateEnv();
         const dbType = privateEnv?.DB_TYPE || (await getPrivateSetting("DB_TYPE")) || "unknown";
@@ -288,6 +309,8 @@ export class TelemetryService {
           is_ephemeral: environment === "development" || environment === "test",
           stable_id: stableId,
           db_type: dbType,
+          repository_url: "https://github.com/SveltyCMS/SveltyCMS",
+          package_name: "SveltyCMS",
           location: Object.values(location).some((v) => v !== undefined) ? location : undefined,
           usage_metrics: {
             users: userCount,
@@ -296,6 +319,8 @@ export class TelemetryService {
           },
           system_info: systemInfo,
           widgets,
+          dashboard_widgets: dashboardWidgets,
+          plugins,
         };
 
         const telemetryEndpoint =

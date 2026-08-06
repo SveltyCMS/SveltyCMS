@@ -1,0 +1,17 @@
+{
+  "id": "tenant-analytics",
+  "name": "Tenant Analytics",
+  "description": "Per-tenant usage statistics — storage, users, collections, and activity",
+  "icon": "mdi:chart-bar",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "index",
+  "defaultSize": {
+    "w": 2,
+    "h": 2
+  },
+  "category": "static"
+}

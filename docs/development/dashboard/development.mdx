@@ -1,0 +1,276 @@
+---
+path: "docs/development/dashboard/development.mdx"
+title: "Dashboard Widget Development Guide"
+description: "Step-by-step guide to building a dashboard widget — from scaffold to registry, data loading, and testing."
+order: 7
+icon: "mdi:code-tags"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "widgets"
+  - "development"
+  - "guide"
+---
+
+# Dashboard Widget Development Guide
+
+This guide walks through building a complete dashboard widget package.
+
+## 1. Scaffold the Folder
+
+Create a kebab-case folder under `src/routes/(app)/dashboard/widgets/` — every dashboard widget package has exactly three required files:
+
+```text
+widgets/request-rate/
+├── index.svelte    # entry component (required, fixed name)
+├── widget.json     # marketplace manifest (required)
+└── readme.mdx      # marketplace description (required, fixed name)
+```
+
+> **Naming rules (enforced by `bun run check`)**
+>
+> - Folder = package id: kebab-case (`request-rate`), unique, never renamed.
+> - Entry component: **`index.svelte`** — fixed name for every package (like `src/widgets/custom/*/index.ts`).
+> - Marketplace docs: **`readme.mdx`** — fixed name for every package.
+> - The **folder id** is the registry key saved in user layouts — the entry filename is an implementation detail and can never break a layout.
+
+## 2. Write the Manifest
+
+```json
+{
+  "id": "request-rate",
+  "name": "Request Rate",
+  "description": "Live API request throughput with trend sparkline",
+  "icon": "mdi:chart-timeline-variant",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "YourName",
+  "license": "free",
+  "price": 0,
+  "component": "index",
+  "defaultSize": { "w": 1, "h": 2 },
+  "category": "monitoring"
+}
+```
+
+See [Architecture → widget.json](./architecture.mdx#2-the-widgetjson-manifest) for the full schema. `component` is always `"index"` — the checker verifies it matches `index.svelte`.
+
+## 3. Write the Marketplace Docs (`readme.mdx`)
+
+Every dashboard widget **must** ship `readme.mdx` — the marketplace uses it to render the package listing card and detail page. Follow the frontmatter + section pattern used by all core widgets:
+
+````markdown
+---
+path: "src/routes/(app)/dashboard/widgets/request-rate/readme.mdx"
+title: "Request Rate Dashboard Widget"
+description: "Live API request throughput with trend sparkline"
+order: 100
+icon: "mdi:chart-timeline-variant"
+author: "YourName"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "performance"
+---
+
+# Request Rate Widget
+
+Live API request throughput with trend sparkline. [short intro]
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+<!-- or: **Price: €X.XX** — Freemium model with a 14-day free trial. -->
+
+---
+
+## Features
+
+| Feature      | Description                     |
+| :----------- | :------------------------------ |
+| Throughput   | Live requests per minute        |
+| Auto-polling | Data refreshes every 10 seconds |
+
+---
+
+## Data Source
+
+| Endpoint                     | Description            |
+| :--------------------------- | :--------------------- |
+| `GET /api/dashboard/metrics` | Unified metrics report |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Request Rate",
+  icon: "mdi:chart-timeline-variant",
+  description: "Live API request throughput with trend sparkline",
+  defaultSize: { w: 1, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)
+````
+
+Keep the `description` in sync with `widget.json` and `widgetMeta`. Paid/freemium widgets also document their license verification endpoint (`GET /api/system/license-status?type=dashboard&id=<widget-id>`).
+
+## 4. Build the Component (`index.svelte`)
+
+```svelte
+<!--
+@file src/routes/(app)/dashboard/widgets/request-rate/index.svelte
+@component
+**Request Rate Widget — live throughput with trend sparkline**
+-->
+<script lang="ts" module>
+  export const widgetMeta = {
+    name: "Request Rate",
+    icon: "mdi:chart-timeline-variant",
+    description: "Live API request throughput with trend sparkline",
+    defaultSize: { w: 1, h: 2 },
+  };
+</script>
+
+<script lang="ts">
+  import type { WidgetSize } from '@src/content/types';
+  import BaseWidget from '../../base-widget.svelte';
+
+  const {
+    label = 'Request Rate',
+    theme = 'light',
+    icon = 'mdi:chart-timeline-variant',
+    widgetId = undefined,
+    size = { w: 1, h: 2 } as WidgetSize,
+    onSizeChange = (_newSize: WidgetSize) => {},
+    onRemove = () => {},
+  }: {
+    label?: string;
+    theme?: 'light' | 'dark';
+    icon?: string;
+    widgetId?: string;
+    size?: WidgetSize;
+    onSizeChange?: (newSize: WidgetSize) => void;
+    onRemove?: () => void;
+  } = $props();
+
+  interface RateData {
+    requestsPerMinute: number;
+    avgLatencyMs: number;
+    timestamp: number;
+  }
+
+  let history = $state<number[]>([]);
+  const rate = $derived(history[history.length - 1]);
+
+  function handleDataLoaded(newData: any) {
+    const rpm = newData?.requestsPerMinute;
+    if (rpm !== undefined) {
+      history = [...history.slice(-11), rpm]; // keep last 12 points
+    }
+  }
+</script>
+
+<BaseWidget
+  {label} {theme} {icon} {widgetId} {size}
+  endpoint="/api/dashboard/metrics"
+  pollInterval={10000}
+  {onSizeChange}
+  onCloseRequest={onRemove}
+  onDataLoaded={handleDataLoaded}
+>
+  {#snippet children({ data })}
+    <div class="flex h-full flex-col justify-center gap-2 px-3" role="region" aria-label="Request rate">
+      {#if !data}
+        <p class="text-sm text-surface-500">Loading…</p>
+      {:else}
+        <p class="text-2xl font-bold text-tertiary-500 dark:text-primary-500">
+          {data.requestsPerMinute ?? 0}<span class="text-sm font-medium"> req/min</span>
+        </p>
+        <p class="text-xs text-surface-500">avg {data.avgLatencyMs ?? 0}ms latency</p>
+      {/if}
+    </div>
+  {/snippet}
+</BaseWidget>
+```
+
+### Key points
+
+- **Metadata module block**: `export const widgetMeta` at the top — drives the picker.
+- **BaseWidget import**: from `../../base-widget.svelte` (widgets live one level below the dashboard root).
+- **Props contract**: every widget accepts `label`, `theme`, `icon`, `widgetId`, `size`, `onSizeChange`, `onRemove` (plus optional `settings`).
+- **`onDataLoaded`**: hook for accumulating history for sparklines/trends.
+- **Accessibility**: `role="region"` + `aria-label`; keyboard-navigable interactive elements; no `{@html}`.
+
+## 5. Backing Data
+
+Dashboard widgets read from the [Dashboard API](../../reference/api/dashboard.mdx):
+
+- `GET /api/dashboard/metrics` — unified metrics / request throughput
+- `GET /api/dashboard/system-info?type=cpu|memory|disk`
+- `GET /api/dashboard/cache-metrics`, `health`, `audit`, `logs`, `last5-content`, `last5media`, `online-user`, `system-messages`, `security`, `scim`
+- `GET /api/database/pool-diagnostics`
+
+All endpoints require `dashboard:read` (admins bypass via the fast-path). If your widget needs a new endpoint, add it to the dashboard namespace handler and gate it in `ENDPOINT_PERMISSIONS`.
+
+## 6. Verify Discovery
+
+```bash
+bun run dev
+```
+
+Open `/dashboard`, click **Add widget**, search for "Request Rate" — it appears automatically. Drop it on the grid; it renders and polls. The layout (persisting `component: "request-rate"` — the folder id) is saved via `system-preferences`.
+
+> **Hot add/remove (dev)**: the Vite plugin watches `src/routes/(app)/dashboard/widgets/**` — creating a new package folder (or removing one) triggers a full reload, and the new widget appears in the picker. No manual restart needed.
+
+## 7. Test
+
+Widget-shell tests are install-agnostic; add package-level tests in `widgets/<folder>/tests/`:
+
+```typescript
+// widgets/request-rate/tests/request-rate.test.ts
+import { describe, expect, it } from "vitest";
+
+describe("request-rate widget metadata", () => {
+  it("exposes picker metadata", () => {
+    // widgetMeta name/icon/defaultSize are static — assert them via the module
+    expect("request-rate-widget").toMatch(/-widget$/);
+  });
+});
+```
+
+Run: `bun run test:unit -- tests/unit/dashboard tests/unit/routes/dashboard-page-server.test.ts`
+
+## 8. Licensing (Premium Widgets)
+
+Dashboard widgets respect licensing exactly like custom widgets and plugins — enforced on **both** sides:
+
+1. Set `license`/`price` in `widget.json`.
+2. Client-side: on mount, resolve `checkExtensionLicense("dashboard", "<widget-id>")` and render `<UpgradePrompt extensionId="dashboard:<widget-id>" price="€X.XX" />` when inactive.
+3. Server-side: register the backing endpoint in `DASHBOARD_ENDPOINT_LICENSE` in `src/routes/api/[...path]/handlers/dashboard-license.ts` (or call `requireDashboardWidgetLicense("<widget-id>")` directly). The handler returns `403 LICENSE_REQUIRED` when the trial expired without a license — the same pattern plugins use in lifecycle hooks.
+4. Document the license verification endpoint in your widget's `.mdx` (`GET /api/system/license-status?type=dashboard&id=<widget-id>`).
+
+Unit test the gate in `tests/unit/api/dashboard-license-gate.test.ts` (map coverage + pass/fail paths).
+
+## 9. Marketplace Submission
+
+Follow [Dashboard Widget Marketplace](./marketplace.mdx) to package the folder for marketplace.sveltycms.com.
+
+## Related
+
+- [Dashboard Widget Architecture](./architecture.mdx)
+- [Dashboard Widget Marketplace](./marketplace.mdx)
+- [Widget Development Guide](../widgets/widget-development-guide.mdx)
+- [Plugin Development Guide](../plugins/development.mdx)

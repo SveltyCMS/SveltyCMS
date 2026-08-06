@@ -25,7 +25,16 @@ import { assertTenantContext } from "@src/utils/security/safe-query";
 export { isoDateStringToDate, nowISODateString };
 
 export const generateId = () => uuidv4().replace(/-/g, "") as DatabaseId;
-export const validateId = (id: string) => /^[0-9a-f]{32}$/i.test(id) || /^[0-9a-f-]{36}$/i.test(id);
+const VALID_ID_32 = /^[0-9a-f]{32}$/i;
+const VALID_ID_36 = /^[0-9a-f-]{36}$/i;
+
+export const validateId = (id: string) => {
+  if (typeof id !== "string") return false;
+  const len = id.length;
+  if (len === 32) return VALID_ID_32.test(id);
+  if (len === 36) return VALID_ID_36.test(id);
+  return false;
+};
 
 export const createDatabaseError = (
   code: string,
@@ -91,14 +100,26 @@ const _tableDateCols = new Map<string, string[]>();
 const _tableJsonCols = new Map<string, string[]>();
 const _tableSkipKeys = new Map<string, Set<string>>();
 
-/** Registers a table's known date/JSON columns for zero-overhead conversion. Idempotent. */
+/** Registers a table's known date/JSON columns for zero-overhead conversion under both physical and logical table names. Idempotent. */
 export function registerTableSchema(table: string, columns: string[]): void {
-  if (_tableDateCols.has(table)) return;
+  if (!table) return;
   const dateCols = columns.filter((c) => DATE_FIELDS.has(c));
   const jsonCols = columns.filter((c) => JSON_FIELDS.has(c));
-  _tableDateCols.set(table, dateCols);
-  _tableJsonCols.set(table, jsonCols);
-  _tableSkipKeys.set(table, new Set([...dateCols, ...jsonCols]));
+  const skipSet = new Set([...dateCols, ...jsonCols]);
+
+  const registerKey = (key: string) => {
+    if (_tableDateCols.has(key)) return;
+    _tableDateCols.set(key, dateCols);
+    _tableJsonCols.set(key, jsonCols);
+    _tableSkipKeys.set(key, skipSet);
+  };
+
+  registerKey(table);
+  if (table.startsWith("collection_")) {
+    registerKey(table.slice(11));
+  } else {
+    registerKey(`collection_${table}`);
+  }
 }
 
 export function getTableDateColumns(table: string): string[] {
@@ -184,18 +205,40 @@ function flattenDataColumn(result: Record<string, unknown>, key: string, value: 
  */
 export function convertDatesToISO(
   row: any,
-  options?: { mariaDoubleParseJson?: boolean; table?: string },
+  options?: { mariaDoubleParseJson?: boolean; table?: string; inPlace?: boolean },
 ): any {
   if (!row) return row;
   if (Array.isArray(row)) {
     return row.map((r) => convertDatesToISO(r, options));
   }
 
-  const result: any = {};
   const table = options?.table;
   const hasSchema = table ? _tableDateCols.has(table) : false;
   const dateCols = hasSchema && table ? getTableDateColumns(table) : null;
   const jsonCols = hasSchema && table ? getTableJsonColumns(table) : null;
+
+  if (options?.inPlace && hasSchema && dateCols) {
+    for (let i = 0; i < dateCols.length; i++) {
+      const k = dateCols[i];
+      const v = row[k];
+      if (v instanceof Date) {
+        row[k] = v.toISOString();
+      } else if (v && typeof v === "object" && typeof (v as any).getTime === "function") {
+        row[k] = new Date((v as any).getTime()).toISOString();
+      }
+    }
+    if (jsonCols && jsonCols.length > 0) {
+      for (let i = 0; i < jsonCols.length; i++) {
+        const k = jsonCols[i];
+        const v = normalizeJsonFieldValue(row[k], options);
+        flattenDataColumn(row, k, v);
+        row[k] = v;
+      }
+    }
+    return row;
+  }
+
+  const result: any = {};
 
   if (dateCols && dateCols.length > 0) {
     // 🚀 2027 FAST PATH: Only convert known date columns
@@ -255,7 +298,7 @@ export function convertDatesToISO(
 
 export const convertArrayDatesToISO = (
   rows: any[],
-  options?: { mariaDoubleParseJson?: boolean; table?: string },
+  options?: { mariaDoubleParseJson?: boolean; table?: string; inPlace?: boolean },
 ) => {
   if (!rows || rows.length === 0) return [];
   return rows.map((r) => convertDatesToISO(r, options));

@@ -1,0 +1,17 @@
+{
+  "id": "last5-media",
+  "name": "Last 5 Media",
+  "description": "Recently uploaded media files with thumbnail previews",
+  "icon": "mdi:image-multiple-outline",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 2
+  },
+  "category": "content"
+}

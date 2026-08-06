@@ -1,0 +1,17 @@
+{
+  "id": "memory",
+  "name": "Memory Usage",
+  "description": "Real-time memory usage monitoring",
+  "icon": "mdi:memory",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 2
+  },
+  "category": "monitoring"
+}

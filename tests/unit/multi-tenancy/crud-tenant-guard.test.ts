@@ -33,6 +33,10 @@ describe("crud-tenant-guard", () => {
     mockInner = {
       find: vi.fn().mockResolvedValue({ success: true, data: [] }),
       findMany: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      findPage: vi.fn().mockResolvedValue({
+        success: true,
+        data: { items: [], hasMore: false, pageSize: 50 },
+      }),
       findOne: vi.fn().mockResolvedValue({ success: true, data: null }),
       findByIds: vi.fn().mockResolvedValue({ success: true, data: [] }),
       count: vi.fn().mockResolvedValue({ success: true, data: 0 }),

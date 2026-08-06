@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     5 | 🟢     | -12%    | 0      |
+| **Core**       |     5 | 🟢     | -5%     | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -64,18 +64,19 @@ tags:
 
 | Scenario       | Latency | Trend                                    | Budget | Result |
 | -------------- | ------- | ---------------------------------------- | ------ | ------ |
-| **Middleware** | 0.476ms | ⚪ stable at 0.494ms (±0.017ms) (4 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.287ms | ⚪ stable at 0.301ms (±0.032ms) (4 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.845ms | ⚪ stable at 0.857ms (±0.007ms) (4 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.849ms | ⚪ stable at 0.893ms (±0.078ms) (4 runs) | < 5ms  | 🟢     |
-| **Middleware** | 2.272ms | ⚪ stable at 2.59ms (±0.456ms) (4 runs)  | < 5ms  | 🟢     |
+| **Middleware** | 0.469ms | ⚪ stable at 0.476ms (±0.369ms) (7 runs) | < 5ms  | 🟢     |
+| **Middleware** | 0.274ms | ⚪ stable at 0.287ms (±0.262ms) (7 runs) | < 5ms  | 🟢     |
+| **Middleware** | 0.881ms | ⚪ stable at 0.898ms (±0.209ms) (7 runs) | < 5ms  | 🟢     |
+| **Middleware** | 0.891ms | ⚪ stable at 0.881ms (±0.132ms) (7 runs) | < 5ms  | 🟢     |
+| **Middleware** | 2.549ms | ⚪ stable at 2.53ms (±0.456ms) (7 runs)  | < 5ms  | 🟢     |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric | Trend | Sparkline | Latest |
-| ------ | ----- | --------- | ------ |
+| Metric                                          | Trend | Sparkline | Latest  |
+| ----------------------------------------------- | ----- | --------- | ------- |
+| database performance (BULK INSERT (100)) (warm) | 🟢    | `▂▇▆▁▁▄█` | 2.521ms |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
@@ -86,22 +87,6 @@ xychart-beta
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
-```
-
-</details>
-<details>
-<summary>📊 Regression severity matrix (quadrant)</summary>
-
-```mermaid
-quadrantChart
-  title "Regression severity (impact vs delta)"
-  x-axis Low latency impact --> High latency impact
-  y-axis Low delta --> High delta
-  quadrant-1 Monitor
-  quadrant-2 Investigate soon
-  quadrant-3 Acceptable variance
-  quadrant-4 Critical — fix first
-    Middleware: [0.95, 0.61]
 ```
 
 </details>
@@ -117,37 +102,39 @@ quadrantChart
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-07-31)
+### Current Run Summary (2026-08-04)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `2124cffa-7b52-4163-8de1-1c58c37ca942` · **Tests invoked:** 1 · **Metrics:** 5 · **DB:** sqlite
+**Run ID:** `2054ed7a-1e95-4958-8c44-25c70e850b09` · **Tests invoked:** 1 · **Metrics:** 5 · **DB:** sqlite
 
 | Test              | Metric                        | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                   |
 | ----------------- | ----------------------------- | -------- | -------- | ---- | ----- | ---------------------------------------- |
-| Hooks Performance | Static Asset (No Middleware)  | 0.476    | 0.575    | 1983 | 🟢    | ⚪ stable at 0.494ms (±0.017ms) (4 runs) |
-| Hooks Performance | Turbo Pipeline (Light)        | 0.287    | 0.356    | 3290 | 🟢    | ⚪ stable at 0.301ms (±0.032ms) (4 runs) |
-| Hooks Performance | Full Security + Auth Pipeline | 0.845    | 1.110    | 1027 | 🟢    | ⚪ stable at 0.857ms (±0.007ms) (4 runs) |
-| Hooks Performance | REST with API Caching         | 0.849    | 1.064    | 1063 | 🟢    | ⚪ stable at 0.893ms (±0.078ms) (4 runs) |
-| Hooks Performance | Mutation + Audit Logging      | 2.272    | 3.410    | 414  | 🟢    | ⚪ stable at 2.59ms (±0.456ms) (4 runs)  |
+| Hooks Performance | Static Asset (No Middleware)  | 0.469    | 0.552    | 1970 | 🟢    | ⚪ stable at 0.476ms (±0.369ms) (7 runs) |
+| Hooks Performance | Turbo Pipeline (Light)        | 0.274    | 0.353    | 3361 | 🟢    | ⚪ stable at 0.287ms (±0.262ms) (7 runs) |
+| Hooks Performance | Full Security + Auth Pipeline | 0.881    | 1.068    | 949  | 🟢    | ⚪ stable at 0.898ms (±0.209ms) (7 runs) |
+| Hooks Performance | REST with API Caching         | 0.891    | 1.142    | 976  | 🟢    | ⚪ stable at 0.881ms (±0.132ms) (7 runs) |
+| Hooks Performance | Mutation + Audit Logging      | 2.549    | 3.706    | 381  | 🟢    | ⚪ stable at 2.53ms (±0.456ms) (7 runs)  |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-07-31)
+### Historical Trends (2026-08-04)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
 **Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='sqlite' AND redis=0 ORDER BY timestamp DESC`
 
-**Series:** 1 · **DB:** sqlite
+**Series:** 3 · **DB:** sqlite
 
-| Metric                   | Trend | Sparkline (last 7) | Latest  |
-| ------------------------ | ----- | ------------------ | ------- |
-| HOOKS PERFORMANCE (warm) | 🟢    | `▃▁▃█▃▂▁`          | 0.287ms |
+| Metric                      | Trend | Sparkline (last 7) | Latest  |
+| --------------------------- | ----- | ------------------ | ------- |
+| DATABASE PERFORMANCE (warm) | 🟢    | `▁▃▂▂█▁▃`          | 0.087ms |
+| HOOKS PERFORMANCE (warm)    | 🟢    | `▂▁▃█▃▂▁`          | 0.274ms |
+| SECURITY AUDIT (warm)       | 🟢    | `█▁▁▁▁▁`           | 0.000ms |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 
@@ -160,7 +147,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- LEDGER_DIMENSION:CORE:START -->
 
 <details id="ledger-dimension-core">
-<summary><strong>Core</strong> · 26 tests</summary>
+<summary><strong>Core</strong> · 28 tests</summary>
 
 <!-- SECTION:API_LATENCY:START -->
 
@@ -283,7 +270,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:HOOKS_TRACE:START -->
 
 <details id="section-hooks_trace">
-<summary><strong>🏷️ Middleware & Hooks Performance</strong> · 🟢 0.476ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Middleware & Hooks Performance</strong> · 🟢 0.469ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -291,14 +278,14 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                           ║
 ║                    File: tests/benchmarks/hooks-performance.test.ts                     ║
-║                                Ran: 2026-07-31 20:26:17                                 ║
+║                                Ran: 2026-08-04 20:57:12                                 ║
 ║Measures the cost of the full middleware chain including Turbo, Security, Auth, and Audit via HTTP E2E.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Static Asset (No Middleware)   │        0.476 ms │ p95:        0.575 ms │ RPS:      1,983 ║
-║ Turbo Pipeline (Light)         │        0.287 ms │ p95:        0.356 ms │ RPS:      3,290 ║
-║ Full Security + Auth Pipeline  │        0.845 ms │ p95:        1.110 ms │ RPS:      1,027 ║
-║ REST with API Caching          │        0.849 ms │ p95:        1.064 ms │ RPS:      1,063 ║
-║ Mutation + Audit Logging       │        2.272 ms │ p95:        3.410 ms │ RPS:        414 ║
+║ Static Asset (No Middleware)   │        0.469 ms │ p95:        0.552 ms │ RPS:      1,970 ║
+║ Turbo Pipeline (Light)         │        0.274 ms │ p95:        0.353 ms │ RPS:      3,361 ║
+║ Full Security + Auth Pipeline  │        0.881 ms │ p95:        1.068 ms │ RPS:        949 ║
+║ REST with API Caching          │        0.891 ms │ p95:        1.142 ms │ RPS:        976 ║
+║ Mutation + Audit Logging       │        2.549 ms │ p95:        3.706 ms │ RPS:        381 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -370,25 +357,38 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:DB_RAW_P95:START -->
 <details id="section-db_raw_p95">
-<summary><strong>🏷️ database performance</strong> · 🟢 0.131ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ database performance</strong> · 🟢 2.521ms · ↗️ ⚪ stable at 2.33ms (±0.181ms) (6 runs) (2026-08-04 12:00:20) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                    SVELTYCMS — DATABASE ADAPTER PERFORMANCE (SQLITE)                    ║
 ║                   File: tests/benchmarks/database-performance.test.ts                   ║
-║                                Ran: 2026-07-26 10:30:37                                 ║
+║                                Ran: 2026-08-04 12:00:20                                 ║
 ║   Measures raw CRUD performance, indexing efficiency, and connection pool resilience    ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                         │        0.131 ms │ p95:        0.196 ms │ RPS:      3,073 ║
-║ FIND ONE                       │        0.084 ms │ p95:        0.106 ms │ RPS:     10,846 ║
-║ FIND MANY (limit 50)           │        0.101 ms │ p95:        0.124 ms │ RPS:      9,020 ║
-║ UPDATE                         │        0.110 ms │ p95:        0.139 ms │ RPS:      7,035 ║
-║ NATIVE UPSERT                  │        0.075 ms │ p95:        0.097 ms │ RPS:     10,797 ║
-║ COUNT                          │        0.183 ms │ p95:        0.217 ms │ RPS:      4,834 ║
-║ DELETE                         │        0.045 ms │ p95:        0.058 ms │ RPS:     16,424 ║
-║ BULK INSERT (100)              │        3.288 ms │ p95:        5.223 ms │ RPS:        136 ║
+║ INSERT                         │        0.077 ms │ p95:        0.100 ms │ RPS:      5,393 ║
+║ FIND ONE                       │        0.058 ms │ p95:        0.068 ms │ RPS:     15,607 ║
+║ FIND MANY (limit 50)           │        0.074 ms │ p95:        0.088 ms │ RPS:     12,276 ║
+║ FIND PAGE (50 hasMore)         │        0.086 ms │ p95:        0.102 ms │ RPS:     10,561 ║
+║ FIND PAGE keyset               │        0.072 ms │ p95:        0.085 ms │ RPS:     12,687 ║
+║ FIND MANY offset 50            │        0.050 ms │ p95:        0.061 ms │ RPS:     18,484 ║
+║ LIST+COUNT (legacy)            │        0.192 ms │ p95:        0.211 ms │ RPS:      4,926 ║
+║ UPDATE                         │        0.087 ms │ p95:        0.100 ms │ RPS:      9,427 ║
+║ NATIVE UPSERT                  │        0.054 ms │ p95:        0.062 ms │ RPS:     14,337 ║
+║ COUNT                          │        0.120 ms │ p95:        0.130 ms │ RPS:      8,003 ║
+║ COUNT ESTIMATE                 │        0.023 ms │ p95:        0.028 ms │ RPS:     39,041 ║
+║ COUNT CACHED                   │        0.024 ms │ p95:        0.026 ms │ RPS:     38,356 ║
+║ DELETE                         │        0.032 ms │ p95:        0.039 ms │ RPS:     22,152 ║
+║ BULK INSERT (100)              │        2.521 ms │ p95:        4.838 ms │ RPS:        186 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -617,16 +617,9 @@ Throughput dropped 95% — check connection pool saturation or lock contention.
 
 <!-- SECTION:MIDDLEWARE:START -->
 <details id="section-middleware">
-<summary><strong>🏷️ Middleware</strong> · 🟢 2.272ms · ↘️ ⚪ stable at 2.59ms (±0.456ms) (4 runs) (2026-07-31 20:26:17) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
-<!-- LEDGER_INSIGHT_START -->
-> [!NOTE]
-> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
-<!-- LEDGER_INSIGHT_END -->
-
+<summary><strong>🏷️ Middleware</strong> · 🟢 2.549ms · ➡️ ⚪ stable at 2.53ms (±0.456ms) (7 runs) (2026-08-04 20:57:12) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 > ⏳ Pending
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -661,6 +654,26 @@ Throughput dropped 95% — check connection pool saturation or lock contention.
 
 </details>
 <!-- SECTION:CRUD:END -->
+
+<!-- SECTION:CRYPTO:START -->
+<details id="section-crypto">
+<summary><strong>🏷️ Crypto</strong> · 🟢 5.773ms · ➡️ ⚪ established at 5.77ms (1 run) (2026-08-04 19:59:55) · <a href="../../../tests/benchmarks/security-audit.test.ts">source</a></summary>
+<!-- LEDGER_TRUTH_START -->
+> ⏳ Pending
+<!-- LEDGER_TRUTH_END -->
+
+</details>
+<!-- SECTION:CRYPTO:END -->
+
+<!-- SECTION:DEFENSE:START -->
+<details id="section-defense">
+<summary><strong>🏷️ Defense</strong> · 🟢 ⏳ pending · ➡️ ⚪ established at 0ms (1 run) (2026-08-04 19:59:55) · <a href="../../../tests/benchmarks/security-audit.test.ts">source</a></summary>
+<!-- LEDGER_TRUTH_START -->
+> ⏳ Pending
+<!-- LEDGER_TRUTH_END -->
+
+</details>
+<!-- SECTION:DEFENSE:END -->
 
 </details>
 
@@ -879,28 +892,24 @@ Throughput dropped 95% — check connection pool saturation or lock contention.
 <!-- SECTION:AUTH_TRACE:END -->
 
 <!-- SECTION:SECURITY:START -->
-
 <details id="section-security">
-<summary><strong>🏷️ Security Hardening & Audit</strong> · 🟢 0.003ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/security-audit.test.ts">source</a></summary>
-
+<summary><strong>🏷️ Security</strong> · 🟢 0.109ms · ➡️ ⚪ established at 0.109ms (1 run) (2026-08-04 19:59:55) · <a href="../../../tests/benchmarks/security-audit.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 ```text
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                        SVELTYCMS — SECURITY INFRASTRUCTURE AUDIT                        ║
 ║                      File: tests/benchmarks/security-audit.test.ts                      ║
-║                                Ran: 2026-07-26 10:30:43                                 ║
+║                                Ran: 2026-08-04 19:59:55                                 ║
 ║Measures overhead of WAF request analysis, audit log persistence, Argon2id password hashing, and RBAC permission checks.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ WAF Deep Analysis              │        0.003 ms │ p95:        0.005 ms │ RPS:    279,774 ║
-║ Audit Log Persistence          │        0.195 ms │ p95:        0.180 ms │ RPS:      5,136 ║
-║ Argon2id Password Hashing      │        2.835 ms │ p95:       10.322 ms │ RPS:        353 ║
-║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS:  8,565,311 ║
-║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS:  6,825,939 ║
-║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS:  8,602,151 ║
+║ WAF Deep Analysis              │        0.002 ms │ p95:        0.005 ms │ RPS:    335,296 ║
+║ Audit Log Persistence          │        0.109 ms │ p95:        0.113 ms │ RPS:      9,210 ║
+║ Argon2id Password Hashing      │        5.773 ms │ p95:       26.799 ms │ RPS:        173 ║
+║ Dispatcher-Only Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 11,230,908 ║
+║ Full Defense-in-Depth Check    │        0.000 ms │ p95:        0.000 ms │ RPS: 11,233,431 ║
+║ Admin Verification + Permission Check │        0.000 ms │ p95:        0.000 ms │ RPS: 14,371,946 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>

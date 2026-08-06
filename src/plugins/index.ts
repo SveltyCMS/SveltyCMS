@@ -13,7 +13,15 @@ export * from "./storage";
 import { pluginServerRegistry } from "./plugin-server-registry";
 import { pluginRegistry } from "./registry";
 import { slotRegistry } from "./slot-registry.svelte.ts";
-export { pluginRegistry, pluginServerRegistry, slotRegistry };
+import { pluginPageRegistry } from "./plugin-page-registry.svelte.ts";
+import { adminZoneRegistry } from "./admin-zone-registry.svelte.ts";
+export {
+  pluginRegistry,
+  pluginServerRegistry,
+  slotRegistry,
+  pluginPageRegistry,
+  adminZoneRegistry,
+};
 
 import { logger } from "@utils/logger";
 import type { Plugin } from "./types";
@@ -94,6 +102,22 @@ for (const plugin of availablePlugins) {
 
       if (slot.zone === "plugin_workspace" && slot.server) {
         pluginServerRegistry.register(pluginId, slot.server);
+      }
+    }
+  }
+
+  // Structured parts → isomorphic registries (pages + admin zones). Server-side
+  // validation happens in pluginRegistry.resolveParts during initializePlugins.
+  if (plugin.parts) {
+    for (const part of plugin.parts) {
+      if (part.type === "page") {
+        for (const page of part.pages) {
+          pluginPageRegistry.register(pluginId, page);
+        }
+      } else if (part.type === "adminTool") {
+        for (const tool of part.tools) {
+          adminZoneRegistry.registerTool(pluginId, tool);
+        }
       }
     }
   }

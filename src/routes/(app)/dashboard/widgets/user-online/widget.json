@@ -1,0 +1,16 @@
+{
+  "id": "user-online",
+  "name": "Online Users",
+  "description": "Currently active users with role indicators",
+  "icon": "mdi:account-multiple-outline",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "freemium",
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 2
+  },
+  "category": "static"
+}

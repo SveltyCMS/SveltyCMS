@@ -29,6 +29,18 @@ export interface SsoProviderConfig {
   allowedRedirectUris: string[];
   /** OP logout endpoint URL */
   endSessionEndpoint?: string;
+  /** OAuth/OIDC client id (login flow) */
+  clientId?: string;
+  /** OAuth/OIDC client secret (token exchange — server only) */
+  clientSecret?: string;
+  /** Authorization endpoint (or discovered) */
+  authorizationEndpoint?: string;
+  /** Token endpoint (or discovered) */
+  tokenEndpoint?: string;
+  /** JWKS URI for JWT signature verification */
+  jwksUri?: string;
+  /** Scopes for authorization code flow (default openid profile email) */
+  scopes?: string[];
 }
 
 export interface SsoSessionMetadata {
@@ -47,10 +59,6 @@ export interface SsoSessionMetadata {
 // ─── Provider registry ─────────────────────────────────────────────────────
 
 const ssoProviders = new Map<string, SsoProviderConfig>();
-
-/** Cache of discovered OP configurations (issuer → well-known response). */
-const discoveryCache = new Map<string, { endSessionEndpoint?: string; ttl: number }>();
-const DISCOVERY_CACHE_TTL_MS = 3600_000; // 1 hour
 
 /** Session → SSO metadata mapping (in-memory, keyed by sessionId). */
 const ssoSessionMetadata = new Map<string, SsoSessionMetadata>();
@@ -238,45 +246,256 @@ export async function performRpInitiatedLogout(
 
 // ─── OP Discovery ───────────────────────────────────────────────────────────
 
+interface DiscoveredOidcConfig {
+  endSessionEndpoint?: string;
+  authorizationEndpoint?: string;
+  tokenEndpoint?: string;
+  jwksUri?: string;
+  ttl: number;
+}
+
+const discoveryCache = new Map<string, DiscoveredOidcConfig>();
+const DISCOVERY_CACHE_TTL_MS = 3_600_000; // 1h
+const jwksCache = new Map<string, { keys: any[]; ttl: number }>();
+
 /**
- * Discovers OP endpoints via OIDC Discovery (`.well-known/openid-configuration`).
- * Falls back to the manually configured `endSessionEndpoint` on the provider config.
+ * Full OIDC discovery document (cached). Populates auth/token/jwks/logout endpoints.
  */
-export async function discoverEndSessionEndpoint(providerId: string): Promise<string | undefined> {
+export async function discoverOidcConfig(
+  providerId: string,
+): Promise<DiscoveredOidcConfig | undefined> {
   const provider = ssoProviders.get(providerId);
   if (!provider) return undefined;
 
-  // Check discovery cache
   const cached = discoveryCache.get(provider.issuer);
-  if (cached && Date.now() < cached.ttl) {
-    return cached.endSessionEndpoint || provider.endSessionEndpoint;
-  }
+  if (cached && Date.now() < cached.ttl) return cached;
 
   try {
     const wellKnownUrl = `${provider.issuer.replace(/\/$/, "")}/.well-known/openid-configuration`;
-    const res = await fetch(wellKnownUrl, {
-      signal: AbortSignal.timeout(5000),
-    });
+    const res = await fetch(wellKnownUrl, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
     const config = await res.json();
-    const discovered = config.end_session_endpoint as string | undefined;
-
-    discoveryCache.set(provider.issuer, {
-      endSessionEndpoint: discovered,
+    const discovered: DiscoveredOidcConfig = {
+      endSessionEndpoint: (config.end_session_endpoint as string) || provider.endSessionEndpoint,
+      authorizationEndpoint:
+        (config.authorization_endpoint as string) || provider.authorizationEndpoint,
+      tokenEndpoint: (config.token_endpoint as string) || provider.tokenEndpoint,
+      jwksUri: (config.jwks_uri as string) || provider.jwksUri,
       ttl: Date.now() + DISCOVERY_CACHE_TTL_MS,
-    });
-
-    logger.info(`[SSO] Discovered end_session_endpoint for ${providerId}: ${discovered || "none"}`);
-    return discovered || provider.endSessionEndpoint;
+    };
+    discoveryCache.set(provider.issuer, discovered);
+    // Also hydrate provider config for subsequent calls
+    if (discovered.endSessionEndpoint) provider.endSessionEndpoint = discovered.endSessionEndpoint;
+    if (discovered.authorizationEndpoint)
+      provider.authorizationEndpoint = discovered.authorizationEndpoint;
+    if (discovered.tokenEndpoint) provider.tokenEndpoint = discovered.tokenEndpoint;
+    if (discovered.jwksUri) provider.jwksUri = discovered.jwksUri;
+    logger.info(`[SSO] OIDC discovery OK for ${providerId}`);
+    return discovered;
   } catch (err) {
     logger.warn(`[SSO] Discovery failed for ${provider.issuer}:`, err);
-    // Cache the failure for a shorter period to avoid thundering herd
-    discoveryCache.set(provider.issuer, {
-      endSessionEndpoint: undefined,
-      ttl: Date.now() + 300_000, // 5 min
+    const fallback: DiscoveredOidcConfig = {
+      endSessionEndpoint: provider.endSessionEndpoint,
+      authorizationEndpoint: provider.authorizationEndpoint,
+      tokenEndpoint: provider.tokenEndpoint,
+      jwksUri: provider.jwksUri,
+      ttl: Date.now() + 300_000,
+    };
+    discoveryCache.set(provider.issuer, fallback);
+    return fallback;
+  }
+}
+
+/**
+ * Discovers OP logout endpoint via OIDC Discovery.
+ */
+export async function discoverEndSessionEndpoint(providerId: string): Promise<string | undefined> {
+  const discovered = await discoverOidcConfig(providerId);
+  return discovered?.endSessionEndpoint;
+}
+
+/** Fetch and cache JWKS for an issuer. */
+async function fetchJwks(jwksUri: string): Promise<any[]> {
+  const cached = jwksCache.get(jwksUri);
+  if (cached && Date.now() < cached.ttl) return cached.keys;
+  const res = await fetch(jwksUri, { signal: AbortSignal.timeout(5000) });
+  if (!res.ok) throw new Error(`JWKS HTTP ${res.status}`);
+  const body = await res.json();
+  const keys = Array.isArray(body.keys) ? body.keys : [];
+  jwksCache.set(jwksUri, { keys, ttl: Date.now() + 3_600_000 });
+  return keys;
+}
+
+/**
+ * Verify a JWT (logout token / id_token) with the provider JWKS (RS256/ES256).
+ * Uses Node crypto — no external jose dependency.
+ */
+export async function verifyJwtWithProviderJwks(
+  token: string,
+  provider: SsoProviderConfig,
+): Promise<{ valid: boolean; payload?: Record<string, unknown>; reason?: string }> {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return { valid: false, reason: "Invalid JWT format" };
+
+    const header = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as {
+      alg?: string;
+      kid?: string;
+    };
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as Record<
+      string,
+      unknown
+    >;
+
+    if (payload.iss && payload.iss !== provider.issuer) {
+      return { valid: false, reason: "iss mismatch" };
+    }
+
+    const discovered = await discoverOidcConfig(provider.id);
+    const jwksUri = discovered?.jwksUri || provider.jwksUri;
+    if (!jwksUri) {
+      // Structural validation only when JWKS not configured
+      logger.warn(`[SSO] No jwks_uri for ${provider.id} — structural claims only`);
+      return { valid: true, payload, reason: "no_jwks_structural_only" };
+    }
+
+    const keys = await fetchJwks(jwksUri);
+    const jwk =
+      (header.kid ? keys.find((k) => k.kid === header.kid) : undefined) ||
+      keys.find((k) => k.kty === "RSA" || k.kty === "EC") ||
+      keys[0];
+    if (!jwk) return { valid: false, reason: "No matching JWK" };
+
+    const { createPublicKey, createVerify, createHmac, timingSafeEqual } =
+      await import("node:crypto");
+    const data = Buffer.from(`${parts[0]}.${parts[1]}`);
+    const signature = Buffer.from(parts[2], "base64url");
+    const alg = header.alg || "RS256";
+
+    if (alg.startsWith("HS")) {
+      if (!provider.clientSecret) return { valid: false, reason: "HS* without clientSecret" };
+      const h = createHmac(
+        alg === "HS512" ? "sha512" : alg === "HS384" ? "sha384" : "sha256",
+        provider.clientSecret,
+      );
+      h.update(data);
+      const expected = h.digest();
+      if (expected.length !== signature.length || !timingSafeEqual(expected, signature)) {
+        return { valid: false, reason: "HMAC signature mismatch" };
+      }
+      return { valid: true, payload };
+    }
+
+    const keyObject = createPublicKey({ key: jwk, format: "jwk" });
+    const verifyAlg = alg.startsWith("ES")
+      ? alg === "ES512"
+        ? "SHA512"
+        : alg === "ES384"
+          ? "SHA384"
+          : "SHA256"
+      : alg === "RS512"
+        ? "RSA-SHA512"
+        : alg === "RS384"
+          ? "RSA-SHA384"
+          : "RSA-SHA256";
+    const v = createVerify(verifyAlg);
+    v.update(data);
+    v.end();
+    const ok = v.verify(keyObject, signature);
+    if (!ok) return { valid: false, reason: "Signature verification failed" };
+    return { valid: true, payload };
+  } catch (err) {
+    logger.warn("[SSO] JWT JWKS verification failed:", err);
+    return { valid: false, reason: err instanceof Error ? err.message : "verify error" };
+  }
+}
+
+/**
+ * Build OIDC authorization URL for login (authorization code flow).
+ */
+export async function buildOidcAuthorizationUrl(
+  providerId: string,
+  opts: { redirectUri: string; state: string; nonce?: string },
+): Promise<{ success: true; url: string } | { success: false; message: string }> {
+  const provider = ssoProviders.get(providerId);
+  if (!provider) return { success: false, message: "Unknown provider" };
+  if (!provider.clientId) return { success: false, message: "Provider missing clientId" };
+
+  const discovered = await discoverOidcConfig(providerId);
+  const authEndpoint = discovered?.authorizationEndpoint || provider.authorizationEndpoint;
+  if (!authEndpoint) return { success: false, message: "No authorization_endpoint" };
+
+  const scopes = (provider.scopes || ["openid", "profile", "email"]).join(" ");
+  const url = new URL(authEndpoint);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("client_id", provider.clientId);
+  url.searchParams.set("redirect_uri", opts.redirectUri);
+  url.searchParams.set("scope", scopes);
+  url.searchParams.set("state", opts.state);
+  if (opts.nonce) url.searchParams.set("nonce", opts.nonce);
+  return { success: true, url: url.toString() };
+}
+
+/**
+ * Exchange authorization code for tokens at the OP token endpoint.
+ */
+export async function exchangeOidcCode(
+  providerId: string,
+  opts: { code: string; redirectUri: string },
+): Promise<
+  | { success: true; idToken?: string; accessToken?: string; payload?: Record<string, unknown> }
+  | { success: false; message: string }
+> {
+  const provider = ssoProviders.get(providerId);
+  if (!provider?.clientId)
+    return { success: false, message: "Unknown provider or missing clientId" };
+  const discovered = await discoverOidcConfig(providerId);
+  const tokenEndpoint = discovered?.tokenEndpoint || provider.tokenEndpoint;
+  if (!tokenEndpoint) return { success: false, message: "No token_endpoint" };
+
+  try {
+    const body = new URLSearchParams({
+      grant_type: "authorization_code",
+      code: opts.code,
+      redirect_uri: opts.redirectUri,
+      client_id: provider.clientId,
     });
-    return provider.endSessionEndpoint;
+    if (provider.clientSecret) body.set("client_secret", provider.clientSecret);
+
+    const res = await fetch(tokenEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body,
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return {
+        success: false,
+        message: `Token exchange failed: ${res.status} ${text.slice(0, 200)}`,
+      };
+    }
+    const json = (await res.json()) as {
+      id_token?: string;
+      access_token?: string;
+    };
+    let payload: Record<string, unknown> | undefined;
+    if (json.id_token) {
+      const verified = await verifyJwtWithProviderJwks(json.id_token, provider);
+      if (!verified.valid) {
+        return { success: false, message: `id_token invalid: ${verified.reason}` };
+      }
+      payload = verified.payload;
+    }
+    return {
+      success: true,
+      idToken: json.id_token,
+      accessToken: json.access_token,
+      payload,
+    };
+  } catch (err) {
+    logger.error("[SSO] Token exchange failed:", err);
+    return { success: false, message: "Token exchange error" };
   }
 }
 
@@ -384,8 +603,12 @@ export async function handleBackChannelLogout(
       return { success: false, message: "Unknown issuer" };
     }
 
-    // TODO: Full JWT signature verification using provider's JWKS
-    // For now, validate structural claims only
+    // 🚀 JWKS signature verification (RS256/ES256) when jwks_uri available
+    const verified = await verifyJwtWithProviderJwks(logoutToken, matchedProvider);
+    if (!verified.valid) {
+      logger.warn(`[SSO] Back-channel logout token rejected: ${verified.reason}`);
+      return { success: false, message: `Invalid logout token: ${verified.reason}` };
+    }
 
     // Invalidate all SSO sessions for this issuer
     let invalidated = 0;

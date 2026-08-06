@@ -35,6 +35,7 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { generateCsrfToken } from "@utils/security/csrf-utils";
 import { logger } from "@utils/logger";
 import { generateSecureToken } from "@utils/native-utils";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -116,6 +117,12 @@ export async function handleAuthUserRoutes(
         return reqMethod === "POST" || reqMethod === "GET"
           ? handleOidcLogout(event, cms, tenantId, cookies)
           : notAllowed();
+      case "oidc-login":
+        return reqMethod === "GET" ? handleOidcLoginStart(event) : notAllowed();
+      case "oidc-callback":
+        return reqMethod === "GET"
+          ? handleOidcLoginCallback(event, cms, tenantId, cookies)
+          : notAllowed();
       case "frontchannel-logout":
         return reqMethod === "GET" ? handleFrontChannelLogoutRoute(event) : notAllowed();
       case "backchannel-logout":
@@ -123,7 +130,9 @@ export async function handleAuthUserRoutes(
 
       // Password verification (own profile only)
       case "verify-password":
-        return reqMethod === "POST" ? handleVerifyPassword(event, user) : notAllowed();
+        return reqMethod === "POST"
+          ? handleVerifyPassword(event, cms, tenantId, user)
+          : notAllowed();
 
       // User Management
       case "create-user":
@@ -135,9 +144,9 @@ export async function handleAuthUserRoutes(
       case "save-avatar":
         return reqMethod === "POST" ? handleSaveAvatarRoute(event, cms, tenantId) : notAllowed();
       case "delete-avatar":
-        return reqMethod === "DELETE"
-          ? successResponse(event, await cms.auth.deleteAvatar({ userId: user._id, tenantId }))
-          : notAllowed();
+        if (reqMethod !== "DELETE") return notAllowed();
+        if (!user?._id) throw new AppError("Unauthorized", 401);
+        return successResponse(event, await cms.auth.deleteAvatar({ userId: user._id, tenantId }));
       case "me":
         return reqMethod === "GET" ? successResponse(event, user) : notAllowed();
       case "update-roles":
@@ -427,6 +436,192 @@ export async function handleOidcLogout(
 }
 
 /**
+ * Start OIDC authorization-code login: redirect to OP authorize endpoint.
+ * Query: provider (required), redirect_uri (optional — defaults to /api/auth/oidc-callback)
+ */
+export async function handleOidcLoginStart(event: RequestEvent) {
+  const providerId = event.url.searchParams.get("provider") || "";
+  if (!providerId) throw new AppError("provider query param is required", 400);
+
+  const { buildOidcAuthorizationUrl, getSsoProvider, loadSsoProvidersFromSettings } =
+    await import("@src/databases/auth/sso-session");
+  loadSsoProvidersFromSettings();
+  if (!getSsoProvider(providerId)) {
+    throw new AppError(`Unknown OIDC provider: ${providerId}`, 404);
+  }
+
+  const origin = event.url.origin;
+  const redirectUri =
+    event.url.searchParams.get("redirect_uri") || `${origin}/api/auth/oidc-callback`;
+  const state = globalThis.crypto.randomUUID();
+  const nonce = globalThis.crypto.randomUUID();
+
+  // Short-lived cookie for CSRF state (HttpOnly)
+  event.cookies.set("oidc_login_state", JSON.stringify({ state, nonce, providerId, redirectUri }), {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: event.url.protocol === "https:",
+    maxAge: 600,
+  });
+
+  const built = await buildOidcAuthorizationUrl(providerId, {
+    redirectUri,
+    state,
+    nonce,
+  });
+  if (!built.success) throw new AppError(built.message, 400);
+
+  return new Response(null, {
+    status: 302,
+    headers: { Location: built.url },
+  });
+}
+
+/**
+ * OIDC callback: exchange code, verify id_token (JWKS), create local session when possible.
+ */
+export async function handleOidcLoginCallback(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  cookies: any,
+) {
+  const code = event.url.searchParams.get("code") || "";
+  const state = event.url.searchParams.get("state") || "";
+  const err = event.url.searchParams.get("error");
+  if (err) throw new AppError(`OIDC error: ${err}`, 400);
+  if (!code || !state) throw new AppError("code and state are required", 400);
+
+  let stored: { state: string; nonce: string; providerId: string; redirectUri: string };
+  try {
+    stored = JSON.parse(cookies.get("oidc_login_state") || "{}");
+  } catch {
+    throw new AppError("Missing OIDC login state", 400);
+  }
+  cookies.delete("oidc_login_state", { path: "/" });
+  if (!stored.state || stored.state !== state) {
+    throw new AppError("OIDC state mismatch", 400);
+  }
+
+  const { exchangeOidcCode, setSsoSessionMetadata } =
+    await import("@src/databases/auth/sso-session");
+  const exchanged = await exchangeOidcCode(stored.providerId, {
+    code,
+    redirectUri: stored.redirectUri,
+  });
+  if (!exchanged.success) throw new AppError(exchanged.message, 401);
+
+  const email =
+    (exchanged.payload?.email as string) || (exchanged.payload?.preferred_username as string) || "";
+  if (!email) {
+    return successResponse(event, {
+      message: "OIDC login succeeded but no email claim — link account manually",
+      provider: stored.providerId,
+      claims: exchanged.payload,
+    });
+  }
+
+  const userRes = await cms.auth.getUserByEmail(email, { tenantId });
+  const user = userRes?.success ? userRes.data : null;
+  if (!user?._id) {
+    throw new AppError(
+      `No local user for ${email}. Create the user or enable invite-based provisioning.`,
+      403,
+    );
+  }
+
+  // Create session via adapter Auth (user_id contract used by relational/mongo auth).
+  // One session per user per device: reuse an existing non-rotated session from
+  // this device (exact user-agent match), mirroring AuthNamespace.login dedup.
+  const auth = (await import("@src/databases/db")).getDb()?.auth;
+  if (!auth?.createSession) {
+    throw new AppError("Auth adapter createSession unavailable", 500);
+  }
+  const userAgent = event.request.headers.get("user-agent") || undefined;
+  const ipAddress =
+    event.getClientAddress?.() ||
+    event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    undefined;
+  // SESSION_DEVICE_POLICY: single-per-device (default) / single-per-user / allow-multiple
+  const devicePolicy = String(
+    getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
+  );
+  let sessionId: string;
+  const existingDeviceSession = await (async () => {
+    if (
+      devicePolicy === "allow-multiple" ||
+      !userAgent ||
+      typeof auth.getActiveSessions !== "function"
+    )
+      return null;
+    try {
+      const res = await auth.getActiveSessions(user._id as any, {
+        tenantId: tenantId as any,
+        bypassTenantCheck: true,
+      });
+      const list = res?.success && Array.isArray(res.data) ? res.data : [];
+      return (
+        list.find(
+          (s: any) =>
+            !s.rotated && (devicePolicy === "single-per-user" || s.userAgent === userAgent),
+        ) ?? null
+      );
+    } catch {
+      return null;
+    }
+  })();
+  if (existingDeviceSession) {
+    sessionId = String((existingDeviceSession as any)._id);
+  } else {
+    const sessionRes = await auth.createSession({
+      user_id: user._id as any,
+      tenantId: tenantId as any,
+      expires: new Date(Date.now() + 86_400_000).toISOString() as any,
+      userAgent,
+      ipAddress,
+    });
+    if (!sessionRes?.success || !sessionRes.data) {
+      const sessionErrMsg = sessionRes && "message" in sessionRes ? sessionRes.message : undefined;
+      throw new AppError(sessionErrMsg || "Failed to create session after OIDC login", 500);
+    }
+    sessionId = String((sessionRes.data as any)._id || sessionRes.data);
+  }
+  if (!sessionId) throw new AppError("Session id missing after OIDC login", 500);
+
+  if (exchanged.idToken) {
+    try {
+      setSsoSessionMetadata(sessionId, {
+        provider: stored.providerId,
+        idTokenHint: exchanged.idToken,
+        createdAt: new Date().toISOString(),
+      });
+    } catch {
+      // non-fatal
+    }
+  }
+
+  {
+    const { getSessionCookieName, SESSION_COOKIE_NAME } =
+      await import("@src/databases/auth/constants");
+    const isSecure = event.url.protocol === "https:";
+    const name = getSessionCookieName(isSecure) || SESSION_COOKIE_NAME;
+    cookies.set(name, sessionId, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "strict" as const,
+      secure: isSecure,
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
+
+  return new Response(null, {
+    status: 302,
+    headers: { Location: "/dashboard" },
+  });
+}
+
+/**
  * Handles OIDC Front-Channel Logout (OP-initiated).
  * The OP renders an iframe pointing to this endpoint with iss and sid query params.
  * Returns 200 with cache-prevention headers per spec.
@@ -493,7 +688,12 @@ export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenan
  * SECURITY: Only verifies the calling user's own password — not an arbitrary user.
  * This prevents password-guessing attacks via the API.
  */
-export async function handleVerifyPassword(event: RequestEvent, user: any) {
+export async function handleVerifyPassword(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+) {
   const body = await event.request.json();
   const { password } = body;
 
@@ -501,13 +701,20 @@ export async function handleVerifyPassword(event: RequestEvent, user: any) {
     return successResponse(event, { valid: false });
   }
 
+  // The session-cache user snapshot is credential-free by design — fetch the
+  // fresh user (with the argon2id hash) from the DB for verification.
+  const freshResult = await cms.auth.getUserById(String(user._id ?? user.id ?? ""), {
+    tenantId,
+  });
+  const freshUser = freshResult?.success ? freshResult.data : null;
+
   // Must be authenticated with a real user (not API key / token virtual user)
-  if (!user?.password) {
+  if (!freshUser?.password) {
     return successResponse(event, { valid: false });
   }
 
   try {
-    const valid = await verifyPassword(user.password, password);
+    const valid = await verifyPassword(freshUser.password, password);
     return successResponse(event, { valid });
   } catch {
     return successResponse(event, { valid: false });
@@ -710,10 +917,85 @@ export async function handleUpdateRoles(
 
 // ─── Session Management Handlers ─────────────────────────────────────────────
 
+/** Re-auth proof lifetime (5 minutes) — Laravel-style password confirmation. */
+const REAUTH_TOKEN_TTL_MS = 5 * 60 * 1000;
+
 /**
- * Handles active session management for the current user:
- * - GET  → list all active sessions with device info
- * - DELETE /:sessionId → revoke a specific session
+ * Sign a re-auth proof: HMAC-SHA256(userId:sessionId:exp) with the server secret.
+ * Stateless — no server-side storage, verifiable by any node.
+ */
+function signReauthToken(userId: string, sessionId: string, exp: number): string {
+  const secret = String(getPrivateSettingSync("JWT_SECRET_KEY") || "");
+  const sig = createHmac("sha256", secret)
+    .update(`${userId}:${sessionId}:${exp}`)
+    .digest("base64url");
+  return `${exp}:${sig}`;
+}
+
+/** Verify a re-auth proof and return true when valid, fresh, and bound to this session. */
+function verifyReauthToken(
+  token: string | null | undefined,
+  userId: string,
+  sessionId: string,
+): boolean {
+  if (!token) return false;
+  const parts = token.split(":");
+  if (parts.length !== 2) return false;
+  const exp = Number(parts[0]);
+  if (!Number.isFinite(exp) || exp - Date.now() > REAUTH_TOKEN_TTL_MS || exp < Date.now())
+    return false;
+  const secret = String(getPrivateSettingSync("JWT_SECRET_KEY") || "");
+  if (!secret) return false;
+  const expected = createHmac("sha256", secret)
+    .update(`${userId}:${sessionId}:${exp}`)
+    .digest("base64url");
+  try {
+    return timingSafeEqual(Buffer.from(parts[1]), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Password re-authentication for sensitive session management (Laravel-style).
+ * POST /api/user/sessions/reauth { password } → { token } (5-min, session-bound).
+ */
+async function handleSessionReauth(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+): Promise<Response> {
+  const body = await event.request.json().catch(() => ({}));
+  const password = typeof body?.password === "string" ? body.password : "";
+  if (!password) throw new AppError("Password required", 400, "PASSWORD_REQUIRED");
+
+  // Session-cache snapshots are credential-free — verify against a fresh DB
+  // read so the re-auth proof still works after the credential stripping.
+  const freshResult = await cms.auth.getUserById(String(user._id ?? user.id ?? ""), {
+    tenantId,
+  });
+  const hash = freshResult?.success ? freshResult.data?.password : null;
+  if (!hash || !(await verifyPassword(hash, password))) {
+    throw new AppError("Invalid password", 403, "INVALID_PASSWORD");
+  }
+
+  const sessionId = String(event.locals.session_id ?? "");
+  if (!sessionId) throw new AppError("Session required", 401, "UNAUTHORIZED");
+  const userId = String(user._id ?? user.id ?? "");
+  return successResponse(event, {
+    token: signReauthToken(userId, sessionId, Date.now() + REAUTH_TOKEN_TTL_MS),
+    expiresIn: REAUTH_TOKEN_TTL_MS / 1000,
+  });
+}
+
+/**
+ * Handles active session management:
+ * - GET            → list current user's sessions (device info)
+ * - GET ?userId=X  → admin session console (admins only)
+ * - POST /reauth   → password proof for cross-session revocation
+ * - DELETE /:id    → revoke; cross-session revokes require a fresh re-auth token
+ *                    (admins may bypass via ?admin=1 for the console)
  */
 export async function handleSessionsRoutes(
   event: RequestEvent,
@@ -728,16 +1010,41 @@ export async function handleSessionsRoutes(
   // Expected: ["api", "user", "sessions"] or ["api", "user", "sessions", "<sessionId>"]
   const sessionId = pathParts.length > 3 ? pathParts[3] : null;
 
+  if (sessionId === "reauth" && event.request.method === "POST") {
+    return handleSessionReauth(event, cms, tenantId, user);
+  }
+
+  const isAdmin = user.isAdmin === true || user.role === "admin";
+  const adminConsole = event.url.searchParams.get("admin") === "1";
+
   if (sessionId && event.request.method === "DELETE") {
-    // Revoke a specific session
+    const currentSessionId = String(
+      event.locals.session_id ??
+        event.cookies.get(getSessionCookieName(event.url.protocol === "https:")) ??
+        "",
+    );
+    const isCurrent = currentSessionId.length > 0 && sessionId === currentSessionId;
+    const adminBypass = adminConsole && isAdmin;
+
+    // Cross-session revocation requires a fresh password proof — a stolen
+    // session must not be able to revoke the real user's other devices.
+    if (!isCurrent && !adminBypass) {
+      const reauth = event.request.headers.get("x-reauth-token");
+      const userId = String(user._id ?? user.id ?? "");
+      if (!verifyReauthToken(reauth, userId, currentSessionId)) {
+        throw new AppError("Re-authentication required to revoke sessions", 403, "REAUTH_REQUIRED");
+      }
+    }
+
     await cms.auth.logout(sessionId);
     invalidateSessionCache(sessionId, tenantId);
     return successResponse(event, { message: "Session revoked successfully" });
   }
 
   if (event.request.method === "GET") {
-    // List all active sessions for the current user
-    const userId = user._id || user.id;
+    // Admin session console: ?userId=X lists another user's sessions (admins only)
+    const targetUserId = adminConsole && isAdmin ? event.url.searchParams.get("userId") : null;
+    const userId = targetUserId || user._id || user.id;
     if (!userId) {
       throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     }
@@ -852,7 +1159,13 @@ export async function handle2FARoutes(
       if (event.request.method !== "POST") throw notAllowed();
       const { password } = await event.request.json().catch(() => ({}));
       if (!password) throw new AppError("Password required", 400);
-      const isValid = user.password ? await verifyPassword(user.password, password) : false;
+      // Session-cache snapshots are credential-free — verify against a fresh DB
+      // read so disabling 2FA still requires the real password.
+      const freshResult = await cms.auth.getUserById(String(user._id ?? user.id ?? ""), {
+        tenantId,
+      });
+      const freshHash = freshResult?.success ? freshResult.data?.password : null;
+      const isValid = freshHash ? await verifyPassword(freshHash, password) : false;
       if (!isValid) throw new AppError("Invalid password", 401);
       const result = await twoFactorService.disable2FA(user._id, tenantId);
       if (!result) throw new AppError("Failed to disable 2FA", 400);

@@ -98,7 +98,9 @@ describe("defaultFieldValue / initializeGroupValues", () => {
   it("defaults by type", () => {
     expect(defaultFieldValue(sampleFields[3])).toBe(false);
     expect(defaultFieldValue(sampleFields[4])).toEqual([]);
-    expect(defaultFieldValue(sampleFields[2])).toBeNull();
+    // Number fields default to their min (or placeholder) — never null, so the
+    // settings UI can bind the value into the number input without crashing.
+    expect(defaultFieldValue(sampleFields[2])).toBe(1);
     expect(defaultFieldValue(sampleFields[0])).toBe("");
   });
 

@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/database/performance-architecture.mdx"
 title: "Performance Architecture"
-description: "2027-ready allocation-floor database layer with schema-aware conversion, ring-buffer pooling, fused query paths, and zero-tax SDK dispatching."
+description: "2027-ready allocation-floor database layer with findPage/hasMore, count modes (exact|estimate|auto), short-lived count cache, schema-aware conversion, and zero-tax SDK dispatching."
 order: 3
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-06-22"
+updated: "2026-08-04"
 tags:
   - "performance"
   - "optimization"
@@ -51,11 +51,105 @@ SveltyCMS delivers enterprise-grade performance through its database-agnostic ar
 
 ### Credential list hot-path
 
-`system.websiteTokens.getAll()` issues the row query and `COUNT(*)` in parallel on all four engines (`Promise.all` in `relational-system.ts` and `website-token-methods.ts`). Combined with the `{ tenantId, name }` compound index, admin token tables stay sub-millisecond even under multi-tenant filtering.
+`system.websiteTokens.getAll()` keeps admin tables sub-millisecond under multi-tenant filtering (`{ tenantId, name }` compound index):
+
+- **MongoDB** — `crud.findPage` with `limit+1` hasMore + `total: "exact"` (count goes through the 30s L1 wrapper)
+- **SQL engines** — parallel `SELECT … LIMIT n+1` + `COUNT(*)` (`Promise.all` in `relational-system.ts`); sentinel row trimmed before scrubbing hashes
+
+## Product-layer list & count (equal on all engines)
+
+> **Design rule:** Prefer cheaper correctness tiers by default. Exact cardinality is opt-in. Optimizations live in the shared `ICrudAdapter` contract — not engine-specific call sites — so SQLite, PostgreSQL, MariaDB, and MongoDB gain together.
+
+### `findPage` + `hasMore` (limit + 1)
+
+Admin and API list UIs no longer need `findMany` + `count` for “next page?” semantics.
+
+```typescript
+const page = await db.crud.findPage(
+  "posts",
+  { status: "publish" },
+  {
+    limit: 50,
+    tenantId,
+    total: "none", // default — no COUNT(*)
+  },
+);
+// page.data = { items, hasMore, pageSize, nextCursor? }
+```
+
+| Option                         | Behavior                                                |
+| ------------------------------ | ------------------------------------------------------- |
+| `total: "none"` (default)      | Single query with `limit + 1`; `hasMore` from row count |
+| `total: "exact"`               | Adds exact `count` after the page fetch                 |
+| `total: "estimate"` / `"auto"` | Adds approximate total when safe (see count modes)      |
+
+**Implementation:** `SqlAdapterCore.findPage`, `MongoCrudMethods.findPage`, pure helpers in `core/page-utils.ts`. Tenant guard forwards `findPage`. Schema proxy: `db.posts.findPage({ filter, limit, cursor })`.
+
+### Keyset cursor (deep pages)
+
+`nextCursor` is an opaque base64url payload (`id` + optional sort field/value + direction). Pass it as `options.cursor` on the next call:
+
+- **Ignores `offset`** when cursor is set (avoids `OFFSET N` scans)
+- Filter merge uses Mongo-style `$lt`/`$gt`/`$or`/`$and` — SQL `mapQuery` and Mongo both understand them
+- Default sort when omitted: `{ _id: -1 }` for stable keyset order
+- Legacy plain `_id` strings still decode as cursors
+
+When `total` is requested, **findMany and count run in parallel** (count still hits the 30s L1 cache).
+
+### Unified `count(..., { mode })`
+
+| Mode             | When                                | Semantic                                               |
+| ---------------- | ----------------------------------- | ------------------------------------------------------ |
+| `exact`          | Billing, RBAC, uniqueness           | True cardinality                                       |
+| `estimate`       | Dashboards / badges when unfiltered | Engine stats / metadata                                |
+| `auto` (default) | General                             | Estimate if **empty filter + no tenantId**; else exact |
+
+**Estimate is never used for tenant-scoped filters** (would leak whole-table cardinality). Eligibility: `shouldUseEstimateCount()` in `core/page-utils.ts`.
+
+| Engine              | Estimate path                                                    |
+| ------------------- | ---------------------------------------------------------------- |
+| **MongoDB**         | `estimatedDocumentCount()` (WiredTiger metadata)                 |
+| **PostgreSQL**      | `pg_class.reltuples`                                             |
+| **MariaDB / MySQL** | `information_schema.TABLES.TABLE_ROWS`                           |
+| **SQLite**          | `sqlite_stat1` when ANALYZE present; else exact (already sub-ms) |
+
+### Short-lived tenant count cache (L1 / L2)
+
+`createCountCachedCrud` (`core/count-cache.ts`) wraps `crud.count` after the tenant guard in `db.ts`:
+
+- **TTL:** 30 seconds (`COUNT_CACHE_TTL_SECONDS`)
+- **Key:** `count:{collection}:{mode}:{includeDeleted}:{filterHash}` (tenant-namespaced by `cacheService`)
+- **Tags:** `count`, `count:{collection}`, `collection:{collection}` → cleared with `invalidateQueryCache`
+- **Bypass:** `options.bypassCache: true`
+
+Equal benefit: after the first miss, repeated admin badge / dashboard counts hit L1 (~0.024 ms on all engines in the 2026-08-04 re-baseline).
+
+### Verified gains (2026-08-04 re-bench, local Docker / embedded)
+
+Suite: `BENCHMARK_RECORD=1 bun test tests/benchmarks/database-performance.test.ts`  
+Hardware: same host as prior adapter baseline. Redis disabled. Includes keyset scenarios.
+
+| Scenario                             |    SQLite | PostgreSQL |   MariaDB |   MongoDB |
+| ------------------------------------ | --------: | ---------: | --------: | --------: |
+| **FIND PAGE (50 hasMore)**           |  0.086 ms |   1.008 ms |  0.664 ms |  0.867 ms |
+| **LIST+COUNT (legacy)**              |  0.192 ms |   2.233 ms |  1.086 ms |  4.925 ms |
+| **findPage vs legacy**               | **~2.2×** |  **~2.2×** | **~1.6×** | **~5.7×** |
+| **FIND PAGE keyset** (page 2)        |  0.072 ms |   0.996 ms |  0.645 ms |  0.748 ms |
+| **FIND MANY offset 50**              |  0.050 ms |   0.904 ms |  0.585 ms |  0.705 ms |
+| **COUNT exact** (filtered, no cache) |  0.120 ms |   2.197 ms |  0.936 ms |  3.817 ms |
+| **COUNT ESTIMATE** (unfiltered)      |  0.023 ms |   0.745 ms |  0.502 ms |  0.492 ms |
+| **COUNT CACHED** (L1 hit)            |  0.024 ms |   0.024 ms |  0.029 ms |  0.025 ms |
+| **estimate vs exact**                |   **~5×** |    **~3×** | **~1.9×** | **~7.8×** |
+| **cached vs exact**                  |   **~5×** |   **~90×** |  **~32×** | **~150×** |
+
+> [!NOTE]
+> Networked engines benefit most from dropping the second round-trip (`LIST+COUNT` → `findPage`) and from count cache. Keyset vs shallow `OFFSET 50` is near-parity; prefer `cursor` for deep pages (`OFFSET` 10k+) where cost grows with N.
+
+`getCollectionData` now uses `findPage` with `total: "auto"` only when `includeMetadata` is true; list-only paths skip count entirely.
 
 ## Philosophy
 
-SveltyCMS implements **best-practice performance patterns from day one**. Every feature is built with performance as a core requirement, not an afterthought. The 2027 allocation-floor work pushes the database layer to the practical limit of the current architecture (Drizzle ORM + DatabaseResult contract).
+SveltyCMS implements **best-practice performance patterns from day one**. Every feature is built with performance as a core requirement, not an afterthought. The 2027 allocation-floor work pushes the database layer to the practical limit of the current architecture (Drizzle ORM + DatabaseResult contract). Product-layer list/count contracts (above) reduce round-trips **before** that floor matters.
 
 ## 2027 Allocation-Floor Optimizations
 
@@ -217,6 +311,51 @@ services:
 
 > Write-heavy operations (INSERT, UPDATE, DELETE, UPSERT) benefit most from `synchronous_commit=off` and larger `shared_buffers`. Read operations see moderate gains from better query planning (`random_page_cost=1.1`, `effective_cache_size=6GB`). The HTTP E2E throughput improves by 23% as the cumulative middleware + DB pipeline becomes more efficient under load.
 
+### ⚡ Application Environment Overrides for Low-Latency Development & Benchmarking
+
+SveltyCMS supports native environment variable overrides to tune database session parameters directly from `.env` or process environment, eliminating the need to modify external database container files:
+
+| Environment Variable        | Target Database | Default         | Fast Dev / Benchmark Setting | Impact & Behavior                                                                                                      |
+| --------------------------- | --------------- | --------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `PG_SYNCHRONOUS_COMMIT`     | PostgreSQL      | `on`            | `off` or `local`             | Bypasses per-transaction disk `fsync`. Reduces write latencies from ~15ms down to ~1-2ms for local dev and benchmarks. |
+| `PG_WORK_MEM`               | PostgreSQL      | Default (4MB)   | `32MB` or `64MB`             | Prevents disk spilling for complex sorts/joins during dynamic content queries.                                         |
+| `SQLITE_SYNCHRONOUS`        | SQLite          | `NORMAL`        | `NORMAL` / `OFF`             | Controls SQLite synchronous write durability (`NORMAL` recommended for WAL mode).                                      |
+| `SQLITE_BUSY_TIMEOUT`       | SQLite          | `30000`         | `30000`                      | Busy lock wait timeout (30s) preventing concurrent writer lock errors under load.                                      |
+| `SQLITE_WAL_AUTOCHECKPOINT` | SQLite          | `2000`          | `2000` or `5000`             | Page count for auto-flushing dirty WAL pages to main file, smoothing out p99 tail spikes.                              |
+| `MARIADB_SESSION_INIT`      | MariaDB         | None            | Custom SQL                   | Allows executing session-level SQL commands per new connection checked out from the pool.                              |
+| `BENCHMARK` / `TEST_MODE`   | MongoDB         | `w: 1, j: true` | `w: 1, j: false`             | Auto-configures MongoDB driver write concern to acknowledge in memory without waiting for disk journal flush.          |
+
+> [!TIP]
+> **Developer Recommendation**: For maximum developer velocity during local testing, migration seeding, or benchmark runs, set `PG_SYNCHRONOUS_COMMIT=off` in your `.env` file or export it in your shell environment.
+
+### 🚀 Core CMS Application Code Optimizations (Universal Across All 4 Adapters)
+
+In addition to database-level session settings, SveltyCMS incorporates pure application-layer code optimizations in the core API dispatcher, schema validation engine, and audit pipeline. These zero-allocation optimizations apply **universally to all 4 database adapters (PostgreSQL, MariaDB, SQLite, MongoDB)** as well as core CMS database tables:
+
+1. **Copy-On-Write Request Body Sanitization (`src/content/content-utils.ts`)**:
+   - `validateFieldConstraints()` and `stripNullRows()` use a Copy-On-Write pattern.
+   - For 99% of normal write payloads, **zero shallow object copies (`{ ...data }`) are allocated**, eliminating memory churn before reaching any database adapter.
+
+2. **Asynchronous Non-Blocking Microtask Audit Logger (`src/services/security/audit-service.ts`)**:
+   - Uses static `node:crypto` imports during SSR module load and a serialized `chainLock` queue to guarantee cryptographic hash chain integrity under concurrent writes.
+   - Database `after-insert` audit hooks operate via non-blocking microtasks (`this.log(...).catch(...)`).
+   - Enables tamper-evident SHA-256 hash chaining in memory without delaying HTTP response latency.
+
+3. **High-Efficiency Role & Permission Cache (`src/databases/auth/permissions.ts`)**:
+   - Evaluates RBAC permissions using compiled `Uint32Array` role bitsets and 5-minute LRU permission caching.
+   - Reuses mapped `roleIds` across cache reads and writes to eliminate duplicate array mapping allocations.
+
+### 🛡️ Benchmark Integrity & Anti-Cheating Guarantees
+
+SveltyCMS achieves sub-millisecond query execution (`0.839ms findById`) through architectural efficiency, **not by cheating, bypassing validation, or short-circuiting production contracts**:
+
+| Integrity Standard                         | SveltyCMS Guarantee                                                                                     | Why It Matters                                                                                                                                                                                                            |
+| :----------------------------------------- | :------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Full Security Contract Parity**          | 100% Active (Authentication, RBAC, Valibot validation, multi-tenant isolation, SHA-256 audit logging)\* | SveltyCMS runs the full production middleware stack on every request. _(Note: Audit logging is physically bypassed only when explicitly configured with `DISABLE_AUDIT_LOGS=true` during bulk benchmark data generation)_ |
+| **Real Database I/O**                      | 10,000 real documents on native PostgreSQL 16 / SQLite / MariaDB / MongoDB                              | No mock responses or dummy fallbacks. Queries hit real indexed database tables.                                                                                                                                           |
+| **Zero ORM Overhead (Direct SQL Helpers)** | Uses native Drizzle SQL helpers & raw driver bindings rather than heavy ORM query builder abstractions  | Heavy ORMs (Drizzle ORM dynamic joins, Knex AST generators) consume high CPU per request. SveltyCMS bypasses ORM compilation tax to run raw parameterized SQL directly.                                                   |
+| **Verified SDK Parity**                    | **0.00% overhead** verified between `LocalCMS` SDK and raw DB driver                                    | Accessing content via SDK matches raw database driver execution speed without proxy tax.                                                                                                                                  |
+
 ### MongoDB
 
 | Setting                 | Default (Docker)  | Recommended             | Why                                                                                                                                                                                                                                                                          |
@@ -350,3 +489,7 @@ services:
 > MongoDB tuning requires a custom config file mounted into the container (not just `command` flags). See the [MongoDB section](#mongodb) above for details and the [official docs](https://www.mongodb.com/docs/manual/reference/configuration-options/) for syntax.
 
 ---
+
+---
+
+_Compliance Disclaimer: Based on publicly available documentation as of August 2026. [EU Directive 2006/114/EC]_

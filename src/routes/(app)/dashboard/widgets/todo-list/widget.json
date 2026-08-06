@@ -1,0 +1,17 @@
+{
+  "id": "todo-list",
+  "name": "TODO List",
+  "description": "Interactive admin task manager for tracking pending CMS tasks.",
+  "icon": "mdi:checkbox-marked-outline",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS Team",
+  "license": "free",
+  "price": 0,
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 1
+  },
+  "category": "static"
+}

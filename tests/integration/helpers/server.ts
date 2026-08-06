@@ -248,6 +248,13 @@ export async function safeFetch(
         message.includes("undici");
 
       if (isTransient && attempt < maxRetries) {
+        // Fast-fail check: If server is completely down, don't waste 5 retry timeouts
+        const isServerAlive = await checkServer().catch(() => false);
+        if (!isServerAlive) {
+          throw new Error(
+            `Failed to reach server at ${url}. Preview server is offline or crashed.\n\nTechnical Error: ${message}`,
+          );
+        }
         console.log(
           `⏳ Server flicker detected at ${url}. Retrying (${attempt + 1}/${maxRetries})...`,
         );

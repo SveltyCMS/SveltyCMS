@@ -38,20 +38,20 @@ SveltyCMS security architecture includes:
 
 ## 📊 Security Scorecard
 
-| Dimension                 | Weight | Score | Prevents                                                                                                             |
-| ------------------------- | :----: | :---: | -------------------------------------------------------------------------------------------------------------------- |
-| **CVE Track Record**      |  25%   |  100  | 0 CVEs — verifiable via NVD, GitHub Advisory DB                                                                      |
-| **Cryptography**          |  15%   |  100  | AES-256-GCM, SHA-256 chain, key rotation, timing-safe                                                                |
-| **Disclosure & Response** |  10%   |  98   | security.txt, incident runbook, responsible disclosure program                                                       |
-| **Auth & Session**        |  20%   |  99   | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, fully tested lockout, email normalization                                  |
-| **Input Validation**      |  15%   |  99   | strict CSP, safeFetch (SSRF), DOMPurify, Drizzle, body limit, MIME sniffing, SSRF IPv6 blocking, email normalization |
-| **Dependency Hygiene**    |  15%   |  99   | Dependabot weekly, CI audit BLOCKING, override-pinned                                                                |
+| Dimension                 | Weight | Score | Prevents                                                                                                                                                               |
+| ------------------------- | :----: | :---: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CVE Track Record**      |  25%   |  100  | 0 CVEs — verifiable via NVD, GitHub Advisory DB                                                                                                                        |
+| **Cryptography**          |  15%   |  100  | AES-256-GCM, SHA-256 chain, key rotation, timing-safe                                                                                                                  |
+| **Disclosure & Response** |  10%   |  98   | security.txt, incident runbook, responsible disclosure program                                                                                                         |
+| **Auth & Session**        |  20%   |  99   | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, fully tested lockout, device policy, TTL/idle timeouts, credential-free session caches, step-up re-auth, session anomaly log |
+| **Input Validation**      |  15%   |  99   | strict CSP, safeFetch (SSRF), DOMPurify, Drizzle, body limit, MIME sniffing, SSRF IPv6 blocking, email normalization                                                   |
+| **Dependency Hygiene**    |  15%   |  99   | Dependabot weekly, CI audit BLOCKING, override-pinned                                                                                                                  |
 
 **Weighted**: 25.0 + 15.0 + 9.8 + 19.8 + 14.85 + 14.85 = **~99/100**
 
-> Self-assessed (July 2026). Gaps: 3rd-party pentest, WebAuthn passkey UI, SSO/OIDC logout audit (when implemented), DOMPurify 3.4.13+ (CVEs mitigated by explicit configs).
+> Self-assessed (August 2026). Gaps: 3rd-party pentest, WebAuthn passkey UI polish, adaptive/risk-based auth policy engine, distributed SSO realm sessions. OIDC login/callback/RP-logout are implemented (`sso-session.ts`). DOMPurify CVEs mitigated by explicit configs.
 
-> **July 25, 2026 Hardening**: Permission cache instant invalidation. Media bulk delete (4x concurrency). DOMPurify toast configs restricted. Path traversal resolve() prefix checks. Required-fields publish validation (media/relations data-integrity guard).
+> **August 4, 2026 Session & Cache Hardening**: credential-free session snapshots (password hashes / TOTP secrets / backup codes / reset & refresh tokens stripped at every cache/store boundary), log-only IP/UA anomaly detection, `SESSION_MAX_PER_USER` cap, step-up re-auth for cross-session revoke, admin session console, untagged cache-delete propagation to remote nodes, config-import RBAC cache invalidation. Full auth pipeline measured at 0.881 ms avg (7 runs, self-measured, 2026-08-04) vs 0.856 ms July baseline.
 
 ---
 
@@ -144,6 +144,10 @@ SveltyCMS security architecture includes:
 - ✅ Internal System Authorization using shared secrets (JWT_SECRET_KEY) for system-to-system calls
 - ✅ **Cascading Password Change**: All other active sessions across all devices immediately invalidated on password change (L0/L1/L2 purge)
 - ✅ **Session & Device Tracking**: User-Agent and IP captured at session creation for auditing; Active Devices API for session management (`GET/DELETE /api/user/sessions`)
+- ✅ **Credential-Free Session Cache**: password hashes, TOTP secrets, backup codes, and reset/refresh tokens never enter session caches or stores; password-verifying endpoints re-fetch from the DB
+- ✅ **Session Context Anomaly Detection** (log-only): IP / user-agent drift flagged once per session per hour, no false-positive lockouts
+- ✅ **Max Sessions Per User** (`SESSION_MAX_PER_USER`): LRU eviction of the least recently active session when the cap is exceeded (Keycloak-style)
+- ✅ **Step-Up Re-Authentication** for session management: cross-session revoke requires a fresh password proof (stateless HMAC, 5-min, session-bound)
 
 **Implementation:**
 
@@ -365,8 +369,8 @@ bun test tests/integration/api/security.test.ts
 **Security Test Categories:**
 
 - ✅ Encryption & Cryptography (14 tests) - AES-256-GCM, Argon2id, key derivation
-- ✅ Account Lockout & Session Security (23 tests) - Block/unblock, timeouts, policies
-- ✅ Authentication flows (50+ tests)
+- ✅ Account Lockout & Session Security (25 tests) - `auth-lockout` (lockout, device policy, TTL, max sessions) + `session-user` (credential-free snapshots, store hygiene, anomaly evaluation)
+- ✅ Authentication flows (100+ tests) - hooks (`authentication` 25), user API, 2FA API, API-keys, bearer, guest, magic links, re-auth proofs
 - ✅ Authorization checks (40+ tests)
 - ✅ Input validation (80+ tests)
 - ✅ XSS prevention (30+ tests)
@@ -375,12 +379,41 @@ bun test tests/integration/api/security.test.ts
 
 ### Security Vulnerabilities Fixed
 
-| Issue                            | File                             | Fix Date               |
-| -------------------------------- | -------------------------------- | ---------------------- |
-| Rate limiting bypass (localhost) | `src/hooks/handle-rate-limit.ts` | March 2026 (Protected) |
-| Firewall bypass (TEST_MODE)      | `src/hooks/handle-firewall.ts`   | March 2026 (Protected) |
+| Issue                                                                                                    | File                                                                                | Fix Date                |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------- |
+| Rate limiting bypass (localhost)                                                                         | `src/hooks/handle-rate-limit.ts`                                                    | March 2026 (Protected)  |
+| Firewall bypass (TEST_MODE)                                                                              | `src/hooks/handle-firewall.ts`                                                      | March 2026 (Protected)  |
+| Stale RBAC/roles after config import (incorrect permission decisions up to 1h)                           | `ConfigService.performImport` + permission/roles caches                             | August 2026 (Protected) |
+| Credential material (password hash, TOTP secret, backup codes) in session caches/stores                  | `session-user.ts` (credential-free snapshots)                                       | August 2026 (Protected) |
+| Untagged cache delete not propagated to remote nodes (multi-node stale data)                             | `cache-service.ts` (key-pattern invalidation publish)                               | August 2026 (Protected) |
+| LIKE wildcard pattern injection in media search / JSON-path `contains` (`%` widened filters to all rows) | `escapeLikePattern` + bound `ESCAPE` in `relational-media.ts`, `media-json-path.ts` | August 2026 (Protected) |
+| Share-link creation rode on read-only gate (anonymous download exposure)                                 | `handleMediaShareCreate` now requires `media:write`                                 | August 2026 (Protected) |
 
 See [Tested Security Features](./tested-security-features.mdx) for details.
+
+### Stack Risk Audit (Commit Gate)
+
+Every commit runs a **full risk audit** (`.githooks/pre-commit` → `bun run risk:audit`). It covers the layers no single tool can:
+
+| Layer                          | Check                               | What it catches                                                                                                                                                                                        |
+| ------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Our code (global, all src)** | `scripts/scan-security-risk.ts`     | SQL value/concat interpolation (4 adapters), MongoDB `$where`/`$function`, dynamic code execution, shell interpolation, path traversal, SSRF, XSS sinks, regex injection, SvelteKit CSRF/cookie config |
+| **Our code (secrets)**         | `scripts/scan-secret-misuse.ts`     | Hardcoded credentials, comparison backdoors, weak randomness                                                                                                                                           |
+| **Our code (quality)**         | `scripts/slop-scanner.ts`           | XSS, RTL, security architecture rules                                                                                                                                                                  |
+| **Dependencies (npm)**         | `bun audit`                         | GitHub Advisory DB for the npm tree (SvelteKit/Svelte/Vite advisories included)                                                                                                                        |
+| **Global database**            | `scripts/scan-osv.ts` → OSV.dev     | GHSA + NVD + 20+ feeds in one query, from SBOM purls (24h cache)                                                                                                                                       |
+| **CI semantic analysis**       | GitHub CodeQL (`security-extended`) | Complements the custom scanners — different engine, same classes; runs on push/PR/weekly                                                                                                               |
+
+Cross-CMS advisories (e.g. WordPress) are **not** monitored — only the vulnerability _class_ matters, and those classes are checked directly against our own code in `scan-security-risk.ts`.
+
+**Audit commands** (how they differ):
+
+| Command                   | Type    | What it runs                                                             | Server needed? |
+| ------------------------- | ------- | ------------------------------------------------------------------------ | -------------- |
+| `bun run risk:audit`      | Static  | The 5 commit-gate checks above (code scan + secrets + slop + deps + OSV) | No (~5s)       |
+| `bun run security`        | Dynamic | OWASP A01–A07 probes against a running server (default `:4173`)          | Yes            |
+| `bun run security:auth`   | Dynamic | Same probes with an authenticated session (builds + seeds first)         | Starts its own |
+| `bun run security --full` | Both    | Dynamic probes + secret scan + slop + `bun audit`                        | Yes            |
 
 ### Penetration Testing
 
@@ -390,6 +423,16 @@ Recommended security testing tools:
 - **Burp Suite** - Security testing platform
 - **SQLMap** - SQL injection testing
 - **XSStrike** - XSS vulnerability scanner
+
+### External NVD Pipeline (`cms_security_data.py`, ops-side)
+
+Run 2026-08-04: 116 deps scanned, 0 CVEs (0 HIGH/CRITICAL). Two detector-noise classes worth fixing in the external script so future runs don't cry wolf:
+
+- `fetch_nvd_cves()` crashes on `TimeoutError` (only `HTTPError`/`URLError`/`JSONDecodeError` are caught) — add `TimeoutError` + a retry.
+- `raw_sql_injection_risk` flags every bare `${...}` template literal (Tailwind classes, localStorage keys, URLs) — require SQL context (SQL verb near the interpolation).
+- `path_traversal_risk` matches `../` in relative imports — require `fs.`/`path.resolve` usage with dynamic input.
+
+In-repo equivalent: `slop-scanner.ts` raw-SQL check is SQL-verb-gated and identifier-guard-aware (see `scanRawSqlRisk`) — no such false-positive class.
 
 ---
 
@@ -430,9 +473,9 @@ While the CMS provides built-in tools, a secure production deployment requires p
 - [x] User roles and permissions reviewed - `tests/unit/hooks/authorization.test.ts`
 - [x] 2FA enabled for admin accounts - `tests/integration/api/auth-2fa.test.ts`
 - [x] Default admin account password changed (setup wizard requires this)
-- [ ] Account lockout policy configured (not fully tested)
-- [ ] Session timeout configured (not fully tested)
-- [ ] API access logs monitored (not fully tested)
+- [x] Account lockout policy configured - `tests/unit/auth/auth-lockout.test.ts` (locks after 5 attempts, rejects while locked, expired-lockout recovery) + `tests/integration/api/auth-lockout.test.ts` (HTTP-level lockout)
+- [x] Session timeout configured - `SESSION_TTL_HOURS` (absolute) + `SESSION_IDLE_HOURS` (sliding idle) tested in `tests/unit/hooks/authentication.test.ts`; device policy + `SESSION_MAX_PER_USER` in `tests/unit/auth/auth-lockout.test.ts`
+- [x] API access logs monitored - `/api/dashboard/logs` pagination/filter/search tested (`tests/integration/api/dashboard.test.ts`) + crypto-chained audit integrity (`tests/unit/security/audit-chain-verification.test.ts`); ops-side alerting remains a deployment concern
 
 ### Data Protection
 
@@ -632,9 +675,11 @@ SveltyCMS security features support compliance with:
 
 For security-related questions or to report vulnerabilities:
 
-- **Security Email**: security@sveltycms.org
+- **Security Email**: security@sveltycms.com
 - **GitHub Security Advisories**: [Private Reporting](https://github.com/SveltyCMS/SveltyCMS/security/advisories)
+- **security.txt (RFC 9116)**: [`/.well-known/security.txt`](https://sveltycms.com/.well-known/security.txt) — machine-readable policy + contacts
 - **Bug Bounty**: Coming soon
+- **Disclosure policy**: [SECURITY.md](https://github.com/SveltyCMS/SveltyCMS/blob/next/SECURITY.md) — staged timeline (critical 7d / high 30d / medium-low 90d)
 
 **Response Time**:
 
@@ -645,9 +690,9 @@ For security-related questions or to report vulnerabilities:
 
 ---
 
-**Last Updated**: June 27, 2026
-**Security Review Status**: ✅ A++ Grade (April 2026 Assessment - AI Hardened)
-**Next Review**: Quarterly (July 2026)
+**Last Updated**: August 4, 2026
+**Security Review Status**: ✅ A++ Grade (August 2026 Assessment — session/RBAC hardening: device policy, idle/TTL, credential-free caches, step-up re-auth, anomaly log)
+**Next Review**: Quarterly (October 2026)
 
 ---
 

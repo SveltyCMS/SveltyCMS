@@ -563,16 +563,17 @@ See `MARIADB_IMPLEMENTATION.md` in repository root for detailed implementation g
 
 ## Performance Benchmarks
 
-> [!NOTE]
-> Performance benchmarks and optimization details for the MariaDB adapter will be available once implementation is complete. The following outlines the planned optimization strategy.
+MariaDB is a **production** SQL adapter (`SqlAdapterCore` + `mysql2`). For full matrix metrics see [Performance Benchmarks](/docs/project/benchmarks/index) and [Performance Architecture](./performance-architecture.mdx).
 
-The planned MariaDB adapter will be optimized for relational data integrity and high-concurrency connection pooling. For current performance metrics, please refer to the [Performance Benchmarks](/docs/project/benchmarks/index) document.
+### Shared list / count contract
 
-Key planned optimizations include:
+| Feature          | Implementation                                      |
+| ---------------- | --------------------------------------------------- |
+| `findPage`       | `limit + 1` hasMore                                 |
+| `count` estimate | `information_schema.TABLES.TABLE_ROWS` (DATABASE()) |
+| Count cache      | 30s L1 (shared wrapper)                             |
 
-- **Relational Efficiency**: Optimized schema with secondary indexes on `tenantId`, `status`, and `createdAt`.
-- **mysql2 Pooling**: High-performance connection pooling for sub-millisecond handshakes.
-- **Idempotent Migrations**: Zero-downtime schema updates.
+**Measured (2026-08-04, Docker MariaDB, no Redis):** FIND PAGE **0.660 ms** vs LIST+COUNT **0.928 ms** (~1.4×); COUNT ESTIMATE **0.423 ms** vs exact **0.779 ms**; COUNT CACHED **0.024 ms** (~32× vs exact).
 
 ### Key Planned Optimizations
 

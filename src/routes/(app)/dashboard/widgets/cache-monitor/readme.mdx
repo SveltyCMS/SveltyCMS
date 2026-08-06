@@ -1,0 +1,77 @@
+---
+path: "src/routes/(app)/dashboard/widgets/cache-monitor/readme.mdx"
+title: "Cache Performance Dashboard Widget"
+description: "Monitor cache efficiency, hit rates, and per-category throughput. Premium extension — 14-day trial included; a license is required after the trial."
+order: 100
+icon: "mdi:cached"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "cache"
+  - "performance"
+  - "freemium"
+---
+
+# Cache Performance Widget
+
+Monitor cache efficiency and size with live hit-rate metrics, hits/misses breakdowns, and per-category throughput. Adaptive layouts: compact single-row summary at height 1, rich per-category cards at height 2+.
+
+---
+
+## 💰 Licensing
+
+**Premium extension** with a **14-day free trial** (no key required). After the trial expires a valid marketplace license is required — the widget then shows an upgrade prompt. Pricing is configured in the marketplace listing.
+
+### License Verification
+
+The widget checks license status via the internal API on mount:
+
+```
+GET /api/system/license-status?type=dashboard&id=cache-monitor
+```
+
+---
+
+## Features
+
+| Feature            | Description                                            |
+| :----------------- | :----------------------------------------------------- |
+| Overall hit rate   | Live cache hit percentage with color-coded status      |
+| Hits / misses      | Absolute hit and miss counters (formatted 1.2K / 3.4M) |
+| Cache size         | Formatted size, item count, sets and deletes           |
+| Category breakdown | Per-category cards (auth, api, content, …)             |
+| Compact mode       | Single-row summary (h:1 widget size)                   |
+| Rich layout        | Detailed per-category cards (h:2+ widget size)         |
+| Auto-polling       | Data refreshes every 30 seconds                        |
+
+---
+
+## Data Source
+
+| Endpoint                           | Description                                              |
+| :--------------------------------- | :------------------------------------------------------- |
+| `GET /api/dashboard/cache-metrics` | Overall stats + per-category breakdown from CacheService |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Cache Performance",
+  icon: "mdi:cached",
+  description: "Monitor cache efficiency and size",
+  defaultSize: { w: 1, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Unified Metrics Widget](./unified-metrics-widget.mdx)
+- [Performance Widget](./performance-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

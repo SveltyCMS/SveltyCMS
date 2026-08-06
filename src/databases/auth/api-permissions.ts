@@ -144,28 +144,3 @@ export function hasApiPermission(
 
   return false;
 }
-
-/**
- * Get all API endpoints that a role (or roles) can access
- * @param userRoles - The user's role(s) (single string or array)
- * @returns string[] - Array of API endpoints the roles can access
- */
-export function getApiPermissionsForRole(userRoles: string | string[]): string[] {
-  const roles = Array.isArray(userRoles) ? userRoles : [userRoles];
-  const endpoints: string[] = [];
-
-  for (const [endpoint, allowed] of Object.entries(API_PERMISSIONS)) {
-    if (allowed.includes("*")) {
-      endpoints.push(endpoint.replace("api:", ""));
-    } else {
-      for (let i = 0; i < roles.length; i++) {
-        if (allowed.includes(roles[i])) {
-          endpoints.push(endpoint.replace("api:", ""));
-          break;
-        }
-      }
-    }
-  }
-
-  return endpoints;
-}

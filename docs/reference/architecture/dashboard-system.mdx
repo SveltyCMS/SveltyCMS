@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:view-dashboard"
 author: "SveltyCMS Team"
 created: "2025-10-17"
-updated: "2026-06-15"
+updated: "2026-08-04"
 tags:
   - "dashboard"
   - "widgets"
@@ -95,20 +95,21 @@ All dashboard widgets extend the `base-widget.svelte` component, which provides:
 
 ### Widget Registration
 
-Widgets use **dual discovery**:
+Each widget is a **self-contained package** in its own kebab-case folder: `widgets/<folder>/<component>.svelte` plus a `widget.json` manifest. Widgets use **dual discovery**:
 
-1. **Client** (`+page.svelte`) — Vite `import.meta.glob("./widgets/*.svelte")` builds the runtime registry for lazy-loaded rendering.
-2. **Server** (`+page.server.ts`) — `readdirSync` scans all `*.svelte` files in `widgets/` and dynamically imports `widgetMeta` for the widget picker.
+1. **Client** (`+page.svelte`) — Vite `import.meta.glob("./widgets/*/*.svelte")` builds the runtime registry for lazy-loaded rendering. The registry is keyed by the **package folder id**; each entry stores its entry filename (`index.svelte`) for the dynamic import.
+2. **Server** (`+page.server.ts`) — eager glob over `widgets/*/*.svelte` imports each file's `widgetMeta` for the widget picker.
 
 ```
 // Client registry in +page.svelte
-const modules = import.meta.glob("./widgets/*.svelte");
+const modules = import.meta.glob("./widgets/*/*.svelte");
+// → { "./widgets/system-health/index.svelte": () => import(...), … }
 
 // Server discovery in +page.server.ts
-const files = readdirSync(widgetsPath).filter(
-  (file) => file.isFile() && file.name.endsWith(".svelte"),
-);
+const _widgetModules = import.meta.glob<{ widgetMeta?: … }>("./widgets/*/*.svelte", { eager: true });
 ```
+
+The **folder id** (not the filename) is the registry key persisted in `system-preferences`, so saved layouts survive entry renames. In dev, the Vite plugin watches `src/routes/(app)/dashboard/widgets/**` and full-reloads on package add/remove so new widgets appear in the picker without a manual restart. The `widget.json` manifest powers the marketplace catalog and telemetry via `manifest-registry.ts`.
 
 ### Generative Dashboard
 
@@ -136,48 +137,48 @@ export const widgetMeta = {
 
 Real-time system performance and health monitoring with adaptive h:1 compact / h:2+ rich layouts:
 
-#### **cpu-widget.svelte**
+#### **cpu/index.svelte**
 
 - **Purpose**: Live CPU usage monitoring with SVG sparklines and h:1 compact mode
 - **Features**: Multi-core visualization, load average, temperature alerts
 - **Refresh**: 2-second intervals for real-time monitoring
 - **Size**: 2x2 grid units (default)
 
-#### **memory-widget.svelte**
+#### **memory/index.svelte**
 
 - **Purpose**: RAM and swap usage tracking
 - **Features**: Used/available memory, swap utilization, memory pressure alerts
 - **Refresh**: 5-second intervals
 - **Size**: 2x2 grid units
 
-#### **disk-widget.svelte**
+#### **disk/index.svelte**
 
 - **Purpose**: Storage usage and I/O performance
 - **Features**: Multiple disk monitoring, free space alerts, I/O statistics
 - **Refresh**: 30-second intervals (storage changes slowly)
 - **Size**: 2x2 grid units
 
-#### **cache-monitor-widget.svelte**
+#### **cache-monitor/index.svelte**
 
 - **Purpose**: Application cache performance monitoring
 - **Features**: Hit/miss ratios, MB/GB size display, per-category breakdown, h:1 compact summary
 - **Refresh**: 10-second intervals
 - **Size**: 2x1 grid units
 
-#### **unified-metrics-widget.svelte** ⭐ _New_
+#### **unified-metrics/index.svelte** ⭐ _New_
 
 - **Purpose**: Comprehensive system performance and security overview
 - **Features**: 3-tier layout (h:1 compact, h:2 rich, h:3+ full), health scoring, SVG sparklines
 - **Size**: 2x3 grid units (default, pollInterval: 6s)
 
-#### **system-health-widget.svelte**
+#### **system-health/index.svelte**
 
 - **Purpose**: Overall system health status
 - **Features**: Aggregate health score, service status, uptime tracking
 - **Refresh**: 15-second intervals
 - **Size**: 3x1 grid units
 
-#### **database-pool-diagnostics.svelte** ⭐ _New_
+#### **database-pool-diagnostics/index.svelte** ⭐ _New_
 
 - **Purpose**: Real-time database connection pool monitoring
 - **Features**:
@@ -196,7 +197,7 @@ Real-time system performance and health monitoring with adaptive h:1 compact / h
 
 Enterprise-grade security monitoring and compliance tracking:
 
-#### **audit-log-widget.svelte** ⭐ _New_
+#### **audit-log/index.svelte** ⭐ _New_
 
 - **Purpose**: Real-time audit log monitoring and security event tracking
 - **Features**:
@@ -209,7 +210,7 @@ Enterprise-grade security monitoring and compliance tracking:
 - **Size**: 3x3 grid units (accommodates rich security data)
 - **Role-Based**: Dynamically adapts content based on user permissions
 
-#### **security-widget.svelte**
+#### **security/index.svelte**
 
 - **Purpose**: Advanced threat monitoring and incident response
 - **Features**: Threat level indicators, blocked IPs, CSP violations
@@ -221,14 +222,14 @@ Enterprise-grade security monitoring and compliance tracking:
 
 Content and media monitoring for editorial workflows:
 
-#### **last5-content-widget.svelte**
+#### **last5-content/index.svelte**
 
 - **Purpose**: Recent content creation and editing activity
 - **Features**: Collection-based content listing, author attribution
 - **Refresh**: Manual refresh (content changes less frequently)
 - **Size**: 2x3 grid units
 
-#### **last5-media-widget.svelte**
+#### **last5-media/index.svelte**
 
 - **Purpose**: Recent media uploads and management
 - **Features**: Thumbnail previews, upload statistics, storage usage
@@ -239,31 +240,31 @@ Content and media monitoring for editorial workflows:
 
 Operational insights and system communication:
 
-#### **logs-widget.svelte** ⭐ _Enhanced_
+#### **logs/index.svelte** ⭐ _Enhanced_
 
 - **Purpose**: Filterable system log viewer
 - **Features**: Expandable cards, level filter, date range, text search, h:1 compact chips
 
-#### **system-messages-widget.svelte** ⭐ _Enhanced_
+#### **system-messages/index.svelte** ⭐ _Enhanced_
 
 - **Purpose**: System notifications with severity indicators
 - **Features**: Severity-colored accents (critical/error/warning/info), auto-detected links, clickable expand, h:1 compact chips
 
-#### **user-online-widget.svelte** ⭐ _Enhanced_
+#### **user-online/index.svelte** ⭐ _Enhanced_
 
 - **Purpose**: Real-time online user presence
 - **Features**: Role badges (admin/editor/viewer), green presence dots, Gravatar support, h:1 compact avatar chips
 
 - **Size**: 2x1 grid units
 
-#### **performance-widget.svelte**
+#### **performance/index.svelte**
 
 - **Purpose**: Application performance metrics and optimization insights
 - **Features**: Response times, throughput, performance trends
 - **Refresh**: 15-second intervals
 - **Size**: 3x2 grid units
 
-#### **unified-metrics-widget.svelte**
+#### **unified-metrics/index.svelte**
 
 - **Purpose**: Consolidated system metrics overview
 - **Features**: Multi-metric dashboard, customizable thresholds
@@ -935,15 +936,19 @@ beforeAll(async () => {
 
 ### Adding New Widgets
 
-1. **Create Widget File**: `src/routes/(app)/dashboard/widgets/my-widget.svelte`
-2. **Export Metadata**: Include `widgetMeta` object
-3. **Extend base-widget**: Use provided component infrastructure
-4. **Auto-Registration**: Widget appears automatically in picker
+1. **Create Package Folder**: `src/routes/(app)/dashboard/widgets/my-widget/`
+2. **Add the Component**: `index.svelte` inside the folder, with a `widgetMeta` export
+3. **Add the Manifest**: `widget.json` (id, name, icon, license, defaultSize, …)
+4. **Add the Docs**: `readme.mdx` marketplace description (required)
+5. **Extend base-widget**: Use the provided component infrastructure (`../../base-widget.svelte`)
+6. **Auto-Registration**: The widget appears automatically in the picker after the next build/restart
+
+See [Dashboard Widget Development](../../development/dashboard/index.mdx) for the full guide.
 
 ### Widget Development Best Practices
 
 ```
-// Example widget structure
+// Example widget structure — widgets/my-widget/my-widget.svelte
 <script lang="ts" module>
   export const widgetMeta = {
     name: 'My Custom Widget',
@@ -954,14 +959,15 @@ beforeAll(async () => {
 </script>
 
 <script lang="ts">
+  import BaseWidget from '../../base-widget.svelte';
   // Widget logic, data loading, state management
 </script>
 
-<base-widget {label} {size} {onSizeChange}>
+<BaseWidget {label} {size} {onSizeChange}>
   {#snippet children()}
     <!-- Widget content -->
   {/snippet}
-</base-widget>
+</BaseWidget>
 ```
 
 ### Configuration Persistence

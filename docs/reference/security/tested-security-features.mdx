@@ -4,7 +4,7 @@ title: "Tested Security Features"
 description: "Comprehensive list of security features covered by automated tests"
 author: "SveltyCMS Team"
 created: "2026-03-13"
-updated: "2026-07-12"
+updated: "2026-08-05"
 tags:
   - security
   - testing
@@ -157,6 +157,29 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 **Security Tests**: Added unit and integration tests confirming deep setup wizard gating and CSRF token bypass on Bearer auth. All 65 defense-in-depth regression tests pass successfully.
 
 **Files Modified**: `src/routes/api/[...path]/handlers/setup.ts`, `src/routes/api/[...path]/+server.ts`, `vite.config.ts`.
+
+---
+
+### Global Security Risk Audit & Pre-Auth Fixes (August 2026)
+
+**Assessment Outcome**: A **global static risk audit** now runs on every commit, and the first full-`src/` pass found and fixed two pre-authentication vulnerabilities.
+
+**New commit gate** (`.githooks/pre-commit` → `bun run risk:audit`, ~5s):
+
+- `scripts/scan-security-risk.ts` — global static scan of the entire `src/` tree (2917 files): SQL value/concat interpolation across all 4 adapters, MongoDB `$where`/`$function`/`$accumulator`, `eval(`/`new Function(` sinks, shell command interpolation, fs path interpolation, SSRF on request-derived URLs, DOM XSS sinks, regex interpolation, SvelteKit CSRF/cookie config. Guard-aware: identifier-validation files, path-guard helpers, escape idioms, and configured endpoints pass.
+- `scripts/scan-secret-misuse.ts` — hardcoded credentials / comparison backdoors.
+- `scripts/slop-scanner.ts` — XSS/RTL/security architecture rules.
+- `bun audit` — GitHub Advisory DB for the npm tree (SvelteKit/Svelte/Vite advisories included).
+- `scripts/scan-osv.ts` — OSV.dev global database (GHSA + NVD + 20+ feeds) queried from CycloneDX SBOM purls, 24h cache.
+
+**Found & fixed (both on the pre-authentication setup wizard):**
+
+- **Pre-auth DDL SQL injection** — `CREATE/DROP DATABASE IF EXISTS \`${db.name}\`` interpolated operator-supplied database names into raw DDL without validation (`src/routes/setup/setup.server.ts`, `setup-service.server.ts`). Fixed with an `assertSafeSqlIdentifier` allowlist so only plain identifiers can reach DDL.
+- **Pre-auth shell interpolation** — `exec(\`${pm} add ${packageName}\`)`built installer commands via a shell. Fixed with`execFile(pm, ["add", packageName])` args-array calls (`setup/+page.server.ts`, `setup.remote.ts`) — input can never reach a shell.
+
+**Tests**: `tests/unit/scripts/scan-security-risk.test.ts` (SQL, Mongo, eval, shell, path, SSRF, XSS, regex, CSRF/cookie rules), `tests/unit/scripts/scan-osv.test.ts` (batch + parse), `tests/unit/scripts/scan-secret-misuse.test.ts`. The scanner reports **0 findings** on the current codebase.
+
+**Files Modified**: `scripts/scan-security-risk.ts`, `scripts/scan-osv.ts`, `scripts/risk-audit.ts`, `.githooks/pre-commit`, `src/routes/setup/setup.server.ts`, `src/routes/setup/setup-service.server.ts`, `src/routes/setup/+page.server.ts`, `src/routes/setup/setup.remote.ts`.
 
 ---
 

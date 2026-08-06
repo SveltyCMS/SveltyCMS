@@ -473,11 +473,17 @@ function validateTOCLinks(body: string, relPath: string, anchors: Set<string>) {
 
 function validateMDXComponents(body: string, relPath: string) {
   const clean = stripCodeBlocks(body);
+  // Attribute values may contain `>` inside quotes (`<UpgradePrompt id="a<b>">` is
+  // valid MDX) — treat quoted strings as atoms so the real closing `>` is found.
+  const attrAtom = `(?:[^>"]|"[^"]*"|'[^']*')`;
   // Compound names (kebab-case) are real MDX components: <AdminCard>, <iconify-icon>
-  const compoundRe = /<([A-Z][a-zA-Z0-9]*(?:-[A-Za-z][a-zA-Z]*)+)\b([^>]*?)>/g;
+  const compoundRe = new RegExp(
+    `<([A-Z][a-zA-Z0-9]*(?:-[A-Za-z][a-zA-Z]*)+)\\b(${attrAtom}*?)>`,
+    "g",
+  );
   // Simple PascalCase only matches when it has attributes: <Slot name="x">
   // (avoids flagging TypeScript generics like <Buffer>, <T>)
-  const simpleAttrRe = /<([A-Z][a-zA-Z0-9]+)\s+[^>/][^>]*>/g;
+  const simpleAttrRe = new RegExp(`<([A-Z][a-zA-Z0-9]+)(\\s+${attrAtom}+)>`, "g");
   const checked = new Set<string>();
   for (const m of clean.matchAll(compoundRe)) {
     const tag = m[1],
@@ -486,7 +492,11 @@ function validateMDXComponents(body: string, relPath: string) {
     if (!body.includes(`</${tag}>`)) addError("mdx", relPath, `Unclosed MDX component: <${tag}>`);
   }
   for (const m of clean.matchAll(simpleAttrRe)) {
-    const tag = m[1];
+    const tag = m[1],
+      attrs = m[2] ?? "";
+    // Self-closing tags (<UpgradePrompt ... />) are valid MDX — mirror the
+    // compound-name behavior instead of flagging them as unclosed.
+    if (attrs.trimEnd().endsWith("/")) continue;
     if (checked.has(tag)) continue;
     checked.add(tag);
     if (!body.includes(`</${tag}>`)) addError("mdx", relPath, `Unclosed MDX component: <${tag}>`);

@@ -23,6 +23,7 @@ import type { Handle } from "@sveltejs/kit";
 import type { User, Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { getUserCacheId, buildUserCacheKey } from "@utils/hook-utils";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getRequestFlags } from "@utils/hook-utils";
@@ -125,8 +126,9 @@ export function clearTurboAuthCache(): void {
 }
 
 function isCacheableApiPath(pathname: string): boolean {
-  for (const prefix of CACHEABLE_API_PREFIXES) {
-    if (pathname.startsWith(prefix)) return true;
+  if (!pathname.startsWith("/api/")) return false;
+  for (let i = 0; i < CACHEABLE_API_PREFIXES.length; i++) {
+    if (pathname.startsWith(CACHEABLE_API_PREFIXES[i])) return true;
   }
   return false;
 }
@@ -156,7 +158,8 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   locals.tenantId = turboCtx.tenantId;
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
 
-  const cacheKey = url.pathname + url.search;
+  const userIdStr = getUserCacheId(turboCtx.user);
+  const cacheKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
   const cachedResponse = cacheService.getSync<string | Uint8Array | TurboCacheRichEntry>(
     cacheKey,
     turboCtx.tenantId,

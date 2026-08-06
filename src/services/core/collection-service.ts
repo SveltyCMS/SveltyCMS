@@ -74,6 +74,8 @@ export type CollectionDataResult = {
     pagesCount: number;
     currentPage: number;
     pageSize: number;
+    /** True when a further page exists (limit+1 fetch). */
+    hasMore?: boolean;
   };
   revisions: RevisionData[];
 };
@@ -196,6 +198,12 @@ export class CollectionService {
       queryBuilder: (table) => dbAdapter.queryBuilder(table) as any,
       collectionTableName: `collection_${collectionId}`,
       baseWhere,
+      tenantId: input.tenantId,
+      crudCount: (table, filter, opts) =>
+        dbAdapter.crud.count(table, filter as any, opts as any) as Promise<{
+          success: boolean;
+          data?: number;
+        }>,
     });
   }
 
@@ -259,30 +267,69 @@ export class CollectionService {
     });
     query = applied.qb;
 
+    // 🚀 findPage pattern: fetch pageSize+1 for hasMore; avoid mandatory dual-query
+    // when the first page is short (totalItems = entries.length, skip count).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- sort field is dynamic schema key
-    query = query.sort(sort.field as any, sort.direction).paginate({ page, pageSize });
+    query = query
+      .sort(sort.field as any, sort.direction)
+      .paginate({ page, pageSize: pageSize + 1 });
 
-    let countQuery = dbAdapter.queryBuilder(collectionTableName);
-    countQuery = applyFiltersToQueryBuilder(countQuery, compiled, {
-      baseWhere,
-      globalSearch: search,
-      collection,
-      user,
-    }).qb;
+    const simpleCountEligible =
+      !search &&
+      compiled.ranges.length === 0 &&
+      compiled.inLists.length === 0 &&
+      compiled.nullChecks.length === 0 &&
+      compiled.textSearch.length === 0 &&
+      typeof dbAdapter.crud?.count === "function";
+
+    const countFilter = simpleCountEligible
+      ? ({ ...baseWhere, ...compiled.equality } as Record<string, unknown>)
+      : null;
 
     let entries: CollectionEntry[] = [];
     let totalItems = 0;
+    let hasMore = false;
 
-    const [entriesResult, countResult] = await Promise.all([query.execute(), countQuery.count()]);
+    const entriesPromise = query.execute();
+    // Prefer L1-cached crud.count when filters are equality-only; else QueryBuilder count.
+    const countPromise = simpleCountEligible
+      ? dbAdapter.crud.count(collectionTableName, countFilter as any, {
+          tenantId: tenantId as any,
+          mode: "exact",
+          skipMeta: true,
+        })
+      : (() => {
+          let countQuery = dbAdapter.queryBuilder(collectionTableName);
+          countQuery = applyFiltersToQueryBuilder(countQuery, compiled, {
+            baseWhere,
+            globalSearch: search,
+            collection,
+            user,
+          }).qb;
+          return countQuery.count();
+        })();
 
-    if (entriesResult.success && countResult.success) {
-      entries = (entriesResult.data || []) as unknown as CollectionEntry[];
-      totalItems = countResult.data as number;
+    const [entriesResult, countResult] = await Promise.all([entriesPromise, countPromise]);
+
+    if (entriesResult.success) {
+      const raw = (entriesResult.data || []) as unknown as CollectionEntry[];
+      hasMore = raw.length > pageSize;
+      entries = hasMore ? raw.slice(0, pageSize) : raw;
     } else {
-      logger.error("Failed to load collection entries", {
-        entriesResult,
-        countResult,
-      });
+      logger.error("Failed to load collection entries", { entriesResult });
+    }
+
+    if (countResult.success && typeof countResult.data === "number") {
+      totalItems = countResult.data as number;
+    } else if (entriesResult.success && page === 1 && !hasMore) {
+      // First page short list: total is known without a successful count
+      totalItems = entries.length;
+    } else {
+      logger.error("Failed to load collection count", { countResult });
+      // Fallback: lower bound so pagination UI still advances when hasMore
+      totalItems = hasMore
+        ? (page - 1) * pageSize + entries.length + 1
+        : (page - 1) * pageSize + entries.length;
     }
 
     if (entries.length > 0) {
@@ -396,6 +443,7 @@ export class CollectionService {
         pagesCount: Math.ceil((totalItems || 0) / pageSize) || 1,
         currentPage: page,
         pageSize,
+        hasMore,
       },
       revisions: revisionsMeta || [],
     };

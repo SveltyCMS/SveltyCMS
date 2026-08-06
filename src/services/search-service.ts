@@ -12,6 +12,7 @@
  */
 
 import { dbAdapter as dbAdapterInstance } from "@src/databases/db";
+import { assertSafeSqlIdentifier } from "@src/databases/core/relational-utils";
 import { logger } from "@utils/logger";
 
 /** FTS search options */
@@ -249,6 +250,12 @@ export class SearchService {
    * Use these during migrations to set up full-text search capability.
    */
   static getFtsMigrationSQL(collection: string, columns: string[]): Record<string, string[]> {
+    // Identifiers are embedded in DDL for four backends — assert they are
+    // safe (migration callers pass schema-derived names, but defense-in-depth
+    // matches atomicIncrement/createIndexes hardening).
+    assertSafeSqlIdentifier(collection, "collection");
+    for (const column of columns) assertSafeSqlIdentifier(column, "column");
+
     const sql: Record<string, string[]> = {};
 
     // PostgreSQL: GIN index on tsvector

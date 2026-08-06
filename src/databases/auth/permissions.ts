@@ -93,6 +93,13 @@ export function getRoleBitset(role: Role): Uint32Array {
   return bitset;
 }
 
+const DEFAULT_ROLE_NAMES: Record<string, string> = {
+  admin: "Administrator",
+  developer: "Developer",
+  editor: "Editor",
+  author: "Author",
+};
+
 // Check if a user has a specific permission (with roles parameter to avoid circular dependency)
 // Supports multiple roles — grants access if ANY role has the permission.
 export function hasPermissionWithRoles(
@@ -106,17 +113,31 @@ export function hasPermissionWithRoles(
   }
 
   const safeRoles = roles || [];
+  const userId = user._id ? String(user._id) : null;
+  let roleIds: string[] | undefined;
 
+  if (userId) {
+    roleIds = safeRoles.length === 0 ? [] : safeRoles.map((r) => String(r._id));
+    const cached = permissionCache.get(userId, permissionId, roleIds);
+    if (cached !== null) return cached;
+  }
+
+  const granted = evaluatePermissionWithRoles(user, permissionId, safeRoles);
+
+  if (userId && roleIds) {
+    permissionCache.set(userId, permissionId, roleIds, granted);
+  }
+  return granted;
+}
+
+/**
+ * Un-cached permission evaluation — the decision engine behind hasPermissionWithRoles.
+ * Split out so the result can be cached (and invalidated) as a unit.
+ */
+function evaluatePermissionWithRoles(user: User, permissionId: string, safeRoles: Role[]): boolean {
   // Find ALL roles matching the user (supports multiple roles)
   const userRoles = safeRoles.filter((role) => {
     if (role._id === user.role) return true;
-    // Fallback: match by name for default roles
-    const DEFAULT_ROLE_NAMES: Record<string, string> = {
-      admin: "Administrator",
-      developer: "Developer",
-      editor: "Editor",
-      author: "Author",
-    };
     const roleName = DEFAULT_ROLE_NAMES[(user.role || "").toLowerCase()];
     return roleName ? role.name === roleName : false;
   });
@@ -167,7 +188,7 @@ export function hasPermissionWithRoles(
     userId: user._id,
     userRoleIds: userRoles.map((r) => r._id),
     permissionId,
-    rolesAvailable: roles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
+    rolesAvailable: safeRoles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
   });
   logger.trace("Permission check for user", {
     permissionId,
@@ -202,24 +223,13 @@ export function hasPermissionByAction(
     return false;
   }
 
-  let roles: Role[] = userRoles || []; // If no roles provided, try to get them from a global location
+  const roles: Role[] = userRoles || [];
+  // No global roles fallback: callers must supply roles. (The former `__ROLES_CACHE__`
+  // global was never written anywhere and has been removed.) Deny when missing rather
+  // than guessing — permission checks fail closed.
   if (!userRoles) {
-    try {
-      // Try to access roles from a different location
-      if (
-        typeof globalThis !== "undefined" &&
-        (globalThis as unknown as { __ROLES_CACHE__?: Role[] }).__ROLES_CACHE__
-      ) {
-        roles = (globalThis as unknown as { __ROLES_CACHE__: Role[] }).__ROLES_CACHE__;
-      } else {
-        // Last resort - empty array
-        logger.warn("No roles available for permission check - defaulting to deny");
-        return false;
-      }
-    } catch (error: unknown) {
-      logger.error("Failed to load roles for hasPermissionByAction:", error);
-      return false;
-    }
+    logger.warn("No roles available for permission check - defaulting to deny");
+    return false;
   }
 
   const safeRoles = roles || [];
@@ -563,17 +573,6 @@ export function checkPermissions(user: User, permissionIds: string[], roles: Rol
   return permissionIds.every((permissionId) =>
     hasPermissionWithRoles(user, permissionId, safeRoles),
   );
-}
-
-export function getUserRole(user: User, roles: Role[] = []): Role | undefined {
-  const safeRoles = roles || [];
-  return safeRoles.find((role) => role._id === user.role);
-}
-
-export function getUserRoles(user: User, roles: Role[] = []): Role[] {
-  const safeRoles = roles || [];
-  const userRole = getUserRole(user, safeRoles);
-  return userRole ? [userRole] : [];
 }
 
 /** Registered permission for Collection Builder create/edit operations */

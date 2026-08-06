@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 header "Pre-Commit"
 require_bun
 
-TOTAL=5; OK=0
+TOTAL=6; OK=0
 
 # Step 1 — Database safety
 if run "🛡️  Database safety" $RUN_CMD scripts/check-test-db-safety.ts; then
@@ -40,15 +40,23 @@ if run "⚡  Lint-staged" $RUN_CMD gate:fast; then
   OK=$((OK + 1))
 fi
 
-# Step 4 — Unit tests (skip if only docs changed)
-if has_changes '\.(md|mdx)$' && ! has_changes '\.(ts|js|svelte)$'; then
-	  warn "Only docs changed — skipping unit tests"
-	  TOTAL=$((TOTAL - 1))
-	elif run "🧪  Unit tests" $RUN_CMD test:unit; then
+# Step 4 — Full risk audit (DB injection classes, secrets, XSS, dependency CVEs, OSV)
+if has_changes '\.(md|mdx)$' && ! has_changes '\.(ts|js|svelte)$' && ! has_changes 'bun\.lock|package\.json'; then
+  warn "Only docs changed — skipping risk audit"
+  TOTAL=$((TOTAL - 1))
+elif run "🛡️  Risk audit (DB/SvelteKit/deps/OSV)" $RUN_CMD risk:audit; then
   OK=$((OK + 1))
 fi
 
-# Step 5 — SBOM sync (keeps sbom.json in lockstep with bun.lock)
+# Step 5 — Unit tests (skip if only docs changed)
+if has_changes '\.(md|mdx)$' && ! has_changes '\.(ts|js|svelte)$'; then
+  warn "Only docs changed — skipping unit tests"
+  TOTAL=$((TOTAL - 1))
+elif run "🧪  Unit tests" $RUN_CMD test:unit; then
+  OK=$((OK + 1))
+fi
+
+# Step 6 — SBOM sync (keeps sbom.json in lockstep with bun.lock)
 if has_changes 'bun\.lock|package\.json'; then
   if run "📦  SBOM sync" $RUN_CMD audit:sbom; then
     git add sbom.json 2>/dev/null || true

@@ -10,8 +10,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockUser, createDbAdapterStub } from "../utils/mock-factories";
 import { invokeApi, expectApi } from "../utils/mock-event";
+import { hashPassword } from "@utils/security/crypto";
 
 const dbAdapter = createDbAdapterStub();
+
+const { mockPrivateSettings } = vi.hoisted(() => ({
+  mockPrivateSettings: new Map<string, unknown>(),
+}));
 
 // Ensure batch paths have the methods LocalCMS.auth.batchAction calls
 (dbAdapter as any).auth.deleteUsers = vi.fn().mockResolvedValue({
@@ -42,8 +47,8 @@ vi.mock("@src/databases/db", () => {
 });
 
 vi.mock("@src/services/core/settings-service", () => ({
-  getPrivateSettingSync: vi.fn().mockReturnValue(false),
-  getPublicSettingSync: vi.fn().mockReturnValue(true),
+  getPrivateSettingSync: vi.fn((key: string) => mockPrivateSettings.get(key)),
+  getPublicSettingSync: vi.fn(() => true),
 }));
 
 // Do NOT mock apiHandler — need AppError → HTTP Response conversion.
@@ -217,5 +222,129 @@ describe("User API Unit Tests", () => {
       bypass: true,
     });
     expect([200, 403]).toContain(response.status);
+  });
+
+  describe("Session management (sessions API)", () => {
+    beforeEach(() => {
+      mockPrivateSettings.clear();
+      (dbAdapter as any).auth.deleteSession = vi.fn().mockResolvedValue({ success: true });
+      (dbAdapter as any).auth.getActiveSessions = vi.fn().mockResolvedValue({
+        success: true,
+        data: [
+          {
+            _id: "sess-other",
+            user_id: "u2",
+            userAgent: "UA-Chrome/Windows",
+            rotated: false,
+          },
+        ],
+      });
+    });
+
+    it("POST user/sessions/reauth verifies against a fresh DB read (credential-free cache safe)", async () => {
+      // Session-cache snapshots carry no password hash — reauth must fetch the
+      // fresh user from the DB before verifying.
+      (dbAdapter as any).auth.getUserById = vi.fn().mockResolvedValue({
+        success: true,
+        data: { ...adminUser, password: await hashPassword("ValidPass1!") },
+      });
+      const response = await invokeApi("POST", {
+        path: "user/sessions/reauth",
+        body: { password: "ValidPass1!" },
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data.token).toBeDefined();
+      expect(result.data.expiresIn).toBe(300);
+    });
+
+    it("POST user/sessions/reauth rejects a wrong password (403)", async () => {
+      (dbAdapter as any).auth.getUserById = vi.fn().mockResolvedValue({
+        success: true,
+        data: { ...adminUser, password: await hashPassword("ValidPass1!") },
+      });
+      const response = await invokeApi("POST", {
+        path: "user/sessions/reauth",
+        body: { password: "WrongPass1!" },
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(403);
+      expect(await response.text()).toContain("INVALID_PASSWORD");
+    });
+
+    it("POST user/sessions/reauth requires a password (400)", async () => {
+      const response = await invokeApi("POST", {
+        path: "user/sessions/reauth",
+        body: {},
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain("PASSWORD_REQUIRED");
+    });
+
+    it("cross-session revoke requires a re-auth token (403 REAUTH_REQUIRED)", async () => {
+      const response = await invokeApi("DELETE", {
+        path: "user/sessions/sess-other",
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(403);
+      expect(await response.text()).toContain("REAUTH_REQUIRED");
+      expect((dbAdapter as any).auth.deleteSession).not.toHaveBeenCalled();
+    });
+
+    it("cross-session revoke succeeds with a valid re-auth token", async () => {
+      mockPrivateSettings.set("JWT_SECRET_KEY", "test-jwt-secret");
+      const crypto = await import("node:crypto");
+      const exp = Date.now() + 5 * 60 * 1000;
+      const sig = crypto
+        .createHmac("sha256", "test-jwt-secret")
+        .update(`u1:sess-current:${exp}`)
+        .digest("base64url");
+
+      const response = await invokeApi("DELETE", {
+        path: "user/sessions/sess-other",
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        headers: { "x-reauth-token": `${exp}:${sig}` },
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(200);
+      expect((dbAdapter as any).auth.deleteSession).toHaveBeenCalledWith("sess-other");
+    });
+
+    it("admin session console lists another user's sessions", async () => {
+      const response = await invokeApi("GET", {
+        path: "user/sessions?admin=1&userId=u2",
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        locals: { session_id: "sess-current" } as any,
+      });
+      expect(response.status).toBe(200);
+      expect((dbAdapter as any).auth.getActiveSessions).toHaveBeenCalledWith(
+        "u2",
+        expect.anything(),
+      );
+    });
   });
 });

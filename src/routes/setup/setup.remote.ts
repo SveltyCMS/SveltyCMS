@@ -126,13 +126,15 @@ export const probeRedis = query("unchecked", async (_payload?: {}) => {
 });
 
 export const installDatabaseDriver = command("unchecked", async (dbType: string) => {
-  const { exec } = await import("node:child_process");
+  const { execFile } = await import("node:child_process");
   const { existsSync } = await import("node:fs");
   const { join } = await import("node:path");
   const { promisify } = await import("node:util");
   const { logger } = await import("@utils/logger");
 
-  const execAsync = promisify(exec);
+  // execFile — never exec: package names must never reach a shell (see
+  // src/routes/setup/+page.server.ts for the same hardening).
+  const execFileAsync = promisify(execFile);
   const DRIVER_PACKAGES: Record<string, string> = {
     mongodb: "mongoose",
     "mongodb+srv": "mongoose",
@@ -173,13 +175,10 @@ export const installDatabaseDriver = command("unchecked", async (dbType: string)
       pm = "pnpm";
     }
 
-    const cmd =
-      pm === "bun" || pm === "yarn" || pm === "pnpm"
-        ? `${pm} add ${packageName}`
-        : `npm install ${packageName}`;
-
     logger.info(`Installing ${packageName} using ${pm}...`);
-    const { stdout, stderr } = await execAsync(cmd, {
+    // Args array — no shell involved, packageName can never inject commands.
+    const args = pm === "npm" ? ["install", packageName] : ["add", packageName];
+    const { stdout, stderr } = await execFileAsync(pm, args, {
       cwd,
       timeout: 120_000,
     });

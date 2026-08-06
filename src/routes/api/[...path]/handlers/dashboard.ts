@@ -15,6 +15,7 @@ import { parseSessionDuration } from "@utils/security/auth-utils";
 import type { Session } from "@src/databases/auth/types";
 import { rawResponse } from "./base";
 import type { DatabaseId } from "@src/content/types";
+import { checkDashboardEndpointLicense } from "./dashboard-license";
 
 interface DashboardQuery {
   method: string;
@@ -55,6 +56,10 @@ export async function handleDashboardRoutes(
       type: url.searchParams.get("type") || undefined,
       limit: Math.min(Number(url.searchParams.get("limit")) || 5, 50),
     };
+
+    // License gate (defense-in-depth on top of dashboard:read): premium widget
+    // endpoints return 403 when the widget's trial expired and no license is set.
+    await checkDashboardEndpointLicense(query.method);
 
     switch (query.method) {
       case "stats":
@@ -288,7 +293,9 @@ export async function handleDashboardRoutes(
               lastSync = getRelativeTime(lastUser.createdAt);
             }
 
-            const firstScimUser = users.find((u) => (u as any).externalId);
+            const firstScimUser = users.find((u) => (u as any).externalId) as
+              | { email?: string }
+              | undefined;
             if (firstScimUser) {
               provider = firstScimUser.email?.includes("okta") ? "Okta" : "Azure AD";
             }

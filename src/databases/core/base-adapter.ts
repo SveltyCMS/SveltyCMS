@@ -366,7 +366,14 @@ export abstract class BaseAdapter {
       } else {
         // Standard: Pattern matches collection:name:* for that tenant
         await cacheService.clearByPattern(`collection:${collection}:*`, tenantId);
+        // 🚀 COUNT CACHE: short-lived tenant counts keyed count:{collection}:…
+        await cacheService.clearByPattern(`count:${collection}:*`, tenantId);
+        await cacheService.clearByTags([`count:${collection}`], tenantId);
       }
+
+      // 🚀 TURBO & API CACHE: purge API path keys for collection on all writes
+      await cacheService.clearByPattern(`/api/collections/${collection}*`, tenantId);
+      await cacheService.clearByPattern(`/api/content/${collection}*`, tenantId);
 
       if (options?.ids && options.ids.length > 0) {
         const idTags = options.ids.map((id) => `doc:${collection}:${id}`);
@@ -404,27 +411,23 @@ export abstract class BaseAdapter {
   > {
     return this.wrap(async () => {
       const filter = options?.filter || {};
-      const countRes = await this.crud.count(collectionName, filter as any, {
-        bypassTenantCheck: (options as any)?.bypassTenantCheck,
-        skipMeta: true,
-      });
-      if (!countRes.success) throw new Error(countRes.message);
-
-      const dataRes = await this.crud.findMany(collectionName, filter as any, {
+      // 🚀 findPage: single limit+1 fetch; optional total only when metadata requested
+      const pageRes = await this.crud.findPage(collectionName, filter as any, {
         limit: options?.limit,
         offset: options?.offset,
         fields: options?.fields as any,
         sort: options?.sort as any,
         bypassTenantCheck: (options as any)?.bypassTenantCheck,
         skipMeta: true,
+        total: options?.includeMetadata ? "auto" : "none",
       });
-      if (!dataRes.success) throw new Error(dataRes.message);
+      if (!pageRes.success) throw new Error(pageRes.message);
 
       return {
-        data: dataRes.data as unknown[],
+        data: pageRes.data.items as unknown[],
         metadata: options?.includeMetadata
           ? {
-              totalCount: countRes.data,
+              totalCount: pageRes.data.total ?? pageRes.data.items.length,
             }
           : undefined,
       };

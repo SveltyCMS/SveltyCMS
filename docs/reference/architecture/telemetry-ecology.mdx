@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2025-10-25"
-updated: "2026-03-27"
+updated: "2026-08-04"
 tags:
   - "security"
   - "telemetry"
@@ -45,18 +45,20 @@ Instead, your CMS generates a unique **Installation ID** by hashing your private
 
 ### Data Collected
 
-| Field           | Description               | Purpose                                                                 |
-| :-------------- | :------------------------ | :---------------------------------------------------------------------- |
-| **Version**     | `0.5.0`                   | Alerting for outdated/vulnerable versions.                              |
-| **Node.js**     | `v24.12.0`                | Determining minimal supported runtimes.                                 |
-| **Environment** | `production`              | Separating test data from real usage.                                   |
-| **Database**    | `mongodb`                 | The active database type (MongoDB, MariaDB) for compatibility tracking. |
-| **Widgets**     | `['Seo', 'Cloudinary']`   | Understanding which widgets/extensions are utilized.                    |
-| **Location**    | `{ city: "Berlin", ... }` | Datacenter clustering detection for BSL enforcement.                    |
-| **Metrics**     | `{ users: 15, ... }`      | Understanding scale (SaaS vs Enterprise usage).                         |
-| **System**      | `{ cpus: 8, ram: 32 }`    | Hardware profiling for BSL 1.1 enforcement.                             |
-| **Stable ID**   | `sha256_hash`             | **100% Anonymized** machine fingerprint for dev instance deduplication. |
-| **Ephemeral**   | `boolean`                 | Flag to mark temporary development installations.                       |
+| Field                 | Description                 | Purpose                                                                 |
+| :-------------------- | :-------------------------- | :---------------------------------------------------------------------- |
+| **Version**           | `0.5.0`                     | Alerting for outdated/vulnerable versions.                              |
+| **Node.js**           | `v24.12.0`                  | Determining minimal supported runtimes.                                 |
+| **Environment**       | `production`                | Separating test data from real usage.                                   |
+| **Database**          | `mongodb`                   | The active database type (MongoDB, MariaDB) for compatibility tracking. |
+| **Widgets**           | `['Seo', 'Cloudinary']`     | Custom content widgets in use.                                          |
+| **Dashboard widgets** | `['system-health', 'logs']` | Installed dashboard widget package ids (marketplace ecosystem usage).   |
+| **Plugins**           | `['stripe', 'sitemap']`     | Installed plugin ids (marketplace ecosystem usage).                     |
+| **Location**          | `{ city: "Berlin", ... }`   | Datacenter clustering detection for BSL enforcement.                    |
+| **Metrics**           | `{ users: 15, ... }`        | Understanding scale (SaaS vs Enterprise usage).                         |
+| **System**            | `{ cpus: 8, ram: 32 }`      | Hardware profiling for BSL 1.1 enforcement.                             |
+| **Stable ID**         | `sha256_hash`               | **100% Anonymized** machine fingerprint for dev instance deduplication. |
+| **Ephemeral**         | `boolean`                   | Flag to mark temporary development installations.                       |
 
 ## 1.5 Safety & Robustness (Ghost Mode)
 
@@ -146,7 +148,9 @@ SVELTYCMS_TELEMETRY=false
     "os_type": "Linux",
     "os_arch": "x64"
   },
-  "widgets": "[\"Seo\"]"
+  "widgets": "[\"Seo\"]",
+  "dashboard_widgets": "[\"system-health\",\"logs\"]",
+  "plugins": "[\"stripe\",\"sitemap\"]"
 }
 ```
 

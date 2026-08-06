@@ -371,6 +371,28 @@ export class ConfigService {
       await this.deleteEntity(item, tenantId);
     }
 
+    // 3. Role mutations here bypass AuthNamespace.updateRoles — the only path that
+    //    normally invalidates the roles/permission caches. Without this, imported or
+    //    deleted roles leave hasPermissionWithRoles serving stale results for up to
+    //    the roles-cache TTL (1h), surfacing as incorrect permission-denied errors.
+    const touchedRoles = [...toUpsert, ...changes.deleted].some((item) => item.type === "role");
+    if (touchedRoles) {
+      try {
+        const { invalidateRolesCache } = await import("@src/hooks/handle-authorization");
+        await invalidateRolesCache(tenantId);
+        const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
+        invalidatePermissionCache();
+        // Turbo auth contexts cache per-session roles/bitsets — a role import can
+        // affect any user, so drop all sessions to force fresh permission resolution.
+        const { clearTurboAuthCache } = await import("@src/hooks/handle-turbo-get");
+        clearTurboAuthCache();
+      } catch (err) {
+        logger.warn(
+          `Role cache invalidation after config import failed: ${(err as Error).message}`,
+        );
+      }
+    }
+
     logger.debug("Configuration import completed.");
 
     // Emit webhook event (best-effort, non-blocking)

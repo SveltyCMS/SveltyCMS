@@ -6,7 +6,7 @@ order: 16
 icon: "mdi:view-dashboard"
 author: "SveltyCMS Team"
 created: "2026-07-18"
-updated: "2026-07-18"
+updated: "2026-08-04"
 tags:
   - "testing"
   - "e2e"
@@ -17,19 +17,19 @@ tags:
 # Dashboard (`/dashboard`) — Control Map
 
 > [!IMPORTANT]
-> **Widgets are install-specific.** Core ships a default set under `src/routes/(app)/dashboard/widgets/`; plugins may inject more via slots or additional files.  
+> **Widgets are install-specific.** Core ships a default set of package folders under `src/routes/(app)/dashboard/widgets/<folder>/`; plugins may inject more via slots or additional files.  
 > Tests and docs assert **shell contracts** and **API shapes**, never “must show CPU + Memory + Logs”.
 
 ## Architecture (brief)
 
-| Piece                             | Role                                                                            |
-| --------------------------------- | ------------------------------------------------------------------------------- |
-| `+page.server.ts`                 | Auth, `dashboard:read` gate, compile-time widget discovery (`import.meta.glob`) |
-| `+page.svelte`                    | Toolbar, add/search/reset, grid, DnD reorder, lazy load, AI generative mode     |
-| `base-widget.svelte`              | Shared fetch/poll/cache/refresh chrome for individual widgets                   |
-| `dashboard-preferences.svelte.ts` | Persist layout to `/api/system-preferences`                                     |
-| `widgets/*.svelte`                | **Per-install catalog** — each exports `widgetMeta`                             |
-| `Slot name="dashboard"`           | Plugin injection zone                                                           |
+| Piece                                 | Role                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------ |
+| `+page.server.ts`                     | Auth, `dashboard:read` gate, compile-time widget discovery (`import.meta.glob`)      |
+| `+page.svelte`                        | Toolbar, add/search/reset, grid, DnD reorder, lazy load, AI generative mode          |
+| `base-widget.svelte`                  | Shared fetch/poll/cache/refresh chrome for individual widgets                        |
+| `dashboard-preferences.svelte.ts`     | Persist layout to `/api/system-preferences`                                          |
+| `widgets/<folder>/<component>.svelte` | **Per-install catalog** — package folders, each exports `widgetMeta` + `widget.json` |
+| `Slot name="dashboard"`               | Plugin injection zone                                                                |
 
 ---
 
@@ -80,6 +80,18 @@ Covered by `tests/integration/api/dashboard.test.ts`:
 - `GET /api/dashboard/metrics` (+ detailed)
 - system-info, logs, last5-content/media, online-user, system-messages, cache-metrics
 
+### Licensing gate (server-side, premium widgets)
+
+Covered by `tests/unit/api/dashboard-license-gate.test.ts`:
+
+- Endpoint → widget-id map (`DASHBOARD_ENDPOINT_LICENSE`) covers all premium endpoints
+- Free endpoints (health, system-info, last5-\*, system-messages, tenant-analytics) are ungated — `checkExtensionLicense` never called
+- Active trial / valid key → 200 pass-through
+- Expired trial without key → `403 LICENSE_REQUIRED`
+- `requireDashboardWidgetLicense` direct gate (used by `/api/database/pool-diagnostics`)
+
+Premium endpoints return `200` during the install-wide 14-day trial; the gate only blocks after trial expiry without a license.
+
 ---
 
 ## Product hardening (2026-07-18)
@@ -103,6 +115,7 @@ Covered by `tests/integration/api/dashboard.test.ts`:
 
 - [widget-defaults.test.ts](../../../tests/unit/dashboard/widget-defaults.test.ts)
 - [dashboard-page-server.test.ts](../../../tests/unit/routes/dashboard-page-server.test.ts)
+- [dashboard-license-gate.test.ts](../../../tests/unit/api/dashboard-license-gate.test.ts)
 
 ### Integration
 

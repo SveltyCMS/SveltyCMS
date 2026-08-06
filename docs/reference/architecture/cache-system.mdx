@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/architecture/cache-system.mdx"
 title: "Cache System"
-description: "SveltyCMS dual-layer cache (L1: In-Memory LRU, L2: Redis) with stampede protection, single-flight coalescing, negative Bloom filter, predictive warming, and stale-while-revalidate."
+description: "SveltyCMS dual-layer cache (L1: In-Memory LRU, L2: Redis) with stampede protection, single-flight coalescing, negative Bloom filter, predictive warming, SWR, and short-lived crud.count cache."
 order: 5
 icon: "mdi:database-clock"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-07-15"
+updated: "2026-08-04"
 tags:
   - "cache"
   - "redis"
@@ -30,6 +30,23 @@ SveltyCMS implements a **dual-layer caching system**: L1 is an in-memory LRU cac
 Layer 1: In-Memory LRU Cache → <0.001ms (L1 hit, zero allocation)
 Layer 2: Redis (Optional)     → <1ms (distributed, cross-node)
 Layer 3: Database (Persistent) → Sub-ms CRUD (0.042-3.261ms)
+```
+
+```mermaid
+flowchart TD
+    REQ[Request] --> L1{L1 In-Memory LRU}
+    L1 -->|hit| HIT[Serve response - sub-µs, zero allocation]
+    L1 -->|miss| NEG{Negative Bloom filter?}
+    NEG -->|known missing| NF[Skip DB - fast 404]
+    NEG -->|not negative| L2{L2 Redis}
+    L2 -->|hit| L2HIT[Promote to L1 + serve]
+    L2 -->|miss| SF{Single-flight active?}
+    SF -->|yes| WAIT[Coalesce - await winner]
+    SF -->|no| DB[(Database)]
+    DB --> STORE[Populate L1 + L2, open SWR window]
+    STORE --> HIT
+    L2HIT --> HIT
+    WAIT --> HIT
 ```
 
 ### Key: L1 is In-Memory, L2 is Redis
@@ -66,25 +83,61 @@ Hash-keyed entries — **never store plaintext bearer tokens in L1/L2**:
 
 **Negative misses**: `cacheService.isNegativeHit()` / `recordMiss()` — Bloom filter per cache-system (not plaintext module bloom).
 
-**Auth middleware**: `handle-authentication.ts` hashes once (`hashCredentialSha256HexSync` / `hashApiKey`), looks up by hash via `getByTokenHash`, caches with `CacheCategory.SESSION`.
+**Auth middleware**: `handle-authentication.ts` hashes once (`hashCredentialSha256HexSync` for website tokens / `hashApiKeyWithLegacy` for API keys), looks up by hash via `getByTokenHash`, caches with `CacheCategory.SESSION`.
+
+**Session user snapshots are credential-free**: the session cache (L1 LRU + L2 Redis) and the in-memory/Redis session store strip credential material (`password`, `totpSecret`, `backupCodes`, `resetToken`, `googleRefreshToken`, `twoFactorTrustedDevices`) at every write boundary (`toSafeSessionUser` in `src/databases/auth/session-user.ts`). The zero-allocation fast path returns the original reference when no sensitive field is present. Password-verifying endpoints fetch a fresh user from the DB instead of reading the snapshot.
+
+**Delete propagation (untagged entries)**: `cacheService.delete()` publishes the logical key as an invalidation pattern (plus the key as a tag). The pub/sub subscriber applies **both** channels — tags for the L1 tag index and the pattern for untagged entries (settings cache, session entries, user counts) — so a delete on one node purges the remote L1 immediately instead of lingering until LRU eviction. This closes a cross-node staleness hole for untagged keys in Redis deployments.
+
+**L2 contract suite**: `tests/unit/databases/cache-service-l2-contract.test.ts` runs the full distributed path (cross-instance hits, write batching, stampede locks, tenant-scoped tag sets, pattern scans, pub/sub) against an in-memory `FakeRedis` on every run, and against a real Redis when `TEST_REDIS_URL` is set — same contract, two drivers.
 
 ### Permission Cache (RBAC)
+
+`hasPermissionWithRoles()` consults this cache on every permission check (after the admin fast-path), keyed by `{userId}:{permissionId}:{sortedRoleIds}`. On a miss it evaluates via the memoized role bitsets and stores the boolean result:
 
 | Key prefix                                | TTL  | Invalidation                                            |
 | ----------------------------------------- | ---- | ------------------------------------------------------- |
 | `{userId}:{permissionId}:{sortedRoleIds}` | 5min | `invalidatePermissionCache(userId)` on user update      |
 |                                           |      | `invalidatePermissionCache()` (global) on role mutation |
 
-**Helpers**: `src/databases/auth/permissions.ts` (`invalidatePermissionCache`), `src/utils/security/permission-cache.ts` (`PermissionCache`).
+**Helpers**: `src/databases/auth/permissions.ts` (`hasPermissionWithRoles`, `invalidatePermissionCache`), `src/utils/security/permission-cache.ts` (`PermissionCache`).
 
 **Invalidation policy**:
 
 - **Per-user**: Called after `Auth.updateUser()` — clears cached permission checks for the modified user so RBAC changes take effect immediately.
 - **Global**: Called after `AuthNamespace.updateRoles()` — clears all entries since any role change can affect many users' cached checks.
-- **Turbo auth**: `invalidateTurboAuthForUser(userId)` in `hooks.server.ts` clears the turbo auth cache entry so the next GET request re-validates the session with fresh permissions.
+- **Config import**: `ConfigService.performImport()` (config sync, `/api/config/import`, GraphQL `configApply`, LocalCMS `performImport`) writes roles directly through the DB adapter. It now invalidates the roles list cache **and** the permission cache whenever a `role` entity is upserted or deleted, so imported role changes take effect immediately instead of after the 1h roles-cache TTL.
+- **Turbo auth**: Turbo contexts (`src/hooks/handle-turbo-get.ts`, 60s TTL) cache per-session `user`/`roles`/`bitset` and skip session re-validation on cacheable API GETs, so stale permission state can persist up to 60s after a change. Invalidation coverage:
+  - `clearTurboAuthCache()` — full clear after `AuthNamespace.updateRoles()` (a role change can affect any user), `ConfigService.performImport()` role imports/deletes, and testing-API role mutations.
+  - `invalidateTurboAuthForUser(userId)` — per-user clear after `Auth.updateUser()` (role/status edits) and `Auth.deleteUser()`; `batchAction()` block/delete/unblock already clears the affected users.
+
+```mermaid
+flowchart LR
+    MUT[Role or user mutation] --> PATH{Which path?}
+    PATH -->|AuthNamespace.updateRoles| R1[invalidateRolesCache + invalidatePermissionCache + clearTurboAuthCache]
+    PATH -->|Auth.updateUser| R2[invalidatePermissionCache user + invalidateTurboAuthForUser user]
+    PATH -->|Auth.deleteUser| R3[invalidateTurboAuthForUser user]
+    PATH -->|ConfigService.performImport roles| R4[invalidateRolesCache + invalidatePermissionCache + clearTurboAuthCache]
+    PATH -->|Testing API role write| R5[invalidatePermissionCache + clearTurboAuthCache]
+    R1 --> FRESH[Fresh permission state on next request]
+    R2 --> FRESH
+    R3 --> FRESH
+    R4 --> FRESH
+    R5 --> FRESH
+```
 
 > [!IMPORTANT]
 > Before July 2026, `invalidatePermissionCache` was defined but **never called**. Stale DENY results survived up to 5 minutes after privilege changes. The hardening ensures immediate propagation.
+
+### Roles List Cache (Authorization Hook)
+
+The `handleAuthorization` hook maintains a tenant-scoped list of all roles (`src/hooks/handle-authorization.ts`), used to hydrate `locals.roles` for page loaders and permission checks:
+
+| Key                               | TTL | Invalidation                                         |
+| --------------------------------- | --- | ---------------------------------------------------- |
+| `roles:{tenantKey}` (L1 Map + L2) | 1h  | `invalidateRolesCache(tenantId)` after role mutation |
+
+**Invalidation triggers**: `AuthNamespace.updateRoles()` (admin UI), the testing API role mutations, and `ConfigService.performImport()` for imported/deleted role entities. Any role mutation path that bypasses `AuthNamespace.updateRoles` **must** call `invalidateRolesCache()` — otherwise stale role lists can surface as incorrect permission-denied errors for up to 1 hour.
 
 > [!NOTE]
 > Use `clearByPattern("schema:")` — not `invalidateByCategory(SCHEMA)` — because schema keys are prefixed with `schema:`, not `*:schema:`.
@@ -188,7 +241,24 @@ return cacheService.getOrSetSWR(
 > After content mutations (create/update/delete/status/import/sync), always invalidate with the **collection id prefix** so every filtered page, sort, and search variant is cleared:
 > `await cacheService.invalidateCollection(collectionId)`.
 
-**Related**: [Collection Filtering Platform](./collection-filtering.mdx) · [entry-list](../components/entry-list.mdx) · [Content API filters](../api/content.mdx) · [Data Operations](./data-operations.mdx)
+### Short-lived `crud.count` cache (30s)
+
+List badges and pagination totals call `dbAdapter.crud.count` frequently. A thin proxy wraps every adapter after the tenant guard:
+
+| Item                | Value                                                                          |
+| ------------------- | ------------------------------------------------------------------------------ |
+| **Module**          | `src/databases/core/count-cache.ts` → `createCountCachedCrud`                  |
+| **Key**             | `count:{collection}:{mode}:{includeDeleted}:{filterHash}` (`hashQueryPayload`) |
+| **TTL**             | **30 seconds**                                                                 |
+| **Category / tags** | `CONTENT` · `count` · `count:{collection}` · `collection:{collection}`         |
+| **Bypass**          | `options.bypassCache: true`                                                    |
+| **Modes**           | Key includes `exact` \| `estimate` \| `auto` so modes never collide            |
+
+Hits serve L1 (and L2 if Redis is configured) without re-running SQL/Mongo COUNT. Misses still execute the engine path (exact vs `estimatedDocumentCount` / table statistics). **Tenant isolation** is enforced by `cacheService` tenant namespacing — unscoped whole-table estimates are never shared with tenant-scoped keys.
+
+`findPage` itself is **not** count-cached; when `total: "exact"|"auto"` is requested, the parallel count still goes through this wrapper. Prefer `total: "none"` + `hasMore` for scroll UIs.
+
+**Related**: [Collection Filtering Platform](./collection-filtering.mdx) · [Performance Architecture](../database/performance-architecture.mdx) · [entry-list](../components/entry-list.mdx) · [Content API filters](../api/content.mdx) · [Data Operations](./data-operations.mdx)
 
 ## Cache Categories
 
@@ -223,4 +293,4 @@ return cacheService.getOrSetSWR(
 
 ---
 
-**Last Updated**: 2026-07-15 (collection list SWR keys with filter hash; entry-list / createSmartFilter alignment)
+**Last Updated**: 2026-08-04 (RBAC permission cache wired into `hasPermissionWithRoles`; turbo-auth invalidation on all role/user mutation paths; architecture + invalidation mermaid diagrams)

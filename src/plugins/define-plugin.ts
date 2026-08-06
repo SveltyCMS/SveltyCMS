@@ -139,11 +139,77 @@ export interface AdminTool {
   component: () => Promise<unknown>;
   /** Which admin zone this tool belongs to. */
   zone: "sidebar" | "toolbar" | "dashboard" | "config";
+  /** Order within the zone (lower first). @default 0 */
+  order?: number;
   /**
    * Required capabilities to view/use this tool.
    * Defaults to `["admin"]` at runtime when omitted.
    */
   requiredCapabilities?: string[];
+}
+
+/**
+ * Context passed to a plugin page's server `load` hook.
+ */
+export interface PluginPageLoadContext {
+  /** Active tenant identifier. */
+  tenantId: string;
+  /** Currently authenticated user. */
+  user: import("@auth/types").User | null;
+  /** Route params after the /plugin/ prefix. */
+  params: Record<string, string>;
+  /** Request URL. */
+  url: URL;
+}
+
+/**
+ * A declarative nav item contribution (rendered in the admin sidebar).
+ */
+export interface PluginPageNav {
+  /** Group label the item is listed under (e.g. "Analytics"). */
+  group: string;
+  /** Link label. */
+  label: string;
+  /** Icon name (Iconify string). */
+  icon: string;
+  /** Order within the group (lower first). @default 0 */
+  order?: number;
+}
+
+/**
+ * An admin page contributed by a plugin — a full page mounted under
+ * `/plugin/<path>` inside the admin shell, with declarative sidebar nav.
+ *
+ * **Security**: `requiredCapabilities` is mandatory — omitting it is a
+ * TypeScript error. The route load returns `403` when the check fails.
+ */
+export interface PluginPageDefinition {
+  /** Unique page id (namespace it: "<pluginId>:<pageId>"). */
+  id: string;
+  /**
+   * Sub-path under `/plugin/`, e.g. `"recaptcha"` → `/plugin/recaptcha`.
+   * May include slashes for nested paths (`"analytics/overview"`).
+   */
+  path: string;
+  /**
+   * Lazy-loaded Svelte component rendered inside the admin shell.
+   * May resolve to `{ default: Component }` (Svelte module) or a component directly.
+   */
+  component: () => Promise<any>;
+  /**
+   * Optional server load — runs in `+page.server.ts` and its return value
+   * is passed as props to the component. Never exposes secrets to the client.
+   */
+  load?: (ctx: PluginPageLoadContext) => Promise<Record<string, unknown>>;
+  /** Declarative sidebar nav contribution (optional — pages stay reachable by URL). */
+  nav?: PluginPageNav;
+  /**
+   * Required capabilities to view the page.
+   * `[]` = any authenticated admin user; use `["manage:..."]` for specific gates.
+   */
+  requiredCapabilities: string[];
+  /** Page title shown in the admin shell header (falls back to nav label). */
+  title?: string;
 }
 
 // ============================================================================
@@ -161,6 +227,7 @@ export interface AdminTool {
  * | `schema`           | Collections registered in the content system               |
  * | `schemaTransform`  | Sugar type builders registered for field desugaring         |
  * | `route`            | Server routes registered in the route table                 |
+ * | `page`             | Admin pages mounted under `/plugin/<path>` + sidebar nav    |
  * | `capability`       | Capabilities registered in the merged capability catalog    |
  * | `settings`         | Settings declaration attached to the plugin                 |
  * | `adminTool`        | UI tools injected into admin zones                          |
@@ -171,6 +238,7 @@ export type PluginPart =
   | { type: "schema"; collections: SchemaDefinition[] }
   | { type: "schemaTransform"; transforms: SugarTypeBuilder[] }
   | { type: "route"; routes: PluginRoute[] }
+  | { type: "page"; pages: PluginPageDefinition[] }
   | { type: "capability"; capabilities: string[] }
   | { type: "settings"; declaration: SettingsPart }
   | { type: "adminTool"; tools: AdminTool[] }

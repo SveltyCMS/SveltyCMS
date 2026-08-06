@@ -10,9 +10,9 @@
   <a href="https://discord.gg/qKQRB6mP"><img src="https://img.shields.io/discord/1369537436656603188?label=chat&logo=discord&color=7289da" alt="Chat"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/License-BSL%201.1%20Fair%20Source-blue.svg" alt="License: BSL 1.1"></a>
   <img src="https://img.shields.io/github/issues/SveltyCMS/SveltyCMS" alt="GitHub issues">
-  <a href="docs/architecture/security/tested-security-features.mdx"><img src="https://img.shields.io/badge/Security-Tested%20Fortress-blue?style=flat-square&labelColor=1e293b" alt="Security: Tested Fortress"></a>
+  <a href="docs/reference/security/tested-security-features.mdx"><img src="https://img.shields.io/badge/Security-Self%20Assessed%20%2B%20CI-blue?style=flat-square&labelColor=1e293b" alt="Security: self-assessed + CI scanners"></a>
   <img src="https://img.shields.io/badge/Bundle-842%20KB%20Brotli%20/%203.01%20MB%20Total-success?style=flat-square&labelColor=1e293b" alt="Bundle Size">
-  <img src="https://img.shields.io/badge/Performance-12µs%20Hooks%20/%2014k%20RPS-blueviolet?style=flat-square&labelColor=1e293b" alt="Performance">
+  <img src="https://img.shields.io/badge/DB-4%20adapters%20%7C%20findPage%20%2B%20count%20cache-blueviolet?style=flat-square&labelColor=1e293b" alt="Database: four adapters, findPage + count cache">
 </div>
 
 <div align="center">
@@ -47,20 +47,19 @@ Backend data is available via REST API or [GraphQL Yoga](https://the-guild.dev/g
 
 ## ⭐ Key Features
 
-| Feature                    | Status | Notes                                                         |
-| -------------------------- | ------ | ------------------------------------------------------------- |
-| Collection Builder         | ✅     | GUI and code-based definitions                                |
-| Typed Widget System        | ✅     | Localization, validation, access control                      |
-| Multi-language (Paraglide) | ✅     | Type-safe i18n out of the box                                 |
-| REST API                   | ✅     | CRUD and configuration endpoints                              |
-| GraphQL API (Yoga)         | ✅     | High-performance schema                                       |
-| Database Resilience        | ✅     | Retries, self-healing reconnection, diagnostics, log download |
-| Email Templating           | ✅     | Svelte Email + SMTP                                           |
-| Roles & Permissions        | ✅     | Database-backed access control                                |
-| MariaDB / MySQL            | ✅     | SQL support via Drizzle ORM                                   |
-| PostgreSQL                 | ✅     | Full production support via Drizzle ORM                       |
-| SQLite                     | ✅     | Optimized Multi-Tenant Indexing (Sub-ms)                      |
-| Persistent DoS Protection  | ✅     | State-aware rate limiting across restarts                     |
+| Feature                    | Status | Notes                                                                  |
+| -------------------------- | ------ | ---------------------------------------------------------------------- |
+| Collection Builder         | ✅     | GUI and code-based definitions                                         |
+| Typed Widget System        | ✅     | Localization, validation, access control                               |
+| Multi-language (Paraglide) | ✅     | Compile-time i18n (type-safe)                                          |
+| REST API                   | ✅     | CRUD and configuration endpoints                                       |
+| GraphQL API (Yoga)         | ✅     | GraphQL API; Yoga upgrade path tracked on roadmap                      |
+| Database agnostic          | ✅     | MongoDB, PostgreSQL, SQLite, MariaDB/MySQL (Drizzle)                   |
+| List / count product layer | ✅     | `findPage` (hasMore/keyset), count modes, L1 count cache (all engines) |
+| Database Resilience        | ✅     | Retries, self-healing reconnection, diagnostics                        |
+| Email Templating           | ✅     | Svelte Email + SMTP                                                    |
+| Roles & Permissions        | ✅     | Database-backed RBAC                                                   |
+| Persistent DoS Protection  | ✅     | Hardware-aware rate limiting; state across restarts                    |
 
 ## 🚀 Quick Start
 
@@ -292,56 +291,48 @@ SveltyCMS is built with modern optimization techniques resulting in a compact bu
 
 ## ⚡ Performance Benchmarks
 
-SveltyCMS ships with an enterprise-grade benchmark intelligence system — 48 tests across 9 dimensions, 8 database-specific MDX reports, and smart trend analysis.
+Self-measured suites under `tests/benchmarks/` with per-DB MDX reports. **Not** a global “fastest CMS” ranking — numbers depend on hardware, DB, and whether you measure adapter vs full HTTP stack.
 
-### Enterprise Benchmark Matrix
+### What we measure
 
-| Capability                    | Description                                                                       |
-| ----------------------------- | --------------------------------------------------------------------------------- |
-| **48 tests, 9 dimensions**    | Baseline, Adapter, Internals, Logic, API, Scale, Resilience, Security, Governance |
-| **4 databases + Redis**       | SQLite, PostgreSQL, MariaDB, MongoDB — each with Redis on/off variants            |
-| **Trend analysis**            | Rolling median baselines, 7 root cause categories, confidence levels              |
-| **Code path recommendations** | Each regression links to specific source files to investigate                     |
-| **Differential execution**    | `--differential` runs only tests affected by recent code changes                  |
-| **8 educational reports**     | `docs/project/benchmarks/benchmark_<db>.mdx` with Measures/Budget/Code/Why        |
+| Area                           | Notes                                                                                                                              |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **4 database adapters**        | SQLite (embedded), PostgreSQL / MariaDB / MongoDB (Docker local)                                                                   |
+| **Optional Redis L2**          | Cache variants in the matrix runner                                                                                                |
+| **List / count product layer** | `findPage` vs legacy list+count; count estimate vs exact; L1 count cache hits (~0.024 ms **for count only**, not full list bodies) |
+| **Reports**                    | `docs/project/benchmarks/benchmark_<db>.mdx`                                                                                       |
 
-### Latest Results
+### Order-of-magnitude results (self-measured; re-run to refresh)
 
-| Metric                           | Value          | Budget  |
-| -------------------------------- | -------------- | ------- |
-| Cold Start                       | **381ms**      | <5000ms |
-| REST API p95                     | **0.59ms**     | <5ms    |
-| DB Raw p95                       | **0.074ms**    | <50ms   |
-| Middleware + Auth                | **1.78ms**     | <2ms    |
-| Concurrency Throughput (MariaDB) | **1,054 RPS**  | —       |
-| Concurrency Race (MariaDB)       | **100/100**    | —       |
-| Local SDK Write (SQLite)         | **41,009 RPS** | —       |
-| Local SDK Write (MariaDB)        | **6,549 RPS**  | —       |
+| Layer                                        | Typical self-measured class                |
+| -------------------------------------------- | ------------------------------------------ |
+| SQLite adapter FIND ONE                      | ~0.05–0.08 ms                              |
+| Networked adapter FIND/INSERT (local Docker) | ~0.5–2+ ms (RTT-bound)                     |
+| `findPage` vs dual `findMany`+`count`        | ~1.6–5.7× on that path (2026-08-04 matrix) |
+| L1 count cache hit                           | ~0.024–0.029 ms (all four engines)         |
 
-### How to Run
+Methodology and EU-safe competitive framing: [benchmarks](./docs/project/benchmarks/index.mdx) · [performance architecture](./docs/reference/database/performance-architecture.mdx) · [technical evaluation](./docs/project/technical-evaluation-2026.mdx).
+
+### How to run
 
 ```bash
 # Console only (safe for normal dev)
-bun test tests/benchmarks/auth-performance.test.ts
+bun test tests/benchmarks/database-performance.test.ts
 
 # Record to report
-BENCHMARK_RECORD=1 bun test tests/benchmarks/auth-performance.test.ts
+BENCHMARK_RECORD=1 bun test tests/benchmarks/database-performance.test.ts
 
-# Full matrix
+# Full matrix (long)
 bun run scripts/benchmark-matrix/index.ts --sql
-
-# Differential (only affected tests)
-bun run scripts/benchmark-matrix/index.ts --sql --differential
 ```
-
-> See `docs/project/benchmarks/index.mdx` for the complete architecture guide.
 
 ## 📚 Documentation
 
-Comprehensive documentation is available to help you get started:
-
 - 📖 **[Documentation](./docs/)** — Guides, API reference, and architecture
 - 🎯 **[Getting Started](./docs/getting-started.mdx)** — Quick start guide
+- 🗺️ **[Roadmap 2026](./docs/project/roadmap-2026.mdx)** — In-progress vs planned work
+- 🧪 **[Test status](./docs/tests/test-status.mdx)** — What to run; CI is source of truth for pass/fail
+- 🔒 **[Security](./docs/reference/security/index.mdx)** — Architecture (self-assessment, not a third-party audit)
 - 🔄 **[Upgrading SveltyCMS](./docs/guides/configuration/upgrading.mdx)** — Safe update guide
 - 🏗️ **Architecture: Database Resilience** — [./docs/architecture/database-resilience.mdx](./docs/architecture/database-resilience.mdx)
 - 🤝 **[Contributing Guide](./CONTRIBUTING.md)** — How to contribute

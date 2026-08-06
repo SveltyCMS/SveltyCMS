@@ -1,0 +1,68 @@
+---
+path: "src/routes/(app)/dashboard/widgets/calendar-view/readme.mdx"
+title: "Calendar View Dashboard Widget"
+description: "Interactive monthly calendar widget for tracking scheduled events and content milestones. Included with SveltyCMS — free."
+order: 100
+icon: "mdi:calendar-month-outline"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-05"
+tags:
+  - "dashboard"
+  - "calendar"
+  - "scheduling"
+  - "free"
+---
+
+# Calendar View Widget
+
+The **Calendar View** dashboard widget gives administrators a clear calendar overview of upcoming content publications, scheduled meetings, and project milestones directly on their main dashboard.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature         | Description                                     |
+| :-------------- | :---------------------------------------------- |
+| Month grid      | Full month view with weekday headers            |
+| Navigation      | Previous / next month controls                  |
+| Event dots      | Visual markers on days with scheduled items     |
+| Today highlight | Current day emphasized with the primary color   |
+| Client-side     | No API dependency — sample events are in-memory |
+| Rich layout     | Designed for the default 2×2 grid cell          |
+
+---
+
+## Data Source
+
+| Endpoint | Description                                          |
+| :------- | :--------------------------------------------------- |
+| —        | Static widget — all state is client-side (in-memory) |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Calendar View",
+  icon: "mdi:calendar-month-outline",
+  description:
+    "Interactive monthly calendar widget for tracking scheduled events and content milestones.",
+  defaultSize: { w: 2, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [TODO List Widget](./todo-list.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

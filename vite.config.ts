@@ -90,6 +90,7 @@ const paths = {
     process.env.COMPILED_COLLECTIONS_DIR || ".compiledCollections",
   ),
   widgets: path.resolve(CWD, "src/widgets"),
+  dashboardWidgets: path.resolve(CWD, "src/routes/(app)/dashboard/widgets"),
   themes: path.resolve(CWD, "src/themes"),
 };
 
@@ -240,7 +241,6 @@ function stubServerModulesPlugin(): Plugin {
     "/src/databases/db-utils.ts",
     "/src/databases/schemas.ts",
     "/src/databases/auth/index.ts",
-    "/src/databases/auth/session-cleanup.ts",
     "/src/databases/auth/session-manager.ts",
     "/src/databases/auth/two-factor-auth.ts",
     "/src/databases/auth/permissions.ts",
@@ -390,6 +390,9 @@ function sveltyCmsPlugin(): Plugin {
     const isWidgetFile =
       absoluteFile.startsWith(paths.widgets) &&
       (file.endsWith("index.ts") || file.endsWith(".svelte"));
+    const isDashboardWidgetFile =
+      absoluteFile.startsWith(paths.dashboardWidgets) &&
+      (file.endsWith(".svelte") || file.endsWith("widget.json") || file.endsWith(".mdx"));
     const isPrivateConfig = absoluteFile === paths.privateConfig;
 
     if (isPrivateConfig) {
@@ -502,6 +505,19 @@ function sveltyCmsPlugin(): Plugin {
         } catch (e) {
           log.error("Widget reload failed:", e);
         }
+      }, 150);
+    }
+
+    if (isDashboardWidgetFile) {
+      // Dashboard widget packages are discovered via import.meta.glob at
+      // page-load — a full reload re-evaluates the glob, picking up new
+      // folders (added/removed packages) the same way the custom-widget
+      // watcher handles src/widgets. Changed components get Vite HMR plus
+      // this reload for a consistent registry.
+      clearTimeout(widgetTimeout);
+      widgetTimeout = setTimeout(() => {
+        server.ws.send({ type: "full-reload", path: "*" });
+        log.success("Dashboard widgets reloaded.");
       }, 150);
     }
 

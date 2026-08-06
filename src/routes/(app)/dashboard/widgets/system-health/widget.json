@@ -1,0 +1,17 @@
+{
+  "id": "system-health",
+  "name": "System Health",
+  "description": "Monitor system services and overall health",
+  "icon": "mdi:heart-pulse",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "free",
+  "price": 0,
+  "component": "index",
+  "defaultSize": {
+    "w": 2,
+    "h": 2
+  },
+  "category": "monitoring"
+}

@@ -195,9 +195,26 @@ export class PostgresQueryBuilder<T extends BaseEntity> implements QueryBuilder<
   }
 
   paginate(options: PaginationOptions): this {
-    if (options.page && options.pageSize) {
-      this.limit(options.pageSize);
-      this.skip((options.page - 1) * options.pageSize);
+    // Keyset cursor pagination: O(1) seek via index instead of O(N) offset skip
+    if (options.cursor) {
+      const direction = options.cursorDirection || "after";
+      const idCol = (
+        this.table as unknown as Record<string, import("drizzle-orm/pg-core").PgColumn>
+      )["_id"];
+      if (idCol) {
+        if (direction === "after") {
+          this.conditions.push(sql`${idCol} > ${options.cursor}`);
+          this.sort("_id" as keyof T, "asc");
+        } else {
+          this.conditions.push(sql`${idCol} < ${options.cursor}`);
+          this.sort("_id" as keyof T, "desc");
+        }
+      }
+      this.limitValue = options.pageSize || options.limit || 20;
+    } else if (options.page && options.pageSize) {
+      // Fallback: offset-based pagination
+      this.offsetValue = (options.page - 1) * options.pageSize;
+      this.limitValue = options.pageSize;
     }
     if (options.sortField && options.sortDirection) {
       this.sort(options.sortField as keyof T, options.sortDirection);

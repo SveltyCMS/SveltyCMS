@@ -32,7 +32,9 @@ export function gitOutput(args: string[]): string {
       encoding: "utf8" as const,
       cwd: process.cwd(),
       stdio: ["ignore", "pipe", "pipe"],
-      shell: IS_WINDOWS,
+      // No shell: array args must reach git verbatim (shell: true on Windows
+      // joins them unquoted, word-splitting -m "multi word message").
+      shell: false,
     });
     return (result.stdout || "").trim();
   } catch {
@@ -182,7 +184,8 @@ function checkHooksConfig(): string | null {
 function runGit(args: string[]) {
   const result = spawnSync("git", args, {
     stdio: "inherit",
-    shell: IS_WINDOWS,
+    // No shell: preserves argument boundaries (see gitOutput note).
+    shell: false,
   });
   if (result.status !== 0) process.exit(result.status ?? 1);
 }

@@ -38,6 +38,15 @@ const { mockGetCollections, mockInitialize, mockEmptyData } = vi.hoisted(() => (
   mockEmptyData: { success: true, data: [] },
 }));
 
+const { mockInvalidateRolesCache, mockInvalidatePermissionCache } = vi.hoisted(() => ({
+  mockInvalidateRolesCache: vi.fn(async () => undefined),
+  mockInvalidatePermissionCache: vi.fn(),
+}));
+
+const { mockClearTurboAuthCache } = vi.hoisted(() => ({
+  mockClearTurboAuthCache: vi.fn(),
+}));
+
 // Mock node:fs/promises
 vi.mock("node:fs/promises", () => ({
   default: { mkdir: mockMkdir, writeFile: mockWriteFile, readFile: vi.fn(), readdir: vi.fn() },
@@ -96,6 +105,9 @@ vi.mock("@src/databases/db", () => ({
       validateSession: vi.fn(),
       createSessionCookie: vi.fn(),
       authInterface: {},
+      createRole: vi.fn().mockResolvedValue({ success: true }),
+      updateRole: vi.fn().mockResolvedValue({ success: true }),
+      deleteRole: vi.fn().mockResolvedValue({ success: true }),
     },
     system: {
       preferences: {
@@ -128,6 +140,19 @@ vi.mock("@src/databases/db", () => ({
   ensureFullInitialization: vi.fn(),
   getDbInitPromise: vi.fn(() => Promise.resolve()),
   dbInitPromise: Promise.resolve(),
+}));
+
+// Mock role/permission cache invalidation modules (dynamically imported by performImport)
+vi.mock("@src/hooks/handle-authorization", () => ({
+  invalidateRolesCache: mockInvalidateRolesCache,
+}));
+
+vi.mock("@src/databases/auth/permissions", () => ({
+  invalidatePermissionCache: mockInvalidatePermissionCache,
+}));
+
+vi.mock("@src/hooks/handle-turbo-get", () => ({
+  clearTurboAuthCache: mockClearTurboAuthCache,
 }));
 
 // Mock @src/content/index.server — used by source scanners
@@ -490,6 +515,51 @@ describe("ConfigService", () => {
 
       // Should have detected the new item and attempted upsert
       expect(mockUpsert).toHaveBeenCalled();
+    });
+
+    it("invalidates roles + permission caches when a role entity is imported", async () => {
+      await service.performImport({
+        tenantId: "t-1",
+        changes: {
+          new: [makeConfigEntity("r1", { name: "editor", type: "role" })],
+          updated: [],
+          deleted: [],
+        },
+      });
+
+      expect(mockInvalidateRolesCache).toHaveBeenCalledWith("t-1");
+      expect(mockInvalidatePermissionCache).toHaveBeenCalled();
+      expect(mockClearTurboAuthCache).toHaveBeenCalled();
+    });
+
+    it("invalidates caches when a role is deleted via import", async () => {
+      await service.performImport({
+        tenantId: "t-1",
+        changes: {
+          new: [],
+          updated: [],
+          deleted: [makeConfigEntity("r1", { name: "editor", type: "role" })],
+        },
+      });
+
+      expect(mockInvalidateRolesCache).toHaveBeenCalledWith("t-1");
+      expect(mockInvalidatePermissionCache).toHaveBeenCalled();
+      expect(mockClearTurboAuthCache).toHaveBeenCalled();
+    });
+
+    it("does not invalidate caches when no role entities are imported", async () => {
+      await service.performImport({
+        tenantId: "t-1",
+        changes: {
+          new: [makeConfigEntity("c1", { name: "blog" })],
+          updated: [],
+          deleted: [makeConfigEntity("c2", { name: "stale" })],
+        },
+      });
+
+      expect(mockInvalidateRolesCache).not.toHaveBeenCalled();
+      expect(mockInvalidatePermissionCache).not.toHaveBeenCalled();
+      expect(mockClearTurboAuthCache).not.toHaveBeenCalled();
     });
   });
 

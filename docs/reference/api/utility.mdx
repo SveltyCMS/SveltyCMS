@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/api/utility.mdx"
 title: "Utilities (utility.ts)"
-description: "Reference for system helper services — cache management, trash recovery, email dispatching, OpenAPI spec, Swagger UI, version checking, and diagnostics."
+description: "Reference for system helper services — cache management, trash recovery, email, OpenAPI, version checking, diagnostics, and marketplace catalog."
 order: 20
 icon: "mdi:hammer-wrench"
 author: "SveltyCMS Team"
 created: "2026-03-24"
-updated: "2026-06-15"
+updated: "2026-08-04"
 tags:
   - "api"
   - "utility"
@@ -28,19 +28,20 @@ The Utilities API provides a set of essential maintenance and support services t
 
 ## ⚡ Quick Reference
 
-| Feature                 | HTTP Endpoint        | Method | Admin Only |
-| :---------------------- | :------------------- | :----- | :--------: |
-| **OpenAPI Spec**        | `/api/openapi.json`  | `GET`  |     ✅     |
-| **Swagger UI**          | `/api/docs`          | `GET`  |     —      |
-| **Cache Clear**         | `/api/cache/clear`   | `POST` |     ✅     |
-| **Cache Stats**         | `/api/cache/stats`   | `GET`  |     ✅     |
-| **Trash List**          | `/api/trash`         | `GET`  |     ✅     |
-| **Restore Entry**       | `/api/trash/restore` | `POST` |     ✅     |
-| **Send Email**          | `/api/send-mail`     | `POST` |     ✅     |
-| **Version Check**       | `/api/version-check` | `GET`  |     ✅     |
-| ~~**Config Sync**~~     | `/api/config_sync`   | `GET`  |     ✅     |
-| **Debug / Diagnostics** | `/api/debug`         | `GET`  |     ✅     |
-| **Marketplace**         | `/api/marketplace`   | `GET`  |     ✅     |
+| Feature                 | HTTP Endpoint              | Method | Admin Only |
+| :---------------------- | :------------------------- | :----- | :--------: |
+| **OpenAPI Spec**        | `/api/openapi.json`        | `GET`  |     ✅     |
+| **Swagger UI**          | `/api/docs`                | `GET`  |     —      |
+| **Cache Clear**         | `/api/cache/clear`         | `POST` |     ✅     |
+| **Cache Stats**         | `/api/cache/stats`         | `GET`  |     ✅     |
+| **Trash List**          | `/api/trash`               | `GET`  |     ✅     |
+| **Restore Entry**       | `/api/trash/restore`       | `POST` |     ✅     |
+| **Send Email**          | `/api/send-mail`           | `POST` |     ✅     |
+| **Version Check**       | `/api/version-check`       | `GET`  |     ✅     |
+| ~~**Config Sync**~~     | `/api/config_sync`         | `GET`  |     ✅     |
+| **Debug / Diagnostics** | `/api/debug`               | `GET`  |     ✅     |
+| **Marketplace catalog** | `/api/marketplace`         | `GET`  |     ✅     |
+| **Marketplace install** | `/api/marketplace/install` | `POST` |     ✅     |
 
 ---
 
@@ -146,9 +147,32 @@ Returns system diagnostics including uptime, memory usage, and environment info.
 
 ### Marketplace
 
-Placeholder endpoint for the extensions marketplace.
+Offline-first in-app catalog for themes, plugins, and related packages (Phase 2). Backed by `MarketplaceService` — local themes/plugin stubs always, remote marketplace.sveltycms.com when reachable (via `marketplace-client`, 30 min cache).
 
-**Endpoint**: `GET /api/marketplace`
+**List catalog** — `GET /api/marketplace`
+
+| Query    | Description                                           |
+| :------- | :---------------------------------------------------- |
+| `type`   | Optional: `theme` \| `widget` \| `plugin` \| `preset` |
+| `search` | Optional free-text over name/description              |
+
+**Response** (`data`):
+
+| Field             | Type    | Description                                      |
+| :---------------- | :------ | :----------------------------------------------- |
+| `source`          | string  | `local` \| `remote` \| `mixed`                   |
+| `remoteAvailable` | boolean | Whether remote catalog contributed items         |
+| `items`           | array   | Catalog rows (`id`, `name`, `type`, `source`, …) |
+
+**Install** — `POST /api/marketplace/install` (admin only)
+
+```json
+{ "itemId": "theme-or-package-id" }
+```
+
+Today installs themes via `adminThemeService`; remote one-click package install remains a Phase 2 follow-up. See [Marketplace architecture](../architecture/marketplace.mdx).
+
+**UI**: Config → Extensions → Marketplace (`marketplace-view.svelte`).
 
 ---
 
@@ -166,6 +190,7 @@ graph LR
     A --> E[ApiSpecService]
     A --> F[VersionCheckService]
     A --> G[Debug / Diagnostics]
+    A --> H[MarketplaceService]
 ```
 
 ### Access Control
@@ -176,6 +201,7 @@ All utility namespaces are absent from the `ENDPOINT_PERMISSIONS` mapping in the
 
 ## Related Documents
 
+- [Marketplace architecture](../architecture/marketplace.mdx)
 - [System Reference (system.ts)](./system.mdx)
 - [Content Reference (content.ts)](./content.mdx)
 - [API Coverage Report](./api-coverage-report.mdx)

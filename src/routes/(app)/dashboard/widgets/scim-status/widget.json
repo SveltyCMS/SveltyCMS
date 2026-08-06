@@ -1,0 +1,17 @@
+{
+  "id": "scim-status",
+  "name": "Identity Sync",
+  "description": "Monitor SCIM identity synchronization status",
+  "icon": "mdi:cloud-sync",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "paid",
+  "price": 12.99,
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 2
+  },
+  "category": "static"
+}

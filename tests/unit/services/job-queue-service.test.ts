@@ -45,6 +45,7 @@ vi.mock("@src/services/background/jobs/translation-jobs", () => ({
 }));
 vi.mock("@src/services/background/jobs/scheduled-jobs", () => ({
   scheduledPublishHandler: vi.fn(),
+  sessionCleanupHandler: vi.fn(),
 }));
 
 // Import after mocks — module singleton
@@ -75,6 +76,20 @@ describe("JobQueueService", () => {
     it("registerHandler accepts a custom handler without throwing", () => {
       const handler = vi.fn();
       expect(() => jobQueue.registerHandler("custom-task", handler)).not.toThrow();
+    });
+
+    it("session-cleanup handler is registered and dispatchable", async () => {
+      createJobMock.mockResolvedValue({
+        success: true,
+        data: { _id: "job-cleanup-1" },
+      });
+      getNextReadyMock.mockResolvedValue({ success: true, data: [] });
+
+      const id = await jobQueue.dispatch("session-cleanup", {});
+      expect(id).toBe("job-cleanup-1");
+      expect(createJobMock).toHaveBeenCalledWith(
+        expect.objectContaining({ taskType: "session-cleanup" }),
+      );
     });
 
     it("dispatch returns null when DB adapter is not ready", async () => {

@@ -104,6 +104,9 @@ const effectiveType = $derived(showPassword && type === 'security' ? 'text' : ty
 /** 22px — 18px icon + 4px breathing room */
 const inputPaddingStart = $derived(icon ? 'ps-7' : 'ps-2');
 const labelStart = $derived(icon ? 'start-5' : 'start-2');
+/** Legacy `textColor` literals are rendered as inline colors; anything else is a Tailwind class string */
+const colorLiteral = $derived(textColor === 'black' || textColor === 'white');
+const colorClass = $derived(textColor && !colorLiteral ? textColor : '');
 
 $effect(() => {
 	if (autofocus && inputElement) {
@@ -199,14 +202,17 @@ function handlePaste(e: ClipboardEvent) {
 							'border-surface-300 focus:border-tertiary-600 focus:outline-2 focus:outline-tertiary-600 dark:border-surface-400 dark:focus:border-tertiary-500 dark:focus:outline-tertiary-500',
 							textColor === 'black'
 								? 'bg-white  focus:bg-white focus:text-black text-surface-900'
-								: 'bg-[#242728] text-white focus:bg-[#242728] focus:text-white'
+								: textColor === 'white'
+									? 'bg-[#242728] text-white focus:bg-[#242728] focus:text-white'
+									: 'bg-surface-50 text-surface-900 focus:bg-surface-50 focus:text-surface-900 dark:bg-[#242728] dark:text-white dark:focus:bg-[#242728] dark:focus:text-white',
+							colorClass,
 					  ),
 				invalid && 'border-error-500! dark:border-error-500!',
 				type === 'security' && 'pe-10',
-				textColor === 'black' ? 'autofill-light' : 'autofill-dark',
+				textColor === 'black' ? 'autofill-light' : textColor === 'white' ? 'autofill-dark' : 'autofill-theme',
 				inputClass
 			)}
-			style={textColor ? `color: ${textColor}` : undefined}
+			style={colorLiteral ? `color: ${textColor}` : undefined}
 			placeholder=" "
 			id={currentId}
 			{...rest}
@@ -296,6 +302,43 @@ function handlePaste(e: ClipboardEvent) {
 		color-scheme: dark;
 	}
 
+	:global(.autofill-theme) {
+		color-scheme: light;
+	}
+
+	:global(.dark .autofill-theme) {
+		color-scheme: dark;
+	}
+
+	/* Theme-aware autofill (default branch) — light box in light mode, dark box in dark mode */
+	:global(.autofill-theme:autofill),
+	:global(.autofill-theme:-webkit-autofill),
+	:global(.autofill-theme:-webkit-autofill:hover),
+	:global(.autofill-theme:-webkit-autofill:focus),
+	:global(.autofill-theme:-webkit-autofill:active) {
+		-webkit-box-shadow: 0 0 0 1000px white inset !important;
+		box-shadow: 0 0 0 1000px white inset !important;
+		-webkit-text-fill-color: black !important;
+		caret-color: black !important;
+		background-color: white !important;
+		color: black !important;
+		transition: background-color 99999s ease-out 0s;
+	}
+
+	:global(.dark .autofill-theme:autofill),
+	:global(.dark .autofill-theme:-webkit-autofill),
+	:global(.dark .autofill-theme:-webkit-autofill:hover),
+	:global(.dark .autofill-theme:-webkit-autofill:focus),
+	:global(.dark .autofill-theme:-webkit-autofill:active) {
+		-webkit-box-shadow: 0 0 0 1000px #242728 inset !important;
+		box-shadow: 0 0 0 1000px #242728 inset !important;
+		-webkit-text-fill-color: white !important;
+		caret-color: white !important;
+		background-color: #242728 !important;
+		color: white !important;
+		transition: background-color 99999s ease-out 0s;
+	}
+
 	/* Standard autofill */
 	:global(.autofill-light:autofill),
 	:global(.autofill-light:-webkit-autofill),
@@ -332,6 +375,16 @@ function handlePaste(e: ClipboardEvent) {
 	}
 
 	:global(.autofill-dark)::selection {
+		background-color: color-mix(in srgb, var(--color-tertiary-500, #0ea5e9) 45%, #242728);
+		color: white;
+	}
+
+	:global(.autofill-theme)::selection {
+		background-color: color-mix(in srgb, var(--color-tertiary-500, #0ea5e9) 35%, white);
+		color: black;
+	}
+
+	:global(.dark .autofill-theme)::selection {
 		background-color: color-mix(in srgb, var(--color-tertiary-500, #0ea5e9) 45%, #242728);
 		color: white;
 	}

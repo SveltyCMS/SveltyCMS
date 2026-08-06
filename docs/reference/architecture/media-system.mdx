@@ -408,14 +408,14 @@ Next getMediaReferences() call
 
 > Added 2026-07-16 — true streaming multipart parser with backpressure, replacing the previous TextDecoder→TextEncoder implementation that corrupted binary uploads.
 
-### Problem
+### Problem {#streaming-upload-problem}
 
 The previous `streaming-upload.ts` had two critical bugs:
 
 1. **Binary corruption**: `TextDecoder`→`TextEncoder` round-trip replaced non-UTF8 bytes with replacement characters
 2. **Not streaming**: Read the entire request body into RAM before parsing — OOM on large files
 
-### Solution
+### Solution {#streaming-upload-solution}
 
 A byte-level state machine (`streaming-upload.ts`) that processes `ReadableStream` chunks incrementally:
 

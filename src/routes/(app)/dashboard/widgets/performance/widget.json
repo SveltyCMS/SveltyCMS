@@ -1,0 +1,16 @@
+{
+  "id": "performance",
+  "name": "Performance Monitor",
+  "description": "Track system performance metrics",
+  "icon": "mdi:chart-line",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "freemium",
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 2
+  },
+  "category": "monitoring"
+}

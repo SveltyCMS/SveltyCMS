@@ -15,7 +15,7 @@ import { logger } from "@utils/logger";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
-export type PluginType = "widget" | "plugin" | "theme" | "integration";
+export type PluginType = "widget" | "plugin" | "theme" | "dashboard" | "preset" | "integration";
 
 export type LicenseTier = "free" | "pro" | "enterprise";
 
@@ -277,4 +277,22 @@ export async function installPlugin(pluginId: string): Promise<MarketplacePlugin
  */
 export function setLicenseKey(key: string): void {
   marketplace.setLicense(key);
+}
+
+/**
+ * Install a dashboard widget package from the marketplace into the local project.
+ * Dashboard widgets live in self-contained kebab-case folders under
+ * `src/routes/(app)/dashboard/widgets/<folder>/` and are discovered at build
+ * time via `import.meta.glob` — no manual registration required.
+ *
+ * The marketplace package must set `installPath` to
+ * `src/routes/(app)/dashboard/widgets/<folder>` and include the widget's
+ * `.svelte` component, `widget.json` manifest, and optional `.mdx` docs.
+ */
+export async function installDashboardWidget(widgetId: string): Promise<MarketplacePlugin> {
+  const plugin = await installPlugin(widgetId);
+  logger.info(
+    `[Marketplace] Dashboard widget ${plugin.name} v${plugin.version} installed to ${plugin.installPath} — restart the dev server to pick it up`,
+  );
+  return plugin;
 }

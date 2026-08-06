@@ -5,6 +5,7 @@
  * Features:
  * - User authentication and authorization
  * - Compile-time widget discovery via import.meta.glob (zero runtime FS scan)
+ * - Marketplace-portable widget packages (widgets/<folder>/<component>.svelte + widget.json)
  * - Server-side UUID v4 generation for new widgets
  */
 
@@ -18,23 +19,29 @@ import type { Actions, PageServerLoad } from "./$types";
 interface WidgetInfo {
   componentName: string;
   description?: string;
+  folder: string;
   icon: string;
   name: string;
 }
 
 // Compile-time widget discovery — Vite resolves this at build time.
+// Each widget lives in its own package folder: widgets/<folder>/<component>.svelte.
 // Zero runtime FS scan, zero dynamic imports, zero blocking I/O.
 const _widgetModules = import.meta.glob<{
   widgetMeta?: { name: string; icon: string; description?: string };
-}>("./widgets/*.svelte", { eager: true });
+}>("./widgets/*/*.svelte", { eager: true });
 
 // Pre-compute widget list once at module load
 const _widgets: WidgetInfo[] = Object.entries(_widgetModules)
   .map(([path, mod]) => {
-    const componentName = path.split("/").pop()!.replace(".svelte", "");
+    // path like "./widgets/system-health/system-health-widget.svelte"
+    const segments = path.split("/");
+    const folder = segments[segments.length - 2] ?? "";
+    const componentName = segments[segments.length - 1]!.replace(".svelte", "");
     if (mod.widgetMeta) {
       return {
         componentName,
+        folder,
         name: mod.widgetMeta.name,
         icon: mod.widgetMeta.icon,
         description: mod.widgetMeta.description,
@@ -49,6 +56,7 @@ const _widgets: WidgetInfo[] = Object.entries(_widgetModules)
       .join(" ");
     return {
       componentName,
+      folder,
       name,
       icon: "mdi:widgets",
       description: "Dashboard widget",
@@ -97,9 +105,10 @@ export const load: PageServerLoad = async ({ locals }) => {
   const hotIds = new Set(hotCollections.map((c) => c.id));
 
   // Sort: widgets matching hot collections first, then by original order
+  // Sort: widgets matching hot collections first, then by original order
   const sortedWidgets = [..._widgets].sort((a, b) => {
-    const aHot = hotIds.has(a.componentName);
-    const bHot = hotIds.has(b.componentName);
+    const aHot = hotIds.has(a.folder) || hotIds.has(a.componentName);
+    const bHot = hotIds.has(b.folder) || hotIds.has(b.componentName);
     if (aHot && !bHot) return -1;
     if (!aHot && bHot) return 1;
     return 0;

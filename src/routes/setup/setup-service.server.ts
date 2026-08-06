@@ -75,6 +75,9 @@ export async function testAndCreateDatabase(
 
     if (isMissing && createIfMissing) {
       try {
+        // Pre-auth wizard input reaches raw DDL below — allowlist the identifier.
+        const { assertSafeSqlIdentifier } = await import("@databases/core/relational-utils");
+        assertSafeSqlIdentifier(dbConfig.name, "database name");
         if (process.env.BENCHMARK_DEBUG === "true") {
           logger.info("🛠 Attempting to create missing database:", dbConfig.name);
         }

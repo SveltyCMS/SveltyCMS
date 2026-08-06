@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/database/mongodb-implementation.mdx"
 title: "MongoDB Implementation"
-description: "Complete MongoDB-specific implementation guide covering optimizations, indexes, connection pooling, cursor pagination, streaming, and performance tuning for SveltyCMS."
+description: "Complete MongoDB-specific implementation guide covering optimizations, estimatedDocumentCount, findPage, indexes, connection pooling, and performance tuning for SveltyCMS."
 order: 4
 icon: "mdi:leaf"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-06-27"
+updated: "2026-08-04"
 tags:
   - database
   - mongodb
@@ -56,8 +56,29 @@ This guide covers the **MongoDB-specific** implementation in SveltyCMS, includin
 - **85-95% cache hit rate** with dual-layer Redis + MongoDB.
 - **79% smaller payloads** via smart field selection.
 - **O(log n) queries** through comprehensive indexing.
-
 - **Automatic Indexing**: Background `IndexOptimizer` ensures fields remain optimized as schemas change.
+
+### Count estimate + `findPage` (shared contract)
+
+Mongo implements the same product APIs as SQL adapters:
+
+| API                                          | Mongo path                                                         | Notes                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------- |
+| `count(..., { mode: "estimate" \| "auto" })` | `estimatedDocumentCount()` when filter empty **and** no `tenantId` | WiredTiger metadata — avoids full `countDocuments` scan |
+| `count` filtered / tenant-scoped             | `countDocuments(secureQuery)`                                      | Exact; short-lived L1 cache still applies               |
+| `findPage`                                   | `findMany` with `limit + 1` via `MongoCrudMethods.findPage`        | Prefer over `findMany` + `count` for lists              |
+
+**Measured (2026-08-04, local Docker Mongo, no Redis):**
+
+| Scenario               |          Avg | Gain                               |
+| ---------------------- | -----------: | ---------------------------------- |
+| FIND PAGE (50 hasMore) | **0.833 ms** | **~5.9×** vs LIST+COUNT (4.904 ms) |
+| COUNT exact (filtered) |     4.607 ms | baseline scan path                 |
+| COUNT ESTIMATE         | **0.435 ms** | **~10.6×** vs exact                |
+| COUNT CACHED (L1)      | **0.024 ms** | **~192×** vs exact                 |
+
+Full cross-engine table: [Performance Architecture](./performance-architecture.mdx#product-layer-list--count-equal-on-all-engines).
+
 - **O(1) pagination** with cursor-based navigation.
 - **O(1) memory** with streaming for large datasets.
 - **Atomic Versioning**: Native `$inc` support for `system:content_version` tracking.

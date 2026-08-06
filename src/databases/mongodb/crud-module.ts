@@ -9,7 +9,10 @@ import type {
   DatabaseResult,
   QueryFilter,
   BaseQueryOptions,
+  CountOptions,
   FindOptions,
+  FindPageOptions,
+  FindPageResult,
   EntityCreate,
   EntityUpdate,
   BaseEntity,
@@ -45,9 +48,17 @@ export class MongoCrudModule extends DatabaseModule<MongoAdapterCore> implements
   async count<T extends BaseEntity>(
     collection: string,
     query?: QueryFilter<T>,
-    options?: BaseQueryOptions & { includeDeleted?: boolean },
+    options?: CountOptions,
   ): Promise<DatabaseResult<number>> {
     return this._getRepo(collection).count(query || {}, options);
+  }
+
+  async findPage<T extends BaseEntity>(
+    collection: string,
+    query?: QueryFilter<T>,
+    options?: FindPageOptions<T>,
+  ): Promise<DatabaseResult<FindPageResult<T>>> {
+    return this._getRepo(collection).findPage(query || {}, options);
   }
 
   async delete(

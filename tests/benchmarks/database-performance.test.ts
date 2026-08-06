@@ -73,9 +73,18 @@ export async function runDatabaseBenchmark() {
       { name: "INSERT", fn: createInsertTest(db) },
       { name: "FIND ONE", fn: createFindOneTest(db) },
       { name: "FIND MANY (limit 50)", fn: createFindManyTest(db) },
+      // 🚀 findPage: limit+1 hasMore without COUNT(*) — product list default
+      { name: "FIND PAGE (50 hasMore)", fn: createFindPageTest(db) },
+      // Keyset second page (cursor) vs OFFSET deep page
+      { name: "FIND PAGE keyset", fn: createFindPageKeysetTest(db) },
+      { name: "FIND MANY offset 50", fn: createFindManyOffsetTest(db) },
+      // Legacy dual-query list+count for before/after comparison
+      { name: "LIST+COUNT (legacy)", fn: createLegacyListCountTest(db) },
       { name: "UPDATE", fn: createUpdateTest(db) },
       { name: "NATIVE UPSERT", fn: createUpsertNativeTest(db) },
       { name: "COUNT", fn: createCountTest(db) },
+      { name: "COUNT ESTIMATE", fn: createCountEstimateTest(db) },
+      { name: "COUNT CACHED", fn: createCountCachedTest(db) },
       { name: "DELETE", fn: createDeleteTest(db) },
       { name: "BULK INSERT (100)", fn: createBulkInsertTest(db) },
     ].filter((s) => s.fn !== null);
@@ -283,8 +292,120 @@ function createUpsertNativeTest(db: any) {
 function createCountTest(db: any) {
   const countFilter = Object.freeze({ status: "active" });
   return async () => {
-    const res = await db.crud.count(COLLECTION_ID, countFilter, GLOBAL_TENANT_OPTS);
+    const res = await db.crud.count(COLLECTION_ID, countFilter, {
+      ...GLOBAL_TENANT_OPTS,
+      mode: "exact",
+      bypassCache: true,
+    });
     assertSuccess(res, "count");
+  };
+}
+
+function createFindPageTest(db: any) {
+  const queryFilter = Object.freeze({ tenantId: TEST_TENANT });
+  const pageOpts = Object.freeze({
+    limit: 50,
+    tenantId: TEST_TENANT,
+    total: "none" as const,
+    skipMeta: true,
+  });
+  return async () => {
+    const res = await db.crud.findPage(COLLECTION_ID, queryFilter, pageOpts);
+    assertSuccess(res, "findPage");
+  };
+}
+
+/** Warm a cursor once, then measure keyset second-page latency. */
+function createFindPageKeysetTest(db: any) {
+  const queryFilter = Object.freeze({ tenantId: TEST_TENANT });
+  let cursor: string | undefined;
+  return async () => {
+    if (!cursor) {
+      const first = await db.crud.findPage(COLLECTION_ID, queryFilter, {
+        limit: 20,
+        tenantId: TEST_TENANT,
+        total: "none",
+        skipMeta: true,
+      });
+      assertSuccess(first, "findPage warm");
+      cursor = first.data?.nextCursor;
+      if (!cursor) {
+        // Not enough rows for hasMore — still exercise first page path
+        return;
+      }
+    }
+    const res = await db.crud.findPage(COLLECTION_ID, queryFilter, {
+      limit: 20,
+      tenantId: TEST_TENANT,
+      total: "none",
+      skipMeta: true,
+      cursor,
+    });
+    assertSuccess(res, "findPage keyset");
+  };
+}
+
+function createFindManyOffsetTest(db: any) {
+  const queryFilter = Object.freeze({ tenantId: TEST_TENANT });
+  return async () => {
+    const res = await db.crud.findMany(COLLECTION_ID, queryFilter, {
+      limit: 20,
+      offset: 50,
+      tenantId: TEST_TENANT,
+      skipMeta: true,
+    });
+    assertSuccess(res, "findMany offset");
+  };
+}
+
+/** Legacy pattern: findMany + exact count in parallel (what list UIs used to do). */
+function createLegacyListCountTest(db: any) {
+  const queryFilter = Object.freeze({ tenantId: TEST_TENANT });
+  return async () => {
+    const [listRes, countRes] = await Promise.all([
+      db.crud.findMany(COLLECTION_ID, queryFilter, MANY_READ_OPTS),
+      db.crud.count(COLLECTION_ID, queryFilter, {
+        ...GLOBAL_TENANT_OPTS,
+        mode: "exact",
+        bypassCache: true,
+        skipMeta: true,
+      }),
+    ]);
+    assertSuccess(listRes, "findMany");
+    assertSuccess(countRes, "count");
+  };
+}
+
+/** Unfiltered estimate path (metadata / estimatedDocumentCount). */
+function createCountEstimateTest(db: any) {
+  const empty = Object.freeze({});
+  const opts = Object.freeze({
+    mode: "estimate" as const,
+    bypassCache: true,
+    skipMeta: true,
+  });
+  return async () => {
+    const res = await db.crud.count(COLLECTION_ID, empty, opts);
+    assertSuccess(res, "countEstimate");
+  };
+}
+
+/** Second+ hits should hit L1 count cache (warm once then measure). */
+function createCountCachedTest(db: any) {
+  const countFilter = Object.freeze({ status: "active" });
+  const opts = Object.freeze({
+    ...GLOBAL_TENANT_OPTS,
+    mode: "exact" as const,
+    skipMeta: true,
+  });
+  let warmed = false;
+  return async () => {
+    if (!warmed) {
+      await db.crud.count(COLLECTION_ID, countFilter, opts);
+      warmed = true;
+    }
+    const res = await db.crud.count(COLLECTION_ID, countFilter, opts);
+    assertSuccess(res, "countCached");
   };
 }
 

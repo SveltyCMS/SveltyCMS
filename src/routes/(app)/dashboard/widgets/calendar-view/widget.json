@@ -1,0 +1,17 @@
+{
+  "id": "calendar-view",
+  "name": "Calendar View",
+  "description": "Interactive monthly calendar widget for tracking scheduled events and content milestones.",
+  "icon": "mdi:calendar-month-outline",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS Team",
+  "license": "free",
+  "price": 0,
+  "component": "index",
+  "defaultSize": {
+    "w": 2,
+    "h": 2
+  },
+  "category": "static"
+}

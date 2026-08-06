@@ -172,11 +172,17 @@ export const getActiveSessions = query(
 
 export const revokeSession = query(
   "unchecked",
-  async (sessionId: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+  async (opts: {
+    sessionId: string;
+    reauthToken?: string;
+  }): Promise<{ success: boolean; message?: string; error?: string }> => {
     const event = getRequestEvent();
-    const r = await event.fetch(`/api/user/sessions/${sessionId}`, {
+    const r = await event.fetch(`/api/user/sessions/${opts.sessionId}`, {
       method: "DELETE",
-      headers: remoteJsonHeaders(event.cookies),
+      headers: {
+        ...remoteJsonHeaders(event.cookies),
+        ...(opts.reauthToken ? { "x-reauth-token": opts.reauthToken } : {}),
+      },
     });
     const d = await r.json().catch(() => ({}));
     return r.ok
@@ -188,5 +194,28 @@ export const revokeSession = query(
           success: false,
           error: (d as { message?: string }).message || "Revoke failed",
         };
+  },
+);
+
+/**
+ * Password re-authentication proof (5-min, session-bound) required for
+ * cross-session revocation — Laravel-style protection against a stolen
+ * session revoking the real user's other devices.
+ */
+export const reauthForSessionManagement = query(
+  "unchecked",
+  async (password: string): Promise<{ token?: string; error?: string }> => {
+    const event = getRequestEvent();
+    const r = await event.fetch(`/api/user/sessions/reauth`, {
+      method: "POST",
+      headers: remoteJsonHeaders(event.cookies),
+      body: JSON.stringify({ password }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      return { error: (d as { message?: string }).message || "Verification failed" };
+    }
+    const data = (d as { data?: { token?: string } }).data || (d as { token?: string });
+    return { token: data?.token };
   },
 );

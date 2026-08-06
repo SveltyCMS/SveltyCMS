@@ -1,0 +1,16 @@
+{
+  "id": "cache-monitor",
+  "name": "Cache Performance",
+  "description": "Monitor cache efficiency and size",
+  "icon": "mdi:cached",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "freemium",
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 2
+  },
+  "category": "monitoring"
+}

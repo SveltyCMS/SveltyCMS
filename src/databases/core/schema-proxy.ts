@@ -66,6 +66,8 @@ export function createSchemaProxy(adapter: IDBAdapter): any {
 
         wrapper = {
           find: (options?: any) => target.crud.findMany(prop, options?.filter || {}, options),
+          /** Preferred list path: hasMore via limit+1, optional total, keyset cursor. */
+          findPage: (options?: any) => target.crud.findPage(prop, options?.filter || {}, options),
           findById: (id: string, options?: any) =>
             target.crud.findOne(prop, { _id: toDbId(id) } as any, options),
           create: (data: any, options?: any) => target.crud.insert(prop, data, options),

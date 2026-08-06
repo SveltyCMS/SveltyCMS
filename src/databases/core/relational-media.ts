@@ -6,8 +6,9 @@
  */
 
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
-import { logger } from "@src/utils/logger";
-import { and, asc, count, desc, eq, ilike, inArray, isNull, like, or } from "drizzle-orm";
+import { logger } from "@utils/logger";
+import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
+import { escapeLikePattern } from "./drizzle-sql-helpers";
 import type {
   DatabaseId,
   DatabaseResult,
@@ -143,24 +144,29 @@ export class RelationalMediaModule implements IMediaAdapter {
               if (column) q = q.orderBy(order(column));
             }
 
+            // 🚀 findPage pattern: limit+1 for hasNextPage; parallel COUNT for total
             const limit = options?.pageSize || 20;
             const offset = ((options?.page || 1) - 1) * limit;
-            q = q.limit(limit).offset(offset);
+            q = q.limit(limit + 1).offset(offset);
 
-            const results = await q;
-            const [countResult] = await this.getDb(options)
-              .select({ count: count() })
-              .from(this.schema.mediaItems)
-              .where(and(...conditions));
+            const [results, countRows] = await Promise.all([
+              q,
+              this.getDb(options)
+                .select({ count: count() })
+                .from(this.schema.mediaItems)
+                .where(and(...conditions)),
+            ]);
 
-            const total = Number(countResult?.count || 0);
+            const hasNextPage = results.length > limit;
+            const pageRows = hasNextPage ? results.slice(0, limit) : results;
+            const total = Number(countRows[0]?.count || 0);
 
             return {
-              items: utils.convertArrayDatesToISO(results) as unknown as MediaItem[],
+              items: utils.convertArrayDatesToISO(pageRows) as unknown as MediaItem[],
               total,
               page: options?.page || 1,
               pageSize: limit,
-              hasNextPage: offset + limit < total,
+              hasNextPage,
               hasPreviousPage: (options?.page || 1) > 1,
             };
           },
@@ -177,14 +183,17 @@ export class RelationalMediaModule implements IMediaAdapter {
         return this.adapter.wrap(async () => {
           assertTenantContext(options, "media.files.search");
           const isPg = (this.adapter as any).dialect === "postgresql";
-          const op = isPg ? ilike : like;
-          const qry = `%${query}%`;
-          const conditions = [
-            or(
-              op(this.schema.mediaItems.filename, qry),
-              op(this.schema.mediaItems.originalFilename, qry),
-            ) as any,
-          ];
+          // Escape LIKE wildcards so user input ("%", "_", "\\") is matched
+          // literally — a raw "%" in a search box must not widen the filter to
+          // every row. ESCAPE is bound as a parameter (MariaDB-safe).
+          const qry = `%${escapeLikePattern(query)}%`;
+          const ESCAPE_CHAR = "\\";
+          const filenameCol = this.schema.mediaItems.filename;
+          const originalCol = this.schema.mediaItems.originalFilename;
+          const nameMatch = isPg
+            ? sql`(lower(${filenameCol}) LIKE lower(${qry}) ESCAPE ${ESCAPE_CHAR} OR lower(${originalCol}) LIKE lower(${qry}) ESCAPE ${ESCAPE_CHAR})`
+            : sql`(${filenameCol} LIKE ${qry} ESCAPE ${ESCAPE_CHAR} OR ${originalCol} LIKE ${qry} ESCAPE ${ESCAPE_CHAR})`;
+          const conditions = [nameMatch];
 
           utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 

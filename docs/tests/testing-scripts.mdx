@@ -138,6 +138,54 @@ bun run scripts/scan-secret-misuse.ts          # scan all files
 bun run scripts/scan-secret-misuse.ts --strict # CI mode (exit 1 on findings)
 ```
 
+### `scripts/scan-security-risk.ts` — Global Security Risk Scanner (entire `src/`)
+
+Static scanner for vulnerability classes in OUR code — the layer no external database can cover. Scans all files under `src/` (vendored `src/types/`, `node_modules`, generated `src/paraglide/` excluded):
+
+| Rule                         | Severity | Detects                                                                                                                |
+| ---------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| SQL value interpolation      | error    | `'${value}'` inside SQL strings — the `author__not_in` SQLi class; values must be bound parameters or tagged templates |
+| SQL string concatenation     | error    | `"..." + value + "..."` SQL assembly                                                                                   |
+| MongoDB JS execution         | error    | `$where` / `$function` / `$accumulator` — server-side JS (RCE class)                                                   |
+| Dynamic code execution       | error    | `eval(` / `new Function(` (RCE sinks; `bun:sqlite` import workaround allowlisted)                                      |
+| SvelteKit CSRF disabled      | error    | `csrf: { checkOrigin: false }` / `csrf: false`                                                                         |
+| Non-httpOnly cookie          | error    | `httpOnly: false` (double-submit CSRF cookie exempted by design)                                                       |
+| Shell command interpolation  | warning  | `exec(\`...${...}\`)` — use execFile/spawn with an args array (`.exec()` DB methods, WAF regex literals excluded)      |
+| Path interpolation           | warning  | `fs.*` with member-access `${x.y}` paths or quote-concat — path-traversal class; guarded files + bare locals pass      |
+| SSRF                         | warning  | `fetch()` with request-derived URL (configured endpoints like `ollamaUrl`/`this.baseUrl` pass)                         |
+| XSS sinks                    | warning  | `innerHTML=`, `outerHTML=`, `insertAdjacentHTML(`, `document.write(`                                                   |
+| Regex interpolation          | warning  | `new RegExp(\`...${x}...\`)` without escaping (escape helpers, `\$&` idiom, constants, `\\${` pass)                    |
+| SQL identifier interpolation | warning  | Unescaped identifiers (skipped in files with `assertSafeSqlIdentifier`-style guards)                                   |
+
+```bash
+bun run scripts/scan-security-risk.ts          # scan (warnings tolerated)
+bun run scripts/scan-security-risk.ts --strict # exit 1 on errors (pre-commit)
+```
+
+### `scripts/scan-osv.ts` — Global Vulnerability Check (OSV.dev)
+
+Queries **OSV.dev** — the global aggregator that merges GitHub Advisory DB (GHSA), NVD, and 20+ other feeds — with the purls from `sbom.json` (CycloneDX, kept in lockstep by pre-commit). One batch request covers the whole dependency tree, including SvelteKit/Svelte/Vite advisories. Results cached 24h under `node_modules/.cache/osv-cache.json`.
+
+```bash
+bun run scripts/scan-osv.ts          # check (24h cache)
+bun run scripts/scan-osv.ts --strict # exit 1 on any vulnerability
+bun run scripts/scan-osv.ts --fresh  # ignore cache
+```
+
+### `scripts/risk-audit.ts` — Full Commit Risk Audit
+
+Runs all fast, stateless security checks in one gate (wired into `.githooks/pre-commit`):
+
+1. `scan-security-risk --strict` — global scan: DB (4 adapters) + command injection, eval, paths, SSRF, XSS + SvelteKit config
+2. `scan-secret-misuse --strict` — hardcoded credentials
+3. `slop-scanner --strict` — XSS/RTL/security architecture
+4. `bun audit` — GitHub Advisory DB (npm tree)
+5. `scan-osv --strict` — OSV.dev global database
+
+```bash
+bun run risk:audit
+```
+
 ### `scripts/verify-prod-build-backdoor.ts` — Build Backdoor Verification
 
 Scans build output to confirm `/api/testing` handler is present (bench builds) or stripped (deploy builds).
@@ -176,7 +224,7 @@ bun run scripts/check-test-db-safety.ts
 
 Svelte 5 + Accessibility + RTL + Quality + Security scanner. Catches issues oxlint doesn't cover.
 
-**Code quality checks:** XSS (`{@html}`), RTL compatibility, button variant validation, file naming, duplicate content, TODO tracking.
+**Code quality checks:** XSS (`{@html}`), RTL compatibility, button variant validation, file naming, duplicate content, stale-placeholder tracking.
 
 **Security architecture checks (6 rules):**
 

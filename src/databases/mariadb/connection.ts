@@ -47,6 +47,20 @@ export async function createConnectionPool(config: ConnectionConfig): Promise<my
     keepAliveInitialDelay: 0,
   });
 
+  if (process.env.MARIADB_SESSION_INIT) {
+    const sessionInitSql = process.env.MARIADB_SESSION_INIT.trim();
+    // Safe validation: allow standard SET session commands (e.g. SET SESSION innodb_lock_wait_timeout=50)
+    if (sessionInitSql && /^[a-zA-Z0-9_\s=;'-]+$/.test(sessionInitSql)) {
+      pool.on("connection", (conn) => {
+        conn.query(sessionInitSql, (err) => {
+          if (err) logger.error("[MariaDB] Failed to run per-connection session init SQL:", err);
+        });
+      });
+    } else if (sessionInitSql) {
+      logger.warn("[MariaDB] MARIADB_SESSION_INIT rejected due to invalid characters.");
+    }
+  }
+
   // Test the connection
   try {
     const connection = await pool.getConnection();

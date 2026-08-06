@@ -1,7 +1,12 @@
 # Security Policy for SveltyCMS
-# https://securitytxt.org/
+# https://securitytxt.org/ — RFC 9116
+#
+# Preferred reporting channel: GitHub Security Advisories (private form).
+# See Policy below for the staged disclosure timeline and scope.
 
+Contact: https://github.com/SveltyCMS/SveltyCMS/security/advisories
 Contact: mailto:security@sveltycms.com
-Expires: 2027-12-31T23:59:59.000Z
+Expires: 2027-08-01T23:59:59.000Z
 Preferred-Languages: en
 Canonical: https://sveltycms.com/.well-known/security.txt
+Policy: https://github.com/SveltyCMS/SveltyCMS/blob/next/SECURITY.md

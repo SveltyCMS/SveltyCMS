@@ -1,0 +1,69 @@
+---
+path: "src/routes/(app)/dashboard/widgets/media-storage-analytics/readme.mdx"
+title: "Media Storage Analytics Dashboard Widget"
+description: "Media library storage analytics — quota usage, type breakdown, and actionable insights. Included with SveltyCMS — free."
+order: 100
+icon: "mdi:chart-pie"
+author: "SveltyCMS Team"
+created: "2026-08-04"
+updated: "2026-08-04"
+tags:
+  - "dashboard"
+  - "media"
+  - "storage"
+  - "analytics"
+  - "free"
+---
+
+# Media Storage Analytics Widget
+
+Media library storage analytics with quota tracking, file-type breakdown, and actionable insights. Compact summary at height 1, rich breakdown with quota bar and category cards at height 2+.
+
+---
+
+## 💰 Licensing
+
+**Included with SveltyCMS** — free for all installations.
+
+---
+
+## Features
+
+| Feature        | Description                                       |
+| :------------- | :------------------------------------------------ |
+| Total assets   | Asset count and formatted total storage           |
+| Quota usage    | Storage quota bar with percentage                 |
+| Type breakdown | Distribution by media type (image, video, …)      |
+| Insights       | Actionable storage recommendations                |
+| Compact mode   | Single-row summary (h:1 widget size)              |
+| Rich layout    | Quota bar + category breakdown (h:2+ widget size) |
+| Auto-polling   | Data refreshes every 60 seconds                   |
+
+---
+
+## Data Source
+
+| Endpoint                   | Description                            |
+| :------------------------- | :------------------------------------- |
+| `GET /api/media/analytics` | Media storage usage and type breakdown |
+
+---
+
+## Widget Metadata
+
+```typescript
+export const widgetMeta = {
+  name: "Media Storage",
+  icon: "mdi:chart-pie",
+  description: "Media library storage analytics, quota usage, and insights",
+  defaultSize: { w: 2, h: 2 },
+};
+```
+
+---
+
+## Related
+
+- [Dashboard API Reference](/docs/reference/api/dashboard.mdx)
+- [Last 5 Media Widget](./last5-media-widget.mdx)
+- [Marketplace](https://marketplace.sveltycms.com)

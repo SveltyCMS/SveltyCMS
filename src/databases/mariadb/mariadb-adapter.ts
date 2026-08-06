@@ -33,35 +33,6 @@ import { AdapterCore } from "./adapter-core";
 import { MariaDBFtsAdapter } from "./fts-adapter";
 import { logger } from "@src/utils/logger";
 
-const MARIADB_CORE_TABLES = new Set([
-  "auth_users",
-  "auth_sessions",
-  "auth_tokens",
-  "auth_api_keys",
-  "roles",
-  "content_nodes",
-  "content_drafts",
-  "content_revisions",
-  "themes",
-  "widgets",
-  "media_items",
-  "system_virtual_folders",
-  "system_preferences",
-  "svelty_jobs",
-  "website_tokens",
-  "tenants",
-  "audit_logs",
-  "404_logs",
-  "redirects_mv",
-  "workflow_definitions",
-  "workflow_instances",
-  "plugin_migrations",
-  "plugin_storage",
-  "plugin_states",
-  "plugin_pagespeed_results",
-  "svelty_outbox",
-]);
-
 function quoteMariaIdentifier(identifier: string): string {
   return `\`${identifier.replace(/`/g, "``")}\``;
 }
@@ -177,11 +148,6 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
           const normalized = name.toLowerCase();
           const quoted = quoteMariaIdentifier(name);
 
-          if (MARIADB_CORE_TABLES.has(normalized)) {
-            await this.pool.query(`DELETE FROM ${quoted}`);
-            continue;
-          }
-
           const isDynamicCollection = normalized.startsWith("collection_");
           const isBenchmarkTable =
             normalized.startsWith("bench_") || normalized.startsWith("benchmark_");
@@ -190,7 +156,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
           if (isDynamicCollection || isBenchmarkTable || isMockTable) {
             await this.pool.query(`DROP TABLE IF EXISTS ${quoted}`);
           } else {
-            await this.pool.query(`DELETE FROM ${quoted}`);
+            await this.pool.query(`TRUNCATE TABLE ${quoted}`);
           }
         }
       } finally {

@@ -4,7 +4,7 @@
  * Note: Route protection is handled by the handleSetup middleware in hooks.server.ts
  */
 
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -22,7 +22,10 @@ import {
   testRedisConnection,
 } from "./setup.server";
 
-const execAsync = promisify(exec);
+// execFile — never exec: package names must never reach a shell.
+// The setup wizard runs pre-auth; a shell-interpolated command here would be
+// an RCE if the DRIVER_PACKAGES allowlist ever regressed.
+const execFileAsync = promisify(execFile);
 
 // Database driver mapping (MongoDB is default, others are optional)
 const DRIVER_PACKAGES = {
@@ -151,13 +154,10 @@ export const actions: Actions = {
         pm = "pnpm";
       }
 
-      const cmd =
-        pm === "bun" || pm === "yarn" || pm === "pnpm"
-          ? `${pm} add ${packageName}`
-          : `npm install ${packageName}`;
-
       logger.info(`Installing ${packageName} using ${pm}...`);
-      const { stdout, stderr } = await execAsync(cmd, {
+      // Args array — no shell involved, packageName can never inject commands.
+      const args = pm === "npm" ? ["install", packageName] : ["add", packageName];
+      const { stdout, stderr } = await execFileAsync(pm, args, {
         cwd,
         timeout: 120_000,
       });

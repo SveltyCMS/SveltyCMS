@@ -125,6 +125,19 @@ async function calculateGraphqlComplexity(query: string): Promise<number> {
   }
 }
 
+let _lastHeapRatio = 0;
+let _lastHeapCheck = 0;
+
+function getCachedHeapRatio(): number {
+  const now = Date.now();
+  if (now - _lastHeapCheck > 100) {
+    const heapStats = v8.getHeapStatistics();
+    _lastHeapRatio = heapStats.used_heap_size / heapStats.heap_size_limit;
+    _lastHeapCheck = now;
+  }
+  return _lastHeapRatio;
+}
+
 export const handleSecurity: Handle = async ({ event, resolve }) => {
   if ((event.locals as any).__testBypass) return resolve(event);
   const { request, url } = event;
@@ -143,9 +156,8 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     incomingSecret && masterSecret ? await timingSafeEqual(incomingSecret, masterSecret) : false;
   if (isLocal && (IS_TEST_MODE || hasValidTestSecret) && !forceSecurity) return resolve(event);
 
-  // Load shedding: use v8 heap_size_limit for reliable ceiling
-  const heapStats = v8.getHeapStatistics();
-  const physicalLimitRatio = heapStats.used_heap_size / heapStats.heap_size_limit;
+  // Load shedding: use cached v8 heap_size_limit ratio (100ms sample window)
+  const physicalLimitRatio = getCachedHeapRatio();
   if (
     !IS_TEST_MODE &&
     physicalLimitRatio > 0.95 &&

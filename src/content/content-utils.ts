@@ -456,11 +456,11 @@ export function validateFieldConstraints(
     }>;
   },
 ): Record<string, unknown> {
-  if (!schema.fields) return data;
-  const validated = { ...data };
+  if (!schema.fields || !data) return data;
+  let validated: Record<string, unknown> | null = null;
 
   for (const field of schema.fields) {
-    const value = validated[field.db_fieldName];
+    const value = (validated || data)[field.db_fieldName];
     if (typeof value !== "string") continue;
 
     // Only enforce maxLength for fields that hold string-like content
@@ -468,6 +468,7 @@ export function validateFieldConstraints(
 
     const maxLen = field.maxLength ?? 255;
     if (value.length > maxLen) {
+      if (!validated) validated = { ...data };
       validated[field.db_fieldName] = value.slice(0, maxLen);
       logger.warn(
         `[validateFieldConstraints] Field "${field.db_fieldName}" (type: ${field.type}) ` +
@@ -476,7 +477,7 @@ export function validateFieldConstraints(
     }
   }
 
-  return validated;
+  return validated || data;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -490,7 +491,7 @@ const ARRAY_WIDGET_TYPES = new Set(["array", "blocks", "group", "repeater"]);
  * Walks schema fields and removes null/undefined entries from array/block
  * typed fields, preventing DB pollution from empty rows in repeating widgets.
  *
- * @returns A new data object with null rows stripped (shallow clone).
+ * @returns A new data object with null rows stripped (shallow clone only if needed).
  */
 export function stripNullRows(
   data: Record<string, unknown>,
@@ -502,11 +503,11 @@ export function stripNullRows(
     }>;
   },
 ): Record<string, unknown> {
-  if (!schema.fields) return data;
-  const stripped = { ...data };
+  if (!schema.fields || !data) return data;
+  let stripped: Record<string, unknown> | null = null;
 
   for (const field of schema.fields) {
-    const value = stripped[field.db_fieldName];
+    const value = (stripped || data)[field.db_fieldName];
     if (!Array.isArray(value)) continue;
 
     // Identify array/block fields by widget type or field type
@@ -519,6 +520,7 @@ export function stripNullRows(
     const originalLength = value.length;
     const filtered = value.filter((item) => item != null);
     if (filtered.length < originalLength) {
+      if (!stripped) stripped = { ...data };
       stripped[field.db_fieldName] = filtered;
       logger.warn(
         `[stripNullRows] Field "${field.db_fieldName}" had ${originalLength - filtered.length} null entries removed`,
@@ -526,5 +528,5 @@ export function stripNullRows(
     }
   }
 
-  return stripped;
+  return stripped || data;
 }
