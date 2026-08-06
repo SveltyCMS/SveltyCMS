@@ -374,15 +374,18 @@ async function handleRequest(event: RequestEvent) {
 
     const responseBody = await yogaResponse.text();
 
-    // 🛡️ Do not cache error-shaped responses (errors array in JSON)
+    // 🛡️ Do not cache error-shaped responses or empty collection arrays
     if (cacheKey && yogaResponse.status === 200) {
       try {
         const parsedBody = JSON.parse(responseBody);
-        if (
-          !parsedBody?.errors ||
-          !Array.isArray(parsedBody.errors) ||
-          parsedBody.errors.length === 0
-        ) {
+        const hasErrors =
+          parsedBody?.errors && Array.isArray(parsedBody.errors) && parsedBody.errors.length > 0;
+        const isEmptyCollectionData =
+          parsedBody?.data &&
+          typeof parsedBody.data === "object" &&
+          Object.values(parsedBody.data).some((val) => Array.isArray(val) && val.length === 0);
+
+        if (!hasErrors && !isEmptyCollectionData) {
           const etag = generateContentEtag(responseBody);
           responseCache.set(
             cacheKey,

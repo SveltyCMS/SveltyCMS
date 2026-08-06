@@ -491,11 +491,13 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
     if (!currentUrl.includes("/login") && !currentUrl.includes("/setup")) {
       // Double-check by looking for admin shell elements (SPA auth may render auth page at same URL)
       sessionValid = await page
-        .getByTestId("page-title")
-        .or(page.getByTestId("collection-builder-board"))
+        .getByTestId("admin-page-shell-title")
         .or(page.getByTestId("admin-sidebar"))
+        .or(page.getByTestId("admin-header"))
+        .or(page.getByTestId("collection-builder-board"))
+        .or(page.getByTestId("media-gallery-toolbar"))
         .first()
-        .isVisible({ timeout: 2_000 })
+        .isVisible({ timeout: 5_000 })
         .catch(() => false);
       if (sessionValid) {
         console.log("[Auth] ✓ Existing session still valid (storageState)");
