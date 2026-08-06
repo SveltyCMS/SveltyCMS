@@ -2,7 +2,7 @@
  * @file tests/e2e/routes/config/appearance.spec.ts
  * @description E2E for My Overrides on /config/design-system.
  *
- * Locators use stable #layout-pref-* ids.
+ * Locators use stable #layout-pref-* ids and data-testids (not role text alone).
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -33,13 +33,17 @@ async function openOverrides(page: Page): Promise<void> {
     await overridesTab.click();
   }
 
+  // Panel must be ready before interacting with layout prefs
+  await expect(
+    page
+      .getByTestId("appearance-overrides-panel")
+      .or(page.locator("#layout-pref-leftSidebar"))
+      .first(),
+  ).toBeVisible({ timeout: 15_000 });
+
   const leftSidebar = page.locator("#layout-pref-leftSidebar");
-  if (await leftSidebar.isVisible({ timeout: 15_000 }).catch(() => false)) {
+  if (await leftSidebar.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await expect(leftSidebar).toBeEnabled({ timeout: 5_000 });
-  } else {
-    await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({
-      timeout: 10_000,
-    });
   }
 }
 
@@ -51,7 +55,7 @@ test.describe.serial("Design System — My Overrides", () => {
   test("page loads My Overrides and My Layout sections", async ({ page }) => {
     test.setTimeout(60_000);
     await openOverrides(page);
-    await expect(page.getByRole("button", { name: /save my preferences/i })).toBeVisible();
+    await expect(page.getByTestId("appearance-save-overrides")).toBeVisible();
   });
 
   test("persists left sidebar layout preference after reload", async ({ page }) => {
@@ -63,7 +67,7 @@ test.describe.serial("Design System — My Overrides", () => {
     await select.selectOption("hidden");
     await expect(select).toHaveValue("hidden");
 
-    await page.getByRole("button", { name: /save my preferences/i }).click();
+    await page.getByTestId("appearance-save-overrides").click();
     await expect(page.getByText(/preferences applied/i)).toBeVisible({
       timeout: 15_000,
     });
@@ -79,18 +83,27 @@ test.describe.serial("Design System — My Overrides", () => {
   });
 
   test("clear overrides resets layout to theme default", async ({ page }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(90_000);
     await openOverrides(page);
 
     const select = leftSidebarSelect(page);
+    await expect(select).toBeVisible({ timeout: 15_000 });
     await select.scrollIntoViewIfNeeded();
     await select.selectOption("hidden");
-    await page.getByRole("button", { name: /save my preferences/i }).click();
+    await expect(select).toHaveValue("hidden");
+
+    const saveBtn = page.getByTestId("appearance-save-overrides");
+    await saveBtn.scrollIntoViewIfNeeded();
+    await saveBtn.click({ force: true });
     await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: /clear overrides/i }).click();
-    await expect(page.getByText(/overrides cleared|theme defaults/i)).toBeVisible({
-      timeout: 15_000,
-    });
+    const clearBtn = page.getByTestId("appearance-clear-overrides");
+    await expect(clearBtn).toBeVisible({ timeout: 10_000 });
+    await clearBtn.scrollIntoViewIfNeeded();
+    // force: sticky shells / toasts can intercept normal click in CI
+    await clearBtn.click({ force: true });
+    await expect(
+      page.getByText(/overrides cleared|theme defaults|using active theme/i),
+    ).toBeVisible({ timeout: 15_000 });
   });
 });

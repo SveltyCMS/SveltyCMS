@@ -31,6 +31,10 @@ async function stableClick(locator: Locator, timeout = 15_000): Promise<void> {
   }
 }
 
+function openDialog(page: Page): Locator {
+  return page.locator("dialog[open]").first();
+}
+
 function addNewFieldDialog(page: Page): Locator {
   return page.getByRole("dialog", { name: /add new field/i });
 }
@@ -47,20 +51,19 @@ async function isAddNewFieldOpen(page: Page): Promise<boolean> {
  */
 export async function dismissOpenDialogs(page: Page): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt++) {
-    const openDialog = page.locator("dialog[open]").first();
-    if (!(await openDialog.isVisible({ timeout: 300 }).catch(() => false))) {
+    const dialog = openDialog(page);
+    if (!(await dialog.isVisible({ timeout: 300 }).catch(() => false))) {
       return;
     }
 
-    const closeBtn = openDialog
+    const closeBtn = dialog
       .getByRole("button", { name: /close modal|close|cancel|dismiss/i })
       .first();
     if (await closeBtn.isVisible({ timeout: 300 }).catch(() => false)) {
       await closeBtn.click({ force: true }).catch(() => undefined);
     } else {
-      // Backdrop / Escape — DialogManager syncs modalState on close
       await page.keyboard.press("Escape").catch(() => undefined);
-      await openDialog
+      await dialog
         .evaluate((el) => {
           const d = el as HTMLDialogElement;
           if (typeof d.close === "function") d.close();
@@ -73,47 +76,58 @@ export async function dismissOpenDialogs(page: Page): Promise<void> {
   }
 }
 
+/** Switch editor to Widgets tab and wait for the field canvas. */
+export async function goToWidgetsTab(page: Page): Promise<void> {
+  const widgetsTab = page.getByTestId("tab-widgets");
+  await expect(widgetsTab).toBeVisible({ timeout: 15_000 });
+  const selected = await widgetsTab.getAttribute("aria-selected").catch(() => null);
+  if (selected !== "true") {
+    await stableClick(widgetsTab, 15_000);
+  }
+  // Canvas or add control proves the tab panel mounted
+  await expect(
+    page
+      .getByTestId("widget-fields-list")
+      .or(page.getByTestId("add-field-button"))
+      .or(page.getByTestId("collection-widgets-tab"))
+      .first(),
+  ).toBeVisible({ timeout: 20_000 });
+}
+
 /**
  * Pick the Input widget into the collection canvas.
  *
  * Priority:
  * 1. If "Add New Field" is already open → select Input *inside that dialog*
- * 2. Else sidebar `quick-add-input` (no modal)
- * 3. Else open "Add Widget" and select Input inside the dialog
+ * 2. Else open "Add Widget" modal (most reliable in CI)
+ * 3. Else sidebar `quick-add-input`
  */
 export async function quickAddInputWidget(page: Page): Promise<void> {
-  const widgetsTab = page.getByTestId("tab-widgets");
-  if (await widgetsTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    // Only click if not already selected
-    const selected = await widgetsTab.getAttribute("aria-selected").catch(() => null);
-    if (selected !== "true") {
-      await stableClick(widgetsTab, 15_000);
-    }
-  }
+  await goToWidgetsTab(page);
+  await dismissOpenDialogs(page);
 
-  // Path 1: dialog already open — NEVER click the sidebar Input behind it
+  // Path 1: dialog already open
   if (await isAddNewFieldOpen(page)) {
     await selectInputFromAddFieldDialog(page);
     return;
   }
 
-  // Path 2: sidebar quick-add (preferred)
-  const quickAdd = page.getByTestId("quick-add-input");
-  if (await quickAdd.isVisible({ timeout: 20_000 }).catch(() => false)) {
-    // Guard: if a dialog opened between checks, switch strategy
-    if (await isAddNewFieldOpen(page)) {
-      await selectInputFromAddFieldDialog(page);
-      return;
-    }
-    await stableClick(quickAdd, 15_000);
+  // Path 2: Add Widget button → modal (stable under wizard layout)
+  const addFieldBtn = page.getByTestId("add-field-button");
+  if (await addFieldBtn.isVisible({ timeout: 8_000 }).catch(() => false)) {
+    await stableClick(addFieldBtn, 10_000);
+    await selectInputFromAddFieldDialog(page);
     return;
   }
 
-  // Path 3: "Add Widget" button → modal
-  const addFieldBtn = page.getByTestId("add-field-button");
-  await expect(addFieldBtn).toBeVisible({ timeout: 10_000 });
-  await stableClick(addFieldBtn, 10_000);
-  await selectInputFromAddFieldDialog(page);
+  // Path 3: sidebar quick-add
+  const quickAdd = page.getByTestId("quick-add-input");
+  await expect(quickAdd).toBeVisible({ timeout: 20_000 });
+  if (await isAddNewFieldOpen(page)) {
+    await selectInputFromAddFieldDialog(page);
+    return;
+  }
+  await stableClick(quickAdd, 15_000);
 }
 
 /**
@@ -164,25 +178,19 @@ export async function addInputField(
   const index = options.index ?? 0;
   const fieldList = page.getByTestId("widget-fields-list");
 
-  // Ensure Widgets tab is active (wizard may still be on Define)
-  const widgetsTab = page.getByTestId("tab-widgets");
-  if (await widgetsTab.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    const selected = await widgetsTab.getAttribute("aria-selected").catch(() => null);
-    if (selected !== "true") {
-      await stableClick(widgetsTab, 15_000);
-    }
-  }
-  await expect(page.getByTestId("collection-widgets-tab").or(fieldList).first()).toBeVisible({
-    timeout: 15_000,
-  });
-
   await quickAddInputWidget(page);
 
-  // Sidebar / palette may open the field editor; otherwise open the new row
-  const labelInput = page.getByTestId("widget-field-label");
-  let editorOpen = await labelInput.isVisible({ timeout: 5_000 }).catch(() => false);
+  // Field editor may open automatically (add path with openEditor) or need a row click
+  const labelInDialog = () =>
+    openDialog(page).getByTestId("widget-field-label").or(page.getByTestId("widget-field-label"));
+
+  let editorOpen = await labelInDialog()
+    .first()
+    .isVisible({ timeout: 6_000 })
+    .catch(() => false);
 
   if (!editorOpen) {
+    await expect(fieldList).toBeVisible({ timeout: 15_000 });
     const fieldRow = fieldList.getByTestId("widget-field-row").nth(index);
     await expect(fieldRow).toBeVisible({ timeout: 15_000 });
 
@@ -191,26 +199,35 @@ export async function addInputField(
       .or(fieldRow.getByTestId("widget-field-edit"))
       .first();
     await stableClick(openBtn, 10_000);
-    editorOpen = await labelInput.isVisible({ timeout: 10_000 }).catch(() => false);
   }
 
-  await expect(labelInput, "Field editor modal should show widget-field-label").toBeVisible({
+  const labelInput = labelInDialog().first();
+  await expect(labelInput, "Field editor should show widget-field-label").toBeVisible({
     timeout: 15_000,
   });
-  // clear + type so Svelte bind:value picks up changes under Playwright
+
   await labelInput.click();
   await labelInput.fill("");
   await labelInput.fill(options.label);
-  const nameInput = page.getByTestId("widget-field-name");
+
+  const nameInput = openDialog(page)
+    .getByTestId("widget-field-name")
+    .or(page.getByTestId("widget-field-name"))
+    .first();
   await nameInput.click();
   await nameInput.fill("");
   await nameInput.fill(options.fieldName);
-  await stableClick(page.getByTestId("widget-field-apply"), 10_000);
+
+  const applyBtn = openDialog(page)
+    .getByTestId("widget-field-apply")
+    .or(page.getByTestId("widget-field-apply"))
+    .first();
+  await stableClick(applyBtn, 10_000);
 
   await expect(labelInput)
     .toBeHidden({ timeout: 10_000 })
     .catch(() => undefined);
-  // Label is the stable post-apply signal (db name may still be auto-generated)
+
   await expect(fieldList.getByText(options.label, { exact: true })).toBeVisible({
     timeout: 15_000,
   });
@@ -218,28 +235,24 @@ export async function addInputField(
 
 export async function saveCollectionSchema(page: Page): Promise<void> {
   await dismissOpenDialogs(page);
-  await stableClick(page.getByTestId("save-collection-button").first(), 10_000);
-  await expect(page.getByText(/collection saved/i)).toBeVisible({ timeout: 15_000 });
+  const saveBtn = page.getByTestId("save-collection-button").first();
+  await expect(saveBtn).toBeVisible({ timeout: 10_000 });
+  await expect(saveBtn).toBeEnabled({ timeout: 10_000 });
+  await stableClick(saveBtn, 10_000);
+  await expect(page.getByText(/collection saved/i)).toBeVisible({ timeout: 20_000 });
 }
 
 export async function openCollectionEntries(page: Page, slug: string): Promise<void> {
   const cleanSlug = slug.replace(/^collection\//, "").replace(/^\/+/, "");
 
-  // Wait for the collection to be available via API before navigating
-  // (schema compilation + route registration is async after save).
-  // GET /api/collections/{slug} returns entry arrays via handleCollectionFind,
-  // not collection metadata — so we validate success + data presence instead.
   await expect(async () => {
     const apiRes = await page.request.get(`/api/collections/${cleanSlug}`);
     expect(apiRes.ok()).toBeTruthy();
     const body = await apiRes.json();
-    // Collection is registered when find() returns a valid response.
-    // A 200 with `data` (even an empty array) means the schema compiled.
     expect(body.success).toBe(true);
     expect(body.data).toBeDefined();
   }).toPass({ timeout: 30_000, intervals: [2_000, 3_000, 5_000] });
 
-  // Route compilation may lag behind schema save — give SvelteKit time to register
   await page.waitForTimeout(500);
 
   await expect(async () => {
@@ -248,7 +261,6 @@ export async function openCollectionEntries(page: Page, slug: string): Promise<v
       const { loginAsAdmin } = await import("./auth");
       await loginAsAdmin(page, `/en/collection/${cleanSlug}`);
     }
-    // Must land on collection entries (not collection builder or 404)
     await expect(page).toHaveURL(new RegExp(cleanSlug, "i"), { timeout: 3_000 });
     await expect(page).not.toHaveURL(/\/config\/collectionbuilder/, { timeout: 3_000 });
   }).toPass({

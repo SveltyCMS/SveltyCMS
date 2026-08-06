@@ -69,8 +69,12 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
 
     const fixture = uniqueCollectionFixture("SoftHmr");
     await openNewCollectionEditor(page);
+    // Soft-refresh contract only needs a successful save — not the full widget wizard.
+    // (Widget/field modal is covered by the golden journey below.)
     await page.getByTestId("collection-name-input").fill(fixture.name);
-    await addInputField(page, { label: "Title", fieldName: "title" });
+    await expect(page.getByTestId("save-collection-button").first()).toBeEnabled({
+      timeout: 10_000,
+    });
 
     // Marker survives soft invalidate; would be wiped by full document reload
     await page.evaluate(() => {

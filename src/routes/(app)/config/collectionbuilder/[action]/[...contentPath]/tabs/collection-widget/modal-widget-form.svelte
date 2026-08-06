@@ -60,15 +60,30 @@
     { id: "permissions", label: "Permissions", icon: "mdi:shield-lock-outline" },
   ];
 
-  // --- Local working copy ---
-  let local = $state<any>(null);
+  // --- Local working copy (seed immediately so first paint is not empty for E2E) ---
+  function cloneValue(v: any) {
+    if (!v) {
+      return {
+        label: "",
+        db_fieldName: "",
+        icon: "",
+        required: false,
+        permissions: {},
+        widget: {},
+      };
+    }
+    try {
+      return JSON.parse(JSON.stringify(v));
+    } catch {
+      return { ...v };
+    }
+  }
+
+  let local = $state<any>(cloneValue(value));
 
   $effect(() => {
-    if (value) {
-      local = JSON.parse(JSON.stringify(value));
-    } else {
-      local = { label: "", db_fieldName: "", icon: "", required: false, permissions: {}, widget: {} };
-    }
+    // Re-sync when DialogManager re-opens with a new field payload
+    local = cloneValue(value);
   });
 
   // --- Widget metadata ---
