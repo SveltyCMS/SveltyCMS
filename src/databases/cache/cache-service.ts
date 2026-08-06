@@ -576,12 +576,10 @@ export class CacheService {
    */
   getSync<T>(key: string, tenantId?: string | null): T | null {
     const fullKey = this.generateKey(key, tenantId);
-    const l1Value = this.l1.get(fullKey);
+    const l1Value = this.l1.get(fullKey, { updateAgeOnGet: false });
     if (l1Value !== undefined) {
       this.stats.hits++;
       this.stats.l1Hits++;
-      this.recordMetricSync("cache:hit:l1", 1);
-      cacheMetrics.recordHit(fullKey, CacheCategory.GENERAL, tenantId, 0);
       return l1Value as T;
     }
     return null;

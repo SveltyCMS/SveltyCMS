@@ -111,9 +111,11 @@ function getTurboAuthContext(sessionId: string): TurboAuthContext | null {
     return null;
   }
 
-  // LRU refresh: re-insert key to mark it most-recently used
-  turboAuthCache.delete(sessionId);
-  turboAuthCache.set(sessionId, ctx);
+  // 🚀 FAST-PATH: Skip Map delete/set mutation on every read hit unless near capacity
+  if (turboAuthCache.size >= TURBO_AUTH_CACHE_MAX * 0.8) {
+    turboAuthCache.delete(sessionId);
+    turboAuthCache.set(sessionId, ctx);
+  }
   return ctx;
 }
 
