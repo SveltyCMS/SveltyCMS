@@ -16,6 +16,8 @@ import { widgetRegistryService } from "@src/services/core/widget-registry-servic
 import { logger } from "@utils/logger";
 import { getFieldName } from "@utils/schema/field-utils";
 
+import { sanitizeObject } from "@utils/security/input-sanitizer";
+
 export interface EntryData {
   _id?: string;
   [key: string]: unknown;
@@ -44,9 +46,8 @@ export async function modifyRequest(params: ModifyRequestParams) {
 
   if (!data || data.length === 0) return data;
 
-  // 🛡️ INPUT SANITIZATION: Batched import to prevent bloat in GET-only contexts
+  // 🛡️ INPUT SANITIZATION: Fast single-pass sanitization
   if (type === "POST" || type === "PATCH" || type === "PUT") {
-    const { sanitizeObject } = await import("@utils/security/input-sanitizer");
     for (let i = 0; i < data.length; i++) {
       if (data[i]) {
         data[i] = sanitizeObject(data[i]);

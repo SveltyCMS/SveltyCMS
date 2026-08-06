@@ -1125,7 +1125,7 @@ export class CollectionsNamespace {
     } as Record<string, unknown>;
 
     // ── Schema Lifecycle Hooks: beforeValidate → range gate → afterValidate ──
-    {
+    if (schema.hooks && (schema.hooks.beforeValidate || schema.hooks.afterValidate)) {
       const { applyBeforeValidate, applyAfterValidate } = await import("@src/content/schema-hooks");
       const hookCtx = {
         schema,
@@ -1148,6 +1148,12 @@ export class CollectionsNamespace {
         ...hookCtx,
         document: { ...entryData },
       });
+    } else {
+      // 🛡️ Validate numeric field ranges before they reach the database adapter
+      const rangeErrors = validateNumericFields(entryData, schema as CollectionFieldSchema);
+      if (rangeErrors.length > 0) {
+        throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+      }
     }
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
@@ -1160,7 +1166,11 @@ export class CollectionsNamespace {
       schema,
     );
 
-    const collectionModel = await this._getModelResilient(schema);
+    let collectionModel = (schema as any)._collectionModel;
+    if (!collectionModel) {
+      collectionModel = await this._getModelResilient(schema);
+      (schema as any)._collectionModel = collectionModel;
+    }
     // mutate in place so widget/modifyRequest transforms are persisted
     const payload = [finalData];
     await modifyRequest({
@@ -1193,14 +1203,16 @@ export class CollectionsNamespace {
     );
 
     if (result && result.success && result.data) {
-      try {
-        const { workflowService } = await import("@src/services/background/workflow-service");
-        await workflowService.initializeWorkflow(
-          result.data!._id as string,
-          schema._id as string,
-          tenantId as string,
-        );
-      } catch {}
+      queueMicrotask(async () => {
+        try {
+          const { workflowService } = await import("@src/services/background/workflow-service");
+          await workflowService.initializeWorkflow(
+            result.data!._id as string,
+            schema._id as string,
+            tenantId as string,
+          );
+        } catch {}
+      });
       await this.afterMutation(
         schema,
         tenantId,
@@ -1231,7 +1243,7 @@ export class CollectionsNamespace {
     } as Record<string, unknown>;
 
     // ── Schema Lifecycle Hooks: beforeValidate → range gate → afterValidate ──
-    {
+    if (schema.hooks && (schema.hooks.beforeValidate || schema.hooks.afterValidate)) {
       const { applyBeforeValidate, applyAfterValidate } = await import("@src/content/schema-hooks");
       const hookCtx = {
         schema,
@@ -1253,6 +1265,11 @@ export class CollectionsNamespace {
         ...hookCtx,
         document: { ...updateData },
       });
+    } else {
+      const rangeErrors = validateNumericFields(updateData, schema as CollectionFieldSchema);
+      if (rangeErrors.length > 0) {
+        throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+      }
     }
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
@@ -1265,7 +1282,11 @@ export class CollectionsNamespace {
       schema,
     );
 
-    const collectionModel = await this._getModelResilient(schema);
+    let collectionModel = (schema as any)._collectionModel;
+    if (!collectionModel) {
+      collectionModel = await this._getModelResilient(schema);
+      (schema as any)._collectionModel = collectionModel;
+    }
 
     const payload = [finalData];
     await modifyRequest({
@@ -1350,8 +1371,19 @@ export class CollectionsNamespace {
     options: LocalApiOptions,
     schema: Schema,
   ): Promise<any> {
-    // ⚡ Fast-path for benchmarks
+    // ⚡ Fast-path for benchmarks or when no plugins have registered hooks
     if (process.env.BENCHMARK_MODE === "true") {
+      return data;
+    }
+
+    const plugins = pluginRegistry.getAll();
+    if (plugins.length === 0) {
+      return data;
+    }
+    const hasAnyMatchingHook = plugins.some(
+      (p) => typeof (p.hooks as any)?.[hookName] === "function",
+    );
+    if (!hasAnyMatchingHook) {
       return data;
     }
 
