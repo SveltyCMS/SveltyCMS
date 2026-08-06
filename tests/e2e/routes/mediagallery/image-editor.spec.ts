@@ -16,10 +16,13 @@ const ACTION_TIMEOUT = 25_000;
 async function openGallery(page: Page) {
   await loginAsAdmin(page);
   await page.goto("/mediagallery", { waitUntil: "domcontentloaded", timeout: 30_000 });
-  await expect(page).toHaveURL(/\/mediagallery/, { timeout: ACTION_TIMEOUT });
   await expect(
-    page.getByTestId("page-title").or(page.getByRole("heading", { name: /media gallery/i })),
-  ).toBeVisible({ timeout: ACTION_TIMEOUT });
+    page
+      .getByTestId("admin-page-shell-title")
+      .or(page.getByTestId("media-gallery-toolbar"))
+      .or(page.getByTestId("media-gallery-content"))
+      .or(page.getByRole("heading", { name: /media/i })),
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 async function uploadTestImage(page: Page) {

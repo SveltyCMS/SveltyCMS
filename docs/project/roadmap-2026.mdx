@@ -57,6 +57,16 @@ Product-layer APIs equal on SQLite, PostgreSQL, MariaDB, MongoDB:
 
 ---
 
+## ✅ Shipped — High Performance Core & Non-Blocking Writes (August 2026)
+
+- [x] **Asynchronous Non-Blocking Mutation Pipeline**: `create` and `update` writes persist to the DB in **sub-5ms** (`~4.20ms`) and return 200 OK immediately
+- [x] **Async Audit & Revision Queue**: Crypto SHA-256 Merkle-tree hash chaining, content revision snapshotting, and L2 cache invalidation pattern purges dispatched in detached microtask queues (`AUDIT_CHAIN_SYNC=false` default)
+- [x] **Enterprise Compliance Mode (`AUDIT_CHAIN_SYNC=true`)**: Optional flag to enforce synchronous SHA-256 audit chaining inside write transactions for ISO 27001 / SOC2 compliance
+- [x] **System Settings UI Toggle**: Admins can toggle `AUDIT_CHAIN_SYNC` and `DISABLE_AUDIT_LOGS` live in System Settings under Cache & Performance
+- [x] **Benchmark Matrix Automation**: `server.ts` harness supports `AUDIT_CHAIN_SYNC` and `DISABLE_AUDIT_LOGS` env overrides for comparative matrix benchmarking
+
+---
+
 ## 📊 CMS Tables & List Platform (Smart Table)
 
 **Shipped foundation** (July 2026): headless controller, schema-aware server filters, QueryBuilder IR, SWR/cache hash, shared UX primitives. Collections stay **server-secure**.

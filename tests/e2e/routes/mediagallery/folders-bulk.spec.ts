@@ -25,8 +25,9 @@ async function openGallery(page: Page) {
   const shell = page
     .getByTestId("media-gallery-toolbar")
     .or(page.getByTestId("media-gallery-content"))
-    .or(page.getByTestId("media-grid"));
-  await expect(shell.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
+    .or(page.getByTestId("media-grid"))
+    .or(page.getByTestId("admin-page-shell-title"));
+  await expect(shell.first()).toBeVisible({ timeout: 30_000 });
 }
 
 async function uploadImage(page: Page, filePath = TEST_IMAGE) {

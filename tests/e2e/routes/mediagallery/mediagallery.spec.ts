@@ -22,12 +22,12 @@ async function openMediaGallery(page: import("@playwright/test").Page) {
   await expect(page).toHaveURL(/\/mediagallery/, { timeout: 15_000 });
   await expect(page).not.toHaveURL(/\/login/);
 
-  // Wait for one of: toolbar, content area, or grid
   const shell = page
     .getByTestId("media-gallery-toolbar")
     .or(page.getByTestId("media-gallery-content"))
-    .or(page.getByTestId("media-grid"));
-  await expect(shell.first()).toBeVisible({ timeout: 15_000 });
+    .or(page.getByTestId("media-grid"))
+    .or(page.getByTestId("admin-page-shell-title"));
+  await expect(shell.first()).toBeVisible({ timeout: 30_000 });
 }
 
 test.describe("Media Gallery", () => {

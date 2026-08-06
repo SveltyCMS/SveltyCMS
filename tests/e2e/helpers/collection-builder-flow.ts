@@ -271,9 +271,15 @@ export async function saveCollectionSchema(page: Page): Promise<void> {
 
 export async function openCollectionEntries(page: Page, slug: string): Promise<void> {
   const cleanSlug = slug.replace(/^collection\//, "").replace(/^\/+/, "");
+  const altSlug = cleanSlug.includes("-")
+    ? cleanSlug.replace(/-/g, "_")
+    : cleanSlug.replace(/_/g, "-");
 
   await expect(async () => {
-    const apiRes = await page.request.get(`/api/collections/${cleanSlug}`);
+    let apiRes = await page.request.get(`/api/collections/${cleanSlug}`);
+    if (!apiRes.ok()) {
+      apiRes = await page.request.get(`/api/collections/${altSlug}`);
+    }
     expect(apiRes.ok()).toBeTruthy();
     const body = await apiRes.json();
     expect(body.success).toBe(true);

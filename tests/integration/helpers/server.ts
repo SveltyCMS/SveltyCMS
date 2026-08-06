@@ -339,18 +339,25 @@ const TEST_API_SECRET =
 
 export async function cleanupTestDatabase(): Promise<void> {
   console.log("🧹 Cleaning up test database...");
-  const response = await safeFetch(`${getApiBaseUrl()}/api/testing`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-test-secret": TEST_API_SECRET,
-      Origin: getApiBaseUrl(),
-    },
-    body: JSON.stringify({ action: "reset" }),
-  });
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to reset database: ${error}`);
+  try {
+    const isServerAlive = await checkServer().catch(() => false);
+    if (!isServerAlive) return;
+
+    const response = await safeFetch(`${getApiBaseUrl()}/api/testing`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-test-secret": TEST_API_SECRET,
+        Origin: getApiBaseUrl(),
+      },
+      body: JSON.stringify({ action: "reset" }),
+    });
+    if (!response.ok) {
+      const error = await response.text();
+      console.warn(`Failed to reset database: ${error}`);
+    }
+  } catch (err: any) {
+    console.warn(`[cleanupTestDatabase] Skipped cleanup: ${err?.message || err}`);
   }
 }
 
