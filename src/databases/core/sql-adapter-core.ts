@@ -469,7 +469,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       values.tenantId = options.tenantId;
     }
 
-    if (id && (schemaCols?.["createdAt"] || getCol(table, "createdAt"))) {
+    if (!id && (schemaCols?.["createdAt"] || getCol(table, "createdAt"))) {
       values.createdAt = now;
     }
     if (schemaCols?.["updatedAt"] || getCol(table, "updatedAt")) {

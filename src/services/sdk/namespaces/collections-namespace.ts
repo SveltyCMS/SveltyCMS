@@ -629,9 +629,15 @@ export class CollectionsNamespace {
     if (result.success && !bypassCache && cacheKey) {
       try {
         const { CacheCategory } = await import("@src/databases/cache/types");
+        // 🛡️ UN-POOL / COPY: Create a clean plain object payload so that
+        // base-adapter result pool slot recycling never mutates the cached in-memory reference!
+        const cachePayload = {
+          success: true,
+          data: result.data,
+        };
         await cacheService.set(
           cacheKey,
-          result,
+          cachePayload,
           ttl || 180,
           (tenantId || undefined) as string,
           CacheCategory.CONTENT,
@@ -1418,11 +1424,14 @@ export class CollectionsNamespace {
         const { responseCache } = await import("@src/services/cache/response-cache");
         responseCache.invalidateAll((tenantId || undefined) as string | undefined).catch(() => {});
 
-        const patterns = [`cms:content_structure:${tenantId || "global"}`];
+        const tenantTag = tenantId || "global";
+        const patterns = [`cms:content_structure:${tenantTag}`];
         if (schema._id) {
           patterns.push(
+            `*collection:${schema._id}:*`,
+            `${tenantTag}:collection:${schema._id}:*`,
             `collection:${schema._id}:*`,
-            `cms:content_structure:${tenantId || "global"}:${schema._id}`,
+            `cms:content_structure:${tenantTag}:${schema._id}`,
             `/api/collections/${schema._id.toLowerCase()}*`,
             `/api/collections/${schema._id}*`,
           );
