@@ -10,11 +10,21 @@
  * - a REQUIRED co-located `.mdx` marketplace description.
  *
  * Runs as part of `bun run check` (via `lint:widgets`). Exit code 1 on failure.
+ *
+ * CI / quiet mode: summary + FAIL lines only (CI=true or --quiet / --ci).
  */
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const WIDGETS_DIR = "src/routes/(app)/dashboard/widgets";
+const argv = process.argv.slice(2);
+const QUIET =
+  process.env.CI === "true" ||
+  process.env.CI === "1" ||
+  argv.includes("--quiet") ||
+  argv.includes("--ci") ||
+  process.env.CI_QUIET === "1" ||
+  process.env.CI_QUIET === "true";
 
 const REQUIRED_MANIFEST_FIELDS = [
   "id",
@@ -33,6 +43,7 @@ const VALID_TYPES = ["dashboard-widget"];
 const VALID_CATEGORIES = ["monitoring", "logs", "content", "static"];
 
 let failures = 0;
+let okCount = 0;
 
 function fail(msg) {
   failures += 1;
@@ -40,7 +51,8 @@ function fail(msg) {
 }
 
 function ok(msg) {
-  console.log(`OK    ${msg}`);
+  okCount += 1;
+  if (!QUIET) console.log(`OK    ${msg}`);
 }
 
 const entries = readdirSync(WIDGETS_DIR, { withFileTypes: true })
@@ -55,18 +67,23 @@ if (entries.length === 0) {
 for (const entry of entries) {
   const folder = entry.name;
   const dir = join(WIDGETS_DIR, folder);
+  let packageOk = true;
+  const failOnce = (msg) => {
+    packageOk = false;
+    fail(msg);
+  };
 
   // 1. Folder must be kebab-case
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(folder)) {
-    fail(`${folder}/ folder is not kebab-case`);
+    failOnce(`${folder}/ folder is not kebab-case`);
   }
 
   // 2. Exactly one .svelte component — must be `index.svelte`
   const svelteFiles = readdirSync(dir).filter((f) => f.endsWith(".svelte"));
   if (svelteFiles.length !== 1) {
-    fail(`${folder}/ must contain exactly one .svelte component (found ${svelteFiles.length})`);
+    failOnce(`${folder}/ must contain exactly one .svelte component (found ${svelteFiles.length})`);
   } else if (svelteFiles[0] !== "index.svelte") {
-    fail(
+    failOnce(
       `${folder}/${svelteFiles[0]} must be named \`index.svelte\` (folder id is the package identity)`,
     );
   }
@@ -74,50 +91,53 @@ for (const entry of entries) {
   // 3. widget.json manifest — present, valid JSON, required fields
   const manifestPath = join(dir, "widget.json");
   if (!existsSync(manifestPath)) {
-    fail(`${folder}/ missing widget.json manifest`);
+    failOnce(`${folder}/ missing widget.json manifest`);
   } else {
     let manifest;
     try {
       manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
     } catch (err) {
-      fail(`${folder}/widget.json is not valid JSON: ${err.message}`);
+      failOnce(`${folder}/widget.json is not valid JSON: ${err.message}`);
       continue;
     }
     for (const field of REQUIRED_MANIFEST_FIELDS) {
       if (!(field in manifest)) {
-        fail(`${folder}/widget.json missing required field "${field}"`);
+        failOnce(`${folder}/widget.json missing required field "${field}"`);
       }
     }
     if (manifest.id !== folder) {
-      fail(`${folder}/widget.json "id" (${manifest.id}) must match folder name`);
+      failOnce(`${folder}/widget.json "id" (${manifest.id}) must match folder name`);
     }
     if (svelteFiles.length === 1 && manifest.component !== svelteFiles[0].replace(".svelte", "")) {
-      fail(`${folder}/widget.json "component" must match the .svelte filename`);
+      failOnce(`${folder}/widget.json "component" must match the .svelte filename`);
     }
     if (!VALID_LICENSES.includes(manifest.license)) {
-      fail(`${folder}/widget.json invalid license "${manifest.license}"`);
+      failOnce(`${folder}/widget.json invalid license "${manifest.license}"`);
     }
     if (!VALID_TYPES.includes(manifest.type)) {
-      fail(`${folder}/widget.json invalid type "${manifest.type}"`);
+      failOnce(`${folder}/widget.json invalid type "${manifest.type}"`);
     }
     if (manifest.category && !VALID_CATEGORIES.includes(manifest.category)) {
-      fail(`${folder}/widget.json invalid category "${manifest.category}"`);
+      failOnce(`${folder}/widget.json invalid category "${manifest.category}"`);
     }
     if (manifest.defaultSize && typeof manifest.defaultSize.w !== "number") {
-      fail(`${folder}/widget.json defaultSize.w must be a number`);
+      failOnce(`${folder}/widget.json defaultSize.w must be a number`);
     }
   }
 
   // 4. REQUIRED co-located readme.mdx marketplace description
   const mdxFiles = readdirSync(dir).filter((f) => f.endsWith(".mdx"));
   if (mdxFiles.length !== 1 || mdxFiles[0] !== "readme.mdx") {
-    fail(
+    failOnce(
       `${folder}/ must contain exactly one \`readme.mdx\` marketplace description (found: ${mdxFiles.join(", ") || "none"})`,
     );
-  } else {
+  } else if (packageOk) {
     ok(`${folder}/ manifest + ${svelteFiles.length} svelte + ${mdxFiles.length} mdx`);
   }
 }
 
-console.log(`\nTOTAL ${entries.length}  OK ${entries.length - failures}  FAIL ${failures}`);
+console.log(`dashboard-widgets: TOTAL ${entries.length}  OK ${okCount}  FAIL ${failures}`);
+if (QUIET && failures === 0) {
+  console.log("dashboard-widgets: all packages OK");
+}
 process.exit(failures > 0 ? 1 : 0);

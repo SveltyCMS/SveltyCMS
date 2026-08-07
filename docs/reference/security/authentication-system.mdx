@@ -82,7 +82,25 @@ Implements complex permission checks against roles and explicit user permissions
 
 ---
 
-## 4. Advanced Security Features
+## 4. Advanced Security Features (opt-in)
+
+> [!IMPORTANT]
+> **Enterprise auth extras are optional.** Core login (password session + RBAC) always runs.
+> SAML, OIDC/SSO providers, SCIM, 2FA/TOTP, passkeys, and session device policy only apply
+> when configured in System Settings / `config/private.ts` (or the matching DB-driven settings).
+> Unconfigured features do **not** run on the request hot path — no SAML/SCIM/2FA tax unless enabled.
+
+| Feature                     | Default                      | Enable via                           |
+| :-------------------------- | :--------------------------- | :----------------------------------- |
+| Password + session cookies  | On                           | Always (setup)                       |
+| RBAC / endpoint permissions | On                           | Roles & permissions                  |
+| Rate limit / WAF            | On (middleware)              | Settings; bypass in test/benchmark   |
+| 2FA / TOTP                  | Off until user/admin enables | User security + optional force-admin |
+| SAML 2.0                    | Off                          | `SAML_*` settings + IdP cert         |
+| OIDC / social SSO           | Off                          | `SSO_PROVIDERS` / provider keys      |
+| SCIM 2.0                    | Off until tokens/routes used | SCIM tokens + `/api/scim`            |
+| Session device policy       | Configurable                 | `SESSION_DEVICE_POLICY`              |
+| Passkeys / WebAuthn         | Off until registered         | User passkey registration            |
 
 ### Two-Factor Authentication (2FA)
 

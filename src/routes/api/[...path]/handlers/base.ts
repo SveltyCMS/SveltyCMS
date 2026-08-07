@@ -31,6 +31,8 @@ export function successResponse(event: RequestEvent, result: any, status = 200) 
     body = { success: true, data: result };
   }
 
+  // Stash for turbo GET / handle-api-requests — single stringify, zero re-read of Response body
+  stashInLocals(event, body);
   return json(body, { status });
 }
 

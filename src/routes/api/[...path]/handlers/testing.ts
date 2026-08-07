@@ -1097,16 +1097,13 @@ export async function handleTestingRoutes(
           );
         }
         user = createResult.data;
-      } else if (user.blocked) {
-        const unblockResult = await cms.auth.batchAction([user._id], "unblock", { tenantId });
-        if (!unblockResult.success) {
-          throw new AppError(unblockResult.message || "Unblock failed", 500);
-        }
-        user = { ...user, blocked: false };
+      } else {
+        await cms.auth.updateUserAttributes(
+          user._id,
+          { role, password, blocked: false, failedAttempts: 0, lockoutUntil: null } as any,
+          { allowPrivilegeEscalation: true, tenantId },
+        );
       }
-      // NOTE: do NOT reset password/role for existing users here — the p0 password
-      // journey changes the editor password concurrently and a reset would race it.
-      // Use action=seed with an explicit role for a full reset.
 
       return rawResponse({ success: true, user });
     }
@@ -1570,7 +1567,8 @@ export async function handleTestingRoutes(
           { id: "t3", from: "review", to: "draft", label: "Reject" },
         ],
       };
-      const saved = await workflowService.saveWorkflow(definition, adminUser, String(tenantId));
+      const tid = tenantId ? String(tenantId) : undefined;
+      const saved = await workflowService.saveWorkflow(definition, adminUser, tid);
       return rawResponse({ success: true, workflow: saved, data: saved });
     }
 
@@ -1584,7 +1582,8 @@ export async function handleTestingRoutes(
         isAdmin: true,
         email: "e2e@sveltycms.test",
       } as any;
-      await workflowService.deleteWorkflow(id, adminUser, String(tenantId));
+      const tid = tenantId ? String(tenantId) : undefined;
+      await workflowService.deleteWorkflow(id, adminUser, tid);
       return rawResponse({ success: true, deleted: id });
     }
 

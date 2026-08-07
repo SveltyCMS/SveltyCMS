@@ -93,13 +93,36 @@ export async function waitUntil(
 
 /** Dismiss cookie banner if present (testid/role, not CSS). */
 export async function dismissCookieBannerIfPresent(page: Page): Promise<void> {
+  // Stamp storage so the banner does not reappear after invalidateAll / navigation
+  await page
+    .evaluate(() => {
+      try {
+        window.localStorage.setItem(
+          "sveltycms_consent",
+          JSON.stringify({ responded: true, necessary: true }),
+        );
+        window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
+        window.localStorage.setItem("sveltycms-welcome-seen", "true");
+      } catch {
+        /* storage restricted */
+      }
+    })
+    .catch(() => {});
+
+  // Real control is cookie-accept-all (see cookie consent component + auth helper)
   const accept = page
-    .getByTestId("cookie-accept")
-    .or(page.getByRole("button", { name: /accept|agree|got it|ok/i }));
+    .getByTestId("cookie-accept-all")
+    .or(page.getByTestId("cookie-accept"))
+    .or(
+      page
+        .getByRole("dialog")
+        .filter({ hasText: /we value your privacy|cookie/i })
+        .getByRole("button", { name: /accept all|accept|agree/i }),
+    );
   if (
     await accept
       .first()
-      .isVisible({ timeout: 800 })
+      .isVisible({ timeout: 1_500 })
       .catch(() => false)
   ) {
     await accept

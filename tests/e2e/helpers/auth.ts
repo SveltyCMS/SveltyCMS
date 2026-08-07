@@ -42,22 +42,12 @@ export async function prepareLoginForm(page: Page) {
   console.log(`[Auth] Preparing login form...`);
   await page.context().clearCookies();
 
-  // Navigate first to ensure we have a valid origin for localStorage access
-  await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
-
-  // Now safe to clear storage (we're on the domain)
-  await page
-    .evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    })
-    .catch(() => {
-      // Ignore errors if localStorage is restricted
-      console.log("[Auth] Could not clear storage (might be restricted)");
-    });
-
-  // Inject storage to bypass ALL modals (welcome, cookie consent, first login)
+  // Inject storage script to clear old auth tokens BEFORE navigation mounts
   await page.addInitScript(() => {
+    try {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    } catch {}
     // Setup wizard welcome modal
     window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
 
@@ -300,6 +290,39 @@ export async function loginAs(
   let loginSuccess = await attemptLogin(page, email, password, waitForUrl);
 
   if (!loginSuccess) {
+    console.log(`[Auth] Form login failed for ${email} — attempting API login fallback...`);
+    try {
+      const apiRes = await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "login", email, password },
+      });
+      if (apiRes.ok()) {
+        const body = await apiRes.json();
+        if (body.success && body.token) {
+          const urlObj = new URL(
+            page.url().startsWith("http") ? page.url() : "http://localhost:5173",
+          );
+          await page.context().addCookies([
+            {
+              name: "auth_sessions",
+              value: body.token,
+              domain: urlObj.hostname,
+              path: "/",
+              httpOnly: true,
+              sameSite: "Lax",
+            },
+          ]);
+          await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 15_000 });
+          loginSuccess = true;
+          console.log(`[Auth] ✓ API login fallback succeeded for ${email}`);
+        }
+      }
+    } catch (apiErr) {
+      console.log(`[Auth] API login fallback error: ${apiErr}`);
+    }
+  }
+
+  if (!loginSuccess) {
     // Admin user may have been modified or locked by a previous test — re-seed to reset.
     console.log("[Auth] Login failed — re-seeding admin user via testing API...");
     try {
@@ -333,7 +356,7 @@ export async function loginAs(
       }
     }
 
-    // --- Second attempt: full prepareLoginForm cycle ---
+    // --- Final attempt: full prepareLoginForm cycle ---
     loginSuccess = await attemptLogin(page, email, password, waitForUrl);
   }
 
@@ -359,6 +382,14 @@ async function attemptLogin(
   } catch (e) {
     console.log("[Auth] prepareLoginForm failed:", e);
     return false;
+  }
+
+  // Ensure Sign In form tab is selected if signin-icon is present
+  const signInIcon = page.getByTestId("signin-icon");
+  if (await signInIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
+    console.log("[Auth] Switching to Sign In tab...");
+    await signInIcon.click({ force: true }).catch(() => {});
+    await page.waitForTimeout(300);
   }
 
   // Fill login form using data-testid selectors

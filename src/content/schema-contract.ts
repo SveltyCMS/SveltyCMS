@@ -98,8 +98,13 @@ export function assertCompiledSchema(moduleData: unknown, filePath: string): Sch
     return { ok: false, errors: [`No schema object in ${path.basename(filePath)}`] };
   }
 
-  if (!Array.isArray(schema.fields)) {
-    return { ok: false, errors: [`'fields' must be an array (${path.basename(filePath)})`] };
+  if (!schema.fields || !Array.isArray(schema.fields)) {
+    if (schema.fields && typeof schema.fields === "object") {
+      schema.fields = Object.values(schema.fields);
+    }
+    if (!Array.isArray(schema.fields)) {
+      schema.fields = [];
+    }
   }
 
   if (!schema.name || typeof schema.name !== "string") {

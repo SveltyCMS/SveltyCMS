@@ -131,10 +131,14 @@
 
 	function confirmDelete(redirect: RedirectDraft & { _id?: string }) {
 		const id = redirect._id || redirect.id;
-		if (!id) return;
+		if (!id) {
+			toast.error({ description: 'Cannot delete: missing redirect id' });
+			return;
+		}
 		showConfirm({
 			title: 'Delete Redirect',
 			body: `Delete redirect from <strong>${redirect.from}</strong> to <strong>${redirect.to}</strong>? This cannot be undone.`,
+			confirmText: 'Delete',
 			onConfirm: async () => {
 				try {
 					await deleteRedirect(id);

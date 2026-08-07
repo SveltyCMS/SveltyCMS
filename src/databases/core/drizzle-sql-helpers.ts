@@ -447,7 +447,28 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "createdAt",
     "updatedAt",
   ],
+  workflow_definitions: [
+    "_id",
+    "tenantId",
+    "collectionId",
+    "name",
+    "description",
+    "states",
+    "transitions",
+    "createdAt",
+    "updatedAt",
+  ],
   workflowInstances: [
+    "_id",
+    "tenantId",
+    "entryId",
+    "collectionId",
+    "currentState",
+    "history",
+    "createdAt",
+    "updatedAt",
+  ],
+  workflow_instances: [
     "_id",
     "tenantId",
     "entryId",
@@ -905,7 +926,7 @@ export function getPhysicalSelection(
   const systemName = resolveSystemTableName(tableName);
   const isSystem = isSystemTable(tableName);
 
-  if (!isDynamic && !isSystem) {
+  if (!isDynamic) {
     try {
       const columns = getTableColumns(table);
       if (columns && Object.keys(columns).length > 0) {

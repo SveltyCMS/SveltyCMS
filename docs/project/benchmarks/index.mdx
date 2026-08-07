@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:speedometer"
 author: "SveltyCMS Team"
 created: "2026-04-26"
-updated: "2026-07-05"
+updated: "2026-08-07"
 tags:
   - "benchmark"
   - "performance"
@@ -46,6 +46,44 @@ Full matrix: **53 passed / 4 failed / 4 skipped** in 255s. Hooks via `hooks-perf
 | Mutation + audit     | 2.924ms | 3.510ms | 342      |
 
 Compared to 2026-07-04 ledger: full auth **−19%**, full-auth p95 **−28%**, turbo **−11%**. Warmed matrix shared-server peak: **0.555ms** full-auth avg. See [Server Hooks](../../reference/architecture/server-hooks.mdx) and [SQLite ledger](./benchmark_sqlite.mdx#section-hooks_trace).
+
+## CRUD / findById baseline suites
+
+For **create / update / findById / mixed** regressions (the common CMS pain points), run these first on SQLite before a full matrix:
+
+| Suite                     | Command                                                  | Layer                                        |
+| ------------------------- | -------------------------------------------------------- | -------------------------------------------- |
+| Adapter CRUD              | `bun test tests/benchmarks/database-performance.test.ts` | Direct `db.crud` INSERT / FIND ONE / UPDATE  |
+| Local wave throughput     | `bun test tests/benchmarks/local-api-throughput.test.ts` | Adapter waves (no HTTP)                      |
+| **LocalCMS SDK CRUD tax** | `bun test tests/benchmarks/local-cms-crud.test.ts`       | `cms.collections` create / update / findById |
+| HTTP findById             | `bun test tests/benchmarks/api-latency.test.ts`          | Cold (cache-busted) + **TURBO-HIT** @ 8c     |
+| Mixed read mix            | `bun test tests/benchmarks/mixed-workload.test.ts`       | Weighted REST + GraphQL + health             |
+| Truth layers              | `bun test tests/benchmarks/truth-latency.test.ts`        | Logic vs LocalCMS vs HTTP                    |
+
+**2026-08-07 local SQLite rebaseline (rebuild `bun run build` first for HTTP turbo):**
+
+| Metric                                | Result                                              |
+| ------------------------------------- | --------------------------------------------------- |
+| LocalCMS findById warm (L1)           | **~0.003 ms** · ~266k RPS                           |
+| LocalCMS findById cold                | ~0.14 ms (≈ adapter)                                |
+| LocalCMS create                       | ~0.74 ms · ~1.1k RPS                                |
+| LocalCMS update                       | ~0.44 ms · ~2.1k RPS                                |
+| LocalCMS mixed C/U/R                  | ~1.30 ms                                            |
+| HTTP findById **cold** (cache-busted) | ~8.0 ms @ 8c                                        |
+| HTTP findById **TURBO-HIT**           | **~3.7 ms** @ 8c · **100% hit** · **~2.2×** vs cold |
+
+> [!IMPORTANT]
+> The benchmark child process loads `index.cjs` → `build/handler.js`. Hook/handler turbo changes are invisible until `bun run build`.
+
+Shared SQL/Mongo core (`lookup-query` → `findById` on all engines) + LocalCMS + turbo: [Performance Architecture](../../reference/database/performance-architecture.mdx).
+
+Record after intentional perf work:
+
+```bash
+bun run build
+BENCHMARK_RECORD=1 bun test tests/benchmarks/api-latency.test.ts
+BENCHMARK_RECORD=1 bun test tests/benchmarks/local-cms-crud.test.ts
+```
 
 ## Record modes
 

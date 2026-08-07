@@ -1,11 +1,25 @@
 /**
- * One-off / CI helper: verify core + custom (+ marketplace) widget naming.
+ * @file scripts/check-widget-naming.mjs
+ * @description Verify core + custom (+ marketplace) widget naming.
+ *
+ * CI / quiet mode: summary + failures only (CI=true or --quiet / --ci).
+ * Local default: per-item status lines for full visibility.
+ *
+ * Exit 1 when any hard failure is found.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = process.cwd();
+const argv = process.argv.slice(2);
+const QUIET =
+  process.env.CI === "true" ||
+  process.env.CI === "1" ||
+  argv.includes("--quiet") ||
+  argv.includes("--ci") ||
+  process.env.CI_QUIET === "1" ||
+  process.env.CI_QUIET === "true";
 
 // Load TS naming module via bun when available; fallback: inline dual of rules
 async function loadNaming() {
@@ -85,18 +99,30 @@ function scan(tier) {
 const all = [...scan("core"), ...scan("custom"), ...scan("marketplace")];
 const bad = all.filter((r) => !r.ok);
 const warn = all.filter((r) => r.ok && r.warnings.length);
+const okCount = all.filter((r) => r.ok).length;
 
 console.log(
-  `TOTAL ${all.length}  OK ${all.filter((r) => r.ok).length}  FAIL ${bad.length}  WARN ${warn.length}\n`,
+  `widget-naming: TOTAL ${all.length}  OK ${okCount}  FAIL ${bad.length}  WARN ${warn.length}`,
 );
 
-for (const r of all) {
+function printRow(r) {
   const status = !r.ok ? "FAIL" : r.warnings.length ? "WARN" : "OK";
   console.log(
     `${status.padEnd(5)} ${r.tier.padEnd(12)} ${r.folder.padEnd(18)} Name=${String(r.name).padEnd(16)} maps→${r.mapped || "-"}`,
   );
-  for (const e of r.errors || []) console.log(`      error: ${e}`);
-  for (const w of r.warnings || []) console.log(`      warn:  ${w}`);
+  for (const e of r.errors || []) console.error(`      error: ${e}`);
+  for (const w of r.warnings || []) console.warn(`      warn:  ${w}`);
+}
+
+if (QUIET) {
+  // Failures + warnings only — collapse green noise in CI
+  for (const r of bad) printRow(r);
+  for (const r of warn) printRow(r);
+  if (bad.length === 0 && warn.length === 0) {
+    console.log("widget-naming: all packages OK");
+  }
+} else {
+  for (const r of all) printRow(r);
 }
 
 // Exit non-zero on any hard failure so CI/pre-commit gates actually enforce naming

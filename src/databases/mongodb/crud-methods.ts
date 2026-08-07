@@ -3,7 +3,7 @@
  * @description Generic, reusable CRUD operations for any MongoDB collection.
  */
 
-import { safeQuery } from "@src/utils/security/safe-query";
+import { safeQuery, isMultiTenantMode } from "@src/utils/security/safe-query";
 import { nowISODateString } from "@utils/date";
 import mongoose, { type Model } from "mongoose";
 import type {
@@ -29,6 +29,7 @@ import {
   resolvePageSort,
   shouldUseEstimateCount,
 } from "../core/page-utils";
+import { extractLookupId, isIdLookupQuery } from "../core/lookup-query";
 
 export class MongoCrudMethods<T extends BaseEntity> {
   public readonly model: Model<T>;
@@ -39,45 +40,31 @@ export class MongoCrudMethods<T extends BaseEntity> {
     this.adapter = adapter;
   }
 
-  /**
-   * 🚀 FAST PATH: Identifies simple ID lookups.
-   * Optimized to avoid Object.keys() allocation.
-   */
-  private isLookupQuery(query: any): boolean {
-    if (!query || typeof query !== "object") return false;
-    let count = 0;
-    let hasId = false;
-
-    for (const key in query) {
-      count++;
-      if (count > 2) return false; // Too many fields for a simple lookup
-      if (key === "_id") hasId = true;
-      else if (key !== "tenantId") return false; // Non-lookup field
-    }
-
-    return hasId && count > 0;
-  }
-
   async findOne(
     query: QueryFilter<T>,
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T | null>> {
     const startTime = performance.now();
     try {
-      // 🚀 ULTRA FAST PATH: Direct ID lookup bypasses safeQuery and mapQuery overhead.
-      // Only activates when tenantId IS provided (multi-tenant isolation is non-negotiable).
-      if (
-        this.isLookupQuery(query) &&
+      // 🚀 ULTRA FAST PATH: shared isIdLookupQuery (SQL + Mongo parity).
+      // Multi-tenant: require tenantId on options. Single-tenant: allow bare _id.
+      const canFastLookup =
+        isIdLookupQuery(query) &&
         !options.includeDeleted &&
-        options.tenantId &&
         !options.bypassSafeQuery &&
         this.model.collection.name !== "auth_tokens" &&
-        this.model.collection.name !== "sessions"
-      ) {
-        const id = (query as any)._id;
-        const filter: any = { _id: id, tenantId: options.tenantId };
+        this.model.collection.name !== "sessions" &&
+        (options.tenantId || !isMultiTenantMode());
 
-        const result = await this.model.findOne(filter, options.fields?.join(" ")).lean().exec();
+      if (canFastLookup) {
+        const id = extractLookupId(query)!;
+        const filter: Record<string, unknown> = { _id: id };
+        if (options.tenantId) filter.tenantId = options.tenantId;
+        // Soft-delete boundary (matches safeQuery default)
+        filter.isDeleted = { $ne: true };
+
+        const projection = options.fields?.length ? options.fields.join(" ") : undefined;
+        const result = await this.model.findOne(filter, projection).lean().exec();
 
         const meta = { executionTime: performance.now() - startTime };
         if (!result) return { success: true, data: null, meta };
@@ -268,21 +255,48 @@ export class MongoCrudMethods<T extends BaseEntity> {
       });
 
       const now = nowISODateString();
-      const doc = new this.model({
+      const doc = {
         ...secureData,
         _id: (secureData._id as string) || generateId(),
         createdAt: now,
         updatedAt: now,
         isDeleted: false,
-      });
-      const saveOptions: any = {};
+      } as unknown as T;
+
+      const insertOpts: Record<string, unknown> = {};
       if (options.hints?.mongo?.writeConcern) {
-        saveOptions.w = options.hints.mongo.writeConcern;
+        insertOpts.writeConcern = { w: options.hints.mongo.writeConcern };
       }
-      const result = await doc.save(saveOptions);
+
+      // 🚀 insertOne avoids Mongoose Document construction + full validation graph
+      // (parity with SQL prepareValues + INSERT — validation stays at LocalCMS layer)
+      try {
+        await this.model.collection.insertOne(doc as any, insertOpts as any);
+      } catch (insertErr: any) {
+        // Fallback to document.save() when schema validators / casting are required
+        if (
+          insertErr?.code !== 11_000 &&
+          this.model.schema &&
+          Object.keys((this.model.schema as any).paths || {}).length > 2
+        ) {
+          const mongooseDoc = new this.model(doc);
+          const saveOptions: any = {};
+          if (options.hints?.mongo?.writeConcern) {
+            saveOptions.w = options.hints.mongo.writeConcern;
+          }
+          const result = await mongooseDoc.save(saveOptions);
+          return {
+            success: true,
+            data: processDates((result as mongoose.HydratedDocument<T>).toObject()) as T,
+            meta: { executionTime: performance.now() - startTime },
+          };
+        }
+        throw insertErr;
+      }
+
       return {
         success: true,
-        data: processDates((result as mongoose.HydratedDocument<T>).toObject()) as T,
+        data: processDates(doc) as T,
         meta: { executionTime: performance.now() - startTime },
       };
     } catch (error) {
@@ -499,11 +513,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
     try {
+      const opts = options || {};
       const secureQuery = this.adapter.mapQuery(
-        safeQuery(query, options.tenantId as string, {
-          bypassTenantCheck: options.bypassTenantCheck,
-          bypassSafeQuery: options.bypassSafeQuery,
-          systemScope: options.systemScope,
+        safeQuery(query, opts.tenantId as string, {
+          bypassTenantCheck: opts.bypassTenantCheck,
+          bypassSafeQuery: opts.bypassSafeQuery,
+          systemScope: opts.systemScope,
         }),
       );
       const now = nowISODateString();

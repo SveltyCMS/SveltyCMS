@@ -359,14 +359,30 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     if (benchSecret) {
       const expected = process.env.TEST_API_SECRET || getTestSecret();
       if (expected && benchSecret === expected) {
-        (event.locals as any).user = {
+        const benchUser = {
           _id: "system",
           role: "admin",
           isAdmin: true,
           email: "system@sveltycms",
         };
+        (event.locals as any).user = benchUser;
         (event.locals as any).tenantId = event.request.headers.get("x-tenant-id") || null;
         // 🚀 NO __testBypass — downstream hooks (RBAC, rate limit, audit) run normally
+        // Warm turbo-auth so handleTurboGet can short-circuit on subsequent GETs
+        try {
+          const { setTurboAuthContext, buildBenchmarkTurboSessionId } =
+            await import("./handle-turbo-get");
+          const tenantHdr = event.request.headers.get("x-tenant-id") || null;
+          setTurboAuthContext(
+            buildBenchmarkTurboSessionId(benchSecret),
+            benchUser as any,
+            [],
+            new Uint32Array(1),
+            tenantHdr as any,
+          );
+        } catch {
+          /* turbo optional */
+        }
         if (!cachedDbAdapter) {
           try {
             const { getDbInitPromise, getDb } = await import("@src/databases/db");

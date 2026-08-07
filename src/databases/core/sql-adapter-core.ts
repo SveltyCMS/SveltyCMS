@@ -60,6 +60,7 @@ import {
   resolvePageSort,
   shouldUseEstimateCount,
 } from "./page-utils";
+import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "./lookup-query";
 
 // ============================================================================
 // Abstract SqlAdapterCore — shared base for all SQL adapters
@@ -393,6 +394,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
   public prepareValues(table: any, data: any, id: any, now: Date, options: any): any {
     const values: any = {};
+    if (id) {
+      values._id = id;
+    }
     const self = this as any;
     const lastRef = {
       get table() {
@@ -434,8 +438,19 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if ((k === "_id" || k === "id") && id) continue;
         if (data[k] !== undefined) {
           let val = data[k];
-          // Convert ISO date strings to Date objects for Drizzle timestamp_ms columns
+          // Convert numeric timestamps or ISO date strings to Date objects for Drizzle timestamp_ms columns
           if (
+            typeof val === "number" &&
+            val > 0 &&
+            (k === "createdAt" ||
+              k === "updatedAt" ||
+              k.endsWith("Date") ||
+              k.endsWith("At") ||
+              isPhysical?.dataType === "date" ||
+              (isPhysical?.columnType && isPhysical.columnType.includes("Timestamp")))
+          ) {
+            val = new Date(val);
+          } else if (
             typeof val === "string" &&
             val.length > 5 &&
             (k === "createdAt" ||
@@ -550,11 +565,46 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         },
       };
     }
+
+    // 🚀 ALL-SQL ULTRA PATH: pure {_id} / {_id,tenantId} → findById
+    // (SQLite raw SELECT, Postgres/MariaDB eq+limit — skips mapQuery translation)
+    if (
+      isIdLookupQuery(query) &&
+      !options.includeDeleted &&
+      !options.bypassSafeQuery &&
+      this.hooks.length === 0
+    ) {
+      const lookupId = extractLookupId(query)!;
+      const qTenant = extractLookupTenantId(query);
+      const fastOpts =
+        qTenant !== undefined && !options.tenantId
+          ? { ...options, tenantId: qTenant as any }
+          : options;
+      return this.findById<T>(collection, lookupId as DatabaseId, fastOpts);
+    }
+
     return this.wrap(async () => {
       const q =
         this.hooks.length > 0
           ? await this.runHooks("before", "find", collection, query, options)
           : query;
+
+      // After hooks, re-check for id-only lookup
+      if (isIdLookupQuery(q) && !options.includeDeleted) {
+        const lookupId = extractLookupId(q)!;
+        const qTenant = extractLookupTenantId(q);
+        const fastOpts =
+          qTenant !== undefined && !options.tenantId
+            ? { ...options, tenantId: qTenant as any }
+            : options;
+        const byId = await this.findById<T>(collection, lookupId as DatabaseId, fastOpts);
+        if (!byId.success) throw new Error(byId.message || "findById failed");
+        const data = byId.data;
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "find", collection, data, options)
+          : data;
+      }
+
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q as any, options);
@@ -1229,14 +1279,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           const results = await query.returning();
           let res = results[0];
           if (!res) {
-            const check = await this.getDrizzleInstance(options)
-              .select()
-              .from(table)
-              .where(and(...conditions));
-            res = check[0];
-          }
-          if (!res) {
-            throw new Error(`Record ${id} not found in ${getTableName(table)}`);
+            // Prefer optimized findById over full select *
+            const byId = await this.findById<T>(collection, id, options as FindOptions<T>);
+            if (!byId.success || !byId.data) {
+              throw new Error(`Record ${id} not found in ${getTableName(table)}`);
+            }
+            return this.hooks.length > 0
+              ? await this.runHooks("after", "update", collection, byId.data, options)
+              : byId.data;
           }
           const finalData = utils.convertDatesToISO(res, {
             ...this.convertDatesOptions,
@@ -1247,7 +1297,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
             : finalData;
         } else {
           await query;
-          const updated = await this.findOne<T>(collection, { _id: id } as any, options);
+          // findById is faster than findOne (raw SQL on SQLite; no mapQuery)
+          const updated = await this.findById<T>(collection, id, options as FindOptions<T>);
           if (!updated.success || !updated.data) {
             throw new Error(`Record ${id} not found in ${getTableName(table)}`);
           }

@@ -25,7 +25,11 @@ import {
   getUserCacheId,
   buildUserCacheKey,
 } from "@utils/hook-utils";
-import { xxhash64 } from "hash-wasm";
+import {
+  responseCache,
+  buildUserResponseCacheKey,
+  generateContentEtag,
+} from "@src/services/cache/response-cache";
 import {
   compressSync,
   negotiateEncoding,
@@ -168,30 +172,42 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           const isBenchmark =
             process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
 
+          const apiBody = (locals as any).apiBody;
+          const apiData = (locals as { apiData?: unknown }).apiData || (locals as any).__apiData;
+          let responseBody: string | null = typeof apiBody === "string" ? apiBody : null;
+          let responseData: unknown = apiData || null;
+
+          // Benchmark / nocache: still warm sync L1 turbo map from stashed body, then return
           if ((nocache && !ifNoneMatch) || (isBenchmark && !ifNoneMatch)) {
+            if (responseBody && locals.user?._id) {
+              const userIdStr = getUserCacheId(locals.user);
+              const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
+              const etagFast = response.headers.get("etag") || generateContentEtag(responseBody);
+              responseCache.set(
+                turboKey,
+                { body: responseBody, etag: etagFast },
+                300_000,
+                locals.tenantId,
+              );
+            }
             return withMutableHeaders(response, (headers) => {
               headers.set("X-Cache", nocache ? "NOCACHE" : "BYPASS-BENCH");
               headers.set("Vary", "Accept-Encoding");
             });
           }
 
-          const apiBody = (locals as any).apiBody;
-          const apiData = (locals as { apiData?: unknown }).apiData || (locals as any).__apiData;
-          let responseBody: string | null = null;
-          let responseData: unknown = apiData || null;
-
-          if (typeof apiBody === "string") {
-            responseBody = apiBody;
-          } else if (apiData !== undefined) {
-            responseBody = typeof apiData === "string" ? apiData : JSON.stringify(apiData);
-          } else {
-            const clone = response.clone();
-            responseBody = await clone.text();
-            if (contentType?.includes("application/json")) {
-              try {
-                responseData = JSON.parse(responseBody);
-              } catch {
-                /* non-JSON body */
+          if (!responseBody) {
+            if (apiData !== undefined) {
+              responseBody = typeof apiData === "string" ? apiData : JSON.stringify(apiData);
+            } else {
+              const clone = response.clone();
+              responseBody = await clone.text();
+              if (contentType?.includes("application/json")) {
+                try {
+                  responseData = JSON.parse(responseBody);
+                } catch {
+                  /* non-JSON body */
+                }
               }
             }
           }
@@ -199,7 +215,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           if (responseBody) {
             let etag = response.headers.get("etag");
             if (!etag) {
-              etag = `"${await xxhash64(responseBody)}"`;
+              etag = generateContentEtag(responseBody);
             }
 
             if (request.headers.get("if-none-match") === etag) {
@@ -219,6 +235,16 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
             if (!nocache && responseData && locals.user?._id) {
               const currentTenantId = locals.tenantId;
+              const userIdStr = getUserCacheId(locals.user);
+              const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
+              // Sync L1 turbo path (handleTurboGet) — must use same key builder
+              responseCache.set(
+                turboKey,
+                { body: responseBody, etag },
+                API_CACHE_TTL_S * 1000,
+                currentTenantId,
+              );
+
               const headersSnapshot = Object.fromEntries(finalResponse.headers);
               (async () => {
                 try {
@@ -241,10 +267,8 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                       })
                       .catch(() => {}),
                   );
-                  // Atomic: wait for all compression variants before cache write
                   await Promise.all(compressionTasks);
 
-                  const userIdStr = getUserCacheId(locals.user);
                   const turboPathKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
                   const cacheEntry = {
                     data: responseData,

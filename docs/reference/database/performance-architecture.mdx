@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-08-06"
+updated: "2026-08-07"
 tags:
   - "performance"
   - "optimization"
@@ -33,6 +33,78 @@ SveltyCMS delivers enterprise-grade performance through its database-agnostic ar
 | NATIVE UPSERT             | **0.054 ms** | 14,829                      |
 | Peak Throughput           | —            | **621,687 req/s**           |
 | **LocalCMS SDK Overhead** | —            | **0.00%** (verified parity) |
+
+### Core database layer (all 4 engines)
+
+Optimizations live in **shared core**, not one dialect:
+
+| Shared module                                     | Engines                                                                       | Effect                                                               |
+| ------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `core/lookup-query.ts` + `SqlAdapterCore.findOne` | SQLite, PostgreSQL, MariaDB                                                   | Pure `{_id}` / `{_id,tenantId}` → `findById` (skips full `mapQuery`) |
+| `SqlAdapterCore.findById` + SQLite `rawFindById`  | SQLite raw SELECT; PG/Maria `eq`+limit                                        | Fast primary-key reads                                               |
+| `SqlAdapterCore.update` re-read via `findById`    | All SQL when RETURNING empty / non-returning                                  | Faster than post-update `findOne`                                    |
+| `insertReturnsRows` / `updateReturnsRows`         | SQLite + PostgreSQL (Drizzle RETURNING); MariaDB re-reads via fast `findById` | Single RT where dialect allows                                       |
+| `MongoCrudMethods` + shared `isIdLookupQuery`     | MongoDB                                                                       | Lean `findOne` fast path; single-tenant bare `_id` allowed           |
+| Mongo `insertOne`                                 | MongoDB                                                                       | Avoids Mongoose Document + full validate graph on insert             |
+
+LocalCMS and HTTP turbo sit **above** this layer — same gains on every adapter:
+
+```text
+HTTP turbo / LocalCMS → ICrudAdapter.findOne|insert|update
+  → SqlAdapterCore (SQLite | Postgres | MariaDB)
+  → MongoCrudMethods (MongoDB)
+```
+
+### LocalCMS collections hot path (create / update / findById)
+
+Slow SDK entry paths historically paid for work that was not needed on simple schemas.
+Current design (`CollectionsNamespace` in `src/services/sdk/namespaces/collections-namespace.ts`):
+
+| Optimization                                                                                     | Effect                                                          |
+| ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Schema hot flags (`_hasActiveWidgets`, `_hasNumberFields`, `_hasSanitizableFields`, `_hasHooks`) | Skip field walks, hooks import, and `modifyRequest` when unused |
+| `findById` single-id → `crud.findOne`                                                            | Avoid `$in` findMany + full batch machinery cost for one id     |
+| Same-tick batch window for concurrent `findById`                                                 | Still coalesces N+1 without always using multi-id queries       |
+| Sync FNV query-hash for list cache keys                                                          | No async `hash-wasm` on every `find()`                          |
+| Static `CacheCategory` import                                                                    | No dynamic import on cache set                                  |
+| Entry mutations do **not** bump `contentStore.contentVersion`                                    | Avoids nav/SSE structure invalidation on every write            |
+| Path + alias indexes on `contentStore`                                                           | O(1) `getNodeByPath` / collection alias lookup                  |
+| Workflow definition negative cache (60s)                                                         | Create path skips DB miss for collections without workflows     |
+| Parallel `afterMutation` + `afterSave`                                                           | Write post-hooks no longer serialize                            |
+
+**SDK tax suite:** `tests/benchmarks/local-cms-crud.test.ts` measures `cms.collections.create` / `update` / `findById` vs adapter `findOne` (not raw `db.crud` alone).
+
+### HTTP findById turbo lane + responseCache
+
+Authenticated GET short-circuit (`handleTurboGet` → L1 `responseCache`):
+
+| Fix                                                 | Why                                                                                  |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `successResponse` stashes `apiBody`                 | Turbo/write path can re-use one stringify                                            |
+| Weak-ETag path still writes `responseCache`         | Collections findById used weak ETag and previously **never** warmed turbo L1         |
+| Sync `generateContentEtag`                          | Dropped async `hash-wasm` on GET miss path                                           |
+| Benchmark turbo session (`bench:{TEST_API_SECRET}`) | x-test-secret warm-ups populate `turboAuthCache` so turbo can fire without cookies   |
+| API cache writes use `buildUserResponseCacheKey`    | Same key as `handleTurboGet` (was writing only `cacheService` under a different key) |
+
+```bash
+# Rebuild required before HTTP turbo numbers pick up hook/handler changes
+bun run build
+bun test tests/benchmarks/api-latency.test.ts   # cold (cache-busted) + TURBO-HIT
+bun test tests/benchmarks/local-cms-crud.test.ts
+```
+
+**When enterprise auth extras are disabled/optional:** middleware still enforces core auth + RBAC for protected routes; SAML/SCIM/2FA/passkeys add cost only when configured (see [Authentication System](../security/authentication-system.mdx)).
+
+**How to re-baseline after changes:**
+
+```bash
+BENCHMARK_RECORD=1 bun test tests/benchmarks/database-performance.test.ts
+bun test tests/benchmarks/local-api-throughput.test.ts
+bun test tests/benchmarks/api-latency.test.ts
+bun test tests/benchmarks/local-cms-crud.test.ts
+bun test tests/benchmarks/mixed-workload.test.ts
+bun run test:unit -- tests/unit/services/local-cms.test.ts
+```
 
 ### Middleware & Request Lane Pipeline (Verified August 2026)
 

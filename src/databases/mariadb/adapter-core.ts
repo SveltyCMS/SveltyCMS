@@ -62,6 +62,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
   // Abstract hook implementations
   // --------------------------------------------------------------------------
 
+  /**
+   * Drizzle mysql2 dialect does not implement INSERT/UPDATE … RETURNING
+   * (MySQL protocol gap). Post-write re-read uses optimized findById instead.
+   * useDynamicSqlInFindMany matches Postgres/SQLite heavy-table path.
+   */
+  protected get useDynamicSqlInFindMany(): boolean {
+    return true;
+  }
+
   protected get convertDatesOptions(): Record<string, any> {
     return { mariaDoubleParseJson: true, inPlace: true };
   }

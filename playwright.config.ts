@@ -61,9 +61,11 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.PLAYWRIGHT_WORKERS ? Number.parseInt(process.env.PLAYWRIGHT_WORKERS, 10) : 4,
+  // CI: compact dots (failures still expand) + GitHub annotations + HTML/JSON for artifacts.
+  // Local: list for readable progress.
   reporter: process.env.CI
     ? [
-        ["list"],
+        ["dot"],
         ["github"], // inline annotations on the PR check
         ["html", { outputFolder: "tests/playwright-report", open: "never" }],
         // Machine-readable for scripts/ci-report-playwright.ts → GITHUB_STEP_SUMMARY

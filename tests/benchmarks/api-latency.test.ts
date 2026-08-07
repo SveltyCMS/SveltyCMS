@@ -1,6 +1,7 @@
 /**
  * @file tests/benchmarks/api-latency.test.ts
  * @description API Latency Benchmark (Production Optimized)
+ * @summary Cold full-pipeline findById + warm TURBO-HIT path after responseCache fill.
  */
 
 import {
@@ -24,12 +25,12 @@ import "../unit/bun-preload.ts";
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;
 
-// Pre-compiled headers to eliminate reference allocations in the hot path
+// Pre-compiled headers — keep-alive + test secret for benchmark auth / turbo session
 const STATIC_HEADERS = new Headers([
   ["x-test-mode", "true"],
   ["x-test-secret", TEST_API_SECRET],
   ["x-tenant-id", "default"],
-  ["connection", "keep-alive"], // Explicitly force persistent socket pooling
+  ["connection", "keep-alive"],
 ]);
 
 beforeAll(async () => {
@@ -54,46 +55,86 @@ export async function runApiLatencyAudit() {
   const ITERATIONS = 500;
   const allResults: any[] = [];
 
-  // Pre-bake the URL string reference to bypass template literal evaluation overhead inside the loop
   const targetUrl = `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`;
 
-  // Pre-allocate the request configuration structure
   const fetchConfig: RequestInit = {
     method: "GET",
     headers: STATIC_HEADERS,
-    keepalive: true, // Hints to the runtime network layer to maintain an un-interrupted channel
+    keepalive: true,
   };
 
   try {
-    console.log("   → Measuring Pipeline Latency (findById)...");
+    // ── Cold / full pipeline: unique query busts responseCache so turbo cannot HIT
+    console.log("   → Measuring Pipeline Latency (findById cold, cache-busted)...");
+    let coldSeq = 0;
     const httpRes = await runBenchmark({
       name: "HTTP: findById @ 8c",
       iterations: ITERATIONS,
-      warmupIterations: 200,
+      warmupIterations: 100,
       runs: RUNS,
-      concurrency: 8, // High-concurrency profiling target
+      concurrency: 8,
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const res = await fetch(targetUrl, fetchConfig);
+        coldSeq++;
+        // Unique search → unique turbo key → forces full handler path
+        const res = await fetch(`${targetUrl}?_c=${coldSeq}`, fetchConfig);
         if (!res.ok) throw new Error(`HTTP Latency failed: ${res.status}`);
-
-        // Direct stream drainage via arrayBuffer prevents heap allocation fragmentation
         await res.arrayBuffer();
       },
     });
-    allResults.push({ ...httpRes, layer: "HTTP" });
+    allResults.push({ ...httpRes, layer: "HTTP", shortLabel: "cold" });
+
+    // Warm turbo auth + responseCache L1 on the stable URL
+    let turboHits = 0;
+    for (let i = 0; i < 30; i++) {
+      const warm = await fetch(targetUrl, fetchConfig);
+      const xCache = warm.headers.get("x-cache") || "";
+      if (xCache.includes("TURBO")) turboHits++;
+      await warm.arrayBuffer();
+    }
+
+    // ── Warm TURBO-HIT path ─────────────────────────────────────────────
+    console.log(`   → Measuring Turbo HIT findById (warm hits so far: ${turboHits}/30)...`);
+    let measuredTurboHits = 0;
+    let measuredTotal = 0;
+    const turboRes = await runBenchmark({
+      name: "HTTP: findById TURBO-HIT @ 8c",
+      iterations: ITERATIONS,
+      warmupIterations: 100,
+      runs: RUNS,
+      concurrency: 8,
+      trimOutliers: "iqr",
+      measureMemory: true,
+      silent: true,
+      onIteration: async () => {
+        measuredTotal++;
+        const res = await fetch(targetUrl, fetchConfig);
+        if (!res.ok) throw new Error(`Turbo findById failed: ${res.status}`);
+        const xCache = res.headers.get("x-cache") || "";
+        if (xCache.includes("TURBO")) measuredTurboHits++;
+        await res.arrayBuffer();
+      },
+    });
+    allResults.push({ ...turboRes, layer: "TURBO", shortLabel: "turbo" });
+
+    const turboHitRate =
+      measuredTotal > 0 ? Math.min(100, (measuredTurboHits / measuredTotal) * 100) : 0;
 
     printTruthTable({
       title: "SVELTYCMS  —  API LAYER LATENCY",
-      subtitle: "Full HTTP Pipeline Performance",
+      subtitle: "Cold full pipeline vs Turbo GET response-cache HIT",
       results: allResults,
     });
 
     printSummaryTable([
-      { key: "HTTP Latency (findById)", val: httpRes.avgMs, unit: "ms" },
-      { key: "Peak Throughput", val: Math.round(httpRes.rps), unit: "req/s" },
+      { key: "HTTP Latency (findById cold)", val: httpRes.avgMs, unit: "ms" },
+      { key: "HTTP Latency (TURBO-HIT)", val: turboRes.avgMs, unit: "ms" },
+      { key: "TURBO speedup", val: httpRes.avgMs / Math.max(turboRes.avgMs, 0.001), unit: "×" },
+      { key: "TURBO hit rate", val: turboHitRate, unit: "%" },
+      { key: "Peak Throughput (cold)", val: Math.round(httpRes.rps), unit: "req/s" },
+      { key: "Peak Throughput (turbo)", val: Math.round(turboRes.rps), unit: "req/s" },
       {
         key: "Memory RSS Δ",
         val: (httpRes.rssDelta || 0).toFixed(2),
@@ -103,6 +144,8 @@ export async function runApiLatencyAudit() {
 
     for (const r of allResults) exportResult(r);
     exportMetric("api.latency.http", httpRes.avgMs, "ms");
+    exportMetric("api.latency.http_turbo", turboRes.avgMs, "ms");
+    exportMetric("api.latency.turbo_hit_rate", turboHitRate, "%");
   } finally {
     // Graceful teardown
   }

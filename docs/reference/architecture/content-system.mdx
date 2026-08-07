@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:file-tree"
 author: "SveltyCMS Team"
 created: "2026-03-15"
-updated: "2026-07-31"
+updated: "2026-08-07"
 tags:
   - "architecture"
   - "performance"
@@ -26,11 +26,13 @@ The SveltyCMS Content System is a high-performance, reactive engine. The server 
 | `index.ts`                        | Browser-safe public facade (`contentSystem`, SSE init)                                      |
 | `index.server.ts`                 | Server facade + `ensureContentInitialized()` + re-exports ContentSync                       |
 | `sync-content-state.server.ts`    | **ContentSync** — `boot` / `compile` / `gui-save` / `watcher` / `collection-save` / reorder |
-| `schema-contract.ts`              | Post-load schema assert (shape, duplicate fields) + optional structure fingerprint helpers  |
+| `schema-contract.ts`              | Post-load schema assert (Valibot shape, soft empty fields, structure fingerprint)           |
+| `schema-hooks.ts`                 | Optional `beforeValidate` / `afterValidate` — **write path only**                           |
 | `engine.server.ts`                | Scanner, reconciliation, cache invalidation, dev watcher, CRUD                              |
 | `loader.server.ts`                | `loadSchema()`, worker pool, `isSafeCollectionPath()`, `contentRuntime`                     |
 | `module-worker.server.ts`         | Worker-thread entry (spawned by loader pool; must stay separate)                            |
-| `content-utils.ts`                | Navigation tree, metrics, shared pure helpers                                               |
+| `content-utils.ts`                | Navigation tree, progressive nav, field sanitize/validate helpers                           |
+| `content-hmr.ts`                  | Client-safe surgical HMR patch (`applyContentHmrPatch`) vs full layout invalidate           |
 | `content-sse.svelte.ts`           | Client SSE → debounced `contentSystem.refresh()`                                            |
 | `types.ts` / `types.generated.ts` | Domain types + build-time collection unions (`generate-content-types.ts`)                   |
 
@@ -286,6 +288,48 @@ Individual cache lookups are replaced by **Vectorized Batching**. The system fet
 
 Lightweight numeric string hash in `loader.server.ts` (`generateSchemaHash`). Reduces reconciliation time for unchanged schemas by ~40%.
 
+### 🧠 5. Smart / Lazy Usage Rules
+
+| Workload                            | Use                                                                     | Avoid                                    |
+| :---------------------------------- | :---------------------------------------------------------------------- | :--------------------------------------- |
+| Resolve schema in UI/API            | `contentStore.getCollection` / LocalCMS `getSchema` (LRU + alias index) | Full `syncContentState` / scan           |
+| Entry `findById` / create / update  | LocalCMS collections namespace (hot flags skip unused work)             | Reconcile / content-structure refresh    |
+| Structure change (builder, reorder) | `syncContentState` with targeted reason                                 | Entry mutation paths                     |
+| Dev HMR small schema edit           | `applyContentHmrPatch` + `changedNodes`                                 | Full layout invalidate when not required |
+| Production schema load              | Worker pool only when uncached files need import                        | Eager pool on every request              |
+
+**Entry vs structure:** Entry create/update/delete **must not** bump `contentStore.contentVersion`. Structure version drives nav cache keys and SSE full refreshes — only schema/tree sync paths update it.
+
+**Schema hot flags** (cached on first `getSchema`): `_hasActiveWidgets`, `_hasNumberFields`, `_hasSanitizableFields`, `_hasHooks` — so create/update/find skip field walks and `modifyRequest` when the schema does not need them.
+
+**Registry indexes:** `contentStore` keeps path → id and lowercased alias → schema id maps for O(1) `getNodeByPath` / `getCollection` after warm-up.
+
+### 📐 6. Baseline Benchmarks (CRUD)
+
+Use these suites for create / update / find / mixed baselines (SQLite default local):
+
+| Suite            | File                                            | What it measures                                     |
+| :--------------- | :---------------------------------------------- | :--------------------------------------------------- |
+| Adapter CRUD     | `tests/benchmarks/database-performance.test.ts` | INSERT / FIND ONE / UPDATE / DELETE (direct adapter) |
+| Local throughput | `tests/benchmarks/local-api-throughput.test.ts` | Wave writes + `findOne` reads (no HTTP)              |
+| HTTP findById    | `tests/benchmarks/api-latency.test.ts`          | `HTTP: findById @ 8c`                                |
+| Mixed workload   | `tests/benchmarks/mixed-workload.test.ts`       | Weighted REST read/search + GraphQL + health         |
+| Truth layers     | `tests/benchmarks/truth-latency.test.ts`        | Logic vs LocalCMS vs HTTP                            |
+
+```bash
+# Baseline adapter CRUD (record into history / MDX when desired)
+BENCHMARK_RECORD=1 bun test tests/benchmarks/database-performance.test.ts
+
+# Local CMS write/read throughput
+bun test tests/benchmarks/local-api-throughput.test.ts
+
+# HTTP findById + mixed
+bun test tests/benchmarks/api-latency.test.ts
+bun test tests/benchmarks/mixed-workload.test.ts
+```
+
+Raw adapter FIND ONE / INSERT are typically **sub-0.1 ms** on SQLite; HTTP findById and mixed runs include middleware and should be compared against the ledger in `docs/project/benchmarks/benchmark_sqlite.mdx`.
+
 ---
 
 ## 🛡️ Schema Validation & Path Hardening
@@ -293,13 +337,14 @@ Lightweight numeric string hash in `loader.server.ts` (`generateSchemaHash`). Re
 **Schema contract** (`schema-contract.ts` → used by `loader.server.ts`):
 
 - Normalizes module export → schema object; fills `name` / `_id` from path when missing
-- Hard-fail: non-object, missing `fields` array, duplicate `db_fieldName`
+- Missing `fields` → coerced to `[]` (draft-friendly)
+- Hard-fail: non-object, non-array `fields`, duplicate `db_fieldName`
 - Soft: empty `fields` (draft) loads with a debug note; engine may still refuse provision
 
 **Engine hard validation** (`validateSchemaFields` in `engine.server.ts`):
 
-- Rejects missing `name` or empty `fields` before cache/DB
-- Invalid schemas are skipped — last-good runtime state retained
+- Rejects missing `name` or invalid `fields` array before cache/DB
+- Empty fields log as draft (not hard-delete loop) — invalid schemas are skipped; last-good runtime state retained
 
 **Path Security** (`isSafeCollectionPath` in `loader.server.ts`):
 
