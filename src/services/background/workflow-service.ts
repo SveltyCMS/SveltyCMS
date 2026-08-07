@@ -143,11 +143,11 @@ export class WorkflowService {
 
     const dbAdapter = await getDbAdapter();
     try {
-      const findOpts = { bypassTenantCheck: true };
+      // Tenant-scoped lookup (parity with save/delete). Single-tenant: undefined is fine.
       const workflows = await dbAdapter.crud.findMany<any>(
         this.DEFINITIONS_COLLECTION,
         { collectionId },
-        findOpts,
+        { tenantId: tenantId as DatabaseId },
       );
 
       const items = Array.isArray(workflows?.data)

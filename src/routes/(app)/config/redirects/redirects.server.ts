@@ -79,10 +79,8 @@ async function mirrorContentCollection(
     };
     if (mode === "delete") {
       if (payload.id) {
-        await cms.collections.delete("redirects", payload.id, {
-          ...apiOpts,
-          bypassTenantCheck: true,
-        } as any);
+        // Mirror is best-effort; stay tenant-scoped (no bypassTenantCheck — tenant lint)
+        await cms.collections.delete("redirects", payload.id, apiOpts as any);
       }
       return;
     }
@@ -219,7 +217,7 @@ export async function deleteRedirect(
   }
 
   const deleted = await dbAdapter.crud.delete("redirectsMV", id as DatabaseId, {
-    bypassTenantCheck: true,
+    tenantId: tenantKey(tenantId),
     permanent: true,
   });
   if (!deleted.success) {
