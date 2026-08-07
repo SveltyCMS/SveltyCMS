@@ -20,6 +20,7 @@ import { logger } from "@utils/logger";
 import {
   isAdmin,
   isPublicRoute,
+  isBootstrapRoute,
   withMutableHeaders,
   getUserCacheId,
   buildUserCacheKey,
@@ -61,7 +62,8 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
   if (!url.pathname.startsWith("/api/")) return resolve(event);
 
   const testMode = process.env.TEST_MODE === "true";
-  if (isPublicRoute(url.pathname, testMode)) return resolve(event);
+  if (isPublicRoute(url.pathname, testMode) || isBootstrapRoute(url.pathname))
+    return resolve(event);
 
   try {
     if (!locals.user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");

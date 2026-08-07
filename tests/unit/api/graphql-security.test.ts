@@ -164,3 +164,55 @@ describe("GraphQL dispatcher auth gate (catch-all /api/graphql)", () => {
     expect(res.status).not.toBe(401);
   });
 });
+
+/**
+ * Defense-in-depth mirrors the Subscription.subscribe guards in
+ * src/routes/api/graphql/+server.ts (contentStructureUpdated, entryUpdated, onPing).
+ * Pure helper exercises the same contract; source-guard asserts all three resolvers
+ * still check context.user (prevents silent regression if a subscribe is re-inlined).
+ */
+function assertSubscriptionAuth(context: {
+  user?: unknown;
+  pubSub?: { subscribe: (t: string) => unknown };
+}) {
+  if (!context.user) {
+    const err = new Error("Unauthorized");
+    (err as any).status = 401;
+    throw err;
+  }
+  return context.pubSub!.subscribe("entryUpdated");
+}
+
+describe("GraphQL subscription subscribe() requires context.user (P1)", () => {
+  it("source keeps context.user guards on all three subscription fields", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const src = readFileSync(join(process.cwd(), "src/routes/api/graphql/+server.ts"), "utf8");
+    // Three subscribe handlers must each re-assert auth (defense-in-depth)
+    const guards = src.match(/if\s*\(\s*!context\.user\s*\)\s*throw\s+new\s+AppError/g) || [];
+    expect(guards.length).toBeGreaterThanOrEqual(3);
+    expect(src).toContain("contentStructureUpdated");
+    expect(src).toContain("entryUpdated");
+    expect(src).toContain("onPing");
+  });
+
+  it("rejects subscribe when context.user is missing", () => {
+    const pubSub = { subscribe: vi.fn(() => "async-iterator") };
+    expect(() => assertSubscriptionAuth({ user: null, pubSub })).toThrow(/Unauthorized/i);
+    expect(pubSub.subscribe).not.toHaveBeenCalled();
+  });
+
+  it("rejects subscribe when context.user is undefined", () => {
+    const pubSub = { subscribe: vi.fn(() => "async-iterator") };
+    expect(() => assertSubscriptionAuth({ pubSub })).toThrow(/Unauthorized/i);
+    expect(pubSub.subscribe).not.toHaveBeenCalled();
+  });
+
+  it("allows subscribe when context.user is present", () => {
+    const pubSub = { subscribe: vi.fn(() => "async-iterator") };
+    const user = createMockUser({ _id: "u1", role: "editor", isAdmin: false } as any);
+    const result = assertSubscriptionAuth({ user, pubSub });
+    expect(result).toBe("async-iterator");
+    expect(pubSub.subscribe).toHaveBeenCalledWith("entryUpdated");
+  });
+});

@@ -15,6 +15,7 @@ import { isSiteStarterPublicPath } from "@src/services/site/site-config.server";
 import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
 import { BASE_HEADERS } from "./security/constants";
+import { isSetupComplete } from "./setup-check-fast";
 
 // 🚀 Pre-cache to avoid Object.entries allocation on every request
 const BASE_HEADERS_ENTRIES = Object.entries(BASE_HEADERS);
@@ -64,8 +65,13 @@ export const STATIC_EXT_REGEX =
 export const STATIC_ASSET_REGEX =
   /^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|files\/|favicon\.ico|\.svelte-kit\/generated\/client\/nodes|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map|json))/;
 
-const LOCALIZED_BOOTSTRAP_REGEX = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register)/;
-const LOCALIZED_PUBLIC_REGEX = /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/(setup|login|register|forgot-password)/;
+// Locale prefixes are 2–5 letters (e.g. /en/setup). MUST NOT match reserved CMS
+// segments: `/api` is 3 letters and previously made /api/setup/* "public" via this
+// regex — enabling unauthenticated setup complete (CWE-306 admin takeover).
+const LOCALIZED_BOOTSTRAP_REGEX =
+  /^\/(?!api(?:\/|$))[a-z]{2,5}(?:-[a-zA-Z]+)?\/(?:setup|login|register)(?:\/|$|\?)/;
+const LOCALIZED_PUBLIC_REGEX =
+  /^\/(?!api(?:\/|$))[a-z]{2,5}(?:-[a-zA-Z]+)?\/(?:setup|login|register|forgot-password)(?:\/|$|\?)/;
 
 // O(1) Set lookup for 80% of public routes
 const PUBLIC_EXACT_ROUTES = new Set([
@@ -124,12 +130,17 @@ export function classifyRequest(pathname: string, locals: App.Locals): RequestFl
 
   const isStatic = isStaticOrInternalRequest(pathname);
   const isBootstrap = isBootstrapRoute(pathname);
+  // 🛡️ After install, /api/setup/* is NOT a public bootstrap surface.
+  // Treating completed setup APIs as public enabled CWE-306 admin-takeover PoCs
+  // (unauthenticated POST /api/setup/complete → session cookie).
+  // First-time install (no private.ts) still marks /api/setup as public via bootstrap.
+  const setupApiLocked = pathname.startsWith("/api/setup") && isSetupComplete();
 
   const flags: RequestFlags = {
     isStatic,
     isApi: pathname.startsWith("/api/"),
     isBootstrap,
-    isPublic: isStatic || isBootstrap || isPublicRoute(pathname, IS_TEST_MODE),
+    isPublic: isStatic || (isBootstrap && !setupApiLocked) || isPublicRoute(pathname, IS_TEST_MODE),
     isTestMode: IS_TEST_MODE,
   };
 

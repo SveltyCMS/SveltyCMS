@@ -173,16 +173,24 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
     },
     Subscription: {
       contentStructureUpdated: {
-        subscribe: (_: any, __: any, { pubSub }: any) =>
-          pubSub.subscribe("contentStructureUpdated"),
+        subscribe: (_: any, __: any, context: any) => {
+          if (!context.user) throw new AppError("Unauthorized", 401);
+          return context.pubSub.subscribe("contentStructureUpdated");
+        },
         resolve: (payload: any) => payload,
       },
       entryUpdated: {
-        subscribe: (_: any, __: any, { pubSub }: any) => pubSub.subscribe("entryUpdated"),
+        subscribe: (_: any, __: any, context: any) => {
+          if (!context.user) throw new AppError("Unauthorized", 401);
+          return context.pubSub.subscribe("entryUpdated");
+        },
         resolve: (payload: any) => payload,
       },
       onPing: {
-        subscribe: (_: any, __: any, { pubSub }: any) => pubSub.subscribe("entryUpdated"),
+        subscribe: (_: any, __: any, context: any) => {
+          if (!context.user) throw new AppError("Unauthorized", 401);
+          return context.pubSub.subscribe("entryUpdated");
+        },
         resolve: (payload: any) => ({
           timestamp: payload.timestamp || Date.now(),
         }),

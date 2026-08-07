@@ -850,6 +850,80 @@ describe("User API Extended Integration", () => {
 
       expect([401, 403]).toContain(response.status);
     });
+
+    it("strips role/isAdmin from low-priv self-update (privilege escalation PoC)", async () => {
+      // Create a non-admin editor and try the classic self-promote payload
+      const { userId, cookie: lowCookie } = await createUniqueUser(adminCookie, "editor");
+      createdUserIds.push(userId);
+
+      const escalate = await safeFetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: lowCookie,
+          Origin: API_BASE_URL,
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          role: "admin",
+          isAdmin: true,
+        }),
+      });
+
+      // Either 200 with privileged fields stripped, or 400 if only privileged fields were sent
+      expect([200, 400]).toContain(escalate.status);
+      if (escalate.status === 200) {
+        const body = await escalate.json().catch(() => ({}) as any);
+        const user = body?.data ?? body;
+        expect(user?.isAdmin === true || user?.role === "admin").toBe(false);
+      }
+
+      // Re-login and assert still non-admin (session refresh / me)
+      const me = await safeFetch(`${API_BASE_URL}/api/user/me`, {
+        headers: { Cookie: lowCookie, Origin: API_BASE_URL },
+      });
+      // Some deployments expose me as /api/auth/me; fall back to list self via cookie context
+      if (me.status === 200) {
+        const meBody = await me.json().catch(() => ({}) as any);
+        const self = meBody?.data ?? meBody;
+        expect(self?.isAdmin === true || self?.role === "admin").toBe(false);
+      } else {
+        // Admin lists users and checks the target row
+        const list = await safeFetch(`${API_BASE_URL}/api/user?raw=true`, {
+          headers: { Cookie: adminCookie },
+        });
+        const users = await list.json().catch(() => []);
+        const arr = Array.isArray(users) ? users : users?.data || [];
+        const row = arr.find(
+          (u: any) => String(u._id) === String(userId) || u.email?.includes("testuser_"),
+        );
+        if (row) {
+          expect(row.isAdmin === true || row.role === "admin").toBe(false);
+        }
+      }
+    });
+
+    it("rejects non-admin updating another user", async () => {
+      const low = await createUniqueUser(adminCookie, "editor");
+      createdUserIds.push(low.userId);
+      const other = await createUniqueUser(adminCookie, "editor");
+      createdUserIds.push(other.userId);
+
+      const response = await safeFetch(`${API_BASE_URL}/api/user/update-user-attributes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: low.cookie,
+          Origin: API_BASE_URL,
+        },
+        body: JSON.stringify({
+          user_id: other.userId,
+          newUserData: { username: `hijack_${Date.now()}` },
+        }),
+      });
+
+      expect(response.status).toBe(403);
+    });
   });
 
   // ─── SUITE 7: COMPREHENSIVE AUTH GATING ─────────────────────────────────

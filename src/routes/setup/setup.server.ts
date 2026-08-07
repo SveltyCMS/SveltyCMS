@@ -233,6 +233,16 @@ export async function completeSetup(
   system: SystemSettings = {},
   emailSettings: any = {},
 ) {
+  // 🛡️ Fail-closed: form/remote setup must not re-run after install (admin takeover class)
+  const { isSetupComplete } = await import("@src/utils/setup-check-fast");
+  if (isSetupComplete()) {
+    return {
+      success: false,
+      error: "Setup is already complete. Use the Admin panel for further configuration.",
+      code: "SETUP_ALREADY_COMPLETE",
+    };
+  }
+
   if (!safeParse(setupAdminSchema, admin).success)
     return { success: false, error: "Invalid admin data" };
 
@@ -474,15 +484,39 @@ export async function completeSetup(
     { email: admin.email, tenantId: undefined },
     { bypassTenantCheck: true },
   );
+  // Defense: if any admin already exists in DB, refuse (config/private.ts missing/corrupt case)
+  try {
+    const adminCountResult = await dbAdapter.auth.getUserCount(
+      { role: "admin" },
+      { bypassTenantCheck: true },
+    );
+    const adminCount =
+      typeof adminCountResult === "number"
+        ? adminCountResult
+        : adminCountResult?.success
+          ? adminCountResult.data
+          : 0;
+    if (adminCount > 0 && !existing) {
+      return {
+        success: false,
+        error: "Database contains registered administrator accounts. Setup cannot be re-run.",
+        code: "SETUP_ALREADY_COMPLETE",
+      };
+    }
+  } catch {
+    /* count unavailable — continue carefully */
+  }
+
   let session: any;
   if (existing) {
+    // Only allow password reset path during first-time setup for the bootstrap admin email
     await auth.updateUserPassword(admin.email, admin.password, {
       bypassTenantCheck: true,
     });
     await auth.updateUser(
       existing._id,
-      { username: admin.username, role: "admin", isRegistered: true },
-      { bypassTenantCheck: true },
+      { username: admin.username, role: "admin", isRegistered: true, isAdmin: true },
+      { bypassTenantCheck: true, allowPrivilegeEscalation: true },
     );
     session = await auth.createSession(
       {

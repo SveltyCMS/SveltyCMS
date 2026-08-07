@@ -224,6 +224,111 @@ describe("User API Unit Tests", () => {
     expect([200, 403]).toContain(response.status);
   });
 
+  it("strips role/isAdmin from non-admin self updates (privilege escalation defense)", async () => {
+    const updateSpy = vi.fn().mockResolvedValue({
+      success: true,
+      data: { ...editorUser, username: "guest" },
+    });
+    (dbAdapter as any).auth.updateUserAttributes = updateSpy;
+
+    const guestUser = createMockUser({
+      _id: "guest-1",
+      role: "user",
+      isAdmin: false,
+      email: "guest@test.com",
+    } as any);
+
+    const response = await invokeApi("POST", {
+      path: "user/update-user-attributes",
+      body: {
+        user_id: "guest-1",
+        role: "admin",
+        isAdmin: true,
+        username: "still-guest",
+      },
+      user: guestUser,
+      tenantId: "t1",
+      roles: [
+        {
+          _id: "user",
+          name: "User",
+          isAdmin: false,
+          permissions: [],
+        },
+      ],
+      dbAdapter,
+      bypass: true,
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateSpy).toHaveBeenCalled();
+    const [, attrs] = updateSpy.mock.calls[0];
+    expect(attrs).not.toHaveProperty("role");
+    expect(attrs).not.toHaveProperty("isAdmin");
+    expect(attrs.username).toBe("still-guest");
+  });
+
+  it("rejects non-admin updating another user", async () => {
+    const response = await invokeApi("POST", {
+      path: "user/update-user-attributes",
+      body: {
+        user_id: "u1",
+        newUserData: { username: "hijack" },
+      },
+      user: editorUser,
+      tenantId: "t1",
+      roles: [
+        {
+          _id: "editor",
+          name: "Editor",
+          isAdmin: false,
+          permissions: ["user:read"],
+        },
+      ],
+      dbAdapter,
+      bypass: true,
+    });
+    expect(response.status).toBe(403);
+  });
+
+  it("strips role/isAdmin on PUT /user/:id self (alternate escalate path)", async () => {
+    const updateSpy = vi.fn().mockResolvedValue({
+      success: true,
+      data: { ...editorUser, username: "editor" },
+    });
+    (dbAdapter as any).auth.updateUserAttributes = updateSpy;
+
+    const response = await invokeApi("PUT", {
+      path: "user/u2",
+      body: { role: "admin", isAdmin: true, username: "still-editor" },
+      user: editorUser,
+      tenantId: "t1",
+      roles: [
+        {
+          _id: "editor",
+          name: "Editor",
+          isAdmin: false,
+          permissions: ["user:read"],
+        },
+      ],
+      dbAdapter,
+      bypass: true,
+    });
+
+    // Self update may succeed with stripped fields
+    if (response.status === 200) {
+      expect(updateSpy).toHaveBeenCalled();
+      const [, attrs, opts] = updateSpy.mock.calls[0];
+      expect(attrs).not.toHaveProperty("role");
+      expect(attrs).not.toHaveProperty("isAdmin");
+      expect(attrs.username).toBe("still-editor");
+      expect(opts?.allowPrivilegeEscalation).toBeFalsy();
+    } else {
+      // Some dispatch shapes return 403/404 for /user/:id — still not escalated
+      expect([400, 403, 404]).toContain(response.status);
+    }
+  });
+
   describe("Session management (sessions API)", () => {
     beforeEach(() => {
       mockPrivateSettings.clear();

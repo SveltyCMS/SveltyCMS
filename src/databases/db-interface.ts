@@ -163,6 +163,12 @@ export interface BaseQueryOptions {
    * alongside the scoped tenant (legacy untenanted rows). Default false (fail-closed).
    */
   includeLegacyUntenanted?: boolean;
+  /**
+   * User attribute writes only: allow role / isAdmin / roleIds / permissions.
+   * Default false (fail-closed) — privilege escalation defense-in-depth beneath API handlers.
+   * Set true only for admin-managed updates, testing seeds, or trusted system paths.
+   */
+  allowPrivilegeEscalation?: boolean;
 }
 
 /**

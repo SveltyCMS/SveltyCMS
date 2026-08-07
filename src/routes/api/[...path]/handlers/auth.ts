@@ -25,7 +25,7 @@ import {
   generateSAMLAuthUrl,
   createSAMLConnection,
 } from "@src/databases/auth/saml-auth";
-import { getAllPermissions } from "@src/databases/auth/permissions";
+import { getAllPermissions, hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { User } from "@src/databases/auth/types";
 import { successResponse, rawResponse } from "./base";
 import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
@@ -33,6 +33,11 @@ import { verifyPassword } from "@src/databases/auth";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { generateCsrfToken } from "@utils/security/csrf-utils";
+import {
+  hasPrivilegedUserFields,
+  isAdminCaller,
+  sanitizeClientUserAttributePatch,
+} from "@utils/security/user-attribute-policy";
 import { logger } from "@utils/logger";
 import { generateSecureToken } from "@utils/native-utils";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -725,37 +730,51 @@ export async function handleVerifyPassword(
  * Updates user attributes (email, password, profile fields, etc.).
  * When a password change is detected, ALL other active sessions are immediately
  * invalidated across all devices for security.
+ *
+ * ### Authorization (privilege-escalation defense)
+ * - Caller must be authenticated.
+ * - Non-admins may only update **themselves**.
+ * - Updating another user requires `user:write` (or admin).
+ * - Privilege / security fields (`role`, `isAdmin`, `permissions`, …) are
+ *   stripped for non-admin callers — never accepted from the client body.
  */
 export async function handleUpdateUserAttributesRoute(
   event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
 ) {
+  const caller = event.locals.user;
+  if (!caller?._id) throw new AppError("Unauthorized", 401);
+
   const body = await event.request.json();
   const { user_id, newUserData, ...directUpdates } = body;
-  const targetId = !user_id || user_id === "self" ? event.locals.user?._id : user_id;
+  const targetId = !user_id || user_id === "self" ? caller._id : user_id;
 
   if (!targetId) throw new AppError("User ID is required", 400);
 
-  const updates =
+  const isSelf = String(targetId) === String(caller._id);
+  const isAdmin = isAdminCaller(caller);
+  const roles = (event.locals.roles ?? []) as Parameters<typeof hasPermissionWithRoles>[2];
+  const canManageUsers = isAdmin || hasPermissionWithRoles(caller as User, "user:write", roles);
+
+  // Non-privileged users may only edit their own profile
+  if (!isSelf && !canManageUsers) {
+    throw new AppError("Forbidden: cannot update another user", 403);
+  }
+
+  const merged: Record<string, unknown> =
     newUserData && typeof newUserData === "object"
       ? { ...directUpdates, ...newUserData }
-      : directUpdates;
+      : { ...directUpdates };
 
-  // Strip empty password fields so adapters never try to write blank credentials
-  if ("password" in updates && (!updates.password || String(updates.password).trim() === "")) {
-    delete (updates as any).password;
+  if (hasPrivilegedUserFields(merged) && !isAdmin) {
+    logger.warn(
+      `[Auth] Stripped privileged fields from update-user-attributes (user=${caller._id})`,
+    );
   }
-  if (
-    "currentPassword" in updates &&
-    (!updates.currentPassword || String(updates.currentPassword).trim() === "")
-  ) {
-    delete (updates as any).currentPassword;
-  }
-  // currentPassword is verification-only — never persist it as a user column
-  delete (updates as any).currentPassword;
-  delete (updates as any).confirmPassword;
-  delete (updates as any).user_id;
+
+  // 🛡️ Client-facing policy: non-admin full strip; admin may set role/isAdmin
+  const updates = sanitizeClientUserAttributePatch(merged, { isAdmin });
 
   if (Object.keys(updates).length === 0) {
     throw new AppError("At least one user attribute is required", 400);
@@ -763,8 +782,14 @@ export async function handleUpdateUserAttributesRoute(
 
   // Never force isNull(tenantId) when multi-tenant is off — session-cached users
   // after re-seed can miss null-tenant filters. Prefer id-only update.
-  const updateOpts: { tenantId?: DatabaseId; bypassTenantCheck?: boolean } = {
+  // allowPrivilegeEscalation: adapters also fail-closed unless this is set.
+  const updateOpts: {
+    tenantId?: DatabaseId;
+    bypassTenantCheck?: boolean;
+    allowPrivilegeEscalation?: boolean;
+  } = {
     bypassTenantCheck: true,
+    ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
   };
   if (tenantId) {
     updateOpts.tenantId = tenantId;
@@ -796,6 +821,7 @@ export async function handleUpdateUserAttributesRoute(
         resolvedId = String(emailId);
         result = await cms.auth.updateUserAttributes(resolvedId, updates, {
           bypassTenantCheck: true,
+          ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
         } as any);
       }
     } catch {
@@ -1273,6 +1299,7 @@ export async function handleUserSpecificRoutes(
   segments: string[],
 ) {
   const { request } = event;
+  const caller = event.locals.user;
 
   // Batch operations
   if (method === "batch" && request.method === "POST") {
@@ -1305,10 +1332,32 @@ export async function handleUserSpecificRoutes(
       }
       case "PATCH":
       case "PUT": {
-        const data = await request.json();
+        // 🛡️ Same privilege boundary as update-user-attributes (self-promote via /user/:id was a bypass)
+        if (!caller?._id) throw new AppError("Unauthorized", 401);
+        const isAdmin = isAdminCaller(caller);
+        const isSelf = String(userId) === String(caller._id);
+        const roles = (event.locals.roles ?? []) as Parameters<typeof hasPermissionWithRoles>[2];
+        const canManageUsers =
+          isAdmin || hasPermissionWithRoles(caller as User, "user:write", roles);
+        if (!isSelf && !canManageUsers) {
+          throw new AppError("Forbidden: cannot update another user", 403);
+        }
+        const raw = (await request.json()) as Record<string, unknown>;
+        if (hasPrivilegedUserFields(raw) && !isAdmin) {
+          logger.warn(
+            `[Auth] Stripped privileged fields from PUT/PATCH /user/${userId} (user=${caller._id})`,
+          );
+        }
+        const data = sanitizeClientUserAttributePatch(raw, { isAdmin });
+        if (Object.keys(data).length === 0) {
+          throw new AppError("At least one user attribute is required", 400);
+        }
         return successResponse(
           event,
-          await cms.auth.updateUserAttributes(userId, data, { tenantId }),
+          await cms.auth.updateUserAttributes(userId, data, {
+            tenantId,
+            ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
+          }),
         );
       }
       default:

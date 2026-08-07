@@ -45,7 +45,10 @@ export interface EgressOptions {
 export interface EgressResult {
   success: boolean;
   status?: number;
+  /** UTF-8 decoded body (legacy / text consumers). Prefer bodyBytes for binary. */
   body?: string;
+  /** Raw response bytes — binary-safe for media downloads. */
+  bodyBytes?: Uint8Array;
   headers?: Record<string, string>;
   error?: string;
 }
@@ -201,7 +204,8 @@ export async function safeFetch(
       totalBuffer.set(chunk, offset);
       offset += chunk.length;
     }
-    const safeText = new TextDecoder().decode(totalBuffer);
+    // Text decode for string consumers; bodyBytes remains authoritative for binary media
+    const safeText = new TextDecoder("utf-8", { fatal: false }).decode(totalBuffer);
 
     const headers: Record<string, string> = {};
     response.headers.forEach((v, k) => (headers[k] = v));
@@ -210,6 +214,7 @@ export async function safeFetch(
       success: response.ok,
       status: response.status,
       body: safeText,
+      bodyBytes: totalBuffer,
       headers,
     };
   } catch (err: unknown) {

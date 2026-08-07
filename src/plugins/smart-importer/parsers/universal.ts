@@ -668,6 +668,9 @@ export async function fetchFromAPI(
   transactionToken: string,
 ): Promise<SNCEnvelope | null> {
   try {
+    // 🛡️ SSRF: configured API URLs are still user/admin input — egress-guard only
+    const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
+    const allowHttp = process.env.NODE_ENV === "development";
     const allItems: any[] = [];
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -675,16 +678,35 @@ export async function fetchFromAPI(
       ...config.headers,
     };
 
+    async function guardedJson(url: string, init: RequestInit): Promise<any | null> {
+      await validateEgressUrl(url, { allowHttp });
+      const resp = await safeFetch(url, {
+        allowHttp,
+        timeoutMs: 60_000,
+        maxSizeBytes: 50 * 1024 * 1024,
+        method: init.method,
+        headers: init.headers as Record<string, string> | undefined,
+        body: init.body as string | undefined,
+      });
+      if (!resp.success || !resp.body) return null;
+      try {
+        return JSON.parse(resp.body);
+      } catch {
+        return null;
+      }
+    }
+
     // GraphQL mode
     if (config.isGraphQL && config.query) {
-      const response = await fetch(config.url, {
+      const result = await guardedJson(config.url, {
         method: "POST",
         headers,
         body: JSON.stringify({ query: config.query }),
       });
-      const result = await response.json();
-      const items = extractDataArray(result, config.dataPath || "data");
-      allItems.push(...items);
+      if (result) {
+        const items = extractDataArray(result, config.dataPath || "data");
+        allItems.push(...items);
+      }
     }
     // REST mode with optional pagination
     else {
@@ -703,15 +725,14 @@ export async function fetchFromAPI(
           }
         }
 
-        const response = await fetch(url, {
+        const result = await guardedJson(url, {
           method: config.method || "GET",
           headers,
           body: config.method === "POST" ? JSON.stringify(config.body) : undefined,
         });
 
-        if (!response.ok) break;
+        if (!result) break;
 
-        const result = await response.json();
         const items = extractDataArray(result, config.dataPath || "data");
 
         if (items.length === 0) {

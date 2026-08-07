@@ -302,16 +302,16 @@ export class AuthNamespace {
 
   async updateUserAttributes(userId: string, data: any, options: LocalApiOptions = {}) {
     return safeCall(async () => {
-      const { tenantId, bypassTenantCheck } = options as LocalApiOptions & {
-        bypassTenantCheck?: boolean;
-      };
+      const { tenantId, bypassTenantCheck, allowPrivilegeEscalation } = options;
       const auth = await this.getAuth();
       // Forward full query options — do not drop bypassTenantCheck (E2E / null-tenant)
+      // or allowPrivilegeEscalation (admin / seed role assignment)
       const result = await auth.updateUserAttributes(userId as DatabaseId, data, {
         ...(tenantId !== undefined && tenantId !== null && tenantId !== ""
           ? { tenantId: tenantId as DatabaseId }
           : {}),
         ...(bypassTenantCheck ? { bypassTenantCheck: true } : {}),
+        ...(allowPrivilegeEscalation ? { allowPrivilegeEscalation: true } : {}),
       });
       if (!result || (typeof result === "object" && "success" in result && !result.success)) {
         throw new AppError(

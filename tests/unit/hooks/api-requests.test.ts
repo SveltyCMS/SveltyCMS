@@ -72,7 +72,7 @@ describe("API Requests Hook Unit Tests", () => {
   });
 
   it("passes through login API routes", async () => {
-    const event = createMockEvent("/api/login", "POST");
+    const event = createMockEvent("/api/auth/login", "POST");
     const resolve = vi.fn().mockResolvedValue(new Response("logged in"));
 
     const response = await handleApiRequests({ event, resolve } as any);

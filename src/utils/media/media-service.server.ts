@@ -131,6 +131,36 @@ function isSvgFile(mimeType: string, filename: string): boolean {
   return mimeType === "image/svg+xml" || filename.toLowerCase().endsWith(".svg");
 }
 
+/**
+ * Maximum SVG upload size (bytes). SVGs are always fully buffered + sanitized
+ * before storage — oversized SVGs are rejected rather than streamed unsanitized
+ * (stored-XSS class: large-file streaming used to skip sanitizeSvg).
+ */
+export const MAX_SVG_BYTES = 5 * 1024 * 1024; // 5 MiB
+
+/**
+ * Buffer + sanitize an SVG upload. Always required — never stream raw SVG to disk.
+ * Rejects files above MAX_SVG_BYTES to bound memory and block sanitizer bypass.
+ */
+async function bufferAndSanitizeSvg(file: {
+  name: string;
+  type: string;
+  size: number;
+  arrayBuffer?: () => Promise<ArrayBuffer>;
+  stream?: () => ReadableStream;
+}): Promise<Buffer> {
+  if (file.size > MAX_SVG_BYTES) {
+    throw new Error(
+      `SVG files must be ≤ ${MAX_SVG_BYTES / (1024 * 1024)}MB and are always sanitized before storage`,
+    );
+  }
+  if (typeof file.arrayBuffer !== "function") {
+    throw new Error("SVG uploads require a bufferable file object for sanitization");
+  }
+  const raw = Buffer.from(await file.arrayBuffer()).toString("utf-8");
+  return Buffer.from(sanitizeSvg(raw), "utf-8");
+}
+
 function validateMime(mimeType: string, filename: string) {
   if (!mimeType) {
     // Fall back to extension-based lookup
@@ -505,20 +535,76 @@ export class MediaService {
       const folderId = _basePath && _basePath !== "global" ? _basePath : undefined;
       const { hashFileContent } = await import("./media-processing.server");
 
-      // For large files, we use the stream to avoid OOM
+      // 🛡️ SVG: ALWAYS buffer + sanitize — never take the streaming path (XSS bypass if skipped)
+      const treatAsSvg = isSvgFile(file.type, file.name);
+      if (treatAsSvg) {
+        const buffer = await bufferAndSanitizeSvg(file);
+        const effectiveType = "image/svg+xml";
+        const hash = await hashFileContent(buffer);
+        const relPath = await this.ensureOriginalOnDisk(hash, file.name, buffer, tenantId);
+
+        const existing = await this.files.getByHash(hash, {
+          tenantId: tenantId ?? undefined,
+        });
+        if (existing.success && existing.data) {
+          const record = existing.data;
+          const patch: Record<string, unknown> = {};
+          if (record.path !== relPath) patch.path = relPath;
+          if (folderId !== record.folderId) patch.folderId = folderId;
+          if (Object.keys(patch).length > 0) {
+            await this.db.crud.update(
+              "media_items",
+              record._id,
+              patch as unknown as EntityUpdate<DbMediaItem>,
+            );
+            Object.assign(record, patch);
+          }
+          return {
+            success: true,
+            data: this.enrichMediaWithUrl(
+              record as unknown as EnrichableRecord,
+            ) as unknown as MediaItem,
+          };
+        }
+
+        return (await this.files.upload(
+          {
+            filename: file.name,
+            originalFilename: file.name,
+            mimeType: effectiveType,
+            size: buffer.length,
+            hash,
+            path: relPath,
+            createdBy: _userId as DatabaseId,
+            updatedBy: _userId as DatabaseId,
+            metadata: {},
+            thumbnails: {},
+            access: _access,
+            folderId,
+            tenantId: tenantId ?? undefined,
+          } as unknown as EntityCreate<DbMediaItem>,
+          { tenantId: tenantId ?? undefined },
+        )) as unknown as DatabaseResult<MediaItem>;
+      }
+
+      // For large non-SVG files, we use the stream to avoid OOM
       if (file.size < 5 * 1024 * 1024 && typeof file.arrayBuffer === "function") {
         // Small file: Buffer is fine and faster for small items
         let buffer = Buffer.from(await file.arrayBuffer());
 
         // Binary MIME sniffing as defense-in-depth
         const sniffed = sniffMimeType(buffer.subarray(0, 2048));
-        const effectiveType = file.type || sniffed?.mime || "application/octet-stream";
+        let effectiveType = file.type || sniffed?.mime || "application/octet-stream";
 
-        // 🛡️ SVG Sanitization: strip scripts, event handlers, and foreignObject before storage
-        if (isSvgFile(effectiveType, file.name)) {
-          const raw = buffer.toString("utf-8");
-          const sanitized = sanitizeSvg(raw);
-          buffer = Buffer.from(sanitized, "utf-8");
+        // Defense-in-depth: sniffed SVG (misdeclared MIME) still must be sanitized
+        if (isSvgFile(effectiveType, file.name) || isSvgFile(sniffed?.mime || "", file.name)) {
+          if (buffer.length > MAX_SVG_BYTES) {
+            throw new Error(
+              `SVG files must be ≤ ${MAX_SVG_BYTES / (1024 * 1024)}MB and are always sanitized before storage`,
+            );
+          }
+          buffer = Buffer.from(sanitizeSvg(buffer.toString("utf-8")), "utf-8");
+          effectiveType = "image/svg+xml";
         }
 
         const hash = await hashFileContent(buffer);
@@ -629,7 +715,11 @@ export class MediaService {
           { tenantId: tenantId ?? undefined },
         )) as unknown as DatabaseResult<MediaItem>;
       } else {
-        // Large file: Stream it!
+        // Large file: Stream it! (SVG never reaches here — handled above)
+        if (isSvgFile(file.type, file.name)) {
+          throw new Error("SVG uploads must be sanitized and cannot use the streaming path");
+        }
+
         // MIME sniffing for large files — read first 2048 bytes for validation
         const headerBuffer =
           typeof (file as File).slice === "function"
@@ -645,6 +735,15 @@ export class MediaService {
         }
 
         const sniffedLarge = sniffMimeType(headerBuffer);
+        // Block SVG polyglots that declare a non-SVG type but contain SVG markup
+        if (
+          sniffedLarge?.mime === "image/svg+xml" ||
+          headerBuffer.toString("utf-8", 0, Math.min(headerBuffer.length, 256)).includes("<svg")
+        ) {
+          throw new Error(
+            "SVG content cannot use the streaming upload path — upload as image/svg+xml (≤5MB, sanitized)",
+          );
+        }
         if (
           sniffedLarge &&
           sniffedLarge.mime !== "application/octet-stream" &&
@@ -809,25 +908,40 @@ export class MediaService {
     userId: string,
     access: string,
     tenantId?: DatabaseId | null,
+    basePath?: string,
   ): Promise<DatabaseResult<MediaItem>> {
     try {
-      validateEgressUrl(url, {
-        allowHttp: process.env.NODE_ENV === "development",
-      });
+      // SSRF defense: validateEgressUrl + safeFetch re-check every redirect hop
+      const allowHttp = process.env.NODE_ENV === "development";
+      await validateEgressUrl(url, { allowHttp });
       const resp = await safeFetch(url, {
+        allowHttp,
         timeoutMs: 30000,
         maxSizeBytes: 100 * 1024 * 1024,
       });
-      if (!resp.success || !resp.body || (resp.status && resp.status >= 400))
+      if (!resp.success || (!resp.bodyBytes && !resp.body) || (resp.status && resp.status >= 400)) {
         throw new Error(`Failed to fetch remote media: ${resp.error || resp.status}`);
+      }
 
-      // Read real MIME from response headers instead of hardcoding
-      const remoteMime = resp.headers?.["content-type"] || "application/octet-stream";
-      const blob = new Blob([resp.body], { type: remoteMime });
-      const name = url.split("/").pop() || "remote-file";
-      const file = new File([blob], name, { type: blob.type });
+      // Prefer raw bytes (binary-safe); fall back to text body for legacy callers
+      const remoteMime =
+        (resp.headers?.["content-type"] || "application/octet-stream").split(";")[0].trim() ||
+        "application/octet-stream";
+      const payload: BlobPart = resp.bodyBytes
+        ? (resp.bodyBytes as BlobPart)
+        : (resp.body as string);
+      const name = (() => {
+        try {
+          const u = new URL(url);
+          const last = u.pathname.split("/").filter(Boolean).pop();
+          return last && last.length > 0 ? decodeURIComponent(last) : "remote-file";
+        } catch {
+          return url.split("/").pop() || "remote-file";
+        }
+      })();
+      const file = new File([payload], name, { type: remoteMime });
 
-      return await this.saveMedia(file, userId, access as "public" | "private", tenantId);
+      return await this.saveMedia(file, userId, access as "public" | "private", tenantId, basePath);
     } catch (err: unknown) {
       this.mapFileSystemError(err);
       const e = err as Error;
@@ -1488,7 +1602,11 @@ export class MediaService {
       const { hashFileContent } = await import("./media-processing.server");
       let hash = "";
       let buffer: Buffer | null = null;
-      if (file.size < 5 * 1024 * 1024 && typeof file.arrayBuffer === "function") {
+      // 🛡️ SVG versions: always sanitize — never stream unsanitized SVG
+      if (isSvgFile(file.type, file.name)) {
+        buffer = await bufferAndSanitizeSvg(file);
+        hash = await hashFileContent(buffer);
+      } else if (file.size < 5 * 1024 * 1024 && typeof file.arrayBuffer === "function") {
         buffer = Buffer.from(await file.arrayBuffer());
         hash = await hashFileContent(buffer);
       } else {

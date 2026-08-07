@@ -81,15 +81,28 @@ describe("Cookie Prefix Security (RFC 6265bis)", () => {
 // ─── Setup Completion Gating ─────────────────────────────────────────────────
 
 describe("Setup Completion Gating", () => {
-  // Simulates the isSetupComplete check from setup.ts handler
+  /**
+   * Mirrors handleSetupRoutes entry gate (setup.ts):
+   * - complete/seed-db/test-db blocked after install
+   * - reinitialize allowed only for a real admin session (not synthetic system user)
+   */
   function simulateSetupHandler(
     isComplete: boolean,
-    _action: string,
+    action: string,
+    caller?: { _id?: string; email?: string; isAdmin?: boolean; role?: string } | null,
   ): { status: number; error: string } | null {
-    if (isComplete) {
+    if (!isComplete) return null;
+    if (action === "complete" || action === "seed-db" || action === "test-db") {
       return { status: 403, error: "SETUP_ALREADY_COMPLETE" };
     }
-    // Setup not complete yet, allow to proceed
+    if (action === "reinitialize") {
+      const isRealAdmin =
+        !!caller &&
+        caller._id !== "system" &&
+        caller.email !== "system@sveltycms" &&
+        (caller.isAdmin === true || caller.role === "admin" || caller.role === "super-admin");
+      if (!isRealAdmin) return { status: 403, error: "SETUP_REINIT_FORBIDDEN" };
+    }
     return null;
   }
 
@@ -112,17 +125,38 @@ describe("Setup Completion Gating", () => {
     expect(result!.status).toBe(403);
   });
 
-  it("should block reinitialize when setup is already complete (403)", () => {
-    const result = simulateSetupHandler(true, "reinitialize");
+  it("should block unauthenticated reinitialize after setup complete", () => {
+    const result = simulateSetupHandler(true, "reinitialize", null);
     expect(result).not.toBeNull();
     expect(result!.status).toBe(403);
+    expect(result!.error).toBe("SETUP_REINIT_FORBIDDEN");
+  });
+
+  it("should block synthetic system-user reinitialize after setup complete", () => {
+    const result = simulateSetupHandler(true, "reinitialize", {
+      _id: "system",
+      email: "system@sveltycms",
+      isAdmin: true,
+      role: "admin",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.error).toBe("SETUP_REINIT_FORBIDDEN");
+  });
+
+  it("should allow real admin reinitialize after setup complete", () => {
+    const result = simulateSetupHandler(true, "reinitialize", {
+      _id: "admin-1",
+      email: "admin@example.com",
+      isAdmin: true,
+      role: "admin",
+    });
+    expect(result).toBeNull();
   });
 
   it("should allow status check even when setup is complete", () => {
-    // Status check is always allowed to check if system is ready
+    // status is not a mutating complete/seed path — gate does not block
     const result = simulateSetupHandler(true, "status");
-    // Status always returns a response, not blocked by the gate
-    expect(result).not.toBeNull();
+    expect(result).toBeNull();
   });
 
   it("should allow all actions when setup is NOT complete", () => {
@@ -132,10 +166,10 @@ describe("Setup Completion Gating", () => {
     expect(simulateSetupHandler(false, "reinitialize")).toBeNull();
   });
 
-  it("should block invalid setup actions when complete", () => {
+  it("does not treat unknown actions as complete/seed (404 later in handler)", () => {
+    // Entry gate only hard-blocks complete/seed-db/test-db; unknown → 404 downstream
     const result = simulateSetupHandler(true, "unknown-action");
-    expect(result).not.toBeNull();
-    expect(result!.status).toBe(403);
+    expect(result).toBeNull();
   });
 });
 

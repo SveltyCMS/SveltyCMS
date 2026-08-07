@@ -422,7 +422,8 @@ export async function handleTestingRoutes(
               failedAttempts: 0,
               lockoutUntil: null,
             },
-            seedOpts,
+            // Testing seed may re-apply role; never available on public product APIs
+            { ...seedOpts, allowPrivilegeEscalation: true },
           );
           result = { success: true, data: existing.data };
         }

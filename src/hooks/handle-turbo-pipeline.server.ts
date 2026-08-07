@@ -290,9 +290,12 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       if (!event.locals.user) {
         // 🛡️ HARDENING: Only fallback to system user for management endpoints, setup, or benchmarks.
         // This prevents false positives in integration tests checking for 401/403.
+        // Setup: only inject while install is incomplete — never after private.ts exists
+        // (admin-takeover class if /api/setup/* still accepted a synthetic admin).
+        const setupIncomplete = pathname.includes("/api/setup") && !isSetupComplete();
         const isManagement =
           pathname.includes("/api/testing") ||
-          pathname.includes("/api/setup") ||
+          setupIncomplete ||
           pathname.includes("/api/system/health") ||
           pathname.includes("/health") ||
           pathname.includes("/api/user/login"); // Allow login bypass to proceed

@@ -8,7 +8,9 @@
  *   1. scan-security-risk — OUR code: SQL/NoSQL injection classes across all
  *                        4 adapters (SQLite, MariaDB, PostgreSQL, MongoDB),
  *                        command injection, dynamic code execution, path
- *                        traversal, SSRF, XSS sinks + SvelteKit CSRF/cookie
+ *                        traversal, SSRF (incl. unguarded remote URL fetch),
+ *                        privilege-field writes, SVG stream bypass, XSS sinks +
+ *                        SvelteKit CSRF/cookie
  *                        config — over the ENTIRE src tree
  *   2. scan-secret-misuse — hardcoded credentials / comparison backdoors
  *   3. slop-scanner     — XSS, RTL, security architecture rules

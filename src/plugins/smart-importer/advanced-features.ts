@@ -237,18 +237,31 @@ export async function harvestInBodyMedia(
   while ((match = imgRegex.exec(htmlContent)) !== null) {
     const remoteUrl = match[1];
     try {
-      const response = await fetch(remoteUrl);
-      if (!response.ok) {
+      // 🛡️ SSRF: never raw-fetch user/HTML-derived URLs — egress guard blocks private nets
+      const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
+      await validateEgressUrl(remoteUrl, {
+        allowHttp: process.env.NODE_ENV === "development",
+      });
+      const resp = await safeFetch(remoteUrl, {
+        allowHttp: process.env.NODE_ENV === "development",
+        timeoutMs: 30_000,
+        maxSizeBytes: 25 * 1024 * 1024,
+      });
+      if (!resp.success || (!resp.bodyBytes && !resp.body)) {
         logger.warn(
-          `[Advanced] Failed to fetch inline media: ${remoteUrl} (HTTP ${response.status})`,
+          `[Advanced] Failed to fetch inline media: ${remoteUrl} (${resp.error || resp.status})`,
         );
         continue;
       }
 
-      const buffer = await response.arrayBuffer();
+      const rawBytes = resp.bodyBytes ?? new TextEncoder().encode(resp.body || "");
+      const buffer = rawBytes.buffer.slice(
+        rawBytes.byteOffset,
+        rawBytes.byteOffset + rawBytes.byteLength,
+      );
       const filename =
         remoteUrl.split("/").pop() || `harvested_${crypto.randomUUID().slice(0, 8)}.png`;
-      const mimeType = response.headers.get("Content-Type") || "image/png";
+      const mimeType = resp.headers?.["content-type"] || "image/png";
 
       const savedMedia = await context.mediaService.saveBinary({
         binary: buffer,

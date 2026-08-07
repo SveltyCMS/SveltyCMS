@@ -280,6 +280,13 @@ export class RelationalAuthModule implements IAuthAdapter {
         delete (rest as any).id;
         delete (rest as any).passwordHash;
 
+        // 🛡️ Fail-closed: strip role/isAdmin/roleIds/permissions unless explicitly allowed
+        if (!options?.allowPrivilegeEscalation) {
+          const { stripPrivilegeEscalationFields } =
+            await import("@utils/security/user-attribute-policy");
+          stripPrivilegeEscalationFields(rest as Record<string, unknown>);
+        }
+
         // Hash plaintext passwords before persisting (parity with createUser).
         // Without this, admin/reset/seeding updates would store the raw password.
         if (rest.password && !rest.password.startsWith("$argon2")) {
@@ -294,7 +301,8 @@ export class RelationalAuthModule implements IAuthAdapter {
 
         if (updateData.email) updateData.email = normalizeEmail(updateData.email);
 
-        if (userData.role) {
+        // Only honor role when privilege escalation is allowed (admin/system paths)
+        if (options?.allowPrivilegeEscalation && userData.role) {
           updateData.role = userData.role;
           if (!updateData.roleIds) updateData.roleIds = [userData.role as DatabaseId];
           // 🚀  If role is admin, ensure isAdmin is true

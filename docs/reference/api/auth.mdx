@@ -81,7 +81,7 @@ Standard authentication uses secure `HttpOnly` cookies to maintain session state
 
 Users can update their own security attributes and metadata via dedicated endpoints:
 
-- **Update Attributes**: `POST /api/auth/update-user-attributes` (also accepts `PUT` and `PATCH`) — Updates profile fields. Pass `user_id: "self"` for the current user.
+- **Update Attributes**: `POST /api/auth/update-user-attributes` (also accepts `PUT` and `PATCH`) — Updates profile fields. Pass `user_id: "self"` for the current user. Non-admins may only update themselves; privilege fields (`role`, `isAdmin`, `permissions`, lockout/2FA secrets, etc.) are stripped for non-admin callers.
 - **Save Avatar**: `POST /api/auth/save-avatar` — Supports both Multipart form-data (file upload) and JSON payloads (URL string).
 
 ---

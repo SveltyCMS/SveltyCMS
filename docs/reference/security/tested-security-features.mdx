@@ -114,6 +114,9 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 **Key Implemented Features**:
 
 - ✅ **SVG Polyglot Upload Sanitization**: Server-side `sanitizeSvg()` function strips script tags, foreignObject elements, inline event handlers, javascript:/data: URIs, CDATA blocks, XML PIs, and DOCTYPE declarations from uploaded SVG files before storage (`src/utils/media/media-service.server.ts`).
+- ✅ **SVG large-file streaming bypass fixed**: SVGs always take `bufferAndSanitizeSvg` (never the ≥5MB pure-stream path). `MAX_SVG_BYTES` rejects oversized SVGs. File server adds CSP `script-src 'none'` for `image/svg+xml` responses.
+- ✅ **User attribute privilege escalation fixed**: `handleUpdateUserAttributesRoute` requires auth, restricts non-admins to self, and strips `role`/`isAdmin`/permissions via `stripPrivilegedUserFields` (`src/utils/security/user-attribute-policy.ts`).
+- ✅ **Remote media upload SSRF fixed**: Gallery remote upload uses `MediaService.saveRemoteMedia` → `validateEgressUrl` + `safeFetch` (private IPs, localhost, metadata, DNS rebinding, redirect re-validation).
 - ✅ **S3 Endpoint SSRF Prevention**: `validateS3Endpoint()` blocks private IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16), IPv6 loopback/link-local, cloud metadata hosts, and non-HTTP protocols before S3Client creation (`src/utils/media/cloud-storage.ts`).
 
 - ✅ **Ollama RAG Prompt Injection Defense**: Remote knowledge-base context relocated from `system` to `user` message role with `<rag_context>` XML delimiters. Control characters stripped from RAG results. System prompt hardened with explicit instruction-override rejection (`src/services/core/ai-service.ts`).

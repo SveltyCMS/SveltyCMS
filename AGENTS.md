@@ -254,6 +254,13 @@ To maintain our **A++ Security Grade**, agents must adhere to these strictly enf
 - **MIME uploads**: Restrict file upload types to explicit MIME subtypes — never accept broad categories like `application/*`.
 - **GraphQL introspection**: Must be blocked unconditionally in production (`NODE_ENV === "production"`), regardless of benchmark flags.
 
+### 11b. User Attributes, SVG Upload & Outbound URL (Critical Classes)
+
+- **Privilege fields**: Never accept `role` / `isAdmin` / `permissions` / lockout / 2FA secrets from client profile bodies. Use `sanitizeClientUserAttributePatch` / `stripPrivilegedUserFields` from `@utils/security/user-attribute-policy` on **every** user-facing update path (`update-user-attributes` **and** `PUT/PATCH /api/user/:id`). Non-admins may only update **self**.
+- **Adapter fail-closed**: `updateUserAttributes` strips `role`/`isAdmin`/`roleIds`/`permissions` unless `options.allowPrivilegeEscalation: true` (admin handler, testing seed only). Do not set that flag on product self-service paths.
+- **SVG uploads**: Always buffer + `sanitizeSvg` / `bufferAndSanitizeSvg` — never pure-stream unsanitized SVG (large-file path was a stored-XSS bypass). Enforce `MAX_SVG_BYTES`.
+- **Remote URL fetch (SSRF)**: Never `fetch(userUrl)` for remote media or importer URLs. Use `validateEgressUrl` + `safeFetch` or `MediaService.saveRemoteMedia` (blocks private IPs, localhost, cloud metadata, DNS rebinding, redirect hops).
+
 ### 12. Security Scanners (Pre-Commit + CI)
 
 Four scanners enforce these rules at the code level:
@@ -309,7 +316,7 @@ When generating/modifying code:
     - **Full Matrix**: For cross-test correlation, run `bun run scripts/benchmark-matrix/index.ts --sql`
     - **Reports**: Check MDX reports for trend labels (`🔴 avg +35%`), root cause insights, and code path recommendations
     - **Commit Messages**: Do NOT add `Co-Authored-By` or AI tags.
-14. **Security Regression Test (CRITICAL)**: Covered by the full unit suite on pre-commit. Focused re-run: `bun run test:security` (hooks defense-in-depth, authentication, authorization, file-server-tenant). Before committing changes under `src/hooks/`, `src/routes/api/`, `src/routes/files/`, or `src/routes/(app)/`, prefer `bun run test:security` (or `bun run test:smart`) in addition to the automatic pre-commit unit gate.
+14. **Security Regression Test (CRITICAL)**: Covered by the full unit suite on pre-commit. Focused re-run: `bun run test:security` (hooks defense-in-depth + authz + privilege-escalation policy + SVG/SSRF media regressions + GraphQL security + scanner rules). Before committing changes under `src/hooks/`, `src/routes/api/`, `src/routes/files/`, or `src/routes/(app)/`, prefer `bun run test:security` (or `bun run test:smart`) in addition to the automatic pre-commit unit gate.
 15. **Predictive Preloading (Anchor-First)**:
     - **Anchor-First Mandate**: All primary navigation MUST use `<a>` tags with `data-preload` attributes. Never use `goto()` for primary navigation — it bypasses ALL speculative preloading.
     - **Strategy Selection**:
@@ -636,7 +643,7 @@ it("uses bun:sqlite", async () => {
 |               | `bun run test:e2e`                        | E2E (Playwright, CI-parity :4173)                           |
 | **Git**       | `bun run git commit -m "msg"`             | Hardened commit (blocks --no-verify)                        |
 |               | `bun run git push` / `bun run gate`       | Hardened push / pre-push gate (build + SQLite integration)  |
-| **Security**  | `bun run test:security`                   | Hooks defense-in-depth + auth + RBAC + file-server tenant   |
+| **Security**  | `bun run test:security`                   | Hooks + privilege/SVG/SSRF/GraphQL regressions + scanners   |
 | DB Operations | `bun run db:push`                         | Push schema changes (Drizzle)                               |
 | i18n          | `bun run paraglide`                       | Compile messages                                            |
 | Diagnostics   | `bun run check`                           | Format + lint                                               |

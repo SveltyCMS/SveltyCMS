@@ -967,13 +967,20 @@ export class Auth {
   ): Promise<User> {
     const isServer =
       typeof window === "undefined" || (typeof process !== "undefined" && process.versions != null);
-    if (attributes.password && isServer) {
-      attributes.password = await cryptoHashPassword(attributes.password);
+    // 🛡️ Fail-closed privilege boundary (defense-in-depth beneath API handlers)
+    const attrs = { ...attributes } as Record<string, unknown>;
+    if (!options?.allowPrivilegeEscalation) {
+      const { stripPrivilegeEscalationFields } =
+        await import("@utils/security/user-attribute-policy");
+      stripPrivilegeEscalationFields(attrs);
     }
-    if (attributes.email === null) {
-      attributes.email = undefined;
+    if (attrs.password && isServer) {
+      attrs.password = await cryptoHashPassword(attrs.password as string);
     }
-    const result = await this.db.auth.updateUserAttributes(userId, attributes, options);
+    if (attrs.email === null) {
+      attrs.email = undefined;
+    }
+    const result = await this.db.auth.updateUserAttributes(userId, attrs as Partial<User>, options);
     if (result?.success) {
       return result.data;
     }

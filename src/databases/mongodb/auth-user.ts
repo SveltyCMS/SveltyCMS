@@ -172,13 +172,23 @@ export class UserAdapter {
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<User>> {
     try {
-      const normalizedData = { ...userData };
+      const normalizedData = { ...userData } as Record<string, unknown>;
+      // 🛡️ Fail-closed: never persist role/isAdmin unless explicitly allowed
+      if (!options.allowPrivilegeEscalation) {
+        const { stripPrivilegeEscalationFields } =
+          await import("@utils/security/user-attribute-policy");
+        stripPrivilegeEscalationFields(normalizedData);
+      }
       if (normalizedData.email) {
-        normalizedData.email = normalizeEmail(normalizedData.email);
+        normalizedData.email = normalizeEmail(normalizedData.email as string);
       }
 
       // Ensure password is hashed if provided and not already hashed
-      if (normalizedData.password && !normalizedData.password.startsWith("$argon2")) {
+      if (
+        normalizedData.password &&
+        typeof normalizedData.password === "string" &&
+        !normalizedData.password.startsWith("$argon2")
+      ) {
         const { hashPassword } = await import("@src/utils/security/crypto");
         normalizedData.password = await hashPassword(normalizedData.password);
       }

@@ -1,6 +1,10 @@
 /**
- * @file src/routes/(app)/mediagallery/uploadMedia/+page.server.ts
- * @description Server actions for media upload.
+ * @file src/routes/(app)/mediagallery/upload-media/+page.server.ts
+ * @description Server actions for media upload (local + remote URL).
+ *
+ * ### Security
+ * - Mutations require media:write (action-level — not only page load)
+ * - Remote URLs go through MediaService.saveRemoteMedia (egress-guard SSRF defense)
  */
 
 import type { MediaAccess } from "@root/src/utils/media/media-models";
@@ -8,9 +12,9 @@ import type { MediaAccess } from "@root/src/utils/media/media-models";
 // Files over configurable limit are rejected before parsing with a clear error.
 import { dbAdapter } from "@src/databases/db";
 import { MediaService } from "@src/utils/media/media-service.server";
-import { error } from "@sveltejs/kit";
+import { error, isHttpError, isRedirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
-import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { getAuthenticatedUser, requirePagePermission } from "@utils/page-guards.server";
 import type { Actions } from "./$types";
 
 export const actions: Actions = {
@@ -22,6 +26,7 @@ export const actions: Actions = {
 
     try {
       const user = getAuthenticatedUser(locals);
+      requirePagePermission(locals, "media:write", "Insufficient permissions to upload media");
 
       const formData = await request.formData();
       const files = formData.getAll("files");
@@ -47,6 +52,7 @@ export const actions: Actions = {
 
       return { success: true };
     } catch (err) {
+      if (isHttpError(err) || isRedirect(err)) throw err;
       let userMessage = "Error uploading file";
       if (err instanceof Error) {
         userMessage = err.message;
@@ -64,6 +70,7 @@ export const actions: Actions = {
 
     try {
       const user = getAuthenticatedUser(locals);
+      requirePagePermission(locals, "media:write", "Insufficient permissions to upload media");
 
       const formData = await request.formData();
       const remoteUrls = JSON.parse(formData.get("remoteUrls") as string) as string[];
@@ -73,23 +80,23 @@ export const actions: Actions = {
       }
 
       const mediaService = new MediaService(dbAdapter);
+      // After egress-safe fetch only; internal targets never reach saveMedia
       const access: MediaAccess = "public";
 
+      // 🛡️ SSRF: MUST use saveRemoteMedia — never raw fetch(url)
       for (const url of remoteUrls) {
         try {
-          const response = await fetch(url);
-          if (!response.ok) {
-            logger.warn(`Failed to fetch remote URL: ${url}`);
+          const result = await mediaService.saveRemoteMedia(
+            url,
+            user._id as any,
+            access,
+            locals.tenantId as any,
+          );
+          if (!result.success) {
+            logger.warn(`Failed to fetch remote URL: ${url} — ${result.message}`);
             continue;
           }
-          const arrayBuffer = await response.arrayBuffer();
-          const contentType = response.headers.get("content-type") || "application/octet-stream";
-          const filename = url.substring(url.lastIndexOf("/") + 1);
-
-          const file = new File([arrayBuffer], filename, { type: contentType });
-
-          await mediaService.saveMedia(file, user._id as any, access, locals.tenantId as any);
-          logger.info(`Remote file uploaded successfully: ${file.name}`);
+          logger.info(`Remote file uploaded successfully: ${url}`);
         } catch (fileError) {
           const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
           if (errorMessage.includes("duplicate")) {
@@ -102,6 +109,7 @@ export const actions: Actions = {
 
       return { success: true };
     } catch (err) {
+      if (isHttpError(err) || isRedirect(err)) throw err;
       let userMessage = "Error uploading file";
       if (err instanceof Error) {
         userMessage = err.message;

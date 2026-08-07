@@ -24,6 +24,24 @@ const _baseHeaders = {
   "Accept-Ranges": "bytes",
 };
 
+/**
+ * Defense-in-depth for SVG responses: even if storage sanitization is bypassed,
+ * block script execution when the browser treats the SVG as a document.
+ */
+function headersForMime(mimeType: string): Record<string, string> {
+  if (mimeType === "image/svg+xml" || mimeType.startsWith("image/svg")) {
+    return {
+      ..._baseHeaders,
+      "Content-Security-Policy":
+        "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'none'; sandbox",
+      "X-Content-Type-Options": "nosniff",
+      // Prefer download over navigable document when opened directly
+      "Content-Disposition": "inline",
+    };
+  }
+  return _baseHeaders;
+}
+
 // Lazy-load storage adapter once
 let _storageAdapter: {
   getMetadata: (p: string) => Promise<{ etag?: string; size?: number; lastModified?: Date } | null>;
@@ -164,6 +182,7 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
   }
 
   const mimeType = lookup(resolvedPath) || "application/octet-stream";
+  const mimeHeaders = headersForMime(mimeType);
   const range = request.headers.get("range");
 
   // Range Requests (video/audio seeking)
@@ -190,7 +209,7 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
     return new Response(webStream as any, {
       status: 206,
       headers: {
-        ..._baseHeaders,
+        ...mimeHeaders,
         "Content-Type": mimeType,
         "Content-Range": `bytes ${start}-${end}/${stats.size}`,
         "Content-Length": chunksize.toString(),
@@ -210,7 +229,7 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
   return new Response(webStream as any, {
     status: 200,
     headers: {
-      ..._baseHeaders,
+      ...mimeHeaders,
       "Content-Type": mimeType,
       "Content-Length": stats.size.toString(),
       "Last-Modified": lastModified,

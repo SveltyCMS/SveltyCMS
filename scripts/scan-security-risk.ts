@@ -16,6 +16,15 @@
  * - **Dynamic code execution** — `eval(` / `new Function(` (RCE sinks).
  * - **SvelteKit CSRF protection disabled** (`checkOrigin: false`, `csrf: false`).
  * - **Non-httpOnly cookies** (session tokens must be httpOnly).
+ * - **Unguarded SSRF** — bare `fetch(url)` / `fetch(remoteUrl)` on server
+ *   routes without `validateEgressUrl` / `safeFetch` in the same file.
+ * - **Privilege-field API writes** — `updateUserAttributes` / user PUT/PATCH
+ *   paths that accept request JSON without `stripPrivilegedUserFields` /
+ *   `sanitizeClientUserAttributePatch` / adapter `allowPrivilegeEscalation`.
+ * - **Client role assignment** — direct `role`/`isAdmin` assignment from
+ *   request body variables without a privilege policy helper.
+ * - **SVG stream without sanitization** — large-file streaming of SVG that
+ *   skips `sanitizeSvg` / `bufferAndSanitizeSvg` / `MAX_SVG_BYTES`.
  *
  * ### What it checks (warnings)
  * - **Shell command interpolation** (`exec(\`...${...}\`)`) — prefer execFile/spawn
@@ -80,13 +89,27 @@ function stripComments(line: string): string {
 
 /**
  * Global rules — command injection, dynamic code execution, path traversal,
- * SSRF, XSS sinks. Exported for unit tests.
+ * SSRF, XSS sinks, privilege-field writes, SVG stream bypass. Exported for unit tests.
  */
 export function scanGlobalRisk(relPath: string, content: string): RiskViolation[] {
   const violations: RiskViolation[] = [];
   const lines = content.split("\n");
   const hasPathGuard =
     /\b(?:resolvePath|isPathInside|normalizePath|safeJoin|assertPath|pathInside|resolveUploadPath|sanitizePath|assertFilePath)\b/.test(
+      content,
+    );
+  const hasEgressGuard =
+    /\b(?:validateEgressUrl|safeFetch|assertPublicUrl|isBlockedHostname|saveRemoteMedia)\b/.test(
+      content,
+    );
+  // Server-side sinks only — skip pure client components / browser utils
+  const isServerFile =
+    /(\+server\.|\.server\.|hooks[\\/]|services[\\/]|databases[\\/]|setup[\\/]|plugins[\\/]|routes[\\/].*[\\/]handlers[\\/])/.test(
+      relPath,
+    ) || /[\\/]routes[\\/].*[\\/]\+page\.server\.ts$/.test(relPath);
+  // File accepts remote/user-supplied absolute URLs (remote upload, HTML harvest, webhooks)
+  const acceptsRemoteUrls =
+    /\bremoteUrls?\b|\bremoteUpload\b|formData\.get\s*\(\s*["']remote|\bexternalUrl\b|\bwebhook\.url\b/.test(
       content,
     );
 
@@ -162,14 +185,13 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
       });
     }
 
-    // ── SSRF: fetch with a REQUEST-DERIVED interpolated URL (warning).
-    // Configured endpoints (ollamaUrl, this.baseUrl, OLLAMA_BASE) are fine —
-    // only expressions that smell like request input are flagged.
-    const isServerFile =
-      /(\+server\.|\.server\.|hooks[\\/]|services[\\/]|databases[\\/]|setup[\\/])/.test(relPath);
+    // ── SSRF: fetch with a REQUEST-DERIVED interpolated absolute URL (warning).
+    // Same-origin relative paths (`/api/...`) are not SSRF. Configured endpoints
+    // (ollamaUrl, this.baseUrl) without request-ish names are also fine.
     if (
       isServerFile &&
       /\bfetch\s*\(\s*[`'"]/.test(line) &&
+      !/\bfetch\s*\(\s*[`'"]\//.test(line) &&
       /\$\{[^}]*\b(?:request|req\b|query|params|body|headers|input|searchParams|redirect|target|host\b|href|redirectUri|callback)\b[^}]*\}/.test(
         line,
       )
@@ -179,9 +201,34 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
         line: i + 1,
         category: "ssrf-fetch",
         message:
-          "fetch() with request-derived URL — verify the host is allowlisted and input cannot redirect the request",
+          "fetch() with request-derived absolute URL — verify the host is allowlisted and input cannot redirect the request",
         severity: "warning",
       });
+    }
+
+    // ── SSRF (error): bare fetch(userControlledVar) without egress guard in file.
+    // Catches remote upload SSRF: `const response = await fetch(url)` where url
+    // comes from form data / remoteUrls. Relative same-origin and event.fetch skip.
+    if (isServerFile && !hasEgressGuard && acceptsRemoteUrls) {
+      const bareFetch = line.match(/(?<![.\w])(?:await\s+)?fetch\s*\(\s*([A-Za-z_][\w]*)\s*[,)]/);
+      if (bareFetch) {
+        const varName = bareFetch[1];
+        // Names that typically carry absolute http(s) targets from user input
+        if (
+          /^(url|uri|href|endpoint|target|host|remoteUrl|remoteUrls|assetUrl|imageUrl|mediaUrl|src|link|callback|redirect|webhook|webhookUrl|externalUrl)$/i.test(
+            varName,
+          ) ||
+          /Url$|URL$|Href$|Endpoint$|Uri$/.test(varName)
+        ) {
+          violations.push({
+            path: relPath,
+            line: i + 1,
+            category: "ssrf-unguarded-fetch",
+            message: `fetch(${varName}) on a remote-URL server path without validateEgressUrl/safeFetch/saveRemoteMedia — user-controlled URLs must go through the egress guard (blocks private IPs, metadata, DNS rebinding)`,
+            severity: "error",
+          });
+        }
+      }
     }
 
     // ── XSS sinks (warning)
@@ -196,6 +243,171 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
       });
     }
   }
+
+  // ── Privilege escalation: any server path that feeds request JSON into
+  // updateUserAttributes / user attribute writes without a privilege policy.
+  const hasPrivilegePolicy =
+    /\bstripPrivilegedUserFields\b|\bstripPrivilegeEscalationFields\b|\bsanitizeClientUserAttributePatch\b|\bPRIVILEGED_USER_FIELDS\b|\bPRIVILEGE_ESCALATION_FIELDS\b|\bhasPrivilegedUserFields\b|\ballowPrivilegeEscalation\b/.test(
+      content,
+    );
+  const isUserAttrApiPath =
+    /handlers[\\/]auth|update-user-attributes|updateUserAttributesRoute|handleUpdateUserAttributes|handleUserSpecificRoutes/.test(
+      relPath + content,
+    ) ||
+    (/[\\/]routes[\\/]api[\\/]/.test(relPath) &&
+      /\bupdateUserAttributes\b/.test(content) &&
+      /\brequest\.json\b|\.json\(\)/.test(content));
+
+  if (
+    isServerFile &&
+    isUserAttrApiPath &&
+    /\bupdateUserAttributes\b|update-user-attributes/.test(content) &&
+    /\brequest\.json\b|\.json\(\)/.test(content) &&
+    !hasPrivilegePolicy
+  ) {
+    violations.push({
+      path: relPath,
+      line: 1,
+      category: "privilege-field-write",
+      message:
+        "User attribute update accepts request JSON without stripPrivilegedUserFields / sanitizeClientUserAttributePatch / allowPrivilegeEscalation — callers can set role/isAdmin (privilege escalation)",
+      severity: "error",
+    });
+  }
+
+  // Line-level: updateUserAttributes(..., body|data|payload) after request.json in
+  // API handlers without any privilege policy in the file (covers /user/:id PUT bypass)
+  if (isServerFile && /[\\/](handlers|routes)[\\/]/.test(relPath) && !hasPrivilegePolicy) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = stripComments(lines[i]);
+      if (
+        /\bupdateUserAttributes\s*\(/.test(line) &&
+        /\b(data|body|payload|attrs|attributes|updates|raw|newUserData)\b/.test(line)
+      ) {
+        // Look back a short window for request.json assignment of that variable
+        const window = lines.slice(Math.max(0, i - 25), i + 1).join("\n");
+        if (/\brequest\.json\b|\.json\(\)/.test(window)) {
+          violations.push({
+            path: relPath,
+            line: i + 1,
+            category: "privilege-field-write",
+            message:
+              "updateUserAttributes() receives request-derived data without a privilege policy in this file — strip role/isAdmin (stripPrivilegedUserFields) or pass allowPrivilegeEscalation only for admins",
+            severity: "error",
+          });
+          break; // one finding per file is enough
+        }
+      }
+    }
+  }
+
+  // Adapter/auth write path must fail-closed on escalation fields
+  if (
+    /auth-user|relational-auth|databases[\\/]auth[\\/]index/.test(relPath) &&
+    /\bupdateUserAttributes\b/.test(content) &&
+    !/\bstripPrivilegeEscalationFields\b|\ballowPrivilegeEscalation\b/.test(content)
+  ) {
+    violations.push({
+      path: relPath,
+      line: 1,
+      category: "privilege-adapter-unguarded",
+      message:
+        "updateUserAttributes adapter/facade must call stripPrivilegeEscalationFields unless allowPrivilegeEscalation is set (fail-closed privilege escalation defense)",
+      severity: "error",
+    });
+  }
+
+  // ── SVG streaming bypass: media service must force sanitize (never stream raw SVG)
+  if (
+    /media-service/.test(relPath) &&
+    /\bsanitizeSvg\b/.test(content) &&
+    /\.stream\s*\(/.test(content)
+  ) {
+    const hasAlwaysSanitize =
+      /\bMAX_SVG_BYTES\b|\bbufferAndSanitizeSvg\b|ALWAYS buffer \+ sanitize|always sanitize SVG|SVG.*streaming path/i.test(
+        content,
+      );
+    if (!hasAlwaysSanitize) {
+      violations.push({
+        path: relPath,
+        line: 1,
+        category: "svg-stream-bypass",
+        message:
+          "sanitizeSvg exists alongside file.stream() without MAX_SVG_BYTES/bufferAndSanitizeSvg — large SVG uploads may skip sanitization (stored XSS)",
+        severity: "error",
+      });
+    }
+  }
+
+  // ── Setup complete / admin mint: must gate on isSetupComplete (admin takeover class)
+  if (
+    isServerFile &&
+    (/handlers[\\/]setup|routes[\\/]setup[\\/]setup\.server/.test(relPath) ||
+      /handleCompleteSetup|function completeSetup\b/.test(content))
+  ) {
+    if (
+      (/\bcreateUserAndSession\b/.test(content) || /\brole:\s*["']admin["']/.test(content)) &&
+      !/\bisSetupComplete\b/.test(content)
+    ) {
+      violations.push({
+        path: relPath,
+        line: 1,
+        category: "setup-complete-unguarded",
+        message:
+          "Setup complete path creates/promotes admin without isSetupComplete() gate — unauthenticated re-setup can mint administrator sessions after install",
+        severity: "error",
+      });
+    }
+  }
+
+  // ── classifyRequest must not treat post-install /api/setup as public forever
+  if (
+    /hook-utils/.test(relPath) &&
+    /\bisBootstrapRoute\b/.test(content) &&
+    /\bclassifyRequest\b/.test(content)
+  ) {
+    if (
+      !/setupApiLocked|\/api\/setup.*isSetupComplete|isSetupComplete.*\/api\/setup/.test(content)
+    ) {
+      violations.push({
+        path: relPath,
+        line: 1,
+        category: "setup-api-public-after-install",
+        message:
+          "classifyRequest marks bootstrap (incl. /api/setup) as public without isSetupComplete lock — post-install unauthenticated setup APIs enable admin takeover (CWE-306)",
+        severity: "error",
+      });
+    }
+  }
+
+  // ── Remote media upload action: must use saveRemoteMedia + media:write
+  // (SSRF + authz class — action must not rely on load-only permission checks)
+  if (isServerFile && /\bremoteUpload\b/.test(content) && /\bremoteUrls\b/.test(content)) {
+    const usesSafeRemote =
+      /\bsaveRemoteMedia\b/.test(content) ||
+      (/\bvalidateEgressUrl\b/.test(content) && /\bsafeFetch\b/.test(content));
+    if (!usesSafeRemote) {
+      violations.push({
+        path: relPath,
+        line: 1,
+        category: "ssrf-remote-upload-unguarded",
+        message:
+          "remoteUpload accepts remoteUrls without saveRemoteMedia / validateEgressUrl+safeFetch — server-side fetch of user URLs is an SSRF sink (private IP / metadata / non-blind if body stored)",
+        severity: "error",
+      });
+    }
+    if (!/\brequirePagePermission\b/.test(content) || !/media:write/.test(content)) {
+      violations.push({
+        path: relPath,
+        line: 1,
+        category: "media-action-missing-write-permission",
+        message:
+          "remoteUpload action must require media:write via requirePagePermission (load-only media checks can be bypassed by POSTing the action directly)",
+        severity: "error",
+      });
+    }
+  }
+
   return violations;
 }
 

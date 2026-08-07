@@ -174,6 +174,227 @@ describe("scanGlobalRisk — path traversal / SSRF / XSS", () => {
     );
   });
 
+  it("flags unguarded fetch(url) on remote-upload server paths (SSRF class)", () => {
+    const vulnerable = [
+      'const remoteUrls = JSON.parse(formData.get("remoteUrls") as string);',
+      "const response = await fetch(url);",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("routes/(app)/mediagallery/+page.server.ts", vulnerable).some(
+        (v) => v.category === "ssrf-unguarded-fetch" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes remote upload when egress guard / saveRemoteMedia is present", () => {
+    const fixed = [
+      'import { validateEgressUrl, safeFetch } from "@src/utils/egress-guard";',
+      'const remoteUrls = JSON.parse(formData.get("remoteUrls") as string);',
+      "await mediaService.saveRemoteMedia(url, userId, access);",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("routes/(app)/mediagallery/+page.server.ts", fixed).some(
+        (v) => v.category === "ssrf-unguarded-fetch",
+      ),
+    ).toBe(false);
+  });
+
+  it("flags update-user-attributes without stripPrivilegedUserFields", () => {
+    const vulnerable = [
+      "export async function handleUpdateUserAttributesRoute(event) {",
+      "  const body = await event.request.json();",
+      "  await cms.auth.updateUserAttributes(id, body);",
+      "}",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("routes/api/[...path]/handlers/auth.ts", vulnerable).some(
+        (v) => v.category === "privilege-field-write" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("flags PUT /user/:id that passes request.json into updateUserAttributes without policy", () => {
+    const vulnerable = [
+      "export async function handleUserSpecificRoutes(event) {",
+      "  const data = await request.json();",
+      "  await cms.auth.updateUserAttributes(userId, data, { tenantId });",
+      "}",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("routes/api/[...path]/handlers/auth.ts", vulnerable).some(
+        (v) => v.category === "privilege-field-write" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes update-user-attributes when sanitizeClientUserAttributePatch is used", () => {
+    const fixed = [
+      'import { sanitizeClientUserAttributePatch } from "@utils/security/user-attribute-policy";',
+      "export async function handleUpdateUserAttributesRoute(event) {",
+      "  const body = await event.request.json();",
+      "  const data = sanitizeClientUserAttributePatch(body, { isAdmin: false });",
+      "  await cms.auth.updateUserAttributes(id, data, { allowPrivilegeEscalation: false });",
+      "}",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("routes/api/[...path]/handlers/auth.ts", fixed).some(
+        (v) => v.category === "privilege-field-write",
+      ),
+    ).toBe(false);
+  });
+
+  it("flags adapter updateUserAttributes without fail-closed escalation strip", () => {
+    const vulnerable = [
+      "async updateUserAttributes(userId, userData, options) {",
+      "  await this.UserModel.findOneAndUpdate(filter, userData);",
+      "}",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("databases/mongodb/auth-user.ts", vulnerable).some(
+        (v) => v.category === "privilege-adapter-unguarded" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes adapter when stripPrivilegeEscalationFields is present", () => {
+    const fixed = [
+      "if (!options.allowPrivilegeEscalation) stripPrivilegeEscalationFields(data);",
+      "async updateUserAttributes(userId, userData, options) {",
+      "  await this.UserModel.findOneAndUpdate(filter, userData);",
+      "}",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("databases/mongodb/auth-user.ts", fixed).some(
+        (v) => v.category === "privilege-adapter-unguarded",
+      ),
+    ).toBe(false);
+  });
+
+  it("flags classifyRequest bootstrap-public without setupApiLocked", () => {
+    const vulnerable = [
+      "export function classifyRequest(pathname, locals) {",
+      "  const isBootstrap = isBootstrapRoute(pathname);",
+      "  return { isPublic: isStatic || isBootstrap || isPublicRoute(pathname) };",
+      "}",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("utils/hook-utils.ts", vulnerable).some(
+        (v) => v.category === "setup-api-public-after-install" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes classifyRequest when setupApiLocked uses isSetupComplete", () => {
+    const fixed = [
+      "export function classifyRequest(pathname, locals) {",
+      "  const isBootstrap = isBootstrapRoute(pathname);",
+      "  const setupApiLocked = pathname.startsWith('/api/setup') && isSetupComplete();",
+      "  return { isPublic: isStatic || (isBootstrap && !setupApiLocked) };",
+      "}",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("utils/hook-utils.ts", fixed).some(
+        (v) => v.category === "setup-api-public-after-install",
+      ),
+    ).toBe(false);
+  });
+
+  it("flags setup complete without isSetupComplete gate (admin takeover class)", () => {
+    const vulnerable = [
+      "export async function handleCompleteSetup(event) {",
+      "  await setupAuth.createUserAndSession({ role: 'admin', isAdmin: true });",
+      "}",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("routes/api/[...path]/handlers/setup.ts", vulnerable).some(
+        (v) => v.category === "setup-complete-unguarded" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes setup complete when isSetupComplete is checked", () => {
+    const fixed = [
+      "export async function handleCompleteSetup(event) {",
+      "  if (isSetupComplete()) throw new Error('done');",
+      "  await setupAuth.createUserAndSession({ role: 'admin', isAdmin: true });",
+      "}",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("routes/api/[...path]/handlers/setup.ts", fixed).some(
+        (v) => v.category === "setup-complete-unguarded",
+      ),
+    ).toBe(false);
+  });
+
+  it("flags remoteUpload without saveRemoteMedia (SSRF class)", () => {
+    const vulnerable = [
+      "remoteUpload: async ({ request, locals }) => {",
+      '  const remoteUrls = JSON.parse(formData.get("remoteUrls") as string);',
+      "  const response = await fetch(url);",
+      "  requirePagePermission(locals, 'media:write');",
+      "}",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("routes/(app)/mediagallery/+page.server.ts", vulnerable).some(
+        (v) => v.category === "ssrf-remote-upload-unguarded" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("flags remoteUpload without media:write action permission", () => {
+    const vulnerable = [
+      "remoteUpload: async ({ request, locals }) => {",
+      '  const remoteUrls = JSON.parse(formData.get("remoteUrls") as string);',
+      "  await mediaService.saveRemoteMedia(url, userId, access);",
+      "}",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("routes/(app)/mediagallery/+page.server.ts", vulnerable).some(
+        (v) => v.category === "media-action-missing-write-permission" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes remoteUpload with saveRemoteMedia + media:write", () => {
+    const fixed = [
+      "remoteUpload: async ({ request, locals }) => {",
+      "  requirePagePermission(locals, 'media:write');",
+      '  const remoteUrls = JSON.parse(formData.get("remoteUrls") as string);',
+      "  await mediaService.saveRemoteMedia(url, userId, access);",
+      "}",
+    ].join("\n");
+    const v = scanGlobalRisk("routes/(app)/mediagallery/+page.server.ts", fixed);
+    expect(v.some((x) => x.category === "ssrf-remote-upload-unguarded")).toBe(false);
+    expect(v.some((x) => x.category === "media-action-missing-write-permission")).toBe(false);
+  });
+
+  it("flags media-service SVG stream without always-sanitize guards", () => {
+    const vulnerable = [
+      "export function sanitizeSvg(svg) { return svg; }",
+      "if (file.size < 5 * 1024 * 1024) { /* sanitize */ }",
+      "else { const stream = file.stream(); }",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("utils/media/media-service.server.ts", vulnerable).some(
+        (v) => v.category === "svg-stream-bypass" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes media-service when MAX_SVG_BYTES / bufferAndSanitizeSvg present", () => {
+    const fixed = [
+      "export const MAX_SVG_BYTES = 5 * 1024 * 1024;",
+      "async function bufferAndSanitizeSvg(file) { return Buffer.from(sanitizeSvg('')); }",
+      "export function sanitizeSvg(svg) { return svg; }",
+      "const stream = file.stream(); // non-SVG only — SVG always sanitized",
+    ].join("\n");
+    expect(
+      scanGlobalRisk("utils/media/media-service.server.ts", fixed).some(
+        (v) => v.category === "svg-stream-bypass",
+      ),
+    ).toBe(false);
+  });
+
   it("flags DOM XSS sinks", () => {
     const violations = scanGlobalRisk("comp.svelte", "el.innerHTML = userHtml;");
     expect(violations.some((v) => v.category === "xss-sink")).toBe(true);

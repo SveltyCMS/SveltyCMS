@@ -35,21 +35,40 @@ export async function handleSetupRoutes(
   const action = segments[1] as string;
 
   try {
-    // ── Setup completion gating ──
-    // Only "reinitialize" is allowed after setup completes — everything else returns 403.
+    // ── Setup completion gating (defense-in-depth with handleSystemState) ──
+    // After setup: block all unauthenticated setup mutations. Recovery
+    // "reinitialize" requires a real admin session (not the synthetic turbo user).
     const { isSetupComplete } = await import("@src/utils/server/setup-check");
     const testSecret = process.env.TEST_API_SECRET;
     const isTestReq =
       Boolean(testSecret) &&
       (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true") &&
       request.headers.get("x-test-secret") === testSecret;
+    const setupDone = isSetupComplete();
+    const caller = event.locals.user;
+    const isRealAdmin =
+      !!caller &&
+      caller._id !== "system" &&
+      caller.email !== "system@sveltycms" &&
+      (caller.isAdmin === true || caller.role === "admin" || caller.role === "super-admin");
 
-    if (!isTestReq && isSetupComplete() && action !== "reinitialize") {
-      throw new AppError(
-        "Setup is already complete. Use the Admin panel for further configuration.",
-        403,
-        "SETUP_ALREADY_COMPLETE",
-      );
+    if (!isTestReq && setupDone) {
+      // complete/seed/test-db must never run after install (admin takeover class)
+      if (action === "complete" || action === "seed-db" || action === "test-db") {
+        throw new AppError(
+          "Setup is already complete. Use the Admin panel for further configuration.",
+          403,
+          "SETUP_ALREADY_COMPLETE",
+        );
+      }
+      // reinitialize is recovery-only — real admin session required
+      if (action === "reinitialize" && !isRealAdmin) {
+        throw new AppError(
+          "Reinitialize requires an authenticated administrator session.",
+          403,
+          "SETUP_REINIT_FORBIDDEN",
+        );
+      }
     }
 
     // ── Route by action ──
@@ -197,10 +216,23 @@ async function handleSeedDatabase(event: RequestEvent) {
  * 4. Initializes the system with the final configuration
  */
 async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL) {
+  // Fail-closed: never mint admin sessions after install (even if entry gate missed)
+  const { isSetupComplete } = await import("@src/utils/server/setup-check");
+  if (isSetupComplete()) {
+    throw new AppError(
+      "Setup is already complete. Use the Admin panel for further configuration.",
+      403,
+      "SETUP_ALREADY_COMPLETE",
+    );
+  }
+
   const { database, admin, system = {} } = await event.request.json();
 
   // Wait for critical seeding to finish
   await setupManager.waitTillDone();
+
+  // Hijack protection: refuse if DB already has administrators (missing private.ts case)
+  await verifyDatabaseUnseeded(database);
 
   // Get adapter and keep it alive for authentication
   const { getSetupDatabaseAdapter } = await import("@src/routes/setup/utils");
@@ -233,7 +265,7 @@ async function handleCompleteSetup(event: RequestEvent, _cms: LocalCMS, url: URL
     {
       expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
     },
-    { bypassTenantCheck: true },
+    { bypassTenantCheck: true, allowPrivilegeEscalation: true },
   );
 
   if (!authResult.success || !authResult.data) {

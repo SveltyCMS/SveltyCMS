@@ -18,6 +18,13 @@ export interface LocalApiOptions {
   populate?: string[];
   /** Passed through to session creation for device deduplication. */
   sessionMeta?: { userAgent?: string; ipAddress?: string };
+  /**
+   * Allow role / isAdmin / roleIds / permissions on updateUserAttributes.
+   * Default false — privilege escalation fail-closed at Auth + adapter layers.
+   */
+  allowPrivilegeEscalation?: boolean;
+  /** Forwarded to adapter when multi-tenant id-only updates are required. */
+  bypassTenantCheck?: boolean;
 }
 
 export interface TokenOptions extends LocalApiOptions {

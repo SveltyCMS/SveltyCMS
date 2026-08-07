@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { sanitizeSvg } from "../../../../src/utils/media/media-service.server";
+import { sanitizeSvg, MAX_SVG_BYTES } from "../../../../src/utils/media/media-service.server";
 
 describe("sanitizeSvg — script injection", () => {
   it("strips <script> tags with content", () => {
@@ -134,5 +134,21 @@ describe("sanitizeSvg — legitimate SVG preservation", () => {
     const result = sanitizeSvg(input);
     expect(result).toContain("online");
     expect(result).toContain('font-family="monospace"');
+  });
+});
+
+describe("SVG large-file streaming bypass defense", () => {
+  it("exports MAX_SVG_BYTES so oversized SVGs cannot skip sanitization", () => {
+    // 5 MiB cap: files above this never take the unsanitized streaming path
+    expect(MAX_SVG_BYTES).toBe(5 * 1024 * 1024);
+  });
+
+  it("still strips scripts from multi-megabyte padded payloads (below cap)", () => {
+    const padding = "<!-- " + "x".repeat(100_000) + " -->";
+    const input = `<svg xmlns="http://www.w3.org/2000/svg">${padding}<script>alert(1)</script><circle r="1"/></svg>`;
+    const result = sanitizeSvg(input);
+    expect(result).not.toContain("<script");
+    expect(result).not.toContain("alert");
+    expect(result).toContain("circle");
   });
 });

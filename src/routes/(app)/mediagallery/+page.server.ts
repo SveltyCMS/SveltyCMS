@@ -22,7 +22,7 @@ import { dbAdapter } from "@src/databases/db";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { MediaService } from "@src/utils/media/media-service.server";
 import { error, isHttpError, isRedirect } from "@sveltejs/kit";
-import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { getAuthenticatedUser, requirePagePermission } from "@utils/page-guards.server";
 // System Logger
 import { type LoggableValue, logger } from "@utils/logger";
 import { getImageSizes, moveMediaToTrash } from "@utils/media/media-storage.server";
@@ -301,7 +301,9 @@ export const actions: Actions = {
     }
 
     try {
+      // 🛡️ Action-level RBAC (load gates UI only — never rely on load for mutations)
       const user = getAuthenticatedUser(locals);
+      requirePagePermission(locals, "media:write", "Insufficient permissions to upload media");
 
       const formData = await request.formData();
       const files = formData.getAll("files");
@@ -493,7 +495,9 @@ export const actions: Actions = {
     }
 
     try {
+      // 🛡️ Action-level RBAC — load media:read alone must not allow remote fetch/upload
       const user = getAuthenticatedUser(locals);
+      requirePagePermission(locals, "media:write", "Insufficient permissions to upload media");
 
       const formData = await request.formData();
       const remoteUrls = JSON.parse(formData.get("remoteUrls") as string) as string[];
@@ -504,29 +508,26 @@ export const actions: Actions = {
       }
 
       const mediaService = new MediaService(dbAdapter);
+      // Public is intentional for gallery assets after successful egress-safe fetch.
+      // Internal/private targets never reach saveMedia (saveRemoteMedia + egress-guard).
       const access: MediaAccess = "public";
 
-      // 🚀 Parallelize remote URL fetches + uploads
+      // 🛡️ SSRF: MUST use saveRemoteMedia (validateEgressUrl + safeFetch) — never raw fetch(url)
       await Promise.allSettled(
         remoteUrls.map(async (url) => {
           try {
-            const response = await fetch(url);
-            if (!response.ok) {
-              logger.warn(`Failed to fetch remote URL: ${url}`);
-              return;
-            }
-            const arrayBuffer = await response.arrayBuffer();
-            const contentType = response.headers.get("content-type") || "application/octet-stream";
-            const filename = url.substring(url.lastIndexOf("/") + 1);
-            const file = new File([arrayBuffer], filename, { type: contentType });
-            await mediaService.saveMedia(
-              file,
+            const result = await mediaService.saveRemoteMedia(
+              url,
               user._id as any,
               access,
               (locals.tenantId as DatabaseId | null) ?? null,
-              folder, // _basePath — target virtual folder; "global" keeps root
+              folder, // virtual folder; "global" keeps root
             );
-            logger.debug(`Remote file uploaded successfully to ${folder}: ${file.name}`);
+            if (!result.success) {
+              logger.warn(`Failed to fetch remote URL: ${url} — ${result.message}`);
+              return;
+            }
+            logger.debug(`Remote file uploaded successfully to ${folder}: ${url}`);
           } catch (fileError) {
             const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
             if (errorMessage.includes("duplicate")) {
@@ -540,6 +541,8 @@ export const actions: Actions = {
 
       return { success: true };
     } catch (err) {
+      // Preserve 403 from requirePagePermission / redirects from getAuthenticatedUser
+      if (isHttpError(err) || isRedirect(err)) throw err;
       let userMessage = "Error uploading file";
       if (err instanceof Error) {
         userMessage = err.message;

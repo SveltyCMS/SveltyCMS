@@ -593,8 +593,10 @@ const results = await Promise.allSettled(
 **Implementation**:
 
 - **Small files (<5MB)**: Uses `arrayBuffer()` → `Buffer.from()` → `sniffMimeType(buffer.subarray(0, 2048))` to verify binary signatures before accepting
-- **Large files (≥5MB)**: Reads first 2048 bytes via `file.slice(0, 2048).arrayBuffer()`, runs `sniffMimeType()`, and rejects on major MIME category mismatch (e.g., client sends `image/png` but binary signature indicates `application/pdf`)
+- **Large files (≥5MB, non-SVG)**: Reads first 2048 bytes via `file.slice(0, 2048).arrayBuffer()`, runs `sniffMimeType()`, and rejects on major MIME category mismatch (e.g., client sends `image/png` but binary signature indicates `application/pdf`)
+- **SVG (any size ≤ MAX_SVG_BYTES)**: Always buffered and passed through `sanitizeSvg()` — never pure-streamed. Oversized SVGs are rejected. Misdeclared SVG content is sanitized or blocked on the stream path.
 - Uses the lightweight `slim-sniffer.server.ts` (~2KB) which detects 10+ formats via magic bytes (JPEG, PNG, GIF, WebP, SVG, MP4, WebM, PDF, DOCX)
+- **Remote URL uploads**: `saveRemoteMedia` + egress guard only (no raw `fetch(userUrl)`)
 
 **Protection Against**:
 
@@ -602,12 +604,15 @@ const results = await Promise.allSettled(
 - Uploading executables disguised as media files
 - Content-type confusion attacks
 - Zero-byte and truncated file uploads
+- Stored XSS via large unsanitized SVG (streaming bypass class)
+- SSRF via remote media URL upload (internal / metadata targets)
 
 **Implementation Details**:
 
 - Binary signatures verified server-side before any processing
 - Major category mismatches (image vs video vs document) trigger rejection
-- SVGs additionally sanitized via dedicated `sanitizeSvg()` function
+- SVGs always sanitized via `bufferAndSanitizeSvg` / `sanitizeSvg()` (never stream-raw)
+- `/files/` SVG responses get CSP `script-src 'none'` defense-in-depth
 
 ---
 

@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:ed9f5ff7-d51e-4218-b757-14a35d8c4d38",
+  "serialNumber": "urn:uuid:ac1c33a4-7e08-4c11-ba7b-de97dc1019df",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-06T14:28:54.537Z",
+    "timestamp": "2026-08-07T08:34:29.576Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -74,13 +74,13 @@
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1104.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1104.0",
+      "version": "3.1105.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1105.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-YCAVqUokR7KwpU8EZaciZhM7M3f2SirT8NJ/BgAy5qfycIuqRTXGXVbeJEdMg+Zk8BZscOHaiDoED2s/4SO8mA=="
+          "content": "sha512-eiR289CNgH2atIh2zOSDSpXOmDVGCxFEk0S8jMHo599oTCjcnjmlNOVsFCWXx5jMPP83+c47Wl/1R7xgUVBzZw=="
         }
       ]
     },
@@ -1608,13 +1608,13 @@
     {
       "type": "library",
       "name": "@inlang/paraglide-js",
-      "version": "2.23.1",
-      "purl": "pkg:npm/@inlang/paraglide-js@2.23.1",
+      "version": "2.23.2",
+      "purl": "pkg:npm/@inlang/paraglide-js@2.23.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-KEnJhvRLhB1zbGNmt2DHi4SuIbr7ZcZ0tftFYxQDDSpS1GqjJJ+b+ZaxVC2PElpgcQYNgD5Bt9hYUpV+et8IMw=="
+          "content": "sha512-tzWnZ6DEQ3JRxpSM/lsmfUFSNXLymvlfUei4uX1lo/Qh3a8OfxZ5nchGrEM+p0aLX4m5ZMrVuMKfaD0qXJFeoA=="
         }
       ]
     },
@@ -3467,13 +3467,13 @@
     {
       "type": "library",
       "name": "@sveltejs/load-config",
-      "version": "0.2.1",
-      "purl": "pkg:npm/@sveltejs/load-config@0.2.1",
+      "version": "0.2.2",
+      "purl": "pkg:npm/@sveltejs/load-config@0.2.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-5m3B2cbqQ4TbwW6Xkh66Ntw6dD7gNc77cCxABTTesWcq9jxIzMgTk97pZx5vEtvQx8iokgi7GIphqZe+PGwcZA=="
+          "content": "sha512-K7dsJDQxBOF+f+epuhMactcjK2VP4MRkLKtwSykNtEI+cKVEyzrmmhQ1pmoxI800m4JKcyJ05L2M4yPwAGiBNw=="
         }
       ]
     },
@@ -9291,13 +9291,13 @@
     {
       "type": "library",
       "name": "svelte-check",
-      "version": "4.7.4",
-      "purl": "pkg:npm/svelte-check@4.7.4",
+      "version": "4.7.5",
+      "purl": "pkg:npm/svelte-check@4.7.5",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-IW9ot9YqAoyv8FvyN+eb4ZTe8zgcKZrJLNYU6dzSKkGwEBsSPc4K7lmQ8bKn8W2YMXM6WDfZSSVOaGtekyUfOQ=="
+          "content": "sha512-NnkHGCTPH6k4ka1E9IpTuNv40uLArHnX52kLEuaHSGqRlPYTnkbFs529jSWG+y+wDy+v+jA2PQ0soN1umVK+OA=="
         }
       ]
     },
@@ -9577,13 +9577,13 @@
     {
       "type": "library",
       "name": "tsx",
-      "version": "4.23.9",
-      "purl": "pkg:npm/tsx@4.23.9",
+      "version": "4.23.10",
+      "purl": "pkg:npm/tsx@4.23.10",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-6q8uTORRGauQVjqMQnKUucLFoeXZAfw6zKvG35GLbdKWbLdeOtZ3H4mhyA5mxuUd2o2cRTskhj59nLLQseUvUw=="
+          "content": "sha512-0Vb9eKU47njkxv/6B8CRZRDsxNDT/Pz+BIU+M5jw7xL3TdzAjSxlZUxu0xFL/kLpaG3sHZ0LH2wbK1T1yo7CUQ=="
         }
       ]
     },
