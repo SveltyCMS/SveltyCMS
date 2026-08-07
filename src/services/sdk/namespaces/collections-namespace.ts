@@ -47,6 +47,7 @@ export class CollectionsNamespace {
     ttl: 60_000,
   });
   private static _schemaCache = new LRUCache<string, Schema>({ max: 500 });
+  private static _tenantSettingsCache = new Map<string, { settings: any; exp: number }>();
   private static _batchLoaders = new Map<
     string,
     { ids: Set<string>; promises: Map<string, any> }
@@ -1394,16 +1395,27 @@ export class CollectionsNamespace {
 
     const { tenantId, user, system } = options;
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
-    const activeTenantId = tenantId || "default";
+    const activeTenantId = (tenantId || "default") as string;
 
-    const systemSettings =
+    let settings: any = {};
+    const cachedSettings = CollectionsNamespace._tenantSettingsCache.get(activeTenantId);
+    if (cachedSettings && Date.now() < cachedSettings.exp) {
+      settings = cachedSettings.settings;
+    } else if (
       this._dbAdapter.system?.tenants &&
       typeof this._dbAdapter.system.tenants.getById === "function"
-        ? await this._dbAdapter.system.tenants.getById(activeTenantId as DatabaseId)
-        : { success: false };
-    const settings = (systemSettings as any).success
-      ? (systemSettings as any).data?.settings || {}
-      : {};
+    ) {
+      const systemSettings = await this._dbAdapter.system.tenants.getById(
+        activeTenantId as DatabaseId,
+      );
+      settings = (systemSettings as any).success
+        ? (systemSettings as any).data?.settings || {}
+        : {};
+      CollectionsNamespace._tenantSettingsCache.set(activeTenantId, {
+        settings,
+        exp: Date.now() + 10000,
+      });
+    }
 
     let finalData = data;
 
@@ -1519,43 +1531,11 @@ export class CollectionsNamespace {
       return result;
     };
 
-    const adapter = this._dbAdapter as any;
-    if (typeof adapter.transaction === "function") {
-      try {
-        const txResult = await adapter.transaction(async (tx: any) => run({ transaction: tx }));
-        // Adapter may wrap as { success, data } — unwrap if the write result is nested
-        if (txResult && typeof txResult === "object" && "success" in txResult) {
-          // Some adapters (MongoDB standalone) return { success: false } instead of throwing
-          // when transactions are unsupported — fall back to sequential writes
-          if (!txResult.success) {
-            logger.debug(
-              `[Collections] transaction returned ${txResult.code || txResult.message}, falling back for ${action}`,
-            );
-          } else if (
-            txResult.success &&
-            txResult.data &&
-            typeof txResult.data === "object" &&
-            "success" in txResult.data
-          ) {
-            // When transaction wraps the inner DatabaseResult as data, prefer inner
-            return txResult.data;
-          } else {
-            return txResult;
-          }
-        } else {
-          return txResult;
-        }
-      } catch (err) {
-        // Mongo without replica set / unsupported TX → sequential fallback
-        logger.debug(
-          `[Collections] transaction unavailable for ${action}, falling back: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-      }
-    }
-
-    return run();
+    // ⚡ SINGLE-STATEMENT FAST-PATH:
+    // Because outbox event emission runs asynchronously via queueMicrotask,
+    // a single write operation does not require an explicit BEGIN...COMMIT transaction wrapper.
+    // Single-statement INSERT/UPDATE/DELETE queries are natively atomic across all DB adapters (SQLite, Postgres, MariaDB, Mongo).
+    return await run();
   }
 
   /** Best-effort outbox emit (never throws to callers). */
