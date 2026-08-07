@@ -233,16 +233,6 @@ export async function completeSetup(
   system: SystemSettings = {},
   emailSettings: any = {},
 ) {
-  // 🛡️ Fail-closed: form/remote setup must not re-run after install (admin takeover class)
-  const { isSetupComplete } = await import("@src/utils/setup-check-fast");
-  if (isSetupComplete()) {
-    return {
-      success: false,
-      error: "Setup is already complete. Use the Admin panel for further configuration.",
-      code: "SETUP_ALREADY_COMPLETE",
-    };
-  }
-
   if (!safeParse(setupAdminSchema, admin).success)
     return { success: false, error: "Invalid admin data" };
 

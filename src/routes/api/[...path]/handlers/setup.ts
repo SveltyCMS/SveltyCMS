@@ -38,13 +38,13 @@ export async function handleSetupRoutes(
     // ── Setup completion gating (defense-in-depth with handleSystemState) ──
     // After setup: block all unauthenticated setup mutations. Recovery
     // "reinitialize" requires a real admin session (not the synthetic turbo user).
-    const { isSetupComplete } = await import("@src/utils/server/setup-check");
+    const { isSetupCompleteAsync } = await import("@src/utils/server/setup-check");
     const testSecret = process.env.TEST_API_SECRET;
     const isTestReq =
       Boolean(testSecret) &&
       (process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true") &&
       request.headers.get("x-test-secret") === testSecret;
-    const setupDone = isSetupComplete();
+    const setupDone = await isSetupCompleteAsync();
     const caller = event.locals.user;
     const isRealAdmin =
       !!caller &&
