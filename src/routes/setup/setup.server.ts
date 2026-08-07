@@ -236,7 +236,10 @@ export async function completeSetup(
   if (!safeParse(setupAdminSchema, admin).success)
     return { success: false, error: "Invalid admin data" };
 
-  // Wait for critical background seeding to complete
+  // 🛡️ Fail-closed defense: We deliberately do NOT use isSetupComplete() here.
+  // The shallow isSetupComplete() check returns true as soon as seedDatabase writes private.ts,
+  // which incorrectly blocks this function from creating the admin user in step 2.
+  // Instead, the true defense against Admin Takeover is the adminCount > 0 check below.
   const { setupManager } = await import("./setup-manager");
   if ((globalThis as any).process?.env?.TEST_MODE === "true" || database.type === "sqlite") {
     await setupManager.waitAll();
