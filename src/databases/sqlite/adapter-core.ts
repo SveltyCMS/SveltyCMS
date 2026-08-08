@@ -450,31 +450,56 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         // Falls back to the Drizzle path on any error or outer-transaction use.
         if (!inOuterTxn) {
           try {
-            const cols = Object.keys(batchValues[0] || {});
-            if (cols.length > 0) {
+            // Union of column keys across rows — rows may omit optional
+            // physical columns (status/slug/…) and the column default applies.
+            const cols = new Set<string>();
+            for (let i = 0; i < len; i++) {
+              for (const k in batchValues[i]) cols.add(k);
+            }
+            // prepareValues omits createdAt when the caller supplies _id, and
+            // the physical SQLite DDL has no createdAt default — always write
+            // both timestamps (undefined rows are filled in the bind loop).
+            cols.add("createdAt");
+            cols.add("updatedAt");
+            if (cols.size > 0) {
+              const colListArr = Array.from(cols);
               const maxParams = 900;
-              const chunkSize = Math.max(1, Math.floor(maxParams / cols.length));
-              const colList = cols
+              const chunkSize = Math.max(1, Math.floor(maxParams / colListArr.length));
+              const colList = colListArr
                 .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
                 .join(", ");
-              const valueClause = `(${cols.map(() => "?").join(", ")})`;
               const rowsOut: any[] = [];
               for (let start = 0; start < len; start += chunkSize) {
                 const chunk = batchValues.slice(start, start + chunkSize);
                 const params: any[] = [];
+                const valuesSql: string[] = [];
                 for (const row of chunk) {
-                  for (const c of cols) {
+                  const rowPlaceholders: string[] = [];
+                  for (const c of colListArr) {
                     const v = row[c];
+                    // Missing/undefined values: SQLite has no DEFAULT keyword
+                    // in VALUES, and binding undefined writes NULL — which
+                    // overrides the column default (measured: createdAt became
+                    // NULL). Fill the Drizzle-table-definition defaults
+                    // explicitly; nullable optional columns bind NULL.
+                    if (v === undefined) {
+                      if (c === "createdAt" || c === "updatedAt") params.push(now.getTime());
+                      else if (c === "isDeleted") params.push(0);
+                      else if (c === "status") params.push("draft");
+                      else if (c === "data") params.push("{}");
+                      else params.push(null);
+                      rowPlaceholders.push("?");
+                      continue;
+                    }
                     if (v instanceof Date) params.push(v.getTime());
                     else if (v !== null && typeof v === "object" && !Array.isArray(v))
                       params.push(JSON.stringify(v));
                     else params.push(v);
+                    rowPlaceholders.push("?");
                   }
+                  valuesSql.push(`(${rowPlaceholders.join(", ")})`);
                 }
-                const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${Array.from(
-                  { length: chunk.length },
-                  () => valueClause,
-                ).join(", ")}${skipReturning ? "" : " RETURNING *"}`;
+                const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
                 const rawRows = this.prepareAndExecute(sqlText, "all", ...params);
                 if (Array.isArray(rawRows) && rawRows.length > 0) rowsOut.push(...rawRows);
               }

@@ -75,7 +75,7 @@ Key SQLite highlights:
 - **Drizzle Integration**: Type-safe querying without the overhead of a large ORM.
 
 - **Typed Collection Proxy**: Fully-typed access via `locals.cms.collections.typed.Posts.find()`.
-- **Platinum SQL Batching**: Native Drizzle `insertMany` for 10-50x faster bulk operations.
+- **Platinum SQL Batching**: Raw multi-VALUES `insertMany` (single atomic statement, chunked under the 999-param limit) — BULK INSERT (100) 177 → 248 RPS (+40%).
 - **Website Tokens**: `website_tokens` table via shared `relational-system.ts` — hash-at-rest, tenant-scoped queries, parallel list+count. See [Credential Storage](./database-methods.mdx#-credential-storage-website-tokens--api-keys).
 - **Mongo-only fast-path**: `bypassSafeQuery` applies to selected MongoDB internal lookups, not SQL website-token operations.
 - **Zero-Allocation Dates**: Optimized `relational-utils` with dirty-bit check.

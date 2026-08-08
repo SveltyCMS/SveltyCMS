@@ -33,6 +33,7 @@ import { sql as drizzleSql, type SQL } from "drizzle-orm";
 import { pgTable, varchar, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
 import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
+import { generateUUID } from "@src/utils/native-utils";
 
 export abstract class PostgresAdapterCore extends SqlAdapterCore {
   public type = "postgresql";
@@ -126,8 +127,16 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       });
       const sqlText = `INSERT INTO "${tableName}" (${colList}) VALUES (${cols
         .map((_, i) => `$${i + 1}`)
-        .join(", ")}) RETURNING *`;
+        .join(", ")})${(_options as any)?.skipReturning === true ? "" : " RETURNING *"}`;
       const rows = await this.sql!.unsafe(sqlText, boundValues, { prepare: true });
+      if ((_options as any)?.skipReturning === true) {
+        // No-read-back: the caller already knows the row (seed/system bulk) —
+        // reconstruct from the prepared values instead of a read-back round trip.
+        return utils.convertDatesToISO(values, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as unknown as T;
+      }
       if (Array.isArray(rows) && rows.length > 0) {
         return utils.convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,
@@ -138,6 +147,96 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Raw multi-VALUES INSERT fast path — mirrors the SQLite insertMany path:
+   * one prepared statement per chunk (stable SQL text → postgres.js statement
+   * cache) instead of Drizzle's per-call AST build. Chunked under the 65535
+   * bind-parameter limit; falls back to the base Drizzle path on any error or
+   * when inside an outer transaction. skipReturning (seed/outbox callers)
+   * skips the RETURNING read-back and returns the prepared values as-is.
+   */
+  override async insertMany<T extends import("../db-interface").BaseEntity>(
+    collection: string,
+    data: import("../db-interface").EntityCreate<T>[],
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T[]>> {
+    if (!data || data.length === 0) return { success: true, data: [] };
+    const skipReturning = (options as any)?.skipReturning === true;
+    const inOuterTxn = Boolean(options?.transaction);
+    if (!inOuterTxn) {
+      try {
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Table not found: ${collection}`);
+        const now = new Date();
+        const len = data.length;
+        const batchValues: Record<string, any>[] = Array.from({ length: len });
+        for (let i = 0; i < len; i++) {
+          const item = data[i];
+          const id = (item as any)._id || generateUUID();
+          batchValues[i] = this.prepareValues(table, item, id, now, options);
+        }
+        // Union of column keys across rows — rows may omit optional physical
+        // columns (status/slug/…) and the DB default fills them.
+        const cols = new Set<string>();
+        for (let i = 0; i < len; i++) {
+          for (const k in batchValues[i]) cols.add(k);
+        }
+        if (cols.size > 0) {
+          const maxParams = 65000; // PG limit is 65535; headroom for safety
+          const chunkSize = Math.max(1, Math.floor(maxParams / cols.size));
+          const colList = Array.from(cols)
+            .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+            .join(", ");
+          const rowsOut: any[] = [];
+          for (let start = 0; start < len; start += chunkSize) {
+            const chunk = batchValues.slice(start, start + chunkSize);
+            const params: any[] = [];
+            const valuesSql: string[] = [];
+            for (let r = 0; r < chunk.length; r++) {
+              const row = chunk[r];
+              const rowPlaceholders: string[] = [];
+              for (const c of cols) {
+                const v = row[c];
+                // Missing/undefined values bind as literal DEFAULT — binding
+                // undefined through postgres.js renders client-side 'default'
+                // and desyncs the prepared-statement bind count.
+                if (v === undefined) {
+                  rowPlaceholders.push("default");
+                  continue;
+                }
+                // String-bound dates/objects (describe-phase Bind quirk).
+                if (v instanceof Date) params.push((v as Date).toISOString());
+                else if (v !== null && typeof v === "object" && !Array.isArray(v))
+                  params.push(JSON.stringify(v));
+                else params.push(v);
+                rowPlaceholders.push(`$${params.length}`);
+              }
+              valuesSql.push(`(${rowPlaceholders.join(", ")})`);
+            }
+            const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
+            const rows = await this.sql!.unsafe(sqlText, params, { prepare: true });
+            if (Array.isArray(rows) && rows.length > 0) rowsOut.push(...rows);
+          }
+          if (skipReturning) {
+            return { success: true as const, data: batchValues as unknown as T[] };
+          }
+          if (rowsOut.length === len) {
+            return {
+              success: true as const,
+              data: utils.convertArrayDatesToISO(rowsOut, {
+                ...this.convertDatesOptions,
+                table: collection,
+              }) as T[],
+            };
+          }
+        }
+      } catch {
+        /* fall through to the base Drizzle path */
+      }
+    }
+    return super.insertMany(collection, data, options);
   }
 
   protected async rawFindById<T extends import("../db-interface").BaseEntity>(

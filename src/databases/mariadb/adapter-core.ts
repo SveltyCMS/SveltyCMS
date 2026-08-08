@@ -35,6 +35,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { mysqlTable, varchar, json, datetime, boolean } from "drizzle-orm/mysql-core";
 import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
+import { generateUUID } from "@src/utils/native-utils";
 
 export abstract class AdapterCore extends SqlAdapterCore {
   public type = "mariadb";
@@ -671,6 +672,198 @@ export abstract class AdapterCore extends SqlAdapterCore {
       this._returningSupported = false;
       return null;
     }
+  }
+
+  /**
+   * Raw single INSERT (no RETURNING) — MariaDB's Drizzle dialect has no
+   * .returning() and the base path pays the Drizzle AST build per insert. The
+   * row is reconstructed from the prepared values (identical shape to the
+   * base no-read-back path: same prepareValues + convertDatesToISO). Falls
+   * back to the base implementation on any error or missing table (auto-
+   * provisioning lives there).
+   */
+  override async insert<T extends BaseEntity>(
+    collection: string,
+    data: EntityCreate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    if (typeof collection !== "string") {
+      return {
+        success: false,
+        message: `Invalid collection: expected string, got ${typeof collection}`,
+        error: {
+          code: "INVALID_COLLECTION",
+          message: "Collection name must be a string",
+        },
+      };
+    }
+    return this.wrap(
+      async () => {
+        const d =
+          this.hooks.length > 0
+            ? await this.runHooks("before", "insert", collection, data, options)
+            : data;
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        if (!this._registeredSchemas.has(collection)) {
+          this.ensureTableSchemaRegistered(table, collection);
+          this._registeredSchemas.add(collection);
+        }
+        const id = (d as any)._id || generateUUID();
+        const now = new Date();
+        const values = this.prepareValues(table, d, id, now, options);
+
+        const runInsert = async () => {
+          const tableName = getTableName(table);
+          const cols = Object.keys(values);
+          if (cols.length === 0) {
+            return utils.convertDatesToISO(values, {
+              ...this.convertDatesOptions,
+              table: collection,
+            }) as T;
+          }
+          const colList = cols
+            .map((c) => utils.assertSafeSqlIdentifier(c, "column"))
+            .map((c) => `\`${c}\``)
+            .join(", ");
+          const placeholders: string[] = [];
+          const params: any[] = [];
+          for (const c of cols) {
+            const v = values[c];
+            // Missing/undefined values bind as literal DEFAULT — mysql2
+            // throws on undefined bind params.
+            if (v === undefined) {
+              placeholders.push("DEFAULT");
+              continue;
+            }
+            params.push(
+              v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v,
+            );
+            placeholders.push("?");
+          }
+          const sqlText = `INSERT INTO \`${tableName}\` (${colList}) VALUES (${placeholders.join(", ")})`;
+          await this.raw.execute(sqlText, params);
+          return utils.convertDatesToISO(values, {
+            ...this.convertDatesOptions,
+            table: collection,
+          }) as T;
+        };
+
+        let finalData: T;
+        try {
+          finalData = await runInsert();
+        } catch (err: any) {
+          // Auto-provision dynamic collection tables on first write.
+          if (this.isMissingTableError(err) && typeof (this as any).createModel === "function") {
+            await (this as any).createModel({
+              _id: collection,
+              name: collection,
+              fields: [],
+            });
+            finalData = await runInsert();
+          } else {
+            throw err;
+          }
+        }
+
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "insert", collection, finalData, options)
+          : finalData;
+      },
+      "INSERT_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
+  }
+
+  /**
+   * Raw multi-VALUES INSERT fast path — mirrors the SQLite/PG insertMany
+   * paths: one prepared multi-row statement per chunk instead of the Drizzle
+   * AST build. MariaDB materializes multi-row RETURNING (slow — measured
+   * 62 RPS vs 190 for the no-read-back path), so rows are synthesized from
+   * the prepared values exactly like the base no-returning path. Falls back
+   * to the base path on any error or inside an outer transaction.
+   */
+  override async insertMany<T extends BaseEntity>(
+    collection: string,
+    data: EntityCreate<T>[],
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T[]>> {
+    if (!data || data.length === 0) return { success: true, data: [] };
+    const skipReturning = (options as any)?.skipReturning === true;
+    const inOuterTxn = Boolean(options?.transaction);
+    if (!inOuterTxn) {
+      try {
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Table not found: ${collection}`);
+        const now = new Date();
+        const len = data.length;
+        const batchValues: Record<string, any>[] = Array.from({ length: len });
+        for (let i = 0; i < len; i++) {
+          const item = data[i];
+          const id = (item as any)._id || generateUUID();
+          batchValues[i] = this.prepareValues(table, item, id, now, options);
+        }
+        // Union of column keys across rows — rows may omit optional physical
+        // columns (status/slug/…) and the DB default fills them.
+        const cols = new Set<string>();
+        for (let i = 0; i < len; i++) {
+          for (const k in batchValues[i]) cols.add(k);
+        }
+        if (cols.size > 0) {
+          const maxParams = 65000;
+          const chunkSize = Math.max(1, Math.floor(maxParams / cols.size));
+          const colList = Array.from(cols)
+            .map((c) => utils.assertSafeSqlIdentifier(c, "column"))
+            .map((c) => `\`${c}\``)
+            .join(", ");
+          for (let start = 0; start < len; start += chunkSize) {
+            const chunk = batchValues.slice(start, start + chunkSize);
+            const params: any[] = [];
+            const valuesSql: string[] = [];
+            for (let r = 0; r < chunk.length; r++) {
+              const row = chunk[r];
+              const rowPlaceholders: string[] = [];
+              for (const c of cols) {
+                const v = row[c];
+                // Missing/undefined values bind as literal DEFAULT — mysql2
+                // throws on undefined bind params.
+                if (v === undefined) {
+                  rowPlaceholders.push("DEFAULT");
+                  continue;
+                }
+                params.push(
+                  v !== null && typeof v === "object" && !(v instanceof Date)
+                    ? JSON.stringify(v)
+                    : v,
+                );
+                rowPlaceholders.push("?");
+              }
+              valuesSql.push(`(${rowPlaceholders.join(", ")})`);
+            }
+            const sqlText = `INSERT INTO \`${getTableName(table)}\` (${colList}) VALUES ${valuesSql.join(", ")}`;
+            await this.raw.execute(sqlText, params);
+          }
+          // Synthesize the rows from prepared values (identical to the base
+          // no-returning path) — no multi-row RETURNING read-back tax. Seed/
+          // system-bulk callers (skipReturning) get the values untouched.
+          if (skipReturning) {
+            return { success: true as const, data: batchValues as unknown as T[] };
+          }
+          return {
+            success: true as const,
+            data: utils.convertArrayDatesToISO(batchValues, {
+              ...this.convertDatesOptions,
+              mariaDoubleParseJson: true,
+              table: collection,
+            }) as T[],
+          };
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    return super.insertMany(collection, data, options);
   }
 
   /**

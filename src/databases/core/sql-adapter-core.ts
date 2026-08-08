@@ -134,7 +134,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   // Instance-level cache to skip even the Map.has() call after first registration
-  private _registeredSchemas = new Set<string>();
+  protected _registeredSchemas = new Set<string>();
 
   /** Whether INSERT … RETURNING is supported natively. */
   protected get insertReturnsRows(): boolean {
@@ -1249,8 +1249,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const skipReturning = (options as any)?.skipReturning === true;
 
         const runInsert = async () => {
-          // Raw single-RT INSERT…RETURNING (MariaDB/PG) — skips Drizzle AST
-          if (this.insertReturnsRows && !skipReturning) {
+          // Raw single-statement INSERT (SQLite/PG) — skips Drizzle AST. The
+          // raw paths honor skipReturning (no-read-back synthesis) where
+          // implemented; otherwise RETURNING is one round trip with the row.
+          if (this.insertReturnsRows) {
             const rawResult = await this.rawInsertReturning<T>(table, collection, values, options);
             if (rawResult !== null) return rawResult;
           }
