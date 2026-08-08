@@ -238,7 +238,11 @@ class OutboxServiceImpl {
         const { withSystemScope } = await import("@src/databases/system-tenant-scope");
         const systemScope = withSystemScope("scheduler");
         if (typeof db.crud.insertMany === "function") {
-          await db.crud.insertMany(this.collectionName, batch as any[], systemScope as any);
+          await db.crud.insertMany(
+            this.collectionName,
+            batch as any[],
+            { ...systemScope, skipReturning: true } as any,
+          );
         } else {
           for (const event of batch) {
             await db.crud.insert(this.collectionName, event as any, systemScope as any);

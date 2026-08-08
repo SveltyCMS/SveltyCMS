@@ -191,7 +191,7 @@ async function run() {
 
   pt0 = performance.now();
   for (let i = 0; i < M; i++) {
-    const pubSub = await getPubSubLazy();
+    const { pubSub } = await import("@src/services/background/pub-sub");
     pubSub.publish("entryUpdated", {
       collection: "SdkVsDirect",
       id: `probe-${i}`,
@@ -213,6 +213,48 @@ async function run() {
   await new Promise((r) => setTimeout(r, 300));
 
   for (const p of profile) console.log("   [profile] " + p);
+
+  // ── BULK INSERT PROFILE: full vs no-read-back (SQLite) ──
+  const BK = 40;
+  const bulkDocs = (base: number) =>
+    Array.from({ length: 100 }, (_, i) => ({
+      _id: `bk-${base}-${i}`,
+      title: `row ${base}-${i}`,
+      status: "active",
+      tenantId: T,
+    }));
+  for (let r = 0; r < 3; r++) {
+    await db.crud.insertMany("SdkVsDirect", bulkDocs(r), tenantOpts);
+  }
+  let bt0 = performance.now();
+  for (let r = 0; r < BK; r++) {
+    await db.crud.insertMany("SdkVsDirect", bulkDocs(r), tenantOpts);
+  }
+  const bulkFullMs = performance.now() - bt0;
+  bt0 = performance.now();
+  for (let r = 0; r < BK; r++) {
+    await db.crud.insertMany("SdkVsDirect", bulkDocs(r), { ...tenantOpts, skipReturning: true });
+  }
+  const bulkNoRetMs = performance.now() - bt0;
+  console.log(
+    "   [profile] bulk full:     " +
+      ((BK / bulkFullMs) * 1000).toFixed(0) +
+      " batches/s (" +
+      (bulkFullMs / BK).toFixed(2) +
+      "ms)",
+  );
+  console.log(
+    "   [profile] bulk noReturn: " +
+      ((BK / bulkNoRetMs) * 1000).toFixed(0) +
+      " batches/s (" +
+      (bulkNoRetMs / BK).toFixed(2) +
+      "ms)",
+  );
+  console.log(
+    "   [profile] read-back tax: " +
+      (bulkFullMs / BK - bulkNoRetMs / BK).toFixed(2) +
+      "ms per batch",
+  );
 
   t0 = performance.now();
   ok = 0;

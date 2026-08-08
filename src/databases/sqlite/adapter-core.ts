@@ -477,9 +477,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
                 if (Array.isArray(rawRows) && rawRows.length > 0) rowsOut.push(...rawRows);
               }
               if (skipReturning) {
-                return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
-                  table: collection,
-                }) as T[];
+                // Seed / system-bulk callers don't consume the rows — returning
+                // the prepared values WITHOUT JSON.parse/flatten conversion
+                // halves the per-row bulk cost (the conversion was previously
+                // identical on both paths, making skipReturning a no-op win).
+                return batchValues as unknown as T[];
               }
               if (rowsOut.length === len) {
                 return utils.convertArrayDatesToISO(rowsOut, { table: collection }) as T[];
