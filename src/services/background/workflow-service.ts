@@ -150,9 +150,7 @@ export class WorkflowService {
         { tenantId: tenantId as DatabaseId },
       );
 
-      const items = Array.isArray(workflows?.data)
-        ? workflows.data
-        : (workflows?.data as any)?.data || [];
+      const items = workflows?.success && Array.isArray(workflows.data) ? workflows.data : [];
 
       if (!workflows?.success || items.length === 0) {
         logger.warn(

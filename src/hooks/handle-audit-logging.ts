@@ -13,6 +13,12 @@
 import { logger } from "@utils/logger";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { getClientIp } from "@utils/hook-utils";
+import {
+  getAuditFlags,
+  getAuditFlagsSync,
+  isAuditDisabledByEnv,
+} from "@utils/security/audit-flags";
+import { rollingMerkleAccumulator } from "@src/services/security/rolling-merkle";
 
 function extractIpSafely(event: RequestEvent): string {
   try {
@@ -26,9 +32,12 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
   // Fast exit for benchmark and testing contexts
   if ((event.locals as any)?.__testBypass) return resolve(event);
 
-  if (process.env.DISABLE_AUDIT_LOGS === "true" || process.env.TEST_MODE === "true") {
-    return resolve(event);
-  }
+  // Sync fast path for benchmarks/tests; async DB-driven path for enterprise UI toggles.
+  if (isAuditDisabledByEnv() || process.env.TEST_MODE === "true") return resolve(event);
+  const syncFlags = getAuditFlagsSync();
+  if (syncFlags?.disabled) return resolve(event);
+  const flags = syncFlags ?? (await getAuditFlags().catch(() => null));
+  if (flags?.disabled) return resolve(event);
 
   // Only audit API mutations
   if (!event.url.pathname.startsWith("/api/")) return resolve(event);

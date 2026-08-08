@@ -35,6 +35,7 @@ export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {
         // This prevents deadlocks where two transactions start as READ and then try to upgrade to WRITE.
         sqlite.exec("BEGIN IMMEDIATE");
 
+        const txOpts = { transaction: { db: this.db } };
         const dbTransaction: DatabaseTransaction & any = {
           commit: async () => ({ success: true, data: undefined }),
           rollback: async () => {
@@ -45,23 +46,43 @@ export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {
           insert: async (collection: string, data: any, options: any = {}) =>
             this.core.crud.insert(collection, data, {
               ...options,
-              transaction: { db: this.db },
+              ...txOpts,
+            }),
+          insertMany: async (collection: string, data: any[], options: any = {}) =>
+            this.core.crud.insertMany(collection, data, {
+              ...options,
+              ...txOpts,
             }),
           update: async (collection: string, id: any, data: any, options: any = {}) =>
             this.core.crud.update(collection, id, data, {
               ...options,
-              transaction: { db: this.db },
+              ...txOpts,
             }),
           delete: async (collection: string, id: any, options: any = {}) =>
             this.core.crud.delete(collection, id, {
               ...options,
-              transaction: { db: this.db },
+              ...txOpts,
             }),
           findById: async (collection: string, id: any, options: any = {}) =>
             this.core.crud.findOne(collection, { _id: id } as any, {
               ...options,
-              transaction: { db: this.db },
+              ...txOpts,
             }),
+          // Seed / bulk paths use adapter-shaped `.crud.insertMany`
+          crud: {
+            insert: async (collection: string, data: any, options: any = {}) =>
+              this.core.crud.insert(collection, data, { ...options, ...txOpts }),
+            insertMany: async (collection: string, data: any[], options: any = {}) =>
+              this.core.crud.insertMany(collection, data, { ...options, ...txOpts }),
+            update: async (collection: string, id: any, data: any, options: any = {}) =>
+              this.core.crud.update(collection, id, data, { ...options, ...txOpts }),
+            delete: async (collection: string, id: any, options: any = {}) =>
+              this.core.crud.delete(collection, id, { ...options, ...txOpts }),
+            findOne: async (collection: string, query: any, options: any = {}) =>
+              this.core.crud.findOne(collection, query, { ...options, ...txOpts }),
+            deleteMany: async (collection: string, query: any, options: any = {}) =>
+              this.core.crud.deleteMany(collection, query, { ...options, ...txOpts }),
+          },
           db: this.db,
 
           // 🛡️ Domain Support: Injecting domain modules into the transaction object

@@ -51,24 +51,27 @@ SQLite delivers exceptional response times for local and edge deployments. For d
 
 Key SQLite highlights:
 
-- **Cache L1 hit at 0.000 ms**, miss at 0.338 ms. INSERT 0.107 ms, FIND ONE 0.076 ms.
+- **Cache L1 hit at 0.000 ms**, miss at 0.338 ms. INSERT 0.038 ms (14.2k RPS via raw `INSERT…RETURNING`), FIND ONE 0.008 ms (100–119k RPS), UPDATE 0.080 ms (10.5k RPS).
 - **WAL Mode** enabled by default for concurrent read/write performance.
 - **Runtime Agnostic**: Optimized for both `bun:sqlite` and `node:sqlite`.
 - **findPage / count modes**: Shared `SqlAdapterCore` path — FIND PAGE **0.073 ms** vs legacy LIST+COUNT **0.191 ms** (~2.6×); COUNT CACHED **0.024 ms** (2026-08-04). See [Performance Architecture](./performance-architecture.mdx#product-layer-list--count-equal-on-all-engines).
+- **Composite list index**: `createModel` provisions `(tenantId, status, updatedAt)` — the canonical tenant list query (`WHERE tenantId=? AND status=? ORDER BY updatedAt DESC LIMIT n`) is served from one index. Measured at 100k rows: **194 → 68,346 RPS** (`EXPLAIN QUERY PLAN`: `SEARCH … USING INDEX` vs `SCAN … USE TEMP B-TREE FOR ORDER BY`).
+- **Raw `findById` + findMany id ultra path**: pure `{_id}` reads go through prepared raw SELECT (~111k RPS via `findMany`), bypassing Drizzle AST building.
 
 ### Key Optimizations
 
-- **Runtime Agnostic**: Automatically switches between `bun:sqlite` and `node:sqlite` based on environment.
-- **Zero-Config**: Single file database (`SveltyCMS.db`) - perfect for development.
 - **WAL Mode**: Write-Ahead Logging enabled by default for concurrent read/write performance.
 
 - **Performance PRAGMAs**: 7 optimized PRAGMAs applied on connect:
   - `synchronous = NORMAL` — 2-5x faster writes (safe with WAL)
-  - `cache_size = -8000` — 8MB page cache (default ~2MB)
-  - `mmap_size = 268435456` — 256MB memory-mapped I/O
-  - `busy_timeout = 5000` — 5s wait vs immediate SQLITE_BUSY errors
+  - `cache_size = -20000` — 20MB page cache
+  - `mmap_size = 536870912` — 512MB memory-mapped I/O
+  - `busy_timeout = 30000` — 30s wait vs immediate SQLITE_BUSY errors
   - `temp_store = memory` — temp tables in RAM
   - `foreign_keys = ON` — enforce referential integrity
+- **Prepared-Statement Cache**: Drizzle's `SQLiteBunSession.prepareQuery` re-compiles SQL on every query; the adapter wraps `client.prepare` with a per-connection SQL-text cache (2,000 statements) invalidated on DDL (`createModel` / `clearDatabase`). Measured: ~4µs/query re-prepare tax eliminated, 2× on write ops.
+- **Projection (`options.fields`)**: when all requested fields are physical columns, the raw `findById` and shared `findMany` skip the JSON `data` blob entirely — no `JSON.parse` + `flattenDataColumn` on list/detail reads.
+- **Atomic increments bind timestamps**: `atomicIncrement` binds `updatedAt` as a parameter instead of interpolating `now.getTime()` into SQL text — keeps the statement cache warm.
 - **Drizzle Integration**: Type-safe querying without the overhead of a large ORM.
 
 - **Typed Collection Proxy**: Fully-typed access via `locals.cms.collections.typed.Posts.find()`.

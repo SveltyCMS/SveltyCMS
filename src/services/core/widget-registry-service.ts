@@ -3,7 +3,7 @@
  * @description High-performance, benchmark-friendly widget registry.
  */
 
-import { coreModules, customModules, marketplaceModules } from "@src/widgets/scanner";
+import { coreModules, customModules, marketplaceModules } from "../../widgets/scanner";
 import type { WidgetFactory, WidgetModule, WidgetType } from "@src/widgets/types";
 import {
   folderFromWidgetPath,

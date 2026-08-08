@@ -26,26 +26,44 @@ SveltyCMS delivers enterprise-grade performance through its database-agnostic ar
 
 | Operation                 | Latency      | RPS                         |
 | ------------------------- | ------------ | --------------------------- |
-| FIND ONE                  | **0.060 ms** | 13,999                      |
-| FIND MANY (50)            | **0.068 ms** | 13,111                      |
-| INSERT                    | **0.085 ms** | 5,099                       |
-| DELETE                    | **0.031 ms** | 23,847                      |
-| NATIVE UPSERT             | **0.054 ms** | 14,829                      |
-| Peak Throughput           | —            | **621,687 req/s**           |
+| FIND ONE                  | **0.008 ms** | 100–119k                    |
+| FIND MANY (50)            | **0.081 ms** | 10,397–11,507               |
+| INSERT                    | **0.038 ms** | 14,170                      |
+| UPDATE                    | **0.080 ms** | 9,341–11,195                |
+| DELETE                    | **0.049 ms** | 14,010–14,422               |
+| NATIVE UPSERT             | **0.067 ms** | 11,838–12,227               |
+| Peak Throughput           | —            | **390,617 req/s**           |
 | **LocalCMS SDK Overhead** | —            | **0.00%** (verified parity) |
+
+> [!NOTE]
+> Adapter `findOne` (100–119k RPS) is ~50% of the raw SQLite engine ceiling (~205k) — the remaining delta is Drizzle AST + date conversion on the non-raw path. `findMany` with a pure `_id` filter routes through the same raw path and measures ~111k RPS. INSERT uses a raw `INSERT…RETURNING` fast path (85% of the 16.7k ceiling) — the benchmark measures the production path (the ambient `BENCHMARK` env no longer toggles `skipReturning`; only the explicit seed option does).
 
 ### Core database layer (all 4 engines)
 
 Optimizations live in **shared core**, not one dialect:
 
-| Shared module                                     | Engines                                                                       | Effect                                                               |
-| ------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `core/lookup-query.ts` + `SqlAdapterCore.findOne` | SQLite, PostgreSQL, MariaDB                                                   | Pure `{_id}` / `{_id,tenantId}` → `findById` (skips full `mapQuery`) |
-| `SqlAdapterCore.findById` + SQLite `rawFindById`  | SQLite raw SELECT; PG/Maria `eq`+limit                                        | Fast primary-key reads                                               |
-| `SqlAdapterCore.update` re-read via `findById`    | All SQL when RETURNING empty / non-returning                                  | Faster than post-update `findOne`                                    |
-| `insertReturnsRows` / `updateReturnsRows`         | SQLite + PostgreSQL (Drizzle RETURNING); MariaDB re-reads via fast `findById` | Single RT where dialect allows                                       |
-| `MongoCrudMethods` + shared `isIdLookupQuery`     | MongoDB                                                                       | Lean `findOne` fast path; single-tenant bare `_id` allowed           |
-| Mongo `insertOne`                                 | MongoDB                                                                       | Avoids Mongoose Document + full validate graph on insert             |
+| Shared module                                         | Engines                                                                               | Effect                                                                                                                                                                                                                                  |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/lookup-query.ts` + `SqlAdapterCore.findOne`     | SQLite, PostgreSQL, MariaDB                                                           | Pure `{_id}` / `{_id,tenantId}` → `findById` (skips full `mapQuery`)                                                                                                                                                                    |
+| `SqlAdapterCore.findMany` id ultra path               | SQLite, PostgreSQL, MariaDB                                                           | Pure `{_id}` list calls → `findById` (after before-hooks, same semantics as `findOne`); ~10× faster than dynamic-SQL list path                                                                                                          |
+| `MongoCrudMethods.findMany` id ultra path             | MongoDB                                                                               | Same shape: `{_id}` list calls → lean `findOne`, tenant from options or query                                                                                                                                                           |
+| `SqlAdapterCore.findById` + SQLite `rawFindById`      | SQLite raw SELECT; PG/Maria `eq`+limit                                                | Fast primary-key reads                                                                                                                                                                                                                  |
+| `SqlAdapterCore.update` re-read via `findById`        | All SQL when RETURNING empty / non-returning                                          | Faster than post-update `findOne`                                                                                                                                                                                                       |
+| `insertReturnsRows` / `updateReturnsRows`             | SQLite + PostgreSQL (Drizzle RETURNING); **MariaDB raw `UPDATE…RETURNING` fast path** | Single RT on all four engines                                                                                                                                                                                                           |
+| Raw `INSERT…RETURNING` fast path                      | PostgreSQL, MariaDB, SQLite                                                           | One-RT insert via tagged template / prepared `pool.execute` / wrapped prepared SQL — skips Drizzle AST on write                                                                                                                         |
+| Raw multi-VALUES `insertMany` (SQLite)                | SQLite                                                                                | Single atomic statement (chunked under the 999-param limit) — BULK INSERT (100) 177 → 248 RPS (+40%)                                                                                                                                    |
+| Prepared-statement cache sizing (MariaDB)             | MariaDB `maxPreparedStatements: 2000` (env `MARIADB_MAX_PREPARED`)                    | mysql2 default (100) overflowed under Drizzle content queries → re-prepare churn                                                                                                                                                        |
+| Prepared-statement cache (SQLite)                     | SQLite `client.prepare` wrapped per connection                                        | Drizzle re-preps every query; cache turns per-call `sqlite3_prepare` (~4µs) into a Map hit                                                                                                                                              |
+| Projection (`options.fields`)                         | SQLite, PostgreSQL, MariaDB                                                           | Prunes the JSON `data` blob from SELECT + skips JSON.parse/flatten when all requested fields are physical                                                                                                                               |
+| `deleteMany` single statement                         | SQLite, PostgreSQL, MariaDB                                                           | One UPDATE/DELETE instead of findMany + N deletes                                                                                                                                                                                       |
+| `quoteIdentifier` dialect hook                        | SQLite, PostgreSQL, MariaDB                                                           | Backtick identifiers on MariaDB (double quotes are strings without ANSI_QUOTES)                                                                                                                                                         |
+| Composite index `(tenantId, status, updatedAt)`       | SQLite `createModel` DDL + PG/Maria `createModel`                                     | Serves the canonical tenant list query (`WHERE tenantId=? AND status=? ORDER BY updatedAt DESC LIMIT n`) from one index — measured 194 → 68k RPS at 100k rows on SQLite (no temp B-tree); PG uses `updatedAt DESC` for index-order sort |
+| Mongo composite index `{tenantId, status, updatedAt}` | MongoDB `createIndexes`                                                               | Same canonical list query served from one index (previously `{tenantId,status}` + separate sort → temp sort)                                                                                                                            |
+| `MongoCrudMethods` + shared `isIdLookupQuery`         | MongoDB                                                                               | Lean `findOne` fast path; single-tenant bare `_id` allowed                                                                                                                                                                              |
+| Mongo `insertOne`                                     | MongoDB                                                                               | Avoids Mongoose Document + full validate graph on insert                                                                                                                                                                                |
+| Wire compression override (`MONGO_COMPRESSORS`)       | MongoDB                                                                               | `none` disables zstd/snappy (CPU-bound on small payloads — measured INSERT 711→812, FIND ONE 881→1,032 RPS on LAN); default auto-detect for WAN bandwidth savings                                                                       |
+| Mongo date-walk skip + 3-key `mapQuery` fast path     | MongoDB                                                                               | Content schemas store ISO strings — `processDates` walk skipped; safeQuery `{_id,tenantId,isDeleted}` shape bypasses rebuild                                                                                                            |
+| `convertDatesToISO` zero-work fast path               | All SQL                                                                               | In-place conversion returns the row untouched when no `Date` instances and no JSON-string columns (content rows store ISO strings)                                                                                                      |
 
 LocalCMS and HTTP turbo sit **above** this layer — same gains on every adapter:
 
@@ -60,19 +78,23 @@ HTTP turbo / LocalCMS → ICrudAdapter.findOne|insert|update
 Slow SDK entry paths historically paid for work that was not needed on simple schemas.
 Current design (`CollectionsNamespace` in `src/services/sdk/namespaces/collections-namespace.ts`):
 
-| Optimization                                                                                     | Effect                                                          |
-| ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
-| Schema hot flags (`_hasActiveWidgets`, `_hasNumberFields`, `_hasSanitizableFields`, `_hasHooks`) | Skip field walks, hooks import, and `modifyRequest` when unused |
-| `findById` single-id → `crud.findOne`                                                            | Avoid `$in` findMany + full batch machinery cost for one id     |
-| Same-tick batch window for concurrent `findById`                                                 | Still coalesces N+1 without always using multi-id queries       |
-| Sync FNV query-hash for list cache keys                                                          | No async `hash-wasm` on every `find()`                          |
-| Static `CacheCategory` import                                                                    | No dynamic import on cache set                                  |
-| Entry mutations do **not** bump `contentStore.contentVersion`                                    | Avoids nav/SSE structure invalidation on every write            |
-| Path + alias indexes on `contentStore`                                                           | O(1) `getNodeByPath` / collection alias lookup                  |
-| Workflow definition negative cache (60s)                                                         | Create path skips DB miss for collections without workflows     |
-| Parallel `afterMutation` + `afterSave`                                                           | Write post-hooks no longer serialize                            |
+| Optimization                                                                                     | Effect                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema hot flags (`_hasActiveWidgets`, `_hasNumberFields`, `_hasSanitizableFields`, `_hasHooks`) | Skip field walks, hooks import, and `modifyRequest` when unused                                                                                                                                                      |
+| `findById` single-id → `crud.findOne`                                                            | Avoid `$in` findMany + full batch machinery cost for one id                                                                                                                                                          |
+| `findMany` pure-`_id` → `findById` (after before-hooks)                                          | List path with an id filter pays raw-SELECT speed (~10×) instead of dynamic SQL                                                                                                                                      |
+| Same-tick batch window for concurrent `findById`                                                 | Still coalesces N+1 without always using multi-id queries                                                                                                                                                            |
+| Sync FNV query-hash for list cache keys                                                          | No async `hash-wasm` on every `find()`                                                                                                                                                                               |
+| Static `CacheCategory` import                                                                    | No dynamic import on cache set                                                                                                                                                                                       |
+| Entry mutations do **not** bump `contentStore.contentVersion`                                    | Avoids nav/SSE structure invalidation on every write                                                                                                                                                                 |
+| Path + alias indexes on `contentStore`                                                           | O(1) `getNodeByPath` / collection alias lookup                                                                                                                                                                       |
+| Workflow definition negative cache (60s)                                                         | Create path skips DB miss for collections without workflows                                                                                                                                                          |
+| Parallel `afterMutation` + `afterSave`                                                           | Write post-hooks no longer serialize                                                                                                                                                                                 |
+| Outbox kill-switch pre-check before dynamic import                                               | Write microtask skips the outbox module import when `DISABLE_OUTBOX=true` (the only opt-out; ambient benchmark env toggles removed)                                                                                  |
+| Lazy module singletons on the write path                                                         | Per-write `await import(workflow/response-cache/pub-sub/outbox)` cost 30–60µs each even when cached; resolve once, hot path becomes a promise resolve — full-pipeline create 3.5k → 4.0k RPS, update 3.4k → 6.3k RPS |
+| Deduped cache-invalidation patterns                                                              | Per-write pattern fan-out cut from 9 clears to 6 (identical generated keys)                                                                                                                                          |
 
-**SDK tax suite:** `tests/benchmarks/local-cms-crud.test.ts` measures `cms.collections.create` / `update` / `findById` vs adapter `findOne` (not raw `db.crud` alone).
+**SDK tax suite:** `tests/benchmarks/local-cms-crud.test.ts` measures `cms.collections.create` / `update` / `findById` vs adapter `findOne` (not raw `db.crud` alone). `tests/benchmarks/local-sdk-vs-direct.test.ts` reports the **full pipeline** (all post-write side effects executing: outbox INSERT, cache-pattern invalidation, workflow init, pubsub — create ≈2.0k RPS, update ≈2.5k RPS on SQLite) and the **detached** number via the documented `skipSideEffects: true` option (create ≈4.9k, update ≈4.4k). No environment flags are involved — benchmarks run the same code path production runs.
 
 ### HTTP findById turbo lane + responseCache
 
@@ -157,16 +179,20 @@ Cache keys are **user-scoped** (`u:{userId}:…`) with deep-sorted GraphQL varia
 
 ### Cross-Database Impact (All 4 Engines)
 
-| Optimization                                   | SQLite  | PostgreSQL | MariaDB    | MongoDB        |
-| ---------------------------------------------- | ------- | ---------- | ---------- | -------------- |
-| Schema-aware row conversion                    | ✅ Full | ✅ Full    | 🟡 Planned | N/A (own path) |
-| Ring-buffer result pool                        | ✅ Full | ✅ Full    | 🟡 Planned | ✅ Full        |
-| Conditions array pool                          | ✅ Full | ✅ Full    | 🟡 Planned | N/A (own path) |
-| Fused mapQuery (no IR objects)                 | ✅ Full | ✅ Full    | 🟡 Planned | ✅ Full        |
-| for...in (zero Object.entries)                 | ✅ Full | ✅ Full    | 🟡 Planned | ✅ Full        |
-| Pre-allocated meta object                      | ✅ Full | ✅ Full    | 🟡 Planned | ✅ Full        |
-| MariaDB double-parse isolated                  | N/A     | ✅ Benefit | 🟡 Planned | N/A            |
-| Parallel list + count (`websiteTokens.getAll`) | ✅ Full | ✅ Full    | 🟡 Planned | ✅ Full        |
+| Optimization                                   | SQLite  | PostgreSQL          | MariaDB               | MongoDB               |
+| ---------------------------------------------- | ------- | ------------------- | --------------------- | --------------------- |
+| Schema-aware row conversion                    | ✅ Full | ✅ Full             | ✅ Full               | N/A (own path)        |
+| Ring-buffer result pool                        | ✅ Full | ✅ Full             | ✅ Full               | ✅ Full               |
+| Conditions array pool                          | ✅ Full | ✅ Full             | ✅ Full               | N/A (own path)        |
+| Fused mapQuery (no IR objects)                 | ✅ Full | ✅ Full             | ✅ Full               | ✅ Full               |
+| for...in (zero Object.entries)                 | ✅ Full | ✅ Full             | ✅ Full               | ✅ Full               |
+| Pre-allocated meta object                      | ✅ Full | ✅ Full             | ✅ Full               | ✅ Full               |
+| MariaDB double-parse isolated                  | N/A     | ✅ Benefit          | ✅                    | N/A                   |
+| Parallel list + count (`websiteTokens.getAll`) | ✅ Full | ✅ Full             | ✅ Full               | ✅ Full               |
+| Prepared-statement cache                       | ✅      | N/A (driver caches) | N/A (driver prepared) | N/A                   |
+| Projection (`fields` → skip `data` blob)       | ✅      | ✅                  | ✅                    | ✅ (driver)           |
+| Single-statement `deleteMany`                  | ✅      | ✅                  | ✅                    | ✅ (native)           |
+| Raw `UPDATE…RETURNING` write fast path         | ✅      | ✅ (Drizzle)        | ✅                    | ✅ (findOneAndUpdate) |
 
 > **SQL family gets ~5-8 fewer allocations per filtered query. MongoDB gets ~2-3 fewer (result pool + fused mapQuery). All 4 databases benefit from shared BaseAdapter optimizations.**
 
@@ -460,7 +486,7 @@ SveltyCMS supports native environment variable overrides to tune database sessio
 | `SQLITE_BUSY_TIMEOUT`       | SQLite          | `30000`         | `30000`                      | Busy lock wait timeout (30s) preventing concurrent writer lock errors under load.                                      |
 | `SQLITE_WAL_AUTOCHECKPOINT` | SQLite          | `2000`          | `2000` or `5000`             | Page count for auto-flushing dirty WAL pages to main file, smoothing out p99 tail spikes.                              |
 | `MARIADB_SESSION_INIT`      | MariaDB         | None            | Custom SQL                   | Allows executing session-level SQL commands per new connection checked out from the pool.                              |
-| `BENCHMARK` / `TEST_MODE`   | MongoDB         | `w: 1, j: true` | `w: 1, j: false`             | Auto-configures MongoDB driver write concern to acknowledge in memory without waiting for disk journal flush.          |
+| `TEST_MODE`                 | MongoDB         | `w: 1, j: true` | —                            | Sandbox isolation only (bench DB + test config); the adapter never changes write concern from environment flags.       |
 
 > [!TIP]
 > **Developer Recommendation**: For maximum developer velocity during local testing, migration seeding, or benchmark runs, set `PG_SYNCHRONOUS_COMMIT=off` in your `.env` file or export it in your shell environment.

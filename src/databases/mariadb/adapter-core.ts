@@ -16,10 +16,15 @@
 import { logger } from "@src/utils/logger";
 import { SqlAdapterCore } from "../core/sql-adapter-core";
 import type {
+  BaseEntity,
   BaseQueryOptions,
   DatabaseCapabilities,
   DatabaseResult,
   DatabaseId,
+  EntityCreate,
+  EntityUpdate,
+  FindOptions,
+  QueryFilter,
 } from "../db-interface";
 import * as helpers from "../core/drizzle-sql-helpers";
 import { getTableName } from "drizzle-orm";
@@ -69,6 +74,74 @@ export abstract class AdapterCore extends SqlAdapterCore {
    */
   protected get useDynamicSqlInFindMany(): boolean {
     return true;
+  }
+
+  /**
+   * Raw prepared-SQL findById: mysql2's pool.execute uses server-side prepared
+   * statements; a stable parameterized SELECT skips Drizzle's per-call AST
+   * building + escaping on the hottest read path.
+   */
+  protected get useRawFindById(): boolean {
+    return true;
+  }
+
+  protected async rawFindById<T extends BaseEntity>(
+    table: any,
+    collection: string,
+    id: DatabaseId,
+    options: FindOptions<T>,
+  ): Promise<T | null> {
+    try {
+      const tableName = getTableName(table);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+      const idColName = idCol.name || "_id";
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+      // Projection-aware: skip the JSON data blob when all requested fields
+      // are physical columns (avoids LONGTEXT transfer + JSON.parse on reads).
+      const fields = options?.fields;
+      const wantsData =
+        !Array.isArray(fields) ||
+        fields.length === 0 ||
+        fields.some((f) => {
+          if (f === "data") return true;
+          if (
+            f === "_id" ||
+            f === "id" ||
+            f === "tenantId" ||
+            f === "status" ||
+            f === "createdAt" ||
+            f === "updatedAt" ||
+            f === "isDeleted"
+          )
+            return false;
+          return !this.getColumn(table, String(f));
+        });
+      const selectCols = wantsData
+        ? "`_id`, `data`, `status`, `tenantId`, `createdAt`, `updatedAt`, `isDeleted`"
+        : "`_id`, `status`, `tenantId`, `createdAt`, `updatedAt`, `isDeleted`";
+      const rawSql = `SELECT ${selectCols} FROM \`${tableName}\` WHERE \`${idColName}\` = ?${tenantSql} LIMIT 1`;
+      const rows = (await this.raw.execute(rawSql, [String(id), ...tenantParams])) as any[];
+      if (Array.isArray(rows) && rows.length > 0) {
+        const row = rows[0];
+        if (!wantsData) return row as T;
+        return utils.convertDatesToISO(row, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as T;
+      }
+      return null;
+    } catch (rawErr: any) {
+      if (process.env.BENCHMARK !== "true") {
+        logger.debug("[MariaDB raw findById] falling back to Drizzle:", rawErr?.message);
+      }
+      return null;
+    }
+  }
+
+  /** MariaDB default sql_mode has no ANSI_QUOTES — identifiers need backticks. */
+  protected override quoteIdentifier(name: string): string {
+    return `\`${name.replace(/`/g, "``")}\``;
   }
 
   protected get convertDatesOptions(): Record<string, any> {
@@ -162,9 +235,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
       if (typeof finalConnection === "string") {
         poolConfig = {
           uri: finalConnection,
-          connectionLimit: 100,
+          connectionLimit: Number(process.env.DATABASE_MAX_CONNECTIONS) || 20,
           connectTimeout: 30000,
-          maxIdle: 50,
+          maxIdle: 10,
           idleTimeout: 60000,
           charset: "utf8mb4",
         };
@@ -176,10 +249,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
           user: c.user || c.DB_USER || "root",
           password: c.password || c.DB_PASSWORD || "",
           database: c.database || c.DB_NAME,
-          connectionLimit: 100,
+          connectionLimit: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS || 20),
           connectTimeout: 30000,
           waitForConnections: true,
-          maxIdle: 50,
+          maxIdle: 10,
           idleTimeout: 60000,
           queueLimit: 0,
           enableKeepAlive: true,
@@ -458,6 +531,231 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
   private _returningSupported: boolean | null = null;
 
+  /**
+   * Single-round-trip upsert when the conflict is on _id (or a unique column):
+   * INSERT ... ON DUPLICATE KEY UPDATE ... RETURNING. Base upsert() would do
+   * findOne + update/insert (2 RT). Falls back when RETURNING is unsupported.
+   */
+  override async upsert<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    data: EntityCreate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    if (this._returningSupported === false) {
+      return super.upsert(collection, query, data, options);
+    }
+    try {
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+      const idColName = idCol.name || "_id";
+
+      // Only when the conflict filter is a pure _id lookup (common sync/import path)
+      const lookupId = this.extractIdFromQuery(query);
+      if (!lookupId) return super.upsert(collection, query, data, options);
+
+      const tableName = getTableName(table);
+      const now = new Date();
+      const values = this.prepareValues(
+        table,
+        { ...data, [idColName]: lookupId },
+        lookupId,
+        now,
+        options,
+      );
+      // Ensure PK present in the insert column list
+      if (values[idColName] === undefined) values[idColName] = String(lookupId);
+
+      const cols = Object.keys(values);
+      if (cols.length === 0) return super.upsert(collection, query, data, options);
+      const colList = cols
+        .map((c) => utils.assertSafeSqlIdentifier(c, "column"))
+        .map((c) => `\`${c}\``);
+      const placeholders = cols.map(() => "?").join(", ");
+      const updatePairs = cols
+        .filter((c) => c !== idColName)
+        .map(
+          (c) =>
+            `\`${utils.assertSafeSqlIdentifier(c, "column")}\` = VALUES(\`${utils.assertSafeSqlIdentifier(c, "column")}\`)`,
+        );
+      const params = cols.map((c) => {
+        const v = values[c];
+        return v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
+      });
+
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+      // Note: buildRawTenantClause may add a tenantId equality to WHERE; for upsert
+      // we instead merge tenantId into the row values (done by prepareValues) and
+      // rely on the PK conflict. Tenant WHERE on insert is not applicable.
+      void tenantSql;
+      void tenantParams;
+
+      const sqlText =
+        updatePairs.length > 0
+          ? `INSERT INTO \`${tableName}\` (${colList.join(", ")}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updatePairs.join(", ")} RETURNING *`
+          : `INSERT INTO \`${tableName}\` (${colList.join(", ")}) VALUES (${placeholders}) RETURNING *`;
+
+      const rows = (await this.raw.execute(sqlText, params)) as any[];
+      if (Array.isArray(rows) && rows.length > 0) {
+        this._returningSupported = true;
+        return {
+          success: true,
+          data: utils.convertDatesToISO(rows[0], {
+            mariaDoubleParseJson: true,
+            table: collection,
+          }) as unknown as T,
+        };
+      }
+      return super.upsert(collection, query, data, options);
+    } catch (err: any) {
+      this._returningSupported = false;
+      logger.debug(
+        `MariaDB upsert RETURNING not supported, using base upsert path: ${err.message}`,
+      );
+      return super.upsert(collection, query, data, options);
+    }
+  }
+
+  /** Extract a plain _id value from a query filter, or null if not a pure _id lookup. */
+  private extractIdFromQuery(query: QueryFilter<any>): string | null {
+    if (!query || typeof query !== "object") return null;
+    const keys = Object.keys(query);
+    if (keys.length > 2) return null;
+    const idVal = (query as any)._id ?? (query as any).id;
+    if (idVal === undefined || idVal === null) return null;
+    if (typeof idVal === "object" && !(idVal instanceof Date) && !Array.isArray(idVal)) return null;
+    const remaining = keys.filter((k) => k !== "_id" && k !== "id");
+    if (remaining.length === 0) return String(idVal);
+    if (remaining.length === 1 && remaining[0] === "tenantId") return String(idVal);
+    return null;
+  }
+
+  /**
+   * MariaDB ≥10.5 supports INSERT … RETURNING natively, but Drizzle's mysql2
+   * dialect does not expose .returning(). The base update() would otherwise do
+   * UPDATE + separate findById (2 round trips). This raw path keeps one.
+   * Falls back to the base implementation when RETURNING is unsupported.
+   */
+  protected async rawInsertReturning<T extends BaseEntity>(
+    table: any,
+    collection: string,
+    values: Record<string, any>,
+    _options: BaseQueryOptions,
+  ): Promise<T | null> {
+    if (this._returningSupported === false) return null;
+    try {
+      const tableName = getTableName(table);
+      const cols = Object.keys(values);
+      if (cols.length === 0) return null;
+      const colList = cols
+        .map((c) => utils.assertSafeSqlIdentifier(c, "column"))
+        .map((c) => `\`${c}\``);
+      const placeholders = cols.map(() => "?").join(", ");
+      const params = cols.map((c) => {
+        const v = values[c];
+        return v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
+      });
+      const sqlText = `INSERT INTO \`${tableName}\` (${colList.join(", ")}) VALUES (${placeholders}) RETURNING *`;
+      const rows = (await this.raw.execute(sqlText, params)) as any[];
+      if (Array.isArray(rows) && rows.length > 0) {
+        this._returningSupported = true;
+        return utils.convertDatesToISO(rows[0], {
+          mariaDoubleParseJson: true,
+          table: collection,
+        }) as unknown as T;
+      }
+      return null;
+    } catch {
+      this._returningSupported = false;
+      return null;
+    }
+  }
+
+  /**
+   * MariaDB ≥10.5 supports UPDATE ... RETURNING natively, but Drizzle's mysql2
+   * dialect does not expose .returning(). The base update() would otherwise do
+   * UPDATE + separate findById (2 round trips). This raw path keeps one.
+   * Falls back to the base implementation when RETURNING is unsupported.
+   */
+  override async update<T extends BaseEntity>(
+    collection: string,
+    id: DatabaseId,
+    data: EntityUpdate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    if (this._returningSupported === false) {
+      return super.update(collection, id, data, options);
+    }
+    try {
+      const d =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "update", collection, data, options)
+          : data;
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+      const idColName = idCol.name || "_id";
+      const tableName = getTableName(table);
+
+      const now = new Date();
+      const values = this.prepareValues(table, d, id, now, options);
+      // Drop the PK from SET (never write _id back)
+      delete values[idColName];
+      delete values["id"];
+
+      const setPairs: string[] = [];
+      const params: any[] = [];
+      const columns = Object.keys(values);
+      for (const col of columns) {
+        const safeCol = utils.assertSafeSqlIdentifier(col, "column");
+        setPairs.push(`\`${safeCol}\` = ?`);
+        const val = values[col];
+        params.push(
+          val !== null && typeof val === "object" && !(val instanceof Date)
+            ? JSON.stringify(val)
+            : val,
+        );
+      }
+      if (setPairs.length === 0) {
+        return super.update(collection, id, data, options);
+      }
+
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+      const sqlText = `UPDATE \`${tableName}\` SET ${setPairs.join(", ")} WHERE \`${idColName}\` = ?${tenantSql} RETURNING *`;
+      const rows = (await this.raw.execute(sqlText, [
+        ...params,
+        String(id),
+        ...tenantParams,
+      ])) as any[];
+
+      if (Array.isArray(rows) && rows.length > 0) {
+        this._returningSupported = true;
+        const converted = utils.convertDatesToISO(rows[0], {
+          mariaDoubleParseJson: true,
+          table: collection,
+        }) as unknown as T;
+        const finalData =
+          this.hooks.length > 0
+            ? await this.runHooks("after", "update", collection, converted, options)
+            : converted;
+        // Match base wrap semantics (pooled envelope + write metrics)
+        return this.wrap(async () => finalData, "UPDATE_FAILED", undefined, {
+          ...options,
+          isWrite: true,
+        });
+      }
+    } catch (err: any) {
+      this._returningSupported = false;
+      logger.debug(
+        `MariaDB UPDATE...RETURNING not supported, using base update path: ${err.message}`,
+      );
+    }
+    return super.update(collection, id, data, options);
+  }
+
   async atomicIncrement(
     collection: string,
     id: DatabaseId,
@@ -648,6 +946,17 @@ export abstract class AdapterCore extends SqlAdapterCore {
           } catch {
             /* safe */
           }
+        }
+
+        // 🚀 COVERING COMPOSITE INDEX for the canonical tenant list query:
+        // WHERE tenantId=? AND status=? AND isDeleted=0 ORDER BY updatedAt DESC
+        // LIMIT n — avoids filesort and enables keyset seeks on deep pages.
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS \`${physicalName}_tenant_status_updated\` ON \`${physicalName}\` (\`tenantId\`, \`status\`, \`updatedAt\`)`,
+          );
+        } catch {
+          /* safe */
         }
 
         logger.info(`[MARIADB Adapter] Provisioned table: ${physicalName}`);

@@ -391,6 +391,10 @@ export class MongoCollectionMethods {
         { fields: { tenantId: 1 } },
         { fields: { tenantId: 1, status: 1 } },
         { fields: { tenantId: 1, createdAt: -1 } },
+        // 🚀 COMPOSITE: canonical tenant list query
+        // (WHERE tenantId + status + isDeleted, ORDER BY updatedAt DESC LIMIT n) —
+        // serves filter + sort from one index instead of {tenantId,status} + temp sort.
+        { fields: { tenantId: 1, status: 1, updatedAt: -1 } },
       ];
 
       // Aggregate all text fields into a single text index (MongoDB restriction: only one text index per collection)

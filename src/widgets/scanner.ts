@@ -22,25 +22,32 @@ import { WIDGET_COMPONENT_ROOTS, folderFromWidgetPath, widgetNameToFolder } from
 export { widgetNameToFolder } from "./widget-naming";
 
 // 1. Vite/SvelteKit Native Scanning
-let coreModulesRaw: Record<string, any> = {};
-let customModulesRaw: Record<string, any> = {};
-let marketplaceModulesRaw: Record<string, any> = {};
-let widgetComponentsRaw: Record<string, any> = {};
+export const coreModules: Record<string, any> = {};
+export const customModules: Record<string, any> = {};
+export const marketplaceModules: Record<string, any> = {};
+export const widgetComponents: Record<string, any> = {};
 
 try {
-  coreModulesRaw = import.meta.glob("./core/*/index.ts", { eager: true });
-  customModulesRaw = import.meta.glob("./custom/*/index.ts", { eager: true });
-  // Marketplace is optional — empty glob is fine when the dir has no packages yet
-  marketplaceModulesRaw = import.meta.glob("./marketplace/*/index.ts", { eager: true });
-  widgetComponentsRaw = import.meta.glob([
-    "./core/*/*.svelte",
-    "./custom/*/*.svelte",
-    "./marketplace/*/*.svelte",
-  ]);
+  if (typeof (import.meta as any).glob === "function") {
+    Object.assign(coreModules, (import.meta as any).glob("./core/*/index.ts", { eager: true }));
+    Object.assign(customModules, (import.meta as any).glob("./custom/*/index.ts", { eager: true }));
+    Object.assign(
+      marketplaceModules,
+      (import.meta as any).glob("./marketplace/*/index.ts", { eager: true }),
+    );
+    Object.assign(
+      widgetComponents,
+      (import.meta as any).glob([
+        "./core/*/*.svelte",
+        "./custom/*/*.svelte",
+        "./marketplace/*/*.svelte",
+      ]),
+    );
+  }
 
   if (typeof process !== "undefined" && process.env.BENCHMARK_DEBUG === "true") {
     logger.debug(
-      `[Scanner Debug] Vite Glob: ${Object.keys(coreModulesRaw).length} core, ${Object.keys(customModulesRaw).length} custom, ${Object.keys(marketplaceModulesRaw).length} marketplace.`,
+      `[Scanner Debug] Vite Glob: ${Object.keys(coreModules).length} core, ${Object.keys(customModules).length} custom, ${Object.keys(marketplaceModules).length} marketplace.`,
     );
   }
 } catch (err: any) {
@@ -48,11 +55,6 @@ try {
     logger.error(`[Scanner Debug] Vite Glob failed: ${err.message}`);
   }
 }
-
-export const coreModules = coreModulesRaw;
-export const customModules = customModulesRaw;
-export const marketplaceModules = marketplaceModulesRaw;
-export const widgetComponents = widgetComponentsRaw;
 
 /**
  * 🚀 Bun/Production Fallback (for Benchmarks and Non-Vite environments)

@@ -908,13 +908,28 @@ export function applyOrderBy(
 
 const tableSelectionCache = new WeakMap<any, any>();
 
+/**
+ * Physical column selection for a table. When `excludeData` is true and the
+ * table has a JSON `data` blob column, it is omitted from the selection — the
+ * caller then skips the JSON parse + flattenDataColumn pass entirely. This is
+ * the projection win: list UIs that only need _id/status/updatedAt never pay
+ * for deserializing the full content payload.
+ */
 export function getPhysicalSelection(
   table: any,
   selectionCache: Map<string, any>,
   getColumn: (table: any, name: string, forcePhysical?: boolean) => Column | undefined,
+  excludeData = false,
 ): any {
   let cached = tableSelectionCache.get(table);
-  if (cached) return cached;
+  if (cached && !excludeData) return cached;
+  if (cached && excludeData) {
+    const withoutData: any = {};
+    for (const k of Object.keys(cached)) {
+      if (k !== "data") withoutData[k] = cached[k];
+    }
+    return withoutData;
+  }
 
   const tableName = getTableName(table);
   const lowerName = tableName.toLowerCase();
@@ -930,8 +945,11 @@ export function getPhysicalSelection(
     try {
       const columns = getTableColumns(table);
       if (columns && Object.keys(columns).length > 0) {
+        const selection = excludeData
+          ? Object.fromEntries(Object.entries(columns).filter(([k]) => k !== "data"))
+          : columns;
         tableSelectionCache.set(table, columns);
-        return columns;
+        return selection;
       }
     } catch {}
   }
@@ -940,7 +958,7 @@ export function getPhysicalSelection(
     const cachedSel = selectionCache.get(systemName);
     if (cachedSel) {
       tableSelectionCache.set(table, cachedSel);
-      return cachedSel;
+      return excludeData ? omitData(cachedSel) : cachedSel;
     }
   }
 
@@ -952,7 +970,9 @@ export function getPhysicalSelection(
   } else if (systemName === "contentNodes" || lowerName.includes("content_nodes")) {
     columnNames = SYSTEM_LITERAL_COLUMNS.contentNodes;
   } else {
-    columnNames = ["_id", "data", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
+    columnNames = excludeData
+      ? ["_id", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"]
+      : ["_id", "data", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
   }
 
   for (let i = 0; i < columnNames.length; i++) {
@@ -971,4 +991,12 @@ export function getPhysicalSelection(
 
   tableSelectionCache.set(table, selection);
   return selection;
+}
+
+function omitData(selection: any): any {
+  const out: any = {};
+  for (const k of Object.keys(selection)) {
+    if (k !== "data") out[k] = selection[k];
+  }
+  return out;
 }

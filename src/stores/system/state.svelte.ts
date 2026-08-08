@@ -28,6 +28,15 @@ import { initialState, initialServiceMetrics } from "./config";
 import { calibrateAnomalyThresholds, detectAnomalies, saveCurrentMetrics } from "./metrics";
 import { getGlobal, setGlobal } from "@src/utils/native-utils";
 
+// Fallback $state rune for non-Vite execution environments (Bun/Node direct scripts)
+if (typeof (globalThis as any).$state === "undefined") {
+  (globalThis as any).$state = Object.assign((v: any) => v, {
+    raw: (v: any) => v,
+    snapshot: (v: any) => v,
+    eager: (v: any) => v,
+  });
+}
+
 // 🚀 MODULE-LEVEL STATE MIRROR: overallState stored as a primitive string.
 // Eliminates getSystemState().overallState property chain on every gatekeeper check.
 // Synchronized on setSystemState() and updateService() calls.

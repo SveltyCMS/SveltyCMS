@@ -90,6 +90,121 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return true;
   }
 
+  /**
+   * Raw prepared-SQL findById: postgres.js caches parsed statements by SQL
+   * text, so a stable parameterized SELECT skips Drizzle's per-call AST
+   * building + SQL string construction (~30-80µs/call on hot reads).
+   */
+  protected get useRawFindById(): boolean {
+    return true;
+  }
+
+  protected async rawInsertReturning<T extends import("../db-interface").BaseEntity>(
+    table: any,
+    collection: string,
+    values: Record<string, any>,
+    _options: import("../db-interface").BaseQueryOptions,
+  ): Promise<T | null> {
+    try {
+      const tableName = getTableName(table);
+      const cols = Object.keys(values);
+      if (cols.length === 0) return null;
+      // postgres.js 3.x removed sql.join — build the VALUES list with nested
+      // fragments instead (stable SQL text → prepared-statement cache hit).
+      // Identifiers must be double-quoted explicitly: unquoted camelCase
+      // folds to lowercase ("tenantId" → tenantid) and breaks lookups.
+      const colList = cols.map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`).join(", ");
+      // Bind dates as ISO strings and jsonb as JSON strings — postgres.js's
+      // describe-phase Bind under pipelined connections mishandles raw Date/
+      // object params in nested fragments. String params always bind safely.
+      const boundValues = cols.map((c) => {
+        const v = values[c];
+        if (v instanceof Date) return (v as Date).toISOString();
+        if (v !== null && typeof v === "object" && !Array.isArray(v)) return JSON.stringify(v);
+        return v;
+      });
+      let valuesFrag = this.sql!`${boundValues[0]}`;
+      for (let i = 1; i < boundValues.length; i++) {
+        valuesFrag = this.sql!`${valuesFrag}, ${boundValues[i]}`;
+      }
+      const rows = await this.sql!`INSERT INTO ${this.sql!.unsafe(
+        tableName,
+      )} (${this.sql!.unsafe(colList)}) VALUES (${valuesFrag}) RETURNING *`;
+      if (Array.isArray(rows) && rows.length > 0) {
+        return utils.convertDatesToISO(rows[0], {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as unknown as T;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  protected async rawFindById<T extends import("../db-interface").BaseEntity>(
+    table: any,
+    collection: string,
+    id: import("../db-interface").DatabaseId,
+    options: import("../db-interface").FindOptions<T>,
+  ): Promise<T | null> {
+    try {
+      const tableName = getTableName(table);
+      const tenantId =
+        options?.tenantId && options?.tenantId !== "global" ? options.tenantId : null;
+      // Projection-aware: skip the jsonb data blob when all requested fields
+      // are physical columns (avoids jsonb deserialization on hot reads).
+      const fields = options?.fields;
+      const wantsData =
+        !Array.isArray(fields) ||
+        fields.length === 0 ||
+        fields.some((f) => {
+          if (f === "data") return true;
+          if (
+            f === "_id" ||
+            f === "id" ||
+            f === "tenantId" ||
+            f === "status" ||
+            f === "createdAt" ||
+            f === "updatedAt" ||
+            f === "isDeleted"
+          )
+            return false;
+          return !this.getColumn(table, String(f));
+        });
+      const selectCols = wantsData
+        ? `"_id", "data", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"`
+        : `"_id", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"`;
+      // Tagged template (NOT unsafe): postgres.js caches prepared statements by
+      // SQL text, so this stable query gets parse-once + bind/execute reuse.
+      // Identifiers are inlined via sql.unsafe fragments (stable SQL text);
+      // only _id/tenantId are bound values.
+      const selectFragment = this.sql!.unsafe(selectCols);
+      const tableFragment = this.sql!.unsafe(tableName);
+      const rows = tenantId
+        ? await this.sql!`SELECT ${selectFragment} FROM ${tableFragment} WHERE "_id" = ${String(
+            id,
+          )} AND "tenantId" = ${String(tenantId)} LIMIT 1`
+        : await this.sql!`SELECT ${selectFragment} FROM ${tableFragment} WHERE "_id" = ${String(
+            id,
+          )} LIMIT 1`;
+      if (Array.isArray(rows) && rows.length > 0) {
+        const row = rows[0];
+        if (!wantsData) return row as T;
+        return utils.convertDatesToISO(row, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as T;
+      }
+      return null;
+    } catch (rawErr: any) {
+      if (process.env.BENCHMARK !== "true") {
+        logger.debug("[PostgreSQL raw findById] falling back to Drizzle:", rawErr?.message);
+      }
+      return null;
+    }
+  }
+
   protected isMissingTableError(err: any): boolean {
     return err?.code === "42P01";
   }
@@ -246,7 +361,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       if (typeof finalConnection === "string") {
         options = {
-          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 200,
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 100,
           connect_timeout: 30,
           onclose,
         };
@@ -279,7 +394,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onnotice: () => {},
           onclose,
           transform: { undefined: null },
-          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 200,
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 100,
           connect_timeout: 10,
           prepare: effectivePrepare,
           idle_timeout: 300,
@@ -303,7 +418,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           user: c.user || c.DB_USER || "postgres",
           password: c.password || c.DB_PASSWORD || "",
           database: c.database || c.DB_NAME,
-          max: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS || 200),
+          max: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS || 100),
           connect_timeout: Number(c.connect_timeout || 10),
           ssl: c.ssl || false,
           onnotice: () => {},
@@ -767,6 +882,18 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           } catch {
             /* safe */
           }
+        }
+
+        // 🚀 COVERING COMPOSITE INDEX for the canonical tenant list query:
+        // WHERE "tenantId"=? AND status=? AND "isDeleted"=false
+        // ORDER BY "updatedAt" DESC LIMIT n — turns seq-scan + sort into an
+        // index scan and makes keyset pagination on (updatedAt, _id) seekable.
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_updated" ON "${physicalName}" ("tenantId", status, "updatedAt" DESC)`,
+          );
+        } catch {
+          /* safe */
         }
       },
       "CREATE_MODEL_FAILED",

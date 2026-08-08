@@ -218,6 +218,31 @@ export function convertDatesToISO(
   const jsonCols = hasSchema && table ? getTableJsonColumns(table) : null;
 
   if (options?.inPlace && hasSchema && dateCols) {
+    // 🚀 ZERO-WORK FAST PATH: if the row carries no Date instances and no
+    // JSON-string columns (content collections store ISO strings + already
+    // parsed objects), the conversion is a no-op — return the row untouched.
+    let needsWork = false;
+    for (let i = 0; i < dateCols.length; i++) {
+      const v = row[dateCols[i]];
+      if (
+        v instanceof Date ||
+        (v && typeof v === "object" && typeof (v as any).getTime === "function")
+      ) {
+        needsWork = true;
+        break;
+      }
+    }
+    if (!needsWork && jsonCols && jsonCols.length > 0) {
+      for (let i = 0; i < jsonCols.length; i++) {
+        const v = row[jsonCols[i]];
+        if (typeof v === "string" && isJsonString(v)) {
+          needsWork = true;
+          break;
+        }
+      }
+    }
+    if (!needsWork) return row;
+
     for (let i = 0; i < dateCols.length; i++) {
       const k = dateCols[i];
       const v = row[k];

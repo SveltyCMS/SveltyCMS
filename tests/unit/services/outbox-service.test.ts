@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Use vi.hoisted to ensure variables are initialized before hoisted vi.mock calls
 const {
   insertMock,
+  insertManyMock,
   findManyMock,
   updateMock,
   deleteManyMock,
@@ -16,6 +17,7 @@ const {
   webhookTriggerMock,
 } = vi.hoisted(() => ({
   insertMock: vi.fn(),
+  insertManyMock: vi.fn(),
   findManyMock: vi.fn(),
   updateMock: vi.fn(),
   deleteManyMock: vi.fn(),
@@ -28,6 +30,7 @@ vi.mock("@src/databases/db", () => ({
   getDb: () => ({
     crud: {
       insert: insertMock,
+      insertMany: insertManyMock,
       findMany: findManyMock,
       update: updateMock,
       deleteMany: deleteManyMock,
@@ -115,10 +118,12 @@ describe("outboxService.emit", () => {
     vi.clearAllMocks();
     delete process.env.DISABLE_OUTBOX;
     delete process.env.BENCHMARK_MODE;
+    delete process.env.BENCHMARK;
+    delete process.env.SVELTY_BENCHMARK_SUITE;
   });
 
   it("inserts a pending event via crud", async () => {
-    insertMock.mockResolvedValue({ success: true, data: makeEvent() });
+    insertManyMock.mockResolvedValue({ success: true, data: [makeEvent()] });
 
     const result = await outboxService.emit(
       "entry:create",
@@ -129,13 +134,20 @@ describe("outboxService.emit", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(insertMock).toHaveBeenCalledTimes(1);
-    const [collection, row] = insertMock.mock.calls[0];
+    expect((result.data as OutboxEvent).eventType).toBe("entry:create");
+    expect((result.data as OutboxEvent).status).toBe("pending");
+
+    // Buffered emit returns immediately; the bulk flush persists asynchronously
+    // on the coalescing timer (OUTBOX_BUFFER_FLUSH_MS = 25ms).
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(insertManyMock).toHaveBeenCalledTimes(1);
+    const [collection, rows] = insertManyMock.mock.calls[0];
     expect(collection).toBe("svelty_outbox");
-    expect(row.eventType).toBe("entry:create");
-    expect(row.status).toBe("pending");
-    expect(row.tenantId).toBe("tenant-a");
-    expect(row.attempts).toBe(0);
+    expect(rows[0].eventType).toBe("entry:create");
+    expect(rows[0].status).toBe("pending");
+    expect(rows[0].tenantId).toBe("tenant-a");
+    expect(rows[0].attempts).toBe(0);
   });
 
   it("passes transaction options through to insert", async () => {

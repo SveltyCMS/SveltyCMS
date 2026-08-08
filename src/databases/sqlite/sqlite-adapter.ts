@@ -125,6 +125,9 @@ export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
         }
         this.sqlite.exec("PRAGMA foreign_keys = ON;");
 
+        // DDL dropped/cleared tables — cached prepared statements are stale
+        this.clearStatementCaches();
+
         // 🚀 HARDENING: Mark as not provisioned so system tables are re-created
         this._provisioned = false;
         this._provisionPromise = null;

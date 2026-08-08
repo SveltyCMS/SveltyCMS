@@ -9,7 +9,7 @@
  * - Graceful fallback for missing widgets
  */
 
-import { coreModules, customModules, marketplaceModules } from "@src/widgets/scanner";
+import { coreModules, customModules, marketplaceModules } from "./scanner";
 import {
   folderFromWidgetPath,
   validateWidgetNaming,

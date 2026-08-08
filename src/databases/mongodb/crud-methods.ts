@@ -29,15 +29,40 @@ import {
   resolvePageSort,
   shouldUseEstimateCount,
 } from "../core/page-utils";
-import { extractLookupId, isIdLookupQuery } from "../core/lookup-query";
+import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "../core/lookup-query";
 
 export class MongoCrudMethods<T extends BaseEntity> {
   public readonly model: Model<T>;
   protected readonly adapter: any;
+  private _skipDateWalk: boolean | null = null;
 
   constructor(model: Model<T>, adapter: any) {
     this.model = model;
     this.adapter = adapter;
+  }
+
+  /**
+   * Content collections use generic strict:false schemas and store timestamps
+   * as ISO strings (nowISODateString) — processDates' deep walk finds nothing
+   * and is pure CPU. Detect once per model and bypass on hot paths.
+   */
+  protected mapDates<T2>(data: T2): T2 {
+    if (this._skipDateWalk === null) {
+      try {
+        const schema = (this.model as any).schema;
+        const paths: Record<string, any> = schema?.paths || {};
+        const hasDatePaths = Object.values(paths).some(
+          (p: any) => p?.instance === "Date" || p?.options?.type === Date,
+        );
+        const isGeneric =
+          schema?.strict === false || Object.keys(paths).length <= 5 || schema?.$isMongooseArray;
+        this._skipDateWalk = !hasDatePaths && isGeneric;
+      } catch {
+        this._skipDateWalk = false;
+      }
+    }
+    if (this._skipDateWalk) return data;
+    return processDates(data);
   }
 
   async findOne(
@@ -47,19 +72,21 @@ export class MongoCrudMethods<T extends BaseEntity> {
     const startTime = performance.now();
     try {
       // 🚀 ULTRA FAST PATH: shared isIdLookupQuery (SQL + Mongo parity).
-      // Multi-tenant: require tenantId on options. Single-tenant: allow bare _id.
+      // Multi-tenant: require tenantId on options or query. Single-tenant: allow bare _id.
+      const qTenant = extractLookupTenantId(query);
+      const effectiveTenant = options.tenantId ?? qTenant;
       const canFastLookup =
         isIdLookupQuery(query) &&
         !options.includeDeleted &&
         !options.bypassSafeQuery &&
         this.model.collection.name !== "auth_tokens" &&
         this.model.collection.name !== "sessions" &&
-        (options.tenantId || !isMultiTenantMode());
+        (effectiveTenant || !isMultiTenantMode());
 
       if (canFastLookup) {
         const id = extractLookupId(query)!;
         const filter: Record<string, unknown> = { _id: id };
-        if (options.tenantId) filter.tenantId = options.tenantId;
+        if (effectiveTenant) filter.tenantId = effectiveTenant;
 
         const projection = options.fields?.length ? options.fields.join(" ") : undefined;
         const result = await this.model.findOne(filter, projection).lean().exec();
@@ -68,7 +95,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
         if (!result || (result as any).isDeleted === true) {
           return { success: true, data: null, meta };
         }
-        return { success: true, data: processDates(result) as T, meta };
+        return { success: true, data: this.mapDates(result) as T, meta };
       }
 
       const secureQuery = this.adapter.mapQuery(
@@ -97,7 +124,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       if (!result) {
         return { success: true, data: null, meta };
       }
-      return { success: true, data: processDates(result) as T, meta };
+      return { success: true, data: this.mapDates(result) as T, meta };
     } catch (error) {
       return {
         success: false,
@@ -139,17 +166,17 @@ export class MongoCrudMethods<T extends BaseEntity> {
         .exec();
       return {
         success: true,
-        data: processDates(results) as T[],
+        data: this.mapDates(results) as T[],
         meta: { executionTime: performance.now() - startTime },
       };
     } catch (error) {
       return {
         success: false,
-        message: `Failed to find documents by IDs in ${this.model.modelName}`,
+        message: `Failed to find documents in ${this.model.modelName}`,
         error: createDatabaseError(
           error,
           "FIND_BY_IDS_ERROR",
-          `Failed to find documents by IDs in ${this.model.modelName}`,
+          `Failed to find documents in ${this.model.modelName}`,
         ),
       };
     }
@@ -161,6 +188,35 @@ export class MongoCrudMethods<T extends BaseEntity> {
   ): Promise<DatabaseResult<T[]>> {
     const startTime = performance.now();
     try {
+      // 🚀 ULTRA FAST PATH: pure {_id} / {_id,tenantId} → findOne lean (skips
+      // safeQuery + mapQuery + cursor chain — same shape as SQL adapters).
+      const qTenant = extractLookupTenantId(query);
+      const effectiveTenant = options.tenantId ?? qTenant;
+      const canFastLookup =
+        isIdLookupQuery(query) &&
+        !options.includeDeleted &&
+        !options.bypassSafeQuery &&
+        !options.sort &&
+        !options.offset &&
+        this.model.collection.name !== "auth_tokens" &&
+        this.model.collection.name !== "sessions" &&
+        (effectiveTenant || !isMultiTenantMode());
+
+      if (canFastLookup) {
+        const id = extractLookupId(query)!;
+        const filter: Record<string, unknown> = { _id: id };
+        if (effectiveTenant) filter.tenantId = effectiveTenant;
+
+        const projection = options.fields?.length ? options.fields.join(" ") : undefined;
+        const result = await this.model.findOne(filter, projection).lean().exec();
+
+        const meta = { executionTime: performance.now() - startTime };
+        if (!result || (result as any).isDeleted === true) {
+          return { success: true, data: [], meta };
+        }
+        return { success: true, data: [this.mapDates(result) as T], meta };
+      }
+
       const secureQuery = this.adapter.mapQuery(
         safeQuery(query, options.tenantId as string, {
           bypassTenantCheck: options.bypassTenantCheck,
@@ -190,7 +246,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
         .exec();
       return {
         success: true,
-        data: processDates(results) as T[],
+        data: this.mapDates(results) as T[],
         meta: { executionTime: performance.now() - startTime },
       };
     } catch (error) {
@@ -228,9 +284,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
         .lean()
         .cursor();
 
+      const mapDates = (doc: any) => this.mapDates(doc) as T;
       const generator = async function* () {
         for await (const doc of cursor) {
-          yield processDates(doc) as T;
+          yield mapDates(doc);
         }
       };
 
@@ -287,7 +344,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           const result = await mongooseDoc.save(saveOptions);
           return {
             success: true,
-            data: processDates((result as mongoose.HydratedDocument<T>).toObject()) as T,
+            data: this.mapDates((result as mongoose.HydratedDocument<T>).toObject()) as T,
             meta: { executionTime: performance.now() - startTime },
           };
         }
@@ -296,7 +353,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
       return {
         success: true,
-        data: processDates(doc) as T,
+        data: this.mapDates(doc) as T,
         meta: { executionTime: performance.now() - startTime },
       };
     } catch (error) {
@@ -413,7 +470,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
           };
         return {
           success: true,
-          data: processDates(result) as T,
+          data: this.mapDates(result) as T,
           meta: { executionTime: performance.now() - startTime },
         };
       }
@@ -455,7 +512,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       }
       return {
         success: true,
-        data: processDates(result) as T,
+        data: this.mapDates(result) as T,
         meta: { executionTime: performance.now() - startTime },
       };
     } catch (error) {

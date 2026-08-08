@@ -75,18 +75,18 @@ sequenceDiagram
 
 SveltyCMS configures the `postgres.js` driver with production-tuned connection pool settings. These can be overridden via environment variables or connection config object:
 
-| Setting                       | Default     | Env Var Override           | Purpose                                                                                                                          |
-| ----------------------------- | ----------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `max`                         | 200         | `DATABASE_MAX_CONNECTIONS` | Maximum connections in the pool                                                                                                  |
-| `connect_timeout`             | 10s         | —                          | 3× faster failure detection on unreachable hosts                                                                                 |
-| `idle_timeout`                | 300s        | —                          | Pooled connections stay warm 5× longer; reduces SSL handshake overhead                                                           |
-| `max_lifetime`                | 60 min      | —                          | Halves pool recreation overhead vs. previous 30 min default                                                                      |
-| `keepalive`                   | true        | —                          | Prevents silent connection drops from cloud NAT/proxies/firewalls                                                                |
-| `keepaliveInitialDelayMillis` | 10000       | —                          | Starts keepalive pings after 10s idle                                                                                            |
-| `pipeline`                    | true        | —                          | Postgres.js query pipelining; batches concurrent queries into single TCP round-trips (up to 3× throughput on parallel workloads) |
-| `prepare`                     | true        | `DATABASE_PREPARE=false`   | Server-side prepared statements; disable for PgBouncer transaction mode                                                          |
-| `statement_timeout`           | 30s         | —                          | Safety limit for individual queries                                                                                              |
-| `application_name`            | `sveltycms` | —                          | Identifies the CMS in `pg_stat_activity`                                                                                         |
+| Setting                       | Default     | Env Var Override           | Purpose                                                                                                                                                                  |
+| ----------------------------- | ----------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `max`                         | 100         | `DATABASE_MAX_CONNECTIONS` | Maximum connections in the pool (capped at PostgreSQL's default `max_connections = 100` to avoid pool exhaustion / `too many clients`; raise via env for larger servers) |
+| `connect_timeout`             | 10s         | —                          | 3× faster failure detection on unreachable hosts                                                                                                                         |
+| `idle_timeout`                | 300s        | —                          | Pooled connections stay warm 5× longer; reduces SSL handshake overhead                                                                                                   |
+| `max_lifetime`                | 60 min      | —                          | Halves pool recreation overhead vs. previous 30 min default                                                                                                              |
+| `keepalive`                   | true        | —                          | Prevents silent connection drops from cloud NAT/proxies/firewalls                                                                                                        |
+| `keepaliveInitialDelayMillis` | 10000       | —                          | Starts keepalive pings after 10s idle                                                                                                                                    |
+| `pipeline`                    | true        | —                          | Postgres.js query pipelining; batches concurrent queries into single TCP round-trips (up to 3× throughput on parallel workloads)                                         |
+| `prepare`                     | true        | `DATABASE_PREPARE=false`   | Server-side prepared statements; disable for PgBouncer transaction mode                                                                                                  |
+| `statement_timeout`           | 30s         | —                          | Safety limit for individual queries                                                                                                                                      |
+| `application_name`            | `sveltycms` | —                          | Identifies the CMS in `pg_stat_activity`                                                                                                                                 |
 
 ### Connection Configuration
 
@@ -144,6 +144,8 @@ The PostgreSQL schema mirrors the CMS data model but is optimized for relational
 - **`gen_random_uuid()`**: Native UUID generation via pgcrypto extension
 - **Tenants Table**: Full multi-tenancy with quota, usage, and settings JSONB columns
 - **Website Tokens**: `website_tokens` via shared `relational-system.ts` — SHA-256 hash at rest, unique index on `token`, compound `{ tenantId, name }`, parallel list+count. See [Credential Storage](./database-methods.mdx#-credential-storage-website-tokens--api-keys).
+- **Raw `findById`**: Tagged-template prepared SELECT (stable SQL text → postgres.js statement cache) — FIND ONE ~1.3–1.5k RPS.
+- **Raw `INSERT…RETURNING` fast path**: One-round-trip insert via nested-fragment tagged template. postgres.js 3.x removed `sql.join` — the earlier implementation silently fell back to Drizzle on every insert (~225 RPS, 50% of the 1c ceiling). The fix builds the VALUES list with nested fragments, quotes identifiers (unquoted camelCase folds to lowercase), and binds dates/objects as strings (the describe-phase Bind mishandles raw Date/object params under pipelined connections). Measured: 217 → **299 RPS** in the adapter benchmark; the raw SQL alone reaches ~413 RPS (92% of the 450 RPS 1c ceiling).
 
 ## Development Guide
 

@@ -156,6 +156,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return false;
   }
 
+  /**
+   * Quote a SQL identifier for this dialect. ANSI double quotes work for
+   * SQLite/PostgreSQL; MariaDB needs backticks unless ANSI_QUOTES is enabled
+   * (it is NOT in MariaDB's default sql_mode, so double quotes mean strings).
+   */
+  protected quoteIdentifier(name: string): string {
+    return `"${name.replace(/"/g, '""')}"`;
+  }
+
   /** Whether findById has an adapter-specific raw-SQL optimization. */
   protected get useRawFindById(): boolean {
     return false;
@@ -170,11 +179,25 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   /** Adapter-specific raw findById optimisation — returns null if not used. */
-  protected async rawFindById<T>(
+  protected async rawFindById<T extends BaseEntity>(
     _table: any,
     _collection: string,
     _id: DatabaseId,
     _options: FindOptions<T>,
+  ): Promise<T | null> {
+    return null;
+  }
+
+  /**
+   * Adapter-specific raw INSERT…RETURNING — returns null when not used.
+   * MariaDB/PostgreSQL override this to skip Drizzle's per-call AST building
+   * on the write path while keeping a single round trip (values + row back).
+   */
+  protected async rawInsertReturning<T extends BaseEntity>(
+    _table: any,
+    _collection: string,
+    _values: Record<string, any>,
+    _options: BaseQueryOptions,
   ): Promise<T | null> {
     return null;
   }
@@ -306,6 +329,31 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return helpers.getColumnHelper(table, name, this._tableColumnsCache, lastRef, forcePhysical);
   }
 
+  /**
+   * Whether the SELECT can skip the JSON `data` blob column. True when the
+   * caller requested an explicit `fields` projection that contains no
+   * non-physical (blob-stored) keys — the row then only carries metadata
+   * columns and avoids JSON.parse + flattenDataColumn entirely.
+   */
+  protected shouldExcludeData(table: any, options: any): boolean {
+    const fields = options?.fields;
+    if (!Array.isArray(fields) || fields.length === 0) return false;
+    // If ANY requested field is not a physical column it lives in the data blob.
+    for (const f of fields) {
+      if (f === "_id" || f === "id" || f === "data") continue;
+      if (
+        f === "tenantId" ||
+        f === "status" ||
+        f === "createdAt" ||
+        f === "updatedAt" ||
+        f === "isDeleted"
+      )
+        continue;
+      if (!this.getColumn(table, f)) return false;
+    }
+    return true;
+  }
+
   public getPhysicalSelection(table: any): any {
     const self = this as any;
     const lastRef = {
@@ -324,6 +372,30 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     };
     return helpers.getPhysicalSelection(table, this._selectionCache, (t, n, f) =>
       helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
+    );
+  }
+
+  public getProjectedSelection(table: any, options: any): any {
+    const self = this as any;
+    const lastRef = {
+      get table() {
+        return self._lastTable;
+      },
+      set table(val: any) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val: any) {
+        self._lastCols = val;
+      },
+    };
+    return helpers.getPhysicalSelection(
+      table,
+      this._selectionCache,
+      (t, n, f) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
+      this.shouldExcludeData(table, options),
     );
   }
 
@@ -651,6 +723,33 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         this.hooks.length > 0
           ? await this.runHooks("before", "find", collection, query, options)
           : query;
+
+      // 🚀 ULTRA PATH: pure {_id} / {_id,tenantId} → findById (raw prepared
+      // SELECT). The list path with a single-id filter used to pay the full
+      // dynamic-SQL/Drizzle-AST build (~10× findOne) even though a PK lookup
+      // can never return more than one row. Runs after before-hooks so hook
+      // semantics match findOne (hooks may rewrite the query).
+      if (
+        isIdLookupQuery(q) &&
+        !options.includeDeleted &&
+        !options.bypassSafeQuery &&
+        !options.sort &&
+        !options.offset
+      ) {
+        const lookupId = extractLookupId(q)!;
+        const qTenant = extractLookupTenantId(q);
+        const fastOpts =
+          qTenant !== undefined && !options.tenantId
+            ? { ...options, tenantId: qTenant as any }
+            : options;
+        const one = await this.findById<T>(collection, lookupId as DatabaseId, fastOpts);
+        if (!one.success) throw new Error(one.message || "findById failed");
+        const data = one.data ? ([one.data] as T[]) : ([] as T[]);
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "find", collection, data, options)
+          : data;
+      }
+
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q as any, options);
@@ -661,13 +760,16 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         (collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_"));
 
       let results;
+      const excludeData = this.shouldExcludeData(table, options);
       try {
         if (isDynamic) {
-          const selection = this.getPhysicalSelection(table);
+          const selection = this.getProjectedSelection(table, options);
           const columns = Object.keys(selection);
-          const colList = columns.map((c) => `"${c}"`).join(", ");
+          const colList = columns.map((c) => this.quoteIdentifier(c)).join(", ");
 
-          let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(`"${tableName}"`)} WHERE ${where || sql`1=1`}`;
+          let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(
+            this.quoteIdentifier(tableName),
+          )} WHERE ${where || sql`1=1`}`;
 
           if (options.sort) {
             const sortConditions: any[] = [];
@@ -765,7 +867,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           });
         } else {
           let builder: any = this.getDrizzleInstance(options)
-            .select(this.getPhysicalSelection(table))
+            .select(this.getProjectedSelection(table, options))
             .from(table)
             .where(where);
           builder = this.applyOrderBy(builder, table, options);
@@ -780,13 +882,17 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         throw err;
       }
 
-      const data = utils.convertArrayDatesToISO(results as any, {
-        inPlace: true,
-        table: collection,
-      }) as T[];
+      // Projection: when data was excluded from the SELECT there is nothing to
+      // JSON-parse or flatten — skip the conversion pass entirely.
+      const data = excludeData
+        ? (results as any[])
+        : utils.convertArrayDatesToISO(results as any, {
+            inPlace: true,
+            table: collection,
+          });
       return this.hooks.length > 0
         ? await this.runHooks("after", "find", collection, data, options)
-        : data;
+        : (data as T[]);
     }, "FIND_MANY_FAILED");
   }
 
@@ -965,17 +1071,19 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       utils.applyTenantFilter(conditions, tenantCol, options);
 
       const results = await this.getDrizzleInstance(options)
-        .select()
+        .select(this.getProjectedSelection(table, options))
         .from(table)
         .where(and(...conditions))
         .limit(1);
 
-      return results.length
-        ? (utils.convertDatesToISO(results[0], {
+      if (results.length === 0) return null;
+      const excludeData = this.shouldExcludeData(table, options);
+      return excludeData
+        ? (results[0] as T)
+        : (utils.convertDatesToISO(results[0], {
             ...this.convertDatesOptions,
             table: collection,
-          }) as T)
-        : null;
+          }) as T);
     }, "FIND_BY_ID_FAILED");
   }
 
@@ -1133,10 +1241,21 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const id = (d as any)._id || generateUUID();
         const now = new Date();
         const values = this.prepareValues(table, d, id, now, options);
+        // Seed path only: RETURNING is pure overhead when the caller already
+        // knows the row (testing.ts passes skipReturning explicitly). The
+        // ambient BENCHMARK env check was removed — it made the benchmark
+        // measure a non-production path (Drizzle no-returning) instead of the
+        // raw INSERT…RETURNING fast path used in production.
+        const skipReturning = (options as any)?.skipReturning === true;
 
         const runInsert = async () => {
+          // Raw single-RT INSERT…RETURNING (MariaDB/PG) — skips Drizzle AST
+          if (this.insertReturnsRows && !skipReturning) {
+            const rawResult = await this.rawInsertReturning<T>(table, collection, values, options);
+            if (rawResult !== null) return rawResult;
+          }
           const query = this.getDrizzleInstance(options).insert(table).values(values);
-          if (this.insertReturnsRows) {
+          if (this.insertReturnsRows && !skipReturning) {
             const result = await (query as any).returning();
             return utils.convertDatesToISO(result[0], {
               ...this.convertDatesOptions,
@@ -1266,6 +1385,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
+        // Never write the PK back in the SET clause — it's the WHERE key
+        delete values[idCol.name];
+        delete values["id"];
+
         const conditions: SQL[] = [eq(idCol, id as any)];
         const tenantCol = this.getColumn(table, "tenantId");
         utils.applyTenantFilter(conditions, tenantCol, options);
@@ -1338,7 +1461,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           .where(whereCondition);
 
         return {
-          modifiedCount: (result as any).changes ?? (result as any).affectedRows ?? 0,
+          // postgres.js exposes .count; sqlite .changes; mysql2 .affectedRows
+          modifiedCount:
+            (result as any).count ?? (result as any).changes ?? (result as any).affectedRows ?? 0,
         };
       },
       "UPDATE_MANY_FAILED",
@@ -1427,18 +1552,28 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return this.wrap(
       async () => {
         const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
         if (options.permanent && (!query || Object.keys(query).length === 0)) {
           await this.getDrizzleInstance(options).delete(table);
           return { deletedCount: -1 };
         }
-        const items = await this.findMany(collection, query, options);
-        if (!items.success) throw new Error(items.message);
-        let deletedCount = 0;
-        for (const item of items.data || []) {
-          const res = await this.delete(collection, (item as any)._id, options);
-          if (res.success) deletedCount++;
+        // 🚀 Single-statement soft/hard delete instead of findMany + N deletes.
+        const whereCondition = this.mapQuery(table, query, options);
+        const hasIsDeleted = !!this.getColumn(table, "isDeleted");
+        const db = this.getDrizzleInstance(options);
+        if (options.permanent || !hasIsDeleted) {
+          await db.delete(table).where(whereCondition);
+          return { deletedCount: -1 };
         }
-        return { deletedCount };
+        const res = await db
+          .update(table)
+          .set({ isDeleted: true, updatedAt: new Date() })
+          .where(whereCondition);
+        // Affected rows differ per dialect: postgres.js -> .count, sqlite -> .changes,
+        // mysql2 -> .affectedRows. Fall back to -1 (unknown) when not exposed.
+        const affected =
+          (res as any)?.count ?? (res as any)?.changes ?? (res as any)?.affectedRows ?? -1;
+        return { deletedCount: affected };
       },
       "DELETE_MANY_FAILED",
       undefined,

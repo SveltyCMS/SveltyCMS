@@ -31,12 +31,12 @@ This guide covers the **MariaDB-specific** implementation in SveltyCMS using Dri
 
 ### Current Status
 
-> [!WARNING]
-> The MariaDB adapter is **planned but not yet implemented**. The content below represents the architectural blueprint and implementation plan, not a shipped feature. For production-ready adapters, use [SQLite](./sqlite-implementation.mdx), [PostgreSQL](./postgresql-implementation.mdx), or [MongoDB](./mongodb-implementation.mdx).
+> [!NOTE]
+> The MariaDB adapter is **production-ready** and runs in the CI DB matrix (Docker `mariadb:latest`). It shares the `SqlAdapterCore` CRUD core with SQLite/PostgreSQL and adds MariaDB-specific fast paths documented below.
 
-🟡 **Planned Components**:
+✅ **Implemented Components**:
 
-- Complete Drizzle schema (13 relational tables)
+- Complete Drizzle schema (relational tables)
 - Connection pool management with mysql2
 - Automatic migration system
 - Database seeding infrastructure
@@ -52,6 +52,8 @@ This guide covers the **MariaDB-specific** implementation in SveltyCMS using Dri
 - Multi-tenant CRUD (tenants: create, getById, update, delete, list)
 - TTL cleanup (cleanupExpiredData: expired sessions and consumed tokens)
 - **Atomic Versioning**: Native `getVersion` and `incrementVersion` support
+- **Raw `UPDATE…RETURNING` fast path**: MariaDB ≥10.5 supports `RETURNING`, but Drizzle's mysql2 dialect does not expose `.returning()` — the adapter probes `_returningSupported` and runs a raw prepared `UPDATE…RETURNING *` for `update()` and `_id`-lookup `upsert()`, halving round trips vs the old UPDATE + findById re-read
+- **Backtick identifier quoting**: the dynamic `findMany` path quotes identifiers per dialect; MariaDB's default `sql_mode` has no `ANSI_QUOTES`, so double-quoted identifiers were a syntax error — fixed via the `quoteIdentifier` hook
 
 ---
 

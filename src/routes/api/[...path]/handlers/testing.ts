@@ -769,23 +769,48 @@ export async function handleTestingRoutes(
         );
       }
 
-      // Seed in batches
-      const BATCH = 100;
+      // High-throughput seed: large batches, single outer txn (one fsync), skip RETURNING
+      const BATCH = 5000;
       let seeded = 0;
-      for (let i = 0; i < count; i += BATCH) {
-        const docs = [];
-        for (let j = i; j < Math.min(i + BATCH, count); j++) {
-          docs.push({
-            _id: `tp-${j}`,
-            title: `Throughput Doc ${j}`,
-            count: 0,
-            tenantId,
-          });
+      const insertOpts = {
+        tenantId,
+        bypassTenantCheck: true,
+        skipReturning: true,
+      };
+
+      const executeSeed = async (db: any) => {
+        for (let i = 0; i < count; i += BATCH) {
+          const end = Math.min(i + BATCH, count);
+          const docs = new Array(end - i);
+          for (let j = i, k = 0; j < end; j++, k++) {
+            docs[k] = {
+              _id: `tp-${j}`,
+              title: `Throughput Doc ${j}`,
+              count: 0,
+              tenantId,
+            };
+          }
+          // Prefer tx.crud.insertMany (SQLite txn object) or adapter.crud
+          const crud = db?.crud ?? db;
+          await crud.insertMany(collectionId, docs, insertOpts);
+          seeded += docs.length;
         }
-        await adapter.crud.insertMany(collectionId, docs, {
-          tenantId,
+        return { success: true as const, data: seeded };
+      };
+
+      if (typeof (adapter as any).transaction === "function") {
+        const txResult = await (adapter as any).transaction(async (txAdapter: any) => {
+          return executeSeed(txAdapter);
         });
-        seeded += docs.length;
+        if (txResult && txResult.success === false) {
+          throw new AppError(
+            txResult.message || "Seed transaction failed",
+            500,
+            "SEED_TRANSACTION_FAILED",
+          );
+        }
+      } else {
+        await executeSeed(adapter);
       }
 
       return rawResponse({ success: true, seeded, collectionId });

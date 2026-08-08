@@ -38,6 +38,11 @@ type SchemaHotFlags = {
 
 const SANITIZE_FIELD_TYPES = new Set(["richtext", "markdown", "text", "textarea"]);
 
+/** True when the caller explicitly opted out — no outbox, workflow, plugin afterSave, L2 fan-out. */
+function shouldSkipWriteSideEffects(options: LocalApiOptions): boolean {
+  return options.skipSideEffects === true;
+}
+
 /**
  * Sync FNV-1a hash for query cache keys — avoids async hash-wasm on every list find.
  */
@@ -90,6 +95,42 @@ async function getContentSystem(): Promise<ContentSystem> {
     resolvedContentSystem = mod.contentSystem;
   }
   return resolvedContentSystem;
+}
+
+// 🚀 LAZY MODULE SINGLETONS — the write path (schedulePostWrite → workflow,
+// invalidateCache → response-cache, afterMutation → pub-sub, emitOutboxEvent →
+// outbox) used a per-write `await import(...)`, which costs 30–60µs per call
+// even for cached modules (measured via local-sdk-vs-direct micro-profile).
+// Resolve once on first use; hot-path calls become promise resolves.
+let workflowServicePromise: Promise<
+  import("@src/services/background/workflow-service").WorkflowService
+> | null = null;
+function getWorkflowServiceLazy() {
+  return (workflowServicePromise ??= import("@src/services/background/workflow-service").then(
+    (m) => m.workflowService,
+  ));
+}
+
+let responseCachePromise: Promise<
+  typeof import("@src/services/cache/response-cache").responseCache
+> | null = null;
+function getResponseCacheLazy() {
+  return (responseCachePromise ??= import("@src/services/cache/response-cache").then(
+    (m) => m.responseCache,
+  ));
+}
+
+let pubSubPromise: Promise<typeof import("@src/services/background/pub-sub").pubSub> | null = null;
+function getPubSubLazy() {
+  return (pubSubPromise ??= import("@src/services/background/pub-sub").then((m) => m.pubSub));
+}
+
+let outboxLazyPromise: Promise<{
+  isOutboxDisabled: () => boolean;
+  outboxService: import("@src/services/outbox/outbox-service").OutboxService;
+}> | null = null;
+function getOutboxLazy() {
+  return (outboxLazyPromise ??= import("@src/services/outbox"));
 }
 
 /**
@@ -885,40 +926,6 @@ export class CollectionsNamespace {
 
     const collectionModel = await this._getModelResilient(schema);
 
-    // 🚀 TITAN TIER: Benchmark Fast Path
-    if (process.env.BENCHMARK_MODE === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true") {
-      // 🛡️ SQL GUARD: Relational adapters REQUIRE modifyRequest for data column mapping
-      if (this._dbAdapter.type !== "mongodb") {
-        await modifyRequest({
-          data: entries,
-          fields: schema.fields as FieldInstance[],
-          collection: collectionModel,
-          user: effectiveUser,
-          type: "POST",
-          tenantId,
-          collectionName: schema.name,
-          skipValidation: true,
-          action: "bulkCreate",
-          system: true,
-        });
-      }
-
-      let result;
-      if (this._dbAdapter.batch && typeof this._dbAdapter.batch.bulkInsert === "function") {
-        result = await this._dbAdapter.batch.bulkInsert(
-          this.getCollectionName(schema._id as string),
-          entries as any[],
-        );
-      } else {
-        result = await this._dbAdapter.crud.insertMany(
-          this.getCollectionName(schema._id as string),
-          entries as any[],
-          { tenantId } as any,
-        );
-      }
-      return result;
-    }
-
     await modifyRequest({
       data: entries,
       fields: schema.fields as FieldInstance[],
@@ -950,7 +957,7 @@ export class CollectionsNamespace {
 
     if (result.success) {
       try {
-        const { workflowService } = await import("@src/services/background/workflow-service");
+        const workflowService = await getWorkflowServiceLazy();
         const insertedIds = Array.from({
           length: (result.data as any[]).length,
         }) as string[];
@@ -967,7 +974,7 @@ export class CollectionsNamespace {
 
       await this.invalidateCache(schema, tenantId);
       try {
-        const { pubSub } = await import("@src/services/background/pub-sub");
+        const pubSub = await getPubSubLazy();
         pubSub.publish("entryUpdated", {
           collection: schema.name || (schema._id as string),
           id: "bulk",
@@ -1060,6 +1067,14 @@ export class CollectionsNamespace {
           return cached;
         }
       } catch {}
+    }
+
+    if (bypassCache) {
+      return this.loadOneById(schema, entryId, {
+        ...options,
+        tenantId,
+        bypassCache,
+      });
     }
 
     // Same-tick N+1: open a microtask batch window so concurrent findById join.
@@ -1385,27 +1400,22 @@ export class CollectionsNamespace {
       effectiveUser,
       (res) => String(res.data?._id ?? ""),
       (res) => res.data,
+      { skipSideEffects: options.skipSideEffects },
     );
 
     if (result && result.success && result.data) {
-      // Fire-and-forget workflow init — negative-cached when collection has no workflow
       const createdId = result.data!._id as string;
-      const schemaId = schema._id as string;
-      const tid = tenantId as string;
-      queueMicrotask(() => {
-        void import("@src/services/background/workflow-service")
-          .then(({ workflowService }) =>
-            workflowService.initializeWorkflow(createdId, schemaId, tid),
-          )
-          .catch(() => {});
-      });
-      // Parallel post-write side effects (cache invalidate + afterSave plugins)
-      await Promise.all([
-        this.afterMutation(schema, tenantId, "create", createdId, result.data, effectiveUser, {
-          skipOutbox: true,
-        }),
-        this.triggerLifecycleHook("afterSave", collectionId, result.data, options, schema),
-      ]);
+      // ⚡ Response-path: never await side effects — concurrent create RPS depends on this
+      this.schedulePostWrite(
+        "create",
+        schema,
+        collectionId,
+        tenantId,
+        createdId,
+        result.data,
+        effectiveUser,
+        options,
+      );
     }
 
     return result;
@@ -1508,15 +1518,21 @@ export class CollectionsNamespace {
       effectiveUser,
       () => entryId,
       (res) => res.data,
+      { skipSideEffects: options.skipSideEffects },
     );
 
     if (result && result.success && result.data) {
-      await Promise.all([
-        this.afterMutation(schema, tenantId, "update", entryId, result.data, effectiveUser, {
-          skipOutbox: true,
-        }),
-        this.triggerLifecycleHook("afterSave", collectionId, result.data, options, schema),
-      ]);
+      // ⚡ Response-path: never await side effects — concurrent update RPS depends on this
+      this.schedulePostWrite(
+        "update",
+        schema,
+        collectionId,
+        tenantId,
+        entryId,
+        result.data,
+        effectiveUser,
+        options,
+      );
     }
 
     return result;
@@ -1545,6 +1561,7 @@ export class CollectionsNamespace {
       effectiveUser,
       () => entryId,
       () => null,
+      { skipSideEffects: options.skipSideEffects },
     );
 
     if (result && result.success) {
@@ -1555,6 +1572,55 @@ export class CollectionsNamespace {
     }
 
     return result;
+  }
+
+  /**
+   * Detach post-write work from the HTTP/SDK response path.
+   * Always clears L1 request cache synchronously; everything else is microtasked
+   * (or skipped when the caller passes skipSideEffects explicitly).
+   */
+  private schedulePostWrite(
+    action: "create" | "update" | "delete",
+    schema: Schema,
+    collectionId: string,
+    tenantId: DatabaseId | null | undefined,
+    id: string,
+    data: any,
+    user: any,
+    options: LocalApiOptions,
+  ): void {
+    // L1 clear must be sync so same-tick reads don't see stale request-scoped cache
+    CollectionsNamespace._requestCache.clear();
+
+    if (shouldSkipWriteSideEffects(options)) {
+      return;
+    }
+
+    const schemaId = schema._id as string;
+    const tid = tenantId as string;
+
+    queueMicrotask(() => {
+      void (async () => {
+        try {
+          if (action === "create") {
+            try {
+              const workflowService = await getWorkflowServiceLazy();
+              await workflowService.initializeWorkflow(id, schemaId, tid);
+            } catch {
+              /* no workflow for collection / service unavailable */
+            }
+          }
+
+          await this.afterMutation(schema, tenantId, action, id, data, user, {
+            skipOutbox: true,
+            skipRequestCacheClear: true,
+          });
+          await this.triggerLifecycleHook("afterSave", collectionId, data, options, schema);
+        } catch {
+          /* post-write side effects must never surface to the caller */
+        }
+      })();
+    });
   }
 
   private async triggerLifecycleHook(
@@ -1568,6 +1634,7 @@ export class CollectionsNamespace {
     if (plugins.length === 0) {
       return data;
     }
+    // beforeSave runs on the critical path — bail fast when no plugin implements it
     const hasAnyMatchingHook = plugins.some(
       (p) => typeof (p.hooks as any)?.[hookName] === "function",
     );
@@ -1645,29 +1712,40 @@ export class CollectionsNamespace {
     return finalData;
   }
 
-  private async invalidateCache(schema: Schema, tenantId?: DatabaseId | null) {
+  private invalidateCache(
+    schema: Schema,
+    tenantId?: DatabaseId | null,
+    opts?: { skipRequestCacheClear?: boolean },
+  ) {
     // 1. Clear L1 (In-Memory) Cache synchronously (0ms)
-    CollectionsNamespace._requestCache.clear();
+    if (!opts?.skipRequestCacheClear) {
+      CollectionsNamespace._requestCache.clear();
+    }
 
     // 2. Dispatch L2 pattern clears asynchronously in background
     queueMicrotask(async () => {
       try {
-        const { responseCache } = await import("@src/services/cache/response-cache");
+        const responseCache = await getResponseCacheLazy();
         responseCache.invalidateAll((tenantId || undefined) as string | undefined).catch(() => {});
 
         const tenantTag = tenantId || "global";
         const patterns = [`cms:content_structure:${tenantTag}`];
         if (schema._id) {
           patterns.push(
+            // Broad collection-entry invalidation (covers scoped + all-tenant
+            // variants on both L1/L2 — L2 glob matches the mid-wildcard).
             `*collection:${schema._id}:*`,
-            `${tenantTag}:collection:${schema._id}:*`,
-            `collection:${schema._id}:*`,
             `cms:content_structure:${tenantTag}:${schema._id}`,
             `/api/collections/${schema._id.toLowerCase()}*`,
             `/api/collections/${schema._id}*`,
           );
         }
 
+        // One batched pass — previously this fanned out 9+ per-write clears
+        // (duplicate `collection:…` + dead `tenantTag:collection:…` double-prefix
+        // patterns plus a separate invalidateCollection call). Deduping the
+        // same generated key keeps invalidation semantics identical while
+        // cutting per-write cache walks roughly in half.
         await Promise.all(
           patterns.map((pattern) =>
             cacheService
@@ -1686,8 +1764,8 @@ export class CollectionsNamespace {
   }
 
   /**
-   * Persist a mutation and emit the outbox event in the **same DB transaction**
-   * when the adapter supports `transaction()`. Falls back to sequential write+emit.
+   * Persist a mutation; schedule outbox emit off the critical path.
+   * Single-statement INSERT/UPDATE/DELETE are natively atomic — no BEGIN/COMMIT wrapper.
    */
   private async persistWithOutbox(
     action: "create" | "update" | "delete",
@@ -1697,27 +1775,19 @@ export class CollectionsNamespace {
     user: any,
     getId: (result: any) => string,
     getData: (result: any) => any,
+    options?: { skipSideEffects?: boolean },
   ): Promise<any> {
-    const run = async (txOpts: Record<string, unknown> = {}) => {
-      const result = await write(txOpts);
-      if (result?.success) {
-        const id = getId(result);
-        if (id) {
-          queueMicrotask(() => {
-            this.emitOutboxEvent(schema, tenantId, action, id, getData(result), user).catch(
-              () => {},
-            );
-          });
-        }
+    const result = await write({});
+    if (result?.success) {
+      const id = getId(result);
+      if (id && !options?.skipSideEffects) {
+        // Coalesced bulk flush in outbox service — does not take write mutex per event
+        queueMicrotask(() => {
+          this.emitOutboxEvent(schema, tenantId, action, id, getData(result), user).catch(() => {});
+        });
       }
-      return result;
-    };
-
-    // ⚡ SINGLE-STATEMENT FAST-PATH:
-    // Because outbox event emission runs asynchronously via queueMicrotask,
-    // a single write operation does not require an explicit BEGIN...COMMIT transaction wrapper.
-    // Single-statement INSERT/UPDATE/DELETE queries are natively atomic across all DB adapters (SQLite, Postgres, MariaDB, Mongo).
-    return await run();
+    }
+    return result;
   }
 
   /** Best-effort outbox emit (never throws to callers). */
@@ -1731,6 +1801,15 @@ export class CollectionsNamespace {
     dbOptions?: { transaction?: unknown },
   ): Promise<void> {
     try {
+      // Sync kill-switch BEFORE the module resolve — under tight write loops
+      // the outbox module resolution alone costs more than the buffer push.
+      if (process.env.DISABLE_OUTBOX === "true") {
+        return;
+      }
+      // Early exit without module resolution when kill-switch is on
+      const { isOutboxDisabled, outboxService } = await getOutboxLazy();
+      if (isOutboxDisabled()) return;
+
       const eventType =
         action === "create"
           ? "entry:create"
@@ -1739,7 +1818,6 @@ export class CollectionsNamespace {
             : action === "delete"
               ? "entry:delete"
               : `entry:${action}`;
-      const { outboxService } = await import("@src/services/outbox");
       await outboxService.emit(
         eventType,
         "entry",
@@ -1767,16 +1845,18 @@ export class CollectionsNamespace {
     id: string,
     data: any,
     user: any,
-    opts?: { skipOutbox?: boolean },
+    opts?: { skipOutbox?: boolean; skipRequestCacheClear?: boolean },
   ) {
     // Entry mutations invalidate entry/list caches only — do NOT bump contentStore
     // structure version (that forces nav rebuilds / full content-structure SSE refresh).
-    await this.invalidateCache(schema, tenantId);
+    this.invalidateCache(schema, tenantId, {
+      skipRequestCacheClear: opts?.skipRequestCacheClear,
+    });
 
-    // 🚀 ASYNC NON-BLOCKING DEFERRAL: PubSub and outbox emissions run in background microtask
+    // PubSub + outbox off the critical path
     queueMicrotask(async () => {
       try {
-        const { pubSub } = await import("@src/services/background/pub-sub");
+        const pubSub = await getPubSubLazy();
         pubSub.publish("entryUpdated", {
           collection: schema.name || (schema._id as string),
           id,

@@ -99,15 +99,17 @@ Details and measured gains: [Performance Architecture](./performance-architectur
 
 ## ⚡ 2027 Allocation-Floor Optimizations
 
-| Optimization                       | SQLite | PostgreSQL | MariaDB    | MongoDB |
-| ---------------------------------- | ------ | ---------- | ---------- | ------- |
-| Schema-aware row conversion        | ✅     | ✅         | 🟡 Planned | N/A     |
-| Ring-buffer result pool (64 slots) | ✅     | ✅         | 🟡 Planned | ✅      |
-| Conditions array pool (32 slots)   | ✅     | ✅         | 🟡 Planned | N/A     |
-| Fused mapQuery (no IR objects)     | ✅     | ✅         | 🟡 Planned | ✅      |
-| for...in (zero Object.entries)     | ✅     | ✅         | 🟡 Planned | ✅      |
-| Pre-allocated meta object          | ✅     | ✅         | 🟡 Planned | ✅      |
-| MariaDB double-parse isolated      | N/A    | ✅ Benefit | 🟡 Planned | N/A     |
+| Optimization                        | SQLite | PostgreSQL   | MariaDB      | MongoDB     |
+| ----------------------------------- | ------ | ------------ | ------------ | ----------- |
+| Schema-aware row conversion         | ✅     | ✅           | ✅           | N/A         |
+| Ring-buffer result pool (64 slots)  | ✅     | ✅           | ✅           | ✅          |
+| Conditions array pool (32 slots)    | ✅     | ✅           | ✅           | N/A         |
+| Fused mapQuery (no IR objects)      | ✅     | ✅           | ✅           | ✅          |
+| for...in (zero Object.entries)      | ✅     | ✅           | ✅           | ✅          |
+| Pre-allocated meta object           | ✅     | ✅           | ✅           | ✅          |
+| MariaDB double-parse isolated       | N/A    | ✅ Benefit   | ✅           | N/A         |
+| Prepared-statement cache            | ✅     | N/A (driver) | N/A (driver) | N/A         |
+| Projection (`fields` → skip `data`) | ✅     | ✅           | ✅           | ✅ (driver) |
 
 > **SQL family**: ~5-8 fewer allocations per filtered query. **MongoDB**: ~2-3 fewer (result pool + fused mapQuery). **All 4**: benefit from shared BaseAdapter optimizations.
 

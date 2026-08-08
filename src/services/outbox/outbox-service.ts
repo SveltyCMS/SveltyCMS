@@ -107,21 +107,33 @@ export function isOutboxEventReady(event: OutboxEvent, nowMs = Date.now()): bool
   return nowMs >= updatedMs + outboxBackoffMs(attempts);
 }
 
-function isOutboxDisabled(): boolean {
-  return process.env.BENCHMARK_MODE === "true" || process.env.DISABLE_OUTBOX === "true";
+/** Exported for write-path early exits (avoid dynamic import when disabled). */
+export function isOutboxDisabled(): boolean {
+  return process.env.DISABLE_OUTBOX === "true";
 }
+
+/** Max events to hold before a forced bulk flush (write-path coalescing). */
+const OUTBOX_BUFFER_MAX = 64;
+/** Flush window for non-transactional emits — batches second-write cost off the hot path. */
+const OUTBOX_BUFFER_FLUSH_MS = 25;
 
 class OutboxServiceImpl {
   public readonly collectionName = OUTBOX_COLLECTION;
 
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private isProcessing = false;
+  /** Non-transactional emit buffer — one insertMany instead of N mutex inserts. */
+  private emitBuffer: OutboxEvent[] = [];
+  private emitFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private emitFlushInFlight: Promise<void> | null = null;
 
   /**
    * Emit an event to the outbox.
    *
    * When called inside a database transaction, pass `options.transaction` so the
    * event is written on the same connection and rolls back with the data change.
+   * Outside a transaction, events are coalesced into bulk inserts so concurrent
+   * content writes are not serialized 1:1 with outbox rows on SQLite.
    */
   public async emit(
     eventType: string,
@@ -131,6 +143,14 @@ class OutboxServiceImpl {
     tenantId: string,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<OutboxEvent>> {
+    if (isOutboxDisabled()) {
+      return {
+        success: false,
+        message: "Outbox disabled",
+        error: { code: "OUTBOX_DISABLED", message: "Outbox disabled" },
+      };
+    }
+
     const db = getDb();
     if (!db) {
       logger.warn("[Outbox] Database not available; event will not be persisted");
@@ -138,15 +158,6 @@ class OutboxServiceImpl {
         success: false,
         message: "Database not available",
         error: { code: "OUTBOX_ERROR", message: "Database not available" },
-      };
-    }
-
-    if (isOutboxDisabled()) {
-      logger.debug(`[Outbox] Skipped emit ${eventType} (benchmark/disabled mode)`);
-      return {
-        success: false,
-        message: "Outbox disabled",
-        error: { code: "OUTBOX_DISABLED", message: "Outbox disabled" },
       };
     }
 
@@ -164,25 +175,91 @@ class OutboxServiceImpl {
       updatedAt: now,
     };
 
-    try {
-      const result = await db.crud.insert(this.collectionName, event as any, options);
-      if (result.success) {
-        logger.debug(`[Outbox] Emitted ${eventType} event ${event._id} for tenant ${tenantId}`);
-        // Prefer returned row when adapter fills defaults
+    // Transactional path: must share the caller's txn for atomicity.
+    if (options?.transaction) {
+      try {
+        const result = await db.crud.insert(this.collectionName, event as any, options);
+        if (result.success) {
+          return {
+            success: true,
+            data: (result.data as unknown as OutboxEvent) || event,
+          };
+        }
+        return result as DatabaseResult<OutboxEvent>;
+      } catch (error: any) {
+        logger.error(`[Outbox] Failed to emit ${eventType} event:`, error);
         return {
-          success: true,
-          data: (result.data as unknown as OutboxEvent) || event,
+          success: false,
+          message: `Outbox emit failed: ${error.message}`,
+          error: { code: "OUTBOX_EMIT_FAILED", message: error.message },
         };
       }
-      return result as DatabaseResult<OutboxEvent>;
-    } catch (error: any) {
-      logger.error(`[Outbox] Failed to emit ${eventType} event:`, error);
-      return {
-        success: false,
-        message: `Outbox emit failed: ${error.message}`,
-        error: { code: "OUTBOX_EMIT_FAILED", message: error.message },
-      };
     }
+
+    // Fast path: coalesce into bulk flush (does not block the content write).
+    this.emitBuffer.push(event);
+    if (this.emitBuffer.length >= OUTBOX_BUFFER_MAX) {
+      void this.flushEmitBuffer();
+    } else if (!this.emitFlushTimer) {
+      this.emitFlushTimer = setTimeout(() => {
+        this.emitFlushTimer = null;
+        void this.flushEmitBuffer();
+      }, OUTBOX_BUFFER_FLUSH_MS);
+      // Don't keep the process alive solely for outbox flush
+      if (typeof this.emitFlushTimer === "object" && "unref" in this.emitFlushTimer) {
+        (this.emitFlushTimer as NodeJS.Timeout).unref?.();
+      }
+    }
+
+    return { success: true, data: event };
+  }
+
+  /** Bulk-flush buffered non-transactional outbox events. */
+  private async flushEmitBuffer(): Promise<void> {
+    if (this.emitFlushInFlight) {
+      await this.emitFlushInFlight;
+      return;
+    }
+    if (this.emitBuffer.length === 0) return;
+
+    const batch = this.emitBuffer;
+    this.emitBuffer = [];
+    if (this.emitFlushTimer) {
+      clearTimeout(this.emitFlushTimer);
+      this.emitFlushTimer = null;
+    }
+
+    this.emitFlushInFlight = (async () => {
+      const db = getDb();
+      if (!db || batch.length === 0) return;
+      try {
+        if (typeof db.crud.insertMany === "function") {
+          await db.crud.insertMany(
+            this.collectionName,
+            batch as any[],
+            {
+              bypassTenantCheck: true,
+            } as any,
+          );
+        } else {
+          for (const event of batch) {
+            await db.crud.insert(this.collectionName, event as any);
+          }
+        }
+        logger.debug(`[Outbox] Bulk-flushed ${batch.length} event(s)`);
+      } catch (error: any) {
+        logger.error(`[Outbox] Bulk flush failed (${batch.length} events):`, error);
+        // Best-effort re-queue (cap to avoid unbounded growth under sustained failure)
+        if (this.emitBuffer.length < OUTBOX_BUFFER_MAX * 4) {
+          this.emitBuffer.unshift(...batch);
+        }
+      } finally {
+        this.emitFlushInFlight = null;
+        if (this.emitBuffer.length > 0) void this.flushEmitBuffer();
+      }
+    })();
+
+    await this.emitFlushInFlight;
   }
 
   /**
