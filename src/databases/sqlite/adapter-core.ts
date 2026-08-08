@@ -180,7 +180,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       const rawRow = this.prepareAndExecute(rawSql, "get", String(id), ...tenantParams);
       if (rawRow) {
         if (!wantsData) return rawRow as T;
-        return utils.convertDatesToISO(rawRow, { table: collection }) as T;
+        // inPlace: the driver row is a fresh object — parse/flatten the data
+        // blob in place instead of copying every key into a new object.
+        return utils.convertDatesToISO(rawRow, { inPlace: true, table: collection }) as T;
       }
       return null;
     } catch (rawErr: any) {

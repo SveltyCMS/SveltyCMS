@@ -114,22 +114,20 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // Identifiers must be double-quoted explicitly: unquoted camelCase
       // folds to lowercase ("tenantId" → tenantid) and breaks lookups.
       const colList = cols.map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`).join(", ");
-      // Bind dates as ISO strings and jsonb as JSON strings — postgres.js's
-      // describe-phase Bind under pipelined connections mishandles raw Date/
-      // object params in nested fragments. String params always bind safely.
+      // postgres.js 3.x removed sql.join — one flat unsafe() call with explicit
+      // prepare:true gives the same stable-SQL-text statement-cache hit as
+      // nested fragments with a fraction of the per-call allocation. Dates and
+      // objects bind as strings (describe-phase Bind quirk, see above).
       const boundValues = cols.map((c) => {
         const v = values[c];
         if (v instanceof Date) return (v as Date).toISOString();
         if (v !== null && typeof v === "object" && !Array.isArray(v)) return JSON.stringify(v);
         return v;
       });
-      let valuesFrag = this.sql!`${boundValues[0]}`;
-      for (let i = 1; i < boundValues.length; i++) {
-        valuesFrag = this.sql!`${valuesFrag}, ${boundValues[i]}`;
-      }
-      const rows = await this.sql!`INSERT INTO ${this.sql!.unsafe(
-        tableName,
-      )} (${this.sql!.unsafe(colList)}) VALUES (${valuesFrag}) RETURNING *`;
+      const sqlText = `INSERT INTO "${tableName}" (${colList}) VALUES (${cols
+        .map((_, i) => `$${i + 1}`)
+        .join(", ")}) RETURNING *`;
+      const rows = await this.sql!.unsafe(sqlText, boundValues, { prepare: true });
       if (Array.isArray(rows) && rows.length > 0) {
         return utils.convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,

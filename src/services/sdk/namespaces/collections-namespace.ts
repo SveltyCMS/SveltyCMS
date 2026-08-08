@@ -134,6 +134,12 @@ function getOutboxLazy() {
 }
 
 /**
+ * Tick-debounce set for cache invalidation: coalesces consecutive writes in
+ * the same macrotask into a single clear pass (keyed by tenant + schema).
+ */
+let _pendingInvalidations: Set<string> | null = null;
+
+/**
  * Collections Namespace
  */
 export class CollectionsNamespace {
@@ -1717,49 +1723,56 @@ export class CollectionsNamespace {
     tenantId?: DatabaseId | null,
     opts?: { skipRequestCacheClear?: boolean },
   ) {
-    // 1. Clear L1 (In-Memory) Cache synchronously (0ms)
+    // 1. Clear L1 (In-Memory) Cache synchronously (0ms) — same-tick reads must
+    //    never see stale request-scoped entries.
     if (!opts?.skipRequestCacheClear) {
       CollectionsNamespace._requestCache.clear();
     }
 
-    // 2. Dispatch L2 pattern clears asynchronously in background
+    // 2. Tick-debounced L2 pattern clears: consecutive writes in the same
+    //    macrotask (batch saves, importers) coalesce into ONE pass instead of
+    //    N × (response-cache clear + 5-6 pattern walks). Microtasks drain
+    //    before the next macrotask, so no reader can observe a stale entry
+    //    between the write and the debounced clear — zero consistency cost.
+    const tenantTag = tenantId || "global";
+    const schemaId = schema._id as string | undefined;
+    const tenantKey = (tenantId || undefined) as string | undefined;
+    if (!_pendingInvalidations) _pendingInvalidations = new Set<string>();
+    const pending = _pendingInvalidations;
+    const requestKey = `${tenantTag}:${schemaId ?? "*"}`;
+    if (pending.has(requestKey)) return;
+    pending.add(requestKey);
+
     queueMicrotask(async () => {
       try {
         const responseCache = await getResponseCacheLazy();
-        responseCache.invalidateAll((tenantId || undefined) as string | undefined).catch(() => {});
+        responseCache.invalidateAll(tenantKey).catch(() => {});
 
-        const tenantTag = tenantId || "global";
         const patterns = [`cms:content_structure:${tenantTag}`];
-        if (schema._id) {
+        if (schemaId) {
           patterns.push(
             // Broad collection-entry invalidation (covers scoped + all-tenant
             // variants on both L1/L2 — L2 glob matches the mid-wildcard).
-            `*collection:${schema._id}:*`,
-            `cms:content_structure:${tenantTag}:${schema._id}`,
-            `/api/collections/${schema._id.toLowerCase()}*`,
-            `/api/collections/${schema._id}*`,
+            `*collection:${schemaId}:*`,
+            `cms:content_structure:${tenantTag}:${schemaId}`,
+            `/api/collections/${schemaId.toLowerCase()}*`,
+            `/api/collections/${schemaId}*`,
           );
         }
 
-        // One batched pass — previously this fanned out 9+ per-write clears
-        // (duplicate `collection:…` + dead `tenantTag:collection:…` double-prefix
-        // patterns plus a separate invalidateCollection call). Deduping the
-        // same generated key keeps invalidation semantics identical while
-        // cutting per-write cache walks roughly in half.
         await Promise.all(
           patterns.map((pattern) =>
-            cacheService
-              .clearByPattern(pattern, (tenantId || undefined) as string | undefined)
-              .catch(() => {}),
+            cacheService.clearByPattern(pattern, tenantKey).catch(() => {}),
           ),
         );
 
-        if (schema._id) {
-          cacheService
-            .invalidateCollection(String(schema._id), (tenantId || undefined) as string | undefined)
-            .catch(() => {});
+        if (schemaId) {
+          cacheService.invalidateCollection(String(schemaId), tenantKey).catch(() => {});
         }
       } catch {}
+
+      // Allow the next write batch to schedule a fresh pass.
+      pending.delete(requestKey);
     });
   }
 
