@@ -136,9 +136,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         "sqlite",
       );
       const rawSql = `SELECT * FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
-      const rawRows = this.prepareAndExecute(rawSql, "all", String(id), ...tenantParams);
-      if (rawRows && rawRows.length > 0) {
-        return utils.convertDatesToISO(rawRows[0], { table: collection }) as T;
+      const rawRow = this.prepareAndExecute(rawSql, "get", String(id), ...tenantParams);
+      if (rawRow) {
+        return utils.convertDatesToISO(rawRow, { table: collection }) as T;
       }
       return null;
     } catch (rawErr: any) {

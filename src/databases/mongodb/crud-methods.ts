@@ -60,14 +60,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
         const id = extractLookupId(query)!;
         const filter: Record<string, unknown> = { _id: id };
         if (options.tenantId) filter.tenantId = options.tenantId;
-        // Soft-delete boundary (matches safeQuery default)
-        filter.isDeleted = { $ne: true };
 
         const projection = options.fields?.length ? options.fields.join(" ") : undefined;
         const result = await this.model.findOne(filter, projection).lean().exec();
 
         const meta = { executionTime: performance.now() - startTime };
-        if (!result) return { success: true, data: null, meta };
+        if (!result || (result as any).isDeleted === true) {
+          return { success: true, data: null, meta };
+        }
         return { success: true, data: processDates(result) as T, meta };
       }
 

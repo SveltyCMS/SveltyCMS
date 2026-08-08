@@ -49,3 +49,7 @@ export {
   mergeLayoutIntoColumns,
   saveTableLayout,
 } from "./layout-prefs";
+
+export { default as SmartTableColumnPicker } from "./smart-table-column-picker.svelte";
+export { default as SmartTableHeaderFilter } from "./smart-table-header-filter.svelte";
+export { default as SmartTableSavedViewsBar } from "./smart-table-saved-views-bar.svelte";
