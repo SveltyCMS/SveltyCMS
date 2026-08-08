@@ -1641,9 +1641,7 @@ export class CollectionsNamespace {
       return data;
     }
     // beforeSave runs on the critical path — bail fast when no plugin implements it
-    const hasAnyMatchingHook = plugins.some(
-      (p) => typeof (p.hooks as any)?.[hookName] === "function",
-    );
+    const hasAnyMatchingHook = pluginRegistry.hasAnyHook(hookName);
     if (!hasAnyMatchingHook) {
       return data;
     }
