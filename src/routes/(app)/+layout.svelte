@@ -497,9 +497,10 @@ afterNavigate(() => {
 						aria-label="Close left sidebar"
 						onclick={() => ui.toggle('leftSidebar', 'hidden')}
 					></button>
-					<!-- Drawer -->
+					<!-- Drawer — same full/collapsed width rules as desktop inline aside -->
 					<div
-						class="fixed inset-s-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(100vw,var(--admin-sidebar-width,240px))] flex-col overflow-visible border-e border-surface-200 bg-surface-50 px-2! text-center shadow-lg dark:border-surface-700 dark:bg-surface-900"
+						class="fixed inset-s-0 top-0 z-50 flex h-dvh max-h-dvh flex-col overflow-visible border-e border-surface-200 bg-surface-50 px-2! text-center shadow-lg transition-[width] duration-300 ease-in-out dark:border-surface-700 dark:bg-surface-900 {ui.state.leftSidebar === 'full' ? '' : 'w-fit'}"
+						style="width: {ui.state.leftSidebar === 'full' ? 'min(100vw, var(--admin-sidebar-width, 240px))' : ''}"
 						role="dialog"
 						aria-modal="true"
 						aria-label="Left sidebar navigation"
