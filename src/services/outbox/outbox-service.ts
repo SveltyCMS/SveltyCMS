@@ -233,17 +233,15 @@ class OutboxServiceImpl {
       const db = getDb();
       if (!db || batch.length === 0) return;
       try {
+        // Outbox events carry their own tenantId per row; the flush is a system
+        // capability (scheduler domain) writing across tenants in one batch.
+        const { withSystemScope } = await import("@src/databases/system-tenant-scope");
+        const systemScope = withSystemScope("scheduler");
         if (typeof db.crud.insertMany === "function") {
-          await db.crud.insertMany(
-            this.collectionName,
-            batch as any[],
-            {
-              bypassTenantCheck: true,
-            } as any,
-          );
+          await db.crud.insertMany(this.collectionName, batch as any[], systemScope as any);
         } else {
           for (const event of batch) {
-            await db.crud.insert(this.collectionName, event as any);
+            await db.crud.insert(this.collectionName, event as any, systemScope as any);
           }
         }
         logger.debug(`[Outbox] Bulk-flushed ${batch.length} event(s)`);
