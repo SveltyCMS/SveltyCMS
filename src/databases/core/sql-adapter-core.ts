@@ -1393,10 +1393,38 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const tenantCol = this.getColumn(table, "tenantId");
         utils.applyTenantFilter(conditions, tenantCol, options);
 
+        // 🚀 NO-READ-BACK PATH: when the caller sends the full document
+        // (bulkUpdate, full-doc sync), RETURNING's row read-back + JSON
+        // parse/conversion is pure overhead — every column the UPDATE writes
+        // was built client-side in prepareValues, so the row can be
+        // reconstructed from memory 1:1 (SveltyCMS DDL has no UPDATE triggers
+        // or server-generated columns). Partial PATCHes keep RETURNING so
+        // untouched physical columns (status/createdAt/isDeleted) stay intact
+        // in the response.
+        const skipReturning = (options as any)?.skipReturning === true;
+
         const query = this.getDrizzleInstance(options)
           .update(table)
           .set(values)
           .where(and(...conditions));
+
+        if (skipReturning) {
+          await query;
+          // Reconstruct the row from the prepared values (full-doc callers only;
+          // no affected-rows check — MariaDB reports 0 for matched-but-unchanged
+          // updates, which would false-positive "not found").
+          const reconstructed = {
+            ...values,
+            [idCol.name]: id,
+          } as Record<string, unknown>;
+          const finalData = utils.convertDatesToISO(reconstructed, {
+            ...this.convertDatesOptions,
+            table: collection,
+          }) as unknown as T;
+          return this.hooks.length > 0
+            ? await this.runHooks("after", "update", collection, finalData, options)
+            : finalData;
+        }
 
         if (this.updateReturnsRows) {
           const results = await query.returning();

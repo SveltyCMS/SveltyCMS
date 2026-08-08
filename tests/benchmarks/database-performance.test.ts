@@ -81,6 +81,7 @@ export async function runDatabaseBenchmark() {
       // Legacy dual-query list+count for before/after comparison
       { name: "LIST+COUNT (legacy)", fn: createLegacyListCountTest(db) },
       { name: "UPDATE", fn: createUpdateTest(db) },
+      { name: "UPDATE (no-returning)", fn: createUpdateNoReturningTest(db) },
       { name: "NATIVE UPSERT", fn: createUpsertNativeTest(db) },
       { name: "COUNT", fn: createCountTest(db) },
       { name: "COUNT ESTIMATE", fn: createCountEstimateTest(db) },
@@ -221,6 +222,26 @@ function createUpdateTest(db: any) {
   return async () => {
     const res = await db.crud.update(COLLECTION_ID, targetId, updatePayload, GLOBAL_TENANT_OPTS);
     assertSuccess(res, "update");
+  };
+}
+
+/**
+ * UPDATE with skipReturning: true — the no-read-back path for full-document
+ * callers. The row is reconstructed from the prepared values instead of
+ * RETURNING * + JSON parse/conversion. Measures the read-back tax.
+ */
+function createUpdateNoReturningTest(db: any) {
+  const targetId = "bench-shared-001" as any;
+  const updatePayload = {
+    title: "Updated Static Segment Baseline",
+    status: "updated",
+  };
+  return async () => {
+    const res = await db.crud.update(COLLECTION_ID, targetId, updatePayload, {
+      ...GLOBAL_TENANT_OPTS,
+      skipReturning: true,
+    } as any);
+    assertSuccess(res, "updateNoReturning");
   };
 }
 

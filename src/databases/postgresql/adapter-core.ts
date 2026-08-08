@@ -205,6 +205,112 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   }
 
+  /**
+   * Raw single-statement UPDATE…RETURNING (or no-read-back UPDATE) for PG —
+   * same tagged-template statement-cache pattern as rawInsertReturning.
+   * Skipping the read-back is opt-in (skipReturning) for full-document callers;
+   * the returned row is reconstructed from the prepared values.
+   */
+  override async update<T extends import("../db-interface").BaseEntity>(
+    collection: string,
+    id: import("../db-interface").DatabaseId,
+    data: import("../db-interface").EntityUpdate<T>,
+    options: import("../db-interface").BaseQueryOptions = {},
+  ): Promise<import("../db-interface").DatabaseResult<T>> {
+    try {
+      const d =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "update", collection, data, options)
+          : data;
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+      const idColName = idCol.name || "_id";
+      const values = this.prepareValues(table, d, id, new Date(), options);
+      delete values[idColName];
+      delete values["id"];
+      const cols = Object.keys(values);
+      if (cols.length === 0) return super.update(collection, id, data, options);
+
+      // Bound SET pairs via nested fragments (stable SQL text → prepared cache);
+      // dates/objects bind as strings (describe-phase Bind quirk, same as insert).
+      const setFrags = cols.map((c) => {
+        const v = values[c];
+        const bound =
+          v instanceof Date
+            ? (v as Date).toISOString()
+            : v !== null && typeof v === "object" && !Array.isArray(v)
+              ? JSON.stringify(v)
+              : v;
+        return this.sql!`"${this.sql!.unsafe(
+          utils.assertSafeSqlIdentifier(c, "column"),
+        )}" = ${bound}`;
+      });
+      let setFrag = setFrags[0];
+      for (let i = 1; i < setFrags.length; i++) {
+        setFrag = this.sql!`${setFrag}, ${setFrags[i]}`;
+      }
+
+      const skipReturning = (options as any)?.skipReturning === true;
+      const tenantId =
+        options?.tenantId && options?.tenantId !== "global" ? String(options.tenantId) : null;
+      const tableFrag = this.sql!.unsafe(getTableName(table));
+      if (skipReturning) {
+        await (tenantId
+          ? this.sql!`UPDATE ${tableFrag} SET ${setFrag} WHERE "${this.sql!.unsafe(
+              idColName,
+            )}" = ${String(id)} AND "tenantId" = ${tenantId}`
+          : this.sql!`UPDATE ${tableFrag} SET ${setFrag} WHERE "${this.sql!.unsafe(
+              idColName,
+            )}" = ${String(id)}`);
+        const reconstructed = {
+          ...values,
+          [idColName]: id,
+        } as Record<string, unknown>;
+        const finalData = utils.convertDatesToISO(reconstructed, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as unknown as T;
+        return this.wrap(
+          async () =>
+            this.hooks.length > 0
+              ? await this.runHooks("after", "update", collection, finalData, options)
+              : finalData,
+          "UPDATE_FAILED",
+          undefined,
+          { ...options, isWrite: true },
+        );
+      }
+
+      const rows = await (tenantId
+        ? this.sql!`UPDATE ${tableFrag} SET ${setFrag} WHERE "${this.sql!.unsafe(
+            idColName,
+          )}" = ${String(id)} AND "tenantId" = ${tenantId} RETURNING *`
+        : this.sql!`UPDATE ${tableFrag} SET ${setFrag} WHERE "${this.sql!.unsafe(
+            idColName,
+          )}" = ${String(id)} RETURNING *`);
+      if (Array.isArray(rows) && rows.length > 0) {
+        const finalData = utils.convertDatesToISO(rows[0], {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as unknown as T;
+        return this.wrap(
+          async () =>
+            this.hooks.length > 0
+              ? await this.runHooks("after", "update", collection, finalData, options)
+              : finalData,
+          "UPDATE_FAILED",
+          undefined,
+          { ...options, isWrite: true },
+        );
+      }
+    } catch {
+      /* fall back to the base Drizzle path */
+    }
+    return super.update(collection, id, data, options);
+  }
+
   protected isMissingTableError(err: any): boolean {
     return err?.code === "42P01";
   }

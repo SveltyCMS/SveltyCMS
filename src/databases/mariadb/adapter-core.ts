@@ -724,12 +724,37 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
 
       const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
-      const sqlText = `UPDATE \`${tableName}\` SET ${setPairs.join(", ")} WHERE \`${idColName}\` = ?${tenantSql} RETURNING *`;
+
+      // 🚀 NO-READ-BACK: full-document callers skip the RETURNING row read-back
+      // + JSON parse — the row is reconstructed from the prepared values.
+      const skipReturning = (options as any)?.skipReturning === true;
+      const sqlText = skipReturning
+        ? `UPDATE \`${tableName}\` SET ${setPairs.join(", ")} WHERE \`${idColName}\` = ?${tenantSql}`
+        : `UPDATE \`${tableName}\` SET ${setPairs.join(", ")} WHERE \`${idColName}\` = ?${tenantSql} RETURNING *`;
       const rows = (await this.raw.execute(sqlText, [
         ...params,
         String(id),
         ...tenantParams,
       ])) as any[];
+
+      if (skipReturning) {
+        const reconstructed = {
+          ...values,
+          [idColName]: id,
+        } as Record<string, unknown>;
+        const converted = utils.convertDatesToISO(reconstructed, {
+          mariaDoubleParseJson: true,
+          table: collection,
+        }) as unknown as T;
+        const finalData =
+          this.hooks.length > 0
+            ? await this.runHooks("after", "update", collection, converted, options)
+            : converted;
+        return this.wrap(async () => finalData, "UPDATE_FAILED", undefined, {
+          ...options,
+          isWrite: true,
+        });
+      }
 
       if (Array.isArray(rows) && rows.length > 0) {
         this._returningSupported = true;
