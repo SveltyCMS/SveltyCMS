@@ -100,11 +100,7 @@ export async function enforceFieldAccess(
   // 🚀 Performance: System/Admin bypass early
   if (userRole === "admin" || userId === "system") return data;
 
-  // Use structuredClone to prevent accidental mutation of the original references
-  const sanitized: Record<string, unknown> =
-    typeof structuredClone === "function"
-      ? (structuredClone(data) as Record<string, unknown>)
-      : JSON.parse(JSON.stringify(data));
+  const sanitized: Record<string, unknown> = structuredClone(data) as Record<string, unknown>;
 
   const dataKeys = Object.keys(sanitized);
   const writeViolations: string[] = [];

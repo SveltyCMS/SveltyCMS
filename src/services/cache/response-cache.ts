@@ -11,6 +11,7 @@ import { cacheService } from "@src/databases/cache/cache-service";
 export interface CachedResponseEntry {
   body: string;
   etag: string;
+  buffer?: Uint8Array;
 }
 
 /**
@@ -138,10 +139,13 @@ class ResponseCacheService {
     tenantId?: string | null,
   ): void {
     const fullKey = this.buildKey(key, tenantId);
+    if (!entry.buffer && typeof TextEncoder !== "undefined") {
+      entry.buffer = new TextEncoder().encode(entry.body);
+    }
     this.localL1.set(fullKey, entry);
 
     const ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
-    cacheService.set(`res:${key}`, entry, ttlSec, tenantId);
+    cacheService.set(`res:${key}`, { body: entry.body, etag: entry.etag }, ttlSec, tenantId);
   }
 
   /**

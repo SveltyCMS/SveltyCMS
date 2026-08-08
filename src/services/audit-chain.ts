@@ -262,6 +262,101 @@ export class AuditChainService {
   invalidateCache(): void {
     this.lastHashCache = null;
   }
+
+  /**
+   * Computes the Merkle Root Hash for an array of audit log entries.
+   * Provides O(log N) cryptographic proof of log batch integrity.
+   */
+  async computeMerkleRoot(entries: ChainedAuditEntry[]): Promise<string> {
+    if (!entries || entries.length === 0) {
+      return GENESIS_HASH;
+    }
+
+    let level: string[] = [];
+    for (const entry of entries) {
+      const entryData = JSON.stringify({
+        action: entry.action,
+        actorEmail: entry.actorEmail,
+        actorId: entry.actorId,
+        actorRole: entry.actorRole,
+        eventType: (entry as any).eventType ?? entry.action,
+        timestamp: entry.timestamp,
+        details: entry.details ?? {},
+        tenantId: entry.tenantId,
+      });
+      const leafHash = await sha256(entryData + (entry.previousHash ?? GENESIS_HASH));
+      level.push(leafHash);
+    }
+
+    while (level.length > 1) {
+      const nextLevel: string[] = [];
+      for (let i = 0; i < level.length; i += 2) {
+        const left = level[i];
+        const right = i + 1 < level.length ? level[i + 1] : left;
+        const combined = await sha256(left + right);
+        nextLevel.push(combined);
+      }
+      level = nextLevel;
+    }
+
+    return level[0];
+  }
+
+  /**
+   * Generates an audit inclusion proof for a specific audit log index in a batch.
+   */
+  async generateMerkleProof(
+    entries: ChainedAuditEntry[],
+    targetIndex: number,
+  ): Promise<{ position: "left" | "right"; hash: string }[]> {
+    if (!entries || targetIndex < 0 || targetIndex >= entries.length) {
+      return [];
+    }
+
+    const proof: { position: "left" | "right"; hash: string }[] = [];
+    let level: string[] = [];
+    for (const entry of entries) {
+      const entryData = JSON.stringify({
+        action: entry.action,
+        actorEmail: entry.actorEmail,
+        actorId: entry.actorId,
+        actorRole: entry.actorRole,
+        eventType: (entry as any).eventType ?? entry.action,
+        timestamp: entry.timestamp,
+        details: entry.details ?? {},
+        tenantId: entry.tenantId,
+      });
+      const leafHash = await sha256(entryData + (entry.previousHash ?? GENESIS_HASH));
+      level.push(leafHash);
+    }
+
+    let index = targetIndex;
+
+    while (level.length > 1) {
+      const nextLevel: string[] = [];
+      const isRight = index % 2 === 1;
+      const siblingIndex = isRight ? index - 1 : index + 1 < level.length ? index + 1 : index;
+
+      if (siblingIndex !== index) {
+        proof.push({
+          position: isRight ? "left" : "right",
+          hash: level[siblingIndex],
+        });
+      }
+
+      for (let i = 0; i < level.length; i += 2) {
+        const left = level[i];
+        const right = i + 1 < level.length ? level[i + 1] : left;
+        const combined = await sha256(left + right);
+        nextLevel.push(combined);
+      }
+
+      level = nextLevel;
+      index = Math.floor(index / 2);
+    }
+
+    return proof;
+  }
 }
 
 export const auditChainService = new AuditChainService();

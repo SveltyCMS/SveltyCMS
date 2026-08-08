@@ -20,6 +20,7 @@ import { logger } from "@utils/logger";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getClientIp, IS_TEST_MODE } from "@utils/hook-utils";
+import { wafGuard } from "./wasm-waf-guard";
 
 // IS_TEST_MODE imported from @utils/hook-utils (single source of truth).
 // Test-secret resolution moved to @utils/test-bypass.server (shared with
@@ -185,6 +186,18 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     try {
       tenantId = getTenantIdFromHostname(url.hostname, true) || undefined;
     } catch {}
+  }
+
+  // Layer 0 WASM/JS WAF Inspection
+  const headerObj: Record<string, string> = {};
+  request.headers.forEach((val, key) => {
+    headerObj[key] = val;
+  });
+  const wafCheck = wafGuard.inspectRequest(url.pathname, url.search, headerObj);
+  if (wafCheck.blocked) {
+    metricsService.incrementSecurityViolations(tenantId);
+    logger.warn(`[WAF Blocked] ${wafCheck.reason} (${wafCheck.threatType}) from ${clientIp}`);
+    return handleApiError(new AppError(wafCheck.reason ?? "Security Policy Violation", 400), event);
   }
 
   try {

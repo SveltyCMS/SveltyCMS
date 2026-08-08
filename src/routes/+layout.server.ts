@@ -143,7 +143,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     tenantId: locals.tenantId ?? null,
     darkMode: locals.darkMode ?? false,
     navigationStructure,
-    contentNodes: contentNodes ? JSON.parse(JSON.stringify(contentNodes)) : [],
+    contentNodes: contentNodes ? structuredClone(contentNodes) : [],
     contentVersion,
     // Pass CSRF token for state-changing API calls
     csrfToken:

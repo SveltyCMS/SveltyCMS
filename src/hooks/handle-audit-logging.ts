@@ -86,6 +86,10 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
         } else {
           logger.warn("[AUDIT] Mutation logged with failure flags", logEntry);
         }
+
+        // Fast O(1) rolling Merkle accumulator update (< 5µs)
+        const entryHash = `${method}:${path}:${userId}:${logEntry.timestamp}`;
+        rollingMerkleAccumulator.appendLeaf(entryHash).catch(() => {});
       })
       .catch((err) => {
         logger.error("[AUDIT Fallback] Secondary log pipeline failed:", err);

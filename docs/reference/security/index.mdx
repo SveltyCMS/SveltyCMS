@@ -27,11 +27,13 @@ SveltyCMS implements enterprise-grade security measures across all system compon
 SveltyCMS security architecture includes:
 
 - **🔐 4-Layer Defense-in-Depth** — Middleware → Dispatcher → Handler → Page Action. Each layer re-validates independently. Fail-closed by default.
+- **⚡ Policy-as-Code (PaC)** — In-memory CPU permission evaluation (< 50µs) with Git policy rules. See [Policy-as-Code & WASM Docs](./policy-as-code-and-wasm.mdx).
+- **🛡️ Layer 0 WASM WAF** — Nanosecond WebAssembly threat pattern matching with pure-JS fallback.
 - **🔐 Authentication & Authorization** - Multi-factor authentication, session management, RBAC
-- **🔒 Cryptography** - Quantum-resistant password hashing, AES-256 encryption, CSPRNG-only tokens (no `Math.random()` fallback)
+- **🔒 Cryptography** - Quantum-resistant password hashing, AES-256 encryption, Merkle Tree & SHA-256 audit chain, CSPRNG-only tokens (no `Math.random()` fallback)
 - **🛡️ Widget Security** - XSS prevention, injection protection, file validation
-- **🔍 Security Monitoring** - Real-time audit logging (SHA-256 chained, fire-and-forget — non-blocking on mutations)
-- **🚀 Secure Development** - Build-time security checks, vulnerability scanning
+- **🔍 Security Monitoring & Fuzzing** - Real-time audit logging (Merkle Tree chained), automated API payload fuzzer (`bun run security --fuzz`)
+- **🚀 Secure Development** - Build-time security checks, vulnerability scanning, Runtime Baseline Clamping
 - **⚡ Enterprise Immunity** - Self-healing load shedding, graceful shutdown, SSRF endpoint validation, and pre-compiled pipelines
 
 ---

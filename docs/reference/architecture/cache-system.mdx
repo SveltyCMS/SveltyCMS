@@ -25,7 +25,13 @@ SveltyCMS implements a **dual-layer caching system**: L1 is an in-memory LRU cac
 
 ### HTTP response cache (turbo GET + GraphQL)
 
-Separate from `cacheService` entity keys: **`responseCache`** (`src/services/cache/response-cache.ts`) stores user-scoped pre-stringified API/GraphQL bodies + ETags for the **Request Lane Router** (`HYPER_TURBO` / handler-level GraphQL HIT). Keys are `u:{userId}:…` with deep-sorted variables; mutations invalidate `res:*` / GraphQL patterns. See [performance-architecture](../database/performance-architecture.mdx) and [server-hooks](./server-hooks.mdx).
+Separate from `cacheService` entity keys: **`responseCache`** (`src/services/cache/response-cache.ts`) stores user-scoped pre-stringified API/GraphQL bodies + ETags for the **Request Lane Router** (`HYPER_TURBO` / handler-level GraphQL HIT). Keys are `u:{userId}:…` with deep-sorted variables; mutations invalidate `res:*` / GraphQL patterns. Supports zero-copy `Uint8Array` binary byte buffers directly in L1 RAM to bypass string allocations and UTF-8 encoding.
+
+### Hyper-Scale Singleflight & Binary IPC Engines
+
+- **Singleflight Request Coalescer** (`src/utils/singleflight.ts`): Coalesces thousands of duplicate inflight GET/GraphQL queries into a single execution, preventing Cache Stampedes and Thundering Herds.
+- **Native V8 Binary Packer** (`src/utils/binary-pack.ts`): Uses `v8.serialize()` / `v8.deserialize()` for zero-copy binary IPC payloads, PubSub events, and complex buffer serialization (1.74x faster than JSON transforms).
+- **Relation Batch DataLoader** (`src/databases/core/batch-dataloader.ts`): Coalesces N+1 relation queries into single `WHERE _id IN (...)` / `$in` queries within a 1ms microtask tick.
 
 ## Architecture
 

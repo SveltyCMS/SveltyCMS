@@ -59,25 +59,27 @@ async function graphqlPost(
   headers: Record<string, string>,
   bodyObj: Record<string, unknown>,
 ): Promise<Response> {
-  let retries = 3;
+  let retries = 5;
+  let lastError: any = null;
   while (retries > 0) {
     try {
       return await fetch(`${baseUrl}/api/graphql`, {
         method: "POST",
-        headers,
+        headers: {
+          Connection: "keep-alive",
+          ...headers,
+        },
         body: JSON.stringify(bodyObj),
       });
     } catch (err: any) {
+      lastError = err;
       retries--;
-      if (retries === 0) throw err;
-      await new Promise((r) => setTimeout(r, 10));
+      if (retries > 0) {
+        await new Promise((r) => setTimeout(r, (5 - retries) * 50));
+      }
     }
   }
-  return fetch(`${baseUrl}/api/graphql`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(bodyObj),
-  });
+  throw lastError || new Error("Failed after 5 retries");
 }
 
 export async function runGraphQLBenchmark() {
