@@ -411,6 +411,11 @@ INDEX created_at_idx (createdAt)
 4. **Batch Operations**: Use batch insert/update for bulk operations
 5. **Connection Reuse**: Let pool manage connections
 
+### Raw Fast Paths (shipped)
+
+- **Raw single INSERT** (no RETURNING — Drizzle's mysql2 dialect has no `.returning()`): INSERT 219–271 → **279–317 RPS** (+15%, values synthesized from `prepareValues`, identical shape to the base path).
+- **Raw multi-VALUES `insertMany`**: prepared multi-row statement per chunk; rows synthesized from prepared values (multi-row `RETURNING` is materialized slowly by MariaDB — measured 62 vs 190 RPS). `skipReturning` (outbox/seeds) returns values untouched. Bulk is engine-bound (~4.6ms/100 rows ≈ 217 RPS ceiling on the benchmark host) so it holds parity with Drizzle while removing the AST cost.
+
 ---
 
 ## 🔐 Security Considerations
