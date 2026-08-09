@@ -136,6 +136,44 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // Instance-level cache to skip even the Map.has() call after first registration
   protected _registeredSchemas = new Set<string>();
 
+  /**
+   * Reconstruct the inserted row from prepared values + column defaults —
+   * exact RETURNING * parity for CMS tables (no triggers or generated
+   * columns; the Drizzle table definition mirrors the DDL). Lets SQL
+   * adapters skip the read-back round trip on single inserts.
+   */
+  protected synthesizeInsertRow(
+    table: any,
+    values: Record<string, any>,
+    opts?: { intBooleans?: boolean },
+  ): Record<string, any> {
+    const result: Record<string, any> = { ...values };
+    const tableCols = getTableColumns(table);
+    const now = new Date();
+    for (const [name, col] of Object.entries(tableCols)) {
+      if (result[name] !== undefined) continue;
+      const def = (col as any).default;
+      // Plain literal defaults (string/boolean/number/{}) apply client-side;
+      // SQL expression defaults (CURRENT_TIMESTAMP, gen_random_uuid) can't be
+      // evaluated here — timestamps fall through to `now`, others to NULL.
+      if (
+        def !== undefined &&
+        (typeof def !== "object" || Object.getPrototypeOf(def) === Object.prototype)
+      ) {
+        // MariaDB TINYINT(1) reads back as 0/1 — keep insert responses
+        // identical to what a subsequent read returns.
+        result[name] = opts?.intBooleans && typeof def === "boolean" ? (def ? 1 : 0) : def;
+      } else if (typeof (col as any).defaultFn === "function") {
+        result[name] = (col as any).defaultFn();
+      } else if (name === "createdAt" || name === "updatedAt") {
+        result[name] = now;
+      } else {
+        result[name] = null;
+      }
+    }
+    return result;
+  }
+
   /** Whether INSERT … RETURNING is supported natively. */
   protected get insertReturnsRows(): boolean {
     return false;

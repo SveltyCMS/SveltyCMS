@@ -413,8 +413,9 @@ INDEX created_at_idx (createdAt)
 
 ### Raw Fast Paths (shipped)
 
-- **Raw single INSERT** (no RETURNING — Drizzle's mysql2 dialect has no `.returning()`): INSERT 219–271 → **279–317 RPS** (+15%, values synthesized from `prepareValues`, identical shape to the base path).
+- **Raw single INSERT** (no RETURNING — Drizzle's mysql2 dialect has no `.returning()`): INSERT 219–271 → **~310 RPS** (+15–40%). The returned row is synthesized from prepared values + column defaults with MariaDB int-boolean parity (`isDeleted` → 0/1) — identical to a subsequent read.
 - **Raw multi-VALUES `insertMany`**: prepared multi-row statement per chunk; rows synthesized from prepared values (multi-row `RETURNING` is materialized slowly by MariaDB — measured 62 vs 190 RPS). `skipReturning` (outbox/seeds) returns values untouched. Bulk is engine-bound (~4.6ms/100 rows ≈ 217 RPS ceiling on the benchmark host) so it holds parity with Drizzle while removing the AST cost.
+- **Timestamp defaults fixed**: `createModel` DDL now declares `DEFAULT CURRENT_TIMESTAMP` on `createdAt`/`updatedAt` (previously NULL — the Drizzle def had defaults but the physical DDL did not); inserts also fill both timestamps explicitly so pre-existing tables are covered.
 
 ---
 

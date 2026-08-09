@@ -104,46 +104,45 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     table: any,
     collection: string,
     values: Record<string, any>,
-    _options: import("../db-interface").BaseQueryOptions,
+    _options: BaseQueryOptions,
   ): Promise<T | null> {
     try {
       const tableName = getTableName(table);
       const cols = Object.keys(values);
       if (cols.length === 0) return null;
-      // postgres.js 3.x removed sql.join — build the VALUES list with nested
-      // fragments instead (stable SQL text → prepared-statement cache hit).
-      // Identifiers must be double-quoted explicitly: unquoted camelCase
-      // folds to lowercase ("tenantId" → tenantid) and breaks lookups.
-      const colList = cols.map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`).join(", ");
       // postgres.js 3.x removed sql.join — one flat unsafe() call with explicit
       // prepare:true gives the same stable-SQL-text statement-cache hit as
       // nested fragments with a fraction of the per-call allocation. Dates and
       // objects bind as strings (describe-phase Bind quirk, see above).
+      const colList = cols.map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`).join(", ");
       const boundValues = cols.map((c) => {
         const v = values[c];
         if (v instanceof Date) return (v as Date).toISOString();
         if (v !== null && typeof v === "object" && !Array.isArray(v)) return JSON.stringify(v);
         return v;
       });
+
+      // 🚀 NO-READ-BACK INSERT: the returned row is synthesized from the
+      // prepared values + column defaults instead of RETURNING * (saves the
+      // row materialization + jsonb parse on the write round trip). Exact for
+      // CMS tables — the Drizzle def mirrors the DDL and there are no
+      // triggers/generated columns. If the table shape is unknown, bail out
+      // BEFORE inserting so the base Drizzle path can RETURNING normally.
+      let synthesized: Record<string, any>;
+      try {
+        synthesized = this.synthesizeInsertRow(table, values);
+      } catch {
+        return null;
+      }
+
       const sqlText = `INSERT INTO "${tableName}" (${colList}) VALUES (${cols
         .map((_, i) => `$${i + 1}`)
-        .join(", ")})${(_options as any)?.skipReturning === true ? "" : " RETURNING *"}`;
-      const rows = await this.sql!.unsafe(sqlText, boundValues, { prepare: true });
-      if ((_options as any)?.skipReturning === true) {
-        // No-read-back: the caller already knows the row (seed/system bulk) —
-        // reconstruct from the prepared values instead of a read-back round trip.
-        return utils.convertDatesToISO(values, {
-          ...this.convertDatesOptions,
-          table: collection,
-        }) as unknown as T;
-      }
-      if (Array.isArray(rows) && rows.length > 0) {
-        return utils.convertDatesToISO(rows[0], {
-          ...this.convertDatesOptions,
-          table: collection,
-        }) as unknown as T;
-      }
-      return null;
+        .join(", ")})`;
+      await this.sql!.unsafe(sqlText, boundValues, { prepare: true });
+      return utils.convertDatesToISO(synthesized, {
+        ...this.convertDatesOptions,
+        table: collection,
+      }) as unknown as T;
     } catch {
       return null;
     }
