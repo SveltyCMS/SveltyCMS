@@ -74,6 +74,11 @@ Uses the same shared TreeView as collections:
 	let isMobile = $derived(screen.isMobile);
 
 	function setFolderExpanded(id: string, open: boolean): void {
+		// Idempotence guard: the URL-sync $effect below reads folderExpanded
+		// (via new SvelteSet(folderExpanded)) and assigns a fresh SvelteSet —
+		// without this early return every run creates a new object identity,
+		// re-invalidating the effect forever (effect_update_depth_exceeded).
+		if (folderExpanded.has(id) === open) return;
 		const next = new SvelteSet(folderExpanded);
 		if (open) next.add(id);
 		else next.delete(id);

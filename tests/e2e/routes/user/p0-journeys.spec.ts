@@ -175,7 +175,7 @@ test.describe("P0 — Token management with seed", () => {
     const searchInput = page.getByRole("textbox", { name: /search for items in the table/i });
     if (await searchInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await searchInput.fill(email);
-      await page.waitForTimeout(400);
+      // Row expect below auto-waits for the debounced refetch — no fixed sleep
     }
 
     // Row must exist — fail hard if not (no soft-skip)
@@ -211,7 +211,6 @@ test.describe("P0 — Token management with seed", () => {
     });
 
     await openTokenView(page);
-    await page.waitForTimeout(500);
 
     const searchToggle = page.getByRole("button", { name: /^search$/i });
     if (await searchToggle.isVisible({ timeout: 2_000 }).catch(() => false)) {
@@ -220,7 +219,7 @@ test.describe("P0 — Token management with seed", () => {
     const searchInput = page.getByRole("textbox", { name: /search for items in the table/i });
     if (await searchInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await searchInput.fill(email);
-      await page.waitForTimeout(400);
+      // Row expect below auto-waits for the debounced refetch — no fixed sleep
     }
 
     const row = page.locator("tbody tr").filter({ hasText: email }).first();

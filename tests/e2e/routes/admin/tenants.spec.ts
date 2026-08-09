@@ -17,15 +17,14 @@ test.describe("Tenant Management", () => {
     if (page.url().includes("/login")) {
       await loginAsAdmin(page, "/admin/tenants");
     }
-    // Multi-tenancy may be disabled — accept any attached document after navigation.
-    // Prefer toBeAttached: Playwright marks body "hidden" under some splash/CSS states.
-    await expect(page.locator("body")).toBeAttached({ timeout: 15_000 });
-    await expect(page).not.toHaveURL(/\/login/);
-    // Table is only present when tenants exist; skip if not visible
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+    // The tenants table (with quota columns) always renders once the page loads —
+    // empty installs show the "No tenants found." row inside it.
     const table = page.getByRole("table");
-    if (await table.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(table).toBeVisible();
-    }
+    await expect(table).toBeVisible({ timeout: 15_000 });
+    await expect(
+      table.getByRole("columnheader", { name: /users|storage|collections|quota/i }).first(),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test("shows quota information when tenants exist", async ({ page }) => {
@@ -33,15 +32,17 @@ test.describe("Tenant Management", () => {
     if (page.url().includes("/login")) {
       await loginAsAdmin(page, "/admin/tenants");
     }
-    await expect(page.locator("body")).toBeAttached({ timeout: 15_000 });
-    const quotaHeaders = page.getByText(/users|storage|collections|quota/i);
-    const emptyState = page.getByText(/no tenants|not found|tenant/i);
-    await expect(quotaHeaders.or(emptyState).first())
-      .toBeVisible({
-        timeout: 10_000,
-      })
-      .catch(() => {
-        // Page rendered but neither quota nor empty state visible — still valid.
-      });
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+    const table = page.getByRole("table");
+    await expect(table).toBeVisible({ timeout: 15_000 });
+
+    // Quota columns are always rendered in the table header — hard assertion.
+    await expect(
+      table.getByRole("columnheader", { name: /users|storage|collections|quota/i }).first(),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // The table body always renders at least one row — either a tenant row or
+    // the "No tenants found." empty-state row — assert the deterministic union.
+    await expect(table.locator("tbody tr").first()).toBeVisible({ timeout: 10_000 });
   });
 });

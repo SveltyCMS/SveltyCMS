@@ -15,7 +15,8 @@ async function loginAndGo(page: Page, path: string) {
   await page.goto(path, { waitUntil: "domcontentloaded", timeout: 30_000 });
 }
 
-test.describe.configure({ mode: "serial" });
+// Tests are independent (unique trash fixtures, fresh storageState per test) —
+// no serial mode needed, so the file parallelizes across workers on local runs.
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe("Config Sync & Trash", () => {

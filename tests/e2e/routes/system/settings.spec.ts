@@ -110,8 +110,6 @@ test.describe("System Settings shell", () => {
     await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
-    // Wait for group load
-    await page.waitForTimeout(800);
 
     const shellSave = page.getByTestId("system-settings-save");
     await expect(shellSave).toBeDisabled({ timeout: ACTION_TIMEOUT });
@@ -189,9 +187,9 @@ test.describe("System Settings shell", () => {
     await input.fill(target);
     // Trigger native events to ensure Svelte bindings propagate through Input wrapper
     await input.blur();
-    await page.waitForTimeout(300); // Allow Svelte reactivity to settle
     const cachePanel = page.getByTestId("settings-panel-cache");
     const groupSave = cachePanel.getByTestId("settings-group-save");
+    // Expect auto-waits for the reactivity-driven enabled state
     await expect(groupSave).toBeEnabled({
       timeout: ACTION_TIMEOUT,
     });
@@ -213,7 +211,7 @@ test.describe("System Settings shell", () => {
     // Verify persistence via API call instead of UI reload.
     // CACHE_TTL_SCHEMA is category "private" — values load from config
     // files on fresh page loads, so the UI input won't reflect DB saves.
-    await page.waitForTimeout(500);
+    // (saveRes above already resolved, so the DB write is committed.)
     const verifyApi = await page.request.get(
       `/api/settings/cache?bypassCache=true&_=${Date.now()}`,
     );
@@ -227,7 +225,6 @@ test.describe("System Settings shell", () => {
     await expect(page.getByTestId("settings-panel-security")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
-    await page.waitForTimeout(600);
 
     // Scope to panel to avoid strict-mode with page toolbar export button
     const panel = page.getByTestId("settings-panel-security");

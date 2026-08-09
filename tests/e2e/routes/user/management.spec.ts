@@ -9,7 +9,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 import { prepareTestUser, seedTestUsers, TEST_USERS } from "../../helpers/api";
-import { openUserManagement } from "../../helpers/user-page";
+import { clearTableSearch, openTableSearch, openUserManagement } from "../../helpers/user-page";
 
 const DEVELOPER_EMAIL = TEST_USERS.developer.email;
 const ACTION_TIMEOUT = 15_000;
@@ -40,18 +40,6 @@ async function ensureUserListVisible(page: Page) {
   }
 }
 
-/** Open table search without toggling it closed if already expanded. */
-async function openTableSearch(page: Page) {
-  const searchInput = page.getByRole("textbox", {
-    name: /search for items in the table/i,
-  });
-  if (!(await searchInput.isVisible({ timeout: 1_000 }).catch(() => false))) {
-    await page.getByRole("button", { name: /^search$/i }).click({ timeout: ACTION_TIMEOUT });
-  }
-  await expect(searchInput).toBeVisible({ timeout: ACTION_TIMEOUT });
-  return searchInput;
-}
-
 type DeveloperRowOptions = {
   /** When false, keep search cleared so Multibutton sees the full user count. */
   useSearch?: boolean;
@@ -73,8 +61,7 @@ async function developerRow(page: Page, options: DeveloperRowOptions = { useSear
         )
         .catch(() => undefined);
       await searchInput.fill(DEVELOPER_EMAIL);
-      // AdminArea debounces search by 300ms before refetching.
-      await page.waitForTimeout(400);
+      // AdminArea debounces search by 300ms — refetch resolves when it lands
       await refetch;
     } else {
       await clearTableSearch(page);
@@ -148,24 +135,6 @@ async function runRowUserAction(page: Page, action: "block" | "unblock") {
   });
 }
 
-/** Clear table search so bulk actions use the full user count (not filtered totalItems). */
-async function clearTableSearch(page: Page) {
-  const searchInput = page.getByRole("textbox", {
-    name: /search for items in the table/i,
-  });
-  if (await searchInput.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    const refetch = page
-      .waitForResponse(
-        (res) => res.url().includes("/api/user") && res.request().method() === "GET",
-        { timeout: ACTION_TIMEOUT },
-      )
-      .catch(() => undefined);
-    await searchInput.fill("");
-    await page.waitForTimeout(400);
-    await refetch;
-  }
-}
-
 /** Bulk-delete the selected developer row via Multibutton. */
 async function bulkDeleteDeveloper(page: Page) {
   // Select WITH search: the user Multibutton gates delete on systemUserCount (all
@@ -185,13 +154,18 @@ async function bulkDeleteDeveloper(page: Page) {
     // (z-index), so a plain click is blocked by pointer-interception — force-click
     // the item. Re-open the menu if it closed mid-interaction.
     await bulkMenu.click({ timeout: ACTION_TIMEOUT });
-    await page.waitForTimeout(400);
     const deleteItem = page.getByRole("menuitem", { name: /select delete action/i });
-    await expect(deleteItem).toBeVisible({ timeout: ACTION_TIMEOUT });
-    if (!(await deleteItem.isVisible({ timeout: 1_000 }).catch(() => false))) {
+    // Probe the dropdown render WITHOUT throwing — the old expect() failed
+    // first, so the re-open fallback below was unreachable. Re-open the menu
+    // when the dropdown closed mid-interaction.
+    const deleteItemVisible = await deleteItem
+      .isVisible({ timeout: ACTION_TIMEOUT })
+      .catch(() => false);
+    if (!deleteItemVisible) {
       await bulkMenu.click({ timeout: ACTION_TIMEOUT });
-      await page.waitForTimeout(400);
     }
+    // Expect auto-waits for the dropdown render — no fixed sleep
+    await expect(deleteItem).toBeVisible({ timeout: ACTION_TIMEOUT });
     // Playwright coordinate clicks miss here (the SmartTable body overlays the
     // dropdown and it can close mid-action) — fire the handler directly.
     await deleteItem.evaluate((el) => (el as HTMLButtonElement).click());

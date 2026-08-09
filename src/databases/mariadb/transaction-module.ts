@@ -32,6 +32,13 @@ export class TransactionModule {
 
     try {
       return await this.db.transaction(async (_tx) => {
+        // 🚀 RAW-PATH HANDLE: drizzle's mysql2 session acquires a DEDICATED
+        // pool connection for the transaction — `session.client` IS that
+        // connection (released by drizzle on commit/rollback). Raw paths run
+        // on it so the fast path participates in the transaction instead of
+        // deferring to Drizzle (single code path, no rollback bypass).
+        const txConn = (_tx as any)?.session?.client ?? null;
+        const txnOpts = txConn ? { db: _tx, conn: txConn } : { db: _tx };
         const dbTransaction: DatabaseTransaction & any = {
           commit: async () => ({ success: true, data: undefined }),
           rollback: async () => {
@@ -41,24 +48,25 @@ export class TransactionModule {
           insert: async (collection: string, data: any, options: any = {}) =>
             this.core.crud.insert(collection, data, {
               ...options,
-              transaction: { db: _tx },
+              transaction: txnOpts,
             }),
           update: async (collection: string, id: any, data: any, options: any = {}) =>
             this.core.crud.update(collection, id, data, {
               ...options,
-              transaction: { db: _tx },
+              transaction: txnOpts,
             }),
           delete: async (collection: string, id: any, options: any = {}) =>
             this.core.crud.delete(collection, id, {
               ...options,
-              transaction: { db: _tx },
+              transaction: txnOpts,
             }),
           findById: async (collection: string, id: any, options: any = {}) =>
             this.core.crud.findOne(collection, { _id: id } as any, {
               ...options,
-              transaction: { db: _tx },
+              transaction: txnOpts,
             }),
           db: _tx,
+          conn: txConn,
 
           // 🛡️ Domain Support: Injecting domain modules into the transaction object
           auth: this.core.auth,

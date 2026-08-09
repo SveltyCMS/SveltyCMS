@@ -4,10 +4,13 @@
  * @description Validates dashboard widget package folders are marketplace-ready.
  *
  * Every folder under `src/routes/(app)/dashboard/widgets/<id>/` must contain:
- * - exactly one `.svelte` component — `index.svelte` (preferred for new
- *   packages) or the folder-named `{id}.svelte` / `{id}-widget.svelte` legacy form,
- * - a valid `widget.json` manifest (required fields),
- * - a REQUIRED co-located `.mdx` marketplace description.
+ * - exactly one `.svelte` component — `index.svelte` (the folder id is the
+ *   package identity; legacy `{id}.svelte` / `{id}-widget.svelte` names are
+ *   NOT accepted — they are rejected so the manifest contract stays strict),
+ * - a valid `widget.json` manifest (required fields; `id` must match the
+ *   folder; `component` must match the .svelte filename; `defaultSize` must be
+ *   positive; `version` must be semver),
+ * - a REQUIRED co-located `readme.mdx` marketplace description.
  *
  * Runs as part of `bun run check` (via `lint:widgets`). Exit code 1 on failure.
  *
@@ -122,6 +125,24 @@ for (const entry of entries) {
     }
     if (manifest.defaultSize && typeof manifest.defaultSize.w !== "number") {
       failOnce(`${folder}/widget.json defaultSize.w must be a number`);
+    }
+    if (manifest.defaultSize && typeof manifest.defaultSize.h !== "number") {
+      failOnce(`${folder}/widget.json defaultSize.h must be a number`);
+    }
+    if (manifest.defaultSize) {
+      const { w, h } = manifest.defaultSize;
+      if (typeof w === "number" && (!Number.isFinite(w) || w <= 0)) {
+        failOnce(`${folder}/widget.json defaultSize.w must be a positive number`);
+      }
+      if (typeof h === "number" && (!Number.isFinite(h) || h <= 0)) {
+        failOnce(`${folder}/widget.json defaultSize.h must be a positive number`);
+      }
+    }
+    if (
+      typeof manifest.version !== "string" ||
+      !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(manifest.version)
+    ) {
+      failOnce(`${folder}/widget.json version must be semver (e.g. 1.0.0)`);
     }
   }
 

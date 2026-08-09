@@ -20,6 +20,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 - `variant` ('default' | 'floating'): Visual style — default or floating label.
 - `class` (string): Additional CSS classes on the wrapper.
 - `onchange` (function): Callback with the new string value.
+- `data_testid` (string): Optional `data-testid` for E2E targeting.
 
 ### Accessibility Features (WCAG 3.0)
 - Native `<select aria-label="Select">` for maximum assistive technology support
@@ -79,7 +80,8 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		variant = 'default',
 		class: className = '',
 		allowEmptySelection = false,
-		onchange
+		onchange,
+		data_testid
 	}: Props = $props();
 
 	const fallbackId = generateId('select');
@@ -117,6 +119,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-invalid={invalid || !!error}
 				aria-describedby={describedBy}
 				aria-required={required}
+				data-testid={data_testid}
 				class={cn(
 					'peer block w-full appearance-none rounded border bg-surface-50 dark:bg-surface-900 transition-all',
 					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
@@ -184,6 +187,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-invalid={invalid || !!error}
 				aria-describedby={describedBy}
 				aria-required={required}
+				data-testid={data_testid}
 				class={cn(
 					'block w-full appearance-none rounded border bg-surface-50 dark:bg-surface-900 transition-all',
 					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',

@@ -5,8 +5,11 @@
  * Runs the same assertions against two drivers:
  * 1. **In-memory FakeRedis** (`./fake-redis.ts`) — always on, deterministic,
  *    zero infra. This closes the "Redis L2 path still thin" gap for every run.
- * 2. **Real Redis** — enabled with `TEST_REDIS_URL` (CI matrix / local docker);
- *    skipped otherwise. Same contract, same expectations.
+ * 2. **Real Redis** — enabled when a Redis is reachable (see `redisUrl` below):
+ *    `TEST_REDIS_URL` (CI matrix / local docker) or a running docker container
+ *    named `sveltycms-redis` (tests/docker-compose.yml `--profile redis`).
+ *    Skipped otherwise — the same 11 assertions already ran against FakeRedis,
+ *    and CI/unit jobs must not require infra. Same contract, same expectations.
  *
  * Two `CacheService` instances share one Redis driver per case, simulating two
  * nodes: cross-instance hits, write batching, distributed stampede locks,
@@ -212,11 +215,11 @@ describe("CacheService L2 contract — in-memory FakeRedis (always on)", () => {
 });
 
 /**
- * Real Redis: only when explicitly configured.
+ * Real Redis: only when explicitly reachable.
  * Do NOT use isDockerRunning() under CI — that helper always returns true when
  * `CI=true`, which would enable this suite on unit jobs without a Redis service
  * and hang afterEach on connect/quit (hook timeout 10s).
- * Local: auto-detect docker redis when not in CI.
+ * Local: auto-detect a running docker redis (tests/docker-compose.yml redis profile).
  */
 const redisUrl =
   process.env.TEST_REDIS_URL ||

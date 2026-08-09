@@ -244,8 +244,23 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
 
     // Navigate to an admin-only page
     await page.goto("/config/access-management", { waitUntil: "domcontentloaded" });
-    // Give the page a moment to settle (redirect may be client-side)
-    await page.waitForTimeout(2_000);
+    // Deterministic settle: wait for either redirect-away OR inline forbidden
+    // text (client-side gate may take a moment) — no fixed sleep.
+    await expect
+      .poll(
+        async () => {
+          const redirected = !page.url().includes("/config/access-management");
+          const forbidden = await page
+            .getByText(/forbidden|unauthorized|access denied|insufficient permissions|not allowed/i)
+            .first()
+            .isVisible()
+            .catch(() => false);
+          return redirected || forbidden;
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(true)
+      .catch(() => undefined);
 
     const currentUrl = page.url();
 

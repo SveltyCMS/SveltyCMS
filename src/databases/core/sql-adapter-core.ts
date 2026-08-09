@@ -237,7 +237,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   /** Execute a raw SQL query for the dynamic findMany path. */
-  protected async executeDynamicSql(_db: any, sqlQuery: SQL): Promise<any[]> {
+  protected async executeDynamicSql(
+    _db: any,
+    sqlQuery: SQL,
+    _options?: BaseQueryOptions,
+  ): Promise<any[]> {
     // Default: PostgreSQL-style (execute returns rows array or {rows: [...]})
     const execResult = await _db.execute(sqlQuery);
     if (Array.isArray(execResult)) return execResult;
@@ -583,27 +587,23 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if ((k === "_id" || k === "id") && id) continue;
         if (data[k] !== undefined) {
           let val = data[k];
-          // Convert numeric timestamps or ISO date strings to Date objects for Drizzle timestamp_ms columns
-          if (
-            typeof val === "number" &&
-            val > 0 &&
-            (k === "createdAt" ||
-              k === "updatedAt" ||
-              k.endsWith("Date") ||
-              k.endsWith("At") ||
-              isPhysical?.dataType === "date" ||
-              (isPhysical?.columnType && isPhysical.columnType.includes("Timestamp")))
-          ) {
+          // Convert numeric timestamps or ISO date strings to Date objects for
+          // Drizzle timestamp_ms columns. ONLY when the column is a real
+          // date/timestamp column (or the special createdAt/updatedAt pair):
+          // the bare `*Date`/`*At` suffix heuristics over-matched TEXT columns
+          // (e.g. a materialized publishDate VARCHAR) and produced a Date that
+          // SQLite bindings serialize as a JSON-quoted string — double-encoded
+          // values that read back unparseable (temporal-integrity regression).
+          const isDateColumn =
+            isPhysical?.dataType === "date" ||
+            (isPhysical?.columnType && isPhysical.columnType.includes("Timestamp"));
+          const isSpecialTimestamp = k === "createdAt" || k === "updatedAt";
+          if (typeof val === "number" && val > 0 && (isSpecialTimestamp || isDateColumn)) {
             val = new Date(val);
           } else if (
             typeof val === "string" &&
             val.length > 5 &&
-            (k === "createdAt" ||
-              k === "updatedAt" ||
-              k.endsWith("Date") ||
-              k.endsWith("At") ||
-              isPhysical?.dataType === "date" ||
-              (isPhysical?.columnType && isPhysical.columnType.includes("Timestamp"))) &&
+            (isSpecialTimestamp || isDateColumn) &&
             /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)
           ) {
             const ts = Date.parse(val);
@@ -635,7 +635,16 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       values.tenantId = options.tenantId;
     }
 
-    if (!id && (schemaCols?.["createdAt"] || getCol(table, "createdAt"))) {
+    // createdAt/updatedAt defaults: always fill when the column exists and the
+    // caller didn't provide a value. The old `!id` guard on createdAt skipped
+    // it for explicit-_id inserts — SQLite's DDL has no timestamp default, so
+    // those rows stored NULL (epoch/ISO contract break; Maria patched around
+    // it post-prepareValues, SQLite never did). updatedAt already ran without
+    // the guard — createdAt now matches.
+    if (
+      (schemaCols?.["createdAt"] || getCol(table, "createdAt")) &&
+      values.createdAt === undefined
+    ) {
       values.createdAt = now;
     }
     if (schemaCols?.["updatedAt"] || getCol(table, "updatedAt")) {
@@ -757,6 +766,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
+      // Register schema on read too — read-only workloads (never written via
+      // insert) must still get the fast date/JSON conversion path.
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
       const where = this.mapQuery(table, q as any, options);
 
       const results = await this.getDrizzleInstance(options)
@@ -830,6 +845,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
+      // Register schema on read too (see findOne).
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
       const where = this.mapQuery(table, q as any, options);
 
       const tableName = getTableName(table);
@@ -928,7 +948,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           if (options.offset !== undefined) sqlQuery = sql`${sqlQuery} OFFSET ${options.offset}`;
 
           const db = this.getDrizzleInstance(options);
-          const rawRows = await this.executeDynamicSql(db, sqlQuery);
+          const rawRows = await this.executeDynamicSql(db, sqlQuery, options);
 
           results = rawRows.map((row: any) => {
             const obj: any = {};

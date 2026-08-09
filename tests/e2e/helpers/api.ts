@@ -6,6 +6,7 @@
  * No duplicate seed logic — just thin HTTP wrappers.
  */
 import type { APIRequestContext, Page } from "@playwright/test";
+import { CONSENT_VALUE } from "./cookie-consent";
 import { TEST_PASSWORD, USERS } from "../../harness/fixtures";
 
 // ── Shared constants ───────────────────────────────────────────────────
@@ -77,7 +78,8 @@ export async function resetAndSeedDatabase(page: Page) {
 
 // ── Session management ─────────────────────────────────────────────────
 
-const SESSION_COOKIE_RE = /auth_sessions|__Host-auth_sessions|__Secure-auth_sessions/i;
+/** Matches the auth session cookie names (host/secure prefixes included). */
+export const SESSION_COOKIE_RE = /auth_sessions|__Host-auth_sessions|__Secure-auth_sessions/i;
 
 function parseSetCookieHeader(header: string): Array<{ name: string; value: string }> {
   if (!header) return [];
@@ -174,7 +176,12 @@ export async function applySessionCookie(
   }
 }
 
-async function sessionLooksValid(page: Page): Promise<boolean> {
+/**
+ * Cheap API-level session probe: GET /api/user with the context's cookies.
+ * No page navigation — used by `ensureAuthenticated` and `loginAsAdmin` to
+ * avoid a full page load + shell check per test (1-3s saved per call).
+ */
+export async function sessionLooksValid(page: Page): Promise<boolean> {
   try {
     const cookies = await page
       .context()
@@ -188,21 +195,31 @@ async function sessionLooksValid(page: Page): Promise<boolean> {
     const res = await page.request.get("/api/user", { headers });
     if (!res.ok()) return false;
     const body = await res.json().catch(() => null);
-    return Boolean(body && (body.user || body._id || body.email || body.users));
+    if (!body) return false;
+    // GET /api/user returns { success: true, data: [users] } — the legacy
+    // fields (user/_id/email/users) never existed on this endpoint, so the
+    // old probe could never succeed and every ensureAuthenticated call fell
+    // through to a full DB reset (cross-spec landmine). Accept the real
+    // envelope shape; keep the legacy fields for other endpoints.
+    return (
+      (body.success === true &&
+        (Array.isArray(body.data) || (body.data && typeof body.data === "object"))) ||
+      Boolean(body.user || body._id || body.email || body.users)
+    );
   } catch {
     return false;
   }
 }
 
 export async function ensureAuthenticated(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
-    window.localStorage.setItem(
-      "sveltycms_consent",
-      JSON.stringify({ responded: true, necessary: true }),
-    );
-    window.localStorage.setItem("sveltycms-welcome-seen", "true");
-  });
+  await page.addInitScript(
+    ({ consent }) => {
+      window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
+      window.localStorage.setItem("sveltycms_consent", consent);
+      window.localStorage.setItem("sveltycms-welcome-seen", "true");
+    },
+    { consent: CONSENT_VALUE },
+  );
   if (await sessionLooksValid(page)) return;
   for (const attempt of ["login", "seed+login", "reset+seed+login"]) {
     try {

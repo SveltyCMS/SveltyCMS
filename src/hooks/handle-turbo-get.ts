@@ -180,14 +180,25 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   const payloadSize = Buffer.byteLength(rawBody, "utf-8");
 
   if (algo && payloadSize > 1024) {
-    try {
-      const compressed = compressSync(rawBody, algo as CompressionAlgorithm, payloadSize);
-      if (compressed && compressed.length < payloadSize) {
-        bodyToSend = compressed;
-        setCompressionHeaders(responseHeaders, algo, payloadSize, compressed.length);
+    // 🚀 Serve the pre-computed variant stashed by handle-api-requests
+    // (br/gzip/zstd) — re-compressing the cached body per hit cost ~17-27µs
+    // per KB, i.e. the same magnitude as the whole middleware chain for
+    // >4KB payloads. Fall back to on-the-fly compression when the variant
+    // is missing (e.g. cold L1 entry from before the stash landed).
+    const variant = resEntry.compressed?.[algo];
+    if (variant && variant.length < payloadSize) {
+      bodyToSend = variant;
+      setCompressionHeaders(responseHeaders, algo, payloadSize, variant.length);
+    } else {
+      try {
+        const compressed = compressSync(rawBody, algo as CompressionAlgorithm, payloadSize);
+        if (compressed && compressed.length < payloadSize) {
+          bodyToSend = compressed;
+          setCompressionHeaders(responseHeaders, algo, payloadSize, compressed.length);
+        }
+      } catch {
+        bodyToSend = rawBody;
       }
-    } catch {
-      bodyToSend = rawBody;
     }
   }
 

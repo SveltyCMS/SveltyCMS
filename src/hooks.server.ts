@@ -53,6 +53,28 @@ let setupComplete =
     (globalThis as any).__SVELTY_SETUP_COMPLETE__ === true) ||
   isSetupComplete();
 
+// 🚀 SETUP-STATE MEMO: isSetupComplete() performs a sync fs probe
+// (existsSync + readFileSync) with only a ~2s internal TTL — bursty admin
+// traffic pays one disk hit per burst. Memoize for 60s; setup paths always
+// bypass the memo so wizard/API transitions are observed immediately.
+let setupCheckMemo: { value: boolean; at: number } | null = null;
+const SETUP_CHECK_MEMO_TTL_MS = 60_000;
+
+function currentSetupStateWithMemo(pathname: string): boolean {
+  if (pathname.startsWith("/setup") || pathname.startsWith("/api/setup")) {
+    const v = isSetupComplete();
+    setupCheckMemo = { value: v, at: Date.now() };
+    return v;
+  }
+  const now = Date.now();
+  if (setupCheckMemo && now - setupCheckMemo.at < SETUP_CHECK_MEMO_TTL_MS) {
+    return setupCheckMemo.value;
+  }
+  const v = isSetupComplete();
+  setupCheckMemo = { value: v, at: now };
+  return v;
+}
+
 // ✨ ENTERPRISE: Stable Node ID for Distributed Cache Sync (Phase 8)
 if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
   (globalThis as any).__SVELTY_NODE_ID__ = crypto.randomUUID();
@@ -282,6 +304,8 @@ if (!building) {
 
 // ✨ ENTERPRISE: Graceful Shutdown Registry
 let inFlightRequests = 0;
+/** Cheap per-request id sequence for the non-trace path (see handle()). */
+let requestSeq = 0;
 
 type ShutdownGlobal = typeof globalThis & {
   __SVELTY_SHUTTING_DOWN__?: boolean;
@@ -519,7 +543,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   const pathname = event.url.pathname;
 
   // 🚀 HOT-SWAP CHECK: Dynamically synchronize setup state on every request
-  const currentSetupState = isSetupComplete();
+  const currentSetupState = currentSetupStateWithMemo(pathname);
   if (setupComplete !== currentSetupState) {
     logger.info(`🔄 System setup state change detected: ${setupComplete} -> ${currentSetupState}`);
     setupComplete = currentSetupState;
@@ -596,11 +620,16 @@ export const handle: Handle = async ({ event, resolve }) => {
   inFlightRequests++;
   // Reset per-request ID counters for deterministic SSR/hydration IDs
   resetIdCounters();
-  const traceId = (event.locals as any).requestId || crypto.randomUUID();
   const traceHeader = event.request.headers.get("x-svelty-trace");
   const isBenchmark = process.env.BENCHMARK === "true";
   const traceEnabled =
     traceHeader === "true" || (isBenchmark && !!event.request.headers.get("x-test-secret"));
+  // Lazy trace ID: the pipeline overwrites locals.requestId with its own
+  // generateRequestId() anyway, so a pre-pipeline UUID is only needed when
+  // tracing is enabled (99.9% of traffic gets a cheap sequential id).
+  const traceId =
+    (event.locals as any).requestId ||
+    (traceEnabled ? crypto.randomUUID() : `r${(requestSeq++).toString(36)}`);
 
   // 🚀 Fast path: skip ALL trace/context overhead when tracing is disabled (99.9% of traffic)
   if (!traceEnabled) {
@@ -635,11 +664,11 @@ export const handle: Handle = async ({ event, resolve }) => {
     () => {
       return runWithTrace(traceId, traceEnabled, async () => {
         // 🚀 HOT-SWAP CHECK: If not setup yet, check if it just finished
-        if (!setupComplete && isSetupComplete()) {
+        if (!setupComplete && currentSetupStateWithMemo(pathname)) {
           logger.info("🔄 System setup detected. Hot-swapping to READY pipeline...");
           setupComplete = true;
           await ensureFullMiddleware();
-        } else if (setupComplete && !isSetupComplete()) {
+        } else if (setupComplete && !currentSetupStateWithMemo(pathname)) {
           logger.info("🔄 System setup reset detected. Hot-swapping back to SETUP pipeline...");
           setupComplete = false;
         }

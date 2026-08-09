@@ -15,37 +15,29 @@ test.describe("System Language Change", () => {
     await ensureSidebarVisible(page);
     await dismissCookieConsent(page);
 
-    const languageSelector = page
-      .getByTestId("language-selector")
-      .or(page.getByTestId("language-selector-trigger"))
-      .or(page.getByLabel(/language|locale|sprache/i))
-      .or(page.locator('select[name*="lang" i], select[id*="lang" i]'))
+    const trigger = page
+      .getByTestId("language-selector-trigger")
+      .or(page.getByTestId("language-selector"))
+      .or(page.getByLabel(/select language/i))
       .first();
 
     await expect(
-      languageSelector,
+      trigger,
       "Language selector is core chrome — must be present when sidebar is open",
     ).toBeVisible({ timeout: 15_000 });
 
-    const tag = await languageSelector.evaluate((el) => el.tagName.toLowerCase());
-    if (tag === "select") {
-      for (const lang of ["en", "de"]) {
-        await languageSelector.selectOption(lang);
-        await expect(languageSelector).toHaveValue(lang, { timeout: 5_000 });
-      }
-    } else {
-      // Button/menu style: open and pick DE then EN if options exist.
-      // force:true avoids residual cookie-banner intercepts.
-      await languageSelector.click({ force: true });
-      const de = page.getByRole("option", { name: /deutsch|german|^de$/i }).first();
-      if (await de.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await de.click({ force: true });
-      }
-      await languageSelector.click({ force: true });
-      const en = page.getByRole("option", { name: /english|^en$/i }).first();
-      if (await en.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await en.click({ force: true });
-      }
-    }
+    // DE: open the dropdown, click the German option, assert the html lang attr.
+    await trigger.click({ force: true });
+    const deOption = page.getByRole("button", { name: /german|deutsch/i }).first();
+    await expect(deOption).toBeVisible({ timeout: 5_000 });
+    await deOption.click({ force: true });
+    await expect(page.locator("html")).toHaveAttribute("lang", "de", { timeout: 5_000 });
+
+    // EN: switch back and assert the html lang attr flips again.
+    await trigger.click({ force: true });
+    const enOption = page.getByRole("button", { name: /english|englisch/i }).first();
+    await expect(enOption).toBeVisible({ timeout: 5_000 });
+    await enOption.click({ force: true });
+    await expect(page.locator("html")).toHaveAttribute("lang", "en", { timeout: 5_000 });
   });
 });

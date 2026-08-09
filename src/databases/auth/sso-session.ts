@@ -16,6 +16,7 @@
 
 import { logger } from "@utils/logger";
 import { getUntypedSetting } from "@src/services/core/settings-service";
+import { validateEgressUrl, safeFetch } from "@src/utils/egress-guard";
 import type { DatabaseId } from "@src/content/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -272,9 +273,17 @@ export async function discoverOidcConfig(
 
   try {
     const wellKnownUrl = `${provider.issuer.replace(/\/$/, "")}/.well-known/openid-configuration`;
-    const res = await fetch(wellKnownUrl, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const config = await res.json();
+    // 🛡️ SSRF: the issuer is admin-configured — discovery must go through the
+    // awaited egress guard + safeFetch, never a raw fetch on the configured URL.
+    const allowHttp = process.env.NODE_ENV === "development";
+    await validateEgressUrl(wellKnownUrl, { allowHttp });
+    const resp = await safeFetch(wellKnownUrl, {
+      allowHttp,
+      timeoutMs: 5000,
+      maxSizeBytes: 1024 * 1024,
+    });
+    if (!resp.success || !resp.body) throw new Error(resp.error || `HTTP ${resp.status}`);
+    const config = JSON.parse(resp.body);
     const discovered: DiscoveredOidcConfig = {
       endSessionEndpoint: (config.end_session_endpoint as string) || provider.endSessionEndpoint,
       authorizationEndpoint:
@@ -318,9 +327,16 @@ export async function discoverEndSessionEndpoint(providerId: string): Promise<st
 async function fetchJwks(jwksUri: string): Promise<any[]> {
   const cached = jwksCache.get(jwksUri);
   if (cached && Date.now() < cached.ttl) return cached.keys;
-  const res = await fetch(jwksUri, { signal: AbortSignal.timeout(5000) });
-  if (!res.ok) throw new Error(`JWKS HTTP ${res.status}`);
-  const body = await res.json();
+  // 🛡️ SSRF: jwksUri is admin-configured/discovered — guard it like discovery.
+  const allowHttp = process.env.NODE_ENV === "development";
+  await validateEgressUrl(jwksUri, { allowHttp });
+  const resp = await safeFetch(jwksUri, {
+    allowHttp,
+    timeoutMs: 5000,
+    maxSizeBytes: 1024 * 1024,
+  });
+  if (!resp.success || !resp.body) throw new Error(resp.error || `JWKS HTTP ${resp.status}`);
+  const body = JSON.parse(resp.body);
   const keys = Array.isArray(body.keys) ? body.keys : [];
   jwksCache.set(jwksUri, { keys, ttl: Date.now() + 3_600_000 });
   return keys;
@@ -462,20 +478,24 @@ export async function exchangeOidcCode(
     });
     if (provider.clientSecret) body.set("client_secret", provider.clientSecret);
 
-    const res = await fetch(tokenEndpoint, {
+    // 🛡️ SSRF: tokenEndpoint is admin-configured/discovered — egress-guarded.
+    const allowHttp = process.env.NODE_ENV === "development";
+    await validateEgressUrl(tokenEndpoint, { allowHttp });
+    const resp = await safeFetch(tokenEndpoint, {
+      allowHttp,
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
       body,
-      signal: AbortSignal.timeout(10_000),
+      timeoutMs: 10_000,
+      maxSizeBytes: 1024 * 1024,
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
+    if (!resp.success || !resp.body) {
       return {
         success: false,
-        message: `Token exchange failed: ${res.status} ${text.slice(0, 200)}`,
+        message: `Token exchange failed: ${resp.status} ${(resp.body || resp.error || "").slice(0, 200)}`,
       };
     }
-    const json = (await res.json()) as {
+    const json = JSON.parse(resp.body) as {
       id_token?: string;
       access_token?: string;
     };

@@ -12,6 +12,8 @@ export interface CachedResponseEntry {
   body: string;
   etag: string;
   buffer?: Uint8Array;
+  /** Pre-computed compression variants (br/gzip/zstd) for TURBO-HIT serving. */
+  compressed?: Record<string, Uint8Array>;
 }
 
 /**

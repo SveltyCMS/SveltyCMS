@@ -86,14 +86,25 @@ async function fetchAndSaveGoogleAvatar(
     // Ensure database is fully initialized before saving avatar
     await dbInitPromise;
 
-    const response = await fetch(avatarUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch avatar: ${response.statusText}`);
+    // 🛡️ SSRF defense-in-depth: avatarUrl originates from the IdP userinfo
+    // response — still routed through the awaited egress guard + safeFetch
+    // (blocks private IPs, redirect re-validation, size cap).
+    const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
+    await validateEgressUrl(avatarUrl, {
+      allowHttp: process.env.NODE_ENV === "development",
+    });
+    const result = await safeFetch(avatarUrl, {
+      allowHttp: process.env.NODE_ENV === "development",
+      timeoutMs: 15_000,
+      maxSizeBytes: 5 * 1024 * 1024,
+    });
+    if (!result.success || !result.bodyBytes) {
+      throw new Error(`Failed to fetch avatar: ${result.error || result.status}`);
     }
-    const blob = await response.blob();
+    const blob = new Blob([result.bodyBytes]);
 
     // Determine the correct file type from the response
-    const contentType = response.headers.get("content-type") || "image/jpeg";
+    const contentType = result.headers?.["content-type"] || "image/jpeg";
     let fileName = "google-avatar.jpg";
     let mimeType = "image/jpeg";
 

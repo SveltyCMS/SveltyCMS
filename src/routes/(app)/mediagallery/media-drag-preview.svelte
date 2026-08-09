@@ -5,7 +5,7 @@
 
 Tracks `pointermove` as well as `dragover`, so it follows a finger on touch
 just as it follows the cursor on desktop. Rendered `pointer-events-none` at
-`z-[9999]` so it paints above the mobile sidebar drawer without ever
+`z-9999` so it paints above the mobile sidebar drawer without ever
 intercepting `elementFromPoint` hit-testing.
 
 `@thisux/sveltednd` has no cursor-following ghost of its own on the native
@@ -196,7 +196,7 @@ Mount once per page that hosts media drag sources.
 
 {#if visible}
   <Portal>
-    <div class="pointer-events-none fixed inset-0 z-[9999]" aria-hidden="true">
+    <div class="pointer-events-none fixed inset-0 z-9999" aria-hidden="true">
       <!-- Thumbnail: rounded-lg like gallery tiles; no hard .card border (those look sharp mid-drag) -->
       <div
         class="media-checkerboard absolute overflow-hidden rounded-lg shadow-lg {returning

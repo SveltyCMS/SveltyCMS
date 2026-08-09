@@ -10,7 +10,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { validateEgressUrl } from "@src/utils/egress-guard";
+import { validateEgressUrl, safeFetch } from "@src/utils/egress-guard";
 import type { SNCEntry } from "./types";
 
 // ============================================================================
@@ -70,29 +70,33 @@ export async function downloadMediaWithRateLimit(
     for (let attempt = 1; attempt <= cfg.retryAttempts; attempt++) {
       try {
         // 🛡️ AWAIT the egress guard before fetching — import-controlled asset
-        // URLs must not race the SSRF check. Static import: a per-attempt
-        // dynamic import inside concurrent downloads could stall the second
-        // in-flight request. The S3 PUT below is admin-configured (may
-        // legitimately be a private MinIO endpoint), so only the download
-        // side is guarded.
+        // URLs must not race the SSRF check. Delivery itself goes through
+        // safeFetch (re-validates every redirect hop). The S3 PUT below is
+        // admin-configured (may legitimately be a private MinIO endpoint), so
+        // only the download side is guarded.
         await validateEgressUrl(asset.externalUrl, {
           allowHttp: process.env.NODE_ENV === "development",
         });
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), cfg.timeoutMs);
-
-        const response = await fetch(asset.externalUrl, {
-          signal: controller.signal,
+        const resp = await safeFetch(asset.externalUrl, {
+          allowHttp: process.env.NODE_ENV === "development",
+          timeoutMs: cfg.timeoutMs,
+          maxSizeBytes: 100 * 1024 * 1024,
           headers: cfg.resumeBroken ? { Range: "bytes=0-" } : {},
         });
-        clearTimeout(timeout);
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!resp.success || !resp.bodyBytes) {
+          throw new Error(`HTTP ${resp.status || resp.error || "download failed"}`);
+        }
 
         // If S3 configured, upload directly
         if (cfg.s3Endpoint && cfg.s3Bucket) {
-          const s3Path = await uploadToS3(cfg.s3Endpoint, cfg.s3Bucket, asset, response);
+          const s3Path = await uploadToS3(
+            cfg.s3Endpoint,
+            cfg.s3Bucket,
+            asset,
+            resp.bodyBytes,
+            resp.headers?.["content-type"],
+          );
           results.set(asset.originalId, s3Path);
         } else {
           // Store locally
@@ -137,15 +141,16 @@ async function uploadToS3(
   endpoint: string,
   bucket: string,
   asset: SNCEntry["assetsToMirror"][0],
-  response: Response,
+  bodyBytes: Uint8Array,
+  contentType?: string,
 ): Promise<string> {
   const key = `migrated/${asset.originalId}/${sanitizeFilename(asset.externalUrl)}`;
-  const buffer = await response.arrayBuffer();
+  const buffer = Buffer.from(bodyBytes);
 
   await fetch(`${endpoint}/${bucket}/${key}`, {
     method: "PUT",
     headers: {
-      "Content-Type": response.headers.get("Content-Type") || "application/octet-stream",
+      "Content-Type": contentType || "application/octet-stream",
       "Content-Length": String(buffer.byteLength),
     },
     body: new Uint8Array(buffer),

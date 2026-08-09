@@ -4,22 +4,7 @@
  */
 
 import { expect, type Locator, type Page } from "@playwright/test";
-
-/** Dismiss the cookie consent banner if present.
- *  The banner appears after a 600ms delay on first visit, so we poll for it.
- *  Non-fatal: if it never appears (already consented), we move on.
- */
-async function dismissCookieConsent(page: Page) {
-  const btn = page.getByTestId("cookie-accept-all");
-  for (let i = 0; i < 6; i++) {
-    if (await btn.isVisible().catch(() => false)) {
-      await btn.click();
-      await page.waitForTimeout(300);
-      return;
-    }
-    await page.waitForTimeout(500);
-  }
-}
+import { dismissCookieConsent } from "./cookie-consent";
 
 /** Fixed viewport for comparable admin-theme screenshots */
 export const STABLE_VIEWPORT = { width: 1280, height: 720 } as const;
@@ -58,7 +43,8 @@ export async function prepareForScreenshot(page: Page) {
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.waitForLoadState("domcontentloaded");
-  await page.waitForTimeout(500);
+  // Deterministic settle: wait for webfonts instead of a fixed 500ms sleep
+  await page.evaluate(() => document.fonts?.ready).catch(() => undefined);
 }
 
 /** Open the sign-in form from the login chooser screen.

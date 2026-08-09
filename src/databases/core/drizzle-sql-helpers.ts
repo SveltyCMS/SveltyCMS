@@ -106,10 +106,9 @@ function widgetNameOf(field: any): string {
 }
 
 /**
- * True when a schema field is a flat scalar that can be materialized as a
- * physical column (row-store hybrid — the `data` blob keeps only dynamic
- * fields). Indexed/unique fields are materialized regardless of widget shape
- * (existing behavior preserved by callers).
+ * True when a schema field is a flat scalar that CAN be materialized as a
+ * physical column (capability check — see `shouldMaterializeField` for the
+ * policy that decides when columns are actually created).
  */
 export function isScalarMaterializableField(field: any): boolean {
   if (!field || typeof field !== "object") return false;
@@ -126,15 +125,23 @@ export function isScalarMaterializableField(field: any): boolean {
 }
 
 /**
- * Whether a field becomes a physical column: scalar-shaped fields always;
- * indexed/unique fields additionally qualify when they are scalar-typed and
- * NOT a known object/array widget (an indexed media-upload field must stay in
- * the blob — a scalar column would break its shape).
+ * Whether a field becomes a physical column (row-store hybrid). Columns are
+ * ONLY created when there is a query benefit: indexed/unique fields (real
+ * constraints + indexed filters/sorts) or an explicit `materialize: true`
+ * opt-in — plus a scalar shape. Plain scalar fields stay in the `data` blob:
+ * on network adapters every extra column costs a bind on writes and a decode
+ * on reads (measured regression when ALL scalars were materialized: PG INSERT
+ * +51%, PG FIND MANY +99%, Maria INSERT +109%, FIND MANY +86%), while the
+ * blob keeps rows narrow. SQLite pays less per column (in-process), but the
+ * policy stays adapter-agnostic and predictable.
  */
 export function shouldMaterializeField(field: any): boolean {
-  if (isScalarMaterializableField(field)) return true;
   if (!field || typeof field !== "object") return false;
-  if (!field.indexed && !field.unique) return false;
+  const needsColumn = field.indexed || field.unique || field.materialize === true;
+  if (!needsColumn) return false;
+  // Explicit opt-in still requires a scalar shape — an object/array widget
+  // must never become a scalar SQL column (breaks its shape on reads).
+  if (field.materialize === true) return isScalarMaterializableField(field);
   const type = field.type;
   if (type !== "string" && type !== "number" && type !== "integer" && type !== "boolean") {
     return false;

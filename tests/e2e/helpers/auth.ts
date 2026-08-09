@@ -15,7 +15,8 @@ import {
   EDITOR_CREDENTIALS as HARNESS_EDITOR,
   TEST_PASSWORD,
 } from "../../harness/fixtures";
-import { TEST_API_HEADERS } from "./api";
+import { SESSION_COOKIE_RE, sessionLooksValid, TEST_API_HEADERS } from "./api";
+import { dismissCookieConsent } from "./cookie-consent";
 
 /**
  * Login credentials — harness is source of truth; env can override in CI.
@@ -120,9 +121,15 @@ export async function prepareLoginForm(page: Page) {
       console.log("[Auth] ✓ Database reset and seeded");
     }
 
-    // Reload login page with seeded database
+    // Reload login page with seeded database and wait for the chooser/form to render
     await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.waitForTimeout(1000);
+    await page
+      .getByTestId("signin-icon")
+      .or(page.getByTestId("signup-icon"))
+      .or(page.getByTestId("signin-email"))
+      .first()
+      .waitFor({ state: "visible", timeout: 15_000 })
+      .catch(() => undefined);
   }
 
   // Strategy 2: First Login Welcome Modal — use role-based, not CSS classes
@@ -135,7 +142,7 @@ export async function prepareLoginForm(page: Page) {
     const skipBtn = welcomeModal.getByRole("button", { name: /skip|close|get started/i }).first();
     if (await skipBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await skipBtn.click();
-      await page.waitForTimeout(500);
+      await welcomeModal.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
     }
   }
 
@@ -153,7 +160,7 @@ export async function prepareLoginForm(page: Page) {
       .first();
     if (await anyCloseBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await anyCloseBtn.click();
-      await page.waitForTimeout(500);
+      await genericModal.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
     }
   }
 
@@ -163,7 +170,7 @@ export async function prepareLoginForm(page: Page) {
   if (await cookieAcceptBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
     console.log("[Auth] Cookie consent still visible despite init script, accepting...");
     await cookieAcceptBtn.click();
-    await page.waitForTimeout(300);
+    await cookieAcceptBtn.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
     console.log("[Auth] ✓ Cookie consent accepted");
   }
 
@@ -182,13 +189,12 @@ export async function prepareLoginForm(page: Page) {
 
   if (signInIconVisible) {
     console.log("[Auth] Clicking SIGN IN icon...");
-    // Use force click with retry to bypass any transient overlays
+    // Use force click with retry to bypass any transient overlays.
+    // No fixed sleep: the signin-email waitFor below is the readiness gate.
     await signInIcon.click({ force: true, timeout: 10000 });
-    await page.waitForTimeout(1000);
   } else if (signInButtonVisible) {
     console.log("[Auth] Clicking SIGN IN button (fallback)...");
     await signInButton.click({ force: true, timeout: 10000 });
-    await page.waitForTimeout(1000);
   } else {
     // If neither is visible, we might already be on the form, or on the SIGN UP only page (First User)
     const signUpIcon = page.getByTestId("signup-icon");
@@ -198,7 +204,6 @@ export async function prepareLoginForm(page: Page) {
       );
       // In first user mode, we'll try to click signup and fill it, but expect error later
       await signUpIcon.click({ force: true });
-      await page.waitForTimeout(1000);
     }
   }
 
@@ -249,14 +254,19 @@ export async function prepareLoginForm(page: Page) {
           console.log("[Auth] ✓ Database reset and seeded");
         }
 
-        // Reload and re-click SIGN IN
+        // Reload and re-click SIGN IN — wait for the chooser instead of a fixed sleep
         await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
-        await page.waitForTimeout(500);
+        await page
+          .getByTestId("signin-icon")
+          .or(page.getByTestId("signup-icon"))
+          .or(page.getByTestId("signin-email"))
+          .first()
+          .waitFor({ state: "visible", timeout: 15_000 })
+          .catch(() => undefined);
 
         const signInIconRetry = page.getByTestId("signin-icon");
         if (await signInIconRetry.isVisible({ timeout: 5000 }).catch(() => false)) {
           await signInIconRetry.click({ force: true, timeout: 10000 });
-          await page.waitForTimeout(1000);
         }
 
         // Retry finding the signin-email field
@@ -385,11 +395,11 @@ async function attemptLogin(
   }
 
   // Ensure Sign In form tab is selected if signin-icon is present
+  // (no fixed sleep — fill() below auto-waits for the form fields)
   const signInIcon = page.getByTestId("signin-icon");
   if (await signInIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
     console.log("[Auth] Switching to Sign In tab...");
     await signInIcon.click({ force: true }).catch(() => {});
-    await page.waitForTimeout(300);
   }
 
   // Fill login form using data-testid selectors
@@ -477,6 +487,10 @@ export async function loginAsEditor(
  * Prefers testing-API seed+login (Set-Cookie into page.request jar) so chromium
  * shards do not depend on UI form + remote CSRF + collectionbuilder redirects.
  * Falls back to UI loginAs if the testing API is unavailable.
+ *
+ * Session validation is API-based (GET /api/user), NOT a full page load:
+ * the previous implementation navigated to /config/collectionbuilder and probed
+ * shell testids — ~1-3s per call and coupled to that route's render health.
  */
 export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   const email = ADMIN_CREDENTIALS.email;
@@ -509,57 +523,36 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
     }
   });
 
-  // Prefer existing storageState / cookie jar from auth-setup — avoid re-seed races.
-  // Verify session by actually checking for admin shell testid, not just URL (SPA auth
-  // can render auth page without redirect, leaving URL unchanged).
-  let sessionValid = false;
-  try {
-    await page.goto("/config/collectionbuilder", {
-      waitUntil: "domcontentloaded",
-      timeout: 20_000,
-    });
-    const currentUrl = page.url();
-    if (!currentUrl.includes("/login") && !currentUrl.includes("/setup")) {
-      // Double-check by looking for admin shell elements (SPA auth may render auth page at same URL)
-      sessionValid = await page
-        .getByTestId("admin-page-shell-title")
-        .or(page.getByTestId("admin-sidebar"))
-        .or(page.getByTestId("admin-header"))
-        .or(page.getByTestId("collection-builder-board"))
-        .or(page.getByTestId("media-gallery-toolbar"))
-        .first()
-        .isVisible({ timeout: 5_000 })
-        .catch(() => false);
-      if (sessionValid) {
-        console.log("[Auth] ✓ Existing session still valid (storageState)");
-        if (waitForUrl != null) {
-          const targetUrl =
-            typeof waitForUrl === "string" ? waitForUrl : "/config/collectionbuilder";
-          await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
-          const afterNavUrl = page.url();
-          if (afterNavUrl.includes("/login") || afterNavUrl.includes("/setup")) {
-            console.log(
-              `[Auth] StorageState session lost after navigating to ${targetUrl} — re-authenticating`,
-            );
-            sessionValid = false;
-          } else {
-            if (waitForUrl instanceof RegExp) {
-              await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
-            }
-            return;
-          }
-        } else {
-          return;
-        }
+  // Fast session check: context cookie + /api/user probe. No navigation, so
+  // specs with valid storageState skip the per-test page load entirely.
+  if (await sessionLooksValid(page)) {
+    console.log("[Auth] ✓ Existing session still valid (storageState)");
+    if (waitForUrl != null) {
+      const targetUrl = typeof waitForUrl === "string" ? waitForUrl : "/dashboard";
+      await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      if (page.url().includes("/login") || page.url().includes("/setup")) {
+        console.log(
+          `[Auth] StorageState session lost after navigating to ${targetUrl} — re-authenticating`,
+        );
       } else {
-        console.log("[Auth] Page loaded but no admin shell detected — session not valid");
+        if (waitForUrl instanceof RegExp) {
+          await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
+        }
+        return;
       }
+    } else {
+      return;
     }
-  } catch {
-    /* fall through */
+  } else {
+    const hasCookie = await page
+      .context()
+      .cookies()
+      .then((cookies) => cookies.some((c) => SESSION_COOKIE_RE.test(c.name)))
+      .catch(() => false);
+    if (hasCookie) {
+      console.log("[Auth] Session cookie present but /api/user rejected it — re-authenticating");
+    }
   }
-
-  if (sessionValid) return;
 
   try {
     // Login first; seed only if admin missing. Seed must NOT wipe users.
@@ -583,7 +576,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
       // alone is not always enough when storageState was cleared).
       await applySessionCookie(page, loginRes);
       console.log("[Auth] ✓ Admin session via testing API");
-      const target = typeof waitForUrl === "string" ? waitForUrl : "/config/collectionbuilder";
+      const target = typeof waitForUrl === "string" ? waitForUrl : "/dashboard";
       await page.goto(target, {
         waitUntil: "domcontentloaded",
         timeout: 30_000,
@@ -719,7 +712,12 @@ export async function ensureSidebarVisible(page: Page) {
 
     if (menuVisible) {
       await menuButton.click();
-      await page.waitForTimeout(500);
+      // Deterministic: wait for the sidebar shell instead of a fixed sleep
+      await page
+        .getByTestId("admin-sidebar")
+        .first()
+        .waitFor({ state: "visible", timeout: 3_000 })
+        .catch(() => undefined);
       console.log("✓ Opened sidebar on mobile viewport");
       return true;
     }
@@ -728,43 +726,9 @@ export async function ensureSidebarVisible(page: Page) {
 }
 
 /**
- * Dismiss the cookie consent banner without a full login flow.
+ * Dismiss the cookie consent banner.
  *
- * Use this at the start of tests that:
- * - Use `storageState: { cookies: [], origins: [] }` (blank context)
- * - Navigate directly to app pages (not through loginAsAdmin)
- * - Subsequently call `getByRole("dialog")` for application dialogs
- *
- * The banner is rendered as `div[role="dialog"]` and causes strict-mode
- * violations when mixed with native `<dialog>` elements.
+ * @deprecated Import `dismissCookieConsent` from "./cookie-consent" directly —
+ * this alias keeps existing importers working during the consolidation.
  */
-export async function dismissCookieBanner(page: Page): Promise<void> {
-  // Stamp localStorage so the banner never appears on the next navigation
-  await page
-    .evaluate(() => {
-      try {
-        window.localStorage.setItem(
-          "sveltycms_consent",
-          JSON.stringify({ responded: true, necessary: true }),
-        );
-        window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
-        window.localStorage.setItem("sveltycms-welcome-seen", "true");
-      } catch {
-        // Ignore if storage is restricted
-      }
-    })
-    .catch(() => {});
-
-  // Defense-in-depth: click the accept button if the banner already rendered or
-  // hydrates shortly after the stamp (Svelte hydration race). Bounded to a single
-  // waitFor so tab switches don't burn ~6s polling when the banner is absent.
-  const acceptBtn = page.getByTestId("cookie-accept-all");
-  const shown = await acceptBtn
-    .waitFor({ state: "visible", timeout: 1_500 })
-    .then(() => true)
-    .catch(() => false);
-  if (shown) {
-    await acceptBtn.click({ timeout: 1_000 }).catch(() => {});
-    await page.waitForTimeout(150);
-  }
-}
+export const dismissCookieBanner = dismissCookieConsent;

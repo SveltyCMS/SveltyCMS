@@ -9,6 +9,7 @@ import "../unit/bun-preload.ts";
 import { LocalCMS } from "@src/services/sdk";
 import { ensureFullInitialization, getDb } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
+import { toQueryOptions } from "@src/databases/policy";
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -31,6 +32,8 @@ async function run() {
     .catch(() => {});
 
   const systemOpts = { system: true, tenantId: T };
+  // Typed policy for the detached phase — explicit, documented fast-path opts.
+  const detachedWriteOpts = { ...systemOpts, ...toQueryOptions({ sideEffects: "none" }) };
   const doc = () => ({ _id: `sdk-${Math.random().toString(36).slice(2, 10)}`, title: "hello" });
   const tenantOpts = { tenantId: T };
 
@@ -125,17 +128,16 @@ async function run() {
   const sdkUpdateMs = performance.now() - t0;
   const sdkUpdateRps = (ok / sdkUpdateMs) * 1000;
 
-  // ── DETACHED MODE: explicit skipSideEffects (the documented product option
-  // for bulk/import callers) — isolates the pure critical path from the
-  // post-write side-effect machinery (outbox emit, cache invalidation,
+  // ── DETACHED MODE: explicit WritePolicy sideEffects: "none" (the documented
+  // product option for bulk/import callers) — isolates the pure critical path
+  // from the post-write side-effect machinery (outbox emit, cache invalidation,
   // workflow init). Benchmarks no longer rely on ambient env flags.
-  console.log("\n   ═══ PHASE 2: DETACHED (skipSideEffects: true) ═══");
+  console.log("\n   ═══ PHASE 2: DETACHED (WritePolicy sideEffects: none) ═══");
 
   t0 = performance.now();
-  ok = 0;
   for (let i = 0; i < N; i++) {
     const r = await cms.collections
-      .create("SdkVsDirect", doc(), { ...systemOpts, skipSideEffects: true })
+      .create("SdkVsDirect", doc(), detachedWriteOpts)
       .catch(() => null);
     if (r?.success) ok++;
   }
@@ -260,7 +262,7 @@ async function run() {
   ok = 0;
   for (let i = 0; i < N; i++) {
     const r = await cms.collections
-      .update("SdkVsDirect", known, { title: `u${i}` }, { ...systemOpts, skipSideEffects: true })
+      .update("SdkVsDirect", known, { title: `u${i}` }, detachedWriteOpts)
       .catch(() => null);
     if (r?.success) ok++;
   }

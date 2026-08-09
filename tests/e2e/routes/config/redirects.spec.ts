@@ -29,7 +29,8 @@ async function goRedirects(page: Page) {
   await expect(page.getByTestId("redirects-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
 }
 
-test.describe.configure({ mode: "serial" });
+// Tests are independent (unique names/fixtures, fresh storageState per test) —
+// no serial mode needed, so the file parallelizes across workers on local runs.
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe("Redirect Manager (Testing 2026)", () => {

@@ -5,7 +5,7 @@
  */
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { handleDialog } from "../../helpers/setup-wizard";
-import { resetToSetupMode } from "../../helpers/api";
+import { resetToSetupMode, TEST_API_HEADERS } from "../../helpers/api";
 
 // --- PAGE OBJECT MODEL ---
 
@@ -284,28 +284,35 @@ test.describe("Setup Wizard: Navigation & State", () => {
 });
 
 test.describe("Setup Wizard: Pre-Seeded Fast Path", () => {
-  // TODO: Fix handle-system-state.ts redirect after API seed.
-  // The seedReadyState() API call creates config/private.ts and seeds
-  // admin user, but system state machine doesn't transition out of setup
-  // mode synchronously, causing page.waitForURL to timeout.
-  test.skip("should leave setup after API-seeded ready state", async ({ page }) => {
-    test.setTimeout(30_000);
+  test("should leave setup after API-seeded ready state", async ({ page }) => {
+    test.setTimeout(60_000);
+
+    // Seed the ready state via the testing API (writes config + seeds admin).
+    // handleSystemState redirects /setup → /login once setup is COMPLETE.
     const res = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
       data: {
         action: "reset-to-state",
         state: "ready",
-        email: "admin@test.com",
+        email: "admin@example.com",
         password: "Password123!",
       },
     });
     if (!res.ok()) {
       throw new Error(`Seed ready state failed (${res.status()}): ${await res.text()}`);
     }
-    await page.goto("/setup");
+    const body = await res.json().catch(() => ({}));
+    if (body.success === false) {
+      throw new Error(`Seed ready state unsuccessful: ${JSON.stringify(body).slice(0, 300)}`);
+    }
+
+    // A request to /setup must be bounced to /login — never render the wizard.
+    await page.goto("/setup", { waitUntil: "domcontentloaded" });
     await page.waitForURL((url) => !url.pathname.startsWith("/setup"), {
-      timeout: 15000,
+      timeout: 15_000,
     });
     await expect(page).not.toHaveURL(/\/setup/);
+    await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
   });
 });
 

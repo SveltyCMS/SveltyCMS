@@ -353,16 +353,22 @@ describe("UCP Pipeline — End-to-End", () => {
   });
 
   // ── 9. Media Rate Limiting ──
-  it("downloadMediaWithRateLimit processes assets", async () => {
+  it("downloadMediaWithRateLimit processes assets through the egress guard", async () => {
     const { downloadMediaWithRateLimit } = await import("@plugins/smart-importer/polish");
+    const { safeFetch } = await import("@src/utils/egress-guard");
+    const safeFetchMock = vi.mocked(safeFetch);
 
-    // Mock fetch to avoid real network calls
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      headers: new Map([["Content-Type", "image/png"]]),
-      arrayBuffer: async () => new ArrayBuffer(100),
-    }) as any;
+    // Egress boundary is mocked at the top of this file — simulate a
+    // successful guarded download (bodyBytes carry the binary payload).
+    safeFetchMock.mockClear();
+    safeFetchMock.mockResolvedValue({
+      success: true,
+      status: 200,
+      body: "",
+      bodyBytes: new Uint8Array(100),
+      headers: { "content-type": "image/png" },
+      error: null,
+    });
 
     const assets = [
       {
@@ -386,8 +392,10 @@ describe("UCP Pipeline — End-to-End", () => {
     });
 
     expect(results.size).toBe(2);
-
-    globalThis.fetch = originalFetch;
+    // Every download MUST go through the SSRF-guarded wrapper — never raw fetch()
+    expect(safeFetchMock).toHaveBeenCalledTimes(2);
+    expect(safeFetchMock.mock.calls[0]?.[0]).toBe("https://example.com/img1.jpg");
+    expect(safeFetchMock.mock.calls[1]?.[0]).toBe("https://example.com/img2.jpg");
   });
 
   // ── 10. Unified Parser (index.server → parsers/index) ──

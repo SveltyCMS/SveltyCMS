@@ -357,12 +357,16 @@ class SecurityMonitoringService {
       headers["X-Signature"] = await this.signPayload(webhook.secret, payload);
     }
 
-    // Non-blocking delivery
-    fetch(webhook.url, {
+    // Non-blocking delivery — 🛡️ SSRF-guarded: admin-configured webhook URLs
+    // are external input, so delivery goes through safeFetch (blocks private
+    // IPs/localhost/metadata, caps redirects and response size).
+    const { safeFetch } = await import("@src/utils/egress-guard");
+    safeFetch(webhook.url, {
       method: "POST",
       headers,
       body: payload,
-      signal: AbortSignal.timeout(5000),
+      timeoutMs: 5000,
+      maxSizeBytes: 1024 * 1024,
     }).catch(() => {
       // Silently fail — security monitoring must not block operations
     });

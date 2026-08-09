@@ -7,7 +7,7 @@
  */
 
 import { expect, type Page } from "@playwright/test";
-import { dismissCookieBanner } from "./auth";
+import { dismissCookieConsent } from "./cookie-consent";
 import { enablePlugin } from "./api";
 
 const WXR_FIXTURE = "tests/e2e/fixtures/sample-wordpress.wxr";
@@ -46,7 +46,7 @@ export async function ensureSmartImporterReady(page: Page, timeoutMs = 25_000) {
   // wizard's sticky Next buttons. loginAsAdmin's API path never stamps consent
   // localStorage, so dismiss deterministically before interacting (parallel
   // workers otherwise hit pointer-interception timeouts on step 2/3 clicks).
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
 
   // Prefer workspace dialog; also probe page-level input if sticky shell remounts.
   const fileInput = workspace(page)
@@ -56,13 +56,10 @@ export async function ensureSmartImporterReady(page: Page, timeoutMs = 25_000) {
   try {
     await fileInput.waitFor({ state: "attached", timeout: timeoutMs });
   } catch {
-    // Not every CI build packages smart-importer UI. Skip rather than hard-fail the shard
-    // when enable-plugin could not mount the control-mapped wizard.
-    const { test } = await import("@playwright/test");
-    test.skip(
-      true,
-      "Smart Importer wizard did not mount (#migration-file-input). " +
-        "Plugin may be unregistered/disabled in this build after enable-plugin.",
+    // AGENTS.md: control-map rows hard-fail after enable-plugin — the wizard
+    // must mount, so a missing UI is a regression, not a reason to soft-skip.
+    throw new Error(
+      "Smart Importer wizard did not mount after enablePlugin — control-map row uncovered",
     );
   }
   return fileInput;

@@ -46,4 +46,49 @@ test.describe("Design System workspace", () => {
     await expect(page.getByTestId("palette-studio")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("palette-studio-apply")).toBeVisible();
   });
+
+  test("my overrides density persists across reload", async ({ page }) => {
+    await page.goto("/config/design-system?tab=overrides");
+    await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({ timeout: 10_000 });
+
+    const densityOptions = [
+      { value: "", label: "Use theme default" },
+      { value: "compact", label: "Compact" },
+      { value: "cozy", label: "Cozy" },
+      { value: "spacious", label: "Spacious" },
+    ];
+    const densitySelect = page.getByLabel(/^density$/i);
+    await expect(densitySelect).toBeVisible({ timeout: 10_000 });
+
+    const originalValue = await densitySelect.inputValue();
+    const originalLabel =
+      densityOptions.find((o) => o.value === originalValue)?.label ?? "Use theme default";
+    // Pick a density that actually differs from the current preference.
+    const target = densityOptions.find((o) => o.label !== originalLabel) ?? densityOptions[1];
+
+    try {
+      await densitySelect.selectOption({ label: target.label });
+      await page.getByTestId("appearance-save-overrides").click();
+      await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 10_000 });
+
+      // Full reload — the preference must come back from server data, not localStorage.
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByLabel(/^density$/i)).toHaveValue(target.value, {
+        timeout: 10_000,
+      });
+    } finally {
+      // Restore the previous preference so the seeded admin stays deterministic.
+      try {
+        const select = page.getByLabel(/^density$/i);
+        if (await select.isVisible({ timeout: 2_000 }).catch(() => false)) {
+          await select.selectOption({ label: originalLabel });
+          await page.getByTestId("appearance-save-overrides").click();
+          await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 10_000 });
+        }
+      } catch (err) {
+        console.warn("[design-system] density override revert failed:", err);
+      }
+    }
+  });
 });

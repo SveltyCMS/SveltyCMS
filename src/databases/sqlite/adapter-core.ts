@@ -147,6 +147,12 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     options: FindOptions<T>,
   ): Promise<T | null> {
     try {
+      // Read-path schema registration: raw reads must normalize SQLite INTEGER
+      // ms timestamps to ISODateString even on read-only workloads.
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
       const tableName = getTableName(table);
       // Bound parameters for _id + tenantId (no string interpolation of identifiers/values)
       const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(

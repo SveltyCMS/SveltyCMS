@@ -131,7 +131,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
         .map((c) => `\`${c}\``)
         .join(", ");
       const rawSql = `SELECT ${selectCols} FROM \`${tableName}\` WHERE \`${idColName}\` = ?${tenantSql} LIMIT 1`;
-      const rows = (await this.raw.execute(rawSql, [String(id), ...tenantParams])) as any[];
+      // Read-path schema registration: raw reads must normalize timestamps to
+      // ISODateString even on read-only workloads (relational-utils isEpochMs).
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
+      // Tx-aware: inside a transaction reads MUST stay on the txn connection
+      // (the pool would see pre-transaction state — phantom reads).
+      const rows = (await this.getRawExec(options)(rawSql, [String(id), ...tenantParams])) as any[];
       if (Array.isArray(rows) && rows.length > 0) {
         const row = rows[0];
         if (!wantsData) {
@@ -722,6 +730,34 @@ export abstract class AdapterCore extends SqlAdapterCore {
    * back to the base implementation on any error or missing table (auto-
    * provisioning lives there).
    */
+  /**
+   * Tx-scoped mysql2 connection when inside a transaction started by the
+   * Maria TransactionModule (which stashes the dedicated pool connection on
+   * `transaction.conn`). Falls back to reading it off the drizzle tx session.
+   * Returns null when the transaction carries no raw handle (callers then
+   * defer to the Drizzle path, preserving rollback semantics).
+   */
+  protected getTxnConn(options: BaseQueryOptions): any {
+    const tx = options?.transaction as any;
+    return tx?.conn ?? tx?.db?.session?.client ?? null;
+  }
+
+  /**
+   * Raw statement executor honoring the tx connection: `conn.execute` returns
+   * [rows, fields] (same unwrap as this.raw.execute) — bound here once so raw
+   * paths stay single-line swaps between pool and txn.
+   */
+  protected getRawExec(options: BaseQueryOptions): (sql: string, params?: any[]) => Promise<any[]> {
+    const txnConn = this.getTxnConn(options);
+    if (txnConn) {
+      return async (sqlText: string, params: any[] = []) => {
+        const [rows] = await txnConn.execute(sqlText, params);
+        return rows;
+      };
+    }
+    return (sqlText: string, params: any[] = []) => this.raw.execute(sqlText, params);
+  }
+
   override async insert<T extends BaseEntity>(
     collection: string,
     data: EntityCreate<T>,
@@ -737,14 +773,18 @@ export abstract class AdapterCore extends SqlAdapterCore {
         },
       };
     }
-    // Inside an outer transaction the raw pool path would bypass the txn
-    // connection and commit immediately — defer to the base Drizzle path
-    // (getDrizzleInstance routes through options.transaction.db).
-    if (options?.transaction) {
+    // Inside an outer transaction WITHOUT a raw handle (a Drizzle tx from
+    // another caller) the raw pool path would bypass the txn connection and
+    // commit immediately — defer to the base Drizzle path. With the
+    // TransactionModule's raw handle, run the raw INSERT on the txn
+    // connection instead (single code path).
+    const txnConn = this.getTxnConn(options);
+    if (options?.transaction && !txnConn) {
       return super.insert(collection, data, options);
     }
     return this.wrap(
       async () => {
+        const rawExec = this.getRawExec(options);
         const d =
           this.hooks.length > 0
             ? await this.runHooks("before", "insert", collection, data, options)
@@ -796,7 +836,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
             placeholders.push("?");
           }
           const sqlText = `INSERT INTO \`${tableName}\` (${colList}) VALUES (${placeholders.join(", ")})`;
-          await this.raw.execute(sqlText, params);
+          await rawExec(sqlText, params);
           return utils.convertDatesToISO(
             this.synthesizeInsertRow(table, values, { intBooleans: true }),
             {
@@ -849,7 +889,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
     if (!data || data.length === 0) return { success: true, data: [] };
     const skipReturning = (options as any)?.skipReturning === true;
     const inOuterTxn = Boolean(options?.transaction);
-    if (!inOuterTxn) {
+    const txnConn = this.getTxnConn(options);
+    if (!inOuterTxn || txnConn) {
+      const rawExec = this.getRawExec(options);
       try {
         const table = this.getTable(collection);
         if (!table) throw new Error(`Table not found: ${collection}`);
@@ -908,7 +950,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
               valuesSql.push(`(${rowPlaceholders.join(", ")})`);
             }
             const sqlText = `INSERT INTO \`${getTableName(table)}\` (${colList}) VALUES ${valuesSql.join(", ")}`;
-            await this.raw.execute(sqlText, params);
+            await rawExec(sqlText, params);
           }
           // Synthesize the rows from prepared values (identical to the base
           // no-returning path) — no multi-row RETURNING read-back tax. Seed/
@@ -947,11 +989,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
     if (this._returningSupported === false) {
       return super.update(collection, id, data, options);
     }
-    // Inside an outer transaction the raw pool path would bypass the txn
-    // connection — defer to the base Drizzle path (txn-aware).
-    if (options?.transaction) {
+    // Inside an outer transaction WITHOUT a raw handle (a Drizzle tx from
+    // another caller) the raw pool path would bypass the txn connection —
+    // defer to the base Drizzle path. With the TransactionModule's raw
+    // handle, run the raw UPDATE on the txn connection (single code path).
+    const txnConn = this.getTxnConn(options);
+    if (options?.transaction && !txnConn) {
       return super.update(collection, id, data, options);
     }
+    const rawExec = this.getRawExec(options);
     try {
       const d =
         this.hooks.length > 0
@@ -998,11 +1044,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const sqlText = skipReturning
         ? `UPDATE \`${tableName}\` SET ${setPairs.join(", ")} WHERE \`${idColName}\` = ?${tenantSql}`
         : `UPDATE \`${tableName}\` SET ${setPairs.join(", ")} WHERE \`${idColName}\` = ?${tenantSql} RETURNING *`;
-      const rows = (await this.raw.execute(sqlText, [
-        ...params,
-        String(id),
-        ...tenantParams,
-      ])) as any[];
+      const rows = (await rawExec(sqlText, [...params, String(id), ...tenantParams])) as any[];
 
       if (skipReturning) {
         const reconstructed = {

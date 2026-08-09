@@ -87,9 +87,9 @@ test.describe("Extended Authentication UI Flows", () => {
         break;
       }
 
-      // Dismiss the toast to reset state for next click
+      // Dismiss the toast to reset state for next click (wait for hidden, no sleep)
       await page.keyboard.press("Escape");
-      await page.waitForTimeout(300);
+      await toast.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
     }
 
     // The last attempt must show an error toast (either lockout-specific or generic)
@@ -100,6 +100,7 @@ test.describe("Extended Authentication UI Flows", () => {
     // We mock the SvelteKit server function response for `checkAuthMethods`
     // Since it's a SvelteKit server function, it POSTs to the current route.
     // We can intercept the request and override the JSON.
+    let checkAuthMethodsIntercepted = false;
     await page.route("**/login", async (route, request) => {
       const isServerFunction = request.headers()["x-sveltekit-server-function"];
       if (request.method() === "POST" && isServerFunction) {
@@ -107,6 +108,7 @@ test.describe("Extended Authentication UI Flows", () => {
           // If the payload contains the checkAuthMethods call, we return true for everything
           const postData = request.postData();
           if (postData && postData.includes("checkAuthMethods")) {
+            checkAuthMethodsIntercepted = true;
             // Fulfill with a mocked SvelteKit response format
             await route.fulfill({
               status: 200,
@@ -127,16 +129,39 @@ test.describe("Extended Authentication UI Flows", () => {
 
     const emailInput = page.locator('[data-testid="signin-email"]');
 
+    // Capture the mocked checkAuthMethods response instead of sleeping for the debounce
+    const checkRes = page
+      .waitForResponse((res) => res.url().endsWith("/login") && res.request().method() === "POST", {
+        timeout: 5_000,
+      })
+      .catch(() => null);
+
     // Type email slowly to trigger the debounced `onEmailInput` check
     await emailInput.pressSequentially("test@example.com", { delay: 100 });
+    const response = await checkRes;
 
-    // Wait for debounce and network request
-    await page.waitForTimeout(1000);
-
-    // Some configurations might just have generic social buttons, wait a bit
-    await page.waitForTimeout(500);
-
-    expect(true).toBe(true);
+    // Real assertions: the debounced check must actually fire, and the client
+    // must receive the mocked method flags through the server-function channel.
+    expect(
+      checkAuthMethodsIntercepted,
+      "typing an email must trigger the debounced checkAuthMethods server function",
+    ).toBe(true);
+    expect(response, "checkAuthMethods must produce a response").not.toBeNull();
+    expect(response!.ok(), `checkAuthMethods HTTP ${response!.status()}`).toBe(true);
+    const body = await response!.json().catch(() => null);
+    expect(body, "checkAuthMethods response must be JSON").not.toBeNull();
+    let flags: Record<string, unknown> = {};
+    try {
+      const data = typeof body.data === "string" ? JSON.parse(body.data) : body.data;
+      flags = (Array.isArray(data) ? (data[0] ?? {}) : (data ?? {})) as Record<string, unknown>;
+    } catch {
+      // parsed below via the per-flag assertions
+    }
+    expect(flags.success).toBe(true);
+    expect(flags.hasPassword).toBe(true);
+    expect(flags.hasPasskey).toBe(true);
+    expect(flags.hasMagicLink).toBe(true);
+    expect(flags.hasOAuth).toBe(false);
   });
 
   test("2FA UI Flow", async ({ page }) => {

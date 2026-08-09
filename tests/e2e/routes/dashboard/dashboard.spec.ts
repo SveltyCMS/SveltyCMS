@@ -92,7 +92,12 @@ async function ensureNWidgets(page: Page, count: number): Promise<number> {
   const reset = page.getByTestId("dashboard-reset-widgets");
   if (await reset.isVisible({ timeout: 2_000 }).catch(() => false)) {
     await reset.click();
-    await page.waitForTimeout(800);
+    // Reset clears preferences → EMPTY state, so poll for 0 widgets (the old
+    // >0 poll was inverted: it waited for a board reset can never produce).
+    await expect
+      .poll(async () => page.locator("[data-widget-id]").count(), { timeout: 5_000 })
+      .toBe(0)
+      .catch(() => undefined);
     n = await page.locator("[data-widget-id]").count();
     if (n >= count) return n;
   }
@@ -267,13 +272,12 @@ test.describe("Dashboard shell (widget-agnostic)", () => {
   test("can add first available widget then reset layout", async ({ page }) => {
     await loginAsAdmin(page, "/dashboard");
     await goDashboard(page);
-    await page.waitForTimeout(800);
 
     // Reset first for clean state if widgets already present
+    // (no fixed sleep: the reset/add checks below auto-wait)
     const reset = page.getByTestId("dashboard-reset-widgets");
     if (await reset.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await reset.click();
-      await page.waitForTimeout(400);
     }
 
     const addBtn = page
@@ -311,9 +315,8 @@ test.describe("Dashboard shell (widget-agnostic)", () => {
       timeout: ACTION_TIMEOUT,
     });
     await page.getByTestId("dashboard-reset-widgets").click();
-    await page.waitForTimeout(500);
 
-    // After reset: empty state (preferences cleared)
+    // After reset: empty state (preferences cleared) — expect auto-waits
     await expect(page.getByTestId("dashboard-empty-state")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
@@ -322,7 +325,6 @@ test.describe("Dashboard shell (widget-agnostic)", () => {
   test("widget search filters menu without assuming catalog", async ({ page }) => {
     await loginAsAdmin(page, "/dashboard");
     await goDashboard(page);
-    await page.waitForTimeout(800);
 
     const addBtn = page
       .getByTestId("dashboard-add-widget")
@@ -344,8 +346,8 @@ test.describe("Dashboard shell (widget-agnostic)", () => {
     await expect(menu.getByText(/no widgets found/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     await search.fill("");
-    // After clear, either items return or still none available
-    await page.waitForTimeout(200);
+    // After clear, either items return or still none available — nothing to assert,
+    // so no settle sleep is needed here.
   });
 });
 
@@ -358,7 +360,6 @@ test.describe("Dashboard widget reorder", () => {
   test("pointer drag reorders widgets when ≥2 are present", async ({ page }) => {
     await loginAsAdmin(page, "/dashboard");
     await goDashboard(page);
-    await page.waitForTimeout(600);
 
     const count = await ensureNWidgets(page, 2);
     if (count < 2) {
@@ -391,7 +392,6 @@ test.describe("Dashboard widget reorder", () => {
   test("keyboard Ctrl+Arrow reorders focused widget", async ({ page }) => {
     await loginAsAdmin(page, "/dashboard");
     await goDashboard(page);
-    await page.waitForTimeout(600);
 
     const count = await ensureNWidgets(page, 2);
     if (count < 2) {
@@ -409,7 +409,8 @@ test.describe("Dashboard widget reorder", () => {
     await first.focus();
     // Product: Ctrl/Meta + ArrowRight|Down moves widget later in order
     await page.keyboard.press("Control+ArrowRight");
-    await page.waitForTimeout(300);
+    // Keydown reorders synchronously (updateWidgets → reactive re-render), so no
+    // settle poll is needed — the hard asserts below validate the reorder.
 
     const after = await widgetIdsInDomOrder(page);
     expect(after.length).toBe(before.length);

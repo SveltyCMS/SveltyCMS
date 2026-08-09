@@ -101,11 +101,15 @@ test.describe("Media Gallery", () => {
   test("can delete an uploaded asset via grid action menu", async ({ page }) => {
     await openMediaGallery(page);
 
-    // Verify there's at least one media item
+    // Upload a fresh asset so the delete target is deterministic (unique id).
+    const uploadInput = page.getByTestId("media-upload-input");
+    await expect(uploadInput).toBeAttached();
+    await uploadInput.setInputFiles(TEST_IMAGE);
     const item = page.getByTestId("media-item").first();
-    await expect(item).toBeVisible({ timeout: 10_000 });
-    const initialCount = await page.getByTestId("media-item").count();
-    expect(initialCount).toBeGreaterThan(0);
+    await expect(item).toBeVisible({ timeout: 20_000 });
+    const mediaId = await item.getAttribute("data-media-id");
+    expect(mediaId, "media item must expose a data-media-id").toBeTruthy();
+
     await item.hover();
 
     // Action buttons container
@@ -120,11 +124,37 @@ test.describe("Media Gallery", () => {
     // Confirm dialog
     const dialog = page.locator("dialog[open]").first();
     await expect(dialog).toBeVisible({ timeout: 5_000 });
-    const confirmBtn = dialog.getByRole("button", { name: /confirm|delete/i });
-    await confirmBtn.click();
+    await dialog
+      .getByTestId("modal-confirm")
+      .or(dialog.getByRole("button", { name: /confirm|delete/i }))
+      .first()
+      .click();
 
-    // Verify dialog closed
+    // Outcome 1: the specific item disappears from the grid.
+    await expect(page.locator(`[data-media-id="${mediaId}"]`)).toHaveCount(0, {
+      timeout: 15_000,
+    });
     await expect(dialog).not.toBeVisible({ timeout: 10_000 });
+
+    // Outcome 2: the entry is gone from the media API list as well.
+    await expect
+      .poll(
+        async () => {
+          const res = await page.request.get("/api/media");
+          if (!res.ok()) return false;
+          const body = await res.json().catch(() => null);
+          const items = Array.isArray(body?.data)
+            ? body.data
+            : Array.isArray(body)
+              ? body
+              : Array.isArray(body?.items)
+                ? body.items
+                : [];
+          return items.every((m: { _id?: unknown }) => String(m?._id) !== mediaId);
+        },
+        { timeout: 15_000, intervals: [500, 1000, 2000] },
+      )
+      .toBe(true);
   });
 
   test("advanced search modal opens and closes", async ({ page }) => {

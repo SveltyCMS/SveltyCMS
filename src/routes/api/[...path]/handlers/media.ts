@@ -30,6 +30,7 @@ import {
   cleanupArchive,
   type ShareLink,
 } from "@src/utils/media/sharing";
+import { hashSharePassword, verifySharePassword } from "@src/utils/media/share-link-hash.server";
 import { analyze, insights, trends, quota } from "@src/utils/media/storage-analytics";
 import { formatBytes } from "@utils/utils";
 import {
@@ -702,7 +703,7 @@ export async function handleMediaShareCreate(
   const { expiryHours, password } = await event.request.json().catch(() => ({}));
   const link = createLink(mediaId as DatabaseId, String(user?._id ?? "system") as DatabaseId, {
     hours: expiryHours ? Number(expiryHours) : 24,
-    passwordHash: password ? crypto.createHash("sha256").update(password).digest("hex") : undefined,
+    passwordHash: password ? hashSharePassword(String(password)) : undefined,
   });
 
   const mediaRes = await cms.media.findById(mediaId, { tenantId });
@@ -868,10 +869,10 @@ export async function handleMediaShareDownload(
     );
   }
 
-  if (shareLink.passwordHash) {
-    const hash = crypto.createHash("sha256").update(password).digest("hex");
-    if (!validateLink(shareLink, undefined, hash).ok)
-      return successResponse(event, { passwordRequired: true });
+  // 🛡️ Timing-safe HMAC verification (legacy plain-SHA-256 stored values
+  // remain verifiable via verifySharePassword's backward-compatible path).
+  if (shareLink.passwordHash && !verifySharePassword(password, shareLink.passwordHash)) {
+    return successResponse(event, { passwordRequired: true });
   }
 
   link.downloadCount = (link.downloadCount || 0) + 1;

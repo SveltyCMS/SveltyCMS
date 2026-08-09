@@ -92,8 +92,7 @@ export async function dismissOpenDialogs(page: Page): Promise<void> {
         })
         .catch(() => undefined);
     }
-
-    await page.waitForTimeout(150);
+    // Next iteration re-probes visibility with a bounded poll — no fixed sleep
   }
 }
 

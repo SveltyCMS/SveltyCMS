@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:table-large"
 author: "SveltyCMS Team"
 created: "2026-06-13"
-updated: "2026-06-19"
+updated: "2026-08-09"
 tags:
   - "testing"
   - "e2e"
@@ -16,8 +16,8 @@ tags:
 
 # E2E Coverage Matrix — Route-Based Analysis
 
-> Generated: 2026-06-19 (spec count refreshed 2026-07-31)
-> Total routes: 9 (matrix scope below) | Total E2E specs: **43 on disk** | CI projects: 17 (+ wizard + auth-setup)
+> Generated: 2026-06-19 (spec count refreshed 2026-08-09)
+> Total routes: 10 (matrix scope below) | Total E2E specs: **44 on disk** | CI projects: **5** (wizard · firstuser · oauth · auth-setup · chromium)
 
 ## 1. `/setup` — Setup Wizard (24 components, 6 tested)
 
@@ -47,7 +47,7 @@ tags:
 
 ---
 
-## 2. `/login` — Authentication (4 components, 5 specs)
+## 2. `/login` — Authentication (4 components, 6 specs)
 
 | Feature                               | Test File               | Status         |
 | ------------------------------------- | ----------------------- | -------------- |
@@ -61,6 +61,8 @@ tags:
 | Axe accessibility audit               | `accessibility.spec.ts` | ⚠️ 1 violation |
 | Keyboard focus trap                   | `accessibility.spec.ts` | ✅ Fixed       |
 | RTL layout audit                      | `accessibility.spec.ts` | ⚠️ 1 violation |
+| Login branding (public theme API)     | `branding.spec.ts`      | ✅             |
+| Expired reset-token toast             | `extended-auth.spec.ts` | ✅             |
 | **2FA/TOTP flow**                     | —                       | ❌             |
 | **SAML SSO login**                    | —                       | ❌             |
 | **Rate limiting (5 failed attempts)** | —                       | ❌             |
@@ -72,7 +74,7 @@ tags:
 
 ---
 
-## 3. `/user` — User Profile & Management (5 specs + control map)
+## 3. `/user` — User Profile & Management (7 specs + control map)
 
 > Full 1:1 control map: [routes/user.mdx](./routes/user.mdx) (updated 2026-07-18).
 > Product fixes: batch self-delete, CSRF on remotes/GDPR, permissions display, sessions UI.
@@ -128,7 +130,7 @@ tags:
 
 ---
 
-## 4. `/config/collectionbuilder` (4 specs)
+## 4. `/config/collectionbuilder` (1 E2E spec: shell + golden)
 
 | Feature                                 | Test File                          | Status |
 | --------------------------------------- | ---------------------------------- | ------ |
@@ -142,59 +144,62 @@ tags:
 
 ---
 
-## 5. `/config/*` — System Configuration (8 specs)
+## 5. `/config/*` — System Configuration (13 specs)
 
-| Route                       | Feature                          | Test File                          | CI Project      | Status |
-| --------------------------- | -------------------------------- | ---------------------------------- | --------------- | ------ |
-| `/config/system-settings`   | Cache repair                     | `system/settings.spec.ts`          | `system`        | ✅     |
-| `/config/access-management` | Roles, permissions, save gating  | `config/access-management.spec.ts` | `config-routes` | ✅     |
-| `/config/access-management` | Permission matrix (system)       | `system/permissions.spec.ts`       | `permissions`   | ✅     |
-| `/config/access-management` | RBAC (admin/dev/editor)          | `system/rbac.spec.ts`              | `rbac`          | ✅     |
-| `/config/webhooks`          | List, create form, delivery logs | `config/webhooks.spec.ts`          | `config-routes` | ✅     |
-| `/config/automations`       | Workflow builder smoke           | `config/automations.spec.ts`       | `config-routes` | ✅     |
-| `/config/migration`         | Smart migration smoke            | `config/data-management.spec.ts`   | `config-routes` | ✅     |
+| Route                       | Feature                          | Test File                               | CI Project | Status |
+| --------------------------- | -------------------------------- | --------------------------------------- | ---------- | ------ |
+| `/config/system-settings`   | Cache repair                     | `system/settings.spec.ts`               | chromium   | ✅     |
+| `/config/access-management` | Roles, permissions, save gating  | `config/access-management.spec.ts`      | chromium   | ✅     |
+| `/config/access-management` | Permission matrix (system)       | `system/permissions.spec.ts`            | chromium   | ✅     |
+| `/config/access-management` | RBAC (admin/dev/editor)          | `system/rbac.spec.ts`                   | chromium   | ✅     |
+| `/config/access-management` | Permission removal blocks API+UI | `system/permission-enforcement.spec.ts` | chromium   | ✅     |
+| `/config/webhooks`          | List, create form, delivery logs | `config/webhooks.spec.ts`               | chromium   | ✅     |
+| `/config/automations`       | Workflow builder smoke           | `config/automations.spec.ts`            | chromium   | ✅     |
+| `/config/migration`         | Smart migration smoke            | `config/data-management.spec.ts`        | chromium   | ✅     |
 
-| Route                   | Feature                                   | Test File                                                                         | CI Project      | Status |
-| ----------------------- | ----------------------------------------- | --------------------------------------------------------------------------------- | --------------- | ------ |
-| `/config/sync`          | Sync settings smoke                       | `config/data-management.spec.ts`                                                  | `config-routes` | ✅     |
-| `/config/redirects`     | Create / search / delete                  | `config/redirects.spec.ts`                                                        | `config-routes` | ✅     |
-| `/config/monitor`       | Stats + service health                    | `config/operations.spec.ts`                                                       | `config-routes` | ✅     |
-| `/config/queue`         | Stats + status filter URL                 | `config/operations.spec.ts`                                                       | `config-routes` | ✅     |
-| `/config/webhooks`      | Modal + logs shell                        | `config/webhooks.spec.ts`                                                         | `config-routes` | ✅     |
-| `/config/extensions`    | Tabs + plugins grid                       | `config/extensions.spec.ts`                                                       | `config-routes` | ✅     |
-| `/config/automations`   | List + new builder link                   | `config/automations.spec.ts`                                                      | `config-routes` | ✅     |
-| `/config/sync`          | Tabs + status shell                       | `config/data-ops.spec.ts`                                                         | `config-routes` | ✅     |
-| `/config/trash`         | Empty or restore table                    | `config/data-ops.spec.ts`                                                         | `config-routes` | ✅     |
-| `/config/extensions`    | Extension list                            | `config/operations.spec.ts`                                                       | `config-routes` | ✅     |
-| `/config/design-system` | Sole Design System / Appearance workspace | `config/design-system.spec.ts`, `appearance.spec.ts`, `appearance-golden.spec.ts` | `appearance`    | ✅     |
-| `/config/workflows`     | —                                         | —                                                                                 | —               | ❌     |
+| Route                   | Feature                                   | Test File                                                                         | CI Project | Status |
+| ----------------------- | ----------------------------------------- | --------------------------------------------------------------------------------- | ---------- | ------ |
+| `/config/sync`          | Sync settings smoke                       | `config/data-management.spec.ts`                                                  | chromium   | ✅     |
+| `/config/redirects`     | Create / search / delete                  | `config/redirects.spec.ts`                                                        | chromium   | ✅     |
+| `/config/monitor`       | Stats + service health                    | `config/operations.spec.ts`                                                       | chromium   | ✅     |
+| `/config/queue`         | Stats + status filter URL                 | `config/operations.spec.ts`                                                       | chromium   | ✅     |
+| `/config/webhooks`      | Modal + logs shell                        | `config/webhooks.spec.ts`                                                         | chromium   | ✅     |
+| `/config/extensions`    | Tabs + plugins grid                       | `config/extensions.spec.ts`                                                       | chromium   | ✅     |
+| `/config/automations`   | List + new builder link                   | `config/automations.spec.ts`                                                      | chromium   | ✅     |
+| `/config/sync`          | Tabs + status shell                       | `config/data-ops.spec.ts`                                                         | chromium   | ✅     |
+| `/config/trash`         | Empty or restore table                    | `config/data-ops.spec.ts`                                                         | chromium   | ✅     |
+| `/config/extensions`    | Extension list                            | `config/operations.spec.ts`                                                       | chromium   | ✅     |
+| `/config/design-system` | Sole Design System / Appearance workspace | `config/design-system.spec.ts`, `appearance.spec.ts`, `appearance-golden.spec.ts` | chromium   | ✅     |
+| `/config/workflows`     | Shell + golden (seed→GET by collectionId) | `config/workflows.spec.ts`                                                        | chromium   | ✅     |
+| `/config/unified-hub`   | Unified Data Hub (always-on + PG fixture) | `config/unified-hub.spec.ts`                                                      | chromium   | ✅     |
+| (dashboard / health)    | Lane-router smoke: admin session + health | `system/hooks-lane-smoke.spec.ts`                                                 | chromium   | ✅     |
 
 ---
 
 ## 6. `/admin/tenants` — Multi-Tenant Management (1 spec)
 
-| Feature                    | Test File               | CI Project | Status |
-| -------------------------- | ----------------------- | ---------- | ------ |
-| Tenant list load           | `admin/tenants.spec.ts` | `admin`    | ✅     |
-| Quota headers/empty        | `admin/tenants.spec.ts` | `admin`    | ✅     |
-| **Create tenant**          | —                       | —          | ❌     |
-| **Edit tenant**            | —                       | —          | ❌     |
-| **Cross-tenant isolation** | —                       | —          | ❌     |
+| Feature                    | Test File                         | CI Project | Status                             |
+| -------------------------- | --------------------------------- | ---------- | ---------------------------------- |
+| Tenant list load           | `admin/tenants.spec.ts`           | chromium   | ✅                                 |
+| Quota headers/empty        | `admin/tenants.spec.ts`           | chromium   | ✅                                 |
+| **Create tenant**          | —                                 | —          | ❌                                 |
+| **Edit tenant**            | —                                 | —          | ❌                                 |
+| **Cross-tenant isolation** | `multi-tenancy/isolation.spec.ts` | chromium   | ⚠️ env-gated (`MULTI_TENANT=true`) |
 
 ---
 
 ## 7. `/dashboard` — Shell 100% (widget catalog install-specific)
 
-| Feature                         | Test File                       | CI Project             | Status                                     |
-| ------------------------------- | ------------------------------- | ---------------------- | ------------------------------------------ |
-| Page shell + toolbar            | `dashboard/dashboard.spec.ts`   | `dashboard` / chromium | ✅                                         |
-| Empty state **or** grid         | same                            |                        | ✅ never fixed widget list                 |
-| Add / search / reset            | same                            |                        | ✅                                         |
-| AI toggle present               | same                            |                        | ✅                                         |
-| Dashboard APIs                  | integration `dashboard.test.ts` |                        | ✅                                         |
-| **Pointer drag-reorder E2E**    | `dashboard/dashboard.spec.ts`   |                        | ✅ ≥2 widgets, header band drag            |
-| **Keyboard Ctrl+Arrow reorder** | same                            |                        | ✅                                         |
-| **Per-widget visual content**   | —                               |                        | ⚪ out of shell scope (varies per install) |
+| Feature                         | Test File                       | CI Project | Status                                     |
+| ------------------------------- | ------------------------------- | ---------- | ------------------------------------------ |
+| Page shell + toolbar            | `dashboard/dashboard.spec.ts`   | chromium   | ✅                                         |
+| Empty state **or** grid         | same                            |            | ✅ never fixed widget list                 |
+| Add / search / reset            | same                            |            | ✅                                         |
+| AI toggle present               | same                            |            | ✅                                         |
+| Dashboard APIs                  | integration `dashboard.test.ts` |            | ✅                                         |
+| **Pointer drag-reorder E2E**    | `dashboard/dashboard.spec.ts`   |            | ✅ ≥2 widgets, header band drag            |
+| **Keyboard Ctrl+Arrow reorder** | same                            |            | ✅                                         |
+| **Per-widget visual content**   | —                               |            | ⚪ out of shell scope (varies per install) |
 
 ---
 
@@ -202,18 +207,18 @@ tags:
 
 | Feature                          | Test File                           | CI Project | Status            |
 | -------------------------------- | ----------------------------------- | ---------- | ----------------- |
-| Page shell + toolbar             | `mediagallery/mediagallery.spec.ts` | `media`    | ✅                |
-| Search + type filter             | `mediagallery/mediagallery.spec.ts` | `media`    | ✅                |
-| Grid/table view toggle           | `mediagallery/mediagallery.spec.ts` | `media`    | ✅                |
-| Local file upload                | `mediagallery/mediagallery.spec.ts` | `media`    | ✅                |
-| **Delete media**                 | `mediagallery/mediagallery.spec.ts` | `media`    | ✅                |
-| **Image editor (crop/focal)**    | `mediagallery/image-editor.spec.ts` | `media`    | ✅                |
-| **Image editor save**            | `mediagallery/image-editor.spec.ts` | `media`    | ✅ manipulate API |
-| **Create / open folder**         | `mediagallery/folders-bulk.spec.ts` | `media`    | ✅                |
-| **Bulk select / download / Del** | `mediagallery/folders-bulk.spec.ts` | `media`    | ✅                |
+| Page shell + toolbar             | `mediagallery/mediagallery.spec.ts` | chromium   | ✅                |
+| Search + type filter             | `mediagallery/mediagallery.spec.ts` | chromium   | ✅                |
+| Grid/table view toggle           | `mediagallery/mediagallery.spec.ts` | chromium   | ✅                |
+| Local file upload                | `mediagallery/mediagallery.spec.ts` | chromium   | ✅                |
+| **Delete media**                 | `mediagallery/mediagallery.spec.ts` | chromium   | ✅                |
+| **Image editor (crop/focal)**    | `mediagallery/image-editor.spec.ts` | chromium   | ✅                |
+| **Image editor save**            | `mediagallery/image-editor.spec.ts` | chromium   | ✅ manipulate API |
+| **Create / open folder**         | `mediagallery/folders-bulk.spec.ts` | chromium   | ✅                |
+| **Bulk select / download / Del** | `mediagallery/folders-bulk.spec.ts` | chromium   | ✅                |
 | **media:read gate**              | unit `mediagallery-page-server`     | —          | ✅                |
-| Selection + breadcrumb move      | `mediagallery/move-remote.spec.ts`  | `media`    | ✅                |
-| Remote URL upload page           | `mediagallery/move-remote.spec.ts`  | `media`    | ✅                |
+| Selection + breadcrumb move      | `mediagallery/move-remote.spec.ts`  | chromium   | ✅                |
+| Remote URL upload page           | `mediagallery/move-remote.spec.ts`  | chromium   | ✅                |
 
 ---
 
@@ -224,6 +229,16 @@ tags:
 | Language switching dropdown | ⚠️ `data-testid` missing |
 | RTL layout (Arabic/Hebrew)  | ⚠️ Axe violation         |
 | Translation coverage        | ❌                       |
+
+---
+
+## 10. Additional covered routes (current suite)
+
+| Route              | Feature                          | Test File                               | CI Project | Status                                           |
+| ------------------ | -------------------------------- | --------------------------------------- | ---------- | ------------------------------------------------ |
+| `/` (site starter) | Seed-backed starter page smoke   | `site/site-starter.spec.ts`             | chromium   | ✅                                               |
+| `/admin-theme`     | Visual regression screenshots    | `admin-theme/visual-regression.spec.ts` | chromium   | ⚠️ env-gated (`RUN_VISUAL` / `UPDATE_SNAPSHOTS`) |
+| `/login`           | Keyboard-focus smoke (root spec) | `accessibility.spec.ts`                 | chromium   | ✅                                               |
 
 ---
 
@@ -242,39 +257,23 @@ tags:
 | `/language`                 | 3        | 1      | 33%                                |
 | **TOTAL**                   | **105**  | **63** | **60%**                            |
 
-> **Critical gaps**: Setup presets, 2FA, SAML, rate limiting, image editor, dashboard drag-reorder.
+> **Critical gaps**: Setup presets, 2FA, SAML, rate limiting.
 >
 > See [Next Steps](#next-steps) for prioritized action items.
 
-## CI Playwright Projects (17 + wizard + auth-setup)
+## CI Playwright Projects (5)
 
-| Project      | Spec(s)                                | Depends on |
-| ------------ | -------------------------------------- | ---------- |
-| `wizard`     | `setup/setup-wizard.spec.ts`           | —          |
-| `auth-setup` | `auth.setup.ts`, `login/login.spec.ts` | —          |
-| `signup`     | `user/account-smoke.spec.ts`           | auth-setup |
-| `content`    | _(merged into builder golden)_         | auth-setup |
-| `system`     | `system/settings.spec.ts`              | auth-setup |
-| `a11y`       | `login/accessibility.spec.ts`          | auth-setup |
-| `branding`   | `login/branding.spec.ts`               | auth-setup |
+Source of truth: [`playwright.config.ts`](../../playwright.config.ts) — 5 projects; `chromium` carries all route specs.
 
-| Project             | Spec(s)                                                    | Depends on |
-| ------------------- | ---------------------------------------------------------- | ---------- |
-| `visual-regression` | `admin-theme/visual-regression.spec.ts`                    | auth-setup |
-| `rbac`              | `system/rbac.spec.ts`                                      | auth-setup |
-| `language`          | `system/language.spec.ts`                                  | auth-setup |
-| `users`             | `user/profile.spec.ts`, `user/management.spec.ts`          | auth-setup |
-| `builder`           | `collection-builder/builder.spec.ts` only (shell + golden) | auth-setup |
-| `permissions`       | `system/permissions.spec.ts`                               | auth-setup |
+| Project      | Runs (testMatch)                                                                 | Depends on   |
+| ------------ | -------------------------------------------------------------------------------- | ------------ |
+| `wizard`     | `routes/setup/setup-wizard.spec.ts` (serial, 1 worker)                           | —            |
+| `firstuser`  | `routes/login/signup.spec.ts` (serial, 1 worker)                                 | —            |
+| `oauth`      | `routes/login/oauth.spec.ts` (CI only when `OAUTH_ENABLED=true`)                 | —            |
+| `auth-setup` | `auth.setup.ts` + `routes/login/login.spec.ts` (serial, 1 worker)                | `firstuser`  |
+| `chromium`   | all remaining route specs — fully parallel, CI-sharded via named `--grep` groups | `auth-setup` |
 
-| Project         | Spec(s)                                                                                | Depends on |
-| --------------- | -------------------------------------------------------------------------------------- | ---------- |
-| `firstuser`     | `login/signup.spec.ts`, `login/oauth.spec.ts`                                          | —          |
-| `config-routes` | `config/access-management`, `webhooks`, `automations`, `data-management`, `operations` | auth-setup |
-| `admin`         | `admin/tenants.spec.ts`                                                                | auth-setup |
-| `dashboard`     | `dashboard/dashboard.spec.ts`                                                          | auth-setup |
-| `appearance`    | `config/appearance.spec.ts`, `config/design-system.spec.ts`                            | auth-setup |
-| `media`         | `mediagallery/mediagallery.spec.ts`                                                    | auth-setup |
+CI (`e2e-prep`) runs `wizard` → `auth-setup` (which pulls in `firstuser`) sequentially; the `e2e` job then shards `chromium` into 6 named groups via `.github/workflows/e2e-matrix.ts`: Config & System · Builder & Content · Users & RBAC · Media & Dashboard · Auth & Branding · Admin & Catch-All.
 
 ## Next Steps
 

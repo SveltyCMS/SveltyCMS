@@ -32,7 +32,8 @@ async function goAccess(page: Page) {
   await expect(page.getByTestId("access-mgmt-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
 }
 
-test.describe.configure({ mode: "serial" });
+// Tests are independent (read-only shells + role journey with unique names) — no
+// serial mode needed, so the file parallelizes across workers on local runs.
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe("Access Management shell", () => {
@@ -73,7 +74,9 @@ test.describe("Access Management shell", () => {
     await expect(page.getByTestId("access-role-search")).toBeVisible();
   });
 
-  test("create role enables save then reset discards", async ({ page }) => {
+  test("create role persists after save + reload, then deletes (golden journey)", async ({
+    page,
+  }) => {
     await goAccess(page);
     await page.getByTestId("access-tab-roles").click();
 
@@ -84,7 +87,7 @@ test.describe("Access Management shell", () => {
     const dialog = getAppDialog(page, /create|role/i);
     await expect(modal.or(dialog).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    const roleName = `E2ERole_${Date.now().toString(36).slice(-5)}`;
+    const roleName = `E2E Role ${Date.now().toString(36)}`;
     const nameInput = page
       .getByTestId("role-name-input")
       .or(page.getByLabel(/^role name$/i))
@@ -122,13 +125,56 @@ test.describe("Access Management shell", () => {
       expect(roleVisible || toastVisible || saveEnabled).toBe(true);
     }).toPass({ timeout: ACTION_TIMEOUT });
 
+    // Persist: save and wait until the save completes (button re-disables).
     const saveBtn = page.getByTestId("access-mgmt-save").first();
     await expect(saveBtn).toBeEnabled({ timeout: ACTION_TIMEOUT });
-
-    // Sticky page-actions duplicates reset — always .first()
-    await page.getByTestId("access-mgmt-reset").first().click();
-    // Reset confirmation or immediate disable — either is success
+    await saveBtn.click();
     await expect(saveBtn).toBeDisabled({ timeout: ACTION_TIMEOUT });
+
+    const roleEscaped = roleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const roleRow = () =>
+      page.getByRole("listitem", { name: new RegExp(`role: ${roleEscaped}`, "i") });
+
+    try {
+      // Reload → the role must have been persisted server-side and be listed.
+      await page.reload({ waitUntil: "domcontentloaded" });
+      if (page.url().includes("/login")) {
+        await loginAsAdmin(page, "/config/access-management");
+      }
+      await expect(page).toHaveURL(/\/config\/access-management/, { timeout: ACTION_TIMEOUT });
+      await dismissCookieBannerIfPresent(page);
+      await page.getByTestId("access-tab-roles").click();
+      await expect(roleRow()).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+      // Cleanup (golden journey complete): select the role, delete, save.
+      await roleRow().locator('input[type="checkbox"]').click({ force: true });
+      await page.getByTestId("access-delete-roles").click();
+      const saveBtnAfterDelete = page.getByTestId("access-mgmt-save").first();
+      await expect(saveBtnAfterDelete).toBeEnabled({ timeout: ACTION_TIMEOUT });
+      await saveBtnAfterDelete.click();
+      await expect(saveBtnAfterDelete).toBeDisabled({ timeout: ACTION_TIMEOUT });
+    } finally {
+      // If the journey failed before the UI delete, remove the role via the
+      // same persistence path (select → delete → save). Re-auth first when the
+      // failure left us on /login so the cleanup can still reach the roles tab.
+      if (page.url().includes("/login")) {
+        await loginAsAdmin(page, "/config/access-management").catch(() => undefined);
+        await page
+          .getByTestId("access-tab-roles")
+          .click()
+          .catch(() => undefined);
+      }
+      const leftover = roleRow();
+      if (await leftover.isVisible({ timeout: 1_500 }).catch(() => false)) {
+        await dismissCookieBannerIfPresent(page).catch(() => undefined);
+        await leftover.locator('input[type="checkbox"]').click({ force: true });
+        await page.getByTestId("access-delete-roles").click();
+        const saveBtnCleanup = page.getByTestId("access-mgmt-save").first();
+        await expect(saveBtnCleanup).toBeEnabled({ timeout: ACTION_TIMEOUT });
+        await saveBtnCleanup.click();
+        await expect(saveBtnCleanup).toBeDisabled({ timeout: ACTION_TIMEOUT });
+      }
+    }
   });
 
   test("admin and website tokens tabs open", async ({ page }) => {

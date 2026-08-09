@@ -258,29 +258,22 @@ test.describe("Role-Based Access Control", () => {
     for (const [roleName, user] of roleEntries) {
       console.log(`[RBAC] Testing login/logout for role: ${roleName}`);
 
-      try {
-        await login(page, user);
-        await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
-        await logout(page);
+      // Hard per-role assertion — a failing role fails the test with its name.
+      await login(page, user);
+      await expect(
+        page,
+        `[RBAC] ${roleName} (${user.email}) must complete login and leave /login`,
+      ).not.toHaveURL(/\/login/, { timeout: 15_000 });
+      await logout(page);
 
-        // Verify we landed on login page after logout
-        const onLogin = await page
-          .waitForURL(/\/login/, { timeout: 10_000 })
-          .then(() => true)
-          .catch(() => false);
-
-        if (!onLogin) {
-          // Force navigation to login page
-          await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 10_000 });
-        }
-        await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
-      } catch (error) {
-        // If login fails for a role, log and continue (DB may not have that user seeded)
-        console.error(`[RBAC] Login/logout failed for ${roleName}:`, error);
-        // Ensure we're on login page for the next iteration
-        await page.context().clearCookies();
-        await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 10_000 });
-      }
+      // Verify we landed on login page after logout
+      const onLogin = await page
+        .waitForURL(/\/login/, { timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false);
+      expect(onLogin, `[RBAC] ${roleName} (${user.email}) must return to /login after logout`).toBe(
+        true,
+      );
     }
   });
 });

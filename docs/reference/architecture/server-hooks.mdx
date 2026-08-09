@@ -406,18 +406,19 @@ To put these numbers in perspective, SveltyCMS outperforms almost every major fr
 
 **Per-Hook Latency Breakdown** (measured via `getHookTimings()` on `/api/system/health`):
 
-| Hook                   | Est. cold cost | Turbo HOT cost | Note                                            |
-| ---------------------- | -------------- | -------------- | ----------------------------------------------- |
-| `hyper-turbo`          | ~0.01ms        | —              | Env-gated, skipped in prod                      |
-| `turbo-pipeline`       | ~0.80ms        | ~0.80ms        | Classification + state + health + CORS          |
-| `security-headers`     | ~0.02ms        | —              | Header setting; turbo response includes its own |
-| `test-isolation`       | ~0.01ms        | —              | Test-only                                       |
-| `static-asset-caching` | ~0.01ms        | —              | Regex check                                     |
-| `security`             | ~0.05ms        | ~0.05ms        | Rate limit + firewall (runs before turbo)       |
+| Hook                   | Est. cold cost | Turbo HOT cost | Note                                                                            |
+| ---------------------- | -------------- | -------------- | ------------------------------------------------------------------------------- |
+| `hyper-turbo`          | ~0.01ms        | —              | Env-gated, skipped in prod                                                      |
+| `turbo-pipeline`       | ~0.80ms        | ~0.80ms        | Classification + state + health + CORS                                          |
+| `security-headers`     | ~0.02ms        | —              | Header setting; turbo response includes its own                                 |
+| `test-isolation`       | ~0.01ms        | —              | Test-only                                                                       |
+| `static-asset-caching` | ~0.01ms        | —              | Regex check                                                                     |
+| `security`             | ~0.05ms        | ~0.05ms        | Rate limit + firewall (runs before turbo)                                       |
+| `aeo-headers`          | ~0ms (API)     | —              | HTML-only: early-returns non-HTML responses (previously ~43µs per API response) |
 
 | `system-state` | ~0.02ms | ~0.02ms | `isSystemReady()` — module-level cached |
 | `redirects` | ~0.02ms | ~0.02ms | Materialized view check |
-| `compression` | ~0.05ms | ~0.05ms | Streaming setup |
+| `compression` | ~0.05ms | ~0.05ms | Streaming setup; >1KB API variants pre-computed (br/gzip/zstd) and stashed into the L1 turbo entry — TURBO-HIT serves the stored variant instead of re-compressing (~17-27µs/KB saved on >4KB payloads) |
 | **`turbo-get`** | **0.02ms** (miss) | **0.02ms** (hit) | 5 gate checks; returns pre-encoded on HIT, passthrough on MISS |
 
 | `user-preferences` | ~0.01ms | **skipped** | Cookie check for i18n/theme |

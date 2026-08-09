@@ -100,16 +100,31 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return true;
   }
 
+  /**
+   * Tx-scoped postgres.js instance when inside a transaction started by the
+   * PG TransactionModule (which stashes the begin()-scoped instance on
+   * `transaction.sql`). Falls back to reading it off the drizzle tx session.
+   * Returns null when the transaction carries no raw handle (callers then
+   * defer to the Drizzle path, preserving rollback semantics).
+   */
+  protected getTxnSql(options: BaseQueryOptions): any {
+    const tx = options?.transaction as any;
+    return tx?.sql ?? tx?.db?.session?.client ?? null;
+  }
+
   protected async rawInsertReturning<T extends import("../db-interface").BaseEntity>(
     table: any,
     collection: string,
     values: Record<string, any>,
     options: BaseQueryOptions,
   ): Promise<T | null> {
-    // Inside an outer transaction the pool-level unsafe() would commit the
+    // Inside an outer transaction WITHOUT a raw handle (e.g. a Drizzle tx
+    // created by another caller) the pool-level unsafe() would commit the
     // insert immediately (bypassing rollback) — defer to the base Drizzle
     // path which routes through options.transaction.db.
-    if (options?.transaction) return null;
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql!;
     try {
       const tableName = getTableName(table);
       const valuesCols = Object.keys(values);
@@ -153,7 +168,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const sqlText = `INSERT INTO "${tableName}" (${colList}) VALUES (${synthCols
         .map((_, i) => `$${i + 1}`)
         .join(", ")})`;
-      await this.sql!.unsafe(sqlText, boundValues, { prepare: true });
+      await exec.unsafe(sqlText, boundValues, { prepare: true });
       return utils.convertDatesToISO(synthesized, {
         ...this.convertDatesOptions,
         table: collection,
@@ -179,7 +194,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     if (!data || data.length === 0) return { success: true, data: [] };
     const skipReturning = (options as any)?.skipReturning === true;
     const inOuterTxn = Boolean(options?.transaction);
-    if (!inOuterTxn) {
+    const txnSql = this.getTxnSql(options);
+    if (!inOuterTxn || txnSql) {
+      const exec = txnSql ?? this.sql!;
       try {
         const table = this.getTable(collection);
         if (!table) throw new Error(`Table not found: ${collection}`);
@@ -230,7 +247,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               valuesSql.push(`(${rowPlaceholders.join(", ")})`);
             }
             const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
-            const rows = await this.sql!.unsafe(sqlText, params, { prepare: true });
+            const rows = await exec.unsafe(sqlText, params, { prepare: true });
             if (Array.isArray(rows) && rows.length > 0) rowsOut.push(...rows);
           }
           if (skipReturning) {
@@ -253,6 +270,41 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return super.insertMany(collection, data, options);
   }
 
+  /**
+   * Prepared dynamic-SQL execution for findMany. `db.execute()` re-parses the
+   * statement on every call (no prepared-statement reuse — measured as the PG
+   * FIND MANY regression: ~1.9ms vs 0.95ms at the 08-04 ledger). Rendering the
+   * Drizzle SQL once via toQuery() and running it through postgres.js
+   * unsafe(..., { prepare: true }) hits the statement cache — parse-once +
+   * bind/execute reuse, same as the raw insert/update paths. Falls back to the
+   * base path when the query can't be rendered or inside a transaction without
+   * a raw handle (pool execution would bypass the txn connection).
+   */
+  protected override async executeDynamicSql(
+    _db: any,
+    sqlQuery: SQL,
+    options?: BaseQueryOptions,
+  ): Promise<any[]> {
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) {
+      return super.executeDynamicSql(_db, sqlQuery, options);
+    }
+    const exec = txnSql ?? this.sql!;
+    try {
+      const rendered = (sqlQuery as any).toQuery?.({
+        escapeName: (n: string) => `"${n.replace(/"/g, '""')}"`,
+        escapeParam: (_p: unknown, i: number) => `$${i + 1}`,
+      });
+      if (rendered?.sql && Array.isArray(rendered.params)) {
+        const rows = await exec.unsafe(rendered.sql, rendered.params, { prepare: true });
+        return Array.isArray(rows) ? rows : [];
+      }
+    } catch {
+      /* fall through to the base path */
+    }
+    return super.executeDynamicSql(_db, sqlQuery, options);
+  }
+
   protected async rawFindById<T extends import("../db-interface").BaseEntity>(
     table: any,
     collection: string,
@@ -260,6 +312,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     options: import("../db-interface").FindOptions<T>,
   ): Promise<T | null> {
     try {
+      // Read-path schema registration: raw reads must normalize SQLite INTEGER
+      // ms timestamps to ISODateString (see isEpochMs in relational-utils).
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
       const tableName = getTableName(table);
       const tenantId =
         options?.tenantId && options?.tenantId !== "global" ? options.tenantId : null;
@@ -289,14 +347,17 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // Tagged template (NOT unsafe): postgres.js caches prepared statements by
       // SQL text, so this stable query gets parse-once + bind/execute reuse.
       // Identifiers are inlined via sql.unsafe fragments (stable SQL text);
-      // only _id/tenantId are bound values.
-      const selectFragment = this.sql!.unsafe(selectCols);
-      const tableFragment = this.sql!.unsafe(tableName);
+      // only _id/tenantId are bound values. Inside a transaction the
+      // begin()-scoped instance is used so the read stays on the txn
+      // connection (consistent snapshot, no pool bypass).
+      const exec = this.getTxnSql(options) ?? this.sql!;
+      const selectFragment = exec.unsafe(selectCols);
+      const tableFragment = exec.unsafe(tableName);
       const rows = tenantId
-        ? await this.sql!`SELECT ${selectFragment} FROM ${tableFragment} WHERE "_id" = ${String(
+        ? await exec`SELECT ${selectFragment} FROM ${tableFragment} WHERE "_id" = ${String(
             id,
           )} AND "tenantId" = ${String(tenantId)} LIMIT 1`
-        : await this.sql!`SELECT ${selectFragment} FROM ${tableFragment} WHERE "_id" = ${String(
+        : await exec`SELECT ${selectFragment} FROM ${tableFragment} WHERE "_id" = ${String(
             id,
           )} LIMIT 1`;
       if (Array.isArray(rows) && rows.length > 0) {
@@ -332,11 +393,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     data: import("../db-interface").EntityUpdate<T>,
     options: import("../db-interface").BaseQueryOptions = {},
   ): Promise<import("../db-interface").DatabaseResult<T>> {
-    // Inside an outer transaction the pool-level sql! fragments would bypass
-    // the txn connection — defer to the base Drizzle path (txn-aware).
-    if (options?.transaction) {
+    // Inside an outer transaction WITHOUT a raw handle (a Drizzle tx from
+    // another caller) the pool-level sql! fragments would bypass the txn
+    // connection — defer to the base Drizzle path (txn-aware). With the
+    // TransactionModule's raw handle, run the raw UPDATE on the txn instance.
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) {
       return super.update(collection, id, data, options);
     }
+    const exec = txnSql ?? this.sql!;
     try {
       const d =
         this.hooks.length > 0
@@ -366,25 +431,25 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         // Drizzle def property names may differ from physical column names
         // (e.g. plugin_storage: collectionName → `collection`).
         const phys = this.getColumn(table, c);
-        return this.sql!`"${this.sql!.unsafe(
+        return exec`"${exec.unsafe(
           utils.assertSafeSqlIdentifier(phys?.name ?? c, "column"),
         )}" = ${bound}`;
       });
       let setFrag = setFrags[0];
       for (let i = 1; i < setFrags.length; i++) {
-        setFrag = this.sql!`${setFrag}, ${setFrags[i]}`;
+        setFrag = exec`${setFrag}, ${setFrags[i]}`;
       }
 
       const skipReturning = (options as any)?.skipReturning === true;
       const tenantId =
         options?.tenantId && options?.tenantId !== "global" ? String(options.tenantId) : null;
-      const tableFrag = this.sql!.unsafe(getTableName(table));
+      const tableFrag = exec.unsafe(getTableName(table));
       if (skipReturning) {
         await (tenantId
-          ? this.sql!`UPDATE ${tableFrag} SET ${setFrag} WHERE "${this.sql!.unsafe(
+          ? exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
               idColName,
             )}" = ${String(id)} AND "tenantId" = ${tenantId}`
-          : this.sql!`UPDATE ${tableFrag} SET ${setFrag} WHERE "${this.sql!.unsafe(
+          : exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
               idColName,
             )}" = ${String(id)}`);
         const reconstructed = {
@@ -407,10 +472,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       }
 
       const rows = await (tenantId
-        ? this.sql!`UPDATE ${tableFrag} SET ${setFrag} WHERE "${this.sql!.unsafe(
+        ? exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
             idColName,
           )}" = ${String(id)} AND "tenantId" = ${tenantId} RETURNING *`
-        : this.sql!`UPDATE ${tableFrag} SET ${setFrag} WHERE "${this.sql!.unsafe(
+        : exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
             idColName,
           )}" = ${String(id)} RETURNING *`);
       if (Array.isArray(rows) && rows.length > 0) {

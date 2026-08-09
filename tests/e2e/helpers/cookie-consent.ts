@@ -57,29 +57,72 @@ export async function seedCookieConsentOnContext(context: BrowserContext): Promi
 
 /**
  * Dismiss the banner if it still appears (e.g. storage was cleared mid-test).
- * Uses force:true so z-index / intercepting ancestors cannot block the click.
+ *
+ * Canonical dual-variant dismisser for the whole E2E suite:
+ * 1. role-based GDPR dialog (Accept all / Reject all buttons)
+ * 2. testid fallback (`cookie-accept-all` / `cookie-accept`)
+ * plus a last-resort click on the first button of any cookie/privacy dialog.
+ *
+ * Uses force:true so z-index / intercepting ancestors cannot block the click,
+ * and bounded waits so an absent banner costs at most a few seconds. Storage
+ * is stamped first so the banner does not reappear after navigation.
  */
 export async function dismissCookieConsent(page: Page): Promise<void> {
   try {
+    // Stamp storage so the banner does not reappear after invalidateAll / navigation
+    await page
+      .evaluate((value) => {
+        try {
+          window.localStorage.setItem("sveltycms_consent", value);
+          window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
+          window.localStorage.setItem("sveltycms-welcome-seen", "true");
+        } catch {
+          /* storage restricted */
+        }
+      }, CONSENT_VALUE)
+      .catch(() => {});
+
+    // Variant 1: role-based dialog accept
     const acceptBtn = page.getByRole("button", { name: /accept all/i });
     if (await acceptBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
       await acceptBtn.click({ force: true });
-      await page.waitForTimeout(200);
+      await acceptBtn.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
       return;
     }
     const rejectBtn = page.getByRole("button", { name: /reject all/i });
     if (await rejectBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await rejectBtn.click({ force: true });
-      await page.waitForTimeout(200);
+      await rejectBtn.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
       return;
     }
+    // Variant 2: testid fallback (cookie consent component)
+    const testIdAccept = page
+      .getByTestId("cookie-accept-all")
+      .or(page.getByTestId("cookie-accept"));
+    if (
+      await testIdAccept
+        .first()
+        .isVisible({ timeout: 1500 })
+        .catch(() => false)
+    ) {
+      await testIdAccept
+        .first()
+        .click({ force: true })
+        .catch(() => {});
+      await testIdAccept
+        .first()
+        .waitFor({ state: "hidden", timeout: 2_000 })
+        .catch(() => {});
+      return;
+    }
+    // Last resort: any button inside a cookie/privacy dialog
     const dialogBtn = page
       .getByRole("dialog", { name: /privacy|cookie|consent/i })
       .getByRole("button")
       .first();
     if (await dialogBtn.isVisible({ timeout: 500 }).catch(() => false)) {
       await dialogBtn.click({ force: true });
-      await page.waitForTimeout(200);
+      await dialogBtn.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
     }
   } catch {
     /* banner not present */

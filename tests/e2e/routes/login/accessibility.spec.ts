@@ -65,8 +65,11 @@ test.describe("Universal Accessibility Audits", () => {
       document.documentElement.lang = "ar";
     });
 
-    // 3. Let Svelte 5 process the DOM updates
-    await page.waitForTimeout(500);
+    // 3. Wait until RTL directionality is actually applied before auditing
+    // (bounded — resolves as soon as dir="rtl" takes effect, no fixed sleep)
+    await page.waitForFunction(() => document.documentElement.dir === "rtl", undefined, {
+      timeout: 3_000,
+    });
 
     // 4. Run accessibility audit against the RTL layout
     // @ts-expect-error — @axe-core/playwright bundles its own playwright-core types
@@ -80,12 +83,9 @@ test.describe("Universal Accessibility Audits", () => {
     const criticalViolations = results.violations.filter(
       (v) => v.impact === "critical" || v.impact === "serious",
     );
-    // RTL violations are logged but not blocking — full RTL CSS audit is a feature-level task
-    if (criticalViolations.length > 0) {
-      console.warn(
-        `RTL audit: ${criticalViolations.length} critical/serious violation(s) found (non-blocking)`,
-      );
-    }
+    // Log-only coverage let real RTL regressions pass silently — critical/serious
+    // violations are now blocking (matches the Login Page Axe audit above).
+    expect(criticalViolations).toEqual([]);
     console.log("✓ RTL layout passes automated accessibility audit.");
   });
 

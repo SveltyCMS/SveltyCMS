@@ -1,6 +1,9 @@
 /**
  * @file tests/e2e/routes/site/site-starter.spec.ts
  * @description E2E smoke tests for the SvelteKit site starter and Live Preview bridge.
+ *
+ * Seed-first policy: the website starter blueprint is created via the testing API
+ * in beforeAll and its success is asserted — no soft-skips on seed availability.
  */
 
 import { expect, test } from "@playwright/test";
@@ -8,22 +11,26 @@ import { loginAsAdmin } from "../../helpers/auth";
 import { TEST_API_HEADERS } from "../../helpers/api";
 
 test.describe("Site Starter", () => {
+  let siteName = "";
+
   test.beforeAll(async ({ request }) => {
+    siteName = `E2E Site ${Date.now().toString(36)}`;
     const res = await request.post("/api/testing", {
       headers: TEST_API_HEADERS,
-      data: { action: "seed-website-starter", siteName: "E2E Site Starter" },
+      data: { action: "seed-website-starter", siteName },
     });
-    if (!res.ok()) {
-      const errBody = await res.text().catch(() => "");
-      test.skip(
-        true,
-        `seed-website-starter unavailable (${res.status()}): ${errBody.slice(0, 200)}`,
-      );
-    }
-    const body = await res.json();
-    if (!body.success) {
-      test.skip(true, `seed-website-starter failed: ${JSON.stringify(body).slice(0, 200)}`);
-    }
+    expect(res.ok(), `seed-website-starter must succeed (HTTP ${res.status()})`).toBeTruthy();
+    const body = await res.json().catch(() => ({}));
+    expect(
+      body.success,
+      `seed-website-starter unsuccessful: ${JSON.stringify(body).slice(0, 300)}`,
+    ).toBe(true);
+    // The Live Preview tab depends on the editable-website plugin — the seed
+    // enables it; fail hard if it did not (no deterministic tab otherwise).
+    expect(
+      body.pluginEnabled,
+      `seed-website-starter must enable the editable-website plugin: ${JSON.stringify(body).slice(0, 300)}`,
+    ).toBe(true);
   });
 
   test("guest sees seeded homepage at /", async ({ browser }) => {
@@ -31,35 +38,22 @@ test.describe("Site Starter", () => {
     // the admin dashboard and the seeded public homepage is never exercised.
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
-
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    // Accept either:
-    //  a) Seeded public site with welcome h1
-    //  b) CMS admin dashboard (no public site configured)
-    //  c) Login redirect (setup not done)
-    const isAdminDashboard = await page
-      .locator("nav, .admin-theme-container, [data-testid='page-title']")
-      .first()
-      .isVisible({ timeout: 10_000 })
-      .catch(() => false);
-    const isLogin = page.url().includes("/login") || page.url().includes("/setup");
-
-    if (isAdminDashboard || isLogin) {
-      // Acceptable: public site not deployed in this E2E environment
+    try {
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+      // The seeded homepage renders the hero heading from the website starter.
+      await expect(
+        page
+          .getByRole("heading")
+          .filter({ hasText: new RegExp(`welcome to ${siteName}`, "i") })
+          .first(),
+        "guest must see the seeded homepage hero heading at /",
+      ).toBeVisible({ timeout: 15_000 });
+      await expect(page.locator("body")).toContainText(new RegExp(`welcome to ${siteName}`, "i"), {
+        timeout: 5_000,
+      });
+    } finally {
       await context.close();
-      return;
     }
-
-    const welcome = page
-      .getByRole("heading", { level: 1 })
-      .filter({ hasText: /welcome|e2e site starter|home|sveltycms|sveltekit/i })
-      .or(page.getByText(/welcome to|e2e site starter|sveltycms with sveltekit/i).first());
-    await expect(welcome.first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator("body")).toContainText(/welcome|starter|home|sveltycms|sveltekit/i, {
-      timeout: 5_000,
-    });
-
-    await context.close();
   });
 
   test("admin can open pages collection and Live Preview tab", async ({ page }) => {
@@ -69,23 +63,24 @@ test.describe("Site Starter", () => {
     if (page.url().includes("/login")) {
       await loginAsAdmin(page, "/en/collection/pages");
     }
-    // Seed may not materialize pages collection in every CI matrix — skip if missing
-    if (!/\/en\/collection\/pages/i.test(page.url())) {
-      test.skip(true, `pages collection not available (landed on ${page.url()})`);
-    }
+    await expect(page).toHaveURL(/\/en\/collection\/pages/i, { timeout: 15_000 });
 
-    const firstRow = page.getByRole("row").filter({ hasText: /home/i }).first();
-    if (!(await firstRow.isVisible({ timeout: 15_000 }).catch(() => false))) {
-      test.skip(true, "seeded Home entry not present in pages collection");
-    }
-    await firstRow.click();
+    // Seeded website starter pages: the Home entry is always present.
+    const homeRow = page.getByRole("row").filter({ hasText: /home/i }).first();
+    await expect(homeRow, "seeded Home entry must be listed in the pages collection").toBeVisible({
+      timeout: 15_000,
+    });
+    await homeRow.click();
 
+    // The pages collection declares livePreview and the editable-website plugin
+    // is enabled by the seed — the Live Preview tab must be present.
     const livePreviewTab = page.getByRole("tab", { name: /live preview/i });
-    if (!(await livePreviewTab.isVisible({ timeout: 15_000 }).catch(() => false))) {
-      test.skip(true, "Live Preview tab not present in this build");
-    }
+    await expect(livePreviewTab, "Live Preview tab must exist on pages entries").toBeVisible({
+      timeout: 15_000,
+    });
     await livePreviewTab.click();
 
+    // One of the three license states always renders (loading → ready or upgrade).
     await expect(
       page
         .getByText(
