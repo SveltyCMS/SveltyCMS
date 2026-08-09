@@ -234,10 +234,11 @@ function flattenDataColumn(
       return;
     }
     // Row-store hybrid: columns are authoritative — data fills only gaps.
+    const src = value as Record<string, unknown>;
     for (const k in value) {
       if (!Object.hasOwn(value, k)) continue;
       if (skipMerge.has(k)) continue;
-      result[k] = value[k];
+      result[k] = src[k];
     }
   }
 }
