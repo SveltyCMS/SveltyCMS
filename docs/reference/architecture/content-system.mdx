@@ -130,7 +130,7 @@ Safe sandboxed parsing of compiled collection modules with widget proxy support.
 - Per-task 10s timeout guard
 - Idle worker cleanup after 30s (keeps 1 alive)
 - `getModuleWorkerPool()` singleton + `shutdownWorkerPool()`
-- **Production default**: `loadSchema()` routes to `loadSchemaPooled()` when `NODE_ENV=production` (native import in dev/test/benchmarks via `contentRuntime.useWorkerPool()`)
+- **Production default**: `loadSchema()` routes to `loadSchemaPooled()` when `NODE_ENV=production` **and** the worker chunk exists next to the module (the build script copies `module-worker.server.ts` into the output). Dev/test use native in-process loading; when the chunk is missing (vite build SSR evaluation, harness runs) the pool is skipped and loading falls back to native automatically.
 - **Path hardening**: `isSafeCollectionPath()` enforced in main process and worker threads
 
 **Mtime cache busting**: Dynamic imports use `?v={mtimeMs}` instead of `Date.now()`, enabling ESM module cache hits on warm scans.

@@ -77,6 +77,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
     return true;
   }
 
+  /** mysql2's execute/query return [rows, fields] — rows are the first element. */
+  protected async executeDynamicSql(db: any, sqlQuery: SQL): Promise<any[]> {
+    const execResult = await db.execute(sqlQuery);
+    if (Array.isArray(execResult) && execResult.length >= 1 && Array.isArray(execResult[0])) {
+      return execResult[0];
+    }
+    return execResult;
+  }
+
   /**
    * Raw prepared-SQL findById: mysql2's pool.execute uses server-side prepared
    * statements; a stable parameterized SELECT skips Drizzle's per-call AST
@@ -598,16 +607,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
       const cols = Object.keys(values);
       if (cols.length === 0) return super.upsert(collection, query, data, options);
-      const colList = cols
-        .map((c) => utils.assertSafeSqlIdentifier(c, "column"))
-        .map((c) => `\`${c}\``);
+      // Drizzle def property names may differ from physical column names
+      // (e.g. plugin_storage: collectionName → `collection`).
+      const physicalName = (c: string) =>
+        utils.assertSafeSqlIdentifier(this.getColumn(table, c)?.name ?? c, "column");
+      const colList = cols.map((c) => `\`${physicalName(c)}\``);
       const placeholders = cols.map(() => "?").join(", ");
       const updatePairs = cols
         .filter((c) => c !== idColName)
-        .map(
-          (c) =>
-            `\`${utils.assertSafeSqlIdentifier(c, "column")}\` = VALUES(\`${utils.assertSafeSqlIdentifier(c, "column")}\`)`,
-        );
+        .map((c) => `\`${physicalName(c)}\` = VALUES(\`${physicalName(c)}\`)`);
       const params = cols.map((c) => {
         const v = values[c];
         return v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
@@ -678,7 +686,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const cols = Object.keys(values);
       if (cols.length === 0) return null;
       const colList = cols
-        .map((c) => utils.assertSafeSqlIdentifier(c, "column"))
+        .map((c) => {
+          // Drizzle def property names may differ from physical column names
+          // (e.g. plugin_storage: collectionName → `collection`).
+          const phys = this.getColumn(table, c);
+          return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
+        })
         .map((c) => `\`${c}\``);
       const placeholders = cols.map(() => "?").join(", ");
       const params = cols.map((c) => {
@@ -724,6 +737,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
         },
       };
     }
+    // Inside an outer transaction the raw pool path would bypass the txn
+    // connection and commit immediately — defer to the base Drizzle path
+    // (getDrizzleInstance routes through options.transaction.db).
+    if (options?.transaction) {
+      return super.insert(collection, data, options);
+    }
     return this.wrap(
       async () => {
         const d =
@@ -753,7 +772,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
             }) as T;
           }
           const colList = cols
-            .map((c) => utils.assertSafeSqlIdentifier(c, "column"))
+            .map((c) => {
+              // Drizzle def property names may differ from physical column
+              // names (e.g. plugin_storage: collectionName → `collection`).
+              const phys = this.getColumn(table, c);
+              return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
+            })
             .map((c) => `\`${c}\``)
             .join(", ");
           const placeholders: string[] = [];
@@ -851,7 +875,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
           const maxParams = 65000;
           const chunkSize = Math.max(1, Math.floor(maxParams / cols.size));
           const colList = Array.from(cols)
-            .map((c) => utils.assertSafeSqlIdentifier(c, "column"))
+            .map((c) => {
+              // Drizzle def property names may differ from physical column
+              // names (e.g. plugin_storage: collectionName → `collection`).
+              const phys = this.getColumn(table, c);
+              return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
+            })
             .map((c) => `\`${c}\``)
             .join(", ");
           for (let start = 0; start < len; start += chunkSize) {
@@ -918,6 +947,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
     if (this._returningSupported === false) {
       return super.update(collection, id, data, options);
     }
+    // Inside an outer transaction the raw pool path would bypass the txn
+    // connection — defer to the base Drizzle path (txn-aware).
+    if (options?.transaction) {
+      return super.update(collection, id, data, options);
+    }
     try {
       const d =
         this.hooks.length > 0
@@ -940,7 +974,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const params: any[] = [];
       const columns = Object.keys(values);
       for (const col of columns) {
-        const safeCol = utils.assertSafeSqlIdentifier(col, "column");
+        // Drizzle def property names may differ from physical column names
+        // (e.g. plugin_storage: collectionName → `collection`).
+        const phys = this.getColumn(table, col);
+        const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
         setPairs.push(`\`${safeCol}\` = ?`);
         const val = values[col];
         params.push(
@@ -1258,10 +1295,14 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
         logger.info(`[MARIADB Adapter] Provisioned table: ${physicalName}`);
         // The pre-DDL table def (base columns only) is stale — rebuild with the
-        // materialized columns on next getTable.
+        // materialized columns on next getTable. Invalidate EVERY key variant
+        // (logical id, dash-stripped, and the physical collection_ prefix): a
+        // missed variant leaves a stale def cached that silently drops
+        // materialized columns from later reads.
         this.tableRegistry.delete(tableName);
         this.tableRegistry.delete(normalizedName);
         this.tableRegistry.delete(`collection_${normalizedName}`);
+        this.tableRegistry.delete(`collection_${tableName}`);
       },
       "CREATE_MODEL_FAILED",
       undefined,

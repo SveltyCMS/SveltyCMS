@@ -104,8 +104,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     table: any,
     collection: string,
     values: Record<string, any>,
-    _options: BaseQueryOptions,
+    options: BaseQueryOptions,
   ): Promise<T | null> {
+    // Inside an outer transaction the pool-level unsafe() would commit the
+    // insert immediately (bypassing rollback) — defer to the base Drizzle
+    // path which routes through options.transaction.db.
+    if (options?.transaction) return null;
     try {
       const tableName = getTableName(table);
       const valuesCols = Object.keys(values);
@@ -133,7 +137,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // SQL text + full bind list on the prepared statement.
       const synthCols = Object.keys(synthesized);
       const colList = synthCols
-        .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+        .map((c) => {
+          // Drizzle def property names may differ from physical column names
+          // (e.g. plugin_storage: collectionName → `collection`).
+          const phys = this.getColumn(table, c);
+          return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
+        })
         .join(", ");
       const boundValues = synthCols.map((c) => {
         const v = synthesized[c];
@@ -323,6 +332,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     data: import("../db-interface").EntityUpdate<T>,
     options: import("../db-interface").BaseQueryOptions = {},
   ): Promise<import("../db-interface").DatabaseResult<T>> {
+    // Inside an outer transaction the pool-level sql! fragments would bypass
+    // the txn connection — defer to the base Drizzle path (txn-aware).
+    if (options?.transaction) {
+      return super.update(collection, id, data, options);
+    }
     try {
       const d =
         this.hooks.length > 0
@@ -349,8 +363,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             : v !== null && typeof v === "object" && !Array.isArray(v)
               ? JSON.stringify(v)
               : v;
+        // Drizzle def property names may differ from physical column names
+        // (e.g. plugin_storage: collectionName → `collection`).
+        const phys = this.getColumn(table, c);
         return this.sql!`"${this.sql!.unsafe(
-          utils.assertSafeSqlIdentifier(c, "column"),
+          utils.assertSafeSqlIdentifier(phys?.name ?? c, "column"),
         )}" = ${bound}`;
       });
       let setFrag = setFrags[0];
@@ -1173,10 +1190,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           /* safe */
         }
         // The pre-DDL table def (base columns only) is stale — rebuild with the
-        // materialized columns on next getTable.
+        // materialized columns on next getTable. Invalidate EVERY key variant
+        // (logical id, dash-stripped, and the physical collection_ prefix): a
+        // missed variant leaves a stale def cached that silently drops
+        // materialized columns from later reads.
         this.tableRegistry.delete(tableName);
         this.tableRegistry.delete(normalizedName);
         this.tableRegistry.delete(`collection_${normalizedName}`);
+        this.tableRegistry.delete(`collection_${tableName}`);
       },
       "CREATE_MODEL_FAILED",
       undefined,

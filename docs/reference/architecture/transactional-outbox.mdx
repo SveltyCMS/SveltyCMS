@@ -14,11 +14,14 @@ SveltyCMS uses the **transactional outbox** pattern so domain events (webhooks, 
 1. **Write path** (collection create/update/delete) uses `persistWithOutbox`:
    - Prefer **one DB transaction** for entity write + `outboxService.emit` (SQL adapters).
    - Fall back to sequential write→emit when `transaction()` is unavailable (e.g. Mongo without a replica set).
-2. Event types: `entry:create` | `entry:update` | `entry:delete`.
-3. `afterMutation` still invalidates cache and publishes `entryUpdated` (outbox already emitted inside the TX when possible).
-4. Background `outboxService.startPolling()` (hooks cold-start) runs `processBatch()`.
-5. Delivery: internal `pubSub` + optional `webhookService.trigger` for mapped event types.
-6. Success → `status: delivered`; failure → exponential backoff retry; after 5 attempts → `failed`.
+2. **Buffered (non-transactional) emits** — `emit()` outside a transaction pushes into an in-memory buffer and bulk-flushes via one `insertMany` after `OUTBOX_BUFFER_FLUSH_MS` (25ms) or at 64 events. The event `_id` (UUID) is stamped at **emit time** — it is part of the emit contract and equal to the stored id.
+3. Event types: `entry:create` | `entry:update` | `entry:delete`.
+4. `afterMutation` still invalidates cache and publishes `entryUpdated` (outbox already emitted inside the TX when possible).
+5. Background `outboxService.startPolling()` (hooks cold-start) runs `processBatch()` — which first flushes the emit buffer so milliseconds-old buffered events are included in the tick.
+6. Delivery: internal `pubSub` + optional `webhookService.trigger` for mapped event types.
+7. Success → `status: delivered`; failure → exponential backoff retry; after 5 attempts → `failed`.
+
+`getPendingCount()` reports the true backlog: persisted `status: pending` rows **plus** events still sitting in the emit buffer.
 
 ## Storage
 

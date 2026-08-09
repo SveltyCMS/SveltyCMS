@@ -307,6 +307,19 @@ export function convertDatesToISO(
       }
     }
     if (!needsWork) {
+      // Zero-work fast path — but an already-parsed blob (PostgreSQL jsonb
+      // arrives as an object, not a string) still needs its fields flattened
+      // into the row; skipping it left blob fields invisible on PG reads.
+      if (!skipJson && jsonCols && jsonCols.length > 0) {
+        const skipMerge = table ? getTableMergeSkipKeys(table) : null;
+        for (let i = 0; i < jsonCols.length; i++) {
+          const k = jsonCols[i];
+          const v = row[k];
+          if (v !== null && typeof v === "object" && !Array.isArray(v) && !(v instanceof Date)) {
+            flattenDataColumn(row, k, v, skipMerge);
+          }
+        }
+      }
       coerceBooleanCols(row, table);
       return row;
     }

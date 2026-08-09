@@ -1487,7 +1487,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         process.env.VITEST === "true" ||
         process.env.BUN_TEST === "true" ||
         process.env.BENCHMARK === "true";
-      const dbName = (config as any).DB_NAME;
+      // Env DB_NAME is an explicit test-mode contract (the E2E/integration
+      // harnesses pass it when no private.test.ts exists yet — e.g. the setup
+      // wizard boot). The guard below only refuses when NO name is given.
+      const dbName = (config as any).DB_NAME || process.env.DB_NAME;
       const isTestDb =
         isTestHarness || (dbName && (dbName.includes("test") || dbName.includes("benchmark")));
       const defaultDbFolder = isTestDb ? "config/test-database" : "config/database";

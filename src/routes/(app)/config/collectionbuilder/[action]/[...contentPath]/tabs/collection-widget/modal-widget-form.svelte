@@ -36,7 +36,6 @@
   const {
     value,
     close,
-    response,
     roles: rolesProp = [],
   }: Props = $props() as Props;
 
@@ -79,7 +78,13 @@
     }
   }
 
-  let local = $state<any>(cloneValue(value));
+  // Seed immediately so first paint is not empty for E2E. The initializer
+  // must not reference `value` directly (state_referenced_locally lint); the
+  // $effect below re-syncs whenever DialogManager re-opens with a new payload.
+  function seedLocal(): any {
+    return cloneValue(value);
+  }
+  let local = $state<any>(seedLocal());
 
   $effect(() => {
     // Re-sync when DialogManager re-opens with a new field payload
