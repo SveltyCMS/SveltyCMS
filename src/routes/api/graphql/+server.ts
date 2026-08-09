@@ -208,7 +208,7 @@ let lastDbAdapter: any = null;
 export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
   const { contentSystem } = await import("@src/content/index.server");
   const currentVersion = contentSystem.version;
-  const isBenchmark = process.env.BENCHMARK_MODE === "true" || process.env.BENCHMARK === "true";
+  const isBenchmark = process.env.BENCHMARK === "true";
 
   if (
     !yogaAppPromise ||

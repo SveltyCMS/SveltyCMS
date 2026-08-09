@@ -924,7 +924,7 @@ if (request.headers.get("if-none-match") === etag) {
 **Key Features**:
 
 - **`apiData` Fast Path**: Avoids `response.clone()` overhead when handlers pre-store data
-- **SWR Pre-warming**: Background cache refresh after mutations (disabled in `BENCHMARK_MODE`)
+- **SWR Pre-warming**: Background cache refresh after mutations (disabled in `BENCHMARK=true`)
 - **GraphQL Bypass**: GraphQL uses its own HTTP-level response cache in `+server.ts` (cache-by-hash, 30s TTL). handleApiRequests delegates to it rather than double-caching.
 - **Tenant-Scoped Keys**: Cache keys include `tenantId` for multi-tenant isolation
 

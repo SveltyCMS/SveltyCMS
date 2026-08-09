@@ -261,7 +261,6 @@ Svelte 5 + Accessibility + RTL + Quality + Security scanner. Catches issues oxli
 | CORS reflection       | `Access-Control-Allow-Origin` reflecting arbitrary `Origin` header with credentials |
 | Broad MIME types      | File upload allowlist accepting `application/*` without specific subtypes           |
 | Fast hash for secrets | `createHash("sha256")` used on API keys/tokens — should use HMAC                    |
-| Introspection bypass  | GraphQL introspection gated on `BENCHMARK_MODE` flag in production                  |
 | System user backdoor  | `user._id === "system" && password === "hardcoded"` patterns                        |
 | Request body clone    | `request.clone()` without size limits — OOM risk                                    |
 

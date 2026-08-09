@@ -17,7 +17,7 @@
  * - exponential backoff for failed deliveries (updatedAt + 2^attempts, capped)
  * - tenant-scoped event isolation
  * - integration with webhook delivery pipeline
- * - DISABLE_OUTBOX / BENCHMARK_MODE kill-switch
+ * - DISABLE_OUTBOX kill-switch
  */
 
 import { getDb } from "@src/databases/db";

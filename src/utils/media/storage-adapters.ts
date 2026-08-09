@@ -118,7 +118,6 @@ function resolveConfiguredMediaFolder(): string {
     process.env.BENCHMARK_PROFILE === "local" ||
     process.env.BENCHMARK_PROFILE === "ci-fresh" ||
     process.env.BENCHMARK === "true" ||
-    process.env.SVELTY_BENCHMARK_SUITE === "true" ||
     process.env.TEST_MODE === "true";
   if (harness && envFolder) return envFolder;
   return getPublicSettingSync("MEDIA_FOLDER") ?? "mediaFolder";

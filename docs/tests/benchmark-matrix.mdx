@@ -142,7 +142,7 @@ Local benchmarks use a sandboxed environment that protects live developer data i
 
 ### External Services Guard (`src/utils/benchmark-runtime.ts`)
 
-When `BENCHMARK=true` or `BENCHMARK_MODE=true`, the following are explicitly disabled:
+When `BENCHMARK=true`, the following are explicitly disabled:
 
 - **Redis cache** — `cache-service.ts` skips L2 connection
 - **Email/SMTP** — `email.server.ts` returns `{ benchmark_sandbox: true }`

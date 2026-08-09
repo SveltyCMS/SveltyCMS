@@ -29,12 +29,10 @@ describe("SSRF host allowlist", () => {
       NODE_ENV: process.env.NODE_ENV,
       TEST_MODE: process.env.TEST_MODE,
       BENCHMARK: process.env.BENCHMARK,
-      SVELTY_BENCHMARK_SUITE: process.env.SVELTY_BENCHMARK_SUITE,
     };
     process.env.NODE_ENV = "production";
     delete process.env.TEST_MODE;
     delete process.env.BENCHMARK;
-    delete process.env.SVELTY_BENCHMARK_SUITE;
     try {
       expect(() => parseAndValidateUrl("http://127.0.0.1/api", ["127.0.0.1"])).toThrow(
         FederationError,
@@ -45,11 +43,6 @@ describe("SSRF host allowlist", () => {
       else delete process.env.TEST_MODE;
       if (saved.BENCHMARK !== undefined) process.env.BENCHMARK = saved.BENCHMARK;
       else delete process.env.BENCHMARK;
-      if (saved.SVELTY_BENCHMARK_SUITE !== undefined) {
-        process.env.SVELTY_BENCHMARK_SUITE = saved.SVELTY_BENCHMARK_SUITE;
-      } else {
-        delete process.env.SVELTY_BENCHMARK_SUITE;
-      }
     }
   });
 

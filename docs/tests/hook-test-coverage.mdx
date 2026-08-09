@@ -70,7 +70,7 @@ All hooks are benchmarked via `tests/benchmarks/hooks-performance.test.ts` which
 | **Compression Ratio (br)**   |    ~65% avg     |   —    | Brotli on cache HIT payloads     |
 | **Compression Ratio (gzip)** |    ~58% avg     |   —    | Gzip on cache HIT payloads       |
 
-**Note**: Audit is now fire-and-forget (context captured before resolve, logged in detached promise). HOOK_TIMING_ENABLED gate disables per-request instrumentation in production and under SVELTY_BENCHMARK_SUITE for cleaner benchmarks. Compression metrics captured via X-\* headers.
+**Note**: Audit is now fire-and-forget (context captured before resolve, logged in detached promise). HOOK_TIMING_ENABLED gate disables per-request instrumentation in production and under BENCHMARK=true for cleaner benchmarks. Compression metrics captured via X-\* headers.
 
 ## Middleware Sequence
 

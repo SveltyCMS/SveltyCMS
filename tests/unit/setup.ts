@@ -14,9 +14,8 @@ const currentTest = process.argv.find(
   (arg) => arg.includes("benchmark") || arg.endsWith(".test.ts"),
 );
 const isBenchmark =
-  process.env.BENCHMARK_MODE === "true" ||
-  process.env.BENCHMARK_MODE === "1" ||
-  process.env.BENCHMARK_STABLE === "true" ||
+  process.env.BENCHMARK === "true" ||
+  process.env.BENCHMARK === "1" ||
   currentTest?.includes("benchmark");
 
 // Quiet progress loggers (compile, etc.) for all unit runs — not just benchmarks.
@@ -25,7 +24,7 @@ const isBenchmark =
 process.env.QUIET = process.env.QUIET || "true";
 process.env.TEST_MODE = process.env.TEST_MODE || "true";
 if (isBenchmark) {
-  process.env.BENCHMARK_MODE = process.env.BENCHMARK_MODE || "true";
+  process.env.BENCHMARK = process.env.BENCHMARK || "true";
 }
 
 import { argvIncludesRealDbTest } from "../helpers/real-db-test-markers";

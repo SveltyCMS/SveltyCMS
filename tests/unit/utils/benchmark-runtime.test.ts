@@ -11,8 +11,6 @@ describe("benchmark-runtime external service guards", () => {
   beforeEach(() => {
     process.env = { ...envSnapshot };
     delete process.env.BENCHMARK;
-    delete process.env.SVELTY_BENCHMARK_SUITE;
-    delete process.env.BENCHMARK_MODE;
     delete process.env.BENCHMARK_NO_REDIS;
   });
 
@@ -41,6 +39,16 @@ describe("benchmark-runtime external service guards", () => {
   it("allows external services in normal dev", async () => {
     const rt = await load();
     expect(rt.isBenchmarkExternalServicesDisabled()).toBe(false);
+    expect(rt.isBenchmarkRedisDisabled()).toBe(false);
+  });
+
+  it("legacy benchmark tokens are inert — BENCHMARK is the single canonical flag", async () => {
+    process.env.BENCHMARK_MODE = "1";
+    process.env.BENCHMARK_STABLE = "true";
+    process.env.SVELTY_BENCHMARK_SUITE = "true";
+    const rt = await load();
+    expect(rt.isBenchmarkExternalServicesDisabled()).toBe(false);
+    expect(rt.isBenchmarkRuntime()).toBe(false);
     expect(rt.isBenchmarkRedisDisabled()).toBe(false);
   });
 });

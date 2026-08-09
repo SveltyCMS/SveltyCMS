@@ -48,7 +48,7 @@ async function runBuildAnalysis() {
   const startTime = performance.now();
 
   try {
-    const isSuite = process.env.SVELTY_BENCHMARK_SUITE === "true";
+    const isSuite = process.env.BENCHMARK === "true";
     const passedDuration = process.env.DX_BUILD_DURATION;
     let buildTimeMs: number;
 

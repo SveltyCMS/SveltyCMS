@@ -1123,12 +1123,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
     await this.wrap(
       async () => {
-        const isBenchSuite = process.env.SVELTY_BENCHMARK_SUITE === "true";
         const debugMode = process.env.BENCHMARK_DEBUG === "true";
 
         const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "status" TEXT DEFAULT 'draft', "isDeleted" INTEGER DEFAULT 0, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
-        if (debugMode && !isBenchSuite)
-          logger.debug(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
+        if (debugMode) logger.debug(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
         await this.raw.execute(ddl);
 
         const columns = [

@@ -33,7 +33,7 @@ class SystemWatchdog {
    * Starts the autonomous watchdog.
    */
   public start() {
-    if (process.env.BENCHMARK_MODE === "true") {
+    if (process.env.BENCHMARK === "true") {
       logger.info("🛡️ Autonomous Watchdog DISABLED (Benchmark Mode)");
       return;
     }

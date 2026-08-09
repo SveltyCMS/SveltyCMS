@@ -20,9 +20,7 @@ const getEnvFlag = (key: string): boolean => {
 
 /** True when outbound external services must not be contacted (benchmark matrix / soak). */
 export function isBenchmarkExternalServicesDisabled(): boolean {
-  return (
-    getEnvFlag("BENCHMARK") || getEnvFlag("SVELTY_BENCHMARK_SUITE") || getEnvFlag("BENCHMARK_MODE")
-  );
+  return getEnvFlag("BENCHMARK");
 }
 
 /** True when Redis L2 cache must not connect. */
@@ -32,13 +30,7 @@ export function isBenchmarkRedisDisabled(): boolean {
 
 /** True when benchmark/test collections should be loaded. */
 export function isBenchmarkRuntime(): boolean {
-  return (
-    getEnvFlag("BENCHMARK") ||
-    getEnvFlag("BENCHMARK_MODE") ||
-    getEnvFlag("BENCHMARK_STABLE") ||
-    getEnvFlag("SVELTY_BENCHMARK_SUITE") ||
-    getEnvFlag("TEST_MODE")
-  );
+  return getEnvFlag("BENCHMARK");
 }
 
 /** Normalizes collection ids for mock/benchmark pattern matching. */

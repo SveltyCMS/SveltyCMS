@@ -434,11 +434,11 @@ bun test tests/benchmarks/truth-latency.test.ts \
 
 ## Troubleshooting
 
-| Symptom                      | Likely Cause                     | Fix                                    |
-| ---------------------------- | -------------------------------- | -------------------------------------- |
-| Test gets 401 in matrix mode | `SVELTY_BENCHMARK_SUITE` not set | Add to server env in matrix            |
-| 413 Content Too Large        | Batch POST too large             | Reduce batch size (try 100)            |
-| `finalizeReport` no-op       | `runId` mismatch                 | Check `BENCHMARK_RUN_ID` env var       |
-| Duplicate MDX sections       | `finalizeReport` called twice    | Check `afterAll` guard for matrix mode |
-| Test slow in matrix          | Shared server under load         | Check concurrency of other tests       |
-| History.jsonl empty          | `RESULTS_DIR` not writable       | Check directory permissions            |
+| Symptom                      | Likely Cause                  | Fix                                    |
+| ---------------------------- | ----------------------------- | -------------------------------------- |
+| Test gets 401 in matrix mode | `BENCHMARK` not set           | Add to server env in matrix            |
+| 413 Content Too Large        | Batch POST too large          | Reduce batch size (try 100)            |
+| `finalizeReport` no-op       | `runId` mismatch              | Check `BENCHMARK_RUN_ID` env var       |
+| Duplicate MDX sections       | `finalizeReport` called twice | Check `afterAll` guard for matrix mode |
+| Test slow in matrix          | Shared server under load      | Check concurrency of other tests       |
+| History.jsonl empty          | `RESULTS_DIR` not writable    | Check directory permissions            |

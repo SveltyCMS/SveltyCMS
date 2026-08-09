@@ -277,7 +277,7 @@ class JobQueueService {
     }
 
     // 🧪 PERFORMANCE: Disable background jobs during benchmarks to reduce noise and resource contention
-    if (process.env.BENCHMARK_MODE === "true" || process.env.DISABLE_JOBS === "true") {
+    if (process.env.BENCHMARK === "true" || process.env.DISABLE_JOBS === "true") {
       logger.info("[JobQueue] Background worker disabled (Benchmark Mode)");
       return;
     }

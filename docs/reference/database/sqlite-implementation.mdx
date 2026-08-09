@@ -6,7 +6,7 @@ order: 7
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2026-02-09"
-updated: "2026-06-22"
+updated: "2026-08-09"
 tags:
   - "database"
   - "sqlite"
@@ -142,6 +142,9 @@ export const privateEnv = {
 ```
 
 The adapter will resolve the final path as `process.cwd() + DB_HOST + "/" + DB_NAME`.
+
+> [!NOTE]
+> **Test/benchmark mode fails closed without `DB_NAME`** — when `TEST_MODE`, `VITEST`, `BUN_TEST`, or `BENCHMARK` is set and no explicit name is derivable (config `DB_NAME` **or** `process.env.DB_NAME`), the adapter refuses to connect instead of silently falling back to the live `sveltycms.db` name. Env `DB_NAME` is honored (the E2E/integration harnesses pass it when no `private.test.ts` exists yet, e.g. the setup-wizard boot); `DB_PATH` also short-circuits the check. See the benchmark isolation note in [Benchmark Matrix Safety](../../tests/benchmark-matrix.mdx#local-benchmark-safety-july-2026).
 
 ### 3. Implementation Pattern
 

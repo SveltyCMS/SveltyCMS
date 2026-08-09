@@ -62,11 +62,7 @@ export interface HubTestSeedResult {
 
 function assertTestMode(): void {
   const env = process.env;
-  const allowed =
-    env.TEST_MODE === "true" ||
-    env.BENCHMARK === "true" ||
-    env.SVELTY_BENCHMARK_SUITE === "true" ||
-    env.NODE_ENV === "test";
+  const allowed = env.TEST_MODE === "true" || env.BENCHMARK === "true" || env.NODE_ENV === "test";
   if (!allowed) {
     throw new Error("hub-test-seed is only available in test/benchmark environments");
   }

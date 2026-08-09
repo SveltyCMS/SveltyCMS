@@ -13,7 +13,6 @@ describe("testing API runtime gate", () => {
     process.env = { ...envSnapshot, NODE_ENV: "production" };
     delete process.env.TEST_MODE;
     delete process.env.BENCHMARK;
-    delete process.env.SVELTY_BENCHMARK_SUITE;
     delete process.env.TEST_API_SECRET;
     delete process.env.VITE_TEST_MODE;
   });

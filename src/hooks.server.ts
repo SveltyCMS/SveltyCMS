@@ -65,8 +65,7 @@ if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
 // obtain genuine session cookies for end-to-end integrity verification.
 
 const handleHyperTurbo: Handle = async ({ event, resolve }) => {
-  const isBenchmark =
-    process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
+  const isBenchmark = process.env.BENCHMARK === "true";
   if (!isBenchmark) return resolve(event);
 
   // Let auth endpoints use REAL credentials
@@ -194,7 +193,7 @@ if (!building) {
           .catch(() => {});
 
         // ✨ Parallel Service Initialization (Optimized for Cold Start)
-        const isBenchmarkMode = process.env.BENCHMARK_MODE === "true";
+        const isBenchmarkMode = process.env.BENCHMARK === "true";
 
         if (!isBenchmarkMode) {
           Promise.all([
@@ -416,7 +415,7 @@ export function getHookTimings(): Record<
 // Turbo path remains fast (1.6-2.1ms) because it short-circuits many later hooks.
 const HOOK_TIMING_ENABLED =
   process.env.ENABLE_HOOK_TIMING === "1" ||
-  (process.env.NODE_ENV !== "production" && !process.env.SVELTY_BENCHMARK_SUITE);
+  (process.env.NODE_ENV !== "production" && process.env.BENCHMARK !== "true");
 
 function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
   // Resolve once at wrap time (pipeline build). Saves per-request function call overhead.
@@ -599,8 +598,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   resetIdCounters();
   const traceId = (event.locals as any).requestId || crypto.randomUUID();
   const traceHeader = event.request.headers.get("x-svelty-trace");
-  const isBenchmark =
-    process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
+  const isBenchmark = process.env.BENCHMARK === "true";
   const traceEnabled =
     traceHeader === "true" || (isBenchmark && !!event.request.headers.get("x-test-secret"));
 

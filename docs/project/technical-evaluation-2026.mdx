@@ -551,7 +551,7 @@ In mid-June 2026, SveltyCMS executed a comprehensive 19-file, multi-phase perfor
 
 #### Phase R1/R2 — Hot-Path Streamlining & Smart Entropy Compression
 
-- **Hook timing gate** (`HOOK_TIMING_ENABLED`): Per-request `performance.now()` + `traceSpan` + Map writes gated out in production and under `SVELTY_BENCHMARK_SUITE`. `handleFnRef()` resolved once at pipeline build time instead of per-request.
+- **Hook timing gate** (`HOOK_TIMING_ENABLED`): Per-request `performance.now()` + `traceSpan` + Map writes gated out in production and under `BENCHMARK=true`. `handleFnRef()` resolved once at pipeline build time instead of per-request.
 - **Pre-compressed cache entries**: On cache MISS, the API handler stores both raw body and pre-compressed Brotli/gzip variants using shared `compressSync`. On cache HIT, pre-made compressed bytes served directly when `Accept-Encoding` matches — zero re-stringify, zero re-compress.
 - **Size observability headers**: `X-Original-Size`, `X-Compressed-Size`, `X-Compression-Ratio`, `X-Compression-Algorithm` emitted on all compressed responses. Compression metrics (`compression.avgOriginalSize`, `avgCompressedSize`, `avgRatio`, `samples`) exported on every benchmark run.
 

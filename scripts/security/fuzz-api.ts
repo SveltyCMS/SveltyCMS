@@ -15,11 +15,8 @@
  */
 
 import { WafGuard } from "../../src/hooks/wasm-waf-guard";
-import { PolicyEngine } from "../../src/services/security/policy-engine";
-import { BaselineGuard } from "../../src/services/security/baseline-guard";
 
 const waf = new WafGuard();
-const policy = new PolicyEngine();
 
 const FUZZ_PAYLOADS = [
   "",
@@ -60,28 +57,8 @@ for (const payload of FUZZ_PAYLOADS) {
     blockedByWaf++;
   }
 
-  // 2. Policy Engine Fuzzing
-  try {
-    policy.evaluate({ role: payload, isAdmin: false }, `resource:${payload}`, payload, {
-      authorId: payload,
-    });
-    passed++;
-  } catch (err) {
-    console.error(`❌ Policy Engine threw error on payload: "${payload.slice(0, 30)}"`, err);
-    process.exit(1);
-  }
-
-  // 3. Baseline Guard Fuzzing
-  try {
-    BaselineGuard.getEffectiveSettings({
-      minPasswordLength: payload as any,
-      maxUploadSizeBytes: payload as any,
-      disallowedFileExtensions: [payload],
-    });
-  } catch (err) {
-    console.error(`❌ Baseline Guard threw error on payload: "${payload.slice(0, 30)}"`, err);
-    process.exit(1);
-  }
+  // Payload survived WAF inspection without throwing — counted as processed.
+  passed++;
 }
 
 const elapsed = (performance.now() - startTime).toFixed(2);

@@ -37,7 +37,7 @@ export async function startServer(
     BENCHMARK: "true",
     AUDIT_CHAIN_SYNC: process.env.AUDIT_CHAIN_SYNC || "false",
     DISABLE_AUDIT_LOGS: process.env.DISABLE_AUDIT_LOGS || "true",
-    SVELTY_BENCHMARK_SUITE: "true",
+    BENCHMARK: "true",
     NODE_ENV: "test",
     TEST_API_SECRET,
     PORT: String(port),

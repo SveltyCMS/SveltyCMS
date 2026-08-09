@@ -169,8 +169,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
         if (contentType?.includes("application/json")) {
           const ifNoneMatch = request.headers.get("if-none-match");
-          const isBenchmark =
-            process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
+          const isBenchmark = process.env.BENCHMARK === "true";
 
           const apiBody = (locals as any).apiBody;
           const apiData = (locals as { apiData?: unknown }).apiData || (locals as any).__apiData;
@@ -316,7 +315,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           if (
             ["POST", "PUT", "PATCH"].includes(request.method) &&
             event.url.origin &&
-            process.env.BENCHMARK_MODE !== "1"
+            process.env.BENCHMARK !== "true"
           ) {
             const prewarmUrl = new URL(event.url.pathname, event.url.origin);
             prewarmUrl.searchParams.set("warm-cache", "true");

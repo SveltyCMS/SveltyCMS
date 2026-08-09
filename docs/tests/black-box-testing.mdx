@@ -4,7 +4,7 @@ title: "Black-Box Testing Architecture"
 description: "SveltyCMS black-box integration and E2E testing architecture, safety rules, and CI execution model."
 author: "SveltyCMS Team"
 created: "2026-02-15"
-updated: "2026-07-03"
+updated: "2026-08-09"
 tags:
   - "testing"
   - "architecture"
@@ -83,7 +83,7 @@ Our black-box methodology extends to the **Enterprise Performance Audit**. Indiv
 
 - **Dynamic Port Selection**: Tests run on isolated ports to prevent cross-process pollution.
 - **Trend Detection**: Every run automatically compares latency against historical data in `history.jsonl` with visual 🟢/🔴 indicators.
-- **Benchmark Stability**: `BENCHMARK_STABLE` mode and `refreshContent({ mode: "schemas" })` keep API-seeded collections (`BenchmarkStable`, `benchmark_authors`) synchronized in the temp DB. Filesystem scan benchmarks use isolated paths under `.compiledCollections/test/` — see [Benchmark Collection Isolation](./benchmark-isolation.mdx).
+- **Benchmark Stability**: Benchmark runtimes (`isBenchmarkRuntime()` — the single `BENCHMARK=true` flag; `TEST_MODE` is the separate test-harness token) scan benchmark collections and keep API-seeded fixtures (`BenchmarkStable`, `benchmark_authors`) synchronized in the temp DB via `refreshContent({ mode: "schemas" })` — the default refresh mode under `TEST_MODE` (the legacy `BENCHMARK_MODE`/`BENCHMARK_STABLE`/`SVELTY_BENCHMARK_SUITE` tokens were consolidated into `BENCHMARK`). Filesystem scan benchmarks use isolated paths under `.compiledCollections/test/` — see [Benchmark Collection Isolation](./benchmark-isolation.mdx).
 - **Auto-Registration**: New benchmark modules automatically register their findings in the MDX technical ledger without manual boilerplate.
 
 ### Available Actions

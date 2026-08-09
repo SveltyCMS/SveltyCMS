@@ -117,9 +117,7 @@ describe("outboxService.emit", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.DISABLE_OUTBOX;
-    delete process.env.BENCHMARK_MODE;
     delete process.env.BENCHMARK;
-    delete process.env.SVELTY_BENCHMARK_SUITE;
   });
 
   it("inserts a pending event via crud", async () => {
@@ -172,7 +170,7 @@ describe("outboxService.processBatch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.DISABLE_OUTBOX;
-    delete process.env.BENCHMARK_MODE;
+    delete process.env.BENCHMARK;
     outboxService.stopPolling();
   });
 

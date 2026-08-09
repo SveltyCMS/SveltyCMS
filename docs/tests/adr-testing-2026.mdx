@@ -144,14 +144,14 @@ E2E              →  one golden create→list→reload→delete (or equivalent)
 
 Seed/reset under `/api/testing` exist **only** for CI/E2E.
 
-| Control               | Implementation                                                                                          | Proof                       |
-| --------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------- |
-| Production hard-close | `NODE_ENV=production` → **403**                                                                         | `testing-api-gate.test.ts`  |
-| Env allowlist         | `TEST_MODE` / `PLAYWRIGHT_TEST` / `BENCHMARK` / `SVELTY_BENCHMARK_SUITE` — **not** bare `NODE_ENV=test` | same                        |
-| Secret                | Timing-safe `x-test-secret` vs `TEST_API_SECRET`                                                        | same + `route-access-audit` |
-| Authz bypass          | Same production hard-gate in `applyTestBypassFromRequest`                                               | `test-bypass.server.ts`     |
-| Bundle strip          | Vite `testBackdoorStripperPlugin` + `verify-prod-build-backdoor`                                        | unit + CI build             |
-| Shared entry          | `assertTestingApiAllowed` used by `handleTestingRoutes`                                                 | no weaker second gate       |
+| Control               | Implementation                                                               | Proof                       |
+| --------------------- | ---------------------------------------------------------------------------- | --------------------------- |
+| Production hard-close | `NODE_ENV=production` → **403**                                              | `testing-api-gate.test.ts`  |
+| Env allowlist         | `TEST_MODE` / `PLAYWRIGHT_TEST` / `BENCHMARK` — **not** bare `NODE_ENV=test` | same                        |
+| Secret                | Timing-safe `x-test-secret` vs `TEST_API_SECRET`                             | same + `route-access-audit` |
+| Authz bypass          | Same production hard-gate in `applyTestBypassFromRequest`                    | `test-bypass.server.ts`     |
+| Bundle strip          | Vite `testBackdoorStripperPlugin` + `verify-prod-build-backdoor`             | unit + CI build             |
+| Shared entry          | `assertTestingApiAllowed` used by `handleTestingRoutes`                      | no weaker second gate       |
 
 **Agents:** Do not add seed routes outside this handler. Do not weaken the gate. Do not commit production secrets. Known e2e default secret strings are rejected outside an explicit test env.
 

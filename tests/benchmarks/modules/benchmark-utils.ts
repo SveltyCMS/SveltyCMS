@@ -186,9 +186,6 @@ export const afterEach = (fn: any, timeout?: number) => {
 (globalThis as any).__SVELTY_QUIET__ = true;
 // Align all benchmark runtime flags (GraphQL, scanners, compile) — same contract as matrix server
 process.env.BENCHMARK = "true";
-process.env.BENCHMARK_MODE = process.env.BENCHMARK_MODE || "1";
-process.env.BENCHMARK_STABLE = process.env.BENCHMARK_STABLE || "true";
-process.env.SVELTY_BENCHMARK_SUITE = process.env.SVELTY_BENCHMARK_SUITE || "true";
 process.env.TEST_MODE = process.env.TEST_MODE || "true";
 
 // 🛡️ AUTO-CLEANUP: Global hook to prevent connection leaks and collection pollution
@@ -836,7 +833,6 @@ export async function setupBenchmarkServer() {
   TEST_API_SECRET = secret;
   process.env.TEST_MODE = "true";
   process.env.BENCHMARK = "true";
-  process.env.SVELTY_BENCHMARK_SUITE = "true";
 
   const { printBenchmarkIsolationBanner } = await import("@utils/benchmark-sandbox");
   printBenchmarkIsolationBanner(dbType);

@@ -33,8 +33,15 @@ type SchemaHotFlags = {
   _hasNumberFields?: boolean;
   _hasSanitizableFields?: boolean;
   _hasHooks?: boolean;
-  _collectionModel?: unknown;
 };
+
+/**
+ * CollectionModel instances must NEVER be attached to schema objects: schemas
+ * are shared with the content store (contentNodes[].collectionDef) and get
+ * structuredClone'd into SvelteKit load data, which throws on functions.
+ * Cache the model by schema identity instead.
+ */
+const collectionModelCache = new WeakMap<object, unknown>();
 
 const SANITIZE_FIELD_TYPES = new Set(["richtext", "markdown", "text", "textarea"]);
 
@@ -731,10 +738,10 @@ export class CollectionsNamespace {
       const hot = ensureSchemaHotFlags(schema);
 
       if (hot._hasActiveWidgets) {
-        let collectionModel = hot._collectionModel;
+        let collectionModel = collectionModelCache.get(schema);
         if (!collectionModel) {
           collectionModel = await this._getModelResilient(schema);
-          hot._collectionModel = collectionModel;
+          collectionModelCache.set(schema, collectionModel);
         }
         await modifyRequest({
           data: result.data as any[],
@@ -1157,10 +1164,10 @@ export class CollectionsNamespace {
     if (item) {
       const hot = ensureSchemaHotFlags(schema);
       if (hot._hasActiveWidgets) {
-        let collectionModel = hot._collectionModel;
+        let collectionModel = collectionModelCache.get(schema);
         if (!collectionModel) {
           collectionModel = await this._getModelResilient(schema);
-          hot._collectionModel = collectionModel;
+          collectionModelCache.set(schema, collectionModel);
         }
         const payload = [item];
         await modifyRequest({
@@ -1275,10 +1282,10 @@ export class CollectionsNamespace {
       if (foundItems.length > 0) {
         const hot = ensureSchemaHotFlags(schema);
         if (hot._hasActiveWidgets) {
-          let collectionModel = hot._collectionModel;
+          let collectionModel = collectionModelCache.get(schema);
           if (!collectionModel) {
             collectionModel = await this._getModelResilient(schema);
-            hot._collectionModel = collectionModel;
+            collectionModelCache.set(schema, collectionModel);
           }
           await modifyRequest({
             data: foundItems,
@@ -1400,10 +1407,10 @@ export class CollectionsNamespace {
 
     // Widget pipeline only when widgets declare modifyRequest; else lightweight sanitize
     if (hot._hasActiveWidgets) {
-      let collectionModel = hot._collectionModel;
+      let collectionModel = collectionModelCache.get(schema);
       if (!collectionModel) {
         collectionModel = await this._getModelResilient(schema);
-        hot._collectionModel = collectionModel;
+        collectionModelCache.set(schema, collectionModel);
       }
       const payload = [finalData];
       await modifyRequest({
@@ -1516,10 +1523,10 @@ export class CollectionsNamespace {
     );
 
     if (hot._hasActiveWidgets) {
-      let collectionModel = hot._collectionModel;
+      let collectionModel = collectionModelCache.get(schema);
       if (!collectionModel) {
         collectionModel = await this._getModelResilient(schema);
-        hot._collectionModel = collectionModel;
+        collectionModelCache.set(schema, collectionModel);
       }
 
       const payload = [finalData];
