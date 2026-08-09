@@ -760,7 +760,7 @@ export const contentService = {
     tenantId: string | null,
     dbAdapter: IDBAdapter,
   ) {
-    if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+    if (process.env.BENCHMARK_DEBUG === "true") {
       logger.debug(
         `[RECONCILE] Syncing ${operations.length} nodes and pruning ${prunedPaths.length} paths for tenant: ${tenantId || "global"}`,
       );
@@ -1075,9 +1075,7 @@ export async function refreshContent(
   tenantId?: string | null,
   options: RefreshOptions = {},
 ): Promise<void> {
-  const mode =
-    options.mode ??
-    (process.env.BENCHMARK === "true" || process.env.TEST_MODE === "true" ? "schemas" : "full");
+  const mode = options.mode ?? (process.env.TEST_MODE === "true" ? "schemas" : "full");
 
   if (mode === "schemas") {
     return refreshCollectionsCache(tenantId, options.adapter);

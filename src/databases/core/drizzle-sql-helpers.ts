@@ -36,7 +36,7 @@ import type { FindOptions, QueryCondition } from "../db-interface";
 import * as utils from "./relational-utils";
 
 /**
- * Row-store materialization: widgets whose data shape is a flat scalar
+ * Widgets whose data shape is a flat scalar
  * (string/number/boolean) are safe to store as physical columns instead of the
  * JSON `data` blob. Object/array-shaped widgets (group, repeater, seo, tags,
  * media-upload, price, date-range, …) stay in the blob. The field `type` must
@@ -68,6 +68,44 @@ const MATERIALIZABLE_WIDGETS = new Set([
 ]);
 
 /**
+ * Known object/array-shaped widgets — NEVER materialized, even when indexed
+ * or unique (a media-upload/group/repeater field must not become a scalar SQL
+ * column; that would break its object/array semantics on reads).
+ */
+const NON_SCALAR_WIDGETS = new Set([
+  "MediaUpload",
+  "Group",
+  "Repeater",
+  "Tags",
+  "SEO",
+  "JsonEditor",
+  "Price",
+  "Currency",
+  "DateRange",
+  "Geolocation",
+  "Address",
+  "RemoteVideo",
+  "MegaMenu",
+  "Relation",
+  "AIEnrichment",
+]);
+
+function widgetNameOf(field: any): string {
+  const raw =
+    field?.widget?.Name ??
+    field?.widget?.name ??
+    (typeof field.widget === "string" ? field.widget : "");
+  if (!raw) return "";
+  // The GUI builder stores the palette key (kebab-case: "media-upload") in
+  // widget.Name on some paths; canonical code schemas use the PascalCase name
+  // ("MediaUpload"). Normalize to PascalCase so the allowlists match both.
+  return raw
+    .replace(/[-_\s]+/g, " ")
+    .replace(/\b\w/g, (c: string) => c.toUpperCase())
+    .replace(/\s+/g, "");
+}
+
+/**
  * True when a schema field is a flat scalar that can be materialized as a
  * physical column (row-store hybrid — the `data` blob keeps only dynamic
  * fields). Indexed/unique fields are materialized regardless of widget shape
@@ -79,11 +117,30 @@ export function isScalarMaterializableField(field: any): boolean {
   if (type !== "string" && type !== "number" && type !== "integer" && type !== "boolean") {
     return false;
   }
-  const widget =
-    field.widget?.Name ??
-    field.widget?.name ??
-    (typeof field.widget === "string" ? field.widget : "");
-  if (widget && !MATERIALIZABLE_WIDGETS.has(widget)) return false;
+  const widget = widgetNameOf(field);
+  if (widget) {
+    if (NON_SCALAR_WIDGETS.has(widget)) return false;
+    if (!MATERIALIZABLE_WIDGETS.has(widget)) return false;
+  }
+  return true;
+}
+
+/**
+ * Whether a field becomes a physical column: scalar-shaped fields always;
+ * indexed/unique fields additionally qualify when they are scalar-typed and
+ * NOT a known object/array widget (an indexed media-upload field must stay in
+ * the blob — a scalar column would break its shape).
+ */
+export function shouldMaterializeField(field: any): boolean {
+  if (isScalarMaterializableField(field)) return true;
+  if (!field || typeof field !== "object") return false;
+  if (!field.indexed && !field.unique) return false;
+  const type = field.type;
+  if (type !== "string" && type !== "number" && type !== "integer" && type !== "boolean") {
+    return false;
+  }
+  const widget = widgetNameOf(field);
+  if (widget && NON_SCALAR_WIDGETS.has(widget)) return false;
   return true;
 }
 
@@ -985,26 +1042,22 @@ export function getPhysicalSelection(
 
   const tableName = getTableName(table);
   const lowerName = tableName.toLowerCase();
-  const isDynamic =
-    lowerName.includes("benchmark") ||
-    lowerName.startsWith("collection_") ||
-    lowerName.startsWith("bench_");
 
   const systemName = resolveSystemTableName(tableName);
   const isSystem = isSystemTable(tableName);
 
-  if (!isDynamic) {
-    try {
-      const columns = getTableColumns(table);
-      if (columns && Object.keys(columns).length > 0) {
-        const selection = excludeData
-          ? Object.fromEntries(Object.entries(columns).filter(([k]) => k !== "data"))
-          : columns;
-        tableSelectionCache.set(table, columns);
-        return selection;
-      }
-    } catch {}
-  }
+  // 🚀 ROW-STORE HYBRID: dynamic collection tables carry materialized columns
+  // in their Drizzle def — select ALL def columns (the fixed base list would
+  // silently drop materialized fields like title, and provisioned columns
+  // like slug/collection/locale/publishedAt were never selected either).
+  try {
+    const columns = getTableColumns(table);
+    if (columns && Object.keys(columns).length > 0) {
+      const selection = excludeData ? omitData(columns) : columns;
+      tableSelectionCache.set(table, columns);
+      return selection;
+    }
+  } catch {}
 
   if (isSystem) {
     const cachedSel = selectionCache.get(systemName);

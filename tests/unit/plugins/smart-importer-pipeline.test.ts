@@ -9,6 +9,21 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
+// Egress boundary is mocked (network): polish.ts and index.server.ts now await
+// validateEgressUrl before fetching import-controlled asset URLs — DNS/IP
+// checks must not hit the real network in unit tests.
+vi.mock("@src/utils/egress-guard", () => ({
+  validateEgressUrl: vi.fn().mockResolvedValue({ ok: true }),
+  safeFetch: vi.fn().mockResolvedValue({
+    success: true,
+    status: 200,
+    body: "",
+    bodyBytes: 0,
+    headers: new Headers(),
+    error: null,
+  }),
+}));
+
 // ============================================================================
 // In-Memory Mock DB Adapter (simulates SQLite/MongoDB behavior)
 // ============================================================================

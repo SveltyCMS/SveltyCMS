@@ -411,7 +411,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     if (!Array.isArray(fields) || fields.length === 0) return false;
     // If ANY requested field is not a physical column it lives in the data blob.
     for (const f of fields) {
-      if (f === "_id" || f === "id" || f === "data") continue;
+      // Explicitly requesting the blob means it must be selected — never exclude.
+      if (f === "data") return false;
+      if (f === "_id" || f === "id") continue;
       if (
         f === "tenantId" ||
         f === "status" ||
@@ -959,9 +961,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       }
 
       // Projection: when data was excluded from the SELECT there is nothing to
-      // JSON-parse or flatten — skip the conversion pass entirely.
+      // JSON-parse or flatten — but date/boolean normalization still applies
+      // (parity with full reads; avoids leaking raw 0/1 or driver Dates).
       const data = excludeData
-        ? (results as any[])
+        ? utils.convertArrayDatesToISO(results as any, {
+            inPlace: true,
+            table: collection,
+            skipJson: true,
+          })
         : utils.convertArrayDatesToISO(results as any, {
             inPlace: true,
             table: collection,
@@ -1155,7 +1162,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       if (results.length === 0) return null;
       const excludeData = this.shouldExcludeData(table, options);
       return excludeData
-        ? (results[0] as T)
+        ? (utils.convertDatesToISO(results[0], {
+            ...this.convertDatesOptions,
+            table: collection,
+            skipJson: true,
+          }) as T)
         : (utils.convertDatesToISO(results[0], {
             ...this.convertDatesOptions,
             table: collection,

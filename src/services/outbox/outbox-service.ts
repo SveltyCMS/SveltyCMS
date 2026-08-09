@@ -153,12 +153,13 @@ class OutboxServiceImpl {
 
     const now = nowISODateString();
 
-    // Buffered (non-transactional) fast path FIRST — no DB access and no
-    // UUID until flush. The flush stamps _id/updatedAt when the batch is
-    // written, keeping the content-write path free of crypto + getDb.
+    // Buffered (non-transactional) fast path FIRST — no DB access. The event id
+    // is generated at emit time: it is part of the emit contract (callers and
+    // the testing API read event._id) and must equal the id stored at flush.
+    // ~1µs crypto.randomUUID — the flush still batches the DB write.
     if (!options?.transaction) {
       const event: OutboxEvent = {
-        _id: "",
+        _id: generateUUID(),
         tenantId: tenantId || "default",
         eventType,
         aggregateType,
@@ -295,6 +296,12 @@ class OutboxServiceImpl {
     if (!db) {
       this.isProcessing = false;
       return empty;
+    }
+
+    // Buffered emits must reach the DB before this tick processes events —
+    // otherwise events emitted milliseconds ago are invisible to the batch.
+    if (this.emitBuffer.length > 0) {
+      await this.flushEmitBuffer();
     }
 
     let delivered = 0;
@@ -468,7 +475,7 @@ class OutboxServiceImpl {
     }
   }
 
-  /** Pending event count for health / monitoring. */
+  /** Pending event count for health / monitoring — includes buffered (not yet flushed) events. */
   public async getPendingCount(tenantId?: string): Promise<number> {
     const db = getDb();
     if (!db) return 0;
@@ -476,11 +483,17 @@ class OutboxServiceImpl {
     const filter: Record<string, unknown> = { status: "pending" };
     if (tenantId) filter.tenantId = tenantId;
 
+    // Events sitting in the bulk-flush buffer are pending too — count them so
+    // health checks and monitoring see the true backlog.
+    const bufferedCount = tenantId
+      ? this.emitBuffer.filter((e) => e.tenantId === tenantId).length
+      : this.emitBuffer.length;
+
     try {
       const result = await db.crud.count(this.collectionName, filter as any);
-      return result.success ? (result.data ?? 0) : 0;
+      return (result.success ? (result.data ?? 0) : 0) + bufferedCount;
     } catch {
-      return 0;
+      return bufferedCount;
     }
   }
 }

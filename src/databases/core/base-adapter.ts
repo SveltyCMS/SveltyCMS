@@ -218,24 +218,13 @@ export abstract class BaseAdapter {
     message?: string,
     options?: { suppressErrorLog?: boolean },
   ): DatabaseResult<T> {
-    const shouldLog =
-      (!options?.suppressErrorLog && process.env.BENCHMARK !== "true") ||
-      process.env.BENCHMARK_DEBUG === "true";
+    const shouldLog = !options?.suppressErrorLog;
 
-    if (shouldLog || process.env.BENCHMARK_DEBUG === "true") {
+    if (shouldLog) {
       logger.debug("DEBUG ERROR STACK:", error);
     }
     if (shouldLog) {
-      // 🛡️ NOISE REDUCTION: For benchmarks, don't dump the full error object as it contains massive queries/data
-      const logPayload =
-        process.env.BENCHMARK === "true"
-          ? error instanceof Error
-            ? error.message
-            : typeof error === "object"
-              ? (error as any).message || "Object error"
-              : String(error)
-          : error;
-      logger.debug(`[Adapter Error] Code: ${code}`, logPayload);
+      logger.debug(`[Adapter Error] Code: ${code}`, error);
     }
     let errorString = String(error);
     if (error instanceof Error) {
@@ -277,8 +266,7 @@ export abstract class BaseAdapter {
     },
   ): Promise<DatabaseResult<T>> {
     if (!this.connected) {
-      const shouldLog = !options?.suppressErrorLog && process.env.BENCHMARK !== "true";
-      if (shouldLog) {
+      if (!options?.suppressErrorLog) {
         logger.error(`[BaseAdapter] Operation ${code} rejected: Adapter is not connected.`);
       }
       return this.notConnectedError<T>();

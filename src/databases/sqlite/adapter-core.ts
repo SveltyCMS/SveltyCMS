@@ -181,16 +181,21 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       const rawSql = `SELECT ${selectCols} FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
       const rawRow = this.prepareAndExecute(rawSql, "get", String(id), ...tenantParams);
       if (rawRow) {
-        if (!wantsData) return rawRow as T;
+        if (!wantsData) {
+          // Projected read: normalize dates/booleans without the blob parse.
+          return utils.convertDatesToISO(rawRow, {
+            inPlace: true,
+            table: collection,
+            skipJson: true,
+          }) as T;
+        }
         // inPlace: the driver row is a fresh object — parse/flatten the data
         // blob in place instead of copying every key into a new object.
         return utils.convertDatesToISO(rawRow, { inPlace: true, table: collection }) as T;
       }
       return null;
     } catch (rawErr: any) {
-      if (process.env.BENCHMARK !== "true") {
-        logger.debug("[SQLite raw findById prototype] falling back to Drizzle:", rawErr?.message);
-      }
+      logger.debug("[SQLite raw findById prototype] falling back to Drizzle:", rawErr?.message);
       return null;
     }
   }
@@ -304,8 +309,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               if (def && Array.isArray(def.fields)) {
                 for (const field of def.fields) {
                   // Row-store hybrid: every scalar field becomes a column
-                  // (indexed/unique fields of any shape keep materializing).
-                  if (field.indexed || field.unique || helpers.isScalarMaterializableField(field)) {
+                  // (indexed/unique fields too, when scalar-shaped).
+                  if (helpers.shouldMaterializeField(field)) {
                     const fieldName = field.db_fieldName || field.label;
                     if (fieldName && !columnsToAdd.has(fieldName)) {
                       let colType = "text";
@@ -548,9 +553,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               }) as T[];
             } catch (err: any) {
               this._insertManyReturningSupported = false;
-              if (process.env.BENCHMARK !== "true") {
-                logger.debug("[SQLite] insertMany returning fallback:", err.message);
-              }
+              logger.debug("[SQLite] insertMany returning fallback:", err.message);
               await (query as any);
               return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
                 table: collection,
@@ -1148,7 +1151,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           for (const field of schemaData.fields) {
             // Row-store hybrid: scalar fields become physical columns — the
             // `data` blob keeps only dynamic fields for new rows.
-            if (field.indexed || field.unique || helpers.isScalarMaterializableField(field)) {
+            if (helpers.shouldMaterializeField(field)) {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "TEXT";

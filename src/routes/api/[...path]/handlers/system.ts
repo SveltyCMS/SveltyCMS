@@ -419,7 +419,7 @@ export async function handleSystemMgmtRoutes(
       if (_getYogaApp) {
         await _getYogaApp(cms.db, body.tenantId);
         const { logger } = await import("@utils/logger");
-        if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+        if (process.env.BENCHMARK_DEBUG === "true") {
           logger.info(`[System Refresh] Successfully warmed up GraphQL Yoga Schema.`);
         }
       }

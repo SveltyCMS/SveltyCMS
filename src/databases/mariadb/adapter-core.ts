@@ -125,7 +125,13 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const rows = (await this.raw.execute(rawSql, [String(id), ...tenantParams])) as any[];
       if (Array.isArray(rows) && rows.length > 0) {
         const row = rows[0];
-        if (!wantsData) return row as T;
+        if (!wantsData) {
+          return utils.convertDatesToISO(row, {
+            ...this.convertDatesOptions,
+            table: collection,
+            skipJson: true,
+          }) as T;
+        }
         return utils.convertDatesToISO(row, {
           ...this.convertDatesOptions,
           table: collection,
@@ -133,9 +139,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
       return null;
     } catch (rawErr: any) {
-      if (process.env.BENCHMARK !== "true") {
-        logger.debug("[MariaDB raw findById] falling back to Drizzle:", rawErr?.message);
-      }
+      logger.debug("[MariaDB raw findById] falling back to Drizzle:", rawErr?.message);
       return null;
     }
   }
@@ -1120,10 +1124,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
     await this.wrap(
       async () => {
-        const isBenchSuite = process.env.SVELTY_BENCHMARK_SUITE === "true";
-        const debugMode = process.env.BENCHMARK_DEBUG === "true";
-
-        if (debugMode && !isBenchSuite) {
+        if (process.env.BENCHMARK_DEBUG === "true") {
           logger.debug(
             `[DB Provision] SVELTY_BENCHMARK_SUITE=${process.env.SVELTY_BENCHMARK_SUITE || "standalone"}`,
           );
@@ -1132,7 +1133,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`createdAt\` DATETIME DEFAULT CURRENT_TIMESTAMP, \`updatedAt\` DATETIME DEFAULT CURRENT_TIMESTAMP, \`data\` LONGTEXT);`;
 
         if (ddl) {
-          if (debugMode && !isBenchSuite) {
+          if (process.env.BENCHMARK_DEBUG === "true") {
             logger.debug(`[DB Provision] [MARIADB] Executing DDL for ${physicalName}`);
           }
           await this.raw.execute(ddl);
@@ -1157,7 +1158,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
           for (const field of schemaData.fields) {
             // Row-store hybrid: scalar fields become physical columns — the
             // `data` blob keeps only dynamic fields for new rows.
-            if (field.indexed || field.unique || helpers.isScalarMaterializableField(field)) {
+            if (helpers.shouldMaterializeField(field)) {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "VARCHAR(255)";

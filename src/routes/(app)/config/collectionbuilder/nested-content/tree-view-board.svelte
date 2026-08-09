@@ -548,7 +548,7 @@ function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
 	if (intent === "inside") {
 		// Nest: append to end of category (stable, predictable)
 		targetIndex = targetList.length;
-	} else if (targetItemId && intent !== "inside") {
+	} else if (targetItemId) {
 		// Sibling reorder relative to target — skip when target is the nest parent
 		const foundIndex = targetList.findIndex((n) => n.id === targetItemId);
 		if (foundIndex >= 0) {
@@ -1217,7 +1217,7 @@ const flipDurationMs = 200;
 						{/each}
 					{:else if dndState.isDragging}
 						<!-- Empty category: explicit drop surface while dragging -->
-						<div class="empty-drop-zone min-h-10" role="none" aria-hidden="true"></div>
+						<div class="empty-drop-zone min-h-10" aria-hidden="true"></div>
 					{/if}
 				</div>
 			{/if}

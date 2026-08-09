@@ -806,7 +806,9 @@ async function mirrorAssetsLocally(
 
   for (const asset of assets) {
     try {
-      validateEgressUrl(asset.externalUrl, {
+      // 🛡️ MUST await: validateEgressUrl performs async DNS/IP/redirect checks —
+      // without await the fetch below races the guard (SSRF window).
+      await validateEgressUrl(asset.externalUrl, {
         allowHttp: process.env.NODE_ENV === "development",
       });
 

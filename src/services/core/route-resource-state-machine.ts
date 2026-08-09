@@ -14,7 +14,6 @@
  */
 
 import { CacheCategory } from "@src/databases/cache/types";
-import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger";
 
 export type RouteResourceLane = "bootstrap" | "media" | "collection" | "dashboard" | "settings";
@@ -29,31 +28,31 @@ export interface RouteResourceSpec {
 const ROUTE_SPECS: Record<RouteResourceLane, RouteResourceSpec> = {
   bootstrap: {
     lane: "bootstrap",
-    requiredCacheCategories: [CacheCategory.SETTINGS],
+    requiredCacheCategories: [CacheCategory.SYSTEM],
     preloadEndpoints: ["/api/system/health"],
     skipMiddlewares: ["media", "preferences", "scim", "collaboration"],
   },
   media: {
     lane: "media",
-    requiredCacheCategories: [CacheCategory.MEDIA, CacheCategory.SETTINGS],
+    requiredCacheCategories: [CacheCategory.MEDIA, CacheCategory.SYSTEM],
     preloadEndpoints: ["/api/media", "/api/media/folders"],
     skipMiddlewares: ["scim", "collaboration"],
   },
   collection: {
     lane: "collection",
-    requiredCacheCategories: [CacheCategory.SCHEMA, CacheCategory.ROLES, CacheCategory.SETTINGS],
+    requiredCacheCategories: [CacheCategory.SCHEMA, CacheCategory.AUTH, CacheCategory.SYSTEM],
     preloadEndpoints: ["/api/collections", "/api/content"],
     skipMiddlewares: ["scim"],
   },
   dashboard: {
     lane: "dashboard",
-    requiredCacheCategories: [CacheCategory.SETTINGS, CacheCategory.SYSTEM_STATE],
+    requiredCacheCategories: [CacheCategory.SYSTEM],
     preloadEndpoints: ["/api/dashboard", "/api/system/health"],
     skipMiddlewares: ["scim"],
   },
   settings: {
     lane: "settings",
-    requiredCacheCategories: [CacheCategory.SETTINGS, CacheCategory.ROLES],
+    requiredCacheCategories: [CacheCategory.SYSTEM, CacheCategory.AUTH],
     preloadEndpoints: ["/api/settings", "/api/config"],
     skipMiddlewares: ["media", "collaboration"],
   },
@@ -83,18 +82,27 @@ export class RouteResourceStateMachine {
   }
 
   /**
-   * Pre-warms server-side RAM caches for a given target path in background.
+   * Pre-warms server-side caches for a given target path in background by
+   * actually fetching the spec's preload endpoints (same-origin — the spec
+   * list is static, not user input). This populates the response cache with
+   * real entries instead of only labeling categories as warm.
    */
-  public async prewarmRouteResources(path: string): Promise<void> {
+  public async prewarmRouteResources(path: string, origin?: string): Promise<void> {
     const spec = this.classifyRouteSpec(path);
+    if (!origin) return;
 
     try {
-      for (const cat of spec.requiredCacheCategories) {
-        if (!cacheService.isWarmed(cat)) {
-          logger.debug(`[RouteStateMachine] Pre-warming cache category ${cat} for route ${path}`);
-          cacheService.markWarmed(cat);
-        }
-      }
+      await Promise.allSettled(
+        spec.preloadEndpoints.map(async (endpoint) => {
+          try {
+            await fetch(new URL(endpoint, origin).toString(), {
+              signal: AbortSignal.timeout(5_000),
+            });
+          } catch {
+            /* best-effort warm */
+          }
+        }),
+      );
     } catch (err) {
       logger.debug("[RouteStateMachine] Pre-warm non-blocking warning:", err);
     }

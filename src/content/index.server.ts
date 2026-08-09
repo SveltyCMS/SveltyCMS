@@ -107,18 +107,6 @@ export async function ensureContentInitialized(
   const opts: ContentInitOptions = typeof options === "boolean" ? { force: options } : options;
   const isForced = opts.force === true;
 
-  if (
-    (process.env.BENCHMARK_MODE === "true" ||
-      process.env.BENCHMARK_MODE === "1" ||
-      process.env.BENCHMARK_STABLE === "true") &&
-    !isForced
-  ) {
-    if (initializedTenants.has(tenantId)) return;
-    await _benchmarkInitialize(tenantId, adapter);
-    initializedTenants.add(tenantId);
-    return;
-  }
-
   let initPromise = initPromises.get(tenantId);
 
   if (!initPromise || isForced) {
@@ -174,22 +162,6 @@ export async function ensureContentInitialized(
   return initPromise;
 }
 
-async function _benchmarkInitialize(tenantId: string | null, adapter?: DatabaseAdapter) {
-  const { getDb, getDbInitPromise } = await import("@src/databases/db");
-
-  if (!adapter) {
-    await getDbInitPromise(false, "CORE").catch(() => {
-      logger.debug("DB init promise resolution failed during benchmark init");
-    });
-  }
-
-  const db: DatabaseAdapter | undefined = adapter || getDb() || undefined;
-  const { refreshContent } = await import("./engine.server");
-  await refreshContent(tenantId, { mode: "schemas", adapter: db });
-
-  contentStore.initState = "initialized";
-}
-
 async function generateApiSpec(tenantId: string = "global", force = false) {
   const apiSpec = await getServerApiSpecService();
   if (force) {
@@ -221,8 +193,7 @@ export const contentSystem = {
     adapter?: DatabaseAdapter,
   ) {
     const { refreshContent } = await import("./engine.server");
-    const mode =
-      process.env.BENCHMARK === "true" || process.env.TEST_MODE === "true" ? "schemas" : "full";
+    const mode = process.env.TEST_MODE === "true" ? "schemas" : "full";
     return refreshContent(tenantId, {
       mode,
       adapter,

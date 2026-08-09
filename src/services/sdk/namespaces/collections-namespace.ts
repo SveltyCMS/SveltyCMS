@@ -550,8 +550,11 @@ export class CollectionsNamespace {
     const baseFilter: any = this.normalizeRelationshipFilter({
       ...additionalFilter,
     });
+    // 🛡️ NON-ADMINS CANNOT REQUEST STATUSES: a caller-provided status=draft
+    // would expose unpublished content to ordinary read users — force the
+    // published filter regardless of what the caller asked for.
     if (!isAdmin) {
-      baseFilter.status = status || "published";
+      baseFilter.status = "published";
     } else if (status) {
       baseFilter.status = status;
     }
@@ -680,8 +683,19 @@ export class CollectionsNamespace {
       if (query._id && Object.keys(query).length === 1 && limit === 50 && offset === 0 && !sort) {
         cacheKey = `${tenantPrefix}collection:${schema._id}:find:id:${query._id}`;
       } else {
-        // Sync FNV — no WASM/async tax on list queries
-        const queryHash = syncQueryHash(JSON.stringify({ query, limit, offset, sort }));
+        // Sync FNV — no WASM/async tax on list queries. fields/populate shape
+        // the RESPONSE, so they must be part of the key — a projected list
+        // would otherwise poison a later full list (missing media/relation data).
+        const queryHash = syncQueryHash(
+          JSON.stringify({
+            query,
+            limit,
+            offset,
+            sort,
+            fields: options.fields ?? null,
+            populate: options.populate ?? null,
+          }),
+        );
         cacheKey = `${tenantPrefix}collection:${schema._id}:find:${queryHash}`;
       }
     }
@@ -1620,6 +1634,10 @@ export class CollectionsNamespace {
 
     const schemaId = schema._id as string;
     const tid = tenantId as string;
+
+    // L2 invalidation starts IMMEDIATELY (debounced + coalesced) — never behind
+    // workflow/pubsub work, so save-then-read can't race a stale cached list.
+    this.invalidateCache(schema, tenantId, { skipRequestCacheClear: true });
 
     queueMicrotask(() => {
       void (async () => {

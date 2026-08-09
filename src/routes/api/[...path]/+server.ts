@@ -16,7 +16,6 @@ import { isPublicRoute, getUserCacheId, buildUserCacheKey } from "@src/utils/hoo
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
-import { policyEngine } from "@src/services/security/policy-engine";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import { getCorsHeaders } from "@utils/security/cors-utils";
 import {
@@ -258,11 +257,6 @@ function checkEndpointPermission(
 ): boolean {
   // 🚀 ADMIN FAST-PATH: System and super admins have all access
   if (user.isAdmin === true || user.role === "admin" || user.role === "super-admin") {
-    return true;
-  }
-
-  // ⚡ POLICY-AS-CODE IN-MEMORY EVALUATION (< 50µs CPU check)
-  if (policyEngine.evaluate(user, namespace, method)) {
     return true;
   }
 

@@ -1,33 +1,17 @@
 ---
-title: Policy-as-Code & WASM Security Middleware Architecture
-description: Comprehensive reference for SveltyCMS in-memory Policy-as-Code evaluation, Layer 0 WASM WAF guard, Runtime Baseline Clamping, Merkle Tree Audit Ledgers, and API Fuzzing.
+title: WASM WAF & Security Middleware Architecture
+description: Comprehensive reference for SveltyCMS Layer 0 WASM WAF guard, Merkle Tree Audit Ledgers, and API Fuzzing.
 ---
 
-# Policy-as-Code & WASM Security Architecture (2026 Edition)
+# WASM WAF & Security Architecture (2026 Edition)
 
-SveltyCMS combines compiled Policy-as-Code (PaC) logic with WebAssembly (WASM) threat scanning to achieve sub-microsecond authorization latency and nanosecond WAF payload protection.
+SveltyCMS combines WebAssembly (WASM) threat scanning with cryptographic audit chaining and automated API fuzzing to achieve nanosecond WAF payload protection and verifiable audit integrity.
 
----
-
-## 1. Hybrid Policy-as-Code (PaC) Engine
-
-SveltyCMS separates **Role Definition** (Code/Git) from **Role Assignment** (GUI/Database).
-
-- **Location**: `src/services/security/policy-engine.ts`
-- **Config**: `src/config/policies/default-policy.ts`
-- **Latency**: `< 50 microseconds` per authorization check (CPU-bound in RAM).
-
-```typescript
-import { policyEngine } from "@src/services/security/policy-engine";
-
-const isAllowed = policyEngine.evaluate(user, "collection:posts", "read", {
-  authorId: document.authorId,
-});
-```
+> **Note**: The in-memory Policy-as-Code engine (`policy-engine.ts`) and runtime baseline clamps (`baseline-guard.ts`) were removed in the security audit — they were never wired into the dispatcher (the RBAC `ENDPOINT_PERMISSIONS` mapping + `hasPermissionWithRoles` is the single enforcement point). Keeping unwired engines around risked a latent authorization bypass if a future rule normalized namespace/method into its resource/action model.
 
 ---
 
-## 2. Pre-Compiled WASM WAF Middleware Guard
+## 1. Pre-Compiled WASM WAF Middleware Guard
 
 Requests passing through SvelteKit are inspected at **Layer 0** before JSON payload deserialization.
 
@@ -37,17 +21,7 @@ Requests passing through SvelteKit are inspected at **Layer 0** before JSON payl
 
 ---
 
-## 3. Runtime Security Baseline Clamping
-
-Database security settings are clamped against Git-versioned hard security floors in CPU memory.
-
-- **Location**: `src/services/security/baseline-guard.ts`
-- **Config**: `src/config/security-baseline.ts`
-- **Guarantee**: Even if a database value is altered, the application layer enforces the Git baseline floor (`Math.max(dbMinPassword, BaselineMinPassword)`).
-
----
-
-## 4. Cryptographic Merkle Tree Audit Ledger
+## 2. Cryptographic Merkle Tree Audit Ledger
 
 Audit logs are cryptographically hashed and structured into a Merkle Tree, allowing $O(\log N)$ tamper verification and verifiable inclusion proofs.
 
@@ -56,7 +30,7 @@ Audit logs are cryptographically hashed and structured into a Merkle Tree, allow
 
 ---
 
-## 5. Automated Security API Payload Fuzzer
+## 3. Automated Security API Payload Fuzzer
 
 Proactively tests API endpoints against malformed strings, oversized buffers, SQLi patterns, and deep nesting.
 

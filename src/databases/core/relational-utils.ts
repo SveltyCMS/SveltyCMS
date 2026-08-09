@@ -122,7 +122,7 @@ export function getTableBooleanColumns(table: string): Set<string> | undefined {
   return _tableBoolCols.get(table);
 }
 
-/** Registers a table's known date/JSON columns for zero-overhead conversion under both physical and logical table names. Idempotent. */
+/** Registers a table's known date/JSON columns for zero-overhead conversion under both physical and logical table names. Registrations are ADDITIVE — knowledge only grows (a later registration with materialized/boolean columns augments an earlier base-only one; a later partial registration never shrinks the maps). */
 export function registerTableSchema(
   table: string,
   columns: string[],
@@ -135,12 +135,16 @@ export function registerTableSchema(
   const boolSet = new Set(booleanCols || []);
 
   const registerKey = (key: string) => {
-    if (_tableDateCols.has(key)) return;
-    _tableDateCols.set(key, dateCols);
-    _tableJsonCols.set(key, jsonCols);
-    _tableSkipKeys.set(key, skipSet);
-    _tableMergeSkipKeys.set(key, new Set(columns));
-    _tableBoolCols.set(key, boolSet);
+    const prevDate = _tableDateCols.get(key);
+    const prevJson = _tableJsonCols.get(key);
+    const prevSkip = _tableSkipKeys.get(key);
+    const prevMerge = _tableMergeSkipKeys.get(key);
+    const prevBool = _tableBoolCols.get(key);
+    _tableDateCols.set(key, prevDate ? [...new Set([...prevDate, ...dateCols])] : dateCols);
+    _tableJsonCols.set(key, prevJson ? [...new Set([...prevJson, ...jsonCols])] : jsonCols);
+    _tableSkipKeys.set(key, new Set([...(prevSkip ?? []), ...skipSet]));
+    _tableMergeSkipKeys.set(key, new Set([...(prevMerge ?? []), ...columns]));
+    _tableBoolCols.set(key, new Set([...(prevBool ?? []), ...boolSet]));
   };
 
   registerKey(table);
@@ -260,7 +264,12 @@ function coerceBooleanCols(row: Record<string, unknown>, table: string | undefin
  */
 export function convertDatesToISO(
   row: any,
-  options?: { mariaDoubleParseJson?: boolean; table?: string; inPlace?: boolean },
+  options?: {
+    mariaDoubleParseJson?: boolean;
+    table?: string;
+    inPlace?: boolean;
+    skipJson?: boolean;
+  },
 ): any {
   if (!row) return row;
   if (Array.isArray(row)) {
@@ -271,6 +280,7 @@ export function convertDatesToISO(
   const hasSchema = table ? _tableDateCols.has(table) : false;
   const dateCols = hasSchema && table ? getTableDateColumns(table) : null;
   const jsonCols = hasSchema && table ? getTableJsonColumns(table) : null;
+  const skipJson = options?.skipJson === true;
 
   if (options?.inPlace && hasSchema && dateCols) {
     // 🚀 ZERO-WORK FAST PATH: if the row carries no Date instances and no
@@ -287,7 +297,7 @@ export function convertDatesToISO(
         break;
       }
     }
-    if (!needsWork && jsonCols && jsonCols.length > 0) {
+    if (!needsWork && !skipJson && jsonCols && jsonCols.length > 0) {
       for (let i = 0; i < jsonCols.length; i++) {
         const v = row[jsonCols[i]];
         if (typeof v === "string" && isJsonString(v)) {
@@ -296,7 +306,10 @@ export function convertDatesToISO(
         }
       }
     }
-    if (!needsWork) return row;
+    if (!needsWork) {
+      coerceBooleanCols(row, table);
+      return row;
+    }
 
     for (let i = 0; i < dateCols.length; i++) {
       const k = dateCols[i];
@@ -307,7 +320,7 @@ export function convertDatesToISO(
         row[k] = new Date((v as any).getTime()).toISOString();
       }
     }
-    if (jsonCols && jsonCols.length > 0) {
+    if (!skipJson && jsonCols && jsonCols.length > 0) {
       const skipMerge = table ? getTableMergeSkipKeys(table) : null;
       for (let i = 0; i < jsonCols.length; i++) {
         const k = jsonCols[i];
@@ -338,7 +351,7 @@ export function convertDatesToISO(
     }
   }
 
-  if (jsonCols && jsonCols.length > 0) {
+  if (!skipJson && jsonCols && jsonCols.length > 0) {
     const skipMerge = table ? getTableMergeSkipKeys(table) : null;
     for (let i = 0; i < jsonCols.length; i++) {
       const k = jsonCols[i];
@@ -383,7 +396,12 @@ export function convertDatesToISO(
 
 export const convertArrayDatesToISO = (
   rows: any[],
-  options?: { mariaDoubleParseJson?: boolean; table?: string; inPlace?: boolean },
+  options?: {
+    mariaDoubleParseJson?: boolean;
+    table?: string;
+    inPlace?: boolean;
+    skipJson?: boolean;
+  },
 ) => {
   if (!rows || rows.length === 0) return [];
   return rows.map((r) => convertDatesToISO(r, options));

@@ -10,6 +10,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { validateEgressUrl } from "@src/utils/egress-guard";
 import type { SNCEntry } from "./types";
 
 // ============================================================================
@@ -68,6 +69,16 @@ export async function downloadMediaWithRateLimit(
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= cfg.retryAttempts; attempt++) {
       try {
+        // 🛡️ AWAIT the egress guard before fetching — import-controlled asset
+        // URLs must not race the SSRF check. Static import: a per-attempt
+        // dynamic import inside concurrent downloads could stall the second
+        // in-flight request. The S3 PUT below is admin-configured (may
+        // legitimately be a private MinIO endpoint), so only the download
+        // side is guarded.
+        await validateEgressUrl(asset.externalUrl, {
+          allowHttp: process.env.NODE_ENV === "development",
+        });
+
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), cfg.timeoutMs);
 

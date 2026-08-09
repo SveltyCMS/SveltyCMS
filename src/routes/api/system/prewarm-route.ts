@@ -8,14 +8,14 @@
  */
 
 import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
-import { json } from "@sveltejs/kit";
-import type { RequestHandler } from "./$types";
+import { json, type RequestHandler } from "@sveltejs/kit";
 
 export const GET: RequestHandler = async ({ url }) => {
   const targetPath = url.searchParams.get("path") || "/dashboard";
 
-  // Non-blocking background pre-warm
-  routeResourceStateMachine.prewarmRouteResources(targetPath).catch(() => {});
+  // Non-blocking background pre-warm — actually fetches the spec's preload
+  // endpoints so the response cache holds real entries.
+  routeResourceStateMachine.prewarmRouteResources(targetPath, url.origin).catch(() => {});
 
   const spec = routeResourceStateMachine.classifyRouteSpec(targetPath);
 

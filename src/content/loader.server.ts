@@ -24,24 +24,19 @@ import type { Schema } from "./types";
 // ─── Runtime mode ────────────────────────────────────────────────────────────
 
 export const contentRuntime = {
-  isBenchmark(): boolean {
-    return (
-      process.env.BENCHMARK_STABLE === "true" ||
-      process.env.BENCHMARK_MODE === "1" ||
-      process.env.BENCHMARK_MODE === "true" ||
-      process.env.SVELTY_BENCHMARK_SUITE === "true" ||
-      process.env.BENCHMARK_RECORD === "true" ||
-      process.env.BENCHMARK_RECORD === "1"
-    );
-  },
   isTest(): boolean {
     return process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test";
   },
+  // Production runs use the worker pool — the same path real deployments
+  // execute. The pool additionally requires the worker chunk to exist next to
+  // this module (the build script copies it into the output): during `vite
+  // build` SSR evaluation and harness runs the chunk is absent, so schema
+  // loading falls back to native in-process loading instead of crashing.
   useWorkerPool(): boolean {
-    if (contentRuntime.isBenchmark()) return false;
     if (contentRuntime.isTest()) return false;
     if (process.env.NODE_ENV === "development") return false;
-    return process.env.NODE_ENV === "production";
+    if (process.env.NODE_ENV !== "production") return false;
+    return existsSync(new URL("./module-worker.server.ts", import.meta.url));
   },
 };
 
@@ -198,15 +193,27 @@ class ModuleWorkerPool {
   private nextId = 0;
   private poolSize: number;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private disabled = false;
 
   constructor(poolSize: number = Math.max(2, Math.ceil(os.cpus().length / 2))) {
     this.poolSize = Math.max(1, poolSize);
-    for (let i = 0; i < this.poolSize; i++) {
-      this.workers.push(this.createWorker());
+    // Workers spawn lazily on first task. Eager spawning at construction is
+    // wrong during builds: the worker chunk is only copied into the output
+    // AFTER vite finishes, so every eager spawn failed async and triggered
+    // an unbounded error/retry loop.
+  }
+
+  /** Spawn workers up to poolSize (no-op when disabled). */
+  private ensureWorkers(): void {
+    if (this.disabled) return;
+    while (this.workers.length < this.poolSize) {
+      const worker = this.createWorker();
+      if (!worker) break; // sync spawn failure already disabled the pool
+      this.workers.push(worker);
     }
   }
 
-  private createWorker(): PooledWorker {
+  private createWorker(): PooledWorker | null {
     try {
       const worker = new Worker(new URL("./module-worker.server.ts", import.meta.url));
 
@@ -218,6 +225,16 @@ class ModuleWorkerPool {
       };
 
       worker.on("error", (err: Error) => {
+        // A worker that never ran a task failed to spawn (missing chunk or
+        // module error). Retrying would loop forever — disable the pool and
+        // let callers fall back to native in-process loading.
+        if (pooled.lastUsedAt === pooled.createdAt) {
+          logger.warn(
+            `[WorkerPool] Worker failed to start — falling back to native schema loading: ${err.message}`,
+          );
+          this.disablePool();
+          return;
+        }
         logger.error(`[WorkerPool] Worker error: ${err.message}`);
         this.replaceWorker(pooled);
       });
@@ -235,14 +252,30 @@ class ModuleWorkerPool {
       logger.warn(
         `[WorkerPool] Worker script missing — falling back to native schema loading. ${msg}`,
       );
-      // Return a dead worker that won't be used; pool will shrink to empty.
-      const dead = { worker: null as unknown as Worker, busy: true, createdAt: 0, lastUsedAt: 0 };
-      this.poolSize = 0;
-      return dead;
+      this.disablePool();
+      return null;
+    }
+  }
+
+  /** Permanently disables the pool: rejects queued tasks so callers fall back to native loading. */
+  private disablePool(): void {
+    if (this.disabled) return;
+    this.disabled = true;
+    this.poolSize = 0;
+    for (const w of this.workers) {
+      w.worker.removeAllListeners();
+      w.worker.terminate().catch(() => {});
+    }
+    this.workers = [];
+    const pending = this.queue;
+    this.queue = [];
+    for (const task of pending) {
+      task.reject(new Error("Worker pool unavailable — falling back to native loading"));
     }
   }
 
   private replaceWorker(old: PooledWorker): void {
+    if (this.disabled) return;
     const idx = this.workers.indexOf(old);
     if (idx >= 0) {
       old.worker.removeAllListeners();
@@ -250,7 +283,8 @@ class ModuleWorkerPool {
       this.workers.splice(idx, 1);
     }
     if (this.workers.length < this.poolSize) {
-      this.workers.push(this.createWorker());
+      const replacement = this.createWorker();
+      if (replacement) this.workers.push(replacement);
     }
     this.processQueue();
   }
@@ -260,6 +294,15 @@ class ModuleWorkerPool {
   }
 
   private processQueue(): void {
+    if (this.disabled) {
+      const pending = this.queue;
+      this.queue = [];
+      for (const task of pending) {
+        task.reject(new Error("Worker pool unavailable — falling back to native loading"));
+      }
+      return;
+    }
+    this.ensureWorkers();
     while (this.queue.length > 0) {
       const worker = this.getIdleWorker();
       if (!worker) break;
@@ -271,7 +314,11 @@ class ModuleWorkerPool {
 
   private executeTask(worker: PooledWorker, task: Task): void {
     worker.busy = true;
-    worker.lastUsedAt = Date.now();
+    // NOTE: lastUsedAt is only advanced by onMessage (proof the worker ran).
+    // A spawn/module failure fires 'error' before any message — the error
+    // handler uses lastUsedAt === createdAt to detect that and disable the
+    // pool (single WARN, no retry spam) instead of treating it as a runtime
+    // failure.
 
     const onMessage = (msg: any) => {
       clearTimeout(task.timer);
@@ -320,6 +367,10 @@ class ModuleWorkerPool {
   }
 
   async load(filePath: string, mtimeMs?: number): Promise<{ schema?: any; error?: string }> {
+    if (this.disabled) {
+      // Synchronous rejection — callers fall back to native in-process loading.
+      return Promise.reject(new Error("Worker pool unavailable"));
+    }
     const id = ++this.nextId;
 
     return new Promise((resolve, reject) => {
