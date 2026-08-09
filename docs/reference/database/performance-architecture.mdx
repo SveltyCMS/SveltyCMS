@@ -68,7 +68,25 @@ Optimizations live in **shared core**, not one dialect:
 | Mongo date-walk skip + 3-key `mapQuery` fast path          | MongoDB                                                                               | Content schemas store ISO strings — `processDates` walk skipped; safeQuery `{_id,tenantId,isDeleted}` shape bypasses rebuild                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `convertDatesToISO` zero-work fast path                    | All SQL                                                                               | In-place conversion returns the row untouched when no `Date` instances and no JSON-string columns (content rows store ISO strings)                                                                                                                                                                                                                                                                                                                                                                                                              |
 
-LocalCMS and HTTP turbo sit **above** this layer — same gains on every adapter:
+| LocalCMS and HTTP turbo sit **above** this layer — same gains on every adapter:
+
+| SDK write-path slice                                            | Before                                          | After                                                                                    | Note                                                                                                                                  |
+| --------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Lazy module singletons (workflow/response-cache/pub-sub/outbox) | 3.5k create / 3.4k update                       | 4.0k / 6.3k                                                                              | per-write `await import()` cost 30–60µs each — resolved once, hot path = promise resolves                                             |
+| Plugin-registry views (`getAll()` / hook presence)              | allocates mapped array + hook walk per mutation | O(1) cached (invalidated on register)                                                    | called twice per SDK create/update by `triggerLifecycleHook`                                                                          |
+| Outbox emit (buffered)                                          | crypto UUID + `getDb()` per emit                | UUID + timestamps deferred to flush; buffered path is env-check + push                   | measured 28µs → ~5µs                                                                                                                  |
+| Audit hook (after-insert)                                       | logs every insert incl. outbox flush batches    | skips `svelty_outbox` (internal machinery); sync-first flags; `skipReturning` bulk flush | the outbox→audit cascade (1000-entry flushes on the write path) was the hidden tax                                                    |
+| **Full-pipeline SDK create (SQLite)**                           | **2.7k RPS**                                    | **3.7–7.6k RPS**                                                                         | outbox delta vs disabled: +121.8% → **+22–75%**; detached 10–14.4k (host-load dependent; range measured on the isolated benchmark DB) |
+
+> [!NOTE]
+> **Benchmark DB isolation (2026-08)**: local benchmarks used to silently fall back to the
+> live default name (`config/test-database/sveltycms.db`) because `loadPrivateConfig` returns
+> `null` without `DB_HOST` and the SQLite adapter then guessed a filename. Benchmarks wrote
+> into the same growing file across runs (38k `SdkVsDirect` rows, 380k `benchmark_crud` rows),
+> which made every later run measure a bigger table — earlier sub-4k SDK-create readings were
+> this pollution, not a regression. Fixes: benchmark harness sets `DB_HOST` explicitly; the
+> SQLite adapter now **fails closed** in test/benchmark mode when no `DB_NAME` is derivable
+> (never silently uses `sveltycms.db`); `config/database/` remains the only live-data folder.
 
 ```text
 HTTP turbo / LocalCMS → ICrudAdapter.findOne|insert|update

@@ -217,6 +217,12 @@ process.env.LOG_LEVEL = process.env.BENCHMARK_DEBUG === "true" ? "debug" : "erro
 process.env.DEBUG = "";
 process.env.QUIET = "true";
 process.env.DB_NAME = process.env.DB_NAME || "bench_parent";
+// DB_HOST is REQUIRED by the private-config schema (minLength 1). Without it,
+// loadPrivateConfig returns null → getDatabaseConnectionString() returns "" →
+// the SQLite adapter silently fell back to the live default file
+// (config/test-database/sveltycms.db), mixing benchmark state under the live
+// DB name across runs. The adapter now fails closed; the harness must comply.
+process.env.DB_HOST = process.env.DB_HOST || "127.0.0.1";
 
 // Suppress console.info/warn during init
 const originalInfo = console.info;

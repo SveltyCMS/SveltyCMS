@@ -1394,6 +1394,26 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
     let dbPath = typeof config === "string" ? config : config.connectionString;
 
+    // Host may be a direct SQLite file path (test bridge passes host=auditFile
+    // in db.ts when no config file exists yet).
+    if (!dbPath && config && typeof config === "object") {
+      const host = (config as any).host;
+      if (
+        typeof host === "string" &&
+        host &&
+        host !== "localhost" &&
+        host !== "127.0.0.1" &&
+        !host.includes("://")
+      ) {
+        const name = (config as any).DB_NAME;
+        if (host.endsWith(".sqlite") || host.endsWith(".db") || host.endsWith(":memory:")) {
+          dbPath = host;
+        } else if (name) {
+          dbPath = `${host.endsWith("/") || host.endsWith("\\") ? host : `${host}/`}${name}`;
+        }
+      }
+    }
+
     if (!dbPath) {
       const { isSetupComplete } = await import("@utils/setup-check-fast");
       const isTestHarness =
@@ -1405,6 +1425,19 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       const isTestDb =
         isTestHarness || (dbName && (dbName.includes("test") || dbName.includes("benchmark")));
       const defaultDbFolder = isTestDb ? "config/test-database" : "config/database";
+
+      // 🛡️ FAIL-CLOSED: automated harnesses must never silently fall back to
+      // the live/default name (sveltycms.db). A config object without DB_NAME
+      // used to land benchmark data in `config/test-database/sveltycms.db`,
+      // mixing test state under the live DB name across runs. Require an
+      // explicit name (or DB_PATH) instead of guessing.
+      if (isTestHarness && !dbName) {
+        throw new Error(
+          `[SQLite] Refused to connect without DB_NAME in test/benchmark mode. ` +
+            `Pass DB_NAME (or set DB_PATH) explicitly so tests never use the live ` +
+            `default file. Received config: ${JSON.stringify(config)}`,
+        );
+      }
 
       dbPath =
         process.env.DB_PATH ||

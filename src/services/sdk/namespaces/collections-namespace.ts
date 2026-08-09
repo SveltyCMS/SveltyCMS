@@ -302,6 +302,7 @@ export class CollectionsNamespace {
       (idLower === "redirects" ||
         idLower === "404_logs" ||
         idLower === "benchmarkstable" ||
+        idLower === "sdkvsdirect" ||
         idLower === "bench_revisions" ||
         idLower === "bench_index_pressure" ||
         idLower === "bench_migration_large" ||
@@ -357,7 +358,7 @@ export class CollectionsNamespace {
                 type: "string",
               },
             ]
-          : idLower === "benchmark_posts"
+          : idLower === "sdkvsdirect"
             ? [
                 {
                   db_fieldName: "_id",
@@ -371,27 +372,42 @@ export class CollectionsNamespace {
                   widget: { Name: "Input" },
                   type: "string",
                 },
-                {
-                  db_fieldName: "content",
-                  label: "Content",
-                  widget: { Name: "RichText" },
-                  type: "string",
-                },
-                {
-                  db_fieldName: "author",
-                  label: "Author",
-                  widget: { Name: "Relation" },
-                  type: "string",
-                  relation: "BenchmarkAuthors",
-                },
-                {
-                  db_fieldName: "publishDate",
-                  label: "Publish Date",
-                  widget: { Name: "DateTime" },
-                  type: "string",
-                },
               ]
-            : [];
+            : idLower === "benchmark_posts"
+              ? [
+                  {
+                    db_fieldName: "_id",
+                    label: "ID",
+                    widget: { Name: "Input" },
+                    type: "string",
+                  },
+                  {
+                    db_fieldName: "title",
+                    label: "Title",
+                    widget: { Name: "Input" },
+                    type: "string",
+                  },
+                  {
+                    db_fieldName: "content",
+                    label: "Content",
+                    widget: { Name: "RichText" },
+                    type: "string",
+                  },
+                  {
+                    db_fieldName: "author",
+                    label: "Author",
+                    widget: { Name: "Relation" },
+                    type: "string",
+                    relation: "BenchmarkAuthors",
+                  },
+                  {
+                    db_fieldName: "publishDate",
+                    label: "Publish Date",
+                    widget: { Name: "DateTime" },
+                    type: "string",
+                  },
+                ]
+              : [];
 
       schema = {
         _id: collectionId,

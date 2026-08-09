@@ -29,7 +29,8 @@ export type SystemScopeReason =
   | "auth-bootstrap"
   | "plugin"
   | "seed"
-  | "cache-warming";
+  | "cache-warming"
+  | "audit-flush";
 
 /** Private brand — not exportable as a forgeable string key. */
 const SYSTEM_SCOPE_BRAND: unique symbol = Symbol("SveltyCMS.SystemTenantScope");

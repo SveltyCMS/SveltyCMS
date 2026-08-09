@@ -151,6 +151,40 @@ class OutboxServiceImpl {
       };
     }
 
+    const now = nowISODateString();
+
+    // Buffered (non-transactional) fast path FIRST — no DB access and no
+    // UUID until flush. The flush stamps _id/updatedAt when the batch is
+    // written, keeping the content-write path free of crypto + getDb.
+    if (!options?.transaction) {
+      const event: OutboxEvent = {
+        _id: "",
+        tenantId: tenantId || "default",
+        eventType,
+        aggregateType,
+        aggregateId: String(aggregateId),
+        payload,
+        status: "pending",
+        createdAt: now,
+        attempts: 0,
+        updatedAt: now,
+      };
+      this.emitBuffer.push(event);
+      if (this.emitBuffer.length >= OUTBOX_BUFFER_MAX) {
+        void this.flushEmitBuffer();
+      } else if (!this.emitFlushTimer) {
+        this.emitFlushTimer = setTimeout(() => {
+          this.emitFlushTimer = null;
+          void this.flushEmitBuffer();
+        }, OUTBOX_BUFFER_FLUSH_MS);
+        // Don't keep the process alive solely for outbox flush
+        if (typeof this.emitFlushTimer === "object" && "unref" in this.emitFlushTimer) {
+          (this.emitFlushTimer as NodeJS.Timeout).unref?.();
+        }
+      }
+      return { success: true, data: event };
+    }
+
     const db = getDb();
     if (!db) {
       logger.warn("[Outbox] Database not available; event will not be persisted");
@@ -161,7 +195,7 @@ class OutboxServiceImpl {
       };
     }
 
-    const now = nowISODateString();
+    // Transactional path: must share the caller's txn for atomicity.
     const event: OutboxEvent = {
       _id: generateUUID(),
       tenantId: tenantId || "default",
@@ -174,44 +208,23 @@ class OutboxServiceImpl {
       attempts: 0,
       updatedAt: now,
     };
-
-    // Transactional path: must share the caller's txn for atomicity.
-    if (options?.transaction) {
-      try {
-        const result = await db.crud.insert(this.collectionName, event as any, options);
-        if (result.success) {
-          return {
-            success: true,
-            data: (result.data as unknown as OutboxEvent) || event,
-          };
-        }
-        return result as DatabaseResult<OutboxEvent>;
-      } catch (error: any) {
-        logger.error(`[Outbox] Failed to emit ${eventType} event:`, error);
+    try {
+      const result = await db.crud.insert(this.collectionName, event as any, options);
+      if (result.success) {
         return {
-          success: false,
-          message: `Outbox emit failed: ${error.message}`,
-          error: { code: "OUTBOX_EMIT_FAILED", message: error.message },
+          success: true,
+          data: (result.data as unknown as OutboxEvent) || event,
         };
       }
+      return result as DatabaseResult<OutboxEvent>;
+    } catch (error: any) {
+      logger.error(`[Outbox] Failed to emit ${eventType} event:`, error);
+      return {
+        success: false,
+        message: `Outbox emit failed: ${error.message}`,
+        error: { code: "OUTBOX_EMIT_FAILED", message: error.message },
+      };
     }
-
-    // Fast path: coalesce into bulk flush (does not block the content write).
-    this.emitBuffer.push(event);
-    if (this.emitBuffer.length >= OUTBOX_BUFFER_MAX) {
-      void this.flushEmitBuffer();
-    } else if (!this.emitFlushTimer) {
-      this.emitFlushTimer = setTimeout(() => {
-        this.emitFlushTimer = null;
-        void this.flushEmitBuffer();
-      }, OUTBOX_BUFFER_FLUSH_MS);
-      // Don't keep the process alive solely for outbox flush
-      if (typeof this.emitFlushTimer === "object" && "unref" in this.emitFlushTimer) {
-        (this.emitFlushTimer as NodeJS.Timeout).unref?.();
-      }
-    }
-
-    return { success: true, data: event };
   }
 
   /** Bulk-flush buffered non-transactional outbox events. */
@@ -233,6 +246,10 @@ class OutboxServiceImpl {
       const db = getDb();
       if (!db || batch.length === 0) return;
       try {
+        // Stamp deferred _ids now — emit() skips crypto on the write path.
+        for (const ev of batch) {
+          if (!ev._id) ev._id = generateUUID();
+        }
         // Outbox events carry their own tenantId per row; the flush is a system
         // capability (scheduler domain) writing across tenants in one batch.
         const { withSystemScope } = await import("@src/databases/system-tenant-scope");

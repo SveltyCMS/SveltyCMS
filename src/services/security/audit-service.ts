@@ -14,9 +14,16 @@ import type {
   IDBAdapter,
 } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
-import { getAuditFlags, isAuditDisabledByEnv } from "@utils/security/audit-flags";
+import {
+  getAuditFlags,
+  getAuditFlagsSync,
+  isAuditDisabledByEnv,
+} from "@utils/security/audit-flags";
 
 export type AuditSeverity = "low" | "medium" | "high" | "critical";
+
+/** Outbox collection — internal machinery, excluded from automatic audit hooks. */
+const OUTBOX_COLLECTION = "svelty_outbox";
 
 export enum AuditEventType {
   USER_LOGIN = "user_login",
@@ -135,8 +142,16 @@ export class AuditService {
 
     try {
       if (dbAdapterInstance) {
-        // Bulk insert if supported, otherwise loop
-        if (dbAdapterInstance.batch?.bulkInsert) {
+        // Bulk insert if supported, otherwise loop. skipReturning: the flushed
+        // entries are already in memory — no RETURNING read-back needed.
+        if (dbAdapterInstance.crud?.insertMany) {
+          const { withSystemScope } = await import("@src/databases/system-tenant-scope");
+          await dbAdapterInstance.crud.insertMany(
+            this.collectionName,
+            entriesToFlush as any[],
+            { ...withSystemScope("audit-flush"), skipReturning: true } as any,
+          );
+        } else if (dbAdapterInstance.batch?.bulkInsert) {
           await dbAdapterInstance.batch.bulkInsert(this.collectionName, entriesToFlush);
         } else {
           for (const entry of entriesToFlush) {
@@ -188,7 +203,12 @@ export class AuditService {
       type: "after",
       action: "insert",
       handler: (collection: string, data: any, options: any) => {
+        // Skip the audit store itself (recursion) and the transactional
+        // outbox — outbox events are internal machinery tracked by their own
+        // delivery status, and audit-logging each flush batch cascades into
+        // 1000-entry audit flushes on the content-write path.
         if (collection === this.collectionName) return;
+        if (collection === OUTBOX_COLLECTION) return;
 
         this.log(
           "Automatic Audit",
@@ -244,7 +264,9 @@ export class AuditService {
     // Serialized hash-chain queue to guarantee tamper-evident crypto chain integrity under concurrent writes
     this.chainLock = this.chainLock
       .then(async () => {
-        const flags = await getAuditFlags().catch(() => null);
+        // Sync-first flags: env/cached read avoids a promise hop per entry on
+        // the hot chain (measured ~10µs of the per-write audit cost).
+        const flags = getAuditFlagsSync() ?? (await getAuditFlags().catch(() => null));
         if (flags?.disabled) return;
 
         const timestamp = new Date().toISOString();

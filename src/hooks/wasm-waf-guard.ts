@@ -51,7 +51,6 @@ const PROTOTYPE_POLLUTION_PATTERNS = [
 ];
 
 export class WafGuard {
-  private wasmInstance: WebAssembly.Instance | null = null;
   private isWasmLoaded = false;
 
   constructor() {
@@ -67,7 +66,9 @@ export class WafGuard {
         0, 0, 10, 4, 1, 2, 0, 11,
       ]);
       const module = await WebAssembly.compile(wasmBytes);
-      this.wasmInstance = await WebAssembly.instantiate(module);
+      // Instance kept alive only long enough to prove the runtime can load it;
+      // the actual matching is the stateless JS regexes in inspectRequest.
+      await WebAssembly.instantiate(module);
       this.isWasmLoaded = true;
     } catch {
       this.isWasmLoaded = false;

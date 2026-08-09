@@ -108,19 +108,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   ): Promise<T | null> {
     try {
       const tableName = getTableName(table);
-      const cols = Object.keys(values);
-      if (cols.length === 0) return null;
-      // postgres.js 3.x removed sql.join — one flat unsafe() call with explicit
-      // prepare:true gives the same stable-SQL-text statement-cache hit as
-      // nested fragments with a fraction of the per-call allocation. Dates and
-      // objects bind as strings (describe-phase Bind quirk, see above).
-      const colList = cols.map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`).join(", ");
-      const boundValues = cols.map((c) => {
-        const v = values[c];
-        if (v instanceof Date) return (v as Date).toISOString();
-        if (v !== null && typeof v === "object" && !Array.isArray(v)) return JSON.stringify(v);
-        return v;
-      });
+      const valuesCols = Object.keys(values);
+      if (valuesCols.length === 0) return null;
 
       // 🚀 NO-READ-BACK INSERT: the returned row is synthesized from the
       // prepared values + column defaults instead of RETURNING * (saves the
@@ -135,7 +124,24 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         return null;
       }
 
-      const sqlText = `INSERT INTO "${tableName}" (${colList}) VALUES (${cols
+      // postgres.js 3.x removed sql.join — one flat unsafe() call with explicit
+      // prepare:true gives the same stable-SQL-text statement-cache hit as
+      // nested fragments with a fraction of the per-call allocation. Dates and
+      // objects bind as strings (describe-phase Bind quirk, see above). Bind
+      // the SYNTHESIZED row: all columns defined (defaults + NULLs), so
+      // postgres.js never substitutes undefined params client-side — stable
+      // SQL text + full bind list on the prepared statement.
+      const synthCols = Object.keys(synthesized);
+      const colList = synthCols
+        .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+        .join(", ");
+      const boundValues = synthCols.map((c) => {
+        const v = synthesized[c];
+        if (v instanceof Date) return (v as Date).toISOString();
+        if (v !== null && typeof v === "object" && !Array.isArray(v)) return JSON.stringify(v);
+        return v;
+      });
+      const sqlText = `INSERT INTO "${tableName}" (${colList}) VALUES (${synthCols
         .map((_, i) => `$${i + 1}`)
         .join(", ")})`;
       await this.sql!.unsafe(sqlText, boundValues, { prepare: true });
