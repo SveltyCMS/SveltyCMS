@@ -32,7 +32,7 @@ import * as schema from "./schema";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { sql, type SQL } from "drizzle-orm";
-import { mysqlTable, varchar, json, datetime, boolean } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, json, datetime, boolean, int } from "drizzle-orm/mysql-core";
 import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
 import { generateUUID } from "@src/utils/native-utils";
@@ -118,9 +118,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
             return false;
           return !this.getColumn(table, String(f));
         });
-      const selectCols = wantsData
-        ? "`_id`, `data`, `status`, `tenantId`, `createdAt`, `updatedAt`, `isDeleted`"
-        : "`_id`, `status`, `tenantId`, `createdAt`, `updatedAt`, `isDeleted`";
+      const selectCols = this.getRawFindByIdCols(table, wantsData)
+        .map((c) => `\`${c}\``)
+        .join(", ");
       const rawSql = `SELECT ${selectCols} FROM \`${tableName}\` WHERE \`${idColName}\` = ?${tenantSql} LIMIT 1`;
       const rows = (await this.raw.execute(rawSql, [String(id), ...tenantParams])) as any[];
       if (Array.isArray(rows) && rows.length > 0) {
@@ -199,7 +199,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
         return this.getTable(cleanName);
       }
 
-      const dynamicTable = this.createDynamicTableDefinition(tableName);
+      // 🚀 ROW-STORE HYBRID: materialized scalar fields (populated by
+      // createModel) exist in the Drizzle def so filters/sorts/writes use the
+      // column; the `data` blob keeps only dynamic fields.
+      const dynamicTable = this.createDynamicTableDefinition(
+        tableName,
+        this.materializedColumns.get(cleanName) ||
+          this.materializedColumns.get(tableName) ||
+          undefined,
+      );
       this.tableRegistry.set(collection, dynamicTable);
       return dynamicTable;
     } finally {
@@ -426,22 +434,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
   // Schema & Table Management
   // --------------------------------------------------------------------------
 
-  public createDynamicTableDefinition(tableName: string) {
-    registerTableSchema(tableName, [
-      "_id",
-      "tenantId",
-      "collection",
-      "slug",
-      "locale",
-      "publishedAt",
-      "data",
-      "status",
-      "isDeleted",
-      "createdAt",
-      "updatedAt",
-    ]);
-
-    return mysqlTable(tableName, {
+  public createDynamicTableDefinition(tableName: string, columnsToAdd?: Map<string, string>) {
+    const booleanCols: string[] = ["isDeleted"];
+    const columns: Record<string, any> = {
       _id: varchar("_id", { length: 36 }).primaryKey(),
       tenantId: varchar("tenantId", { length: 36 }),
       collection: varchar("collection", { length: 255 }),
@@ -457,7 +452,35 @@ export abstract class AdapterCore extends SqlAdapterCore {
       updatedAt: datetime("updatedAt")
         .notNull()
         .default(sql`CURRENT_TIMESTAMP`),
-    });
+    };
+
+    if (columnsToAdd) {
+      for (const [colName, colType] of columnsToAdd.entries()) {
+        if (
+          colName === "_id" ||
+          colName === "id" ||
+          colName === "tenantId" ||
+          colName === "status" ||
+          colName === "isDeleted" ||
+          colName === "createdAt" ||
+          colName === "updatedAt" ||
+          colName === "data"
+        )
+          continue;
+        if (colType === "integer") {
+          columns[colName] = int(colName);
+        } else if (colType === "boolean") {
+          columns[colName] = boolean(colName);
+          booleanCols.push(colName);
+        } else {
+          columns[colName] = varchar(colName, { length: 255 });
+        }
+      }
+    }
+
+    registerTableSchema(tableName, Object.keys(columns), booleanCols);
+
+    return mysqlTable(tableName, columns);
   }
 
   // --------------------------------------------------------------------------
@@ -1004,6 +1027,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const amountNum = utils.assertFiniteAmount(amount);
         const idStr = String(id);
         const dataCol = this.getColumn(table, "data");
+        // 🚀 ROW-STORE HYBRID: materialized numeric fields live in a column —
+        // increment the column directly (JSON_SET on `data` would no-op for new
+        // rows whose field never entered the blob).
+        const fieldIsColumn = !!this.getColumn(table, field);
         const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
           options,
           "mysql",
@@ -1013,11 +1040,17 @@ export abstract class AdapterCore extends SqlAdapterCore {
         if (this._returningSupported !== false) {
           try {
             // Prefer single-round-trip upsert with bound params when RETURNING is available.
-            const upsertSql = dataCol
-              ? `INSERT INTO \`${tableName}\` (\`_id\`, \`data\`, \`updatedAt\`) VALUES (?, '{}', NOW()) ON DUPLICATE KEY UPDATE \`data\` = JSON_SET(COALESCE(\`data\`, '{}'), '$.${safeField}', COALESCE(JSON_EXTRACT(COALESCE(\`data\`, '{}'), '$.${safeField}'), 0) + ?), \`updatedAt\` = NOW() RETURNING *`
-              : `INSERT INTO \`${tableName}\` (\`_id\`, \`${safeField}\`, \`updatedAt\`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() RETURNING *`;
+            const upsertSql = fieldIsColumn
+              ? `INSERT INTO \`${tableName}\` (\`_id\`, \`${safeField}\`, \`updatedAt\`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() RETURNING *`
+              : dataCol
+                ? `INSERT INTO \`${tableName}\` (\`_id\`, \`data\`, \`updatedAt\`) VALUES (?, '{}', NOW()) ON DUPLICATE KEY UPDATE \`data\` = JSON_SET(COALESCE(\`data\`, '{}'), '$.${safeField}', COALESCE(JSON_EXTRACT(COALESCE(\`data\`, '{}'), '$.${safeField}'), 0) + ?), \`updatedAt\` = NOW() RETURNING *`
+                : `INSERT INTO \`${tableName}\` (\`_id\`, \`${safeField}\`, \`updatedAt\`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() RETURNING *`;
 
-            const upsertParams = dataCol ? [idStr, amountNum] : [idStr, amountNum, amountNum];
+            const upsertParams = fieldIsColumn
+              ? [idStr, amountNum, amountNum]
+              : dataCol
+                ? [idStr, amountNum]
+                : [idStr, amountNum, amountNum];
 
             const rows = (await this.raw.execute(upsertSql, upsertParams)) as any[];
             if (Array.isArray(rows) && rows.length > 0) {
@@ -1036,7 +1069,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
         }
 
         // Fallback: parameterized UPDATE + SELECT (works on all MariaDB/MySQL versions)
-        if (dataCol) {
+        if (fieldIsColumn) {
+          await this.raw.execute(
+            `UPDATE \`${tableName}\` SET \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`,
+            [amountNum, idStr, ...tenantParams],
+          );
+        } else if (dataCol) {
           await this.raw.execute(
             `UPDATE \`${tableName}\` SET \`data\` = JSON_SET(COALESCE(\`data\`, '{}'), '$.${safeField}', COALESCE(JSON_EXTRACT(COALESCE(\`data\`, '{}'), '$.${safeField}'), 0) + ?), \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`,
             [amountNum, idStr, ...tenantParams],
@@ -1115,8 +1153,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const dynamicCols = ["collection", "slug", "locale", "publishedAt"];
 
         if (schemaData.fields && Array.isArray(schemaData.fields)) {
+          const materialized = new Map<string, string>();
           for (const field of schemaData.fields) {
-            if (field.indexed || field.unique) {
+            // Row-store hybrid: scalar fields become physical columns — the
+            // `data` blob keeps only dynamic fields for new rows.
+            if (field.indexed || field.unique || helpers.isScalarMaterializableField(field)) {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "VARCHAR(255)";
@@ -1142,9 +1183,17 @@ export abstract class AdapterCore extends SqlAdapterCore {
                 if (!reserved.includes(fieldName)) {
                   columns.push({ name: fieldName, type: colType });
                   dynamicCols.push(fieldName);
+                  materialized.set(
+                    fieldName,
+                    colType === "INT" ? "integer" : colType === "TINYINT(1)" ? "boolean" : "text",
+                  );
                 }
               }
             }
+          }
+          if (materialized.size > 0) {
+            this.materializedColumns.set(tableName, materialized);
+            this.materializedColumns.set(normalizedName, materialized);
           }
         }
 
@@ -1159,6 +1208,25 @@ export abstract class AdapterCore extends SqlAdapterCore {
             if (!exists) {
               const alterSql = `ALTER TABLE \`${physicalName}\` ADD COLUMN \`${col.name}\` ${col.type}`;
               await this.raw.execute(alterSql);
+              // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in
+              // the `data` blob — copy them into the new column so filters and
+              // sorts match old rows too (idempotent: only NULL columns are
+              // filled; JSON_EXTRACT returns JSON — UNQUOTE for text columns,
+              // implicit cast for INT/TINYINT).
+              try {
+                const safeColName = utils.assertSafeSqlIdentifier(col.name, "column");
+                if (col.type === "INT" || col.type === "TINYINT(1)") {
+                  await this.raw.execute(
+                    `UPDATE \`${physicalName}\` SET \`${safeColName}\` = CAST(JSON_EXTRACT(\`data\`, '$.${safeColName}') AS SIGNED) WHERE \`${safeColName}\` IS NULL AND \`data\` IS NOT NULL`,
+                  );
+                } else {
+                  await this.raw.execute(
+                    `UPDATE \`${physicalName}\` SET \`${safeColName}\` = JSON_UNQUOTE(JSON_EXTRACT(\`data\`, '$.${safeColName}')) WHERE \`${safeColName}\` IS NULL AND \`data\` IS NOT NULL`,
+                  );
+                }
+              } catch {
+                /* backfill is best-effort */
+              }
             }
           } catch {
             /* safe */
@@ -1188,6 +1256,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
         }
 
         logger.info(`[MARIADB Adapter] Provisioned table: ${physicalName}`);
+        // The pre-DDL table def (base columns only) is stale — rebuild with the
+        // materialized columns on next getTable.
+        this.tableRegistry.delete(tableName);
+        this.tableRegistry.delete(normalizedName);
+        this.tableRegistry.delete(`collection_${normalizedName}`);
       },
       "CREATE_MODEL_FAILED",
       undefined,

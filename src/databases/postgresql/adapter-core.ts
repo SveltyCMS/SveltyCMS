@@ -30,7 +30,7 @@ import * as schema from "./schema";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sql as drizzleSql, type SQL } from "drizzle-orm";
-import { pgTable, varchar, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, varchar, jsonb, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
 import { generateUUID } from "@src/utils/native-utils";
@@ -274,9 +274,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             return false;
           return !this.getColumn(table, String(f));
         });
-      const selectCols = wantsData
-        ? `"_id", "data", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"`
-        : `"_id", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"`;
+      const selectCols = this.getRawFindByIdCols(table, wantsData)
+        .map((c) => `"${c}"`)
+        .join(", ");
       // Tagged template (NOT unsafe): postgres.js caches prepared statements by
       // SQL text, so this stable query gets parse-once + bind/execute reuse.
       // Identifiers are inlined via sql.unsafe fragments (stable SQL text);
@@ -462,7 +462,17 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         return this.getTable(cleanName);
       }
 
-      const dynamicTable = this.createDynamicTableDefinition(tableName);
+      // 🚀 ROW-STORE HYBRID: materialized scalar fields (populated by
+      // createModel) exist in the Drizzle def so filters/sorts/writes use the
+      // column; the `data` blob keeps only dynamic fields. Previously the
+      // physical columns created by createModel were never registered in the
+      // runtime table def — dead columns.
+      const dynamicTable = this.createDynamicTableDefinition(
+        tableName,
+        this.materializedColumns.get(cleanName) ||
+          this.materializedColumns.get(tableName) ||
+          undefined,
+      );
       this.tableRegistry.set(collection, dynamicTable);
       return dynamicTable;
     } finally {
@@ -782,22 +792,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   // Schema & Dynamic Tables
   // --------------------------------------------------------------------------
 
-  public createDynamicTableDefinition(tableName: string) {
-    registerTableSchema(tableName, [
-      "_id",
-      "tenantId",
-      "collection",
-      "slug",
-      "locale",
-      "publishedAt",
-      "data",
-      "status",
-      "isDeleted",
-      "createdAt",
-      "updatedAt",
-    ]);
-
-    return pgTable(tableName, {
+  public createDynamicTableDefinition(tableName: string, columnsToAdd?: Map<string, string>) {
+    const booleanCols: string[] = ["isDeleted"];
+    const columns: Record<string, any> = {
       _id: varchar("_id", { length: 36 }).primaryKey(),
       tenantId: varchar("tenantId", { length: 36 }),
       collection: varchar("collection", { length: 255 }),
@@ -813,7 +810,35 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       updatedAt: timestamp("updatedAt", { withTimezone: true })
         .notNull()
         .default(drizzleSql`CURRENT_TIMESTAMP`),
-    });
+    };
+
+    if (columnsToAdd) {
+      for (const [colName, colType] of columnsToAdd.entries()) {
+        if (
+          colName === "_id" ||
+          colName === "id" ||
+          colName === "tenantId" ||
+          colName === "status" ||
+          colName === "isDeleted" ||
+          colName === "createdAt" ||
+          colName === "updatedAt" ||
+          colName === "data"
+        )
+          continue;
+        if (colType === "integer") {
+          columns[colName] = integer(colName);
+        } else if (colType === "boolean") {
+          columns[colName] = boolean(colName);
+          booleanCols.push(colName);
+        } else {
+          columns[colName] = varchar(colName, { length: 255 });
+        }
+      }
+    }
+
+    registerTableSchema(tableName, Object.keys(columns), booleanCols);
+
+    return pgTable(tableName, columns);
   }
 
   // --------------------------------------------------------------------------
@@ -948,6 +973,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const amountNum = utils.assertFiniteAmount(amount);
         const idStr = String(id);
         const dataCol = this.getColumn(table, "data");
+        // 🚀 ROW-STORE HYBRID: materialized numeric fields live in a column —
+        // increment the column directly (jsonb_set on `data` would no-op for
+        // new rows whose field never entered the blob).
+        const fieldIsColumn = !!this.getColumn(table, field);
 
         // $1 = id, $2 = amount, $3 = tenantId (optional)
         const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
@@ -957,9 +986,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         );
         const params: unknown[] = [idStr, amountNum, ...tenantParams];
 
-        const sqlQuery = dataCol
-          ? `UPDATE "${tableName}" SET "data" = jsonb_set(CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END, '{${safeField}}', to_jsonb(coalesce((CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END->>'${safeField}')::numeric, 0) + $2::numeric)), "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`
-          : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + $2::numeric, "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`;
+        const sqlQuery = fieldIsColumn
+          ? `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + $2::numeric, "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`
+          : dataCol
+            ? `UPDATE "${tableName}" SET "data" = jsonb_set(CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END, '{${safeField}}', to_jsonb(coalesce((CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END->>'${safeField}')::numeric, 0) + $2::numeric)), "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`
+            : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + $2::numeric, "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`;
 
         let rows: any[] = [];
         for (let attempt = 0; attempt < 5 && rows.length === 0; attempt++) {
@@ -1036,8 +1067,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const dynamicCols = ["collection", "slug", "locale", "publishedAt"];
 
         if (schemaData.fields && Array.isArray(schemaData.fields)) {
+          const materialized = new Map<string, string>();
           for (const field of schemaData.fields) {
-            if (field.indexed || field.unique) {
+            // Row-store hybrid: scalar fields become physical columns — the
+            // `data` blob keeps only dynamic fields for new rows.
+            if (field.indexed || field.unique || helpers.isScalarMaterializableField(field)) {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "VARCHAR(255)";
@@ -1063,9 +1097,17 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
                 if (!reserved.includes(fieldName)) {
                   columns.push({ name: fieldName, type: colType });
                   dynamicCols.push(fieldName);
+                  materialized.set(
+                    fieldName,
+                    colType === "INTEGER" ? "integer" : colType === "BOOLEAN" ? "boolean" : "text",
+                  );
                 }
               }
             }
+          }
+          if (materialized.size > 0) {
+            this.materializedColumns.set(tableName, materialized);
+            this.materializedColumns.set(normalizedName, materialized);
           }
         }
 
@@ -1078,6 +1120,32 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             );
           } catch {
             /* safe */
+          }
+        }
+
+        // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in the
+        // `data` blob — copy them into the materialized columns so filters and
+        // sorts match old rows too (idempotent: only NULL columns are filled;
+        // `data` is JSONB so `->>` extracts a raw text value; numeric/boolean
+        // columns cast explicitly).
+        for (const col of columns) {
+          try {
+            const safeColName = utils.assertSafeSqlIdentifier(col.name, "column");
+            if (col.type === "INTEGER") {
+              await this.raw.execute(
+                `UPDATE "${physicalName}" SET "${safeColName}" = ("data"->>'${safeColName}')::integer WHERE "${safeColName}" IS NULL AND "data" IS NOT NULL`,
+              );
+            } else if (col.type === "BOOLEAN") {
+              await this.raw.execute(
+                `UPDATE "${physicalName}" SET "${safeColName}" = ("data"->>'${safeColName}')::boolean WHERE "${safeColName}" IS NULL AND "data" IS NOT NULL`,
+              );
+            } else {
+              await this.raw.execute(
+                `UPDATE "${physicalName}" SET "${safeColName}" = "data"->>'${safeColName}' WHERE "${safeColName}" IS NULL AND "data" IS NOT NULL`,
+              );
+            }
+          } catch {
+            /* backfill is best-effort (column may not exist on legacy tables) */
           }
         }
 
@@ -1103,6 +1171,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         } catch {
           /* safe */
         }
+        // The pre-DDL table def (base columns only) is stale — rebuild with the
+        // materialized columns on next getTable.
+        this.tableRegistry.delete(tableName);
+        this.tableRegistry.delete(normalizedName);
+        this.tableRegistry.delete(`collection_${normalizedName}`);
       },
       "CREATE_MODEL_FAILED",
       undefined,

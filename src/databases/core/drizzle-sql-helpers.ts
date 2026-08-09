@@ -36,6 +36,58 @@ import type { FindOptions, QueryCondition } from "../db-interface";
 import * as utils from "./relational-utils";
 
 /**
+ * Row-store materialization: widgets whose data shape is a flat scalar
+ * (string/number/boolean) are safe to store as physical columns instead of the
+ * JSON `data` blob. Object/array-shaped widgets (group, repeater, seo, tags,
+ * media-upload, price, date-range, …) stay in the blob. The field `type` must
+ * also be scalar — a string-typed field with an unknown widget stays in the
+ * blob (conservative: unknown shapes must not become columns).
+ */
+const MATERIALIZABLE_WIDGETS = new Set([
+  "Input",
+  "Textarea",
+  "Email",
+  "Slug",
+  "Number",
+  "Select",
+  "Radio",
+  "Checkbox",
+  "Switch",
+  "Boolean",
+  "DateTime",
+  "Date",
+  "ColorPicker",
+  "PhoneNumber",
+  "Rating",
+  "RichText",
+  "Markdown",
+  "URL",
+  "Link",
+  "Code",
+  "Password",
+]);
+
+/**
+ * True when a schema field is a flat scalar that can be materialized as a
+ * physical column (row-store hybrid — the `data` blob keeps only dynamic
+ * fields). Indexed/unique fields are materialized regardless of widget shape
+ * (existing behavior preserved by callers).
+ */
+export function isScalarMaterializableField(field: any): boolean {
+  if (!field || typeof field !== "object") return false;
+  const type = field.type;
+  if (type !== "string" && type !== "number" && type !== "integer" && type !== "boolean") {
+    return false;
+  }
+  const widget =
+    field.widget?.Name ??
+    field.widget?.name ??
+    (typeof field.widget === "string" ? field.widget : "");
+  if (widget && !MATERIALIZABLE_WIDGETS.has(widget)) return false;
+  return true;
+}
+
+/**
  * Escape LIKE wildcards in user input so `%`, `_` and `\` are matched
  * literally. Callers MUST pair the result with `ESCAPE '\'` (bound as a
  * parameter — never inlined, see `$regex` below) on every LIKE expression.

@@ -97,6 +97,34 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   /** Create a Drizzle dynamic table definition using dialect-specific column types. */
   public abstract createDynamicTableDefinition(name: string): any;
 
+  /**
+   * Stable column list for raw findById SELECTs — base columns + registered
+   * materialized columns (sorted extras keep the SQL text stable per schema
+   * state; statement caches are cleared on DDL). The `data` blob is included
+   * only for full-doc reads.
+   */
+  protected getRawFindByIdCols(table: any, wantsData: boolean): string[] {
+    const base = ["_id", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
+    if (wantsData) base.push("data");
+    let cols: Record<string, unknown> | undefined = this._tableColumnsCache.get(table);
+    if (!cols) {
+      try {
+        const resolved = getTableColumns(table);
+        if (resolved) cols = resolved as any;
+      } catch {
+        /* safe */
+      }
+    }
+    if (cols) {
+      const extras = Object.keys(cols).filter(
+        (c) => !base.includes(c) && !c.startsWith("Symbol(") && c !== "_",
+      );
+      extras.sort();
+      return [...base, ...extras];
+    }
+    return base;
+  }
+
   /** Check whether an error indicates "table does not exist" for this dialect. */
   protected abstract isMissingTableError(err: any): boolean;
 
@@ -271,6 +299,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   protected _tableColumnsCache = new Map<any, Record<string, Column>>();
   protected tableRegistry = new Map<string, any>();
   protected dynamicTables = new Map<string, any>();
+  /**
+   * Row-store hybrid: materialized scalar columns per collection (populated by
+   * createModel; getTable reads it synchronously to build the Drizzle def).
+   */
+  protected materializedColumns = new Map<string, Map<string, string>>();
   protected modelRegistry = new Map<string, any>();
   protected _resolving = new Set<string>();
   protected _selectionCache = new Map<string, any>();
@@ -632,6 +665,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if (!Object.hasOwn(data, k)) continue;
         if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
           continue;
+        // 🚀 ROW-STORE HYBRID: fields backed by a physical column live in the
+        // column — the `data` blob keeps only dynamic (non-column) fields.
+        // Old rows keep their legacy blob fields; the read merge skips
+        // column-backed keys, so columns stay authoritative.
+        if (schemaCols?.[k] || getCol(table, k)) continue;
         dynamicData[k] = data[k];
       }
       if (this.shouldJsonSerializeInPrepare) {

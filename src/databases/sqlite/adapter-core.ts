@@ -175,7 +175,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         });
       const selectCols = wantsData
         ? "*"
-        : `"_id", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"`;
+        : this.getRawFindByIdCols(table, false)
+            .map((c) => `"${c}"`)
+            .join(", ");
       const rawSql = `SELECT ${selectCols} FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
       const rawRow = this.prepareAndExecute(rawSql, "get", String(id), ...tenantParams);
       if (rawRow) {
@@ -268,6 +270,18 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         columnsToAdd.set("locale", "text");
         columnsToAdd.set("publishedAt", "integer");
       }
+      // 🚀 ROW-STORE HYBRID: materialized scalar columns (populated by
+      // createModel — covers benchmark/auto-provisioned collections that have
+      // no content_nodes structure row).
+      const fromMap =
+        this.materializedColumns.get(collection) ||
+        this.materializedColumns.get(tableName) ||
+        this.materializedColumns.get(cleanName);
+      if (fromMap) {
+        for (const [name, type] of fromMap.entries()) {
+          if (!columnsToAdd.has(name)) columnsToAdd.set(name, type);
+        }
+      }
 
       try {
         const client = this._sqlite ? this.sqlite : null;
@@ -289,16 +303,16 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               if (typeof def === "string") def = JSON.parse(def);
               if (def && Array.isArray(def.fields)) {
                 for (const field of def.fields) {
-                  if (field.indexed || field.unique) {
+                  // Row-store hybrid: every scalar field becomes a column
+                  // (indexed/unique fields of any shape keep materializing).
+                  if (field.indexed || field.unique || helpers.isScalarMaterializableField(field)) {
                     const fieldName = field.db_fieldName || field.label;
                     if (fieldName && !columnsToAdd.has(fieldName)) {
                       let colType = "text";
-                      if (
-                        field.type === "number" ||
-                        field.type === "integer" ||
-                        field.type === "boolean"
-                      ) {
+                      if (field.type === "number" || field.type === "integer") {
                         colType = "integer";
+                      } else if (field.type === "boolean") {
+                        colType = "boolean";
                       }
                       columnsToAdd.set(fieldName, colType);
                     }
@@ -351,6 +365,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   // --------------------------------------------------------------------------
 
   public createDynamicTableDefinition(name: string, columnsToAdd?: Map<string, string>) {
+    const booleanCols: string[] = ["isDeleted"];
     const columns: Record<string, any> = {
       _id: text("_id").primaryKey().notNull(),
       tenantId: text("tenantId"),
@@ -378,7 +393,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           colName === "data"
         )
           continue;
-        if (colType === "integer") {
+        if (colType === "boolean") {
+          columns[colName] = integer(colName, { mode: "boolean" });
+          booleanCols.push(colName);
+        } else if (colType === "integer") {
           columns[colName] =
             colName === "publishedAt"
               ? integer(colName, { mode: "timestamp_ms" })
@@ -389,7 +407,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
     }
 
-    registerTableSchema(name, Object.keys(columns));
+    registerTableSchema(name, Object.keys(columns), booleanCols);
 
     return sqliteTable(name, columns, (t) => {
       const idxs: Record<string, any> = {
@@ -1032,11 +1050,17 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         // Identifiers may be embedded; values (_id, amount, tenantId, timestamp) are always bound.
         const safeField = utils.assertSafeSqlIdentifier(field);
         const amountNum = utils.assertFiniteAmount(amount);
+        // 🚀 ROW-STORE HYBRID: materialized numeric fields live in a column —
+        // increment the column directly (json_set on `data` would no-op for new
+        // rows whose field never entered the blob).
+        const fieldIsColumn = !!this.getColumn(table, field);
 
         // Bind amount + timestamp as parameters (stable SQL text → statement cache hits)
-        const updateReturning = dataCol
-          ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
-          : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`;
+        const updateReturning = fieldIsColumn
+          ? `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
+          : dataCol
+            ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
+            : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`;
 
         try {
           const rows = this.prepareAndExecute(
@@ -1056,9 +1080,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           logger.debug(`SQLite RETURNING failed, using inline SELECT fallback: ${err.message}`);
         }
 
-        const updateSql = dataCol
-          ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
-          : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`;
+        const updateSql = fieldIsColumn
+          ? `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
+          : dataCol
+            ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
+            : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`;
 
         this.prepareAndExecute(updateSql, "run", amountNum, nowMs, idStr, ...tenantParams);
 
@@ -1118,8 +1144,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         ];
 
         if (schemaData.fields && Array.isArray(schemaData.fields)) {
+          const materialized = new Map<string, string>();
           for (const field of schemaData.fields) {
-            if (field.indexed || field.unique) {
+            // Row-store hybrid: scalar fields become physical columns — the
+            // `data` blob keeps only dynamic fields for new rows.
+            if (field.indexed || field.unique || helpers.isScalarMaterializableField(field)) {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "TEXT";
@@ -1133,9 +1162,21 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
                   fieldName !== "data"
                 ) {
                   dynamicCols.push({ name: fieldName, type: colType });
+                  materialized.set(
+                    fieldName,
+                    colType === "INTEGER"
+                      ? field.type === "boolean"
+                        ? "boolean"
+                        : "integer"
+                      : "text",
+                  );
                 }
               }
             }
+          }
+          if (materialized.size > 0) {
+            this.materializedColumns.set(tableName, materialized);
+            this.materializedColumns.set(normalizedName, materialized);
           }
         }
 
@@ -1154,12 +1195,29 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           try {
             // Defense-in-depth: schema-defined column names are interpolated as identifiers
             const safeColName = utils.assertSafeSqlIdentifier(col.name, "column");
-            const tableInfo = await this.raw.execute(`PRAGMA table_info("${physicalName}")`);
-            const exists = tableInfo.some((c: any) => c.name === safeColName);
+            // PRAGMA returns rows — force the "all" method (raw.execute would
+            // route it to stmt.run() and return {changes} instead of rows).
+            const tableInfo = this.prepareAndExecute(
+              `PRAGMA table_info("${physicalName}")`,
+              "all",
+            ) as any[];
+            const exists =
+              Array.isArray(tableInfo) && tableInfo.some((c: any) => c.name === safeColName);
             if (!exists) {
               await this.raw.execute(
                 `ALTER TABLE "${physicalName}" ADD COLUMN "${safeColName}" ${col.type}`,
               );
+              // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in
+              // the `data` blob — copy them into the new column so filters and
+              // sorts on the materialized field match old rows too (idempotent:
+              // only NULL columns are filled; repeated createModel calls no-op).
+              try {
+                await this.raw.execute(
+                  `UPDATE "${physicalName}" SET "${safeColName}" = json_extract("data", '$.${safeColName}') WHERE "${safeColName}" IS NULL AND "data" IS NOT NULL`,
+                );
+              } catch {
+                /* backfill is best-effort */
+              }
             }
             addedColumns.add(safeColName);
           } catch {
@@ -1195,6 +1253,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         this._provisionedTables.add(normalizedName);
         // DDL changed the table shape — cached statements may reference old columns
         this.clearStatementCaches();
+        // The pre-DDL table def (base columns only) is stale — rebuild with the
+        // materialized columns on next getTable.
+        this.tableRegistry.delete(tableName);
+        this.tableRegistry.delete(normalizedName);
+        this.tableRegistry.delete(`collection_${normalizedName}`);
       },
       "CREATE_MODEL_FAILED",
       undefined,

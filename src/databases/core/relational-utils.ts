@@ -99,19 +99,48 @@ const DATE_FIELDS = new Set([
 const _tableDateCols = new Map<string, string[]>();
 const _tableJsonCols = new Map<string, string[]>();
 const _tableSkipKeys = new Map<string, Set<string>>();
+const _tableBoolCols = new Map<string, Set<string>>();
+/** Physical columns per table — the flatten merge must NOT let the `data`
+ * blob override column values (columns are authoritative; data fills gaps). */
+const _tableMergeSkipKeys = new Map<string, Set<string>>();
+
+/**
+ * Column names that are authoritative for a table — the `data` blob merge
+ * skips them (row-store hybrid: materialized/base fields live in columns;
+ * data fills only non-column gaps).
+ */
+export function getTableMergeSkipKeys(table: string): Set<string> | undefined {
+  return _tableMergeSkipKeys.get(table);
+}
+
+/**
+ * Boolean columns per table — the raw read paths return 0/1 for INTEGER/TINYINT
+ * columns; the API contract expects real booleans (parity with the Drizzle
+ * mode:"boolean" path). Conversion coerces 0/1 → false/true for these.
+ */
+export function getTableBooleanColumns(table: string): Set<string> | undefined {
+  return _tableBoolCols.get(table);
+}
 
 /** Registers a table's known date/JSON columns for zero-overhead conversion under both physical and logical table names. Idempotent. */
-export function registerTableSchema(table: string, columns: string[]): void {
+export function registerTableSchema(
+  table: string,
+  columns: string[],
+  booleanCols?: string[],
+): void {
   if (!table) return;
   const dateCols = columns.filter((c) => DATE_FIELDS.has(c));
   const jsonCols = columns.filter((c) => JSON_FIELDS.has(c));
   const skipSet = new Set([...dateCols, ...jsonCols]);
+  const boolSet = new Set(booleanCols || []);
 
   const registerKey = (key: string) => {
     if (_tableDateCols.has(key)) return;
     _tableDateCols.set(key, dateCols);
     _tableJsonCols.set(key, jsonCols);
     _tableSkipKeys.set(key, skipSet);
+    _tableMergeSkipKeys.set(key, new Set(columns));
+    _tableBoolCols.set(key, boolSet);
   };
 
   registerKey(table);
@@ -193,9 +222,34 @@ function normalizeJsonFieldValue(
   return v;
 }
 
-function flattenDataColumn(result: Record<string, unknown>, key: string, value: unknown): void {
+function flattenDataColumn(
+  result: Record<string, unknown>,
+  key: string,
+  value: unknown,
+  skipMerge?: Set<string> | null,
+): void {
   if (key === "data" && value && typeof value === "object" && !Array.isArray(value)) {
-    Object.assign(result, value);
+    if (!skipMerge || skipMerge.size === 0) {
+      Object.assign(result, value);
+      return;
+    }
+    // Row-store hybrid: columns are authoritative — data fills only gaps.
+    for (const k in value) {
+      if (!Object.hasOwn(value, k)) continue;
+      if (skipMerge.has(k)) continue;
+      result[k] = value[k];
+    }
+  }
+}
+
+/** Coerce 0/1 column values to booleans for registered boolean columns (raw
+ * paths return INTEGER/TINYINT — the API contract expects true/false). */
+function coerceBooleanCols(row: Record<string, unknown>, table: string | undefined): void {
+  const bools = table ? getTableBooleanColumns(table) : undefined;
+  if (!bools || bools.size === 0) return;
+  for (const k of bools) {
+    const v = row[k];
+    if (v === 0 || v === 1) row[k] = v === 1;
   }
 }
 
@@ -253,13 +307,15 @@ export function convertDatesToISO(
       }
     }
     if (jsonCols && jsonCols.length > 0) {
+      const skipMerge = table ? getTableMergeSkipKeys(table) : null;
       for (let i = 0; i < jsonCols.length; i++) {
         const k = jsonCols[i];
         const v = normalizeJsonFieldValue(row[k], options);
-        flattenDataColumn(row, k, v);
+        flattenDataColumn(row, k, v, skipMerge);
         row[k] = v;
       }
     }
+    coerceBooleanCols(row, table);
     return row;
   }
 
@@ -282,10 +338,11 @@ export function convertDatesToISO(
   }
 
   if (jsonCols && jsonCols.length > 0) {
+    const skipMerge = table ? getTableMergeSkipKeys(table) : null;
     for (let i = 0; i < jsonCols.length; i++) {
       const k = jsonCols[i];
       const v = normalizeJsonFieldValue(row[k], options);
-      flattenDataColumn(result, k, v);
+      flattenDataColumn(result, k, v, skipMerge);
       result[k] = v;
     }
   }
@@ -317,6 +374,8 @@ export function convertDatesToISO(
       result[k] = v;
     }
   }
+
+  coerceBooleanCols(result, table);
 
   return result;
 }
