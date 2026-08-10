@@ -155,6 +155,9 @@ jobs:
               echo "::group::lint:widgets"
               bun run lint:widgets
               echo "::endgroup::"
+              echo "::group::lockfile-sync"
+              bun run scripts/check-lockfile-sync.ts
+              echo "::endgroup::"
               echo "✅ Quality gate clean"
           - task: 04-unit
             name: ⚡ Unit Tests
