@@ -46,7 +46,19 @@
 		}
 		field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
 		field.label = String(field.widget.GuiFields.label || '');
-		fields = [...fields, field as any];
+		if (editField) {
+			// Editing an existing field: replace it in place. Appending here
+			// duplicated the field (same object reference in the array twice).
+			const index = fields.indexOf(field as any);
+			if (index >= 0) {
+				fields[index] = field as any;
+				fields = [...fields]; // new reference so bindable/{{#each}} propagate
+			} else {
+				fields = [...fields, field as any];
+			}
+		} else {
+			fields = [...fields, field as any];
+		}
 		addField = false;
 	}
 

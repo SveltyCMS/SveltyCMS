@@ -1,6 +1,9 @@
 /**
  * @file vitest.config.ts
  * @description Vitest configuration. Path aliases from path-aliases.ts.
+ *
+ * CI output: compact `dot` + GitHub annotations; hide console spam from passed tests.
+ * Local: default reporter with full logs for debugging.
  */
 
 import { defineConfig } from "vitest/config";
@@ -11,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { pathAliases } from "./path-aliases";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const isCI = process.env.CI === "true" || process.env.CI === "1";
 
 const resolvedAliases = Object.fromEntries(
   Object.entries(pathAliases).map(([key, value]) => [key, path.resolve(__dirname, value)]),
@@ -47,9 +51,12 @@ export default defineConfig({
     setupFiles: [path.resolve(__dirname, "tests/unit/setup.ts")],
     include: ["tests/unit/**/*.test.ts"],
     exclude: ["**/*.bun.ts", "**/*.bun.test.ts", "node_modules", ".svelte-kit"],
+    // CI: dots + annotations; silence console from passing tests (failures still print logs)
+    reporters: isCI ? ["dot", "github-actions"] : ["default"],
+    silent: isCI ? "passed-only" : false,
     coverage: {
       provider: "v8",
-      reporter: ["text", "json", "html"],
+      reporter: isCI ? ["text-summary", "json"] : ["text", "json", "html"],
       // P0 packages only — enterprise A++ gate focuses on security/core, not vanity % of all src
       include: [
         "src/hooks/**/*.ts",
@@ -71,7 +78,7 @@ export default defineConfig({
     },
     pool: "forks",
     // Cap fork parallelism to reduce Windows I/O thrash during heavy API unit suites.
-    ...(process.env.CI ? {} : { maxWorkers: localMaxWorkers }),
+    ...(isCI ? {} : { maxWorkers: localMaxWorkers }),
     server: {
       deps: {
         inline: [/@sveltejs\/kit/, /sveltekit-rate-limiter/],

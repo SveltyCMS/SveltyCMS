@@ -12,6 +12,11 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { generateUUID } from "@utils/native-utils";
+import {
+  isAutomatedTestHarness,
+  resolvePrivateConfigFileName,
+  assertLocalMustNotMutatePrivateTs,
+} from "@utils/private-config-policy";
 
 /**
  * Standard testing response helper
@@ -91,6 +96,12 @@ async function invalidateAllCaches(tenantId: DatabaseId) {
       await import("@src/hooks/handle-authorization");
     await invalidateUserCountCache(tenantId);
     await invalidateRolesCache(tenantId);
+
+    // The settings-service cache is a separate in-memory map — resets wipe the
+    // DB rows but not this cache, so post-reset requests would keep serving
+    // stale public settings (e.g. SITE_STARTER_ENABLED) until the next boot.
+    const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
+    invalidateSettingsCache(tenantId);
 
     const { apiSpecService } = await import("@services/system/api-spec-service");
     await apiSpecService.invalidateCache(tenantId);
@@ -236,11 +247,14 @@ export async function handleTestingRoutes(
       await invalidateAllCaches(tenantId);
       await resetSystemStores();
 
-      const isTest = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
-      const configFileName = isTest ? "private.test.ts" : "private.ts";
+      const isTest = isAutomatedTestHarness();
+      const configFileName = resolvePrivateConfigFileName();
       const privateConfigPath = path.join(process.cwd(), "config", configFileName);
 
       if (state === "setup") {
+        if (!isTest) {
+          assertLocalMustNotMutatePrivateTs("reset system state");
+        }
         // Delete private config file
         if (fs.existsSync(privateConfigPath)) {
           try {
@@ -452,6 +466,16 @@ export async function handleTestingRoutes(
         await contentSystem.initialize(tenantId, { force: true });
       } catch (err: any) {
         logger.warn(`[TestingHandler] Non-fatal collection seeding error: ${err.message}`);
+      }
+
+      // Seed system settings (idempotent) — the DB reset wiped them, and without
+      // them the settings-service cache serves defaults (e.g. SITE_STARTER_ENABLED
+      // unset → guests get redirected from / to /login despite a seeded site).
+      try {
+        const { seedSettings } = await import("@src/routes/setup/seed");
+        await seedSettings(initializedAdapter, tenantId);
+      } catch (err: any) {
+        logger.warn(`[TestingHandler] Non-fatal settings seeding error: ${err.message}`);
       }
 
       // ✨ Fix: Invalidate setup cache so the system recognizes it is now COMPLETE
@@ -769,23 +793,48 @@ export async function handleTestingRoutes(
         );
       }
 
-      // Seed in batches
-      const BATCH = 100;
+      // High-throughput seed: large batches, single outer txn (one fsync), skip RETURNING
+      const BATCH = 5000;
       let seeded = 0;
-      for (let i = 0; i < count; i += BATCH) {
-        const docs = [];
-        for (let j = i; j < Math.min(i + BATCH, count); j++) {
-          docs.push({
-            _id: `tp-${j}`,
-            title: `Throughput Doc ${j}`,
-            count: 0,
-            tenantId,
+      const insertOpts = {
+        tenantId,
+        bypassTenantCheck: true,
+        skipReturning: true,
+      };
+
+      const executeSeed = async (db: any) => {
+        for (let i = 0; i < count; i += BATCH) {
+          const end = Math.min(i + BATCH, count);
+          const docs = Array.from({ length: end - i }, (_, k) => {
+            const j = i + k;
+            return {
+              _id: `tp-${j}`,
+              title: `Throughput Doc ${j}`,
+              count: 0,
+              tenantId,
+            };
           });
+          // Prefer tx.crud.insertMany (SQLite txn object) or adapter.crud
+          const crud = db?.crud ?? db;
+          await crud.insertMany(collectionId, docs, insertOpts);
+          seeded += docs.length;
         }
-        await adapter.crud.insertMany(collectionId, docs, {
-          tenantId,
+        return { success: true as const, data: seeded };
+      };
+
+      if (typeof (adapter as any).transaction === "function") {
+        const txResult = await (adapter as any).transaction(async (txAdapter: any) => {
+          return executeSeed(txAdapter);
         });
-        seeded += docs.length;
+        if (txResult && txResult.success === false) {
+          throw new AppError(
+            txResult.message || "Seed transaction failed",
+            500,
+            "SEED_TRANSACTION_FAILED",
+          );
+        }
+      } else {
+        await executeSeed(adapter);
       }
 
       return rawResponse({ success: true, seeded, collectionId });
@@ -1097,16 +1146,13 @@ export async function handleTestingRoutes(
           );
         }
         user = createResult.data;
-      } else if (user.blocked) {
-        const unblockResult = await cms.auth.batchAction([user._id], "unblock", { tenantId });
-        if (!unblockResult.success) {
-          throw new AppError(unblockResult.message || "Unblock failed", 500);
-        }
-        user = { ...user, blocked: false };
+      } else {
+        await cms.auth.updateUserAttributes(
+          user._id,
+          { role, password, blocked: false, failedAttempts: 0, lockoutUntil: null } as any,
+          { allowPrivilegeEscalation: true, tenantId },
+        );
       }
-      // NOTE: do NOT reset password/role for existing users here — the p0 password
-      // journey changes the editor password concurrently and a reset would race it.
-      // Use action=seed with an explicit role for a full reset.
 
       return rawResponse({ success: true, user });
     }
@@ -1117,43 +1163,14 @@ export async function handleTestingRoutes(
 
       const payload = { ...data, tenantId: tenantId || "default" };
 
-      // 🚀 DUEL-PATH: Publish both via EventBus (internal listeners) AND globalPlatform (WebSocket)
-      // This ensures delivery regardless of whether the platform bridge is initialized
+      // Publish via EventBus (internal listeners + SSE stream).
       const { eventBus } = await import("@utils/event-bus");
       eventBus.emit(eventName, payload);
-
-      // Direct WebSocket broadcast via svelte-realtime platform
-      const { getGlobalPlatform } = await import("@src/live/ws-platform");
-      const globalPlatform = getGlobalPlatform();
-      if (globalPlatform) {
-        const topic = `system_events:${tenantId || "default"}`;
-        try {
-          (globalPlatform as any).publish(topic, "create", {
-            id: crypto.randomUUID(),
-            event: eventName,
-            data: payload,
-            timestamp: Date.now(),
-            tenantId: tenantId || "default",
-          });
-        } catch (err: any) {
-          // Non-critical: EventBus path may still work
-          if (process.env.BENCHMARK_DEBUG === "true") {
-            process.stderr.write(
-              `[TestingHandler] globalPlatform.publish failed: ${err.message}\n`,
-            );
-          }
-        }
-      } else if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(
-          `[TestingHandler] globalPlatform is null — WebSocket broadcast skipped\n`,
-        );
-      }
 
       return rawResponse({ success: true });
     }
 
     if (action === "emit-ping") {
-      // 🚀 DUEL-PATH: Both EventBus and direct WebSocket broadcast
       const payload = {
         type: "ping",
         timestamp: new Date().toISOString(),
@@ -1163,24 +1180,6 @@ export async function handleTestingRoutes(
       // Internal PubSub for service listeners
       const { pubSub } = await import("@src/services/background/pub-sub");
       pubSub.publish("entryUpdated", payload as any);
-
-      // Direct WebSocket broadcast for connected clients
-      const { getGlobalPlatform } = await import("@src/live/ws-platform");
-      const globalPlatform = getGlobalPlatform();
-      if (globalPlatform) {
-        const topic = `system_events:${tenantId || "default"}`;
-        try {
-          (globalPlatform as any).publish(topic, "update", {
-            id: crypto.randomUUID(),
-            event: "benchmark.ping",
-            data: payload,
-            timestamp: Date.now(),
-            tenantId: tenantId || "default",
-          });
-        } catch {
-          /* non-critical */
-        }
-      }
 
       return rawResponse({ success: true });
     }
@@ -1570,7 +1569,8 @@ export async function handleTestingRoutes(
           { id: "t3", from: "review", to: "draft", label: "Reject" },
         ],
       };
-      const saved = await workflowService.saveWorkflow(definition, adminUser, String(tenantId));
+      const tid = tenantId ? String(tenantId) : undefined;
+      const saved = await workflowService.saveWorkflow(definition, adminUser, tid);
       return rawResponse({ success: true, workflow: saved, data: saved });
     }
 
@@ -1584,7 +1584,8 @@ export async function handleTestingRoutes(
         isAdmin: true,
         email: "e2e@sveltycms.test",
       } as any;
-      await workflowService.deleteWorkflow(id, adminUser, String(tenantId));
+      const tid = tenantId ? String(tenantId) : undefined;
+      await workflowService.deleteWorkflow(id, adminUser, tid);
       return rawResponse({ success: true, deleted: id });
     }
 

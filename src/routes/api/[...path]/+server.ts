@@ -6,7 +6,6 @@
 
 import { logger } from "@utils/logger";
 import { json, type RequestEvent } from "@sveltejs/kit";
-import { xxhash64 } from "hash-wasm";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -15,9 +14,14 @@ import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { isPublicRoute, getUserCacheId, buildUserCacheKey } from "@src/utils/hook-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
-import { getCorsHeaders } from "@utils/security/cors-utils";
+import {
+  responseCache,
+  buildUserResponseCacheKey,
+  generateContentEtag,
+} from "@src/services/cache/response-cache";
 
 // Dynamic handlers map for build-time tree-shaking.
 // Hot handlers (collections, content, auth, system) are eager-preloaded at import
@@ -349,21 +353,9 @@ export const _handler = async (event: RequestEvent) => {
 
   if (!namespace) return new Response("Not Found", { status: 404 });
 
-  // 🛡️ Global CORS Preflight handler
-  if (request.method.toUpperCase() === "OPTIONS") {
-    const origin = request.headers.get("Origin") || null;
-    const corsHeaders = getCorsHeaders(origin, true);
-    const responseHeaders: Record<string, string> = {};
-    if (corsHeaders) {
-      for (const [key, value] of Object.entries(corsHeaders)) {
-        if (value) responseHeaders[key] = value;
-      }
-    }
-    return new Response(null, {
-      status: 204,
-      headers: responseHeaders,
-    });
-  }
+  // Note: CORS OPTIONS preflight is handled by a SINGLE canonical path — the
+  // turbo-pipeline preflight exit — which runs before this dispatcher for every
+  // `/api/` request. No preflight logic lives here (or in any handler).
 
   // ── Cached imports for hot paths (avoids dynamic import on every request) ────
   let _getDatabaseResilience: any = null;
@@ -573,15 +565,21 @@ export const _handler = async (event: RequestEvent) => {
   const contentType = response.headers.get("content-type") || "";
   const isStreaming = contentType.includes("text/event-stream");
 
-  // ⚡ WEAK ETag FAST-PATH: Handler set apiDataHash on locals → skip body read entirely.
-  // Downstream handlers (collections, content) set this to a lightweight timestamp-based
-  // token (e.g. max updatedAt). The gateway uses it as a weak validator without cloning
-  // the response body, avoiding V8 string allocation and GC pressure on large payloads.
+  // ⚡ WEAK ETag FAST-PATH: Handler set apiDataHash on locals.
+  // Still warms responseCache L1 from stashed apiBody so handleTurboGet can HIT next request.
   if (request.method === "GET" && response.status === 200 && !isStreaming) {
     const apiDataHash = (event.locals as any).apiDataHash;
     if (apiDataHash) {
       const weakEtag = `W/"${apiDataHash}"`;
       const ifNoneMatch = request.headers.get("if-none-match");
+      const stashedBody = (locals as any).apiBody as string | undefined;
+      const userIdStr = getUserCacheId(user);
+      const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
+
+      if (stashedBody && user) {
+        // Sync L1 turbo cache — zero microtask delay for next authenticated GET
+        responseCache.set(turboKey, { body: stashedBody, etag: weakEtag }, 300_000, tenantId);
+      }
 
       if (ifNoneMatch === weakEtag || ifNoneMatch === "*") {
         return new Response(null, {
@@ -619,19 +617,15 @@ export const _handler = async (event: RequestEvent) => {
     const apiBody = (locals as any).apiBody;
     const responseBody = typeof apiBody === "string" ? apiBody : await response.text();
 
-    // Compute ETag once — works for both cacheable (cache + 304) and non-cacheable (304 only)
-    let etag = "";
-    try {
-      etag = `"${await xxhash64(responseBody)}"`;
-    } catch {
-      // Hash unavailable — body served without ETag below
-    }
+    // Sync FNV/SHA etag — no async hash-wasm on the critical path
+    const etag = responseBody ? generateContentEtag(responseBody) : "";
 
     if (isCacheable && etag) {
-      // Only cache cacheable endpoints — non-cacheable still get ETag for 304 support
-      const { CacheCategory } = await import("@src/databases/cache/types");
       const userIdStr = getUserCacheId(user);
       const dispatchCacheKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
+      const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
+      // L1 turbo map (sync) + L2 cacheService (async fire-and-forget)
+      responseCache.set(turboKey, { body: responseBody, etag }, 300_000, tenantId);
       cacheService
         .set(dispatchCacheKey, { body: responseBody, etag }, 300, tenantId, CacheCategory.API)
         .catch(() => {});

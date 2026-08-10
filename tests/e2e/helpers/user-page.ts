@@ -21,7 +21,7 @@
  */
 
 import { expect, type Page } from "@playwright/test";
-import { dismissCookieBanner } from "./auth";
+import { dismissCookieConsent } from "./cookie-consent";
 
 export const USER_ACTION_TIMEOUT = 20_000;
 
@@ -60,7 +60,7 @@ export async function selectUserTab(
   const timeout = options?.timeout ?? USER_ACTION_TIMEOUT;
   // The consent banner appears on first navigation after API-only logins and can
   // overlay the whole page — remove it before interacting with any tab content.
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
   const tabBtn = page.getByTestId(`tab-${tab}`);
   await expect(tabBtn).toBeVisible({ timeout });
   const selected = await tabBtn.getAttribute("aria-selected");
@@ -192,6 +192,8 @@ export async function clearTableSearch(page: Page) {
     name: /search for items in the table/i,
   });
   if (await searchInput.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    // Await the refetch response directly — no fixed sleep needed: waitForResponse
+    // resolves whenever the GET lands, and the fill() above is already awaited.
     const refetch = page
       .waitForResponse(
         (res) => res.url().includes("/api/user") && res.request().method() === "GET",
@@ -199,7 +201,6 @@ export async function clearTableSearch(page: Page) {
       )
       .catch(() => undefined);
     await searchInput.fill("");
-    await page.waitForTimeout(400);
     await refetch;
   }
 }
@@ -210,7 +211,7 @@ export async function clearTableSearch(page: Page) {
 
 /** Click an account-section tab by accessible name (Identity | Security | Settings | User Management). */
 export async function openUserTab(page: Page, name: RegExp): Promise<void> {
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
   const tab = page.getByRole("tab", { name });
   await expect(tab).toBeVisible({ timeout: USER_ACTION_TIMEOUT });
   await tab.click({ timeout: USER_ACTION_TIMEOUT });

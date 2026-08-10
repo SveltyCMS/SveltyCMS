@@ -25,6 +25,11 @@ export interface LocalApiOptions {
   allowPrivilegeEscalation?: boolean;
   /** Forwarded to adapter when multi-tenant id-only updates are required. */
   bypassTenantCheck?: boolean;
+  /**
+   * Skip post-write side effects (outbox, workflow init, plugin afterSave, L2 cache fan-out).
+   * L1 request cache is still cleared. Used by bulk seed / high-throughput write paths.
+   */
+  skipSideEffects?: boolean;
 }
 
 export interface TokenOptions extends LocalApiOptions {

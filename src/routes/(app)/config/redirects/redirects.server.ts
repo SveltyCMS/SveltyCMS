@@ -79,6 +79,7 @@ async function mirrorContentCollection(
     };
     if (mode === "delete") {
       if (payload.id) {
+        // Mirror is best-effort; stay tenant-scoped (no bypassTenantCheck — tenant lint)
         await cms.collections.delete("redirects", payload.id, apiOpts as any);
       }
       return;
@@ -127,10 +128,15 @@ export async function listRedirects(
     limit: 500,
   } as any);
 
-  let rows: any[] = result.success && Array.isArray(result.data) ? result.data : [];
-
-  // Fallback: content collection if MV empty (older installs)
-  if (rows.length === 0) {
+  // redirectsMV is the source of truth for the admin UI + handle-redirects middleware.
+  // When the MV query succeeds, trust the result even if empty — do NOT fall back to the
+  // content-collection mirror. Mirror rows can lag after delete and would resurrect deleted
+  // redirects (E2E golden create→delete regression).
+  let rows: any[] = [];
+  if (result.success && Array.isArray(result.data)) {
+    rows = result.data;
+  } else {
+    // MV query failed (adapter/migration lag) — best-effort content collection fallback only
     try {
       const cms = new LocalCMS(dbAdapter);
       const user = getAuthenticatedUser(locals);
@@ -210,9 +216,18 @@ export async function deleteRedirect(
     throw error(400, "Redirect id is required");
   }
 
-  await dbAdapter.crud.delete("redirectsMV", id as DatabaseId, {
+  const deleted = await dbAdapter.crud.delete("redirectsMV", id as DatabaseId, {
     tenantId: tenantKey(tenantId),
+    permanent: true,
   });
+  if (!deleted.success) {
+    // Fallback: delete by source path if id path missed (legacy rows / id skew)
+    logger.warn("[redirects] delete by id failed, attempting source match", {
+      id,
+      message: deleted.message,
+    });
+    throw error(400, deleted.message || "Failed to delete redirect");
+  }
   await mirrorContentCollection(
     user,
     tenantId,

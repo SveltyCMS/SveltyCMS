@@ -158,7 +158,8 @@ Without ordered writes, MongoDB's `bulkWrite` may process operations in any orde
 
 **Phase 8: Platinum Performance & Zero-Allocation**
 
-- **Zero-Allocation Dates (`processDates`)**: Implemented a "dirty-bit" check to prevent object cloning when no date transformation is needed.
+- **Schema-Guarded Date Conversion (`mapDates`)**: `processDates`' deep walk is **skipped entirely** for generic content collections (`strict:false` schemas that store timestamps as ISO strings via `nowISODateString`) — the walk found nothing and was pure CPU. System collections with real `Date` paths still convert. Detected once per model and cached.
+- **3-Key `mapQuery` Fast Path**: `safeQuery` injects `isDeleted:{$ne:true}` on non-fast-path queries, making them 3 keys — the old fast path accepted only ≤2 (`_id`/`token`/`tenantId`) and every findMany/MT-update fell into the full rebuild + sanitize recursion. The fast path now also accepts the exact safeQuery-injected `isDeleted` shape.
 - **Security Fast-Path (`bypassSafeQuery`)**: High-performance toggle for selected internal lookups that skip `safeQuery` allocation entirely. **Not used for website-token CRUD** — those routes through `MongoCrudMethods` + `safeQuery` (soft-delete + tenant injection).
 - **ID Lookup Fast-Path (`isLookupQuery`)**: Direct collection access for ID/token queries, bypassing the (inlined) Query IR translation entirely.
 

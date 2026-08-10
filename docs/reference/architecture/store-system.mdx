@@ -82,13 +82,12 @@ SvelteKit injects server data into every component via `page.data`. **Do not dup
 | `status-store.svelte.ts`          | Service + `$state` | Publish/unpublish toggle with API calls, debounce, and toast notifications                                       |
 | `widget-store.svelte.ts`          | Singleton class    | Widget registry — core/custom/marketplace widgets, dependency analysis, active set management                    |
 
-| Store                           | Type             | Purpose                                                                                          |
-| ------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------ |
-| `image-editor-store.svelte.ts`  | Factory function | Canvas state — zoom, rotation, filters, crop, history stack, compare slider                      |
-| `collaboration-store.svelte.ts` | Singleton class  | Real-time WebSocket — activity stream, chat messages, room management via svelte-realtime        |
-| `loading-store.svelte.ts`       | Singleton class  | Global loading state with priority queue, timeouts, progress tracking, and analytics             |
-| `toast.svelte.ts`               | Singleton class  | Enterprise toast notification system with responsive positioning, pause-on-hover, flash messages |
-| `setup-store.svelte.ts`         | Factory function | Setup wizard form state with localStorage persistence, validation, and step management           |
+| Store                          | Type             | Purpose                                                                                          |
+| ------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------ |
+| `image-editor-store.svelte.ts` | Factory function | Canvas state — zoom, rotation, filters, crop, history stack, compare slider                      |
+| `loading-store.svelte.ts`      | Singleton class  | Global loading state with priority queue, timeouts, progress tracking, and analytics             |
+| `toast.svelte.ts`              | Singleton class  | Enterprise toast notification system with responsive positioning, pause-on-hover, flash messages |
+| `setup-store.svelte.ts`        | Factory function | Setup wizard form state with localStorage persistence, validation, and step management           |
 
 ### User Preferences & Personalization
 
@@ -124,7 +123,7 @@ SvelteKit injects server data into every component via `page.data`. **Do not dup
 
 ### Pattern A: Singleton Class with `$state`
 
-Used by: `ui-store`, `screen-size-store`, `collection-store`, `collaboration-store`, `loading-store`
+Used by: `ui-store`, `screen-size-store`, `collection-store`, `loading-store`
 
 ```typescript
 class MyStore {

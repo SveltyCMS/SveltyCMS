@@ -125,7 +125,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
  */
 export async function getSetupState(): Promise<SetupState> {
   // 🚀 BENCHMARK OPTIMIZATION: Avoid deep checks during high-frequency audits
-  if (process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true") {
+  if (process.env.BENCHMARK === "true") {
     return SetupState.COMPLETE;
   }
 

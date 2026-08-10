@@ -1,0 +1,38 @@
+---
+title: WASM WAF & Security Middleware Architecture
+description: Comprehensive reference for SveltyCMS Layer 0 WASM WAF guard, Merkle Tree Audit Ledgers, and API Fuzzing.
+---
+
+# WASM WAF & Security Architecture (2026 Edition)
+
+SveltyCMS combines WebAssembly (WASM) threat scanning with cryptographic audit chaining and automated API fuzzing to achieve nanosecond WAF payload protection and verifiable audit integrity.
+
+> **Note**: The in-memory Policy-as-Code engine (`policy-engine.ts`) and runtime baseline clamps (`baseline-guard.ts`) were removed in the security audit — they were never wired into the dispatcher (the RBAC `ENDPOINT_PERMISSIONS` mapping + `hasPermissionWithRoles` is the single enforcement point). Keeping unwired engines around risked a latent authorization bypass if a future rule normalized namespace/method into its resource/action model.
+
+---
+
+## 1. Pre-Compiled WASM WAF Middleware Guard
+
+Requests passing through SvelteKit are inspected at **Layer 0** before JSON payload deserialization.
+
+- **Location**: `src/hooks/wasm-waf-guard.ts`
+- **Features**: Scans path traversal (`../`), prototype pollution (`__proto__`), XSS scripts, SQL injection, and HTTP header splitting vectors.
+- **Compatibility**: Includes an automatic pure-JS fallback for environments where WebAssembly instantiation is restricted.
+
+---
+
+## 2. Cryptographic Merkle Tree Audit Ledger
+
+Audit logs are cryptographically hashed and structured into a Merkle Tree, allowing $O(\log N)$ tamper verification and verifiable inclusion proofs.
+
+- **Location**: `src/services/audit-chain.ts`
+- **Verification**: `auditChainService.computeMerkleRoot(entries)` and `auditChainService.generateMerkleProof(entries, index)`.
+
+---
+
+## 3. Automated Security API Payload Fuzzer
+
+Proactively tests API endpoints against malformed strings, oversized buffers, SQLi patterns, and deep nesting.
+
+- **Run Command**: `bun run scripts/security/fuzz-api.ts` (standalone script — no npm wrapper)
+- **Script Location**: `scripts/security/fuzz-api.ts`

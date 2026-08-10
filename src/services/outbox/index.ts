@@ -18,5 +18,6 @@ export {
   OUTBOX_MAX_ATTEMPTS,
   outboxBackoffMs,
   isOutboxEventReady,
+  isOutboxDisabled,
 } from "./outbox-service.ts";
 export type { OutboxEvent, OutboxEventStatus, OutboxService } from "./outbox-service.ts";

@@ -18,8 +18,10 @@ import { getSetupState, SetupState } from "@utils/server/setup-check";
 
 // Routes reachable with zero collections (fresh install / E2E after seed).
 // /admin must be included so tenant management is not redirected to collectionbuilder.
+// `(?:/|$)` boundary prevents prefix false-positives (e.g. /administrator must
+// NOT match `admin`). The optional locale prefix is consumed BEFORE the check.
 const WHITELIST_REGEX =
-  /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews|admin|setup)/;
+  /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews|admin|setup)(?:\/|$)/;
 
 // Cache stampede containment: tracks active in-flight tenant initializations
 const tenantInitializationFlights = new Map<string, Promise<void>>();

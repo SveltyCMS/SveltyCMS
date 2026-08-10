@@ -800,32 +800,35 @@ async function mirrorAssetsLocally(
   _optimize = true,
 ): Promise<string[]> {
   const localIds: string[] = [];
-  const { validateEgressUrl } = await import("@src/utils/egress-guard");
+  const { validateEgressUrl, safeFetch } = await import("@src/utils/egress-guard");
   const { persistMigratedAsset } = await import("./utils/migrated-media.server");
   const { getMimeType } = await import("@src/utils/media/media-utils");
 
   for (const asset of assets) {
     try {
-      validateEgressUrl(asset.externalUrl, {
+      // 🛡️ MUST await: validateEgressUrl performs async DNS/IP/redirect checks —
+      // without await the fetch below races the guard (SSRF window). Delivery
+      // itself goes through safeFetch (re-validates every redirect hop).
+      await validateEgressUrl(asset.externalUrl, {
         allowHttp: process.env.NODE_ENV === "development",
       });
 
-      const response = await fetch(asset.externalUrl, {
-        signal: AbortSignal.timeout(30_000),
+      const resp = await safeFetch(asset.externalUrl, {
+        allowHttp: process.env.NODE_ENV === "development",
+        timeoutMs: 30_000,
+        maxSizeBytes: 100 * 1024 * 1024,
       });
-      if (!response.ok) {
-        throw new Error(`Asset download failed: ${asset.externalUrl} (HTTP ${response.status})`);
+      if (!resp.success || !resp.bodyBytes) {
+        throw new Error(
+          `Asset download failed: ${asset.externalUrl} (${resp.error || resp.status})`,
+        );
       }
 
-      const arrayBuffer = await response.arrayBuffer();
-      if (arrayBuffer.byteLength > 100 * 1024 * 1024) {
-        throw new Error(`Asset too large: ${asset.externalUrl}`);
-      }
-
+      const arrayBuffer = resp.bodyBytes;
       const filename =
         asset.externalUrl.split("/").pop()?.split("?")[0] || `migrated_${asset.originalId}.png`;
       const mimeType =
-        response.headers.get("Content-Type")?.split(";")[0]?.trim() ||
+        resp.headers?.["content-type"]?.split(";")[0]?.trim() ||
         getMimeType(filename) ||
         "application/octet-stream";
 

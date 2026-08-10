@@ -75,17 +75,8 @@ export async function handleAuthUserRoutes(
   const method = segments[1];
   const reqMethod = request.method.toUpperCase();
 
-  if (reqMethod === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, x-test-secret, x-test-mode, cookie",
-        "Access-Control-Max-Age": "86400",
-      },
-    });
-  }
+  // Note: CORS OPTIONS preflight is handled by the single canonical
+  // turbo-pipeline preflight exit — never in handlers.
 
   try {
     // ── Root-level GET endpoints ──

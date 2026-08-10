@@ -70,6 +70,10 @@ declare global {
       cspNonce?: string;
       customCss: string;
       darkMode: boolean;
+      /** Request-scoped SSR language (set by handleUserPreferences). */
+      systemLanguage?: string;
+      /** Request-scoped SSR content language (set by handleUserPreferences). */
+      contentLanguage?: string;
       /** Tenant-scoped adapter when MULTI_TENANT + tenantId (use for request DB work). */
       dbAdapter?: DatabaseAdapter | null;
       /** Raw adapter without tenant injection (scheduler, migrations, cross-tenant admin). */

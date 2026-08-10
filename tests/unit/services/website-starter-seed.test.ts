@@ -41,7 +41,7 @@ describe("seedWebsiteStarterPages", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       slug: "home",
-      status: "published",
+      status: "publish",
       pageType: "static",
       heroHeading: "Welcome to Acme Corp",
     });

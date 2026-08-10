@@ -25,6 +25,8 @@ vi.mock("@src/widgets/scanner", () => {
   return {
     coreModules: modules,
     customModules: {},
+    marketplaceModules: {},
+    widgetComponents: {},
     allWidgetModules: modules,
     getWidgetNameFromPath: (p: string) => p.split("/").at(-2) || null,
   };

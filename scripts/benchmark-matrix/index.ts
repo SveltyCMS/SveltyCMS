@@ -506,7 +506,7 @@ async function run() {
         USE_REDIS: process.env.USE_REDIS === "true" ? "true" : "false",
         LOG_LEVEL: "fatal",
         QUIET: "true",
-        SVELTY_BENCHMARK_SUITE: "true",
+        BENCHMARK: "true",
         NODE_ENV: "test",
         // Always point media at sandbox (ci-fresh wizard may leave mediaFolder missing)
         MEDIA_FOLDER: mediaFolderRel,

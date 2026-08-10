@@ -116,13 +116,12 @@ bun run slop                   # scan all files
 bun run slop --strict          # CI mode (fail on findings)
 ```
 
-| Rule                  | Detection                                                              |
-| --------------------- | ---------------------------------------------------------------------- |
-| CORS reflection       | `Access-Control-Allow-Origin` reflecting arbitrary `Origin` header     |
-| Broad MIME types      | File upload allowlist accepting `application/*` without subtypes       |
-| Fast hash for secrets | `createHash("sha256")` used on API keys/tokens instead of HMAC         |
-| Introspection bypass  | GraphQL introspection gated on `BENCHMARK_MODE` env flag in production |
-| System user backdoor  | `user._id === "system" && password === "hardcoded"` patterns           |
+| Rule                  | Detection                                                          |
+| --------------------- | ------------------------------------------------------------------ |
+| CORS reflection       | `Access-Control-Allow-Origin` reflecting arbitrary `Origin` header |
+| Broad MIME types      | File upload allowlist accepting `application/*` without subtypes   |
+| Fast hash for secrets | `createHash("sha256")` used on API keys/tokens instead of HMAC     |
+| System user backdoor  | `user._id === "system" && password === "hardcoded"` patterns       |
 
 ---
 

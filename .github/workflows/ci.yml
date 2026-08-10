@@ -16,6 +16,14 @@ name: CI
 #   build → build
 #   test:integration → db-tests
 #   test:e2e → e2e
+#
+# Log policy (CI_QUIET=1):
+#   - Cache: restore/save split; save only on success + miss (bun-v3- keys)
+#   - Lint/format: ::group:: collapsed; oxlint --quiet --format=github
+#   - Widget scripts: summary + failures only when CI/CI_QUIET
+#   - Unit (Vitest): dot + github-actions; silent=passed-only
+#   - Integration (bun test): --only-failures + summary box; server logs on fail
+#   - E2E (Playwright): dot + github + HTML/JSON artifacts
 
 on:
   push:
@@ -41,6 +49,8 @@ env:
   BUN_CACHE_DIR: .bun-cache
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   DO_NOT_TRACK: 1
+  # Compact test/lint logs (failures still fully printed). Local runs stay verbose.
+  CI_QUIET: "1"
 
 jobs:
   # ------------------------------------------------
@@ -107,25 +117,64 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Format/lint: summary on success; full diagnostics only when the tool fails.
           - task: 01-format
             name: 🖌️ Format Check
-            run: bun run format --check
+            run: |
+              echo "::group::oxfmt --check"
+              if bun run format --check; then
+                echo "::endgroup::"
+                echo "✅ Format check clean"
+              else
+                echo "::endgroup::"
+                echo "::error::Format check failed — run: bun run format"
+                exit 1
+              fi
           - task: 02-lint
             name: 🔎 Lint
-            run: bun run lint
+            run: |
+              echo "::group::oxlint"
+              # github format → PR annotations; --quiet suppresses non-error noise
+              if bun run lint:ci; then
+                echo "::endgroup::"
+                echo "✅ Lint clean (0 errors)"
+              else
+                echo "::endgroup::"
+                echo "::error::Lint failed"
+                exit 1
+              fi
           - task: 03-check
             name: ✅ Quality Gate (check)
-            run: bun run check
+            run: |
+              echo "::group::format --check"
+              bun run format --check
+              echo "::endgroup::"
+              echo "::group::oxlint"
+              bun run lint:ci
+              echo "::endgroup::"
+              echo "::group::lint:widgets"
+              bun run lint:widgets
+              echo "::endgroup::"
+              echo "::group::lockfile-sync"
+              bun run scripts/check-lockfile-sync.ts
+              echo "::endgroup::"
+              echo "✅ Quality gate clean"
           - task: 04-unit
             name: ⚡ Unit Tests
+            # vitest.config.ts uses dot + github-actions + silent=passed-only when CI=true
             run: bun run test:unit
           - task: 04b-tenant-gate
             name: 🛡️ Tenant Isolation Gate
-            run: bun run test:tenant
+            run: |
+              echo "::group::tenant lint + unit"
+              bun run test:tenant
+              echo "::endgroup::"
           - task: 05-cve-audit
             name: 🔒 CVE Dependency Audit
             run: |
+              echo "::group::bun audit"
               bun audit --severity=high 2>&1 || true
+              echo "::endgroup::"
           - task: 06-secret-misuse
             name: 🔑 Secret Misuse Scan
             run: bun run scripts/scan-secret-misuse.ts --strict
@@ -283,8 +332,13 @@ jobs:
           TEST_MODE: true
           PASSWORD_MIN_LENGTH: 8
           PORT: "4173"
+          # run-integration: --dots --only-failures + buffered server logs on fail
+          CI_QUIET: "1"
         run: |
-          bun run scripts/run-integration.ts --no-build
+          echo "::group::integration (${{ matrix.db }})"
+          # --strict-no-build: fail if artifact is deploy-stripped (do not rebuild in CI)
+          bun run scripts/run-integration.ts --strict-no-build --summary
+          echo "::endgroup::"
 
       - name: Dump Docker Logs on Failure
         if: failure() && matrix.db != 'sqlite'
@@ -451,13 +505,15 @@ jobs:
       - uses: actions/download-artifact@v8
         with: { name: workspace-meta }
 
-      - name: Cache Playwright Browsers
+      - name: Restore Playwright Browsers cache
         id: cache-playwright
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
-          restore-keys: playwright-${{ runner.os }}-
+          key: playwright-v2-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
+          restore-keys: |
+            playwright-v2-${{ runner.os }}-
+          fail-on-cache-miss: false
 
       - name: Install Playwright Browsers
         if: steps.cache-playwright.outputs.cache-hit != 'true'
@@ -466,6 +522,13 @@ jobs:
       - name: Install Playwright Deps Only
         if: steps.cache-playwright.outputs.cache-hit == 'true'
         run: bun x playwright install-deps chromium
+
+      - name: Save Playwright Browsers cache
+        if: success() && steps.cache-playwright.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.cache-playwright.outputs.cache-primary-key }}
 
       - name: Initialize and Start Preview Server
         run: |
@@ -504,6 +567,11 @@ jobs:
           # Prefer adapter-node entry (build/index.js) with correct ORIGIN for remotes.
           # Fall back to index.cjs (Plesk entry) only if needed — always pin ORIGIN.
           export ORIGIN="${ORIGIN:-http://127.0.0.1:4173}"
+          # Strict setup gate: TEST_MODE relaxes the /setup→/login redirect and the
+          # /api/setup 403 by design (so E2E can exercise the wizard). The wizard
+          # project re-enables it via STRICT_SETUP_CHECK to verify the production
+          # setup-exit contract (seeded-ready state must bounce /setup to /login).
+          export STRICT_SETUP_CHECK=true
           if [ -f build/index.js ]; then
             node build/index.js > preview.log 2>&1 &
           else
@@ -649,13 +717,16 @@ jobs:
           rm e2e-env.tar.zst
           mkdir -p config/collections
 
-      - name: Cache Playwright Browsers
+      # Restore-only: e2e-prep owns the Playwright browser cache save (avoids shard races).
+      - name: Restore Playwright Browsers cache
         id: cache-playwright
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
-          restore-keys: playwright-${{ runner.os }}-
+          key: playwright-v2-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
+          restore-keys: |
+            playwright-v2-${{ runner.os }}-
+          fail-on-cache-miss: false
 
       - name: Install Playwright Browsers
         if: steps.cache-playwright.outputs.cache-hit != 'true'
@@ -705,6 +776,7 @@ jobs:
             tail -100 preview.log
             exit 1
           fi
+          # playwright.config.ts: CI → dot + github + json (list is local-only)
           bun x playwright test \
             --project=chromium \
             --grep="${{ matrix.grep }}" \

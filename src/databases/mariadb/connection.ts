@@ -45,6 +45,10 @@ export async function createConnectionPool(config: ConnectionConfig): Promise<my
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
+    // mysql2 default is 100 prepared statements per connection — Drizzle's
+    // dynamic content collections exceed that and force re-prepare churn.
+    // Mirrors the SQLite statement cache sizing (2000).
+    maxPreparedStatements: Number(process.env.MARIADB_MAX_PREPARED || 2000),
   });
 
   if (process.env.MARIADB_SESSION_INIT) {
@@ -52,9 +56,11 @@ export async function createConnectionPool(config: ConnectionConfig): Promise<my
     // Safe validation: allow standard SET session commands (e.g. SET SESSION innodb_lock_wait_timeout=50)
     if (sessionInitSql && /^[a-zA-Z0-9_\s=;'-]+$/.test(sessionInitSql)) {
       pool.on("connection", (conn) => {
-        conn.query(sessionInitSql, (err) => {
-          if (err) logger.error("[MariaDB] Failed to run per-connection session init SQL:", err);
-        });
+        conn
+          .query(sessionInitSql)
+          .catch((err: Error) =>
+            logger.error("[MariaDB] Failed to run per-connection session init SQL:", err),
+          );
       });
     } else if (sessionInitSql) {
       logger.warn("[MariaDB] MARIADB_SESSION_INIT rejected due to invalid characters.");

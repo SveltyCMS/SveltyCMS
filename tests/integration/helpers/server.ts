@@ -404,7 +404,19 @@ export async function prepareAuthenticatedContext(
         });
         if (seedResp.ok) break;
         const error = await seedResp.text();
-        if (attempt >= maxSeedRetries - 1) throw new Error(`Seed failed: ${error}`);
+        if (attempt >= maxSeedRetries - 1) {
+          const stripped =
+            error.includes("API_ENDPOINT_NOT_AVAILABLE") ||
+            error.includes("not enabled or available");
+          const hint = stripped
+            ? "\n\n💡 /api/testing is missing from this preview build (deploy-stripped).\n" +
+              "   Docker containers alone are not enough — rebuild the harness:\n" +
+              "   COMPILE_ALL_ADAPTERS=true bun run build\n" +
+              "   # or: bun run scripts/run-integration.ts  (auto-builds)\n" +
+              "   # or: bun run scripts/run-integration.ts --no-build  (auto-rebuilds if stripped)"
+            : "";
+          throw new Error(`Seed failed: ${error}${hint}`);
+        }
         await new Promise((r) => setTimeout(r, 3000));
       } catch (err: any) {
         if (attempt >= maxSeedRetries - 1) throw err;

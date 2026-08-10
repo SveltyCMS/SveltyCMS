@@ -6,10 +6,9 @@
  * bundles and surface as admin 500 pages (no page-title) in E2E.
  *
  * Strategy:
- * 1. Walk known client roots (components, stores, widgets, live, client route modules)
+ * 1. Walk known client roots (components, stores, widgets, client route modules)
  * 2. Skip server-only basenames (+page.server, *.server.ts, +server.ts, …)
  * 3. Fail on forbidden static import lines
- * 4. Keep focused contracts for $live dynamic-import bridges
  */
 
 import { describe, it, expect } from "vitest";
@@ -17,14 +16,12 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, extname } from "node:path";
 
 const ROOT = process.cwd();
-const SRC = join(ROOT, "src");
 
 /** Roots that ship into browser graphs (SSR=false admin + components). */
 const CLIENT_ROOTS = [
   "src/components",
   "src/stores",
   "src/widgets",
-  "src/live",
   "src/routes",
   "src/paraglide",
 ] as const;
@@ -179,32 +176,5 @@ describe("exhaustive client-reachable import boundary", () => {
           (all.length > 40 ? `\n  … +${all.length - 40} more` : ""),
       );
     }
-  });
-
-  it("system.ts loads event-bus only via dynamic import", () => {
-    const abs = join(SRC, "live/system.ts");
-    expect(existsSync(abs)).toBe(true);
-    const src = stripLineComments(stripBlockComments(readFileSync(abs, "utf8")));
-    expect(src).toMatch(/import\s*\(\s*["']@utils\/event-bus["']\s*\)/);
-    expect(src).not.toMatch(
-      /^\s*import\s+\{[^}]*eventBus[^}]*\}\s+from\s+["']@utils\/event-bus["']/m,
-    );
-  });
-
-  it("chat.ts loads ai-service only via dynamic import", () => {
-    const abs = join(SRC, "live/chat.ts");
-    expect(existsSync(abs)).toBe(true);
-    const src = stripLineComments(stripBlockComments(readFileSync(abs, "utf8")));
-    expect(src).toMatch(/import\s*\(\s*["']@src\/services\/core\/ai-service["']\s*\)/);
-    expect(src).not.toMatch(
-      /^\s*import\s+\{[^}]*aiService[^}]*\}\s+from\s+["']@src\/services\/core\/ai-service["']/m,
-    );
-  });
-
-  it("collaboration-store guards chat factory before calling it", () => {
-    const abs = join(SRC, "stores/collaboration-store.svelte.ts");
-    expect(existsSync(abs)).toBe(true);
-    const src = readFileSync(abs, "utf8");
-    expect(src).toMatch(/typeof\s+chat\s*!==\s*["']function["']/);
   });
 });

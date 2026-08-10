@@ -9,6 +9,7 @@ import type { User, Role } from "@src/databases/auth/types";
 import type { IDBAdapter, DatabaseId } from "@src/databases/db-interface";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import { hasPermissionWithRoles, registerPermission } from "@src/databases/auth/permissions";
 
@@ -30,7 +31,23 @@ export class WorkflowService {
   private readonly DEFINITIONS_COLLECTION = "workflow_definitions";
   private readonly INSTANCES_COLLECTION = "workflow_instances";
 
+  /**
+   * Negative + positive cache for getWorkflowForCollection.
+   * Most collections have no workflow — avoid a DB round-trip on every create.
+   */
+  private readonly _workflowByCollection = new Map<
+    string,
+    { value: WorkflowDefinition | null; exp: number }
+  >();
+  private static readonly WORKFLOW_CACHE_TTL_MS = 60_000;
+
   constructor() {}
+
+  /** Invalidate cached workflow lookup after definition save/delete. */
+  public invalidateWorkflowCache(_collectionId?: string, _tenantId?: string): void {
+    // Full clear for now; scoped invalidation can use _collectionId/_tenantId later
+    this._workflowByCollection.clear();
+  }
 
   /**
    * Saves or updates a workflow definition.
@@ -56,17 +73,26 @@ export class WorkflowService {
       (typeof definition.name === "string" && definition.name.trim()) ||
       definition.collectionId ||
       "Untitled Workflow";
+    const generatedId = (definition._id || (definition as any).id || generateUUID()) as string;
     const toSave = {
       ...definition,
+      _id: generatedId,
+      id: generatedId,
       name: safeName,
       updatedAt: now,
       tenantId: (tenantId || definition.tenantId) as DatabaseId | undefined,
     };
 
-    if (toSave._id) {
+    const existing = await dbAdapter.crud.findOne(
+      this.DEFINITIONS_COLLECTION,
+      { _id: generatedId } as any,
+      { tenantId: tenantId as DatabaseId },
+    );
+
+    if (existing && existing.success && existing.data) {
       await dbAdapter.crud.update(
         this.DEFINITIONS_COLLECTION,
-        toSave._id as DatabaseId,
+        generatedId as DatabaseId,
         toSave as any,
         { tenantId: tenantId as DatabaseId },
       );
@@ -75,15 +101,18 @@ export class WorkflowService {
       const result = await dbAdapter.crud.insert(this.DEFINITIONS_COLLECTION, toSave as any, {
         tenantId: tenantId as DatabaseId,
       });
-      if (result.success) {
-        toSave._id = result.data._id as string;
+      if (result.success && result.data) {
+        const resId = String((result.data as any)._id || (result.data as any).id || generatedId);
+        toSave._id = resId;
+        (toSave as any).id = resId;
       }
     }
 
+    this.invalidateWorkflowCache(toSave.collectionId, tenantId);
     logger.info(
       `Workflow saved for collection: ${toSave.collectionId} by user: ${user._id} (Tenant: ${tenantId || "global"})`,
     );
-    return toSave;
+    return this.normalizeDefinition(toSave);
   }
 
   /**
@@ -98,6 +127,7 @@ export class WorkflowService {
     await dbAdapter.crud.delete(this.DEFINITIONS_COLLECTION, workflowId as DatabaseId, {
       tenantId: tenantId as DatabaseId,
     });
+    this.invalidateWorkflowCache(undefined, tenantId);
     logger.info(`Workflow ${workflowId} deleted by user: ${user._id}`);
   }
 
@@ -105,27 +135,49 @@ export class WorkflowService {
     collectionId: string,
     tenantId?: string,
   ): Promise<WorkflowDefinition | null> {
+    const cacheKey = `${tenantId || "global"}:${collectionId}`;
+    const cached = this._workflowByCollection.get(cacheKey);
+    if (cached && cached.exp > Date.now()) {
+      return cached.value;
+    }
+
     const dbAdapter = await getDbAdapter();
     try {
-      const findOpts =
-        tenantId !== undefined && tenantId !== null && tenantId !== ""
-          ? { tenantId: tenantId as DatabaseId }
-          : {};
+      // Tenant-scoped lookup (parity with save/delete). Single-tenant: undefined is fine.
       const workflows = await dbAdapter.crud.findMany<any>(
         this.DEFINITIONS_COLLECTION,
         { collectionId },
-        findOpts,
+        { tenantId: tenantId as DatabaseId },
       );
 
-      // Fallback: If store is empty, query DB directly
-      if (!workflows.success || workflows.data.length === 0) {
+      const items = workflows?.success && Array.isArray(workflows.data) ? workflows.data : [];
+
+      if (!workflows?.success || items.length === 0) {
+        logger.warn(
+          `[WorkflowService] getWorkflowForCollection null for ${collectionId}: success=${workflows?.success}, count=${items.length}`,
+        );
+        this._workflowByCollection.set(cacheKey, {
+          value: null,
+          exp: Date.now() + WorkflowService.WORKFLOW_CACHE_TTL_MS,
+        });
         return null;
       }
 
-      return this.normalizeDefinition(workflows.data[0]);
+      const normalized = this.normalizeDefinition(items[0]);
+      this._workflowByCollection.set(cacheKey, {
+        value: normalized,
+        exp: Date.now() + WorkflowService.WORKFLOW_CACHE_TTL_MS,
+      });
+      return normalized;
     } catch (err: any) {
       // If table doesn't exist yet, just assume no workflow
-      if (err.message.includes("no such table")) return null;
+      if (err.message?.includes("no such table")) {
+        this._workflowByCollection.set(cacheKey, {
+          value: null,
+          exp: Date.now() + WorkflowService.WORKFLOW_CACHE_TTL_MS,
+        });
+        return null;
+      }
       throw err;
     }
   }
@@ -134,18 +186,22 @@ export class WorkflowService {
   private normalizeDefinition(raw: any): WorkflowDefinition {
     const parseArr = (v: unknown): any[] => {
       if (Array.isArray(v)) return v;
-      if (typeof v === "string" && v.trim()) {
+      let curr = v;
+      while (typeof curr === "string" && curr.trim()) {
         try {
-          const parsed = JSON.parse(v);
-          return Array.isArray(parsed) ? parsed : [];
+          curr = JSON.parse(curr);
+          if (Array.isArray(curr)) return curr;
         } catch {
-          return [];
+          break;
         }
       }
-      return [];
+      return Array.isArray(curr) ? curr : [];
     };
+    const id = String(raw?._id || raw?.id || "");
     return {
       ...raw,
+      _id: id,
+      id,
       name: raw?.name || raw?.collectionId || "Untitled Workflow",
       states: parseArr(raw?.states),
       transitions: parseArr(raw?.transitions),

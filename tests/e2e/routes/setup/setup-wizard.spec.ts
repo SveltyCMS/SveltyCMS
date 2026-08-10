@@ -5,7 +5,7 @@
  */
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { handleDialog } from "../../helpers/setup-wizard";
-import { resetToSetupMode } from "../../helpers/api";
+import { resetToSetupMode, TEST_API_HEADERS } from "../../helpers/api";
 
 // --- PAGE OBJECT MODEL ---
 
@@ -233,8 +233,10 @@ test.describe("Setup Wizard: Error Handling", () => {
     // nodemailer's connectionTimeout is 10s and DNS resolution on the invalid
     // host can add latency on slow networks — give the failure toast room to
     // appear (test budget is 90s, so this does not weaken the assertion).
+    // Bumped past 30s: the wizard's connection attempt can queue behind the
+    // DB-boot on a loaded host (parallel projects share the server).
     await expect(page.getByText(/connection failed/i).first()).toBeVisible({
-      timeout: 30_000,
+      timeout: 50_000,
     });
   });
 });
@@ -284,28 +286,37 @@ test.describe("Setup Wizard: Navigation & State", () => {
 });
 
 test.describe("Setup Wizard: Pre-Seeded Fast Path", () => {
-  // TODO: Fix handle-system-state.ts redirect after API seed.
-  // The seedReadyState() API call creates config/private.ts and seeds
-  // admin user, but system state machine doesn't transition out of setup
-  // mode synchronously, causing page.waitForURL to timeout.
-  test.skip("should leave setup after API-seeded ready state", async ({ page }) => {
-    test.setTimeout(30_000);
+  test("should leave setup after API-seeded ready state", async ({ page }) => {
+    test.setTimeout(60_000);
+
+    // Seed the ready state via the testing API (writes config + seeds admin).
+    // handleSystemState redirects /setup → /login once setup is COMPLETE.
     const res = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
       data: {
         action: "reset-to-state",
         state: "ready",
-        email: "admin@test.com",
+        email: "admin@example.com",
         password: "Password123!",
       },
     });
     if (!res.ok()) {
       throw new Error(`Seed ready state failed (${res.status()}): ${await res.text()}`);
     }
-    await page.goto("/setup");
+    const body = await res.json().catch(() => ({}));
+    if (body.success === false) {
+      throw new Error(`Seed ready state unsuccessful: ${JSON.stringify(body).slice(0, 300)}`);
+    }
+
+    // A request to /setup must be bounced to /login — never render the wizard.
+    await page.goto("/setup", { waitUntil: "domcontentloaded" });
+    // Wide window: on shared runners the first SSR request after a reset may
+    // re-boot the DB (reset-to-state drops the store) before the redirect.
     await page.waitForURL((url) => !url.pathname.startsWith("/setup"), {
-      timeout: 15000,
+      timeout: 30_000,
     });
     await expect(page).not.toHaveURL(/\/setup/);
+    await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
   });
 });
 

@@ -18,8 +18,9 @@
  */
 
 import { spawn, execSync, type ChildProcess } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { ensureIntegrationBuild } from "./integration-harness.ts";
 
 const ROOT = join(import.meta.dirname, "..");
 
@@ -66,21 +67,6 @@ function freePort(port: number): void {
   }
 }
 
-function collectJsFiles(dir: string, out: string[] = []): string[] {
-  if (!existsSync(dir)) return out;
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
-    try {
-      const st = statSync(full);
-      if (st.isDirectory()) collectJsFiles(full, out);
-      else if (st.isFile() && name.endsWith(".js")) out.push(full);
-    } catch {
-      /* skip */
-    }
-  }
-  return out;
-}
-
 async function waitForServer(url: string, timeoutMs = 120_000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -114,41 +100,19 @@ async function runCmd(cmd: string, cargs: string[], env: Record<string, string>)
 async function buildIfNeeded(): Promise<void> {
   if (DEV_MODE) return;
 
-  if (!SKIP_BUILD) {
-    console.log("Building with COMPILE_ALL_ADAPTERS=true...");
-    const code = await runCmd("bun", ["run", "build"], {
-      ...process.env,
-      COMPILE_ALL_ADAPTERS: "true",
-    } as any);
-    if (code !== 0) {
-      console.error("Build failed");
-      process.exit(1);
-    }
-    console.log("Build complete.\n");
-    return;
-  }
-
-  // --no-build: verify existing build has the testing harness
-  const FULL_MARKERS = ["Unauthorized: Testing endpoints are disabled", "[TestingHandler]"];
-  const scanDirs = [
-    join(ROOT, "build", "server", "chunks"),
-    join(ROOT, ".svelte-kit", "output", "server", "chunks"),
-  ];
-  const files = scanDirs.flatMap((d) => collectJsFiles(d));
-  const hasHarness = files.some((f) => {
-    try {
-      return FULL_MARKERS.some((m) => readFileSync(f, "utf8").includes(m));
-    } catch {
-      return false;
-    }
-  });
-  if (!hasHarness) {
-    console.error(
-      "❌ Existing build is deploy-stripped (no /api/testing). Run without --no-build.",
-    );
+  try {
+    // Local --no-build: auto-rebuild if deploy-stripped. CI: fail closed (strict).
+    const strict =
+      process.env.CI === "true" || process.env.CI === "1" || process.env.CI_STRICT_BUILD === "1";
+    await ensureIntegrationBuild(ROOT, {
+      noBuild: SKIP_BUILD,
+      strictNoBuild: SKIP_BUILD && strict,
+    });
+    console.log("");
+  } catch (err) {
+    console.error(`❌ ${err instanceof Error ? err.message : err}`);
     process.exit(1);
   }
-  console.log("✅ Existing build includes testing harness.\n");
 }
 
 async function startDevServer(): Promise<ChildProcess> {
@@ -182,6 +146,10 @@ async function startPreviewServer(): Promise<ChildProcess> {
   const env = {
     ...process.env,
     TEST_MODE: "true",
+    // Strict setup gate: TEST_MODE relaxes the /setup→/login redirect by
+    // design; the wizard project re-enables it so the seeded-ready exit
+    // contract is verified locally exactly like CI (setup-wizard.spec.ts).
+    STRICT_SETUP_CHECK: "true",
     TEST_API_SECRET: resolveTestSecret(),
     SKIP_TEST_CLEANUP: "true",
     ADMIN_PASSWORD: "Password123!",

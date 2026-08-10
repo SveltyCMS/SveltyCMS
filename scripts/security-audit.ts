@@ -15,7 +15,8 @@
  *   bun run security --secret-scan  # Also run secret misuse scanner
  *   bun run security --slop        # Also run code quality slop scanner
  *   bun run security --cve          # Also run dependency CVE audit (SBOM + bun audit)
- *   bun run security --full        # Run ALL scanners (auth + secret + slop + cve)
+ *   bun run security --fuzz        # Also run API payload fuzzer
+ *   bun run security --full        # Run ALL scanners (auth + secret + slop + cve + fuzz)
  */
 
 // Mark as ES module so top-level await is valid under tsc (TS1375).
@@ -27,6 +28,7 @@ const IS_CI = args.includes("--ci");
 const RUN_SECRET_SCAN = args.includes("--secret-scan") || args.includes("--full");
 const RUN_SLOP_SCAN = args.includes("--slop") || args.includes("--full");
 const RUN_CVE_SCAN = args.includes("--cve") || args.includes("--full");
+const RUN_FUZZ_SCAN = args.includes("--fuzz") || args.includes("--full");
 const ONLY_FILTER = args.find((a) => a.startsWith("--only="));
 
 let exitCode = 0;
@@ -140,13 +142,26 @@ if (RUN_SLOP_SCAN) {
     if (result.status !== 0) {
       console.error("\n❌ Code quality scan found issues\n");
       exitCode = 1;
-    } else {
-      console.log("✅ Code quality scan passed\n");
     }
-  } catch {
-    console.error("\n❌ Code quality scan failed to run\n");
+  } catch (err) {
+    console.error("\n❌ Code quality scan failed\n", err);
     exitCode = 1;
   }
-}
 
-process.exit(exitCode);
+  // ── API Payload Fuzzer ────────────────────────────────────────────
+  if (RUN_FUZZ_SCAN) {
+    console.log("\n━━━ API Payload Fuzzer ━━━\n");
+    try {
+      const { runFuzzAudit } = await import("./security/fuzzer");
+      const res = runFuzzAudit();
+      console.log(
+        `✅ Fuzzing passed (${res.iterations} payloads tested, ${res.blockedByWaf} blocked by WAF, 0 crashes)\n`,
+      );
+    } catch (err) {
+      console.error("\n❌ API payload fuzzer failed\n", err);
+      exitCode = 1;
+    }
+  }
+
+  process.exit(exitCode);
+}

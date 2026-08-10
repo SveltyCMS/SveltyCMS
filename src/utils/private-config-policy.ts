@@ -33,7 +33,7 @@ export function isAutomatedTestHarness(env: NodeJS.ProcessEnv = process.env): bo
   if (env.TEST_MODE === "true") return true;
   if (env.NODE_ENV === "test") return true;
   if (env.COMPILE_ALL_ADAPTERS === "true") return true;
-  if (env.BENCHMARK === "true" || env.SVELTY_BENCHMARK_SUITE === "true") return true;
+  if (env.BENCHMARK === "true") return true;
   if (env.PLAYWRIGHT_TEST === "true" || env.PLAYWRIGHT_TEST === "1") return true;
   // Vitest sets VITEST=true
   if (env.VITEST && env.VITEST !== "false" && env.VITEST !== "0") return true;

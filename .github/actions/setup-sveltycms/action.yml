@@ -19,6 +19,13 @@ inputs:
     required: false
     default: "false"
 
+# Cache notes:
+# - Key includes bun version + lockfile (+ config that can change install graph)
+# - v3 prefix busts historically corrupted archives (digest-mismatch)
+# - restore/save split: save only after successful install and only on miss
+# - Single path (.bun-cache) avoids dual-directory digest skew
+# - BUN_CACHE_DIR must match workflow env (default .bun-cache)
+
 runs:
   using: composite
   steps:
@@ -32,30 +39,45 @@ runs:
       with:
         bun-version: ${{ inputs.bun-version }}
 
-    - name: Cache Bun package tarballs
-      id: cache-bun
-      uses: actions/cache@v6
-      with:
-        path: |
-          .bun-cache
-          ~/.bun/install/cache
-        key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', 'vite.config.ts', 'svelte.config.js') }}
-        restore-keys: |
-          bun-${{ runner.os }}-
-
     - name: Ensure Bun cache dir
       shell: bash
       run: mkdir -p .bun-cache
 
+    - name: Restore Bun package cache
+      id: cache-bun
+      uses: actions/cache/restore@v6
+      with:
+        path: .bun-cache
+        # v3: bust legacy dual-path / corrupt digests; include bun version for runtime skew
+        key: bun-v3-${{ runner.os }}-${{ inputs.bun-version }}-${{ hashFiles('bun.lock', 'package.json') }}
+        restore-keys: |
+          bun-v3-${{ runner.os }}-${{ inputs.bun-version }}-
+          bun-v3-${{ runner.os }}-
+        enableCrossOsArchive: false
+        fail-on-cache-miss: false
+
     - name: Install dependencies
       if: inputs.pnpm-run-install != 'true'
       shell: bash
-      run: bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+      run: |
+        echo "::group::bun install"
+        bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+        echo "::endgroup::"
 
     - name: Install dependencies (pnpm fallback)
       if: inputs.pnpm-run-install == 'true'
       shell: bash
-      run: pnpm install --frozen-lockfile --prefer-offline
+      run: |
+        echo "::group::pnpm install"
+        pnpm install --frozen-lockfile --prefer-offline
+        echo "::endgroup::"
+
+    - name: Save Bun package cache
+      if: success() && inputs.pnpm-run-install != 'true' && steps.cache-bun.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: .bun-cache
+        key: ${{ steps.cache-bun.outputs.cache-primary-key }}
 
     - name: Download build-output artifact
       if: inputs.restore-build == 'true'

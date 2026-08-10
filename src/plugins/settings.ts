@@ -14,8 +14,19 @@ import { getSecretFieldNames } from "./settings-declaration";
 
 export class PluginSettingsService {
   private readonly SETTINGS_COLLECTION = "plugin_settings";
+  private _stateCache = new Map<string, { data: Record<string, unknown> | null; exp: number }>();
+  private readonly CACHE_TTL_MS = 10000; // 10s TTL with instant invalidation on write
 
   constructor(private readonly dbAdapter: IDBAdapter) {}
+
+  /** Invalidate L1 cache for a plugin/tenant */
+  public invalidateStateCache(pluginId?: string, tenantId?: string): void {
+    if (pluginId && tenantId) {
+      this._stateCache.delete(`${tenantId}:${pluginId}`);
+    } else {
+      this._stateCache.clear();
+    }
+  }
 
   // Ensure the plugin_settings collection exists (SQL adapters need physical table).
   // Table provisioning is delegated to SqlAdapterCore.insert() auto-provision —
@@ -233,6 +244,12 @@ export class PluginSettingsService {
 
   // Get state for a specific plugin and tenant
   async getPluginState(pluginId: string, tenantId: string): Promise<PluginState | null> {
+    const cacheKey = `${tenantId}:${pluginId}`;
+    const cached = this._stateCache.get(cacheKey);
+    if (cached && Date.now() < cached.exp) {
+      return cached.data as PluginState | null;
+    }
+
     try {
       const result = await this.dbAdapter.crud.findOne<PluginState>(
         "pluginStates",
@@ -243,10 +260,9 @@ export class PluginSettingsService {
         { bypassTenantCheck: true },
       );
 
-      if (result.success && result.data) {
-        return result.data;
-      }
-      return null;
+      const state = result.success && result.data ? result.data : null;
+      this._stateCache.set(cacheKey, { data: state as any, exp: Date.now() + this.CACHE_TTL_MS });
+      return state;
     } catch (error) {
       logger.error(`Failed to get plugin state for ${pluginId}`, { error });
       return null;
@@ -279,6 +295,7 @@ export class PluginSettingsService {
     enabled: boolean,
     userId?: string,
   ): Promise<boolean> {
+    this.invalidateStateCache(pluginId, tenantId);
     try {
       const existing = await this.getPluginState(pluginId, tenantId);
 
@@ -293,6 +310,7 @@ export class PluginSettingsService {
           } as any,
           { bypassTenantCheck: true },
         );
+        this.invalidateStateCache(pluginId, tenantId);
         return updateResult.success;
       }
       const insertResult = await this.dbAdapter.crud.insert<PluginState>(
@@ -305,8 +323,10 @@ export class PluginSettingsService {
         } as any,
         { bypassTenantCheck: true },
       );
+      this.invalidateStateCache(pluginId, tenantId);
       return insertResult.success;
     } catch (error) {
+      this.invalidateStateCache(pluginId, tenantId);
       logger.error(`Failed to set plugin state for ${pluginId}`, { error });
       return false;
     }

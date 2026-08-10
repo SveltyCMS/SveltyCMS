@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { resetAndSeedDatabase, seedExpiredPasswordReset } from "../../helpers/api";
+import {
+  resetAndSeedDatabase,
+  seedExpiredPasswordReset,
+  TEST_API_HEADERS,
+} from "../../helpers/api";
 import { ADMIN_CREDENTIALS, prepareLoginForm, enable2FAForTestUser } from "../../helpers/auth";
 
 test.describe("Extended Authentication UI Flows", () => {
@@ -64,7 +68,18 @@ test.describe("Extended Authentication UI Flows", () => {
     const passwordInput = page.locator('[data-testid="signin-password"]');
     const submitBtn = page.locator('[data-testid="signin-submit"]');
 
-    await emailInput.fill(ADMIN_CREDENTIALS.email);
+    // Lock a DEDICATED throwaway user, never the shared admin: the lockout is
+    // 15 minutes, and parallel specs (permissions, coverage-100, management,
+    // …) log in as admin@example.com throughout the run. Locking the admin
+    // made those specs fail in a rotating pattern for the whole suite.
+    const lockoutEmail = `lockout-${Date.now().toString(36)}@test.de`;
+    const seeded = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: { action: "seed", email: lockoutEmail, password: "Lockout123!" },
+    });
+    expect(seeded.ok(), "lockout fixture user must be seeded").toBeTruthy();
+
+    await emailInput.fill(lockoutEmail);
     await passwordInput.fill("DefinitelyWrongPassword123!");
 
     // SveltyCMS locks the account after 5 failed attempts
@@ -87,9 +102,9 @@ test.describe("Extended Authentication UI Flows", () => {
         break;
       }
 
-      // Dismiss the toast to reset state for next click
+      // Dismiss the toast to reset state for next click (wait for hidden, no sleep)
       await page.keyboard.press("Escape");
-      await page.waitForTimeout(300);
+      await toast.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
     }
 
     // The last attempt must show an error toast (either lockout-specific or generic)
@@ -97,46 +112,57 @@ test.describe("Extended Authentication UI Flows", () => {
   });
 
   test("Magic Link & WebAuthn UI Toggles (Mocked)", async ({ page }) => {
-    // We mock the SvelteKit server function response for `checkAuthMethods`
-    // Since it's a SvelteKit server function, it POSTs to the current route.
-    // We can intercept the request and override the JSON.
-    await page.route("**/login", async (route, request) => {
-      const isServerFunction = request.headers()["x-sveltekit-server-function"];
-      if (request.method() === "POST" && isServerFunction) {
-        try {
-          // If the payload contains the checkAuthMethods call, we return true for everything
-          const postData = request.postData();
-          if (postData && postData.includes("checkAuthMethods")) {
-            // Fulfill with a mocked SvelteKit response format
-            await route.fulfill({
-              status: 200,
-              contentType: "application/json",
-              body: JSON.stringify({
-                type: "data",
-                data: `[{"success":true,"hasPassword":true,"hasPasskey":true,"hasMagicLink":true,"hasOAuth":false}]`,
-              }),
-            });
-            return;
-          }
-        } catch {
-          // Fallback
-        }
-      }
-      await route.continue();
+    // Mock the `checkAuthMethods` remote function. SvelteKit remote functions
+    // (query/command from $app/server) call GET /_app/remote/<id>/<fn>?payload=…
+    // and return `{ data: <devalue-string> }` — NOT a POST to the page route
+    // with x-sveltekit-server-function (the old protocol this test intercepted).
+    let checkAuthMethodsIntercepted = false;
+    await page.route("**/_app/remote/*/checkAuthMethods*", async (route) => {
+      checkAuthMethodsIntercepted = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: '{"success":true,"hasPassword":true,"hasPasskey":true,"hasMagicLink":true,"hasOAuth":false}',
+        }),
+      });
     });
 
     const emailInput = page.locator('[data-testid="signin-email"]');
 
+    // Capture the mocked checkAuthMethods response instead of sleeping for the debounce
+    const checkRes = page
+      .waitForResponse((res) => /\/_app\/remote\/[^/]+\/checkAuthMethods/.test(res.url()), {
+        timeout: 5_000,
+      })
+      .catch(() => null);
+
     // Type email slowly to trigger the debounced `onEmailInput` check
     await emailInput.pressSequentially("test@example.com", { delay: 100 });
+    const response = await checkRes;
 
-    // Wait for debounce and network request
-    await page.waitForTimeout(1000);
-
-    // Some configurations might just have generic social buttons, wait a bit
-    await page.waitForTimeout(500);
-
-    expect(true).toBe(true);
+    // Real assertions: the debounced check must actually fire, and the client
+    // must receive the mocked method flags through the server-function channel.
+    expect(
+      checkAuthMethodsIntercepted,
+      "typing an email must trigger the debounced checkAuthMethods server function",
+    ).toBe(true);
+    expect(response, "checkAuthMethods must produce a response").not.toBeNull();
+    expect(response!.ok(), `checkAuthMethods HTTP ${response!.status()}`).toBe(true);
+    const body = await response!.json().catch(() => null);
+    expect(body, "checkAuthMethods response must be JSON").not.toBeNull();
+    let flags: Record<string, unknown> = {};
+    try {
+      const data = typeof body.data === "string" ? JSON.parse(body.data) : body.data;
+      flags = (Array.isArray(data) ? (data[0] ?? {}) : (data ?? {})) as Record<string, unknown>;
+    } catch {
+      // parsed below via the per-flag assertions
+    }
+    expect(flags.success).toBe(true);
+    expect(flags.hasPassword).toBe(true);
+    expect(flags.hasPasskey).toBe(true);
+    expect(flags.hasMagicLink).toBe(true);
+    expect(flags.hasOAuth).toBe(false);
   });
 
   test("2FA UI Flow", async ({ page }) => {

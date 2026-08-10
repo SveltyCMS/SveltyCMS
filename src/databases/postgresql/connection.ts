@@ -65,6 +65,8 @@ export async function createConnection(
   const workMemSetting =
     rawWorkMem && /^\d+(kB|MB|GB)?$/i.test(rawWorkMem) ? rawWorkMem : undefined;
 
+  // postgres.js Options type omits some runtime options (pipeline); the driver
+  // accepts them — keep the typed surface for everything else.
   sql = postgres({
     host: config.host,
     port: effectivePort || 6432, // 6432 common for PgBouncer
@@ -72,16 +74,17 @@ export async function createConnection(
     password: config.password,
     database: config.database,
     ssl: config.ssl === true || config.ssl === "require" ? "require" : undefined,
-    max: 100, // Increased for high-concurrency enterprise benchmarks
+    max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 100,
     idle_timeout: 60, // Idle connection timeout in seconds
     connect_timeout: 30, // Connection timeout in seconds
     prepare: effectivePrepare,
+    pipeline: true as any,
     onnotice: () => {
       /* Suppress notice messages */
     },
     onconnect:
       syncCommitSetting || workMemSetting
-        ? async (conn) => {
+        ? async (conn: { simple: (sql: string) => Promise<unknown> }) => {
             if (syncCommitSetting) {
               await conn.simple(`SET synchronous_commit = '${syncCommitSetting}';`);
             }
@@ -93,7 +96,7 @@ export async function createConnection(
     transform: {
       undefined: null, // Transform undefined to null
     },
-  });
+  } as any);
 
   // Test the connection
   try {

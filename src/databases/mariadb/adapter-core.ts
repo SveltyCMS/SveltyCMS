@@ -16,10 +16,15 @@
 import { logger } from "@src/utils/logger";
 import { SqlAdapterCore } from "../core/sql-adapter-core";
 import type {
+  BaseEntity,
   BaseQueryOptions,
   DatabaseCapabilities,
   DatabaseResult,
   DatabaseId,
+  EntityCreate,
+  EntityUpdate,
+  FindOptions,
+  QueryFilter,
 } from "../db-interface";
 import * as helpers from "../core/drizzle-sql-helpers";
 import { getTableName } from "drizzle-orm";
@@ -27,9 +32,10 @@ import * as schema from "./schema";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { sql, type SQL } from "drizzle-orm";
-import { mysqlTable, varchar, json, datetime, boolean } from "drizzle-orm/mysql-core";
+import { mysqlTable, varchar, json, datetime, boolean, int } from "drizzle-orm/mysql-core";
 import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
+import { generateUUID } from "@src/utils/native-utils";
 
 export abstract class AdapterCore extends SqlAdapterCore {
   public type = "mariadb";
@@ -61,6 +67,104 @@ export abstract class AdapterCore extends SqlAdapterCore {
   // --------------------------------------------------------------------------
   // Abstract hook implementations
   // --------------------------------------------------------------------------
+
+  /**
+   * Drizzle mysql2 dialect does not implement INSERT/UPDATE … RETURNING
+   * (MySQL protocol gap). Post-write re-read uses optimized findById instead.
+   * useDynamicSqlInFindMany matches Postgres/SQLite heavy-table path.
+   */
+  protected get useDynamicSqlInFindMany(): boolean {
+    return true;
+  }
+
+  /** mysql2's execute/query return [rows, fields] — rows are the first element. */
+  protected async executeDynamicSql(db: any, sqlQuery: SQL): Promise<any[]> {
+    const execResult = await db.execute(sqlQuery);
+    if (Array.isArray(execResult) && execResult.length >= 1 && Array.isArray(execResult[0])) {
+      return execResult[0];
+    }
+    return execResult;
+  }
+
+  /**
+   * Raw prepared-SQL findById: mysql2's pool.execute uses server-side prepared
+   * statements; a stable parameterized SELECT skips Drizzle's per-call AST
+   * building + escaping on the hottest read path.
+   */
+  protected get useRawFindById(): boolean {
+    return true;
+  }
+
+  protected async rawFindById<T extends BaseEntity>(
+    table: any,
+    collection: string,
+    id: DatabaseId,
+    options: FindOptions<T>,
+  ): Promise<T | null> {
+    try {
+      const tableName = getTableName(table);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+      const idColName = idCol.name || "_id";
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+      // Projection-aware: skip the JSON data blob when all requested fields
+      // are physical columns (avoids LONGTEXT transfer + JSON.parse on reads).
+      const fields = options?.fields;
+      const wantsData =
+        !Array.isArray(fields) ||
+        fields.length === 0 ||
+        fields.some((f) => {
+          if (f === "data") return true;
+          if (
+            f === "_id" ||
+            f === "id" ||
+            f === "tenantId" ||
+            f === "status" ||
+            f === "createdAt" ||
+            f === "updatedAt" ||
+            f === "isDeleted"
+          )
+            return false;
+          return !this.getColumn(table, String(f));
+        });
+      const selectCols = this.getRawFindByIdCols(table, wantsData)
+        .map((c) => `\`${c}\``)
+        .join(", ");
+      const rawSql = `SELECT ${selectCols} FROM \`${tableName}\` WHERE \`${idColName}\` = ?${tenantSql} LIMIT 1`;
+      // Read-path schema registration: raw reads must normalize timestamps to
+      // ISODateString even on read-only workloads (relational-utils isEpochMs).
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
+      // Tx-aware: inside a transaction reads MUST stay on the txn connection
+      // (the pool would see pre-transaction state — phantom reads).
+      const rows = (await this.getRawExec(options)(rawSql, [String(id), ...tenantParams])) as any[];
+      if (Array.isArray(rows) && rows.length > 0) {
+        const row = rows[0];
+        if (!wantsData) {
+          return utils.convertDatesToISO(row, {
+            ...this.convertDatesOptions,
+            table: collection,
+            skipJson: true,
+          }) as T;
+        }
+        return utils.convertDatesToISO(row, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as T;
+      }
+      return null;
+    } catch (rawErr: any) {
+      logger.debug("[MariaDB raw findById] falling back to Drizzle:", rawErr?.message);
+      return null;
+    }
+  }
+
+  /** MariaDB default sql_mode has no ANSI_QUOTES — identifiers need backticks. */
+  protected override quoteIdentifier(name: string): string {
+    return `\`${name.replace(/`/g, "``")}\``;
+  }
 
   protected get convertDatesOptions(): Record<string, any> {
     return { mariaDoubleParseJson: true, inPlace: true };
@@ -116,7 +220,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
         return this.getTable(cleanName);
       }
 
-      const dynamicTable = this.createDynamicTableDefinition(tableName);
+      // 🚀 ROW-STORE HYBRID: materialized scalar fields (populated by
+      // createModel) exist in the Drizzle def so filters/sorts/writes use the
+      // column; the `data` blob keeps only dynamic fields.
+      const dynamicTable = this.createDynamicTableDefinition(
+        tableName,
+        this.materializedColumns.get(cleanName) ||
+          this.materializedColumns.get(tableName) ||
+          undefined,
+      );
       this.tableRegistry.set(collection, dynamicTable);
       return dynamicTable;
     } finally {
@@ -153,9 +265,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
       if (typeof finalConnection === "string") {
         poolConfig = {
           uri: finalConnection,
-          connectionLimit: 100,
+          connectionLimit: Number(process.env.DATABASE_MAX_CONNECTIONS) || 20,
           connectTimeout: 30000,
-          maxIdle: 50,
+          maxIdle: 10,
           idleTimeout: 60000,
           charset: "utf8mb4",
         };
@@ -167,10 +279,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
           user: c.user || c.DB_USER || "root",
           password: c.password || c.DB_PASSWORD || "",
           database: c.database || c.DB_NAME,
-          connectionLimit: 100,
+          connectionLimit: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS || 20),
           connectTimeout: 30000,
           waitForConnections: true,
-          maxIdle: 50,
+          maxIdle: 10,
           idleTimeout: 60000,
           queueLimit: 0,
           enableKeepAlive: true,
@@ -343,22 +455,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
   // Schema & Table Management
   // --------------------------------------------------------------------------
 
-  public createDynamicTableDefinition(tableName: string) {
-    registerTableSchema(tableName, [
-      "_id",
-      "tenantId",
-      "collection",
-      "slug",
-      "locale",
-      "publishedAt",
-      "data",
-      "status",
-      "isDeleted",
-      "createdAt",
-      "updatedAt",
-    ]);
-
-    return mysqlTable(tableName, {
+  public createDynamicTableDefinition(tableName: string, columnsToAdd?: Map<string, string>) {
+    const booleanCols: string[] = ["isDeleted"];
+    const columns: Record<string, any> = {
       _id: varchar("_id", { length: 36 }).primaryKey(),
       tenantId: varchar("tenantId", { length: 36 }),
       collection: varchar("collection", { length: 255 }),
@@ -374,7 +473,35 @@ export abstract class AdapterCore extends SqlAdapterCore {
       updatedAt: datetime("updatedAt")
         .notNull()
         .default(sql`CURRENT_TIMESTAMP`),
-    });
+    };
+
+    if (columnsToAdd) {
+      for (const [colName, colType] of columnsToAdd.entries()) {
+        if (
+          colName === "_id" ||
+          colName === "id" ||
+          colName === "tenantId" ||
+          colName === "status" ||
+          colName === "isDeleted" ||
+          colName === "createdAt" ||
+          colName === "updatedAt" ||
+          colName === "data"
+        )
+          continue;
+        if (colType === "integer") {
+          columns[colName] = int(colName);
+        } else if (colType === "boolean") {
+          columns[colName] = boolean(colName);
+          booleanCols.push(colName);
+        } else {
+          columns[colName] = varchar(colName, { length: 255 });
+        }
+      }
+    }
+
+    registerTableSchema(tableName, Object.keys(columns), booleanCols);
+
+    return mysqlTable(tableName, columns);
   }
 
   // --------------------------------------------------------------------------
@@ -449,6 +576,520 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
   private _returningSupported: boolean | null = null;
 
+  /**
+   * Single-round-trip upsert when the conflict is on _id (or a unique column):
+   * INSERT ... ON DUPLICATE KEY UPDATE ... RETURNING. Base upsert() would do
+   * findOne + update/insert (2 RT). Falls back when RETURNING is unsupported.
+   */
+  override async upsert<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    data: EntityCreate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    if (this._returningSupported === false) {
+      return super.upsert(collection, query, data, options);
+    }
+    try {
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+      const idColName = idCol.name || "_id";
+
+      // Only when the conflict filter is a pure _id lookup (common sync/import path)
+      const lookupId = this.extractIdFromQuery(query);
+      if (!lookupId) return super.upsert(collection, query, data, options);
+
+      const tableName = getTableName(table);
+      const now = new Date();
+      const values = this.prepareValues(
+        table,
+        { ...data, [idColName]: lookupId },
+        lookupId,
+        now,
+        options,
+      );
+      // Ensure PK present in the insert column list
+      if (values[idColName] === undefined) values[idColName] = String(lookupId);
+
+      const cols = Object.keys(values);
+      if (cols.length === 0) return super.upsert(collection, query, data, options);
+      // Drizzle def property names may differ from physical column names
+      // (e.g. plugin_storage: collectionName → `collection`).
+      const physicalName = (c: string) =>
+        utils.assertSafeSqlIdentifier(this.getColumn(table, c)?.name ?? c, "column");
+      const colList = cols.map((c) => `\`${physicalName(c)}\``);
+      const placeholders = cols.map(() => "?").join(", ");
+      const updatePairs = cols
+        .filter((c) => c !== idColName)
+        .map((c) => `\`${physicalName(c)}\` = VALUES(\`${physicalName(c)}\`)`);
+      const params = cols.map((c) => {
+        const v = values[c];
+        return v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
+      });
+
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+      // Note: buildRawTenantClause may add a tenantId equality to WHERE; for upsert
+      // we instead merge tenantId into the row values (done by prepareValues) and
+      // rely on the PK conflict. Tenant WHERE on insert is not applicable.
+      void tenantSql;
+      void tenantParams;
+
+      const sqlText =
+        updatePairs.length > 0
+          ? `INSERT INTO \`${tableName}\` (${colList.join(", ")}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updatePairs.join(", ")} RETURNING *`
+          : `INSERT INTO \`${tableName}\` (${colList.join(", ")}) VALUES (${placeholders}) RETURNING *`;
+
+      const rows = (await this.raw.execute(sqlText, params)) as any[];
+      if (Array.isArray(rows) && rows.length > 0) {
+        this._returningSupported = true;
+        return {
+          success: true,
+          data: utils.convertDatesToISO(rows[0], {
+            mariaDoubleParseJson: true,
+            table: collection,
+          }) as unknown as T,
+        };
+      }
+      return super.upsert(collection, query, data, options);
+    } catch (err: any) {
+      this._returningSupported = false;
+      logger.debug(
+        `MariaDB upsert RETURNING not supported, using base upsert path: ${err.message}`,
+      );
+      return super.upsert(collection, query, data, options);
+    }
+  }
+
+  /** Extract a plain _id value from a query filter, or null if not a pure _id lookup. */
+  private extractIdFromQuery(query: QueryFilter<any>): string | null {
+    if (!query || typeof query !== "object") return null;
+    const keys = Object.keys(query);
+    if (keys.length > 2) return null;
+    const idVal = (query as any)._id ?? (query as any).id;
+    if (idVal === undefined || idVal === null) return null;
+    if (typeof idVal === "object" && !(idVal instanceof Date) && !Array.isArray(idVal)) return null;
+    const remaining = keys.filter((k) => k !== "_id" && k !== "id");
+    if (remaining.length === 0) return String(idVal);
+    if (remaining.length === 1 && remaining[0] === "tenantId") return String(idVal);
+    return null;
+  }
+
+  /**
+   * MariaDB ≥10.5 supports INSERT … RETURNING natively, but Drizzle's mysql2
+   * dialect does not expose .returning(). The base update() would otherwise do
+   * UPDATE + separate findById (2 round trips). This raw path keeps one.
+   * Falls back to the base implementation when RETURNING is unsupported.
+   */
+  protected async rawInsertReturning<T extends BaseEntity>(
+    table: any,
+    collection: string,
+    values: Record<string, any>,
+    _options: BaseQueryOptions,
+  ): Promise<T | null> {
+    if (this._returningSupported === false) return null;
+    try {
+      const tableName = getTableName(table);
+      const cols = Object.keys(values);
+      if (cols.length === 0) return null;
+      const colList = cols
+        .map((c) => {
+          // Drizzle def property names may differ from physical column names
+          // (e.g. plugin_storage: collectionName → `collection`).
+          const phys = this.getColumn(table, c);
+          return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
+        })
+        .map((c) => `\`${c}\``);
+      const placeholders = cols.map(() => "?").join(", ");
+      const params = cols.map((c) => {
+        const v = values[c];
+        return v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
+      });
+      const sqlText = `INSERT INTO \`${tableName}\` (${colList.join(", ")}) VALUES (${placeholders}) RETURNING *`;
+      const rows = (await this.raw.execute(sqlText, params)) as any[];
+      if (Array.isArray(rows) && rows.length > 0) {
+        this._returningSupported = true;
+        return utils.convertDatesToISO(rows[0], {
+          mariaDoubleParseJson: true,
+          table: collection,
+        }) as unknown as T;
+      }
+      return null;
+    } catch {
+      this._returningSupported = false;
+      return null;
+    }
+  }
+
+  /**
+   * Raw single INSERT (no RETURNING) — MariaDB's Drizzle dialect has no
+   * .returning() and the base path pays the Drizzle AST build per insert. The
+   * row is reconstructed from the prepared values (identical shape to the
+   * base no-read-back path: same prepareValues + convertDatesToISO). Falls
+   * back to the base implementation on any error or missing table (auto-
+   * provisioning lives there).
+   */
+  /**
+   * Tx-scoped mysql2 connection when inside a transaction started by the
+   * Maria TransactionModule (which stashes the dedicated pool connection on
+   * `transaction.conn`). Falls back to reading it off the drizzle tx session.
+   * Returns null when the transaction carries no raw handle (callers then
+   * defer to the Drizzle path, preserving rollback semantics).
+   */
+  protected getTxnConn(options: BaseQueryOptions): any {
+    const tx = options?.transaction as any;
+    return tx?.conn ?? tx?.db?.session?.client ?? null;
+  }
+
+  /**
+   * Raw statement executor honoring the tx connection: `conn.execute` returns
+   * [rows, fields] (same unwrap as this.raw.execute) — bound here once so raw
+   * paths stay single-line swaps between pool and txn.
+   */
+  protected getRawExec(options: BaseQueryOptions): (sql: string, params?: any[]) => Promise<any[]> {
+    const txnConn = this.getTxnConn(options);
+    if (txnConn) {
+      return async (sqlText: string, params: any[] = []) => {
+        const [rows] = await txnConn.execute(sqlText, params);
+        return rows;
+      };
+    }
+    return (sqlText: string, params: any[] = []) => this.raw.execute(sqlText, params);
+  }
+
+  override async insert<T extends BaseEntity>(
+    collection: string,
+    data: EntityCreate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    if (typeof collection !== "string") {
+      return {
+        success: false,
+        message: `Invalid collection: expected string, got ${typeof collection}`,
+        error: {
+          code: "INVALID_COLLECTION",
+          message: "Collection name must be a string",
+        },
+      };
+    }
+    // Inside an outer transaction WITHOUT a raw handle (a Drizzle tx from
+    // another caller) the raw pool path would bypass the txn connection and
+    // commit immediately — defer to the base Drizzle path. With the
+    // TransactionModule's raw handle, run the raw INSERT on the txn
+    // connection instead (single code path).
+    const txnConn = this.getTxnConn(options);
+    if (options?.transaction && !txnConn) {
+      return super.insert(collection, data, options);
+    }
+    return this.wrap(
+      async () => {
+        const rawExec = this.getRawExec(options);
+        const d =
+          this.hooks.length > 0
+            ? await this.runHooks("before", "insert", collection, data, options)
+            : data;
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
+        if (!this._registeredSchemas.has(collection)) {
+          this.ensureTableSchemaRegistered(table, collection);
+          this._registeredSchemas.add(collection);
+        }
+        const id = (d as any)._id || generateUUID();
+        const now = new Date();
+        const values = this.prepareValues(table, d, id, now, options);
+        // Old tables predate the DDL timestamp defaults — always write both
+        // timestamps explicitly so createdAt is never NULL.
+        if (values.createdAt === undefined) values.createdAt = now;
+
+        const runInsert = async () => {
+          const tableName = getTableName(table);
+          const cols = Object.keys(values);
+          if (cols.length === 0) {
+            return utils.convertDatesToISO(values, {
+              ...this.convertDatesOptions,
+              table: collection,
+            }) as T;
+          }
+          const colList = cols
+            .map((c) => {
+              // Drizzle def property names may differ from physical column
+              // names (e.g. plugin_storage: collectionName → `collection`).
+              const phys = this.getColumn(table, c);
+              return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
+            })
+            .map((c) => `\`${c}\``)
+            .join(", ");
+          const placeholders: string[] = [];
+          const params: any[] = [];
+          for (const c of cols) {
+            const v = values[c];
+            // Missing/undefined values bind as literal DEFAULT — mysql2
+            // throws on undefined bind params.
+            if (v === undefined) {
+              placeholders.push("DEFAULT");
+              continue;
+            }
+            params.push(
+              v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v,
+            );
+            placeholders.push("?");
+          }
+          const sqlText = `INSERT INTO \`${tableName}\` (${colList}) VALUES (${placeholders.join(", ")})`;
+          await rawExec(sqlText, params);
+          return utils.convertDatesToISO(
+            this.synthesizeInsertRow(table, values, { intBooleans: true }),
+            {
+              ...this.convertDatesOptions,
+              table: collection,
+            },
+          ) as T;
+        };
+
+        let finalData: T;
+        try {
+          finalData = await runInsert();
+        } catch (err: any) {
+          // Auto-provision dynamic collection tables on first write.
+          if (this.isMissingTableError(err) && typeof (this as any).createModel === "function") {
+            await (this as any).createModel({
+              _id: collection,
+              name: collection,
+              fields: [],
+            });
+            finalData = await runInsert();
+          } else {
+            throw err;
+          }
+        }
+
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "insert", collection, finalData, options)
+          : finalData;
+      },
+      "INSERT_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
+  }
+
+  /**
+   * Raw multi-VALUES INSERT fast path — mirrors the SQLite/PG insertMany
+   * paths: one prepared multi-row statement per chunk instead of the Drizzle
+   * AST build. MariaDB materializes multi-row RETURNING (slow — measured
+   * 62 RPS vs 190 for the no-read-back path), so rows are synthesized from
+   * the prepared values exactly like the base no-returning path. Falls back
+   * to the base path on any error or inside an outer transaction.
+   */
+  override async insertMany<T extends BaseEntity>(
+    collection: string,
+    data: EntityCreate<T>[],
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T[]>> {
+    if (!data || data.length === 0) return { success: true, data: [] };
+    const skipReturning = (options as any)?.skipReturning === true;
+    const inOuterTxn = Boolean(options?.transaction);
+    const txnConn = this.getTxnConn(options);
+    if (!inOuterTxn || txnConn) {
+      const rawExec = this.getRawExec(options);
+      try {
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Table not found: ${collection}`);
+        const now = new Date();
+        const len = data.length;
+        const batchValues: Record<string, any>[] = Array.from({ length: len });
+        for (let i = 0; i < len; i++) {
+          const item = data[i];
+          const id = (item as any)._id || generateUUID();
+          const prepared = this.prepareValues(table, item, id, now, options);
+          // Old tables predate the DDL timestamp defaults — write createdAt
+          // explicitly so it is never NULL; exact row shape for the response.
+          if (prepared.createdAt === undefined) prepared.createdAt = now;
+          batchValues[i] = this.synthesizeInsertRow(table, prepared, { intBooleans: true });
+        }
+        // Union of column keys across rows — rows may omit optional physical
+        // columns (status/slug/…) and the DB default fills them.
+        const cols = new Set<string>();
+        for (let i = 0; i < len; i++) {
+          for (const k in batchValues[i]) cols.add(k);
+        }
+        if (cols.size > 0) {
+          const maxParams = 65000;
+          const chunkSize = Math.max(1, Math.floor(maxParams / cols.size));
+          const colList = Array.from(cols)
+            .map((c) => {
+              // Drizzle def property names may differ from physical column
+              // names (e.g. plugin_storage: collectionName → `collection`).
+              const phys = this.getColumn(table, c);
+              return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
+            })
+            .map((c) => `\`${c}\``)
+            .join(", ");
+          for (let start = 0; start < len; start += chunkSize) {
+            const chunk = batchValues.slice(start, start + chunkSize);
+            const params: any[] = [];
+            const valuesSql: string[] = [];
+            for (let r = 0; r < chunk.length; r++) {
+              const row = chunk[r];
+              const rowPlaceholders: string[] = [];
+              for (const c of cols) {
+                const v = row[c];
+                // Missing/undefined values bind as literal DEFAULT — mysql2
+                // throws on undefined bind params.
+                if (v === undefined) {
+                  rowPlaceholders.push("DEFAULT");
+                  continue;
+                }
+                params.push(
+                  v !== null && typeof v === "object" && !(v instanceof Date)
+                    ? JSON.stringify(v)
+                    : v,
+                );
+                rowPlaceholders.push("?");
+              }
+              valuesSql.push(`(${rowPlaceholders.join(", ")})`);
+            }
+            const sqlText = `INSERT INTO \`${getTableName(table)}\` (${colList}) VALUES ${valuesSql.join(", ")}`;
+            await rawExec(sqlText, params);
+          }
+          // Synthesize the rows from prepared values (identical to the base
+          // no-returning path) — no multi-row RETURNING read-back tax. Seed/
+          // system-bulk callers (skipReturning) get the values untouched.
+          if (skipReturning) {
+            return { success: true as const, data: batchValues as unknown as T[] };
+          }
+          return {
+            success: true as const,
+            data: utils.convertArrayDatesToISO(batchValues, {
+              ...this.convertDatesOptions,
+              mariaDoubleParseJson: true,
+              table: collection,
+            }) as T[],
+          };
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    return super.insertMany(collection, data, options);
+  }
+
+  /**
+   * MariaDB ≥10.5 supports UPDATE ... RETURNING natively, but Drizzle's mysql2
+   * dialect does not expose .returning(). The base update() would otherwise do
+   * UPDATE + separate findById (2 round trips). This raw path keeps one.
+   * Falls back to the base implementation when RETURNING is unsupported.
+   */
+  override async update<T extends BaseEntity>(
+    collection: string,
+    id: DatabaseId,
+    data: EntityUpdate<T>,
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T>> {
+    if (this._returningSupported === false) {
+      return super.update(collection, id, data, options);
+    }
+    // Inside an outer transaction WITHOUT a raw handle (a Drizzle tx from
+    // another caller) the raw pool path would bypass the txn connection —
+    // defer to the base Drizzle path. With the TransactionModule's raw
+    // handle, run the raw UPDATE on the txn connection (single code path).
+    const txnConn = this.getTxnConn(options);
+    if (options?.transaction && !txnConn) {
+      return super.update(collection, id, data, options);
+    }
+    const rawExec = this.getRawExec(options);
+    try {
+      const d =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "update", collection, data, options)
+          : data;
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+      const idColName = idCol.name || "_id";
+      const tableName = getTableName(table);
+
+      const now = new Date();
+      const values = this.prepareValues(table, d, id, now, options);
+      // Drop the PK from SET (never write _id back)
+      delete values[idColName];
+      delete values["id"];
+
+      const setPairs: string[] = [];
+      const params: any[] = [];
+      const columns = Object.keys(values);
+      for (const col of columns) {
+        // Drizzle def property names may differ from physical column names
+        // (e.g. plugin_storage: collectionName → `collection`).
+        const phys = this.getColumn(table, col);
+        const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+        setPairs.push(`\`${safeCol}\` = ?`);
+        const val = values[col];
+        params.push(
+          val !== null && typeof val === "object" && !(val instanceof Date)
+            ? JSON.stringify(val)
+            : val,
+        );
+      }
+      if (setPairs.length === 0) {
+        return super.update(collection, id, data, options);
+      }
+
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+
+      // 🚀 NO-READ-BACK: full-document callers skip the RETURNING row read-back
+      // + JSON parse — the row is reconstructed from the prepared values.
+      const skipReturning = (options as any)?.skipReturning === true;
+      const sqlText = skipReturning
+        ? `UPDATE \`${tableName}\` SET ${setPairs.join(", ")} WHERE \`${idColName}\` = ?${tenantSql}`
+        : `UPDATE \`${tableName}\` SET ${setPairs.join(", ")} WHERE \`${idColName}\` = ?${tenantSql} RETURNING *`;
+      const rows = (await rawExec(sqlText, [...params, String(id), ...tenantParams])) as any[];
+
+      if (skipReturning) {
+        const reconstructed = {
+          ...values,
+          [idColName]: id,
+        } as Record<string, unknown>;
+        const converted = utils.convertDatesToISO(reconstructed, {
+          mariaDoubleParseJson: true,
+          table: collection,
+        }) as unknown as T;
+        const finalData =
+          this.hooks.length > 0
+            ? await this.runHooks("after", "update", collection, converted, options)
+            : converted;
+        return this.wrap(async () => finalData, "UPDATE_FAILED", undefined, {
+          ...options,
+          isWrite: true,
+        });
+      }
+
+      if (Array.isArray(rows) && rows.length > 0) {
+        this._returningSupported = true;
+        const converted = utils.convertDatesToISO(rows[0], {
+          mariaDoubleParseJson: true,
+          table: collection,
+        }) as unknown as T;
+        const finalData =
+          this.hooks.length > 0
+            ? await this.runHooks("after", "update", collection, converted, options)
+            : converted;
+        // Match base wrap semantics (pooled envelope + write metrics)
+        return this.wrap(async () => finalData, "UPDATE_FAILED", undefined, {
+          ...options,
+          isWrite: true,
+        });
+      }
+    } catch (err: any) {
+      this._returningSupported = false;
+      logger.debug(
+        `MariaDB UPDATE...RETURNING not supported, using base update path: ${err.message}`,
+      );
+    }
+    return super.update(collection, id, data, options);
+  }
+
   async atomicIncrement(
     collection: string,
     id: DatabaseId,
@@ -469,6 +1110,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const amountNum = utils.assertFiniteAmount(amount);
         const idStr = String(id);
         const dataCol = this.getColumn(table, "data");
+        // 🚀 ROW-STORE HYBRID: materialized numeric fields live in a column —
+        // increment the column directly (JSON_SET on `data` would no-op for new
+        // rows whose field never entered the blob).
+        const fieldIsColumn = !!this.getColumn(table, field);
         const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
           options,
           "mysql",
@@ -478,11 +1123,17 @@ export abstract class AdapterCore extends SqlAdapterCore {
         if (this._returningSupported !== false) {
           try {
             // Prefer single-round-trip upsert with bound params when RETURNING is available.
-            const upsertSql = dataCol
-              ? `INSERT INTO \`${tableName}\` (\`_id\`, \`data\`, \`updatedAt\`) VALUES (?, '{}', NOW()) ON DUPLICATE KEY UPDATE \`data\` = JSON_SET(COALESCE(\`data\`, '{}'), '$.${safeField}', COALESCE(JSON_EXTRACT(COALESCE(\`data\`, '{}'), '$.${safeField}'), 0) + ?), \`updatedAt\` = NOW() RETURNING *`
-              : `INSERT INTO \`${tableName}\` (\`_id\`, \`${safeField}\`, \`updatedAt\`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() RETURNING *`;
+            const upsertSql = fieldIsColumn
+              ? `INSERT INTO \`${tableName}\` (\`_id\`, \`${safeField}\`, \`updatedAt\`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() RETURNING *`
+              : dataCol
+                ? `INSERT INTO \`${tableName}\` (\`_id\`, \`data\`, \`updatedAt\`) VALUES (?, '{}', NOW()) ON DUPLICATE KEY UPDATE \`data\` = JSON_SET(COALESCE(\`data\`, '{}'), '$.${safeField}', COALESCE(JSON_EXTRACT(COALESCE(\`data\`, '{}'), '$.${safeField}'), 0) + ?), \`updatedAt\` = NOW() RETURNING *`
+                : `INSERT INTO \`${tableName}\` (\`_id\`, \`${safeField}\`, \`updatedAt\`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() RETURNING *`;
 
-            const upsertParams = dataCol ? [idStr, amountNum] : [idStr, amountNum, amountNum];
+            const upsertParams = fieldIsColumn
+              ? [idStr, amountNum, amountNum]
+              : dataCol
+                ? [idStr, amountNum]
+                : [idStr, amountNum, amountNum];
 
             const rows = (await this.raw.execute(upsertSql, upsertParams)) as any[];
             if (Array.isArray(rows) && rows.length > 0) {
@@ -501,7 +1152,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
         }
 
         // Fallback: parameterized UPDATE + SELECT (works on all MariaDB/MySQL versions)
-        if (dataCol) {
+        if (fieldIsColumn) {
+          await this.raw.execute(
+            `UPDATE \`${tableName}\` SET \`${safeField}\` = COALESCE(\`${safeField}\`, 0) + ?, \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`,
+            [amountNum, idStr, ...tenantParams],
+          );
+        } else if (dataCol) {
           await this.raw.execute(
             `UPDATE \`${tableName}\` SET \`data\` = JSON_SET(COALESCE(\`data\`, '{}'), '$.${safeField}', COALESCE(JSON_EXTRACT(COALESCE(\`data\`, '{}'), '$.${safeField}'), 0) + ?), \`updatedAt\` = NOW() WHERE \`${idColName}\` = ?${tenantSql}`,
             [amountNum, idStr, ...tenantParams],
@@ -547,19 +1203,14 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
     await this.wrap(
       async () => {
-        const isBenchSuite = process.env.SVELTY_BENCHMARK_SUITE === "true";
-        const debugMode = process.env.BENCHMARK_DEBUG === "true";
-
-        if (debugMode && !isBenchSuite) {
-          logger.debug(
-            `[DB Provision] SVELTY_BENCHMARK_SUITE=${process.env.SVELTY_BENCHMARK_SUITE || "standalone"}`,
-          );
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          logger.debug(`[DB Provision] BENCHMARK=${process.env.BENCHMARK || "standalone"}`);
         }
 
-        const ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`createdAt\` DATETIME, \`updatedAt\` DATETIME, \`data\` LONGTEXT);`;
+        const ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`createdAt\` DATETIME DEFAULT CURRENT_TIMESTAMP, \`updatedAt\` DATETIME DEFAULT CURRENT_TIMESTAMP, \`data\` LONGTEXT);`;
 
         if (ddl) {
-          if (debugMode && !isBenchSuite) {
+          if (process.env.BENCHMARK_DEBUG === "true") {
             logger.debug(`[DB Provision] [MARIADB] Executing DDL for ${physicalName}`);
           }
           await this.raw.execute(ddl);
@@ -569,8 +1220,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
           { name: "isDeleted", type: "TINYINT(1) DEFAULT 0" },
           { name: "status", type: "VARCHAR(255) DEFAULT 'draft'" },
           { name: "tenantId", type: "VARCHAR(36)" },
-          { name: "createdAt", type: "DATETIME" },
-          { name: "updatedAt", type: "DATETIME" },
+          { name: "createdAt", type: "DATETIME DEFAULT CURRENT_TIMESTAMP" },
+          { name: "updatedAt", type: "DATETIME DEFAULT CURRENT_TIMESTAMP" },
           { name: "collection", type: "VARCHAR(255)" },
           { name: "slug", type: "VARCHAR(255)" },
           { name: "locale", type: "VARCHAR(50)" },
@@ -580,8 +1231,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
         const dynamicCols = ["collection", "slug", "locale", "publishedAt"];
 
         if (schemaData.fields && Array.isArray(schemaData.fields)) {
+          const materialized = new Map<string, string>();
           for (const field of schemaData.fields) {
-            if (field.indexed || field.unique) {
+            // Row-store hybrid: scalar fields become physical columns — the
+            // `data` blob keeps only dynamic fields for new rows.
+            if (helpers.shouldMaterializeField(field)) {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "VARCHAR(255)";
@@ -607,9 +1261,17 @@ export abstract class AdapterCore extends SqlAdapterCore {
                 if (!reserved.includes(fieldName)) {
                   columns.push({ name: fieldName, type: colType });
                   dynamicCols.push(fieldName);
+                  materialized.set(
+                    fieldName,
+                    colType === "INT" ? "integer" : colType === "TINYINT(1)" ? "boolean" : "text",
+                  );
                 }
               }
             }
+          }
+          if (materialized.size > 0) {
+            this.materializedColumns.set(tableName, materialized);
+            this.materializedColumns.set(normalizedName, materialized);
           }
         }
 
@@ -624,6 +1286,25 @@ export abstract class AdapterCore extends SqlAdapterCore {
             if (!exists) {
               const alterSql = `ALTER TABLE \`${physicalName}\` ADD COLUMN \`${col.name}\` ${col.type}`;
               await this.raw.execute(alterSql);
+              // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in
+              // the `data` blob — copy them into the new column so filters and
+              // sorts match old rows too (idempotent: only NULL columns are
+              // filled; JSON_EXTRACT returns JSON — UNQUOTE for text columns,
+              // implicit cast for INT/TINYINT).
+              try {
+                const safeColName = utils.assertSafeSqlIdentifier(col.name, "column");
+                if (col.type === "INT" || col.type === "TINYINT(1)") {
+                  await this.raw.execute(
+                    `UPDATE \`${physicalName}\` SET \`${safeColName}\` = CAST(JSON_EXTRACT(\`data\`, '$.${safeColName}') AS SIGNED) WHERE \`${safeColName}\` IS NULL AND \`data\` IS NOT NULL`,
+                  );
+                } else {
+                  await this.raw.execute(
+                    `UPDATE \`${physicalName}\` SET \`${safeColName}\` = JSON_UNQUOTE(JSON_EXTRACT(\`data\`, '$.${safeColName}')) WHERE \`${safeColName}\` IS NULL AND \`data\` IS NOT NULL`,
+                  );
+                }
+              } catch {
+                /* backfill is best-effort */
+              }
             }
           } catch {
             /* safe */
@@ -641,7 +1322,27 @@ export abstract class AdapterCore extends SqlAdapterCore {
           }
         }
 
+        // 🚀 COVERING COMPOSITE INDEX for the canonical tenant list query:
+        // WHERE tenantId=? AND status=? AND isDeleted=0 ORDER BY updatedAt DESC
+        // LIMIT n — avoids filesort and enables keyset seeks on deep pages.
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS \`${physicalName}_tenant_status_updated\` ON \`${physicalName}\` (\`tenantId\`, \`status\`, \`updatedAt\`)`,
+          );
+        } catch {
+          /* safe */
+        }
+
         logger.info(`[MARIADB Adapter] Provisioned table: ${physicalName}`);
+        // The pre-DDL table def (base columns only) is stale — rebuild with the
+        // materialized columns on next getTable. Invalidate EVERY key variant
+        // (logical id, dash-stripped, and the physical collection_ prefix): a
+        // missed variant leaves a stale def cached that silently drops
+        // materialized columns from later reads.
+        this.tableRegistry.delete(tableName);
+        this.tableRegistry.delete(normalizedName);
+        this.tableRegistry.delete(`collection_${normalizedName}`);
+        this.tableRegistry.delete(`collection_${tableName}`);
       },
       "CREATE_MODEL_FAILED",
       undefined,

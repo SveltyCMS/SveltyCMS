@@ -161,7 +161,7 @@ let allowedMethods = $state({
 });
 let checkTimeout: ReturnType<typeof setTimeout> | undefined;
 
-function onEmailInput() {
+	function onEmailInput() {
 	if (checkTimeout) clearTimeout(checkTimeout);
 	checkTimeout = setTimeout(async () => {
 		const email = (loginForm.data.email || "").trim().toLowerCase();
@@ -689,7 +689,10 @@ $effect(() => {
 								autocapitalize="none"
 								spellcheck={false}
 								bind:value={loginForm.data.email}
-								oninput={onEmailInput}
+								// FloatingInput's documented input callback is `onInput(value)` —
+								// lowercase `oninput` lands in its `...rest` spread, which never
+								// reaches the DOM input (no debounced checkAuthMethods call).
+								onInput={() => onEmailInput()}
 								label={email()}
 								required
 								icon="mdi:email"

@@ -13,14 +13,12 @@
  *   - Accessibility (keyboard nav, focus rings)
  *   - Error states (empty username, oversized avatar)
  *
- * Follows existing patterns: imports from '@playwright/test', loginAsAdmin helper,
+ * Follows existing patterns: imports from '@playwright/test', ensureAuthenticated helper,
  * { timeout: 10000 } for async assertions, test.describe blocks for organization.
  */
 
-import { expect, test, type Page } from "@playwright/test";
-import { ADMIN_CREDENTIALS, loginAsAdmin } from "../../helpers/auth";
-import { seedInviteToken } from "../../helpers/api";
-import { TEST_API_HEADERS } from "../../helpers/api";
+import { expect, test } from "@playwright/test";
+import { ensureAuthenticated, seedInviteToken } from "../../helpers/api";
 import {
   openTokenView,
   openUserManagement,
@@ -37,73 +35,11 @@ test.describe.configure({ mode: "serial" });
 // always begins from a known state (matches visual-regression.spec.ts pattern).
 test.use({ storageState: { cookies: [], origins: [] } });
 
-/**
- * Establish an admin session via the testing API (no UI navigation).
- * Extracts the session cookie from the response and injects it into the
- * browser context, then navigates to the page. This is faster and more
- * reliable than the UI-based loginAsAdmin helper when called many times.
- */
-async function adminLogin(page: Page) {
-  const response = await page.request.post("/api/testing", {
-    headers: TEST_API_HEADERS,
-    data: {
-      action: "login",
-      email: ADMIN_CREDENTIALS.email,
-      password: ADMIN_CREDENTIALS.password,
-    },
-  });
-
-  if (!response.ok()) {
-    // Fallback: seed then login via API
-    await page.request.post("/api/testing", {
-      data: { action: "reset" },
-    });
-    await page.request.post("/api/testing", {
-      data: {
-        action: "seed",
-        email: ADMIN_CREDENTIALS.email,
-        password: ADMIN_CREDENTIALS.password,
-      },
-    });
-    // Retry login
-    const retry = await page.request.post("/api/testing", {
-      data: {
-        action: "login",
-        email: ADMIN_CREDENTIALS.email,
-        password: ADMIN_CREDENTIALS.password,
-      },
-    });
-    if (!retry.ok()) {
-      throw new Error("API login failed after seed retry");
-    }
-  }
-
-  // Extract session cookie from response headers
-  const cookies = response.headers()["set-cookie"];
-  const sessionId = response.headers()["x-test-session-id"];
-  if (cookies && sessionId) {
-    const cookieParts = cookies.split(";")[0];
-    const eqIdx = cookieParts.indexOf("=");
-    const name = eqIdx >= 0 ? cookieParts.slice(0, eqIdx) : cookieParts;
-    const value = eqIdx >= 0 ? cookieParts.slice(eqIdx + 1) : "";
-    const isHostCookie = name.startsWith("__Host-");
-    const secure = isHostCookie || name.startsWith("__Secure-");
-    const urlScheme = secure ? "https://" : "http://";
-    await page.context().addCookies([
-      {
-        name,
-        value,
-        url: urlScheme + "127.0.0.1",
-        httpOnly: true,
-        sameSite: "Lax",
-        secure,
-      },
-    ]);
-  } else {
-    // Fallback to UI-based login if API login doesn't return session cookie
-    await loginAsAdmin(page);
-  }
-}
+// Session establishment is delegated to the shared `ensureAuthenticated` helper
+// (testing-API login + cookie injection — no UI navigation, no duplicated
+// cookie-parsing logic; it also stamps consent/welcome storage so banners
+// never mount). The previous local `adminLogin` here duplicated that logic and
+// its reset fallback posted /api/testing actions without the shared headers.
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -117,25 +53,12 @@ async function goToUserPage(page: import("@playwright/test").Page) {
   });
 }
 
-/** Ensure the admin area (user list view) is visible — inside the User Management tab. */
-async function openAdminArea(page: import("@playwright/test").Page) {
-  await openUserManagement(page);
-}
-
-/** Ensure user list view is shown (not token view). */
-async function ensureUserListView(page: import("@playwright/test").Page) {
-  const showUsers = page.getByRole("button", { name: /show user list/i });
-  if (await showUsers.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    await showUsers.click({ timeout: ACTION_TIMEOUT });
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Auth Toggles
 // ---------------------------------------------------------------------------
 test.describe("Auth Toggles", () => {
   test.beforeEach(async ({ page }) => {
-    await adminLogin(page);
+    await ensureAuthenticated(page);
     await goToUserPage(page);
     // Navigate to the Security tab where auth preference toggles live
     await page.getByRole("tab", { name: /security/i }).click();
@@ -233,7 +156,7 @@ test.describe("Auth Toggles", () => {
 // ---------------------------------------------------------------------------
 test.describe("User Editing", () => {
   test.beforeEach(async ({ page }) => {
-    await adminLogin(page);
+    await ensureAuthenticated(page);
     await goToUserPage(page);
   });
 
@@ -298,7 +221,7 @@ test.describe("User Editing", () => {
 // ---------------------------------------------------------------------------
 test.describe("2FA", () => {
   test.beforeEach(async ({ page }) => {
-    await adminLogin(page);
+    await ensureAuthenticated(page);
     await goToUserPage(page);
   });
 
@@ -362,11 +285,15 @@ test.describe("2FA", () => {
 // ---------------------------------------------------------------------------
 test.describe("Admin Table", () => {
   test.beforeEach(async ({ page }) => {
-    await adminLogin(page);
+    await ensureAuthenticated(page);
     await goToUserPage(page);
-    // Click the User Management tab to access admin area
-    await page.getByRole("tab", { name: /user management/i }).click();
-    await ensureUserListView(page);
+    // User Management tab → AdminArea (shared helper also waits for the area)
+    await openUserManagement(page);
+    // User list can be toggled off; restore it before table interactions
+    const showUsers = page.getByRole("button", { name: /show user list/i });
+    if (await showUsers.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await showUsers.click({ timeout: ACTION_TIMEOUT });
+    }
   });
 
   test("column search triggers API call with search query param", async ({ page }) => {
@@ -391,9 +318,8 @@ test.describe("Admin Table", () => {
     );
 
     await searchInput.fill("admin");
-    // The search is debounced by 300ms — wait for the refetch
-    await page.waitForTimeout(500);
-
+    // Debounce is 300ms — searchApiCall (registered pre-fill) resolves whenever
+    // the refetch lands, so no fixed sleep is needed here.
     const response = await searchApiCall;
     expect(response.ok()).toBe(true);
 
@@ -473,13 +399,7 @@ test.describe("Admin Table", () => {
     const selectorVisible = await rowsSelector.isVisible({ timeout: 2_000 }).catch(() => false);
 
     if (selectorVisible) {
-      // Select a different value
-      await rowsSelector.selectOption("25");
-
-      // Wait for the API refetch
-      await page.waitForTimeout(500);
-
-      // Verify the API was called with the new limit
+      // Register BEFORE the action so the response is never missed, then select
       const apiCall = page.waitForResponse(
         (res) =>
           res.url().includes("/api/user") &&
@@ -487,6 +407,10 @@ test.describe("Admin Table", () => {
           res.request().method() === "GET",
         { timeout: ACTION_TIMEOUT },
       );
+      // Select a different value
+      await rowsSelector.selectOption("25");
+
+      // Verify the API was called with the new limit (no fixed sleep needed)
       await apiCall.catch(() => {
         /* may time out */
       });
@@ -533,9 +457,9 @@ test.describe("Admin Table", () => {
 // ---------------------------------------------------------------------------
 test.describe("Token Management", () => {
   test.beforeEach(async ({ page }) => {
-    await adminLogin(page);
+    await ensureAuthenticated(page);
     await goToUserPage(page);
-    await openAdminArea(page);
+    await openUserManagement(page);
     // Seed guarantees at least one token row. A seed failure is a HARD failure —
     // token CRUD is a control-map row, soft-skips are banned.
     await seedInviteToken(page, {
@@ -546,7 +470,6 @@ test.describe("Token Management", () => {
 
   test("edit existing token by clicking a token row", async ({ page }) => {
     await openTokenView(page);
-    await page.waitForTimeout(500);
 
     const tokenRows = page.locator("tbody tr");
     await expect(tokenRows.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -567,7 +490,6 @@ test.describe("Token Management", () => {
 
   test("delete single token via dialog delete button", async ({ page }) => {
     await openTokenView(page);
-    await page.waitForTimeout(500);
 
     const tokenRows = page.locator("tbody tr");
     await expect(tokenRows.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -590,7 +512,6 @@ test.describe("Token Management", () => {
 
   test("bulk token delete via Multibutton", async ({ page }) => {
     await openTokenView(page);
-    await page.waitForTimeout(500);
 
     const checkboxes = page.getByRole("checkbox", { name: "Toggle selection" });
     await expect(checkboxes.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -628,7 +549,7 @@ test.describe("Token Management", () => {
 // ---------------------------------------------------------------------------
 test.describe("GDPR Privacy Data", () => {
   test.beforeEach(async ({ page }) => {
-    await adminLogin(page);
+    await ensureAuthenticated(page);
     await goToUserPage(page);
   });
 
@@ -682,7 +603,7 @@ test.describe("GDPR Privacy Data", () => {
 test.describe("Responsive Viewports", () => {
   test("mobile viewport (375x812) renders key elements", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await adminLogin(page);
+    await ensureAuthenticated(page);
 
     // On mobile, sidebar may be hidden — navigate directly
     await page.goto("/user", { waitUntil: "domcontentloaded" });
@@ -712,7 +633,7 @@ test.describe("Responsive Viewports", () => {
 
   test("tablet viewport (768x1024) renders admin area", async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
-    await adminLogin(page);
+    await ensureAuthenticated(page);
     await page.goto("/user", { waitUntil: "domcontentloaded" });
 
     // Wait for page load
@@ -739,7 +660,7 @@ test.describe("Responsive Viewports", () => {
 // ---------------------------------------------------------------------------
 test.describe("Accessibility", () => {
   test.beforeEach(async ({ page }) => {
-    await adminLogin(page);
+    await ensureAuthenticated(page);
     await goToUserPage(page);
   });
 
@@ -754,15 +675,12 @@ test.describe("Accessibility", () => {
     const focusedFirst = page.locator(":focus");
     await expect(focusedFirst).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    // Press Tab a few more times to cycle through elements
+    // Press Tab a few more times to cycle through elements (focus moves
+    // synchronously per keypress — no settle sleeps needed)
     await page.keyboard.press("Tab");
-    await page.waitForTimeout(200);
     await page.keyboard.press("Tab");
-    await page.waitForTimeout(200);
     await page.keyboard.press("Tab");
-    await page.waitForTimeout(200);
     await page.keyboard.press("Tab");
-    await page.waitForTimeout(200);
 
     // Something should be focused after tabbing
     const focusedLater = page.locator(":focus");
@@ -802,7 +720,7 @@ test.describe("Accessibility", () => {
 // ---------------------------------------------------------------------------
 test.describe("Error States", () => {
   test.beforeEach(async ({ page }) => {
-    await adminLogin(page);
+    await ensureAuthenticated(page);
     await goToUserPage(page);
   });
 
@@ -870,10 +788,7 @@ test.describe("Error States", () => {
         buffer: oversizedBuffer,
       });
 
-      // Wait for any error message to appear
-      await page.waitForTimeout(500);
-
-      // Check for error toast or message
+      // Check for error toast or message (isVisible below auto-waits 3s)
       const errorToast = page.getByText(/too large|exceed|invalid size|error/i);
       const errorVisible = await errorToast.isVisible({ timeout: 3_000 }).catch(() => false);
 
@@ -881,9 +796,8 @@ test.describe("Error States", () => {
       const saveAvatarBtn = page.getByRole("button", { name: /save/i });
       if (await saveAvatarBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
         await saveAvatarBtn.click({ timeout: ACTION_TIMEOUT });
-        await page.waitForTimeout(500);
 
-        // Check again for error after save attempt
+        // Check again for error after save attempt (expect auto-waits 5s)
         const postSaveError = page.getByText(/too large|exceed|error/i);
         await expect(postSaveError).toBeVisible({ timeout: 5_000 });
       } else if (errorVisible) {
@@ -907,7 +821,7 @@ test.describe("Error States", () => {
 // ---------------------------------------------------------------------------
 test.describe("Page Completeness", () => {
   test.beforeEach(async ({ page }) => {
-    await adminLogin(page);
+    await ensureAuthenticated(page);
     await goToUserPage(page);
   });
 

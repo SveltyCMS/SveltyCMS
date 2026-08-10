@@ -76,12 +76,12 @@ graph TB
 
 ## When to Use Which
 
-| Context                                 | Recommended                                            | Latency    | Reason                                                         |
-| :-------------------------------------- | :----------------------------------------------------- | :--------- | :------------------------------------------------------------- |
-| **Client-side** (`.svelte`, `+page.ts`) | **HTTP / [GraphQL API](../reference/api/graphql.mdx)** | 50–150 ms  | Browser environment; requires auth, CORS, and network.         |
-| **Server-side** (`.server.ts`, actions) | **Local SDK**                                          | **0–5 ms** | Direct function calls; zero serialization or network overhead. |
-| **Mobile / External App**               | **GraphQL**                                            | 80–300+ ms | Optimized data fetching with nested population.                |
-| **Plugins / Background Jobs**           | **Local SDK**                                          | **0–5 ms** | Full access to core logic and security context.                |
+| Context                                 | Recommended                                            | Latency     | Reason                                                         |
+| :-------------------------------------- | :----------------------------------------------------- | :---------- | :------------------------------------------------------------- |
+| **Client-side** (`.svelte`, `+page.ts`) | **HTTP / [GraphQL API](../reference/api/graphql.mdx)** | 50–150 ms   | Browser environment; requires auth, CORS, and network.         |
+| **Server-side** (`.server.ts`, actions) | **Local SDK**                                          | **2–15 µs** | Direct function calls; zero serialization or network overhead. |
+| **Mobile / External App**               | **GraphQL**                                            | 80–300+ ms  | Optimized data fetching with nested population.                |
+| **Plugins / Background Jobs**           | **Local SDK**                                          | **2–15 µs** | Full access to core logic and security context.                |
 
 > [!TIP]
 > **Rule of thumb**: If your code runs server-side (files ending in `.server.ts` or inside `+server.ts` routes), use the Local SDK.
@@ -98,6 +98,25 @@ The Local SDK (`src/services/sdk/index.ts` — the `LocalCMS` class) is a high-p
 3. **Calls Core Logic**: Executes the exact same `modifyRequest` pipeline as the HTTP layer.
 4. **Maintains Consistency**: Automatically triggers cache invalidation and real-time events (SSE).
 5. **Unified Context**: Respects the same tenant isolation and permissions as the external API.
+
+## Measured Local SDK vs HTTP (SQLite, self-measured 2026-08)
+
+Same machine, same harness (`bun test tests/benchmarks/`). The Local SDK is **two to three orders of magnitude** faster than the HTTP cold path because the HTTP middleware stack (auth, RBAC, security headers, serialization) is the dominant cost — not the database.
+
+| Operation                | Local SDK (in-process) | HTTP cold        | HTTP turbo (response cache) |
+| ------------------------ | ---------------------- | ---------------- | --------------------------- |
+| `find` by `_id`          | 64–127k RPS · 8-16 µs  | 174 RPS · 5.6 ms | 408 RPS · 2.3 ms            |
+| `findById` (warm L1)     | 259–431k RPS · 2-3 µs  | —                | —                           |
+| `create` (full pipeline) | 2,000 RPS · 500 µs     | —                | —                           |
+| `update` (full pipeline) | 2,500 RPS · 400 µs     | —                | —                           |
+| `create` (detached)      | 4,900 RPS · 200 µs     | —                | —                           |
+| `update` (detached)      | 4,400 RPS · 230 µs     | —                | —                           |
+
+> [!NOTE]
+> Two write columns are reported deliberately and **no environment flags are involved** — the benchmark measures exactly what production runs. **(full pipeline)** = the SDK call with all post-write side effects executing (outbox event INSERT, cache-pattern invalidation, workflow init, pubsub). **(detached)** = the same call with the documented `skipSideEffects: true` option (used by bulk seed / high-throughput import paths). The ambient `BENCHMARK` env toggles were removed from the write path — benchmarks no longer measure a code path production never runs.
+
+> [!TIP]
+> Adapter-level INSERT on the same machine is ~14k RPS (raw `INSERT…RETURNING`). The `findMany`-by-`_id` ultra path (routes list calls with a pure `_id` filter through the raw prepared `findById`) removed the previous ~10× list-path penalty.
 
 ## Example: Local SDK Structure
 

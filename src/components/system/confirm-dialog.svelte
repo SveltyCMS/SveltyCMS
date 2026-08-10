@@ -37,10 +37,22 @@
 
 	<div class="flex justify-between gap-4 pt-4">
 		{#if buttonTextCancel}
-			<Button variant="secondary" onclick={onCancel} class="hover:bg-surface-300 dark:hover:bg-surface-700 font-medium">
+			<Button
+				variant="secondary"
+				onclick={onCancel}
+				class="hover:bg-surface-300 dark:hover:bg-surface-700 font-medium"
+				data-testid="modal-cancel"
+			>
 				{buttonTextCancel}
 			</Button>
 		{/if}
-		<Button variant="tertiary" onclick={onConfirm} class="dark:">{buttonTextConfirm}</Button>
+		<Button
+			variant="tertiary"
+			onclick={onConfirm}
+			class="dark:"
+			data-testid="modal-confirm"
+		>
+			{buttonTextConfirm}
+		</Button>
 	</div>
 </div>

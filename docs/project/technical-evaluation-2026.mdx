@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-08-04"
+updated: "2026-08-10"
 tags:
   - "evaluation"
   - "technical"
@@ -120,8 +120,8 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
 
   - **May 2026 AI Bot Defense & Crypto Hardening**:
     - **AI Bot Detection & Blocking**: Proactive User-Agent fingerprinting detects and blocks 28 known AI crawler patterns (GPTBot, Claude, Perplexity, CommonCrawl, Bytespider) and reconnaissance tools (Nmap, SQLMap, Nikto, Burp Suite, Zgrab, Masscan, Nessus).
-    - **Multi-Layer Honeypot Grid**: 45+ decoy routes covering WordPress, Drupal, Joomla, AWS metadata endpoints, config/backup file probes, and common exploit paths. Any probe triggers immediate IP blacklisting.
-    - **Progressive Tarpit & Response Poisoning**: Randomized 5–15 second response delays waste bot resources. Bots receive fake JSON payloads (phantom users, false config) designed to corrupt scraper datasets rather than revealing real system information.
+    - **Multi-Layer Honeypot Grid**: 45+ decoy routes covering WordPress, Drupal, Joomla, AWS metadata endpoints, config/backup file probes, and common exploit paths. Any probe triggers immediate IP flagging/blacklisting.
+    - **Honeypot IP Flagging & Response Poisoning**: Honeypot probes get an immediate decoy 200 (no 5–15s socket hold — that was a Slowloris/DDoS vector) while the IP is flagged for firewall rejection on the next request. Bots receive fake JSON payloads (phantom users, false config) designed to corrupt scraper datasets rather than revealing real system information.
     - **Cross-Origin Isolation Headers**: All API responses enforce `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, and `Cross-Origin-Resource-Policy: same-origin`, preventing Spectre/Meltdown side-channel attacks.
 
       - **Zero-Bias Token Generation**: `generateRandomToken` now uses rejection sampling to eliminate ~3.125% modulo bias, guaranteeing uniform CSPRNG distribution for session tokens and API keys.
@@ -231,7 +231,7 @@ The following matrix evaluates core engineering implementations where SveltyCMS 
 | **Multi-Tenancy**   | **Native Adapter-Level**                             | Paid (Enterprise) | Plugin-based       | Native            | N/A               |
 | **Slug Uniqueness** | **Tenant-Scoped (Native)**                           | Global Only       | Global Only        | Manual Config     | Locale-Agnostic   |
 | **AI Architecture** | **Local (Ollama) + Cloud + Client‑Side (LiteRT.js)** | Cloud Only (Paid) | MCP Native (Cloud) | Cloud Only (Paid) | N/A               |
-| **Real-time Sync**  | **Node ws + Yjs (Sub-1ms)**                          | WebSockets        | None / Custom      | WebSockets        | Git Pull/Push     |
+| **Real-time Sync**  | **SSE + Yjs (adapter-node compatible)**              | WebSockets        | None / Custom      | WebSockets        | Git Pull/Push     |
 
 | Feature              | SveltyCMS (v2026)           | Strapi 5           | Payload 3.0     | Directus 11        | Sveltia CMS   |
 | :------------------- | :-------------------------- | :----------------- | :-------------- | :----------------- | :------------ |
@@ -551,7 +551,7 @@ In mid-June 2026, SveltyCMS executed a comprehensive 19-file, multi-phase perfor
 
 #### Phase R1/R2 — Hot-Path Streamlining & Smart Entropy Compression
 
-- **Hook timing gate** (`HOOK_TIMING_ENABLED`): Per-request `performance.now()` + `traceSpan` + Map writes gated out in production and under `SVELTY_BENCHMARK_SUITE`. `handleFnRef()` resolved once at pipeline build time instead of per-request.
+- **Hook timing gate** (`HOOK_TIMING_ENABLED`): Per-request `performance.now()` + `traceSpan` + Map writes gated out in production and under `BENCHMARK=true`. `handleFnRef()` resolved once at pipeline build time instead of per-request.
 - **Pre-compressed cache entries**: On cache MISS, the API handler stores both raw body and pre-compressed Brotli/gzip variants using shared `compressSync`. On cache HIT, pre-made compressed bytes served directly when `Accept-Encoding` matches — zero re-stringify, zero re-compress.
 - **Size observability headers**: `X-Original-Size`, `X-Compressed-Size`, `X-Compression-Ratio`, `X-Compression-Algorithm` emitted on all compressed responses. Compression metrics (`compression.avgOriginalSize`, `avgCompressedSize`, `avgRatio`, `samples`) exported on every benchmark run.
 
@@ -871,7 +871,55 @@ Three consecutive hardening rounds (see also [Login Security](../reference/secur
 
 The safe/performant combination is unusual in the CMS landscape because most platforms optimize one axis: enterprise-grade security with heavyweight architecture, or lightweight speed with permissive defaults. SveltyCMS combines **fail-closed authorization enforced at the API dispatcher** (unmapped namespaces return 403) with a **cache hierarchy that makes the checks nearly free** — the entire session/RBAC hardening stack measured above adds ~0.03 ms to the full HTTP pipeline. The cost of enterprise session controls is not a per-request tax; it is amortized across cache layers, single-flight coalescing, and zero-query design choices.
 
-For the full gap register (distributed SSO, adaptive auth, ecosystem depth, field-level permissions, passkey UI, third-party pentest) with closure paths, see the [2026 Roadmap](./roadmap-2026.mdx).
+For the full gap register (distributed SSO, adaptive auth, ecosystem depth, field-level write-guards, passkey UI, third-party pentest) with closure paths, see the [2026 Roadmap](./roadmap-2026.mdx).
+
+### 3.9 August 2026 — Middleware, Data-Layer & Core Hardening Sprint
+
+Three workstreams landed on `next` between 2026-08-04 and 2026-08-10: middleware security & performance hardening, data-layer `findPage`/list parity across all four adapters, and the asynchronous non-blocking write core.
+
+#### Middleware security & performance hardening
+
+- **Honeypot DDoS vector removed** — the 5–15s socket-holding tarpit in `handle-security.ts` was replaced with an instant decoy `200` + `securityResponseService.blockIp()` flagging. The next request from that IP is dropped at the firewall layer instead of holding a socket open for up to 15 seconds.
+- **SSR cross-request state pollution fixed** — `handleUserPreferences` no longer mutates the module-global `app` singleton; language preference now flows request-scoped via `event.locals` + page data, eliminating same-tick cross-user leaks (SvelteKit 3-ready pattern).
+- **Rate-limit OOM guard** — bounded bucket insert (evicts the oldest bucket _before_ inserting a new one); docs corrected from "sliding window" to "fixed window with adaptive pressure".
+- **API GET request coalescing** — identical concurrent cache-miss GETs share one upstream resolve (stampede prevention); the leader publishes a plain cache entry, followers await the same promise.
+- **In-process cache prewarm** — mutation prewarm uses in-process `event.fetch` (no loopback socket) behind a concurrency semaphore.
+- **GraphQL + settings-service module pre-warm** during READY-state init; `ensureFullMiddleware()` now loads all hooks in parallel via `Promise.all`.
+- **Redirect hardening** — 404-log flush is crash-safe (buffer cleared only after a successful write); open-redirect guard on redirect targets; locales read from the Paraglide config instead of a hardcoded `["en"]`.
+- **Turbo-pipeline** — settings-service import cached at module level (CORS preflights); dbAdapter init de-duplicated via a shared promise.
+- **Test isolation fail-closed** — worker DB init failure returns 503 instead of silently continuing; numeric worker-index validation + 10s timeout.
+- **Local SDK fast-path** — skips the `getDbInitPromise()` await when the adapter is already booted.
+- **Content negotiation honesty** — no standalone content-negotiation middleware exists and no misleading `X-Content-Negotiation` header is sent (the HTML→MD pipeline is not implemented; only `llms.txt` serves markdown).
+- **18-hook READY pipeline** — the pipeline is kept to live middleware only: immutable asset caching is served by `handleTurboPipeline` + the `FAST_STATIC` lane, and `wrapHandle` passes resolved handles directly into `sequence()` when hook timing is disabled (no per-request wrapper hops).
+- **WebSocket graceful shutdown** — active WS connections tracked (`open`/`close` in `hooks.ws.ts`); `closeAllConnections()` sends a `1001 Going Away` frame on SIGTERM/SIGINT before DB shutdown.
+- **Field-level read filtering** — cached `FIELD_PERMISSIONS` setting (`{collection: {role: [readable fields]}}`) applied in `handle-token-resolution`; admin / absent-policy fast-paths keep the hot path at zero cost; memo invalidated on settings save. Write-guard enforcement remains a [roadmap](./roadmap-2026.mdx) item.
+
+#### Data layer: `findPage` & list-platform parity
+
+Product-layer APIs are now equal on SQLite, PostgreSQL, MariaDB, and MongoDB:
+
+- `crud.findPage` — limit+1 `hasMore`, optional total, keyset `cursor`.
+- `CountMode` (`exact` | `estimate` | `auto`) + dialect-specific estimates.
+- L1 count cache (30s) with invalidation on collection writes.
+- Unit + integration contracts (`find-page-count-contract`, `page-utils`).
+- CollectionService list path: limit+1 + cached `crud.count` when filters are equality-only.
+- Status facets via `crud.count` (L1-backed).
+- Users list: `findPage` on `auth_users` when no text search.
+- Media `getByFolder`: limit+1 + parallel count.
+- Website tokens: Mongo `findPage`; SQL limit+1 trim; Smart Table **saved views**.
+- Schema proxy: `db.<collection>.findPage(...)`.
+
+#### High-performance core & non-blocking writes
+
+- **Asynchronous non-blocking mutation pipeline** — `create` and `update` persist to the DB in **sub-5ms** (~4.20ms) and return `200` immediately.
+- **Async audit & revision queue** — crypto SHA-256 Merkle-tree hash chaining, content revision snapshotting, and L2 cache-invalidation pattern purges run in detached microtask queues (`AUDIT_CHAIN_SYNC=false` default).
+- **Enterprise compliance mode (`AUDIT_CHAIN_SYNC=true`)** — optional synchronous SHA-256 audit chaining inside write transactions for ISO 27001 / SOC2-style compliance.
+- **System Settings UI toggle** — admins toggle `AUDIT_CHAIN_SYNC` / `DISABLE_AUDIT_LOGS` live under Cache & Performance.
+- **Benchmark matrix automation** — the harness supports both env overrides for comparative matrix runs.
+
+#### Measured impact (self-measured, 2026-08-10, Intel i7-13700H, SQLite, standalone harness)
+
+The Full Security + Auth Pipeline (all hooks, HTTP E2E) averaged **0.583 ms** (p95 0.768 ms, ~1,442 RPS) on the recorded run — a **~32% latency reduction vs the 0.856 ms July 31 baseline** published in [3.8](#38-august-2026-session-rbac-extension-security-sprint), with ~40% higher throughput. Other layers in the same run: Turbo Pipeline (light) 0.285 ms / ~3,201 RPS; REST with API caching 0.540 ms; Static Asset 0.549 ms; Mutation + Audit Logging 1.031 ms. Reproduce with `BENCHMARK_RECORD=1 bun test tests/benchmarks/hooks-performance.test.ts`. Single-run variance on the harness is ~±10%; quote the trend, not one run.
 
 ## 4. Final Sprint Achievements (March 2026)
 
@@ -906,13 +954,13 @@ Having secured the "Engine War" with superior performance and security, SveltyCM
 
 - **Features:** Recursive JSON-based conditional engine supporting nested AND/OR groups for complex `showIf` and `requiredIf` dependencies.
 
-### 4.6 Real-Time Collaboration & Concurrency (Phase 2 Complete)
+### 4.6 Real-Time Collaboration & Concurrency
 
-- **Features:** Conflict-free Replicated Data Type (CRDT) concurrent editing powered by **Yjs** and a lightweight built-in synchronization engine (ws + y-protocols).
-- **Latency:** Real-time WebSocket-based sync achieving **sub-1ms** delta propagation across multiple editors.
-- **Visuals:** High-fidelity remote cursor tracking with user identification, field-level awareness highlights, and active editor avatar stacks in the editor shell.
-- **Offline Support:** Full support for offline edits with mathematical merging upon reconnection, eliminating the "Lost Update" problem.
-- **Result:** Collaborative editing is production-oriented for concurrent editors; it is **not** a claim of Google Docs parity.
+- **Features:** Conflict-free Replicated Data Type (CRDT) concurrent editing powered by **Yjs**, transported over **adapter-node-compatible channels** — SSE (`/api/events` + `/api/collaboration/yjs`) for the default path, plus a native `ws`-based sync server on `/ws` (`yjs-sync-server`, wired in the production `index.cjs` entry). No uWebSockets / svelte-realtime dependency.
+- **Server state:** `yjs-service` (`src/services/collaboration/yjs-service.ts`) holds per-`docId` Yjs documents, keyed by tenant, applied from EventBus updates; `GET /api/collaboration/yjs` returns full state for client bootstrap.
+- **Client integration:** `collaboration-service.svelte.ts` + `SseProvider` (SSE transport), wired into the field editor (`fields.svelte`) when a collection enables `collaboration.enabled`. Awareness protocol carries cursor/presence per editor.
+- **Latency:** self-measured event-push latency is in the low-ms class on a local deployment; no sub-ms claim is made (network RTT dominates outside localhost).
+- **Result:** Production-oriented concurrent editing for collections that opt in; it is **not** a claim of Google Docs parity or of GraphQL-over-WebSocket subscriptions (not shipped).
 
 ### 4.7 CLI Maintenance Suite & Global Accessibility
 
@@ -1009,7 +1057,7 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **Toolchain**: oxlint/oxfmt for fast lint/format (project-scale times vary by machine).
 - **SQL hot path**: prepared-statement / shared core work across SQLite, PostgreSQL, MariaDB.
 - **Memory**: SDK allocation work targeting low growth under load (see soak benches).
-- **Middleware**: hooks pipeline optimized; full-auth HTTP is **ms-class**, not free.
+- **Middleware**: hooks pipeline optimized; full-auth HTTP is **ms-class**, not free. August 2026 hardening sprint measured **0.583 ms avg / 0.768 ms p95 / ~1,442 RPS** for the full security + auth pipeline (SQLite, self-measured 2026-08-10) vs the 0.856 ms July 31 baseline.
 - **Widgets**: `ComponentLoader` / tree-shakeable loaders.
 - **DB parity**: MongoDB, MariaDB, PostgreSQL, SQLite as production adapters.
 

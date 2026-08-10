@@ -13,13 +13,26 @@ export const POST = apiHandler(async ({ locals, request }) => {
   const { user, tenantId } = locals;
   if (!user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-  const { docId, updateBase64 } = await request.json();
+  const { docId, updateBase64, awareness } = await request.json();
   if (!docId || !updateBase64) {
     throw new AppError("docId and updateBase64 are required", 400, "BAD_REQUEST");
   }
 
   // Convert base64 back to Uint8Array using native helper
   const update = decodeBase64ToYjs(updateBase64);
+
+  // Ensure the YjsService singleton is instantiated (its constructor starts
+  // the pubSub subscription loop) — otherwise a POST arriving before any GET
+  // would publish into the void.
+  const { yjsService } = await import("@src/services/collaboration/yjs-service");
+
+  // 👥 Awareness (presence / cursors): apply + broadcast to the doc's SSE
+  // subscribers. Distinct from document updates — carried on the same channel
+  // for the throttled SseProvider.
+  if (awareness === true) {
+    yjsService.handleAwarenessUpdate(docId, update, tenantId as string);
+    return json({ success: true });
+  }
 
   // Publish to internal event bus
   // The YjsService will pick this up and apply it to the server-side doc

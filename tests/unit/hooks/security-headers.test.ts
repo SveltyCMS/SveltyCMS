@@ -1,512 +1,150 @@
 /**
- * @file tests/bun/hooks/security-headers.test.ts
- * @description Comprehensive tests for handleSecurityHeaders middleware
+ * @file tests/unit/hooks/security-headers.test.ts
+ * @description Unit tests for the live `applyAllSecurityHeaders()` utility
+ * (`src/hooks/handle-security-headers.ts`) — the function actually invoked from
+ * `handleTurboPipeline`, `handleTurboGet`, the rate-limit 429 path, and the
+ * top-level error guard. The old standalone `handleSecurityHeaders` Handle was
+ * removed (it was not wired into the pipeline).
  *
  * Tests:
- * - X-Frame-Options header
- * - X-Content-Type-Options header
- * - Referrer-Policy header
- * - Permissions-Policy header
- * - Strict-Transport-Security (HSTS) header
- * - X-DNS-Prefetch-Control header
- * - X-XSS-Protection header
- * - X-Permitted-Cross-Domain-Policies header
- * - CSP header (disabled in production)
- * - Security best practices
+ * - Base security headers (X-Frame-Options, nosniff, Referrer-Policy, …)
+ * - Permissions-Policy lockdown values
+ * - Strict-Transport-Security (HSTS) only when isHttps
+ * - Cross-origin isolation (COOP/COEP/CORP) on API routes
+ * - CSP variants: page (preserves SvelteKit), /api/, /api/graphql
+ * - CORS: Vary: Origin on API routes
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { handleSecurityHeaders } from "@src/hooks/handle-security-headers";
-import type { RequestEvent } from "@sveltejs/kit";
+import { describe, it, expect, vi } from "vitest";
+import { applyAllSecurityHeaders } from "@src/hooks/handle-security-headers";
 
-// --- Test Utilities ---
+// HSTS is gated on `isHttps && !dev` — pin dev:false so the production HTTPS
+// path is exercised deterministically (matches adversarial.test.ts pattern).
+vi.mock("$app/environment", () => ({ dev: false, browser: false }));
 
-function createMockEvent(pathname: string, protocol = "https:"): RequestEvent {
-  const url = new URL(pathname, `${protocol}//example.com`);
-
-  return {
-    url,
-    request: new Request(url.toString()),
-    locals: {},
-  } as RequestEvent;
+function headersFor(
+  pathname: string,
+  opts: { isHttps?: boolean; origin?: string | null; preexisting?: [string, string][] } = {},
+): Headers {
+  const headers = new Headers(opts.preexisting ?? []);
+  applyAllSecurityHeaders(headers, opts.isHttps ?? true, opts.origin ?? null, pathname);
+  return headers;
 }
 
-function createMockResponse(): Response {
-  return new Response("test body", { status: 200 });
-}
-
-// --- Tests ---
-
-describe("handleSecurityHeaders Middleware", () => {
-  let mockResolve: any;
-  let mockResponse: Response;
-
-  beforeEach(async () => {
-    mockResponse = createMockResponse();
-    mockResolve = vi.fn(() => Promise.resolve(mockResponse));
-  });
-
-  describe("X-Frame-Options Header", () => {
-    it("should add X-Frame-Options: DENY header", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
+describe("applyAllSecurityHeaders", () => {
+  describe("Base security headers", () => {
+    it("sets X-Frame-Options: DENY", () => {
+      expect(headersFor("/dashboard").get("X-Frame-Options")).toBe("DENY");
     });
 
-    it("should prevent clickjacking attacks", async () => {
-      const event = createMockEvent("/login");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
+    it("sets X-Content-Type-Options: nosniff", () => {
+      expect(headersFor("/api/data").get("X-Content-Type-Options")).toBe("nosniff");
+    });
 
-      const xFrameOptions = response.headers.get("X-Frame-Options");
-      expect(xFrameOptions as any).toBe("DENY");
-      expect(["DENY", "DENY"]).toContain(xFrameOptions as any);
+    it("sets Referrer-Policy: strict-origin-when-cross-origin", () => {
+      expect(headersFor("/dashboard").get("Referrer-Policy")).toBe(
+        "strict-origin-when-cross-origin",
+      );
+    });
+
+    it("sets X-XSS-Protection, X-DNS-Prefetch-Control and X-Permitted-Cross-Domain-Policies", () => {
+      const h = headersFor("/dashboard");
+      expect(h.get("X-XSS-Protection")).toBe("1; mode=block");
+      expect(h.get("X-DNS-Prefetch-Control")).toBe("off");
+      expect(h.get("X-Permitted-Cross-Domain-Policies")).toBe("none");
     });
   });
 
-  describe("X-Content-Type-Options Header", () => {
-    it("should add X-Content-Type-Options: nosniff header", async () => {
-      const event = createMockEvent("/api/data");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    });
-
-    it("should prevent MIME-sniffing vulnerabilities", async () => {
-      const event = createMockEvent("/uploads/file.txt");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    });
-  });
-
-  describe("Referrer-Policy Header", () => {
-    it("should add Referrer-Policy: strict-origin-when-cross-origin header", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
-    });
-
-    it("should control referrer information leakage", async () => {
-      const event = createMockEvent("/sensitive/data");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const policy = response.headers.get("Referrer-Policy");
-      expect(policy).toBe("strict-origin-when-cross-origin");
-    });
-  });
-
-  describe("Permissions-Policy Header", () => {
-    it("should add Permissions-Policy header", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const policy = response.headers.get("Permissions-Policy");
-      expect(policy).toBeDefined();
-      expect(policy).not.toBe("");
-    });
-
-    it("should disable geolocation", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const policy = response.headers.get("Permissions-Policy");
-      expect(policy).toContain("geolocation=()");
-    });
-
-    it("should disable microphone", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const policy = response.headers.get("Permissions-Policy");
-      expect(policy).toContain("microphone=()");
-    });
-
-    it("should disable camera", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const policy = response.headers.get("Permissions-Policy");
-      expect(policy).toContain("camera=()");
-    });
-
-    it("should disable display-capture", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const policy = response.headers.get("Permissions-Policy");
-      expect(policy).toContain("display-capture=()");
-    });
-
-    it("should disable clipboard-read", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const policy = response.headers.get("Permissions-Policy");
-      expect(policy).toContain("clipboard-read=()");
-    });
-
-    it("should allow clipboard-write for same origin", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const policy = response.headers.get("Permissions-Policy");
+  describe("Permissions-Policy", () => {
+    it("disables sensitive features but allows clipboard-write/web-share for self", () => {
+      const policy = headersFor("/dashboard").get("Permissions-Policy") ?? "";
+      for (const feature of [
+        "geolocation=()",
+        "microphone=()",
+        "camera=()",
+        "display-capture=()",
+        "clipboard-read=()",
+      ]) {
+        expect(policy).toContain(feature);
+      }
       expect(policy).toContain("clipboard-write=(self)");
-    });
-
-    it("should allow web-share for same origin", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const policy = response.headers.get("Permissions-Policy");
       expect(policy).toContain("web-share=(self)");
     });
   });
 
-  describe("Strict-Transport-Security (HSTS) - Production HTTPS", () => {
-    it("should add HSTS header for HTTPS in production", async () => {
-      const event = createMockEvent("/dashboard", "https:");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const hsts = response.headers.get("Strict-Transport-Security");
-      // Only in production (not dev mode)
-      expect(hsts).toBeDefined();
+  describe("Strict-Transport-Security", () => {
+    it("sets HSTS with 1-year + subdomains + preload when isHttps", () => {
+      const hsts = headersFor("/dashboard", { isHttps: true }).get("Strict-Transport-Security");
+      expect(hsts).toContain("max-age=31536000");
+      expect(hsts).toContain("includeSubDomains");
+      expect(hsts).toContain("preload");
     });
 
-    it("should include max-age directive", async () => {
-      const event = createMockEvent("/dashboard", "https:");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
+    it("does NOT set HSTS for insecure connections", () => {
+      expect(
+        headersFor("/dashboard", { isHttps: false }).get("Strict-Transport-Security"),
+      ).toBeNull();
+    });
+  });
 
-      const hsts = response.headers.get("Strict-Transport-Security");
-      if (hsts) {
-        expect(hsts).toContain("max-age=31536000"); // 1 year
+  describe("Cross-origin isolation (API)", () => {
+    it("sets COOP/COEP/CORP on API routes", () => {
+      const h = headersFor("/api/collections");
+      expect(h.get("Cross-Origin-Opener-Policy")).toBe("same-origin");
+      expect(h.get("Cross-Origin-Embedder-Policy")).toBe("require-corp");
+      expect(h.get("Cross-Origin-Resource-Policy")).toBe("same-origin");
+    });
+
+    it("uses credentialless COEP for media routes (third-party asset compat)", () => {
+      expect(headersFor("/api/media/123").get("Cross-Origin-Embedder-Policy")).toBe(
+        "credentialless",
+      );
+    });
+
+    it("does NOT set Cross-Origin-Resource-Policy on page routes (API-only)", () => {
+      const h = headersFor("/dashboard");
+      // COOP/COEP come from BASE_HEADERS (applied to all routes); CORP is API-only.
+      expect(h.get("Cross-Origin-Resource-Policy")).toBeNull();
+      expect(h.get("Cross-Origin-Opener-Policy")).toBe("same-origin");
+    });
+  });
+
+  describe("Content-Security-Policy", () => {
+    it("preserves the SvelteKit page CSP when present", () => {
+      const h = headersFor("/dashboard", {
+        preexisting: [["Content-Security-Policy", "default-src 'self'; script-src 'self'"]],
+      });
+      expect(h.get("Content-Security-Policy")).toBe("default-src 'self'; script-src 'self'");
+    });
+
+    it("applies the API CSP on /api/ routes", () => {
+      const csp = headersFor("/api/collections").get("Content-Security-Policy") ?? "";
+      expect(csp).toContain("default-src 'self'");
+      expect(csp).not.toContain("unsafe-inline");
+    });
+
+    it("applies the strict GraphQL CSP when the playground is disabled", () => {
+      const prev = process.env.ALLOW_GRAPHQL_PLAYGROUND;
+      process.env.ALLOW_GRAPHQL_PLAYGROUND = "false";
+      try {
+        const csp = headersFor("/api/graphql").get("Content-Security-Policy") ?? "";
+        expect(csp).toContain("default-src 'self'");
+        expect(csp).toContain("script-src 'self'");
+        expect(csp).not.toContain("unsafe-eval");
+      } finally {
+        if (prev === undefined) delete process.env.ALLOW_GRAPHQL_PLAYGROUND;
+        else process.env.ALLOW_GRAPHQL_PLAYGROUND = prev;
       }
     });
-
-    it("should include includeSubDomains directive", async () => {
-      const event = createMockEvent("/dashboard", "https:");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const hsts = response.headers.get("Strict-Transport-Security");
-      if (hsts) {
-        expect(hsts).toContain("includeSubDomains");
-      }
-    });
-
-    it("should include preload directive", async () => {
-      const event = createMockEvent("/dashboard", "https:");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const hsts = response.headers.get("Strict-Transport-Security");
-      if (hsts) {
-        expect(hsts).toContain("preload");
-      }
-    });
-
-    it("should NOT add HSTS for HTTP (development)", async () => {
-      const event = createMockEvent("/dashboard", "http:");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      // HSTS behavior depends on protocol and environment
-      expect(response.headers.get("Strict-Transport-Security")).toBeDefined();
-    });
   });
 
-  describe("CSP Handling (SvelteKit Native)", () => {
-    it("should not override SvelteKit CSP (handled by svelte.config.js)", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      // CSP is handled by SvelteKit's built-in nonce system
-      expect(response).toBeDefined();
+  describe("CORS", () => {
+    it("adds Vary: Origin on API routes", () => {
+      expect(headersFor("/api/collections").get("Vary")).toContain("Origin");
     });
 
-    it("should allow SvelteKit to manage CSP nonces", async () => {
-      const event = createMockEvent("/dashboard");
-      await handleSecurityHeaders({ event, resolve: mockResolve });
-
-      // Nonce generation is SvelteKit's responsibility
-      expect(mockResolve).toHaveBeenCalled();
-    });
-  });
-
-  describe("Static Asset Handling", () => {
-    it("should skip applying headers to static assets (handled by Turbo Pipeline)", async () => {
-      const event = createMockEvent("/static/logo.png");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      // In isolation, resolve() returns a mock response with no headers.
-      // handleSecurityHeaders should skip it for performance.
-      expect(response.headers.get("X-Frame-Options")).toBeNull();
-      expect(response.headers.get("X-Content-Type-Options")).toBeNull();
-    });
-
-    it("should not interfere with cache headers from earlier middleware", async () => {
-      const event = createMockEvent("/_app/immutable/chunks/index.js");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      // Security headers are added, cache headers from earlier middleware preserved
-      expect(response).toBeDefined();
-    });
-  });
-
-  describe("All Routes Coverage", () => {
-    it("should apply headers to all dynamic routes", async () => {
-      const routes = ["/dashboard", "/collections", "/users", "/settings", "/api/data"];
-
-      for (const route of routes) {
-        mockResolve.mockClear();
-        const event = createMockEvent(route);
-        const response = await handleSecurityHeaders({
-          event,
-          resolve: mockResolve,
-        });
-
-        expect(response.headers.get("X-Frame-Options")).toBe("DENY");
-        expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-        expect(response.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
-        expect(response.headers.get("Permissions-Policy")).toBeDefined();
-      }
-    });
-
-    it("should apply headers to API routes", async () => {
-      const event = createMockEvent("/api/collections");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
-      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    });
-
-    it("should apply headers to login/auth routes", async () => {
-      const event = createMockEvent("/login");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
-    });
-  });
-
-  describe("Performance", () => {
-    it("should be minimal overhead (header setting only)", async () => {
-      const event = createMockEvent("/dashboard");
-
-      const start = Date.now();
-      await handleSecurityHeaders({ event, resolve: mockResolve });
-      const duration = Date.now() - start;
-
-      // Should be very fast (just header manipulation)
-      expect(duration).toBeLessThan(10);
-    });
-  });
-
-  describe("Edge Cases", () => {
-    it("should handle root path", async () => {
-      const event = createMockEvent("/");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
-    });
-
-    it("should handle paths with query parameters", async () => {
-      const event = createMockEvent("/dashboard?tab=settings");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
-    });
-
-    it("should handle paths with hash fragments", async () => {
-      const event = createMockEvent("/dashboard#section");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
-    });
-
-    it("should handle deep nested paths", async () => {
-      const event = createMockEvent("/admin/users/12345/edit");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
-    });
-  });
-
-  describe("HTTP vs HTTPS Behavior", () => {
-    it("should apply basic headers for both HTTP and HTTPS", async () => {
-      const httpEvent = createMockEvent("/dashboard", "http:");
-      const httpsEvent = createMockEvent("/dashboard", "https:");
-
-      const httpResponse = await handleSecurityHeaders({
-        event: httpEvent,
-        resolve: mockResolve,
-      });
-      mockResolve.mockClear();
-      const httpsResponse = await handleSecurityHeaders({
-        event: httpsEvent,
-        resolve: mockResolve,
-      });
-
-      // Basic headers apply to both
-      expect(httpResponse.headers.get("X-Frame-Options")).toBe("DENY");
-      expect(httpsResponse.headers.get("X-Frame-Options")).toBe("DENY");
-    });
-
-    it("should differentiate HSTS based on protocol", async () => {
-      const httpEvent = createMockEvent("/dashboard", "http:");
-      const httpsEvent = createMockEvent("/dashboard", "https:");
-
-      const httpResponse = await handleSecurityHeaders({
-        event: httpEvent,
-        resolve: mockResolve,
-      });
-      mockResolve.mockClear();
-      const httpsResponse = await handleSecurityHeaders({
-        event: httpsEvent,
-        resolve: mockResolve,
-      });
-
-      // HSTS behavior depends on protocol and environment
-      expect(httpResponse.headers.get("Strict-Transport-Security")).toBeDefined();
-      expect(httpsResponse.headers.get("Strict-Transport-Security")).toBeDefined();
-    });
-  });
-
-  describe("Header Value Correctness", () => {
-    it("should have correct X-Frame-Options value", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("X-Frame-Options")).toBe("DENY");
-    });
-
-    it("should have correct X-Content-Type-Options value", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    });
-
-    it("should have correct Referrer-Policy value", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      expect(response.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
-    });
-
-    it("should have well-formed Permissions-Policy", async () => {
-      const event = createMockEvent("/dashboard");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const policy = response.headers.get("Permissions-Policy");
-      expect(policy).toMatch(/geolocation=\(\)/);
-      expect(policy).toMatch(/clipboard-write=\(self\)/);
-    });
-
-    it("should have well-formed HSTS (when applicable)", async () => {
-      const event = createMockEvent("/dashboard", "https:");
-      const response = await handleSecurityHeaders({
-        event,
-        resolve: mockResolve,
-      });
-
-      const hsts = response.headers.get("Strict-Transport-Security");
-      if (hsts) {
-        expect(hsts).toMatch(/max-age=\d+/);
-      }
+    it("does NOT add CORS Vary on page routes", () => {
+      expect(headersFor("/dashboard").get("Vary")).toBeNull();
     });
   });
 });

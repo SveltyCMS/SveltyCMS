@@ -68,7 +68,7 @@ describe("JobQueueService", () => {
 
   afterEach(() => {
     jobQueue.stopPolling();
-    delete process.env.BENCHMARK_MODE;
+    delete process.env.BENCHMARK;
     delete process.env.DISABLE_JOBS;
   });
 
@@ -144,12 +144,12 @@ describe("JobQueueService", () => {
   });
 
   describe("startPolling / stopPolling", () => {
-    it("does not start interval when BENCHMARK_MODE is set", () => {
-      process.env.BENCHMARK_MODE = "true";
+    it("does not start interval when BENCHMARK is set", () => {
+      process.env.BENCHMARK = "true";
       jobQueue.startPolling(1000);
       // stopPolling should be a no-op safe call
       jobQueue.stopPolling();
-      delete process.env.BENCHMARK_MODE;
+      delete process.env.BENCHMARK;
     });
 
     it("does not start interval when DISABLE_JOBS is set", () => {

@@ -6,6 +6,7 @@
  * No duplicate seed logic — just thin HTTP wrappers.
  */
 import type { APIRequestContext, Page } from "@playwright/test";
+import { CONSENT_VALUE } from "./cookie-consent";
 import { TEST_PASSWORD, USERS } from "../../harness/fixtures";
 
 // ── Shared constants ───────────────────────────────────────────────────
@@ -54,6 +55,34 @@ async function postTesting(page: Requestish, data: Record<string, unknown>) {
 
 const ADMIN_CREDENTIALS = { email: "admin@example.com", password: "Password123!" };
 
+/**
+ * Poll the health endpoint until the post-reset adapter re-connects. The reset
+ * action replaces the database adapter (dbInitPromise resets to IDLE → READY),
+ * and an immediate seed can race that re-init — the seeded user then lands in
+ * a DB instance the login page isn't seeing (login form never appears).
+ * `x-refresh` bypasses the 10s health memo so we observe the CURRENT state.
+ */
+async function waitForDatabaseReady(page: Page, timeoutMs = 20_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown = null;
+  while (Date.now() < deadline) {
+    try {
+      const res = await page.request.get("/api/system/health", {
+        headers: { "x-refresh": "true" },
+      });
+      const body = await res.json().catch(() => null);
+      if (res.ok() && body?.database === "connected") return;
+      if (res.ok() && body?.data?.database === "connected") return;
+    } catch (err) {
+      lastError = err;
+    }
+    await page.waitForTimeout(250);
+  }
+  throw new Error(
+    `Database not ready after reset: ${lastError instanceof Error ? lastError.message : String(lastError ?? "timeout")}`,
+  );
+}
+
 export async function resetAndSeedDatabase(page: Page) {
   await page.context().clearCookies();
   const reset = await page.request.post("/api/testing", {
@@ -61,6 +90,8 @@ export async function resetAndSeedDatabase(page: Page) {
     data: { action: "reset" },
   });
   if (!reset.ok()) throw new Error(`reset failed: ${reset.status()}`);
+
+  await waitForDatabaseReady(page);
 
   const seed = await page.request.post("/api/testing", {
     headers: TEST_API_HEADERS,
@@ -77,7 +108,8 @@ export async function resetAndSeedDatabase(page: Page) {
 
 // ── Session management ─────────────────────────────────────────────────
 
-const SESSION_COOKIE_RE = /auth_sessions|__Host-auth_sessions|__Secure-auth_sessions/i;
+/** Matches the auth session cookie names (host/secure prefixes included). */
+export const SESSION_COOKIE_RE = /auth_sessions|__Host-auth_sessions|__Secure-auth_sessions/i;
 
 function parseSetCookieHeader(header: string): Array<{ name: string; value: string }> {
   if (!header) return [];
@@ -174,7 +206,12 @@ export async function applySessionCookie(
   }
 }
 
-async function sessionLooksValid(page: Page): Promise<boolean> {
+/**
+ * Cheap API-level session probe: GET /api/user with the context's cookies.
+ * No page navigation — used by `ensureAuthenticated` and `loginAsAdmin` to
+ * avoid a full page load + shell check per test (1-3s saved per call).
+ */
+export async function sessionLooksValid(page: Page): Promise<boolean> {
   try {
     const cookies = await page
       .context()
@@ -188,21 +225,31 @@ async function sessionLooksValid(page: Page): Promise<boolean> {
     const res = await page.request.get("/api/user", { headers });
     if (!res.ok()) return false;
     const body = await res.json().catch(() => null);
-    return Boolean(body && (body.user || body._id || body.email || body.users));
+    if (!body) return false;
+    // GET /api/user returns { success: true, data: [users] } — the legacy
+    // fields (user/_id/email/users) never existed on this endpoint, so the
+    // old probe could never succeed and every ensureAuthenticated call fell
+    // through to a full DB reset (cross-spec landmine). Accept the real
+    // envelope shape; keep the legacy fields for other endpoints.
+    return (
+      (body.success === true &&
+        (Array.isArray(body.data) || (body.data && typeof body.data === "object"))) ||
+      Boolean(body.user || body._id || body.email || body.users)
+    );
   } catch {
     return false;
   }
 }
 
 export async function ensureAuthenticated(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
-    window.localStorage.setItem(
-      "sveltycms_consent",
-      JSON.stringify({ responded: true, necessary: true }),
-    );
-    window.localStorage.setItem("sveltycms-welcome-seen", "true");
-  });
+  await page.addInitScript(
+    ({ consent }) => {
+      window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
+      window.localStorage.setItem("sveltycms_consent", consent);
+      window.localStorage.setItem("sveltycms-welcome-seen", "true");
+    },
+    { consent: CONSENT_VALUE },
+  );
   if (await sessionLooksValid(page)) return;
   for (const attempt of ["login", "seed+login", "reset+seed+login"]) {
     try {

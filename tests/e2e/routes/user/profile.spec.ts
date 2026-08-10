@@ -7,9 +7,29 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { ADMIN_CREDENTIALS, TEST_API_HEADERS } from "../../helpers/api";
 import { loginAsAdmin } from "../../helpers/auth";
 import { openUserManagement } from "../../helpers/user-page";
+
+/**
+ * Restore the deterministic admin fixture (`admin` username + password) via
+ * the idempotent testing-API seed (update-by-email, never wipes). Lives in a
+ * helper so cleanup blocks never throw lexically inside `finally`.
+ */
+async function reseedAdminFixture(page: Page): Promise<void> {
+  const res = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: {
+      action: "seed",
+      email: ADMIN_CREDENTIALS.email,
+      password: ADMIN_CREDENTIALS.password,
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(`admin re-seed cleanup failed: HTTP ${res.status()}`);
+  }
+}
 
 // Construct reliable file path for CI/CD environments
 // The shared test thumbnail lives at the e2e root (tests/e2e/testthumb.png),
@@ -162,76 +182,95 @@ test.describe.serial("User Profile Management", () => {
   });
 
   test("Edit User Details", async ({ page }) => {
-    await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
+    // This test renames the admin user — it MUST restore the deterministic
+    // `admin` fixture afterwards (seed is idempotent, updates by email, never
+    // wipes) or the mutation leaks into other specs that assume `admin`.
+    let cleanupError: unknown = null;
+    try {
+      await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
+      await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
 
-    await page
-      .getByTestId("edit-user-settings-btn")
-      .or(page.getByRole("button", { name: /Edit User Settings/i }))
-      .first()
-      .click();
-
-    // Scope to the edit dialog so Save/username resolve unambiguously
-    const editDialog = page
-      .getByRole("dialog", { name: /Edit User Data|edit user/i })
-      .or(page.getByRole("dialog").filter({ hasText: /username/i }))
-      .first();
-    await expect(editDialog).toBeVisible({ timeout: 15_000 });
-
-    // Unique username each run — avoids uniqueness validation failures
-    const newUsername = `TestUser_${Date.now().toString(36).slice(-6)}`;
-    const usernameInput = editDialog.locator('input[name="username"]:not([disabled])');
-    await expect(usernameInput).toBeVisible({ timeout: 10_000 });
-    await usernameInput.fill(newUsername);
-
-    const updateRespPromise = page
-      .waitForResponse(
-        (res) =>
-          res.url().includes("/api/user/update-user-attributes") &&
-          ["PUT", "POST", "PATCH"].includes(res.request().method()),
-        { timeout: 15_000 },
-      )
-      .catch(() => null);
-
-    await editDialog.getByRole("button", { name: /^save$/i }).click();
-
-    const updateResp = await updateRespPromise;
-    if (updateResp && !updateResp.ok()) {
-      const body = await updateResp.text().catch(() => "");
-      throw new Error(
-        `update-user-attributes failed: HTTP ${updateResp.status()} ${body.slice(0, 300)}`,
-      );
-    }
-
-    // Prefer outcome over toast flash: dialog closes, username visible, or success toast
-    const { expectToast } = await import("../../helpers/stable");
-    await expect(async () => {
-      const dialogGone = !(await editDialog.isVisible().catch(() => false));
-      if (dialogGone) return;
-      const usernameVisible = await page
-        .getByText(newUsername, { exact: false })
+      await page
+        .getByTestId("edit-user-settings-btn")
+        .or(page.getByRole("button", { name: /Edit User Settings/i }))
         .first()
-        .isVisible()
-        .catch(() => false);
-      if (usernameVisible) return;
-      const errToast = page
-        .getByTestId("app-toast")
-        .filter({ hasText: /user not found|update failed|failed to update/i });
-      if (
-        await errToast
-          .first()
-          .isVisible()
-          .catch(() => false)
-      ) {
+        .click();
+
+      // Scope to the edit dialog so Save/username resolve unambiguously
+      const editDialog = page
+        .getByRole("dialog", { name: /Edit User Data|edit user/i })
+        .or(page.getByRole("dialog").filter({ hasText: /username/i }))
+        .first();
+      await expect(editDialog).toBeVisible({ timeout: 15_000 });
+
+      // Unique username each run — avoids uniqueness validation failures
+      const newUsername = `TestUser_${Date.now().toString(36).slice(-6)}`;
+      const usernameInput = editDialog.locator('input[name="username"]:not([disabled])');
+      await expect(usernameInput).toBeVisible({ timeout: 10_000 });
+      await usernameInput.fill(newUsername);
+
+      const updateRespPromise = page
+        .waitForResponse(
+          (res) =>
+            res.url().includes("/api/user/update-user-attributes") &&
+            ["PUT", "POST", "PATCH"].includes(res.request().method()),
+          { timeout: 15_000 },
+        )
+        .catch(() => null);
+
+      await editDialog.getByRole("button", { name: /^save$/i }).click();
+
+      const updateResp = await updateRespPromise;
+      if (updateResp && !updateResp.ok()) {
+        const body = await updateResp.text().catch(() => "");
         throw new Error(
-          `Profile update failed: ${await errToast
-            .first()
-            .textContent()
-            .catch(() => "error toast")}`,
+          `update-user-attributes failed: HTTP ${updateResp.status()} ${body.slice(0, 300)}`,
         );
       }
-      await expectToast(page, /user data updated|profile changes were saved/i, 2_000);
-    }).toPass({ timeout: 20_000 });
+
+      // Prefer outcome over toast flash: dialog closes, username visible, or success toast
+      const { expectToast } = await import("../../helpers/stable");
+      await expect(async () => {
+        const dialogGone = !(await editDialog.isVisible().catch(() => false));
+        if (dialogGone) return;
+        const usernameVisible = await page
+          .getByText(newUsername, { exact: false })
+          .first()
+          .isVisible()
+          .catch(() => false);
+        if (usernameVisible) return;
+        const errToast = page
+          .getByTestId("app-toast")
+          .filter({ hasText: /user not found|update failed|failed to update/i });
+        if (
+          await errToast
+            .first()
+            .isVisible()
+            .catch(() => false)
+        ) {
+          throw new Error(
+            `Profile update failed: ${await errToast
+              .first()
+              .textContent()
+              .catch(() => "error toast")}`,
+          );
+        }
+        await expectToast(page, /user data updated|profile changes were saved/i, 2_000);
+      }).toPass({ timeout: 20_000 });
+    } finally {
+      // Restore the `admin` username + fixture password (no username param →
+      // `email.split("@")[0]` = "admin"). The seed failure must NOT mask the
+      // main error (throwing inside finally is unsafe) — it is re-thrown
+      // after the block, which only runs when the main body succeeded.
+      try {
+        await reseedAdminFixture(page);
+      } catch (cleanupErr) {
+        cleanupError = cleanupErr;
+        console.warn(`[profile.spec] admin re-seed cleanup failed: ${cleanupErr}`);
+      }
+    }
+    // Only reachable when the main body passed — fail loudly on cleanup.
+    if (cleanupError) throw cleanupError;
   });
 
   test("Registration Token Workflow", async ({ page }) => {

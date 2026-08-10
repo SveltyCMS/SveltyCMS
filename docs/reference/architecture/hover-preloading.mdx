@@ -43,12 +43,12 @@ flowchart LR
 
 ```
 
-| Strategy     | Trigger                                         | Delay         | Data Attribute            |
-| :----------- | :---------------------------------------------- | :------------ | :------------------------ |
-| **hover**    | Mouseenter + 150ms dwell                        | 150ms         | `data-preload="hover"`    |
-| **viewport** | Link enters viewport (200px margin)             | 0ms perceived | `data-preload="viewport"` |
-| **predict**  | Cursor heading toward link (200px, 30 deg cone) | 0ms perceived | `data-preload="predict"`  |
-| **smart**    | Predict cone + behavioral hot-path priority     | 0ms perceived | `data-preload="smart"`    |
+| Strategy     | Trigger                                         | Delay         | Data Attribute            | Server Pre-Warming          |
+| :----------- | :---------------------------------------------- | :------------ | :------------------------ | :-------------------------- |
+| **hover**    | Mouseenter + 150ms dwell                        | 150ms         | `data-preload="hover"`    | `/api/system/prewarm-route` |
+| **viewport** | Link enters viewport (200px margin)             | 0ms perceived | `data-preload="viewport"` | `/api/system/prewarm-route` |
+| **predict**  | Cursor heading toward link (200px, 30 deg cone) | 0ms perceived | `data-preload="predict"`  | `/api/system/prewarm-route` |
+| **smart**    | Predict cone + behavioral hot-path priority     | 0ms perceived | `data-preload="smart"`    | `/api/system/prewarm-route` |
 
 ---
 

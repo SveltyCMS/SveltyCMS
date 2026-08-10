@@ -80,9 +80,9 @@ With the 2026 update, we've introduced specialized relational benchmarks to ensu
 > [!IMPORTANT]
 > **Collection isolation:** Filesystem benchmarks write only to `.compiledCollections/test/<workspace>/`. API benchmarks seed via LocalCMS. The matrix runs `purgeBenchmarkCollectionArtifacts()` before each audit. See [Benchmark Collection Isolation](./benchmark-isolation.mdx).
 
-### Unified benchmark runtime flags
+### Unified benchmark runtime flag
 
-GraphQL, scanners, and `compile.ts` all use `isBenchmarkRuntime()` from `preset-collections.server.ts` (checks `BENCHMARK`, `BENCHMARK_MODE`, `BENCHMARK_STABLE`, `SVELTY_BENCHMARK_SUITE`, `TEST_MODE`). Standalone `bun test tests/benchmarks/*` and the matrix server set the same flags so behavior is consistent.
+GraphQL, scanners, and `compile.ts` all use `isBenchmarkRuntime()` from `preset-collections.server.ts` (checks the single `BENCHMARK=true` flag). Standalone `bun test tests/benchmarks/*` and the matrix server set the same flag so behavior is consistent.
 
 ## Running Analysis Locally
 

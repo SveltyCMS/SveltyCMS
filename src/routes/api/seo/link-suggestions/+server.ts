@@ -94,7 +94,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const result = await qb
               .search(keyword, ["title", "content"] as any)
               .where({
-                status: "published",
+                status: "publish",
                 tenantId: tenantId || "default",
               } as any)
               .limit(5)

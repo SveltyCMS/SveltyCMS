@@ -21,7 +21,8 @@ async function openGallery(page: Page) {
       .getByTestId("admin-page-shell-title")
       .or(page.getByTestId("media-gallery-toolbar"))
       .or(page.getByTestId("media-gallery-content"))
-      .or(page.getByRole("heading", { name: /media/i })),
+      .or(page.getByRole("heading", { name: /media/i }))
+      .first(),
   ).toBeVisible({ timeout: 30_000 });
 }
 

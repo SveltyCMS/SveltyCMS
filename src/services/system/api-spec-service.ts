@@ -153,7 +153,7 @@ export class ApiSpecService {
     }
 
     // 3. ACTUAL GENERATION (Only if cache miss)
-    const spec = JSON.parse(JSON.stringify(this.baseSpec));
+    const spec = structuredClone(this.baseSpec);
 
     // 1. Add Auth & User Paths
     this.addAuthPaths(spec);

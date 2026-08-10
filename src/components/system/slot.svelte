@@ -7,6 +7,7 @@
 	import '@src/plugins/index';
 	import { slotRegistry } from '@src/plugins/slot-registry.svelte.ts';
 	import type { InjectionZone } from '@src/plugins/types';
+	import { memoizeLazyLoader, type LazyComponent } from '@utils/lazy-component-loader';
 
 	// We can reuse WidgetLoader or create a simple loader since types definition says component is a promise
 	// Actually, WidgetLoader is designed for Widgets with specific props.
@@ -29,6 +30,18 @@
 	// Plugins usually register on startup. If this is client-side, we need to ensure registry is available.
 	// Assuming plugins register isomorphic slots.
 
+	// Memoized per-slot loaders — see admin-zone.svelte for the rationale
+	// (inline {#await slot.component()} remounts on every parent re-render).
+	const slotLoaders = new Map<string, () => Promise<LazyComponent>>();
+	function componentLoader(slot: { id: string; component: () => Promise<LazyComponent> }): Promise<LazyComponent> {
+		let loader = slotLoaders.get(slot.id);
+		if (!loader) {
+			loader = memoizeLazyLoader(slot.component);
+			slotLoaders.set(slot.id, loader);
+		}
+		return loader();
+	}
+
 	// Read `version` so late registrations (plugin index in lazy route nodes,
 	// onMount registrations) re-run this derived — otherwise slots registered
 	// after first render never appear.
@@ -43,10 +56,10 @@
 <div class={inline ? 'contents' : 'slot-zone'} data-zone={name}>
 	{#each slots as slot (slot.id)}
 		<div class={inline ? 'contents' : 'slot-item mb-4 last:mb-0'}>
-			{#await slot.component()}
+			{#await componentLoader(slot)}
 				<div class="h-20 w-full animate-pulse rounded bg-surface-100 dark:bg-surface-800"></div>
 			{:then Component}
-				{#if Component.default}
+				{#if "default" in Component}
 					<Component.default {...props} {...slot.props} />
 				{:else}
 					<Component {...props} {...slot.props} />

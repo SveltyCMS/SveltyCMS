@@ -1013,22 +1013,18 @@ All dashboard interactions are logged through the audit system:
 
 ## Real-Time Data Streaming
 
-Dashboard widgets receive live updates via svelte-realtime, which provides WebSocket-based streaming with SSE fallback. The integration lives in `src/live/`:
+Dashboard widgets receive live updates over **Server-Sent Events (SSE)** — the adapter-node-compatible stream at `GET /api/content/events` (alias `/api/events`):
 
-- **`system.ts`** — Bridges the internal `EventBus` to connected WebSocket clients with tenant isolation. System events (content changes, user activity, cache invalidations) stream to all authorized dashboard widgets.
-- **`chat.ts`** — Real-time AI chat for the dashboard co-pilot. Uses per-room streaming with individual access controls.
-- **`ws-platform.ts`** — Shared WebSocket platform reference for global broadcasting. Initialized by `src/hooks.ws.ts` during server startup.
+- `handleContentEventsStream` (`src/routes/api/[...path]/handlers/content.ts`) subscribes to the internal `EventBus` and pushes tenant-filtered events (`content:update`, `cache:invalidate`, `config:change`) as `text/event-stream`.
+- Built-in consumers: `content-sse.svelte.ts` (content-tree sync), `global-settings.svelte.ts` (live settings), and the collaboration `SseProvider`.
+- For collaborative editing, see [Real-Time Updates](../api/graphql-subscriptions.mdx) (Yjs over SSE + optional `/ws`).
 
 ```
-// Dashboard widget subscribing to real-time events
-import { events } from "$live/system";
-
-$effect(() => {
-  const stream = events();
-  stream.subscribe((event) => {
-    // event contains: type, payload, timestamp, tenantId
-    updateWidgetData(event);
-  });
+// Dashboard widget subscribing to real-time events (browser)
+const events = new EventSource("/api/content/events", { withCredentials: true });
+events.addEventListener("content_update", (e) => {
+  const event = JSON.parse(e.data); // { type, payload, timestamp, tenantId }
+  updateWidgetData(event);
 });
 ```
 

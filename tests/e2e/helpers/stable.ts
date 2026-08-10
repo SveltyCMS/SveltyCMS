@@ -13,6 +13,7 @@
  */
 
 import { expect, type Locator, type Page } from "@playwright/test";
+import { dismissCookieConsent } from "./cookie-consent";
 
 const DEFAULT_TIMEOUT = 20_000;
 
@@ -91,20 +92,7 @@ export async function waitUntil(
   throw new Error(options.message || `waitUntil timed out after ${timeout}ms`);
 }
 
-/** Dismiss cookie banner if present (testid/role, not CSS). */
+/** Dismiss cookie banner if present — alias for the canonical helper. */
 export async function dismissCookieBannerIfPresent(page: Page): Promise<void> {
-  const accept = page
-    .getByTestId("cookie-accept")
-    .or(page.getByRole("button", { name: /accept|agree|got it|ok/i }));
-  if (
-    await accept
-      .first()
-      .isVisible({ timeout: 800 })
-      .catch(() => false)
-  ) {
-    await accept
-      .first()
-      .click()
-      .catch(() => undefined);
-  }
+  await dismissCookieConsent(page);
 }

@@ -6,11 +6,11 @@
 import { modifyRequest, modifyStream, type EntryData } from "@utils/modify-request";
 import { validateNumericFields, sanitizeCollectionFields } from "@src/content/content-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 import { LRUCache } from "lru-cache";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { isMultiTenantEnabled } from "@utils/tenant";
-import { xxhash64 } from "hash-wasm";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
 import type { Schema, FieldInstance } from "@src/content/types";
@@ -19,11 +19,80 @@ import { pluginRegistry } from "@src/plugins/registry";
 import { copyDataWithFreshRowIds } from "@src/utils/data/copy-data-with-fresh-ids";
 import { resolvePopulatedRelations } from "./populate-resolver";
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
+import { widgetRegistryService } from "@src/services/core/widget-registry-service";
+import { sanitizeObject } from "@utils/security/input-sanitizer";
 
 type ContentSystem = typeof serverContentSystem;
 
 /** Narrow Schema fields for content-utils helpers (WidgetPlaceholder slots excluded). */
 type CollectionFieldSchema = Parameters<typeof sanitizeCollectionFields>[1];
+
+/** Hot-path flags cached on schema objects after first inspection. */
+type SchemaHotFlags = {
+  _hasActiveWidgets?: boolean;
+  _hasNumberFields?: boolean;
+  _hasSanitizableFields?: boolean;
+  _hasHooks?: boolean;
+};
+
+/**
+ * CollectionModel instances must NEVER be attached to schema objects: schemas
+ * are shared with the content store (contentNodes[].collectionDef) and get
+ * structuredClone'd into SvelteKit load data, which throws on functions.
+ * Cache the model by schema identity instead.
+ */
+const collectionModelCache = new WeakMap<object, unknown>();
+
+const SANITIZE_FIELD_TYPES = new Set(["richtext", "markdown", "text", "textarea"]);
+
+/** True when the caller explicitly opted out — no outbox, workflow, plugin afterSave, L2 fan-out. */
+function shouldSkipWriteSideEffects(options: LocalApiOptions): boolean {
+  return options.skipSideEffects === true;
+}
+
+/**
+ * Sync FNV-1a hash for query cache keys — avoids async hash-wasm on every list find.
+ */
+function syncQueryHash(input: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36);
+}
+
+/**
+ * Inspect schema once and attach hot-path flags so create/find/update skip work
+ * that does not apply (no number fields → no range walk, etc.).
+ */
+function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
+  const s = schema as Schema & SchemaHotFlags;
+  if (s._hasActiveWidgets !== undefined) return s;
+
+  const fields = (schema.fields || []) as FieldInstance[];
+  let hasActiveWidgets = false;
+  let hasNumberFields = false;
+  let hasSanitizableFields = false;
+
+  for (const f of fields) {
+    if (!hasActiveWidgets) {
+      const wFn = widgetRegistryService.getWidgetSync(f.widget?.Name);
+      if (wFn && (wFn as { modifyRequest?: unknown }).modifyRequest) {
+        hasActiveWidgets = true;
+      }
+    }
+    const type = (f as { type?: string }).type;
+    if (type === "number") hasNumberFields = true;
+    if (type && SANITIZE_FIELD_TYPES.has(type)) hasSanitizableFields = true;
+  }
+
+  s._hasActiveWidgets = hasActiveWidgets;
+  s._hasNumberFields = hasNumberFields;
+  s._hasSanitizableFields = hasSanitizableFields;
+  s._hasHooks = Boolean(schema.hooks?.beforeValidate || schema.hooks?.afterValidate);
+  return s;
+}
 
 let resolvedContentSystem: ContentSystem | null = null;
 
@@ -34,6 +103,48 @@ async function getContentSystem(): Promise<ContentSystem> {
   }
   return resolvedContentSystem;
 }
+
+// 🚀 LAZY MODULE SINGLETONS — the write path (schedulePostWrite → workflow,
+// invalidateCache → response-cache, afterMutation → pub-sub, emitOutboxEvent →
+// outbox) used a per-write `await import(...)`, which costs 30–60µs per call
+// even for cached modules (measured via local-sdk-vs-direct micro-profile).
+// Resolve once on first use; hot-path calls become promise resolves.
+let workflowServicePromise: Promise<
+  import("@src/services/background/workflow-service").WorkflowService
+> | null = null;
+function getWorkflowServiceLazy() {
+  return (workflowServicePromise ??= import("@src/services/background/workflow-service").then(
+    (m) => m.workflowService,
+  ));
+}
+
+let responseCachePromise: Promise<
+  typeof import("@src/services/cache/response-cache").responseCache
+> | null = null;
+function getResponseCacheLazy() {
+  return (responseCachePromise ??= import("@src/services/cache/response-cache").then(
+    (m) => m.responseCache,
+  ));
+}
+
+let pubSubPromise: Promise<typeof import("@src/services/background/pub-sub").pubSub> | null = null;
+function getPubSubLazy() {
+  return (pubSubPromise ??= import("@src/services/background/pub-sub").then((m) => m.pubSub));
+}
+
+let outboxLazyPromise: Promise<{
+  isOutboxDisabled: () => boolean;
+  outboxService: import("@src/services/outbox/outbox-service").OutboxService;
+}> | null = null;
+function getOutboxLazy() {
+  return (outboxLazyPromise ??= import("@src/services/outbox"));
+}
+
+/**
+ * Tick-debounce set for cache invalidation: coalesces consecutive writes in
+ * the same macrotask into a single clear pass (keyed by tenant + schema).
+ */
+let _pendingInvalidations: Set<string> | null = null;
 
 /**
  * Collections Namespace
@@ -47,6 +158,7 @@ export class CollectionsNamespace {
     ttl: 60_000,
   });
   private static _schemaCache = new LRUCache<string, Schema>({ max: 500 });
+  private static _tenantSettingsCache = new Map<string, { settings: any; exp: number }>();
   private static _batchLoaders = new Map<
     string,
     { ids: Set<string>; promises: Map<string, any> }
@@ -164,13 +276,29 @@ export class CollectionsNamespace {
 
     // 🛡️ HARDENING: Only use cache if it has fields. Partial schemas break normalization.
     if (cached && cached.fields && cached.fields.length > 0) {
-      return cached;
+      return ensureSchemaHotFlags(cached);
     }
 
     let schema = null;
     try {
       const cs = await this._resolveContentSystem();
       schema = await cs.getCollectionById(collectionId, tenantId);
+      if (!schema || !schema.fields || schema.fields.length === 0) {
+        // Product path slug strips `_` and non [a-z0-9-]; also try hyphen/underscore swaps
+        const alts = [
+          collectionId.includes("-") ? collectionId.replace(/-/g, "_") : null,
+          collectionId.includes("_") ? collectionId.replace(/_/g, "-") : null,
+          collectionId.includes("_") ? collectionId.replace(/_/g, "") : null,
+          collectionId.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase(),
+        ].filter((a): a is string => Boolean(a) && a !== collectionId);
+        for (const altId of new Set(alts)) {
+          const altSchema = await cs.getCollectionById(altId, tenantId);
+          if (altSchema && altSchema.fields && altSchema.fields.length > 0) {
+            schema = altSchema;
+            break;
+          }
+        }
+      }
     } catch {}
 
     const idLower = collectionId.toLowerCase();
@@ -181,6 +309,7 @@ export class CollectionsNamespace {
       (idLower === "redirects" ||
         idLower === "404_logs" ||
         idLower === "benchmarkstable" ||
+        idLower === "sdkvsdirect" ||
         idLower === "bench_revisions" ||
         idLower === "bench_index_pressure" ||
         idLower === "bench_migration_large" ||
@@ -236,7 +365,7 @@ export class CollectionsNamespace {
                 type: "string",
               },
             ]
-          : idLower === "benchmark_posts"
+          : idLower === "sdkvsdirect"
             ? [
                 {
                   db_fieldName: "_id",
@@ -250,27 +379,42 @@ export class CollectionsNamespace {
                   widget: { Name: "Input" },
                   type: "string",
                 },
-                {
-                  db_fieldName: "content",
-                  label: "Content",
-                  widget: { Name: "RichText" },
-                  type: "string",
-                },
-                {
-                  db_fieldName: "author",
-                  label: "Author",
-                  widget: { Name: "Relation" },
-                  type: "string",
-                  relation: "BenchmarkAuthors",
-                },
-                {
-                  db_fieldName: "publishDate",
-                  label: "Publish Date",
-                  widget: { Name: "DateTime" },
-                  type: "string",
-                },
               ]
-            : [];
+            : idLower === "benchmark_posts"
+              ? [
+                  {
+                    db_fieldName: "_id",
+                    label: "ID",
+                    widget: { Name: "Input" },
+                    type: "string",
+                  },
+                  {
+                    db_fieldName: "title",
+                    label: "Title",
+                    widget: { Name: "Input" },
+                    type: "string",
+                  },
+                  {
+                    db_fieldName: "content",
+                    label: "Content",
+                    widget: { Name: "RichText" },
+                    type: "string",
+                  },
+                  {
+                    db_fieldName: "author",
+                    label: "Author",
+                    widget: { Name: "Relation" },
+                    type: "string",
+                    relation: "BenchmarkAuthors",
+                  },
+                  {
+                    db_fieldName: "publishDate",
+                    label: "Publish Date",
+                    widget: { Name: "DateTime" },
+                    type: "string",
+                  },
+                ]
+              : [];
 
       schema = {
         _id: collectionId,
@@ -294,6 +438,7 @@ export class CollectionsNamespace {
       }
     }
 
+    ensureSchemaHotFlags(schema);
     CollectionsNamespace._schemaCache.set(schemaKey, schema);
     return schema;
   }
@@ -359,7 +504,6 @@ export class CollectionsNamespace {
     );
 
     try {
-      const { CacheCategory } = await import("@src/databases/cache/types");
       await cacheService.set(
         cacheKey,
         processed,
@@ -413,8 +557,11 @@ export class CollectionsNamespace {
     const baseFilter: any = this.normalizeRelationshipFilter({
       ...additionalFilter,
     });
+    // 🛡️ NON-ADMINS CANNOT REQUEST STATUSES: a caller-provided status=draft
+    // would expose unpublished content to ordinary read users — force the
+    // published filter regardless of what the caller asked for.
     if (!isAdmin) {
-      baseFilter.status = status || "published";
+      baseFilter.status = "published";
     } else if (status) {
       baseFilter.status = status;
     }
@@ -543,7 +690,19 @@ export class CollectionsNamespace {
       if (query._id && Object.keys(query).length === 1 && limit === 50 && offset === 0 && !sort) {
         cacheKey = `${tenantPrefix}collection:${schema._id}:find:id:${query._id}`;
       } else {
-        const queryHash = await xxhash64(JSON.stringify({ query, limit, offset, sort }));
+        // Sync FNV — no WASM/async tax on list queries. fields/populate shape
+        // the RESPONSE, so they must be part of the key — a projected list
+        // would otherwise poison a later full list (missing media/relation data).
+        const queryHash = syncQueryHash(
+          JSON.stringify({
+            query,
+            limit,
+            offset,
+            sort,
+            fields: options.fields ?? null,
+            populate: options.populate ?? null,
+          }),
+        );
         cacheKey = `${tenantPrefix}collection:${schema._id}:find:${queryHash}`;
       }
     }
@@ -576,27 +735,18 @@ export class CollectionsNamespace {
       : await fetchFromDb();
 
     if (result.success && result.data && Array.isArray(result.data)) {
-      let hasActiveWidgets = (schema.fields as any)?._hasActiveWidgets;
-      if (hasActiveWidgets === undefined && schema.fields) {
-        const { widgetRegistryService } =
-          await import("@src/services/core/widget-registry-service");
-        hasActiveWidgets = (schema.fields as FieldInstance[]).some((f) => {
-          const wFn = widgetRegistryService.getWidgetSync(f.widget?.Name);
-          return Boolean(wFn && (wFn as any).modifyRequest);
-        });
-        (schema.fields as any)._hasActiveWidgets = hasActiveWidgets;
-      }
+      const hot = ensureSchemaHotFlags(schema);
 
-      if (hasActiveWidgets) {
-        let collectionModel = (schema as any)._collectionModel;
+      if (hot._hasActiveWidgets) {
+        let collectionModel = collectionModelCache.get(schema);
         if (!collectionModel) {
           collectionModel = await this._getModelResilient(schema);
-          (schema as any)._collectionModel = collectionModel;
+          collectionModelCache.set(schema, collectionModel);
         }
         await modifyRequest({
           data: result.data as any[],
           fields: schema.fields as FieldInstance[],
-          collection: collectionModel,
+          collection: collectionModel as any,
           user: options.user || { _id: "system", role: "admin" },
           type: "GET",
           tenantId,
@@ -638,7 +788,6 @@ export class CollectionsNamespace {
 
     if (result.success && !bypassCache && cacheKey) {
       try {
-        const { CacheCategory } = await import("@src/databases/cache/types");
         // 🛡️ UN-POOL / COPY: Create a clean plain object payload so that
         // base-adapter result pool slot recycling never mutates the cached in-memory reference!
         const cachePayload = {
@@ -820,40 +969,6 @@ export class CollectionsNamespace {
 
     const collectionModel = await this._getModelResilient(schema);
 
-    // 🚀 TITAN TIER: Benchmark Fast Path
-    if (process.env.BENCHMARK_MODE === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true") {
-      // 🛡️ SQL GUARD: Relational adapters REQUIRE modifyRequest for data column mapping
-      if (this._dbAdapter.type !== "mongodb") {
-        await modifyRequest({
-          data: entries,
-          fields: schema.fields as FieldInstance[],
-          collection: collectionModel,
-          user: effectiveUser,
-          type: "POST",
-          tenantId,
-          collectionName: schema.name,
-          skipValidation: true,
-          action: "bulkCreate",
-          system: true,
-        });
-      }
-
-      let result;
-      if (this._dbAdapter.batch && typeof this._dbAdapter.batch.bulkInsert === "function") {
-        result = await this._dbAdapter.batch.bulkInsert(
-          this.getCollectionName(schema._id as string),
-          entries as any[],
-        );
-      } else {
-        result = await this._dbAdapter.crud.insertMany(
-          this.getCollectionName(schema._id as string),
-          entries as any[],
-          { tenantId } as any,
-        );
-      }
-      return result;
-    }
-
     await modifyRequest({
       data: entries,
       fields: schema.fields as FieldInstance[],
@@ -885,7 +1000,7 @@ export class CollectionsNamespace {
 
     if (result.success) {
       try {
-        const { workflowService } = await import("@src/services/background/workflow-service");
+        const workflowService = await getWorkflowServiceLazy();
         const insertedIds = Array.from({
           length: (result.data as any[]).length,
         }) as string[];
@@ -902,7 +1017,7 @@ export class CollectionsNamespace {
 
       await this.invalidateCache(schema, tenantId);
       try {
-        const { pubSub } = await import("@src/services/background/pub-sub");
+        const pubSub = await getPubSubLazy();
         pubSub.publish("entryUpdated", {
           collection: schema.name || (schema._id as string),
           id: "bulk",
@@ -997,11 +1112,104 @@ export class CollectionsNamespace {
       } catch {}
     }
 
+    if (bypassCache) {
+      return this.loadOneById(schema, entryId, {
+        ...options,
+        tenantId,
+        bypassCache,
+      });
+    }
+
+    // Same-tick N+1: open a microtask batch window so concurrent findById join.
+    // Single-id batches resolve via findOne (loadOneById) — no $in overhead.
     return this.enqueueBatchLoad(schema, entryId, {
       ...options,
       tenantId,
       bypassCache,
     });
+  }
+
+  /**
+   * Single-id hot path — findOne + optional widget pipeline (no microtask batch delay).
+   */
+  private async loadOneById(schema: Schema, entryId: string, options: any) {
+    const { tenantId, ttl, bypassCache } = options;
+    const collectionName = this.getCollectionName(schema._id as string);
+    const query = {
+      _id: entryId as any,
+      ...(tenantId && { tenantId: tenantId as DatabaseId }),
+    };
+
+    const fetchOne = () =>
+      this._dbAdapter.crud.findOne(collectionName, query, {
+        tenantId: tenantId as DatabaseId,
+      });
+
+    // Coalesce concurrent identical loads; skip when caller bypasses cache (tests/hot paths)
+    const result =
+      bypassCache || typeof cacheService.coalesceQuery !== "function"
+        ? await fetchOne()
+        : await cacheService.coalesceQuery(
+            `${schema._id}:${tenantId || "global"}:id:${entryId}`,
+            fetchOne,
+          );
+
+    let item =
+      result.success && result.data
+        ? Array.isArray(result.data)
+          ? result.data[0]
+          : result.data
+        : null;
+
+    if (item) {
+      const hot = ensureSchemaHotFlags(schema);
+      if (hot._hasActiveWidgets) {
+        let collectionModel = collectionModelCache.get(schema);
+        if (!collectionModel) {
+          collectionModel = await this._getModelResilient(schema);
+          collectionModelCache.set(schema, collectionModel);
+        }
+        const payload = [item];
+        await modifyRequest({
+          data: payload,
+          fields: schema.fields as FieldInstance[],
+          collection: collectionModel as any,
+          user: options.user || { _id: "system", role: "admin" },
+          type: "GET",
+          tenantId,
+          collectionName: schema.name,
+          skipValidation: options.skipValidation,
+          action: "findById",
+        });
+        item = payload[0] ?? item;
+      }
+
+      item._collection = {
+        id: schema._id,
+        name: schema.name,
+        label: schema.label,
+      };
+    }
+
+    const finalResult = { success: true, data: item || null };
+    const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}`;
+
+    if (!bypassCache) {
+      if (item) {
+        CollectionsNamespace._requestCache.set(cacheKey, finalResult);
+        await cacheService.set(
+          cacheKey,
+          finalResult,
+          ttl || 180,
+          (tenantId || undefined) as string,
+          CacheCategory.CONTENT,
+        );
+      } else {
+        cacheService.recordMiss(cacheKey, (tenantId || undefined) as string);
+      }
+    }
+
+    return finalResult;
   }
 
   private async enqueueBatchLoad(schema: Schema, entryId: string, options: any) {
@@ -1014,19 +1222,20 @@ export class CollectionsNamespace {
         ids: new Set(),
         promises: new Map(),
       });
-      Promise.resolve().then(() => this.executeBatch(schema, loaderKey, options));
+      queueMicrotask(() => this.executeBatch(schema, loaderKey, options));
     }
 
     const loader = CollectionsNamespace._batchLoaders.get(loaderKey)!;
     loader.ids.add(entryId);
 
     if (!loader.promises.has(entryId)) {
-      let resolve, reject;
+      let resolve: (v: unknown) => void;
+      let reject: (e: unknown) => void;
       const promise = new Promise((res, rej) => {
         resolve = res;
         reject = rej;
       });
-      loader.promises.set(entryId, { promise, resolve, reject });
+      loader.promises.set(entryId, { promise, resolve: resolve!, reject: reject! });
     }
 
     return loader.promises.get(entryId).promise;
@@ -1041,13 +1250,25 @@ export class CollectionsNamespace {
     const ids = Array.from(loader.ids);
     const { tenantId, ttl } = options;
 
+    // Single id that joined a race window still prefers findOne
+    if (ids.length === 1) {
+      try {
+        const onlyId = ids[0]!;
+        const finalResult = await this.loadOneById(schema, onlyId, options);
+        loader.promises.get(onlyId)?.resolve(finalResult);
+      } catch (err) {
+        loader.promises.get(ids[0]!)?.reject(err);
+      }
+      return;
+    }
+
     try {
       const query = {
         _id: { $in: ids.map((id) => id as any) },
         ...(tenantId && { tenantId: tenantId as DatabaseId }),
       };
 
-      const batchCacheKey = `${loaderKey}:${ids.sort().join(",")}`;
+      const batchCacheKey = `${loaderKey}:${ids.slice().sort().join(",")}`;
       const fetchBatchFromDb = () =>
         this._dbAdapter.crud.findMany(this.getCollectionName(schema._id as string), query, {
           limit: ids.length,
@@ -1059,30 +1280,37 @@ export class CollectionsNamespace {
       const foundItems = (result.success && result.data ? result.data : []) as any[];
 
       if (foundItems.length > 0) {
-        const collectionModel = await this._getModelResilient(schema);
-        await modifyRequest({
-          data: foundItems,
-          fields: schema.fields as FieldInstance[],
-          collection: collectionModel,
-          user: options.user || { _id: "system", role: "admin" },
-          type: "GET",
-          tenantId,
-          collectionName: schema.name,
-          skipValidation: options.skipValidation,
-          action: "findById_batch",
-        });
+        const hot = ensureSchemaHotFlags(schema);
+        if (hot._hasActiveWidgets) {
+          let collectionModel = collectionModelCache.get(schema);
+          if (!collectionModel) {
+            collectionModel = await this._getModelResilient(schema);
+            collectionModelCache.set(schema, collectionModel);
+          }
+          await modifyRequest({
+            data: foundItems,
+            fields: schema.fields as FieldInstance[],
+            collection: collectionModel as any,
+            user: options.user || { _id: "system", role: "admin" },
+            type: "GET",
+            tenantId,
+            collectionName: schema.name,
+            skipValidation: options.skipValidation,
+            action: "findById_batch",
+          });
+        }
 
-        // 🚀 Zero-Copy Projection: Add collection metadata
+        const collectionMeta = {
+          id: schema._id,
+          name: schema.name,
+          label: schema.label,
+        };
         for (let i = 0; i < foundItems.length; i++) {
-          foundItems[i]._collection = {
-            id: schema._id,
-            name: schema.name,
-            label: schema.label,
-          };
+          foundItems[i]._collection = collectionMeta;
         }
       }
 
-      const itemsMap = new Map();
+      const itemsMap = new Map<string, any>();
       for (let i = 0; i < foundItems.length; i++) {
         itemsMap.set(String(foundItems[i]._id), foundItems[i]);
       }
@@ -1094,7 +1322,6 @@ export class CollectionsNamespace {
         if (entryPromise) {
           const finalResult = { success: true, data: item || null };
           if (item && !options.bypassCache) {
-            const { CacheCategory } = await import("@src/databases/cache/types");
             const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${id}`;
             CollectionsNamespace._requestCache.set(cacheKey, finalResult);
             await cacheService.set(
@@ -1105,7 +1332,6 @@ export class CollectionsNamespace {
               CacheCategory.CONTENT,
             );
           } else if (!item && !options.bypassCache) {
-            // Negative Caching: record miss for unfound item in batch
             const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${id}`;
             cacheService.recordMiss(cacheKey, (tenantId || undefined) as string);
           }
@@ -1123,9 +1349,12 @@ export class CollectionsNamespace {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.getSchema(collectionId, tenantId);
+    const hot = ensureSchemaHotFlags(schema);
 
-    // 🛡️ ACTIVE SANITIZATION: Clean string/html inputs based on field type
-    const sanitizedData = sanitizeCollectionFields(data, schema as CollectionFieldSchema);
+    // 🛡️ ACTIVE SANITIZATION: only when schema has string/html field types
+    const sanitizedData = hot._hasSanitizableFields
+      ? sanitizeCollectionFields(data, schema as CollectionFieldSchema)
+      : data;
 
     let entryData: Record<string, unknown> = {
       ...sanitizedData,
@@ -1135,7 +1364,7 @@ export class CollectionsNamespace {
     } as Record<string, unknown>;
 
     // ── Schema Lifecycle Hooks: beforeValidate → range gate → afterValidate ──
-    if (schema.hooks && (schema.hooks.beforeValidate || schema.hooks.afterValidate)) {
+    if (hot._hasHooks && schema.hooks) {
       const { applyBeforeValidate, applyAfterValidate } = await import("@src/content/schema-hooks");
       const hookCtx = {
         schema,
@@ -1148,18 +1377,18 @@ export class CollectionsNamespace {
         document: { ...entryData },
       });
 
-      // 🛡️ Validate numeric field ranges before they reach the database adapter
-      const rangeErrors = validateNumericFields(entryData, schema as CollectionFieldSchema);
-      if (rangeErrors.length > 0) {
-        throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+      if (hot._hasNumberFields) {
+        const rangeErrors = validateNumericFields(entryData, schema as CollectionFieldSchema);
+        if (rangeErrors.length > 0) {
+          throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+        }
       }
 
       entryData = await applyAfterValidate(schema.hooks, entryData, {
         ...hookCtx,
         document: { ...entryData },
       });
-    } else {
-      // 🛡️ Validate numeric field ranges before they reach the database adapter
+    } else if (hot._hasNumberFields) {
       const rangeErrors = validateNumericFields(entryData, schema as CollectionFieldSchema);
       if (rangeErrors.length > 0) {
         throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
@@ -1176,26 +1405,30 @@ export class CollectionsNamespace {
       schema,
     );
 
-    let collectionModel = (schema as any)._collectionModel;
-    if (!collectionModel) {
-      collectionModel = await this._getModelResilient(schema);
-      (schema as any)._collectionModel = collectionModel;
+    // Widget pipeline only when widgets declare modifyRequest; else lightweight sanitize
+    if (hot._hasActiveWidgets) {
+      let collectionModel = collectionModelCache.get(schema);
+      if (!collectionModel) {
+        collectionModel = await this._getModelResilient(schema);
+        collectionModelCache.set(schema, collectionModel);
+      }
+      const payload = [finalData];
+      await modifyRequest({
+        data: payload,
+        fields: schema.fields as FieldInstance[],
+        collection: collectionModel as any,
+        user: effectiveUser,
+        type: "POST",
+        tenantId,
+        collectionName: schema.name,
+        skipValidation: options.skipValidation,
+        action: "create",
+        system,
+      });
+      finalData = payload[0] ?? finalData;
+    } else {
+      finalData = sanitizeObject(finalData) as Record<string, unknown>;
     }
-    // mutate in place so widget/modifyRequest transforms are persisted
-    const payload = [finalData];
-    await modifyRequest({
-      data: payload,
-      fields: schema.fields as FieldInstance[],
-      collection: collectionModel,
-      user: effectiveUser,
-      type: "POST",
-      tenantId,
-      collectionName: schema.name,
-      skipValidation: options.skipValidation,
-      action: "create",
-      system,
-    });
-    finalData = payload[0] ?? finalData;
 
     const collectionName = this.getCollectionName(schema._id as string);
     const result = await this.persistWithOutbox(
@@ -1210,29 +1443,22 @@ export class CollectionsNamespace {
       effectiveUser,
       (res) => String(res.data?._id ?? ""),
       (res) => res.data,
+      { skipSideEffects: options.skipSideEffects },
     );
 
     if (result && result.success && result.data) {
-      queueMicrotask(async () => {
-        try {
-          const { workflowService } = await import("@src/services/background/workflow-service");
-          await workflowService.initializeWorkflow(
-            result.data!._id as string,
-            schema._id as string,
-            tenantId as string,
-          );
-        } catch {}
-      });
-      await this.afterMutation(
-        schema,
-        tenantId,
+      const createdId = result.data!._id as string;
+      // ⚡ Response-path: never await side effects — concurrent create RPS depends on this
+      this.schedulePostWrite(
         "create",
-        result.data!._id as string,
+        schema,
+        collectionId,
+        tenantId,
+        createdId,
         result.data,
         effectiveUser,
-        { skipOutbox: true },
+        options,
       );
-      await this.triggerLifecycleHook("afterSave", collectionId, result.data, options, schema);
     }
 
     return result;
@@ -1242,9 +1468,11 @@ export class CollectionsNamespace {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.getSchema(collectionId, tenantId);
+    const hot = ensureSchemaHotFlags(schema);
 
-    // 🛡️ ACTIVE SANITIZATION: Clean string/html inputs based on field type
-    const sanitizedData = sanitizeCollectionFields(data, schema as CollectionFieldSchema);
+    const sanitizedData = hot._hasSanitizableFields
+      ? sanitizeCollectionFields(data, schema as CollectionFieldSchema)
+      : data;
 
     let updateData: Record<string, unknown> = {
       ...sanitizedData,
@@ -1253,7 +1481,7 @@ export class CollectionsNamespace {
     } as Record<string, unknown>;
 
     // ── Schema Lifecycle Hooks: beforeValidate → range gate → afterValidate ──
-    if (schema.hooks && (schema.hooks.beforeValidate || schema.hooks.afterValidate)) {
+    if (hot._hasHooks && schema.hooks) {
       const { applyBeforeValidate, applyAfterValidate } = await import("@src/content/schema-hooks");
       const hookCtx = {
         schema,
@@ -1266,16 +1494,18 @@ export class CollectionsNamespace {
         document: { ...updateData },
       });
 
-      const rangeErrors = validateNumericFields(updateData, schema as CollectionFieldSchema);
-      if (rangeErrors.length > 0) {
-        throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+      if (hot._hasNumberFields) {
+        const rangeErrors = validateNumericFields(updateData, schema as CollectionFieldSchema);
+        if (rangeErrors.length > 0) {
+          throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
+        }
       }
 
       updateData = await applyAfterValidate(schema.hooks, updateData, {
         ...hookCtx,
         document: { ...updateData },
       });
-    } else {
+    } else if (hot._hasNumberFields) {
       const rangeErrors = validateNumericFields(updateData, schema as CollectionFieldSchema);
       if (rangeErrors.length > 0) {
         throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
@@ -1292,26 +1522,30 @@ export class CollectionsNamespace {
       schema,
     );
 
-    let collectionModel = (schema as any)._collectionModel;
-    if (!collectionModel) {
-      collectionModel = await this._getModelResilient(schema);
-      (schema as any)._collectionModel = collectionModel;
-    }
+    if (hot._hasActiveWidgets) {
+      let collectionModel = collectionModelCache.get(schema);
+      if (!collectionModel) {
+        collectionModel = await this._getModelResilient(schema);
+        collectionModelCache.set(schema, collectionModel);
+      }
 
-    const payload = [finalData];
-    await modifyRequest({
-      data: payload,
-      fields: schema.fields as FieldInstance[],
-      collection: collectionModel,
-      user: effectiveUser,
-      type: "PATCH",
-      tenantId,
-      collectionName: schema.name,
-      skipValidation: options.skipValidation,
-      action: "update",
-      system,
-    });
-    finalData = payload[0] ?? finalData;
+      const payload = [finalData];
+      await modifyRequest({
+        data: payload,
+        fields: schema.fields as FieldInstance[],
+        collection: collectionModel as any,
+        user: effectiveUser,
+        type: "PATCH",
+        tenantId,
+        collectionName: schema.name,
+        skipValidation: options.skipValidation,
+        action: "update",
+        system,
+      });
+      finalData = payload[0] ?? finalData;
+    } else {
+      finalData = sanitizeObject(finalData) as Record<string, unknown>;
+    }
 
     const result = await this.persistWithOutbox(
       "update",
@@ -1327,13 +1561,21 @@ export class CollectionsNamespace {
       effectiveUser,
       () => entryId,
       (res) => res.data,
+      { skipSideEffects: options.skipSideEffects },
     );
 
     if (result && result.success && result.data) {
-      await this.afterMutation(schema, tenantId, "update", entryId, result.data, effectiveUser, {
-        skipOutbox: true,
-      });
-      await this.triggerLifecycleHook("afterSave", collectionId, result.data, options, schema);
+      // ⚡ Response-path: never await side effects — concurrent update RPS depends on this
+      this.schedulePostWrite(
+        "update",
+        schema,
+        collectionId,
+        tenantId,
+        entryId,
+        result.data,
+        effectiveUser,
+        options,
+      );
     }
 
     return result;
@@ -1362,6 +1604,7 @@ export class CollectionsNamespace {
       effectiveUser,
       () => entryId,
       () => null,
+      { skipSideEffects: options.skipSideEffects },
     );
 
     if (result && result.success) {
@@ -1372,6 +1615,59 @@ export class CollectionsNamespace {
     }
 
     return result;
+  }
+
+  /**
+   * Detach post-write work from the HTTP/SDK response path.
+   * Always clears L1 request cache synchronously; everything else is microtasked
+   * (or skipped when the caller passes skipSideEffects explicitly).
+   */
+  private schedulePostWrite(
+    action: "create" | "update" | "delete",
+    schema: Schema,
+    collectionId: string,
+    tenantId: DatabaseId | null | undefined,
+    id: string,
+    data: any,
+    user: any,
+    options: LocalApiOptions,
+  ): void {
+    // L1 clear must be sync so same-tick reads don't see stale request-scoped cache
+    CollectionsNamespace._requestCache.clear();
+
+    if (shouldSkipWriteSideEffects(options)) {
+      return;
+    }
+
+    const schemaId = schema._id as string;
+    const tid = tenantId as string;
+
+    // L2 invalidation starts IMMEDIATELY (debounced + coalesced) — never behind
+    // workflow/pubsub work, so save-then-read can't race a stale cached list.
+    this.invalidateCache(schema, tenantId, { skipRequestCacheClear: true });
+
+    queueMicrotask(() => {
+      void (async () => {
+        try {
+          if (action === "create") {
+            try {
+              const workflowService = await getWorkflowServiceLazy();
+              await workflowService.initializeWorkflow(id, schemaId, tid);
+            } catch {
+              /* no workflow for collection / service unavailable */
+            }
+          }
+
+          await this.afterMutation(schema, tenantId, action, id, data, user, {
+            skipOutbox: true,
+            skipRequestCacheClear: true,
+          });
+          await this.triggerLifecycleHook("afterSave", collectionId, data, options, schema);
+        } catch {
+          /* post-write side effects must never surface to the caller */
+        }
+      })();
+    });
   }
 
   private async triggerLifecycleHook(
@@ -1385,25 +1681,35 @@ export class CollectionsNamespace {
     if (plugins.length === 0) {
       return data;
     }
-    const hasAnyMatchingHook = plugins.some(
-      (p) => typeof (p.hooks as any)?.[hookName] === "function",
-    );
+    // beforeSave runs on the critical path — bail fast when no plugin implements it
+    const hasAnyMatchingHook = pluginRegistry.hasAnyHook(hookName);
     if (!hasAnyMatchingHook) {
       return data;
     }
 
     const { tenantId, user, system } = options;
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
-    const activeTenantId = tenantId || "default";
+    const activeTenantId = (tenantId || "default") as string;
 
-    const systemSettings =
+    let settings: any = {};
+    const cachedSettings = CollectionsNamespace._tenantSettingsCache.get(activeTenantId);
+    if (cachedSettings && Date.now() < cachedSettings.exp) {
+      settings = cachedSettings.settings;
+    } else if (
       this._dbAdapter.system?.tenants &&
       typeof this._dbAdapter.system.tenants.getById === "function"
-        ? await this._dbAdapter.system.tenants.getById(activeTenantId as DatabaseId)
-        : { success: false };
-    const settings = (systemSettings as any).success
-      ? (systemSettings as any).data?.settings || {}
-      : {};
+    ) {
+      const systemSettings = await this._dbAdapter.system.tenants.getById(
+        activeTenantId as DatabaseId,
+      );
+      settings = (systemSettings as any).success
+        ? (systemSettings as any).data?.settings || {}
+        : {};
+      CollectionsNamespace._tenantSettingsCache.set(activeTenantId, {
+        settings,
+        exp: Date.now() + 10000,
+      });
+    }
 
     let finalData = data;
 
@@ -1451,49 +1757,67 @@ export class CollectionsNamespace {
     return finalData;
   }
 
-  private async invalidateCache(schema: Schema, tenantId?: DatabaseId | null) {
-    // 1. Clear L1 (In-Memory) Cache synchronously (0ms)
-    CollectionsNamespace._requestCache.clear();
+  private invalidateCache(
+    schema: Schema,
+    tenantId?: DatabaseId | null,
+    opts?: { skipRequestCacheClear?: boolean },
+  ) {
+    // 1. Clear L1 (In-Memory) Cache synchronously (0ms) — same-tick reads must
+    //    never see stale request-scoped entries.
+    if (!opts?.skipRequestCacheClear) {
+      CollectionsNamespace._requestCache.clear();
+    }
 
-    // 2. Dispatch L2 pattern clears asynchronously in background
+    // 2. Tick-debounced L2 pattern clears: consecutive writes in the same
+    //    macrotask (batch saves, importers) coalesce into ONE pass instead of
+    //    N × (response-cache clear + 5-6 pattern walks). Microtasks drain
+    //    before the next macrotask, so no reader can observe a stale entry
+    //    between the write and the debounced clear — zero consistency cost.
+    const tenantTag = tenantId || "global";
+    const schemaId = schema._id as string | undefined;
+    const tenantKey = (tenantId || undefined) as string | undefined;
+    if (!_pendingInvalidations) _pendingInvalidations = new Set<string>();
+    const pending = _pendingInvalidations;
+    const requestKey = `${tenantTag}:${schemaId ?? "*"}`;
+    if (pending.has(requestKey)) return;
+    pending.add(requestKey);
+
     queueMicrotask(async () => {
       try {
-        const { responseCache } = await import("@src/services/cache/response-cache");
-        responseCache.invalidateAll((tenantId || undefined) as string | undefined).catch(() => {});
+        const responseCache = await getResponseCacheLazy();
+        responseCache.invalidateAll(tenantKey).catch(() => {});
 
-        const tenantTag = tenantId || "global";
         const patterns = [`cms:content_structure:${tenantTag}`];
-        if (schema._id) {
+        if (schemaId) {
           patterns.push(
-            `*collection:${schema._id}:*`,
-            `${tenantTag}:collection:${schema._id}:*`,
-            `collection:${schema._id}:*`,
-            `cms:content_structure:${tenantTag}:${schema._id}`,
-            `/api/collections/${schema._id.toLowerCase()}*`,
-            `/api/collections/${schema._id}*`,
+            // Broad collection-entry invalidation (covers scoped + all-tenant
+            // variants on both L1/L2 — L2 glob matches the mid-wildcard).
+            `*collection:${schemaId}:*`,
+            `cms:content_structure:${tenantTag}:${schemaId}`,
+            `/api/collections/${schemaId.toLowerCase()}*`,
+            `/api/collections/${schemaId}*`,
           );
         }
 
         await Promise.all(
           patterns.map((pattern) =>
-            cacheService
-              .clearByPattern(pattern, (tenantId || undefined) as string | undefined)
-              .catch(() => {}),
+            cacheService.clearByPattern(pattern, tenantKey).catch(() => {}),
           ),
         );
 
-        if (schema._id) {
-          cacheService
-            .invalidateCollection(String(schema._id), (tenantId || undefined) as string | undefined)
-            .catch(() => {});
+        if (schemaId) {
+          cacheService.invalidateCollection(String(schemaId), tenantKey).catch(() => {});
         }
       } catch {}
+
+      // Allow the next write batch to schedule a fresh pass.
+      pending.delete(requestKey);
     });
   }
 
   /**
-   * Persist a mutation and emit the outbox event in the **same DB transaction**
-   * when the adapter supports `transaction()`. Falls back to sequential write+emit.
+   * Persist a mutation; schedule outbox emit off the critical path.
+   * Single-statement INSERT/UPDATE/DELETE are natively atomic — no BEGIN/COMMIT wrapper.
    */
   private async persistWithOutbox(
     action: "create" | "update" | "delete",
@@ -1503,59 +1827,19 @@ export class CollectionsNamespace {
     user: any,
     getId: (result: any) => string,
     getData: (result: any) => any,
+    options?: { skipSideEffects?: boolean },
   ): Promise<any> {
-    const run = async (txOpts: Record<string, unknown> = {}) => {
-      const result = await write(txOpts);
-      if (result?.success) {
-        const id = getId(result);
-        if (id) {
-          queueMicrotask(() => {
-            this.emitOutboxEvent(schema, tenantId, action, id, getData(result), user).catch(
-              () => {},
-            );
-          });
-        }
-      }
-      return result;
-    };
-
-    const adapter = this._dbAdapter as any;
-    if (typeof adapter.transaction === "function") {
-      try {
-        const txResult = await adapter.transaction(async (tx: any) => run({ transaction: tx }));
-        // Adapter may wrap as { success, data } — unwrap if the write result is nested
-        if (txResult && typeof txResult === "object" && "success" in txResult) {
-          // Some adapters (MongoDB standalone) return { success: false } instead of throwing
-          // when transactions are unsupported — fall back to sequential writes
-          if (!txResult.success) {
-            logger.debug(
-              `[Collections] transaction returned ${txResult.code || txResult.message}, falling back for ${action}`,
-            );
-          } else if (
-            txResult.success &&
-            txResult.data &&
-            typeof txResult.data === "object" &&
-            "success" in txResult.data
-          ) {
-            // When transaction wraps the inner DatabaseResult as data, prefer inner
-            return txResult.data;
-          } else {
-            return txResult;
-          }
-        } else {
-          return txResult;
-        }
-      } catch (err) {
-        // Mongo without replica set / unsupported TX → sequential fallback
-        logger.debug(
-          `[Collections] transaction unavailable for ${action}, falling back: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
+    const result = await write({});
+    if (result?.success) {
+      const id = getId(result);
+      if (id && !options?.skipSideEffects) {
+        // Coalesced bulk flush in outbox service — does not take write mutex per event
+        queueMicrotask(() => {
+          this.emitOutboxEvent(schema, tenantId, action, id, getData(result), user).catch(() => {});
+        });
       }
     }
-
-    return run();
+    return result;
   }
 
   /** Best-effort outbox emit (never throws to callers). */
@@ -1569,6 +1853,15 @@ export class CollectionsNamespace {
     dbOptions?: { transaction?: unknown },
   ): Promise<void> {
     try {
+      // Sync kill-switch BEFORE the module resolve — under tight write loops
+      // the outbox module resolution alone costs more than the buffer push.
+      if (process.env.DISABLE_OUTBOX === "true") {
+        return;
+      }
+      // Early exit without module resolution when kill-switch is on
+      const { isOutboxDisabled, outboxService } = await getOutboxLazy();
+      if (isOutboxDisabled()) return;
+
       const eventType =
         action === "create"
           ? "entry:create"
@@ -1577,7 +1870,6 @@ export class CollectionsNamespace {
             : action === "delete"
               ? "entry:delete"
               : `entry:${action}`;
-      const { outboxService } = await import("@src/services/outbox");
       await outboxService.emit(
         eventType,
         "entry",
@@ -1605,18 +1897,18 @@ export class CollectionsNamespace {
     id: string,
     data: any,
     user: any,
-    opts?: { skipOutbox?: boolean },
+    opts?: { skipOutbox?: boolean; skipRequestCacheClear?: boolean },
   ) {
-    await this.invalidateCache(schema, tenantId);
-    try {
-      const { contentStore } = await import("@src/stores/content-registry.svelte");
-      contentStore.updateVersion();
-    } catch {}
+    // Entry mutations invalidate entry/list caches only — do NOT bump contentStore
+    // structure version (that forces nav rebuilds / full content-structure SSE refresh).
+    this.invalidateCache(schema, tenantId, {
+      skipRequestCacheClear: opts?.skipRequestCacheClear,
+    });
 
-    // 🚀 ASYNC NON-BLOCKING DEFERRAL: PubSub and outbox emissions run in background microtask
+    // PubSub + outbox off the critical path
     queueMicrotask(async () => {
       try {
-        const { pubSub } = await import("@src/services/background/pub-sub");
+        const pubSub = await getPubSubLazy();
         pubSub.publish("entryUpdated", {
           collection: schema.name || (schema._id as string),
           id,

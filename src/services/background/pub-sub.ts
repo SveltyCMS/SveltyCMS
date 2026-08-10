@@ -49,4 +49,12 @@ export const pubSub = createPubSub<{
       tenantId: string;
     },
   ];
+  "yjs:awareness": [
+    event: {
+      docId: string;
+      updateBase64: string;
+      origin: string;
+      tenantId: string;
+    },
+  ];
 }>();

@@ -239,7 +239,7 @@ export const CRITICAL_API_DOMAINS: CriticalTestEntry[] = [
     domain: "Job queue — dispatch, handlers, polling",
     testFiles: ["tests/unit/services/job-queue-service.test.ts"],
     description:
-      "registerHandler accepts custom handlers; dispatch creates pending jobs and returns id; dispatch returns null when DB/API unavailable; startPolling respects BENCHMARK_MODE and DISABLE_JOBS; processNextBatch no-ops when no ready jobs",
+      "registerHandler accepts custom handlers; dispatch creates pending jobs and returns id; dispatch returns null when DB/API unavailable; startPolling respects BENCHMARK and DISABLE_JOBS; processNextBatch no-ops when no ready jobs",
     isApiDomain: true,
     isE2EJourney: false,
   },

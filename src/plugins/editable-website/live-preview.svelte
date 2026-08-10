@@ -18,9 +18,9 @@
   import { toast } from "@src/stores/toast.svelte.ts";
   import { logger } from "@src/utils/logger";
   import { clientJsonHeaders } from "@utils/security/client-csrf";
-  import { fade } from "svelte/transition";
+  	import { fade } from "svelte/transition";
 
-  import {
+  	import {
     EDITABLE_WEBSITE_EXTENSION_ID,
     EDITABLE_WEBSITE_PRICE,
     fetchEditableWebsiteLicense,

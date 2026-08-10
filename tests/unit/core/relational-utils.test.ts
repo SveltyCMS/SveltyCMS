@@ -104,6 +104,87 @@ describe("relational-utils — convertDatesToISO json flattening", () => {
     expect(converted.title).toBe("Hello");
     expect(converted.data).toEqual({ enabled: true, title: "Hello" });
   });
+
+  it("normalizes SQLite INTEGER-ms timestamps to ISODateString (raw reads)", () => {
+    utils.registerTableSchema("collection_sqlite_raw", ["_id", "createdAt", "updatedAt"]);
+
+    const row = {
+      _id: "raw-1",
+      createdAt: 1786272221268, // epoch ms — what SQLite INTEGER columns return
+      updatedAt: 1786272221269,
+      status: "draft",
+    };
+
+    // Full path (fresh row object)
+    const converted = utils.convertDatesToISO(row, { table: "collection_sqlite_raw" });
+    expect(converted.createdAt).toBe(new Date(1786272221268).toISOString());
+    expect(converted.updatedAt).toBe(new Date(1786272221269).toISOString());
+
+    // inPlace fast path (same row reference, still normalized)
+    const again = utils.convertDatesToISO(converted, {
+      table: "collection_sqlite_raw",
+      inPlace: true,
+    });
+    expect(again).toBe(converted);
+    expect(converted.createdAt).toBe(new Date(1786272221268).toISOString());
+  });
+
+  it("normalizes postgres.js timestamptz strings to ISODateString (raw reads)", () => {
+    utils.registerTableSchema("collection_pg_raw", ["_id", "createdAt"]);
+
+    const row = { _id: "pg-1", createdAt: "2026-08-09 22:25:38.488+00" };
+    const converted = utils.convertDatesToISO(row, { table: "collection_pg_raw" });
+    expect(converted.createdAt).toBe("2026-08-09T22:25:38.488Z");
+
+    // inPlace fast path
+    const row2 = { _id: "pg-2", createdAt: "2026-08-09 22:25:38+00" };
+    utils.convertDatesToISO(row2, { table: "collection_pg_raw", inPlace: true });
+    expect(row2.createdAt).toBe("2026-08-09T22:25:38.000Z");
+  });
+
+  it("does not mangle small numbers or non-date values in date columns", () => {
+    utils.registerTableSchema("collection_mixed", ["_id", "expires", "count"]);
+
+    const row = { _id: "m-1", expires: 42, count: 3 };
+    const converted = utils.convertDatesToISO(row, { table: "collection_mixed" });
+
+    // 42 is not epoch-ms (below the post-1973 guard) — untouched.
+    expect(converted.expires).toBe(42);
+    expect(converted.count).toBe(3);
+  });
+
+  it("normalizes epoch timestamps on unregistered tables via DATE_FIELDS fallback", () => {
+    const row = { _id: "u-1", createdAt: 1786272221268 };
+    const converted = utils.convertDatesToISO(row, {});
+    expect(converted.createdAt).toBe(new Date(1786272221268).toISOString());
+  });
+
+  it("TableMeta single source of truth — derived views stay consistent", () => {
+    // Base-only registration first (the drift class: late boolean registration
+    // used to never update the bool map).
+    utils.registerTableSchema("collection_meta_drift", ["_id", "createdAt", "updatedAt"]);
+    // Late registration WITH materialized + boolean columns must augment.
+    utils.registerTableSchema(
+      "collection_meta_drift",
+      ["_id", "createdAt", "updatedAt", "title", "enabled"],
+      ["enabled"],
+    );
+
+    // The guard validates every derived view against the record.
+    expect(() => utils.assertTableRegistryConsistent("collection_meta_drift")).not.toThrow();
+    expect(() => utils.assertTableRegistryConsistent("meta_drift")).not.toThrow();
+
+    const meta = utils.getTableMeta("collection_meta_drift");
+    expect(meta).toBeDefined();
+    expect(meta!.columns).toContain("enabled");
+    expect(meta!.dateCols).toEqual(expect.arrayContaining(["createdAt", "updatedAt"]));
+    expect(meta!.boolCols.has("enabled")).toBe(true);
+    expect(meta!.mergeSkipKeys.has("title")).toBe(true);
+
+    // Hot-path getters agree with the record.
+    expect(utils.getTableBooleanColumns("collection_meta_drift")?.has("enabled")).toBe(true);
+    expect(utils.getTableDateColumns("collection_meta_drift")).toEqual(meta!.dateCols);
+  });
 });
 
 describe("relational-utils — tenant filter centralization", () => {

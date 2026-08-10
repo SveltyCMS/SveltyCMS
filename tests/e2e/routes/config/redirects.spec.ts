@@ -4,7 +4,7 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
 import { dismissCookieBannerIfPresent, waitForAdminShell } from "../../helpers/stable";
 
@@ -19,6 +19,8 @@ async function goRedirects(page: Page) {
   if (page.url().includes("/login")) {
     await loginAsAdmin(page, "/config/redirects");
   }
+  // Prefer full stamp + accept (auth helper); fall back to stable helper
+  await dismissCookieBanner(page);
   await dismissCookieBannerIfPresent(page);
   await waitForAdminShell(page, ACTION_TIMEOUT);
   await expect(page.getByTestId("page-title")).toContainText(/redirect/i, {
@@ -27,7 +29,8 @@ async function goRedirects(page: Page) {
   await expect(page.getByTestId("redirects-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
 }
 
-test.describe.configure({ mode: "serial" });
+// Tests are independent (unique names/fixtures, fresh storageState per test) —
+// no serial mode needed, so the file parallelizes across workers on local runs.
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe("Redirect Manager (Testing 2026)", () => {
@@ -94,10 +97,13 @@ test.describe("Redirect Manager (Testing 2026)", () => {
     // data-* attribute contract — not CSS classes
     const row = page.locator(`[data-from="${fromPath}"]`).first();
     await expect(row).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // Dismiss cookie again before destructive modal (banner can reappear after save)
+    await dismissCookieBannerIfPresent(page);
     const deleteBtn = row.getByTestId("redirect-delete");
     await deleteBtn.scrollIntoViewIfNeeded();
     // Table action cells can be clipped by overflow; force after scroll
     await deleteBtn.click({ force: true, timeout: ACTION_TIMEOUT });
+    // Must target ConfirmDialog — never the row "Delete" control (name often just "Delete")
     await confirmModal(page);
     await expect(page.locator(`[data-from="${fromPath}"]`)).toHaveCount(0, {
       timeout: ACTION_TIMEOUT,

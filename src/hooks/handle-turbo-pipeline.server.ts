@@ -46,6 +46,35 @@ import { logger } from "@src/utils/logger";
 let cachedDbAdapter: any = null;
 let healthHeaders: Record<string, string> | null = null;
 
+// 🚀 DEDUP: a single shared init promise prevents concurrent requests from
+// racing `if (!cachedDbAdapter) { await import(...) }` and importing the DB
+// module N times during the same tick (cold-start thundering herd).
+let dbAdapterInitPromise: Promise<any> | null = null;
+function ensureCachedDbAdapter(): Promise<any> {
+  if (cachedDbAdapter) return Promise.resolve(cachedDbAdapter);
+  if (!dbAdapterInitPromise) {
+    dbAdapterInitPromise = (async () => {
+      const { getDbInitPromise, getDb } = await import("@src/databases/db");
+      await getDbInitPromise(false, "CORE");
+      cachedDbAdapter = getDb();
+      return cachedDbAdapter;
+    })().finally(() => {
+      dbAdapterInitPromise = null;
+    });
+  }
+  return dbAdapterInitPromise;
+}
+
+// 🚀 MODULE-LEVEL CACHE: settings-service is imported on EVERY CORS preflight.
+// Cache the module so only the first preflight pays the dynamic import cost.
+let settingsServiceModule: typeof import("@src/services/core/settings-service") | null = null;
+async function getSettingsService() {
+  if (!settingsServiceModule) {
+    settingsServiceModule = await import("@src/services/core/settings-service");
+  }
+  return settingsServiceModule;
+}
+
 // --- HELPERS ---
 
 /** Generates a unique request ID for tracing - Optimized for high throughput */
@@ -128,7 +157,7 @@ async function getCorsHeadersInline(
   origin: string | null,
   isApiRoute: boolean,
 ): Promise<Record<string, string> | null> {
-  const { getPrivateSettingSync } = await import("@src/services/core/settings-service");
+  const { getPrivateSettingSync } = await getSettingsService();
   const corsEnabled = getPrivateSettingSync("CORS_ENABLED") as boolean;
   if (!corsEnabled || !isApiRoute || !origin) return null;
 
@@ -239,9 +268,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       // We explicitly skip ALL other middleware by calling the dispatcher or returning a direct response.
       if (!cachedDbAdapter) {
         try {
-          const { getDbInitPromise, getDb } = await import("@src/databases/db");
-          await getDbInitPromise(false, "CORE");
-          cachedDbAdapter = getDb();
+          await ensureCachedDbAdapter();
         } catch {
           /* ignore */
         }
@@ -359,19 +386,33 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     if (benchSecret) {
       const expected = process.env.TEST_API_SECRET || getTestSecret();
       if (expected && benchSecret === expected) {
-        (event.locals as any).user = {
+        const benchUser = {
           _id: "system",
           role: "admin",
           isAdmin: true,
           email: "system@sveltycms",
         };
+        (event.locals as any).user = benchUser;
         (event.locals as any).tenantId = event.request.headers.get("x-tenant-id") || null;
         // 🚀 NO __testBypass — downstream hooks (RBAC, rate limit, audit) run normally
+        // Warm turbo-auth so handleTurboGet can short-circuit on subsequent GETs
+        try {
+          const { setTurboAuthContext, buildBenchmarkTurboSessionId } =
+            await import("./handle-turbo-get");
+          const tenantHdr = event.request.headers.get("x-tenant-id") || null;
+          setTurboAuthContext(
+            buildBenchmarkTurboSessionId(benchSecret),
+            benchUser as any,
+            [],
+            new Uint32Array(1),
+            tenantHdr as any,
+          );
+        } catch {
+          /* turbo optional */
+        }
         if (!cachedDbAdapter) {
           try {
-            const { getDbInitPromise, getDb } = await import("@src/databases/db");
-            await getDbInitPromise(false, "CORE");
-            cachedDbAdapter = getDb();
+            await ensureCachedDbAdapter();
           } catch {
             /* ignore */
           }
@@ -385,8 +426,11 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
   // Health checks must be zero-latency and bypass ALL other hooks.
   if (pathname === "/api/system/health" || pathname === "/health") {
     if (!cachedDbAdapter) {
-      const { getDb } = await import("@src/databases/db");
-      cachedDbAdapter = getDb();
+      try {
+        cachedDbAdapter = await ensureCachedDbAdapter();
+      } catch {
+        /* ignore */
+      }
     }
     return buildHealthResponse(cachedDbAdapter, event.url.searchParams);
   }
@@ -602,15 +646,22 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       }
     }
 
-    // ── 8. CORS PREFLIGHT FAST EXIT ─────────────────────────────────────────
+    // ── 8. CORS PREFLIGHT FAST EXIT (SINGLE CANONICAL HANDLER) ────────────────
+    // Every `/api/` OPTIONS request short-circuits here. The API dispatcher and
+    // handler layer intentionally carry NO preflight logic of their own — one
+    // code path owns allowlist validation, CORS headers, security headers and
+    // request-id stamping.
     if (event.request.method === "OPTIONS" && isApiRoute) {
       const corsHeaders = await getCorsHeadersInline(origin, isApiRoute);
       if (!corsHeaders) return new Response(null, { status: 403 });
 
-      return new Response(null, {
-        status: 204,
-        headers: { ...corsHeaders, "X-Request-ID": requestId.toString() },
-      });
+      return withMutableHeaders(
+        new Response(null, { status: 204, headers: corsHeaders }),
+        (headers) => {
+          applyAllSecurityHeaders(headers, isHttps, origin, pathname);
+          headers.set("X-Request-ID", requestId.toString());
+        },
+      );
     }
 
     // ── 9. FINAL RESOLVE ───────────────────────────────────────────────────

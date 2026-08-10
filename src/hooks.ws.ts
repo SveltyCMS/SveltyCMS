@@ -1,7 +1,7 @@
 /**
  * @file src/hooks.ws.ts
  * @description
- * Enhanced WebSocket hooks for svelte-realtime with strong typing and security hardening.
+ * WebSocket hooks with strong typing and security hardening.
  *
  * Responsibilities include:
  * - Parsing and validating WebSocket upgrade requests.
@@ -9,39 +9,70 @@
  * - Performing session resolution and tenant checks.
  *
  * ### Features:
- * - Session caching using LRU cache
+ * - Shared session resolution (same pipeline as HTTP: mem LRU → store → Redis → DB)
  * - Test-mode authentication bypass
  * - Tenant isolation verification
+ * - Active-connection tracking for graceful shutdown (1001 Going Away)
  */
 
-import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import { SESSION_COOKIE_NAME, isSecureCookieContext } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
-import { getDbInitPromise, dbAdapter } from "@src/databases/db";
+import { getDbInitPromise } from "@src/databases/db";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync, loadSettingsCache } from "@src/services/core/settings-service";
 import { parseCookies } from "@utils/cookie-utils";
-import { LRUCache } from "lru-cache";
+import { resolveSessionForWebSocket } from "@src/hooks/handle-authentication";
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/content/types";
 
-// Re-export the message hook
-export { message } from "svelte-realtime/server";
-
-// 🚀 Platform reference lives in src/lib/ws-platform.ts (extracted here
-// to avoid SvelteKit's "unknown export" warning on non-hook exports).
-// Import directly: import { getGlobalPlatform } from "@src/live/ws-platform";
-import { initWsPlatform } from "@src/live/ws-platform";
-
-/** Initialize platform for global broadcasting */
-export function init({ platform }: { platform: App.Platform }) {
-  initWsPlatform(platform);
+/**
+ * Minimal socket surface used for connection tracking + close frames.
+ * Structural typing keeps this adapter-agnostic (works with uWS-style
+ * `end(code, reason)` / `close()` sockets).
+ */
+interface WsSocket {
+  close?: () => void;
+  end?: (code?: number, reason?: string) => void;
 }
 
-// ==================== CACHE ====================
-const handshakeCache = new LRUCache<string, { profile: User; tenantId: string | null }>({
-  max: 500,
-  ttl: 1000 * 30, // 30 seconds
-});
+// ==================== CONNECTION TRACKING ====================
+// Active WebSocket connections are tracked for graceful shutdown: on SIGTERM /
+// SIGINT the server sends a `1001 Going Away` close frame so clients can
+// reconnect cleanly instead of hanging until the adapter force-kicks them.
+const activeConnections = new Set<WsSocket>();
+
+export function open(ws: WsSocket) {
+  activeConnections.add(ws);
+}
+
+export function close(ws: WsSocket) {
+  activeConnections.delete(ws);
+}
+
+/**
+ * Gracefully close every tracked WebSocket connection.
+ * Uses `end(1001, ...)` (Going Away) so clients can auto-reconnect.
+ * Falls back to `close()` for sockets that only expose the immediate variant.
+ */
+export function closeAllConnections(code = 1001, reason = "Server shutting down") {
+  const count = activeConnections.size;
+  if (count === 0) return 0;
+  for (const ws of activeConnections) {
+    try {
+      (ws as { end?: (c?: number, r?: string) => void }).end?.(code, reason);
+      ws.close?.();
+    } catch {
+      /* socket may already be closing — best effort */
+    }
+  }
+  activeConnections.clear();
+  return count;
+}
+
+/** Number of currently tracked WebSocket connections (for health/telemetry). */
+export function getActiveWsConnections(): number {
+  return activeConnections.size;
+}
 
 // ==================== TYPES ====================
 export interface WsUpgradeContext {
@@ -133,7 +164,6 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
     const tenantIdHeader = getHeader(ctx, "x-tenant-id");
 
     // Cookie name handling (secure prefix)
-    const { isSecureCookieContext } = await import("@src/databases/auth/constants");
     const isSecure = isSecureCookieContext(url.protocol, url.hostname);
     const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
@@ -154,31 +184,24 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
     const isAuthorizedTest = Boolean(isTestMode && testSecret && testSecret === actualTestSecret);
 
     // ==================== SESSION RESOLUTION ====================
-    let profile: User | null = null;
-    let tenantId: string | null = null;
-
-    if (sessionId && dbAdapter) {
-      const cached = handshakeCache.get(sessionId);
-      if (cached) {
-        profile = cached.profile;
-        tenantId = cached.tenantId;
-      } else {
-        const result = await dbAdapter.auth.validateSession(sessionId as DatabaseId, {
-          suppressErrorLog: true,
-        });
-
-        if (result?.success && result.data) {
-          profile = result.data;
-          tenantId = profile.tenantId || null;
-          handshakeCache.set(sessionId, { profile, tenantId });
-        }
-      }
-    }
-
-    // Multi-tenant fallback
+    // Shared pipeline with HTTP auth (handle-authentication): mem LRU →
+    // session store → Redis → DB, with negative cache, idle window,
+    // blocked-user cutoff and single-flight coalescing.
     const isMultiTenant = isMultiTenantEnabled();
-    if (isMultiTenant && !tenantId) {
-      tenantId = getTenantIdFromHostname(url.hostname, true);
+    const hostTenant = isMultiTenant ? getTenantIdFromHostname(url.hostname, true) : null;
+    let profile: User | null = null;
+    let tenantId: string | null = tenantIdHeader || hostTenant;
+
+    if (sessionId) {
+      const resolved = await resolveSessionForWebSocket(sessionId, {
+        tenantId: tenantId as DatabaseId,
+        clientIp: getHeader(ctx, "x-forwarded-for")?.split(",")[0]?.trim() || null,
+        userAgent: getHeader(ctx, "user-agent") || null,
+      });
+      if (resolved.ok) {
+        profile = resolved.user;
+        tenantId = resolved.tenantId ?? tenantId;
+      }
     }
 
     // ==================== TEST MODE OVERRIDE ====================

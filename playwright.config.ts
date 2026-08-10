@@ -61,9 +61,11 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.PLAYWRIGHT_WORKERS ? Number.parseInt(process.env.PLAYWRIGHT_WORKERS, 10) : 4,
+  // CI: compact dots (failures still expand) + GitHub annotations + HTML/JSON for artifacts.
+  // Local: list for readable progress.
   reporter: process.env.CI
     ? [
-        ["list"],
+        ["dot"],
         ["github"], // inline annotations on the PR check
         ["html", { outputFolder: "tests/playwright-report", open: "never" }],
         // Machine-readable for scripts/ci-report-playwright.ts → GITHUB_STEP_SUMMARY
@@ -106,9 +108,19 @@ export default defineConfig({
       use: { baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:5173" },
       testMatch: "routes/setup/setup-wizard.spec.ts",
       workers: 1,
+      // Timing-sensitive interactions (portal confirm dialogs, stepper, real
+      // SMTP/DNS attempts to dead hosts). Every project depends on the wizard
+      // completing — one flake would skip the whole chain, so absorb it here.
+      retries: 2,
     },
     {
       name: "firstuser",
+      // Wizard must finish first: both projects share one SQLite DB, and the
+      // wizard resets system state mid-spec. Running them concurrently made
+      // signup/setup see each other's intermediate state (root → /setup race,
+      // view flips mid-toggle). Playwright runs dependencies to completion
+      // before the dependent project starts.
+      dependencies: ["wizard"],
       testMatch: ["**/login/signup.spec.ts"],
       workers: 1,
     },

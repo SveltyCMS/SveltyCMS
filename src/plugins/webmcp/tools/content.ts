@@ -13,6 +13,7 @@
 import type { IDBAdapter } from "@src/databases/db-interface";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { logger } from "@utils/logger";
+import { registerServerTool, syncHeadlessToolBag } from "../tool-registry";
 
 // ── Internal model context (browser-only fallback) ───────────────
 function getModelContext() {
@@ -402,12 +403,39 @@ function registerServerTools(db: IDBAdapter): void {
     }
   }
 
-  // Store tool references for headless gateway integration
-  (globalThis as any).__webmcp_headless_tools = {
-    getCollections,
-    listEntries,
-    createEntry,
-  };
+  // Register tool contracts with metadata so headless gateways can discover
+  // tools search-first (see tool-registry.ts).
+  registerServerTool({
+    name: "get_collections",
+    description: "List all content collections with their id, name and fields",
+    handler: getCollections,
+  });
+  registerServerTool({
+    name: "list_entries",
+    description:
+      "List content entries of a collection with optional limit, offset, sort and status filter",
+    parameters: {
+      collectionId: "The collection id or name to list entries from",
+      limit: "Max entries to return (capped at 100)",
+      offset: "Pagination offset",
+      sortField: "Field to sort by (default updatedAt)",
+      sortDirection: "asc or desc",
+      status: "Filter by status (e.g. published, draft)",
+    },
+    handler: listEntries,
+  });
+  registerServerTool({
+    name: "create_entry",
+    description: "Create a new content entry as draft (Draft-by-Default airgap)",
+    parameters: {
+      collectionId: "The collection id or name to create the entry in",
+      data: "Entry payload; status is forced to draft",
+    },
+    handler: createEntry,
+  });
+
+  // Publish handlers + metadata catalog to the headless gateway globals
+  syncHeadlessToolBag();
 }
 
 // ── Error formatting helper ──────────────────────────────────────

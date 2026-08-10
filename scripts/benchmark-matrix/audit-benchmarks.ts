@@ -55,7 +55,7 @@ const targetDbType = process.env.DB_TYPE ?? "sqlite";
 const baseEnv = Object.freeze({
   ...process.env,
   DB_TYPE: targetDbType,
-  SVELTY_BENCHMARK_SUITE: "true",
+  BENCHMARK: "true",
   BENCHMARK_DEV: "true",
   QUIET: "true",
 });

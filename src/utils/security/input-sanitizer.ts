@@ -128,18 +128,57 @@ export function sanitizeString(input: string): string {
  */
 export function sanitizeObject<T>(obj: T, depth = 0): T {
   if (depth > 20) return obj; // Prevent stack overflow on deeply nested objects
-  if (typeof obj === "string") return sanitizeString(obj) as T;
+  if (typeof obj === "string") {
+    return containsXssVector(obj) ? (sanitizeString(obj) as T) : obj;
+  }
   if (obj === null || obj === undefined || typeof obj !== "object") return obj;
 
   if (Array.isArray(obj)) {
+    // Zero-copy fast path: no array element contains an XSS vector
+    let needsSanitize = false;
+    for (let i = 0; i < obj.length; i++) {
+      const item = obj[i];
+      if (typeof item === "string" && containsXssVector(item)) {
+        needsSanitize = true;
+        break;
+      }
+      if (item && typeof item === "object" && objectNeedsSanitize(item)) {
+        needsSanitize = true;
+        break;
+      }
+    }
+    if (!needsSanitize) return obj;
     return obj.map((item) => sanitizeObject(item, depth + 1)) as T;
   }
+
+  // Zero-copy fast path: no value contains an XSS vector → return original object.
+  // The write path calls this on every create/update; deep-copying payloads
+  // without vectors was pure allocation + GC pressure.
+  if (!objectNeedsSanitize(obj)) return obj;
 
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     result[key] = sanitizeObject(value, depth + 1);
   }
   return result as T;
+}
+
+/** Shallow pre-check: does any own value (or nested string) contain an XSS vector? */
+function objectNeedsSanitize(obj: object): boolean {
+  for (const value of Object.values(obj)) {
+    if (typeof value === "string") {
+      if (containsXssVector(value)) return true;
+    } else if (Array.isArray(value)) {
+      for (let i = 0; i < value.length; i++) {
+        const item = value[i];
+        if (typeof item === "string" && containsXssVector(item)) return true;
+        if (item && typeof item === "object" && objectNeedsSanitize(item)) return true;
+      }
+    } else if (value && typeof value === "object") {
+      if (objectNeedsSanitize(value)) return true;
+    }
+  }
+  return false;
 }
 
 /**

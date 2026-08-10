@@ -33,8 +33,7 @@ export const IS_TEST_MODE = (() => {
     env?.TEST_MODE === "true" ||
     env?.VITE_TEST_MODE === "true" ||
     env?.PLAYWRIGHT_TEST === "true" ||
-    env?.BENCHMARK === "true" ||
-    env?.SVELTY_BENCHMARK_SUITE === "true"
+    env?.BENCHMARK === "true"
   );
 })();
 

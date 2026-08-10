@@ -22,25 +22,28 @@ import { WIDGET_COMPONENT_ROOTS, folderFromWidgetPath, widgetNameToFolder } from
 export { widgetNameToFolder } from "./widget-naming";
 
 // 1. Vite/SvelteKit Native Scanning
-let coreModulesRaw: Record<string, any> = {};
-let customModulesRaw: Record<string, any> = {};
-let marketplaceModulesRaw: Record<string, any> = {};
-let widgetComponentsRaw: Record<string, any> = {};
+export const coreModules: Record<string, any> = {};
+export const customModules: Record<string, any> = {};
+export const marketplaceModules: Record<string, any> = {};
+export const widgetComponents: Record<string, any> = {};
 
 try {
-  coreModulesRaw = import.meta.glob("./core/*/index.ts", { eager: true });
-  customModulesRaw = import.meta.glob("./custom/*/index.ts", { eager: true });
-  // Marketplace is optional — empty glob is fine when the dir has no packages yet
-  marketplaceModulesRaw = import.meta.glob("./marketplace/*/index.ts", { eager: true });
-  widgetComponentsRaw = import.meta.glob([
-    "./core/*/*.svelte",
-    "./custom/*/*.svelte",
-    "./marketplace/*/*.svelte",
-  ]);
+  // STATIC import.meta.glob — Vite statically transforms these calls into
+  // the production bundle, so the registry is populated at runtime. The old
+  // dynamic `(import.meta as any).glob(...)` reference was never transformed:
+  // production builds got an empty registry and the FS fallback (which cannot
+  // resolve source aliases from a built bundle) spammed one warning per widget.
+  Object.assign(coreModules, import.meta.glob("./core/*/index.ts", { eager: true }));
+  Object.assign(customModules, import.meta.glob("./custom/*/index.ts", { eager: true }));
+  Object.assign(marketplaceModules, import.meta.glob("./marketplace/*/index.ts", { eager: true }));
+  Object.assign(
+    widgetComponents,
+    import.meta.glob(["./core/*/*.svelte", "./custom/*/*.svelte", "./marketplace/*/*.svelte"]),
+  );
 
   if (typeof process !== "undefined" && process.env.BENCHMARK_DEBUG === "true") {
     logger.debug(
-      `[Scanner Debug] Vite Glob: ${Object.keys(coreModulesRaw).length} core, ${Object.keys(customModulesRaw).length} custom, ${Object.keys(marketplaceModulesRaw).length} marketplace.`,
+      `[Scanner Debug] Vite Glob: ${Object.keys(coreModules).length} core, ${Object.keys(customModules).length} custom, ${Object.keys(marketplaceModules).length} marketplace.`,
     );
   }
 } catch (err: any) {
@@ -48,11 +51,6 @@ try {
     logger.error(`[Scanner Debug] Vite Glob failed: ${err.message}`);
   }
 }
-
-export const coreModules = coreModulesRaw;
-export const customModules = customModulesRaw;
-export const marketplaceModules = marketplaceModulesRaw;
-export const widgetComponents = widgetComponentsRaw;
 
 /**
  * 🚀 Bun/Production Fallback (for Benchmarks and Non-Vite environments)
@@ -80,6 +78,7 @@ function initBunFallback() {
       if (!fs.existsSync(dirPath)) return {};
       const modules: Record<string, any> = {};
       const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      let failed = 0;
       for (const entry of entries) {
         if (entry.isDirectory()) {
           const indexPath = path.join(dirPath, entry.name, "index.ts");
@@ -88,10 +87,20 @@ function initBunFallback() {
               const module = nodeRequire(indexPath);
               modules[`./${subDir}/${entry.name}/index.ts`] = module;
             } catch (err: any) {
-              logger.warn(`[Scanner] Failed to require widget ${entry.name}:`, err.message);
+              // Expected outside Vite/Bun glob support: source .ts widget files
+              // import path aliases that a plain node require() cannot resolve
+              // from a built bundle. The Vite glob (above) is the production
+              // path; this fallback is only a last resort for CLI scripts.
+              failed++;
+              if (process.env.BENCHMARK_DEBUG === "true") {
+                logger.debug(`[Scanner] Fallback require failed for ${entry.name}:`, err.message);
+              }
             }
           }
         }
+      }
+      if (failed > 0 && process.env.BENCHMARK_DEBUG === "true") {
+        logger.debug(`[Scanner] Fallback could not require ${failed} widget(s) in ${dirPath}`);
       }
       return modules;
     };

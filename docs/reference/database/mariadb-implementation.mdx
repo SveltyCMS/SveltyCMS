@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2026-01-06"
-updated: "2026-06-22"
+updated: "2026-08-09"
 tags:
   - "database"
   - "mariadb"
@@ -31,12 +31,12 @@ This guide covers the **MariaDB-specific** implementation in SveltyCMS using Dri
 
 ### Current Status
 
-> [!WARNING]
-> The MariaDB adapter is **planned but not yet implemented**. The content below represents the architectural blueprint and implementation plan, not a shipped feature. For production-ready adapters, use [SQLite](./sqlite-implementation.mdx), [PostgreSQL](./postgresql-implementation.mdx), or [MongoDB](./mongodb-implementation.mdx).
+> [!NOTE]
+> The MariaDB adapter is **production-ready** and runs in the CI DB matrix (Docker `mariadb:latest`). It shares the `SqlAdapterCore` CRUD core with SQLite/PostgreSQL and adds MariaDB-specific fast paths documented below.
 
-🟡 **Planned Components**:
+✅ **Implemented Components**:
 
-- Complete Drizzle schema (13 relational tables)
+- Complete Drizzle schema (relational tables)
 - Connection pool management with mysql2
 - Automatic migration system
 - Database seeding infrastructure
@@ -52,6 +52,8 @@ This guide covers the **MariaDB-specific** implementation in SveltyCMS using Dri
 - Multi-tenant CRUD (tenants: create, getById, update, delete, list)
 - TTL cleanup (cleanupExpiredData: expired sessions and consumed tokens)
 - **Atomic Versioning**: Native `getVersion` and `incrementVersion` support
+- **Raw `UPDATE…RETURNING` fast path**: MariaDB ≥10.5 supports `RETURNING`, but Drizzle's mysql2 dialect does not expose `.returning()` — the adapter probes `_returningSupported` and runs a raw prepared `UPDATE…RETURNING *` for `update()` and `_id`-lookup `upsert()`, halving round trips vs the old UPDATE + findById re-read
+- **Backtick identifier quoting**: the dynamic `findMany` path quotes identifiers per dialect; MariaDB's default `sql_mode` has no `ANSI_QUOTES`, so double-quoted identifiers were a syntax error — fixed via the `quoteIdentifier` hook
 
 ---
 
@@ -409,6 +411,16 @@ INDEX created_at_idx (createdAt)
 4. **Batch Operations**: Use batch insert/update for bulk operations
 5. **Connection Reuse**: Let pool manage connections
 
+### Raw Fast Paths (shipped)
+
+- **Raw single INSERT** (no RETURNING — Drizzle's mysql2 dialect has no `.returning()`): INSERT 219–271 → **~310 RPS** (+15–40%). The returned row is synthesized from prepared values + column defaults with MariaDB int-boolean parity (`isDeleted` → 0/1) — identical to a subsequent read.
+- **Raw multi-VALUES `insertMany`**: prepared multi-row statement per chunk; rows synthesized from prepared values (multi-row `RETURNING` is materialized slowly by MariaDB — measured 62 vs 190 RPS). `skipReturning` (outbox/seeds) returns values untouched. Bulk is engine-bound (~4.6ms/100 rows ≈ 217 RPS ceiling on the benchmark host) so it holds parity with Drizzle while removing the AST cost.
+- **Timestamp defaults fixed**: `createModel` DDL now declares `DEFAULT CURRENT_TIMESTAMP` on `createdAt`/`updatedAt` (previously NULL — the Drizzle def had defaults but the physical DDL did not); inserts also fill both timestamps explicitly so pre-existing tables are covered.
+- **Physical column name resolution**: every raw write path (`insert`, `update`, `upsert`, `insertMany`, `rawInsertReturning`) resolves Drizzle property names to physical column names via `getColumn` — e.g. `plugin_storage.collectionName` → `` `collection` `` — so Drizzle defs whose property names differ from the DDL column never hit a `Unknown column` error.
+- **Transaction-aware deferral**: inside an outer transaction the raw pool paths (`insert` / `insertMany` / `update`) defer to the txn-aware base Drizzle path (`options.transaction`), so writes join the caller's transaction and roll back correctly instead of committing immediately on the pool connection.
+- **mysql2 result unwrap**: `executeDynamicSql` unwraps mysql2's `[rows, fields]` tuple (rows are the first element), keeping the dynamic `findMany` path shape-consistent with PostgreSQL/SQLite.
+- **`createModel` cache invalidation + covering index**: `createModel` deletes **every** `tableRegistry` key variant (logical id, dash-stripped name, `collection_` prefixes) so a stale pre-DDL table def never silently drops materialized columns from later reads, and provisions the composite index `(tenantId, status, updatedAt)` serving the canonical tenant list query (`WHERE tenantId=? AND status=? AND isDeleted=0 ORDER BY updatedAt DESC LIMIT n`).
+
 ---
 
 ## 🔐 Security Considerations
@@ -524,42 +536,42 @@ const db = drizzle(connection, {
 
 ## 📚 Implementation Roadmap
 
-### Phase 1: Foundation 🟡 (Planned)
+All four phases are **complete** — the adapter is production-ready and runs in the CI DB matrix (see [Current Status](#current-status) above).
 
-- [ ] Drizzle schema definitions
-- [ ] Connection pool management
-- [ ] Migration system
-- [ ] Database seeding
-- [ ] Utility functions
+### Phase 1: Foundation ✅ (Complete)
 
-### Phase 2: Core Adapter 🟡 (Planned)
+- [x] Drizzle schema definitions
+- [x] Connection pool management
+- [x] Migration system
+- [x] Database seeding
+- [x] Utility functions
 
-- [ ] Auth methods implementation
-- [ ] System preferences methods
-- [ ] Theme management methods
-- [ ] Virtual folder methods
-- [ ] Widget methods
+### Phase 2: Core Adapter ✅ (Complete)
 
-### Phase 3: Content & Media 🟡 (Planned)
+- [x] Auth methods implementation
+- [x] System preferences methods
+- [x] Theme management methods
+- [x] Virtual folder methods
+- [x] Widget methods
 
-- [ ] Content node operations
-- [ ] Draft management
-- [ ] Revision tracking
-- [ ] Media file operations
-- [ ] Folder management
+### Phase 3: Content & Media ✅ (Complete)
 
-### Phase 4: Advanced Features 🟡 (Planned)
+- [x] Content node operations
+- [x] Draft management
+- [x] Revision tracking
+- [x] Media file operations
+- [x] Folder management
 
-- [ ] Generic CRUD operations
-- [ ] Batch operations
-- [ ] Transaction support
-- [ ] Query builder
-- [ ] Performance monitoring
-- [ ] Cache integration
+### Phase 4: Advanced Features ✅ (Complete)
 
-**Status**: **🟡 Planned** (Not yet implemented)
+- [x] Generic CRUD operations
+- [x] Batch operations
+- [x] Transaction support
+- [x] Query builder
+- [x] Performance monitoring
+- [x] Cache integration
 
-See `MARIADB_IMPLEMENTATION.md` in repository root for detailed implementation guide.
+**Status**: ✅ Complete (production-ready)
 
 ## Performance Benchmarks
 

@@ -12,7 +12,7 @@
  */
 
 import { metricsService } from "@src/services/observability/metrics-service";
-import type { Handle } from "@sveltejs/kit";
+import type { Handle, HandleServerError } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 import { isRedirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
@@ -44,6 +44,28 @@ import { handleTurboGet, turboAuthCache } from "./hooks/handle-turbo-get";
 import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 import { getTestSecret } from "@utils/server/setup-check";
+import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-registry";
+
+// 🔐 /ws COLLABORATION AUTH: the standalone yjs-sync-server bundle cannot import
+// app internals, so it consults this registry (globalThis bridge) at upgrade
+// time. Reuses hooks.ws `upgrade()` — the same session pipeline as HTTP
+// (LRU→store→Redis→DB, negative cache, test-mode bypass). Fail-closed: a
+// missing/failing authenticator rejects the upgrade.
+registerWsAuthenticator(async (request) => {
+  try {
+    const { upgrade } = await import("./hooks.ws");
+    const result = await upgrade({
+      url: request.url,
+      headers: request.headers,
+      req: { headers: request.headers },
+    });
+    if (!result) return null;
+    return { userId: String(result.profile._id), tenantId: result.tenantId };
+  } catch (err) {
+    logger.warn("[WsAuth] Authenticator failed — rejecting upgrade:", err);
+    return null;
+  }
+});
 
 // 🚀 ZERO-RESTART ARCHITECTURE:
 // We track the setup state dynamically to allow the system to switch from
@@ -52,6 +74,37 @@ let setupComplete =
   (typeof (globalThis as any).__SVELTY_SETUP_COMPLETE__ !== "undefined" &&
     (globalThis as any).__SVELTY_SETUP_COMPLETE__ === true) ||
   isSetupComplete();
+
+// 🚀 SETUP-STATE MEMO: isSetupComplete() performs a sync fs probe
+// (existsSync + readFileSync) with only a ~2s internal TTL — bursty admin
+// traffic pays one disk hit per burst. Memoize for 60s; setup paths always
+// bypass the memo so wizard/API transitions are observed immediately.
+let setupCheckMemo: { value: boolean; at: number } | null = null;
+const SETUP_CHECK_MEMO_TTL_MS = 60_000;
+
+function currentSetupStateWithMemo(pathname: string): boolean {
+  // Setup paths AND the testing API bypass the memo: the wizard writes the
+  // config and the testing reset/seed flips the DB-backed setup state, so the
+  // memoized value would otherwise be stale for up to 60s after those flows
+  // (observed: E2E golden journeys ran the setup pipeline — no authorization,
+  // no locals.roles — right after a reset while the memo still cached false).
+  if (
+    pathname.startsWith("/setup") ||
+    pathname.startsWith("/api/setup") ||
+    pathname.startsWith("/api/testing")
+  ) {
+    const v = isSetupComplete();
+    setupCheckMemo = { value: v, at: Date.now() };
+    return v;
+  }
+  const now = Date.now();
+  if (setupCheckMemo && now - setupCheckMemo.at < SETUP_CHECK_MEMO_TTL_MS) {
+    return setupCheckMemo.value;
+  }
+  const v = isSetupComplete();
+  setupCheckMemo = { value: v, at: now };
+  return v;
+}
 
 // ✨ ENTERPRISE: Stable Node ID for Distributed Cache Sync (Phase 8)
 if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
@@ -65,8 +118,7 @@ if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
 // obtain genuine session cookies for end-to-end integrity verification.
 
 const handleHyperTurbo: Handle = async ({ event, resolve }) => {
-  const isBenchmark =
-    process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
+  const isBenchmark = process.env.BENCHMARK === "true";
   if (!isBenchmark) return resolve(event);
 
   // Let auth endpoints use REAL credentials
@@ -119,7 +171,6 @@ let handleSecurity: Handle = passThrough,
   handleRedirects: Handle = passThrough,
   handleSystemState: Handle = passThrough,
   handleTestIsolation: Handle = passThrough,
-  handleContentNegotiation: Handle = passThrough,
   handleAeoHeaders: Handle = passThrough;
 
 // ✨ ENTERPRISE: Lazy-loaded handle variables for dynamic mode switching
@@ -128,35 +179,53 @@ let fullMiddlewareInitialized = false;
 async function ensureFullMiddleware() {
   if (fullMiddlewareInitialized) return;
 
-  const security = await import("./hooks/handle-security");
+  // 🚀 PARALLEL LOADING: imports are independent — sequential awaits serialized
+  // hot-swap latency when setup completes (~80% faster than 15 chained awaits).
+  const [
+    security,
+    rateLimit,
+    preferences,
+    auth,
+    authz,
+    sdk,
+    content,
+    api,
+    audit,
+    token,
+    redirects,
+    state,
+    isolation,
+    aeo,
+  ] = await Promise.all([
+    import("./hooks/handle-security"),
+    import("./hooks/handle-rate-limit"),
+    import("./hooks/handle-user-preferences"),
+    import("./hooks/handle-authentication"),
+    import("./hooks/handle-authorization"),
+    import("./hooks/handle-local-sdk"),
+    import("./hooks/handle-content-initialization"),
+    import("./hooks/handle-api-requests"),
+    import("./hooks/handle-audit-logging"),
+    import("./hooks/handle-token-resolution"),
+    import("./hooks/handle-redirects"),
+    import("./hooks/handle-system-state"),
+    import("./hooks/handle-test-isolation"),
+    import("./hooks/handle-aeo-headers"),
+  ]);
+
   handleSecurity = security.handleSecurity;
-  const rateLimit = await import("./hooks/handle-rate-limit");
   handleRateLimit = rateLimit.handleRateLimit;
-  const preferences = await import("./hooks/handle-user-preferences");
   handleUserPreferences = preferences.handleUserPreferences;
-  const auth = await import("./hooks/handle-authentication");
   handleAuthentication = auth.handleAuthentication;
-  const authz = await import("./hooks/handle-authorization");
   handleAuthorization = authz.handleAuthorization;
-  const sdk = await import("./hooks/handle-local-sdk");
   handleLocalSdk = sdk.handleLocalSdk;
-  const content = await import("./hooks/handle-content-initialization");
   handleContentInitialization = content.handleContentInitialization;
-  const api = await import("./hooks/handle-api-requests");
   handleApiRequests = api.handleApiRequests;
-  const audit = await import("./hooks/handle-audit-logging");
   handleAuditLogging = audit.handleAuditLogging;
-  const token = await import("./hooks/handle-token-resolution");
   handleTokenResolution = token.handleTokenResolution;
-  const redirects = await import("./hooks/handle-redirects");
   handleRedirects = redirects.handleRedirects;
-  const state = await import("./hooks/handle-system-state");
   handleSystemState = state.handleSystemState;
-  const isolation = await import("./hooks/handle-test-isolation");
   handleTestIsolation = isolation.handleTestIsolation;
-  const contentNeg = await import("./hooks/handle-content-negotiation");
-  handleContentNegotiation = contentNeg.handleContentNegotiation;
-  const aeo = await import("./hooks/handle-aeo-headers");
   handleAeoHeaders = aeo.handleAeoHeaders;
 
   fullMiddlewareInitialized = true;
@@ -194,7 +263,16 @@ if (!building) {
           .catch(() => {});
 
         // ✨ Parallel Service Initialization (Optimized for Cold Start)
-        const isBenchmarkMode = process.env.BENCHMARK_MODE === "true";
+        const isBenchmarkMode = process.env.BENCHMARK === "true";
+
+        // 🧠 PRE-WARM heavy modules used lazily inside request hooks so the first
+        // request never pays a dynamic-import stall:
+        // - `graphql`            → handle-security's GraphQL complexity shield
+        // - settings-service     → turbo-pipeline CORS preflight (getCorsHeadersInline)
+        import("graphql")
+          .catch(() => {})
+          .then(() => import("@src/services/core/settings-service"))
+          .catch(() => {});
 
         if (!isBenchmarkMode) {
           Promise.all([
@@ -283,6 +361,8 @@ if (!building) {
 
 // ✨ ENTERPRISE: Graceful Shutdown Registry
 let inFlightRequests = 0;
+/** Cheap per-request id sequence for the non-trace path (see handle()). */
+let requestSeq = 0;
 
 type ShutdownGlobal = typeof globalThis & {
   __SVELTY_SHUTTING_DOWN__?: boolean;
@@ -325,6 +405,17 @@ if (!building) {
         while (inFlightRequests > 0 && Date.now() < drainDeadline) {
           logger.info(`Waiting for ${inFlightRequests} in-flight requests to drain...`);
           await new Promise((r) => setTimeout(r, 250));
+        }
+
+        // 🚀 GRACEFUL WS SHUTDOWN: send `1001 Going Away` to every tracked
+        // connection so realtime clients can reconnect cleanly instead of
+        // hanging until the adapter force-kicks them.
+        try {
+          const { closeAllConnections } = await import("./hooks.ws");
+          const closed = closeAllConnections(1001, "Server shutting down");
+          if (closed > 0) logger.info(`Gracefully closed ${closed} WebSocket connection(s)`);
+        } catch (err) {
+          logger.debug("WS close skipped (hooks.ws not loaded):", err);
         }
 
         // In Vite dev, process exit often closes the SSR module runner *before* this
@@ -416,14 +507,16 @@ export function getHookTimings(): Record<
 // Turbo path remains fast (1.6-2.1ms) because it short-circuits many later hooks.
 const HOOK_TIMING_ENABLED =
   process.env.ENABLE_HOOK_TIMING === "1" ||
-  (process.env.NODE_ENV !== "production" && !process.env.SVELTY_BENCHMARK_SUITE);
+  (process.env.NODE_ENV !== "production" && process.env.BENCHMARK !== "true");
 
 function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
   // Resolve once at wrap time (pipeline build). Saves per-request function call overhead.
   const resolvedHandle = handleFnRef();
   if (!HOOK_TIMING_ENABLED) {
-    // Minimal wrapper: no timing/trace cost in hot prod path.
-    return async (input) => await resolvedHandle(input);
+    // Zero-overhead path: pass the resolved handle straight into sequence().
+    // An `async (input) => await resolvedHandle(input)` wrapper here adds one
+    // extra promise hop per hook per request (15 hooks = 15 microtask layers).
+    return resolvedHandle;
   }
   return async (input) => {
     const start = performance.now();
@@ -465,7 +558,6 @@ const getPipeline = () => {
         // bypassing handleAuthentication, handleAuthorization, and CSRF.
         wrapHandle("turbo-get", () => handleTurboGet),
         wrapHandle("redirects", () => handleRedirects),
-        wrapHandle("content-negotiation", () => handleContentNegotiation),
         wrapHandle("compression", () => handleCompression),
         wrapHandle("aeo-headers", () => handleAeoHeaders),
         wrapHandle("user-preferences", () => handleUserPreferences),
@@ -520,7 +612,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   const pathname = event.url.pathname;
 
   // 🚀 HOT-SWAP CHECK: Dynamically synchronize setup state on every request
-  const currentSetupState = isSetupComplete();
+  const currentSetupState = currentSetupStateWithMemo(pathname);
   if (setupComplete !== currentSetupState) {
     logger.info(`🔄 System setup state change detected: ${setupComplete} -> ${currentSetupState}`);
     setupComplete = currentSetupState;
@@ -597,12 +689,16 @@ export const handle: Handle = async ({ event, resolve }) => {
   inFlightRequests++;
   // Reset per-request ID counters for deterministic SSR/hydration IDs
   resetIdCounters();
-  const traceId = (event.locals as any).requestId || crypto.randomUUID();
   const traceHeader = event.request.headers.get("x-svelty-trace");
-  const isBenchmark =
-    process.env.BENCHMARK === "true" || process.env.SVELTY_BENCHMARK_SUITE === "true";
+  const isBenchmark = process.env.BENCHMARK === "true";
   const traceEnabled =
     traceHeader === "true" || (isBenchmark && !!event.request.headers.get("x-test-secret"));
+  // Lazy trace ID: the pipeline overwrites locals.requestId with its own
+  // generateRequestId() anyway, so a pre-pipeline UUID is only needed when
+  // tracing is enabled (99.9% of traffic gets a cheap sequential id).
+  const traceId =
+    (event.locals as any).requestId ||
+    (traceEnabled ? crypto.randomUUID() : `r${(requestSeq++).toString(36)}`);
 
   // 🚀 Fast path: skip ALL trace/context overhead when tracing is disabled (99.9% of traffic)
   if (!traceEnabled) {
@@ -637,11 +733,11 @@ export const handle: Handle = async ({ event, resolve }) => {
     () => {
       return runWithTrace(traceId, traceEnabled, async () => {
         // 🚀 HOT-SWAP CHECK: If not setup yet, check if it just finished
-        if (!setupComplete && isSetupComplete()) {
+        if (!setupComplete && currentSetupStateWithMemo(pathname)) {
           logger.info("🔄 System setup detected. Hot-swapping to READY pipeline...");
           setupComplete = true;
           await ensureFullMiddleware();
-        } else if (setupComplete && !isSetupComplete()) {
+        } else if (setupComplete && !currentSetupStateWithMemo(pathname)) {
           logger.info("🔄 System setup reset detected. Hot-swapping back to SETUP pipeline...");
           setupComplete = false;
         }
@@ -697,10 +793,10 @@ export const handle: Handle = async ({ event, resolve }) => {
  * Extracts structured codes from raise() calls via `__sveltyCode` in the error body.
  * Single source of truth for production error logging.
  */
-export const handleError = async ({ error, event, status }: any) => {
-  const body = (error as any)?.body;
+export const handleError: HandleServerError = async ({ error, event, status }) => {
+  const body = (error as { body?: { __sveltyCode?: string; message?: string } } | null)?.body;
   const code = body?.__sveltyCode || `HTTP_${status}`;
-  const message = body?.message || error?.message || String(error);
+  const message = body?.message || (error instanceof Error ? error.message : String(error ?? ""));
 
   logger.error(`[GlobalError] ${code} — ${message}`, {
     path: event?.url?.pathname,

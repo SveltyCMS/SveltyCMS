@@ -32,8 +32,10 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
   // Fast-path for setup mode - skip ALL CMS initialization
   if (setupMode) {
     return {
-      systemLanguage: (cookies.get("systemLanguage") as Locale) ?? "en",
-      contentLanguage: (cookies.get("contentLanguage") as Locale) ?? "en",
+      systemLanguage:
+        (locals.systemLanguage as Locale) ?? (cookies.get("systemLanguage") as Locale) ?? "en",
+      contentLanguage:
+        (locals.contentLanguage as Locale) ?? (cookies.get("contentLanguage") as Locale) ?? "en",
       user: null,
       isAdmin: false,
       isMultiTenant: false,
@@ -84,8 +86,15 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
   // Private settings only accessible server-side
   const isMultiTenant = isMultiTenantEnabled();
 
-  const systemLanguage = (cookies.get("systemLanguage") as Locale) ?? baseLocale;
-  const contentLanguage = (cookies.get("contentLanguage") as Locale) ?? defaultContentLanguage;
+  // Request-scoped language from handleUserPreferences (validated, no global
+  // store mutation), falling back to the cookie for setups where the hook did
+  // not run (e.g. preview mode resilience).
+  const systemLanguage =
+    (locals.systemLanguage as Locale) ?? (cookies.get("systemLanguage") as Locale) ?? baseLocale;
+  const contentLanguage =
+    (locals.contentLanguage as Locale) ??
+    (cookies.get("contentLanguage") as Locale) ??
+    defaultContentLanguage;
 
   // Content System Hydration with error handling for preview mode
   const { contentSystem } = await import("@src/content/index.server");
@@ -143,7 +152,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     tenantId: locals.tenantId ?? null,
     darkMode: locals.darkMode ?? false,
     navigationStructure,
-    contentNodes: contentNodes ? JSON.parse(JSON.stringify(contentNodes)) : [],
+    contentNodes: contentNodes ? structuredClone(contentNodes) : [],
     contentVersion,
     // Pass CSRF token for state-changing API calls
     csrfToken:

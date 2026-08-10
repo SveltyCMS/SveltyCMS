@@ -1,20 +1,23 @@
 ---
 path: "docs/reference/architecture/collaborative-editing.mdx"
 title: "Collaborative Editing Architecture"
-description: "Implementation strategy for real-time collaborative editing using Yjs CRDTs and a lightweight WebSocket sync server."
+description: "Real-time collaborative editing using Yjs CRDTs — SSE transport for the built-in editor, plus an optional WebSocket sync server for y-websocket clients."
 author: "SveltyCMS Team"
 created: "2026-04-08"
-updated: "2026-07-07"
+updated: "2026-08-10"
 tags:
   - "collaboration"
   - "yjs"
-  - "hocuspocus"
   - "crdt"
+  - "sse"
 ---
 
 # Collaborative Editing Architecture
 
-SveltyCMS utilizes **Yjs CRDTs** and a **lightweight WebSocket sync server** (`ws` + `y-protocols`) to provide a seamless, conflict-free collaborative editing experience — no Hocuspocus dependency needed.
+SveltyCMS utilizes **Yjs CRDTs** for conflict-free collaborative editing — no Hocuspocus dependency. Two adapter-node-compatible transports exist:
+
+- **SSE (primary for the built-in editor)** — `SseProvider` connects to `/api/events` and syncs via `GET/POST /api/collaboration/yjs`.
+- **WebSocket (optional, for y-websocket-compatible clients)** — a lightweight `ws` + `y-protocols` server at `/ws` (`yjs-sync-server`), mounted by the custom production entry `index.cjs`.
 
 ## 🚀 The Single Source of Truth (SSoT) Model
 
@@ -22,9 +25,9 @@ Unlike traditional CMS editors that rely on periodic auto-saves, SveltyCMS treat
 
 ```mermaid
 flowchart LR
-    A[User A] <--> WS[Yjs WS Server /ws]
-    B[User B] <--> WS
-    WS <--> YD[Y.Doc]
+    A[User A] <--> T[Sync Transport<br/>SSE /api/events + /api/collaboration/yjs<br/>or WS /ws]
+    B[User B] <--> T
+    T <--> YD[Y.Doc]
     YD --"Sync"--> S[Svelte 5 Runes]
     S --"Auto-Save"--> DB[(Database)]
 ```
@@ -33,53 +36,48 @@ flowchart LR
 
 ## 📈 Implementation Details
 
-### Phase 2: Full CRDT Concurrent Editing (Active)
+### Yjs Integration
 
-1. **Yjs Integration**: Leveraging `yjs` for the core CRDT logic and `y-svelte` for native Rune bindings.
-2. **Synchronization**:
-   - **Primary**: WebSocket via lightweight `ws` + `y-protocols` server at `/ws` running natively on Node's HTTP port.
-   - **Fallback**: REST HTTP endpoint at `POST /api/collaboration/yjs` for environments with restrictive proxies. Clients POST base64-encoded Yjs updates; the server publishes them via `pubSub` to the `yjsService` for server-side doc application.
-   - **Deployment**: Highly stable production setup running on the standard `@sveltejs/adapter-node` which automatically upgrades `/ws` connections for Yjs collaboration.
-3. **Presence & Cursors**:
-   - Real-time remote cursor tracking with user-specific colors.
-   - "Active Editors" avatar stack in the header.
-   - Field-level focus highlights to prevent overlapping edits.
-4. **RichText**: Native Yjs integration for the TipTap/ProseMirror based RichText widget.
+- **CRDT core**: `yjs`.
+- **Client service**: `collaboration-service.svelte.ts` — Svelte 5 `$state`/`$derived` wrapper that owns the `Y.Doc`, awareness, and the transport provider. Wired into the field editor (`fields.svelte`) when a collection sets `collaboration.enabled: true`.
+- **Server state**: `yjs-service.ts` holds per-`docId` Yjs documents keyed by tenant; updates flow through `pubSub` (`yjs:update` / `yjs:sync`).
 
-## 🔬 What Makes SveltyCMS's Implementation So Special?
+### Transport 1 — SSE (primary for the built-in editor)
 
-The key is its architectural choice. Instead of building real-time features on top of a traditional database, SveltyCMS has integrated a **CRDT engine** directly into its core editing experience. This enables granular, conflict-free synchronization typically found only in high-end tools like Google Docs or Figma.
+1. **Full-state bootstrap**: `GET /api/collaboration/yjs?docId=...` returns the server document as base64.
+2. **Updates**: clients POST base64-encoded Yjs updates to `POST /api/collaboration/yjs`; the server applies them via `pubSub` → `yjsService` and echoes changes back through the SSE stream (`/api/events`).
+3. **Awareness (presence/cursors)**: throttled (10/s) POSTs to the same endpoint with `awareness: true`; `yjsService` applies the update and broadcasts `yjs:awareness` over SSE — remote editors' cursors/presence update in real time. Clients apply remote state with `origin: "server"`, which the send-path skips (no echo loop).
+4. **Transport client**: `SseProvider` (`src/services/collaboration/sse-provider.svelte.ts`) — EventSource + batched POSTs.
 
-### 1. CRDT Engine: The Gold Standard for Real-Time Sync
+### Transport 2 — WebSocket `/ws` (optional)
 
-Traditional CMSs prevent "lost updates" by locking fields (e.g., Directus) or relying on a central server to resolve conflicts. This can feel clunky and interrupt the creative flow.
+- **Server**: `src/services/collaboration/yjs-sync-server.ts` — `ws` + `y-protocols` sync + awareness, multi-document `tenantId:docId` isolation, graceful shutdown.
+- **Mounting**: only via the custom production entry **`index.cjs`** (Plesk/Passenger), which attaches the upgrade handler to its own `http.createServer`. The default `@sveltejs/adapter-node` entry (`node build/index.js`) does **not** mount `/ws` — use `index.cjs` for WebSocket deployments.
+- **Clients**: y-websocket-compatible clients connect to `ws://[domain]/ws?docId=...&tenantId=...`. The built-in editor does **not** use this path (it uses SSE).
 
-SveltyCMS uses **Yjs**, a high-performance Conflict-free Replicated Data Type (CRDT) implementation. CRDTs allow multiple users to edit the same document simultaneously without a central server. Each user's changes are merged mathematically, ensuring consistency without locking or data loss.
+> **Auth (2026-08-10):** `/ws` upgrades are **session-validated and fail-closed** — the app registers an authenticator (`ws-auth-registry` → `hooks.ws upgrade()`) that reuses the HTTP session pipeline (LRU → store → Redis → DB, negative cache). Unauthenticated upgrades receive `HTTP 401`. The tenant used for `tenantId:docId` document keys comes from the **resolved session** — a client-supplied `tenantId` query param can never override it. Test mode accepts the standard `x-test-secret` bypass. If the server runs without the app (no authenticator registered), all upgrades are rejected.
 
-The Yjs framework treats the shared document as the **Single Source of Truth (SSoT)** during an editing session, enabling true real-time collaboration.
+### Presence & Cursors
 
-### 2. Lightweight Yjs Sync Server: Zero External Dependencies
+- Real-time remote cursor tracking with user-specific colors via the Yjs **awareness** protocol.
+- "Active Editors" presence rendered inline in `fields.svelte`.
+- Field-level focus highlights to prevent overlapping edits (`setFieldFocus`).
 
-SveltyCMS ships with a built-in Yjs WebSocket sync server (`src/services/collaboration/yjs-sync-server.ts`) that uses only `ws` + `y-protocols` — no Hocuspocus or external sync engine required. The server handles:
+### RichText
 
-- **Document synchronization**: Full Yjs sync protocol (SyncStep1/SyncStep2/Update)
-- **Awareness**: Real-time cursor presence and user state
-- **Multi-document**: Documents keyed by `tenantId:docId` for tenant isolation
-- **Graceful shutdown**: Cleans up all Y.Doc instances on server stop
-
-### 3. Character-Level Sync & Remote Cursors
-
-Because of the CRDT foundation, SveltyCMS provides a seamless, collaborative editing experience within its **RichText widget**. Editors see changes character-by-character as they are typed and can view other users' cursors in real-time. This level of fidelity is a hallmark of the SveltyCMS experience, setting it apart from standard CMS implementations.
+TipTap/ProseMirror RichText integration rides the same Y.Doc via `y-prosemirror` / TipTap collaboration extensions (client-side packages; sync transport as above).
 
 ---
 
 ## 🛠️ Technical Components
 
-| Component              | Responsibility                                                                                 |
-| :--------------------- | :--------------------------------------------------------------------------------------------- |
-| **yjs-sync-server.ts** | Lightweight WebSocket sync server using ws + y-protocols. Handles document sync and awareness. |
-| **Awareness.svelte**   | High-level component managing user presence and cursor rendering.                              |
-| **Yjs Binding**        | Custom logic in `fields.svelte` that reconciles `Y.Doc` updates with `collectionValue`.        |
+| Component                 | Responsibility                                                                                         |
+| :------------------------ | :----------------------------------------------------------------------------------------------------- |
+| **collaboration-service** | Client `$state` service — Y.Doc lifecycle, awareness, provider wiring (used by `fields.svelte`)        |
+| **SseProvider**           | SSE transport: EventSource subscription + batched `POST /api/collaboration/yjs` updates                |
+| **yjs-service**           | Server-side per-`docId` Y.Doc store, applied from `pubSub` updates; `GET /api/collaboration/yjs` state |
+| **yjs-sync-server.ts**    | Optional `ws` + `y-protocols` WebSocket server at `/ws` (mounted by `index.cjs`)                       |
+| **Yjs Binding**           | `fields.svelte` reconciliation of Y.Doc updates with `collectionValue`                                 |
 
 ---
 
@@ -87,7 +85,7 @@ Because of the CRDT foundation, SveltyCMS provides a seamless, collaborative edi
 
 Collaborative editing is **built-in** but can be toggled per collection:
 
-- **Enable Collaborative**: Full CRDT-based multi-user editing.
+- **Enable Collaborative**: Full CRDT-based multi-user editing (SSE transport).
 - **Strict Locking**: Classic field-level locking (one editor at a time).
 - **Disabled**: Standard save/overwrite behavior.
 
@@ -98,24 +96,14 @@ Collaborative editing is **built-in** but can be toggled per collection:
 
 ## 🚀 Performance & Scalability
 
-SveltyCMS real-time collaboration is built on standard Node.js WebSockets (`ws`) running natively on SvelteKit's HTTP port. Benchmarked under production load, the engine yields sub-millisecond propagation latency and high update velocity:
+Collaboration runs on standard Node.js WebSockets (`ws`) or plain HTTP SSE — no native addons, so resource profiles are predictable:
 
-### Benchmark Metrics (Single CPU Thread)
+- **Idle connections (memory-bound)**: ~15–30 KB RAM per socket (estimate) → ~15,000 idle clients per 512 MB container.
+- **Active editors (CPU-bound)**: a typing editor generates roughly 1–2 sync updates per second; throughput is bounded by the sync server's update rate.
+- **Active low-frequency clients**: supports tens of thousands of concurrent clients at low update rates.
 
-| Metric                             | Result                   | Target            | Status |
-| :--------------------------------- | :----------------------- | :---------------- | :----: |
-| **E2E Update Propagation Latency** | **0.29ms** (p95: 0.39ms) | < 10ms            |   🟢   |
-| **Peak Update Velocity**           | **3,422 syncs/sec**      | > 1,000 syncs/sec |   🟢   |
-
-### Scalability & Capacity Planning
-
-Because standard WebSockets in Node.js bypass native compiler requirements, they offer extremely predictable resource profiles:
-
-- **Idle Connections (Memory-Bound)**: Standard socket allocation uses ~15KB to 30KB of RAM per connection.
-  - **512MB RAM Container/VPS**: Supports ~15,000 parallel idle clients.
-  - **2GB RAM Container/VPS**: Supports **~60,000+ parallel idle clients**.
-- **Active Editors (CPU-Bound)**: An active user editing a document typically generates 1 to 2 sync updates per second. At 3,000 updates/sec throughput capacity, SveltyCMS supports **~1,500 to 2,000 concurrent active editors** typing simultaneously per CPU core.
-- **Active Chat Users**: In chat or low-frequency setups (where users send a message every 10 seconds), the engine handles **30,000+ active concurrent users** without delay.
+> [!NOTE]
+> Latency/throughput figures for collaboration are **not yet part of the recorded benchmark suite** (`tests/benchmarks/`) and are not claimed here. The HTTP hooks pipeline is measured separately — see the [Performance Benchmarks](../../../tests/benchmarks/hooks-performance.test.ts) and [Technical Evaluation](../../project/technical-evaluation-2026.mdx).
 
 ---
 
@@ -123,4 +111,5 @@ Because standard WebSockets in Node.js bypass native compiler requirements, they
 
 - [Architecture Overview](./index.mdx)
 - [Security Overview](../security/index.mdx)
+- [Real-Time Updates (SSE + Yjs)](../api/graphql-subscriptions.mdx)
 - [State Management](./state-management.mdx)

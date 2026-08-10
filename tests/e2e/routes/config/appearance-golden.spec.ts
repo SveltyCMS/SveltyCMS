@@ -28,7 +28,8 @@ async function openAdminThemes(page: Page) {
   });
 }
 
-test.describe.configure({ mode: "serial" });
+// Tests are independent (unique theme names, fresh storageState per test) — no
+// serial mode needed, so the file parallelizes across workers on local runs.
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe("Appearance — theme golden", () => {

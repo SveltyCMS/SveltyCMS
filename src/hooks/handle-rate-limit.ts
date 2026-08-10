@@ -3,11 +3,11 @@
  * @description Hardware-aware rate limiting middleware with adaptive pressure multipliers.
  *
  * Integrates with SystemMonitor to dynamically adjust rate limit costs based on
- * real-time CPU, memory, and event loop pressure. Uses a sliding-window token bucket
- * per IP with configurable limits.
+ * real-time CPU, memory, and event loop pressure. Uses a fixed-window token bucket
+ * per IP with configurable limits (window resets on expiry — NOT a sliding window).
  *
  * ### Features:
- * - Per-IP + per-tenant-hostname sliding window rate limiting
+ * - Per-IP + per-tenant-hostname fixed-window rate limiting (adaptive pressure)
  * - **Two-tier token buckets**: per-IP (fine-grained) + per-tenant (aggregate)
  * - Per-tenant limit defaults to 10x the per-IP limit, preventing noisy-tenant starvation
  * - Sync client-key hashing (no async wasm on mutation hot path)
@@ -201,6 +201,23 @@ if (typeof setInterval !== "undefined" && !globalWithLimiter[LIMITER_CLEANUP_KEY
   }, CLEANUP_INTERVAL_MS);
 }
 
+/**
+ * Bounded bucket insert: evicts the oldest entry BEFORE inserting when the map
+ * is at capacity. Evicting after insert (as before) allowed a burst of unique
+ * IPs to grow the map beyond MAX_TRACKED_BUCKETS before stabilization.
+ */
+function setBoundedBucket(
+  map: Map<string, RateLimitEntry>,
+  key: string,
+  bucket: RateLimitEntry,
+): void {
+  if (!map.has(key) && map.size >= MAX_TRACKED_BUCKETS) {
+    const oldestKey = map.keys().next().value;
+    if (oldestKey !== undefined) map.delete(oldestKey);
+  }
+  map.set(key, bucket);
+}
+
 // ─── Public API ────────────────────────────────────────────────────────────
 
 /**
@@ -245,11 +262,11 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   const clientKey = getClientKey(event);
   const now = Date.now();
 
-  // Get or create per-IP bucket
+  // Get or create per-IP bucket (bounded: evicts oldest BEFORE insert)
   let bucket = _buckets.get(clientKey);
   if (!bucket || now - bucket.windowStart > DEFAULT_WINDOW_MS) {
     bucket = { count: 0, windowStart: now };
-    _buckets.set(clientKey, bucket);
+    setBoundedBucket(_buckets, clientKey, bucket);
   }
 
   // Sync SystemMonitor reads — no dynamic import / microtask on hot path
@@ -316,7 +333,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   let tenantBucket = _tenantBuckets.get(tenantKey);
   if (!tenantBucket || now - tenantBucket.windowStart > DEFAULT_WINDOW_MS) {
     tenantBucket = { count: 0, windowStart: now };
-    _tenantBuckets.set(tenantKey, tenantBucket);
+    setBoundedBucket(_tenantBuckets, tenantKey, tenantBucket);
   }
 
   tenantBucket.count += cost;
@@ -338,16 +355,6 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
       }),
       event,
     );
-  }
-
-  // Bounded map eviction: prevent OOM under distributed attacks
-  if (_buckets.size >= MAX_TRACKED_BUCKETS) {
-    const oldestKey = _buckets.keys().next().value;
-    if (oldestKey) _buckets.delete(oldestKey);
-  }
-  if (_tenantBuckets.size >= MAX_TRACKED_BUCKETS) {
-    const oldestKey = _tenantBuckets.keys().next().value;
-    if (oldestKey) _tenantBuckets.delete(oldestKey);
   }
 
   const response = await resolve(event);

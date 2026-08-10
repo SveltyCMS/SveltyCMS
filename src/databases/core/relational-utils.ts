@@ -99,19 +99,130 @@ const DATE_FIELDS = new Set([
 const _tableDateCols = new Map<string, string[]>();
 const _tableJsonCols = new Map<string, string[]>();
 const _tableSkipKeys = new Map<string, Set<string>>();
+const _tableBoolCols = new Map<string, Set<string>>();
+/** Physical columns per table — the flatten merge must NOT let the `data`
+ * blob override column values (columns are authoritative; data fills gaps). */
+const _tableMergeSkipKeys = new Map<string, Set<string>>();
 
-/** Registers a table's known date/JSON columns for zero-overhead conversion under both physical and logical table names. Idempotent. */
-export function registerTableSchema(table: string, columns: string[]): void {
+/**
+ * SINGLE SOURCE OF TRUTH for a table's schema knowledge. The five legacy maps
+ * above are DERIVED views of this record (kept for O(1) hot-path reads) — they
+ * are written ONLY from here, so the parallel-registry drift class (late
+ * boolean registration never updating the map, etc.) is structurally impossible.
+ */
+export interface TableMeta {
+  table: string;
+  /** All physical columns (base + materialized). */
+  columns: string[];
+  /** Date/timestamp columns (DATE_FIELDS ∩ columns). */
+  dateCols: string[];
+  /** JSON blob columns (JSON_FIELDS ∩ columns). */
+  jsonCols: string[];
+  /** date+json keys — skipped during the copy-remaining-keys pass. */
+  skipKeys: Set<string>;
+  /** Physical columns — the `data` blob merge must not override them. */
+  mergeSkipKeys: Set<string>;
+  /** Boolean columns — 0/1 coerced to true/false on raw reads. */
+  boolCols: Set<string>;
+}
+
+const _tableMeta = new Map<string, TableMeta>();
+
+/** The TableMeta record for a table (logical or physical name). */
+export function getTableMeta(table: string): TableMeta | undefined {
+  return _tableMeta.get(table);
+}
+
+/**
+ * Consistency guard for the registry: every derived view must match the
+ * TableMeta record. Throws on drift — used by unit tests and diagnostics.
+ */
+export function assertTableRegistryConsistent(table: string): void {
+  const meta = _tableMeta.get(table);
+  if (!meta) return;
+  const fail = (what: string) => {
+    throw new Error(`TableMeta drift for "${table}": ${what}`);
+  };
+  const expectedDate = meta.columns.filter((c) => DATE_FIELDS.has(c)).sort();
+  const expectedJson = meta.columns.filter((c) => JSON_FIELDS.has(c)).sort();
+  if (JSON.stringify([...meta.dateCols].sort()) !== JSON.stringify(expectedDate)) {
+    fail(`dateCols != DATE_FIELDS ∩ columns`);
+  }
+  if (JSON.stringify([...meta.jsonCols].sort()) !== JSON.stringify(expectedJson)) {
+    fail(`jsonCols != JSON_FIELDS ∩ columns`);
+  }
+  for (const c of meta.dateCols) {
+    if (!meta.columns.includes(c)) fail(`dateCol "${c}" not in columns`);
+  }
+  for (const c of meta.jsonCols) {
+    if (!meta.columns.includes(c)) fail(`jsonCol "${c}" not in columns`);
+  }
+  for (const c of meta.boolCols) {
+    if (!meta.columns.includes(c)) fail(`boolCol "${c}" not in columns`);
+  }
+  for (const c of meta.mergeSkipKeys) {
+    if (!meta.columns.includes(c)) fail(`mergeSkip "${c}" not in columns`);
+  }
+}
+
+/**
+ * Column names that are authoritative for a table — the `data` blob merge
+ * skips them (row-store hybrid: materialized/base fields live in columns;
+ * data fills only non-column gaps).
+ */
+export function getTableMergeSkipKeys(table: string): Set<string> | undefined {
+  return _tableMergeSkipKeys.get(table);
+}
+
+/**
+ * Boolean columns per table — the raw read paths return 0/1 for INTEGER/TINYINT
+ * columns; the API contract expects real booleans (parity with the Drizzle
+ * mode:"boolean" path). Conversion coerces 0/1 → false/true for these.
+ */
+export function getTableBooleanColumns(table: string): Set<string> | undefined {
+  return _tableBoolCols.get(table);
+}
+
+/** Registers a table's known date/JSON columns for zero-overhead conversion under both physical and logical table names. Registrations are ADDITIVE — knowledge only grows (a later registration with materialized/boolean columns augments an earlier base-only one; a later partial registration never shrinks the maps). The five legacy maps are derived from the single TableMeta record. */
+export function registerTableSchema(
+  table: string,
+  columns: string[],
+  booleanCols?: string[],
+): void {
   if (!table) return;
   const dateCols = columns.filter((c) => DATE_FIELDS.has(c));
   const jsonCols = columns.filter((c) => JSON_FIELDS.has(c));
   const skipSet = new Set([...dateCols, ...jsonCols]);
+  const boolSet = new Set(booleanCols || []);
 
   const registerKey = (key: string) => {
-    if (_tableDateCols.has(key)) return;
-    _tableDateCols.set(key, dateCols);
-    _tableJsonCols.set(key, jsonCols);
-    _tableSkipKeys.set(key, skipSet);
+    const prev = _tableMeta.get(key);
+    const merged: TableMeta = prev
+      ? {
+          table: key,
+          columns: [...new Set([...prev.columns, ...columns])],
+          dateCols: [...new Set([...prev.dateCols, ...dateCols])],
+          jsonCols: [...new Set([...prev.jsonCols, ...jsonCols])],
+          skipKeys: new Set([...prev.skipKeys, ...skipSet]),
+          mergeSkipKeys: new Set([...prev.mergeSkipKeys, ...columns]),
+          boolCols: new Set([...prev.boolCols, ...boolSet]),
+        }
+      : {
+          table: key,
+          columns: [...columns],
+          dateCols,
+          jsonCols,
+          skipKeys: skipSet,
+          mergeSkipKeys: new Set(columns),
+          boolCols: boolSet,
+        };
+    _tableMeta.set(key, merged);
+    // Derived views — hot-path readers keep O(1) map lookups, zero change.
+    _tableDateCols.set(key, merged.dateCols);
+    _tableJsonCols.set(key, merged.jsonCols);
+    _tableSkipKeys.set(key, merged.skipKeys);
+    _tableMergeSkipKeys.set(key, merged.mergeSkipKeys);
+    _tableBoolCols.set(key, merged.boolCols);
   };
 
   registerKey(table);
@@ -193,10 +304,64 @@ function normalizeJsonFieldValue(
   return v;
 }
 
-function flattenDataColumn(result: Record<string, unknown>, key: string, value: unknown): void {
+function flattenDataColumn(
+  result: Record<string, unknown>,
+  key: string,
+  value: unknown,
+  skipMerge?: Set<string> | null,
+): void {
   if (key === "data" && value && typeof value === "object" && !Array.isArray(value)) {
-    Object.assign(result, value);
+    if (!skipMerge || skipMerge.size === 0) {
+      Object.assign(result, value);
+      return;
+    }
+    // Row-store hybrid: columns are authoritative — data fills only gaps.
+    const src = value as Record<string, unknown>;
+    for (const k in value) {
+      if (!Object.hasOwn(value, k)) continue;
+      if (skipMerge.has(k)) continue;
+      result[k] = src[k];
+    }
   }
+}
+
+/** Coerce 0/1 column values to booleans for registered boolean columns (raw
+ * paths return INTEGER/TINYINT — the API contract expects true/false). */
+function coerceBooleanCols(row: Record<string, unknown>, table: string | undefined): void {
+  const bools = table ? getTableBooleanColumns(table) : undefined;
+  if (!bools || bools.size === 0) return;
+  for (const k of bools) {
+    const v = row[k];
+    if (v === 0 || v === 1) row[k] = v === 1;
+  }
+}
+
+/**
+ * True when a value is an epoch-millisecond timestamp (> 1973-03-10, i.e. a
+ * real timestamp, never a small int column value like a count or error code).
+ * SQLite raw paths store timestamps as INTEGER ms — reads MUST normalize them
+ * to ISODateString at the adapter boundary (single representation contract).
+ */
+function isEpochMs(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v) && v > 100_000_000_000;
+}
+
+/**
+ * postgres.js renders timestamptz as "2026-08-09 22:25:38.488+00" (space
+ * separator, hour-only offset) — valid for the DB but NOT ISO 8601. Normalize
+ * to ISODateString at the adapter boundary (single representation contract).
+ */
+function isPgTimestampString(v: unknown): v is string {
+  return (
+    typeof v === "string" &&
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?[+-]\d{2}(:\d{2})?$/.test(v)
+  );
+}
+
+function pgTimestampToIso(v: string): string {
+  // V8's Date parser requires minute-precision offsets (`+00:00`, not `+00`).
+  const withMinuteOffset = v.replace(/[+-]\d{2}$/, (m) => `${m}:00`);
+  return new Date(withMinuteOffset.replace(" ", "T")).toISOString();
 }
 
 /**
@@ -205,7 +370,12 @@ function flattenDataColumn(result: Record<string, unknown>, key: string, value: 
  */
 export function convertDatesToISO(
   row: any,
-  options?: { mariaDoubleParseJson?: boolean; table?: string; inPlace?: boolean },
+  options?: {
+    mariaDoubleParseJson?: boolean;
+    table?: string;
+    inPlace?: boolean;
+    skipJson?: boolean;
+  },
 ): any {
   if (!row) return row;
   if (Array.isArray(row)) {
@@ -216,8 +386,53 @@ export function convertDatesToISO(
   const hasSchema = table ? _tableDateCols.has(table) : false;
   const dateCols = hasSchema && table ? getTableDateColumns(table) : null;
   const jsonCols = hasSchema && table ? getTableJsonColumns(table) : null;
+  const skipJson = options?.skipJson === true;
 
   if (options?.inPlace && hasSchema && dateCols) {
+    // 🚀 ZERO-WORK FAST PATH: if the row carries no Date instances, no epoch-ms
+    // timestamps and no JSON-string columns (content collections store ISO
+    // strings + already parsed objects), the conversion is a no-op — return
+    // the row untouched.
+    let needsWork = false;
+    for (let i = 0; i < dateCols.length; i++) {
+      const v = row[dateCols[i]];
+      if (
+        v instanceof Date ||
+        (v && typeof v === "object" && typeof (v as any).getTime === "function") ||
+        isEpochMs(v) ||
+        isPgTimestampString(v)
+      ) {
+        needsWork = true;
+        break;
+      }
+    }
+    if (!needsWork && !skipJson && jsonCols && jsonCols.length > 0) {
+      for (let i = 0; i < jsonCols.length; i++) {
+        const v = row[jsonCols[i]];
+        if (typeof v === "string" && isJsonString(v)) {
+          needsWork = true;
+          break;
+        }
+      }
+    }
+    if (!needsWork) {
+      // Zero-work fast path — but an already-parsed blob (PostgreSQL jsonb
+      // arrives as an object, not a string) still needs its fields flattened
+      // into the row; skipping it left blob fields invisible on PG reads.
+      if (!skipJson && jsonCols && jsonCols.length > 0) {
+        const skipMerge = table ? getTableMergeSkipKeys(table) : null;
+        for (let i = 0; i < jsonCols.length; i++) {
+          const k = jsonCols[i];
+          const v = row[k];
+          if (v !== null && typeof v === "object" && !Array.isArray(v) && !(v instanceof Date)) {
+            flattenDataColumn(row, k, v, skipMerge);
+          }
+        }
+      }
+      coerceBooleanCols(row, table);
+      return row;
+    }
+
     for (let i = 0; i < dateCols.length; i++) {
       const k = dateCols[i];
       const v = row[k];
@@ -225,16 +440,24 @@ export function convertDatesToISO(
         row[k] = v.toISOString();
       } else if (v && typeof v === "object" && typeof (v as any).getTime === "function") {
         row[k] = new Date((v as any).getTime()).toISOString();
+      } else if (isEpochMs(v)) {
+        // SQLite raw reads return INTEGER ms — normalize to ISODateString.
+        row[k] = new Date(v).toISOString();
+      } else if (isPgTimestampString(v)) {
+        // postgres.js timestamptz "2026-08-09 22:25:38.488+00" — normalize.
+        row[k] = pgTimestampToIso(v);
       }
     }
-    if (jsonCols && jsonCols.length > 0) {
+    if (!skipJson && jsonCols && jsonCols.length > 0) {
+      const skipMerge = table ? getTableMergeSkipKeys(table) : null;
       for (let i = 0; i < jsonCols.length; i++) {
         const k = jsonCols[i];
         const v = normalizeJsonFieldValue(row[k], options);
-        flattenDataColumn(row, k, v);
+        flattenDataColumn(row, k, v, skipMerge);
         row[k] = v;
       }
     }
+    coerceBooleanCols(row, table);
     return row;
   }
 
@@ -245,22 +468,26 @@ export function convertDatesToISO(
     for (let i = 0; i < dateCols.length; i++) {
       const k = dateCols[i];
       const v = row[k];
-      if (
-        v instanceof Date ||
-        (v && typeof v === "object" && typeof (v as any).getTime === "function")
-      ) {
-        result[k] = (v instanceof Date ? v : new Date((v as any).getTime())).toISOString();
+      if (v instanceof Date) {
+        result[k] = v.toISOString();
+      } else if (v && typeof v === "object" && typeof (v as any).getTime === "function") {
+        result[k] = new Date((v as any).getTime()).toISOString();
+      } else if (isEpochMs(v)) {
+        result[k] = new Date(v).toISOString();
+      } else if (isPgTimestampString(v)) {
+        result[k] = pgTimestampToIso(v);
       } else {
         result[k] = v;
       }
     }
   }
 
-  if (jsonCols && jsonCols.length > 0) {
+  if (!skipJson && jsonCols && jsonCols.length > 0) {
+    const skipMerge = table ? getTableMergeSkipKeys(table) : null;
     for (let i = 0; i < jsonCols.length; i++) {
       const k = jsonCols[i];
       const v = normalizeJsonFieldValue(row[k], options);
-      flattenDataColumn(result, k, v);
+      flattenDataColumn(result, k, v, skipMerge);
       result[k] = v;
     }
   }
@@ -285,6 +512,12 @@ export function convertDatesToISO(
         (v && typeof v === "object" && typeof (v as any).getTime === "function")
       ) {
         v = (v instanceof Date ? v : new Date((v as any).getTime())).toISOString();
+      } else if (DATE_FIELDS.has(k) && isEpochMs(v)) {
+        // Unregistered table + SQLite INTEGER ms timestamp — still normalize.
+        v = new Date(v).toISOString();
+      } else if (DATE_FIELDS.has(k) && isPgTimestampString(v)) {
+        // Unregistered table + postgres.js timestamptz — still normalize.
+        v = pgTimestampToIso(v);
       } else if (JSON_FIELDS.has(k)) {
         v = normalizeJsonFieldValue(v, options);
         flattenDataColumn(result, k, v);
@@ -293,12 +526,19 @@ export function convertDatesToISO(
     }
   }
 
+  coerceBooleanCols(result, table);
+
   return result;
 }
 
 export const convertArrayDatesToISO = (
   rows: any[],
-  options?: { mariaDoubleParseJson?: boolean; table?: string; inPlace?: boolean },
+  options?: {
+    mariaDoubleParseJson?: boolean;
+    table?: string;
+    inPlace?: boolean;
+    skipJson?: boolean;
+  },
 ) => {
   if (!rows || rows.length === 0) return [];
   return rows.map((r) => convertDatesToISO(r, options));

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { isAutomatedTestHarness, resolvePrivateConfigFileName } from "./private-config-policy.ts";
 
 let cachedResult: boolean | null = null;
 let cacheTime = 0;
@@ -42,12 +43,11 @@ export function isSetupComplete(): boolean {
   }
 
   try {
-    const isTestMode =
-      runtimeEnv("TEST_MODE") === "true" || runtimeEnv("VITE_TEST_MODE") === "true";
+    const isTestMode = isAutomatedTestHarness();
 
     if (isTestMode && runtimeEnv("STRICT_SETUP_CHECK") !== "true") return true;
 
-    const configFileName = isTestMode ? "private.test.ts" : "private.ts";
+    const configFileName = resolvePrivateConfigFileName();
     const privateConfigPath = path.join(process.cwd(), "config", configFileName);
 
     if (!fs.existsSync(privateConfigPath)) {

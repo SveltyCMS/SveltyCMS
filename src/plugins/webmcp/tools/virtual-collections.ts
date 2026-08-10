@@ -14,6 +14,7 @@
 
 import type { DatabaseId, IDBAdapter } from "@databases/db-interface";
 import { logger } from "@utils/logger";
+import { registerServerTool, syncHeadlessToolBag } from "../tool-registry";
 
 function getModelContext() {
   if (typeof window === "undefined") return undefined;
@@ -244,13 +245,35 @@ function registerHeadlessVirtualTools(db: IDBAdapter): void {
     }
   }
 
-  const existing = (globalThis as any).__webmcp_headless_tools ?? {};
-  (globalThis as any).__webmcp_headless_tools = {
-    ...existing,
-    list_virtual_collections,
-    query_virtual_collection,
-    enrich_virtual_collection,
-  };
+  registerServerTool({
+    name: "list_virtual_collections",
+    description: "List Unified Data Hub virtual collections with schemas and connector health",
+    parameters: { tenantId: "Tenant id (default: default)" },
+    handler: list_virtual_collections,
+  });
+  registerServerTool({
+    name: "query_virtual_collection",
+    description: "Query a virtual collection with pagination cursor (read-only, governed)",
+    parameters: {
+      slug: "Virtual collection slug",
+      keys: "Projection keys",
+      tenantId: "Tenant id (default: default)",
+    },
+    handler: query_virtual_collection,
+  });
+  registerServerTool({
+    name: "enrich_virtual_collection",
+    description: "Batch enrich entries of a virtual collection by native keys (read-only)",
+    parameters: {
+      slug: "Virtual collection slug",
+      keys: "Projection keys",
+      tenantId: "Tenant id (default: default)",
+    },
+    handler: enrich_virtual_collection,
+  });
+
+  // Publish handlers + metadata catalog to the headless gateway globals
+  syncHeadlessToolBag();
 }
 
 function formatError(tag: string, err: unknown) {

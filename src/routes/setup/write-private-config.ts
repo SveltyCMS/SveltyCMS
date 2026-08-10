@@ -10,6 +10,7 @@
 import { generateSecureToken } from "@utils/native-utils";
 import type { DatabaseConfig } from "@src/databases/schemas";
 import { logger } from "@utils/logger";
+import { resolvePrivateConfigFileName } from "@utils/private-config-policy";
 
 /**
  * Writes bootstrap-only credentials and security keys to private.ts
@@ -22,8 +23,8 @@ export async function writePrivateConfig(
   const fs = await import("node:fs/promises");
   const path = await import("node:path");
 
-  // Support TEST_MODE for isolated testing
-  const configFileName = process.env.TEST_MODE ? "private.test.ts" : "private.ts";
+  // Support automated test harness for isolated testing
+  const configFileName = resolvePrivateConfigFileName();
   const privateConfigPath = path.resolve(process.cwd(), "config", configFileName);
 
   const { isLocalBenchmarkSandbox, assertLiveDataWriteAllowed } =
@@ -160,8 +161,8 @@ export async function updatePrivateConfigMode(modes: {
   const fs = await import("node:fs/promises");
   const path = await import("node:path");
 
-  // Support TEST_MODE for isolated testing
-  const configFileName = process.env.TEST_MODE ? "private.test.ts" : "private.ts";
+  // Support automated test harness for isolated testing
+  const configFileName = resolvePrivateConfigFileName();
   const privateConfigPath = path.resolve(process.cwd(), "config", configFileName);
 
   try {

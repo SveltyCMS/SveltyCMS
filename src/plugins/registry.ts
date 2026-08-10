@@ -24,6 +24,7 @@ import type { PluginCapability } from "./types";
 import type {
   IPluginService,
   Plugin,
+  PluginLifecycleHooks,
   PluginMigrationRecord,
   PluginPart,
   PluginRegistryEntry,
@@ -34,6 +35,12 @@ export class PluginRegistry implements IPluginService {
   private readonly plugins: Map<string, PluginRegistryEntry> = new Map();
   private settingsService: PluginSettingsService | null = null;
   private initialized = false;
+
+  // 🚀 WRITE-PATH CACHE: getAll() allocates a mapped array per call and the
+  // SDK write path (triggerLifecycleHook) calls it twice per mutation. Plugins
+  // register at boot (overwrites in place), so cache until the next register.
+  private _allPlugins: Plugin[] | null = null;
+  private _hookPresence = new Map<string, boolean>();
 
   // Register a new plugin
   async register(plugin: Plugin): Promise<DatabaseResult<void>> {
@@ -46,6 +53,10 @@ export class PluginRegistry implements IPluginService {
         plugin,
         registeredAt: nowISODateString(),
       });
+
+      // Invalidate cached views (plugin set changed at boot / hot reload)
+      this._allPlugins = null;
+      this._hookPresence.clear();
 
       // Register plugin capabilities into the merged catalog
       if (plugin.metadata.capabilities && plugin.metadata.capabilities.length > 0) {
@@ -74,7 +85,23 @@ export class PluginRegistry implements IPluginService {
 
   // Get all registered plugins
   getAll(): Plugin[] {
-    return Array.from(this.plugins.values()).map((entry) => entry.plugin);
+    if (!this._allPlugins) {
+      this._allPlugins = Array.from(this.plugins.values()).map((entry) => entry.plugin);
+    }
+    return this._allPlugins;
+  }
+
+  /**
+   * Cached check for lifecycle-hook presence — the SDK write path calls this
+   * on every create/update; without caching it builds the plugin array and
+   * walks every plugin's hooks per mutation.
+   */
+  hasAnyHook(hookName: keyof PluginLifecycleHooks): boolean {
+    const cached = this._hookPresence.get(hookName);
+    if (cached !== undefined) return cached;
+    const found = this.getAll().some((p) => typeof (p.hooks as any)?.[hookName] === "function");
+    this._hookPresence.set(hookName, found);
+    return found;
   }
 
   // Get a specific plugin by ID
@@ -378,7 +405,20 @@ export class PluginRegistry implements IPluginService {
     enabled: boolean,
     tenantId: string,
     userId?: string,
+    dbAdapter?: IDBAdapter,
   ): Promise<boolean> {
+    // Lazy-init: callers outside the boot path (e.g. the testing-API website-
+    // starter seed) may hold a registry instance whose settingsService was
+    // never wired — initializeSettings is idempotent (probe + sentinel insert).
+    // The adapter must be passed in: this module is client-shared (plugin page),
+    // so it cannot statically import the server-only db.ts.
+    if (!this.settingsService && dbAdapter) {
+      try {
+        await this.initializeSettings(dbAdapter);
+      } catch (err) {
+        logger.warn(`togglePlugin lazy-init failed: ${(err as Error).message}`);
+      }
+    }
     if (!this.settingsService) {
       logger.warn("PluginSettingsService not initialized");
       return false;

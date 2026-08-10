@@ -3,7 +3,8 @@
  * @description Unit tests for secure media share link generation and validation.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
+import { createHash } from "node:crypto";
 import {
   createLink,
   validateLink,
@@ -13,6 +14,24 @@ import {
   filterLinks,
   newToken,
 } from "../../../src/utils/media/sharing";
+import {
+  hashSharePassword,
+  hashSharePasswordWithLegacy,
+  verifySharePassword,
+} from "../../../src/utils/media/share-link-hash.server";
+
+// The global settings mock (tests/unit/setup.ts) reads JWT_SECRET_KEY from
+// globalThis.privateEnv — required by the share-link HMAC derivation. A global
+// beforeEach in setup.ts wipes privateEnv before every test, so it must be
+// re-seeded here per test.
+const TEST_JWT_SECRET = "unit-test-jwt-secret-for-share-link-hmac";
+
+beforeEach(() => {
+  (globalThis as any).privateEnv = {
+    ...(globalThis as any).privateEnv,
+    JWT_SECRET_KEY: TEST_JWT_SECRET,
+  };
+});
 
 describe("sharing — createLink", () => {
   it("generates a valid share link with defaults", () => {
@@ -134,5 +153,57 @@ describe("sharing — newToken", () => {
     expect(token).not.toContain("+");
     expect(token).not.toContain("/");
     expect(token).not.toContain("=");
+  });
+});
+
+describe("sharing — password hashing (HMAC)", () => {
+  it("hashSharePassword produces a deterministic 64-char hex HMAC", () => {
+    const a = hashSharePassword("hunter2");
+    const b = hashSharePassword("hunter2");
+    expect(a).toBe(b);
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("hashSharePassword differs from the legacy plain-SHA-256 digest", () => {
+    const { legacy } = hashSharePasswordWithLegacy("hunter2");
+    // HMAC (keyed) must never equal the unkeyed digest of the same input
+    expect(hashSharePassword("hunter2")).not.toBe(legacy);
+  });
+
+  it("produces different hashes for different passwords", () => {
+    expect(hashSharePassword("alpha")).not.toBe(hashSharePassword("beta"));
+  });
+
+  it("hashSharePasswordWithLegacy returns distinct current and legacy forms", () => {
+    const { current, legacy } = hashSharePasswordWithLegacy("s3cret");
+    expect(current).toMatch(/^[0-9a-f]{64}$/);
+    expect(legacy).toMatch(/^[0-9a-f]{64}$/);
+    expect(current).not.toBe(legacy);
+    expect(current).toBe(hashSharePassword("s3cret"));
+  });
+
+  it("verifySharePassword accepts the current HMAC stored value", () => {
+    const stored = hashSharePassword("correct horse");
+    expect(verifySharePassword("correct horse", stored)).toBe(true);
+    expect(verifySharePassword("wrong horse", stored)).toBe(false);
+  });
+
+  it("verifySharePassword accepts legacy plain-SHA-256 stored values (backward compat)", () => {
+    const legacyStored = createHash("sha256").update("old-password").digest("hex");
+    expect(verifySharePassword("old-password", legacyStored)).toBe(true);
+    expect(verifySharePassword("different", legacyStored)).toBe(false);
+  });
+
+  it("verifySharePassword rejects malformed stored hashes without throwing", () => {
+    expect(verifySharePassword("x", "")).toBe(false);
+    expect(verifySharePassword("x", "not-a-hex-hash")).toBe(false);
+  });
+
+  it("fails closed when JWT_SECRET_KEY is unavailable", () => {
+    const env = (globalThis as any).privateEnv;
+    const hadKey = env && "JWT_SECRET_KEY" in env;
+    if (env) delete env.JWT_SECRET_KEY;
+    expect(() => hashSharePassword("x")).toThrow(/JWT_SECRET_KEY/);
+    if (hadKey) env.JWT_SECRET_KEY = TEST_JWT_SECRET;
   });
 });

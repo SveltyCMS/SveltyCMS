@@ -20,6 +20,7 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { isMultiTenantEnabled } from "@utils/tenant";
+import { isAutomatedTestHarness, resolvePrivateConfigFileName } from "@utils/private-config-policy";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
 import { invalidateUserCountCache } from "@src/hooks/handle-authorization";
@@ -231,7 +232,7 @@ export const resetSetup = command("unchecked", async (_payload?: {}) => {
   const systemState = getSystemState();
   const isAdmin = event.locals.user?.role === "admin";
   const isSystemFailed = systemState.overallState === "FAILED";
-  const isTestMode = process.env.TEST_MODE === "true";
+  const isTestMode = isAutomatedTestHarness();
 
   // Database health check: try a simple auth query
   await dbInitPromise;
@@ -253,20 +254,21 @@ export const resetSetup = command("unchecked", async (_payload?: {}) => {
     };
   }
 
-  if (!isTestMode) {
-    const path = await import("node:path");
-    const fs = await import("node:fs/promises");
-    const configPath = path.join(process.cwd(), "config", "private.ts");
-    try {
-      await fs.unlink(configPath);
-    } catch (e: any) {
-      if (e.code !== "ENOENT") {
-        logger.warn(`Could not delete private.ts (${e.code}). Attempting to clear it instead.`);
-        try {
-          await fs.writeFile(configPath, "");
-        } catch {
-          throw e;
-        }
+  const path = await import("node:path");
+  const fs = await import("node:fs/promises");
+  const configFileName = resolvePrivateConfigFileName();
+  const configPath = path.join(process.cwd(), "config", configFileName);
+  try {
+    await fs.unlink(configPath);
+  } catch (e: any) {
+    if (e.code !== "ENOENT") {
+      logger.warn(
+        `Could not delete ${configFileName} (${e.code}). Attempting to clear it instead.`,
+      );
+      try {
+        await fs.writeFile(configPath, "");
+      } catch {
+        throw e;
       }
     }
   }

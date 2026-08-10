@@ -33,12 +33,7 @@ function getBenchmarkSandboxDbName(dbType: string): string {
 
 /** True when a benchmark server/process is active. */
 export function isBenchmarkActive(): boolean {
-  return (
-    process.env.BENCHMARK === "true" ||
-    process.env.SVELTY_BENCHMARK_SUITE === "true" ||
-    process.env.BENCHMARK_MODE === "true" ||
-    process.env.BENCHMARK_MODE === "1"
-  );
+  return process.env.BENCHMARK === "true" || process.env.BENCHMARK === "1";
 }
 
 /** Whether the developer has completed local setup (`config/private.ts`). */

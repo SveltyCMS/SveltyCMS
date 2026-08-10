@@ -87,6 +87,7 @@ This component provides a user interface for managing 2FA settings:
 
 	// State
 	let isLoading = $state(false);
+	let loadError = $state<string | null>(null);
 	let backupCodes = $state<string[]>([]);
 	let setupData = $state<{
 		otpauthUrl: string;
@@ -100,7 +101,7 @@ This component provides a user interface for managing 2FA settings:
 
 	// Load setup data when modal opens if 2FA is not enabled
 	$effect(() => {
-		if (!(is2FAEnabled || setupData)) {
+		if (!(is2FAEnabled || setupData || loadError)) {
 			loadSetupData();
 		}
 	});
@@ -120,6 +121,7 @@ This component provides a user interface for managing 2FA settings:
 		}
 
 		isLoading = true;
+		loadError = null;
 
 		try {
 			const response = await fetch('/api/auth/2fa/setup', {
@@ -144,9 +146,12 @@ This component provides a user interface for managing 2FA settings:
 				secret: data.secret || data.secretKey || data.secret_key || '',
 				backupCodes: data.backupCodes || data.backup_codes || []
 			};
+			loadError = null;
 		} catch (error) {
+			const msg = error instanceof Error ? error.message : twofa_error_setup_failed();
 			logger.error('2FA setup error:', error);
-			showErrorToast(error instanceof Error ? error.message : twofa_error_setup_failed());
+			loadError = msg;
+			showErrorToast(msg);
 		} finally {
 			isLoading = false;
 		}
@@ -306,6 +311,20 @@ This component provides a user interface for managing 2FA settings:
 									<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500 dark:border-surface-600 dark:border-t-primary-500"></div>
 									<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_setting_up()}</p>
 								</div>
+			{:else if loadError && !setupData}
+				<!-- Error state with retry -->
+				<div class="flex flex-col items-center justify-center gap-3 py-8">
+					<div class="alert preset-ghost-error-500 w-full">
+						<iconify-icon icon="mdi:alert-circle" width={20}></iconify-icon>
+						<div class="alert-message">
+							<p class="text-sm font-medium">Setup failed</p>
+							<p class="text-xs text-surface-500" data-testid="2fa-setup-error">{loadError}</p>
+						</div>
+					</div>
+					<Button variant="surface" size="sm" onclick={() => loadSetupData()} disabled={isLoading}>
+						Retry setup
+					</Button>
+				</div>
 			{:else if setupData}
 				<!-- QR Code Setup -->
 				<div class="space-y-4">

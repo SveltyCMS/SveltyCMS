@@ -14,9 +14,8 @@ const currentTest = process.argv.find(
   (arg) => arg.includes("benchmark") || arg.endsWith(".test.ts"),
 );
 const isBenchmark =
-  process.env.BENCHMARK_MODE === "true" ||
-  process.env.BENCHMARK_MODE === "1" ||
-  process.env.BENCHMARK_STABLE === "true" ||
+  process.env.BENCHMARK === "true" ||
+  process.env.BENCHMARK === "1" ||
   currentTest?.includes("benchmark");
 
 // Quiet progress loggers (compile, etc.) for all unit runs — not just benchmarks.
@@ -25,7 +24,7 @@ const isBenchmark =
 process.env.QUIET = process.env.QUIET || "true";
 process.env.TEST_MODE = process.env.TEST_MODE || "true";
 if (isBenchmark) {
-  process.env.BENCHMARK_MODE = process.env.BENCHMARK_MODE || "true";
+  process.env.BENCHMARK = process.env.BENCHMARK || "true";
 }
 
 import { argvIncludesRealDbTest } from "../helpers/real-db-test-markers";
@@ -252,7 +251,7 @@ const isTestTarget = (path: string) => {
 // --- TOP LEVEL MOCKS (Hoisted — reliable under Vitest; doMock alone is not) ---
 // Factories MUST be defined inside vi.hoisted (cannot use outer ESM imports — TDZ).
 // Keep helpers/default-module-mocks.ts as the documented copy for per-file reuse.
-const { mockLogger, settingsExports, globalSettingsExports, kitMock } = vi.hoisted(() => {
+const { mockLogger, settingsExports, globalSettingsExports, kitMock } = (vi as any).hoisted(() => {
   const makeFn = (impl?: (...args: any[]) => any) => {
     const viRef = (globalThis as any).vi;
     if (viRef?.fn) return viRef.fn(impl);
@@ -432,20 +431,22 @@ vi.mock("@src/utils/logger", () => ({ logger: mockLogger, default: mockLogger })
 vi.mock("@src/utils/logger.server", () => ({ logger: mockLogger, default: mockLogger }));
 
 // Settings service defaults — use real module when testing settings-service itself.
-vi.mock("@src/services/core/settings-service", async (importOriginal) => {
-  const testingSelf = process.argv.some((a) => a.replace(/\\/g, "/").includes("settings-service"));
-  if (testingSelf || process.env.BUN_TEST_MOCKS === "false") {
-    return await importOriginal<typeof import("@src/services/core/settings-service")>();
-  }
-  return settingsExports;
-});
-vi.mock("@services/core/settings-service", async (importOriginal) => {
+// Factories cast to `as any`: the global `vi` here is a shared Bun/Vitest shim whose
+// factory type is `() => any`, while vitest's real signature passes `importOriginal`.
+vi.mock("@src/services/core/settings-service", (async (importOriginal: any) => {
   const testingSelf = process.argv.some((a) => a.replace(/\\/g, "/").includes("settings-service"));
   if (testingSelf || process.env.BUN_TEST_MOCKS === "false") {
     return await importOriginal();
   }
   return settingsExports;
-});
+}) as any);
+vi.mock("@services/core/settings-service", (async (importOriginal: any) => {
+  const testingSelf = process.argv.some((a) => a.replace(/\\/g, "/").includes("settings-service"));
+  if (testingSelf || process.env.BUN_TEST_MOCKS === "false") {
+    return await importOriginal();
+  }
+  return settingsExports;
+}) as any);
 
 // Browser API clients read publicEnv.DEFAULT_CONTENT_LANGUAGE.
 vi.mock("@src/stores/global-settings.svelte.ts", () => globalSettingsExports);

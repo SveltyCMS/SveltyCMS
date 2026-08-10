@@ -6,13 +6,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const ENV_KEYS = [
-  "TEST_MODE",
-  "VITE_TEST_MODE",
-  "PLAYWRIGHT_TEST",
-  "BENCHMARK",
-  "SVELTY_BENCHMARK_SUITE",
-] as const;
+const ENV_KEYS = ["TEST_MODE", "VITE_TEST_MODE", "PLAYWRIGHT_TEST", "BENCHMARK"] as const;
 
 const original = { ...process.env };
 

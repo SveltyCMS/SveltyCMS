@@ -413,27 +413,33 @@ export async function fireWebhook(
     "X-Migration-Event": event,
   };
 
-  // HMAC signing
+  // HMAC signing — consistent with the rest of the codebase (plain SHA-256 of
+  // body+secret concatenation is weaker and not verifiable as a keyed MAC).
   if (webhook.secret) {
-    const signature = await computeSHA256(body + webhook.secret);
-    headers["X-Migration-Signature"] = signature;
+    const crypto = await import("node:crypto");
+    const signature = crypto.createHmac("sha256", webhook.secret).update(body).digest("hex");
+    headers["X-Migration-Signature"] = `sha256=${signature}`;
   }
 
   const maxRetries = webhook.retries || 3;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const response = await fetch(webhook.url, {
+      // 🛡️ Egress-guarded delivery (admin-configured URL = external input).
+      const { safeFetch } = await import("@src/utils/egress-guard");
+      const delivered = await safeFetch(webhook.url, {
         method: "POST",
         headers,
         body,
-        signal: AbortSignal.timeout(10000),
+        allowHttp: false,
+        maxRedirects: 3,
+        timeoutMs: 10_000,
       });
-      if (response.ok) {
+      if (delivered.success) {
         logger.info(`[Webhook] Delivered ${event} to ${webhook.url}`);
         return;
       }
       logger.warn(
-        `[Webhook] ${webhook.url} returned ${response.status} (attempt ${attempt}/${maxRetries})`,
+        `[Webhook] ${webhook.url} returned ${delivered.status ?? delivered.error} (attempt ${attempt}/${maxRetries})`,
       );
     } catch (err) {
       logger.warn(`[Webhook] Failed to deliver ${event} (attempt ${attempt}/${maxRetries}):`, err);

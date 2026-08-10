@@ -194,4 +194,11 @@ describe("listRedirects", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ from: "/old", to: "/new", _id: "r1" });
   });
+
+  it("trusts empty MV success (no content-collection resurrect after delete)", async () => {
+    findManyMock.mockResolvedValueOnce({ success: true, data: [] });
+    const rows = await listRedirects(adminLocals);
+    expect(rows).toEqual([]);
+    // content collection find must not be used when MV returned success + empty
+  });
 });

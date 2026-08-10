@@ -432,7 +432,7 @@ export class CollectionService {
       }
     }
 
-    const collectionSchemaForClient = JSON.parse(JSON.stringify(collection));
+    const collectionSchemaForClient = structuredClone(collection);
 
     return {
       contentLanguage: language,

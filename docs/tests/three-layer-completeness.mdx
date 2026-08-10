@@ -220,15 +220,15 @@ Missing any one layer leaves a gap (logic-only, HTTP-only, or UI-only).
 
 **Ultra-smart additions (2026-07-18)** — headless-safe, not E2E bloat:
 
-| Layer       | Suite                                             | Path                                                   |
-| ----------- | ------------------------------------------------- | ------------------------------------------------------ |
-| Unit        | Session cookies (loopback Secure)                 | `tests/unit/auth/session-cookies.test.ts`              |
-| Unit        | Client import boundary (`$live` / collaboration)  | `tests/unit/live/client-import-boundary.test.ts`       |
-| Unit        | Testing API login dual-write                      | `tests/unit/api/testing-login-cookie-contract.test.ts` |
-| Unit        | Page guards + collectionbuilder load              | `page-guards` · `collectionbuilder-page-server`        |
-| Integration | Session → `(app)` `__data.json` (18 admin shells) | `tests/integration/api/session-page-load.test.ts`      |
-| Integration | Webhooks HTTP happy + deny (P1 ADR domain)        | `tests/integration/api/webhooks.test.ts`               |
-| Unit        | Exhaustive client import-boundary walk            | `tests/unit/live/client-import-boundary.test.ts`       |
+| Layer       | Suite                                                 | Path                                                   |
+| ----------- | ----------------------------------------------------- | ------------------------------------------------------ |
+| Unit        | Session cookies (loopback Secure)                     | `tests/unit/auth/session-cookies.test.ts`              |
+| Unit        | Client import boundary (collaboration / client roots) | `tests/unit/live/client-import-boundary.test.ts`       |
+| Unit        | Testing API login dual-write                          | `tests/unit/api/testing-login-cookie-contract.test.ts` |
+| Unit        | Page guards + collectionbuilder load                  | `page-guards` · `collectionbuilder-page-server`        |
+| Integration | Session → `(app)` `__data.json` (18 admin shells)     | `tests/integration/api/session-page-load.test.ts`      |
+| Integration | Webhooks HTTP happy + deny (P1 ADR domain)            | `tests/integration/api/webhooks.test.ts`               |
+| Unit        | Exhaustive client import-boundary walk                | `tests/unit/live/client-import-boundary.test.ts`       |
 
 Inventory & tiers: [headless-test-inventory.mdx](./headless-test-inventory.mdx).
 

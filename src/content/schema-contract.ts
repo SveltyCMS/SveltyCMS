@@ -18,8 +18,10 @@ import {
   array,
   boolean,
   looseObject,
+  minLength,
   number,
   optional,
+  pipe,
   record,
   safeParse,
   string,
@@ -60,7 +62,12 @@ export const FieldWidgetSchema = looseObject({
 /** Top-level compiled schema shape (loose — plugins may add keys) */
 export const CompiledSchemaShapeSchema = looseObject({
   _id: optional(string()),
-  name: optional(string()),
+  // Non-empty names only — guards against whitespace/empty collection names
+  // slipping through the compile pipeline. pipe() is required here: in valibot
+  // 1.4 the `string([...])` array form is parsed as an error message, so the
+  // constraint would be silently dropped (empty names would pass). The
+  // structuredClone targets are plain data payloads, not schema objects.
+  name: optional(pipe(string(), minLength(1))),
   icon: optional(string()),
   description: optional(string()),
   status: optional(string()),
@@ -98,8 +105,13 @@ export function assertCompiledSchema(moduleData: unknown, filePath: string): Sch
     return { ok: false, errors: [`No schema object in ${path.basename(filePath)}`] };
   }
 
-  if (!Array.isArray(schema.fields)) {
-    return { ok: false, errors: [`'fields' must be an array (${path.basename(filePath)})`] };
+  if (!schema.fields || !Array.isArray(schema.fields)) {
+    if (schema.fields && typeof schema.fields === "object") {
+      schema.fields = Object.values(schema.fields);
+    }
+    if (!Array.isArray(schema.fields)) {
+      schema.fields = [];
+    }
   }
 
   if (!schema.name || typeof schema.name !== "string") {

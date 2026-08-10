@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database-clock"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-08-06"
+updated: "2026-08-09"
 tags:
   - "cache"
   - "redis"
@@ -21,11 +21,15 @@ tags:
 
 ## Overview
 
-SveltyCMS implements a **dual-layer caching system**: L1 is an in-memory LRU cache (500K entries, sub-µs access), L2 is optional Redis for distributed deployments. The system includes stampede protection, single-flight coalescing, negative caching, predictive warming, and stale-while-revalidate.
+SveltyCMS implements a **dual-layer caching system**: L1 is an in-memory LRU cache (500K entries, sub-µs access), L2 is optional Redis for distributed deployments. The system includes stampede protection (distributed single-flight coalescing inside `cacheService.get`), negative caching, predictive warming, and stale-while-revalidate.
 
 ### HTTP response cache (turbo GET + GraphQL)
 
-Separate from `cacheService` entity keys: **`responseCache`** (`src/services/cache/response-cache.ts`) stores user-scoped pre-stringified API/GraphQL bodies + ETags for the **Request Lane Router** (`HYPER_TURBO` / handler-level GraphQL HIT). Keys are `u:{userId}:…` with deep-sorted variables; mutations invalidate `res:*` / GraphQL patterns. See [performance-architecture](../database/performance-architecture.mdx) and [server-hooks](./server-hooks.mdx).
+Separate from `cacheService` entity keys: **`responseCache`** (`src/services/cache/response-cache.ts`) stores user-scoped pre-stringified API/GraphQL bodies + ETags for the **Request Lane Router** (`HYPER_TURBO` / handler-level GraphQL HIT). Keys are `u:{userId}:…` with deep-sorted variables; mutations invalidate `res:*` / GraphQL patterns. Supports zero-copy `Uint8Array` binary byte buffers directly in L1 RAM to bypass string allocations and UTF-8 encoding.
+
+### N+1 batching in GraphQL
+
+GraphQL relation resolvers use a request-scoped `BatchLoader` (`src/utils/server/batch-loader.ts`, wired in `src/routes/api/graphql/loaders.ts`) that coalesces N+1 `findByIds` calls into single `WHERE _id IN (...)` / `$in` queries per tick. Lazy per-request instantiation keeps the loader cost at zero until a relation is actually resolved.
 
 ## Architecture
 
@@ -267,18 +271,26 @@ Hits serve L1 (and L2 if Redis is configured) without re-running SQL/Mongo COUNT
 
 ## Cache Categories
 
-| Category | TTL        | Use Case                                        |
-| -------- | ---------- | ----------------------------------------------- |
-| Static   | 7 days     | Page templates, layouts                         |
-| Dynamic  | 1 hour     | Blog posts, articles                            |
-| API      | 15 minutes | External API responses                          |
-| Query    | 30 minutes | Database query results                          |
-| Session  | 24 hours   | User sessions, auth tokens                      |
-| Widget   | 2 hours    | Dashboard widgets                               |
-| Computed | 6 hours    | Expensive calculations                          |
-| Media    | 30 days    | Uploaded files, thumbnails                      |
-| Schema   | 1 hour     | Collection schema metadata (`schema:*` keys)    |
-| Content  | 5 minutes  | Navigation tree snapshots (`navigation:tree:*`) |
+The `CacheCategory` enum (`src/databases/cache/types.ts`) is the single source of truth: `API`, `AUTH`, `COLLECTION`, `CONTENT`, `GENERAL`, `MEDIA`, `SCHEMA`, `SESSION`, `SYSTEM`, `THEME`, `USER`, `WIDGET`. When a caller passes `ttl = 0`, `cacheService.set()` applies the adaptive per-category default from `CATEGORY_TTL_SECONDS` (`src/databases/cache/cache-service.ts`):
+
+| Category     | Default TTL | Use Case                                        |
+| ------------ | ----------- | ----------------------------------------------- |
+| `schema`     | 1 hour      | Collection schema metadata (`schema:*` keys)    |
+| `setting`    | 30 minutes  | Settings / configuration values                 |
+| `theme`      | 30 minutes  | Theme config                                    |
+| `session`    | 15 minutes  | Auth sessions (security-sensitive)              |
+| `system`     | 10 minutes  | System health / dashboard aggregates            |
+| `collection` | 5 minutes   | Collection list queries (default)               |
+| `widget`     | 5 minutes   | Dashboard widgets                               |
+| `content`    | 2 minutes   | Navigation tree snapshots (`navigation:tree:*`) |
+| `entry`      | 1 minute    | Content entries (change often)                  |
+| `user`       | 5 minutes   | User metadata / counts                          |
+| `media`      | 5 minutes   | Media metadata                                  |
+| `api`        | 30 seconds  | API responses (change fast)                     |
+| `auth`       | 5 minutes   | Auth-related lookups                            |
+| `general`    | 5 minutes   | Fallback for unprofiled categories              |
+
+Explicit `ttl > 0` always wins over the category profile. Categories in the enum without a profile (e.g. `CacheCategory.GENERAL`) fall back to `general` (300s).
 
 ## Performance Metrics
 
@@ -298,4 +310,4 @@ Hits serve L1 (and L2 if Redis is configured) without re-running SQL/Mongo COUNT
 
 ---
 
-**Last Updated**: 2026-08-04 (RBAC permission cache wired into `hasPermissionWithRoles`; turbo-auth invalidation on all role/user mutation paths; architecture + invalidation mermaid diagrams)
+**Last Updated**: 2026-08-09 (RBAC permission cache wired into `hasPermissionWithRoles`; turbo-auth invalidation on all role/user mutation paths; architecture + invalidation mermaid diagrams; cache categories table aligned to the real `CacheCategory` enum + `CATEGORY_TTL_SECONDS` profiles)

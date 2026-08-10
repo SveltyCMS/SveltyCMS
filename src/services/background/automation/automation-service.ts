@@ -388,9 +388,6 @@ export class AutomationService {
       return;
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000); // 10s timeout
-
     const body = config.body || JSON.stringify(payload);
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -407,24 +404,27 @@ export class AutomationService {
       headers["X-SveltyCMS-Signature"] = `sha256=${signature}`;
     }
 
-    try {
-      const response = await fetch(config.url, {
-        method: config.method || "POST",
-        headers,
-        body,
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+    // 🛡️ Egress-guarded delivery: admin-configured URLs are external input —
+    // safeFetch validates the host (blocks private IPs/localhost/metadata),
+    // caps redirects and enforces a timeout. Never raw fetch() on configured
+    // URLs.
+    const { safeFetch } = await import("@src/utils/egress-guard");
+    const delivered = await safeFetch(config.url, {
+      method: config.method || "POST",
+      headers,
+      body,
+      allowHttp: false,
+      maxRedirects: 3,
+      timeoutMs: 10_000,
+    });
 
-      if (!response.ok) {
-        throw new Error(`Webhook returned HTTP ${response.status}`);
-      }
-
-      logger.debug(`Automation webhook sent to ${config.url} for tenant ${payload.tenantId}`);
-    } catch (err) {
-      clearTimeout(timeoutId);
-      throw err;
+    if (!delivered.success) {
+      throw new Error(
+        `Webhook delivery failed (${delivered.status ?? delivered.error ?? "unknown"})`,
+      );
     }
+
+    logger.debug(`Automation webhook sent to ${config.url} for tenant ${payload.tenantId}`);
   }
 
   /** Execute an email operation */

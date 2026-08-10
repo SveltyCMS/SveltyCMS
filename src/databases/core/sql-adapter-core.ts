@@ -60,6 +60,7 @@ import {
   resolvePageSort,
   shouldUseEstimateCount,
 } from "./page-utils";
+import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "./lookup-query";
 
 // ============================================================================
 // Abstract SqlAdapterCore — shared base for all SQL adapters
@@ -95,6 +96,34 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
   /** Create a Drizzle dynamic table definition using dialect-specific column types. */
   public abstract createDynamicTableDefinition(name: string): any;
+
+  /**
+   * Stable column list for raw findById SELECTs — base columns + registered
+   * materialized columns (sorted extras keep the SQL text stable per schema
+   * state; statement caches are cleared on DDL). The `data` blob is included
+   * only for full-doc reads.
+   */
+  protected getRawFindByIdCols(table: any, wantsData: boolean): string[] {
+    const base = ["_id", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
+    if (wantsData) base.push("data");
+    let cols: Record<string, unknown> | undefined = this._tableColumnsCache.get(table);
+    if (!cols) {
+      try {
+        const resolved = getTableColumns(table);
+        if (resolved) cols = resolved as any;
+      } catch {
+        /* safe */
+      }
+    }
+    if (cols) {
+      const extras = Object.keys(cols).filter(
+        (c) => !base.includes(c) && !c.startsWith("Symbol(") && c !== "_",
+      );
+      extras.sort();
+      return [...base, ...extras];
+    }
+    return base;
+  }
 
   /** Check whether an error indicates "table does not exist" for this dialect. */
   protected abstract isMissingTableError(err: any): boolean;
@@ -133,7 +162,45 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   // Instance-level cache to skip even the Map.has() call after first registration
-  private _registeredSchemas = new Set<string>();
+  protected _registeredSchemas = new Set<string>();
+
+  /**
+   * Reconstruct the inserted row from prepared values + column defaults —
+   * exact RETURNING * parity for CMS tables (no triggers or generated
+   * columns; the Drizzle table definition mirrors the DDL). Lets SQL
+   * adapters skip the read-back round trip on single inserts.
+   */
+  protected synthesizeInsertRow(
+    table: any,
+    values: Record<string, any>,
+    opts?: { intBooleans?: boolean },
+  ): Record<string, any> {
+    const result: Record<string, any> = { ...values };
+    const tableCols = getTableColumns(table);
+    const now = new Date();
+    for (const [name, col] of Object.entries(tableCols)) {
+      if (result[name] !== undefined) continue;
+      const def = (col as any).default;
+      // Plain literal defaults (string/boolean/number/{}) apply client-side;
+      // SQL expression defaults (CURRENT_TIMESTAMP, gen_random_uuid) can't be
+      // evaluated here — timestamps fall through to `now`, others to NULL.
+      if (
+        def !== undefined &&
+        (typeof def !== "object" || Object.getPrototypeOf(def) === Object.prototype)
+      ) {
+        // MariaDB TINYINT(1) reads back as 0/1 — keep insert responses
+        // identical to what a subsequent read returns.
+        result[name] = opts?.intBooleans && typeof def === "boolean" ? (def ? 1 : 0) : def;
+      } else if (typeof (col as any).defaultFn === "function") {
+        result[name] = (col as any).defaultFn();
+      } else if (name === "createdAt" || name === "updatedAt") {
+        result[name] = now;
+      } else {
+        result[name] = null;
+      }
+    }
+    return result;
+  }
 
   /** Whether INSERT … RETURNING is supported natively. */
   protected get insertReturnsRows(): boolean {
@@ -155,13 +222,26 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return false;
   }
 
+  /**
+   * Quote a SQL identifier for this dialect. ANSI double quotes work for
+   * SQLite/PostgreSQL; MariaDB needs backticks unless ANSI_QUOTES is enabled
+   * (it is NOT in MariaDB's default sql_mode, so double quotes mean strings).
+   */
+  protected quoteIdentifier(name: string): string {
+    return `"${name.replace(/"/g, '""')}"`;
+  }
+
   /** Whether findById has an adapter-specific raw-SQL optimization. */
   protected get useRawFindById(): boolean {
     return false;
   }
 
   /** Execute a raw SQL query for the dynamic findMany path. */
-  protected async executeDynamicSql(_db: any, sqlQuery: SQL): Promise<any[]> {
+  protected async executeDynamicSql(
+    _db: any,
+    sqlQuery: SQL,
+    _options?: BaseQueryOptions,
+  ): Promise<any[]> {
     // Default: PostgreSQL-style (execute returns rows array or {rows: [...]})
     const execResult = await _db.execute(sqlQuery);
     if (Array.isArray(execResult)) return execResult;
@@ -169,11 +249,25 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   /** Adapter-specific raw findById optimisation — returns null if not used. */
-  protected async rawFindById<T>(
+  protected async rawFindById<T extends BaseEntity>(
     _table: any,
     _collection: string,
     _id: DatabaseId,
     _options: FindOptions<T>,
+  ): Promise<T | null> {
+    return null;
+  }
+
+  /**
+   * Adapter-specific raw INSERT…RETURNING — returns null when not used.
+   * MariaDB/PostgreSQL override this to skip Drizzle's per-call AST building
+   * on the write path while keeping a single round trip (values + row back).
+   */
+  protected async rawInsertReturning<T extends BaseEntity>(
+    _table: any,
+    _collection: string,
+    _values: Record<string, any>,
+    _options: BaseQueryOptions,
   ): Promise<T | null> {
     return null;
   }
@@ -209,6 +303,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   protected _tableColumnsCache = new Map<any, Record<string, Column>>();
   protected tableRegistry = new Map<string, any>();
   protected dynamicTables = new Map<string, any>();
+  /**
+   * Row-store hybrid: materialized scalar columns per collection (populated by
+   * createModel; getTable reads it synchronously to build the Drizzle def).
+   */
+  protected materializedColumns = new Map<string, Map<string, string>>();
   protected modelRegistry = new Map<string, any>();
   protected _resolving = new Set<string>();
   protected _selectionCache = new Map<string, any>();
@@ -305,6 +404,33 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return helpers.getColumnHelper(table, name, this._tableColumnsCache, lastRef, forcePhysical);
   }
 
+  /**
+   * Whether the SELECT can skip the JSON `data` blob column. True when the
+   * caller requested an explicit `fields` projection that contains no
+   * non-physical (blob-stored) keys — the row then only carries metadata
+   * columns and avoids JSON.parse + flattenDataColumn entirely.
+   */
+  protected shouldExcludeData(table: any, options: any): boolean {
+    const fields = options?.fields;
+    if (!Array.isArray(fields) || fields.length === 0) return false;
+    // If ANY requested field is not a physical column it lives in the data blob.
+    for (const f of fields) {
+      // Explicitly requesting the blob means it must be selected — never exclude.
+      if (f === "data") return false;
+      if (f === "_id" || f === "id") continue;
+      if (
+        f === "tenantId" ||
+        f === "status" ||
+        f === "createdAt" ||
+        f === "updatedAt" ||
+        f === "isDeleted"
+      )
+        continue;
+      if (!this.getColumn(table, f)) return false;
+    }
+    return true;
+  }
+
   public getPhysicalSelection(table: any): any {
     const self = this as any;
     const lastRef = {
@@ -323,6 +449,30 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     };
     return helpers.getPhysicalSelection(table, this._selectionCache, (t, n, f) =>
       helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
+    );
+  }
+
+  public getProjectedSelection(table: any, options: any): any {
+    const self = this as any;
+    const lastRef = {
+      get table() {
+        return self._lastTable;
+      },
+      set table(val: any) {
+        self._lastTable = val;
+      },
+      get cols() {
+        return self._lastCols;
+      },
+      set cols(val: any) {
+        self._lastCols = val;
+      },
+    };
+    return helpers.getPhysicalSelection(
+      table,
+      this._selectionCache,
+      (t, n, f) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
+      this.shouldExcludeData(table, options),
     );
   }
 
@@ -393,6 +543,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
   public prepareValues(table: any, data: any, id: any, now: Date, options: any): any {
     const values: any = {};
+    if (id) {
+      values._id = id;
+    }
     const self = this as any;
     const lastRef = {
       get table() {
@@ -434,16 +587,23 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if ((k === "_id" || k === "id") && id) continue;
         if (data[k] !== undefined) {
           let val = data[k];
-          // Convert ISO date strings to Date objects for Drizzle timestamp_ms columns
-          if (
+          // Convert numeric timestamps or ISO date strings to Date objects for
+          // Drizzle timestamp_ms columns. ONLY when the column is a real
+          // date/timestamp column (or the special createdAt/updatedAt pair):
+          // the bare `*Date`/`*At` suffix heuristics over-matched TEXT columns
+          // (e.g. a materialized publishDate VARCHAR) and produced a Date that
+          // SQLite bindings serialize as a JSON-quoted string — double-encoded
+          // values that read back unparseable (temporal-integrity regression).
+          const isDateColumn =
+            isPhysical?.dataType === "date" ||
+            (isPhysical?.columnType && isPhysical.columnType.includes("Timestamp"));
+          const isSpecialTimestamp = k === "createdAt" || k === "updatedAt";
+          if (typeof val === "number" && val > 0 && (isSpecialTimestamp || isDateColumn)) {
+            val = new Date(val);
+          } else if (
             typeof val === "string" &&
             val.length > 5 &&
-            (k === "createdAt" ||
-              k === "updatedAt" ||
-              k.endsWith("Date") ||
-              k.endsWith("At") ||
-              isPhysical?.dataType === "date" ||
-              (isPhysical?.columnType && isPhysical.columnType.includes("Timestamp"))) &&
+            (isSpecialTimestamp || isDateColumn) &&
             /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)
           ) {
             const ts = Date.parse(val);
@@ -475,7 +635,16 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       values.tenantId = options.tenantId;
     }
 
-    if (!id && (schemaCols?.["createdAt"] || getCol(table, "createdAt"))) {
+    // createdAt/updatedAt defaults: always fill when the column exists and the
+    // caller didn't provide a value. The old `!id` guard on createdAt skipped
+    // it for explicit-_id inserts — SQLite's DDL has no timestamp default, so
+    // those rows stored NULL (epoch/ISO contract break; Maria patched around
+    // it post-prepareValues, SQLite never did). updatedAt already ran without
+    // the guard — createdAt now matches.
+    if (
+      (schemaCols?.["createdAt"] || getCol(table, "createdAt")) &&
+      values.createdAt === undefined
+    ) {
       values.createdAt = now;
     }
     if (schemaCols?.["updatedAt"] || getCol(table, "updatedAt")) {
@@ -507,6 +676,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if (!Object.hasOwn(data, k)) continue;
         if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
           continue;
+        // 🚀 ROW-STORE HYBRID: fields backed by a physical column live in the
+        // column — the `data` blob keeps only dynamic (non-column) fields.
+        // Old rows keep their legacy blob fields; the read merge skips
+        // column-backed keys, so columns stay authoritative.
+        if (schemaCols?.[k] || getCol(table, k)) continue;
         dynamicData[k] = data[k];
       }
       if (this.shouldJsonSerializeInPrepare) {
@@ -550,13 +724,54 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         },
       };
     }
+
+    // 🚀 ALL-SQL ULTRA PATH: pure {_id} / {_id,tenantId} → findById
+    // (SQLite raw SELECT, Postgres/MariaDB eq+limit — skips mapQuery translation)
+    if (
+      isIdLookupQuery(query) &&
+      !options.includeDeleted &&
+      !options.bypassSafeQuery &&
+      this.hooks.length === 0
+    ) {
+      const lookupId = extractLookupId(query)!;
+      const qTenant = extractLookupTenantId(query);
+      const fastOpts =
+        qTenant !== undefined && !options.tenantId
+          ? { ...options, tenantId: qTenant as any }
+          : options;
+      return this.findById<T>(collection, lookupId as DatabaseId, fastOpts);
+    }
+
     return this.wrap(async () => {
       const q =
         this.hooks.length > 0
           ? await this.runHooks("before", "find", collection, query, options)
           : query;
+
+      // After hooks, re-check for id-only lookup
+      if (isIdLookupQuery(q) && !options.includeDeleted) {
+        const lookupId = extractLookupId(q)!;
+        const qTenant = extractLookupTenantId(q);
+        const fastOpts =
+          qTenant !== undefined && !options.tenantId
+            ? { ...options, tenantId: qTenant as any }
+            : options;
+        const byId = await this.findById<T>(collection, lookupId as DatabaseId, fastOpts);
+        if (!byId.success) throw new Error(byId.message || "findById failed");
+        const data = byId.data;
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "find", collection, data, options)
+          : data;
+      }
+
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
+      // Register schema on read too — read-only workloads (never written via
+      // insert) must still get the fast date/JSON conversion path.
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
       const where = this.mapQuery(table, q as any, options);
 
       const results = await this.getDrizzleInstance(options)
@@ -601,8 +816,40 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         this.hooks.length > 0
           ? await this.runHooks("before", "find", collection, query, options)
           : query;
+
+      // 🚀 ULTRA PATH: pure {_id} / {_id,tenantId} → findById (raw prepared
+      // SELECT). The list path with a single-id filter used to pay the full
+      // dynamic-SQL/Drizzle-AST build (~10× findOne) even though a PK lookup
+      // can never return more than one row. Runs after before-hooks so hook
+      // semantics match findOne (hooks may rewrite the query).
+      if (
+        isIdLookupQuery(q) &&
+        !options.includeDeleted &&
+        !options.bypassSafeQuery &&
+        !options.sort &&
+        !options.offset
+      ) {
+        const lookupId = extractLookupId(q)!;
+        const qTenant = extractLookupTenantId(q);
+        const fastOpts =
+          qTenant !== undefined && !options.tenantId
+            ? { ...options, tenantId: qTenant as any }
+            : options;
+        const one = await this.findById<T>(collection, lookupId as DatabaseId, fastOpts);
+        if (!one.success) throw new Error(one.message || "findById failed");
+        const data = one.data ? ([one.data] as T[]) : ([] as T[]);
+        return this.hooks.length > 0
+          ? await this.runHooks("after", "find", collection, data, options)
+          : data;
+      }
+
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
+      // Register schema on read too (see findOne).
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
       const where = this.mapQuery(table, q as any, options);
 
       const tableName = getTableName(table);
@@ -611,13 +858,16 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         (collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_"));
 
       let results;
+      const excludeData = this.shouldExcludeData(table, options);
       try {
         if (isDynamic) {
-          const selection = this.getPhysicalSelection(table);
+          const selection = this.getProjectedSelection(table, options);
           const columns = Object.keys(selection);
-          const colList = columns.map((c) => `"${c}"`).join(", ");
+          const colList = columns.map((c) => this.quoteIdentifier(c)).join(", ");
 
-          let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(`"${tableName}"`)} WHERE ${where || sql`1=1`}`;
+          let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(
+            this.quoteIdentifier(tableName),
+          )} WHERE ${where || sql`1=1`}`;
 
           if (options.sort) {
             const sortConditions: any[] = [];
@@ -698,7 +948,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           if (options.offset !== undefined) sqlQuery = sql`${sqlQuery} OFFSET ${options.offset}`;
 
           const db = this.getDrizzleInstance(options);
-          const rawRows = await this.executeDynamicSql(db, sqlQuery);
+          const rawRows = await this.executeDynamicSql(db, sqlQuery, options);
 
           results = rawRows.map((row: any) => {
             const obj: any = {};
@@ -715,7 +965,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           });
         } else {
           let builder: any = this.getDrizzleInstance(options)
-            .select(this.getPhysicalSelection(table))
+            .select(this.getProjectedSelection(table, options))
             .from(table)
             .where(where);
           builder = this.applyOrderBy(builder, table, options);
@@ -730,13 +980,22 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         throw err;
       }
 
-      const data = utils.convertArrayDatesToISO(results as any, {
-        inPlace: true,
-        table: collection,
-      }) as T[];
+      // Projection: when data was excluded from the SELECT there is nothing to
+      // JSON-parse or flatten — but date/boolean normalization still applies
+      // (parity with full reads; avoids leaking raw 0/1 or driver Dates).
+      const data = excludeData
+        ? utils.convertArrayDatesToISO(results as any, {
+            inPlace: true,
+            table: collection,
+            skipJson: true,
+          })
+        : utils.convertArrayDatesToISO(results as any, {
+            inPlace: true,
+            table: collection,
+          });
       return this.hooks.length > 0
         ? await this.runHooks("after", "find", collection, data, options)
-        : data;
+        : (data as T[]);
     }, "FIND_MANY_FAILED");
   }
 
@@ -915,17 +1174,23 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       utils.applyTenantFilter(conditions, tenantCol, options);
 
       const results = await this.getDrizzleInstance(options)
-        .select()
+        .select(this.getProjectedSelection(table, options))
         .from(table)
         .where(and(...conditions))
         .limit(1);
 
-      return results.length
+      if (results.length === 0) return null;
+      const excludeData = this.shouldExcludeData(table, options);
+      return excludeData
         ? (utils.convertDatesToISO(results[0], {
             ...this.convertDatesOptions,
             table: collection,
+            skipJson: true,
           }) as T)
-        : null;
+        : (utils.convertDatesToISO(results[0], {
+            ...this.convertDatesOptions,
+            table: collection,
+          }) as T);
     }, "FIND_BY_ID_FAILED");
   }
 
@@ -1083,10 +1348,23 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const id = (d as any)._id || generateUUID();
         const now = new Date();
         const values = this.prepareValues(table, d, id, now, options);
+        // Seed path only: RETURNING is pure overhead when the caller already
+        // knows the row (testing.ts passes skipReturning explicitly). The
+        // ambient BENCHMARK env check was removed — it made the benchmark
+        // measure a non-production path (Drizzle no-returning) instead of the
+        // raw INSERT…RETURNING fast path used in production.
+        const skipReturning = (options as any)?.skipReturning === true;
 
         const runInsert = async () => {
-          const query = this.getDrizzleInstance(options).insert(table).values(values);
+          // Raw single-statement INSERT (SQLite/PG) — skips Drizzle AST. The
+          // raw paths honor skipReturning (no-read-back synthesis) where
+          // implemented; otherwise RETURNING is one round trip with the row.
           if (this.insertReturnsRows) {
+            const rawResult = await this.rawInsertReturning<T>(table, collection, values, options);
+            if (rawResult !== null) return rawResult;
+          }
+          const query = this.getDrizzleInstance(options).insert(table).values(values);
+          if (this.insertReturnsRows && !skipReturning) {
             const result = await (query as any).returning();
             return utils.convertDatesToISO(result[0], {
               ...this.convertDatesOptions,
@@ -1216,27 +1494,59 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
 
+        // Never write the PK back in the SET clause — it's the WHERE key
+        delete values[idCol.name];
+        delete values["id"];
+
         const conditions: SQL[] = [eq(idCol, id as any)];
         const tenantCol = this.getColumn(table, "tenantId");
         utils.applyTenantFilter(conditions, tenantCol, options);
+
+        // 🚀 NO-READ-BACK PATH: when the caller sends the full document
+        // (bulkUpdate, full-doc sync), RETURNING's row read-back + JSON
+        // parse/conversion is pure overhead — every column the UPDATE writes
+        // was built client-side in prepareValues, so the row can be
+        // reconstructed from memory 1:1 (SveltyCMS DDL has no UPDATE triggers
+        // or server-generated columns). Partial PATCHes keep RETURNING so
+        // untouched physical columns (status/createdAt/isDeleted) stay intact
+        // in the response.
+        const skipReturning = (options as any)?.skipReturning === true;
 
         const query = this.getDrizzleInstance(options)
           .update(table)
           .set(values)
           .where(and(...conditions));
 
+        if (skipReturning) {
+          await query;
+          // Reconstruct the row from the prepared values (full-doc callers only;
+          // no affected-rows check — MariaDB reports 0 for matched-but-unchanged
+          // updates, which would false-positive "not found").
+          const reconstructed = {
+            ...values,
+            [idCol.name]: id,
+          } as Record<string, unknown>;
+          const finalData = utils.convertDatesToISO(reconstructed, {
+            ...this.convertDatesOptions,
+            table: collection,
+          }) as unknown as T;
+          return this.hooks.length > 0
+            ? await this.runHooks("after", "update", collection, finalData, options)
+            : finalData;
+        }
+
         if (this.updateReturnsRows) {
           const results = await query.returning();
           let res = results[0];
           if (!res) {
-            const check = await this.getDrizzleInstance(options)
-              .select()
-              .from(table)
-              .where(and(...conditions));
-            res = check[0];
-          }
-          if (!res) {
-            throw new Error(`Record ${id} not found in ${getTableName(table)}`);
+            // Prefer optimized findById over full select *
+            const byId = await this.findById<T>(collection, id, options as FindOptions<T>);
+            if (!byId.success || !byId.data) {
+              throw new Error(`Record ${id} not found in ${getTableName(table)}`);
+            }
+            return this.hooks.length > 0
+              ? await this.runHooks("after", "update", collection, byId.data, options)
+              : byId.data;
           }
           const finalData = utils.convertDatesToISO(res, {
             ...this.convertDatesOptions,
@@ -1247,7 +1557,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
             : finalData;
         } else {
           await query;
-          const updated = await this.findOne<T>(collection, { _id: id } as any, options);
+          // findById is faster than findOne (raw SQL on SQLite; no mapQuery)
+          const updated = await this.findById<T>(collection, id, options as FindOptions<T>);
           if (!updated.success || !updated.data) {
             throw new Error(`Record ${id} not found in ${getTableName(table)}`);
           }
@@ -1287,7 +1598,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           .where(whereCondition);
 
         return {
-          modifiedCount: (result as any).changes ?? (result as any).affectedRows ?? 0,
+          // postgres.js exposes .count; sqlite .changes; mysql2 .affectedRows
+          modifiedCount:
+            (result as any).count ?? (result as any).changes ?? (result as any).affectedRows ?? 0,
         };
       },
       "UPDATE_MANY_FAILED",
@@ -1376,18 +1689,28 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return this.wrap(
       async () => {
         const table = this.getTable(collection);
+        if (!table) throw new Error(`Collection table not found: ${collection}`);
         if (options.permanent && (!query || Object.keys(query).length === 0)) {
           await this.getDrizzleInstance(options).delete(table);
           return { deletedCount: -1 };
         }
-        const items = await this.findMany(collection, query, options);
-        if (!items.success) throw new Error(items.message);
-        let deletedCount = 0;
-        for (const item of items.data || []) {
-          const res = await this.delete(collection, (item as any)._id, options);
-          if (res.success) deletedCount++;
+        // 🚀 Single-statement soft/hard delete instead of findMany + N deletes.
+        const whereCondition = this.mapQuery(table, query, options);
+        const hasIsDeleted = !!this.getColumn(table, "isDeleted");
+        const db = this.getDrizzleInstance(options);
+        if (options.permanent || !hasIsDeleted) {
+          await db.delete(table).where(whereCondition);
+          return { deletedCount: -1 };
         }
-        return { deletedCount };
+        const res = await db
+          .update(table)
+          .set({ isDeleted: true, updatedAt: new Date() })
+          .where(whereCondition);
+        // Affected rows differ per dialect: postgres.js -> .count, sqlite -> .changes,
+        // mysql2 -> .affectedRows. Fall back to -1 (unknown) when not exposed.
+        const affected =
+          (res as any)?.count ?? (res as any)?.changes ?? (res as any)?.affectedRows ?? -1;
+        return { deletedCount: affected };
       },
       "DELETE_MANY_FAILED",
       undefined,

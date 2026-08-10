@@ -30,6 +30,13 @@ export class TransactionModule {
     try {
       // postgres.js transactions via drizzle
       return await this.db.transaction(async (_tx) => {
+        // 🚀 RAW-PATH HANDLE: drizzle's postgres-js session exposes the
+        // begin()-scoped postgres.js instance as `session.client`. Raw paths
+        // (rawInsertReturning/rawUpdate/rawFindById/insertMany) run on it so
+        // the fast path participates in the transaction instead of deferring
+        // to Drizzle (single code path, no rollback bypass).
+        const txSql = (_tx as any)?.session?.client ?? null;
+        const txnOpts = txSql ? { db: _tx, sql: txSql } : { db: _tx };
         const dbTransaction: DatabaseTransaction & any = {
           commit: async () => ({ success: true, data: undefined }),
           rollback: async () => {
@@ -39,24 +46,25 @@ export class TransactionModule {
           insert: async (collection: string, data: any, options: any = {}) =>
             this.core.crud.insert(collection, data, {
               ...options,
-              transaction: { db: _tx },
+              transaction: txnOpts,
             }),
           update: async (collection: string, id: any, data: any, options: any = {}) =>
             this.core.crud.update(collection, id, data, {
               ...options,
-              transaction: { db: _tx },
+              transaction: txnOpts,
             }),
           delete: async (collection: string, id: any, options: any = {}) =>
             this.core.crud.delete(collection, id, {
               ...options,
-              transaction: { db: _tx },
+              transaction: txnOpts,
             }),
           findById: async (collection: string, id: any, options: any = {}) =>
             this.core.crud.findOne(collection, { _id: id } as any, {
               ...options,
-              transaction: { db: _tx },
+              transaction: txnOpts,
             }),
           db: _tx,
+          sql: txSql,
 
           // 🛡️ Domain Support: Injecting domain modules into the transaction object
           auth: this.core.auth,

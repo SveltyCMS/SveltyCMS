@@ -1,112 +1,121 @@
 ---
 path: "docs/reference/api/graphql-subscriptions.mdx"
-title: "GraphQL Subscriptions Reference"
-description: "Real-time GraphQL subscriptions with secure WebSocket authentication, JIT optimization, and Svelte 5 integration via svelte-realtime."
+title: "Real-Time Updates Reference"
+description: "Real-time updates in SveltyCMS: Server-Sent Events (SSE) for event streaming and Yjs collaboration for concurrent editing — both adapter-node compatible."
 order: 8
 icon: "mdi:websocket"
 author: "SveltyCMS Team"
 created: "2025-10-29"
-updated: "2026-07-07"
+updated: "2026-08-10"
 tags:
   - "graphql"
   - "websocket"
   - "subscriptions"
   - "real-time"
-  - "ws"
+  - "sse"
 ---
 
-# GraphQL Subscriptions Reference
+# Real-Time Updates Reference
 
-> **Note:** SveltyCMS uses a highly stable production-ready stack based on **`@sveltejs/adapter-node`** and the standard **`ws`** library. The WebSocket server runs natively on the main application port at `ws://[domain]/ws`.
+> **Note:** SveltyCMS ships real-time on **adapter-node-compatible transports** — no uWebSockets dependency. Two mechanisms are production-wired:
+>
+> 1. **Server-Sent Events (SSE)** — `GET /api/content/events` (alias `GET /api/events`) streams EventBus events (content updates, cache invalidation, settings changes) to connected clients over plain HTTP.
+> 2. **Yjs collaborative editing** — CRDT sync for concurrent field editing via `collaboration-service` (SSE transport) with an optional native WebSocket server on `/ws` (`yjs-sync-server`, wired in `index.cjs`).
 
-> **Architecture Guide:** Real-time collaborative editing (CRDT) is supported via the integrated WebSocket server on `/ws`. For standard GraphQL queries, mutations, and subscriptions, standard HTTP Server-Sent Events (SSE) or REST-based fallbacks are recommended for maximum deployment compatibility.
-
-Real-time GraphQL subscriptions allow clients to receive instant updates when data changes. This guide covers the secure WebSocket implementation, JIT-optimized resolvers, and seamless Svelte 5 integration.
+GraphQL **queries and mutations** remain HTTP-based (`POST /api/graphql`). There is **no GraphQL-over-WebSocket subscriptions endpoint** in the current release — use the SSE event stream or Yjs collaboration for live updates.
 
 ---
 
 ## ⚡ Quick Reference
 
-| Feature                     | Details                                                                |
-| :-------------------------- | :--------------------------------------------------------------------- |
-| **Endpoint**                | `ws://[domain]/ws` (Managed by built-in Yjs sync server)               |
-| **Protocol**                | Standard WebSockets (`ws` + `y-protocols`)                             |
-| **Auth Methods**            | Session ID, Cookie, or secure query parameter                          |
-| **Server-Side Alternative** | [**Real-Time Events API (SSE)**](./content.mdx#3-real-time-events-sse) |
+| Feature                       | Details                                                                    |
+| :---------------------------- | :------------------------------------------------------------------------- |
+| **SSE endpoint**              | `GET /api/content/events` (alias `GET /api/events`)                        |
+| **Collaboration (SSE)**       | `collaboration-service` + `SseProvider` (client) + `yjs-service` (server)  |
+| **Collaboration (WebSocket)** | `ws://[domain]/ws` via `yjs-sync-server` (production `index.cjs` entry)    |
+| **Protocol**                  | `text/event-stream` + `y-protocols` over Yjs                               |
+| **Auth Methods**              | Session cookie (SSE); session cookie / headers at the handshake layer (WS) |
+| **GraphQL over WS**           | ❌ Not shipped — use SSE / Yjs                                             |
 
 ---
 
 ## 1. The Goal
 
-Maintain a live, reactive UI (like a collaborative editor or a real-time dashboard) that updates instantly when content is modified by other users or background jobs. This provides a superior, type-safe alternative to traditional polling mechanisms.
+Maintain a live, reactive UI (collaborative editor, real-time dashboard, settings sync) that updates instantly when content is modified by other users or background jobs — a superior, type-safe alternative to polling.
 
 ---
 
-## 2. Implementation Details
+## 2. Server-Sent Events (SSE)
 
-### Svelte 5 Integration (Client Side)
+### Server side
 
-With the migration to `svelte-realtime`, setting up reactive subscriptions on the client is drastically simplified. You no longer need to manage complex WebSocket connection states manually.
+`handleContentEventsStream` (`src/routes/api/[...path]/handlers/content.ts`) subscribes to the internal EventBus (`@utils/event-bus`) and pushes normalized, tenant-filtered payloads to the client:
 
-````typescript
-// Example: Using svelte-realtime to subscribe to the global event stream
-import { realtime } from "svelte-realtime/client";
-import { events } from "$live/system";
+- `content:update` → `content_update`
+- `cache:invalidate` → `cache_invalidate`
+- `config:change` → `config_change`
+- `settings:update` → `settings_update` (consumed by `global-settings.svelte.ts`)
+- Keep-alive pings every 30s; buffered micro-flushes every 32ms.
 
-// 1. Initialize the live stream (automatically manages connection and state)
-const eventStream = realtime(events);
-
-// 2. Derive reactive state directly from the stream using Svelte 5 runes
-const latestEvent = $derived(eventStream.value?.at(-1));
-```
-
-### Authentication and Connection
-
-Client connections must pass authentication parameters to establish a secure stream.
-The unified `ws://[domain]/live` endpoint handles auth via session cookies or
-connection parameters.
+### Client side
 
 ```typescript
-// Client-side connection with svelte-realtime and auth context
-import { realtime } from "svelte-realtime/client";
-import { events } from "$live/system";
-
-const stream = realtime(events, {
-  auth: { token: "your-api-token-here" },
-});
+// Subscribe to the global event stream (browser)
+const events = new EventSource("/api/content/events", { withCredentials: true });
+events.onmessage = (e) => {
+  const data = JSON.parse(e.data);
+  if (data.type === "content_update") {
+    // invalidate loaders / refetch structure
+  }
+};
 ```
+
+Built-in consumers: `content-sse.svelte.ts`, `global-settings.svelte.ts`, `sse-provider.svelte.ts`.
 
 ---
 
-## 3. The Mechanics (Server-Side)
+## 3. Yjs Collaborative Editing
 
-SveltyCMS utilizes a **Unified Port Architecture** where `svelte-adapter-uws` manages both HTTP endpoints and WebSockets efficiently.
+### Transport
 
-````
+- **Default (SSE)**: the client `SseProvider` (`src/services/collaboration/sse-provider.svelte.ts`) connects to `/api/events` for pushed updates and `GET/POST /api/collaboration/yjs` for full-state sync / batched updates. Server state lives in `yjs-service` (`src/services/collaboration/yjs-service.ts`), keyed by `docId` + tenant.
+- **Optional WebSocket**: `yjs-sync-server` (`src/services/collaboration/yjs-sync-server.ts`) attaches a `ws`-based sync server to the HTTP server at `/ws` (y-protocols wire format, tenant-aware `tenantId:docId` keys). Wired in the production entry `index.cjs`.
 
+### Wiring
+
+`fields.svelte` integrates `collaborationService` (`src/services/collaboration/collaboration-service.svelte.ts`) when a collection has `collaboration.enabled: true` — field changes are pushed into the Yjs document and merged back on remote updates, with awareness (cursor presence) per editor.
+
+---
+
+## 4. Architecture (Server-Side)
+
+```mermaid
 sequenceDiagram
-participant Client
-participant UWS as uWebSockets (Port 5173)
-participant Auth as WS Upgrade Hook
-participant Live as svelte-realtime
+    participant Client
+    participant SSE as /api/events (SSE)
+    participant Bus as EventBus
+    participant Yjs as yjs-service
+    participant WS as /ws (yjs-sync-server)
 
-    Client->>UWS: Connection Init
-    UWS->>Auth: Validate Session/Token (hooks.ws.ts)
-    Auth-->>UWS: Accept & Inject Context
+    Client->>SSE: GET /api/events (session cookie)
+    SSE->>Bus: subscribe("*")
+    Bus-->>SSE: tenant-filtered events
+    SSE-->>Client: text/event-stream
 
-    Client->>Live: Subscribe (Topic)
+    Client->>Yjs: GET /api/collaboration/yjs?docId=
+    Yjs-->>Client: full Yjs state
+    Client->>Yjs: POST updates (batched)
+    Yjs-->>Client: pub/sub round-trip (SSE)
 
-    Note over Live: Data Mutation in CMS
-    Live->>Live: live.publish(topic, payload)
-    Live-->>Client: Real-time Update
-
+    Client->>WS: ws://domain/ws?docId=&tenantId=
+    WS-->>Client: sync + awareness broadcast
 ```
 
 ### Performance & Security
 
-- **Standard Node.js ws Engine**: Powered by the highly optimized pure JavaScript `ws` library, handling thousands of concurrent connections efficiently.
-- **Tenant Isolation**: WebSocket connection parameters (e.g. `tenantId`, `docId`) are automatically parsed at the handshake layer to isolate user updates per tenant.
-- **No Native Addons**: Avoids compiled binary requirements, ensuring compatibility across all cloud, Docker, and enterprise platforms.
+- **Standard Node.js `ws` engine** for the `/ws` collaboration server — no native addons, deployable on any cloud/Docker platform.
+- **Tenant isolation**: SSE filters by `locals.tenantId`; WS sync keys documents as `tenantId:docId`.
+- **Zero runtime deps for SSE** — plain HTTP `ReadableStream` responses, no extra packages.
 
 ---
 
@@ -115,4 +124,4 @@ participant Live as svelte-realtime
 - [GraphQL API Reference](./graphql.mdx)
 - [Content, Search & Events Reference](./content.mdx)
 - [Security Architecture](../security/index.mdx)
-```
+- [Multi-Tenancy — Real-Time Event Stream](../security/multi-tenancy.mdx)

@@ -36,6 +36,122 @@ import type { FindOptions, QueryCondition } from "../db-interface";
 import * as utils from "./relational-utils";
 
 /**
+ * Widgets whose data shape is a flat scalar
+ * (string/number/boolean) are safe to store as physical columns instead of the
+ * JSON `data` blob. Object/array-shaped widgets (group, repeater, seo, tags,
+ * media-upload, price, date-range, …) stay in the blob. The field `type` must
+ * also be scalar — a string-typed field with an unknown widget stays in the
+ * blob (conservative: unknown shapes must not become columns).
+ */
+const MATERIALIZABLE_WIDGETS = new Set([
+  "Input",
+  "Textarea",
+  "Email",
+  "Slug",
+  "Number",
+  "Select",
+  "Radio",
+  "Checkbox",
+  "Switch",
+  "Boolean",
+  "DateTime",
+  "Date",
+  "ColorPicker",
+  "PhoneNumber",
+  "Rating",
+  "RichText",
+  "Markdown",
+  "URL",
+  "Link",
+  "Code",
+  "Password",
+]);
+
+/**
+ * Known object/array-shaped widgets — NEVER materialized, even when indexed
+ * or unique (a media-upload/group/repeater field must not become a scalar SQL
+ * column; that would break its object/array semantics on reads).
+ */
+const NON_SCALAR_WIDGETS = new Set([
+  "MediaUpload",
+  "Group",
+  "Repeater",
+  "Tags",
+  "SEO",
+  "JsonEditor",
+  "Price",
+  "Currency",
+  "DateRange",
+  "Geolocation",
+  "Address",
+  "RemoteVideo",
+  "MegaMenu",
+  "Relation",
+  "AIEnrichment",
+]);
+
+function widgetNameOf(field: any): string {
+  const raw =
+    field?.widget?.Name ??
+    field?.widget?.name ??
+    (typeof field.widget === "string" ? field.widget : "");
+  if (!raw) return "";
+  // The GUI builder stores the palette key (kebab-case: "media-upload") in
+  // widget.Name on some paths; canonical code schemas use the PascalCase name
+  // ("MediaUpload"). Normalize to PascalCase so the allowlists match both.
+  return raw
+    .replace(/[-_\s]+/g, " ")
+    .replace(/\b\w/g, (c: string) => c.toUpperCase())
+    .replace(/\s+/g, "");
+}
+
+/**
+ * True when a schema field is a flat scalar that CAN be materialized as a
+ * physical column (capability check — see `shouldMaterializeField` for the
+ * policy that decides when columns are actually created).
+ */
+export function isScalarMaterializableField(field: any): boolean {
+  if (!field || typeof field !== "object") return false;
+  const type = field.type;
+  if (type !== "string" && type !== "number" && type !== "integer" && type !== "boolean") {
+    return false;
+  }
+  const widget = widgetNameOf(field);
+  if (widget) {
+    if (NON_SCALAR_WIDGETS.has(widget)) return false;
+    if (!MATERIALIZABLE_WIDGETS.has(widget)) return false;
+  }
+  return true;
+}
+
+/**
+ * Whether a field becomes a physical column (row-store hybrid). Columns are
+ * ONLY created when there is a query benefit: indexed/unique fields (real
+ * constraints + indexed filters/sorts) or an explicit `materialize: true`
+ * opt-in — plus a scalar shape. Plain scalar fields stay in the `data` blob:
+ * on network adapters every extra column costs a bind on writes and a decode
+ * on reads (measured regression when ALL scalars were materialized: PG INSERT
+ * +51%, PG FIND MANY +99%, Maria INSERT +109%, FIND MANY +86%), while the
+ * blob keeps rows narrow. SQLite pays less per column (in-process), but the
+ * policy stays adapter-agnostic and predictable.
+ */
+export function shouldMaterializeField(field: any): boolean {
+  if (!field || typeof field !== "object") return false;
+  const needsColumn = field.indexed || field.unique || field.materialize === true;
+  if (!needsColumn) return false;
+  // Explicit opt-in still requires a scalar shape — an object/array widget
+  // must never become a scalar SQL column (breaks its shape on reads).
+  if (field.materialize === true) return isScalarMaterializableField(field);
+  const type = field.type;
+  if (type !== "string" && type !== "number" && type !== "integer" && type !== "boolean") {
+    return false;
+  }
+  const widget = widgetNameOf(field);
+  if (widget && NON_SCALAR_WIDGETS.has(widget)) return false;
+  return true;
+}
+
+/**
  * Escape LIKE wildcards in user input so `%`, `_` and `\` are matched
  * literally. Callers MUST pair the result with `ESCAPE '\'` (bound as a
  * parameter — never inlined, see `$regex` below) on every LIKE expression.
@@ -447,7 +563,28 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "createdAt",
     "updatedAt",
   ],
+  workflow_definitions: [
+    "_id",
+    "tenantId",
+    "collectionId",
+    "name",
+    "description",
+    "states",
+    "transitions",
+    "createdAt",
+    "updatedAt",
+  ],
   workflowInstances: [
+    "_id",
+    "tenantId",
+    "entryId",
+    "collectionId",
+    "currentState",
+    "history",
+    "createdAt",
+    "updatedAt",
+  ],
+  workflow_instances: [
     "_id",
     "tenantId",
     "entryId",
@@ -887,39 +1024,53 @@ export function applyOrderBy(
 
 const tableSelectionCache = new WeakMap<any, any>();
 
+/**
+ * Physical column selection for a table. When `excludeData` is true and the
+ * table has a JSON `data` blob column, it is omitted from the selection — the
+ * caller then skips the JSON parse + flattenDataColumn pass entirely. This is
+ * the projection win: list UIs that only need _id/status/updatedAt never pay
+ * for deserializing the full content payload.
+ */
 export function getPhysicalSelection(
   table: any,
   selectionCache: Map<string, any>,
   getColumn: (table: any, name: string, forcePhysical?: boolean) => Column | undefined,
+  excludeData = false,
 ): any {
   let cached = tableSelectionCache.get(table);
-  if (cached) return cached;
+  if (cached && !excludeData) return cached;
+  if (cached && excludeData) {
+    const withoutData: any = {};
+    for (const k of Object.keys(cached)) {
+      if (k !== "data") withoutData[k] = cached[k];
+    }
+    return withoutData;
+  }
 
   const tableName = getTableName(table);
   const lowerName = tableName.toLowerCase();
-  const isDynamic =
-    lowerName.includes("benchmark") ||
-    lowerName.startsWith("collection_") ||
-    lowerName.startsWith("bench_");
 
   const systemName = resolveSystemTableName(tableName);
   const isSystem = isSystemTable(tableName);
 
-  if (!isDynamic && !isSystem) {
-    try {
-      const columns = getTableColumns(table);
-      if (columns && Object.keys(columns).length > 0) {
-        tableSelectionCache.set(table, columns);
-        return columns;
-      }
-    } catch {}
-  }
+  // 🚀 ROW-STORE HYBRID: dynamic collection tables carry materialized columns
+  // in their Drizzle def — select ALL def columns (the fixed base list would
+  // silently drop materialized fields like title, and provisioned columns
+  // like slug/collection/locale/publishedAt were never selected either).
+  try {
+    const columns = getTableColumns(table);
+    if (columns && Object.keys(columns).length > 0) {
+      const selection = excludeData ? omitData(columns) : columns;
+      tableSelectionCache.set(table, columns);
+      return selection;
+    }
+  } catch {}
 
   if (isSystem) {
     const cachedSel = selectionCache.get(systemName);
     if (cachedSel) {
       tableSelectionCache.set(table, cachedSel);
-      return cachedSel;
+      return excludeData ? omitData(cachedSel) : cachedSel;
     }
   }
 
@@ -931,7 +1082,9 @@ export function getPhysicalSelection(
   } else if (systemName === "contentNodes" || lowerName.includes("content_nodes")) {
     columnNames = SYSTEM_LITERAL_COLUMNS.contentNodes;
   } else {
-    columnNames = ["_id", "data", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
+    columnNames = excludeData
+      ? ["_id", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"]
+      : ["_id", "data", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
   }
 
   for (let i = 0; i < columnNames.length; i++) {
@@ -950,4 +1103,12 @@ export function getPhysicalSelection(
 
   tableSelectionCache.set(table, selection);
   return selection;
+}
+
+function omitData(selection: any): any {
+  const out: any = {};
+  for (const k of Object.keys(selection)) {
+    if (k !== "data") out[k] = selection[k];
+  }
+  return out;
 }

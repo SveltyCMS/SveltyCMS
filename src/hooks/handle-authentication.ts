@@ -437,6 +437,34 @@ async function getUserFromSession(
 }
 
 /**
+ * Shared session resolution for WebSocket upgrades.
+ *
+ * WebSocket handshakes have no `RequestEvent`, so they cannot reuse the
+ * `handleAuthentication` hook directly. This thin wrapper runs the SAME
+ * pipeline as HTTP sessions (mem LRU → session store → Redis → DB with
+ * negative cache, idle window, blocked-user cutoff and single-flight
+ * coalescing) so WS upgrades no longer need their own parallel 30s LRU.
+ */
+export async function resolveSessionForWebSocket(
+  sessionId: string,
+  opts: { tenantId?: DatabaseId | null; clientIp?: string | null; userAgent?: string | null } = {},
+): Promise<{ ok: true; user: User; tenantId: string | null } | { ok: false }> {
+  const res = await getUserFromSession(
+    sessionId,
+    opts.tenantId ?? null,
+    opts.clientIp ?? null,
+    opts.userAgent ?? null,
+  );
+  if (res.status !== "ok" || !res.user) return { ok: false };
+  const userTenant = (res.user as { tenantId?: string | null }).tenantId;
+  return {
+    ok: true,
+    user: res.user,
+    tenantId: userTenant ?? opts.tenantId ?? null,
+  };
+}
+
+/**
  * Handles automatic session rotation for security.
  */
 async function handleSessionRotation(
@@ -1108,14 +1136,11 @@ export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId 
   cacheService.delete(cacheKey, tenantId ?? undefined).catch(() => {});
 }
 
-export function clearSessionRefreshAttempt(sessionId: string): void {
-  lastRefreshAttempt.delete(sessionId);
-}
-
-export function forceSessionRotation(sessionId: string): void {
-  lastRotationAttempt.delete(sessionId);
-}
-
+/**
+ * Clear every in-memory session layer (LRU, refresh/rotation timers, anomaly
+ * cooldowns, negative cache, cached tenancy flags). Used by tests and the
+ * testing-API reset to restore a clean auth state.
+ */
 export function clearAllSessionCaches(): void {
   sessionCache.clear();
   lastRefreshAttempt.clear();
@@ -1136,13 +1161,4 @@ export function primeSessionMemoryCache(sessionId: string, user: User): void {
   // hashes, TOTP secrets, backup codes, or reset/refresh tokens.
   const entry: SessionCacheEntry = { user: toSafeSessionUser(user), timestamp: Date.now() };
   setSessionInCache(sessionId, entry);
-}
-
-export function getSessionCacheStats() {
-  return {
-    cachedSessions: sessionCache.size,
-    pendingRefreshes: lastRefreshAttempt.size,
-    pendingRotations: lastRotationAttempt.size,
-    maxCachedSessions: MAX_SESSION_CACHE,
-  };
 }

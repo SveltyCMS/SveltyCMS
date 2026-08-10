@@ -54,6 +54,8 @@ async function preload(href: string): Promise<void> {
   _preloaded.set(href, now);
 
   try {
+    // Non-blocking server-side route cache pre-warming
+    fetch(`/api/system/prewarm-route?path=${encodeURIComponent(href)}`).catch(() => {});
     await preloadData(href);
   } catch (err) {
     logger.debug(`[Preload] Skipping ${href}:`, err);

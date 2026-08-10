@@ -15,6 +15,10 @@ class ContentStore {
   private _nodes = new Map<string, ContentNode[]>();
   private _schemas = new Map<string, Schema>();
   private _allNodes = new Map<string, ContentNode>();
+  /** O(1) path → node id (invalidated with clear/upsert). */
+  private _pathIndex = new Map<string, string>();
+  /** O(1) lowercased schema id/name → schema id. */
+  private _schemaAliasIndex = new Map<string, string>();
 
   #initState = $state<ContentState>("uninitialized");
   public contentVersion = $state(0);
@@ -85,18 +89,27 @@ class ContentStore {
 
   getCollection(id: string, _tenantId?: string | null): Schema | undefined {
     let schema = this._schemas.get(id);
-    if (!schema) {
-      const cleanId = id.replace(/^\/+/, "").toLowerCase();
-      schema = Array.from(this._schemas.values()).find((s) => {
-        const sId = ((s._id as string) || s.name || "").replace(/^\/+/, "").toLowerCase();
-        const sPath = (s.path || "").replace(/^\/+/, "").toLowerCase();
-        return (
-          sId === cleanId ||
-          sPath === cleanId ||
-          sId === cleanId.replace(/^collection\//, "") ||
-          sPath === cleanId.replace(/^collection\//, "")
-        );
-      });
+    if (schema) return schema;
+
+    const cleanId = id.replace(/^\/+/, "").toLowerCase();
+    const stripped = cleanId.replace(/^collection\//, "");
+    const aliasId =
+      this._schemaAliasIndex.get(cleanId) ||
+      this._schemaAliasIndex.get(stripped) ||
+      this._schemaAliasIndex.get(id.toLowerCase());
+    if (aliasId) {
+      schema = this._schemas.get(aliasId);
+      if (schema) return schema;
+    }
+
+    // Slow fallback + self-heal index (legacy / partial indexes)
+    schema = Array.from(this._schemas.values()).find((s) => {
+      const sId = ((s._id as string) || s.name || "").replace(/^\/+/, "").toLowerCase();
+      const sPath = (s.path || "").replace(/^\/+/, "").toLowerCase();
+      return sId === cleanId || sPath === cleanId || sId === stripped || sPath === stripped;
+    });
+    if (schema?._id) {
+      this._indexSchemaAliases(schema);
     }
     return schema;
   }
@@ -116,7 +129,10 @@ class ContentStore {
   setCollections(tenantId: string, collections: Schema[]) {
     this._collections.set(tenantId, collections);
     for (const schema of collections) {
-      if (schema._id) this._schemas.set(schema._id as string, schema);
+      if (schema._id) {
+        this._schemas.set(schema._id as string, schema);
+        this._indexSchemaAliases(schema);
+      }
     }
     this.updateVersion();
   }
@@ -144,13 +160,26 @@ class ContentStore {
   }
 
   getNodeByPath(path: string): ContentNode | undefined {
-    return Array.from(this._allNodes.values()).find((n) => n.path === path);
+    const indexed = this._pathIndex.get(path);
+    if (indexed) {
+      const node = this._allNodes.get(indexed);
+      if (node) return node;
+    }
+    const found = Array.from(this._allNodes.values()).find((n) => n.path === path);
+    if (found?._id && found.path) {
+      this._pathIndex.set(found.path, found._id as string);
+    }
+    return found;
   }
 
   setNodes(tenantId: string, nodes: ContentNode[]) {
     this._nodes.set(tenantId, nodes);
     for (const node of nodes) {
-      if (node._id) this._allNodes.set(node._id as string, node);
+      if (node._id) {
+        this._allNodes.set(node._id as string, node);
+        if (node.path) this._pathIndex.set(node.path, node._id as string);
+        if (node.collectionDef) this._indexSchemaAliases(node.collectionDef);
+      }
     }
     this.updateVersion();
   }
@@ -161,16 +190,37 @@ class ContentStore {
 
   getSchema(schemaId: string): Schema | undefined {
     let schema = this._schemas.get(schemaId);
-    if (!schema) {
-      const lowerId = schemaId.toLowerCase();
-      schema = Array.from(this._schemas.values()).find(
-        (s) =>
-          (s._id as string)?.toLowerCase() === lowerId ||
-          s.name?.toLowerCase() === lowerId ||
-          s.path?.toLowerCase() === lowerId,
-      );
+    if (schema) return schema;
+
+    const lowerId = schemaId.toLowerCase();
+    const aliasId = this._schemaAliasIndex.get(lowerId);
+    if (aliasId) {
+      schema = this._schemas.get(aliasId);
+      if (schema) return schema;
     }
+
+    schema = Array.from(this._schemas.values()).find(
+      (s) =>
+        (s._id as string)?.toLowerCase() === lowerId ||
+        s.name?.toLowerCase() === lowerId ||
+        s.path?.toLowerCase() === lowerId,
+    );
+    if (schema) this._indexSchemaAliases(schema);
     return schema;
+  }
+
+  private _indexSchemaAliases(schema: Schema): void {
+    const schemaId = (schema._id || schema.name || "") as string;
+    if (!schemaId) return;
+    this._schemaAliasIndex.set(schemaId.toLowerCase(), schemaId);
+    if (schema.name) this._schemaAliasIndex.set(String(schema.name).toLowerCase(), schemaId);
+    if (schema.path) {
+      const p = schema.path.replace(/^\/+/, "").toLowerCase();
+      this._schemaAliasIndex.set(p, schemaId);
+      this._schemaAliasIndex.set(p.replace(/^collection\//, ""), schemaId);
+    }
+    const slug = (schema as { slug?: string }).slug;
+    if (slug) this._schemaAliasIndex.set(String(slug).toLowerCase(), schemaId);
   }
 
   sync(nodes: ContentNode[]) {
@@ -199,8 +249,15 @@ class ContentStore {
     const nodeId = node._id as string;
     const tid = node.tenantId || "global";
 
+    // Drop stale path index when path changes
+    const prev = this._allNodes.get(nodeId);
+    if (prev?.path && prev.path !== node.path) {
+      this._pathIndex.delete(prev.path);
+    }
+
     // 1. Update global map
     this._allNodes.set(nodeId, node);
+    if (node.path) this._pathIndex.set(node.path, nodeId);
 
     // 2. Update tenant-specific nodes array
     let tNodes = this._nodes.get(tid) || [];
@@ -226,6 +283,7 @@ class ContentStore {
         const schemaId = (schema._id || node._id) as string;
 
         this._schemas.set(schemaId, schema);
+        this._indexSchemaAliases(schema);
 
         let tCollections = this._collections.get(tid) || [];
         const colIndex = tCollections.findIndex((c) => c._id === schemaId);
@@ -273,15 +331,25 @@ class ContentStore {
     if (tenantId) {
       this._collections.delete(tenantId);
       this._nodes.delete(tenantId);
-      // Remove from allNodes too
+      // Remove from allNodes + indexes
       for (const [id, node] of this._allNodes.entries()) {
-        if (node.tenantId === tenantId) this._allNodes.delete(id);
+        if (node.tenantId === tenantId) {
+          this._allNodes.delete(id);
+          if (node.path) this._pathIndex.delete(node.path);
+          if (node.collectionDef?._id) {
+            const sid = String(node.collectionDef._id);
+            this._schemas.delete(sid);
+            this._schemaAliasIndex.delete(sid.toLowerCase());
+          }
+        }
       }
     } else {
       this._collections.clear();
       this._nodes.clear();
       this._schemas.clear();
       this._allNodes.clear();
+      this._pathIndex.clear();
+      this._schemaAliasIndex.clear();
     }
     this.updateVersion();
   }

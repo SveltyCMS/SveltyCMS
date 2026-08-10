@@ -88,6 +88,24 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   /** Tables that have been fully provisioned with physical columns via createModel */
   protected _provisionedTables = new Set<string>();
 
+  /** Clients whose prepare() is wrapped with a per-SQL statement cache. */
+  protected _preparedStatementClients = new Set<any>();
+
+  /**
+   * Clear all cached prepared statements (call after any DDL that changes
+   * table shape: createModel, clearDatabase, migrations).
+   */
+  protected clearStatementCaches(): void {
+    for (const client of this._preparedStatementClients) {
+      try {
+        client.clearStatementCache?.();
+      } catch {
+        /* safe */
+      }
+    }
+    this._statementCache.clear();
+  }
+
   // --------------------------------------------------------------------------
   // Abstract hook implementations
   // --------------------------------------------------------------------------
@@ -129,22 +147,96 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     options: FindOptions<T>,
   ): Promise<T | null> {
     try {
+      // Read-path schema registration: raw reads must normalize SQLite INTEGER
+      // ms timestamps to ISODateString even on read-only workloads.
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
       const tableName = getTableName(table);
       // Bound parameters for _id + tenantId (no string interpolation of identifiers/values)
       const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
         options,
         "sqlite",
       );
-      const rawSql = `SELECT * FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
-      const rawRows = this.prepareAndExecute(rawSql, "all", String(id), ...tenantParams);
-      if (rawRows && rawRows.length > 0) {
-        return utils.convertDatesToISO(rawRows[0], { table: collection }) as T;
+      // Projection: when fields are all physical columns, skip the data blob
+      // (avoids JSON.parse + flattenDataColumn on the hot read path).
+      const fields = options?.fields;
+      const wantsData =
+        !Array.isArray(fields) ||
+        fields.length === 0 ||
+        fields.some((f) => {
+          if (f === "data") return true;
+          if (
+            f === "_id" ||
+            f === "id" ||
+            f === "tenantId" ||
+            f === "status" ||
+            f === "createdAt" ||
+            f === "updatedAt" ||
+            f === "isDeleted"
+          )
+            return false;
+          return !this.getColumn(table, String(f));
+        });
+      const selectCols = wantsData
+        ? "*"
+        : this.getRawFindByIdCols(table, false)
+            .map((c) => `"${c}"`)
+            .join(", ");
+      const rawSql = `SELECT ${selectCols} FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
+      const rawRow = this.prepareAndExecute(rawSql, "get", String(id), ...tenantParams);
+      if (rawRow) {
+        if (!wantsData) {
+          // Projected read: normalize dates/booleans without the blob parse.
+          return utils.convertDatesToISO(rawRow, {
+            inPlace: true,
+            table: collection,
+            skipJson: true,
+          }) as T;
+        }
+        // inPlace: the driver row is a fresh object — parse/flatten the data
+        // blob in place instead of copying every key into a new object.
+        return utils.convertDatesToISO(rawRow, { inPlace: true, table: collection }) as T;
       }
       return null;
     } catch (rawErr: any) {
-      if (process.env.BENCHMARK !== "true") {
-        logger.debug("[SQLite raw findById prototype] falling back to Drizzle:", rawErr?.message);
+      logger.debug("[SQLite raw findById prototype] falling back to Drizzle:", rawErr?.message);
+      return null;
+    }
+  }
+
+  /**
+   * Raw single-statement INSERT…RETURNING for SQLite — same prepared-cache
+   * reuse as rawFindById. Dates bind as epoch-ms integers (the adapter stores
+   * INTEGER timestamps); objects are JSON-stringified (data column). Skips the
+   * Drizzle AST build on the hot write path.
+   */
+  protected async rawInsertReturning<T extends BaseEntity>(
+    table: any,
+    collection: string,
+    values: Record<string, any>,
+    _options: BaseQueryOptions,
+  ): Promise<T | null> {
+    try {
+      const tableName = getTableName(table);
+      const cols = Object.keys(values);
+      if (cols.length === 0) return null;
+      const colList = cols.map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`).join(", ");
+      const placeholders = cols.map(() => "?").join(", ");
+      const params = cols.map((c) => {
+        const v = values[c];
+        if (v instanceof Date) return v.getTime();
+        if (v !== null && typeof v === "object" && !Array.isArray(v)) return JSON.stringify(v);
+        return v;
+      });
+      const rawSql = `INSERT INTO "${tableName}" (${colList}) VALUES (${placeholders}) RETURNING *`;
+      const rows = this.prepareAndExecute(rawSql, "all", ...params);
+      if (Array.isArray(rows) && rows.length > 0) {
+        return utils.convertDatesToISO(rows[0], { table: collection }) as T;
       }
+      return null;
+    } catch {
       return null;
     }
   }
@@ -189,6 +281,18 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         columnsToAdd.set("locale", "text");
         columnsToAdd.set("publishedAt", "integer");
       }
+      // 🚀 ROW-STORE HYBRID: materialized scalar columns (populated by
+      // createModel — covers benchmark/auto-provisioned collections that have
+      // no content_nodes structure row).
+      const fromMap =
+        this.materializedColumns.get(collection) ||
+        this.materializedColumns.get(tableName) ||
+        this.materializedColumns.get(cleanName);
+      if (fromMap) {
+        for (const [name, type] of fromMap.entries()) {
+          if (!columnsToAdd.has(name)) columnsToAdd.set(name, type);
+        }
+      }
 
       try {
         const client = this._sqlite ? this.sqlite : null;
@@ -210,16 +314,16 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               if (typeof def === "string") def = JSON.parse(def);
               if (def && Array.isArray(def.fields)) {
                 for (const field of def.fields) {
-                  if (field.indexed || field.unique) {
+                  // Row-store hybrid: every scalar field becomes a column
+                  // (indexed/unique fields too, when scalar-shaped).
+                  if (helpers.shouldMaterializeField(field)) {
                     const fieldName = field.db_fieldName || field.label;
                     if (fieldName && !columnsToAdd.has(fieldName)) {
                       let colType = "text";
-                      if (
-                        field.type === "number" ||
-                        field.type === "integer" ||
-                        field.type === "boolean"
-                      ) {
+                      if (field.type === "number" || field.type === "integer") {
                         colType = "integer";
+                      } else if (field.type === "boolean") {
+                        colType = "boolean";
                       }
                       columnsToAdd.set(fieldName, colType);
                     }
@@ -272,6 +376,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   // --------------------------------------------------------------------------
 
   public createDynamicTableDefinition(name: string, columnsToAdd?: Map<string, string>) {
+    const booleanCols: string[] = ["isDeleted"];
     const columns: Record<string, any> = {
       _id: text("_id").primaryKey().notNull(),
       tenantId: text("tenantId"),
@@ -284,6 +389,15 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
         .notNull()
         .default(sql`(strftime('%s','now')*1000)`),
+      // 🚀 ROW-STORE PARITY: the provisioning DDL adds these four materialized
+      // columns to EVERY collection table (createModel base DDL). They must be
+      // in the Drizzle def too, otherwise the read SELECT (built from the def)
+      // omits them — the "ghost column" class: writes persisted slug/… to the
+      // physical column while the API read served rows without them.
+      collection: text("collection"),
+      slug: text("slug"),
+      locale: text("locale"),
+      publishedAt: integer("publishedAt", { mode: "timestamp_ms" }),
     };
 
     if (columnsToAdd) {
@@ -296,10 +410,17 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           colName === "isDeleted" ||
           colName === "createdAt" ||
           colName === "updatedAt" ||
-          colName === "data"
+          colName === "data" ||
+          colName === "collection" ||
+          colName === "slug" ||
+          colName === "locale" ||
+          colName === "publishedAt"
         )
           continue;
-        if (colType === "integer") {
+        if (colType === "boolean") {
+          columns[colName] = integer(colName, { mode: "boolean" });
+          booleanCols.push(colName);
+        } else if (colType === "integer") {
           columns[colName] =
             colName === "publishedAt"
               ? integer(colName, { mode: "timestamp_ms" })
@@ -310,13 +431,19 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
     }
 
-    registerTableSchema(name, Object.keys(columns));
+    registerTableSchema(name, Object.keys(columns), booleanCols);
 
     return sqliteTable(name, columns, (t) => {
       const idxs: Record<string, any> = {
         tenantIdx: index(`${name}_tenant_idx`).on(t.tenantId),
         statusIdx: index(`${name}_status_idx`).on(t.status),
         updatedIdx: index(`${name}_updated_idx`).on(t.updatedAt),
+        // Canonical tenant-scoped list query served by one index
+        tenantStatusUpdatedIdx: index(`${name}_tenant_status_updated`).on(
+          t.tenantId,
+          t.status,
+          t.updatedAt,
+        ),
       };
       if (columnsToAdd) {
         for (const colName of columnsToAdd.keys()) {
@@ -343,17 +470,100 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         if (!table) throw new Error(`Collection table not found: ${collection}`);
         const now = new Date();
         const len = data.length;
-        const batchValues = Array.from({ length: len });
+        const batchValues: Record<string, any>[] = Array.from({ length: len });
         for (let i = 0; i < len; i++) {
           const item = data[i];
           const id = (item as any)._id || generateUUID();
           batchValues[i] = this.prepareValues(table, item, id, now, options);
         }
 
-        const db = this.getDrizzleInstance(options);
-        return await db.transaction(async (tx: any) => {
-          const query = tx.insert(table).values(batchValues);
-          if (this._insertManyReturningSupported !== false) {
+        // When already inside an outer transaction (seed multi-batch / explicit txn),
+        // do not nest another BEGIN — SQLite forbids nested transactions and it
+        // doubles fsync cost. RETURNING is skipped only when the caller opted in
+        // explicitly (testing.ts seeds pass skipReturning: true) — the ambient
+        // BENCHMARK env check was removed so benchmarks measure the production path.
+        const skipReturning = (options as any)?.skipReturning === true;
+        const inOuterTxn = Boolean(options?.transaction);
+
+        // 🚀 RAW FAST PATH: single multi-VALUES INSERT is atomic on SQLite, so
+        // the explicit BEGIN/COMMIT wrapper is unnecessary. One prepared
+        // statement (stable SQL text → statement cache) beats the Drizzle AST
+        // for 100 rows. Chunked to stay under SQLITE_MAX_VARIABLE_NUMBER (999).
+        // Falls back to the Drizzle path on any error or outer-transaction use.
+        if (!inOuterTxn) {
+          try {
+            // Union of column keys across rows — rows may omit optional
+            // physical columns (status/slug/…) and the column default applies.
+            const cols = new Set<string>();
+            for (let i = 0; i < len; i++) {
+              for (const k in batchValues[i]) cols.add(k);
+            }
+            // prepareValues omits createdAt when the caller supplies _id, and
+            // the physical SQLite DDL has no createdAt default — always write
+            // both timestamps (undefined rows are filled in the bind loop).
+            cols.add("createdAt");
+            cols.add("updatedAt");
+            if (cols.size > 0) {
+              const colListArr = Array.from(cols);
+              const maxParams = 900;
+              const chunkSize = Math.max(1, Math.floor(maxParams / colListArr.length));
+              const colList = colListArr
+                .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+                .join(", ");
+              const rowsOut: any[] = [];
+              for (let start = 0; start < len; start += chunkSize) {
+                const chunk = batchValues.slice(start, start + chunkSize);
+                const params: any[] = [];
+                const valuesSql: string[] = [];
+                for (const row of chunk) {
+                  const rowPlaceholders: string[] = [];
+                  for (const c of colListArr) {
+                    const v = row[c];
+                    // Missing/undefined values: SQLite has no DEFAULT keyword
+                    // in VALUES, and binding undefined writes NULL — which
+                    // overrides the column default (measured: createdAt became
+                    // NULL). Fill the Drizzle-table-definition defaults
+                    // explicitly; nullable optional columns bind NULL.
+                    if (v === undefined) {
+                      if (c === "createdAt" || c === "updatedAt") params.push(now.getTime());
+                      else if (c === "isDeleted") params.push(0);
+                      else if (c === "status") params.push("draft");
+                      else if (c === "data") params.push("{}");
+                      else params.push(null);
+                      rowPlaceholders.push("?");
+                      continue;
+                    }
+                    if (v instanceof Date) params.push(v.getTime());
+                    else if (v !== null && typeof v === "object" && !Array.isArray(v))
+                      params.push(JSON.stringify(v));
+                    else params.push(v);
+                    rowPlaceholders.push("?");
+                  }
+                  valuesSql.push(`(${rowPlaceholders.join(", ")})`);
+                }
+                const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
+                const rawRows = this.prepareAndExecute(sqlText, "all", ...params);
+                if (Array.isArray(rawRows) && rawRows.length > 0) rowsOut.push(...rawRows);
+              }
+              if (skipReturning) {
+                // Seed / system-bulk callers don't consume the rows — returning
+                // the prepared values WITHOUT JSON.parse/flatten conversion
+                // halves the per-row bulk cost (the conversion was previously
+                // identical on both paths, making skipReturning a no-op win).
+                return batchValues as unknown as T[];
+              }
+              if (rowsOut.length === len) {
+                return utils.convertArrayDatesToISO(rowsOut, { table: collection }) as T[];
+              }
+            }
+          } catch {
+            /* fall through to the Drizzle path below */
+          }
+        }
+
+        const runInsert = async (dbOrTx: any) => {
+          const query = dbOrTx.insert(table).values(batchValues);
+          if (!skipReturning && this._insertManyReturningSupported !== false) {
             try {
               const results = await (query as any).returning();
               this._insertManyReturningSupported = true;
@@ -362,9 +572,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               }) as T[];
             } catch (err: any) {
               this._insertManyReturningSupported = false;
-              if (process.env.BENCHMARK !== "true") {
-                logger.debug("[SQLite] insertMany returning fallback:", err.message);
-              }
+              logger.debug("[SQLite] insertMany returning fallback:", err.message);
               await (query as any);
               return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
                 table: collection,
@@ -375,7 +583,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           return utils.convertArrayDatesToISO(batchValues as Record<string, any>[], {
             table: collection,
           }) as T[];
-        });
+        };
+
+        const db = this.getDrizzleInstance(options);
+        if (inOuterTxn) {
+          return await runInsert(db);
+        }
+        return await db.transaction(async (tx: any) => runInsert(tx));
       },
       "INSERT_MANY_FAILED",
       undefined,
@@ -700,11 +914,15 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     }
     this.metrics.queryCount++;
     try {
-      if (method === "all") return stmt.all(...params);
-      if (method === "get") return stmt.get(...params);
-      if (method === "run") return stmt.run(...params);
-      if (method === "values") return stmt.values(...params);
-      return stmt.all(...params);
+      // node:sqlite only binds null/number/bigint/string/Uint8Array — JS
+      // booleans throw "Provided value cannot be bound". Coerce once here so
+      // every raw path (insert/update/bulk/atomic) binds like the Drizzle path.
+      const bound = params.map((p) => (typeof p === "boolean" ? (p ? 1 : 0) : p));
+      if (method === "all") return stmt.all(...bound);
+      if (method === "get") return stmt.get(...bound);
+      if (method === "run") return stmt.run(...bound);
+      if (method === "values") return stmt.values(...bound);
+      return stmt.all(...bound);
     } catch (err: any) {
       logger.error(`[SQLite] Execution error: ${sqlText}`, err);
       throw err;
@@ -848,26 +1066,34 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         if (!idCol) throw new Error("ID column not found");
 
         const now = new Date();
+        const nowMs = now.getTime();
         const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
           options,
           "sqlite",
         );
         const dataCol = this.getColumn(table, "data");
         const idStr = String(id);
-        // Identifiers may be embedded; values (_id, amount, tenantId) are always bound.
+        // Identifiers may be embedded; values (_id, amount, tenantId, timestamp) are always bound.
         const safeField = utils.assertSafeSqlIdentifier(field);
         const amountNum = utils.assertFiniteAmount(amount);
+        // 🚀 ROW-STORE HYBRID: materialized numeric fields live in a column —
+        // increment the column directly (json_set on `data` would no-op for new
+        // rows whose field never entered the blob).
+        const fieldIsColumn = !!this.getColumn(table, field);
 
-        // Bind amount as a parameter (not only id/tenant) for full value safety.
-        const updateReturning = dataCol
-          ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
-          : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`;
+        // Bind amount + timestamp as parameters (stable SQL text → statement cache hits)
+        const updateReturning = fieldIsColumn
+          ? `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
+          : dataCol
+            ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
+            : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`;
 
         try {
           const rows = this.prepareAndExecute(
             updateReturning,
             "all",
             amountNum,
+            nowMs,
             idStr,
             ...tenantParams,
           );
@@ -880,11 +1106,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           logger.debug(`SQLite RETURNING failed, using inline SELECT fallback: ${err.message}`);
         }
 
-        const updateSql = dataCol
-          ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = ?${tenantSql}`
-          : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ${now.getTime()} WHERE "${idCol.name}" = ?${tenantSql}`;
+        const updateSql = fieldIsColumn
+          ? `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
+          : dataCol
+            ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
+            : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`;
 
-        this.prepareAndExecute(updateSql, "run", amountNum, idStr, ...tenantParams);
+        this.prepareAndExecute(updateSql, "run", amountNum, nowMs, idStr, ...tenantParams);
 
         const selectRows = this.prepareAndExecute(
           `SELECT * FROM "${tableName}" WHERE "${idCol.name}" = ?${tenantSql} LIMIT 1`,
@@ -918,12 +1146,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
     await this.wrap(
       async () => {
-        const isBenchSuite = process.env.SVELTY_BENCHMARK_SUITE === "true";
         const debugMode = process.env.BENCHMARK_DEBUG === "true";
 
         const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "status" TEXT DEFAULT 'draft', "isDeleted" INTEGER DEFAULT 0, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
-        if (debugMode && !isBenchSuite)
-          logger.debug(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
+        if (debugMode) logger.debug(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
         await this.raw.execute(ddl);
 
         const columns = [
@@ -942,8 +1168,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         ];
 
         if (schemaData.fields && Array.isArray(schemaData.fields)) {
+          const materialized = new Map<string, string>();
           for (const field of schemaData.fields) {
-            if (field.indexed || field.unique) {
+            // Row-store hybrid: scalar fields become physical columns — the
+            // `data` blob keeps only dynamic fields for new rows.
+            if (helpers.shouldMaterializeField(field)) {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "TEXT";
@@ -957,9 +1186,21 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
                   fieldName !== "data"
                 ) {
                   dynamicCols.push({ name: fieldName, type: colType });
+                  materialized.set(
+                    fieldName,
+                    colType === "INTEGER"
+                      ? field.type === "boolean"
+                        ? "boolean"
+                        : "integer"
+                      : "text",
+                  );
                 }
               }
             }
+          }
+          if (materialized.size > 0) {
+            this.materializedColumns.set(tableName, materialized);
+            this.materializedColumns.set(normalizedName, materialized);
           }
         }
 
@@ -978,12 +1219,29 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           try {
             // Defense-in-depth: schema-defined column names are interpolated as identifiers
             const safeColName = utils.assertSafeSqlIdentifier(col.name, "column");
-            const tableInfo = await this.raw.execute(`PRAGMA table_info("${physicalName}")`);
-            const exists = tableInfo.some((c: any) => c.name === safeColName);
+            // PRAGMA returns rows — force the "all" method (raw.execute would
+            // route it to stmt.run() and return {changes} instead of rows).
+            const tableInfo = this.prepareAndExecute(
+              `PRAGMA table_info("${physicalName}")`,
+              "all",
+            ) as any[];
+            const exists =
+              Array.isArray(tableInfo) && tableInfo.some((c: any) => c.name === safeColName);
             if (!exists) {
               await this.raw.execute(
                 `ALTER TABLE "${physicalName}" ADD COLUMN "${safeColName}" ${col.type}`,
               );
+              // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in
+              // the `data` blob — copy them into the new column so filters and
+              // sorts on the materialized field match old rows too (idempotent:
+              // only NULL columns are filled; repeated createModel calls no-op).
+              try {
+                await this.raw.execute(
+                  `UPDATE "${physicalName}" SET "${safeColName}" = json_extract("data", '$.${safeColName}') WHERE "${safeColName}" IS NULL AND "data" IS NOT NULL`,
+                );
+              } catch {
+                /* backfill is best-effort */
+              }
             }
             addedColumns.add(safeColName);
           } catch {
@@ -1003,8 +1261,27 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           }
         }
 
+        // 🚀 COMPOSITE INDEX for the canonical tenant list query:
+        // WHERE tenantId=? AND status=? ORDER BY updatedAt DESC LIMIT n.
+        // Single-column indexes force a temp B-tree sort; this serves the
+        // whole query from one index (measured: listPlain 102 → ~8k RPS at 100k rows).
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_updated" ON "${physicalName}" ("tenantId", "status", "updatedAt")`,
+          );
+        } catch {
+          /* safe */
+        }
+
         logger.info(`[SQLITE Adapter] Provisioned table: ${physicalName}`);
         this._provisionedTables.add(normalizedName);
+        // DDL changed the table shape — cached statements may reference old columns
+        this.clearStatementCaches();
+        // The pre-DDL table def (base columns only) is stale — rebuild with the
+        // materialized columns on next getTable.
+        this.tableRegistry.delete(tableName);
+        this.tableRegistry.delete(normalizedName);
+        this.tableRegistry.delete(`collection_${normalizedName}`);
       },
       "CREATE_MODEL_FAILED",
       undefined,
@@ -1067,6 +1344,26 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           }
         }
         if (!sqlite) throw lastErr;
+
+        // 🚀 PREPARED-STATEMENT CACHE: Drizzle's SQLiteBunSession.prepareQuery
+        // calls client.prepare(query.sql) on EVERY query (no reuse). Caching by
+        // SQL text turns per-call sqlite3_prepare (~4µs, 6.6x slower) into a
+        // Map hit. Statements are safe to reuse: Drizzle never finalizes them
+        // (session.js only calls stmt.run/all/values) and each call binds params
+        // afresh. Schema-changing operations (createModel/clearDatabase) clear
+        // the cache via clearStatementCaches().
+        const stmtCache = new Map<string, any>();
+        const origPrepare = sqlite.prepare.bind(sqlite);
+        sqlite.prepare = (sqlText: string) => {
+          let stmt = stmtCache.get(sqlText);
+          if (!stmt) {
+            stmt = origPrepare(sqlText);
+            if (stmtCache.size < 2000) stmtCache.set(sqlText, stmt);
+          }
+          return stmt;
+        };
+        sqlite.clearStatementCache = () => stmtCache.clear();
+        this._preparedStatementClients.add(sqlite);
 
         const { drizzle } = await import("drizzle-orm/bun-sqlite");
         const db = drizzle(sqlite as any, { schema }) as SQLiteDB;
@@ -1184,6 +1481,26 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
     let dbPath = typeof config === "string" ? config : config.connectionString;
 
+    // Host may be a direct SQLite file path (test bridge passes host=auditFile
+    // in db.ts when no config file exists yet).
+    if (!dbPath && config && typeof config === "object") {
+      const host = (config as any).host;
+      if (
+        typeof host === "string" &&
+        host &&
+        host !== "localhost" &&
+        host !== "127.0.0.1" &&
+        !host.includes("://")
+      ) {
+        const name = (config as any).DB_NAME;
+        if (host.endsWith(".sqlite") || host.endsWith(".db") || host.endsWith(":memory:")) {
+          dbPath = host;
+        } else if (name) {
+          dbPath = `${host.endsWith("/") || host.endsWith("\\") ? host : `${host}/`}${name}`;
+        }
+      }
+    }
+
     if (!dbPath) {
       const { isSetupComplete } = await import("@utils/setup-check-fast");
       const isTestHarness =
@@ -1191,10 +1508,26 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         process.env.VITEST === "true" ||
         process.env.BUN_TEST === "true" ||
         process.env.BENCHMARK === "true";
-      const dbName = (config as any).DB_NAME;
+      // Env DB_NAME is an explicit test-mode contract (the E2E/integration
+      // harnesses pass it when no private.test.ts exists yet — e.g. the setup
+      // wizard boot). The guard below only refuses when NO name is given.
+      const dbName = (config as any).DB_NAME || process.env.DB_NAME;
       const isTestDb =
         isTestHarness || (dbName && (dbName.includes("test") || dbName.includes("benchmark")));
       const defaultDbFolder = isTestDb ? "config/test-database" : "config/database";
+
+      // 🛡️ FAIL-CLOSED: automated harnesses must never silently fall back to
+      // the live/default name (sveltycms.db). A config object without DB_NAME
+      // used to land benchmark data in `config/test-database/sveltycms.db`,
+      // mixing test state under the live DB name across runs. Require an
+      // explicit name (or DB_PATH) instead of guessing.
+      if (isTestHarness && !dbName) {
+        throw new Error(
+          `[SQLite] Refused to connect without DB_NAME in test/benchmark mode. ` +
+            `Pass DB_NAME (or set DB_PATH) explicitly so tests never use the live ` +
+            `default file. Received config: ${JSON.stringify(config)}`,
+        );
+      }
 
       dbPath =
         process.env.DB_PATH ||

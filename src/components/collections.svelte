@@ -576,22 +576,6 @@ Provides an organized interface for navigating hierarchical content structures.
 		}, 300);
 	}
 
-	function reindexSiblings(parentId: string | null) {
-		const siblings = Array.from(flatNodeMap.values()).filter((n) =>
-			parentId === null ? !n.parentId : String(n.parentId) === parentId,
-		);
-
-		siblings.sort((a, b) => {
-			const oa = orderOverrides.get(a._id) ?? a.order ?? 0;
-			const ob = orderOverrides.get(b._id) ?? b.order ?? 0;
-			return oa - ob;
-		});
-
-		siblings.forEach((node, index) => {
-			orderOverrides.set(node._id, index);
-		});
-	}
-
 	function clearAllFilters() {
 		search = '';
 		debouncedSearch = '';
@@ -741,8 +725,9 @@ Provides an organized interface for navigating hierarchical content structures.
 		</div>
 	{/if}
 
-	<!-- Tree -->
-	<div class="collections-list" role="tree" aria-label="Collection tree">
+	<!-- Tree: the TreeView component owns role="tree" (nesting trees is invalid ARIA).
+	     When empty/loading, children are not treeitems, so no tree role here either. -->
+	<div class="collections-list">
 		{#if treeNodes.length === 0}
 			{#if !isFullSidebar}
 				{#if !widgets.isLoaded}

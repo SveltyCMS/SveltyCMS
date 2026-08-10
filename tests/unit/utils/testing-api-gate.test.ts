@@ -25,7 +25,6 @@ describe("assertTestingApiAllowed / isTestOrBenchmarkEnvironment", () => {
     delete process.env.VITE_TEST_MODE;
     delete process.env.PLAYWRIGHT_TEST;
     delete process.env.BENCHMARK;
-    delete process.env.SVELTY_BENCHMARK_SUITE;
     delete process.env.TEST_API_SECRET;
     process.env.NODE_ENV = "development";
   });

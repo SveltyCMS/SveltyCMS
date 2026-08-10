@@ -3,7 +3,7 @@
  * @description High-performance, benchmark-friendly widget registry.
  */
 
-import { coreModules, customModules, marketplaceModules } from "@src/widgets/scanner";
+import { coreModules, customModules, marketplaceModules } from "../../widgets/scanner";
 import type { WidgetFactory, WidgetModule, WidgetType } from "@src/widgets/types";
 import {
   folderFromWidgetPath,
@@ -56,7 +56,7 @@ class WidgetRegistryService {
       this._registerPreScannedWidgets();
 
       // Marketplace widgets (only if needed)
-      if (process.env.NODE_ENV !== "test" && process.env.BENCHMARK_MODE !== "true") {
+      if (process.env.NODE_ENV !== "test" && process.env.BENCHMARK !== "true") {
         await this._scanMarketplaceWidgets();
       }
 
@@ -196,7 +196,7 @@ class WidgetRegistryService {
 
   private _updateServiceHealth(status: "healthy" | "unhealthy") {
     // Only run on main thread
-    if (typeof process !== "undefined" && process.env.BENCHMARK_MODE === "true") return;
+    if (typeof process !== "undefined" && process.env.BENCHMARK === "true") return;
 
     try {
       import("@src/stores/system/state.svelte.ts")

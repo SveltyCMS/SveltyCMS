@@ -14,7 +14,6 @@ import { ThemeManager } from "@src/databases/theme-manager";
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import type { Locale } from "@src/paraglide/runtime";
 import { locales } from "@src/paraglide/runtime";
-import { app } from "@src/stores/store.svelte";
 import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { getRequestFlags } from "@utils/hook-utils";
@@ -26,32 +25,6 @@ function isValidLocale(lang: string | undefined): lang is Locale {
     return false;
   }
   return (locales as readonly string[]).includes(lang);
-}
-
-function safelySetLanguage(
-  cookieName: string,
-  cookieValue: string | undefined,
-  setter: (value: Locale) => void,
-): boolean {
-  if (!cookieValue) {
-    return false;
-  }
-
-  if (!isValidLocale(cookieValue)) {
-    logger.warn(
-      `Invalid ${cookieName} cookie value: "${cookieValue}". Supported locales: ${locales.join(", ")}`,
-    );
-    return false;
-  }
-
-  try {
-    setter(cookieValue);
-    logger.trace(`${cookieName} set to: ${cookieValue}`);
-    return true;
-  } catch (err: any) {
-    logger.error(`Failed to set ${cookieName} store: ${err.message}`);
-    return false;
-  }
 }
 
 // --- MAIN HOOK ---
@@ -67,31 +40,29 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
   if (flags.isApi || flags.isStatic) return resolve(event);
 
   // --- 1. LOCALE LOGIC ---
-  if (app) {
-    const systemLangCookie = cookies.get("systemLanguage");
-    const systemLangSet = safelySetLanguage(
-      "systemLanguage",
-      systemLangCookie,
-      (value) => (app.systemLanguage = value),
-    );
-    if (systemLangCookie && !systemLangSet) {
-      logger.debug("Removing invalid systemLanguage cookie");
-      cookies.delete("systemLanguage", { path: "/" });
-    }
-
-    const contentLangCookie = cookies.get("contentLanguage");
-    const contentLangSet = safelySetLanguage(
-      "contentLanguage",
-      contentLangCookie,
-      (value) => (app.contentLanguage = value),
-    );
-    if (contentLangCookie && !contentLangSet) {
-      logger.debug("Removing invalid contentLanguage cookie");
-      cookies.delete("contentLanguage", { path: "/" });
-    }
-  } else {
-    logger.warn("Language stores not available on server, skipping locale sync");
+  // 🚨 SSR-SAFETY: the `app` store is a module-level singleton ($state proxy).
+  // Mutating it here during a request would leak the language preference to
+  // other concurrent requests rendered in the same Node.js process (cross-user /
+  // cross-tenant pollution). The locale is therefore carried request-scoped on
+  // `event.locals`; SSR reads it from locals and the client hydrates its own
+  // stores from the injected page data (see `+layout.server.ts`).
+  const systemLangCookie = cookies.get("systemLanguage");
+  const systemLangValid = systemLangCookie ? isValidLocale(systemLangCookie) : false;
+  if (systemLangCookie && !systemLangValid) {
+    logger.debug("Removing invalid systemLanguage cookie");
+    cookies.delete("systemLanguage", { path: "/" });
   }
+
+  const contentLangCookie = cookies.get("contentLanguage");
+  const contentLangValid = contentLangCookie ? isValidLocale(contentLangCookie) : false;
+  if (contentLangCookie && !contentLangValid) {
+    logger.debug("Removing invalid contentLanguage cookie");
+    cookies.delete("contentLanguage", { path: "/" });
+  }
+
+  // Request-scoped SSR language (no global store mutation)
+  event.locals.systemLanguage = systemLangValid ? (systemLangCookie as Locale) : undefined;
+  event.locals.contentLanguage = contentLangValid ? (contentLangCookie as Locale) : undefined;
 
   // --- 2. THEME LOGIC ---
   const themeManager = ThemeManager.getInstance();

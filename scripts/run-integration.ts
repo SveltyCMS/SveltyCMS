@@ -11,11 +11,16 @@
  *
  * ## Usage
  *   bun run scripts/run-integration.ts                  # build + one DB_TYPE (default sqlite)
- *   bun run scripts/run-integration.ts --no-build       # reuse existing build/
+ *   bun run scripts/run-integration.ts --no-build       # reuse harness-enabled build/
  *   bun run scripts/run-integration.ts --diff           # run only tests for changed files
  *   bun run scripts/run-integration.ts --retry          # retry failed tests up to 2 times
  *   bun run scripts/run-integration.ts --diff --retry   # combine flags
  *   DB_TYPE=postgresql bun run scripts/run-integration.ts
+ *
+ * ## Build / harness
+ * Integration seed/reset need /api/testing. A normal `bun run build` strips that handler.
+ * This orchestrator always verifies the harness; with --no-build a deploy-stripped
+ * build is auto-rebuilt locally (CI fails closed so artifact bugs surface).
  */
 import { spawn, execSync, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -28,8 +33,8 @@ import {
   cleanupTestArtifacts,
   createIntegrationContext,
   detectDockerAdapterHints,
+  ensureIntegrationBuild,
   ensurePortAvailable,
-  runProductionBuild,
   stopChildProcessTree,
   waitForIntegrationHealth,
   writePrivateTestConfig,
@@ -38,6 +43,12 @@ import {
 
 const ROOT = join(import.meta.dirname, "..");
 const entryPoint = join(ROOT, "build", "index.js");
+/** GitHub Actions / CI_QUIET: compact test output (failures + summary only). */
+const isCIQuiet =
+  process.env.CI === "true" ||
+  process.env.CI === "1" ||
+  process.env.CI_QUIET === "1" ||
+  process.env.CI_QUIET === "true";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // §1 — Valibot Schemas
@@ -46,6 +57,8 @@ const entryPoint = join(ROOT, "build", "index.js");
 /** Validated CLI arguments — fails fast on invalid input. */
 const ParsedArgsSchema = v.object({
   noBuild: v.optional(v.boolean(), false),
+  /** Refuse auto-rebuild when --no-build and harness missing (CI default). */
+  strictNoBuild: v.optional(v.boolean(), false),
   diff: v.optional(v.boolean(), false),
   diffBase: v.optional(v.pipe(v.string(), v.minLength(1)), "HEAD"),
   retryCount: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(5)), 0),
@@ -182,7 +195,10 @@ function parseArgs(): ParsedArgs {
 
   for (const a of raw) {
     if (a === "--no-build") parsed.noBuild = true;
-    else if (a === "--diff" || a === "--changed") parsed.diff = true;
+    else if (a === "--strict-no-build") {
+      parsed.noBuild = true;
+      parsed.strictNoBuild = true;
+    } else if (a === "--diff" || a === "--changed") parsed.diff = true;
     else if (a.startsWith("--diff-base=")) parsed.diffBase = a.slice("--diff-base=".length);
     else if (a === "--retry") {
       parsed.retryCount = 2;
@@ -202,6 +218,15 @@ function parseArgs(): ParsedArgs {
     )
       (parsed.testPaths as string[]).push(a);
     else if (a.startsWith("-")) (parsed.bunFlags as string[]).push(a);
+  }
+
+  // CI artifact path: never silently rebuild a stripped bundle (masking bad uploads)
+  if (
+    parsed.noBuild &&
+    !parsed.strictNoBuild &&
+    (process.env.CI === "true" || process.env.CI === "1")
+  ) {
+    parsed.strictNoBuild = true;
   }
 
   const result = v.safeParse(ParsedArgsSchema, parsed);
@@ -327,9 +352,9 @@ interface FlakyResult {
   finalStatus: "pass" | "fail";
 }
 
-function parseTestOutput(stderr: string, fileHint: string): TestResult[] {
+function parseTestOutput(output: string, fileHint: string): TestResult[] {
   const results: TestResult[] = [];
-  for (const line of stderr.split(/\r?\n/)) {
+  for (const line of output.split(/\r?\n/)) {
     const match = line.match(/^\s*\((pass|fail)\)\s+(.+?)\s*\[([\d.]+)ms\]/);
     if (!match) continue;
     const [, status, fullName, duration] = match;
@@ -343,6 +368,20 @@ function parseTestOutput(stderr: string, fileHint: string): TestResult[] {
     });
   }
   return results;
+}
+
+/** Parse bun's final tally when detailed (pass)/(fail) lines are suppressed (--only-failures). */
+function parseBunTally(output: string): { pass: number; fail: number } | null {
+  let pass: number | null = null;
+  let fail: number | null = null;
+  for (const line of output.split(/\r?\n/)) {
+    const p = line.match(/^\s*(\d+)\s+pass\b/);
+    if (p) pass = Number.parseInt(p[1], 10);
+    const f = line.match(/^\s*(\d+)\s+fail\b/);
+    if (f) fail = Number.parseInt(f[1], 10);
+  }
+  if (pass === null && fail === null) return null;
+  return { pass: pass ?? 0, fail: fail ?? 0 };
 }
 
 function extractTestFilter(test: TestResult): string {
@@ -412,10 +451,14 @@ function printSummaryReport(
   results: TestResult[],
   flaky: FlakyResult[],
   totalDurationMs: number,
+  tally?: { pass: number; fail: number } | null,
 ): void {
-  const total = results.length;
-  const passed = results.filter((r) => r.status === "pass").length;
-  const failed = results.filter((r) => r.status === "fail").length;
+  // Prefer bun tally when present (accurate under --only-failures); else per-test rows
+  const fromRowsPass = results.filter((r) => r.status === "pass").length;
+  const fromRowsFail = results.filter((r) => r.status === "fail").length;
+  const passed = tally ? tally.pass : fromRowsPass;
+  const failed = tally ? tally.fail : fromRowsFail;
+  const total = tally ? tally.pass + tally.fail : results.length;
   const recovered = flaky.filter((f) => f.finalStatus === "pass").length;
   const persistent = flaky.filter((f) => f.finalStatus === "fail").length;
   const sec = (totalDurationMs / 1000).toFixed(2);
@@ -428,7 +471,7 @@ function printSummaryReport(
   );
   if (flaky.length > 0) console.log(`║  Flaky recovered: ${recovered} │ persistent: ${persistent}`);
 
-  if (failed > 0) {
+  if (failed > 0 && fromRowsFail > 0) {
     console.log("╠══════════════════════════════════════════════════════════════════╣");
     console.log("║  FAILED:                                                        ║");
     for (const r of results.filter((r) => r.status === "fail")) {
@@ -453,7 +496,7 @@ function printSummaryReport(
   }
 
   const sorted = [...results].sort((a, b) => b.durationMs - a.durationMs).slice(0, 5);
-  if (sorted.length > 0) {
+  if (sorted.length > 0 && !isCIQuiet) {
     console.log("╠══════════════════════════════════════════════════════════════════╣");
     console.log("║  SLOWEST:                                                       ║");
     for (const r of sorted) {
@@ -464,7 +507,7 @@ function printSummaryReport(
     }
   }
 
-  const finalFailures = failed - recovered + persistent;
+  const finalFailures = Math.max(0, failed - recovered + persistent);
   console.log("╠══════════════════════════════════════════════════════════════════╣");
   if (finalFailures === 0)
     console.log("║  ✅ ALL TESTS PASSED                                            ║");
@@ -500,12 +543,23 @@ async function phaseParse(): Promise<{
   return { args, ctx, testPaths };
 }
 
-/** Phase 2: Build — compile the production server. */
+/** Phase 2: Build — ensure harness-enabled production server. */
 async function phaseBuild(args: ParsedArgs): Promise<void> {
-  if (args.noBuild) {
-    console.log("ℹ️  Skipping build (--no-build)");
-  } else {
-    await runProductionBuild(ROOT);
+  try {
+    if (args.noBuild) {
+      console.log(
+        args.strictNoBuild
+          ? "ℹ️  --no-build (strict): reuse artifact; fail if harness missing"
+          : "ℹ️  --no-build: reuse build/ if harness present, else auto-rebuild",
+      );
+    }
+    await ensureIntegrationBuild(ROOT, {
+      noBuild: args.noBuild,
+      strictNoBuild: args.strictNoBuild,
+    });
+  } catch (err) {
+    console.error(`❌ ${err instanceof Error ? err.message : err}`);
+    process.exit(1);
   }
 
   if (!existsSync(entryPoint)) {
@@ -515,7 +569,9 @@ async function phaseBuild(args: ParsedArgs): Promise<void> {
 }
 
 /** Phase 3: Setup — config, port, server startup. */
-async function phaseSetup(ctx: ValidatedContext): Promise<ChildProcess> {
+async function phaseSetup(
+  ctx: ValidatedContext,
+): Promise<{ server: ChildProcess; serverLog: string[] }> {
   cleanupTestArtifacts(ctx.root);
   writePrivateTestConfig(ctx);
   cleanSqliteTestFiles(ctx.root, ctx.dbType, ctx.dbName);
@@ -529,6 +585,10 @@ async function phaseSetup(ctx: ValidatedContext): Promise<ChildProcess> {
 
   console.log(`🚀 Starting preview on :${ctx.port} (DB_TYPE=${ctx.dbType})...`);
   const serverEnv = buildIntegrationServerEnv(ctx);
+  /** Ring buffer of server logs — dump only on failure in quiet CI mode. */
+  const serverLog: string[] = [];
+  /** Keep a short tail so failure dumps stay scannable (not full boot spam). */
+  const MAX_LOG_LINES = 40;
 
   const server = spawn("node", [entryPoint], {
     cwd: ROOT,
@@ -537,14 +597,37 @@ async function phaseSetup(ctx: ValidatedContext): Promise<ChildProcess> {
     shell: false,
   });
 
-  server.stdout?.on("data", (d) => process.stdout.write(`[srv] ${d}`));
-  server.stderr?.on("data", (d) => process.stderr.write(`[srv] ${d}`));
+  const pushLog = (chunk: Buffer | string, stream: "stdout" | "stderr") => {
+    const text = typeof chunk === "string" ? chunk : chunk.toString();
+    if (!isCIQuiet) {
+      if (stream === "stderr") process.stderr.write(`[srv] ${text}`);
+      else process.stdout.write(`[srv] ${text}`);
+      return;
+    }
+    for (const line of text.split(/\r?\n/)) {
+      if (!line) continue;
+      serverLog.push(line);
+      if (serverLog.length > MAX_LOG_LINES) serverLog.shift();
+    }
+  };
+
+  server.stdout?.on("data", (d) => pushLog(d, "stdout"));
+  server.stderr?.on("data", (d) => pushLog(d, "stderr"));
   server.on("exit", (code) => {
     if (code !== null && code !== 0) console.error(`[srv] early exit code=${code}`);
   });
 
-  await waitForIntegrationHealth(ctx.apiBaseUrl, { testApiSecret: ctx.secrets.testApiSecret });
-  return server;
+  try {
+    await waitForIntegrationHealth(ctx.apiBaseUrl, { testApiSecret: ctx.secrets.testApiSecret });
+  } catch (err) {
+    if (serverLog.length > 0) {
+      console.error("── preview server log (tail) ──");
+      for (const line of serverLog) console.error(line);
+      console.error("── end preview log ──");
+    }
+    throw err;
+  }
+  return { server, serverLog };
 }
 
 /** Phase 4: Run — execute the test suite with optional retry. */
@@ -553,14 +636,29 @@ async function phaseRun(
   ctx: ValidatedContext,
   testPaths: string[],
   dockerHints: string[],
-): Promise<{ exitCode: number; results: TestResult[]; flaky: FlakyResult[] }> {
+): Promise<{
+  exitCode: number;
+  results: TestResult[];
+  flaky: FlakyResult[];
+  tally: { pass: number; fail: number } | null;
+}> {
   const env = {
     ...buildIntegrationServerEnv(ctx),
     BUN_TEST_MOCKS: "false",
     SVELTY_DOCKER_ADAPTERS: dockerHints.join(","),
   };
 
-  console.log(`   TEST_API_SECRET pinned → len=${ctx.secrets.testApiSecret.length}`);
+  if (!isCIQuiet) {
+    console.log(`   TEST_API_SECRET pinned → len=${ctx.secrets.testApiSecret.length}`);
+  }
+
+  // Quiet CI: hide passing tests (bun still prints failure details + final tally).
+  const quietBunFlags = isCIQuiet ? ["--only-failures"] : [];
+  // Allow explicit bunFlags to override quiet defaults if caller already set reporter opts
+  const reporterAlreadySet =
+    hasBunFlag(args.bunFlags, "--dots") ||
+    hasBunFlag(args.bunFlags, "--only-failures") ||
+    hasBunFlag(args.bunFlags, "--reporter");
 
   const primary = await Exec.run({
     cmd: "bun",
@@ -569,6 +667,7 @@ async function phaseRun(
       "--timeout",
       "300000",
       ...serialIntegrationBunFlags(args.bunFlags),
+      ...(reporterAlreadySet ? [] : quietBunFlags),
       ...testPaths,
     ],
     env,
@@ -578,7 +677,9 @@ async function phaseRun(
     okCodes: [0, 1],
   });
 
-  const results = parseTestOutput(primary.stderr, testPaths[0]);
+  const combinedOut = `${primary.stdout}\n${primary.stderr}`;
+  const results = parseTestOutput(combinedOut, testPaths[0]);
+  const tally = parseBunTally(combinedOut);
   const failures = results.filter((r) => r.status === "fail");
   const flaky: FlakyResult[] = [];
   let exitCode = primary.exitCode;
@@ -604,7 +705,7 @@ async function phaseRun(
     }
   }
 
-  return { exitCode, results, flaky };
+  return { exitCode, results, flaky, tally };
 }
 
 /** Phase 5: Cleanup — stop server, clean artifacts, release port. */
@@ -636,27 +737,40 @@ async function main() {
 
   // Phase 3: Setup
   const dockerHints = (await detectDockerAdapterHints()).available;
-  const server = await phaseSetup(ctx);
+  const { server, serverLog } = await phaseSetup(ctx);
 
   // Phase 4: Run
   let exitCode = 1;
   let allResults: TestResult[] = [];
   let flakyResults: FlakyResult[] = [];
+  let tally: { pass: number; fail: number } | null = null;
   try {
     const run = await phaseRun(args, ctx, testPaths, dockerHints);
     exitCode = run.exitCode;
     allResults = run.results;
     flakyResults = run.flaky;
+    tally = run.tally;
   } catch (err) {
     console.error(err instanceof Error ? err.message : err);
+  }
+
+  // On failure in quiet CI, surface a short buffered server tail for diagnosis
+  if (exitCode !== 0 && isCIQuiet && serverLog.length > 0) {
+    const interesting = serverLog.filter((l) =>
+      /error|fail|warn|exception|crash|ECONN|ENOENT|FATAL/i.test(l),
+    );
+    const dump = interesting.length > 0 ? interesting.slice(-25) : serverLog.slice(-25);
+    console.error("\n── preview server log (failure tail) ──");
+    for (const line of dump) console.error(line);
+    console.error("── end preview log ──\n");
   }
 
   // Phase 5: Cleanup
   await phaseCleanup(server, ctx);
 
-  // Report
-  if (args.summary || args.retryCount > 0) {
-    printSummaryReport(allResults, flakyResults, performance.now() - totalStart);
+  // Report: always in CI (compact gate signal); locally only with --summary/--retry
+  if (isCIQuiet || args.summary || args.retryCount > 0) {
+    printSummaryReport(allResults, flakyResults, performance.now() - totalStart, tally);
   }
 
   process.exit(exitCode);

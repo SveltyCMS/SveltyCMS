@@ -18,6 +18,7 @@ import { getTenantIdFromHostname } from "@utils/tenant";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { getRequestFlags } from "@utils/hook-utils";
+import { locales } from "@src/paraglide/runtime";
 
 let cachedContentSystem: typeof import("@src/content/index.server").contentSystem | null = null;
 async function getContentSystem() {
@@ -44,8 +45,17 @@ function flush404Logs() {
   if (!db) return;
   const schemaExists = cacheService.getSync<any>("schema:404_logs");
   if (!schemaExists) return;
-  const logsToFlush = Array.from(logBuffer.values());
-  logBuffer.clear();
+  // Snapshot with key + hit count so entries mutated DURING the flush window
+  // are retained (their un-flushed delta stays buffered for the next interval).
+  const logsToFlush = Array.from(logBuffer.entries()).map(([key, log]) => ({
+    key,
+    path: log.path,
+    tenantId: log.tenantId,
+    hits: log.hits,
+  }));
+  // 🛡️ Do NOT clear the buffer before the async flush completes — a failed
+  // flush would silently lose the buffered 404 records. Entries are removed
+  // only AFTER a successful write (crash-safe retry on the next interval).
 
   void (async () => {
     try {
@@ -86,8 +96,16 @@ function flush404Logs() {
           }
         }
       }
+      // Only remove flushed entries that were not mutated during the flush.
+      for (const log of logsToFlush) {
+        const current = logBuffer.get(log.key);
+        if (current && current.hits === log.hits) {
+          logBuffer.delete(log.key);
+        }
+      }
     } catch (err) {
       logger.error("[handleRedirects] Failed to flush 404 logs:", err);
+      // Buffer retained → retried on the next interval.
     }
   })();
 }
@@ -196,7 +214,7 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
   }
 
   if (hasRedirect && redirectEntry) {
-    return applyRedirect(path, redirectEntry);
+    return applyRedirect(event.url, redirectEntry);
   }
 
   // Log 404
@@ -223,7 +241,8 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
   const pathSegments = path.split("/").filter(Boolean);
   if (pathSegments.length > 0) {
     const firstSegment = pathSegments[0];
-    const availableLanguages = ["en"];
+    // 🚀 Use the configured Paraglide locales instead of a hardcoded ["en"].
+    const availableLanguages = locales as readonly string[];
     const hasLangPrefix = availableLanguages.includes(firstSegment);
     const allowedRoots = new Set([
       "login",
@@ -272,10 +291,34 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
-function applyRedirect(_path: string, redirect: any) {
+function applyRedirect(requestUrl: URL, redirect: any) {
+  const target = redirect.target;
+
+  // 🛡️ OPEN-REDIRECT GUARD: never follow an absolute URL to a foreign origin.
+  // Only same-origin absolute URLs or relative targets are allowed — a poisoned
+  // redirectsMV row can never send users to an attacker-controlled site.
+  if (typeof target === "string") {
+    const isAbsolute = /^https?:\/\//i.test(target) || target.startsWith("//");
+    if (isAbsolute) {
+      let targetHost: string | null = null;
+      try {
+        targetHost = new URL(target.startsWith("//") ? `https:${target}` : target).host;
+      } catch {
+        targetHost = null;
+      }
+      if (!targetHost || targetHost !== requestUrl.host) {
+        logger.warn(`[Redirects] Blocked external redirect to ${target}`);
+        return new Response("Not Found", {
+          status: 404,
+          headers: { "Content-Type": "text/plain", "X-Robots-Tag": "none" },
+        });
+      }
+    }
+  }
+
   return new Response(null, {
     status: redirect.type || 301,
-    headers: { location: redirect.target },
+    headers: { location: target },
   });
 }
 

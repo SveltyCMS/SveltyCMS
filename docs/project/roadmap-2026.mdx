@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-08-04"
+updated: "2026-08-10"
 tags:
   - "roadmap"
   - "todo"
@@ -22,62 +22,9 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 
 ---
 
-## ✅ Shipped — Adapter list / count (August 2026)
-
-Product-layer APIs equal on SQLite, PostgreSQL, MariaDB, MongoDB:
-
-- [x] `crud.findPage` — limit+1 `hasMore`, optional total, keyset `cursor`
-- [x] `CountMode` (`exact` | `estimate` | `auto`) + dialect estimates
-- [x] L1 count cache (30s) + invalidation with collection writes
-- [x] Unit + integration contracts (`find-page-count-contract`, `page-utils`)
-- [x] CollectionService list path: limit+1 + cached `crud.count` when filters are equality-only
-- [x] Status facets via `crud.count` (L1-backed)
-- [x] Users list: `findPage` on `auth_users` when no text search
-- [x] Media `getByFolder`: limit+1 + parallel count
-- [x] Website tokens: Mongo `findPage`; SQL limit+1 trim; Smart Table **saved views**
-- [x] Schema proxy: `db.<collection>.findPage(...)`
-
-**Still open (call-site polish):** multi-column sort UI, bulk field-edit, export filtered selection, team/cloud saved views.
-
----
-
-## ✅ Shipped — Session & RBAC Hardening (August 2026)
-
-- [x] Session device policy (`SESSION_DEVICE_POLICY`: single-per-device / single-per-user / allow-multiple) enforced at the `createSession` chokepoint, OIDC dedup, login-page threading
-- [x] Session lifetime (`SESSION_TTL_HOURS`) applied at login + rotation (rotation no longer extends sessions)
-- [x] Idle timeout (`SESSION_IDLE_HOURS`) on the session-cache LRU — sliding, zero-query
-- [x] Blocked/deleted users cut off immediately (session purge on block/unblock/delete + DB-path check)
-- [x] Transient-safe validation: single-flight coalescing, cookie kept on DB blips (no cold-start logouts)
-- [x] Cross-session revoke re-auth (password proof, stateless HMAC, 5-min)
-- [x] Credential-free session snapshots — password hashes / TOTP secrets / backup codes / reset & refresh tokens stripped at every cache/store write boundary
-- [x] Session context anomaly (log-only) — IP/user-agent drift flagged once per session per hour
-- [x] Max sessions per user (`SESSION_MAX_PER_USER`) — LRU eviction of the least recently active session
-- [x] Session-cleanup scheduled job (expired sessions/tokens purged every 5 min)
-- [x] RBAC permission cache wired into the hot path + roles/turbo invalidation on all mutation paths
-
----
-
-## ✅ Shipped — High Performance Core & Non-Blocking Writes (August 2026)
-
-- [x] **Asynchronous Non-Blocking Mutation Pipeline**: `create` and `update` writes persist to the DB in **sub-5ms** (`~4.20ms`) and return 200 OK immediately
-- [x] **Async Audit & Revision Queue**: Crypto SHA-256 Merkle-tree hash chaining, content revision snapshotting, and L2 cache invalidation pattern purges dispatched in detached microtask queues (`AUDIT_CHAIN_SYNC=false` default)
-- [x] **Enterprise Compliance Mode (`AUDIT_CHAIN_SYNC=true`)**: Optional flag to enforce synchronous SHA-256 audit chaining inside write transactions for ISO 27001 / SOC2 compliance
-- [x] **System Settings UI Toggle**: Admins can toggle `AUDIT_CHAIN_SYNC` and `DISABLE_AUDIT_LOGS` live in System Settings under Cache & Performance
-- [x] **Benchmark Matrix Automation**: `server.ts` harness supports `AUDIT_CHAIN_SYNC` and `DISABLE_AUDIT_LOGS` env overrides for comparative matrix benchmarking
-
----
-
 ## 📊 CMS Tables & List Platform (Smart Table)
 
-**Shipped foundation** (July 2026): headless controller, schema-aware server filters, QueryBuilder IR, SWR/cache hash, shared UX primitives. Collections stay **server-secure**.
-
-### 2FA & Auth Hardening (July 2026)
-
-- [x] AES-256-GCM encryption of TOTP secrets at rest
-- [x] Pending setup state — resumable 2FA enrollment
-- [x] Trusted devices cookie
-- [x] Configurable TOTP window
-- [x] Plugin afterAuthenticate hook
+**Shipped foundation** (July 2026): headless controller, schema-aware server filters, QueryBuilder IR, SWR/cache hash, shared UX primitives — plus the July 2026 2FA hardening set (AES-256-GCM TOTP secrets at rest, resumable enrollment, trusted-devices cookie, configurable TOTP window, `afterAuthenticate` plugin hook). Both are documented in the [Technical Evaluation](./technical-evaluation-2026.mdx). Collections stay **server-secure**.
 
 ### Next (high leverage — foundations ready)
 
@@ -111,14 +58,6 @@ Product-layer APIs equal on SQLite, PostgreSQL, MariaDB, MongoDB:
 
 ---
 
-## 🗄️ Media DAM
-
-**Wired & Tested**: sharing, MIME, processing, cloud storage, bulk download, analytics, version history, streaming upload, focal point plugin.
-
-**August 2026:** `getByFolder` uses limit+1 hasMore + parallel count.
-
----
-
 ## 🏗️ In Progress
 
 - 🏗️ **Marketplace Phase 2 (in-app catalog)** — **August 2026 progress:** Extensions page **Marketplace** tab + `marketplace-view.svelte` + `GET /api/marketplace` offline-first merge (local listings + `marketplace-client` remote). Dashboard widgets refactored into **marketplace-portable package folders** (`widgets/<folder>/<component>.svelte` + required `widget.json` + `.mdx`) with `installDashboardWidget()` and local catalog listings (type filter incl. `dashboard`, license/price badges). **Licensing aligned with widgets/plugins/site starter**: Free / Freemium (14-day key-less trial) / Paid via `checkExtensionLicense("dashboard", id)` — client-side upgrade prompts **and** server-side `403 LICENSE_REQUIRED` gates on premium dashboard endpoints (see [license-endpoint-inventory](../reference/security/license-endpoint-inventory.mdx)). Still open: one-click install pipeline for remote packages, richer package cards, in-app license UX.
@@ -140,7 +79,7 @@ Product-layer APIs equal on SQLite, PostgreSQL, MariaDB, MongoDB:
 - **Autonomous Import Optimization**, per-content-type collection split
 - **Content branching**, Dynamic admin theme system
 - **SvelteKit 3.0**, **TypeScript 7** (transformers test blocked on TS7 API)
-- **Field-level permission filters** — Directus-style per-field read/write policy per role; parity review of `docs/reference/security/field-level-access-control.mdx` first
+- **Field-level write guards** — read-side response filtering shipped (`FIELD_PERMISSIONS` in `handle-token-resolution`) and filter/search FLAC shipped (`canAccessField` in the collection filter engine); still open: wiring the `enforceFieldAccess` write-rejection utility (403 + audit log) into the mutation pipeline
 - **Third-party pentest** — engage a pentest lab before enterprise GA (0 CVEs on record today, self-checked via NVD / GitHub Advisory DB)
 
 ---
@@ -149,14 +88,14 @@ Product-layer APIs equal on SQLite, PostgreSQL, MariaDB, MongoDB:
 
 Honest assessment against reference platforms, based on publicly available documentation as of 2026-08-04. Closure paths link to the roadmap items above; shipped items are tracked in the [Technical Evaluation](./technical-evaluation-2026.mdx).
 
-| Capability                               | Reference platforms (public docs)                                                      | Our current state                                                                                                          | Gap & closure path                                                                                                                                                              |
-| :--------------------------------------- | :------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Distributed SSO realm sessions**       | Keycloak documents realm-wide session clustering and cross-application SSO propagation | Single-instance session store (L1/L2 + DB); OIDC login flow in progress; SAML and all three OIDC logout mechanisms shipped | No cross-application session propagation yet. Closure: OIDC login page + PKCE (roadmap P1); distributed session clustering with the managed-cloud / Docker enterprise pack (P2) |
-| **Adaptive / risk-based authentication** | Keycloak documents conditional authentication flows (step-up, risk-based)              | Static lockout, TTL/idle controls, step-up re-auth for session management                                                  | No policy engine for adaptive challenges. Closure: roadmap candidate; the shipped log-only anomaly detection feeds future alerting                                              |
-| **Module ecosystem depth**               | Drupal's public module directory lists tens of thousands of modules                    | Plugin `page` part, widgets, and dashboard widget packages provide first-class admin extension points                      | Catalog is young. Closure: marketplace in-app catalog + one-click install (P1); ecosystem launch items on the roadmap                                                           |
-| **Field-level permissions**              | Directus documents per-field read/write policy per role                                | `docs/reference/security/field-level-access-control.mdx` exists                                                            | Parity review pending. Closure: roadmap candidate (field-level permission filters)                                                                                              |
-| **Passkey UI polish**                    | WebAuthn/passkeys widely deployed in consumer-grade UX                                 | WebAuthn/passkey support exists; UI polish pending                                                                         | Small, contained; tracked in the security scorecard                                                                                                                             |
-| **Independent verification**             | Enterprise platforms publish third-party pentest / audit reports                       | 0 CVEs on record (NVD / GitHub Advisory DB, self-checked); internal scanners enforced in CI                                | No third-party pentest yet. Closure: engage a pentest lab before enterprise GA                                                                                                  |
+| Capability                               | Reference platforms (public docs)                                                      | Our current state                                                                                                                                                                   | Gap & closure path                                                                                                                                                              |
+| :--------------------------------------- | :------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Distributed SSO realm sessions**       | Keycloak documents realm-wide session clustering and cross-application SSO propagation | Single-instance session store (L1/L2 + DB); OIDC login flow in progress; SAML and all three OIDC logout mechanisms shipped                                                          | No cross-application session propagation yet. Closure: OIDC login page + PKCE (roadmap P1); distributed session clustering with the managed-cloud / Docker enterprise pack (P2) |
+| **Adaptive / risk-based authentication** | Keycloak documents conditional authentication flows (step-up, risk-based)              | Static lockout, TTL/idle controls, step-up re-auth for session management                                                                                                           | No policy engine for adaptive challenges. Closure: roadmap candidate; the shipped log-only anomaly detection feeds future alerting                                              |
+| **Module ecosystem depth**               | Drupal's public module directory lists tens of thousands of modules                    | Plugin `page` part, widgets, and dashboard widget packages provide first-class admin extension points                                                                               | Catalog is young. Closure: marketplace in-app catalog + one-click install (P1); ecosystem launch items on the roadmap                                                           |
+| **Field-level write guards**             | Directus documents per-field read/write policy per role                                | Read-side response filtering shipped (`FIELD_PERMISSIONS`); filter/search FLAC shipped (`canAccessField`); `enforceFieldAccess` write-rejection utility exists but is not yet wired | Write-guard wiring into the mutation pipeline is a roadmap candidate (P1)                                                                                                       |
+| **Passkey UI polish**                    | WebAuthn/passkeys widely deployed in consumer-grade UX                                 | WebAuthn/passkey support exists; UI polish pending                                                                                                                                  | Small, contained; tracked in the security scorecard                                                                                                                             |
+| **Independent verification**             | Enterprise platforms publish third-party pentest / audit reports                       | 0 CVEs on record (NVD / GitHub Advisory DB, self-checked); internal scanners enforced in CI                                                                                         | No third-party pentest yet. Closure: engage a pentest lab before enterprise GA                                                                                                  |
 
 **Strategic non-goals (explicit):** matching WordPress/PHP's install base or module count is not a design target — the extension surface is deliberately typed and tree-shaken (plugins, widgets, dashboard packages) rather than a generic runtime hook bus.
 
@@ -207,4 +146,4 @@ Honest assessment against reference platforms, based on publicly available docum
 | **P1**   | Marketplace install path; OIDC login page + PKCE; published adapters     |
 | **P2**   | Docker/Terraform, managed cloud — **not** GraphQL 17 until Yoga unblocks |
 
-_Last roadmap sync: 2026-08-04_
+_Last roadmap sync: 2026-08-10_

@@ -9,6 +9,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { validateEgressUrl, safeFetch } from "@src/utils/egress-guard";
 
 export interface ExternalSourceSchemaField {
   name: string;
@@ -19,6 +20,15 @@ export interface ExternalSourceData {
   items: any[];
   schema: ExternalSourceSchemaField[];
   _included?: any[];
+}
+
+/**
+ * SSRF guard shared by the external-source adapters: the source URL is
+ * admin/user-supplied input, so it MUST pass the awaited egress guard and be
+ * fetched through safeFetch (never a raw fetch on the caller-controlled URL).
+ */
+function egressOptions() {
+  return { allowHttp: process.env.NODE_ENV === "development" };
 }
 
 /**
@@ -40,12 +50,18 @@ export async function fetchDrupalData(
       headers.Authorization = `Bearer ${apiKey}`;
     }
 
-    const response = await fetch(endpoint, { headers });
-    if (!response.ok) {
-      throw new Error(`Drupal API error: ${response.statusText}`);
+    await validateEgressUrl(endpoint, egressOptions());
+    const resp = await safeFetch(endpoint, {
+      headers,
+      ...egressOptions(),
+      timeoutMs: 15_000,
+      maxSizeBytes: 10 * 1024 * 1024,
+    });
+    if (!resp.success || !resp.body) {
+      throw new Error(`Drupal API error: ${resp.error || resp.status || "empty response"}`);
     }
 
-    const data = await response.json();
+    const data = JSON.parse(resp.body);
     const items = data.data || [];
     // JSON:API includes resolved entity data (taxonomy terms, media) in `included`
     const included = data.included || [];
@@ -94,12 +110,18 @@ export async function fetchWordPressData(
       headers.Authorization = `Basic ${Buffer.from(apiKey).toString("base64")}`;
     }
 
-    const response = await fetch(endpoint, { headers });
-    if (!response.ok) {
-      throw new Error(`WordPress API error: ${response.statusText}`);
+    await validateEgressUrl(endpoint, egressOptions());
+    const resp = await safeFetch(endpoint, {
+      headers,
+      ...egressOptions(),
+      timeoutMs: 15_000,
+      maxSizeBytes: 10 * 1024 * 1024,
+    });
+    if (!resp.success || !resp.body) {
+      throw new Error(`WordPress API error: ${resp.error || resp.status || "empty response"}`);
     }
 
-    const items = await response.json();
+    const items = JSON.parse(resp.body);
 
     const schema: ExternalSourceSchemaField[] = [];
     if (Array.isArray(items) && items.length > 0) {

@@ -22,7 +22,4 @@ export const pathAliases = {
   "@themes": "./src/themes",
   "@utils": "./src/utils",
   "@widgets": "./src/widgets",
-  $live: "./src/live",
-  "svelte-realtime/server": "./src/live/svelte-realtime-mock.ts",
-  "svelte-realtime": "./src/live/svelte-realtime-mock.ts",
 } as const satisfies Record<string, string>;

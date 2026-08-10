@@ -30,9 +30,10 @@ import * as schema from "./schema";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { sql as drizzleSql, type SQL } from "drizzle-orm";
-import { pgTable, varchar, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, varchar, jsonb, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
+import { generateUUID } from "@src/utils/native-utils";
 
 export abstract class PostgresAdapterCore extends SqlAdapterCore {
   public type = "postgresql";
@@ -90,6 +91,414 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return true;
   }
 
+  /**
+   * Raw prepared-SQL findById: postgres.js caches parsed statements by SQL
+   * text, so a stable parameterized SELECT skips Drizzle's per-call AST
+   * building + SQL string construction (~30-80µs/call on hot reads).
+   */
+  protected get useRawFindById(): boolean {
+    return true;
+  }
+
+  /**
+   * Tx-scoped postgres.js instance when inside a transaction started by the
+   * PG TransactionModule (which stashes the begin()-scoped instance on
+   * `transaction.sql`). Falls back to reading it off the drizzle tx session.
+   * Returns null when the transaction carries no raw handle (callers then
+   * defer to the Drizzle path, preserving rollback semantics).
+   */
+  protected getTxnSql(options: BaseQueryOptions): any {
+    const tx = options?.transaction as any;
+    return tx?.sql ?? tx?.db?.session?.client ?? null;
+  }
+
+  protected async rawInsertReturning<T extends import("../db-interface").BaseEntity>(
+    table: any,
+    collection: string,
+    values: Record<string, any>,
+    options: BaseQueryOptions,
+  ): Promise<T | null> {
+    // Inside an outer transaction WITHOUT a raw handle (e.g. a Drizzle tx
+    // created by another caller) the pool-level unsafe() would commit the
+    // insert immediately (bypassing rollback) — defer to the base Drizzle
+    // path which routes through options.transaction.db.
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql!;
+    try {
+      const tableName = getTableName(table);
+      const valuesCols = Object.keys(values);
+      if (valuesCols.length === 0) return null;
+
+      // 🚀 NO-READ-BACK INSERT: the returned row is synthesized from the
+      // prepared values + column defaults instead of RETURNING * (saves the
+      // row materialization + jsonb parse on the write round trip). Exact for
+      // CMS tables — the Drizzle def mirrors the DDL and there are no
+      // triggers/generated columns. If the table shape is unknown, bail out
+      // BEFORE inserting so the base Drizzle path can RETURNING normally.
+      let synthesized: Record<string, any>;
+      try {
+        synthesized = this.synthesizeInsertRow(table, values);
+      } catch {
+        return null;
+      }
+
+      // postgres.js 3.x removed sql.join — one flat unsafe() call with explicit
+      // prepare:true gives the same stable-SQL-text statement-cache hit as
+      // nested fragments with a fraction of the per-call allocation. Dates and
+      // objects bind as strings (describe-phase Bind quirk, see above). Bind
+      // the SYNTHESIZED row: all columns defined (defaults + NULLs), so
+      // postgres.js never substitutes undefined params client-side — stable
+      // SQL text + full bind list on the prepared statement.
+      const synthCols = Object.keys(synthesized);
+      const colList = synthCols
+        .map((c) => {
+          // Drizzle def property names may differ from physical column names
+          // (e.g. plugin_storage: collectionName → `collection`).
+          const phys = this.getColumn(table, c);
+          return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
+        })
+        .join(", ");
+      const boundValues = synthCols.map((c) => {
+        const v = synthesized[c];
+        if (v instanceof Date) return (v as Date).toISOString();
+        if (v !== null && typeof v === "object" && !Array.isArray(v)) return JSON.stringify(v);
+        return v;
+      });
+      const sqlText = `INSERT INTO "${tableName}" (${colList}) VALUES (${synthCols
+        .map((_, i) => `$${i + 1}`)
+        .join(", ")})`;
+      await exec.unsafe(sqlText, boundValues, { prepare: true });
+      return utils.convertDatesToISO(synthesized, {
+        ...this.convertDatesOptions,
+        table: collection,
+      }) as unknown as T;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Raw multi-VALUES INSERT fast path — mirrors the SQLite insertMany path:
+   * one prepared statement per chunk (stable SQL text → postgres.js statement
+   * cache) instead of Drizzle's per-call AST build. Chunked under the 65535
+   * bind-parameter limit; falls back to the base Drizzle path on any error or
+   * when inside an outer transaction. skipReturning (seed/outbox callers)
+   * skips the RETURNING read-back and returns the prepared values as-is.
+   */
+  override async insertMany<T extends import("../db-interface").BaseEntity>(
+    collection: string,
+    data: import("../db-interface").EntityCreate<T>[],
+    options: BaseQueryOptions = {},
+  ): Promise<DatabaseResult<T[]>> {
+    if (!data || data.length === 0) return { success: true, data: [] };
+    const skipReturning = (options as any)?.skipReturning === true;
+    const inOuterTxn = Boolean(options?.transaction);
+    const txnSql = this.getTxnSql(options);
+    if (!inOuterTxn || txnSql) {
+      const exec = txnSql ?? this.sql!;
+      try {
+        const table = this.getTable(collection);
+        if (!table) throw new Error(`Table not found: ${collection}`);
+        const now = new Date();
+        const len = data.length;
+        const batchValues: Record<string, any>[] = Array.from({ length: len });
+        for (let i = 0; i < len; i++) {
+          const item = data[i];
+          const id = (item as any)._id || generateUUID();
+          batchValues[i] = this.prepareValues(table, item, id, now, options);
+        }
+        // Union of column keys across rows — rows may omit optional physical
+        // columns (status/slug/…) and the DB default fills them.
+        const cols = new Set<string>();
+        for (let i = 0; i < len; i++) {
+          for (const k in batchValues[i]) cols.add(k);
+        }
+        if (cols.size > 0) {
+          const maxParams = 65000; // PG limit is 65535; headroom for safety
+          const chunkSize = Math.max(1, Math.floor(maxParams / cols.size));
+          const colList = Array.from(cols)
+            .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+            .join(", ");
+          const rowsOut: any[] = [];
+          for (let start = 0; start < len; start += chunkSize) {
+            const chunk = batchValues.slice(start, start + chunkSize);
+            const params: any[] = [];
+            const valuesSql: string[] = [];
+            for (let r = 0; r < chunk.length; r++) {
+              const row = chunk[r];
+              const rowPlaceholders: string[] = [];
+              for (const c of cols) {
+                const v = row[c];
+                // Missing/undefined values bind as literal DEFAULT — binding
+                // undefined through postgres.js renders client-side 'default'
+                // and desyncs the prepared-statement bind count.
+                if (v === undefined) {
+                  rowPlaceholders.push("default");
+                  continue;
+                }
+                // String-bound dates/objects (describe-phase Bind quirk).
+                if (v instanceof Date) params.push((v as Date).toISOString());
+                else if (v !== null && typeof v === "object" && !Array.isArray(v))
+                  params.push(JSON.stringify(v));
+                else params.push(v);
+                rowPlaceholders.push(`$${params.length}`);
+              }
+              valuesSql.push(`(${rowPlaceholders.join(", ")})`);
+            }
+            const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
+            const rows = await exec.unsafe(sqlText, params, { prepare: true });
+            if (Array.isArray(rows) && rows.length > 0) rowsOut.push(...rows);
+          }
+          if (skipReturning) {
+            return { success: true as const, data: batchValues as unknown as T[] };
+          }
+          if (rowsOut.length === len) {
+            return {
+              success: true as const,
+              data: utils.convertArrayDatesToISO(rowsOut, {
+                ...this.convertDatesOptions,
+                table: collection,
+              }) as T[],
+            };
+          }
+        }
+      } catch {
+        /* fall through to the base Drizzle path */
+      }
+    }
+    return super.insertMany(collection, data, options);
+  }
+
+  /**
+   * Prepared dynamic-SQL execution for findMany. `db.execute()` re-parses the
+   * statement on every call (no prepared-statement reuse — measured as the PG
+   * FIND MANY regression: ~1.9ms vs 0.95ms at the 08-04 ledger). Rendering the
+   * Drizzle SQL once via toQuery() and running it through postgres.js
+   * unsafe(..., { prepare: true }) hits the statement cache — parse-once +
+   * bind/execute reuse, same as the raw insert/update paths. Falls back to the
+   * base path when the query can't be rendered or inside a transaction without
+   * a raw handle (pool execution would bypass the txn connection).
+   */
+  protected override async executeDynamicSql(
+    _db: any,
+    sqlQuery: SQL,
+    options?: BaseQueryOptions,
+  ): Promise<any[]> {
+    const txnSql = this.getTxnSql(options ?? {});
+    if (options?.transaction && !txnSql) {
+      return super.executeDynamicSql(_db, sqlQuery, options);
+    }
+    const exec = txnSql ?? this.sql!;
+    try {
+      const rendered = (sqlQuery as any).toQuery?.({
+        escapeName: (n: string) => `"${n.replace(/"/g, '""')}"`,
+        escapeParam: (_p: unknown, i: number) => `$${i + 1}`,
+      });
+      if (rendered?.sql && Array.isArray(rendered.params)) {
+        const rows = await exec.unsafe(rendered.sql, rendered.params, { prepare: true });
+        return Array.isArray(rows) ? rows : [];
+      }
+    } catch {
+      /* fall through to the base path */
+    }
+    return super.executeDynamicSql(_db, sqlQuery, options);
+  }
+
+  protected async rawFindById<T extends import("../db-interface").BaseEntity>(
+    table: any,
+    collection: string,
+    id: import("../db-interface").DatabaseId,
+    options: import("../db-interface").FindOptions<T>,
+  ): Promise<T | null> {
+    try {
+      // Read-path schema registration: raw reads must normalize SQLite INTEGER
+      // ms timestamps to ISODateString (see isEpochMs in relational-utils).
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
+      const tableName = getTableName(table);
+      const tenantId =
+        options?.tenantId && options?.tenantId !== "global" ? options.tenantId : null;
+      // Projection-aware: skip the jsonb data blob when all requested fields
+      // are physical columns (avoids jsonb deserialization on hot reads).
+      const fields = options?.fields;
+      const wantsData =
+        !Array.isArray(fields) ||
+        fields.length === 0 ||
+        fields.some((f) => {
+          if (f === "data") return true;
+          if (
+            f === "_id" ||
+            f === "id" ||
+            f === "tenantId" ||
+            f === "status" ||
+            f === "createdAt" ||
+            f === "updatedAt" ||
+            f === "isDeleted"
+          )
+            return false;
+          return !this.getColumn(table, String(f));
+        });
+      const selectCols = this.getRawFindByIdCols(table, wantsData)
+        .map((c) => `"${c}"`)
+        .join(", ");
+      // Tagged template (NOT unsafe): postgres.js caches prepared statements by
+      // SQL text, so this stable query gets parse-once + bind/execute reuse.
+      // Identifiers are inlined via sql.unsafe fragments (stable SQL text);
+      // only _id/tenantId are bound values. Inside a transaction the
+      // begin()-scoped instance is used so the read stays on the txn
+      // connection (consistent snapshot, no pool bypass).
+      const exec = this.getTxnSql(options) ?? this.sql!;
+      const selectFragment = exec.unsafe(selectCols);
+      const tableFragment = exec.unsafe(tableName);
+      const rows = tenantId
+        ? await exec`SELECT ${selectFragment} FROM ${tableFragment} WHERE "_id" = ${String(
+            id,
+          )} AND "tenantId" = ${String(tenantId)} LIMIT 1`
+        : await exec`SELECT ${selectFragment} FROM ${tableFragment} WHERE "_id" = ${String(
+            id,
+          )} LIMIT 1`;
+      if (Array.isArray(rows) && rows.length > 0) {
+        const row = rows[0];
+        if (!wantsData) {
+          return utils.convertDatesToISO(row, {
+            ...this.convertDatesOptions,
+            table: collection,
+            skipJson: true,
+          }) as T;
+        }
+        return utils.convertDatesToISO(row, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as T;
+      }
+      return null;
+    } catch (rawErr: any) {
+      logger.debug("[PostgreSQL raw findById] falling back to Drizzle:", rawErr?.message);
+      return null;
+    }
+  }
+
+  /**
+   * Raw single-statement UPDATE…RETURNING (or no-read-back UPDATE) for PG —
+   * same tagged-template statement-cache pattern as rawInsertReturning.
+   * Skipping the read-back is opt-in (skipReturning) for full-document callers;
+   * the returned row is reconstructed from the prepared values.
+   */
+  override async update<T extends import("../db-interface").BaseEntity>(
+    collection: string,
+    id: import("../db-interface").DatabaseId,
+    data: import("../db-interface").EntityUpdate<T>,
+    options: import("../db-interface").BaseQueryOptions = {},
+  ): Promise<import("../db-interface").DatabaseResult<T>> {
+    // Inside an outer transaction WITHOUT a raw handle (a Drizzle tx from
+    // another caller) the pool-level sql! fragments would bypass the txn
+    // connection — defer to the base Drizzle path (txn-aware). With the
+    // TransactionModule's raw handle, run the raw UPDATE on the txn instance.
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) {
+      return super.update(collection, id, data, options);
+    }
+    const exec = txnSql ?? this.sql!;
+    try {
+      const d =
+        this.hooks.length > 0
+          ? await this.runHooks("before", "update", collection, data, options)
+          : data;
+      const table = this.getTable(collection);
+      if (!table) throw new Error(`Collection table not found: ${collection}`);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) throw new Error("ID column not found");
+      const idColName = idCol.name || "_id";
+      const values = this.prepareValues(table, d, id, new Date(), options);
+      delete values[idColName];
+      delete values["id"];
+      const cols = Object.keys(values);
+      if (cols.length === 0) return super.update(collection, id, data, options);
+
+      // Bound SET pairs via nested fragments (stable SQL text → prepared cache);
+      // dates/objects bind as strings (describe-phase Bind quirk, same as insert).
+      const setFrags = cols.map((c) => {
+        const v = values[c];
+        const bound =
+          v instanceof Date
+            ? (v as Date).toISOString()
+            : v !== null && typeof v === "object" && !Array.isArray(v)
+              ? JSON.stringify(v)
+              : v;
+        // Drizzle def property names may differ from physical column names
+        // (e.g. plugin_storage: collectionName → `collection`).
+        const phys = this.getColumn(table, c);
+        return exec`"${exec.unsafe(
+          utils.assertSafeSqlIdentifier(phys?.name ?? c, "column"),
+        )}" = ${bound}`;
+      });
+      let setFrag = setFrags[0];
+      for (let i = 1; i < setFrags.length; i++) {
+        setFrag = exec`${setFrag}, ${setFrags[i]}`;
+      }
+
+      const skipReturning = (options as any)?.skipReturning === true;
+      const tenantId =
+        options?.tenantId && options?.tenantId !== "global" ? String(options.tenantId) : null;
+      const tableFrag = exec.unsafe(getTableName(table));
+      if (skipReturning) {
+        await (tenantId
+          ? exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
+              idColName,
+            )}" = ${String(id)} AND "tenantId" = ${tenantId}`
+          : exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
+              idColName,
+            )}" = ${String(id)}`);
+        const reconstructed = {
+          ...values,
+          [idColName]: id,
+        } as Record<string, unknown>;
+        const finalData = utils.convertDatesToISO(reconstructed, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as unknown as T;
+        return this.wrap(
+          async () =>
+            this.hooks.length > 0
+              ? await this.runHooks("after", "update", collection, finalData, options)
+              : finalData,
+          "UPDATE_FAILED",
+          undefined,
+          { ...options, isWrite: true },
+        );
+      }
+
+      const rows = await (tenantId
+        ? exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
+            idColName,
+          )}" = ${String(id)} AND "tenantId" = ${tenantId} RETURNING *`
+        : exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
+            idColName,
+          )}" = ${String(id)} RETURNING *`);
+      if (Array.isArray(rows) && rows.length > 0) {
+        const finalData = utils.convertDatesToISO(rows[0], {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as unknown as T;
+        return this.wrap(
+          async () =>
+            this.hooks.length > 0
+              ? await this.runHooks("after", "update", collection, finalData, options)
+              : finalData,
+          "UPDATE_FAILED",
+          undefined,
+          { ...options, isWrite: true },
+        );
+      }
+    } catch {
+      /* fall back to the base Drizzle path */
+    }
+    return super.update(collection, id, data, options);
+  }
+
   protected isMissingTableError(err: any): boolean {
     return err?.code === "42P01";
   }
@@ -139,7 +548,17 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         return this.getTable(cleanName);
       }
 
-      const dynamicTable = this.createDynamicTableDefinition(tableName);
+      // 🚀 ROW-STORE HYBRID: materialized scalar fields (populated by
+      // createModel) exist in the Drizzle def so filters/sorts/writes use the
+      // column; the `data` blob keeps only dynamic fields. Previously the
+      // physical columns created by createModel were never registered in the
+      // runtime table def — dead columns.
+      const dynamicTable = this.createDynamicTableDefinition(
+        tableName,
+        this.materializedColumns.get(cleanName) ||
+          this.materializedColumns.get(tableName) ||
+          undefined,
+      );
       this.tableRegistry.set(collection, dynamicTable);
       return dynamicTable;
     } finally {
@@ -246,7 +665,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       if (typeof finalConnection === "string") {
         options = {
-          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 200,
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 100,
           connect_timeout: 30,
           onclose,
         };
@@ -279,7 +698,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onnotice: () => {},
           onclose,
           transform: { undefined: null },
-          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 200,
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 100,
           connect_timeout: 10,
           prepare: effectivePrepare,
           idle_timeout: 300,
@@ -303,7 +722,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           user: c.user || c.DB_USER || "postgres",
           password: c.password || c.DB_PASSWORD || "",
           database: c.database || c.DB_NAME,
-          max: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS || 200),
+          max: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS || 100),
           connect_timeout: Number(c.connect_timeout || 10),
           ssl: c.ssl || false,
           onnotice: () => {},
@@ -459,22 +878,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   // Schema & Dynamic Tables
   // --------------------------------------------------------------------------
 
-  public createDynamicTableDefinition(tableName: string) {
-    registerTableSchema(tableName, [
-      "_id",
-      "tenantId",
-      "collection",
-      "slug",
-      "locale",
-      "publishedAt",
-      "data",
-      "status",
-      "isDeleted",
-      "createdAt",
-      "updatedAt",
-    ]);
-
-    return pgTable(tableName, {
+  public createDynamicTableDefinition(tableName: string, columnsToAdd?: Map<string, string>) {
+    const booleanCols: string[] = ["isDeleted"];
+    const columns: Record<string, any> = {
       _id: varchar("_id", { length: 36 }).primaryKey(),
       tenantId: varchar("tenantId", { length: 36 }),
       collection: varchar("collection", { length: 255 }),
@@ -490,7 +896,35 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       updatedAt: timestamp("updatedAt", { withTimezone: true })
         .notNull()
         .default(drizzleSql`CURRENT_TIMESTAMP`),
-    });
+    };
+
+    if (columnsToAdd) {
+      for (const [colName, colType] of columnsToAdd.entries()) {
+        if (
+          colName === "_id" ||
+          colName === "id" ||
+          colName === "tenantId" ||
+          colName === "status" ||
+          colName === "isDeleted" ||
+          colName === "createdAt" ||
+          colName === "updatedAt" ||
+          colName === "data"
+        )
+          continue;
+        if (colType === "integer") {
+          columns[colName] = integer(colName);
+        } else if (colType === "boolean") {
+          columns[colName] = boolean(colName);
+          booleanCols.push(colName);
+        } else {
+          columns[colName] = varchar(colName, { length: 255 });
+        }
+      }
+    }
+
+    registerTableSchema(tableName, Object.keys(columns), booleanCols);
+
+    return pgTable(tableName, columns);
   }
 
   // --------------------------------------------------------------------------
@@ -577,7 +1011,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     if (!resolvedTable) throw new Error(`Table not found: ${table}`);
     const tableName = getTableName(resolvedTable);
 
-    if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+    if (process.env.BENCHMARK_DEBUG === "true") {
       logger.info(
         `[upsertNative] Table: ${tableName}, ID: ${values._id}, source: ${values.source}, tenant: ${values.tenantId}`,
       );
@@ -625,6 +1059,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const amountNum = utils.assertFiniteAmount(amount);
         const idStr = String(id);
         const dataCol = this.getColumn(table, "data");
+        // 🚀 ROW-STORE HYBRID: materialized numeric fields live in a column —
+        // increment the column directly (jsonb_set on `data` would no-op for
+        // new rows whose field never entered the blob).
+        const fieldIsColumn = !!this.getColumn(table, field);
 
         // $1 = id, $2 = amount, $3 = tenantId (optional)
         const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
@@ -634,9 +1072,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         );
         const params: unknown[] = [idStr, amountNum, ...tenantParams];
 
-        const sqlQuery = dataCol
-          ? `UPDATE "${tableName}" SET "data" = jsonb_set(CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END, '{${safeField}}', to_jsonb(coalesce((CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END->>'${safeField}')::numeric, 0) + $2::numeric)), "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`
-          : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + $2::numeric, "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`;
+        const sqlQuery = fieldIsColumn
+          ? `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + $2::numeric, "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`
+          : dataCol
+            ? `UPDATE "${tableName}" SET "data" = jsonb_set(CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END, '{${safeField}}', to_jsonb(coalesce((CASE WHEN jsonb_typeof("data") = 'object' THEN "data" ELSE '{}'::jsonb END->>'${safeField}')::numeric, 0) + $2::numeric)), "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`
+            : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + $2::numeric, "updatedAt" = now() WHERE "${idCol.name}" = $1${tenantSql} RETURNING *`;
 
         let rows: any[] = [];
         for (let attempt = 0; attempt < 5 && rows.length === 0; attempt++) {
@@ -676,18 +1116,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
     await this.wrap(
       async () => {
-        const isBenchSuite = process.env.SVELTY_BENCHMARK_SUITE === "true";
-        const debugMode = process.env.BENCHMARK_DEBUG === "true";
-
-        if (debugMode && !isBenchSuite) {
-          logger.debug(
-            `[DB Provision] SVELTY_BENCHMARK_SUITE=${process.env.SVELTY_BENCHMARK_SUITE || "standalone"}`,
-          );
+        if (process.env.BENCHMARK_DEBUG === "true") {
+          logger.debug(`[DB Provision] BENCHMARK=${process.env.BENCHMARK || "standalone"}`);
         }
 
         const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" VARCHAR(36) PRIMARY KEY, "tenantId" VARCHAR(36), "status" VARCHAR(255) DEFAULT 'draft', "isDeleted" BOOLEAN DEFAULT FALSE, "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "data" JSONB);`;
 
-        if (debugMode && !isBenchSuite) {
+        if (process.env.BENCHMARK_DEBUG === "true") {
           logger.debug(`[DB Provision] [POSTGRESQL] Executing DDL for ${physicalName}`);
         }
         await this.raw.execute(ddl);
@@ -713,8 +1148,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const dynamicCols = ["collection", "slug", "locale", "publishedAt"];
 
         if (schemaData.fields && Array.isArray(schemaData.fields)) {
+          const materialized = new Map<string, string>();
           for (const field of schemaData.fields) {
-            if (field.indexed || field.unique) {
+            // Row-store hybrid: scalar fields become physical columns — the
+            // `data` blob keeps only dynamic fields for new rows.
+            if (helpers.shouldMaterializeField(field)) {
               const fieldName = field.db_fieldName || field.label;
               if (fieldName) {
                 let colType = "VARCHAR(255)";
@@ -740,9 +1178,17 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
                 if (!reserved.includes(fieldName)) {
                   columns.push({ name: fieldName, type: colType });
                   dynamicCols.push(fieldName);
+                  materialized.set(
+                    fieldName,
+                    colType === "INTEGER" ? "integer" : colType === "BOOLEAN" ? "boolean" : "text",
+                  );
                 }
               }
             }
+          }
+          if (materialized.size > 0) {
+            this.materializedColumns.set(tableName, materialized);
+            this.materializedColumns.set(normalizedName, materialized);
           }
         }
 
@@ -758,6 +1204,32 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           }
         }
 
+        // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in the
+        // `data` blob — copy them into the materialized columns so filters and
+        // sorts match old rows too (idempotent: only NULL columns are filled;
+        // `data` is JSONB so `->>` extracts a raw text value; numeric/boolean
+        // columns cast explicitly).
+        for (const col of columns) {
+          try {
+            const safeColName = utils.assertSafeSqlIdentifier(col.name, "column");
+            if (col.type === "INTEGER") {
+              await this.raw.execute(
+                `UPDATE "${physicalName}" SET "${safeColName}" = ("data"->>'${safeColName}')::integer WHERE "${safeColName}" IS NULL AND "data" IS NOT NULL`,
+              );
+            } else if (col.type === "BOOLEAN") {
+              await this.raw.execute(
+                `UPDATE "${physicalName}" SET "${safeColName}" = ("data"->>'${safeColName}')::boolean WHERE "${safeColName}" IS NULL AND "data" IS NOT NULL`,
+              );
+            } else {
+              await this.raw.execute(
+                `UPDATE "${physicalName}" SET "${safeColName}" = "data"->>'${safeColName}' WHERE "${safeColName}" IS NULL AND "data" IS NOT NULL`,
+              );
+            }
+          } catch {
+            /* backfill is best-effort (column may not exist on legacy tables) */
+          }
+        }
+
         for (const colName of dynamicCols) {
           try {
             const indexName = `${physicalName}_${colName}_idx`;
@@ -768,6 +1240,27 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             /* safe */
           }
         }
+
+        // 🚀 COVERING COMPOSITE INDEX for the canonical tenant list query:
+        // WHERE "tenantId"=? AND status=? AND "isDeleted"=false
+        // ORDER BY "updatedAt" DESC LIMIT n — turns seq-scan + sort into an
+        // index scan and makes keyset pagination on (updatedAt, _id) seekable.
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_updated" ON "${physicalName}" ("tenantId", status, "updatedAt" DESC)`,
+          );
+        } catch {
+          /* safe */
+        }
+        // The pre-DDL table def (base columns only) is stale — rebuild with the
+        // materialized columns on next getTable. Invalidate EVERY key variant
+        // (logical id, dash-stripped, and the physical collection_ prefix): a
+        // missed variant leaves a stale def cached that silently drops
+        // materialized columns from later reads.
+        this.tableRegistry.delete(tableName);
+        this.tableRegistry.delete(normalizedName);
+        this.tableRegistry.delete(`collection_${normalizedName}`);
+        this.tableRegistry.delete(`collection_${tableName}`);
       },
       "CREATE_MODEL_FAILED",
       undefined,

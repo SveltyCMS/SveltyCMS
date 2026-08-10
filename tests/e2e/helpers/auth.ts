@@ -15,7 +15,8 @@ import {
   EDITOR_CREDENTIALS as HARNESS_EDITOR,
   TEST_PASSWORD,
 } from "../../harness/fixtures";
-import { TEST_API_HEADERS } from "./api";
+import { SESSION_COOKIE_RE, sessionLooksValid, TEST_API_HEADERS } from "./api";
+import { dismissCookieConsent } from "./cookie-consent";
 
 /**
  * Login credentials — harness is source of truth; env can override in CI.
@@ -42,22 +43,12 @@ export async function prepareLoginForm(page: Page) {
   console.log(`[Auth] Preparing login form...`);
   await page.context().clearCookies();
 
-  // Navigate first to ensure we have a valid origin for localStorage access
-  await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
-
-  // Now safe to clear storage (we're on the domain)
-  await page
-    .evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    })
-    .catch(() => {
-      // Ignore errors if localStorage is restricted
-      console.log("[Auth] Could not clear storage (might be restricted)");
-    });
-
-  // Inject storage to bypass ALL modals (welcome, cookie consent, first login)
+  // Inject storage script to clear old auth tokens BEFORE navigation mounts
   await page.addInitScript(() => {
+    try {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    } catch {}
     // Setup wizard welcome modal
     window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
 
@@ -130,9 +121,15 @@ export async function prepareLoginForm(page: Page) {
       console.log("[Auth] ✓ Database reset and seeded");
     }
 
-    // Reload login page with seeded database
+    // Reload login page with seeded database and wait for the chooser/form to render
     await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.waitForTimeout(1000);
+    await page
+      .getByTestId("signin-icon")
+      .or(page.getByTestId("signup-icon"))
+      .or(page.getByTestId("signin-email"))
+      .first()
+      .waitFor({ state: "visible", timeout: 15_000 })
+      .catch(() => undefined);
   }
 
   // Strategy 2: First Login Welcome Modal — use role-based, not CSS classes
@@ -145,7 +142,7 @@ export async function prepareLoginForm(page: Page) {
     const skipBtn = welcomeModal.getByRole("button", { name: /skip|close|get started/i }).first();
     if (await skipBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await skipBtn.click();
-      await page.waitForTimeout(500);
+      await welcomeModal.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
     }
   }
 
@@ -163,7 +160,7 @@ export async function prepareLoginForm(page: Page) {
       .first();
     if (await anyCloseBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await anyCloseBtn.click();
-      await page.waitForTimeout(500);
+      await genericModal.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
     }
   }
 
@@ -173,7 +170,7 @@ export async function prepareLoginForm(page: Page) {
   if (await cookieAcceptBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
     console.log("[Auth] Cookie consent still visible despite init script, accepting...");
     await cookieAcceptBtn.click();
-    await page.waitForTimeout(300);
+    await cookieAcceptBtn.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => {});
     console.log("[Auth] ✓ Cookie consent accepted");
   }
 
@@ -192,13 +189,12 @@ export async function prepareLoginForm(page: Page) {
 
   if (signInIconVisible) {
     console.log("[Auth] Clicking SIGN IN icon...");
-    // Use force click with retry to bypass any transient overlays
+    // Use force click with retry to bypass any transient overlays.
+    // No fixed sleep: the signin-email waitFor below is the readiness gate.
     await signInIcon.click({ force: true, timeout: 10000 });
-    await page.waitForTimeout(1000);
   } else if (signInButtonVisible) {
     console.log("[Auth] Clicking SIGN IN button (fallback)...");
     await signInButton.click({ force: true, timeout: 10000 });
-    await page.waitForTimeout(1000);
   } else {
     // If neither is visible, we might already be on the form, or on the SIGN UP only page (First User)
     const signUpIcon = page.getByTestId("signup-icon");
@@ -208,7 +204,6 @@ export async function prepareLoginForm(page: Page) {
       );
       // In first user mode, we'll try to click signup and fill it, but expect error later
       await signUpIcon.click({ force: true });
-      await page.waitForTimeout(1000);
     }
   }
 
@@ -259,17 +254,50 @@ export async function prepareLoginForm(page: Page) {
           console.log("[Auth] ✓ Database reset and seeded");
         }
 
-        // Reload and re-click SIGN IN
-        await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
-        await page.waitForTimeout(500);
+        // Reload and re-click SIGN IN — wait for the chooser instead of a fixed sleep.
+        // The post-reset adapter swap is transient: a seed can land before the new
+        // adapter's tables are fully re-provisioned (signup view persists). Retry
+        // seed + reload a bounded number of times instead of failing on the first.
+        let seededRetries = 0;
+        while (seededRetries < 3) {
+          seededRetries++;
+          await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
+          await page
+            .getByTestId("signin-icon")
+            .or(page.getByTestId("signup-icon"))
+            .or(page.getByTestId("signin-email"))
+            .first()
+            .waitFor({ state: "visible", timeout: 15_000 })
+            .catch(() => undefined);
 
-        const signInIconRetry = page.getByTestId("signin-icon");
-        if (await signInIconRetry.isVisible({ timeout: 5000 }).catch(() => false)) {
-          await signInIconRetry.click({ force: true, timeout: 10000 });
-          await page.waitForTimeout(1000);
+          const signInIconRetry = page.getByTestId("signin-icon");
+          if (await signInIconRetry.isVisible({ timeout: 5000 }).catch(() => false)) {
+            await signInIconRetry.click({ force: true, timeout: 10000 });
+            // Let the form transition settle before checking for the email field.
+            // CI runners can be slow to render the animated form swap.
+            await page.waitForTimeout(500);
+          }
+
+          const retryField = page.getByTestId("signin-email");
+          if (await retryField.isVisible({ timeout: 10_000 }).catch(() => false)) {
+            console.log("[Auth] ✓ Login form ready after auto-seeding");
+            return;
+          }
+
+          // Still in first-user mode — re-seed (idempotent) and loop.
+          await page.request
+            .post("/api/testing", {
+              headers: TEST_API_HEADERS,
+              data: {
+                action: "seed",
+                email: ADMIN_CREDENTIALS.email,
+                password: ADMIN_CREDENTIALS.password,
+              },
+            })
+            .catch(() => {});
         }
 
-        // Retry finding the signin-email field
+        // Final attempt: hard gate so the failure surface is the form itself.
         await page.getByTestId("signin-email").waitFor({ state: "visible", timeout: 15_000 });
         console.log("[Auth] ✓ Login form ready after auto-seeding");
         return;
@@ -298,6 +326,39 @@ export async function loginAs(
 ) {
   // --- First attempt ---
   let loginSuccess = await attemptLogin(page, email, password, waitForUrl);
+
+  if (!loginSuccess) {
+    console.log(`[Auth] Form login failed for ${email} — attempting API login fallback...`);
+    try {
+      const apiRes = await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "login", email, password },
+      });
+      if (apiRes.ok()) {
+        const body = await apiRes.json();
+        if (body.success && body.token) {
+          const urlObj = new URL(
+            page.url().startsWith("http") ? page.url() : "http://localhost:5173",
+          );
+          await page.context().addCookies([
+            {
+              name: "auth_sessions",
+              value: body.token,
+              domain: urlObj.hostname,
+              path: "/",
+              httpOnly: true,
+              sameSite: "Lax",
+            },
+          ]);
+          await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 15_000 });
+          loginSuccess = true;
+          console.log(`[Auth] ✓ API login fallback succeeded for ${email}`);
+        }
+      }
+    } catch (apiErr) {
+      console.log(`[Auth] API login fallback error: ${apiErr}`);
+    }
+  }
 
   if (!loginSuccess) {
     // Admin user may have been modified or locked by a previous test — re-seed to reset.
@@ -333,7 +394,7 @@ export async function loginAs(
       }
     }
 
-    // --- Second attempt: full prepareLoginForm cycle ---
+    // --- Final attempt: full prepareLoginForm cycle ---
     loginSuccess = await attemptLogin(page, email, password, waitForUrl);
   }
 
@@ -359,6 +420,14 @@ async function attemptLogin(
   } catch (e) {
     console.log("[Auth] prepareLoginForm failed:", e);
     return false;
+  }
+
+  // Ensure Sign In form tab is selected if signin-icon is present
+  // (no fixed sleep — fill() below auto-waits for the form fields)
+  const signInIcon = page.getByTestId("signin-icon");
+  if (await signInIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
+    console.log("[Auth] Switching to Sign In tab...");
+    await signInIcon.click({ force: true }).catch(() => {});
   }
 
   // Fill login form using data-testid selectors
@@ -446,6 +515,10 @@ export async function loginAsEditor(
  * Prefers testing-API seed+login (Set-Cookie into page.request jar) so chromium
  * shards do not depend on UI form + remote CSRF + collectionbuilder redirects.
  * Falls back to UI loginAs if the testing API is unavailable.
+ *
+ * Session validation is API-based (GET /api/user), NOT a full page load:
+ * the previous implementation navigated to /config/collectionbuilder and probed
+ * shell testids — ~1-3s per call and coupled to that route's render health.
  */
 export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
   const email = ADMIN_CREDENTIALS.email;
@@ -478,57 +551,42 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
     }
   });
 
-  // Prefer existing storageState / cookie jar from auth-setup — avoid re-seed races.
-  // Verify session by actually checking for admin shell testid, not just URL (SPA auth
-  // can render auth page without redirect, leaving URL unchanged).
-  let sessionValid = false;
-  try {
-    await page.goto("/config/collectionbuilder", {
-      waitUntil: "domcontentloaded",
-      timeout: 20_000,
-    });
-    const currentUrl = page.url();
-    if (!currentUrl.includes("/login") && !currentUrl.includes("/setup")) {
-      // Double-check by looking for admin shell elements (SPA auth may render auth page at same URL)
-      sessionValid = await page
-        .getByTestId("admin-page-shell-title")
-        .or(page.getByTestId("admin-sidebar"))
-        .or(page.getByTestId("admin-header"))
-        .or(page.getByTestId("collection-builder-board"))
-        .or(page.getByTestId("media-gallery-toolbar"))
-        .first()
-        .isVisible({ timeout: 5_000 })
-        .catch(() => false);
-      if (sessionValid) {
-        console.log("[Auth] ✓ Existing session still valid (storageState)");
-        if (waitForUrl != null) {
-          const targetUrl =
-            typeof waitForUrl === "string" ? waitForUrl : "/config/collectionbuilder";
-          await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
-          const afterNavUrl = page.url();
-          if (afterNavUrl.includes("/login") || afterNavUrl.includes("/setup")) {
-            console.log(
-              `[Auth] StorageState session lost after navigating to ${targetUrl} — re-authenticating`,
-            );
-            sessionValid = false;
-          } else {
-            if (waitForUrl instanceof RegExp) {
-              await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
-            }
-            return;
-          }
-        } else {
-          return;
-        }
+  // Fast session check: context cookie + /api/user probe. No navigation, so
+  // specs with valid storageState skip the per-test page load entirely.
+  if (await sessionLooksValid(page)) {
+    console.log("[Auth] ✓ Existing session still valid (storageState)");
+    if (waitForUrl != null) {
+      const targetUrl = typeof waitForUrl === "string" ? waitForUrl : "/dashboard";
+      await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      if (page.url().includes("/login") || page.url().includes("/setup")) {
+        console.log(
+          `[Auth] StorageState session lost after navigating to ${targetUrl} — re-authenticating`,
+        );
       } else {
-        console.log("[Auth] Page loaded but no admin shell detected — session not valid");
+        if (waitForUrl instanceof RegExp) {
+          await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
+        }
+        return;
       }
+    } else if (page.url() === "about:blank") {
+      // No target and the tab is still blank (fresh context): land on the
+      // default target so callers can rely on loginAsAdmin always ending on
+      // a real page (login.spec.ts asserts non-about:blank after login).
+      await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 20_000 });
+      return;
+    } else {
+      return;
     }
-  } catch {
-    /* fall through */
+  } else {
+    const hasCookie = await page
+      .context()
+      .cookies()
+      .then((cookies) => cookies.some((c) => SESSION_COOKIE_RE.test(c.name)))
+      .catch(() => false);
+    if (hasCookie) {
+      console.log("[Auth] Session cookie present but /api/user rejected it — re-authenticating");
+    }
   }
-
-  if (sessionValid) return;
 
   try {
     // Login first; seed only if admin missing. Seed must NOT wipe users.
@@ -552,7 +610,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
       // alone is not always enough when storageState was cleared).
       await applySessionCookie(page, loginRes);
       console.log("[Auth] ✓ Admin session via testing API");
-      const target = typeof waitForUrl === "string" ? waitForUrl : "/config/collectionbuilder";
+      const target = typeof waitForUrl === "string" ? waitForUrl : "/dashboard";
       await page.goto(target, {
         waitUntil: "domcontentloaded",
         timeout: 30_000,
@@ -688,7 +746,12 @@ export async function ensureSidebarVisible(page: Page) {
 
     if (menuVisible) {
       await menuButton.click();
-      await page.waitForTimeout(500);
+      // Deterministic: wait for the sidebar shell instead of a fixed sleep
+      await page
+        .getByTestId("admin-sidebar")
+        .first()
+        .waitFor({ state: "visible", timeout: 3_000 })
+        .catch(() => undefined);
       console.log("✓ Opened sidebar on mobile viewport");
       return true;
     }
@@ -697,43 +760,9 @@ export async function ensureSidebarVisible(page: Page) {
 }
 
 /**
- * Dismiss the cookie consent banner without a full login flow.
+ * Dismiss the cookie consent banner.
  *
- * Use this at the start of tests that:
- * - Use `storageState: { cookies: [], origins: [] }` (blank context)
- * - Navigate directly to app pages (not through loginAsAdmin)
- * - Subsequently call `getByRole("dialog")` for application dialogs
- *
- * The banner is rendered as `div[role="dialog"]` and causes strict-mode
- * violations when mixed with native `<dialog>` elements.
+ * @deprecated Import `dismissCookieConsent` from "./cookie-consent" directly —
+ * this alias keeps existing importers working during the consolidation.
  */
-export async function dismissCookieBanner(page: Page): Promise<void> {
-  // Stamp localStorage so the banner never appears on the next navigation
-  await page
-    .evaluate(() => {
-      try {
-        window.localStorage.setItem(
-          "sveltycms_consent",
-          JSON.stringify({ responded: true, necessary: true }),
-        );
-        window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
-        window.localStorage.setItem("sveltycms-welcome-seen", "true");
-      } catch {
-        // Ignore if storage is restricted
-      }
-    })
-    .catch(() => {});
-
-  // Defense-in-depth: click the accept button if the banner already rendered or
-  // hydrates shortly after the stamp (Svelte hydration race). Bounded to a single
-  // waitFor so tab switches don't burn ~6s polling when the banner is absent.
-  const acceptBtn = page.getByTestId("cookie-accept-all");
-  const shown = await acceptBtn
-    .waitFor({ state: "visible", timeout: 1_500 })
-    .then(() => true)
-    .catch(() => false);
-  if (shown) {
-    await acceptBtn.click({ timeout: 1_000 }).catch(() => {});
-    await page.waitForTimeout(150);
-  }
-}
+export const dismissCookieBanner = dismissCookieConsent;

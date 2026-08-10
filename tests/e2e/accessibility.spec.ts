@@ -6,21 +6,16 @@
  * @see tests/e2e/routes/login/accessibility.spec.ts (comprehensive axe-core audits)
  */
 import { test, expect } from "@playwright/test";
-import { dismissCookieConsent, seedCookieConsent } from "./helpers/cookie-consent";
+import { seedCookieConsent } from "./helpers/cookie-consent";
+import { prepareLoginForm } from "./helpers/auth";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test("focus indicator is visible on keyboard navigation", async ({ page }) => {
+  // prepareLoginForm handles first-user mode (auto-seed) so the test doesn't
+  // fail when the DB has no users and only the SIGN UP form is visible.
   await seedCookieConsent(page);
-  await page.goto("/login", { waitUntil: "domcontentloaded" });
-  await dismissCookieConsent(page);
-
-  // Click Sign In to reveal the form
-  const signInIcon = page.getByTestId("signin-icon");
-  if (await signInIcon.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await signInIcon.click({ force: true });
-  }
-  await page.getByTestId("signin-email").waitFor({ state: "visible", timeout: 10_000 });
+  await prepareLoginForm(page);
 
   // Focus the email field and tab to the password field
   await page.getByTestId("signin-email").focus();

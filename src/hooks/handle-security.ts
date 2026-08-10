@@ -20,6 +20,7 @@ import { logger } from "@utils/logger";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getClientIp, IS_TEST_MODE } from "@utils/hook-utils";
+import { wafGuard } from "./wasm-waf-guard";
 
 // IS_TEST_MODE imported from @utils/hook-utils (single source of truth).
 // Test-secret resolution moved to @utils/test-bypass.server (shared with
@@ -187,6 +188,18 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     } catch {}
   }
 
+  // Layer 0 WASM/JS WAF Inspection
+  const headerObj: Record<string, string> = {};
+  request.headers.forEach((val, key) => {
+    headerObj[key] = val;
+  });
+  const wafCheck = wafGuard.inspectRequest(url.pathname, url.search, headerObj);
+  if (wafCheck.blocked) {
+    metricsService.incrementSecurityViolations(tenantId);
+    logger.warn(`[WAF Blocked] ${wafCheck.reason} (${wafCheck.threatType}) from ${clientIp}`);
+    return handleApiError(new AppError(wafCheck.reason ?? "Security Policy Violation", 400), event);
+  }
+
   try {
     if (url.pathname.startsWith("/api/graphql") && request.method === "POST") {
       const clonedReq = request.clone();
@@ -216,11 +229,21 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
     if (hitHoneypot || (isKnownBot && !isLocal)) {
       metricsService.incrementSecurityViolations(tenantId);
-      // Pass real request.clone() instead of mock payload for accurate forensics
+      // Forensics: record the probe in the incident engine (fast — no socket hold).
       await securityResponseService.analyzeRequest(request.clone(), clientIp, tenantId);
-      await new Promise((r) =>
-        setTimeout(r, Math.min(5000 + Math.floor(Math.random() * 10000), 15000)),
-      );
+
+      // 🚨 NO TARPIT (removed Slowloris/DDoS vector): the previous 5-15s
+      // setTimeout held the socket open, letting an attacker exhaust file
+      // descriptors with cheap probes against /.{env,git}, /wp-admin, etc.
+      // Honeypot hits are unambiguously hostile → flag the IP so the NEXT
+      // request is rejected at the firewall layer, and close THIS socket
+      // immediately with a decoy 200. Fire-and-forget: never delay the response.
+      if (hitHoneypot) {
+        securityResponseService
+          .blockIp(clientIp, `Honeypot route hit: ${pathLower}`, tenantId)
+          .catch(() => {});
+      }
+
       return new Response("", {
         status: 200,
         headers: {

@@ -118,6 +118,8 @@ import { logger } from "@utils/logger";
 	// --- Analysis Trigger Optimization ---
 	// Only run analysis when relevant fields change to improve performance
 	$effect(() => {
+		const n = ((globalThis as any).__SEO_ANALYSIS_N__ = ((globalThis as any).__SEO_ANALYSIS_N__ || 0) + 1);
+		console.log("[SEO-ANALYSIS] #" + n + " langData=" + (langData ? 1 : 0));
 		if (!langData) {
 			return;
 		}

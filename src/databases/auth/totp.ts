@@ -156,9 +156,7 @@ export async function decryptTotpSecret(stored: string): Promise<string | null> 
     const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     return decrypted.toString("utf8");
   } catch {
-    // If decryption fails and it looks like a base32 secret (not an envelope), return as legacy plaintext
-    if (!stored.startsWith("AQ") && /^[A-Z2-7]+=*$/.test(stored) && stored.length >= 16)
-      return stored;
+    // Fail-closed for tampered envelopes: if input has envelope version byte or minimum envelope length, return null
     return null;
   }
 }
@@ -419,7 +417,10 @@ export async function generateBackupCodes(count = 10): Promise<string[]> {
   const codes: string[] = [];
 
   for (let i = 0; i < count; i++) {
-    const code = cryptoModule.randomBytes(4).toString("hex").toUpperCase();
+    // 8 random bytes → 16 hex chars = 64 bits of entropy per code.
+    // Backup codes are 2FA-bypass secrets; 32 bits (8 hex chars) would be
+    // brute-forceable within the rate-limit window.
+    const code = cryptoModule.randomBytes(8).toString("hex").toUpperCase();
     codes.push(code);
   }
 

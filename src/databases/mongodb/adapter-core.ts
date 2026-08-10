@@ -66,16 +66,24 @@ export abstract class MongoAdapterCore extends BaseAdapter {
           : {};
 
       const compressors: string[] = [];
-      try {
-        // @ts-expect-error - optional peer for zstd wire compression
-        await import("@mongodb-js/zstd");
-        compressors.push("zstd");
-      } catch {}
-      try {
-        // @ts-expect-error - optional peer for snappy wire compression
-        await import("snappy");
-        compressors.push("snappy");
-      } catch {}
+      const compressorsEnv = ((globalThis as any).process?.env?.MONGO_COMPRESSORS || "auto")
+        .toLowerCase()
+        .trim();
+      if (compressorsEnv !== "none" && compressorsEnv !== "off" && compressorsEnv !== "false") {
+        try {
+          // @ts-expect-error - optional peer for zstd wire compression
+          await import("@mongodb-js/zstd");
+          compressors.push("zstd");
+        } catch {}
+        try {
+          // @ts-expect-error - optional peer for snappy wire compression
+          await import("snappy");
+          compressors.push("snappy");
+        } catch {}
+      }
+      // Explicit override: MONGO_COMPRESSORS=zstd,snappy | none. Wire compression
+      // is CPU-bound on small payloads (LAN/edge: disabling can nearly double
+      // write RPS; WAN: compression saves bandwidth). Default = auto-detect.
 
       const isTestMode =
         (globalThis as any).process?.env?.TEST_MODE === "true" ||
@@ -272,13 +280,21 @@ export abstract class MongoAdapterCore extends BaseAdapter {
 
     for (const key in query) {
       count++;
-      if (count > 2) {
+      if (count > 3) {
         isSimple = false;
         break;
       }
-      if (key !== "_id" && key !== "token" && key !== "tenantId") {
+      if (key !== "_id" && key !== "token" && key !== "tenantId" && key !== "isDeleted") {
         isSimple = false;
         break;
+      }
+      if (key === "isDeleted") {
+        // Only the exact safeQuery-injected shape may bypass the sanitizer walk.
+        const v = query[key];
+        const isSafe =
+          typeof v === "boolean" ||
+          (v && typeof v === "object" && !Array.isArray(v) && (v as any).$ne === true);
+        if (!isSafe) isSimple = false;
       }
     }
 

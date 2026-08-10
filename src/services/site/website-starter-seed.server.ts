@@ -58,6 +58,7 @@ export async function seedWebsiteStarterBlueprint(
         true,
         (tenantId || "default") as DatabaseId,
         adminUserId,
+        adapter,
       );
     } catch (err) {
       logger.warn("[WebsiteStarterSeed] Plugin enable failed:", err);

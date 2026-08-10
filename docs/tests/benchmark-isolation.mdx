@@ -60,7 +60,7 @@ import {
 
 ### 2. Compile & runtime scan
 
-- **`compile.ts`**: Outside benchmark runtime (`BENCHMARK_MODE`, `TEST_MODE`, etc.), skips `test/` sources and `isBenchmarkArtifact()` files — dev builds do not compile fixtures into the live tree.
+- **`compile.ts`**: Outside benchmark runtime (`BENCHMARK=true`), skips `test/` sources and `isBenchmarkArtifact()` files — dev builds do not compile fixtures into the live tree.
 - **`scanCompiledCollections`**: Skips benchmark artifacts when `!isBenchmarkRuntime()`.
 - **Dev reconciler** (`scan-files.server.ts`): Same skip outside benchmark mode.
 
@@ -104,19 +104,17 @@ bun run scripts/benchmark-matrix/index.ts --db=sqlite --only=relational --no-bui
 
 ## Environment Flags (unified via `isBenchmarkRuntime()`)
 
-GraphQL `registerCollections()`, content scanners, and `compile.ts` all gate on **`isBenchmarkRuntime()`** — not a single env var. Any of these enables benchmark mode:
+GraphQL `registerCollections()`, content scanners, and `compile.ts` all gate on **`isBenchmarkRuntime()`** — a single canonical flag:
 
-| Variable                      | Typical source                                |
-| :---------------------------- | :-------------------------------------------- |
-| `BENCHMARK=true`              | `benchmark-utils.ts`, matrix `buildServerEnv` |
-| `BENCHMARK_MODE=1` or `true`  | Matrix orchestrator, standalone benchmarks    |
-| `BENCHMARK_STABLE=true`       | Matrix + relational audits                    |
-| `SVELTY_BENCHMARK_SUITE=true` | Matrix index.ts                               |
-| `TEST_MODE=true`              | Integration runner, matrix child env          |
+| Variable         | Typical source                                               |
+| :--------------- | :----------------------------------------------------------- |
+| `BENCHMARK=true` | `benchmark-utils.ts`, matrix server env, run-core-benchmarks |
+
+`TEST_MODE=true` is the separate test-harness token (integration/E2E/unit) — it does not enable benchmark-mode collection scanning. The legacy tokens `BENCHMARK_MODE`, `BENCHMARK_STABLE`, and `SVELTY_BENCHMARK_SUITE` were removed; `BENCHMARK` is the one name. `BENCHMARK_RECORD` (MDX reporting) and `BENCHMARK_DEBUG` (verbose logging) remain distinct feature flags.
 
 `BENCHMARK_MATRIX=1` — child defers workspace cleanup to matrix orchestrator.
 
-Standalone `bun test tests/benchmarks/*` sets all of the above in `benchmark-utils.ts` so GraphQL and scanners stay aligned.
+Standalone `bun test tests/benchmarks/*` sets `BENCHMARK=true` (and `TEST_MODE=true`) in `benchmark-utils.ts` so GraphQL and scanners stay aligned.
 
 ## One-Time Cleanup (polluted dev tree)
 

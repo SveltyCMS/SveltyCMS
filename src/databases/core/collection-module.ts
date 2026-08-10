@@ -125,7 +125,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Schema[]>> {
     const tid = tenantId || "global";
-    if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+    if (process.env.BENCHMARK_DEBUG === "true") {
       logger.info(`[CollectionModule] listSchemas called for tenant: ${tid}`);
     }
 
@@ -163,7 +163,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
               }
             }
           }
-          if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+          if (process.env.BENCHMARK_DEBUG === "true") {
             logger.info(
               `[listSchemas] Found ${schemas.length} collections in DB for tenant ${tid}: ${schemas.map((s) => s._id).join(", ")}`,
             );
@@ -189,7 +189,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
         /^collection_workflow_/,
         /^collection_redirects_mv$/i,
       ];
-      if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+      if (process.env.BENCHMARK_DEBUG === "true") {
         logger.info(`[listSchemas] Falling back to table listing for tenant: ${tid}`);
       }
       let tables: any[] = [];

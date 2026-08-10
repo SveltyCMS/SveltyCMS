@@ -157,6 +157,16 @@ export interface BaseQueryOptions {
   bypassCache?: boolean; // 🚀 PERFORMANCE: Force bypass of all caching layers
   hints?: QueryOptimizationHints;
   transaction?: any; // Database-specific transaction object
+  /** No-read-back write: reconstruct the row client-side (full-doc callers). See WritePolicy.readBack. */
+  skipReturning?: boolean;
+  /** Skip post-write side effects (invalidation, outbox, pubsub, hooks). See WritePolicy.sideEffects. */
+  skipSideEffects?: boolean;
+  /** Skip the JSON `data` blob conversion (projection-only reads). See ReadPolicy.skipJson. */
+  skipJson?: boolean;
+  /** Convert rows in place when possible. See ReadPolicy.inPlace. */
+  inPlace?: boolean;
+  /** MariaDB: JSON columns arrive double-parsed (string) — parse again. */
+  mariaDoubleParseJson?: boolean;
   filter?: any; // 🚀 FLEXIBILITY: Allow arbitrary filters for structure/bulk queries
   /**
    * Media only: when true under MULTI_TENANT, include documents with missing/null tenantId
@@ -665,6 +675,10 @@ export interface QueryIR {
 export interface DatabaseTransaction {
   commit(): Promise<DatabaseResult<void>>;
   rollback(): Promise<DatabaseResult<void>>;
+  /** Tx-scoped raw handle (postgres.js instance on PG, mysql2 connection on Maria) — lets raw fast paths participate in the transaction instead of deferring to Drizzle. */
+  sql?: any;
+  /** mysql2 alias for the tx-scoped raw handle. */
+  conn?: any;
 }
 
 // ============================================================================

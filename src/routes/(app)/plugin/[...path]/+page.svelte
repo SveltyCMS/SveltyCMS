@@ -9,11 +9,16 @@ and renders it inside the admin shell with server props.
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import Loader from '@components/ui/loader.svelte';
 	import { pluginPageRegistry } from '@src/plugins/plugin-page-registry.svelte.ts';
+	import { memoizeLazyLoader } from '@utils/lazy-component-loader';
 	import type { PageData } from './$types';
 
 	const { data }: { data: PageData } = $props();
 
 	const pageDef = $derived(pluginPageRegistry.getById(data.pageId));
+
+	// Memoized loader — calling pageDef.component() inside {#await} returns a new
+	// promise per parent re-render and remounts the plugin page in a loop.
+	const loader = memoizeLazyLoader(() => pageDef?.component() ?? Promise.resolve({}));
 </script>
 
 <AdminPageShell
@@ -23,7 +28,7 @@ and renders it inside the admin shell with server props.
 	backUrl="/config"
 >
 	{#if pageDef}
-		{#await pageDef.component()}
+		{#await loader()}
 			<Loader variant="card" height="h-40" ariaLabel="Loading plugin page" />
 		{:then Component}
 			{#if Component.default}

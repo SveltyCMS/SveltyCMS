@@ -185,7 +185,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
 
     let safeTheme = DEFAULT_THEME;
     try {
-      safeTheme = theme ? JSON.parse(JSON.stringify(theme)) : DEFAULT_THEME;
+      safeTheme = theme ? structuredClone(theme) : DEFAULT_THEME;
     } catch {
       safeTheme = DEFAULT_THEME;
     }
@@ -193,7 +193,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
     // Ensure user payload is JSON-serializable (ObjectId/Buffer previously 500'd shells)
     let safeUser: any = null;
     try {
-      safeUser = freshUser ? JSON.parse(JSON.stringify(freshUser)) : null;
+      safeUser = freshUser ? structuredClone(freshUser) : null;
     } catch {
       if (freshUser) {
         safeUser = {
@@ -217,7 +217,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
           try {
             const nodes = await contentSystem.getContentStructure(tenantId);
             return (nodes ?? []).map((node: any) => {
-              const sanitized = JSON.parse(JSON.stringify(node));
+              const sanitized = structuredClone(node);
               return {
                 ...sanitized,
                 _id: node._id?.toString?.() ?? String(node._id),
@@ -247,7 +247,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       firstCollection: contentPromise
         .then(([_, first]) => {
           try {
-            return first ? JSON.parse(JSON.stringify(first)) : null;
+            return first ? structuredClone(first) : null;
           } catch {
             return null;
           }
@@ -264,7 +264,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
 
     let fallbackUser: any = null;
     try {
-      fallbackUser = sessionUser ? JSON.parse(JSON.stringify(sessionUser)) : null;
+      fallbackUser = sessionUser ? structuredClone(sessionUser) : null;
     } catch {
       if (sessionUser) {
         fallbackUser = {

@@ -41,8 +41,8 @@ export const hooks: PluginLifecycleHooks = {
     // Invalidate sitemap cache for this tenant
     invalidateSitemapCache(tenantId as string);
 
-    // Only ping if the status is "published"
-    if (result && result.status === "published") {
+    // Only ping if the status is published (canonical StatusTypes value)
+    if (result && result.status === "publish") {
       // Use config's frontendDomain if configured, fall back to environment
       const frontendDomain =
         (pluginConfig as any)?.frontendDomain ||

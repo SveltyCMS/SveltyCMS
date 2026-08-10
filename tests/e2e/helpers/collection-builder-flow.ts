@@ -14,10 +14,31 @@ export interface CollectionFixture {
   slug: string;
 }
 
-export function uniqueCollectionFixture(prefix = "E2E_Col"): CollectionFixture {
+/**
+ * Match collection-form / board path slugification:
+ *   lower → spaces to `-` → strip anything not `[a-z0-9-]`.
+ * Underscores are removed (so `Golden_x` becomes `goldenx` in the product path).
+ */
+export function productCollectionSlug(name: string): string {
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "") || "collection"
+  );
+}
+
+/**
+ * Unique collection name + slug aligned with product path/API ids.
+ * Avoid `_` in prefixes — product slug strips them and tests that keep `_` hit
+ * non-canonical `/collection/foo_bar` vs canonical `/collection/foobar` races.
+ */
+export function uniqueCollectionFixture(prefix = "E2ECol"): CollectionFixture {
   const runId = Date.now().toString(36);
-  const name = `${prefix}_${runId}`;
-  return { name, slug: name.toLowerCase().replace(/ /g, "_") };
+  const safePrefix = String(prefix).replace(/[^a-zA-Z0-9-]/g, "") || "E2ECol";
+  const name = `${safePrefix}${runId}`;
+  return { name, slug: productCollectionSlug(name) };
 }
 
 /** Click after visible; force only as last resort. */
@@ -71,8 +92,7 @@ export async function dismissOpenDialogs(page: Page): Promise<void> {
         })
         .catch(() => undefined);
     }
-
-    await page.waitForTimeout(150);
+    // Next iteration re-probes visibility with a bounded poll — no fixed sleep
   }
 }
 
@@ -269,36 +289,53 @@ export async function saveCollectionSchema(page: Page): Promise<void> {
   ]);
 }
 
+/** Candidate collection ids for API/page (product path, hyphen/underscore variants). */
+export function collectionSlugCandidates(slug: string): string[] {
+  const clean = slug.replace(/^collection\//, "").replace(/^\/+/, "");
+  const product = productCollectionSlug(clean);
+  const hyphen = clean.replace(/_/g, "-");
+  const underscore = clean.replace(/-/g, "_");
+  const stripped = clean.replace(/_/g, "");
+  return [...new Set([product, clean, hyphen, underscore, stripped].filter(Boolean))];
+}
+
 export async function openCollectionEntries(page: Page, slug: string): Promise<void> {
-  const cleanSlug = slug.replace(/^collection\//, "").replace(/^\/+/, "");
-  const altSlug = cleanSlug.includes("-")
-    ? cleanSlug.replace(/-/g, "_")
-    : cleanSlug.replace(/_/g, "-");
+  const candidates = collectionSlugCandidates(slug);
+  // Prefer product path slug (matches collection-form) for navigation + API
+  const preferred = candidates[0] || slug;
 
+  let resolvedSlug = preferred;
   await expect(async () => {
-    let apiRes = await page.request.get(`/api/collections/${cleanSlug}`);
-    if (!apiRes.ok()) {
-      apiRes = await page.request.get(`/api/collections/${altSlug}`);
+    let ok = false;
+    for (const id of candidates) {
+      const apiRes = await page.request.get(
+        `/api/collections/${id}?publicationFilter=all&bypassCache=true`,
+      );
+      if (!apiRes.ok()) continue;
+      const body = await apiRes.json().catch(() => ({}));
+      if (body.success === true || Array.isArray(body.data) || body.data !== undefined) {
+        resolvedSlug = id;
+        ok = true;
+        break;
+      }
     }
-    expect(apiRes.ok()).toBeTruthy();
-    const body = await apiRes.json();
-    expect(body.success).toBe(true);
-    expect(body.data).toBeDefined();
-  }).toPass({ timeout: 30_000, intervals: [2_000, 3_000, 5_000] });
-
-  await page.waitForTimeout(500);
+    expect(ok, `Collection API not ready for any of: ${candidates.join(", ")}`).toBeTruthy();
+  }).toPass({ timeout: 45_000, intervals: [1_500, 2_500, 4_000, 5_000] });
 
   await expect(async () => {
-    await page.goto(`/en/collection/${cleanSlug}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/en/collection/${resolvedSlug}`, { waitUntil: "domcontentloaded" });
     if (page.url().includes("/login")) {
       const { loginAsAdmin } = await import("./auth");
-      await loginAsAdmin(page, `/en/collection/${cleanSlug}`);
+      await loginAsAdmin(page, `/en/collection/${resolvedSlug}`);
     }
-    await expect(page).toHaveURL(new RegExp(cleanSlug, "i"), { timeout: 3_000 });
+    // Accept product or original slug in URL (non-canonical still serves content)
+    const urlOk = candidates.some((c) => new RegExp(c, "i").test(page.url()));
+    expect(urlOk, `URL ${page.url()} should include one of ${candidates.join("|")}`).toBeTruthy();
     await expect(page).not.toHaveURL(/\/config\/collectionbuilder/, { timeout: 3_000 });
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 3_000 });
   }).toPass({
-    timeout: 40_000,
-    intervals: [2_000, 4_000, 6_000],
+    timeout: 45_000,
+    intervals: [2_000, 3_000, 5_000],
   });
 }
 

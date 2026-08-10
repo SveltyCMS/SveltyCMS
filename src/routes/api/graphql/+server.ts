@@ -208,7 +208,7 @@ let lastDbAdapter: any = null;
 export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
   const { contentSystem } = await import("@src/content/index.server");
   const currentVersion = contentSystem.version;
-  const isBenchmark = process.env.BENCHMARK_MODE === "true" || process.env.BENCHMARK === "true";
+  const isBenchmark = process.env.BENCHMARK === "true";
 
   if (
     !yogaAppPromise ||
@@ -321,13 +321,15 @@ async function handleRequest(event: RequestEvent) {
   // 🚀 FAST-PATH: Return cached response immediately before content/DB/Yoga setup
   if (cacheKey) {
     const cached = responseCache.get(cacheKey, locals.tenantId as string);
-    if (cached?.body) {
-      return new Response(cached.body, {
+    if (cached) {
+      const payload = cached.buffer || cached.body;
+      return new Response(payload as any, {
         status: 200,
         headers: {
           "Content-Type": "application/json",
           ETag: cached.etag,
           "X-Cache": "HIT",
+          "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=86400",
         },
       });
     }

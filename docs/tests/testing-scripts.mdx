@@ -6,7 +6,7 @@ order: 15
 icon: "🔧"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-07-20"
+updated: "2026-08-07"
 tags:
   - "testing"
   - "scripts"
@@ -15,6 +15,34 @@ tags:
 ---
 
 # Testing Scripts Catalog
+
+## CI log policy (quiet by default)
+
+GitHub Actions sets `CI=true` and the workflow sets `CI_QUIET=1`. Together they keep signal high without dropping failure detail:
+
+| Layer                              | Quiet behavior                                                                              | Failure detail                                                                 |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Bun package cache                  | `actions/cache/restore` + `save` only on miss + success; key `bun-v3-$OS-$bunVer-$lockHash` | digest-mismatch is non-fatal; next successful install re-saves a clean archive |
+| oxfmt / oxlint                     | `::group::` collapsed logs; oxlint `--quiet --format=github`                                | full tool exit + annotations on fail                                           |
+| `lint:widgets` scripts             | summary + FAIL/WARN only when `CI` / `CI_QUIET` / `--quiet`                                 | per-package FAIL lines + non-zero exit                                         |
+| Unit (`vitest`)                    | `reporters: [dot, github-actions]`, `silent: "passed-only"`                                 | failed test logs + annotations                                                 |
+| Integration (`run-integration.ts`) | `bun test --only-failures`; server stdout buffered                                          | failure list, summary box, preview log tail on fail                            |
+| E2E (`playwright`)                 | `dot` + `github` + HTML/JSON artifacts                                                      | expanded failures, `ci-report-playwright.ts` step summary                      |
+
+Local defaults stay verbose. Force quiet locally with `CI_QUIET=1` or `CI=true`.
+
+### Integration / E2E build harness (not Docker alone)
+
+Docker DBs (`docker compose … up`) are necessary for multi-DB matrix runs, but **not sufficient**.
+The production preview must include `/api/testing` (seed/reset). A normal `bun run build` **strips** that handler.
+
+| Command                    | Behavior                                                                     |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| `bun run test:integration` | Always builds with `COMPILE_ALL_ADAPTERS=true`                               |
+| `… --no-build` (local)     | Reuses `build/` **if** harness present; **auto-rebuilds** if deploy-stripped |
+| `… --strict-no-build` / CI | Fail if harness missing (no silent rebuild)                                  |
+
+Markers checked: `Unauthorized: Testing endpoints are disabled`, `[TestingHandler]` (same as `verify-prod-build-backdoor --mode=bench`).
 
 ## Git Hooks
 
@@ -233,7 +261,6 @@ Svelte 5 + Accessibility + RTL + Quality + Security scanner. Catches issues oxli
 | CORS reflection       | `Access-Control-Allow-Origin` reflecting arbitrary `Origin` header with credentials |
 | Broad MIME types      | File upload allowlist accepting `application/*` without specific subtypes           |
 | Fast hash for secrets | `createHash("sha256")` used on API keys/tokens — should use HMAC                    |
-| Introspection bypass  | GraphQL introspection gated on `BENCHMARK_MODE` flag in production                  |
 | System user backdoor  | `user._id === "system" && password === "hardcoded"` patterns                        |
 | Request body clone    | `request.clone()` without size limits — OOM risk                                    |
 

@@ -118,7 +118,9 @@ describe("MediaService SVG sanitization path (P0)", () => {
     const result = await service.saveMedia(oversize as any, "user-1", "public", null);
 
     expect(result.success).toBe(false);
-    expect(String(result.message)).toMatch(/SVG|sanitiz|MB/i);
+    expect(String((result as { success: false; message: string }).message)).toMatch(
+      /SVG|sanitiz|MB/i,
+    );
     expect(uploadMock).not.toHaveBeenCalled();
   });
 });
@@ -142,7 +144,9 @@ describe("MediaService.saveRemoteMedia SSRF (P1)", () => {
     );
 
     expect(result.success).toBe(false);
-    expect(String(result.message)).toMatch(/Blocked|private|HTTP not allowed|Failed to fetch/i);
+    expect(String((result as { success: false; message: string }).message)).toMatch(
+      /Blocked|private|HTTP not allowed|Failed to fetch/i,
+    );
     expect(uploadMock).not.toHaveBeenCalled();
   });
 
@@ -167,7 +171,9 @@ describe("MediaService.saveRemoteMedia SSRF (P1)", () => {
     );
 
     expect(result.success).toBe(false);
-    expect(String(result.message)).toMatch(/Blocked|private|Failed to fetch/i);
+    expect(String((result as { success: false; message: string }).message)).toMatch(
+      /Blocked|private|Failed to fetch/i,
+    );
     expect(uploadMock).not.toHaveBeenCalled();
   });
 });

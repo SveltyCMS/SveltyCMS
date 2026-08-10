@@ -8,34 +8,7 @@
  */
 import { expect, test } from "@playwright/test";
 import { TEST_API_HEADERS } from "../../helpers/api";
-
-/** Dismiss cookie consent banner if visible. Uses force:true to bypass z-index interception. */
-async function dismissCookieConsent(page: any) {
-  try {
-    // Try "Accept All" button first (preferred)
-    const acceptBtn = page.getByRole("button", { name: /accept all/i });
-    if (await acceptBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await acceptBtn.click({ force: true });
-      await page.waitForTimeout(300);
-      return;
-    }
-    // Fallback: try "Reject All" to dismiss
-    const rejectBtn = page.getByRole("button", { name: /reject all/i });
-    if (await rejectBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await rejectBtn.click({ force: true });
-      await page.waitForTimeout(300);
-      return;
-    }
-    // Last resort: click any button in the cookie dialog
-    const dialogBtn = page.locator('[role="dialog"] button').first();
-    if (await dialogBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await dialogBtn.click({ force: true });
-      await page.waitForTimeout(300);
-    }
-  } catch {
-    /* banner not present or already dismissed */
-  }
-}
+import { dismissCookieConsent } from "../../helpers/cookie-consent";
 
 test.describe.configure({ timeout: 60_000 });
 
@@ -71,39 +44,29 @@ test("Check language selection updates UI text", async ({ page }) => {
   await page.goto("/login");
   await dismissCookieConsent(page);
 
-  // Check if language selector exists — skip if not rendered
+  // Language selector is core chrome on the login landing state — hard assert.
   const languageTrigger = page.locator('.language-selector [role="button"]').first();
-  if (!(await languageTrigger.isVisible({ timeout: 3000 }).catch(() => false))) {
-    console.log("⚠ Language selector not found — skipping language test");
-    return;
-  }
+  await expect(languageTrigger, "Language selector must be present on the login page").toBeVisible({
+    timeout: 10_000,
+  });
 
-  const languages: { code: string; label: string; expected: RegExp }[] = [
-    { code: "de", label: "German", expected: /anmelden/i },
-    { code: "en", label: "English", expected: /sign in/i },
-  ];
+  // DE: open dropdown, pick Deutsch, assert the html lang attr + trigger label.
+  await languageTrigger.click();
+  const deOption = page.getByRole("button", { name: /deutsch|german/i }).first();
+  await expect(deOption).toBeVisible({ timeout: 5_000 });
+  await deOption.click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "de", { timeout: 5_000 });
+  await expect(languageTrigger).toContainText(/deutsch/i, { timeout: 5_000 });
 
-  for (const lang of languages) {
-    await dismissCookieConsent(page);
-    const option = page.locator(`button[aria-label="${lang.label}"]`).first();
-    if ((await option.isVisible({ timeout: 500 }).catch(() => false)) === false) {
-      await languageTrigger.click();
-      await page.waitForTimeout(300);
-    }
-    if (await option.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await option.click();
-      await page.waitForTimeout(500);
-    }
-    // Verify the page text changed — check for any visible text change
-    const changed = await expect(page.getByRole("button", { name: lang.expected }).first())
-      .toBeVisible({
-        timeout: 5000,
-      })
-      .catch(() => false);
-    if (!changed) {
-      console.log(`⚠ Language switch to ${lang.label} did not change button text`);
-    }
-  }
+  // EN: the locale switch remounts the whole page (root layout keys on
+  // currentLocale), which closes the dropdown — re-open it, then pick English
+  // and assert the UI flips back.
+  await languageTrigger.click();
+  const enOption = page.getByRole("button", { name: /english|englisch/i }).first();
+  await expect(enOption).toBeVisible({ timeout: 5_000 });
+  await enOption.click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en", { timeout: 5_000 });
+  await expect(languageTrigger).toContainText(/english/i, { timeout: 5_000 });
 });
 
 test("SignUp First User", async ({ page }) => {
@@ -201,8 +164,10 @@ test("Forgot Password Flow", async ({ page }) => {
   await page.goto("/login");
   await dismissCookieConsent(page);
 
-  await page.getByText(/sign in/i).click();
-  await dismissCookieConsent(page);
+  // The signup view is the landing state pre-setup; flip to the sign-in view
+  // via the icon's own testid, then hard-assert the form actually mounted.
+  await page.getByTestId("signin-icon").click();
+  await expect(page.getByTestId("signin-forgot-password")).toBeVisible({ timeout: 10_000 });
   await page.getByTestId("signin-forgot-password").click();
 
   await dismissCookieConsent(page);

@@ -481,11 +481,7 @@ export async function cloneCurrentEntry() {
     count: 1,
     onConfirm: async () => {
       try {
-        // Use structuredClone to preserve Date, RegExp, and avoid silent data loss
-        const clonedPayload =
-          typeof structuredClone === "function"
-            ? structuredClone(entry)
-            : JSON.parse(JSON.stringify(entry));
+        const clonedPayload = structuredClone(entry);
 
         // Remove unique identifiers and timestamps
         clonedPayload._id = undefined;

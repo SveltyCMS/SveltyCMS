@@ -88,7 +88,32 @@ The **Autonomous System Watchdog** (`src/services/system/watchdog.ts`):
 | **Exponential Backoff** | Recovery attempts use 5s → 10s → 20s progressive delays                                                                    |
 | **Drift Detection**     | Continuously compares internal health map against reality — demotes to `RECOVERY` if DB is dead while state claims `READY` |
 | **Timeout Safety**      | 60-second hard limit on initialization — enters `FAILED` to protect infrastructure                                         |
-| **Cleanup on Failure**  | Logs full stack trace, increments `metricsService` counters for alerting                                                   |
+
+---
+
+## 6. Route Resource State Machine
+
+The **Route Resource State Machine** (`src/services/core/route-resource-state-machine.ts`) classifies every URL into precise operational resource profiles in **`< 10 microseconds`**:
+
+| Resource Lane    | Routes                         | Required Cache Categories     | Memory Profile     | Middleware Bypass                                     |
+| :--------------- | :----------------------------- | :---------------------------- | :----------------- | :---------------------------------------------------- |
+| **`bootstrap`**  | `/login`, `/setup`, `/auth/*`  | `SETTINGS`                    | **`< 2MB` RAM**    | Skips `media`, `preferences`, `scim`, `collaboration` |
+| **`media`**      | `/mediagallery`, `/media/*`    | `MEDIA`, `SETTINGS`           | Focused Media RAM  | Skips `scim`, `collaboration`                         |
+| **`collection`** | `/collections/*`, `/content/*` | `SCHEMA`, `ROLES`, `SETTINGS` | Schema & Field RAM | Skips `scim`                                          |
+| **`dashboard`**  | `/dashboard`, `/admin`         | `SETTINGS`, `SYSTEM_STATE`    | Layout Metrics RAM | Skips `scim`                                          |
+| **`settings`**   | `/settings`, `/config`         | `SETTINGS`, `ROLES`           | Config RAM         | Skips `media`, `collaboration`                        |
+
+---
+
+## 7. SvelteKit 2 Remote Functions & Offline Resilience Engine
+
+The **Offline Draft Sync Engine** (`src/utils/offline-draft-sync.ts`):
+
+1. **SvelteKit 2 Remote Functions (`remote-functions#form`)**: Wraps Remote Function calls (`wrapRemoteFunction`) with optimistic Svelte 5 `$state` updates.
+2. **IndexedDB / LocalStorage Queueing**: When network drops or roaming occurs, typed RPC payloads are stored locally in an offline draft queue.
+3. **Background Sync & Timestamp Stenciling**: Upon reconnection, pending calls are automatically flushed in order with version stenciling for conflict resolution.
+
+| **Cleanup on Failure** | Logs full stack trace, increments `metricsService` counters for alerting |
 
 ---
 
@@ -136,15 +161,14 @@ All reactive client-side state uses Svelte 5 runes (`.svelte.ts`):
 
 ### Feature Stores
 
-| Store                           | Purpose                                   |
-| ------------------------------- | ----------------------------------------- |
-| `collection-store.svelte.ts`    | Schema definitions, entry streams         |
-| `content-registry.svelte.ts`    | Active editor, form bindings, draft state |
-| `collaboration-store.svelte.ts` | Real-time presence, lock ownership        |
-| `widget-store.svelte.ts`        | Widget configurations, field registry     |
-| `image-editor-store.svelte.ts`  | Canvas operations, filters, crops         |
-| `consent-store.svelte.ts`       | GDPR cookie consent                       |
-| `setup-store.svelte.ts`         | Setup wizard step flow                    |
+| Store                          | Purpose                                   |
+| ------------------------------ | ----------------------------------------- |
+| `collection-store.svelte.ts`   | Schema definitions, entry streams         |
+| `content-registry.svelte.ts`   | Active editor, form bindings, draft state |
+| `widget-store.svelte.ts`       | Widget configurations, field registry     |
+| `image-editor-store.svelte.ts` | Canvas operations, filters, crops         |
+| `consent-store.svelte.ts`      | GDPR cookie consent                       |
+| `setup-store.svelte.ts`        | Setup wizard step flow                    |
 
 ### System Health (`src/stores/system/`)
 

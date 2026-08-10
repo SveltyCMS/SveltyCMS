@@ -31,9 +31,20 @@ import { logger } from "@utils/logger";
 const COLLECTION_ID = "benchmark_crud";
 const TEST_TENANT = "global";
 
-// Freeze global option contexts to prevent V8 allocation footprints in hot loops
-const GLOBAL_TENANT_OPTS = Object.freeze({ tenantId: TEST_TENANT });
-const MANY_READ_OPTS = Object.freeze({ limit: 50, tenantId: TEST_TENANT });
+// Freeze global option contexts to prevent V8 allocation footprints in hot loops.
+// Policies come from src/databases/policy.ts — benchmarks opt out of caches
+// and side effects EXPLICITLY (visible, typed decisions).
+import { toQueryOptions } from "@src/databases/policy";
+
+const GLOBAL_TENANT_OPTS = Object.freeze({
+  ...toQueryOptions({ bypassCache: true }),
+  tenantId: TEST_TENANT,
+});
+const MANY_READ_OPTS = Object.freeze({
+  ...toQueryOptions({ bypassCache: true, inPlace: true }),
+  limit: 50,
+  tenantId: TEST_TENANT,
+});
 const PERM_DELETE_OPTS = Object.freeze({
   bypassTenantCheck: true,
   permanent: true,
@@ -81,6 +92,7 @@ export async function runDatabaseBenchmark() {
       // Legacy dual-query list+count for before/after comparison
       { name: "LIST+COUNT (legacy)", fn: createLegacyListCountTest(db) },
       { name: "UPDATE", fn: createUpdateTest(db) },
+      { name: "UPDATE (no-returning)", fn: createUpdateNoReturningTest(db) },
       { name: "NATIVE UPSERT", fn: createUpsertNativeTest(db) },
       { name: "COUNT", fn: createCountTest(db) },
       { name: "COUNT ESTIMATE", fn: createCountEstimateTest(db) },
@@ -221,6 +233,26 @@ function createUpdateTest(db: any) {
   return async () => {
     const res = await db.crud.update(COLLECTION_ID, targetId, updatePayload, GLOBAL_TENANT_OPTS);
     assertSuccess(res, "update");
+  };
+}
+
+/**
+ * UPDATE with skipReturning: true — the no-read-back path for full-document
+ * callers. The row is reconstructed from the prepared values instead of
+ * RETURNING * + JSON parse/conversion. Measures the read-back tax.
+ */
+function createUpdateNoReturningTest(db: any) {
+  const targetId = "bench-shared-001" as any;
+  const updatePayload = {
+    title: "Updated Static Segment Baseline",
+    status: "updated",
+  };
+  return async () => {
+    const res = await db.crud.update(COLLECTION_ID, targetId, updatePayload, {
+      ...GLOBAL_TENANT_OPTS,
+      skipReturning: true,
+    } as any);
+    assertSuccess(res, "updateNoReturning");
   };
 }
 
@@ -427,6 +459,17 @@ function createBulkInsertTest(db: any) {
 async function prepareCollection(db: any) {
   console.log("   [DB Trace] Preparing collection...");
   if (db.collection?.createModel) {
+    if (db.type !== "mongodb") {
+      try {
+        // 🧹 STALE-TABLE HYGIENE: createModel is additive — a table left by an
+        // earlier run under a different materialization policy keeps its old
+        // columns/indexes (a dead `value` column + `value_idx` distorted BULK
+        // INSERT measurements: 19.6ms stale vs 10.2ms after drop). Drop the
+        // physical table so every run measures the CURRENT schema shape.
+        const q = db.type === "mariadb" || db.type === "mysql" ? "`" : '"';
+        await db.execute(sql.raw(`DROP TABLE IF EXISTS ${q}collection_${COLLECTION_ID}${q}`));
+      } catch {}
+    }
     console.log("   [DB Trace] Creating model...");
     await db.collection
       .createModel({

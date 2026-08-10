@@ -110,7 +110,7 @@ export async function handleCollectionsRoutes(
       404,
     );
   } catch (err: any) {
-    if (process.env.SVELTY_BENCHMARK_SUITE !== "true" && process.env.BENCHMARK !== "true") {
+    if (process.env.BENCHMARK !== "true") {
       logger.error(`[CollectionsRoute Error] ${segments.join("/")}:`, err);
     }
     if (err instanceof AppError) throw err;
@@ -285,6 +285,17 @@ export async function handleCollectionFind(
         .map((f) => f.trim())
         .filter(Boolean)
     : undefined;
+
+  // Optional projection: comma-separated field names → adapter-level SELECT
+  // pruning (skips the JSON data blob when all requested fields are physical).
+  const fieldsRaw = url.searchParams.get("fields");
+  const fields: string[] | undefined = fieldsRaw
+    ? fieldsRaw
+        .split(",")
+        .map((f) => f.trim())
+        .filter(Boolean)
+    : undefined;
+
   const result = await cms.collections.find(collectionId, {
     tenantId,
     limit,
@@ -295,6 +306,7 @@ export async function handleCollectionFind(
     publicationFilter,
     bypassCache,
     populate,
+    fields,
   });
   setApiDataHash(event, result);
   return successResponse(event, result);

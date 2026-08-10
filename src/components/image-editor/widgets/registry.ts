@@ -127,15 +127,6 @@ if (import.meta.env.DEV) {
   // Only log widgets in development/benchmark mode if needed
   if (typeof process !== "undefined" && process.env && process.env.BENCHMARK_DEBUG === "true") {
     logger.debug("[Widget Registry] Loaded widgets:", editorWidgets.length);
-    console.table(
-      editorWidgets.map((w) => ({
-        key: w.key,
-        title: w.title,
-        category: w.category,
-        order: w.order,
-        experimental: w.experimental,
-      })),
-    );
   }
 }
 

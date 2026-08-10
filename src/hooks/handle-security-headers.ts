@@ -1,24 +1,24 @@
 /**
  * @file src/hooks/handle-security-headers.ts
  * @description
- * Hardened security headers middleware with OPTIONS preflight support and safe header mutation.
+ * Hardened security headers utility (CORS + CSP + isolation headers).
  *
  * ### Features:
  * - CSP (page vs API vs GraphQL playground)
  * - CORS allowlist via getCorsHeaders (never reflect Origin blindly)
  * - COOP/COEP/CORP for API isolation
  * - Permissions-Policy lockdown
- * - Always clones resolve() headers (immutable Response safety)
  *
- * NOTE: The Handle export is optional — headers are also applied inline via
- * `applyAllSecurityHeaders()` from turbo pipeline / turbo-get / error boundaries.
+ * The `applyAllSecurityHeaders()` utility is called inline from
+ * `handleTurboPipeline`, `handleTurboGet`, the rate-limit 429 path, and the
+ * top-level error guard in hooks.server.ts. There is intentionally no standalone
+ * Handle — the header set is always merged onto the already-produced response.
  */
 
-import type { Handle } from "@sveltejs/kit";
 import { dev } from "$app/environment";
 import { getCorsHeaders } from "@utils/security/cors-utils";
 import { API_CONTENT_SECURITY_POLICY } from "@utils/security/constants";
-import { applySecurityHeaders, STATIC_ASSET_REGEX } from "@utils/hook-utils";
+import { applySecurityHeaders } from "@utils/hook-utils";
 
 const PERMISSIONS_POLICY = [
   "geolocation=()",
@@ -109,46 +109,3 @@ export function applyAllSecurityHeaders(
     headers.set("Content-Security-Policy", svelteKitCsp);
   }
 }
-
-// NOTE: This hook is not wired into the main pipeline. Security headers are applied
-// inline via applyAllSecurityHeaders() in handleTurboPipeline, handleTurboGet, and
-// the top-level handle() catch block. Keep this file for the utility export.
-//
-export const handleSecurityHeaders: Handle = async ({ event, resolve }) => {
-  const { url, request } = event;
-  const pathname = url.pathname;
-
-  if (STATIC_ASSET_REGEX.test(pathname)) return await resolve(event);
-
-  // Preflight OPTIONS short-circuit with full CORS + security headers
-  if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
-    const headers = new Headers();
-    applyAllSecurityHeaders(
-      headers,
-      url.protocol === "https:",
-      request.headers.get("Origin"),
-      pathname,
-    );
-    return new Response(null, { status: 204, headers });
-  }
-
-  const response = await resolve(event);
-
-  // Clone into mutable headers to prevent frozen-object crashes
-  const mutableHeaders = new Headers(response.headers);
-  applyAllSecurityHeaders(
-    mutableHeaders,
-    url.protocol === "https:",
-    request.headers.get("Origin"),
-    pathname,
-  );
-
-  // Clone response body to avoid "ReadableStream has already been used"
-  // when an upstream hook has already consumed the body stream.
-  const cloned = response.clone();
-  return new Response(cloned.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: mutableHeaders,
-  });
-};

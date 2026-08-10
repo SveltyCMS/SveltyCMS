@@ -27,7 +27,10 @@ describePostgres("PostgreSQL Adapter Integration", () => {
 
       await connectWithRetry("postgresql", async (uri) => {
         const result = await db!.connect(uri);
-        return { success: !!result?.success, message: result?.message };
+        return {
+          success: !!result?.success,
+          message: result && !result.success ? result.message : undefined,
+        };
       });
       await (db as any).provision?.();
     } catch (err: unknown) {

@@ -32,6 +32,10 @@ class CollaborationService {
   private awareness: any = null;
   private currentEntryId: string | null = null;
   private currentCollectionId: string | null = null;
+  // Monotonic session epoch — invalidates stale async init() calls that
+  // resolve after destroy() (e.g. the lazy provider import), preventing
+  // leaked providers/sessions after a fast tab switch.
+  private sessionEpoch = 0;
 
   private awarenessUnsubscribe: (() => void) | null = null;
   private yMapObserver: any = null;
@@ -40,6 +44,8 @@ class CollaborationService {
 
   async init(collection: any, entry: any): Promise<void> {
     if (!browser) return;
+
+    const epoch = ++this.sessionEpoch;
 
     const enabled = collection?.collaboration?.enabled === true;
     if (!enabled) {
@@ -71,6 +77,12 @@ class CollaborationService {
       if (!this.SseProvider) {
         const mod = await import("./sse-provider.svelte.ts");
         this.SseProvider = mod.SseProvider;
+      }
+
+      // A newer init()/destroy() superseded this one while awaiting — bail.
+      if (epoch !== this.sessionEpoch) {
+        this.destroy();
+        return;
       }
 
       const docId = `entry:${collectionId}:${entryId}`;
@@ -179,6 +191,7 @@ class CollaborationService {
 
   /** Clean shutdown */
   destroy(): void {
+    this.sessionEpoch++; // invalidate any in-flight async init()
     logger.info("[Collaboration] Destroying collaboration session");
 
     if (this.yMapObserver && this.ydoc) {

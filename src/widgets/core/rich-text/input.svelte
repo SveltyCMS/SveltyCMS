@@ -61,6 +61,22 @@ import { logger } from "@utils/logger";
 	let element: HTMLDivElement = $state()!;
 	let createEditor: any = $state(null);
 
+	/**
+	 * Treat tiptap's empty-doc serialization as "".
+	 * Empty-doc output varies by extension config: `<p></p>`, `<p><br></p>`,
+	 * or with attributes such as `<p style="text-align: left;"></p>` (TextAlign
+	 * adds a default style). Matching ONLY the bare `<p></p>` form made the
+	 * value↔editor sync loop forever: setContent('') re-serialized to the styled
+	 * empty paragraph, norm !== content stayed true, and the cycle ran until
+	 * effect_update_depth_exceeded.
+	 */
+	function normalizeHtml(html: string): string {
+		if (!html) return '';
+		const trimmed = html.trim();
+		if (/^<p[^>]*>\s*(<br>)?\s*<\/p>$/.test(trimmed)) return '';
+		return html;
+	}
+
 	let isScrolled = $state(false);
 	let editorStateVersion = $state(0);
 	let showSlashMenu = $state(false);
@@ -457,6 +473,18 @@ import { logger } from "@utils/logger";
 					content: editor.isEmpty ? '' : editor.getHTML()
 				};
 
+				// Cycle guard: tiptap emits 'update' for internal transactions too
+				// (e.g. setContent from the sync effect). Skip the write when the
+				// serialized content is unchanged, otherwise value↔editor bounce
+				// runs until effect_update_depth_exceeded.
+				const currentValue = field.translated
+					? (value as Record<string, RichTextData>)?.[lang]
+					: (value as RichTextData);
+				const currentHtml = normalizeHtml(currentValue?.content || '');
+				if (currentHtml === normalizeHtml(newContent.content)) {
+					return;
+				}
+
 				if (field.translated) {
 					value = {
 						...(value as Record<string, RichTextData>),
@@ -489,8 +517,10 @@ import { logger } from "@utils/logger";
 		} else {
 			content = (value as RichTextData)?.content || '';
 		}
-
-		if (editor && editor.getHTML() !== content) {
+		const html = editor ? editor.getHTML() : '';
+		const norm = normalizeHtml(html);
+		const doSet = editor && norm !== content;
+		if (doSet) {
 			editor.commands.setContent(content, { emitUpdate: false });
 		}
 	});

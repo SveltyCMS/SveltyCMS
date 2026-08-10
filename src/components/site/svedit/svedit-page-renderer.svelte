@@ -22,7 +22,21 @@
 
 	let { document, editable = false, onDocumentChange }: Props = $props();
 
-	let session = $state(createSiteSveditSession({} as any));
+	// The $state initializer below intentionally captures the prop's INITIAL
+	// value once — later prop updates are reconciled by the $effect that rebuilds
+	// the session. Reading the prop inside a closure silences the
+	// state_referenced_locally warning while keeping that one-shot intent.
+	// The fallback is only reachable when a caller passes a malformed document
+	// (fill_document_defaults iterates `doc.nodes` — `{}.nodes` is undefined →
+	// Object.entries(undefined) threw on EVERY mount, crashing the public site render).
+	const initialDocument = ((): SveditDocument => {
+		const doc = document;
+		return doc && typeof doc === "object" && "nodes" in doc
+			? doc
+			: ({ nodes: {}, document_id: "page" } as unknown as SveditDocument);
+	})();
+
+	let session = $state(createSiteSveditSession(initialDocument));
 	let lastExternalDoc = $state("");
 	let lastEmittedDoc = $state("");
 	let saveTimer: ReturnType<typeof setTimeout> | null = null;

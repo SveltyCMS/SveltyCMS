@@ -10,7 +10,7 @@ import { privateConfigSchema } from "@src/databases/private-config-schema";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { isIsolatedTestDbName } from "@utils/test-db-safety";
-import { isCiRunner } from "@utils/private-config-policy";
+import { isCiRunner, isAutomatedTestHarness } from "@utils/private-config-policy";
 import { safeParse, type InferOutput } from "valibot";
 import path from "node:path";
 
@@ -517,13 +517,8 @@ export function resolveSqlitePath(host: string | undefined, name: string): strin
   // Only activate if the directory exists to avoid breaking CI which creates
   // config/database/ but not config/test-database/
   const isTest =
-    typeof process !== "undefined" &&
-    (process.env?.TEST_MODE === "true" ||
-      process.env?.VITE_TEST_MODE === "true" ||
-      process.env?.VITEST === "true" ||
-      process.env?.BUN_TEST === "true" ||
-      name.includes("test") ||
-      name.includes("benchmark"));
+    isAutomatedTestHarness() ||
+    (typeof process !== "undefined" && (name.includes("test") || name.includes("benchmark")));
   if (isTest) {
     try {
       const { mkdirSync } = require("node:fs");

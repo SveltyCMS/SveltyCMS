@@ -13,6 +13,12 @@
 import { logger } from "@utils/logger";
 import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { getClientIp } from "@utils/hook-utils";
+import {
+  getAuditFlags,
+  getAuditFlagsSync,
+  isAuditDisabledByEnv,
+} from "@utils/security/audit-flags";
+import { rollingMerkleAccumulator } from "@src/services/security/rolling-merkle";
 
 function extractIpSafely(event: RequestEvent): string {
   try {
@@ -23,19 +29,22 @@ function extractIpSafely(event: RequestEvent): string {
 }
 
 export const handleAuditLogging: Handle = async ({ event, resolve }) => {
-  // Fast exit for benchmark and testing contexts
-  if ((event.locals as any)?.__testBypass) return resolve(event);
-
-  if (process.env.DISABLE_AUDIT_LOGS === "true" || process.env.TEST_MODE === "true") {
-    return resolve(event);
-  }
-
-  // Only audit API mutations
+  // Cheapest exits first: path + method triage before any settings/env reads,
+  // so SSR page traffic (the majority) never touches the audit-flag machinery.
   if (!event.url.pathname.startsWith("/api/")) return resolve(event);
-
   const method = event.request.method;
   const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(method);
   if (!isMutation) return resolve(event);
+
+  // Fast exit for benchmark and testing contexts
+  if ((event.locals as any)?.__testBypass) return resolve(event);
+
+  // Sync fast path for benchmarks/tests; async DB-driven path for enterprise UI toggles.
+  if (isAuditDisabledByEnv() || process.env.TEST_MODE === "true") return resolve(event);
+  const syncFlags = getAuditFlagsSync();
+  if (syncFlags?.disabled) return resolve(event);
+  const flags = syncFlags ?? (await getAuditFlags().catch(() => null));
+  if (flags?.disabled) return resolve(event);
 
   // Capture context BEFORE resolution for clean closure references
   const userId = (event.locals?.user as any)?._id ?? "anonymous";
@@ -86,6 +95,10 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
         } else {
           logger.warn("[AUDIT] Mutation logged with failure flags", logEntry);
         }
+
+        // Fast O(1) rolling Merkle accumulator update (< 5µs)
+        const entryHash = `${method}:${path}:${userId}:${logEntry.timestamp}`;
+        rollingMerkleAccumulator.appendLeaf(entryHash).catch(() => {});
       })
       .catch((err) => {
         logger.error("[AUDIT Fallback] Secondary log pipeline failed:", err);

@@ -379,6 +379,17 @@ export async function handleSettingsRoutes(
     const result = await cms.system.settings.set(action || "all", body, {
       tenantId: tenantId as any,
     });
+
+    // 🚀 Invalidate the field-permission memo so a saved FIELD_PERMISSIONS
+    // policy takes effect immediately (no up-to-60s stale window).
+    try {
+      const { invalidateFieldPermissionCache } =
+        await import("@src/services/security/field-permission-service");
+      invalidateFieldPermissionCache();
+    } catch {
+      /* best effort */
+    }
+
     return successResponse(event, result);
   }
 
@@ -419,7 +430,7 @@ export async function handleSystemMgmtRoutes(
       if (_getYogaApp) {
         await _getYogaApp(cms.db, body.tenantId);
         const { logger } = await import("@utils/logger");
-        if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+        if (process.env.BENCHMARK_DEBUG === "true") {
           logger.info(`[System Refresh] Successfully warmed up GraphQL Yoga Schema.`);
         }
       }

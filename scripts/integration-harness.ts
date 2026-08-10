@@ -18,7 +18,16 @@
  */
 
 import { execSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
@@ -468,6 +477,56 @@ export async function stopChildProcessTree(
 
 // ── Build ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Strong markers that only appear in the real testing handler body.
+ * Keep in sync with scripts/verify-prod-build-backdoor.ts FULL_HANDLER_MARKERS.
+ * A normal `bun run build` strips /api/testing via testBackdoorStripperPlugin —
+ * integration + e2e MUST use COMPILE_ALL_ADAPTERS=true so seed/reset work.
+ */
+export const INTEGRATION_TESTING_HARNESS_MARKERS = [
+  "Unauthorized: Testing endpoints are disabled",
+  "[TestingHandler]",
+] as const;
+
+function collectJsFiles(dir: string, out: string[] = []): string[] {
+  if (!existsSync(dir)) return out;
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name);
+    let st;
+    try {
+      st = statSync(full);
+    } catch {
+      continue;
+    }
+    if (st.isDirectory()) collectJsFiles(full, out);
+    else if (st.isFile() && name.endsWith(".js")) out.push(full);
+  }
+  return out;
+}
+
+/**
+ * Returns true when build/ (or .svelte-kit/output) contains the full /api/testing handler.
+ * Deploy-stripped builds return false (handler replaced with 404 stub).
+ */
+export function buildHasTestingHarness(root: string): boolean {
+  const scanDirs = [
+    join(root, "build", "server"),
+    join(root, "build", "server", "chunks"),
+    join(root, ".svelte-kit", "output", "server"),
+    join(root, ".svelte-kit", "output", "server", "chunks"),
+  ];
+  const files = scanDirs.flatMap((d) => collectJsFiles(d));
+  for (const file of files) {
+    try {
+      const content = readFileSync(file, "utf8");
+      if (INTEGRATION_TESTING_HARNESS_MARKERS.some((m) => content.includes(m))) return true;
+    } catch {
+      /* skip unreadable */
+    }
+  }
+  return false;
+}
+
 /** Production build with COMPILE_ALL_ADAPTERS via spawn env (no fragile shell `set` / export). */
 export function runProductionBuild(root: string): Promise<void> {
   console.log("🏗️  Building (COMPILE_ALL_ADAPTERS=true)...");
@@ -488,6 +547,79 @@ export function runProductionBuild(root: string): Promise<void> {
       else reject(new Error(`Production build exited with code ${code ?? 1}`));
     });
   });
+}
+
+export type EnsureIntegrationBuildOptions = {
+  /**
+   * When true, reuse build/ if present and has harness.
+   * Deploy-stripped builds always trigger a rebuild (seed would 404 otherwise).
+   */
+  noBuild?: boolean;
+  /** When true, refuse to rebuild and exit with guidance (CI fail-closed). Default: auto-rebuild. */
+  strictNoBuild?: boolean;
+};
+
+/**
+ * Ensure a harness-enabled production build exists.
+ * - Default: always rebuild with COMPILE_ALL_ADAPTERS
+ * - --no-build: reuse if harness present; auto-rebuild if deploy-stripped
+ * - --no-build --strict: exit 1 if stripped (used when rebuild must not happen in CI artifacts)
+ */
+export async function ensureIntegrationBuild(
+  root: string,
+  options: EnsureIntegrationBuildOptions = {},
+): Promise<{ rebuilt: boolean; harness: boolean }> {
+  const entry = join(root, "build", "index.js");
+  const noBuild = options.noBuild === true;
+  const strict = options.strictNoBuild === true;
+
+  if (!noBuild) {
+    await runProductionBuild(root);
+    if (!existsSync(entry)) {
+      throw new Error(`Missing ${entry} after build`);
+    }
+    if (!buildHasTestingHarness(root)) {
+      throw new Error(
+        "Build completed but /api/testing harness markers are missing. " +
+          "Ensure COMPILE_ALL_ADAPTERS=true is applied during vite build.",
+      );
+    }
+    return { rebuilt: true, harness: true };
+  }
+
+  // --no-build path
+  if (!existsSync(entry)) {
+    if (strict) {
+      throw new Error(`Missing ${entry}. Run without --no-build first.`);
+    }
+    console.warn("⚠️  No build/ found — building with COMPILE_ALL_ADAPTERS=true…");
+    await runProductionBuild(root);
+    return { rebuilt: true, harness: buildHasTestingHarness(root) };
+  }
+
+  if (buildHasTestingHarness(root)) {
+    console.log("✅ Existing build includes testing harness (/api/testing)");
+    return { rebuilt: false, harness: true };
+  }
+
+  // Deploy-stripped: normal `bun run build` — seed/reset will return API_ENDPOINT_NOT_AVAILABLE
+  const msg =
+    "Existing build is deploy-stripped (no /api/testing handler).\n" +
+    "  Integration tests need: COMPILE_ALL_ADAPTERS=true bun run build\n" +
+    "  Docker DBs running is not enough — the preview bundle must include the testing API.";
+
+  if (strict) {
+    throw new Error(msg);
+  }
+
+  console.warn(`⚠️  ${msg.replace(/\n/g, "\n⚠️  ")}`);
+  console.warn("⚠️  Auto-rebuilding with COMPILE_ALL_ADAPTERS=true…");
+  await runProductionBuild(root);
+  if (!buildHasTestingHarness(root)) {
+    throw new Error("Rebuild finished but testing harness is still missing.");
+  }
+  console.log("✅ Rebuild complete — testing harness present");
+  return { rebuilt: true, harness: true };
 }
 
 // ── Docker adapter hints (not a matrix runner) ────────────────────────────────
@@ -580,7 +712,8 @@ export function cleanupTestArtifacts(root: string): void {
     join(root, "config", "private.test.ts"),
     join(root, "config", "test-database"),
     join(root, "config", "test-collections"),
-    join(root, ".compiledCollections"),
+    join(root, ".compiledCollections", "test-collections"),
+    join(root, "test-media"),
   ];
   for (const p of paths) {
     try {
@@ -589,44 +722,5 @@ export function cleanupTestArtifacts(root: string): void {
       /* ok */
     }
   }
-  // Remove generated collection files from config/collections/ (not .gitkeep or .gitignore)
-  const collectionsDir = join(root, "config", "collections");
-  try {
-    if (existsSync(collectionsDir)) {
-      for (const f of readdirSync(collectionsDir)) {
-        if (f.endsWith(".ts") && f !== ".gitkeep") {
-          try {
-            rmSync(join(collectionsDir, f));
-          } catch {
-            /* ok */
-          }
-        }
-      }
-    }
-  } catch {
-    /* ok */
-  }
-  // Remove leftover SQLite DBs from config/database/
-  const dbDir = join(root, "config", "database");
-  try {
-    if (existsSync(dbDir)) {
-      for (const f of readdirSync(dbDir)) {
-        if (
-          f.endsWith(".sqlite") ||
-          f.endsWith(".db") ||
-          f.endsWith("-wal") ||
-          f.endsWith("-shm")
-        ) {
-          try {
-            rmSync(join(dbDir, f));
-          } catch {
-            /* ok */
-          }
-        }
-      }
-    }
-  } catch {
-    /* ok */
-  }
-  console.log("🧹 Test artifacts cleaned");
+  console.log("🧹 Test artifacts cleaned (live config/database and config/collections protected)");
 }

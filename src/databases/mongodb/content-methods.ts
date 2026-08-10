@@ -615,7 +615,7 @@ export class MongoContentMethods {
     try {
       const result = await this.draftsRepo.model.updateMany({ _id: { $in: draftIds } } as any, {
         $set: {
-          status: "published",
+          status: "publish",
           publishedAt: new Date().toISOString() as unknown as ISODateString,
         },
       });

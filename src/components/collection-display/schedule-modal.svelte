@@ -111,7 +111,7 @@
 		>
 			<!-- Date and Time Inputs -->
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<Input type="date" label="Date" bind:value={scheduleDateOnly} required />
+				<Input type="date" label="Date" bind:value={scheduleDateOnly} min={new Date().toISOString().slice(0, 10)} required />
 				<Input type="time" label="Time" bind:value={scheduleTimeOnly} required />
 			</div>
 
