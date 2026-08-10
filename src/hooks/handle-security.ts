@@ -229,11 +229,21 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
     if (hitHoneypot || (isKnownBot && !isLocal)) {
       metricsService.incrementSecurityViolations(tenantId);
-      // Pass real request.clone() instead of mock payload for accurate forensics
+      // Forensics: record the probe in the incident engine (fast — no socket hold).
       await securityResponseService.analyzeRequest(request.clone(), clientIp, tenantId);
-      await new Promise((r) =>
-        setTimeout(r, Math.min(5000 + Math.floor(Math.random() * 10000), 15000)),
-      );
+
+      // 🚨 NO TARPIT (removed Slowloris/DDoS vector): the previous 5-15s
+      // setTimeout held the socket open, letting an attacker exhaust file
+      // descriptors with cheap probes against /.{env,git}, /wp-admin, etc.
+      // Honeypot hits are unambiguously hostile → flag the IP so the NEXT
+      // request is rejected at the firewall layer, and close THIS socket
+      // immediately with a decoy 200. Fire-and-forget: never delay the response.
+      if (hitHoneypot) {
+        securityResponseService
+          .blockIp(clientIp, `Honeypot route hit: ${pathLower}`, tenantId)
+          .catch(() => {});
+      }
+
       return new Response("", {
         status: 200,
         headers: {

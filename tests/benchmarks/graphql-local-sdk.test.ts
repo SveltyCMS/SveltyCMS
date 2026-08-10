@@ -24,7 +24,7 @@ test("Local SDK Query Performance (zero HTTP, pure in-process)", async () => {
     console.log("   ⚠️ No adapter — skipping\n");
     return;
   }
-  await adapter.connect();
+  await adapter.connect(undefined as unknown as string);
   await initializeDatabase(adapter);
 
   const { LocalCMS } = await import("@src/services/sdk");

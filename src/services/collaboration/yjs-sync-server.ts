@@ -21,8 +21,9 @@ import * as syncProtocol from "y-protocols/sync";
 import * as awarenessProtocol from "y-protocols/awareness";
 import * as decoding from "lib0/decoding";
 import * as encoding from "lib0/encoding";
-import type { Server } from "node:http";
+import type { Server, IncomingMessage } from "node:http";
 import { logger } from "@utils/logger";
+import { getWsAuthenticator, type WsAuthResult } from "./ws-auth-registry";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -138,25 +139,55 @@ export function startYjsSyncServer(options: YjsSyncServerOptions): () => void {
 
   const wss = new WebSocketServer({ noServer: true });
 
-  // Intercept HTTP upgrade requests matching our /ws path
-  server.on("upgrade", (request, socket, head) => {
+  // Intercept HTTP upgrade requests matching our /ws path.
+  // 🔐 SESSION VALIDATION (fail-closed): the app registers an authenticator via
+  // ws-auth-registry (globalThis bridge across bundle graphs). Unauthenticated
+  // upgrades get an HTTP 401 and the socket is destroyed — no WebSocket is ever
+  // established without a resolved session. In TEST_MODE the hooks.ws upgrade
+  // path still accepts the x-test-secret bypass.
+  server.on("upgrade", async (request, socket, head) => {
     if (!request.url?.startsWith(path)) {
       // Not our path — let other handlers (e.g. adapter) take over
       return;
     }
 
+    const authenticate = getWsAuthenticator();
+    let auth: WsAuthResult | null = null;
+    if (authenticate) {
+      try {
+        auth = await authenticate({
+          url: request.url,
+          headers: request.headers,
+        });
+      } catch (err) {
+        logger.warn("[YjsSync] Authenticator threw — rejecting upgrade:", err);
+      }
+    }
+
+    if (!auth) {
+      logger.info("[YjsSync] Rejected unauthenticated upgrade");
+      socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+
     wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit("connection", ws, request);
+      wss.emit("connection", ws, request, auth);
     });
   });
 
-  wss.on("connection", (ws: WebSocket, request) => {
-    // Parse docId and optional tenantId from query string
+  wss.on("connection", (ws: WebSocket, request: IncomingMessage, auth: WsAuthResult) => {
+    // Parse docId from query string. Tenant is AUTHORITATIVE from the resolved
+    // session — the client-supplied tenantId can never override it (the
+    // previously unauthenticated endpoint trusted `tenantId` query params).
     const url = new URL(request.url || "/", `http://${request.headers.host}`);
     const docId = url.searchParams.get("docId") || "default";
-    const tenantId = url.searchParams.get("tenantId") || undefined;
+    const requestedTenant = url.searchParams.get("tenantId") || undefined;
+    const tenantId = auth.tenantId || requestedTenant || undefined;
 
-    logger.info(`[YjsSync] Client connected: docId=${docId}, tenantId=${tenantId || "global"}`);
+    logger.info(
+      `[YjsSync] Client connected: docId=${docId}, tenantId=${tenantId || "global"}, userId=${auth.userId}`,
+    );
 
     const entry = getOrCreateDoc(docId, tenantId);
     entry.clients.add(ws);

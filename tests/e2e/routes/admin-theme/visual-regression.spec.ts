@@ -55,10 +55,7 @@ test.describe("Admin Theme Visual Regression", () => {
     await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     const shell = page.locator(".admin-theme-container").first();
     await expect(shell).toBeVisible({ timeout: 15_000 });
-    await expect(shell).toHaveScreenshot("dashboard.png", {
-      ...SCREENSHOT_OPTS,
-      mask: [page.locator('[data-testid="floating-chat"]')],
-    });
+    await expect(shell).toHaveScreenshot("dashboard.png", SCREENSHOT_OPTS);
   });
 
   test("config hub — AdminPageShell", async ({ page }) => {

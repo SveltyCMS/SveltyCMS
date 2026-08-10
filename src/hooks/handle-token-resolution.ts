@@ -8,6 +8,10 @@
  */
 
 import { processTokensInResponse } from "@src/services/token/helper";
+import {
+  applyFieldPermissionsToBody,
+  getCollectionFromPath,
+} from "@src/services/security/field-permission-service";
 import type { Handle } from "@sveltejs/kit";
 import { handleApiError } from "@utils/error-handling";
 
@@ -67,8 +71,19 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
       return response;
     }
 
-    const processed = await processTokensInResponse(
+    // 🔐 FIELD-LEVEL PERMISSIONS: strip fields the caller's role may not read
+    // (e.g. editor sees title/body but not internal_notes). Runs only when a
+    // FIELD_PERMISSIONS policy exists for this collection+role — otherwise the
+    // body passes through untouched with zero cost.
+    const fieldFiltered = applyFieldPermissionsToBody(
       body,
+      getCollectionFromPath(pathname),
+      (event.locals as any).user?.role,
+      (event.locals as any).isAdmin === true,
+    );
+
+    const processed = await processTokensInResponse(
+      fieldFiltered,
       event.locals.user || undefined,
       (event.locals as any).contentLanguage || "en",
       {

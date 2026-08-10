@@ -12,7 +12,7 @@
  */
 
 import { metricsService } from "@src/services/observability/metrics-service";
-import type { Handle } from "@sveltejs/kit";
+import type { Handle, HandleServerError } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 import { isRedirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
@@ -44,6 +44,28 @@ import { handleTurboGet, turboAuthCache } from "./hooks/handle-turbo-get";
 import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 import { getTestSecret } from "@utils/server/setup-check";
+import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-registry";
+
+// 🔐 /ws COLLABORATION AUTH: the standalone yjs-sync-server bundle cannot import
+// app internals, so it consults this registry (globalThis bridge) at upgrade
+// time. Reuses hooks.ws `upgrade()` — the same session pipeline as HTTP
+// (LRU→store→Redis→DB, negative cache, test-mode bypass). Fail-closed: a
+// missing/failing authenticator rejects the upgrade.
+registerWsAuthenticator(async (request) => {
+  try {
+    const { upgrade } = await import("./hooks.ws");
+    const result = await upgrade({
+      url: request.url,
+      headers: request.headers,
+      req: { headers: request.headers },
+    });
+    if (!result) return null;
+    return { userId: String(result.profile._id), tenantId: result.tenantId };
+  } catch (err) {
+    logger.warn("[WsAuth] Authenticator failed — rejecting upgrade:", err);
+    return null;
+  }
+});
 
 // 🚀 ZERO-RESTART ARCHITECTURE:
 // We track the setup state dynamically to allow the system to switch from
@@ -149,7 +171,6 @@ let handleSecurity: Handle = passThrough,
   handleRedirects: Handle = passThrough,
   handleSystemState: Handle = passThrough,
   handleTestIsolation: Handle = passThrough,
-  handleContentNegotiation: Handle = passThrough,
   handleAeoHeaders: Handle = passThrough;
 
 // ✨ ENTERPRISE: Lazy-loaded handle variables for dynamic mode switching
@@ -158,35 +179,53 @@ let fullMiddlewareInitialized = false;
 async function ensureFullMiddleware() {
   if (fullMiddlewareInitialized) return;
 
-  const security = await import("./hooks/handle-security");
+  // 🚀 PARALLEL LOADING: imports are independent — sequential awaits serialized
+  // hot-swap latency when setup completes (~80% faster than 15 chained awaits).
+  const [
+    security,
+    rateLimit,
+    preferences,
+    auth,
+    authz,
+    sdk,
+    content,
+    api,
+    audit,
+    token,
+    redirects,
+    state,
+    isolation,
+    aeo,
+  ] = await Promise.all([
+    import("./hooks/handle-security"),
+    import("./hooks/handle-rate-limit"),
+    import("./hooks/handle-user-preferences"),
+    import("./hooks/handle-authentication"),
+    import("./hooks/handle-authorization"),
+    import("./hooks/handle-local-sdk"),
+    import("./hooks/handle-content-initialization"),
+    import("./hooks/handle-api-requests"),
+    import("./hooks/handle-audit-logging"),
+    import("./hooks/handle-token-resolution"),
+    import("./hooks/handle-redirects"),
+    import("./hooks/handle-system-state"),
+    import("./hooks/handle-test-isolation"),
+    import("./hooks/handle-aeo-headers"),
+  ]);
+
   handleSecurity = security.handleSecurity;
-  const rateLimit = await import("./hooks/handle-rate-limit");
   handleRateLimit = rateLimit.handleRateLimit;
-  const preferences = await import("./hooks/handle-user-preferences");
   handleUserPreferences = preferences.handleUserPreferences;
-  const auth = await import("./hooks/handle-authentication");
   handleAuthentication = auth.handleAuthentication;
-  const authz = await import("./hooks/handle-authorization");
   handleAuthorization = authz.handleAuthorization;
-  const sdk = await import("./hooks/handle-local-sdk");
   handleLocalSdk = sdk.handleLocalSdk;
-  const content = await import("./hooks/handle-content-initialization");
   handleContentInitialization = content.handleContentInitialization;
-  const api = await import("./hooks/handle-api-requests");
   handleApiRequests = api.handleApiRequests;
-  const audit = await import("./hooks/handle-audit-logging");
   handleAuditLogging = audit.handleAuditLogging;
-  const token = await import("./hooks/handle-token-resolution");
   handleTokenResolution = token.handleTokenResolution;
-  const redirects = await import("./hooks/handle-redirects");
   handleRedirects = redirects.handleRedirects;
-  const state = await import("./hooks/handle-system-state");
   handleSystemState = state.handleSystemState;
-  const isolation = await import("./hooks/handle-test-isolation");
   handleTestIsolation = isolation.handleTestIsolation;
-  const contentNeg = await import("./hooks/handle-content-negotiation");
-  handleContentNegotiation = contentNeg.handleContentNegotiation;
-  const aeo = await import("./hooks/handle-aeo-headers");
   handleAeoHeaders = aeo.handleAeoHeaders;
 
   fullMiddlewareInitialized = true;
@@ -225,6 +264,15 @@ if (!building) {
 
         // ✨ Parallel Service Initialization (Optimized for Cold Start)
         const isBenchmarkMode = process.env.BENCHMARK === "true";
+
+        // 🧠 PRE-WARM heavy modules used lazily inside request hooks so the first
+        // request never pays a dynamic-import stall:
+        // - `graphql`            → handle-security's GraphQL complexity shield
+        // - settings-service     → turbo-pipeline CORS preflight (getCorsHeadersInline)
+        import("graphql")
+          .catch(() => {})
+          .then(() => import("@src/services/core/settings-service"))
+          .catch(() => {});
 
         if (!isBenchmarkMode) {
           Promise.all([
@@ -359,6 +407,17 @@ if (!building) {
           await new Promise((r) => setTimeout(r, 250));
         }
 
+        // 🚀 GRACEFUL WS SHUTDOWN: send `1001 Going Away` to every tracked
+        // connection so realtime clients can reconnect cleanly instead of
+        // hanging until the adapter force-kicks them.
+        try {
+          const { closeAllConnections } = await import("./hooks.ws");
+          const closed = closeAllConnections(1001, "Server shutting down");
+          if (closed > 0) logger.info(`Gracefully closed ${closed} WebSocket connection(s)`);
+        } catch (err) {
+          logger.debug("WS close skipped (hooks.ws not loaded):", err);
+        }
+
         // In Vite dev, process exit often closes the SSR module runner *before* this
         // dynamic import runs → "Vite module runner has been closed". Swallow that;
         // OS process exit still tears down sockets/DB handles.
@@ -454,8 +513,10 @@ function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
   // Resolve once at wrap time (pipeline build). Saves per-request function call overhead.
   const resolvedHandle = handleFnRef();
   if (!HOOK_TIMING_ENABLED) {
-    // Minimal wrapper: no timing/trace cost in hot prod path.
-    return async (input) => await resolvedHandle(input);
+    // Zero-overhead path: pass the resolved handle straight into sequence().
+    // An `async (input) => await resolvedHandle(input)` wrapper here adds one
+    // extra promise hop per hook per request (15 hooks = 15 microtask layers).
+    return resolvedHandle;
   }
   return async (input) => {
     const start = performance.now();
@@ -497,7 +558,6 @@ const getPipeline = () => {
         // bypassing handleAuthentication, handleAuthorization, and CSRF.
         wrapHandle("turbo-get", () => handleTurboGet),
         wrapHandle("redirects", () => handleRedirects),
-        wrapHandle("content-negotiation", () => handleContentNegotiation),
         wrapHandle("compression", () => handleCompression),
         wrapHandle("aeo-headers", () => handleAeoHeaders),
         wrapHandle("user-preferences", () => handleUserPreferences),
@@ -733,10 +793,10 @@ export const handle: Handle = async ({ event, resolve }) => {
  * Extracts structured codes from raise() calls via `__sveltyCode` in the error body.
  * Single source of truth for production error logging.
  */
-export const handleError = async ({ error, event, status }: any) => {
-  const body = (error as any)?.body;
+export const handleError: HandleServerError = async ({ error, event, status }) => {
+  const body = (error as { body?: { __sveltyCode?: string; message?: string } } | null)?.body;
   const code = body?.__sveltyCode || `HTTP_${status}`;
-  const message = body?.message || error?.message || String(error);
+  const message = body?.message || (error instanceof Error ? error.message : String(error ?? ""));
 
   logger.error(`[GlobalError] ${code} — ${message}`, {
     path: event?.url?.pathname,

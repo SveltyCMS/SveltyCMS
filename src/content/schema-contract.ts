@@ -21,6 +21,7 @@ import {
   minLength,
   number,
   optional,
+  pipe,
   record,
   safeParse,
   string,
@@ -62,10 +63,11 @@ export const FieldWidgetSchema = looseObject({
 export const CompiledSchemaShapeSchema = looseObject({
   _id: optional(string()),
   // Non-empty names only — guards against whitespace/empty collection names
-  // slipping through the compile pipeline. NOTE: array-syntax constraints only
-  // (no pipe/transform) — these schema objects travel inside content nodes
-  // that the layout deep-clones via structuredClone, which throws on functions.
-  name: optional(string([minLength(1)])),
+  // slipping through the compile pipeline. pipe() is required here: in valibot
+  // 1.4 the `string([...])` array form is parsed as an error message, so the
+  // constraint would be silently dropped (empty names would pass). The
+  // structuredClone targets are plain data payloads, not schema objects.
+  name: optional(pipe(string(), minLength(1))),
   icon: optional(string()),
   description: optional(string()),
   status: optional(string()),

@@ -75,7 +75,10 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
       } else {
         await connectWithRetry(ENGINE, async (uri) => {
           const result = await db!.connect(uri);
-          return { success: !!result?.success, message: result?.message };
+          return {
+            success: !!result?.success,
+            message: result && !result.success ? result.message : undefined,
+          };
         });
       }
       await (db as any).provision?.();
@@ -175,6 +178,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
       } as any,
     );
     expect(after.success).toBe(true);
+    if (!after.success) throw new Error("findOne after rollback failed");
     expect(after.data).toBeNull();
   });
 

@@ -367,7 +367,7 @@ describe("UCP Pipeline — End-to-End", () => {
       body: "",
       bodyBytes: new Uint8Array(100),
       headers: { "content-type": "image/png" },
-      error: null,
+      error: undefined,
     });
 
     const assets = [

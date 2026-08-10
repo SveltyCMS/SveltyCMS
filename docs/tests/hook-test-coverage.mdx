@@ -24,7 +24,6 @@ Complete test coverage for SvelteKit middleware hooks, the **Request Lane Router
 
 | Test Suite            | Coverage    | File                                             |
 | --------------------- | ----------- | ------------------------------------------------ |
-| Static Asset Caching  | ✅ Complete | `tests/unit/hooks/static-asset-caching.test.ts`  |
 | System State          | ✅ Complete | `tests/unit/hooks/system-state.test.ts`          |
 | System State Security | ✅ Complete | `tests/unit/hooks/system-state-security.test.ts` |
 | Setup                 | ✅ Complete | `tests/unit/hooks/setup.test.ts`                 |
@@ -158,36 +157,7 @@ roles: [{ name: "admin", isAdmin: true, permissions: [] }],
 
 ## Individual Hook Test Coverage
 
-### 1. handleStaticAssetCaching
-
-**Purpose**: Aggressive caching for static assets (1 year max-age)
-
-**Test Categories**:
-
-- ✅ Static Asset Detection (STATIC_ASSET_REGEX)
-- ✅ isStaticAsset() Function
-- ✅ Cache Header Application
-- ✅ Non-Static Asset Passthrough
-- ✅ Edge Cases (query params, hash fragments)
-
-**Key Tests**:
-
-```
-
-it("should match /\_app/ paths", () => {
-expect("/\_app/immutable/chunks/index.js").toMatch(STATIC_ASSET_REGEX);
-});
-
-it("should add aggressive cache headers for static assets", async () => {
-const event = createMockEvent("/\_app/immutable/chunks/index.js");
-const response = await handleStaticAssetCaching({ event, resolve: mockResolve });
-
-expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
-});
-
-```text
-
-### 2. handleSystemState
+### 1. handleSystemState
 
 **Purpose**: System state machine (IDLE, INITIALIZING, READY, DEGRADED, FAILED)
 
@@ -216,7 +186,7 @@ expect((err as Error).message).toContain("initializing");
 
 ```text
 
-### 3. handleSetup
+### 2. handleSetup
 
 **Purpose**: Setup wizard flow enforcement (3-step validation)
 
@@ -253,7 +223,7 @@ expect(response.status).toBe(200);
 
 ```text
 
-### 4. handleAuthentication
+### 3. handleAuthentication
 
 **Purpose**: Enterprise session management with 4-layer caching (turbo → LRU → Redis/store → DB)
 
@@ -299,7 +269,7 @@ expect(mockResolve).toHaveBeenCalled();
 
 ```text
 
-### 5. handleAuthorization
+### 4. handleAuthorization
 
 **Purpose**: Permission checks and role validation
 
@@ -340,7 +310,7 @@ expect(err).toBeDefined();
 
 ```text
 
-### 6. handleApiRequests
+### 5. handleApiRequests
 
 **Purpose**: API role-based access via the **Fail-Closed Dispatcher** and intelligent caching
 
@@ -378,7 +348,7 @@ expect(mockResolve).toHaveBeenCalled();
 
 ```text
 
-### 7. addSecurityHeaders
+### 6. addSecurityHeaders
 
 **Purpose**: HTTP security headers (CSP, HSTS, X-Frame-Options, etc.)
 
@@ -414,7 +384,7 @@ expect(hsts).toContain("max-age=31536000");
 
 ```text
 
-### 8. Token Resolution
+### 7. Token Resolution
 
 **Purpose**: Bearer token validation, resolution, and multi-tenant isolation
 
@@ -427,7 +397,7 @@ expect(hsts).toContain("max-age=31536000");
 
 ---
 
-### 9. CSP Headers
+### 8. CSP Headers
 
 **Purpose**: Content Security Policy enforcement to prevent XSS and data injection
 
@@ -440,7 +410,7 @@ expect(hsts).toContain("max-age=31536000");
 
 ---
 
-### 10. Defense-in-Depth
+### 9. Defense-in-Depth
 
 **Purpose**: Multi-layer security verification — middleware, dispatcher, handler, and page action enforcement
 
@@ -456,7 +426,7 @@ expect(hsts).toContain("max-age=31536000");
 
 ---
 
-### 11. Adversarial Testing
+### 10. Adversarial Testing
 
 **Purpose**: Fuzz testing and malicious input handling for all hook layers
 
@@ -471,7 +441,7 @@ expect(hsts).toContain("max-age=31536000");
 
 ---
 
-### 12. Authentication Sub-Suites
+### 11. Authentication Sub-Suites
 
 The following files test specific authentication mechanisms beyond the core handleAuthentication hook:
 
@@ -485,7 +455,7 @@ The following files test specific authentication mechanisms beyond the core hand
 
 ---
 
-### 13. System State Security
+### 12. System State Security
 
 **Purpose**: Security-specific system state checks — unauthorized access during init, degraded, and failed states
 
@@ -512,7 +482,6 @@ bun test tests/unit/hooks/
 
 ```
 
-bun run test:unit -- static-asset-caching
 bun run test:unit -- authentication
 bun run test:unit -- security-headers
 

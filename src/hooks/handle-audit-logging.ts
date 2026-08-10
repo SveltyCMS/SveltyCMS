@@ -29,6 +29,13 @@ function extractIpSafely(event: RequestEvent): string {
 }
 
 export const handleAuditLogging: Handle = async ({ event, resolve }) => {
+  // Cheapest exits first: path + method triage before any settings/env reads,
+  // so SSR page traffic (the majority) never touches the audit-flag machinery.
+  if (!event.url.pathname.startsWith("/api/")) return resolve(event);
+  const method = event.request.method;
+  const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(method);
+  if (!isMutation) return resolve(event);
+
   // Fast exit for benchmark and testing contexts
   if ((event.locals as any)?.__testBypass) return resolve(event);
 
@@ -38,13 +45,6 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
   if (syncFlags?.disabled) return resolve(event);
   const flags = syncFlags ?? (await getAuditFlags().catch(() => null));
   if (flags?.disabled) return resolve(event);
-
-  // Only audit API mutations
-  if (!event.url.pathname.startsWith("/api/")) return resolve(event);
-
-  const method = event.request.method;
-  const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(method);
-  if (!isMutation) return resolve(event);
 
   // Capture context BEFORE resolution for clean closure references
   const userId = (event.locals?.user as any)?._id ?? "anonymous";

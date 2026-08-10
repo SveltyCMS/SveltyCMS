@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    15 | 🟢     | +63%    | 0      |
+| **Core**       |     5 | 🟢     | +4%     | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,23 +62,13 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario                 | Latency | Trend                                    | Budget | Result |
-| ------------------------ | ------- | ---------------------------------------- | ------ | ------ |
-| **Database Performance** | 0.070ms | ⚪ stable at 0.043ms (±0.044ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.010ms | ⚪ stable at 0.010ms (±0.005ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.115ms | ⚪ stable at 0.094ms (±0.027ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.771ms | ⚪ stable at 0.682ms (±0.061ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.612ms | ⚪ stable at 0.558ms (±0.103ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.066ms | ⚪ stable at 0.055ms (±0.003ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.222ms | ⚪ stable at 0.194ms (±0.020ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.109ms | ⚪ stable at 0.085ms (±0.030ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.060ms | ⚪ stable at 0.051ms (±0.010ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.080ms | ⚪ stable at 0.076ms (±0.012ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.150ms | ⚪ stable at 0.143ms (±0.028ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.030ms | ⚪ stable at 0.032ms (±0.007ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.003ms | ⚪ stable at 0.002ms (±0.001ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.052ms | ⚪ stable at 0.054ms (±0.006ms) (7 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 1.500ms | ⚪ stable at 1.22ms (±0.523ms) (7 runs)  | < 5ms  | 🟢     |
+| Scenario       | Latency | Trend                                    | Budget | Result |
+| -------------- | ------- | ---------------------------------------- | ------ | ------ |
+| **Middleware** | 0.554ms | ⚪ stable at 0.561ms (±0.016ms) (7 runs) | < 5ms  | 🟢     |
+| **Middleware** | 0.288ms | ⚪ stable at 0.288ms (±0.009ms) (7 runs) | < 5ms  | 🟢     |
+| **Middleware** | 0.601ms | ⚪ stable at 0.604ms (±0.025ms) (7 runs) | < 5ms  | 🟢     |
+| **Middleware** | 0.564ms | ⚪ stable at 0.553ms (±0.050ms) (7 runs) | < 5ms  | 🟢     |
+| **Middleware** | 1.161ms | ⚪ stable at 1.12ms (±0.132ms) (7 runs)  | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -86,7 +76,7 @@ tags:
 
 | Metric                                               | Trend | Sparkline      | Latest     |
 | ---------------------------------------------------- | ----- | -------------- | ---------- |
-| api latency (HTTP: findById @ 8c) (warm)             | 🟢    | `▃▁▂█▃▃▂`      | 4.783ms    |
+| api latency (HTTP: findById @ 8c) (warm)             | 🟢    | `▃▁▂█▃▃▂▃▃`    | 5.345ms    |
 | auth performance (Auth Validation @ 1c) (warm)       | 🟢    | `▁`            | 1.608ms    |
 | cold start phased (Cold Start (IDLE → READY)) (cold) | 🟢    | `█▁`           | 1986.047ms |
 | database performance (BULK INSERT (100)) (warm)      | 🟢    | `█▁▂▁▁▁▁▁▂▄▄▃` | 1.500ms    |
@@ -103,29 +93,6 @@ xychart-beta
 ```
 
 </details>
-<details>
-<summary>📊 Regression severity matrix (quadrant)</summary>
-
-```mermaid
-quadrantChart
-  title "Regression severity (impact vs delta)"
-  x-axis Low latency impact --> High latency impact
-  y-axis Low delta --> High delta
-  quadrant-1 Monitor
-  quadrant-2 Investigate soon
-  quadrant-3 Acceptable variance
-  quadrant-4 Critical — fix first
-    Database Performance: [0.05, 0.95]
-    Database Performance: [0.08, 0.36]
-    Database Performance: [0.51, 0.21]
-    Database Performance: [0.41, 0.15]
-    Database Performance: [0.05, 0.32]
-    Database Performance: [0.15, 0.23]
-    Database Performance: [0.07, 0.45]
-    Database Performance: [0.05, 0.28]
-```
-
-</details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
@@ -138,37 +105,27 @@ quadrantChart
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-08-09)
+### Current Run Summary (2026-08-10)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `9c195735-a0b3-4e7d-adf3-8045a5ba403e` · **Tests invoked:** 1 · **Metrics:** 15 · **DB:** sqlite
+**Run ID:** `a4276724-b54e-4332-a68a-b018aaae71b4` · **Tests invoked:** 1 · **Metrics:** 5 · **DB:** sqlite
 
-| Test                 | Metric                 | Avg (ms) | p95 (ms) | RPS    | Trend | Detail                                   |
-| -------------------- | ---------------------- | -------- | -------- | ------ | ----- | ---------------------------------------- |
-| Database Performance | INSERT                 | 0.070    | 0.099    | 7762   | 🟢    | ⚪ stable at 0.043ms (±0.044ms) (7 runs) |
-| Database Performance | FIND ONE               | 0.010    | 0.014    | 93983  | 🟢    | ⚪ stable at 0.010ms (±0.005ms) (7 runs) |
-| Database Performance | FIND MANY (limit 50)   | 0.115    | 0.145    | 7757   | 🟢    | ⚪ stable at 0.094ms (±0.027ms) (7 runs) |
-| Database Performance | FIND PAGE (50 hasMore) | 0.771    | 0.874    | 1257   | 🟢    | ⚪ stable at 0.682ms (±0.061ms) (7 runs) |
-| Database Performance | FIND PAGE keyset       | 0.612    | 0.685    | 1572   | 🟢    | ⚪ stable at 0.558ms (±0.103ms) (7 runs) |
-| Database Performance | LIST+COUNT (legacy)    | 0.222    | 0.258    | 4206   | 🟢    | ⚪ stable at 0.194ms (±0.020ms) (7 runs) |
-| Database Performance | UPDATE                 | 0.109    | 0.135    | 7567   | 🟢    | ⚪ stable at 0.085ms (±0.030ms) (7 runs) |
-| Database Performance | UPDATE (no-returning)  | 0.060    | 0.073    | 12786  | 🟢    | ⚪ stable at 0.051ms (±0.010ms) (7 runs) |
-| Database Performance | NATIVE UPSERT          | 0.080    | 0.097    | 10335  | 🟢    | ⚪ stable at 0.076ms (±0.012ms) (7 runs) |
-| Database Performance | COUNT                  | 0.150    | 0.169    | 6227   | 🟢    | ⚪ stable at 0.143ms (±0.028ms) (7 runs) |
-| Database Performance | COUNT ESTIMATE         | 0.030    | 0.036    | 29971  | 🟢    | ⚪ stable at 0.032ms (±0.007ms) (7 runs) |
-| Database Performance | COUNT CACHED           | 0.003    | 0.006    | 258582 | 🟢    | ⚪ stable at 0.002ms (±0.001ms) (7 runs) |
-| Database Performance | DELETE                 | 0.052    | 0.067    | 14700  | 🟢    | ⚪ stable at 0.054ms (±0.006ms) (7 runs) |
-| Database Performance | BULK INSERT (100)      | 1.500    | 1.751    | 194    | 🟢    | ⚪ stable at 1.22ms (±0.523ms) (7 runs)  |
-| Database Performance | FIND MANY offset 50    | 0.066    | 0.081    | 13653  | ⚪    | ⚪ stable at 0.055ms (±0.003ms) (7 runs) |
+| Test              | Metric                        | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                   |
+| ----------------- | ----------------------------- | -------- | -------- | ---- | ----- | ---------------------------------------- |
+| Hooks Performance | Static Asset (No Middleware)  | 0.554    | 0.651    | 1641 | 🟢    | ⚪ stable at 0.561ms (±0.016ms) (7 runs) |
+| Hooks Performance | Turbo Pipeline (Light)        | 0.288    | 0.355    | 3226 | 🟢    | ⚪ stable at 0.288ms (±0.009ms) (7 runs) |
+| Hooks Performance | Full Security + Auth Pipeline | 0.601    | 0.776    | 1367 | 🟢    | ⚪ stable at 0.604ms (±0.025ms) (7 runs) |
+| Hooks Performance | REST with API Caching         | 0.564    | 0.736    | 1579 | 🟢    | ⚪ stable at 0.553ms (±0.050ms) (7 runs) |
+| Hooks Performance | Mutation + Audit Logging      | 1.161    | 1.542    | 756  | 🟢    | ⚪ stable at 1.12ms (±0.132ms) (7 runs)  |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-08-09)
+### Historical Trends (2026-08-10)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
@@ -178,18 +135,18 @@ quadrantChart
 
 | Metric                         | Trend | Sparkline (last 7) | Latest     |
 | ------------------------------ | ----- | ------------------ | ---------- |
-| API LATENCY (warm)             | 🟢    | `▄█▂█▂▆▁`          | 2.092ms    |
+| API LATENCY (warm)             | 🟢    | `▂▇▁█▁█▁`          | 2.294ms    |
 | AUTH PERFORMANCE (warm)        | 🟢    | `▁█`               | 6.045ms    |
 | COLD START PHASED (cold)       | 🟢    | `█▁`               | 1986.047ms |
 | DATABASE PERFORMANCE (warm)    | 🟢    | `█▂▁▁▁▁▁`          | 0.060ms    |
 | GRAPHQL API PERFORMANCE (warm) | 🟢    | `▆▁▇▇▄▅█`          | 5.032ms    |
 | GRAPHQL STRESS (warm)          | 🟢    | `█▁▂▄▁▅▇`          | 54.597ms   |
-| HOOKS PERFORMANCE (warm)       | 🟢    | `▁▁▃█▂▂▂`          | 0.755ms    |
 | LOCAL CMS CRUD (warm)          | 🟢    | `▅▁▅▁▁█▅`          | 0.151ms    |
 | SECURITY AUDIT (warm)          | 🟢    | `█▁▁▁▁▁`           | 0.000ms    |
 | TRUTH LATENCY (warm)           | 🟢    | `█▁▁`              | 0.001ms    |
 | WIDGET PERFORMANCE (warm)      | 🟢    | `▆▁█`              | 0.070ms    |
 | CACHE PERFORMANCE (warm)       | ⚪    | `▄▄▁▂█`            | 1.088ms    |
+| HOOKS PERFORMANCE (warm)       | ⚪    | `▃▁▄█▃▃▁`          | 0.288ms    |
 | REST API PERFORMANCE (warm)    | ⚪    | `▆█▁▇▇█▁`          | 1.115ms    |
 | TRANSACTION ACID (warm)        | ⚪    | `▆█▅▁`             | 0.297ms    |
 
@@ -324,7 +281,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:HOOKS_TRACE:START -->
 
 <details id="section-hooks_trace">
-<summary><strong>🏷️ Middleware & Hooks Performance</strong> · 🟢 0.780ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Middleware & Hooks Performance</strong> · 🟢 0.554ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -332,14 +289,14 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                           ║
 ║                    File: tests/benchmarks/hooks-performance.test.ts                     ║
-║                                Ran: 2026-08-09 22:11:42                                 ║
+║                                Ran: 2026-08-10 21:13:33                                 ║
 ║Measures the cost of the full middleware chain including Turbo, Security, Auth, and Audit via HTTP E2E.║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Static Asset (No Middleware)   │        0.780 ms │ p95:        0.955 ms │ RPS:      1,172 ║
-║ Turbo Pipeline (Light)         │        0.377 ms │ p95:        0.518 ms │ RPS:      2,399 ║
-║ Full Security + Auth Pipeline  │        0.980 ms │ p95:        1.510 ms │ RPS:        947 ║
-║ REST with API Caching          │        0.829 ms │ p95:        1.170 ms │ RPS:      1,112 ║
-║ Mutation + Audit Logging       │        2.095 ms │ p95:        3.013 ms │ RPS:        437 ║
+║ Static Asset (No Middleware)   │        0.554 ms │ p95:        0.651 ms │ RPS:      1,641 ║
+║ Turbo Pipeline (Light)         │        0.288 ms │ p95:        0.355 ms │ RPS:      3,226 ║
+║ Full Security + Auth Pipeline  │        0.601 ms │ p95:        0.776 ms │ RPS:      1,367 ║
+║ REST with API Caching          │        0.564 ms │ p95:        0.736 ms │ RPS:      1,579 ║
+║ Mutation + Audit Logging       │        1.161 ms │ p95:        1.542 ms │ RPS:        756 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -678,18 +635,9 @@ Throughput dropped 95% — check connection pool saturation or lock contention.
 
 <!-- SECTION:MIDDLEWARE:START -->
 <details id="section-middleware">
-<summary><strong>🏷️ Middleware</strong> · ⚪ 5.525ms · ↗️ 🔴 slower: 2.54ms → 5.53ms (+117%) (7 runs) (2026-08-08 06:48:30) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
-<!-- LEDGER_INSIGHT_START -->
-> [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 54% — check connection pool saturation or lock contention.  
-**Severe degradation** (+117%) — review recent commits immediately.
-<!-- LEDGER_INSIGHT_END -->
-
+<summary><strong>🏷️ Middleware</strong> · 🟢 1.161ms · ➡️ ⚪ stable at 1.12ms (±0.132ms) (7 runs) (2026-08-10 21:13:33) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 > ⏳ Pending
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>

@@ -132,8 +132,9 @@ describe("outboxService.emit", () => {
     );
 
     expect(result.success).toBe(true);
-    expect((result.data as OutboxEvent).eventType).toBe("entry:create");
-    expect((result.data as OutboxEvent).status).toBe("pending");
+    if (!result.success) throw new Error("emit failed");
+    expect(result.data.eventType).toBe("entry:create");
+    expect(result.data.status).toBe("pending");
 
     // Buffered emit returns immediately; the bulk flush persists asynchronously
     // on the coalescing timer (OUTBOX_BUFFER_FLUSH_MS = 25ms).

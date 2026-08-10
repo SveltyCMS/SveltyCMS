@@ -273,10 +273,13 @@ export async function prepareLoginForm(page: Page) {
           const signInIconRetry = page.getByTestId("signin-icon");
           if (await signInIconRetry.isVisible({ timeout: 5000 }).catch(() => false)) {
             await signInIconRetry.click({ force: true, timeout: 10000 });
+            // Let the form transition settle before checking for the email field.
+            // CI runners can be slow to render the animated form swap.
+            await page.waitForTimeout(500);
           }
 
           const retryField = page.getByTestId("signin-email");
-          if (await retryField.isVisible({ timeout: 5_000 }).catch(() => false)) {
+          if (await retryField.isVisible({ timeout: 10_000 }).catch(() => false)) {
             console.log("[Auth] ✓ Login form ready after auto-seeding");
             return;
           }

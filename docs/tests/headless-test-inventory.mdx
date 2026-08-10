@@ -142,7 +142,7 @@ Full control maps: [docs/tests/routes/webhooks.mdx](./routes/webhooks.mdx) · da
 1. **New API namespace** → unit RBAC row + integration happy + deny (not Playwright).
 2. **New admin config page** → `+page.server` unit + `*-api` unit + **one** golden E2E (copy webhooks).
 3. **Adapter change** → contract suite green on all four DBs.
-4. **Touch `src/live/` or collaboration** → import-boundary unit must stay green.
+4. **Touch `src/services/collaboration/` or collaboration UI** → import-boundary unit must stay green.
 5. **Touch session cookies** → session-cookies unit + session-page-load integration.
 
 Never: soft-skip control-map E2E for empty install · invent fixtures outside `tests/harness` · assert Mongo-only shapes in unit · add GraphQL browser E2E as a gate.

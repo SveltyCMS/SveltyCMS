@@ -725,8 +725,9 @@ Provides an organized interface for navigating hierarchical content structures.
 		</div>
 	{/if}
 
-	<!-- Tree -->
-	<div class="collections-list" role="tree" aria-label="Collection tree">
+	<!-- Tree: the TreeView component owns role="tree" (nesting trees is invalid ARIA).
+	     When empty/loading, children are not treeitems, so no tree role here either. -->
+	<div class="collections-list">
 		{#if treeNodes.length === 0}
 			{#if !isFullSidebar}
 				{#if !widgets.isLoaded}

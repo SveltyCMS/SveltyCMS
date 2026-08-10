@@ -16,7 +16,6 @@
     "dist/**",
     ".svelte-kit/**",
     "src/paraglide/**",
-    "src/live/$types.d.ts",
     ".compiledCollections/**",
     "coverage/**",
     "sbom.json"

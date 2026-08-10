@@ -97,7 +97,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 - **AI Bot Detection**: Proactive User-Agent fingerprinting blocks 28 known AI crawler/reconnaissance bot patterns in `src/hooks/handle-security.ts`.
 - **Expanded Honeypot Grid**: 45+ decoy routes (WordPress, Drupal, AWS metadata, config files) trigger IP blacklisting.
-- **Progressive Tarpit + Response Poisoning**: Randomized 5-15s delays + fake JSON payloads waste bot resources.
+- **Honeypot IP Flagging + Response Poisoning**: Immediate decoy 200 + IP flagging (no socket-holding tarpit) plus fake JSON payloads waste bot resources.
 
 - **Cross-Origin Isolation Headers**: `Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy`, `Cross-Origin-Resource-Policy` on all API responses in `src/hooks/handle-security-headers.ts`.
 - **Zero-Bias Token Generation**: `generateRandomToken` uses rejection sampling eliminating modulo bias in `src/databases/auth/constants.ts`.

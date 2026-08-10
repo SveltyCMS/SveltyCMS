@@ -254,7 +254,7 @@ test.describe("2FA enroll with fixture", () => {
     } else if (await manageBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
       // Already enabled — open manage and assert modal content
       await manageBtn.click();
-      await expect(page.locator(".modal-2fa").or(page.getByRole("dialog")).first()).toBeVisible({
+      await expect(page.locator(".modal-2fa").first()).toBeVisible({
         timeout: ACTION_TIMEOUT,
       });
       return;
@@ -264,14 +264,20 @@ test.describe("2FA enroll with fixture", () => {
       await twoFaBtn.first().click();
     }
 
-    const modal = page.locator(".modal-2fa").or(page.getByRole("dialog")).first();
+    // Use .modal-2fa only — page.getByRole("dialog") also matches cookie consent.
+    const modal = page.locator(".modal-2fa").first();
     await expect(modal).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    // Wait for setup secret (manual entry)
     const secretCode = modal.locator("code").first();
-    await expect(secretCode).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(secretCode).toBeVisible({ timeout: 40_000 });
+
     const secret = ((await secretCode.textContent()) || "").trim();
-    expect(secret.length).toBeGreaterThan(8);
+    if (secret.length <= 8) {
+      const modalHtml = await modal.innerHTML().catch(() => "(unreadable)");
+      throw new Error(
+        `2FA secret empty/short: "${secret}". Modal innerHTML: ${modalHtml.slice(0, 500)}`,
+      );
+    }
 
     const totp = await getCurrentTOTPCode(secret);
     const codeInput = modal.getByPlaceholder("000000").or(modal.locator('input[maxlength="6"]'));

@@ -24,11 +24,11 @@ The GraphQL API provides a powerful, flexible query language for accessing and m
 
 ## ⚡ Quick Reference
 
-| Feature                     | HTTP Endpoint                          | High-Performance Alternative                                                                |
-| :-------------------------- | :------------------------------------- | :------------------------------------------------------------------------------------------ |
-| **Queries / Mutations**     | `POST /api/graphql`                    | [**Local SDK QueryBuilder**](../../development/local-vs-http-api.mdx)                       |
-| **Real-Time Subscriptions** | `ws://[domain]/api/graphql` _(legacy)_ | `ws://[domain]/live` via `svelte-realtime` _(new)_ — [details](./graphql-subscriptions.mdx) |
-| **Playground**              | `/api/graphql` (GET)                   | N/A (Dev only)                                                                              |
+| Feature                 | HTTP Endpoint                   | High-Performance Alternative                                                                                        |
+| :---------------------- | :------------------------------ | :------------------------------------------------------------------------------------------------------------------ |
+| **Queries / Mutations** | `POST /api/graphql`             | [**Local SDK QueryBuilder**](../../development/local-vs-http-api.mdx)                                               |
+| **Real-Time Updates**   | `GET /api/content/events` (SSE) | Yjs collaboration (`/api/collaboration/yjs` + optional `ws://[domain]/ws`) — [details](./graphql-subscriptions.mdx) |
+| **Playground**          | `/api/graphql` (GET)            | N/A (Dev only)                                                                                                      |
 
 ---
 
@@ -111,13 +111,14 @@ The gateway enforces strict limits to prevent malicious queries:
 
 ---
 
-## Real-Time Subscriptions
+## Real-Time Updates
 
-### Legacy Endpoint (`ws://[domain]/api/graphql`)
+GraphQL over WebSocket subscriptions are **not shipped** in the current release. Live updates use adapter-node-compatible transports instead:
 
-The legacy subscription endpoint at `ws://[domain]/api/graphql` is still functional but deprecated. New deployments should use the unified `ws://[domain]/live` endpoint provided by `svelte-realtime`.
+- **SSE** — `GET /api/content/events` streams EventBus events (content updates, cache invalidation, settings changes) over plain HTTP.
+- **Yjs collaboration** — CRDT sync for concurrent editing via `collaboration-service` (SSE transport) and the optional WebSocket server at `ws://[domain]/ws` (`yjs-sync-server`).
 
-For real-time data, use the dedicated [GraphQL Subscriptions](./graphql-subscriptions.mdx) guide, which covers the secure WebSocket implementation and the migration details.
+See the [Real-Time Updates](./graphql-subscriptions.mdx) guide for client integration and server architecture.
 
 ---
 

@@ -17,7 +17,6 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
-import { getCorsHeaders } from "@utils/security/cors-utils";
 import {
   responseCache,
   buildUserResponseCacheKey,
@@ -354,21 +353,9 @@ export const _handler = async (event: RequestEvent) => {
 
   if (!namespace) return new Response("Not Found", { status: 404 });
 
-  // 🛡️ Global CORS Preflight handler
-  if (request.method.toUpperCase() === "OPTIONS") {
-    const origin = request.headers.get("Origin") || null;
-    const corsHeaders = getCorsHeaders(origin, true);
-    const responseHeaders: Record<string, string> = {};
-    if (corsHeaders) {
-      for (const [key, value] of Object.entries(corsHeaders)) {
-        if (value) responseHeaders[key] = value;
-      }
-    }
-    return new Response(null, {
-      status: 204,
-      headers: responseHeaders,
-    });
-  }
+  // Note: CORS OPTIONS preflight is handled by a SINGLE canonical path — the
+  // turbo-pipeline preflight exit — which runs before this dispatcher for every
+  // `/api/` request. No preflight logic lives here (or in any handler).
 
   // ── Cached imports for hot paths (avoids dynamic import on every request) ────
   let _getDatabaseResilience: any = null;

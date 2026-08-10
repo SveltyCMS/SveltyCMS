@@ -5,7 +5,7 @@
  */
 
 import * as Y from "yjs";
-import { Awareness } from "y-protocols/awareness";
+import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate } from "y-protocols/awareness";
 import { encodeYjsToBase64, decodeBase64ToYjs } from "@utils/tenant";
 import { browser } from "$app/environment";
 import { logger } from "@utils/logger";
@@ -88,14 +88,18 @@ export class SseProvider {
       this.status = "disconnected";
     };
 
-    // Listen specifically for Yjs sync events
+    // Listen specifically for Yjs sync + awareness events
     this.eventSource.addEventListener("message", (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.event === "yjs:sync" && data.docId === this.docId) {
-          if (data.origin === "server") {
-            Y.applyUpdate(this.doc, decodeBase64ToYjs(data.updateBase64), "server");
-          }
+        if (data.docId !== this.docId) return;
+        if (data.event === "yjs:sync" && data.origin === "server") {
+          Y.applyUpdate(this.doc, decodeBase64ToYjs(data.updateBase64), "server");
+        } else if (data.event === "yjs:awareness" && data.origin === "server") {
+          // 👥 Remote presence: applying with origin "server" makes the
+          // subsequent awareness "update" event carry origin "server", which
+          // handleAwarenessUpdate skips — no echo loop.
+          applyAwarenessUpdate(this.awareness, decodeBase64ToYjs(data.updateBase64), "server");
         }
       } catch {
         // Ignore malformed events
@@ -141,8 +145,15 @@ export class SseProvider {
 
   /**
    * GOTCHA #1 FIX: Aggressively throttle Awareness (Cursors)
+   * Local state changes are POSTed to the server, which broadcasts them to
+   * the other editors of the same document over SSE. Remote applications
+   * arrive with origin "server" and are never re-sent (no echo loop).
    */
-  private handleAwarenessUpdate = () => {
+  private handleAwarenessUpdate = (event: any) => {
+    if (event?.origin === "server") return; // echo of a remote broadcast
+
+    this.activeUsers = this.awareness.getStates().size;
+
     if (this.awarenessThrottleTimeout) return;
 
     this.awarenessThrottleTimeout = setTimeout(() => {
@@ -152,10 +163,27 @@ export class SseProvider {
   };
 
   private sendAwareness() {
-    // In a full implementation, we'd send awareness via a separate
-    // lightweight endpoint or the same Yjs endpoint.
-    // For now, we'll keep awareness local to prove the throttle.
-    this.activeUsers = this.awareness.getStates().size;
+    try {
+      // Encode every known client state — the local client is the only one
+      // mutating here, so this is effectively a single-client delta.
+      const update = encodeAwarenessUpdate(
+        this.awareness,
+        Array.from(this.awareness.getStates().keys()),
+      );
+      void fetch("/api/collaboration/yjs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          docId: this.docId,
+          updateBase64: encodeYjsToBase64(update),
+          awareness: true,
+        }),
+      }).catch((e) => {
+        logger.debug("[SseProvider] Awareness delivery failed", e);
+      });
+    } catch (e) {
+      logger.debug("[SseProvider] Awareness encode failed", e);
+    }
   }
 
   public destroy() {

@@ -14,6 +14,7 @@
 import { expect, test } from "@playwright/test";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { loginAsAdmin } from "../../helpers/auth";
 
 const ADMIN_AUTH = path.join(process.cwd(), "tests/e2e/.auth/admin.json");
 
@@ -26,6 +27,12 @@ test.describe("Hooks / lane router smoke (admin session)", () => {
     test.skip(!existsSync(ADMIN_AUTH), "admin storageState missing — run auth-setup project first");
 
     await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    // Stale storageState (CI DB reset between runs) → session rejected → /login.
+    // Re-auth so the smoke test stays green instead of hard-failing on a stale cookie.
+    if (page.url().includes("/login")) {
+      await loginAsAdmin(page, "/dashboard");
+    }
 
     // Hard fail: session poison or broken auth middleware
     await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });

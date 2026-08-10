@@ -322,7 +322,7 @@ SveltyCMS has adopted a **Four-Pillar Total Quality Assurance (TQA)** model to g
 | **throttling-backoff-stress**   | Measures rate-limiting consistency under 10x design load.                                       | Critical performance audit for Throttling.           | ~30s      |
 | **transaction-acid**            | Measures commit/rollback latency and transaction isolation performance.                         | Critical performance audit for ACID.                 | ~25s      |
 | **truth-latency**               | The definitive truth audit: SDK vs Dispatcher vs Real HTTP (Production Standalone).             | Critical performance audit for Truth Audit.          | ~15s      |
-| **websocket-broadcast**         | Measures svelte-realtime WebSocket stream broadcast latency and handshake timing.               | Critical performance audit for Real-Time Broadcast.  | ~20s      |
+| **sse-broadcast**               | Measures EventBus → SSE stream broadcast latency and handshake timing.                          | Critical performance audit for Real-Time Broadcast.  | ~20s      |
 | **widget-performance**          | Audits server-side processing cost of built-in widgets (Input, RichText, Relation).             | Critical performance audit for Widgets.              | ~25s      |
 
 ---

@@ -379,6 +379,17 @@ export async function handleSettingsRoutes(
     const result = await cms.system.settings.set(action || "all", body, {
       tenantId: tenantId as any,
     });
+
+    // 🚀 Invalidate the field-permission memo so a saved FIELD_PERMISSIONS
+    // policy takes effect immediately (no up-to-60s stale window).
+    try {
+      const { invalidateFieldPermissionCache } =
+        await import("@src/services/security/field-permission-service");
+      invalidateFieldPermissionCache();
+    } catch {
+      /* best effort */
+    }
+
     return successResponse(event, result);
   }
 

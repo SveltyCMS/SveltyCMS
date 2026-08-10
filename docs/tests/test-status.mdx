@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-08-06"
+updated: "2026-08-10"
 tags:
   - "testing"
   - "status"
@@ -22,18 +22,18 @@ tags:
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
 > This page is the **only** test-status dashboard — route maps, inventories, and deep strategy live in the linked docs below (no separate archive).
 
-**Dashboard updated:** 2026-08-06 — **Request Lane Router + response cache** (hooks O(1) classification, `x-svelty-lane`, turbo GET, GraphQL/REST user-scoped cache) + pyramid tests unit→integration→E2E smoke; prior hot areas (findPage/count cache, session/RBAC, ContentSync) still in force. Local SQLite integration last measured **617 pass / 0 fail** (with fixed hooks build).
+**Dashboard updated:** 2026-08-10 — **Hooks hardening** (field-level write guards, WS session resolution dedup, 18-hook READY pipeline, SSE + Yjs real-time stack with session-validated `/ws`, svelte-check 0 errors / 0 warnings) ; full unit suite **368 files / 3285 tests** green. Prior hot areas (lane router, findPage/count, session/RBAC) still in force. Local SQLite integration last measured **617 pass / 0 fail**.
 
 ---
 
 ## 1. Snapshot
 
-| Question                          | Answer                                                                                                                                                  |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Are the gates healthy?**        | Design A++: pre-commit (unit + `risk:audit`) → pre-push (build 4 adapters + tenant + SQLite integration) → CI multi-DB + E2E                            |
-| **Where to look first when red?** | Failing CI job name → matching **hot area** below or [route control map](./e2e-coverage-matrix.mdx)                                                     |
-| **Biggest recent win**            | **Lane router + turbo response cache** (classifier uses real `auth_sessions` cookie; hooks health/static fast-paths; test pyramid for lane attribution) |
-| **Biggest open risk (product)**   | Multi-tenant browser isolation (`MULTI_TENANT=true` env gate; E2E spec exists, needs dedicated CI job); E2E still CI-only (not pre-commit)              |
+| Question                          | Answer                                                                                                                                                                                                                              |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Are the gates healthy?**        | Design A++: pre-commit (unit + `risk:audit`) → pre-push (build 4 adapters + tenant + SQLite integration) → CI multi-DB + E2E                                                                                                        |
+| **Where to look first when red?** | Failing CI job name → matching **hot area** below or [route control map](./e2e-coverage-matrix.mdx)                                                                                                                                 |
+| **Biggest recent win**            | **Field write guards + real-time truth-pass** (schema-level `writeRoles` enforced with 403 + audit; WS sessions share the HTTP resolution pipeline; SSE+Yjs collaboration actually round-trips; svelte-realtime dead layer removed) |
+| **Biggest open risk (product)**   | Multi-tenant browser isolation (`MULTI_TENANT=true` env gate; E2E spec exists, needs dedicated CI job); E2E still CI-only (not pre-commit)                                                                                          |
 
 > [!TIP]
 > **Headless-first:** adapters + session + RBAC are P0. Admin E2E is golden-only. Full tier table: **[Headless-First Test Inventory](./headless-test-inventory.mdx)**.
@@ -42,19 +42,19 @@ tags:
 
 ## 2. Health by layer
 
-| Layer                       | Confidence    | What it proves                                                                                                 | How to run                                                              |
-| --------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| **Unit** (Vitest)           | **A++**       | ~355 files / **~3163 tests** — auth, lanes/turbo cache, CacheService, page gates, widgets, security            | `bun run test:unit` · coverage: `test:unit:coverage`                    |
-| **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth + full `risk:audit` (security-risk, secrets, slop, OSV) on pre-commit            | `bun run test:security` · `bun run risk:audit`                          |
-| **Integration** (black-box) | **A++**       | ~65 files / **~617 tests** SQLite local; multi-adapter matrix in CI; lane headers + session page-load canaries | `bun run test:integration` (SQLite) · `bun run test:matrix` (all 4 DBs) |
-| **E2E** (Playwright)        | **A++**       | ~44 specs — browser goldens / P0 journeys; hooks-lane smoke; CI-parity preview :4173                           | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`                 |
-| **Benchmarks**              | **Selective** | Perf matrix + lane-router attribution; full suite is long — not every PR                                       | See [benchmarks](../project/benchmarks/index.mdx)                       |
+| Layer                       | Confidence    | What it proves                                                                                                        | How to run                                                              |
+| --------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Unit** (Vitest)           | **A++**       | 368 files / **3285 tests** — auth, lanes/turbo cache, CacheService, page gates, widgets, security, field write guards | `bun run test:unit` · coverage: `test:unit:coverage`                    |
+| **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth + full `risk:audit` (security-risk, secrets, slop, OSV) on pre-commit                   | `bun run test:security` · `bun run risk:audit`                          |
+| **Integration** (black-box) | **A++**       | ~65 files / **~617 tests** SQLite local; multi-adapter matrix in CI; lane headers + session page-load canaries        | `bun run test:integration` (SQLite) · `bun run test:matrix` (all 4 DBs) |
+| **E2E** (Playwright)        | **A++**       | ~44 specs — browser goldens / P0 journeys; hooks-lane smoke; CI-parity preview :4173                                  | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`                 |
+| **Benchmarks**              | **Selective** | Perf matrix + lane-router attribution; full suite is long — not every PR                                              | See [benchmarks](../project/benchmarks/index.mdx)                       |
 
 ## 3. Testing tiers
 
 | Tier               | Command               | Time     | Coverage (approx., drifts — trust CI)                                   |
 | ------------------ | --------------------- | -------- | ----------------------------------------------------------------------- |
-| **Pre-commit**     | git commit / hooks    | ~40–60s  | Unit (~3163) + `risk:audit` + format/lint + SBOM when lock changes      |
+| **Pre-commit**     | git commit / hooks    | ~40–60s  | Unit (3285) + `risk:audit` + format/lint + SBOM when lock changes       |
 | **Pre-push**       | `bun run gate`        | ~5–8min  | Build 4 adapters + backdoor/bundle gates + tenant + SQLite integ (~617) |
 | **Pre-CI** (local) | `bun run test:matrix` | ~8–15min | All 4 DBs via Docker profiles                                           |
 | **CI**             | GitHub Actions        | ~30min   | Whitebox + build + db-tests matrix + E2E + benchmarks                   |
@@ -81,6 +81,18 @@ Details: [git-workflow.mdx](./git-workflow.mdx)
 ---
 
 ## 3. Hot areas (recent)
+
+### Hooks hardening — field write guards, session dedup, real-time (2026-08-10)
+
+|                 |                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**      | **Shipped** — field-level write guards wired into the mutation path; WS session resolution deduped onto the HTTP pipeline; 18-hook READY pipeline; real-time stack is SSE + Yjs; full unit suite green (**366 files / 3302 tests**)                                                                                                                                                                       |
+| **Product**     | `assertWriteAllowed` / `hasGuardedFields` / `getCollectionFields` (30s schema memo) in `handle-api-requests` — 403 + `UNAUTHORIZED_ACCESS` audit for guarded-field writes; `resolveSessionForWebSocket` shares the HTTP session pipeline (LRU→store→Redis→DB, negative cache, single-flight); `yjs:sync` SSE bridge makes multi-editor updates round-trip; `/ws` upgrades session-validated (fail-closed) |
+| **Unit**        | `tests/unit/services/field-write-guard.test.ts` (15) · `field-permission-service.test.ts` (19) · `tests/unit/live/client-import-boundary.test.ts` (2) · hooks/auth/security suites (615)                                                                                                                                                                                                                  |
+| **Integration** | `tests/integration/api/rtc.test.ts` (SSE `/api/events` happy + 401)                                                                                                                                                                                                                                                                                                                                       |
+| **Bench**       | `tests/benchmarks/hooks-performance.test.ts` — full auth pipeline **0.612 ± 0.010 ms** (3-run mean, ~1,363 RPS) vs 0.856 ms July baseline (~29% faster); post-tweak re-run within noise                                                                                                                                                                                                                   |
+| **Docs**        | [field-level-access-control](../reference/security/field-level-access-control.mdx) · [collaborative-editing](../reference/architecture/collaborative-editing.mdx) · [real-time updates](../reference/api/graphql-subscriptions.mdx) · [server-hooks](../reference/architecture/server-hooks.mdx)                                                                                                          |
+| **Open**        | GraphQL mutations bypass the field write-guard (documented boundary)                                                                                                                                                                                                                                                                                                                                      |
 
 ### Request Lane Router + response cache (2026-08-06)
 
@@ -124,7 +136,7 @@ Details: [git-workflow.mdx](./git-workflow.mdx)
 | **Product**     | Device policy (`single-per-device` / `single-per-user` / `allow-multiple`), `SESSION_TTL_HOURS`, `SESSION_IDLE_HOURS`, block propagation purge, credential-free session snapshots, log-only IP/UA anomaly detection, `SESSION_MAX_PER_USER` LRU cap, step-up re-auth for cross-session revoke, admin session console API |
 | **Unit**        | `tests/unit/auth/auth-lockout.test.ts` (device policy, TTL, max sessions) · `tests/unit/auth/session-user.test.ts` (snapshot stripping, store hygiene, anomaly evaluation) · `tests/unit/hooks/authentication.test.ts` (stripping, warm-cache, anomaly) · `tests/unit/api/user.test.ts` (reauth proof, admin console)    |
 | **Integration** | Covered by existing auth integration suites (session create/revoke/rotate)                                                                                                                                                                                                                                               |
-| **Bench**       | `tests/benchmarks/hooks-performance.test.ts` — full auth pipeline **0.881 ms avg** (7 runs, 🟢 stable) vs 0.856 ms July baseline                                                                                                                                                                                         |
+| **Bench**       | `tests/benchmarks/hooks-performance.test.ts` — full auth pipeline **0.612 ± 0.010 ms** (3-run mean, ~1,363 RPS) vs 0.856 ms July baseline (~29% faster)                                                                                                                                                                  |
 | **Docs**        | [login-security](../reference/security/login-security.mdx) · [cache-system](../reference/architecture/cache-system.mdx) · [hook-test-coverage](./hook-test-coverage.mdx) · [roadmap](../project/roadmap-2026.mdx)                                                                                                        |
 | **Open**        | Admin session console **UI** (Access Management); browser golden for revoke flow; anomaly → alerting integration                                                                                                                                                                                                         |
 
@@ -303,23 +315,25 @@ Deeper inventories: [headless-test-inventory](./headless-test-inventory.mdx) · 
 
 Only **open** product/test risks. Closed items stay in route docs / ADR changelog — not duplicated here.
 
-| Gap                                           | Priority  | Why it matters                                                                                                                                                      |
-| --------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Multi-DB contract without asterisks**       | 🟠 High   | Headless ship gate — all adapters must match contract suite                                                                                                         |
-| **Lane TURBO-HIT live warm path**             | 🟢 Lower  | Unit covers TURBO-HIT; full HTTP warm turbo-auth seed in integration optional                                                                                       |
-| **Multi-tenant browser isolation**            | 🟡 Medium | E2E spec exists (`isolation.spec.ts`), gated behind `MULTI_TENANT=true` env                                                                                         |
-| **Session vs DB identity after wizard reset** | 🟡 Medium | Phase-1 wizard can race firstuser; profile has email fallback — harden setup order                                                                                  |
-| **Redirects/queue remotes (no REST)**         | ✅ Closed | Remote admin + **redirectsMV primary** + unit; queue-actions                                                                                                        |
-| **Config residual goldens (access/auto/wf)**  | ✅ Closed | Local focused chromium 16/16 (2026-07-19) after product fixes                                                                                                       |
-| **Data operations deep E2E**                  | 🟢 Lower  | Sync/trash shells covered; migration wizard still plugin-gated                                                                                                      |
-| **Cache L2 (Redis) integration**              | ✅ Closed | **L2 contract suite** (`cache-service-l2-contract.test.ts`) — FakeRedis always-on + real Redis via `TEST_REDIS_URL`; fixed untagged delete propagation to remote L1 |
-| **GraphQL browser E2E**                       | ❌ Skip   | Integration only — do not add browser GraphQL as a gate                                                                                                             |
-| **SSO/OAuth real IdP**                        | 🟡 Medium | OIDC login/JWKS code landed; still mock/no live IdP in CI; PKCE + login UI open                                                                                     |
-| **List UI full findPage adoption**            | 🟡 Medium | Service/adapters ready; users/media saved views + more goldens still thin                                                                                           |
-| **Marketplace install path**                  | 🟢 Lower  | Browse/catalog in-app; one-click install still incomplete                                                                                                           |
-| **Session revoke browser golden**             | 🟢 Lower  | Re-auth proof + admin console API unit-covered; E2E golden when Access Mgmt UI ships                                                                                |
-| **Builder E2E sprawl**                        | ✅ Closed | Consolidated to shell + golden; 8 specs removed                                                                                                                     |
-| Plugin deep E2E, breadcrumb media drag-move   | 🟢 Low    | Optional polish                                                                                                                                                     |
+| Gap                                           | Priority  | Why it matters                                                                                                                                                                                                                                  |
+| --------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Multi-DB contract without asterisks**       | 🟠 High   | Headless ship gate — all adapters must match contract suite                                                                                                                                                                                     |
+| **Lane TURBO-HIT live warm path**             | 🟢 Lower  | Unit covers TURBO-HIT; full HTTP warm turbo-auth seed in integration optional                                                                                                                                                                   |
+| **Multi-tenant browser isolation**            | 🟡 Medium | E2E spec exists (`isolation.spec.ts`), gated behind `MULTI_TENANT=true` env                                                                                                                                                                     |
+| **Session vs DB identity after wizard reset** | 🟡 Medium | Phase-1 wizard can race firstuser; profile has email fallback — harden setup order                                                                                                                                                              |
+| **Redirects/queue remotes (no REST)**         | ✅ Closed | Remote admin + **redirectsMV primary** + unit; queue-actions                                                                                                                                                                                    |
+| **Config residual goldens (access/auto/wf)**  | ✅ Closed | Local focused chromium 16/16 (2026-07-19) after product fixes                                                                                                                                                                                   |
+| **Data operations deep E2E**                  | 🟢 Lower  | Sync/trash shells covered; migration wizard still plugin-gated                                                                                                                                                                                  |
+| **Cache L2 (Redis) integration**              | ✅ Closed | **L2 contract suite** (`cache-service-l2-contract.test.ts`) — FakeRedis always-on + real Redis via `TEST_REDIS_URL`; fixed untagged delete propagation to remote L1                                                                             |
+| **GraphQL browser E2E**                       | ❌ Skip   | Integration only — do not add browser GraphQL as a gate                                                                                                                                                                                         |
+| **SSO/OAuth real IdP**                        | 🟡 Medium | OIDC login/JWKS code landed; still mock/no live IdP in CI; PKCE + login UI open                                                                                                                                                                 |
+| **List UI full findPage adoption**            | 🟡 Medium | Service/adapters ready; users/media saved views + more goldens still thin                                                                                                                                                                       |
+| **Marketplace install path**                  | 🟢 Lower  | Browse/catalog in-app; one-click install still incomplete                                                                                                                                                                                       |
+| **Session revoke browser golden**             | 🟢 Lower  | Re-auth proof + admin console API unit-covered; E2E golden when Access Mgmt UI ships                                                                                                                                                            |
+| **`/ws` collaboration auth**                  | ✅ Closed | `/ws` upgrades session-validated via `ws-auth-registry` → `hooks.ws upgrade()` (same pipeline as HTTP); fail-closed 401; session-authoritative tenant keying                                                                                    |
+| **Awareness over SSE**                        | ✅ Closed | Awareness POSTs to `/api/collaboration/yjs` (`awareness: true`) → `yjsService` applies + broadcasts `yjs:awareness` over SSE; client applies remote state with `origin: "server"` (no echo loop); `yjs-awareness.test.ts` covers the round-trip |
+| **Builder E2E sprawl**                        | ✅ Closed | Consolidated to shell + golden; 8 specs removed                                                                                                                                                                                                 |
+| Plugin deep E2E, breadcrumb media drag-move   | 🟢 Low    | Optional polish                                                                                                                                                                                                                                 |
 
 ---
 
@@ -341,6 +355,9 @@ bun run test:unit
 bun run test:unit -- tests/unit/core/request-classifier-and-response-cache.test.ts tests/unit/hooks/handle-turbo-get-lane.test.ts
 # After build: lane HTTP headers
 bun run scripts/run-integration.ts --no-build tests/integration/api/request-lane-headers.test.ts
+
+# Field write guards + field permissions (2026-08-10)
+bun run test:unit -- tests/unit/services/field-write-guard.test.ts tests/unit/services/field-permission-service.test.ts
 
 # Ultra-smart unit slice (auth, boundary, queue/redirects remotes)
 bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/client-import-boundary.test.ts tests/unit/api/testing-login-cookie-contract.test.ts tests/unit/utils/page-guards.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts tests/unit/routes/queue-remote-admin.test.ts tests/unit/routes/queue-actions.server.test.ts tests/unit/routes/redirects-remote-admin.test.ts tests/unit/api/namespace-ownership.test.ts

@@ -156,18 +156,53 @@ test.describe("Unified Data Hub — Postgres fixture", () => {
   });
 
   test("hub workspace shows seeded virtual collection", async ({ page, request }) => {
-    await requireHubSeed(request, 5);
+    const seedResult = await requireHubSeed(request, 5);
+    // If the Postgres fixture is unavailable, requireHubSeed skips — return early.
+    if (!seedResult) return;
+
     try {
       await enablePlugin(page, "unified-data-hub", true);
     } catch {
       /* */
     }
 
-    await page.goto("/config?plugin=unified-data-hub");
+    // Brief pause to allow the plugin state cache (30s TTL in the plugin API
+    // dispatcher) to pick up the freshly toggled state before the page loads.
+    await page.waitForTimeout(1_000);
+
+    // First load — networkidle waits for the Svelte component to hydrate and
+    // its fetch() calls (listConnectors, listVirtualCollections) to settle.
+    await page.goto("/config?plugin=unified-data-hub", {
+      waitUntil: "networkidle",
+      timeout: 30_000,
+    });
     await expect(page.getByRole("heading", { name: /unified data hub/i })).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.getByText("Bench Articles")).toBeVisible({ timeout: 15_000 });
+
+    // The seeded virtual collection may need a page reload if the plugin
+    // reconcile hasn't picked up the newly created connector/schema rows yet.
+    // Poll with reloads until the list renders "Bench Articles".
+    await expect
+      .poll(
+        async () => {
+          const visible = await page
+            .getByText("Bench Articles")
+            .first()
+            .isVisible()
+            .catch(() => false);
+          if (!visible) {
+            await page.reload({ waitUntil: "networkidle", timeout: 20_000 });
+          }
+          return visible;
+        },
+        {
+          timeout: 40_000,
+          intervals: [3_000, 5_000, 5_000],
+          message: "UDH seeded virtual collection never appeared",
+        },
+      )
+      .toBe(true);
     await expect(page.getByText("bench-articles")).toBeVisible();
   });
 

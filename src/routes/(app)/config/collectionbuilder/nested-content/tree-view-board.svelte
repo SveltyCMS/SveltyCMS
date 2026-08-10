@@ -1072,15 +1072,21 @@ const flipDurationMs = 200;
 	</div>
 </div>
 
-<!-- Tree View -->
-<div
-	class="collection-builder-tree dnd-tree relative w-full h-auto overflow-y-auto rounded p-2"
-	class:dnd-active={dndState.isDragging}
-	onkeydown={handleTreeKeyDown}
-	role="tree"
-	tabindex="0"
-	aria-label="Collection hierarchy. Use arrow keys to navigate, Space to expand/collapse, Home/End for first/last item, letters to jump to items."
->
+	<!-- Tree View: only claim role="tree" when treeitems exist; empty state
+		     is not a valid ARIA tree (missing required treeitem children).
+		     tabindex must follow role — a noninteractive div cannot be focusable. -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -- role is only 'tree'
+	     (a focusable interactive role) when treeitems exist; an empty tree must
+	     not be focusable or claim an ARIA role without required children. The
+	     static analyzer cannot see that tabindex is gated on the same condition. -->
+	<div
+		class="collection-builder-tree dnd-tree relative w-full h-auto overflow-y-auto rounded p-2"
+		class:dnd-active={dndState.isDragging}
+		onkeydown={handleTreeKeyDown}
+		role={treeRoots.length > 0 ? 'tree' : undefined}
+		tabindex={treeRoots.length > 0 ? 0 : undefined}
+		aria-label="Collection hierarchy. Use arrow keys to navigate, Space to expand/collapse, Home/End for first/last item, letters to jump to items."
+	>
 	{#if treeRoots.length === 0}
 		<div class="text-center p-8 text-surface-500">
 			<iconify-icon icon={searchText ? 'mdi:magnify-close' : 'mdi:folder-outline'} width="48" class="opacity-50 mb-2" aria-hidden="true"

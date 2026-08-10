@@ -498,43 +498,6 @@ pm2 list
 
 ## 4. Middleware Optimization
 
-### Remove Redundant Static Middleware
-
-Since Nginx now handles static assets, you can optionally remove `handleStaticAssetCaching` from your middleware sequence.
-
-**File**: `src/hooks.server.ts`
-
-```
-// Before (with static middleware)
-export const handle: Handle = sequence(
-  handleStaticAssetCaching, // ← Remove this (Nginx handles it)
-  handleSystemState,
-  handleRateLimit,
-  handleFirewall,
-  // ... rest of middleware
-);
-
-// After (optimized for Nginx)
-export const handle: Handle = sequence(
-  handleSystemState,
-  handleRateLimit,
-  handleFirewall,
-  handleSetup,
-  handleLocale,
-  handleTheme,
-  handleAuthentication,
-  handleAuthorization,
-  addSecurityHeaders,
-);
-```
-
-**Benefits**:
-
-- Faster application startup
-- Lower memory usage
-- Reduced CPU overhead
-- Simplified middleware stack
-
 ### Session Cache TTL Optimization
 
 For high-traffic production, increase session cache TTL to reduce database queries.

@@ -24,9 +24,10 @@ import {
   getDbType,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
+import type { DatabaseId } from "@src/content/types";
 
 const COLLECTION = "BenchmarkStable";
-const TENANT = "global";
+const TENANT = "global" as unknown as DatabaseId;
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -92,7 +93,7 @@ async function runLocalCmsCrudBenchmark() {
     // Fallback: adapter insert if SDK create fails (schema edge)
     await db.crud.insert(
       COLLECTION,
-      { _id: seedId, title: "seed", count: 0, tenantId: TENANT },
+      { _id: seedId as unknown as DatabaseId, title: "seed", count: 0, tenantId: TENANT } as any,
       { tenantId: TENANT },
     );
   }
@@ -117,7 +118,11 @@ async function runLocalCmsCrudBenchmark() {
     trimOutliers: "iqr",
     silent: true,
     onIteration: async () => {
-      const res = await db.crud.findOne(COLLECTION, { _id: seedId }, { tenantId: TENANT });
+      const res = await db.crud.findOne(
+        COLLECTION,
+        { _id: seedId as unknown as DatabaseId },
+        { tenantId: TENANT },
+      );
       if (!res?.success) throw new Error("adapter findOne failed");
     },
   });

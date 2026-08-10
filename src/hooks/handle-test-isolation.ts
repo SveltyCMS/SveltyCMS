@@ -28,6 +28,12 @@ export const handleTestIsolation: Handle = async ({ event, resolve }) => {
   const testSecret = request.headers.get("x-test-secret");
 
   if (workerIndex) {
+    // Validate numeric format before use — malformed values must not reach DB init.
+    if (!/^\d+$/.test(workerIndex)) {
+      logger.warn(`[TestIsolation] Invalid worker index format: ${workerIndex}`);
+      return resolve(event); // Proceed without isolation
+    }
+
     let clientAddress = "";
     try {
       clientAddress = event.getClientAddress?.() || "";
@@ -56,10 +62,25 @@ export const handleTestIsolation: Handle = async ({ event, resolve }) => {
       try {
         const { dbAdapter } = await import("@src/databases/db");
         if (dbAdapter && (dbAdapter as any).initWorkerConnection) {
-          await (dbAdapter as any).initWorkerConnection(workerIndex);
+          // ⏱️ Timeout guard: a hung DB connection must not hang the request.
+          await Promise.race([
+            (dbAdapter as any).initWorkerConnection(workerIndex),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("initWorkerConnection timeout (10s)")), 10_000),
+            ),
+          ]);
         }
       } catch (err: any) {
+        // 🚨 FAIL-CLOSED: without worker isolation, concurrent test workers could
+        // mutate shared DB state. Reject the request instead of running bare.
         logger.error(`[TestIsolation] Failed to init worker ${workerIndex}: ${err.message}`);
+        return new Response(
+          JSON.stringify({ error: "Test worker isolation failed", worker: workerIndex }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
       }
       return await resolve(event);
     });

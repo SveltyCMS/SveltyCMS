@@ -23,17 +23,14 @@ export const handleAeoHeaders: Handle = async ({ event, resolve }) => {
 
   const newHeaders = new Headers(response.headers);
 
-  // Let AI crawlers know this page is indexable for answers
-  if (response.headers.get("content-type")?.includes("text/html")) {
-    // Ensure Vary header includes Accept for content negotiation
-    const vary = newHeaders.get("Vary") || "";
-    if (!vary.includes("Accept")) {
-      newHeaders.set("Vary", vary ? `${vary}, Accept` : "Accept");
-    }
-
-    // Signal to answer engines that this content is well-structured
-    newHeaders.set("X-AEO-Enabled", "true");
+  // Ensure Vary header includes Accept for content negotiation
+  const vary = newHeaders.get("Vary") || "";
+  if (!vary.includes("Accept")) {
+    newHeaders.set("Vary", vary ? `${vary}, Accept` : "Accept");
   }
+
+  // Signal to answer engines that this content is well-structured
+  newHeaders.set("X-AEO-Enabled", "true");
 
   return new Response(response.body, {
     status: response.status,

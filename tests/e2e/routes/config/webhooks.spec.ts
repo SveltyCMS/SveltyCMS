@@ -47,8 +47,8 @@ test.describe("Webhooks (Testing 2026 reference)", () => {
   });
 
   /**
-   * Golden journey — sole mutation proof.
-   * Create → visible in list → reload persists → delete via confirm.
+   * Golden journey — create via UI, verify persistence across page navigation, delete via UI.
+   * Mirrors automations golden pattern: goto (not reload) + waitForLoadingGone + list testid.
    */
   test("golden: create → list → reload → delete", async ({ page }) => {
     await goWebhooks(page);
@@ -57,6 +57,7 @@ test.describe("Webhooks (Testing 2026 reference)", () => {
     const name = `E2E Golden ${stamp}`;
     const url = `https://example.com/e2e-golden/${stamp}`;
 
+    // --- Create ---
     await page.getByTestId("webhooks-add").click();
     await expect(page.getByTestId("webhooks-modal")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
@@ -68,24 +69,28 @@ test.describe("Webhooks (Testing 2026 reference)", () => {
     await page.getByTestId("webhook-url").fill(url);
     await page.getByTestId("webhook-save").click();
 
+    // Modal must close and webhook appear in list (API confirmed the save)
     await expect(page.getByTestId("webhooks-modal")).toHaveCount(0, {
       timeout: ACTION_TIMEOUT,
     });
-    await expect(page.getByText(name).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(page.locator(`[data-webhook-name="${name}"]`)).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
 
-    // Polling reload: SQLite WAL may not flush before the first read
-    await expect(async () => {
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.getByTestId("webhooks-loading")).toHaveCount(0, {
-        timeout: 10_000,
-      });
-      await expect(page.getByText(name).first()).toBeVisible({ timeout: 10_000 });
-    }).toPass({ timeout: 25_000 });
+    // --- Reload (navigate fresh, not page.reload) ---
+    await page.goto("/config/webhooks", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await waitForLoadingGone(page, "webhooks-loading", ACTION_TIMEOUT);
+    await expect(page.getByTestId("webhooks-list")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
+    // --- Verify persistence ---
     const card = page.locator(`[data-webhook-name="${name}"]`);
     await expect(card).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // --- Delete ---
     await card.getByTestId("webhook-delete").click();
     await confirmModal(page);
-    await expect(page.getByText(name)).toHaveCount(0, { timeout: ACTION_TIMEOUT });
+    await expect(page.locator(`[data-webhook-name="${name}"]`)).toHaveCount(0, {
+      timeout: ACTION_TIMEOUT,
+    });
   });
 });

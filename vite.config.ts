@@ -1020,6 +1020,6 @@ export default defineConfig(() => {
       entries: ["!tests/**/*", "!**/*.server.ts", "!**/*.server.js"],
     },
     lint: { ignorePatterns: [], env: { builtin: true } },
-    fmt: { ignorePatterns: ["src/live/$types.d.ts"] },
+    fmt: { ignorePatterns: [] },
   };
 });

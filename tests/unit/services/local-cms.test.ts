@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { LocalCMS } from "@src/services/sdk";
+import type { DatabaseId } from "@src/content/types";
 
 describe("LocalCMS - Server-Side SDK Bridge", () => {
   let mockAdapter: any;
@@ -97,8 +98,8 @@ describe("LocalCMS - Server-Side SDK Bridge", () => {
     };
 
     const sdk = new LocalCMS(mockAdapter, contentMock);
-    const result = await sdk.collections.findById("posts", "e1", {
-      tenantId: "global",
+    const result = await sdk.collections.findById("posts", "e1" as unknown as DatabaseId, {
+      tenantId: "global" as unknown as DatabaseId,
       bypassCache: true,
     });
 
@@ -131,7 +132,11 @@ describe("LocalCMS - Server-Side SDK Bridge", () => {
     const result = await sdk.collections.create(
       "posts",
       { title: "New" },
-      { user: { _id: "u1", role: "admin" }, tenantId: "global", system: false },
+      {
+        user: { _id: "u1" as unknown as DatabaseId, role: "admin" },
+        tenantId: "global" as unknown as DatabaseId,
+        system: false,
+      },
     );
 
     expect(result.success).toBe(true);

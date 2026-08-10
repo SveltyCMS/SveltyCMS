@@ -132,7 +132,7 @@
     "upgrade": "npx tsx scripts/upgrade.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1106.0",
+    "@aws-sdk/client-s3": "^3.1107.0",
     "@better-svelte-email/components": "^2.1.1",
     "@better-svelte-email/preview": "^2.1.1",
     "@better-svelte-email/server": "^2.1.1",
@@ -182,7 +182,7 @@
     "iconify-icon": "^3.0.2",
     "json-render-svelte": "^0.6.1",
     "lru-cache": "^11.5.2",
-    "maplibre-gl": "^6.2.0",
+    "maplibre-gl": "^6.3.0",
     "mime-types": "^3.0.2",
     "node-os-utils": "^2.0.4",
     "nodemailer": "^9.0.5",
@@ -235,8 +235,8 @@
     "jsdom": "30.0.1",
     "lint-staged": "^17.3.0",
     "mysql2": "^3.16.1",
-    "oxfmt": "^0.62.0",
-    "oxlint": "^1.77.0",
+    "oxfmt": "^0.63.0",
+    "oxlint": "^1.78.0",
     "playwright": "^1.62.1",
     "postgres": "^3.4.8",
     "svelte": "^5.56.8",
@@ -250,7 +250,7 @@
     "wait-on": "9.1.0"
   },
   "optionalDependencies": {
-    "mongoose": "^9.9.1",
+    "mongoose": "^9.9.2",
     "mysql2": "^3.23.3",
     "postgres": "^3.4.9"
   },

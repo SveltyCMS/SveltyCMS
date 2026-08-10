@@ -18,7 +18,6 @@ This layout provides the administrative shell, including sidebars and header con
 -->
 
 <script lang="ts">
-import FloatingChat from "@src/components/collaboration/floating-chat.svelte";
 import FloatingNav from "@src/components/system/floating-nav.svelte";
 import HeaderEdit from "@src/components/header-edit.svelte";
 import LeftSidebar from "@src/components/left-sidebar.svelte";
@@ -543,12 +542,6 @@ afterNavigate(() => {
 		{#if screen.isMobile}
 			<Portal>
 				<FloatingNav />
-			</Portal>
-		{/if}
-
-		{#if data.user}
-			<Portal>
-				<FloatingChat />
 			</Portal>
 		{/if}
 		<BackToTop />

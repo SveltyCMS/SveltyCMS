@@ -13,6 +13,7 @@ import {
   object,
   optional,
   pipe,
+  record,
   string,
   toBoolean,
   toNumber,
@@ -169,6 +170,11 @@ export const privateConfigSchema = object({
 
   // --- Media & Uploads ---
   CONCURRENT_UPLOAD_SIZE: optional(pipe(coercedNumber, minValue(1))),
+
+  // --- Field-Level Permissions (read filtering per collection+role) ---
+  // `{ [collection]: { [role]: string[] } }` — role may READ only listed fields.
+  // Admin + roles without an entry keep full access. Empty/absent = disabled.
+  FIELD_PERMISSIONS: optional(record(string(), record(string(), array(string())))),
 
   // --- Signed Media URLs ---
   MEDIA_SIGNED_URL_SECRET: optional(pipe(string(), minLength(1))),

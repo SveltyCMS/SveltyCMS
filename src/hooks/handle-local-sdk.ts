@@ -25,6 +25,13 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
   }
 
   try {
+    // 🚀 FAST-PATH: if the adapter is already booted, skip the getDbInitPromise
+    // await entirely (getDbInitPromise may still incur a microtask/promise hop).
+    if (dbAdapter) {
+      (locals as any).cms = LocalCMS.getLocals(dbAdapter, { ...locals });
+      return resolve(event);
+    }
+
     await getDbInitPromise();
 
     if (dbAdapter) {

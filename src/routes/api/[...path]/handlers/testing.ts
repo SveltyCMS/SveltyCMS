@@ -1163,43 +1163,14 @@ export async function handleTestingRoutes(
 
       const payload = { ...data, tenantId: tenantId || "default" };
 
-      // 🚀 DUEL-PATH: Publish both via EventBus (internal listeners) AND globalPlatform (WebSocket)
-      // This ensures delivery regardless of whether the platform bridge is initialized
+      // Publish via EventBus (internal listeners + SSE stream).
       const { eventBus } = await import("@utils/event-bus");
       eventBus.emit(eventName, payload);
-
-      // Direct WebSocket broadcast via svelte-realtime platform
-      const { getGlobalPlatform } = await import("@src/live/ws-platform");
-      const globalPlatform = getGlobalPlatform();
-      if (globalPlatform) {
-        const topic = `system_events:${tenantId || "default"}`;
-        try {
-          (globalPlatform as any).publish(topic, "create", {
-            id: crypto.randomUUID(),
-            event: eventName,
-            data: payload,
-            timestamp: Date.now(),
-            tenantId: tenantId || "default",
-          });
-        } catch (err: any) {
-          // Non-critical: EventBus path may still work
-          if (process.env.BENCHMARK_DEBUG === "true") {
-            process.stderr.write(
-              `[TestingHandler] globalPlatform.publish failed: ${err.message}\n`,
-            );
-          }
-        }
-      } else if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(
-          `[TestingHandler] globalPlatform is null — WebSocket broadcast skipped\n`,
-        );
-      }
 
       return rawResponse({ success: true });
     }
 
     if (action === "emit-ping") {
-      // 🚀 DUEL-PATH: Both EventBus and direct WebSocket broadcast
       const payload = {
         type: "ping",
         timestamp: new Date().toISOString(),
@@ -1209,24 +1180,6 @@ export async function handleTestingRoutes(
       // Internal PubSub for service listeners
       const { pubSub } = await import("@src/services/background/pub-sub");
       pubSub.publish("entryUpdated", payload as any);
-
-      // Direct WebSocket broadcast for connected clients
-      const { getGlobalPlatform } = await import("@src/live/ws-platform");
-      const globalPlatform = getGlobalPlatform();
-      if (globalPlatform) {
-        const topic = `system_events:${tenantId || "default"}`;
-        try {
-          (globalPlatform as any).publish(topic, "update", {
-            id: crypto.randomUUID(),
-            event: "benchmark.ping",
-            data: payload,
-            timestamp: Date.now(),
-            tenantId: tenantId || "default",
-          });
-        } catch {
-          /* non-critical */
-        }
-      }
 
       return rawResponse({ success: true });
     }

@@ -4,7 +4,7 @@
  * compliance reporting, SIEM webhook integration, and alerting.
  *
  * ### Features:
- * - Real-time audit event streaming via svelte-realtime
+ * - Real-time audit event streaming via EventBus → SSE
  * - Anomaly detection: failed login spikes, unusual access patterns, permission escalations
  * - Compliance report generation (SOC 2, GDPR, ISO 27001)
  * - SIEM webhook integration for external security systems
@@ -241,7 +241,7 @@ class SecurityMonitoringService {
       this.alerts.splice(0, this.alerts.length - 200);
     }
 
-    // Emit real-time alert via svelte-realtime (for dashboard widgets)
+    // Emit real-time alert via EventBus (consumed by SSE stream for dashboard widgets)
     eventBus.emit("security:alert", alert);
 
     // Send to configured webhooks
