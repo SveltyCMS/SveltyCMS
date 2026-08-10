@@ -146,6 +146,10 @@ async function startPreviewServer(): Promise<ChildProcess> {
   const env = {
     ...process.env,
     TEST_MODE: "true",
+    // Strict setup gate: TEST_MODE relaxes the /setup→/login redirect by
+    // design; the wizard project re-enables it so the seeded-ready exit
+    // contract is verified locally exactly like CI (setup-wizard.spec.ts).
+    STRICT_SETUP_CHECK: "true",
     TEST_API_SECRET: resolveTestSecret(),
     SKIP_TEST_CLEANUP: "true",
     ADMIN_PASSWORD: "Password123!",

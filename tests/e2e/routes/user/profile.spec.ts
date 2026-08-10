@@ -12,6 +12,25 @@ import { ADMIN_CREDENTIALS, TEST_API_HEADERS } from "../../helpers/api";
 import { loginAsAdmin } from "../../helpers/auth";
 import { openUserManagement } from "../../helpers/user-page";
 
+/**
+ * Restore the deterministic admin fixture (`admin` username + password) via
+ * the idempotent testing-API seed (update-by-email, never wipes). Lives in a
+ * helper so cleanup blocks never throw lexically inside `finally`.
+ */
+async function reseedAdminFixture(page: Page): Promise<void> {
+  const res = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: {
+      action: "seed",
+      email: ADMIN_CREDENTIALS.email,
+      password: ADMIN_CREDENTIALS.password,
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(`admin re-seed cleanup failed: HTTP ${res.status()}`);
+  }
+}
+
 // Construct reliable file path for CI/CD environments
 // The shared test thumbnail lives at the e2e root (tests/e2e/testthumb.png),
 // committed to the repo so CI has it. Resolve it relative to this spec file.
@@ -166,7 +185,7 @@ test.describe.serial("User Profile Management", () => {
     // This test renames the admin user — it MUST restore the deterministic
     // `admin` fixture afterwards (seed is idempotent, updates by email, never
     // wipes) or the mutation leaks into other specs that assume `admin`.
-    let mainError: unknown = null;
+    let cleanupError: unknown = null;
     try {
       await page.goto("/user", { waitUntil: "domcontentloaded", timeout: 30_000 });
       await expect(page).toHaveURL(/\/user/, { timeout: 15_000 });
@@ -238,30 +257,20 @@ test.describe.serial("User Profile Management", () => {
         }
         await expectToast(page, /user data updated|profile changes were saved/i, 2_000);
       }).toPass({ timeout: 20_000 });
-    } catch (err) {
-      mainError = err;
-      throw err;
     } finally {
       // Restore the `admin` username + fixture password (no username param →
-      // `email.split("@")[0]` = "admin"). Guarded: a cleanup failure must not
-      // mask the main test error, but must fail loudly if the test itself passed.
+      // `email.split("@")[0]` = "admin"). The seed failure must NOT mask the
+      // main error (throwing inside finally is unsafe) — it is re-thrown
+      // after the block, which only runs when the main body succeeded.
       try {
-        const res = await page.request.post("/api/testing", {
-          headers: TEST_API_HEADERS,
-          data: {
-            action: "seed",
-            email: ADMIN_CREDENTIALS.email,
-            password: ADMIN_CREDENTIALS.password,
-          },
-        });
-        if (!res.ok()) {
-          throw new Error(`admin re-seed cleanup failed: HTTP ${res.status()}`);
-        }
+        await reseedAdminFixture(page);
       } catch (cleanupErr) {
-        if (!mainError) throw cleanupErr;
+        cleanupError = cleanupErr;
         console.warn(`[profile.spec] admin re-seed cleanup failed: ${cleanupErr}`);
       }
     }
+    // Only reachable when the main body passed — fail loudly on cleanup.
+    if (cleanupError) throw cleanupError;
   });
 
   test("Registration Token Workflow", async ({ page }) => {

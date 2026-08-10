@@ -564,6 +564,11 @@ jobs:
           # Prefer adapter-node entry (build/index.js) with correct ORIGIN for remotes.
           # Fall back to index.cjs (Plesk entry) only if needed — always pin ORIGIN.
           export ORIGIN="${ORIGIN:-http://127.0.0.1:4173}"
+          # Strict setup gate: TEST_MODE relaxes the /setup→/login redirect and the
+          # /api/setup 403 by design (so E2E can exercise the wizard). The wizard
+          # project re-enables it via STRICT_SETUP_CHECK to verify the production
+          # setup-exit contract (seeded-ready state must bounce /setup to /login).
+          export STRICT_SETUP_CHECK=true
           if [ -f build/index.js ]; then
             node build/index.js > preview.log 2>&1 &
           else
