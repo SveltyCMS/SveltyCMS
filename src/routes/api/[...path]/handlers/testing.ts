@@ -781,15 +781,15 @@ export async function handleTestingRoutes(
       const executeSeed = async (db: any) => {
         for (let i = 0; i < count; i += BATCH) {
           const end = Math.min(i + BATCH, count);
-          const docs = new Array(end - i);
-          for (let j = i, k = 0; j < end; j++, k++) {
-            docs[k] = {
+          const docs = Array.from({ length: end - i }, (_, k) => {
+            const j = i + k;
+            return {
               _id: `tp-${j}`,
               title: `Throughput Doc ${j}`,
               count: 0,
               tenantId,
             };
-          }
+          });
           // Prefer tx.crud.insertMany (SQLite txn object) or adapter.crud
           const crud = db?.crud ?? db;
           await crud.insertMany(collectionId, docs, insertOpts);

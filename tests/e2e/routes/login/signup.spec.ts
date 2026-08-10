@@ -58,8 +58,10 @@ test("Check language selection updates UI text", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("lang", "de", { timeout: 5_000 });
   await expect(languageTrigger).toContainText(/deutsch/i, { timeout: 5_000 });
 
-  // EN: the dropdown stays open (closeOnSelect=false) and now lists English —
-  // pick it and assert the UI flips back.
+  // EN: the locale switch remounts the whole page (root layout keys on
+  // currentLocale), which closes the dropdown — re-open it, then pick English
+  // and assert the UI flips back.
+  await languageTrigger.click();
   const enOption = page.getByRole("button", { name: /english|englisch/i }).first();
   await expect(enOption).toBeVisible({ timeout: 5_000 });
   await enOption.click();
