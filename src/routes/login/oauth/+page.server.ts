@@ -101,7 +101,7 @@ async function fetchAndSaveGoogleAvatar(
     if (!result.success || !result.bodyBytes) {
       throw new Error(`Failed to fetch avatar: ${result.error || result.status}`);
     }
-    const blob = new Blob([result.bodyBytes]);
+    const blob = new Blob([new Uint8Array(result.bodyBytes)]);
 
     // Determine the correct file type from the response
     const contentType = result.headers?.["content-type"] || "image/jpeg";

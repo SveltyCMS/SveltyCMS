@@ -254,22 +254,47 @@ export async function prepareLoginForm(page: Page) {
           console.log("[Auth] ✓ Database reset and seeded");
         }
 
-        // Reload and re-click SIGN IN — wait for the chooser instead of a fixed sleep
-        await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
-        await page
-          .getByTestId("signin-icon")
-          .or(page.getByTestId("signup-icon"))
-          .or(page.getByTestId("signin-email"))
-          .first()
-          .waitFor({ state: "visible", timeout: 15_000 })
-          .catch(() => undefined);
+        // Reload and re-click SIGN IN — wait for the chooser instead of a fixed sleep.
+        // The post-reset adapter swap is transient: a seed can land before the new
+        // adapter's tables are fully re-provisioned (signup view persists). Retry
+        // seed + reload a bounded number of times instead of failing on the first.
+        let seededRetries = 0;
+        while (seededRetries < 3) {
+          seededRetries++;
+          await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
+          await page
+            .getByTestId("signin-icon")
+            .or(page.getByTestId("signup-icon"))
+            .or(page.getByTestId("signin-email"))
+            .first()
+            .waitFor({ state: "visible", timeout: 15_000 })
+            .catch(() => undefined);
 
-        const signInIconRetry = page.getByTestId("signin-icon");
-        if (await signInIconRetry.isVisible({ timeout: 5000 }).catch(() => false)) {
-          await signInIconRetry.click({ force: true, timeout: 10000 });
+          const signInIconRetry = page.getByTestId("signin-icon");
+          if (await signInIconRetry.isVisible({ timeout: 5000 }).catch(() => false)) {
+            await signInIconRetry.click({ force: true, timeout: 10000 });
+          }
+
+          const retryField = page.getByTestId("signin-email");
+          if (await retryField.isVisible({ timeout: 5_000 }).catch(() => false)) {
+            console.log("[Auth] ✓ Login form ready after auto-seeding");
+            return;
+          }
+
+          // Still in first-user mode — re-seed (idempotent) and loop.
+          await page.request
+            .post("/api/testing", {
+              headers: TEST_API_HEADERS,
+              data: {
+                action: "seed",
+                email: ADMIN_CREDENTIALS.email,
+                password: ADMIN_CREDENTIALS.password,
+              },
+            })
+            .catch(() => {});
         }
 
-        // Retry finding the signin-email field
+        // Final attempt: hard gate so the failure surface is the form itself.
         await page.getByTestId("signin-email").waitFor({ state: "visible", timeout: 15_000 });
         console.log("[Auth] ✓ Login form ready after auto-seeding");
         return;

@@ -254,10 +254,14 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
   function setRows(next: T[]) {
     rows = next;
     if (mode === "client") {
+      const pagesCount = Math.max(1, Math.ceil(next.length / pagination.pageSize));
       pagination = {
         ...pagination,
         totalItems: next.length,
-        pagesCount: Math.max(1, Math.ceil(next.length / pagination.pageSize)),
+        pagesCount,
+        // Clamp the current page — deleting rows on the last page would
+        // otherwise leave it beyond pagesCount and render a blank list.
+        currentPage: Math.min(pagination.currentPage, pagesCount),
       };
     }
   }

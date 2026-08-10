@@ -147,7 +147,9 @@ test.describe("Access Management shell", () => {
       await expect(roleRow()).toBeVisible({ timeout: ACTION_TIMEOUT });
 
       // Cleanup (golden journey complete): select the role, delete, save.
-      await roleRow().locator('input[type="checkbox"]').click({ force: true });
+      // Click the visible label (for=id) — the native input is sr-only/clipped
+      // 1px, and force-clicks on it land on the row instead of toggling.
+      await roleRow().locator("label[for]").first().click();
       await page.getByTestId("access-delete-roles").click();
       const saveBtnAfterDelete = page.getByTestId("access-mgmt-save").first();
       await expect(saveBtnAfterDelete).toBeEnabled({ timeout: ACTION_TIMEOUT });
@@ -167,7 +169,7 @@ test.describe("Access Management shell", () => {
       const leftover = roleRow();
       if (await leftover.isVisible({ timeout: 1_500 }).catch(() => false)) {
         await dismissCookieBannerIfPresent(page).catch(() => undefined);
-        await leftover.locator('input[type="checkbox"]').click({ force: true });
+        await leftover.locator("label[for]").first().click();
         await page.getByTestId("access-delete-roles").click();
         const saveBtnCleanup = page.getByTestId("access-mgmt-save").first();
         await expect(saveBtnCleanup).toBeEnabled({ timeout: ACTION_TIMEOUT });

@@ -405,7 +405,20 @@ export class PluginRegistry implements IPluginService {
     enabled: boolean,
     tenantId: string,
     userId?: string,
+    dbAdapter?: IDBAdapter,
   ): Promise<boolean> {
+    // Lazy-init: callers outside the boot path (e.g. the testing-API website-
+    // starter seed) may hold a registry instance whose settingsService was
+    // never wired — initializeSettings is idempotent (probe + sentinel insert).
+    // The adapter must be passed in: this module is client-shared (plugin page),
+    // so it cannot statically import the server-only db.ts.
+    if (!this.settingsService && dbAdapter) {
+      try {
+        await this.initializeSettings(dbAdapter);
+      } catch (err) {
+        logger.warn(`togglePlugin lazy-init failed: ${(err as Error).message}`);
+      }
+    }
     if (!this.settingsService) {
       logger.warn("PluginSettingsService not initialized");
       return false;

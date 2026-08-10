@@ -285,7 +285,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     sqlQuery: SQL,
     options?: BaseQueryOptions,
   ): Promise<any[]> {
-    const txnSql = this.getTxnSql(options);
+    const txnSql = this.getTxnSql(options ?? {});
     if (options?.transaction && !txnSql) {
       return super.executeDynamicSql(_db, sqlQuery, options);
     }

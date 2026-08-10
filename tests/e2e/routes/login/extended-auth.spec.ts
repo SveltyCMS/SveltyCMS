@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { resetAndSeedDatabase, seedExpiredPasswordReset } from "../../helpers/api";
+import {
+  resetAndSeedDatabase,
+  seedExpiredPasswordReset,
+  TEST_API_HEADERS,
+} from "../../helpers/api";
 import { ADMIN_CREDENTIALS, prepareLoginForm, enable2FAForTestUser } from "../../helpers/auth";
 
 test.describe("Extended Authentication UI Flows", () => {
@@ -64,7 +68,18 @@ test.describe("Extended Authentication UI Flows", () => {
     const passwordInput = page.locator('[data-testid="signin-password"]');
     const submitBtn = page.locator('[data-testid="signin-submit"]');
 
-    await emailInput.fill(ADMIN_CREDENTIALS.email);
+    // Lock a DEDICATED throwaway user, never the shared admin: the lockout is
+    // 15 minutes, and parallel specs (permissions, coverage-100, management,
+    // …) log in as admin@example.com throughout the run. Locking the admin
+    // made those specs fail in a rotating pattern for the whole suite.
+    const lockoutEmail = `lockout-${Date.now().toString(36)}@test.de`;
+    const seeded = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: { action: "seed", email: lockoutEmail, password: "Lockout123!" },
+    });
+    expect(seeded.ok(), "lockout fixture user must be seeded").toBeTruthy();
+
+    await emailInput.fill(lockoutEmail);
     await passwordInput.fill("DefinitelyWrongPassword123!");
 
     // SveltyCMS locks the account after 5 failed attempts
@@ -97,41 +112,27 @@ test.describe("Extended Authentication UI Flows", () => {
   });
 
   test("Magic Link & WebAuthn UI Toggles (Mocked)", async ({ page }) => {
-    // We mock the SvelteKit server function response for `checkAuthMethods`
-    // Since it's a SvelteKit server function, it POSTs to the current route.
-    // We can intercept the request and override the JSON.
+    // Mock the `checkAuthMethods` remote function. SvelteKit remote functions
+    // (query/command from $app/server) call GET /_app/remote/<id>/<fn>?payload=…
+    // and return `{ data: <devalue-string> }` — NOT a POST to the page route
+    // with x-sveltekit-server-function (the old protocol this test intercepted).
     let checkAuthMethodsIntercepted = false;
-    await page.route("**/login", async (route, request) => {
-      const isServerFunction = request.headers()["x-sveltekit-server-function"];
-      if (request.method() === "POST" && isServerFunction) {
-        try {
-          // If the payload contains the checkAuthMethods call, we return true for everything
-          const postData = request.postData();
-          if (postData && postData.includes("checkAuthMethods")) {
-            checkAuthMethodsIntercepted = true;
-            // Fulfill with a mocked SvelteKit response format
-            await route.fulfill({
-              status: 200,
-              contentType: "application/json",
-              body: JSON.stringify({
-                type: "data",
-                data: `[{"success":true,"hasPassword":true,"hasPasskey":true,"hasMagicLink":true,"hasOAuth":false}]`,
-              }),
-            });
-            return;
-          }
-        } catch {
-          // Fallback
-        }
-      }
-      await route.continue();
+    await page.route("**/_app/remote/*/checkAuthMethods*", async (route) => {
+      checkAuthMethodsIntercepted = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: '{"success":true,"hasPassword":true,"hasPasskey":true,"hasMagicLink":true,"hasOAuth":false}',
+        }),
+      });
     });
 
     const emailInput = page.locator('[data-testid="signin-email"]');
 
     // Capture the mocked checkAuthMethods response instead of sleeping for the debounce
     const checkRes = page
-      .waitForResponse((res) => res.url().endsWith("/login") && res.request().method() === "POST", {
+      .waitForResponse((res) => /\/_app\/remote\/[^/]+\/checkAuthMethods/.test(res.url()), {
         timeout: 5_000,
       })
       .catch(() => null);

@@ -576,22 +576,6 @@ Provides an organized interface for navigating hierarchical content structures.
 		}, 300);
 	}
 
-	function reindexSiblings(parentId: string | null) {
-		const siblings = Array.from(flatNodeMap.values()).filter((n) =>
-			parentId === null ? !n.parentId : String(n.parentId) === parentId,
-		);
-
-		siblings.sort((a, b) => {
-			const oa = orderOverrides.get(a._id) ?? a.order ?? 0;
-			const ob = orderOverrides.get(b._id) ?? b.order ?? 0;
-			return oa - ob;
-		});
-
-		siblings.forEach((node, index) => {
-			orderOverrides.set(node._id, index);
-		});
-	}
-
 	function clearAllFilters() {
 		search = '';
 		debouncedSearch = '';

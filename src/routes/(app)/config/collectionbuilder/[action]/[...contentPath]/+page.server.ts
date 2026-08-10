@@ -201,7 +201,21 @@ export const actions: Actions = {
       const formData = await request.formData();
       const fieldsData = formData.get("fields") as string;
       const originalName = formData.get("originalName") as string;
-      const contentName = formData.get("name") as string;
+      // Server-side validation is authoritative: trim and reject empty/
+      // whitespace-only names. The client-side check is bypassable with a
+      // direct POST, which previously could write files like `"   .ts"`.
+      const contentName = String(formData.get("name") ?? "").trim();
+      if (!contentName) {
+        return { status: 400, error: "Collection name is required" };
+      }
+      if (contentName.length > 64) {
+        return { status: 400, error: "Collection name must be 64 characters or fewer" };
+      }
+      // Defense-in-depth beyond path.basename(): reject traversal / separator
+      // characters outright instead of silently basenaming them.
+      if (/[\\/]|\.\./.test(contentName) || contentName.includes("\u0000")) {
+        return { status: 400, error: "Collection name contains invalid characters" };
+      }
       const collectionIcon = formData.get("icon") as string;
       const collectionSlug = formData.get("slug") as string;
       const collectionDescription = formData.get("description");

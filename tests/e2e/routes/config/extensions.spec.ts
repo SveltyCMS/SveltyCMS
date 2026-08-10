@@ -132,9 +132,9 @@ test.describe("Extension Management", () => {
     // can never silently disappear again.
     const typeFilter = page.getByTestId("marketplace-type-filter");
     await expect(typeFilter).toBeVisible();
-    await expect(
-      typeFilter.locator("option", { hasText: /dashboard widgets/i }).first(),
-    ).toBeVisible();
+    // Native <select> options are never "visible" to Playwright — assert
+    // presence (attached) + count instead of visibility.
+    await expect(typeFilter.locator("option", { hasText: /dashboard widgets/i })).toHaveCount(1);
 
     // Unfiltered grid shows every mocked catalog card incl. license badges.
     await expect(page.getByTestId("marketplace-card-mock-dashboard-a")).toBeVisible({

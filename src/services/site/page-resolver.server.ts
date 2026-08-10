@@ -59,7 +59,7 @@ export async function resolveSitePage(options: ResolveSitePageOptions): Promise<
 
     return result.data[0] as SitePage;
   } catch (err) {
-    logger.debug("[Site] Page resolve failed", { slug, entryId, error: err });
+    logger.warn("[Site] Page resolve failed", { slug, entryId, error: err });
     return null;
   }
 }

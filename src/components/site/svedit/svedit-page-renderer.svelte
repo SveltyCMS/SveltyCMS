@@ -22,7 +22,18 @@
 
 	let { document, editable = false, onDocumentChange }: Props = $props();
 
-	let session = $state(createSiteSveditSession({} as any));
+	// Svelte 5 props are available at declaration time. Initializing from the
+	// actual document avoids the dummy `{}` (fill_document_defaults iterates
+	// `doc.nodes` — `{}.nodes` is undefined → Object.entries(undefined) threw
+	// on EVERY mount, crashing the public site render). The fallback is only
+	// reachable when a caller passes a malformed document.
+	let session = $state(
+		createSiteSveditSession(
+			document && typeof document === "object" && "nodes" in document
+				? document
+				: ({ nodes: {}, document_id: "page" } as unknown as SveditDocument),
+		),
+	);
 	let lastExternalDoc = $state("");
 	let lastEmittedDoc = $state("");
 	let saveTimer: ReturnType<typeof setTimeout> | null = null;

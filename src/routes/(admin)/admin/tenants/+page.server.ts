@@ -15,10 +15,15 @@ import type { PageServerLoad } from "./$types";
 // Only System Admins can access this
 export const load: PageServerLoad = async ({ locals }) => {
   const user = getAuthenticatedUser(locals);
-  const { isAdmin, dbAdapter } = locals;
+  const { isAdmin } = locals;
   if (!isAdmin || user.tenantId) throw redirect(303, "/");
 
   try {
+    // Resolve the CURRENT adapter + await boot: a mid-flight testing-API reset
+    // replaces the adapter, so a stale `locals.dbAdapter` reference can be
+    // mid-reconnect here ("Database connection not established" 500s).
+    const { dbAdapter, getDbInitPromise } = await import("@src/databases/db");
+    await getDbInitPromise(false, "CORE");
     if (!dbAdapter) {
       logger.error("Database adapter not available");
       throw error(500, "Database adapter not available");

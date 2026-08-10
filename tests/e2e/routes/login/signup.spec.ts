@@ -164,8 +164,10 @@ test("Forgot Password Flow", async ({ page }) => {
   await page.goto("/login");
   await dismissCookieConsent(page);
 
-  await page.getByText(/sign in/i).click();
-  await dismissCookieConsent(page);
+  // The signup view is the landing state pre-setup; flip to the sign-in view
+  // via the icon's own testid, then hard-assert the form actually mounted.
+  await page.getByTestId("signin-icon").click();
+  await expect(page.getByTestId("signin-forgot-password")).toBeVisible({ timeout: 10_000 });
   await page.getByTestId("signin-forgot-password").click();
 
   await dismissCookieConsent(page);

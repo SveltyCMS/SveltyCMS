@@ -18,6 +18,7 @@
 
 import type { PermissionConfig } from "@src/databases/auth/permissions";
 import type { Role } from "@src/databases/auth/types";
+import type { DatabaseId } from "@src/databases/db-interface";
 // System Logger
 import { getUntypedSetting } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
@@ -89,6 +90,11 @@ export const load: PageServerLoad = async (event) => {
       is2FAEnabledGlobal: Boolean(getUntypedSetting("USE_2FA")),
       manageUsersPermissionConfig,
       adminData,
+      // Total system users — the Multibutton gates the destructive delete
+      // action on this count ("isLastUser"), NOT on the filtered table's
+      // totalItems. Without it, searching (filtered totalItems = 1) made the
+      // delete action disabled for every non-admin user.
+      totalUsers: isAdmin || hasManageUsersPermission ? await getTotalUserCount(event) : 0,
       permissions: {
         "config/adminArea": {
           hasPermission: isAdmin || hasManageUsersPermission,
@@ -120,3 +126,20 @@ export const load: PageServerLoad = async (event) => {
     };
   }
 };
+
+/** Total user count across tenants (single-tenant: all users). */
+async function getTotalUserCount(event: Parameters<PageServerLoad>[0]): Promise<number> {
+  try {
+    const { dbAdapter } = await import("@src/databases/db");
+    if (!dbAdapter?.auth) return 0;
+    const res = await dbAdapter.auth.getUserCount(
+      {},
+      { tenantId: event.locals.tenantId as DatabaseId },
+    );
+    // DatabaseResult<number> envelope on all adapters; tolerate a raw number too.
+    const count = typeof res === "number" ? res : (res as { data?: unknown })?.data;
+    return typeof count === "number" && count > 0 ? count : 0;
+  } catch {
+    return 0;
+  }
+}

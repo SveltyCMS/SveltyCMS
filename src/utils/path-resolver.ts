@@ -16,7 +16,7 @@
 
 import path from "node:path";
 import { sveltyContext, requireTenantId } from "./context.ts";
-import { resolvePrivateConfigFileName } from "./private-config-policy.ts";
+import { resolvePrivateConfigFileName, isAutomatedTestHarness } from "./private-config-policy.ts";
 
 /** Always resolve from live process.cwd() so tests/chdir and tooling stay correct. */
 function cwd(): string {
@@ -40,11 +40,7 @@ export const paths = {
 
   /** Global media directory */
   get media(): string {
-    const isTestHarness =
-      process.env.TEST_MODE === "true" ||
-      process.env.VITEST === "true" ||
-      process.env.BUN_TEST === "true" ||
-      process.env.BENCHMARK === "true";
+    const isTestHarness = isAutomatedTestHarness();
     const baseDir = isTestHarness ? "test-media" : "mediaFolder";
     return path.join(cwd(), baseDir, "global");
   },
@@ -55,11 +51,7 @@ export const paths = {
    */
   getCollections: (): string => {
     const customDir = process.env.COLLECTIONS_DIR;
-    const isTestHarness =
-      process.env.TEST_MODE === "true" ||
-      process.env.VITEST === "true" ||
-      process.env.BUN_TEST === "true" ||
-      process.env.BENCHMARK === "true";
+    const isTestHarness = isAutomatedTestHarness();
 
     const tenantId = sveltyContext.getStore()?.tenantId;
     if (tenantId) {
@@ -84,11 +76,7 @@ export const paths = {
    * Falls back to global media if no context is set.
    */
   getMedia: (): string => {
-    const isTestHarness =
-      process.env.TEST_MODE === "true" ||
-      process.env.VITEST === "true" ||
-      process.env.BUN_TEST === "true" ||
-      process.env.BENCHMARK === "true";
+    const isTestHarness = isAutomatedTestHarness();
     const baseDir = isTestHarness ? "test-media" : "mediaFolder";
     const tenantId = sveltyContext.getStore()?.tenantId;
     return tenantId ? path.join(cwd(), baseDir, tenantId) : path.join(cwd(), baseDir, "global");

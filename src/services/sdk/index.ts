@@ -110,15 +110,34 @@ export class LocalCMS {
 
   /**
    * Constructor with backward compatibility for (adapter, contentSystem) signature.
+   *
+   * The second argument is EITHER a legacy content-system instance OR an
+   * options bag (`{ tenantId, user, contentSystem? }`). Distinguish by shape:
+   * an options bag exposes `contentSystem` as a property, or carries SDK
+   * option keys (tenantId) and no content-system methods. Passing a bare
+   * options bag as the legacy form made every namespace resolve against a
+   * broken "content system" ({ tenantId }) — getSchema threw "Collection not
+   * found" for ALL collections on that path.
    */
   constructor(
     private _dbAdapter: IDBAdapter,
     contentSystemOrOptions?: any,
   ) {
-    this._contentSystem =
-      contentSystemOrOptions?.contentSystem !== undefined
-        ? contentSystemOrOptions.contentSystem
-        : contentSystemOrOptions;
+    const candidate = contentSystemOrOptions;
+    const isLegacyContentSystem =
+      candidate !== null &&
+      typeof candidate === "object" &&
+      typeof (candidate as { getCollectionById?: unknown }).getCollectionById === "function";
+    const hasContentSystemKey =
+      candidate !== null &&
+      typeof candidate === "object" &&
+      (candidate as { contentSystem?: unknown }).contentSystem !== undefined;
+
+    this._contentSystem = hasContentSystemKey
+      ? candidate.contentSystem
+      : isLegacyContentSystem
+        ? candidate
+        : undefined;
 
     // Initialize Namespaces lazily using defineLazyNamespace (Hyper-Performance)
     defineLazyNamespace(

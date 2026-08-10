@@ -18,6 +18,7 @@ import {
   array,
   boolean,
   looseObject,
+  minLength,
   number,
   optional,
   record,
@@ -60,7 +61,11 @@ export const FieldWidgetSchema = looseObject({
 /** Top-level compiled schema shape (loose — plugins may add keys) */
 export const CompiledSchemaShapeSchema = looseObject({
   _id: optional(string()),
-  name: optional(string()),
+  // Non-empty names only — guards against whitespace/empty collection names
+  // slipping through the compile pipeline. NOTE: array-syntax constraints only
+  // (no pipe/transform) — these schema objects travel inside content nodes
+  // that the layout deep-clones via structuredClone, which throws on functions.
+  name: optional(string([minLength(1)])),
   icon: optional(string()),
   description: optional(string()),
   status: optional(string()),

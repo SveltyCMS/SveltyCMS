@@ -17,12 +17,16 @@ import { slotRegistry } from "@src/plugins/slot-registry.svelte.ts";
 import { definePlugin } from "../define-plugin";
 import { collectionHasLivePreview } from "./license-gate";
 
-const livePreviewComponent = "./live-preview.svelte";
+// Literal dynamic import so Vite statically analyzes and BUNDLES the component
+// into a hashed client chunk. The previous runtime-built `./live-preview.svelte`
+// string with `@vite-ignore` was never bundled — the tab worked in dev (Vite
+// serves source paths) but 404'd in production builds
+// ("Failed to fetch dynamically imported module").
 
 slotRegistry.register({
   id: "live_preview",
   zone: "entry_edit",
-  component: () => import(/* @vite-ignore */ livePreviewComponent),
+  component: () => import("./live-preview.svelte"),
   props: {
     label: "Live Preview",
     icon: "mdi:eye-outline",
@@ -49,7 +53,7 @@ export const editableWebsitePlugin = definePlugin({
           id: "live_preview",
           label: "Live Preview",
           icon: "mdi:eye-outline",
-          component: () => import(/* @vite-ignore */ livePreviewComponent),
+          component: () => import("./live-preview.svelte"),
         },
       ],
     },

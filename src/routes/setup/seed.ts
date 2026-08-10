@@ -601,7 +601,8 @@ export async function seedRoles(
         if (
           errorMessage.includes("duplicate") ||
           errorMessage.includes("E11000") ||
-          errorMessage.includes("ER_DUP_ENTRY")
+          errorMessage.includes("ER_DUP_ENTRY") ||
+          errorMessage.includes("UNIQUE constraint failed")
         ) {
           logger.debug(
             `ℹ️  Role "${role.name}" already exists${tenantId ? ` for tenant ${tenantId}` : ""}, skipping`,
@@ -888,7 +889,7 @@ export async function seedWebsiteStarterPages(
       ctaText: "Open CMS",
       ctaHref: "/login",
       content: serializeSveditContent(document),
-      status: "published",
+      status: "publish",
       ...(tenantId && { tenantId: tenantId as DatabaseId }),
     };
 
@@ -933,14 +934,14 @@ export async function seedDemoRecords(
           {
             title: "Welcome to SveltyCMS",
             content: "This is your first post, created automatically during setup.",
-            status: "published",
+            status: "publish",
             author: "Admin",
             ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },
           {
             title: "Modern CMS Architecture",
             content: "SveltyCMS uses Svelte 5 runes and a database-agnostic adapter pattern.",
-            status: "published",
+            status: "publish",
             author: "Admin",
             ...(tenantId && { tenantId: tenantId as DatabaseId }),
           },

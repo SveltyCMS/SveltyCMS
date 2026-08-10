@@ -12,6 +12,11 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { generateUUID } from "@utils/native-utils";
+import {
+  isAutomatedTestHarness,
+  resolvePrivateConfigFileName,
+  assertLocalMustNotMutatePrivateTs,
+} from "@utils/private-config-policy";
 
 /**
  * Standard testing response helper
@@ -91,6 +96,12 @@ async function invalidateAllCaches(tenantId: DatabaseId) {
       await import("@src/hooks/handle-authorization");
     await invalidateUserCountCache(tenantId);
     await invalidateRolesCache(tenantId);
+
+    // The settings-service cache is a separate in-memory map — resets wipe the
+    // DB rows but not this cache, so post-reset requests would keep serving
+    // stale public settings (e.g. SITE_STARTER_ENABLED) until the next boot.
+    const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
+    invalidateSettingsCache(tenantId);
 
     const { apiSpecService } = await import("@services/system/api-spec-service");
     await apiSpecService.invalidateCache(tenantId);
@@ -236,11 +247,14 @@ export async function handleTestingRoutes(
       await invalidateAllCaches(tenantId);
       await resetSystemStores();
 
-      const isTest = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
-      const configFileName = isTest ? "private.test.ts" : "private.ts";
+      const isTest = isAutomatedTestHarness();
+      const configFileName = resolvePrivateConfigFileName();
       const privateConfigPath = path.join(process.cwd(), "config", configFileName);
 
       if (state === "setup") {
+        if (!isTest) {
+          assertLocalMustNotMutatePrivateTs("reset system state");
+        }
         // Delete private config file
         if (fs.existsSync(privateConfigPath)) {
           try {
@@ -452,6 +466,16 @@ export async function handleTestingRoutes(
         await contentSystem.initialize(tenantId, { force: true });
       } catch (err: any) {
         logger.warn(`[TestingHandler] Non-fatal collection seeding error: ${err.message}`);
+      }
+
+      // Seed system settings (idempotent) — the DB reset wiped them, and without
+      // them the settings-service cache serves defaults (e.g. SITE_STARTER_ENABLED
+      // unset → guests get redirected from / to /login despite a seeded site).
+      try {
+        const { seedSettings } = await import("@src/routes/setup/seed");
+        await seedSettings(initializedAdapter, tenantId);
+      } catch (err: any) {
+        logger.warn(`[TestingHandler] Non-fatal settings seeding error: ${err.message}`);
       }
 
       // ✨ Fix: Invalidate setup cache so the system recognizes it is now COMPLETE

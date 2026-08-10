@@ -199,12 +199,22 @@ async function handleCollectionSave() {
 			return field;
 		}
 
+		// Preserve existing non-primitive GuiFields content — rebuilding from an
+		// empty getGuiFields() and copying only primitives silently drops any
+		// array/object options stored by a widget (latent data loss).
+		const previousGuiFields = field.widget.GuiFields ?? {};
 		const GUI_FIELDS = getGuiFields(
 			{ key: field.widget.Name },
 			guiSchema as any,
 		);
 		for (const [property, value] of Object.entries(field)) {
 			if (typeof value !== "object" && property !== "id") {
+				GUI_FIELDS[property] = value;
+			}
+		}
+		// Re-merge previously stored non-primitive options (arrays, nested objects).
+		for (const [property, value] of Object.entries(previousGuiFields)) {
+			if (typeof value === "object" && value !== null && GUI_FIELDS[property] === undefined) {
 				GUI_FIELDS[property] = value;
 			}
 		}

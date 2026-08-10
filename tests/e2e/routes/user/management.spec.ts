@@ -96,7 +96,9 @@ async function selectDeveloperRow(page: Page, options?: DeveloperRowOptions) {
   await checkbox.scrollIntoViewIfNeeded();
   const checked = await checkbox.getAttribute("aria-checked");
   if (checked !== "true") {
-    await checkbox.check({ force: true, timeout: ACTION_TIMEOUT });
+    // This is a <button role="checkbox"> — check() requires a native input,
+    // so toggle via click (the button toggles its own aria-checked state).
+    await checkbox.click({ force: true, timeout: ACTION_TIMEOUT });
   }
 }
 

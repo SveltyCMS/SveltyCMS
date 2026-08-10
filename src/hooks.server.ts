@@ -61,7 +61,16 @@ let setupCheckMemo: { value: boolean; at: number } | null = null;
 const SETUP_CHECK_MEMO_TTL_MS = 60_000;
 
 function currentSetupStateWithMemo(pathname: string): boolean {
-  if (pathname.startsWith("/setup") || pathname.startsWith("/api/setup")) {
+  // Setup paths AND the testing API bypass the memo: the wizard writes the
+  // config and the testing reset/seed flips the DB-backed setup state, so the
+  // memoized value would otherwise be stale for up to 60s after those flows
+  // (observed: E2E golden journeys ran the setup pipeline — no authorization,
+  // no locals.roles — right after a reset while the memo still cached false).
+  if (
+    pathname.startsWith("/setup") ||
+    pathname.startsWith("/api/setup") ||
+    pathname.startsWith("/api/testing")
+  ) {
     const v = isSetupComplete();
     setupCheckMemo = { value: v, at: Date.now() };
     return v;

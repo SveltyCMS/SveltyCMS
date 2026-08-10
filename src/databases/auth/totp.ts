@@ -417,7 +417,10 @@ export async function generateBackupCodes(count = 10): Promise<string[]> {
   const codes: string[] = [];
 
   for (let i = 0; i < count; i++) {
-    const code = cryptoModule.randomBytes(4).toString("hex").toUpperCase();
+    // 8 random bytes → 16 hex chars = 64 bits of entropy per code.
+    // Backup codes are 2FA-bypass secrets; 32 bits (8 hex chars) would be
+    // brute-forceable within the rate-limit window.
+    const code = cryptoModule.randomBytes(8).toString("hex").toUpperCase();
     codes.push(code);
   }
 

@@ -277,9 +277,7 @@ export async function writePresetCollectionFiles(
   const fs = await import("node:fs/promises");
   const { getCollectionsPath, getCompiledCollectionsPath } = await import("@utils/tenant.server");
 
-  const dir = options.tenantId
-    ? getCollectionsPath(options.tenantId)
-    : path.resolve(process.cwd(), "config", "collections");
+  const dir = getCollectionsPath(options.tenantId);
 
   await fs.mkdir(dir, { recursive: true });
 

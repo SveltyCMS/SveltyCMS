@@ -11,13 +11,17 @@ import { loginAsAdmin } from "../../helpers/auth";
 import { TEST_API_HEADERS } from "../../helpers/api";
 
 test.describe("Site Starter", () => {
-  let siteName = "";
+  // Constant per spec file: workers share one server DB, and the homepage seed
+  // is idempotent (first seed wins). A per-worker Date.now() name made every
+  // worker except the first assert a name the page never shows. The name only
+  // needs to be stable across runs — resets wipe the row, so a later run
+  // re-seeds the same name.
+  const SITE_NAME = "E2E Site";
 
   test.beforeAll(async ({ request }) => {
-    siteName = `E2E Site ${Date.now().toString(36)}`;
     const res = await request.post("/api/testing", {
       headers: TEST_API_HEADERS,
-      data: { action: "seed-website-starter", siteName },
+      data: { action: "seed-website-starter", siteName: SITE_NAME },
     });
     expect(res.ok(), `seed-website-starter must succeed (HTTP ${res.status()})`).toBeTruthy();
     const body = await res.json().catch(() => ({}));
@@ -40,15 +44,13 @@ test.describe("Site Starter", () => {
     const page = await context.newPage();
     try {
       await page.goto("/", { waitUntil: "domcontentloaded" });
-      // The seeded homepage renders the hero heading from the website starter.
+      // The Svedit renderer draws the hero as article text (no heading role),
+      // so assert on the seeded content text itself — the outcome that matters.
       await expect(
-        page
-          .getByRole("heading")
-          .filter({ hasText: new RegExp(`welcome to ${siteName}`, "i") })
-          .first(),
-        "guest must see the seeded homepage hero heading at /",
+        page.getByText(new RegExp(`welcome to ${SITE_NAME}`, "i")).first(),
+        "guest must see the seeded homepage hero text at /",
       ).toBeVisible({ timeout: 15_000 });
-      await expect(page.locator("body")).toContainText(new RegExp(`welcome to ${siteName}`, "i"), {
+      await expect(page.locator("body")).toContainText(new RegExp(`welcome to ${SITE_NAME}`, "i"), {
         timeout: 5_000,
       });
     } finally {
@@ -80,11 +82,12 @@ test.describe("Site Starter", () => {
     });
     await livePreviewTab.click();
 
-    // One of the three license states always renders (loading → ready or upgrade).
+    // One of the license/render states always shows: loading → ready or
+    // upgrade, or (license active) the handshake while the preview connects.
     await expect(
       page
         .getByText(
-          /unlock visual frontpage editing|live preview ready|checking live preview license/i,
+          /unlock visual frontpage editing|live preview ready|checking live preview license|connecting handshake|handshaking/i,
         )
         .first(),
     ).toBeVisible({ timeout: 15_000 });

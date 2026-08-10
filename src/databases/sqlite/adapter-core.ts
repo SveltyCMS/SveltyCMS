@@ -389,6 +389,15 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
         .notNull()
         .default(sql`(strftime('%s','now')*1000)`),
+      // 🚀 ROW-STORE PARITY: the provisioning DDL adds these four materialized
+      // columns to EVERY collection table (createModel base DDL). They must be
+      // in the Drizzle def too, otherwise the read SELECT (built from the def)
+      // omits them — the "ghost column" class: writes persisted slug/… to the
+      // physical column while the API read served rows without them.
+      collection: text("collection"),
+      slug: text("slug"),
+      locale: text("locale"),
+      publishedAt: integer("publishedAt", { mode: "timestamp_ms" }),
     };
 
     if (columnsToAdd) {
@@ -401,7 +410,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           colName === "isDeleted" ||
           colName === "createdAt" ||
           colName === "updatedAt" ||
-          colName === "data"
+          colName === "data" ||
+          colName === "collection" ||
+          colName === "slug" ||
+          colName === "locale" ||
+          colName === "publishedAt"
         )
           continue;
         if (colType === "boolean") {
@@ -901,11 +914,15 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     }
     this.metrics.queryCount++;
     try {
-      if (method === "all") return stmt.all(...params);
-      if (method === "get") return stmt.get(...params);
-      if (method === "run") return stmt.run(...params);
-      if (method === "values") return stmt.values(...params);
-      return stmt.all(...params);
+      // node:sqlite only binds null/number/bigint/string/Uint8Array — JS
+      // booleans throw "Provided value cannot be bound". Coerce once here so
+      // every raw path (insert/update/bulk/atomic) binds like the Drizzle path.
+      const bound = params.map((p) => (typeof p === "boolean" ? (p ? 1 : 0) : p));
+      if (method === "all") return stmt.all(...bound);
+      if (method === "get") return stmt.get(...bound);
+      if (method === "run") return stmt.run(...bound);
+      if (method === "values") return stmt.values(...bound);
+      return stmt.all(...bound);
     } catch (err: any) {
       logger.error(`[SQLite] Execution error: ${sqlText}`, err);
       throw err;

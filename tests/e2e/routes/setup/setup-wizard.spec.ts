@@ -233,8 +233,10 @@ test.describe("Setup Wizard: Error Handling", () => {
     // nodemailer's connectionTimeout is 10s and DNS resolution on the invalid
     // host can add latency on slow networks — give the failure toast room to
     // appear (test budget is 90s, so this does not weaken the assertion).
+    // Bumped past 30s: the wizard's connection attempt can queue behind the
+    // DB-boot on a loaded host (parallel projects share the server).
     await expect(page.getByText(/connection failed/i).first()).toBeVisible({
-      timeout: 30_000,
+      timeout: 50_000,
     });
   });
 });
@@ -308,8 +310,10 @@ test.describe("Setup Wizard: Pre-Seeded Fast Path", () => {
 
     // A request to /setup must be bounced to /login — never render the wizard.
     await page.goto("/setup", { waitUntil: "domcontentloaded" });
+    // Wide window: on shared runners the first SSR request after a reset may
+    // re-boot the DB (reset-to-state drops the store) before the redirect.
     await page.waitForURL((url) => !url.pathname.startsWith("/setup"), {
-      timeout: 15_000,
+      timeout: 30_000,
     });
     await expect(page).not.toHaveURL(/\/setup/);
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });

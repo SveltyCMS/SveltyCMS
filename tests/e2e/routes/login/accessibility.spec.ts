@@ -71,6 +71,13 @@ test.describe("Universal Accessibility Audits", () => {
       timeout: 3_000,
     });
 
+    // 3b. Settle signal: the layout sets <title> after hydration completes.
+    // Auditing mid-hydration (parallel runs) reports phantom "document has no
+    // title" violations. Wait for the real title instead of a fixed sleep.
+    await page.waitForFunction(() => (document.title || "").trim().length > 0, undefined, {
+      timeout: 10_000,
+    });
+
     // 4. Run accessibility audit against the RTL layout
     // @ts-expect-error — @axe-core/playwright bundles its own playwright-core types
     // which conflict with the project's @playwright/test types.

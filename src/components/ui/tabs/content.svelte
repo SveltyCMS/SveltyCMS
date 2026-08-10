@@ -38,7 +38,7 @@ its value matches the active tab context.
 </script>
 
 {#if active}
-	<div class={cn("tabs-content", className)} role="tabpanel">
+<div class={cn("tabs-content", className)} role="tabpanel">
 		{@render children?.()}
 	</div>
 {/if}

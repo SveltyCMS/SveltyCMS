@@ -55,6 +55,34 @@ async function postTesting(page: Requestish, data: Record<string, unknown>) {
 
 const ADMIN_CREDENTIALS = { email: "admin@example.com", password: "Password123!" };
 
+/**
+ * Poll the health endpoint until the post-reset adapter re-connects. The reset
+ * action replaces the database adapter (dbInitPromise resets to IDLE → READY),
+ * and an immediate seed can race that re-init — the seeded user then lands in
+ * a DB instance the login page isn't seeing (login form never appears).
+ * `x-refresh` bypasses the 10s health memo so we observe the CURRENT state.
+ */
+async function waitForDatabaseReady(page: Page, timeoutMs = 20_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown = null;
+  while (Date.now() < deadline) {
+    try {
+      const res = await page.request.get("/api/system/health", {
+        headers: { "x-refresh": "true" },
+      });
+      const body = await res.json().catch(() => null);
+      if (res.ok() && body?.database === "connected") return;
+      if (res.ok() && body?.data?.database === "connected") return;
+    } catch (err) {
+      lastError = err;
+    }
+    await page.waitForTimeout(250);
+  }
+  throw new Error(
+    `Database not ready after reset: ${lastError instanceof Error ? lastError.message : String(lastError ?? "timeout")}`,
+  );
+}
+
 export async function resetAndSeedDatabase(page: Page) {
   await page.context().clearCookies();
   const reset = await page.request.post("/api/testing", {
@@ -62,6 +90,8 @@ export async function resetAndSeedDatabase(page: Page) {
     data: { action: "reset" },
   });
   if (!reset.ok()) throw new Error(`reset failed: ${reset.status()}`);
+
+  await waitForDatabaseReady(page);
 
   const seed = await page.request.post("/api/testing", {
     headers: TEST_API_HEADERS,

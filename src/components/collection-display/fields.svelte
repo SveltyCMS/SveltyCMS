@@ -20,7 +20,7 @@
 - `Alt + S`: Save currently edited entry (if focused)
 -->
 <script lang="ts">
-import { tick } from "svelte";
+import { tick, untrack } from "svelte";
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 		import Badge from '@components/ui/badge.svelte';
@@ -63,10 +63,8 @@ import { tick } from "svelte";
   import { widgets } from "@src/stores/widget-store.svelte";
   import { collaborationService } from "@src/services/collaboration/collaboration-service.svelte";
   import { showConfirm } from "@utils/modal.svelte";
-  import {
-    getCachedWidgetInputLoader,
-    prefetchWidgetLoaders,
-  } from "@widgets/widget-loader-registry";
+  import { getCachedWidgetInputLoader, prefetchWidgetLoaders } from "@widgets/widget-loader-registry";
+  import { memoizeLazyLoader, type LazyComponent } from "@utils/lazy-component-loader";
   import WidgetLoader from "./widget-loader.svelte";
 
   	import Portal from "@components/ui/portal.svelte";
@@ -310,6 +308,10 @@ import { tick } from "svelte";
   }
 
   // Pull global store → local only when entry identity changes (not on every edit)
+  // Also normalizes legacy plain-string values for translated fields — the
+  // migration previously ran INSIDE the template (state writes in template
+  // expressions are forbidden by Svelte: they cause unstable re-renders that
+  // end in effect_update_depth_exceeded).
   $effect(() => {
     const global = collectionValue.value as Record<string, unknown> | undefined;
     const globalId = (global as any)?._id;
@@ -318,24 +320,106 @@ import { tick } from "svelte";
       currentCollectionValue = { ...global } as any;
       lastEntryId = globalId;
       dataChangeStore.setInitialSnapshot(global as Record<string, any>);
+      normalizeTranslatedValues();
       return;
     }
 
     if (!(globalId || lastEntryId) && global && Object.keys(global).length > 0) {
       currentCollectionValue = { ...global } as any;
       dataChangeStore.setInitialSnapshot(global as Record<string, any>);
+      normalizeTranslatedValues();
     }
   });
 
-  // Collaboration POC: init when edit tab is active
+  /**
+   * Render-safe check: translated field values must be plain records before
+   * the template chains into `[fieldLocale]` (guards against uninitialized or
+   * legacy-string values on the first render).
+   */
+  function isLocaleRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * Migrate legacy plain-string values for translated fields into locale
+   * records ({ [locale]: value }). Runs outside the render path so the writes
+   * cannot re-trigger a render (see state_unsafe_mutation docs). Idempotent:
+   * only fills missing records, never touches existing ones.
+   */
+  function normalizeTranslatedValues() {
+    untrack(() => {
+      for (const rawField of filteredFields) {
+        const field = ensureFieldProperties(rawField);
+        if (!field?.translated) continue;
+        const fieldName = getFieldName(field, false);
+        const value = currentCollectionValue[fieldName];
+        if (typeof value === "string") {
+          currentCollectionValue[fieldName] = { [currentContentLanguage]: value };
+        } else if (value === null || value === undefined) {
+          currentCollectionValue[fieldName] = { [currentContentLanguage]: "" };
+        }
+      }
+    });
+  }
+
+  /**
+   * The widget registry can populate `filteredFields` AFTER the entry loads
+   * (plugin/widget lazy init). Re-run the missing-record normalization when
+   * the field list changes so the translated bind below never chains into an
+   * uninitialized record. Idempotent and cheap — no-op once records exist.
+   */
   $effect(() => {
-    if (localTabSet !== "0") return;
-    const coll = collection.value;
-    const entry = collectionValue.value;
-    if (coll && entry) {
-      collaborationService.init(coll, entry);
+    if (filteredFields.length === 0) return;
+    const anyEntry = Boolean(
+      currentCollectionValue &&
+        ((currentCollectionValue as any)?._id || Object.keys(currentCollectionValue).length > 0),
+    );
+    if (!anyEntry) return;
+    normalizeTranslatedValues();
+  });
+
+  // --- 4b. PLUGIN SLOT LOADERS (memoized) ---
+  // slot.component() must not be called inline inside {#await}: it returns a
+  // fresh promise per call, so any parent re-render while a plugin tab is open
+  // destroys + remounts the plugin component (effect_update_depth_exceeded).
+  const slotLoaders = new Map<string, () => Promise<LazyComponent>>();
+  function componentLoader(slot: {
+    id: string;
+    component: () => Promise<LazyComponent>;
+  }): Promise<LazyComponent> {
+    let loader = slotLoaders.get(slot.id);
+    if (!loader) {
+      loader = memoizeLazyLoader(slot.component);
+      slotLoaders.set(slot.id, loader);
     }
-    return () => collaborationService.destroy();
+    return loader();
+  }
+
+  // Collaboration session lifecycle — keyed on stable identity ONLY.
+  // Reading entry *content* here would re-run the effect on every collab
+  // write-back (yMap observer → collectionValue), and the old cleanup
+  // destroyed the session on each re-run, resetting the service's idempotency
+  // guard → destroy()/init() churn → effect_update_depth_exceeded.
+  // `collabSessionKey` is intentionally a plain `let` (not $state) so the
+  // memo write cannot re-trigger this effect.
+  let collabSessionKey = "";
+  $effect(() => {
+    if (localTabSet !== "0") {
+      if (collabSessionKey) {
+        collabSessionKey = "";
+        collaborationService.destroy();
+      }
+      return;
+    }
+    const coll = collection.value;
+    const entryId = collectionValue.value?._id ?? "new";
+    const key = `${coll?._id ?? ""}:${entryId}`;
+    if (key === collabSessionKey) return;
+    collabSessionKey = key;
+    collaborationService.destroy();
+    if (coll) {
+      void collaborationService.init(coll, collectionValue.value ?? {});
+    }
   });
 
   let lastPrefetchKey = $state("");
@@ -372,6 +456,10 @@ import { tick } from "svelte";
           ...selectedRevision.data,
           _id: (collectionValue as any).value?._id,
         };
+        // A revision may predate the current schema — stale error keys for
+        // removed/renamed fields would otherwise block Save forever
+        // (header-edit disables Save when ANY error key exists).
+        validationStore.clearAllErrors();
         setCollectionValue(revertData);
         currentCollectionValue = revertData; // also update local state
         toast.info("Content reverted. Please save your changes.");
@@ -651,13 +739,10 @@ import { tick } from "svelte";
                     {#if field.translated}
                       {@const fieldName = getFieldName(field, false)}
                       {@const currentFieldLocale = (() => {
-                        // Determine the current locale for this field
-                        if (fieldLocaleOverrides.has(fieldName)) {
-                          return fieldLocaleOverrides.get(fieldName)!;
-                        }
-                        // Initialize from global contentLanguage
-                        fieldLocaleOverrides.set(fieldName, currentContentLanguage);
-                        return currentContentLanguage;
+                        // Per-field override, or the global content language.
+                        // Pure read — mutating the $state map here (inside a
+                        // derived during render) is a reactivity loop.
+                        return fieldLocaleOverrides.get(fieldName) ?? currentContentLanguage;
                       })()}
                       {@const sourceLocale = contentLanguage.value as Locale}
                       {@const isTranslating = aiTranslatingFields.has(fieldName)}
@@ -715,34 +800,34 @@ import { tick } from "svelte";
                   {#if loadedWidget}
                     {const fieldName = getFieldName(field, false)}
                     {#if field.translated}
-                      <!-- Per-field localization: determine locale, handle legacy migration -->
+                      <!-- Per-field localization: determine locale (pure read —
+                           mutating the $state map during render is a reactivity loop) -->
                       {@const fieldLocale = (() => {
-                        if (fieldLocaleOverrides.has(fieldName)) {
-                          return fieldLocaleOverrides.get(fieldName)!;
-                        }
-                        fieldLocaleOverrides.set(fieldName, currentContentLanguage);
-                        return currentContentLanguage;
+                        return fieldLocaleOverrides.get(fieldName) ?? currentContentLanguage;
                       })()}
-                      <!-- Legacy migration: wrap plain string in locale record -->
-                      {#if typeof currentCollectionValue[fieldName] === "string"}
-                        {@const migrated = { [currentContentLanguage]: currentCollectionValue[fieldName] }}
-                        {currentCollectionValue[fieldName] = migrated}
-                      {/if}
-                      <!-- Ensure it's an object for per-locale access -->
-                      {#if typeof currentCollectionValue[fieldName] !== "object" || currentCollectionValue[fieldName] === null}
-                        {currentCollectionValue[fieldName] = { [fieldLocale]: "" }}
-                      {/if}
+                      <!-- Legacy plain-string values are normalized on entry load
+                           in normalizeTranslatedValues() — never write state from
+                           inside a template expression (forbidden: causes
+                           effect_update_depth_exceeded). -->
                       {#key fieldName + ":" + fieldLocale}
-                        <!-- Widget remounts when per-field locale changes -->
-                        <WidgetLoader
-                          loader={loadedWidget}
-                          field={{ ...field, translated: false }}
-                          WidgetData={{}}
-                          bind:value={currentCollectionValue[fieldName][fieldLocale]}
-                          onFieldSync={() => syncFieldToStore(fieldName)}
-                          {tenantId}
-                          collectionName={collection.value?.name}
-                        />
+                        <!-- Render-guard: the record may not exist yet on the
+                             first render after fields register (normalization
+                             runs in an effect, which is post-render). A chain
+                             into an uninitialized record would throw
+                             "Cannot read properties of undefined". The widget
+                             mounts one flush later once the record is filled. -->
+                        {#if isLocaleRecord(currentCollectionValue[fieldName])}
+                          <!-- Widget remounts when per-field locale changes -->
+                          <WidgetLoader
+                            loader={loadedWidget}
+                            field={{ ...field, translated: false }}
+                            WidgetData={{}}
+                            bind:value={currentCollectionValue[fieldName][fieldLocale]}
+                            onFieldSync={() => syncFieldToStore(fieldName)}
+                            {tenantId}
+                            collectionName={collection.value?.name}
+                          />
+                        {/if}
                       {/key}
                     {:else}
                       {#key currentContentLanguage}
@@ -918,14 +1003,14 @@ import { tick } from "svelte";
     <!-- Plugin Slots Content -->
     {#each entryEditSlots as slot (slot.id)}
       <Tabs.Content value={slot.id} class="w-full">
-        {#await slot.component()}
+        {#await componentLoader(slot)}
           <div class="flex h-40 items-center justify-center">
             <div
               class="h-10 w-10 animate-spin rounded-full border-4 border-surface-200 border-t-primary-500"
             ></div>
           </div>
         {:then Component}
-          {#if Component.default}
+          {#if "default" in Component}
             <Component.default
               {collection}
               currentCollectionValue={currentCollectionValue}

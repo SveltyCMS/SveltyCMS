@@ -712,7 +712,8 @@ export function cleanupTestArtifacts(root: string): void {
     join(root, "config", "private.test.ts"),
     join(root, "config", "test-database"),
     join(root, "config", "test-collections"),
-    join(root, ".compiledCollections"),
+    join(root, ".compiledCollections", "test-collections"),
+    join(root, "test-media"),
   ];
   for (const p of paths) {
     try {
@@ -721,44 +722,5 @@ export function cleanupTestArtifacts(root: string): void {
       /* ok */
     }
   }
-  // Remove generated collection files from config/collections/ (not .gitkeep or .gitignore)
-  const collectionsDir = join(root, "config", "collections");
-  try {
-    if (existsSync(collectionsDir)) {
-      for (const f of readdirSync(collectionsDir)) {
-        if (f.endsWith(".ts") && f !== ".gitkeep") {
-          try {
-            rmSync(join(collectionsDir, f));
-          } catch {
-            /* ok */
-          }
-        }
-      }
-    }
-  } catch {
-    /* ok */
-  }
-  // Remove leftover SQLite DBs from config/database/
-  const dbDir = join(root, "config", "database");
-  try {
-    if (existsSync(dbDir)) {
-      for (const f of readdirSync(dbDir)) {
-        if (
-          f.endsWith(".sqlite") ||
-          f.endsWith(".db") ||
-          f.endsWith("-wal") ||
-          f.endsWith("-shm")
-        ) {
-          try {
-            rmSync(join(dbDir, f));
-          } catch {
-            /* ok */
-          }
-        }
-      }
-    }
-  } catch {
-    /* ok */
-  }
-  console.log("🧹 Test artifacts cleaned");
+  console.log("🧹 Test artifacts cleaned (live config/database and config/collections protected)");
 }

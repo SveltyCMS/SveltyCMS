@@ -451,7 +451,8 @@ onMount(() => {
 
 <div class="relative z-0">
 <svelte:boundary>
-	{#snippet failed(error: any, reset: any)}
+	    {#snippet failed(error: any, reset: any)}
+		{console.error("[Boundary] Unhandled render error:", error)}
 		<div class="flex h-screen w-full flex-col items-center justify-center space-y-6 bg-surface-50 text-center dark:bg-surface-900">
 			<div class="space-y-2">
 				<h1 class="text-4xl font-bold text-error-500">System Error</h1>

@@ -66,20 +66,9 @@ const pagination = $derived(
 	},
 );
 const revisions = $derived(data?.revisions || []);
-const serverContentLanguage = $derived(data?.contentLanguage);
+	const serverContentLanguage = $derived(data?.contentLanguage);
 
-// Debug: Monitor data prop changes
-$effect(() => {
-	logger.debug("[+page.svelte] Data changed:", {
-		schemaId: data?.collectionSchema?._id,
-		schemaName: data?.collectionSchema?.name,
-		entriesCount: data?.entries?.length,
-		storeId: collections.active?._id,
-		storeName: collections.active?.name,
-	});
-});
-
-// Track initial collectionValue to detect changes
+	// Track initial collectionValue to detect changes
 let initialCollectionValue = $state("");
 let userClickedCancel = $state(false);
 let isSavingDraft = $state(false);
@@ -298,6 +287,9 @@ $effect(() => {
 
 		// Edit mode from URL change
 		if (parsed.mode === "edit" && parsed.entryId && editParamChanged) {
+			// Clear errors from the previous entry — a stale key for a field the
+			// new entry lacks would otherwise block Save (isFormValid sums all keys).
+			validationStore.clearAllErrors();
 			if (entries && entries.length === 1) {
 				// Data already loaded by server
 				const entryData = entries[0];
