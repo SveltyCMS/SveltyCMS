@@ -540,6 +540,12 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
         }
         return;
       }
+    } else if (page.url() === "about:blank") {
+      // No target and the tab is still blank (fresh context): land on the
+      // default target so callers can rely on loginAsAdmin always ending on
+      // a real page (login.spec.ts asserts non-about:blank after login).
+      await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 20_000 });
+      return;
     } else {
       return;
     }
