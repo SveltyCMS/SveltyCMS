@@ -23,7 +23,7 @@ import type { Handle, RequestEvent } from "@sveltejs/kit";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { getSetupState, isSetupComplete, SetupState } from "@utils/server/setup-check";
+import { getSetupState, SetupState } from "@utils/server/setup-check";
 import { isBootstrapRoute, getRequestFlags } from "@utils/hook-utils";
 
 const dev = (() => {
@@ -36,20 +36,60 @@ const dev = (() => {
 
 const INIT_TIMEOUT_MS = 60_000;
 let initializationState: "pending" | "in-progress" | "complete" | "failed" = "pending";
-let setupConfirmedComplete = false;
 let activeInitFlightPromise: Promise<void> | null = null;
+let lastInitError: Error | null = null;
 
 export const resetInitializationState = () => {
   initializationState = "pending";
-  setupConfirmedComplete = false;
   activeInitFlightPromise = null;
+  lastInitError = null;
 };
+
+/**
+ * Start (or restart) the boot flight. Failures are recorded on the state
+ * machine (never an unhandled rejection — backgrounded bootstrap routes don't
+ * await it); the await sites below re-check the failed state and rethrow the
+ * recorded error so requests fail CLOSED instead of proceeding against an
+ * uninitialized database.
+ */
+function startInitFlight(timeoutMs: number = INIT_TIMEOUT_MS): Promise<void> {
+  initializationState = "in-progress";
+  lastInitError = null;
+  activeInitFlightPromise = waitForInitialization(timeoutMs)
+    .then(() => {
+      initializationState = "complete";
+    })
+    .catch((err) => {
+      initializationState = "failed";
+      lastInitError = err instanceof Error ? err : new Error(String(err));
+      logger.error("[handleSystemState] Initialization failed", lastInitError);
+    });
+  return activeInitFlightPromise;
+}
+
+/**
+ * Wait for the boot flight (bounded), then fail CLOSED if it failed.
+ * A timed-out in-progress flight proceeds (self-healing store may still
+ * transition) — same bounded-wait semantics as before, minus the silent
+ * error swallowing.
+ */
+async function awaitInitOrThrow(): Promise<void> {
+  const flight = activeInitFlightPromise || startInitFlight(10_000);
+  try {
+    await Promise.race([
+      flight,
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout")), 10_000)),
+    ]);
+  } catch {
+    // timed out — checked below
+  }
+  if (initializationState === "failed" && lastInitError) throw lastInitError;
+}
 
 let testModeWarned = false;
 const IS_GK_TEST_MODE =
   process.env.TEST_MODE === "true" ||
   process.env.VITE_TEST_MODE === "true" ||
-  process.env.BENCHMARK === "true" ||
   process.env.NODE_ENV === "test" ||
   process.env.VITEST === "true" ||
   !!process.env.BUN_TEST;
@@ -89,8 +129,8 @@ async function waitForInitialization(timeoutMs: number = INIT_TIMEOUT_MS): Promi
   }
 }
 
-function isTrustedHost(event: RequestEvent): boolean {
-  if (!isSetupComplete()) return true;
+function isTrustedHost(event: RequestEvent, setupComplete: boolean): boolean {
+  if (!setupComplete) return true;
   const { host } = event.url;
   if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) return true;
   if (process.env.SVELTYCMS_DEMO === "true") return true;
@@ -126,38 +166,27 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
   }
 
   try {
-    let setupState: SetupState;
-    if (setupConfirmedComplete && isSetupComplete()) {
-      setupState = SetupState.COMPLETE;
-    } else {
-      setupConfirmedComplete = false;
-      // Static import — avoid per-request dynamic import microtask on cold setup path
-      setupState = await getSetupState();
-      if (setupState === SetupState.COMPLETE) setupConfirmedComplete = true;
-    }
+    // Always evaluate setup state dynamically — a module-level
+    // setupConfirmedComplete flag went stale after wizard resets (a reset
+    // keeps config/private.ts but wipes the DB, so the shallow check alone
+    // reported COMPLETE while the system was back in SETUP). getSetupState()
+    // is memoized internally (fast shallow check + one-time deep DB check).
+    const setupState = await getSetupState();
     (event.locals as any).__setupState = setupState;
     const setupComplete = setupState === SetupState.COMPLETE;
 
     if (systemState.overallState === "IDLE" && initializationState === "pending" && setupComplete) {
-      initializationState = "in-progress";
       logger.info("[handleSystemState] Starting system initialization flow...");
-      activeInitFlightPromise = waitForInitialization()
-        .then(() => {
-          initializationState = "complete";
-        })
-        .catch((_err) => {
-          initializationState = "failed";
-          logger.error("[handleSystemState] Initialization failed", _err);
-        });
+      startInitFlight();
       if (!event.isDataRequest && isBootstrapRoute(pathname)) {
         logger.debug(`[handleSystemState] Backgrounding init for route: ${pathname}`);
       } else {
-        await activeInitFlightPromise;
+        await awaitInitOrThrow();
       }
     }
 
     if (isBootstrapRoute(pathname)) {
-      if (!isTrustedHost(event)) {
+      if (!isTrustedHost(event, setupComplete)) {
         metricsService.incrementSecurityViolations();
         logger.warn(`[Security] Untrusted host blocked: ${event.url.host}`);
         throw new AppError("Access from untrusted host blocked", 403, "UNTRUSTED_HOST");
@@ -197,7 +226,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
       initializationState === "in-progress" ||
       (systemState.overallState === "SETUP" && setupComplete);
     if (needsWait) {
-      if (activeInitFlightPromise) await activeInitFlightPromise;
+      if (activeInitFlightPromise) await awaitInitOrThrow();
       else await waitForInitialization();
     }
 
@@ -212,22 +241,12 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     }
 
     if (activeSystemState.overallState === "IDLE" && setupComplete) {
-      if (initializationState === "pending") {
-        initializationState = "in-progress";
-        activeInitFlightPromise = waitForInitialization()
-          .then(() => {
-            initializationState = "complete";
-          })
-          .catch((_err) => {
-            initializationState = "failed";
-          });
+      // Self-healing: a failed boot is re-triggered on the next request
+      // (fail fast when dbInitPromise rejects; bounded 10s wait when it hangs).
+      if (initializationState === "pending" || initializationState === "failed") {
+        startInitFlight(10_000);
       }
-      try {
-        await Promise.race([
-          activeInitFlightPromise || waitForInitialization(10_000),
-          new Promise((r) => setTimeout(r, 10_000)),
-        ]);
-      } catch {}
+      await awaitInitOrThrow();
       return resolve(event);
     }
 
@@ -243,22 +262,10 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
       if (setupComplete && activeSystemState.overallState === "SETUP") {
         // Setup is complete but state machine hasn't transitioned yet —
         // treat same as IDLE+setupComplete: wait for DB init, then proceed.
-        if (initializationState === "pending") {
-          initializationState = "in-progress";
-          activeInitFlightPromise = waitForInitialization()
-            .then(() => {
-              initializationState = "complete";
-            })
-            .catch((_err) => {
-              initializationState = "failed";
-            });
+        if (initializationState === "pending" || initializationState === "failed") {
+          startInitFlight(10_000);
         }
-        try {
-          await Promise.race([
-            activeInitFlightPromise || waitForInitialization(10_000),
-            new Promise((r) => setTimeout(r, 10_000)),
-          ]);
-        } catch {}
+        await awaitInitOrThrow();
         return resolve(event);
       } else
         throwRestrictedError(

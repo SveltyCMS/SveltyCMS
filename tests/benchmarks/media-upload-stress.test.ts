@@ -20,7 +20,7 @@ import {
   setupBenchmarkServer,
   ensureStableTestData,
   stabilize,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { randomBytes } from "node:crypto";
@@ -53,8 +53,7 @@ async function runUploadAudit() {
     initializeStaticBuffers(FILE_SIZE_MB);
 
     const uploadHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
       Origin: baseUrl,
     };
 

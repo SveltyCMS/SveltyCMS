@@ -18,7 +18,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -37,11 +37,10 @@ async function runConcurrencyAudit() {
     await ensureStableTestData();
     await forceRefreshServer(baseUrl);
 
-    // Canonical lowercase structural header format
+    // Canonical lowercase structural header format — REAL admin session (production auth)
     const headers = {
       "content-type": "application/json",
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
       "x-tenant-id": "global",
     } as const;
 

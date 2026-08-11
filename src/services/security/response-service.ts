@@ -10,7 +10,7 @@ import { AuthGuardService } from "./auth-guard";
 import { securityStore } from "./state-store";
 import { RateLimiterMemory, RateLimiterRedis } from "rate-limiter-flexible";
 import { cacheService } from "@src/databases/cache/cache-service";
-import fs from "node:fs/promises";
+import fs from "node:fs";
 import path from "node:path";
 import { systemMonitor } from "@utils/system-monitor";
 import type {
@@ -69,6 +69,7 @@ const ENDPOINT_RATE_LIMITS: Record<string, number> = {
   "/api/auth/saml/acs": 10,
   "/api/auth/register": 3,
   "/api/auth/forgot-password": 3,
+  "/api/graphql": 150,
   "/api/scim/v2": 30,
   "/api/media/upload": 20,
   "/api/token/create-token": 5,
@@ -85,6 +86,14 @@ const ENDPOINT_RATE_LIMITS: Record<string, number> = {
 const GLOBAL_RATE_LIMIT = 500;
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB
 const SCAN_BODY_MAX_SIZE = 32768; // 32KB
+const RAW_SECURITY_RATE_LIMIT_SCALE = Number(process.env.SECURITY_RATE_LIMIT_SCALE);
+const SECURITY_RATE_LIMIT_SCALE =
+  RAW_SECURITY_RATE_LIMIT_SCALE > 0 ? RAW_SECURITY_RATE_LIMIT_SCALE : 1;
+
+interface PayloadSnapshot {
+  json?: unknown;
+  text?: string;
+}
 
 // ============================================================================
 // SECURITY RESPONSE SERVICE
@@ -100,20 +109,29 @@ export class SecurityResponseService {
 
   constructor() {
     this.policies = [...DEFAULT_POLICIES];
-    this.restoreState();
+    this.restoreStateSync();
   }
 
   private async getOrCreateLimiter(
     endpoint: string,
     tenantId?: string,
   ): Promise<RateLimiterMemory | RateLimiterRedis> {
-    const isGraphql = endpoint.includes("/api/graphql");
-    const scope = ENDPOINT_RATE_LIMITS[endpoint] ? endpoint : isGraphql ? "graphql" : "global";
-    const limit = ENDPOINT_RATE_LIMITS[scope] || GLOBAL_RATE_LIMIT;
-
+    // Normalize away query strings so /api/graphql?foo=1 and /api/graphql share
+    // one limiter key instead of creating a fresh bucket per query string.
+    const cleanEndpoint = endpoint.split("?")[0] || endpoint;
+    const isGraphql = cleanEndpoint.includes("/api/graphql");
+    const scope = ENDPOINT_RATE_LIMITS[cleanEndpoint]
+      ? cleanEndpoint
+      : isGraphql
+        ? "/api/graphql"
+        : "global";
     const cacheKey = tenantId ? `${scope}_${tenantId}` : scope;
     const cached = this.limiters.get(cacheKey);
     if (cached) return cached;
+
+    // SECURITY_RATE_LIMIT_SCALE raises the whole WAF ceiling uniformly for
+    // load-testing/benchmark deployments (machinery stays fully active).
+    const limit = (ENDPOINT_RATE_LIMITS[scope] || GLOBAL_RATE_LIMIT) * SECURITY_RATE_LIMIT_SCALE;
 
     const keyPrefix = tenantId
       ? `svelty:sec:rl:v12:${tenantId}:${scope.replace(/\//g, "_").replace(/^_/, "")}`
@@ -129,7 +147,7 @@ export class SecurityResponseService {
     const redisClient = (cacheService as any).getRedisClient ? cacheService.getRedisClient() : null;
     let limiter: RateLimiterMemory | RateLimiterRedis;
 
-    if (redisClient) {
+    if (redisClient && redisClient.status === "ready") {
       limiter = new RateLimiterRedis({ storeClient: redisClient, ...options });
     } else {
       limiter = new RateLimiterMemory(options);
@@ -160,6 +178,7 @@ export class SecurityResponseService {
     request: Request,
     clientIp: string,
     tenantId?: string,
+    payloadSnapshot?: PayloadSnapshot,
   ): Promise<SecurityStatus> {
     const url = new URL(request.url);
     const pathname = url.pathname;
@@ -206,7 +225,7 @@ export class SecurityResponseService {
     }
 
     // 5. Payload pattern analysis
-    const threatLevel = await this.analyzePayload(request);
+    const threatLevel = await this.analyzePayload(request, payloadSnapshot);
     if (threatLevel === "critical") {
       await this.blockIp(clientIp, "Critical threat detected in payload");
       return {
@@ -226,7 +245,10 @@ export class SecurityResponseService {
     return { level: "none", action: "allow" };
   }
 
-  private async analyzePayload(request: Request): Promise<ThreatLevel> {
+  private async analyzePayload(
+    request: Request,
+    payloadSnapshot?: PayloadSnapshot,
+  ): Promise<ThreatLevel> {
     const url = new URL(request.url);
     let maxThreat: ThreatLevel = "none";
 
@@ -251,25 +273,41 @@ export class SecurityResponseService {
       if (contentLength > 0) {
         try {
           const contentType = request.headers.get("content-type") || "";
-          const clone = request.clone();
 
           if (contentType.includes("application/json") && contentLength < SCAN_BODY_MAX_SIZE * 2) {
-            const json = await clone.json().catch(() => ({}));
+            const json =
+              payloadSnapshot && "json" in payloadSnapshot
+                ? payloadSnapshot.json
+                : await request
+                    .clone()
+                    .json()
+                    .catch(() => ({}));
             maxThreat = this.upgradeThreat(maxThreat, this.scanRecursive(json));
+          } else if (contentType.includes("application/x-www-form-urlencoded")) {
+            const text =
+              payloadSnapshot && "text" in payloadSnapshot
+                ? payloadSnapshot.text || ""
+                : await request
+                    .clone()
+                    .text()
+                    .catch(() => "");
+            maxThreat = this.upgradeThreat(maxThreat, this.checkValue(text));
           } else if (
-            contentType.includes("application/x-www-form-urlencoded") ||
-            contentType.includes("multipart/form-data")
+            // 🚫 Multipart (file uploads) is NOT buffered: formData() would
+            // materialize multi-MB binaries in RAM purely to scan form strings
+            // (GC + event-loop stalls on every media upload). Binary bodies stay
+            // covered by URL/UA/header scans + MIME restrictions downstream.
+            !contentType.includes("multipart/form-data") &&
+            contentLength < SCAN_BODY_MAX_SIZE
           ) {
-            const formData = await clone.formData().catch(() => new FormData());
-            for (const value of formData.values()) {
-              if (typeof value === "string") {
-                maxThreat = this.upgradeThreat(maxThreat, this.checkValue(value));
-                if (maxThreat === "critical") break;
-              }
-            }
-          } else if (contentLength < SCAN_BODY_MAX_SIZE) {
             // Fallback text scan for unknown types, with strict length cap
-            const text = await clone.text().catch(() => "");
+            const text =
+              payloadSnapshot && "text" in payloadSnapshot
+                ? payloadSnapshot.text || ""
+                : await request
+                    .clone()
+                    .text()
+                    .catch(() => "");
             maxThreat = this.upgradeThreat(maxThreat, this.checkValue(text));
           }
         } catch (err) {
@@ -408,15 +446,22 @@ export class SecurityResponseService {
       await limiter.consume(ip, adaptivePoints);
       return { level: "none", action: "allow" };
     } catch (rej: any) {
-      const retryAfter = Math.ceil((rej.msBeforeNext || 1000) / 1000);
-      logger.warn(
-        `[Security] Rate limit exceeded [IP: ${ip}, Points: ${points}, Retry: ${retryAfter}s]`,
-      );
-      return {
-        level: "low",
-        action: "throttle",
-        reason: `Rate limit exceeded (Retry after ${retryAfter}s)`,
-      };
+      // 🛡️ FAIL-OPEN on driver/storage errors: only a real rate-limit rejection
+      // (RateLimiterRes with msBeforeNext) should throttle. A transient Redis
+      // outage must NOT lock out every user on the platform.
+      if (rej && typeof rej.msBeforeNext === "number") {
+        const retryAfter = Math.ceil((rej.msBeforeNext || 1000) / 1000);
+        logger.warn(
+          `[Security] Rate limit exceeded [IP: ${ip}, Points: ${points}, Retry: ${retryAfter}s]`,
+        );
+        return {
+          level: "low",
+          action: "throttle",
+          reason: `Rate limit exceeded (Retry after ${retryAfter}s)`,
+        };
+      }
+      logger.error("[Security] Rate limiter storage error - failing open", rej);
+      return { level: "none", action: "allow" };
     }
   }
 
@@ -573,16 +618,11 @@ export class SecurityResponseService {
   }
 
   /**
-   * Gracefully shuts down the security service, dumping state to disk.
+   * Gracefully dumps rate limiter state synchronously during process shutdown.
+   * Async writes in SIGTERM/SIGINT handlers are not guaranteed to flush before
+   * the process exits — sync I/O is the only safe option here.
    */
-  public async destroy(): Promise<void> {
-    await this.dumpState();
-  }
-
-  /**
-   * Dumps current rate limiter state to a JSON file for persistence.
-   */
-  private async dumpState(): Promise<void> {
+  public destroySync(): void {
     if (building) return;
     const data: Record<string, any> = {};
     let count = 0;
@@ -595,38 +635,31 @@ export class SecurityResponseService {
     if (count === 0) return;
 
     try {
-      await fs.mkdir(path.dirname(this.DUMP_PATH), { recursive: true });
-      await fs.writeFile(this.DUMP_PATH, JSON.stringify(data), "utf8");
-      logger.info(`[Security] Rate limiter state dumped (${count} limiters)`);
+      fs.mkdirSync(path.dirname(this.DUMP_PATH), { recursive: true });
+      fs.writeFileSync(this.DUMP_PATH, JSON.stringify(data), "utf8");
+      logger.info(`[Security] Rate limiter state dumped synchronously (${count} limiters)`);
     } catch (err) {
       logger.error("[Security] Failed to dump rate limiter state", err);
     }
   }
 
   /**
-   * Restores rate limiter state from a JSON file.
+   * Restores rate limiter state synchronously on service boot — the constructor
+   * cannot await, and a floating async restore races getOrCreateLimiter()
+   * (limiters would initialize empty and the dump file would already be gone).
    */
-  private async restoreState(): Promise<void> {
+  private restoreStateSync(): void {
     if (building) return;
     try {
-      if (
-        !(await fs
-          .access(this.DUMP_PATH)
-          .then(() => true)
-          .catch(() => false))
-      )
-        return;
+      if (!fs.existsSync(this.DUMP_PATH)) return;
 
-      const raw = await fs.readFile(this.DUMP_PATH, "utf8");
+      const raw = fs.readFileSync(this.DUMP_PATH, "utf8");
       this.restoredData = JSON.parse(raw);
       const count = Object.keys(this.restoredData).length;
       if (count > 0) {
         logger.info(`[Security] Rate limiter state loaded (${count} pending restores)`);
       }
-      // Clean up file after loading to prevent stale restores on crash
-      await fs.unlink(this.DUMP_PATH).catch(() => {
-        logger.debug("Rate limiter state dump file cleanup failed");
-      });
+      fs.unlinkSync(this.DUMP_PATH);
     } catch (err) {
       logger.error("[Security] Failed to restore rate limiter state", err);
     }
@@ -640,9 +673,9 @@ export class SecurityResponseService {
 const g = globalThis as any;
 if (g.__SVELTY_SECURITY_INSTANCE__) {
   try {
-    // If destroy exists, call it to prevent leaks on HMR
-    if (typeof g.__SVELTY_SECURITY_INSTANCE__.destroy === "function") {
-      g.__SVELTY_SECURITY_INSTANCE__.destroy();
+    // If destroySync exists, call it to prevent leaks on HMR
+    if (typeof g.__SVELTY_SECURITY_INSTANCE__.destroySync === "function") {
+      g.__SVELTY_SECURITY_INSTANCE__.destroySync();
     }
   } catch {}
 }
@@ -654,7 +687,7 @@ if (g.__SVELTY_SECURITY_INSTANCE__) {
 export const securityResponseService = (() => {
   if (
     !g.__SVELTY_SECURITY_INSTANCE__ ||
-    typeof g.__SVELTY_SECURITY_INSTANCE__.destroy !== "function"
+    typeof g.__SVELTY_SECURITY_INSTANCE__.destroySync !== "function"
   )
     g.__SVELTY_SECURITY_INSTANCE__ = new SecurityResponseService();
   return g.__SVELTY_SECURITY_INSTANCE__;
@@ -662,7 +695,7 @@ export const securityResponseService = (() => {
 
 // Process hooks for persistent state
 if (!(building || g.__SVELTY_SECURITY_READY__)) {
-  process.on("SIGTERM", () => securityResponseService.destroy());
-  process.on("SIGINT", () => securityResponseService.destroy());
+  process.on("SIGTERM", () => securityResponseService.destroySync());
+  process.on("SIGINT", () => securityResponseService.destroySync());
   g.__SVELTY_SECURITY_READY__ = true;
 }

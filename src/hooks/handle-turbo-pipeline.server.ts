@@ -50,8 +50,17 @@ let healthHeaders: Record<string, string> | null = null;
 // racing `if (!cachedDbAdapter) { await import(...) }` and importing the DB
 // module N times during the same tick (cold-start thundering herd).
 let dbAdapterInitPromise: Promise<any> | null = null;
-function ensureCachedDbAdapter(): Promise<any> {
-  if (cachedDbAdapter) return Promise.resolve(cachedDbAdapter);
+async function ensureCachedDbAdapter(): Promise<any> {
+  // 🐛 FRESHNESS: never reuse a dead adapter — after graceful shutdown, HMR
+  // reloads, or failover/reconnection the cached instance holds a defunct
+  // connection; health checks would report "healthy" while every query throws.
+  if (
+    cachedDbAdapter &&
+    typeof cachedDbAdapter.isConnected === "function" &&
+    cachedDbAdapter.isConnected()
+  ) {
+    return cachedDbAdapter;
+  }
   if (!dbAdapterInitPromise) {
     dbAdapterInitPromise = (async () => {
       const { getDbInitPromise, getDb } = await import("@src/databases/db");
@@ -78,9 +87,7 @@ async function getSettingsService() {
 // --- HELPERS ---
 
 /** Generates a unique request ID for tracing - Optimized for high throughput */
-let requestIdCounter = 0;
 const generateRequestId = () => {
-  if (IS_BENCHMARK) return ++requestIdCounter;
   // Use CSPRNG for all trace IDs (security hardening)
   return globalThis.crypto.randomUUID().slice(0, 8) + Date.now().toString(36);
 };
@@ -96,7 +103,6 @@ const logRequest = (event: any, duration: number, status: number) => {
 
 /**
  * Builds a health-check response (de-duplicated from test bypass and regular paths).
- * In benchmark mode without verbose, returns a lean response for high-frequency polling.
  */
 function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
   if (!healthHeaders) {
@@ -110,35 +116,26 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
     };
   }
 
-  // 🚀 PERFORMANCE FAST-PATH: Avoid allocating system info & calling process.memoryUsage() / process.uptime()
-  // which are heavy system/V8 operations, unless verbose is requested during benchmark/health checks.
-  if (IS_BENCHMARK && !searchParams.has("verbose")) {
-    return new Response(
-      JSON.stringify({
-        status: db ? "healthy" : "initializing",
-        overallStatus: db ? "READY" : "SETUP",
-        database: !!db,
-      }),
-      { status: 200, headers: healthHeaders },
-    );
-  }
-
-  const health = {
+  const includeDiagnostics =
+    searchParams.has("verbose") || searchParams.has("hooks") || searchParams.has("gc");
+  const health: Record<string, unknown> = {
     status: db ? "healthy" : "initializing",
     overallStatus: db ? "READY" : "SETUP",
     database: !!db,
-    uptime: process.uptime(),
     timestamp: Date.now(),
     dbType: DB_TYPE || "unknown",
-    memory: (() => {
-      if (searchParams.has("gc")) {
-        if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
-        if (typeof (globalThis as any).Bun !== "undefined" && (globalThis as any).Bun.gc)
-          (globalThis as any).Bun.gc(true);
-      }
-      return process.memoryUsage();
-    })(),
   };
+
+  if (includeDiagnostics) {
+    if (searchParams.has("gc")) {
+      if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
+      if (typeof (globalThis as any).Bun !== "undefined" && (globalThis as any).Bun.gc) {
+        (globalThis as any).Bun.gc(true);
+      }
+    }
+    health.uptime = process.uptime();
+    health.memory = process.memoryUsage();
+  }
 
   return new Response(JSON.stringify(health), {
     status: 200,
@@ -159,7 +156,12 @@ async function getCorsHeadersInline(
 ): Promise<Record<string, string> | null> {
   const { getPrivateSettingSync } = await getSettingsService();
   const corsEnabled = getPrivateSettingSync("CORS_ENABLED") as boolean;
-  if (!corsEnabled || !isApiRoute || !origin) return null;
+  if (!isApiRoute) return null;
+  // Origin-less OPTIONS are never browser preflights (same-origin clients,
+  // curl, health probes) — answer with empty headers instead of a hard 403
+  // that would break legitimate same-origin API calls.
+  if (!origin) return {};
+  if (!corsEnabled) return null;
 
   const allowedOriginsRaw = getPrivateSettingSync("CORS_ALLOWED_ORIGINS") as any;
   const allowedOrigins = Array.isArray(allowedOriginsRaw)
@@ -207,12 +209,8 @@ async function getCorsHeadersInline(
 }
 
 // ✨ PERFORMANCE: Cache environment lookups to avoid process.env overhead on every request
-const IS_BENCHMARK =
-  typeof globalThis !== "undefined" && (globalThis as any).process?.env?.BENCHMARK === "true";
-
 const IS_TEST_MODE =
   typeof globalThis !== "undefined" &&
-  !IS_BENCHMARK && // 🚀 Benchmarks run real middleware, not test bypass
   (String((globalThis as any).process?.env?.TEST_MODE) === "true" ||
     String((globalThis as any).process?.env?.VITE_TEST_MODE) === "true" ||
     (globalThis as any).process?.env?.NODE_ENV === "test");
@@ -266,7 +264,11 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
     if (expected && testSecret === expected) {
       // 🚀 TERMINAL BYPASS: Verified test secret receives full system access.
       // We explicitly skip ALL other middleware by calling the dispatcher or returning a direct response.
-      if (!cachedDbAdapter) {
+      if (
+        !cachedDbAdapter ||
+        typeof cachedDbAdapter.isConnected !== "function" ||
+        !cachedDbAdapter.isConnected()
+      ) {
         try {
           await ensureCachedDbAdapter();
         } catch {
@@ -275,13 +277,11 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       }
 
       const db = cachedDbAdapter;
-      if (!IS_BENCHMARK || event.url.searchParams.has("verbose")) {
-        logger.debug(
-          `[Turbo] TEST BYPASS for ${pathname} (db: ${!!db}, connected: ${db?.isConnected()})`,
-        );
-      }
+      logger.debug(
+        `[Turbo] TEST BYPASS for ${pathname} (db: ${!!db}, connected: ${db?.isConnected()})`,
+      );
 
-      if (pathname.includes("/setup") && !IS_BENCHMARK) {
+      if (pathname.includes("/setup")) {
         logger.debug(`[Turbo] TEST BYPASS for ${pathname} method=${event.request.method}`);
       }
 
@@ -306,7 +306,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
                 event.request.headers.get("x-test-tenant-id") ||
                 event.request.headers.get("x-tenant-id");
               (event.locals as any).tenantId = testTenantHeader || user.tenantId || null;
-              if (!IS_BENCHMARK) logger.debug(`[Turbo] Resolved REAL user: ${user.email}`);
+              logger.debug(`[Turbo] Resolved REAL user: ${user.email}`);
             }
           } catch {
             /* ignore session errors in bypass */
@@ -315,7 +315,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       }
 
       if (!event.locals.user) {
-        // 🛡️ HARDENING: Only fallback to system user for management endpoints, setup, or benchmarks.
+        // 🛡️ HARDENING: Only fallback to system user for management endpoints or setup.
         // This prevents false positives in integration tests checking for 401/403.
         // Setup: only inject while install is incomplete — never after private.ts exists
         // (admin-takeover class if /api/setup/* still accepted a synthetic admin).
@@ -327,7 +327,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           pathname.includes("/health") ||
           pathname.includes("/api/user/login"); // Allow login bypass to proceed
 
-        if (isManagement || IS_BENCHMARK) {
+        if (isManagement) {
           (event.locals as any).user = {
             _id: "system",
             role: "admin",
@@ -335,31 +335,26 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
             email: "system@sveltycms",
           };
 
-          // 🚀 TENANT SYNC: Extract tenantId from header if provided (critical for benchmarks)
+          // 🚀 TENANT SYNC: Extract tenantId from header if provided
           const headerTenant =
             event.request.headers.get("x-tenant-id") ||
             event.request.headers.get("x-test-tenant-id") ||
             event.request.headers.get("X-Tenant-Id");
           (event.locals as any).tenantId = headerTenant || null;
 
-          if (!IS_BENCHMARK) {
-            logger.debug(
-              `[Turbo] Fallback to SYSTEM user for ${pathname} (Tenant: ${headerTenant || "null"})`,
-            );
-          }
+          logger.debug(
+            `[Turbo] Fallback to SYSTEM user for ${pathname} (Tenant: ${headerTenant || "null"})`,
+          );
         } else {
-          if (!IS_BENCHMARK)
-            logger.debug(`[Turbo] No session found and not a management endpoint. Proceeding...`);
+          logger.debug(`[Turbo] No session found and not a management endpoint. Proceeding...`);
         }
       }
 
       (event.locals as any).isAdmin =
         !!event.locals.user?.isAdmin || event.locals.user?.role === "admin";
       (event.locals as any).dbAdapter = db;
-      // 🚀 HONEST BENCHMARKS: Only set testBypass for non-benchmark test mode.
-      // Benchmarks inject a real user but still run the FULL middleware chain
-      // (rate limiting, RBAC, audit logging) for honest performance measurement.
-      if (!IS_BENCHMARK && event.request.headers.get("x-test-security") !== "true") {
+      // 🛡️ HARDENING: Only set testBypass when explicitly requested — never in benchmarks.
+      if (event.request.headers.get("x-test-security") !== "true") {
         if (event.locals.user) {
           (event.locals as any).__testBypass = true;
         }
@@ -370,62 +365,18 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         return buildHealthResponse(db, event.url.searchParams);
       }
 
-      // For Benchmarks, if it's an API route, we can skip the remaining hooks and go to the dispatcher
-      // However, since we can't easily call the dispatcher here without circular imports,
-      // we'll let it continue but FLAG it so other hooks skip their logic.
       return await resolve(event);
-    }
-  }
-
-  // ── 0a2. BENCHMARK AUTH (no bypass) ───────────────────────────────────
-  // Benchmarks authenticate via x-test-secret but run the FULL middleware chain.
-  // This gives honest performance measurements of real CMS infrastructure.
-  if (IS_BENCHMARK) {
-    const benchSecret =
-      event.request.headers.get("x-test-secret") || event.request.headers.get("X-Test-Secret");
-    if (benchSecret) {
-      const expected = process.env.TEST_API_SECRET || getTestSecret();
-      if (expected && benchSecret === expected) {
-        const benchUser = {
-          _id: "system",
-          role: "admin",
-          isAdmin: true,
-          email: "system@sveltycms",
-        };
-        (event.locals as any).user = benchUser;
-        (event.locals as any).tenantId = event.request.headers.get("x-tenant-id") || null;
-        // 🚀 NO __testBypass — downstream hooks (RBAC, rate limit, audit) run normally
-        // Warm turbo-auth so handleTurboGet can short-circuit on subsequent GETs
-        try {
-          const { setTurboAuthContext, buildBenchmarkTurboSessionId } =
-            await import("./handle-turbo-get");
-          const tenantHdr = event.request.headers.get("x-tenant-id") || null;
-          setTurboAuthContext(
-            buildBenchmarkTurboSessionId(benchSecret),
-            benchUser as any,
-            [],
-            new Uint32Array(1),
-            tenantHdr as any,
-          );
-        } catch {
-          /* turbo optional */
-        }
-        if (!cachedDbAdapter) {
-          try {
-            await ensureCachedDbAdapter();
-          } catch {
-            /* ignore */
-          }
-        }
-        (event.locals as any).dbAdapter = cachedDbAdapter;
-      }
     }
   }
 
   // ── 0b. TERMINAL HEALTH CHECK BYPASS ──────────────────────────────────
   // Health checks must be zero-latency and bypass ALL other hooks.
   if (pathname === "/api/system/health" || pathname === "/health") {
-    if (!cachedDbAdapter) {
+    if (
+      !cachedDbAdapter ||
+      typeof cachedDbAdapter.isConnected !== "function" ||
+      !cachedDbAdapter.isConnected()
+    ) {
       try {
         cachedDbAdapter = await ensureCachedDbAdapter();
       } catch {
@@ -452,10 +403,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
       overallState === "WARMING" ||
       overallState === "DEGRADED";
 
-    const isTestMode =
-      process.env.TEST_MODE === "true" ||
-      process.env.VITE_TEST_MODE === "true" ||
-      process.env.BENCHMARK === "true";
+    const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
 
     let setupState: SetupState;
 
@@ -535,10 +483,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
     if (isBootstrapRoute(pathname) && !isLoginDuringSetup) {
       // Security Gate: Block /setup routes if setup is already complete
-      const isTestMode =
-        process.env.TEST_MODE === "true" ||
-        process.env.VITE_TEST_MODE === "true" ||
-        process.env.BENCHMARK === "true";
+      const isTestMode = process.env.TEST_MODE === "true" || process.env.VITE_TEST_MODE === "true";
       const shouldEnforceCompletedSetupRedirect = !isTestMode || IS_STRICT_SETUP_CHECK;
 
       if (

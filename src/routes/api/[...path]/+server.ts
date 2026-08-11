@@ -247,7 +247,10 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
 /**
  * Checks authorization for endpoints in a fail-closed manner.
  */
-function checkEndpointPermission(
+// Exported with `_` prefix (SvelteKit route modules only allow `_`-prefixed
+// custom exports) so the security-audit benchmark can measure the REAL
+// dispatcher gate instead of a synthetic stand-in.
+export function _checkEndpointPermission(
   user: any,
   roles: any[],
   method: string,
@@ -468,7 +471,7 @@ export const _handler = async (event: RequestEvent) => {
   // Fail-closed authorization
   if (!isPublic && !(locals as any).__testBypass && request.method.toUpperCase() !== "OPTIONS") {
     const roles = locals.roles || [];
-    if (!checkEndpointPermission(user, roles, request.method, namespace, segments)) {
+    if (!_checkEndpointPermission(user, roles, request.method, namespace, segments)) {
       throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
     }
   }

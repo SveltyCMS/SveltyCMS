@@ -119,7 +119,7 @@ async function seedPostgresHub(
     config: {
       host: process.env.UDH_PG_HOST || "127.0.0.1",
       port: Number(process.env.UDH_PG_PORT || 5432),
-      database: process.env.UDH_PG_DATABASE || getIntegrationDbName(),
+      database: process.env.UDH_PG_DATABASE || getIntegrationDbName("postgresql"),
       schema: FIXTURE_SCHEMA,
     },
     credentials: {

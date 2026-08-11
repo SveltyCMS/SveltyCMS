@@ -17,6 +17,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  requireTestInfrastructure,
   TEST_API_SECRET,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
@@ -25,6 +26,8 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runDataResidencyAudit() {
+  // Chaos-lab: x-network-boundary compliance interception requires TEST_MODE
+  requireTestInfrastructure("data-residency-failover");
   console.log("🚀 Starting Enterprise Data Residency Audit...\n");
 
   try {

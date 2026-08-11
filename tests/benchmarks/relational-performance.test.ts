@@ -20,6 +20,7 @@ import {
   printSummaryTable,
   getDbType,
   forceRefreshServer,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -38,13 +39,10 @@ async function runRelationalAudit() {
     await forceRefreshServer(baseUrl);
     await stabilize(1500);
 
-    const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
-
-    // Shared headers layout container optimized to prevent runtime GC thrashing
+    // Shared headers layout — REAL admin session cookie (production auth)
     const graphQlHeaders = {
       "Content-Type": "application/json",
-      "x-test-mode": "true",
-      "x-test-secret": secret,
+      ...benchmarkAuthHeaders(),
     };
 
     // Pre-serialize payload query configurations out of hot paths

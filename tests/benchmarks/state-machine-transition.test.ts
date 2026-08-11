@@ -16,7 +16,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -31,10 +31,9 @@ async function runStateMachineAudit() {
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
 
-    // Cache static immutable configuration headers outside hot iteration path
+    // Cache static immutable configuration headers outside hot iteration path — REAL session
     const requestHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
     };
 
     console.log("   → Stressing 'Self-Healing' re-initialization logic...");

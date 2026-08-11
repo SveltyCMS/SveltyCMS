@@ -46,6 +46,19 @@ export function createSelfHealingProxy<T extends object>(
 
         const instance = getInstance();
 
+        // 🛡️ STABLE IDENTITY: unscoped() exposes the current raw instance so
+        // caches keyed on adapter identity (e.g. the GraphQL schema cache) see
+        // ONE canonical object whether the caller holds the proxy or the raw.
+        if (prop === "unscoped") {
+          if (!instance) {
+            return async () => {
+              await reinitialize();
+              return getInstance();
+            };
+          }
+          return () => instance;
+        }
+
         // Recurse into namespace sub-proxies
         if (typeof prop === "string" && namespaceSet.has(prop)) {
           return createProxy(prop);

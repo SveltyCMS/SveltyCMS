@@ -37,23 +37,35 @@ async function scrapeRoleMetadata(page: import("@playwright/test").Page) {
  * Fetch the page data (including the permissions array) from SvelteKit's
  * __data.json endpoint. The table renders permission.name but the API
  * expects permission._id — we use this to build a name→ID mapping.
+ *
+ * NOTE: SvelteKit streams the payload as newline-separated chunks
+ * (main JSON object first, then `{"type":"chunk",...}` lines) — parse
+ * only the first line; JSON.parse on the full body fails at line 2.
  */
 async function fetchPageData(page: import("@playwright/test").Page) {
   return page.evaluate(async () => {
     const pathname = window.location.pathname.replace(/\/$/, "");
     const res = await fetch(pathname + "/__data.json");
     if (!res.ok) return null;
-    const json = await res.json();
-    // SvelteKit returns { type: "data", nodes: [...] }
+    const text = await res.text();
+    const firstLine = text.split("\n")[0] || text;
+    let json: any = null;
+    try {
+      json = JSON.parse(firstLine);
+    } catch {
+      return null;
+    }
+    // SvelteKit returns { type: "data", nodes: [...] }. The first node is the
+    // root/(app) layout's data — the access-management page's { roles,
+    // permissions } lives in the page node. Match on the node whose data
+    // exposes them.
     if (json?.nodes) {
       for (const node of json.nodes) {
-        if (node?.type === "data" && node?.data) return node.data;
-      }
-      for (const node of json.nodes) {
-        if (node?.permissions || node?.roles) return node;
+        if (node?.type === "data" && node?.data && (node.data.permissions || node.data.roles)) {
+          return node.data;
+        }
       }
     }
-    if (json?.permissions || json?.roles) return json;
     return null;
   });
 }
@@ -162,7 +174,7 @@ async function postRoles(page: import("@playwright/test").Page, roles: unknown[]
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        "X-CSRF-Token": decodeURIComponent(csrf),
+        "X-CSRF-Token": csrf,
       },
       body: JSON.stringify(rolesData),
     });

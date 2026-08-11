@@ -128,7 +128,7 @@ Local benchmarks use a sandboxed environment that protects live developer data i
 | Profile      | When                                     | Behavior                                                                                                                   |
 | ------------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | **local**    | `config/private.ts` exists (dev machine) | Runtime env-only config, isolated `benchmark_shared` DB, sandbox compiled/manifest/media trees, external services disabled |
-| **ci-fresh** | No `config/private.ts` (CI runners)      | Setup wizard runs, writes `private.test.ts` under `TEST_MODE`, simulates first install                                     |
+| **ci-fresh** | No `config/private.ts` (CI runners)      | Seeds state in-process (roles + admin + collections), no wizard needed — `BENCHMARK` force-completes setup                 |
 
 ### Sandbox Isolation (`src/utils/benchmark-sandbox.ts`)
 
@@ -140,15 +140,25 @@ Local benchmarks use a sandboxed environment that protects live developer data i
 | `mediaFolder/`                       | `config/benchmark-sandbox/media/`                                     |
 | `config/collections/*.ts` (non-test) | Bootstrap regen skipped; writes blocked (fail-closed)                 |
 
+### Runtime Modes
+
+Exactly **three** runtime modes exist (see `docs/tests/benchmark-isolation.mdx`):
+
+1. **Production (default)** — `NODE_ENV=production`, `AUDIT_CHAIN_SYNC=false`, `DISABLE_AUDIT_LOGS=true`.
+2. **Production + Enterprise Compliance** — benchmark servers with `BENCHMARK_AUDIT_MODE=compliance` → `AUDIT_CHAIN_SYNC=true`, `DISABLE_AUDIT_LOGS=false` (synchronous SHA-256 audit chain on every mutation).
+3. **E2E / Integration testing** — `TEST_MODE=true`, `/api/testing` + `x-test-secret` work (timing-safe, 403 in production).
+
+Benchmark servers always run mode 1 or 2: `NODE_ENV=production`, `TEST_MODE` explicitly cleared, real session-cookie auth, real rate limits/WAF/CSRF. `x-test-secret` grants nothing.
+
 ### External Services Guard (`src/utils/benchmark-runtime.ts`)
 
-When `BENCHMARK=true`, the following are explicitly disabled:
+When `BENCHMARK=true`, outbound side-effects are disabled so load tests never fire real external calls:
 
-- **Redis cache** — `cache-service.ts` skips L2 connection
 - **Email/SMTP** — `email.server.ts` returns `{ benchmark_sandbox: true }`
 - **AI translation** — `ai-translation.ts` returns `null`
 - **Webhooks** — `webhook-service.ts` and `automation-service.ts` skip triggers
-- **Background jobs** — `job-queue-service.ts` disables polling
+
+**Redis L2 cache** is controlled by `BENCHMARK_NO_REDIS=1` alone (set by default in `getBenchmarkTestEnv`). Set `BENCHMARK_NO_REDIS=0` + `USE_REDIS=true` to benchmark the real Redis L2 path. Background jobs (`job-queue-service`) and the watchdog now run during benchmarks — production parity.
 
 ### Preflight (`scripts/verify-benchmark-local.ts`)
 

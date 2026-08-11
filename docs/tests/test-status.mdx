@@ -180,13 +180,13 @@ Details: [git-workflow.mdx](./git-workflow.mdx)
 
 ### `/config/access-management` (2026-07-19)
 
-|             |                                                                                                                          |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Status**  | Tabs + create role + save/reset + admin/tokens; sticky action `.first()`; tokens panel testids                           |
-| **E2E**     | `config/access-management.spec.ts` — create-role outcome, tokens panel (`website-tokens-panel`)                          |
-| **Product** | Role modal `response` as 3rd `trigger` arg; website-tokens `$effect` loop fixed (density/columns sync + untracked fetch) |
-| **Unit**    | `access-management-page-server.test.ts` admin gate                                                                       |
-| **Docs**    | [routes/access-management.mdx](./routes/access-management.mdx)                                                           |
+|             |                                                                                                                                                                                                            |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**  | Tabs + create role + save/reset + admin/tokens; sticky action `.first()`; tokens panel testids; permission-matrix toggle                                                                                   |
+| **E2E**     | `config/access-management.spec.ts` — create-role outcome, tokens panel (`website-tokens-panel`); `system/permissions.spec.ts` — matrix toggle + persistence; `system/language.spec.ts` — language selector |
+| **Product** | Role modal `response` as 3rd `trigger` arg; website-tokens `$effect` loop fixed (density/columns sync + untracked fetch); `fetchPageData` must select the **page** `__data.json` node (not the layout's)   |
+| **Unit**    | `access-management-page-server.test.ts` admin gate                                                                                                                                                         |
+| **Docs**    | [routes/access-management.mdx](./routes/access-management.mdx)                                                                                                                                             |
 
 ### `/config/system-settings` (2026-07-18)
 

@@ -5,7 +5,7 @@
  * Measures response time per lane (`x-svelty-lane`) to quantify operational hook cost.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { classifyRequest, RequestLane } from "@src/hooks/request-classifier";
 
 describe("Request Lane Router Attribution Benchmark", () => {

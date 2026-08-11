@@ -11,52 +11,93 @@
  * # Security
  * - Enforces query depth (max 8).
  * - Enforces alias count (max 15).
- * - Blocks schema introspection in production (only during benchmark mode).
- * - Adds validation rules for GraphQL queries.
+ * - Blocks schema introspection in production (unconditional in production builds).
+ * - Enforces query execution cost limits at parse time.
  */
 
 import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
-import { NoSchemaIntrospectionCustomRule } from "graphql";
+import { GraphQLError, NoSchemaIntrospectionCustomRule } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
 import {
   responseCache,
   buildGraphQLResponseCacheKey,
   generateContentEtag,
 } from "@src/services/cache/response-cache";
+import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
+import { metricsService } from "@src/services/observability/metrics-service";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
 import { analyzeQueryCost, formatCostError } from "./cost-analyzer";
 
-// GraphQL validation plugin: enforces query depth (max 7), alias count (max 15),
+// GraphQL validation plugin: enforces query depth (max 8), alias count (max 15),
 // and blocks schema introspection in production environments
-const isProduction = process.env.NODE_ENV === "production";
+const MAX_QUERY_DEPTH = 8;
+const MAX_ALIASES = 15;
 
-const depthLimitRule = createDepthLimitRule(8);
-const maxAliasesRule = createMaxAliasesRule(15);
+// Live getter (not a module-load snapshot) so tests can toggle NODE_ENV.
+const isProduction = () => process.env.NODE_ENV === "production";
+
+const depthLimitRule = createDepthLimitRule(MAX_QUERY_DEPTH);
+const maxAliasesRule = createMaxAliasesRule(MAX_ALIASES);
 
 const securityValidationPlugin = {
-  onParse({ params }: any) {
-    // Cost-budget queries at parse time — no request.clone() needed
+  onParse({ params }: { params?: { source?: string; query?: string } }) {
+    const endParse = profileMark("gql:parse");
+    // Cost-budget queries at parse time — no request.clone() needed.
+    // Throw GraphQLError (not AppError) so Yoga surfaces the real reason in
+    // the standard error envelope instead of masking it as a 500.
     const query = params?.source || params?.query;
     if (typeof query === "string") {
       const analysis = analyzeQueryCost(query);
       if (!analysis.allowed) {
-        throw new AppError(formatCostError(analysis.cost, 1000), 400, "QUERY_TOO_EXPENSIVE");
+        throw new GraphQLError(formatCostError(analysis.cost, 1000), {
+          extensions: { code: "QUERY_TOO_EXPENSIVE" },
+        });
       }
     }
+    endParse();
   },
   onValidate({ addValidationRule }: { addValidationRule: (rule: any) => void }) {
+    const endValidate = profileMark("gql:validate");
     addValidationRule(depthLimitRule);
     addValidationRule(maxAliasesRule);
     // 🛡️ Explicit introspection block in production (belt-and-suspenders with Yoga's default)
-    if (isProduction || process.env.BLOCK_GRAPHQL_INTROSPECTION === "true") {
+    if (isProduction() || process.env.BLOCK_GRAPHQL_INTROSPECTION === "true") {
       addValidationRule(NoSchemaIntrospectionCustomRule);
     }
+    endValidate();
   },
 };
+
+/** PROFILE_WRITE=1 span around Yoga's execution phase (after parse/validate). */
+const executeSpanPlugin = {
+  onExecute() {
+    const endExecute = profileMark("gql:execute");
+    return () => {
+      endExecute();
+    };
+  },
+};
+
+/**
+ * Robustly checks if a GraphQL operation is read-only (Query) without false
+ * positives from string literals or field names containing "mutation".
+ * An empty query is treated as non-cacheable.
+ */
+function isReadOnlyQuery(query: string): boolean {
+  if (!query) return false;
+  const trimmed = query.trim().toLowerCase();
+
+  // Explicit operation types must not be cached
+  if (trimmed.startsWith("mutation") || trimmed.startsWith("subscription")) {
+    return false;
+  }
+  // Standard queries start with 'query' or directly with a selection set '{'
+  return true;
+}
 import { mediaResolvers, mediaTypeDefs } from "./resolvers/media";
 import { systemResolvers, systemTypeDefs } from "./resolvers/system";
 import { userResolvers, userTypeDefs } from "./resolvers/users";
@@ -189,7 +230,7 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
       onPing: {
         subscribe: (_: any, __: any, context: any) => {
           if (!context.user) throw new AppError("Unauthorized", 401);
-          return context.pubSub.subscribe("entryUpdated");
+          return context.pubSub.subscribe("onPing");
         },
         resolve: (payload: any) => ({
           timestamp: payload.timestamp || Date.now(),
@@ -201,71 +242,148 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
   return { typeDefs, resolvers };
 }
 
-let yogaAppPromise: Promise<any> | null = null;
-let lastSchemaVersion: number | null = null;
-let lastDbAdapter: any = null;
+type YogaCacheEntry = {
+  version: number;
+  epoch: number;
+  promise: Promise<any>;
+};
+
+let schemaRefreshEpoch = 0;
+const yogaObjectCache = new WeakMap<object, Map<string, YogaCacheEntry>>();
+const yogaPrimitiveCache = new Map<string, Map<string, YogaCacheEntry>>();
+const MAX_TENANT_SCHEMA_CACHE = 32;
+
+/**
+ * Resolve the stable root adapter + effective tenant for the schema cache.
+ * Per-request tenant-bound wrappers (forTenant) are NEW objects on every
+ * request — comparing wrapper identity invalidated the schema cache on EVERY
+ * request (measured: 13-17ms rebuild per cold GraphQL query).
+ *
+ * The root is normalized by recursively unwrapping tenant wrappers AND the
+ * self-healing root proxy (both expose unscoped()) to the raw adapter
+ * instance, so turbo-auth GETs (which skip the auth hook and fall back to
+ * getDb()) and full-auth POSTs share ONE cache entry. The schema only
+ * depends on the underlying adapter + tenant + content version.
+ */
+function resolveSchemaCacheKey(dbAdapter: any, tenantId?: string | null) {
+  let root: any = dbAdapter;
+  for (let i = 0; i < 4 && root && typeof root.unscoped === "function"; i++) {
+    root = root.unscoped();
+  }
+  const tenant = dbAdapter?.boundTenantId ?? tenantId ?? "global";
+  return { root, tenant };
+}
+
+function getRootSchemaCache(root: any): Map<string, YogaCacheEntry> {
+  if ((typeof root === "object" && root !== null) || typeof root === "function") {
+    let cache = yogaObjectCache.get(root);
+    if (!cache) {
+      cache = new Map<string, YogaCacheEntry>();
+      yogaObjectCache.set(root, cache);
+    }
+    return cache;
+  }
+
+  const key = String(root ?? "null");
+  let cache = yogaPrimitiveCache.get(key);
+  if (!cache) {
+    cache = new Map<string, YogaCacheEntry>();
+    yogaPrimitiveCache.set(key, cache);
+  }
+  return cache;
+}
+
+function setTenantSchemaCache(
+  cache: Map<string, YogaCacheEntry>,
+  tenant: string,
+  entry: YogaCacheEntry,
+): void {
+  if (!cache.has(tenant) && cache.size >= MAX_TENANT_SCHEMA_CACHE) {
+    const oldestTenant = cache.keys().next().value;
+    if (oldestTenant !== undefined) cache.delete(oldestTenant);
+  }
+  cache.set(tenant, entry);
+}
 
 export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
   const { contentSystem } = await import("@src/content/index.server");
   const currentVersion = contentSystem.version;
-  const isBenchmark = process.env.BENCHMARK === "true";
-
-  if (
-    !yogaAppPromise ||
-    lastSchemaVersion !== currentVersion ||
-    lastDbAdapter !== dbAdapter ||
-    (isBenchmark && lastSchemaVersion === null)
-  ) {
-    lastSchemaVersion = currentVersion;
-    lastDbAdapter = dbAdapter;
-    yogaAppPromise = (async () => {
-      try {
-        const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, tenantId);
-        const schema = createSchema({ typeDefs, resolvers });
-
-        const plugins: any[] = [securityValidationPlugin, useGraphQlJit()];
-
-        const app = createYoga({
-          schema: schema as any,
-          graphqlEndpoint: "/api/graphql",
-          landingPage: true,
-          cors: false,
-          batching: { limit: 10 },
-          plugins,
-          context: async (serverContext: any) => {
-            let _loaders: any = undefined;
-            return {
-              user: serverContext.user,
-              tenantId: serverContext.tenantId,
-              dbAdapter: serverContext.dbAdapter,
-              cms: serverContext.cms,
-              pubSub,
-              get loaders() {
-                if (_loaders === undefined) {
-                  _loaders = serverContext.loaders;
-                }
-                return _loaders;
-              },
-              set loaders(value) {
-                _loaders = value;
-              },
-              publicationFilter: serverContext.publicationFilter || "all",
-            };
-          },
-        });
-
-        return app;
-      } catch (err: any) {
-        yogaAppPromise = null;
-        throw err;
-      }
-    })();
+  const { root: rootAdapter, tenant: schemaTenant } = resolveSchemaCacheKey(dbAdapter, tenantId);
+  const tenantKey = String(schemaTenant ?? "global");
+  const schemaCache = getRootSchemaCache(rootAdapter);
+  const cached = schemaCache.get(tenantKey);
+  if (cached && cached.version === currentVersion && cached.epoch === schemaRefreshEpoch) {
+    // 🎯 SCHEMA-REBUILD COUNTER: schemaMisses ≈ requests means the cache is
+    // being invalidated per request (identity-flip class) — visible in /health.
+    metricsService.recordGraphqlSchemaHit(tenantKey);
+    return cached.promise;
   }
-  return yogaAppPromise;
+
+  const t0 = performance.now();
+  let promise: Promise<any>;
+  promise = (async () => {
+    const { typeDefs, resolvers } = await createGraphQLSchema(dbAdapter, schemaTenant);
+    const schema = createSchema({ typeDefs, resolvers });
+
+    const plugins: any[] = [securityValidationPlugin, useGraphQlJit(), executeSpanPlugin];
+
+    const app = createYoga({
+      schema: schema as any,
+      graphqlEndpoint: "/api/graphql",
+      landingPage: true,
+      cors: false,
+      batching: { limit: 10 },
+      plugins,
+      context: async (serverContext: any) => {
+        let _loaders: any = undefined;
+        return {
+          user: serverContext.user,
+          tenantId: serverContext.tenantId,
+          dbAdapter: serverContext.dbAdapter,
+          cms: serverContext.cms,
+          pubSub,
+          get loaders() {
+            if (_loaders === undefined) {
+              _loaders = serverContext.loaders;
+            }
+            return _loaders;
+          },
+          set loaders(value) {
+            _loaders = value;
+          },
+          publicationFilter: serverContext.publicationFilter || "all",
+        };
+      },
+    });
+
+    return app;
+  })();
+
+  // Self-healing: purge a failed build from the cache so the next request
+  // retries instead of reusing the rejected promise. The derived promise
+  // resolves (swallow) — the original promise still rejects for callers.
+  promise.then(undefined, () => {
+    if (schemaCache.get(tenantKey)?.promise === promise) {
+      schemaCache.delete(tenantKey);
+    }
+  });
+
+  // 🎯 SCHEMA-REBUILD COUNTER: record the miss + rebuild duration (hit or miss).
+  promise.then(
+    () => metricsService.recordGraphqlSchemaMiss(performance.now() - t0, tenantKey),
+    () => metricsService.recordGraphqlSchemaMiss(performance.now() - t0, tenantKey),
+  );
+
+  setTenantSchemaCache(schemaCache, tenantKey, {
+    version: currentVersion,
+    epoch: schemaRefreshEpoch,
+    promise,
+  });
+  return promise;
 }
 
 export async function _refreshSchema(dbAdapter: any, tenantId?: string | null) {
-  lastSchemaVersion = -1;
+  schemaRefreshEpoch++;
   return await _getYogaApp(dbAdapter, tenantId);
 }
 
@@ -288,16 +406,26 @@ async function handleRequest(event: RequestEvent) {
 
   let query = "";
   let variables: any = {};
-  let isQuery = true;
   let bodyText = "";
 
   if (request.method === "POST") {
-    bodyText = await request.text().catch(() => "");
-    try {
-      const body = JSON.parse(bodyText);
-      query = body?.query || "";
-      variables = body?.variables || {};
-    } catch {}
+    const bodyFromSecurity = (locals as any).__graphqlBodyText;
+    bodyText =
+      typeof bodyFromSecurity === "string"
+        ? bodyFromSecurity
+        : await request.text().catch(() => "");
+
+    const parsedFromSecurity = (locals as any).__graphqlParsedBody;
+    if (parsedFromSecurity && typeof parsedFromSecurity === "object") {
+      query = parsedFromSecurity?.query || "";
+      variables = parsedFromSecurity?.variables || {};
+    } else {
+      try {
+        const body = JSON.parse(bodyText);
+        query = body?.query || "";
+        variables = body?.variables || {};
+      } catch {}
+    }
   } else if (request.method === "GET") {
     query = url.searchParams.get("query") || "";
     const varsParam = url.searchParams.get("variables");
@@ -308,9 +436,7 @@ async function handleRequest(event: RequestEvent) {
     }
   }
 
-  if (query && (/\bmutation\b/i.test(query) || /\bsubscription\b/i.test(query))) {
-    isQuery = false;
-  }
+  const isQuery = isReadOnlyQuery(query);
 
   const userId = locals.user?._id || locals.user?.id || null;
   const cacheKey =
@@ -323,6 +449,7 @@ async function handleRequest(event: RequestEvent) {
     const cached = responseCache.get(cacheKey, locals.tenantId as string);
     if (cached) {
       const payload = cached.buffer || cached.body;
+      metricsService.recordGraphqlResponseHit(locals.tenantId as string);
       return new Response(payload as any, {
         status: 200,
         headers: {
@@ -337,7 +464,13 @@ async function handleRequest(event: RequestEvent) {
 
   // ── CACHE MISS PATH: Load content system, DB adapter & Yoga app ──
   const { contentSystem } = await import("@src/content/index.server");
-  await contentSystem.waitForReload();
+  if (PROFILE_WRITE_ENABLED) {
+    const reloadEnd = profileMark("gql:waitForReload");
+    await contentSystem.waitForReload();
+    reloadEnd();
+  } else {
+    await contentSystem.waitForReload();
+  }
 
   let adapter = locals.dbAdapter;
   if (!adapter || (typeof adapter.isConnected === "function" && !adapter.isConnected())) {
@@ -364,8 +497,11 @@ async function handleRequest(event: RequestEvent) {
         ? new Request(request.url, { method: "POST", headers: request.headers, body: bodyText })
         : request;
 
-    const yogaApp = await _getYogaApp(adapter, locals.tenantId);
-    const yogaResponse = await yogaApp.handleRequest(yogaRequest, {
+    const yogaApp = PROFILE_WRITE_ENABLED
+      ? await profileSpan("gql:getYogaApp", () => _getYogaApp(adapter, locals.tenantId))
+      : await _getYogaApp(adapter, locals.tenantId);
+
+    const buildYogaContext = () => ({
       user: locals.user,
       tenantId: locals.tenantId,
       dbAdapter: adapter,
@@ -381,8 +517,14 @@ async function handleRequest(event: RequestEvent) {
       },
       publicationFilter,
     });
+    const handleYogaRequest = () => yogaApp.handleRequest(yogaRequest, buildYogaContext());
+    const yogaResponse = PROFILE_WRITE_ENABLED
+      ? await profileSpan("gql:yoga.handleRequest", handleYogaRequest)
+      : await handleYogaRequest();
 
-    const responseBody = await yogaResponse.text();
+    const responseBody = PROFILE_WRITE_ENABLED
+      ? await profileSpan("gql:response.text", () => yogaResponse.text())
+      : await yogaResponse.text();
 
     // 🛡️ Do not cache error-shaped responses or empty collection arrays
     if (cacheKey && yogaResponse.status === 200) {
@@ -396,7 +538,9 @@ async function handleRequest(event: RequestEvent) {
           Object.values(parsedBody.data).some((val) => Array.isArray(val) && val.length === 0);
 
         if (!hasErrors && !isEmptyCollectionData) {
-          const etag = generateContentEtag(responseBody);
+          const etag = PROFILE_WRITE_ENABLED
+            ? await profileSpan("gql:etag", () => generateContentEtag(responseBody))
+            : generateContentEtag(responseBody);
           responseCache.set(
             cacheKey,
             { body: responseBody, etag },
@@ -407,16 +551,25 @@ async function handleRequest(event: RequestEvent) {
       } catch {}
     }
 
+    if (cacheKey) {
+      // 🎯 RESPONSE-CACHE COUNTER + explicit MISS header: cacheKey drift
+      // (publicationFilter/userId/query-normalization changes) silently zeroes
+      // the hit rate — responseMisses climbing with hits at 0 is the signal.
+      metricsService.recordGraphqlResponseMiss(locals.tenantId as string);
+    }
+
+    const headers = new Headers(yogaResponse.headers);
+    if (cacheKey) headers.set("X-Cache", "MISS");
     return new Response(responseBody, {
       status: yogaResponse.status,
       statusText: yogaResponse.statusText,
-      headers: yogaResponse.headers,
+      headers,
     });
   } catch (err: any) {
     logger.error("GraphQL Request Error:", err);
     return new Response(
       JSON.stringify({
-        errors: [{ message: err.message }],
+        errors: [{ message: err.message || "Internal Server Error" }],
       }),
       {
         status: err.status || 500,

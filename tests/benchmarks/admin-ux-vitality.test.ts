@@ -17,7 +17,7 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
@@ -33,10 +33,9 @@ async function runUXAudit() {
 
     await stabilize(1000);
 
-    // Cache static request parameters in canonical lowercase layout to optimize map searches
+    // Cache static request parameters — REAL admin session cookie (production auth)
     const requestHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
     };
 
     const results = [];

@@ -64,40 +64,57 @@ export class CacheMetrics {
   // Response time histogram buckets (for Prometheus)
   private responseTimeBuckets = HISTOGRAM_BOUNDS.map(() => 0);
 
-  recordHit(key: string, category: string, tenantId?: string | null, responseTime?: number): void {
+  recordHit(_key: string, category: string, tenantId?: string | null, responseTime?: number): void {
     this.hits++;
     this.requestCount++;
     if (responseTime !== undefined) {
       this.totalResponseTime += responseTime;
       this.updateResponseHistogram(responseTime);
     }
-    this.updateCategory(category, { hits: 1 });
-    if (tenantId) this.updateTenant(tenantId, { hits: 1 });
-    this.addEvent({
-      type: "hit",
-      key,
-      category,
-      tenantId,
-      responseTime,
-    });
+    let cat = this.categoryMetrics.get(category);
+    if (!cat) {
+      cat = { hits: 0, misses: 0, totalTTL: 0, ttlCount: 0 };
+      this.categoryMetrics.set(category, cat);
+    }
+    cat.hits++;
+    if (tenantId) {
+      let ten = this.tenantMetrics.get(tenantId);
+      if (!ten) {
+        ten = { hits: 0, misses: 0 };
+        this.tenantMetrics.set(tenantId, ten);
+      }
+      ten.hits++;
+    }
+    // NOTE: hits are intentionally NOT appended to the event ring — it has no
+    // consumers and per-hit object allocation measurably slows the L1 hot path.
   }
 
-  recordMiss(key: string, category: string, tenantId?: string | null, responseTime?: number): void {
+  recordMiss(
+    _key: string,
+    category: string,
+    tenantId?: string | null,
+    responseTime?: number,
+  ): void {
     this.misses++;
     this.requestCount++;
     if (responseTime !== undefined) {
       this.totalResponseTime += responseTime;
       this.updateResponseHistogram(responseTime);
     }
-    this.updateCategory(category, { misses: 1 });
-    if (tenantId) this.updateTenant(tenantId, { misses: 1 });
-    this.addEvent({
-      type: "miss",
-      key,
-      category,
-      tenantId,
-      responseTime,
-    });
+    let cat = this.categoryMetrics.get(category);
+    if (!cat) {
+      cat = { hits: 0, misses: 0, totalTTL: 0, ttlCount: 0 };
+      this.categoryMetrics.set(category, cat);
+    }
+    cat.misses++;
+    if (tenantId) {
+      let ten = this.tenantMetrics.get(tenantId);
+      if (!ten) {
+        ten = { hits: 0, misses: 0 };
+        this.tenantMetrics.set(tenantId, ten);
+      }
+      ten.misses++;
+    }
   }
 
   recordSet(key: string, category: string, ttl: number, tenantId?: string | null): void {
@@ -152,15 +169,6 @@ export class CacheMetrics {
     this.categoryMetrics.set(category, metrics);
   }
 
-  private updateTenant(tenantId: string, updates: Partial<{ hits: number; misses: number }>): void {
-    const metrics = this.tenantMetrics.get(tenantId) || { hits: 0, misses: 0 };
-    Object.assign(metrics, {
-      hits: metrics.hits + (updates.hits || 0),
-      misses: metrics.misses + (updates.misses || 0),
-    });
-    this.tenantMetrics.set(tenantId, metrics);
-  }
-
   private addEvent(event: Omit<InternalCacheEvent, "timestamp">): void {
     const internalEvent: InternalCacheEvent = {
       ...event,
@@ -173,6 +181,10 @@ export class CacheMetrics {
       this.eventIndex = (this.eventIndex + 1) % this.MAX_EVENTS;
     }
   }
+
+  // Only set/delete/clear events land in the ring buffer (rare ops). The old
+  // per-hit/per-miss event objects allocated on every cache access with no
+  // consumer reading them.
 
   getSnapshot(): CacheMetricSnapshot {
     const hitRate = this.requestCount > 0 ? this.hits / this.requestCount : 0;

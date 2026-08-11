@@ -21,7 +21,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import { logger } from "@utils/logger";
 
@@ -44,7 +44,7 @@ async function getMemoryStats(baseUrl: string, forceGC = false, signal?: AbortSi
     const res: any = await fetch(
       `${baseUrl}/api/system/health?verbose=true${forceGC ? "&gc=true" : ""}`,
       {
-        headers: { "x-test-secret": TEST_API_SECRET },
+        headers: { ...benchmarkAuthHeaders() },
         signal,
       },
     );
@@ -125,7 +125,7 @@ export async function runMemoryStabilityAudit() {
 
         try {
           const res: any = await fetch(`${baseUrl}/api/system/health`, {
-            headers: { "x-test-secret": TEST_API_SECRET },
+            headers: { ...benchmarkAuthHeaders() },
             signal: controller.signal,
           });
 

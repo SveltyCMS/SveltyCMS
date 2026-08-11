@@ -17,6 +17,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  requireTestInfrastructure,
   TEST_API_SECRET,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
@@ -25,6 +26,8 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runGdprAudit() {
+  // The GDPR wipe path is exercised via the testing API (TEST_MODE-only action)
+  requireTestInfrastructure("right-to-be-forgotten-audit");
   console.log("🚀 Starting Enterprise Right-to-be-Forgotten Audit...\n");
 
   try {

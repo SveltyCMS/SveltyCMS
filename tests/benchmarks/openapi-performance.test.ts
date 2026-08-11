@@ -14,13 +14,14 @@ import {
   test,
   runBenchmark,
   exportResult,
+  computeStatistics,
   setupBenchmarkServer,
   ensureStableTestData,
   stabilize,
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { apiSpecService } from "@src/services/system/api-spec-service";
@@ -42,7 +43,7 @@ async function runOpenApiAudit() {
     // Validate endpoint
     console.log("🔍 Validating OpenAPI endpoint...");
     const validationRes = await fetch(`${baseUrl}/api/openapi.json`, {
-      headers: { "x-test-secret": TEST_API_SECRET },
+      headers: { ...benchmarkAuthHeaders() },
     });
 
     if (validationRes.status !== 200) {
@@ -58,26 +59,25 @@ async function runOpenApiAudit() {
 
     // Dynamic Generation (Cache Miss Baseline)
     console.log("   → Measuring Cold Spec Generation (Multi-Sample)...");
-    const coldResult = await runBenchmark({
-      name: "Cold OpenAPI Generation",
-      iterations: 15, // Multi-sampled iteration logic for proper statistical variance smoothing
-      warmupIterations: 2,
-      runs: 1,
-      concurrency: 1,
-      measureMemory: true,
-      silent: true,
-      onIteration: async () => {
-        // Explicitly clear the internal service cache map right before the call triggers
-        await apiSpecService.invalidateCache();
-
-        const res = await fetch(`${baseUrl}/api/openapi.json`, {
-          headers: { "x-test-secret": TEST_API_SECRET },
-        });
-
-        // Low-level buffer extraction bypasses raw V8 string initialization penalties
-        await res.arrayBuffer();
-      },
-    });
+    // 🛡️ HONEST COLD: invalidate BEFORE the timed span. The old code called
+    // apiSpecService.invalidateCache() inside onIteration, so the measured
+    // "cold" time included the invalidation call itself.
+    const coldTimes: number[] = [];
+    for (let i = 0; i < 15; i++) {
+      await apiSpecService.invalidateCache();
+      const t0 = performance.now();
+      const res = await fetch(`${baseUrl}/api/openapi.json`, {
+        headers: { ...benchmarkAuthHeaders() },
+      });
+      if (!res.ok) throw new Error(`OpenAPI cold fetch failed: ${res.status}`);
+      await res.arrayBuffer();
+      coldTimes.push(performance.now() - t0);
+    }
+    const coldResult = computeStatistics(
+      coldTimes,
+      coldTimes.length / (coldTimes.reduce((a, b) => a + b, 0) / 1000),
+      { name: "Cold OpenAPI Generation", runs: 1, concurrency: 1 },
+    );
 
     // Warm cached hit
     console.log("   → Measuring Warm Cached Hit...");
@@ -92,7 +92,7 @@ async function runOpenApiAudit() {
       silent: true,
       onIteration: async () => {
         const res = await fetch(`${baseUrl}/api/openapi.json`, {
-          headers: { "x-test-secret": TEST_API_SECRET },
+          headers: { ...benchmarkAuthHeaders() },
         });
         await res.arrayBuffer();
       },

@@ -23,6 +23,7 @@ import {
   STABLE_COLLECTION,
   STABLE_ENTRY_ID,
   ensureStableTestData,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
@@ -44,7 +45,6 @@ afterAll(async () => {
 test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
   await import("@src/databases/db");
   const { LocalCMS } = await import("@src/services/sdk");
-  const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
 
   // 1. Isolated SDK Baseline Initialization
   const { loadAdapters } = await import("@src/databases/db-init");
@@ -63,8 +63,7 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
 
   // Pre-allocate headers configuration to eliminate local V8 runtime allocation drift
   const requestHeaders = {
-    "x-test-mode": "true",
-    "x-test-secret": secret,
+    ...benchmarkAuthHeaders(),
     "x-tenant-id": "default",
   };
 

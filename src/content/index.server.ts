@@ -9,8 +9,8 @@
 const isTest = !!(
   (typeof process !== "undefined" &&
     (process.env.NODE_ENV === "test" || !!process.env.VITEST || !!process.env.BUN_TEST)) ||
-  import.meta.env.MODE === "test" ||
-  import.meta.env.TEST ||
+  import.meta.env?.MODE === "test" ||
+  import.meta.env?.TEST ||
   (typeof globalThis !== "undefined" &&
     ((globalThis as any).vitest ||
       (globalThis as any).vi ||
@@ -19,7 +19,9 @@ const isTest = !!(
       (globalThis as any).it))
 );
 
-if (!isTest && (import.meta.env.SSR === false || typeof window !== "undefined")) {
+// Optional chaining: import.meta.env is undefined outside Vite (plain Node/Bun
+// ESM execution), where direct property access would throw a TypeError.
+if (!isTest && (import.meta.env?.SSR === false || typeof window !== "undefined")) {
   throw new Error(
     "[SECURITY] content/index.server.ts is a server-only module and was imported on the client. This may expose server secrets!",
   );
@@ -66,6 +68,7 @@ export {
 // Lazy-loaded services (avoid loading on import)
 let contentService: any = null;
 let apiSpecService: any = null;
+let watcherStarted = false;
 
 async function getServerContentService() {
   if (!contentService) {
@@ -132,7 +135,13 @@ export async function ensureContentInitialized(
         contentStore.initState = "initialized";
         initializedTenants.add(tenantId);
 
-        if (process.env.NODE_ENV === "development" || process.env.TEST_MODE === "true") {
+        // Guard against duplicate watcher registration across tenants / forced
+        // re-inits (engine.startContentWatcher is also idempotent as backstop).
+        if (
+          !watcherStarted &&
+          (process.env.NODE_ENV === "development" || process.env.TEST_MODE === "true")
+        ) {
+          watcherStarted = true;
           try {
             const { startContentWatcher } = await import("./engine.server");
             startContentWatcher();
@@ -147,7 +156,14 @@ export async function ensureContentInitialized(
           if (opts.awaitApiSpec === true) {
             await apiSpecTask;
           } else {
-            void apiSpecTask;
+            // Background task: attach an error handler so a rejection (DB down,
+            // cache failure) never surfaces as an unhandled rejection crash.
+            void apiSpecTask.catch((err) => {
+              logger.error(
+                `[ContentSystem] Background API spec generation failed for tenant ${tenantId}:`,
+                err,
+              );
+            });
           }
         }
       } catch (err) {
@@ -193,7 +209,10 @@ export const contentSystem = {
     adapter?: DatabaseAdapter,
   ) {
     const { refreshContent } = await import("./engine.server");
-    const mode = process.env.TEST_MODE === "true" ? "schemas" : "full";
+    // 🛡️ Benchmark servers: schema mode (see refreshContent) so DB-created
+    // benchmark collections bootstrap config files instead of being pruned.
+    const mode =
+      process.env.TEST_MODE === "true" || process.env.BENCHMARK === "true" ? "schemas" : "full";
     return refreshContent(tenantId, {
       mode,
       adapter,
@@ -215,13 +234,15 @@ export const contentSystem = {
     const svc = await getServerContentService();
     return svc.insert(collection, data, options);
   },
-  async update(collection: string, query: any, data: any, options?: any) {
+  // Adapter contract: crud.update(collection, id, data, options) — id-first.
+  async update(collection: string, id: string, data: any, options?: any) {
     const svc = await getServerContentService();
-    return svc.update(collection, query, data, options);
+    return svc.update(collection, id, data, options);
   },
-  async delete(collection: string, query: any, options?: any) {
+  // Adapter contract: crud.delete(collection, id, options) — id-first.
+  async delete(collection: string, id: string, options?: any) {
     const svc = await getServerContentService();
-    return svc.delete(collection, query, options);
+    return svc.delete(collection, id, options);
   },
 
   async getContentStructureFromDatabase(

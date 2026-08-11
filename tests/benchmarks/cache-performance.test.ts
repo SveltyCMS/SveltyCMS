@@ -20,6 +20,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -38,13 +39,10 @@ async function runCacheAudit() {
     await ensureStableTestData();
     await stabilize(800);
 
-    const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     const results = [];
 
     // Check if L2 is actually active via health check
-    const healthRes = await fetch(`${baseUrl}/api/system/health`, {
-      headers: { "x-test-secret": secret },
-    });
+    const healthRes = await fetch(`${baseUrl}/api/system/health`);
     const healthData = await healthRes.json();
     const isRedisActive =
       healthData.redis === true ||
@@ -52,27 +50,24 @@ async function runCacheAudit() {
 
     // Pre-allocate static, canonical header frames to eliminate garbage collection thrashing
     const baseHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": secret,
-    };
-
-    const missHeaders = {
-      ...baseHeaders,
-      "x-bypass-cache": "true",
+      ...benchmarkAuthHeaders(),
     };
 
     const CACHE_SCENARIOS = [
       {
         name: "Cache Miss (Bypass)",
         shortLabel: "Miss",
-        headers: missHeaders,
+        // 🛡️ HONEST BYPASS: only `?bypassCache=true` / `?nocache=true` are honored
+        // by handle-api-requests — an `x-bypass-cache` header is ignored, which
+        // previously measured a WARM HIT as a "miss" (80 warmup iterations).
+        urlSuffix: "?bypassCache=true",
         concurrency: 1,
       },
       {
         name: "Cache Hit (Warm)",
         shortLabel: "Hit",
-        headers: baseHeaders,
-        concurrency: 10, // High concurrency profiling target
+        urlSuffix: "",
+        concurrency: 1,
       },
     ];
 
@@ -84,8 +79,6 @@ async function runCacheAudit() {
 
       console.log(`   → Measuring ${scenario.name}${!isRedisActive ? " (L1 Only)" : ""}...`);
 
-      const currentHeaders = scenario.headers;
-
       const result = await runBenchmark({
         name: scenario.name,
         iterations: 600,
@@ -95,10 +88,13 @@ async function runCacheAudit() {
         trimOutliers: "iqr",
         silent: true,
         onIteration: async () => {
-          const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable/bench-shared-001`, {
-            method: "GET",
-            headers: currentHeaders,
-          });
+          const res = await fetch(
+            `${baseUrl}/api/collections/BenchmarkStable/bench-shared-001${scenario.urlSuffix}`,
+            {
+              method: "GET",
+              headers: baseHeaders,
+            },
+          );
 
           if (!res.ok) throw new Error(`Cache test failed: ${res.status}`);
 

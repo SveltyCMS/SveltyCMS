@@ -30,6 +30,14 @@ vi.mock("@utils/system-monitor", () => ({
   startSystemMonitor: vi.fn(),
 }));
 
+// The tenant aggregate bucket only exists when multi-tenancy is enabled —
+// single-tenant deployments skip it entirely (a shared "global" bucket was a
+// site-wide 429 DoS vector). The tenant-cap test exercises the MT path.
+vi.mock("@utils/tenant", () => ({
+  isMultiTenantEnabled: vi.fn(() => true),
+  getTenantIdFromHostname: vi.fn(() => "tenant-test"),
+}));
+
 import { handleRateLimit, resetRateLimitBuckets } from "@src/hooks/handle-rate-limit";
 import { getPressureMultiplier, shouldRejectMutations } from "@utils/system-monitor";
 import { createMockEvent, mockResolve } from "./test-utils";
@@ -85,22 +93,23 @@ describe("handleRateLimit", () => {
     expect(res.headers.get("X-RateLimit-Remaining")).toBe("999");
   });
 
-  it("bypasses local traffic only with a matching test secret", async () => {
+  it("does NOT bypass for a matching test secret alone (benchmark production parity)", async () => {
     // Local, no secret → limiter still runs (IS_TEST_MODE is forced false here)
     const noSecret = postEvent("/api/foo", { ip: "127.0.0.1" });
     const noSecretRes = await handleRateLimit({ event: noSecret, resolve: mockResolve as any });
     expect(noSecretRes.headers.get("X-RateLimit-Limit")).toBe("1000");
 
-    // Local + matching x-test-secret → bypassed, no limiter headers
+    // Local + matching x-test-secret → STILL rate limited (secret alone is not
+    // a bypass — only explicit TEST_MODE environments are)
     const withSecret = postEvent("/api/foo", {
       ip: "127.0.0.1",
       headers: { "x-test-secret": "master-secret-abc" },
     });
     const withSecretRes = await handleRateLimit({ event: withSecret, resolve: mockResolve as any });
     expect(withSecretRes.status).toBe(200);
-    expect(withSecretRes.headers.get("X-RateLimit-Limit")).toBeNull();
+    expect(withSecretRes.headers.get("X-RateLimit-Limit")).toBe("1000");
 
-    // Wrong secret → not bypassed
+    // Wrong secret → not bypassed either
     const wrongSecret = postEvent("/api/foo", {
       ip: "127.0.0.1",
       headers: { "x-test-secret": "wrong" },

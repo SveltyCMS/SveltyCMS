@@ -38,12 +38,35 @@ const IS_TEST_MODE =
   typeof globalThis !== "undefined" &&
   ((globalThis as any).process?.env?.TEST_MODE === "true" ||
     (globalThis as any).process?.env?.VITE_TEST_MODE === "true");
-const IS_BENCHMARK =
-  typeof globalThis !== "undefined" && (globalThis as any).process?.env?.BENCHMARK === "true";
 
 let multiTenantCached: boolean | null = null;
 const userCountCache = new Map<string, { count: number; timestamp: number }>();
 const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
+
+// Bounded capacity — per-tenant keys must never grow without bound in
+// multi-tenant deployments (plain Maps would leak memory over time).
+const MAX_CACHE_ENTRIES = 1000;
+
+/** Insert into a bounded Map, evicting the oldest key at capacity. */
+function setBoundedCache<K, V>(map: Map<K, V>, key: K, value: V): void {
+  if (map.size >= MAX_CACHE_ENTRIES) {
+    const oldestKey = map.keys().next().value;
+    if (oldestKey !== undefined) map.delete(oldestKey);
+  }
+  map.set(key, value);
+}
+
+/**
+ * Match a user's role field against role records by EITHER id or name —
+ * user.role may hold a role id ("role_admin") or a role name ("admin").
+ */
+function findMatchingRole(roles: Role[], targetRole: unknown): Role | undefined {
+  if (!targetRole) return undefined;
+  const targetStr = String(targetRole).toLowerCase();
+  return roles.find(
+    (r: Role) => String(r._id).toLowerCase() === targetStr || r.name?.toLowerCase() === targetStr,
+  );
+}
 
 // Cache stampede mitigation: in-flight promise deduplication
 const inflightUserCounts = new Map<string, Promise<number>>();
@@ -87,7 +110,7 @@ async function getCachedUserCount(
         timestamp: number;
       }>(`userCount:${key}`, tenantId ?? undefined);
       if (cachedDist && now - cachedDist.timestamp < USER_COUNT_CACHE_TTL_MS) {
-        userCountCache.set(key, cachedDist);
+        setBoundedCache(userCountCache, key, cachedDist);
         return cachedDist.count;
       }
 
@@ -100,7 +123,7 @@ async function getCachedUserCount(
       const count = await auth.getUserCount(filter, bypassOpts);
       if (count < 0) return count;
       const cacheData = { count, timestamp: now };
-      userCountCache.set(key, cacheData);
+      setBoundedCache(userCountCache, key, cacheData);
       await cacheService.set(
         `userCount:${key}`,
         cacheData,
@@ -136,7 +159,7 @@ async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
       const data = await auth.getAllRoles(bypassOpts);
       if (!data?.length) return [];
       const cacheData = { data, timestamp: now };
-      rolesCache.set(key, cacheData);
+      setBoundedCache(rolesCache, key, cacheData);
       await cacheService.set(
         `roles:${key}`,
         cacheData,
@@ -169,10 +192,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
         const { getDefaultRoles: getDefaultRolesMod } = await getDefaultRoles();
         event.locals.roles = getDefaultRolesMod();
       }
-      const userRoleStr = String(user.role).toLowerCase();
-      const userRole = (event.locals.roles || []).find(
-        (r: Role) => String(r._id) === String(user.role) || r.name?.toLowerCase() === userRoleStr,
-      );
+      const userRole = findMatchingRole(event.locals.roles || [], user.role);
       if (userRole?.isAdmin) {
         locals.isAdmin = true;
         (user as any).isAdmin = true;
@@ -199,7 +219,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   }
 
   const isApi = pathname.startsWith("/api/");
-  if (IS_TEST_MODE && !IS_BENCHMARK && (pathname.startsWith("/api/testing") || isApi)) {
+  if (IS_TEST_MODE && (pathname.startsWith("/api/testing") || isApi)) {
     locals.isAdmin = isAdmin(user);
     return await resolve(event);
   }
@@ -212,6 +232,14 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   }
 
   if (isPublic) {
+    // Logged-in users have no business on the auth screens — bounce them to /
+    // (previously this redirect lived in the NON-public branch after isPublic
+    // had already returned: dead code that would have 302-looped on "/").
+    if (user && (pathname === "/login" || pathname === "/setup")) {
+      logger.debug(`[Authz] Redirecting authenticated user away from ${pathname} to /`);
+      throw redirect(302, "/");
+    }
+
     if (pathname === "/" && !locals.isFirstUser && !user) {
       const { isSiteStarterEnabled } = await import("@src/services/site/site-config.server");
       if (!isSiteStarterEnabled()) {
@@ -262,8 +290,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   try {
     const activeRoles = event.locals.roles || [];
     if (user) {
-      const userRoleStr = String(user.role);
-      const userRole = activeRoles.find((r: Role) => String(r._id) === userRoleStr);
+      const userRole = findMatchingRole(activeRoles, user.role);
       const isAdminUser = !!userRole?.isAdmin || isAdmin(user);
       (user as any).isAdmin = isAdminUser;
       locals.isAdmin = isAdminUser;
@@ -271,7 +298,6 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
       locals.hasManageUsersPermission =
         isAdminUser ||
         AuthGuardService.checkPermissions(user, "manage", "user", undefined, activeRoles);
-      if (isPublic && !isApi) throw redirect(302, "/");
     } else {
       logger.debug(`[Authz] No user, path=${pathname}, redirecting to /login`);
       if (isApi) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
@@ -295,7 +321,9 @@ function _populateTurboAuth(event: RequestEvent, user: any, roles: Role[]): void
     if (!sessionId) return;
     let bitset: Uint32Array;
     if (roles.length > 0) {
-      const userRole = roles.find((r: Role) => String(r._id) === String(user.role));
+      // ID-OR-NAME matching: a name-only match previously fell back to
+      // roles[0] (typically guest), caching LOWER privileges on the turbo path.
+      const userRole = findMatchingRole(roles, user.role);
       bitset = userRole ? getRoleBitset(userRole) : getRoleBitset(roles[0]);
     } else {
       bitset = new Uint32Array(1);

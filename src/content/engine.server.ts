@@ -223,9 +223,15 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
     }
     const fileList: { fullPath: string; mtime: number }[] = [];
 
-    const { isBenchmarkArtifact, isBenchmarkRuntime } =
-      await import("@src/routes/setup/preset-collections.server");
-    const skipBenchmarks = !isBenchmarkRuntime();
+    // Safely load dev/benchmark utilities — a stripped production artifact
+    // must not crash the content engine; fall back to including all files.
+    let skipBenchmarks = false;
+    let isBenchmarkArtifact = (_name: string) => false;
+    try {
+      const presets = await import("@src/routes/setup/preset-collections.server");
+      skipBenchmarks = !presets.isBenchmarkRuntime();
+      isBenchmarkArtifact = presets.isBenchmarkArtifact;
+    } catch {} // module unavailable (stripped/embedded build) — scan everything
 
     async function walk(dir: string) {
       try {
@@ -366,11 +372,13 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
       );
 
       const currentPaths = new Set(fileList.map((f) => f.fullPath));
-      // Only delete orphaned files that belong to the current collectionsDir!
-      for (const path of _schemaCache.keys()) {
-        if (path.startsWith(collectionsDir) && !currentPaths.has(path)) {
-          _schemaCache.delete(path);
-          _mtimeTree.delete(path);
+      // Only delete orphaned files at the EXACT scanned level. Nested dirs are
+      // tenant-scoped compiled roots (.compiledCollections/<tenantId>) — a
+      // prefix match on the scan root would evict other tenants' cache entries.
+      for (const cachedPath of _schemaCache.keys()) {
+        if (path.dirname(cachedPath) === collectionsDir && !currentPaths.has(cachedPath)) {
+          _schemaCache.delete(cachedPath);
+          _mtimeTree.delete(cachedPath);
         }
       }
     } finally {
@@ -466,7 +474,16 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
  * config/collections/ is empty. Prevents blank state after cache clears.
  */
 async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void> {
-  const { isLocalBenchmarkSandbox } = await import("@utils/benchmark-sandbox");
+  // Defensive: if the sandbox module is stripped from the artifact, skip the
+  // sandbox guard instead of crashing the content engine on startup.
+  let isLocalBenchmarkSandbox = () => false;
+  let assertLiveDataWriteAllowed = (_filePath: string) => {};
+  try {
+    const sb = await import("@utils/benchmark-sandbox");
+    isLocalBenchmarkSandbox = sb.isLocalBenchmarkSandbox;
+    assertLiveDataWriteAllowed = sb.assertLiveDataWriteAllowed;
+  } catch {}
+
   if (isLocalBenchmarkSandbox()) {
     return;
   }
@@ -479,9 +496,13 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
   let testDirEnsured = false;
 
   const SYSTEM_COLLECTIONS = new Set(["redirects", "404_logs", "redirects_mv", "benchmarkstable"]);
-  const { isBenchmarkArtifact, isBenchmarkRuntime } =
-    await import("@src/routes/setup/preset-collections.server");
-  const skipBenchmarks = !isBenchmarkRuntime();
+  let skipBenchmarks = false;
+  let isBenchmarkArtifact = (_name: string) => false;
+  try {
+    const presets = await import("@src/routes/setup/preset-collections.server");
+    skipBenchmarks = !presets.isBenchmarkRuntime();
+    isBenchmarkArtifact = presets.isBenchmarkArtifact;
+  } catch {} // module unavailable (stripped build) — bootstrap everything
 
   for (const schema of dbSchemas) {
     const slug = String((schema as any).slug || schema._id || schema.name || "")
@@ -525,7 +546,6 @@ import type { Schema } from '@src/content/types';
 
 export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: (schema as any).icon || "mdi:database", description: (schema as any).description || "", fields: schema.fields || [] }, null, 2)};
 `;
-    const { assertLiveDataWriteAllowed } = await import("@utils/benchmark-sandbox");
     assertLiveDataWriteAllowed(filePath);
     await fs.writeFile(filePath, content, "utf-8");
     logger.debug(
@@ -936,8 +956,13 @@ export const contentService = {
 
     const updates = await Promise.all(
       filePaths.map((filePath) =>
+        // Per-file error isolation: one failing file (e.g. a DB error) must not
+        // abort the whole batch and lose the other files' reloads.
         this.handleIncrementalReload(filePath, tenantId, dbAdapter, {
           broadcast: false,
+        }).catch((err) => {
+          logger.error(`[Incremental] Failed to reload ${filePath}`, err);
+          return null;
         }),
       ),
     );
@@ -1036,18 +1061,20 @@ export const contentService = {
     return db.crud.insert(collection, data, options);
   },
 
-  async update(collection: string, query: any, data: any, options?: any) {
+  async update(collection: string, id: string, data: any, options?: any) {
     const { getDb } = await import("@src/databases/db");
     const db = options?.adapter || (await getDb());
     if (!db) throw new Error("Database not initialized");
-    return (db.crud as any).update(collection, query, data, options);
+    // Adapter contract: crud.update(collection, id, data, options) — id-first.
+    return (db.crud as any).update(collection, id, data, options);
   },
 
-  async delete(collection: string, query: any, options?: any) {
+  async delete(collection: string, id: string, options?: any) {
     const { getDb } = await import("@src/databases/db");
     const db = options?.adapter || (await getDb());
     if (!db) throw new Error("Database not initialized");
-    return (db.crud as any).delete(collection, query, options);
+    // Adapter contract: crud.delete(collection, id, options) — id-first.
+    return (db.crud as any).delete(collection, id, options);
   },
 
   async search(query: string, options?: any) {
@@ -1075,7 +1102,14 @@ export async function refreshContent(
   tenantId?: string | null,
   options: RefreshOptions = {},
 ): Promise<void> {
-  const mode = options.mode ?? (process.env.TEST_MODE === "true" ? "schemas" : "full");
+  // 🛡️ BENCHMARK CONTENT MODE: benchmark servers create collections via the DB
+  // (no config files) — "full" reconciliation would prune them as orphans on
+  // every boot. Schema mode (refreshCollectionsCache) reads content_nodes and
+  // BOOTSTRAPS config files from the DB schemas when none exist, so the store
+  // and file system converge exactly like a GUI-built production deployment.
+  const mode =
+    options.mode ??
+    (process.env.TEST_MODE === "true" || process.env.BENCHMARK === "true" ? "schemas" : "full");
 
   if (mode === "schemas") {
     return refreshCollectionsCache(tenantId, options.adapter);
@@ -1113,6 +1147,12 @@ let _pendingFullReload = false;
 /** Initializes the file system watcher for the compiled collections directory. */
 export function startContentWatcher() {
   const targetDir = path.resolve(process.cwd(), ".compiledCollections");
+
+  // Idempotent: one watcher per process. Re-calls (per-tenant init, HMR re-entry)
+  // must not stack duplicate listeners or leak the previous FSWatcher handle.
+  if (_watcher) {
+    return () => {};
+  }
 
   // Once per process — not on every HMR re-entry of this module in theory, but key is stable
   logger.once("content-watcher-start", "info", `[Watcher] Monitoring collections at: ${targetDir}`);

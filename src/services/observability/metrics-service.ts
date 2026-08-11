@@ -44,6 +44,16 @@ export interface MetricsReport {
     cacheHitRate: number;
   };
 
+  graphql: {
+    schemaHits: number;
+    schemaMisses: number;
+    schemaRebuildMs: number;
+    responseHits: number;
+    responseMisses: number;
+    schemaHitRate: number;
+    responseHitRate: number;
+  };
+
   performance: {
     slowRequests: number;
     avgHookExecutionTime: number;
@@ -67,6 +77,15 @@ class MetricsCounters {
 
   // API
   api = { requests: 0, errors: 0, l1Hits: 0, l2Hits: 0, cacheMisses: 0 };
+
+  // GraphQL (schema rebuild + response cache — cause attribution for cache-path regressions)
+  graphql = {
+    schemaHits: 0,
+    schemaMisses: 0,
+    schemaRebuildMs: 0,
+    responseHits: 0,
+    responseMisses: 0,
+  };
 
   // Security
   security = { rateLimitViolations: 0, cspViolations: 0, authFailures: 0 };
@@ -199,6 +218,25 @@ class MetricsService {
     this.getCounters(tenantId).api.cacheMisses++;
   }
 
+  // ── GraphQL Metrics ──────────────────────────────────────
+  recordGraphqlSchemaHit(tenantId?: string | null): void {
+    this.getCounters(tenantId).graphql.schemaHits++;
+  }
+
+  recordGraphqlSchemaMiss(rebuildMs: number, tenantId?: string | null): void {
+    const c = this.getCounters(tenantId);
+    c.graphql.schemaMisses++;
+    c.graphql.schemaRebuildMs += rebuildMs;
+  }
+
+  recordGraphqlResponseHit(tenantId?: string | null): void {
+    this.getCounters(tenantId).graphql.responseHits++;
+  }
+
+  recordGraphqlResponseMiss(tenantId?: string | null): void {
+    this.getCounters(tenantId).graphql.responseMisses++;
+  }
+
   // ── Security Metrics ────────────────────────────────────
   incrementRateLimitViolations(tenantId?: string | null): void {
     this.getCounters(tenantId).security.rateLimitViolations++;
@@ -297,6 +335,21 @@ class MetricsService {
         cacheHitRate: safeRate(
           c.api.l1Hits + c.api.l2Hits,
           c.api.l1Hits + c.api.l2Hits + c.api.cacheMisses,
+        ),
+      },
+      graphql: {
+        schemaHits: c.graphql.schemaHits,
+        schemaMisses: c.graphql.schemaMisses,
+        schemaRebuildMs: c.graphql.schemaRebuildMs,
+        responseHits: c.graphql.responseHits,
+        responseMisses: c.graphql.responseMisses,
+        schemaHitRate: safeRate(
+          c.graphql.schemaHits,
+          c.graphql.schemaHits + c.graphql.schemaMisses,
+        ),
+        responseHitRate: safeRate(
+          c.graphql.responseHits,
+          c.graphql.responseHits + c.graphql.responseMisses,
         ),
       },
       performance: {

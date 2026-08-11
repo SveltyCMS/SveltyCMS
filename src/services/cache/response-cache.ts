@@ -2,7 +2,14 @@
  * @file src/services/cache/response-cache.ts
  * @description
  * High-performance pre-stringified API Response Cache service.
- * Supports synchronous L1 Map lookups + L2 cache fallback with user-scoped isolation.
+ * Supports synchronous L1 Map lookups (bounded, TTL-aware) + L2 cache
+ * fallback with user-scoped isolation and tenant-scoped invalidation.
+ *
+ * ### Features:
+ * - SHA-256 query hashing (no 32-bit collision space)
+ * - bounded L1 (FIFO at MAX_L1_ENTRIES) with per-entry TTL
+ * - tenant-scoped L1/L2 invalidation
+ * - pre-computed compression variants for TURBO-HIT serving
  */
 
 import crypto from "node:crypto";
@@ -14,7 +21,13 @@ export interface CachedResponseEntry {
   buffer?: Uint8Array;
   /** Pre-computed compression variants (br/gzip/zstd) for TURBO-HIT serving. */
   compressed?: Record<string, Uint8Array>;
+  /** L1/L2 expiration timestamp in ms — persisted so promoted entries expire too. */
+  expiresAt?: number;
 }
+
+/** Module-scoped encoder (avoids per-set() allocation on hot paths). */
+const textEncoder = typeof TextEncoder !== "undefined" ? new TextEncoder() : null;
+const MAX_L1_ENTRIES = 2000;
 
 /**
  * Deterministic Content-Based ETag calculation (SHA-256 slice).
@@ -24,13 +37,15 @@ export function generateContentEtag(body: string): string {
   return `"${hash}"`;
 }
 
+/**
+ * Collision-resistant cache-key hash (SHA-256, 64 bits).
+ * Replaces the former 32-bit DJB2 variant: with ~4.29e9 keys the birthday
+ * bound was reached after ~77k unique queries, silently mixing distinct
+ * GraphQL query results under one key. SHA-256 slice is also free of the
+ * chosen-prefix weakness that rules out md5 per the security policy.
+ */
 export function hashStr(s: string): string {
-  let hash = 0;
-  for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i);
-    hash = ((hash << 5) - hash + c) | 0;
-  }
-  return Math.abs(hash).toString(36);
+  return crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
 }
 
 /**
@@ -60,6 +75,7 @@ export function buildGraphQLResponseCacheKey(
   userId?: unknown,
 ): string {
   let varsObj: Record<string, unknown> = {};
+  let varsStr = "";
   if (typeof variables === "string" && variables.trim()) {
     try {
       varsObj = JSON.parse(variables);
@@ -70,8 +86,9 @@ export function buildGraphQLResponseCacheKey(
     varsObj = variables as Record<string, unknown>;
   }
 
-  const sortedObj = deepSortKeys(varsObj);
-  const varsStr = JSON.stringify(sortedObj);
+  if (Object.keys(varsObj).length > 0) {
+    varsStr = JSON.stringify(deepSortKeys(varsObj));
+  }
   const normalizedUserId = userId ? String(userId) : null;
   const queryHash = hashStr(`${query}:${varsStr}:${publicationFilter}`);
   return buildUserResponseCacheKey("/api/graphql", `?q=${queryHash}`, normalizedUserId);
@@ -98,15 +115,42 @@ class ResponseCacheService {
   }
 
   /**
+   * Bounded L1: evict the oldest entry when capacity is exceeded (FIFO —
+   * cheap and sufficient for a short-TTL cache; LRU ordering would add
+   * per-access bookkeeping on the hottest sync path).
+   */
+  private enforceL1Capacity(): void {
+    if (this.localL1.size >= MAX_L1_ENTRIES) {
+      const oldestKey = this.localL1.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.localL1.delete(oldestKey);
+      }
+    }
+  }
+
+  /** True when the entry is missing or its TTL has elapsed. */
+  private isExpired(entry: CachedResponseEntry | undefined): boolean {
+    return !entry || (typeof entry.expiresAt === "number" && Date.now() > entry.expiresAt);
+  }
+
+  /**
    * Synchronous L1 lookup for pre-stringified API response.
    */
   public get(key: string, tenantId?: string | null): CachedResponseEntry | null {
     const fullKey = this.buildKey(key, tenantId);
     const local = this.localL1.get(fullKey);
-    if (local) return local;
+
+    if (local) {
+      if (typeof local.expiresAt === "number" && Date.now() > local.expiresAt) {
+        this.localL1.delete(fullKey);
+      } else {
+        return local;
+      }
+    }
 
     const entry = cacheService.getSync<CachedResponseEntry>(`res:${key}`, tenantId);
-    if (entry) {
+    if (entry && !this.isExpired(entry)) {
+      this.enforceL1Capacity();
       this.localL1.set(fullKey, entry);
       return entry;
     }
@@ -124,7 +168,8 @@ class ResponseCacheService {
     if (syncRes) return syncRes;
 
     const entry = await cacheService.get<CachedResponseEntry>(`res:${key}`, tenantId);
-    if (entry) {
+    if (entry && !this.isExpired(entry)) {
+      this.enforceL1Capacity();
       this.localL1.set(this.buildKey(key, tenantId), entry);
       return entry;
     }
@@ -141,13 +186,23 @@ class ResponseCacheService {
     tenantId?: string | null,
   ): void {
     const fullKey = this.buildKey(key, tenantId);
-    if (!entry.buffer && typeof TextEncoder !== "undefined") {
-      entry.buffer = new TextEncoder().encode(entry.body);
+    if (!entry.buffer && textEncoder) {
+      entry.buffer = textEncoder.encode(entry.body);
     }
+    entry.expiresAt = Date.now() + ttlMs;
+
+    this.enforceL1Capacity();
     this.localL1.set(fullKey, entry);
 
     const ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
-    cacheService.set(`res:${key}`, { body: entry.body, etag: entry.etag }, ttlSec, tenantId);
+    // Persist expiresAt so L2-promoted entries keep their TTL instead of
+    // becoming immortal in L1 after the L2 entry expired.
+    cacheService.set(
+      `res:${key}`,
+      { body: entry.body, etag: entry.etag, expiresAt: entry.expiresAt },
+      ttlSec,
+      tenantId,
+    );
   }
 
   /**
@@ -160,21 +215,33 @@ class ResponseCacheService {
   }
 
   /**
-   * Clear all response cache entries in L1 memory and purge L2/L1 cacheService entries.
+   * Clear all response cache entries in L1 memory and purge L2 cacheService
+   * entries — scoped to the given tenant only (multi-tenant isolation).
    */
   public async invalidateAll(tenantId?: string | null): Promise<void> {
-    this.localL1.clear();
+    const prefix = `${tenantId || "default"}:`;
+    for (const k of this.localL1.keys()) {
+      if (k.startsWith(prefix)) {
+        this.localL1.delete(k);
+      }
+    }
     await cacheService.clearByPattern("res:*", tenantId || undefined);
   }
 
   /**
-   * Invalidate response cache entries associated with a specific collection mutation.
+   * Invalidate response cache entries associated with a specific collection
+   * mutation — scoped to the given tenant only.
    */
   public async invalidateCollection(
     collectionName: string,
     tenantId?: string | null,
   ): Promise<void> {
-    this.localL1.clear();
+    const prefix = `${tenantId || "default"}:`;
+    for (const k of this.localL1.keys()) {
+      if (k.startsWith(prefix) && (k.includes(collectionName) || k.includes("graphql"))) {
+        this.localL1.delete(k);
+      }
+    }
     await cacheService.clearByPattern(`res:*${collectionName}*`, tenantId || undefined);
     await cacheService.clearByPattern("res:*graphql*", tenantId || undefined);
   }

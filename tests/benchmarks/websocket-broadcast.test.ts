@@ -16,6 +16,7 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -98,8 +99,11 @@ export async function runBroadcastAudit() {
 
     console.log("   → Establishing Client connections...");
 
-    wsA = new WebSocket(wsUrl);
-    wsB = new WebSocket(wsUrl);
+    // Production /ws requires a real session — attach the admin cookie to the
+    // WebSocket upgrade handshake (ws library `headers` option).
+    const wsHeaders = { ...benchmarkAuthHeaders() };
+    wsA = new WebSocket(wsUrl, { headers: wsHeaders });
+    wsB = new WebSocket(wsUrl, { headers: wsHeaders });
 
     await withTimeout(
       Promise.all([

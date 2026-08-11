@@ -122,13 +122,13 @@ Current design (`CollectionsNamespace` in `src/services/sdk/namespaces/collectio
 
 Authenticated GET short-circuit (`handleTurboGet` → L1 `responseCache`):
 
-| Fix                                                 | Why                                                                                  |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `successResponse` stashes `apiBody`                 | Turbo/write path can re-use one stringify                                            |
-| Weak-ETag path still writes `responseCache`         | Collections findById used weak ETag and previously **never** warmed turbo L1         |
-| Sync `generateContentEtag`                          | Dropped async `hash-wasm` on GET miss path                                           |
-| Benchmark turbo session (`bench:{TEST_API_SECRET}`) | x-test-secret warm-ups populate `turboAuthCache` so turbo can fire without cookies   |
-| API cache writes use `buildUserResponseCacheKey`    | Same key as `handleTurboGet` (was writing only `cacheService` under a different key) |
+| Fix                                              | Why                                                                                                                                               |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `successResponse` stashes `apiBody`              | Turbo/write path can re-use one stringify                                                                                                         |
+| Weak-ETag path still writes `responseCache`      | Collections findById used weak ETag and previously **never** warmed turbo L1                                                                      |
+| Sync `generateContentEtag`                       | Dropped async `hash-wasm` on GET miss path                                                                                                        |
+| Real session turbo warm                          | Benchmark logins populate `turboAuthCache` via the real auth pipeline — turbo fires with real cookies (benchmark pseudo-sessions removed 2026-08) |
+| API cache writes use `buildUserResponseCacheKey` | Same key as `handleTurboGet` (was writing only `cacheService` under a different key)                                                              |
 
 ```bash
 # Rebuild required before HTTP turbo numbers pick up hook/handler changes
@@ -315,6 +315,22 @@ Hardware: same host as prior adapter baseline. Redis disabled. Includes keyset s
 > Networked engines benefit most from dropping the second round-trip (`LIST+COUNT` → `findPage`) and from count cache. Keyset vs shallow `OFFSET 50` is near-parity; prefer `cursor` for deep pages (`OFFSET` 10k+) where cost grows with N.
 
 `getCollectionData` now uses `findPage` with `total: "auto"` only when `includeMetadata` is true; list-only paths skip count entirely.
+
+### PostgreSQL raw-path identifier quoting fix (2026-08-11)
+
+**Bug**: the PG adapter's raw `findById` and raw `UPDATE…RETURNING` paths interpolated the table name **unquoted** (`exec.unsafe(getTableName(table))`). PostgreSQL folds unquoted identifiers to lowercase, so any mixed-case collection table (e.g. `collection_BenchmarkStable`) raised `42P01 relation does not exist` on **every** call and silently fell back to the slower Drizzle path — the raw fast paths had never engaged for mixed-case collections (the only kind the content system creates). MariaDB/SQLite were unaffected (backticks / case-insensitive identifiers).
+
+**Fix**: quote the identifier in both raw paths (`"${name.replace(/"/g, '""')}"`).
+
+**Measured (honest production server, real session, Docker PostgreSQL, `tmp-profile` probe)**:
+
+| Cell                                    |     Before |              After |
+| --------------------------------------- | ---------: | -----------------: |
+| HTTP update (client-observed)           |    6.21 ms | **4.34 ms** (−30%) |
+| Update handler + adapter (`ns:persist`) | 3.1–5.9 ms |     **1.7–2.5 ms** |
+| Random read (cache miss)                |    0.70 ms |        **0.57 ms** |
+
+Reads/writes on mixed-case collections now use the prepared raw statements (parse-once + bind/execute reuse) exactly like lowercase test collections did.
 
 ## Philosophy
 

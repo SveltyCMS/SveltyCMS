@@ -20,6 +20,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  requireTestInfrastructure,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -27,6 +28,8 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runChaosAudit() {
+  // Chaos-lab: simulated brownouts require TEST_MODE failure-injection infra
+  requireTestInfrastructure("chaos-resilience");
   console.log("🚀 Starting Enterprise Chaos & Resilience Audit...\n");
 
   try {

@@ -17,7 +17,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -36,10 +36,9 @@ async function runTemporalAudit() {
 
     await ensureStableTestData();
 
-    // Cache static immutable parameters outside the hot loop tracks
+    // Cache static immutable parameters outside the hot loop tracks — REAL session
     const baseHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
       "x-tenant-id": "global",
     };
 

@@ -1,5 +1,5 @@
 /**
- * @file tests/benchmark./modules/benchmark-utils.ts
+ * @file tests/benchmarks/modules/benchmark-utils.ts
  * @description Enterprise benchmarking core for SveltyCMS.
  * Standardizes execution, statistical analysis (percentiles, CV), memory auditing,
  * and professional reporting across all 19+ audit modules.
@@ -7,7 +7,16 @@
 import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { pushTableToMdx, appendSummaryToMdx } from "./benchmark-reporting";
+import { logger } from "@utils/logger";
+import { takeProfileSpans } from "@src/utils/write-profiler";
+import type { DatabaseId } from "@src/content/types";
+
+// 🟢 ESM require shim: package.json is "type": "module", so raw require()
+// throws ReferenceError under Node/vitest — only Bun provided it. createRequire
+// works on both runtimes.
+const requireShim = createRequire(import.meta.url);
 
 // 🟢 Bun/Node compatibility: Shim `node:v8` for the `bson` package
 // so MongoDB benchmarks can run under `bun test` (not just vitest/Node).
@@ -46,7 +55,7 @@ if (!isTestRunner && !process.env.BENCHMARK_REDIRECTED) {
       `\x1b[36m[AUTO-REDIRECT]\x1b[0m Rerunning \x1b[1m${path.basename(filePath)}\x1b[0m via the Bun Test Engine...\n`,
     );
 
-    const { spawnSync } = require("node:child_process");
+    const { spawnSync } = requireShim("node:child_process");
     const result = spawnSync("bun", ["test", ...process.argv.slice(1)], {
       stdio: "inherit",
       env: { ...process.env, BENCHMARK_REDIRECTED: "true" },
@@ -65,7 +74,7 @@ let afterEachFn = (globalThis as any).afterEach;
 
 if (typeof Bun !== "undefined") {
   try {
-    const bunTest = require("bun:test");
+    const bunTest = requireShim("bun:test");
     testFn = bunTest.test;
     describeFn = bunTest.describe;
     beforeAllFn = bunTest.beforeAll;
@@ -184,9 +193,12 @@ export const afterEach = (fn: any, timeout?: number) => {
 
 // ── silencing noise ─────────────────────────────────────────────────────────
 (globalThis as any).__SVELTY_QUIET__ = true;
-// Align all benchmark runtime flags (GraphQL, scanners, compile) — same contract as matrix server
+// BENCHMARK stays as a harness marker (env-only config, sandbox isolation,
+// setup force-complete). It grants NO request-path bypasses — benchmark servers
+// run NODE_ENV=production with real sessions, rate limits, WAF and audits.
 process.env.BENCHMARK = "true";
-process.env.TEST_MODE = process.env.TEST_MODE || "true";
+// Deliberately NOT setting TEST_MODE: test bypasses must never leak into
+// benchmark runs. Each test file sets its own NODE_ENV when spawning servers.
 
 // 🛡️ AUTO-CLEANUP: Global hook to prevent connection leaks and collection pollution
 afterAll(async () => {
@@ -369,7 +381,6 @@ export function computeStatistics(
     errorRate: Number((config.errorRate || 0).toFixed(4)),
     timestamp: new Date().toISOString(),
     version: "0.0.8-enterprise",
-    overhead: times.length - processedTimes.length, // Track how many were trimmed
     trimmedCount: times.length - processedTimes.length,
     ci95MarginMs: Number(marginOfError.toFixed(3)),
     ci95Ms: [
@@ -593,6 +604,18 @@ export async function runBenchmark(config: any) {
   } = config;
   if (!onIteration) throw new Error("Benchmark must provide onIteration");
 
+  // 🛡️ HONEST THINK-TIME: simulate user think time BETWEEN iterations, OUTSIDE
+  // the measured span (performance.now() wraps onIteration only). Previously
+  // the option existed but was never read — production-day's "realistic
+  // think-time simulation" claim was silently false.
+  const thinkTimeMs = Array.isArray(config.thinkTimeMs) ? config.thinkTimeMs : null;
+  const sleepThinkTime = async () => {
+    if (!thinkTimeMs || thinkTimeMs.length < 2) return;
+    const lo = thinkTimeMs[0];
+    const hi = thinkTimeMs[1];
+    await new Promise((r) => setTimeout(r, lo + Math.random() * Math.max(0, hi - lo)));
+  };
+
   let warmupErrors = 0;
   if (warmupIterations > 0) {
     for (let i = 0; i < warmupIterations; i++) {
@@ -627,6 +650,24 @@ export async function runBenchmark(config: any) {
   const maxConsecutiveErrors = 10;
   let consecutiveErrors = 0;
 
+  // 🎯 EVENT-LOOP LAG PROBE (item: harness telemetry): samples the setImmediate
+  // round-trip every 50 iterations. A blocked loop (CPU-bound serialization,
+  // sync schema rebuilds, GC storms) inflates p95 while avg stays flat — this
+  // is the only signal in the matrix for that failure class.
+  const eluAvailable = typeof performance.eventLoopUtilization === "function";
+  const eluStart = eluAvailable ? performance.eventLoopUtilization() : null;
+  let maxEventLoopLagMs = 0;
+  let lagSampleCounter = 0;
+  const sampleEventLoopLag = async () => {
+    if (!eluAvailable) return;
+    lagSampleCounter++;
+    if (lagSampleCounter % 50 !== 0) return;
+    const t0 = Date.now();
+    await new Promise<void>((r) => setImmediate(r));
+    const lag = Date.now() - t0;
+    if (lag > maxEventLoopLagMs) maxEventLoopLagMs = lag;
+  };
+
   for (let r = 0; r < runs; r++) {
     if (onSetup) await onSetup();
     if (concurrency > 1) {
@@ -653,6 +694,8 @@ export async function runBenchmark(config: any) {
               if (totalErrors === 1 && abortOnErrors !== false)
                 console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
             }
+            await sampleEventLoopLag();
+            await sleepThinkTime();
           }),
         );
       }
@@ -674,6 +717,8 @@ export async function runBenchmark(config: any) {
           if (totalErrors === 1 && abortOnErrors !== false)
             console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
         }
+        await sampleEventLoopLag();
+        await sleepThinkTime();
       }
     }
   }
@@ -687,6 +732,11 @@ export async function runBenchmark(config: any) {
     { ...config, errorRate: totalErrors / totalCompleted },
     failResults,
   );
+
+  // Attach event-loop telemetry to the result (exported with the ledger entry).
+  const eluEnd = eluAvailable && eluStart ? performance.eventLoopUtilization(eluStart) : null;
+  if (eluEnd) (stats as any).eventLoopUtilization = eluEnd.utilization;
+  if (maxEventLoopLagMs > 0) (stats as any).eventLoopLagMs = maxEventLoopLagMs;
 
   // 🛡️ RELIABILITY GUARD: Ensure the benchmark reached an acceptable success rate
   const reliabilityThreshold = config.reliabilityThreshold ?? 0.99; // Default 99% success required
@@ -801,6 +851,365 @@ export async function runStochasticLoadTest(config: {
   };
 }
 
+// ── 4b. PRODUCTION-MODE SESSION AUTH & SEEDING ──────────────────────────────
+// Benchmarks authenticate like real production users: POST /api/auth/login
+// → real session cookie → every request carries the cookie. No x-test-secret
+// forges, no test bypass, no rate-limit/WAF exemptions.
+
+let _benchmarkSessionCookie: string | null = null;
+let _benchmarkSessionBaseUrl: string | null = null;
+let _benchmarkSessionUserKey: string | null = null;
+
+/**
+ * Real login via POST /api/auth/login. Returns the session cookie pair
+ * (e.g. `auth_sessions=...` or `__Host-auth_sessions=...`) and caches it
+ * for the whole benchmark process. Requires a seeded admin (seedBenchmarkState).
+ */
+export async function loginBenchmarkUser(
+  baseUrl: string,
+  email = "admin@example.com",
+  password = process.env.ADMIN_PASSWORD || "Password123!",
+): Promise<string> {
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
+  const userKey = `${email}\0${password}`;
+  if (
+    _benchmarkSessionCookie &&
+    _benchmarkSessionBaseUrl === normalizedBaseUrl &&
+    _benchmarkSessionUserKey === userKey
+  ) {
+    return _benchmarkSessionCookie;
+  }
+
+  const res = await fetch(`${normalizedBaseUrl}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Benchmark login failed (${res.status}): ${body.slice(0, 300)}`);
+  }
+  const setCookies =
+    typeof (res.headers as any).getSetCookie === "function"
+      ? (res.headers as any).getSetCookie()
+      : (res.headers.get("set-cookie") || "").split(/,(?=\s*[^;,]+=[^;,])/);
+  const sessionPair = (setCookies || [])
+    .map((c: string) => c.split(";")[0]?.trim() ?? "")
+    .find((c: string) => /auth_sessions/i.test(c));
+  if (!sessionPair) {
+    throw new Error("Benchmark login succeeded but no session cookie was set");
+  }
+  _benchmarkSessionCookie = sessionPair;
+  _benchmarkSessionBaseUrl = normalizedBaseUrl;
+  _benchmarkSessionUserKey = userKey;
+  return sessionPair;
+}
+
+/**
+ * Headers carrying the REAL admin session cookie (production auth). Sync —
+ * requires setupBenchmarkServer() to have run (it logs in and caches the cookie).
+ * Includes the same-origin Origin header so mutations pass the production CSRF
+ * same-origin fast-path (like a real admin browser).
+ */
+export function benchmarkAuthHeaders(): Record<string, string> {
+  if (!_benchmarkSessionCookie) {
+    throw new Error("benchmarkAuthHeaders: no session cookie — call setupBenchmarkServer() first");
+  }
+  const origin = process.env.API_BASE_URL;
+  const headers: Record<string, string> = { Cookie: _benchmarkSessionCookie };
+  if (origin) headers.Origin = origin;
+  return headers;
+}
+
+export function clearBenchmarkSession(): void {
+  _benchmarkSessionCookie = null;
+  _benchmarkSessionBaseUrl = null;
+  _benchmarkSessionUserKey = null;
+}
+
+/**
+ * Hard guard for chaos-lab benchmarks that rely on TEST_MODE-only synthetic
+ * infrastructure (failure injection flags, spoofed proxy headers, testing-API
+ * actions). Production-mode benchmark servers never honor those — running
+ * them silently would measure nothing. Fail loudly instead of soft-skipping.
+ *
+ * NOTE: `bun test` forces NODE_ENV=test + TEST_MODE=true in child processes,
+ * so plain env checks cannot detect production mode there. The harness sets
+ * SVELTY_BENCHMARK_SERVER_MODE=production (setupBenchmarkServer / matrix
+ * spawnTestProcess) — that marker is authoritative.
+ */
+export function requireTestInfrastructure(feature: string): void {
+  const env = typeof process !== "undefined" ? process.env : {};
+  const productionBenchServer = env.SVELTY_BENCHMARK_SERVER_MODE === "production";
+  const noTestEnv = env.TEST_MODE !== "true" && env.NODE_ENV !== "test";
+  if (productionBenchServer || noTestEnv) {
+    throw new Error(
+      `[${feature}] requires TEST_MODE infrastructure (synthetic failure injection, ` +
+        `spoofed headers, /api/testing actions). It is a chaos-lab benchmark and ` +
+        `cannot run against production-mode benchmark servers. Spawn it with ` +
+        `TEST_MODE=true (test-mode server) instead.`,
+    );
+  }
+}
+
+let _benchmarkSeeded = false;
+
+/**
+ * In-process equivalent of the legacy testing action `seed-throughput-docs`
+ * (403 in production mode): creates the collection if missing, clears it, and
+ * bulk-inserts `tp-*` documents via the adapter.
+ */
+export async function seedThroughputDocs(
+  count = 1000,
+  collectionId = "BenchmarkStable",
+  tenantId: string = "global",
+): Promise<number> {
+  // MUST initialize the adapter first (same pattern as ensureStableTestData):
+  // getDb() alone returns null on a fresh process, silently killing the seed
+  // and leaving increment benchmarks with 404 "Entry not found" failures.
+  const { getDb, getDbInitPromise } = await import("@src/databases/db");
+  await getDbInitPromise(false, "CORE").catch(() => {});
+  const db = getDb();
+  if (!db) throw new Error("seedThroughputDocs: database adapter not initialized");
+  try {
+    await (db as any).collection.createModel({
+      _id: collectionId,
+      name: collectionId,
+      fields: [
+        { db_fieldName: "title", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "count", widget: { Name: "Input" }, type: "number" },
+      ],
+    });
+  } catch {
+    /* already exists */
+  }
+  try {
+    await (db as any).crud.deleteMany(collectionId, {}, { tenantId, permanent: true });
+  } catch {
+    /* ignore */
+  }
+  const BATCH = 5000;
+  let seeded = 0;
+  for (let i = 0; i < count; i += BATCH) {
+    const end = Math.min(i + BATCH, count);
+    const docs = Array.from({ length: end - i }, (_, k) => {
+      const j = i + k;
+      return { _id: `tp-${j}`, title: `Throughput Doc ${j}`, count: 0, tenantId };
+    });
+    await (db as any).crud.insertMany(collectionId, docs, {
+      tenantId,
+      bypassTenantCheck: true,
+      skipReturning: true,
+    });
+    seeded += docs.length;
+  }
+  return seeded;
+}
+
+/**
+ * In-process state seeding against the SAME database the benchmark server
+ * will use: default roles, admin user (real password hash via LocalCMS auth),
+ * benchmark collections + entries. Mirrors the legacy /api/testing seed
+ * actions, which are 403 in production builds — this is the production-safe
+ * replacement and runs BEFORE the server boots so boot-time schema loading
+ * sees a complete state.
+ */
+export async function seedBenchmarkState(): Promise<void> {
+  if (_benchmarkSeeded) return;
+  _benchmarkSeeded = true;
+  const started = performance.now();
+  const tenantId = "global" as DatabaseId;
+
+  const { getDb, getDbInitPromise } = await import("@src/databases/db");
+  await getDbInitPromise(false, "CORE").catch(() => {});
+  const db = getDb();
+  if (!db) throw new Error("seedBenchmarkState: database adapter not initialized");
+
+  const { LocalCMS } = await import("@src/services/sdk");
+  const cms = new LocalCMS(db as any);
+
+  // 1. Default roles (idempotent — mirrors /api/testing action=seed)
+  try {
+    const { seedRoles } = await import("@src/routes/setup/seed");
+    await seedRoles(db as any, tenantId);
+  } catch (err: any) {
+    logger.warn(`[BenchSeed] Role seeding failed (non-fatal): ${err.message}`);
+  }
+
+  // 2. Admin user (idempotent — mirrors /api/testing action=seed)
+  const email = "admin@example.com";
+  const password = process.env.ADMIN_PASSWORD || "Password123!";
+  const seedOpts = { tenantId } as any;
+  let created = await cms.auth.createUser(
+    {
+      email,
+      password,
+      username: "admin",
+      role: "admin",
+      isAdmin: true,
+      isRegistered: true,
+      emailVerified: true,
+    },
+    seedOpts,
+  );
+  if (!created?.success) {
+    const existing = await cms.auth.getUserByEmail(email, seedOpts);
+    if (existing?.success && existing?.data) {
+      await cms.auth.updateUserAttributes(
+        (existing.data as { _id: string })._id,
+        {
+          password,
+          role: "admin",
+          isAdmin: true,
+          isRegistered: true,
+          emailVerified: true,
+          failedAttempts: 0,
+          lockoutUntil: null,
+        },
+        { ...seedOpts, allowPrivilegeEscalation: true },
+      );
+    }
+  }
+
+  // 3. Benchmark collections (mirrors /api/testing action=benchmark-seed)
+  const collectionSchemas = [
+    {
+      _id: "benchmark_authors",
+      name: "benchmark_authors",
+      fields: [
+        { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "name", label: "Name", widget: { Name: "Input" }, type: "string" },
+      ],
+    },
+    {
+      _id: "benchmark_posts",
+      name: "benchmark_posts",
+      fields: [
+        { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
+        {
+          db_fieldName: "author",
+          label: "Author",
+          widget: { Name: "Relation" },
+          type: "string",
+          relation: "benchmark_authors",
+        },
+      ],
+    },
+    {
+      _id: "BenchmarkStable",
+      name: "BenchmarkStable",
+      fields: [
+        { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "content", label: "Content", widget: { Name: "RichText" }, type: "string" },
+        { db_fieldName: "count", label: "Count", widget: { Name: "Input" }, type: "number" },
+      ],
+    },
+  ];
+  await Promise.all(
+    collectionSchemas.map(async (schema) => {
+      try {
+        await (db as any).collection.createModel(schema);
+      } catch {
+        /* already exists */
+      }
+    }),
+  );
+  for (const schema of collectionSchemas) {
+    try {
+      cms.collections.registerSchema(schema._id, schema as any, tenantId);
+    } catch {
+      /* schema may already be registered */
+    }
+  }
+
+  // 3b. 🛡️ PERSIST CONTENT NODES — a production benchmark server is a SEPARATE
+  // process: it boots its content store from content_nodes in the DB. The old
+  // test-mode /api/testing seed ran inside the server (registerSchema populated
+  // the server's own store); the production seed runs in the TEST process, so
+  // without these rows the server's store stays EMPTY: GraphQL allCollections
+  // returns [], content exports 500 "Collection not found", and every
+  // schema-driven benchmark measured hollow queries.
+  for (const schema of collectionSchemas) {
+    try {
+      await (db as any).crud.upsert(
+        "content_nodes",
+        { path: `/collection/${schema.name}`, tenantId } as any,
+        {
+          _id: schema._id,
+          path: `/collection/${schema.name}`,
+          nodeType: "collection",
+          collectionDef: schema,
+          tenantId,
+          status: "published",
+          name: schema.name,
+          slug: String(schema.name)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-"),
+        } as any,
+        { tenantId, bypassTenantCheck: true },
+      );
+    } catch (err: any) {
+      logger.warn(`[BenchSeed] content_nodes upsert failed for ${schema._id}: ${err.message}`);
+    }
+  }
+
+  // 4. Entries: 10 authors, 50 posts, stable entry (upsert for re-runs)
+  const authors = Array.from({ length: 10 }, (_, i) => ({
+    _id: `author-${i + 1}`,
+    name: `Author ${i + 1}`,
+    tenantId,
+  }));
+  try {
+    await cms.collections.bulkCreate("benchmark_authors", authors, {
+      tenantId,
+      skipValidation: true,
+      system: true,
+    });
+    await cms.collections.bulkCreate(
+      "benchmark_posts",
+      authors.flatMap((author, ai) =>
+        Array.from({ length: 5 }, (_, pi) => ({
+          title: `Post ${pi + 1} by Author ${ai + 1}`,
+          author: author._id,
+          tenantId,
+        })),
+      ),
+      { tenantId, skipValidation: true, system: true },
+    );
+  } catch (err: any) {
+    logger.warn(`[BenchSeed] Entry seeding failed (non-fatal): ${err.message}`);
+  }
+  const stablePayload = {
+    _id: "bench-shared-001",
+    title: "Stable Benchmark Entry",
+    content: "This is a stable entry for REST and API performance testing.",
+    count: 1,
+    tenantId,
+  };
+  try {
+    const res = await (db as any).crud.upsert(
+      "BenchmarkStable",
+      { _id: "bench-shared-001" },
+      stablePayload,
+      { tenantId, bypassTenantCheck: true },
+    );
+    if (!res?.success) {
+      await cms.collections.create("BenchmarkStable", stablePayload, {
+        tenantId,
+        skipValidation: true,
+        system: true,
+      });
+    }
+  } catch (err: any) {
+    logger.warn(`[BenchSeed] Stable entry seeding failed (non-fatal): ${err.message}`);
+  }
+
+  logger.info(`[BenchSeed] State seeded in ${(performance.now() - started).toFixed(0)}ms`);
+}
+
 export async function setupBenchmarkServer() {
   const _bootStart = performance.now();
   const apiBase = process.env.API_BASE_URL;
@@ -809,14 +1218,37 @@ export async function setupBenchmarkServer() {
     _benchmarkBootMs = 0;
     process.env.TEST_API_SECRET = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     TEST_API_SECRET = process.env.TEST_API_SECRET;
+    // Authenticate with a REAL session (admin must be seeded by the runner)
+    await loginBenchmarkUser(apiBase).catch((err) => {
+      logger.warn(`[BenchSeed] Shared-mode login failed (deferred): ${err.message}`);
+    });
     return { baseUrl: apiBase, stop: async () => {} };
   }
 
   // ── Standalone mode: spawn a local server ───────────────────────────
   const { spawn } = await import("node:child_process");
+  const { createServer } = await import("node:net");
 
   const dbType = getDbType() || "sqlite";
-  const port = 4173 + Math.floor(Math.random() * 500);
+
+  // 🛡️ PRE-FLIGHT PORT PROBE: a random port can collide with a parallel
+  // matrix run — node then exits with EADDRINUSE and the 90×500ms health poll
+  // hangs the suite for 45s. Probe availability first and retry with a fresh
+  // port (bounded) before giving up.
+  const findFreePort = () =>
+    new Promise<number>((resolve) => {
+      const candidate = 4173 + Math.floor(Math.random() * 500);
+      const probe = createServer();
+      probe.once("error", () => resolve(0)); // in use / EADDRINUSE
+      probe.listen(candidate, "127.0.0.1", () => {
+        probe.close(() => resolve(candidate));
+      });
+    });
+  let port = 0;
+  for (let attempt = 0; attempt < 5 && port === 0; attempt++) {
+    port = await findFreePort();
+  }
+  if (port === 0) port = 4173 + Math.floor(Math.random() * 500); // last resort
   // Use DB_NAME from env (CI bench-core / run-core-benchmarks), else adapter default.
   const dbName =
     process.env.DB_NAME || (dbType === "sqlite" ? "benchmark_shared" : "sveltycms_test");
@@ -826,16 +1258,30 @@ export async function setupBenchmarkServer() {
   process.env.DB_TYPE = dbType;
   process.env.DB_NAME = dbName;
   process.env.API_BASE_URL = `http://127.0.0.1:${port}`;
-  process.env.JWT_SECRET_KEY = "Benchmark-JWT-Secret-Key-2026-32ch";
-  process.env.ENCRYPTION_KEY = "Benchmark-Encryption-Key-2026-32ch";
+  process.env.JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || "Benchmark-JWT-Secret-Key-2026-32ch";
+  process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "Benchmark-Encryption-Key-2026-32ch";
   process.env.TEST_API_SECRET = secret;
   process.env.ADMIN_PASSWORD = adminPw;
   TEST_API_SECRET = secret;
-  process.env.TEST_MODE = "true";
+  // 🛡️ PRODUCTION PARITY: never set TEST_MODE — the server must run the real
+  // middleware (sessions, rate limits, WAF) like a production deployment.
+  delete process.env.TEST_MODE;
+  delete process.env.PLAYWRIGHT_TEST;
   process.env.BENCHMARK = "true";
+  process.env.NODE_ENV = "production";
+  process.env.RATE_LIMIT_MAX_REQUESTS = process.env.RATE_LIMIT_MAX_REQUESTS || "20000";
+  // 🏷️ Authoritative marker for child/test code: the benchmark SERVER is in
+  // production mode (bun test overrides NODE_ENV/TEST_MODE in this process,
+  // so env checks alone cannot detect it). Chaos-lab guards rely on this.
+  process.env.SVELTY_BENCHMARK_SERVER_MODE = "production";
 
   const { printBenchmarkIsolationBanner } = await import("@utils/benchmark-sandbox");
   printBenchmarkIsolationBanner(dbType);
+
+  // 🚀 Seed BEFORE boot: roles + admin + benchmark collections/entries must
+  // exist before the server initializes its content engine (production mode
+  // has no /api/testing to seed through).
+  await seedBenchmarkState();
 
   const serverProcess = spawn("node", ["index.cjs"], {
     env: {
@@ -847,10 +1293,17 @@ export async function setupBenchmarkServer() {
       DB_PORT: process.env.DB_PORT || "",
       DB_USER: process.env.DB_USER || "",
       DB_PASSWORD: process.env.DB_PASSWORD || "",
-      TEST_MODE: "true",
+      TEST_MODE: "", // explicit: no test bypass in benchmark servers
       BENCHMARK: "true",
       TEST_API_SECRET: secret,
-      NODE_ENV: "test",
+      NODE_ENV: "production",
+      SVELTY_BENCHMARK_SERVER_MODE: "production",
+      // 🏢 Audit mode: compliance → AUDIT_CHAIN_SYNC=true, DISABLE_AUDIT_LOGS=false
+      BENCHMARK_AUDIT_MODE: process.env.BENCHMARK_AUDIT_MODE || "production",
+      AUDIT_CHAIN_SYNC: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "true" : "false",
+      DISABLE_AUDIT_LOGS: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "false" : "true",
+      RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "20000",
+      SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
     },
     stdio: "pipe",
     shell: false,
@@ -871,7 +1324,6 @@ export async function setupBenchmarkServer() {
   for (let attempt = 0; attempt < 90; attempt++) {
     try {
       const res = await fetch(healthUrl, {
-        headers: { "x-test-mode": "true", "x-test-secret": TEST_API_SECRET },
         signal: AbortSignal.timeout(2000),
       });
       // Accept any non-5xx response during startup — server may return 202/503/533
@@ -920,25 +1372,20 @@ export async function setupBenchmarkServer() {
     throw new Error(`Server at ${healthUrl} did not become healthy within 45s${stderrSnippet}`);
   }
 
-  const { isCiFreshBenchmark } = await import("@utils/benchmark-sandbox");
-  if (isCiFreshBenchmark()) {
-    try {
-      const { execSync } = await import("child_process");
-      execSync("bun run scripts/setup-system.ts", {
-        env: { ...process.env, API_BASE_URL: process.env.API_BASE_URL, PRESET: "demo" },
-        stdio: "pipe",
-        shell: process.platform === "win32" ? "cmd.exe" : undefined,
-      });
-    } catch {
-      // Non-fatal — benchmark data is seeded via /api/testing below
-    }
-  }
+  // Authenticate with a REAL production session (login + cookie).
+  await loginBenchmarkUser(`http://127.0.0.1:${port}`).catch((err) => {
+    serverProcess.kill("SIGTERM");
+    throw new Error(
+      `Benchmark server is healthy but admin login failed — is the admin seeded? ${err.message}`,
+    );
+  });
 
-  // Seed benchmark data in-process
+  // Reset stable entry state through the real API (warms server caches)
   await ensureStableTestData(undefined, "global");
 
   const stop = async () => {
     delete process.env.API_BASE_URL;
+    clearBenchmarkSession();
     serverProcess.kill("SIGTERM");
     await new Promise((r) => setTimeout(r, 300));
     try {
@@ -968,7 +1415,9 @@ export async function exportResult(r: any) {
   const runMode = process.env.BENCHMARK_MATRIX === "1" ? "matrix" : "standalone";
   const wallClockMs = _benchmarkTestStartTime > 0 ? performance.now() - _benchmarkTestStartTime : 0;
 
-  // Build structured entry
+  // Build structured entry — spans + event-loop telemetry become trendable
+  // ledger fields (PROFILE_WRITE=1 runs attach gql:/write- path span deltas).
+  const spans = takeProfileSpans();
   const entry = {
     runMode,
     runId: _currentRunId,
@@ -987,6 +1436,11 @@ export async function exportResult(r: any) {
     redis: process.env.USE_REDIS === "true",
     timestamp: new Date().toISOString(),
     status: r.status || "SUCCESS",
+    ...(r.eventLoopLagMs !== undefined ? { eventLoopLagMs: r.eventLoopLagMs } : {}),
+    ...(r.eventLoopUtilization !== undefined
+      ? { eventLoopUtilization: r.eventLoopUtilization }
+      : {}),
+    ...(spans.length > 0 ? { spans } : {}),
   };
 
   // Always write to history.jsonl
@@ -1171,45 +1625,14 @@ export function exportSubMetric(
 
 export const STABLE_COLLECTION = "BenchmarkStable";
 export const STABLE_ENTRY_ID = "bench-shared-001";
+// Kept for env-config compatibility (harness secret). It is NEVER sent as a
+// request header — benchmark servers run in production mode where x-test-secret
+// grants nothing and /api/testing is 403.
 export let TEST_API_SECRET = (() => {
   if (process.env.TEST_API_SECRET) return process.env.TEST_API_SECRET;
   if (process.env.VITE_TEST_API_SECRET) return process.env.VITE_TEST_API_SECRET;
   return "SVELTYCMS_TEST_SECRET_2026";
 })();
-
-const testingRequestHeaders = (tenantId = "global") => ({
-  "Content-Type": "application/json",
-  "x-test-mode": "true",
-  "x-test-secret": TEST_API_SECRET,
-  "x-tenant-id": tenantId,
-});
-
-/** POST to `/api/testing` with benchmark auth headers. */
-export async function postTestingApi(
-  action: string,
-  params: Record<string, unknown> = {},
-  tenantId = "global",
-): Promise<Response> {
-  const baseUrl = process.env.API_BASE_URL;
-  if (!baseUrl) throw new Error("postTestingApi: API_BASE_URL is not set");
-  return fetch(`${baseUrl}/api/testing`, {
-    method: "POST",
-    headers: testingRequestHeaders(tenantId),
-    body: JSON.stringify({ action, ...params }),
-  });
-}
-
-/** Fail fast when the testing API rejects benchmark setup (e.g. 401 secret mismatch). */
-export async function requireTestingApi(
-  action: string,
-  params: Record<string, unknown> = {},
-  tenantId = "global",
-): Promise<void> {
-  const res = await postTestingApi(action, params, tenantId);
-  if (res.ok) return;
-  const txt = await res.text().catch(() => "");
-  throw new Error(`Testing API '${action}' failed (${res.status}): ${txt.slice(0, 240)}`);
-}
 
 /** Track files that have already reported their MDX recording message */
 const _reportedFiles = new Set<string>();
@@ -1222,115 +1645,33 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     );
   }
 
-  // 🚀 BENCHMARK MODE: Prefer HTTP API to the running server — avoids needing
-  // DB env vars (MongoDB/PostgreSQL/MariaDB) in the benchmark child process.
-  if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
+  // 🚀 PRODUCTION MODE: Reset the stable entry through the REAL authenticated
+  // API (PATCH with session cookie) — warms the server's response cache and
+  // exercises the same path a production admin uses. Falls back to direct DB
+  // when no session is available (pre-login seeding).
+  if (process.env.API_BASE_URL && _benchmarkSessionCookie) {
     try {
-      const res = await postTestingApi(
-        "create-collection",
+      const patchRes = await fetch(
+        `${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
         {
-          schema: {
-            _id: STABLE_COLLECTION,
-            name: STABLE_COLLECTION,
-            fields: [
-              {
-                db_fieldName: "_id",
-                label: "ID",
-                widget: { Name: "Input" },
-                type: "string",
-              },
-              {
-                db_fieldName: "title",
-                label: "Title",
-                widget: { Name: "Input" },
-                type: "string",
-              },
-              {
-                db_fieldName: "slug",
-                label: "Slug",
-                widget: { Name: "Input" },
-                type: "string",
-              },
-              {
-                db_fieldName: "content",
-                label: "Content",
-                widget: { Name: "RichText" },
-                type: "string",
-              },
-              {
-                db_fieldName: "count",
-                label: "Count",
-                widget: { Name: "Input" },
-                type: "number",
-              },
-              {
-                db_fieldName: "author",
-                label: "Author",
-                widget: { Name: "Relation" },
-                type: "string",
-                relation: "BenchmarkAuthors",
-              },
-              {
-                db_fieldName: "publishDate",
-                label: "Publish Date",
-                widget: { Name: "DateTime" },
-                type: "string",
-              },
-            ],
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...benchmarkAuthHeaders(),
+            "x-tenant-id": tenantId,
           },
+          body: JSON.stringify({ count: 0 }),
         },
-        tenantId,
       );
-      if (!res.ok && process.env.BENCHMARK_MATRIX === "1") {
-        const txt = await res.text().catch(() => "");
-        throw new Error(
-          `ensureStableTestData: testing API unavailable (${res.status}): ${txt.slice(0, 200)}`,
+      if (patchRes.ok) return;
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        process.stderr.write(
+          `[DEBUG] Stable entry PATCH failed (${patchRes.status}) — falling back to direct DB\n`,
         );
       }
-      if (res.ok && process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(`[DEBUG] Stable collection created via API\n`);
-      }
-
-      // Ensure bench-shared-001 exists — PATCH to reset count, POST if missing
-      if (res.ok) {
-        const patchRes = await fetch(
-          `${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              "x-test-mode": "true",
-              "x-test-secret": TEST_API_SECRET,
-              "x-tenant-id": tenantId,
-            },
-            body: JSON.stringify({ count: 0 }),
-          },
-        );
-
-        // If PATCH fails (entry missing), create it via POST
-        if (!patchRes.ok) {
-          await fetch(`${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-test-mode": "true",
-              "x-test-secret": TEST_API_SECRET,
-              "x-tenant-id": tenantId,
-            },
-            body: JSON.stringify({
-              _id: STABLE_ENTRY_ID,
-              title: "Benchmark Stable Entry",
-              count: 0,
-            }),
-          }).catch(() => {});
-        }
-        return;
-      }
-      // create-collection action failed (not yet implemented in testing handler).
-      // Fall through to direct DB path to create the collection and entry.
     } catch (err: any) {
       if (process.env.BENCHMARK_DEBUG === "true") {
-        process.stderr.write(`[DEBUG] API-based stable data seeding failed: ${err.message}\n`);
+        process.stderr.write(`[DEBUG] API stable-entry reset failed: ${err.message}\n`);
       }
     }
   }
@@ -1446,39 +1787,26 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     }
   }
 
-  // Also try via API PATCH as a secondary measure
-  if (process.env.API_BASE_URL && process.env.TEST_API_SECRET) {
-    try {
-      await fetch(
-        `${process.env.API_BASE_URL}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            "x-test-mode": "true",
-            "x-test-secret": TEST_API_SECRET,
-            "x-tenant-id": tenantId,
-          },
-          body: JSON.stringify({ count: 0 }),
-        },
-      );
-    } catch {}
-  }
+  // The authenticated PATCH (primary path) already reset the entry and warmed
+  // the server cache. No secondary forge-header PATCH — production mode has no
+  // test bypass and /api/testing is 403.
 
   _benchmarkSeedMs += performance.now() - _seedStart;
 }
 
 export async function forceRefreshServer(baseUrl: string, tenantId: string = "global") {
   await new Promise((r) => setTimeout(r, 50));
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-tenant-id": tenantId,
+  };
+  // Production mode: real session cookie (test bypass headers are gone)
+  if (_benchmarkSessionCookie) Object.assign(headers, benchmarkAuthHeaders());
   for (let i = 0; i < 3; i++) {
     try {
       const res = await fetch(`${baseUrl}/api/system/refresh`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": TEST_API_SECRET,
-        },
+        headers,
         body: JSON.stringify({ tenantId }),
       });
       if (res.ok) return;
@@ -1496,12 +1824,12 @@ export async function waitForCollection(
   collectionId: string,
   tenantId: string = "global",
 ) {
-  const headers = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "x-test-mode": "true",
-    "x-test-secret": TEST_API_SECRET,
     "x-tenant-id": tenantId,
   };
+  // Production mode: real session cookie
+  if (_benchmarkSessionCookie) Object.assign(headers, benchmarkAuthHeaders());
   const query = `query { __schema { types { name } } }`;
   for (let i = 0; i < 20; i++) {
     try {
@@ -1527,17 +1855,9 @@ export async function waitForCollection(
     } catch (e: any) {
       console.log(`[waitForCollection] Exception:`, e.message);
     }
-    // After 10 retries, try forcing collection creation + cache refresh
+    // After 10 retries, force an authenticated content refresh (production
+    // mode has no /api/testing create-collection fallback)
     if (i === 10) {
-      console.log(`[waitForCollection] Forcing collection creation via testing API...`);
-      await fetch(`${baseUrl}/api/testing`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          action: "create-collection",
-          schema: { _id: collectionId, name: collectionId, fields: [] },
-        }),
-      }).catch(() => {});
       await fetch(`${baseUrl}/api/content/refresh`, {
         method: "POST",
         headers,

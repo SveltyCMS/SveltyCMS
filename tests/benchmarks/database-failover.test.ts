@@ -23,7 +23,8 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  requireTestInfrastructure,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -40,6 +41,9 @@ async function runFailoverAudit() {
     return;
   }
 
+  // Chaos-lab: simulate-disconnect + x-test-fail-external require TEST_MODE
+  requireTestInfrastructure("database-failover");
+
   const server = await setupBenchmarkServer();
   stopServer = server.stop;
   const baseUrl = server.baseUrl;
@@ -49,8 +53,7 @@ async function runFailoverAudit() {
 
   // Canonical lowercase structural header formats
   const headers = {
-    "x-test-mode": "true",
-    "x-test-secret": TEST_API_SECRET,
+    ...benchmarkAuthHeaders(),
   };
 
   const degradedHeaders = {
@@ -307,9 +310,10 @@ async function runSqliteReinitializeTest() {
   await stabilize(1000);
 
   const headers = {
-    "x-test-mode": "true",
-    "x-test-secret": TEST_API_SECRET,
+    ...benchmarkAuthHeaders(),
   };
+
+  console.log("   → Testing SQLite reinitialize resilience...");
 
   const baselineRes = await fetch(`${baseUrl}/api/system/health`, {
     method: "GET",

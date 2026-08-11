@@ -21,7 +21,7 @@ import {
   forceRefreshServer,
   stabilize,
   getDbType,
-  requireTestingApi,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -38,34 +38,63 @@ async function runSeoAudit() {
 
     await ensureStableTestData();
 
-    // Setup initial mutable header references outside hot execution tracks
+    // Setup initial mutable header references — REAL admin session (production auth)
     const targetTenant = process.env.TENANT_ID || "global";
     const requestHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+      ...benchmarkAuthHeaders(),
       "x-tenant-id": targetTenant,
     };
 
-    await requireTestingApi(
-      "create-redirect",
-      {
-        from: "/old-path-1",
-        to: "/api/system/health",
-        status: 301,
+    // Create the redirect in the production store — `redirectsMV` is the
+    // materialized view handle-redirects reads from (the old /api/testing
+    // create-redirect action wrote it; the content collection alone is a
+    // mirror and does NOT populate the MV). In-process insert + authenticated
+    // refresh, then a bounded probe retry (stale negative cache can linger).
+    try {
+      const { getDb, getDbInitPromise } = await import("@src/databases/db");
+      await getDbInitPromise(false, "CORE").catch(() => {});
+      const db = getDb();
+      if (db) {
+        await (db as any).crud.insert("redirectsMV", {
+          _id: `redirect_${Date.now()}`,
+          source: "/old-path-1",
+          target: "/api/system/health",
+          type: 301,
+          active: true,
+          tenantId: targetTenant,
+        });
+      }
+    } catch (e: any) {
+      throw new Error(`Redirect MV seeding failed: ${e.message}`);
+    }
+
+    await fetch(`${baseUrl}/api/content/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...benchmarkAuthHeaders(),
+        "x-tenant-id": targetTenant,
       },
-      targetTenant,
-    );
+      body: JSON.stringify({}),
+    }).catch(() => {});
 
     await forceRefreshServer(baseUrl, targetTenant);
 
-    const probe = await fetch(`${baseUrl}/old-path-1`, {
-      redirect: "manual",
-      headers: requestHeaders,
-    });
-    if (probe.status !== 301) {
-      const loc = probe.headers.get("location") ?? "none";
+    // Bounded probe with retry: a stale negative redirect cache entry (300s TTL)
+    // from an earlier run can shadow the fresh MV row on the first attempt.
+    let probe: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      probe = await fetch(`${baseUrl}/old-path-1`, {
+        redirect: "manual",
+        headers: requestHeaders,
+      });
+      if (probe.status === 301) break;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    if (!probe || probe.status !== 301) {
+      const loc = probe?.headers.get("location") ?? "none";
       throw new Error(
-        `SEO setup failed: redirect probe expected 301, got ${probe.status} (Location: ${loc})`,
+        `SEO setup failed: redirect probe expected 301, got ${probe?.status} (Location: ${loc})`,
       );
     }
 

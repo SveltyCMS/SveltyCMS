@@ -143,9 +143,12 @@ export interface BeginCompileSessionOptions {
   files?: string[];
 }
 
-/** Normalize a path to a comparable basename key (kebab, lowercased). */
+/** Normalize a path to a comparable basename key (lowercased, extension stripped). */
 function normalizeFileKey(file: string): string {
-  return file.replace(/\\/g, "/").split("/").pop()?.toLowerCase() ?? "";
+  const name = file.replace(/\\/g, "/").split("/").pop()?.toLowerCase() ?? "";
+  // Strip .ts/.js so a GUI save key ('posts.ts') matches the file-watcher echo
+  // for the compiled output ('posts.js') — otherwise dedupe always misses.
+  return name.replace(/\.(ts|js)$/i, "");
 }
 
 /**
@@ -347,6 +350,11 @@ function attachHmrNodes(
 
 async function listSourceCollectionFiles(userCollections: string): Promise<string[]> {
   const files: string[] = [];
+  // Hoisted: resolved once per scan — importing inside walk() re-resolved the
+  // modules for every subdirectory visited.
+  const { isBenchmarkRuntime } = await import("@utils/benchmark-runtime");
+  const { isBenchmarkRelativePath } = await import("@utils/benchmark-paths");
+  const benchRuntime = isBenchmarkRuntime();
 
   async function walk(dir: string, relative = ""): Promise<void> {
     let entries;
@@ -361,12 +369,7 @@ async function listSourceCollectionFiles(userCollections: string): Promise<strin
       const full = path.join(dir, entry.name);
 
       if (entry.isDirectory()) {
-        const { isBenchmarkRuntime } = await import("@utils/benchmark-runtime.ts");
-        const { isBenchmarkRelativePath } = await import("@utils/benchmark-paths.ts");
-        if (
-          !isBenchmarkRuntime() &&
-          (entry.name === "test-collections" || isBenchmarkRelativePath(rel))
-        ) {
+        if (!benchRuntime && (entry.name === "test-collections" || isBenchmarkRelativePath(rel))) {
           continue;
         }
         await walk(full, rel);
@@ -630,10 +633,20 @@ function toRelativeSource(
 }
 
 /**
- * Map compiled .js paths → collection ids (basename without extension).
+ * Map compiled .js paths → collection ids. Subfolder schemas (blog/posts.js)
+ * must map to the engine-generated auto-id (blog_posts) — basename-only
+ * produced mismatched ids that broke surgical client HMR lookups.
  */
-function idsFromJsPaths(jsPaths: string[]): string[] {
-  return jsPaths.map((p) => path.basename(p, ".js").toLowerCase());
+function idsFromJsPaths(jsPaths: string[], compiledCollectionsDir?: string): string[] {
+  const root = compiledCollectionsDir ? path.resolve(compiledCollectionsDir) : "";
+  return jsPaths.map((p) => {
+    const abs = path.resolve(p);
+    if (root && abs.toLowerCase().startsWith(root.toLowerCase())) {
+      const rel = path.relative(root, abs);
+      return rel.replace(/\.js$/i, "").replace(/[\\/]/g, "_").toLowerCase();
+    }
+    return path.basename(p, ".js").toLowerCase();
+  });
 }
 
 /**
@@ -717,7 +730,7 @@ async function compileAndRefresh(
   result.metrics.refreshMs = Date.now() - refreshStart;
   result.metrics.modelMs = result.metrics.refreshMs;
 
-  result.changedIds = idsFromJsPaths(result.compiled.changedJsPaths);
+  result.changedIds = idsFromJsPaths(result.compiled.changedJsPaths, compiledCollections);
   result.contentVersion = contentStore.contentVersion;
   result.noOp = false;
   attachHmrNodes(result, {
@@ -877,8 +890,10 @@ export async function syncContentState(
         result.orgDrift = await reconcileOrganizationalManifest(tenantId, adapter);
       }
       const refreshStart = Date.now();
+      // Mode defaults inside refreshContent are benchmark-aware (schemas for
+      // BENCHMARK/TEST_MODE servers) so DB-created collections bootstrap config
+      // files instead of being pruned as orphans.
       await refreshContent(tenantId, {
-        mode: "full",
         adapter,
         skipReconciliation,
       });

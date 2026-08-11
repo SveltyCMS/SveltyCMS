@@ -22,11 +22,13 @@ describe("benchmark-runtime external service guards", () => {
     return import("@utils/benchmark-runtime");
   }
 
-  it("disables external services when BENCHMARK=true", async () => {
+  it("disables external services when BENCHMARK=true (Redis L2 stays opt-in)", async () => {
     process.env.BENCHMARK = "true";
     const rt = await load();
     expect(rt.isBenchmarkExternalServicesDisabled()).toBe(true);
-    expect(rt.isBenchmarkRedisDisabled()).toBe(true);
+    // BENCHMARK alone no longer disables Redis L2 — USE_REDIS=true variants
+    // exercise the real Redis path (production parity)
+    expect(rt.isBenchmarkRedisDisabled()).toBe(false);
   });
 
   it("disables Redis when BENCHMARK_NO_REDIS=1 without full benchmark flag", async () => {

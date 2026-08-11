@@ -88,11 +88,6 @@ export function clearTurboAuthCache(): void {
   turboAuthCache.clear();
 }
 
-/** Stable turbo-auth key for x-test-secret / BENCHMARK synthetic sessions. */
-export function buildBenchmarkTurboSessionId(secret: string): string {
-  return `bench:${secret}`;
-}
-
 function isCacheableApiPath(pathname: string): boolean {
   if (!pathname.startsWith("/api/")) return false;
   for (let i = 0; i < CACHEABLE_PREFIXES.length; i++) {
@@ -110,23 +105,13 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") return resolve(event);
   if (!isCacheableApiPath(url.pathname)) return resolve(event);
 
-  // Cookie session (production) OR warm benchmark turbo key (only if already in turboAuthCache)
+  // Cookie session (production) — benchmark pseudo-sessions were removed:
+  // benchmark runs authenticate via REAL session cookies like production.
   let sessionId =
     cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
     cookies.get(`__Secure-${SESSION_COOKIE_NAME}`) ||
     cookies.get(SESSION_COOKIE_NAME) ||
     null;
-
-  if (!sessionId) {
-    const testSecret = request.headers.get("x-test-secret") || request.headers.get("X-Test-Secret");
-    if (testSecret) {
-      const expected = process.env.TEST_API_SECRET;
-      // Fail-closed: secret must match env AND entry must already exist in turboAuthCache
-      if (expected && testSecret === expected) {
-        sessionId = buildBenchmarkTurboSessionId(testSecret);
-      }
-    }
-  }
 
   if (!sessionId) return resolve(event);
 
@@ -200,6 +185,13 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
         bodyToSend = rawBody;
       }
     }
+  }
+
+  // HEAD/OPTIONS must return headers only — HTTP forbids a content body on
+  // these methods. Serving the cached JSON payload (as before) violated RFC
+  // 9110 and could hang clients waiting for a body that must not arrive.
+  if (method === "HEAD" || method === "OPTIONS") {
+    bodyToSend = null;
   }
 
   return new Response(bodyToSend as BodyInit, {

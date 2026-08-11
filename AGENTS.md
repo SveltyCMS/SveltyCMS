@@ -420,12 +420,12 @@ Full decision record: **[docs/tests/adr-testing-2026.mdx](docs/tests/adr-testing
 
 `/api/testing` seed/reset actions (`seed-webhook`, `seed-automation`, `enable-plugin`, …) are **not** production features.
 
-| Requirement         | Enforcement                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Never in production | `NODE_ENV=production` → **403** (`assertTestingApiAllowed`)                                                   |
-| Explicit env flag   | `TEST_MODE` / `PLAYWRIGHT_TEST` / `BENCHMARK` / `SVELTY_BENCHMARK_SUITE` only — **not** bare `NODE_ENV=test`  |
-| Shared secret       | `x-test-secret` must match `TEST_API_SECRET` (timing-safe)                                                    |
-| Build strip         | `testBackdoorStripperPlugin` + `scripts/verify-prod-build-backdoor.ts` remove handler from production bundles |
+| Requirement         | Enforcement                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Never in production | `NODE_ENV=production` → **403** (`assertTestingApiAllowed`)                                                                                                                          |
+| Explicit env flag   | `TEST_MODE` / `PLAYWRIGHT_TEST` only — **not** bare `NODE_ENV=test`, and **not** `BENCHMARK` (benchmark servers run production-mode with real sessions; `/api/testing` is 403 there) |
+| Shared secret       | `x-test-secret` must match `TEST_API_SECRET` (timing-safe)                                                                                                                           |
+| Build strip         | `testBackdoorStripperPlugin` + `scripts/verify-prod-build-backdoor.ts` remove handler from production bundles                                                                        |
 
 **Do not** add alternate entry points that skip this gate. Prefer UI golden journeys + seeds only behind `/api/testing`. Never hardcode production-usable secrets. Unit proof: `tests/unit/utils/testing-api-gate.test.ts`, `tests/unit/hooks/route-access-audit.test.ts`.
 
@@ -788,6 +788,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | `tests/unit/security/token-secret-leakage.test.ts`    | `docs/reference/security/secrets-inventory.mdx`                                                                           |
 | `tests/unit/scripts/scan-secret-misuse.test.ts`       | `docs/reference/security/secrets-inventory.mdx`                                                                           |
 | `tests/unit/widgets/core/*.test.ts`                   | `docs/tests/widget-test-coverage.mdx`                                                                                     |
+| `tests/unit/graphql/graphql-server.test.ts`           | `docs/reference/api/graphql.mdx`                                                                                          |
 | `tests/unit/content/sync-content-state.test.ts`       | `docs/reference/architecture/content-system.mdx`, `docs/reference/architecture/compilation-pipeline.mdx`                  |
 | `tests/unit/content/collection-save-sync.test.ts`     | `docs/reference/architecture/compilation-pipeline.mdx`, `docs/reference/architecture/collection-builder-architecture.mdx` |
 | `tests/unit/content/schema-contract.test.ts`          | `docs/reference/architecture/content-system.mdx`                                                                          |

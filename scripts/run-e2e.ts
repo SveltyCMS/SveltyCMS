@@ -17,12 +17,18 @@
  *   bun run test:e2e --dev --grep="login"         # dev mode + filter
  */
 
-import { spawn, execSync, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, execSync, type ChildProcess } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ensureIntegrationBuild } from "./integration-harness.ts";
 
-const ROOT = join(import.meta.dirname, "..");
+// import.meta.dirname needs Node ≥20.11/Bun — fall back for older runtimes.
+const __dirname =
+  typeof import.meta.dirname !== "undefined"
+    ? import.meta.dirname
+    : dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, "..");
 
 /**
  * Resolve the shared test API secret exactly like playwright.config.ts and
@@ -60,7 +66,12 @@ function freePort(port: number): void {
         { stdio: "ignore" },
       );
     } else {
-      execSync(`lsof -ti:${port} | xargs -r kill -9 || true`, { stdio: "ignore" });
+      // Portable POSIX: BSD xargs (macOS) has no -r flag, so guard with an
+      // explicit non-empty PID check instead of `xargs -r`.
+      execSync(
+        `pids=$(lsof -ti:${port} 2>/dev/null); if [ -n "$pids" ]; then kill -9 $pids 2>/dev/null || true; fi`,
+        { stdio: "ignore", shell: "/bin/sh" },
+      );
     }
   } catch {
     /* non-fatal */
@@ -129,6 +140,21 @@ async function startDevServer(): Promise<ChildProcess> {
         ...process.env,
         TEST_MODE: process.env.TEST_MODE || "true",
         TEST_API_SECRET: resolveTestSecret(),
+        // 🛡️ CI-PARITY: without DB_TYPE/DB_NAME/JWT/ENCRYPTION keys, the private
+        // config validation fails and the SQLite adapter refuses to boot
+        // (fail-closed guard) — and after a wizard reset the re-init gets an
+        // empty connection string, leaving the adapter down (worker isolation
+        // 503s). Match the e2e-prep CI env exactly.
+        DB_TYPE: "sqlite",
+        DB_HOST: "127.0.0.1",
+        DB_NAME: "sveltycms_test",
+        DB_USER: "",
+        DB_PASSWORD: "",
+        JWT_SECRET_KEY: "Integration-Test-JWT-Secret-Key-2026",
+        ENCRYPTION_KEY: "Integration-Encryption-Key-2026-32ch",
+        ADMIN_PASSWORD: "Password123!",
+        PASSWORD_MIN_LENGTH: "8",
+        PREVIEW_SECRET: "Integration-Preview-Secret-2026",
       },
     },
   );
@@ -152,6 +178,12 @@ async function startPreviewServer(): Promise<ChildProcess> {
     STRICT_SETUP_CHECK: "true",
     TEST_API_SECRET: resolveTestSecret(),
     SKIP_TEST_CLEANUP: "true",
+    // 🛡️ CI-PARITY SECRETS: privateConfigSchema requires JWT_SECRET_KEY +
+    // ENCRYPTION_KEY (≥32 chars). Without them the private config validation
+    // fails after a wizard reset → re-init gets an empty connection string →
+    // SQLite fail-closed guard → adapter stays down → worker isolation 503s.
+    JWT_SECRET_KEY: "Integration-Test-JWT-Secret-Key-2026",
+    ENCRYPTION_KEY: "Integration-Encryption-Key-2026-32ch",
     ADMIN_PASSWORD: "Password123!",
     PASSWORD_MIN_LENGTH: "8",
     PREVIEW_SECRET: "E2E-Preview-Secret-2026",
@@ -176,13 +208,18 @@ async function startPreviewServer(): Promise<ChildProcess> {
   return proc;
 }
 
-function cleanup(proc: ChildProcess | null) {
-  if (!proc) return;
+/**
+ * Synchronous process cleanup — safe inside the 'exit' event (and SIGINT/
+ * SIGTERM handlers), where async spawn() is cancelled before it can run.
+ */
+function cleanupSync(proc: ChildProcess | null) {
+  if (!proc || !proc.pid) return;
   try {
-    if (process.platform === "win32" && proc.pid) {
-      spawn("taskkill", ["/PID", String(proc.pid), "/T", "/F"], { stdio: "ignore" });
+    if (process.platform === "win32") {
+      // /T kills the whole process tree; spawnSync is mandatory here.
+      spawnSync("taskkill", ["/PID", String(proc.pid), "/T", "/F"], { stdio: "ignore" });
     } else {
-      proc.kill("SIGTERM");
+      proc.kill("SIGKILL");
     }
   } catch {
     /* ok */
@@ -197,13 +234,13 @@ async function main() {
   freePort(PORT);
   const server = DEV_MODE ? await startDevServer() : await startPreviewServer();
 
-  process.on("exit", () => cleanup(server));
+  process.on("exit", () => cleanupSync(server));
   process.on("SIGINT", () => {
-    cleanup(server);
+    cleanupSync(server);
     process.exit(130);
   });
   process.on("SIGTERM", () => {
-    cleanup(server);
+    cleanupSync(server);
     process.exit(143);
   });
 
@@ -267,7 +304,7 @@ async function main() {
     }
     console.log("\n✅ All E2E tests passed.");
   } finally {
-    cleanup(server);
+    cleanupSync(server);
   }
 }
 

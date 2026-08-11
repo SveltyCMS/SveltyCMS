@@ -88,7 +88,11 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
         startServiceInitialization("auth");
         const { Auth } = await import("./auth");
         const { getDefaultSessionStore } = await import("./auth/session-manager");
-        (adapter as any).authService = new Auth(adapter, getDefaultSessionStore());
+        try {
+          (adapter as any).authService = new Auth(adapter, getDefaultSessionStore());
+        } catch (e: any) {
+          logger.error(`[DB Init] Auth service assignment failed: ${e?.message || e}`);
+        }
         updateServiceHealth("auth", "healthy", "Auth service ready (SETUP mode)");
       },
     });

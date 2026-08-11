@@ -183,7 +183,6 @@ async function run() {
     { key: "Writes OK", val: `${writeOk}/${totalWrites}`, unit: "" },
     { key: "Read RPS", val: readRPS, unit: "req/s" },
     { key: "Reads OK", val: `${readOk}/${totalReads}`, unit: "" },
-    { key: "Write × HTTP", val: (writeRPS / 500).toFixed(1) + "×", unit: "" },
   ]);
 
   if (writeOk !== totalWrites) throw new Error(`Lost ${totalWrites - writeOk} writes`);

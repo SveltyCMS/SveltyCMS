@@ -20,6 +20,7 @@ import {
   setupBenchmarkServer,
   printTruthTable,
   printSummaryTable,
+  requireTestInfrastructure,
   TEST_API_SECRET,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
@@ -28,6 +29,9 @@ let stopServer: () => Promise<void>;
 let apiBaseUrl: string;
 
 beforeAll(async () => {
+  // Chaos-lab: failure injection requires TEST_MODE infrastructure — guard
+  // BEFORE spawning any server so production-mode runs fail fast.
+  requireTestInfrastructure("failure-propagation");
   const { stop, baseUrl } = await setupBenchmarkServer();
   stopServer = stop;
   apiBaseUrl = baseUrl;

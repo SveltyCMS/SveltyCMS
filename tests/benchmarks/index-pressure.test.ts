@@ -22,7 +22,8 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbLabel,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
+  loginBenchmarkUser,
   generateRealisticEntry,
   getRecommendedConcurrency,
 } from "./modules/benchmark-utils";
@@ -53,6 +54,9 @@ async function runPressureAudit() {
     if (runnerBaseUrl) {
       console.log(`    → Using runner's pre-warmed server at ${runnerBaseUrl}`);
       baseUrl = runnerBaseUrl;
+      // Shared mode: setupBenchmarkServer is skipped, so authenticate explicitly
+      // with a REAL session (login + cookie) before building headers.
+      await loginBenchmarkUser(runnerBaseUrl);
     } else {
       console.log("    → No runner detected. Starting isolated benchmark server...");
       const server = await setupBenchmarkServer();
@@ -60,10 +64,9 @@ async function runPressureAudit() {
       baseUrl = server.baseUrl;
     }
 
-    // Freeze structural options array elements out of processing trails
+    // Freeze structural options array elements out of processing trails — REAL session
     const baseHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
     };
 
     const lowercaseJsonHeaders = {

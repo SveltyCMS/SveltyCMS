@@ -88,18 +88,30 @@ SveltyCMS uses a **JIT (Just-In-Time) Execution Engine** to ensure your GraphQL 
 - **Parse Cache**: Parsed GraphQL documents are cached in-memory, eliminating re-parsing overhead for repeated queries (~25% avg latency reduction).
 - **HTTP Batching**: Clients can batch up to **10 queries per request** via the `batching` middleware. Send an array of GraphQL requests in a single HTTP POST for reduced round-trips.
 - **Lazy Request-Scoped Batching**: Cross-collection relational widget schemas dynamically fetch target documents via lazy-initialized, request-scoped `BatchLoader` instances, eliminating N+1 query loops. By switching to database-agnostic direct primary key `findByIds` queries, nested relation queries are **64% faster** (average latency reduced from 10.76ms to 3.82ms) and connection capacity is upgraded by **+400%** (handling up to 100 concurrent connections).
+- **Response Cache**: Successful read-only queries are cached with a content ETag (`60s` TTL, `stale-while-revalidate`), keyed by normalized query + variables + publication filter + user. Mutations, subscriptions, error-shaped responses, and empty collection results are never cached. Cached hits short-circuit the entire content/DB/Yoga pipeline.
 
 ```mermaid
 graph TD
     A[GraphQL Request] --> B[Security Response Service]
     B --> C{Threats detected?}
     C -- Yes --> D[Block IP / 403]
-    C -- No --> E[AST Validation: Depth & Aliases]
-    E --> F[Parse Cache: Reuse parsed AST]
-    F --> G[JIT Compiler: Compile to JS Function]
-    G --> H[Execute with Database Adapter]
-    H --> I[JSON Response]
+    C -- No --> E{Response Cache HIT?}
+    E -- Yes --> F[Return cached body + ETag]
+    E -- No --> G[AST Validation: Depth / Aliases / Cost / Introspection]
+    G --> H[Parse Cache: Reuse parsed AST]
+    H --> I[JIT Compiler: Compile to JS Function]
+    I --> J[Execute with Database Adapter]
+    J --> K[JSON Response + populate cache]
 ```
+
+### Schema Caching (per tenant)
+
+The Yoga schema is built **once per tenant** and reused across requests:
+
+- **Identity-stable cache keys** — per-request tenant wrappers and the self-healing root proxy are unwrapped (`unscoped()`) to the raw adapter instance, so proxy↔raw identity flips can never invalidate the cache (previously rebuilt the schema on every turbo-auth request).
+- **Version-gated** — the cache is invalidated when `contentSystem.version` changes (schema/collection edits) or when `_refreshSchema` is explicitly invoked.
+- **Bounded LRU (32 tenants)** — the oldest tenant entry is evicted beyond capacity.
+- **Self-healing** — a failed schema build is purged from the cache so the next request retries instead of reusing a rejected promise.
 
 ### Security Throttling
 
@@ -107,7 +119,9 @@ The gateway enforces strict limits to prevent malicious queries:
 
 - **Depth Limit**: Maximum 8 levels deep.
 - **Alias Limit**: Maximum 15 aliases per query.
-- **Payload Anomaly Detection**: Native recursive scanning for SQLi and XSS before execution.
+- **Query Cost Budget**: Static cost analysis runs at parse time; queries over the budget (1000) are rejected with a `QUERY_TOO_EXPENSIVE` GraphQL error before validation/execution.
+- **Introspection Block**: `__schema`/`__type` introspection is blocked unconditionally in production (`NODE_ENV=production`) — also via `BLOCK_GRAPHQL_INTROSPECTION=true` in any environment. This is belt-and-suspenders on top of Yoga's default.
+- **Payload Anomaly Detection**: Native recursive scanning for SQLi and XSS before execution (see the WAF layer in the security hooks).
 
 ---
 

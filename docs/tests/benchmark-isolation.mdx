@@ -72,11 +72,11 @@ import {
 
 ## Benchmark Data: API vs Filesystem
 
-| Benchmark type                      | Collection source                                      | Touches user paths?                  |
-| :---------------------------------- | :----------------------------------------------------- | :----------------------------------- |
-| Relational, REST, GraphQL API       | `setup-benchmarks.ts` → `POST /api/testing` (LocalCMS) | No — DB + in-memory store only       |
-| Content scan / stress / incremental | Isolated `.compiledCollections/test/` fixtures         | No — workspace only                  |
-| Matrix server boot                  | Reads user root **if present**; purges leaks first     | Purge only — never writes user files |
+| Benchmark type                      | Collection source                                                                   | Touches user paths?                  |
+| :---------------------------------- | :---------------------------------------------------------------------------------- | :----------------------------------- |
+| Relational, REST, GraphQL API       | `seedBenchmarkState()` in-process LocalCMS (pre-boot) + authenticated API mutations | No — DB + in-memory store only       |
+| Content scan / stress / incremental | Isolated `.compiledCollections/test/` fixtures                                      | No — workspace only                  |
+| Matrix server boot                  | Reads user root **if present**; purges leaks first                                  | Purge only — never writes user files |
 
 ## Matrix Lifecycle
 
@@ -106,15 +106,44 @@ bun run scripts/benchmark-matrix/index.ts --db=sqlite --only=relational --no-bui
 
 GraphQL `registerCollections()`, content scanners, and `compile.ts` all gate on **`isBenchmarkRuntime()`** — a single canonical flag:
 
-| Variable         | Typical source                                               |
-| :--------------- | :----------------------------------------------------------- |
-| `BENCHMARK=true` | `benchmark-utils.ts`, matrix server env, run-core-benchmarks |
+| Variable         | Typical source                                               | Grants                                                                                                                                      |
+| :--------------- | :----------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ |
+| `BENCHMARK=true` | `benchmark-utils.ts`, matrix server env, run-core-benchmarks | **Nothing on the request path** — harness marker only (env-only config, sandbox isolation, setup force-complete, collection-fixture layout) |
 
 `TEST_MODE=true` is the separate test-harness token (integration/E2E/unit) — it does not enable benchmark-mode collection scanning. The legacy tokens `BENCHMARK_MODE`, `BENCHMARK_STABLE`, and `SVELTY_BENCHMARK_SUITE` were removed; `BENCHMARK` is the one name. `BENCHMARK_RECORD` (MDX reporting) and `BENCHMARK_DEBUG` (verbose logging) remain distinct feature flags.
 
 `BENCHMARK_MATRIX=1` — child defers workspace cleanup to matrix orchestrator.
 
-Standalone `bun test tests/benchmarks/*` sets `BENCHMARK=true` (and `TEST_MODE=true`) in `benchmark-utils.ts` so GraphQL and scanners stay aligned.
+## The Three Runtime Modes
+
+SveltyCMS has exactly **three** runtime modes:
+
+### 1. Production (default) — `NODE_ENV=production`, no harness flags
+
+Real deployments. `AUDIT_CHAIN_SYNC=false`, `DISABLE_AUDIT_LOGS=true` (public-config defaults — async/off audit pipeline for max write throughput).
+
+### 2. Production + Enterprise Compliance — benchmark mode
+
+`NODE_ENV=production`, `BENCHMARK=true` (marker only), **`BENCHMARK_AUDIT_MODE=compliance`** → `AUDIT_CHAIN_SYNC=true`, `DISABLE_AUDIT_LOGS=false`. The synchronous SHA-256 audit chain runs on every mutation, exactly like a regulated enterprise deployment.
+
+**Everything else is identical between modes 1 and 2:** real session cookies (login → `__Host-auth_sessions`), real RBAC, real WAF + adaptive rate limiting, real CSRF, real background services (watchdog, scheduler, outbox, job queue, behavioral learner), production cookie/security headers. `x-test-secret` grants **nothing**; `/api/testing` is 403 and stripped from production builds.
+
+Benchmark servers are deployment-tuned like a load-testing environment:
+
+| Env                         | Default | Meaning                                                                                                                         |
+| :-------------------------- | :------ | :------------------------------------------------------------------------------------------------------------------------------ |
+| `RATE_LIMIT_MAX_REQUESTS`   | `20000` | Per-IP mutation ceiling (production default is 100). Bucket machinery, adaptive multiplier, 429s and headers stay fully active. |
+| `SECURITY_RATE_LIMIT_SCALE` | `100`   | WAF per-IP point ceiling multiplier (production default is 1). Consume, adaptive cost and 429s stay fully active.               |
+| `BENCHMARK_NO_REDIS`        | `1`     | Disables Redis L2 cache connect (standard matrix). Set `0` + `USE_REDIS=true` to benchmark the real Redis path.                 |
+
+### 3. E2E / Integration Testing — `TEST_MODE=true` (+ `PLAYWRIGHT_TEST`)
+
+The only mode where `x-test-secret` + `/api/testing` work (timing-safe secret + `assertTestingApiAllowed`). Used by `tests/e2e`, `tests/integration`, and the setup wizard. Never enabled in production builds.
+
+> [!NOTE]
+> Benchmark servers are spawned with `TEST_MODE` explicitly cleared (`TEST_MODE: ""` in `setupBenchmarkServer()`), so test bypasses can never leak into benchmark runs — even if the runner process has `TEST_MODE` set.
+
+Standalone `bun test tests/benchmarks/*` sets `BENCHMARK=true` (but **never** `TEST_MODE`) in `benchmark-utils.ts` so GraphQL and scanners stay aligned.
 
 ## One-Time Cleanup (polluted dev tree)
 

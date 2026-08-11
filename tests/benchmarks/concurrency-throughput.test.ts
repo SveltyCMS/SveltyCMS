@@ -1,8 +1,10 @@
 /**
  * @file tests/benchmarks/concurrency-throughput.test.ts
- * @description Multi-Document Concurrency Throughput (Optimized)
- * @summary 100 writes across 10, 100, 1000 docs. Same work, different parallelism.
- * SQLite flat-lines (file lock); PG/MongoDB scale with doc count.
+ * @description Multi-Document Concurrency Throughput
+ * @summary Phased wave writes across 10 / 100 / 1000 documents. Loads are
+ * labeled honestly per phase: 10×100 and 100×1 are the SAME total work (100
+ * writes) at different parallelism; 1000×1 is 10× the load. SQLite flat-lines
+ * (file lock); PG/Mongo scale with doc count.
  */
 
 import {
@@ -13,7 +15,8 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
+  seedThroughputDocs,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
@@ -31,11 +34,10 @@ async function run() {
   await ensureStableTestData();
   await forceRefreshServer(baseUrl);
 
-  // Canonical lowercase header layout mapping
+  // Canonical lowercase header layout — REAL admin session cookie (production auth)
   const H = {
     "content-type": "application/json",
-    "x-test-mode": "true",
-    "x-test-secret": TEST_API_SECRET,
+    ...benchmarkAuthHeaders(),
     "x-tenant-id": "global",
   };
   const dbType = getDbType();
@@ -46,12 +48,8 @@ async function run() {
   console.log(`   → Throughput config: batch ${BATCH}, gap ${GAP_MS}ms (${dbType})`);
 
   const maxDocs = 1000;
-  console.log(`   → Pre-seeding ${maxDocs} throughput documents via testing API...`);
-  await fetch(`${baseUrl}/api/testing`, {
-    method: "POST",
-    headers: H,
-    body: JSON.stringify({ action: "seed-throughput-docs", count: maxDocs }),
-  }).catch(() => {});
+  console.log(`   → Pre-seeding ${maxDocs} throughput documents (in-process)...`);
+  await seedThroughputDocs(maxDocs).catch(() => {});
 
   // Pre-serialize common payloads out of time-sensitive paths
   const resetPayload = JSON.stringify({ count: 0 });
@@ -75,16 +73,16 @@ async function run() {
   await forceRefreshServer(baseUrl);
 
   const scales = [
-    { label: "10 docs × 10", docs: 10, perDoc: 10 },
-    { label: "100 docs × 1", docs: 100, perDoc: 1 },
-    { label: "1000 docs × 1", docs: 1000, perDoc: 1 },
+    { label: "10 docs × 10 (100 writes)", docs: 10, perDoc: 10 },
+    { label: "100 docs × 1 (100 writes)", docs: 100, perDoc: 1 },
+    { label: "1000 docs × 1 (1000 writes)", docs: 1000, perDoc: 1 },
   ];
 
   const results: { label: string; rps: number; total: number; ok: number }[] = [];
 
   for (const s of scales) {
     const total = s.docs * s.perDoc;
-    console.log(`   ═══ ${s.label} (${total} writes) ═══`);
+    console.log(`   ═══ ${s.label} ─ ${total} writes ═══`);
 
     const tasks: (() => Promise<Response>)[] = [];
     for (let d = 0; d < s.docs; d++) {
@@ -137,7 +135,7 @@ async function run() {
   printTruthTable({
     title: `SVELTYCMS — THROUGHPUT SCALING (${dbType.toUpperCase()})`,
     shortLabel: "Scale",
-    subtitle: "100+ writes across N documents",
+    subtitle: "Wave-parallel PATCH-increment writes — loads labeled per phase",
     results: results.map((r) => ({
       name: r.label,
       avgMs: 0,
@@ -157,7 +155,10 @@ async function run() {
       val: r.rps,
       unit: "req/s",
     })),
-    { key: "Scaling (1000÷10)", val: sf + "×", unit: "" },
+    // NOTE: phases differ in total work (100/100/1000 writes) — the factor
+    // shows RPS at 10× the load relative to the baseline, NOT a like-for-like
+    // scaling factor of the same workload.
+    { key: "RPS @ 10× load ÷ baseline", val: sf + "×", unit: "" },
   ]);
 
   if (results.some((r) => r.ok !== r.total))

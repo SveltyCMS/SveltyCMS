@@ -19,7 +19,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -77,8 +77,7 @@ async function runMigrationAudit() {
         const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bulk`, {
           method: "POST",
           headers: {
-            "x-test-mode": "true",
-            "x-test-secret": TEST_API_SECRET,
+            ...benchmarkAuthHeaders(),
             "Content-Type": "application/json",
           },
           body: JSON.stringify(batch),
@@ -107,8 +106,7 @@ async function runMigrationAudit() {
           `${baseUrl}/api/collections/${COLLECTION_ID}?limit=20&sort=title&order=asc`,
           {
             headers: {
-              "x-test-mode": "true",
-              "x-test-secret": TEST_API_SECRET,
+              ...benchmarkAuthHeaders(),
             },
           },
         );

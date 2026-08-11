@@ -491,6 +491,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         // for 100 rows. Chunked to stay under SQLITE_MAX_VARIABLE_NUMBER (999).
         // Falls back to the Drizzle path on any error or outer-transaction use.
         if (!inOuterTxn) {
+          // 🛡️ Partial-write guard: once ANY chunk executed, falling back to
+          // Drizzle would re-insert the already-committed rows (PK collisions /
+          // duplicates). Only a clean pre-write failure may fall through.
+          let executedChunks = 0;
           try {
             // Union of column keys across rows — rows may omit optional
             // physical columns (status/slug/…) and the column default applies.
@@ -543,6 +547,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
                 }
                 const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
                 const rawRows = this.prepareAndExecute(sqlText, "all", ...params);
+                executedChunks++;
                 if (Array.isArray(rawRows) && rawRows.length > 0) rowsOut.push(...rawRows);
               }
               if (skipReturning) {
@@ -555,9 +560,21 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               if (rowsOut.length === len) {
                 return utils.convertArrayDatesToISO(rowsOut, { table: collection }) as T[];
               }
+              // RETURNING mismatch after committed chunks — re-inserting via
+              // the Drizzle path would duplicate the committed rows.
+              if (executedChunks > 0) {
+                throw new Error(
+                  `Partial insertMany write for "${collection}" (${rowsOut.length}/${len} rows returned)`,
+                );
+              }
             }
-          } catch {
-            /* fall through to the Drizzle path below */
+          } catch (rawErr) {
+            if (executedChunks > 0) {
+              // Chunks already committed — re-running via Drizzle would throw
+              // SQLITE_CONSTRAINT_PRIMARYKEY or duplicate rows. Fail instead.
+              throw rawErr;
+            }
+            /* fall through to the Drizzle path below (nothing written yet) */
           }
         }
 
@@ -866,7 +883,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     const path = await import("node:path");
     const base = await this.resolvePath(this.config);
     const ext = path.extname(base);
-    const workerPath = base.replace(ext, `_test_${index}${ext}`);
+    // The base may resolve WITHOUT an extension (config-fallback path builds
+    // `<folder>/<dbName>`). extname would be "" and replace() would then
+    // PREPEND the suffix to the absolute path → an invalid worker file
+    // (e.g. `_test_0D:/...`). Guard so the worker file always gets a real name.
+    const workerPath = ext
+      ? base.replace(ext, `_test_${index}${ext}`)
+      : `${base}_test_${index}.sqlite`;
     const { sqlite, db } = await this.createDriver(workerPath);
     this.applyPragmas(sqlite);
     this.connections.set(index, { sqlite, db, statementCache: new Map() });
@@ -913,19 +936,47 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       if (this._statementCache.size < 1000) this._statementCache.set(sqlText, stmt);
     }
     this.metrics.queryCount++;
+    // 🎯 PROFILE_DB=1: exec timing + busy-retry counts (WAL checkpoint stalls /
+    // lock contention are invisible per request without this). Zero overhead
+    // when the env flag is unset.
+    const profileDb = typeof process !== "undefined" && process.env.PROFILE_DB === "1";
+    const t0 = profileDb ? performance.now() : 0;
     try {
       // node:sqlite only binds null/number/bigint/string/Uint8Array — JS
       // booleans throw "Provided value cannot be bound". Coerce once here so
-      // every raw path (insert/update/bulk/atomic) binds like the Drizzle path.
-      const bound = params.map((p) => (typeof p === "boolean" ? (p ? 1 : 0) : p));
-      if (method === "all") return stmt.all(...bound);
-      if (method === "get") return stmt.get(...bound);
-      if (method === "run") return stmt.run(...bound);
-      if (method === "values") return stmt.values(...bound);
-      return stmt.all(...bound);
+      // every raw path (insert/update/bulk/atomic) binds like the Drizzle path:
+      // - booleans → 1/0
+      // - Dates → epoch ms (never JSON.stringify, which yields a quoted string
+      //   that integer timestamp columns reject)
+      // - Uint8Array/Buffer → kept binary (JSON.stringify would corrupt blobs
+      //   into {"type":"Buffer",...} text)
+      // - plain objects → JSON text
+      const bound = params.map((p) => {
+        if (typeof p === "boolean") return p ? 1 : 0;
+        if (p instanceof Date) return p.getTime();
+        if (p instanceof Uint8Array) return p;
+        if (p !== null && typeof p === "object") return JSON.stringify(p);
+        return p;
+      });
+      let out: any;
+      if (method === "all") out = stmt.all(...bound);
+      else if (method === "get") out = stmt.get(...bound);
+      else if (method === "run") out = stmt.run(...bound);
+      else if (method === "values") out = stmt.values(...bound);
+      else out = stmt.all(...bound);
+      return out;
     } catch (err: any) {
+      if (profileDb && /busy|locked/i.test(String(err?.message || ""))) {
+        const m = this.metrics as any;
+        m.busyRetries = (m.busyRetries || 0) + 1;
+      }
       logger.error(`[SQLite] Execution error: ${sqlText}`, err);
       throw err;
+    } finally {
+      if (profileDb) {
+        const m = this.metrics as any;
+        m.queryTimeMs = (m.queryTimeMs || 0) + (performance.now() - t0);
+      }
     }
   }
 
@@ -970,6 +1021,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       healthy: boolean;
       latency: number;
       activeConnections: number;
+      queryCount?: number;
+      avgQueryMs?: number;
+      busyRetries?: number;
     }>
   > {
     const start = performance.now();
@@ -988,14 +1042,26 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       } else if (typeof this._sqlite.exec === "function") {
         this._sqlite.exec("SELECT 1");
       }
-      return {
-        success: true,
-        data: {
-          healthy: true,
-          latency: performance.now() - start,
-          activeConnections: 1,
-        },
+      const data: {
+        healthy: boolean;
+        latency: number;
+        activeConnections: number;
+        queryCount?: number;
+        avgQueryMs?: number;
+        busyRetries?: number;
+      } = {
+        healthy: true,
+        latency: performance.now() - start,
+        activeConnections: 1,
       };
+      // 🎯 PROFILE_DB=1 wait/queue breakdown (see prepareAndExecute).
+      const m = this.metrics as any;
+      if (m.queryTimeMs !== undefined && m.queryTimeMs > 0) {
+        data.queryCount = m.queryCount || 0;
+        data.avgQueryMs = m.queryTimeMs / (m.queryCount || 1);
+        data.busyRetries = m.busyRetries || 0;
+      }
+      return { success: true, data };
     } catch (e: any) {
       return {
         success: false,
@@ -1019,7 +1085,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     const resolvedTable = typeof table === "string" ? this.getTable(table) : table;
     if (!resolvedTable) throw new Error(`Table not found: ${table}`);
     const tableName = getTableName(resolvedTable);
-    if (process.env.BENCHMARK_DEBUG === "true" || process.env.BENCHMARK === "true") {
+    if (process.env.BENCHMARK_DEBUG === "true") {
       logger.info(
         `[upsertNative] Table: ${tableName}, ID: ${values._id}, source: ${values.source}, tenant: ${values.tenantId}`,
       );
@@ -1396,7 +1462,14 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             async (sqlText, params = [], method) => {
               const serializedParams = (params || []).map((p) => {
                 if (typeof p === "boolean") return p ? 1 : 0;
-                return p !== null && typeof p === "object" ? JSON.stringify(p) : p;
+                // Dates → epoch ms (JSON.stringify yields a quoted string that
+                // integer timestamp columns reject); Uint8Array/Buffer → kept
+                // binary (node:sqlite binds those natively — stringifying
+                // corrupts blobs into {"type":"Buffer",...} text).
+                if (p instanceof Date) return p.getTime();
+                if (p instanceof Uint8Array) return p;
+                if (p !== null && typeof p === "object") return JSON.stringify(p);
+                return p;
               });
               const isWrite =
                 /^\s*(insert|update|delete|create|drop|alter|replace|begin|commit|rollback|savepoint)/i.test(

@@ -16,11 +16,16 @@ import {
   ensureStableTestData,
   printTruthTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
-const COLLECTION = "bench_migration_large";
+const COLLECTION = "BenchmarkStable";
+// 🛡️ HONEST COLLECTION: the old value (bench_migration_large) only exists when
+// migration-scale ran first (matrix order) — standalone runs exported into a
+// phantom collection: bulk seed succeeded (no schema check) but export/import
+// 500'd with "Collection not found" and the test ignored the status codes.
+// BenchmarkStable is provisioned by ensureStableTestData in every run.
 const STATIC_CONTENT = "<p>Content package benchmark entry data.</p>".repeat(4);
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -33,8 +38,7 @@ async function runAudit() {
 
   const headers = Object.freeze({
     "content-type": "application/json",
-    "x-test-mode": "true",
-    "x-test-secret": TEST_API_SECRET,
+    ...benchmarkAuthHeaders(),
     "x-tenant-id": "global",
   } as const);
 
@@ -80,22 +84,41 @@ async function runAudit() {
     measureMemory: true,
     silent: true,
     onIteration: async () => {
-      await fetch(baseUrl + "/api/content-export/run", {
+      const res = await fetch(baseUrl + "/api/content-export/run", {
         method: "POST",
         headers,
         body: JSON.stringify({ collections: [COLLECTION], relationDepth: 1, includeMedia: false }),
       });
+      if (!res.ok) throw new Error(`Content export failed: ${res.status}`);
+      await res.arrayBuffer();
     },
   });
   allResults.push({ ...exportResult, layer: "Export" });
 
-  // Import benchmark
+  // Import benchmark — the plan endpoint takes the EXPORTED ContentPackage
+  // itself (manifest, collections, checksums), not a collection list.
   const pkgRes = await fetch(baseUrl + "/api/content-export/run", {
     method: "POST",
     headers,
     body: JSON.stringify({ collections: [COLLECTION], relationDepth: 1, includeMedia: false }),
   });
-  const pkg = await pkgRes.json().catch(() => ({}));
+  if (!pkgRes.ok) throw new Error(`Package fetch failed: ${pkgRes.status}`);
+  const pkgBody = (await pkgRes.json().catch(() => ({}))) as any;
+  let pkg: any = pkgBody?.data || pkgBody;
+  // Large exports (>1MB) return { jobId, sizeBytes } — download the package.
+  if (pkg?.jobId) {
+    const dlRes = await fetch(`${baseUrl}/api/content-export/download/${pkg.jobId}`, {
+      headers,
+    });
+    if (!dlRes.ok) throw new Error(`Package download failed: ${dlRes.status}`);
+    const dlBody = (await dlRes.json().catch(() => ({}))) as any;
+    pkg = dlBody?.data || dlBody;
+    process.stderr.write(
+      `[CP-DEBUG] dl keys=${Object.keys(pkg).join(",")} hasManifest=${!!pkg.manifest}\n`,
+    );
+  }
+  const importPlanBody = JSON.stringify({ ...pkg, duplicateStrategy: "skip" });
+  process.stderr.write(`[CP-DEBUG] planBodyLen=${importPlanBody.length}\n`);
   const importResult = await runBenchmark({
     name: "Content Import Plan (100 entries)",
     iterations: 3,
@@ -105,14 +128,16 @@ async function runAudit() {
     measureMemory: true,
     silent: true,
     onIteration: async () => {
-      await fetch(baseUrl + "/api/content-import/plan", {
+      const res = await fetch(baseUrl + "/api/content-import/plan", {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          collections: pkg.collections ? Object.keys(pkg.collections) : [COLLECTION],
-          duplicateStrategy: "skip",
-        }),
+        body: importPlanBody,
       });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(`Import plan failed: ${res.status} ${errText.slice(0, 200)}`);
+      }
+      await res.arrayBuffer();
     },
   });
   allResults.push({ ...importResult, layer: "Import" });

@@ -144,7 +144,7 @@ describe("JobQueueService", () => {
   });
 
   describe("startPolling / stopPolling", () => {
-    it("does not start interval when BENCHMARK is set", () => {
+    it("starts polling even when BENCHMARK is set (production parity)", () => {
       process.env.BENCHMARK = "true";
       jobQueue.startPolling(1000);
       // stopPolling should be a no-op safe call

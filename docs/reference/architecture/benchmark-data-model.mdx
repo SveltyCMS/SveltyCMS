@@ -82,7 +82,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
@@ -99,9 +99,11 @@ async function runMyBenchmark() {
     await ensureStableTestData();
     await stabilize(1000);
 
+    // REAL admin session cookie (production auth) — setupBenchmarkServer already
+    // seeded the admin and logged in. NEVER send x-test-secret: it grants nothing
+    // and /api/testing is 403 in production-mode benchmark servers.
     const requestHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
     };
 
     const results = [];
@@ -181,22 +183,20 @@ test("My Benchmark Suite", async () => {
 | `bench_revisions`                        | Custom in test           | `revision-stress`                             |
 | None (filesystem/mocked)                 | N/A                      | `etag-hash`, `content-scan`, `build-analysis` |
 
-**Rule**: If your test needs custom data, create it inside the test function (before benchmark iterations). The matrix only pre-seeds `BenchmarkStable`. For all other collections, use the HTTP API:
+**Rule**: If your test needs custom data, create it inside the test function (before benchmark iterations). The matrix pre-seeds roles, the admin user, `BenchmarkStable` + `benchmark_authors`/`benchmark_posts` via `seedBenchmarkState()` (in-process, pre-boot). For other collections, use the real authenticated API (production mode has no `/api/testing`):
 
 ```typescript
-await fetch(`${baseUrl}/api/testing`, {
+await fetch(`${baseUrl}/api/collections`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
-    "x-test-mode": "true",
-    "x-test-secret": TEST_API_SECRET,
+    ...benchmarkAuthHeaders(),
   },
-  body: JSON.stringify({
-    action: "create-collection",
-    schema: { _id: "my_collection", name: "my_collection", fields: [...] },
-  }),
+  body: JSON.stringify({ name: "my_collection", slug: "my_collection", fields: [...] }),
 });
 ```
+
+````
 
 ### 4. Categorization for Matrix
 
@@ -209,7 +209,7 @@ const TEST_WEIGHTS: Record<string, number> = {
   // ... existing tests ...
   "my-new-test": 15, // estimated duration in seconds
 };
-```
+````
 
 **Step B**: Add to the appropriate group:
 

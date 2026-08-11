@@ -12,7 +12,12 @@
  * - Cache key isolation (different queries get different keys)
  */
 
-import { test, setupBenchmarkServer, stabilize, TEST_API_SECRET } from "./modules/benchmark-utils";
+import {
+  test,
+  setupBenchmarkServer,
+  stabilize,
+  benchmarkAuthHeaders,
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
 let stopServer: (() => Promise<void>) | null = null;
@@ -24,10 +29,8 @@ async function graphqlRequest(
 ): Promise<{ status: number; duration: number; body: any }> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "x-test-mode": "true",
-    "x-test-secret": TEST_API_SECRET,
+    ...(cookie ? { Cookie: cookie } : {}),
   };
-  if (cookie) headers.Cookie = cookie;
 
   const start = performance.now();
   const res = await fetch(`${baseUrl}/api/graphql`, {
@@ -48,51 +51,14 @@ test("GraphQL Response Cache Hit Latency", async () => {
   const baseUrl = server.baseUrl;
   await stabilize(1000);
 
-  // Step 1: Seed admin user and get session cookie
-  console.log("   1. Seeding admin user...");
-  const seedRes = await fetch(`${baseUrl}/api/testing`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
-    },
-    body: JSON.stringify({
-      action: "seed",
-      email: "admin@example.com",
-      password: "Password123!",
-    }),
-  });
-  const seedOk = seedRes.ok;
-  console.log(`      Seed: ${seedOk ? "✅" : "❌"}`);
-
-  // Step 2: Login via testing API to get session cookie
-  console.log("   2. Getting session cookie...");
-  const loginRes = await fetch(`${baseUrl}/api/testing`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
-    },
-    body: JSON.stringify({
-      action: "login",
-      email: "admin@example.com",
-      password: "Password123!",
-    }),
-  });
-  const sessionCookie = loginRes.headers.get("set-cookie") || "";
-  const hasCookie = sessionCookie.length > 0;
-  console.log(`      Cookie: ${hasCookie ? "✅" : "❌"}`);
-
-  if (!hasCookie) {
-    console.log("   ⚠️ No session cookie — cache test skipped\n");
-    if (stopServer) {
-      await stopServer().catch(() => {});
-      stopServer = null;
-    }
-    return;
+  // setupBenchmarkServer seeds the admin and performs a REAL login — the
+  // session cookie is cached and shared through benchmarkAuthHeaders().
+  console.log("   1. Admin seeded + real session login (production auth)");
+  const sessionCookie = benchmarkAuthHeaders().Cookie;
+  if (!sessionCookie) {
+    throw new Error("No session cookie — setupBenchmarkServer login failed");
   }
+  console.log(`      Cookie: ✅`);
 
   const query1 = `query { contentSystemHealth { state version } }`;
   const query2 = `query { allCollections { _id name } }`;

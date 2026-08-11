@@ -9,7 +9,13 @@
  * - Cache layer (L1/L2) performance profiling
  */
 
-import { test, runBenchmark, printTruthTable } from "./modules/benchmark-utils";
+import {
+  test,
+  runBenchmark,
+  computeStatistics,
+  exportResult,
+  printTruthTable,
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { cacheService } from "@src/databases/cache/cache-service";
 
@@ -40,6 +46,10 @@ async function runCacheServiceBenchmark() {
       },
     });
     results.push({ ...hitResult, layer: "L1", shortLabel: "Hit" });
+    // Persist under the test's OWN section ("Cache Svc") — sharing "Cache"
+    // with cache-performance.test.ts made the section flip between an
+    // in-process µs number and an E2E HTTP ms number (bogus +27800% trend).
+    exportResult({ ...hitResult, layer: "L1", shortLabel: "Cache Svc" });
 
     // 3. Pattern Invalidation Stress (O(N) Bottleneck Isolation)
     console.log(
@@ -57,34 +67,36 @@ async function runCacheServiceBenchmark() {
     const INVALIDATION_ITERATIONS = 10;
     const targetPattern = "bench-key-";
 
-    const invalidationResult = await runBenchmark({
-      name: "Pattern Invalidation (1k items @ 200k noise)",
-      iterations: INVALIDATION_ITERATIONS,
-      warmupIterations: 2,
-      runs: 1,
-      concurrency: 1, // Must remain serial to ensure state consistency during clear phases
-      silent: true,
-      onIteration: async () => {
-        // STEP 1: Re-seed targets outside the critical timing metric to record
-        // true multi-key garbage extraction efficiency.
-        const seedPromises = Array.from({ length: 1000 }, (_, i) =>
-          cacheService.set(`${targetPattern}${i}`, { data: "test" }, 300, TENANT),
-        );
-        await Promise.all(seedPromises);
+    // 🛡️ HONEST TIMING: re-seed targets BEFORE the timed span — the old code
+    // seeded 1,000 keys inside onIteration (a comment claimed it was "outside
+    // the critical timing metric", which was false: runBenchmark times the
+    // whole callback), inflating "Pattern Invalidation" with the seed cost.
+    const invalidationTimes: number[] = [];
+    for (let i = 0; i < INVALIDATION_ITERATIONS; i++) {
+      const seedPromises = Array.from({ length: 1000 }, (_, k) =>
+        cacheService.set(`${targetPattern}${k}`, { data: "test" }, 300, TENANT),
+      );
+      await Promise.all(seedPromises);
 
-        // STEP 2: Measure exclusively the pattern identification and execution step
-        await cacheService.clearByPattern(targetPattern, TENANT);
-      },
-    });
+      const t0 = performance.now();
+      await cacheService.clearByPattern(targetPattern, TENANT);
+      invalidationTimes.push(performance.now() - t0);
+    }
+    const invalidationResult = computeStatistics(
+      invalidationTimes,
+      invalidationTimes.length / (invalidationTimes.reduce((a, b) => a + b, 0) / 1000),
+      { name: "Pattern Invalidation (1k items @ 200k noise)", runs: 1, concurrency: 1 },
+    );
     results.push({
       ...invalidationResult,
       layer: "L1",
       shortLabel: "Invalidate",
     });
+    exportResult({ ...invalidationResult, layer: "L1", shortLabel: "Cache Svc" });
 
     printTruthTable({
       title: "SVELTYCMS — CACHE SERVICE TELEMETRY",
-      shortLabel: "Cache",
+      shortLabel: "Cache Svc",
       subtitle: "Internal Cache Logic Overhead",
       results,
     });

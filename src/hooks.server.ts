@@ -43,7 +43,6 @@ import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
 import { handleTurboGet, turboAuthCache } from "./hooks/handle-turbo-get";
 import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
-import { getTestSecret } from "@utils/server/setup-check";
 import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-registry";
 
 // 🔐 /ws COLLABORATION AUTH: the standalone yjs-sync-server bundle cannot import
@@ -110,50 +109,6 @@ function currentSetupStateWithMemo(pathname: string): boolean {
 if (typeof (globalThis as any).__SVELTY_NODE_ID__ === "undefined") {
   (globalThis as any).__SVELTY_NODE_ID__ = crypto.randomUUID();
 }
-
-// 🚀 HYPER-TURBO BYPASS (Enterprise)
-// In benchmark mode, injects a system admin user for non-auth requests
-// to eliminate session DB lookup overhead. Auth requests (login, logout)
-// pass through to the REAL authentication pipeline so benchmarks can
-// obtain genuine session cookies for end-to-end integrity verification.
-
-const handleHyperTurbo: Handle = async ({ event, resolve }) => {
-  const isBenchmark = process.env.BENCHMARK === "true";
-  if (!isBenchmark) return resolve(event);
-
-  // Let auth endpoints use REAL credentials
-  const pathname = event.url.pathname;
-  if (pathname.startsWith("/api/auth/login") || pathname.startsWith("/api/auth/logout")) {
-    return resolve(event);
-  }
-
-  // Require runtime CSPRNG nonce WHEN available — additional security layer
-  // for quantum-resistant defense-in-depth. Generated per benchmark run via
-  // crypto.randomUUID(), lives only in process memory.
-  const benchNonce = process.env.BENCH_NONCE;
-  if (benchNonce) {
-    const reqNonce = event.request.headers.get("x-bench-nonce");
-    if (!reqNonce || reqNonce !== benchNonce) {
-      return resolve(event);
-    }
-  }
-
-  const testSecret = event.request.headers.get("x-test-secret");
-  if (testSecret && testSecret === getTestSecret()) {
-    // Inject system admin user for benchmarks — eliminates session DB lookup
-    // overhead for honest performance measurement. All downstream hooks
-    // (RBAC, rate limiting, audit logging) still run normally.
-    (event.locals as any).user = {
-      _id: "system",
-      role: "admin",
-      isAdmin: true,
-      email: "system@sveltycms",
-    };
-    (event.locals as any).isAdmin = true;
-    (event.locals as any).tenantId = event.request.headers.get("x-tenant-id") || null;
-  }
-  return resolve(event);
-};
 
 // Only import full CMS hooks if setup is complete to avoid premature DB load
 const passThrough: Handle = ({ event, resolve }) => resolve(event);
@@ -229,14 +184,23 @@ async function ensureFullMiddleware() {
   handleAeoHeaders = aeo.handleAeoHeaders;
 
   fullMiddlewareInitialized = true;
+  // 🛡️ Invalidate any pipeline cached before the real handlers were loaded:
+  // a first request racing the async module load would otherwise be served
+  // by passThrough handlers forever (security/authz permanently bypassed).
+  cachedPipelineReady = null;
 }
 
 if (setupComplete) {
   ensureFullMiddleware().catch((err) => logger.error("Failed to lazy-load full middleware:", err));
 }
 
-const IS_BENCHMARK = typeof process !== "undefined" && process.env.BENCHMARK === "true";
 const IS_QUIET = typeof process !== "undefined" && process.env.QUIET === "true";
+const HEALTH_HEADERS = {
+  "Content-Type": "application/json",
+  "Cache-Control": "no-store, no-cache, must-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
 
 // --- Server Startup Logic ---
 if (!building) {
@@ -263,8 +227,6 @@ if (!building) {
           .catch(() => {});
 
         // ✨ Parallel Service Initialization (Optimized for Cold Start)
-        const isBenchmarkMode = process.env.BENCHMARK === "true";
-
         // 🧠 PRE-WARM heavy modules used lazily inside request hooks so the first
         // request never pays a dynamic-import stall:
         // - `graphql`            → handle-security's GraphQL complexity shield
@@ -274,7 +236,26 @@ if (!building) {
           .then(() => import("@src/services/core/settings-service"))
           .catch(() => {});
 
-        if (!isBenchmarkMode) {
+        // 🚀 GRAPHQL PRE-WARM: build the Yoga schema once at boot
+        // (registerCollections + createSchema JIT ≈ 20ms) so the first
+        // GraphQL query never pays it. The schema cache is version-keyed
+        // and rebuilt on content-structure changes — this only moves the
+        // initial build off the request path.
+        import("@src/routes/api/graphql/+server")
+          .then(async ({ _getYogaApp }) => {
+            const { getDb } = await import("@src/databases/db");
+            const adapter = getDb();
+            if (adapter && typeof adapter.isConnected === "function" && adapter.isConnected()) {
+              await _getYogaApp(adapter, "global");
+              logger.debug("[GraphQL] Schema pre-warmed at boot");
+            }
+          })
+          .catch(() => {});
+
+        // Background services always start — production parity. Benchmark
+        // runs measure the same runtime a real deployment has (pollers,
+        // watchdog, scheduler, outbox all contend for the event loop).
+        {
           Promise.all([
             import("@src/services/background/jobs/job-queue-service"),
             import("@src/services/background/automation"),
@@ -328,19 +309,6 @@ if (!building) {
               },
             )
             .catch((err) => logger.error("[System] Parallel initialization failed:", err));
-        } else {
-          // Benchmark: isolate the request path from pollers/watchdog.
-          logger.info("🛡️ Background Services DISABLED (Benchmark Mode)");
-          // 🚀 COLD START OPTIMIZATION: Pre-warm the heaviest dispatchers
-          Promise.all([
-            import("./routes/api/[...path]/+server"),
-            import("./routes/api/graphql/+server"),
-            import("@src/databases/db"),
-          ])
-            .then(() => {
-              logger.debug("[System] API and GraphQL dispatchers pre-warmed.");
-            })
-            .catch(() => {});
         }
 
         // Cleanup: Unsubscribe once services are initialized
@@ -354,7 +322,7 @@ if (!building) {
     });
   });
 
-  if (!IS_BENCHMARK && !IS_QUIET) {
+  if (!IS_QUIET) {
     logger.info("✅ DB module loaded. System will initialize background services when READY.");
   }
 }
@@ -402,8 +370,14 @@ if (!building) {
       try {
         // Drain period (bounded — don't hang forever if counters desync)
         const drainDeadline = Date.now() + 5_000;
+        let lastLoggedCount = -1;
         while (inFlightRequests > 0 && Date.now() < drainDeadline) {
-          logger.info(`Waiting for ${inFlightRequests} in-flight requests to drain...`);
+          // Log only when the counter changes — not every 250ms tick (log flood
+          // under active traffic during shutdown).
+          if (inFlightRequests !== lastLoggedCount) {
+            logger.info(`Waiting for ${inFlightRequests} in-flight requests to drain...`);
+            lastLoggedCount = inFlightRequests;
+          }
           await new Promise((r) => setTimeout(r, 250));
         }
 
@@ -506,8 +480,7 @@ export function getHookTimings(): Record<
 // (target <2ms full pipeline in exec matrix). Gate to diagnostics/benchmark only.
 // Turbo path remains fast (1.6-2.1ms) because it short-circuits many later hooks.
 const HOOK_TIMING_ENABLED =
-  process.env.ENABLE_HOOK_TIMING === "1" ||
-  (process.env.NODE_ENV !== "production" && process.env.BENCHMARK !== "true");
+  process.env.ENABLE_HOOK_TIMING === "1" || process.env.NODE_ENV !== "production";
 
 function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
   // Resolve once at wrap time (pipeline build). Saves per-request function call overhead.
@@ -543,11 +516,19 @@ function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
 let cachedPipelineReady: Handle | null = null;
 let cachedPipelineSetup: Handle | null = null;
 
-const getPipeline = () => {
+// 🛡️ AWAIT full middleware before building the READY pipeline: at boot,
+// ensureFullMiddleware() loads the real hook modules asynchronously. Without
+// the await, the first request can snapshot passThrough handlers into the
+// cached pipeline — and wrapHandle() binds the resolved fn at wrap time, so
+// security/rate-limit/auth would stay bypassed until a setup-state change or
+// process restart.
+const getPipeline = async (): Promise<Handle> => {
   if (setupComplete) {
+    if (!fullMiddlewareInitialized) {
+      await ensureFullMiddleware();
+    }
     if (!cachedPipelineReady) {
       cachedPipelineReady = sequence(
-        wrapHandle("hyper-turbo", () => handleHyperTurbo),
         wrapHandle("turbo-pipeline", () => handleTurboPipeline),
         wrapHandle("test-isolation", () => handleTestIsolation),
         wrapHandle("security", () => handleSecurity),
@@ -574,7 +555,6 @@ const getPipeline = () => {
   } else {
     if (!cachedPipelineSetup) {
       cachedPipelineSetup = sequence(
-        wrapHandle("hyper-turbo", () => handleHyperTurbo),
         wrapHandle("turbo-pipeline", () => handleTurboPipeline),
         wrapHandle("compression", () => handleCompression),
       );
@@ -653,33 +633,52 @@ export const handle: Handle = async ({ event, resolve }) => {
       const isReady =
         state === "READY" || state === "WARMED" || state === "WARMING" || state === "DEGRADED";
       const isDbConnected = state !== "SETUP" && state !== "IDLE" && state !== "FAILED";
-      const mem = process.memoryUsage();
-      const hooks = getHookTimings();
-      const healthRes = Response.json(
-        {
-          status: isReady ? "healthy" : "unhealthy",
-          overallStatus: state,
-          database: isDbConnected ? "connected" : "disconnected",
-          uptime: process.uptime(),
-          timestamp: new Date().toISOString(),
-          dbType: process.env.DB_TYPE || "unknown",
-          memory: {
-            rss: mem.rss,
-            heapTotal: mem.heapTotal,
-            heapUsed: mem.heapUsed,
-            external: mem.external,
-          },
-          hooks: Object.keys(hooks).length > 0 ? hooks : undefined,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
-        },
-      );
+
+      const includeDiagnostics =
+        event.url.searchParams.has("verbose") ||
+        event.url.searchParams.has("hooks") ||
+        event.url.searchParams.has("gc");
+      const health: Record<string, unknown> = {
+        status: isReady ? "healthy" : "unhealthy",
+        overallStatus: state,
+        database: isDbConnected ? "connected" : "disconnected",
+        timestamp: Date.now(),
+        dbType: process.env.DB_TYPE || "unknown",
+      };
+
+      if (includeDiagnostics) {
+        if (event.url.searchParams.has("gc")) {
+          if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
+          if (typeof (globalThis as any).Bun !== "undefined" && (globalThis as any).Bun.gc) {
+            (globalThis as any).Bun.gc(true);
+          }
+        }
+
+        const mem = process.memoryUsage();
+        const hooks = getHookTimings();
+        health.uptime = process.uptime();
+        health.memory = {
+          rss: mem.rss,
+          heapTotal: mem.heapTotal,
+          heapUsed: mem.heapUsed,
+          external: mem.external,
+        };
+        if (Object.keys(hooks).length > 0) health.hooks = hooks;
+
+        // 🎯 CONTENT-STORE READINESS + GRAPHQL CACHE CAUSES: "DB connected but
+        // content not READY" windows (slow compile/scan after boot) misattribute
+        // latency to cold start; schemaHits≈0 with schemaMisses climbing is the
+        // per-request schema-rebuild signature (identity-flip class).
+        try {
+          const { contentSystem } = await import("@src/content/index.server");
+          health.content = contentSystem.getHealthStatus();
+        } catch {}
+        try {
+          health.graphql = metricsService.getReport().graphql;
+        } catch {}
+      }
+
+      const healthRes = Response.json(health, { headers: HEALTH_HEADERS });
       return withLane(healthRes, lane);
     } finally {
       inFlightRequests--;
@@ -690,9 +689,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   // Reset per-request ID counters for deterministic SSR/hydration IDs
   resetIdCounters();
   const traceHeader = event.request.headers.get("x-svelty-trace");
-  const isBenchmark = process.env.BENCHMARK === "true";
-  const traceEnabled =
-    traceHeader === "true" || (isBenchmark && !!event.request.headers.get("x-test-secret"));
+  const traceEnabled = traceHeader === "true";
   // Lazy trace ID: the pipeline overwrites locals.requestId with its own
   // generateRequestId() anyway, so a pre-pipeline UUID is only needed when
   // tracing is enabled (99.9% of traffic gets a cheap sequential id).
@@ -704,7 +701,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   if (!traceEnabled) {
     (event.locals as any).requestId = traceId;
     try {
-      const pipeline = getPipeline();
+      const pipeline = await getPipeline();
       const res = await pipeline({ event, resolve });
       return withLane(res, lane);
     } catch (err: any) {
@@ -732,18 +729,8 @@ export const handle: Handle = async ({ event, resolve }) => {
     },
     () => {
       return runWithTrace(traceId, traceEnabled, async () => {
-        // 🚀 HOT-SWAP CHECK: If not setup yet, check if it just finished
-        if (!setupComplete && currentSetupStateWithMemo(pathname)) {
-          logger.info("🔄 System setup detected. Hot-swapping to READY pipeline...");
-          setupComplete = true;
-          await ensureFullMiddleware();
-        } else if (setupComplete && !currentSetupStateWithMemo(pathname)) {
-          logger.info("🔄 System setup reset detected. Hot-swapping back to SETUP pipeline...");
-          setupComplete = false;
-        }
-
         try {
-          const pipeline = getPipeline();
+          const pipeline = await getPipeline();
           const response = await pipeline({ event, resolve });
 
           if (traceEnabled) {

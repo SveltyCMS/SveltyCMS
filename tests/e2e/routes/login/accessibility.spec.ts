@@ -33,9 +33,6 @@ test.describe("Universal Accessibility Audits", () => {
     await page.getByTestId("signin-email").waitFor({ state: "visible" });
 
     // Run Axe audit
-    // @ts-expect-error — @axe-core/playwright bundles its own playwright-core types
-    // which conflict with the project's @playwright/test types. The runtime behavior
-    // is correct; this is a dual-install type-level incompatibility.
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();
@@ -79,8 +76,6 @@ test.describe("Universal Accessibility Audits", () => {
     });
 
     // 4. Run accessibility audit against the RTL layout
-    // @ts-expect-error — @axe-core/playwright bundles its own playwright-core types
-    // which conflict with the project's @playwright/test types.
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
 
     if (results.violations.length > 0) {

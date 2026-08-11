@@ -17,6 +17,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  requireTestInfrastructure,
   TEST_API_SECRET,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
@@ -25,6 +26,8 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runCircuitBreakerAudit() {
+  // Chaos-lab: x-test-fail-external failure injection requires TEST_MODE
+  requireTestInfrastructure("circuit-breaker-failover");
   console.log("🚀 Starting Enterprise Circuit Breaker & Failover Audit...\n");
 
   try {

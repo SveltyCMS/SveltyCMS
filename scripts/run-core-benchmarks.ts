@@ -17,8 +17,8 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { getBenchmarkTestEnv } from "../src/utils/test-db-credentials.ts";
-import { printBenchmarkIsolationBanner } from "../src/utils/benchmark-sandbox.ts";
+import { getBenchmarkTestEnv } from "../src/utils/test-db-credentials";
+import { printBenchmarkIsolationBanner } from "../src/utils/benchmark-sandbox";
 
 const ROOT = process.cwd();
 const VALID_DBS = ["sqlite", "mongodb", "mariadb", "postgresql"] as const;
@@ -36,10 +36,13 @@ export const CI_CORE_BENCHMARK_TESTS = [
 
 function getArg(name: string): string | undefined {
   const prefix = `${name}=`;
-  return process.argv
-    .slice(2)
-    .find((a) => a.startsWith(prefix))
-    ?.slice(prefix.length);
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i++) {
+    if (args[i]!.startsWith(prefix)) return args[i]!.slice(prefix.length);
+    // Support the space-separated form: `--db postgresql`
+    if (args[i] === name && i + 1 < args.length) return args[i + 1];
+  }
+  return undefined;
 }
 
 function ensureTestSecret(): string {
@@ -58,10 +61,36 @@ function ensureTestSecret(): string {
   return secret;
 }
 
+/** Cross-platform kill of lingering benchmark server processes. */
+function killLingeringServers(): void {
+  try {
+    if (process.platform === "win32") {
+      // Windows has no pkill — taskkill with a window-title filter (no-op when
+      // nothing matches; never kills unrelated node.exe instances).
+      spawnSync("taskkill", ["/F", "/IM", "node.exe", "/FI", "WINDOWTITLE eq build/index.js*"], {
+        stdio: "ignore",
+        shell: true,
+      });
+    } else {
+      spawnSync("pkill", ["-f", "build/index.js"], {
+        stdio: "ignore",
+      });
+    }
+  } catch {}
+}
+
+/**
+ * Warns (but does not fail) when the build layout changed and adapter-stub
+ * inspection is impossible — a missing chunks dir usually means the build
+ * structure changed, not that adapters are present.
+ */
 function assertBuildIncludesAdapter(db: (typeof VALID_DBS)[number]): boolean {
   if (db === "sqlite") return true;
   const chunksDir = join(ROOT, "build", "server", "chunks");
-  if (!existsSync(chunksDir)) return true;
+  if (!existsSync(chunksDir)) {
+    console.warn(`\n⚠️  Warning: Build directory build/server/chunks not found.`);
+    return true;
+  }
   const stubChunk = readdirSync(chunksDir).find((f) => f.includes(`_virtual_db-stub_${db}`));
   if (!stubChunk) return true;
 
@@ -103,6 +132,12 @@ async function runBenchmarksForDb(db: (typeof VALID_DBS)[number]): Promise<boole
 
   const testSecret = ensureTestSecret();
   process.env.BENCHMARK = "true";
+  // 🛡️ PRODUCTION PARITY: never leak TEST_MODE into benchmark test processes —
+  // servers are spawned by the harness with NODE_ENV=production and no test
+  // bypasses.
+  delete process.env.TEST_MODE;
+  delete process.env.PLAYWRIGHT_TEST;
+  process.env.NODE_ENV = "production";
   const baseEnv = getBenchmarkTestEnv(db, {
     TEST_API_SECRET: testSecret,
   });
@@ -112,13 +147,8 @@ async function runBenchmarksForDb(db: (typeof VALID_DBS)[number]): Promise<boole
   let failures = 0;
 
   for (const name of CI_CORE_BENCHMARK_TESTS) {
-    // Kill any lingering server processes from previous test
-    try {
-      spawnSync("pkill", ["-f", "build/index.js"], {
-        stdio: "pipe",
-        shell: process.platform === "win32",
-      });
-    } catch {}
+    // Kill any lingering server processes from previous test (cross-platform)
+    killLingeringServers();
     // Wait for port to be freed + Docker container to stabilize
     await new Promise((r) => setTimeout(r, 3000));
 

@@ -30,14 +30,14 @@ import { spawn, execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { getBenchmarkTestEnv } from "../../src/utils/test-db-credentials.ts";
+import { getBenchmarkTestEnv } from "../../src/utils/test-db-credentials";
 import {
   getLocalSandboxMediaRel,
   getLocalSandboxMediaRoot,
   printBenchmarkIsolationBanner,
   resolveBenchmarkProfile,
-} from "../../src/utils/benchmark-sandbox.ts";
-import { getTestApiSecret } from "./config.ts";
+} from "../../src/utils/benchmark-sandbox";
+import { getTestApiSecret } from "./config";
 
 /** After these tests the shared server is often unhealthy — force restart. */
 const DESTRUCTIVE_OR_STRESS_TESTS = new Set([
@@ -57,21 +57,23 @@ const DESTRUCTIVE_OR_STRESS_TESTS = new Set([
 ]);
 
 const DBS = ["sqlite", "mariadb", "postgresql", "mongodb"];
-const filter =
-  process.argv
-    .find((a) => a.startsWith("--db="))
-    ?.split("=")[1]
-    .toLowerCase()
-    .split(",") || null;
-const databases = filter ? DBS.filter((d) => filter.includes(d)) : DBS;
+// 🛡️ `--db=` with an EMPTY value (or unknown names) must not silently run zero
+// databases — normalize, drop empties, then fall back to the full set.
+const dbArg = process.argv.find((a) => a.startsWith("--db="));
+const filterRaw = dbArg ? dbArg.split("=")[1] : null;
+const filter = filterRaw ? filterRaw.toLowerCase().split(",").filter(Boolean) : null;
+const databases = filter && filter.length > 0 ? DBS.filter((d) => filter.includes(d)) : DBS;
 const CONTINUE_ON_ERROR =
   process.argv.includes("--continue-on-error") || process.argv.includes("--continue");
 
 // Auto-discover all test files
-const testFiles = fs
-  .readdirSync("tests/benchmarks")
-  .filter((f) => f.endsWith(".test.ts"))
-  .sort();
+const benchmarksDir = path.resolve(process.cwd(), "tests/benchmarks");
+const testFiles = fs.existsSync(benchmarksDir)
+  ? fs
+      .readdirSync(benchmarksDir)
+      .filter((f) => f.endsWith(".test.ts"))
+      .sort()
+  : [];
 
 // Smart test ordering groups based on workload analysis
 const GROUPS = [
@@ -204,12 +206,25 @@ function getHistoricWeights(): Record<string, number> {
   return weights;
 }
 
-// Tests to skip in matrix mode (not meaningful against a shared server)
+// Tests to skip in matrix mode (not meaningful against a shared production server)
 const SKIP_IN_MATRIX = new Set([
   "cold-start-phased", // Measures server boot time, meaningless against shared server
   "setup-proxy", // Measures server boot + cold start, meaningless against shared server
   "longevity-soak", // Runs for hours, not suitable for matrix
   "memory-stability", // Runs for minutes measuring memory, not suitable for matrix
+  "throttling-backoff-stress", // Requires a dedicated RATE_LIMIT_MAX_REQUESTS=100 server (matrix uses 20000, 429 unreachable)
+  // ── Chaos-lab family ──
+  // These tests throw via requireTestInfrastructure() on production-mode servers:
+  // they need TEST_MODE synthetic failure injection (x-test-* headers, /api/testing
+  // actions). Running them against the honest production matrix server would either
+  // fail or measure nothing real — the guard is the intended behavior. They run in
+  // CI/standalone with TEST_MODE=true.
+  "failure-propagation",
+  "circuit-breaker-failover",
+  "chaos-resilience",
+  "data-residency-failover",
+  "right-to-be-forgotten-audit",
+  "database-failover",
 ]);
 
 /**
@@ -336,6 +351,9 @@ function spawnTestProcess(
         API_BASE_URL: baseUrl,
         BENCHMARK_MATRIX: "1",
         BENCHMARK_RUN_ID: runId,
+        // 🏷️ Production-mode marker for the benchmark server (bun test overrides
+        // NODE_ENV/TEST_MODE in child processes, so this survives as the signal)
+        SVELTY_BENCHMARK_SERVER_MODE: serverEnv.NODE_ENV || "production",
       } as Record<string, string>,
     });
 
@@ -506,8 +524,18 @@ async function run() {
         USE_REDIS: process.env.USE_REDIS === "true" ? "true" : "false",
         LOG_LEVEL: "fatal",
         QUIET: "true",
+        // 🛡️ PRODUCTION PARITY: benchmark servers run NODE_ENV=production, no TEST_MODE.
+        // BENCHMARK is a harness marker only (env-only config, sandbox, setup force-complete).
+        NODE_ENV: "production",
         BENCHMARK: "true",
-        NODE_ENV: "test",
+        // 🏢 Audit mode: BENCHMARK_AUDIT_MODE=compliance → AUDIT_CHAIN_SYNC=true,
+        // DISABLE_AUDIT_LOGS=false (enterprise compliance); default = production defaults.
+        BENCHMARK_AUDIT_MODE: process.env.BENCHMARK_AUDIT_MODE || "production",
+        AUDIT_CHAIN_SYNC: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "true" : "false",
+        DISABLE_AUDIT_LOGS: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "false" : "true",
+        // Deployment-tuned rate ceilings for load-testing (bucket machinery stays active)
+        RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "20000",
+        SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
         // Always point media at sandbox (ci-fresh wizard may leave mediaFolder missing)
         MEDIA_FOLDER: mediaFolderRel,
         ...(profile === "local" ? { BENCHMARK_LOCAL_SANDBOX: "1" } : {}),
@@ -598,6 +626,35 @@ async function run() {
       return proc;
     };
 
+    // ── Phase 1: Seed state (production mode — /api/testing is 403) ──
+    // Roles + admin + benchmark collections/entries MUST exist before the
+    // server boots so boot-time content initialization sees a complete state.
+    // Seeding runs via `bun test` (seed-runner) because plain `bun run` cannot
+    // execute `.svelte.ts` rune files ($derived) pulled in by CMS internals.
+    let setupOk = true;
+    const runPreSeed = async (): Promise<boolean> => {
+      const res = await spawnTestProcess(
+        "seed-runner.test.ts",
+        serverEnv,
+        baseUrl,
+        BENCHMARK_RUN_ID,
+      );
+      if (res.code !== 0) {
+        console.error(`  Seed runner output: ${res.output.slice(-800)}`);
+        return false;
+      }
+      return true;
+    };
+    process.stdout.write(`  Seeding state (bun test seed-runner)... `);
+    try {
+      setupOk = await runPreSeed();
+      console.log(setupOk ? "OK" : "FAILED");
+    } catch (e: unknown) {
+      setupOk = false;
+      console.log("FAILED");
+      console.error(`  Seed error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
     let server = startServer();
 
     let healthy = await waitForServerReady(baseUrl);
@@ -616,32 +673,7 @@ async function run() {
     }
     console.log("OK");
 
-    /** Point DB MEDIA_FOLDER at sandbox (idempotent). */
-    const ensureMediaFolderSetting = async () => {
-      try {
-        const mediaSet = await fetch(`${baseUrl}/api/testing`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-test-mode": "true",
-            "x-test-secret": apiSecret,
-          },
-          body: JSON.stringify({
-            action: "set-setting",
-            key: "MEDIA_FOLDER",
-            value: mediaFolderRel,
-          }),
-        });
-        if (!mediaSet.ok) {
-          const t = await mediaSet.text().catch(() => "");
-          console.warn(`  ⚠️  MEDIA_FOLDER set-setting ${mediaSet.status}: ${t.slice(0, 120)}`);
-        }
-      } catch (e) {
-        console.warn(
-          `  ⚠️  MEDIA_FOLDER set-setting soft-failed: ${e instanceof Error ? e.message : e}`,
-        );
-      }
-    };
+    /** MEDIA_FOLDER now comes from env (serverEnv) — no /api/testing in production mode. */
 
     /** Kill + respawn shared matrix server (always). */
     const forceRestartServer = async (reason: string) => {
@@ -664,25 +696,12 @@ async function run() {
         console.error(`  Server restart failed. Logs: ${serverLogs.slice(0, 800)}`);
         throw new Error(`Server restart failed (${reason})`);
       }
-      // Re-seed admin + stable collection after cold restart (idempotent)
+      // Re-seed after cold restart (idempotent — /api/testing is 403 in
+      // production mode). Runs via `bun test` seed-runner (see Phase 1).
       try {
-        await fetch(`${baseUrl}/api/testing`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-test-mode": "true",
-            "x-test-secret": apiSecret,
-          },
-          body: JSON.stringify({
-            action: "seed",
-            email: "admin@example.com",
-            password: adminPassword,
-          }),
-        });
-        await ensureMediaFolderSetting();
-        const { ensureStableTestData } =
-          await import("../../tests/benchmarks/modules/benchmark-utils.ts");
-        await ensureStableTestData(undefined, "global");
+        if (!(await runPreSeed())) {
+          console.warn("  ⚠️  post-restart reseed failed");
+        }
       } catch (e) {
         console.warn(
           `  ⚠️  post-restart reseed soft-failed: ${e instanceof Error ? e.message : e}`,
@@ -696,65 +715,11 @@ async function run() {
       await forceRestartServer(serverExited ? `process-dead ${reason}` : reason);
     };
 
-    // ── Phase 2: Setup + seed (mode-aware) ──
+    // ── Phase 2: Post-boot verification ──
     // Never process.exit here — one DB failure must not abort remaining DBs (e.g. mongo after postgres).
-    let setupOk = true;
-    process.stdout.write(`  Setting up system... `);
-    if (profile === "ci-fresh") {
-      try {
-        execSync("bun run scripts/setup-system.ts", {
-          env: { ...serverEnv, API_BASE_URL: baseUrl, PRESET: "demo" },
-          stdio: "pipe",
-          timeout: 180_000,
-        } as any);
-        console.log("OK (CI-fresh wizard)");
-      } catch (e: any) {
-        console.log("FAILED");
-        const note = e.stderr?.toString().slice(0, 300) || e.message;
-        if (note) console.error(`  Setup error: ${note}`);
-        // Wizard may have partially written private.test.ts — still try seed path
-        console.warn("  ⚠️  Wizard failed; attempting seed against already-booted server…");
-      }
-    } else {
-      console.log("SKIP (local — never touches config/private.ts)");
-    }
-
-    process.stdout.write(`  Seeding benchmark data... `);
-    try {
-      process.env.API_BASE_URL = baseUrl;
-      process.env.TEST_API_SECRET = apiSecret;
-
-      const seedRes = await fetch(`${baseUrl}/api/testing`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": apiSecret,
-        },
-        body: JSON.stringify({
-          action: "seed",
-          email: "admin@example.com",
-          password: adminPassword,
-        }),
-      });
-      if (!seedRes.ok) {
-        const txt = await seedRes.text().catch(() => "");
-        throw new Error(`admin seed (${seedRes.status}): ${txt.slice(0, 300)}`);
-      }
-
-      // Point DB settings MEDIA_FOLDER at sandbox (wizard may still say mediaFolder)
-      await ensureMediaFolderSetting();
-
-      const { ensureStableTestData } =
-        await import("../../tests/benchmarks/modules/benchmark-utils.ts");
-      await ensureStableTestData(undefined, "global");
-      console.log("OK");
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.log("FAILED");
-      console.error(`  Seed error: ${msg}`);
-      setupOk = false;
-    }
+    // State was seeded pre-boot via the seed-runner; each child test authenticates
+    // itself (real login) and resets the stable entry through the authenticated API.
+    console.log("  State pre-seeded; children authenticate with real sessions.");
 
     if (!setupOk) {
       try {
@@ -842,114 +807,118 @@ async function run() {
         });
       }, 200);
 
-      while (groupQueue.length > 0 || activePromises.length > 0) {
-        while (activePromises.length < concurrency && groupQueue.length > 0) {
-          const file = groupQueue.shift()!;
-          globalRemainingFiles = globalRemainingFiles.filter((f) => f !== file);
-          runningTests.add(file);
-          activeTestDurations.set(file, 0);
+      // 🛡️ try/finally: the dashboard interval must ALWAYS be cleared — even
+      // when the loop exits via an exception, it must not keep firing into stdout.
+      try {
+        while (groupQueue.length > 0 || activePromises.length > 0) {
+          while (activePromises.length < concurrency && groupQueue.length > 0) {
+            const file = groupQueue.shift()!;
+            globalRemainingFiles = globalRemainingFiles.filter((f) => f !== file);
+            runningTests.add(file);
+            activeTestDurations.set(file, 0);
 
-          const name = getTestName(file);
+            const name = getTestName(file);
 
-          const testPromise = (async () => {
-            try {
-              // Health-gate before every test — kills ConnectionRefused cascades after server death
-              await restartServerIfNeeded(`before ${name}`);
-              if (DESTRUCTIVE_OR_STRESS_TESTS.has(name)) {
-                if (!(await waitForServerReady(baseUrl, 2))) {
-                  await forceRestartServer(`pre-stress ${name}`);
+            const testPromise = (async () => {
+              try {
+                // Health-gate before every test — kills ConnectionRefused cascades after server death
+                await restartServerIfNeeded(`before ${name}`);
+                if (DESTRUCTIVE_OR_STRESS_TESTS.has(name)) {
+                  if (!(await waitForServerReady(baseUrl, 2))) {
+                    await forceRestartServer(`pre-stress ${name}`);
+                  }
                 }
-              }
 
-              const { code, durationMs, output } = await spawnTestProcess(
-                file,
-                serverEnv,
-                baseUrl,
-                BENCHMARK_RUN_ID,
-              );
-              runningTests.delete(file);
-              activeTestDurations.delete(file);
-              completedTests++;
-              totalElapsedTime += durationMs;
-
-              process.stdout.write("\r\x1B[K\n\x1B[K\x1B[1A");
-
-              const seqNum = groupPassedCount + 1;
-              const durationSec = (durationMs / 1000).toFixed(1);
-
-              if (code !== 0) {
-                failed++;
-                clearInterval(UIInterval);
-                console.log(
-                  `  ${seqNum.toString().padEnd(2)} ${name.padEnd(35)} \u274C  FAILED (${durationSec}s)`,
+                const { code, durationMs, output } = await spawnTestProcess(
+                  file,
+                  serverEnv,
+                  baseUrl,
+                  BENCHMARK_RUN_ID,
                 );
-                const lines = output.split("\n").filter(Boolean);
-                const tail = lines.slice(-20);
-                console.log(`  ${"\u2500".repeat(55)}`);
-                for (const line of tail) console.log(`  ${line}`);
-                console.log(`  ${"\u2500".repeat(55)}`);
-                if (CONTINUE_ON_ERROR) {
-                  try {
-                    await forceRestartServer(`after failure ${name}`);
-                  } catch (re) {
-                    console.warn(
-                      `  ⚠️  restart after failure soft-failed: ${re instanceof Error ? re.message : re}`,
-                    );
+                runningTests.delete(file);
+                activeTestDurations.delete(file);
+                completedTests++;
+                totalElapsedTime += durationMs;
+
+                process.stdout.write("\r\x1B[K\n\x1B[K\x1B[1A");
+
+                const seqNum = groupPassedCount + 1;
+                const durationSec = (durationMs / 1000).toFixed(1);
+
+                if (code !== 0) {
+                  failed++;
+                  clearInterval(UIInterval);
+                  console.log(
+                    `  ${seqNum.toString().padEnd(2)} ${name.padEnd(35)} \u274C  FAILED (${durationSec}s)`,
+                  );
+                  const lines = output.split("\n").filter(Boolean);
+                  const tail = lines.slice(-20);
+                  console.log(`  ${"\u2500".repeat(55)}`);
+                  for (const line of tail) console.log(`  ${line}`);
+                  console.log(`  ${"\u2500".repeat(55)}`);
+                  if (CONTINUE_ON_ERROR) {
+                    try {
+                      await forceRestartServer(`after failure ${name}`);
+                    } catch (re) {
+                      console.warn(
+                        `  ⚠️  restart after failure soft-failed: ${re instanceof Error ? re.message : re}`,
+                      );
+                    }
+                  } else {
+                    server.kill("SIGKILL");
+                    process.exit(1);
                   }
                 } else {
-                  server.kill("SIGKILL");
-                  process.exit(1);
-                }
-              } else {
-                groupPassedCount++;
-                passed++;
-                console.log(
-                  `  ${seqNum.toString().padEnd(2)} ${name.padEnd(35)} \u2705  ${durationSec}s`,
-                );
-                if (DESTRUCTIVE_OR_STRESS_TESTS.has(name)) {
-                  try {
-                    await forceRestartServer(`after ${name}`);
-                  } catch (re) {
-                    console.warn(
-                      `  ⚠️  post-stress restart soft-failed: ${re instanceof Error ? re.message : re}`,
-                    );
+                  groupPassedCount++;
+                  passed++;
+                  console.log(
+                    `  ${seqNum.toString().padEnd(2)} ${name.padEnd(35)} \u2705  ${durationSec}s`,
+                  );
+                  if (DESTRUCTIVE_OR_STRESS_TESTS.has(name)) {
+                    try {
+                      await forceRestartServer(`after ${name}`);
+                    } catch (re) {
+                      console.warn(
+                        `  ⚠️  post-stress restart soft-failed: ${re instanceof Error ? re.message : re}`,
+                      );
+                    }
                   }
                 }
-              }
-            } catch (e) {
-              runningTests.delete(file);
-              activeTestDurations.delete(file);
-              completedTests++;
-              failed++;
-              process.stdout.write("\r\x1B[K\n\x1B[K\x1B[1A");
-              console.log(
-                `  ${name.padEnd(35)} \u274C  FAILED (orchestrator: ${e instanceof Error ? e.message : e})`,
-              );
-              if (!CONTINUE_ON_ERROR) {
-                try {
-                  server.kill("SIGKILL");
-                } catch {
-                  /* ignore */
+              } catch (e) {
+                runningTests.delete(file);
+                activeTestDurations.delete(file);
+                completedTests++;
+                failed++;
+                process.stdout.write("\r\x1B[K\n\x1B[K\x1B[1A");
+                console.log(
+                  `  ${name.padEnd(35)} \u274C  FAILED (orchestrator: ${e instanceof Error ? e.message : e})`,
+                );
+                if (!CONTINUE_ON_ERROR) {
+                  try {
+                    server.kill("SIGKILL");
+                  } catch {
+                    /* ignore */
+                  }
+                  process.exit(1);
                 }
-                process.exit(1);
               }
-            }
-          })();
+            })();
 
-          activePromises.push(testPromise);
-          testPromise.then(() => {
-            const idx = activePromises.indexOf(testPromise);
-            if (idx !== -1) activePromises.splice(idx, 1);
-          });
-        }
+            activePromises.push(testPromise);
+            testPromise.then(() => {
+              const idx = activePromises.indexOf(testPromise);
+              if (idx !== -1) activePromises.splice(idx, 1);
+            });
+          }
 
-        if (activePromises.length > 0) {
-          await Promise.race(activePromises);
+          if (activePromises.length > 0) {
+            await Promise.race(activePromises);
+          }
         }
+      } finally {
+        clearInterval(UIInterval);
+        process.stdout.write("\r\x1B[K\n\x1B[K\x1B[1A");
       }
-
-      clearInterval(UIInterval);
-      process.stdout.write("\r\x1B[K\n\x1B[K\x1B[1A");
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);

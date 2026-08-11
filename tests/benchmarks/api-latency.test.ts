@@ -18,20 +18,22 @@ import {
   STABLE_COLLECTION,
   STABLE_ENTRY_ID,
   ensureStableTestData,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
 let stopServer: () => Promise<void>;
 let apiBaseUrl: string;
 
-// Pre-compiled headers — keep-alive + test secret for benchmark auth / turbo session
-const STATIC_HEADERS = new Headers([
-  ["x-test-mode", "true"],
-  ["x-test-secret", TEST_API_SECRET],
-  ["x-tenant-id", "default"],
-  ["connection", "keep-alive"],
-]);
+// Headers are built lazily after setupBenchmarkServer() — the REAL admin
+// session cookie only exists once the server is up and the login completed.
+function staticHeaders(): Headers {
+  return new Headers([
+    ...Object.entries(benchmarkAuthHeaders()),
+    ["x-tenant-id", "default"],
+    ["connection", "keep-alive"],
+  ]);
+}
 
 beforeAll(async () => {
   const { stop, baseUrl } = await setupBenchmarkServer();
@@ -59,7 +61,7 @@ export async function runApiLatencyAudit() {
 
   const fetchConfig: RequestInit = {
     method: "GET",
-    headers: STATIC_HEADERS,
+    headers: staticHeaders(),
     keepalive: true,
   };
 

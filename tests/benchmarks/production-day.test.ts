@@ -18,7 +18,7 @@ import {
   ensureStableTestData,
   STABLE_COLLECTION,
   STABLE_ENTRY_ID,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
   generateRealisticEntry,
   printTruthTable,
   printSummaryTable,
@@ -41,8 +41,7 @@ async function runProductionDayAudit() {
 
     // Setup base mutable base template structure to eliminate object spread allocations
     const requestHeaders: Record<string, string> = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
       "x-tenant-id": "global",
       "Content-Type": "application/json",
       "x-request-id": "",
@@ -134,11 +133,13 @@ async function runProductionDayAudit() {
           }
 
           case "MEDIA": {
-            const res = await fetch(`${apiBaseUrl}/api/system/health`, {
-              method: "HEAD",
+            // 🛡️ HONEST MEDIA: the previous run probed HEAD /api/system/health
+            // (no media endpoint touched). Hit the real gallery list instead.
+            const res = await fetch(`${apiBaseUrl}/api/media`, {
               headers: requestHeaders,
             });
-            if (!res.ok) throw new Error(`Media probe failed: ${res.status}`);
+            if (!res.ok) throw new Error(`Media list failed: ${res.status}`);
+            await res.arrayBuffer();
             break;
           }
 

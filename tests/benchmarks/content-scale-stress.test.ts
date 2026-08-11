@@ -12,6 +12,7 @@
 import {
   test,
   runBenchmark,
+  computeStatistics,
   exportResult,
   printTruthTable,
   printSummaryTable,
@@ -84,19 +85,21 @@ async function runStressAudit() {
   try {
     // 1. Cold Scan (Empty Cache)
     console.log("   🔬 Running Cold Scan Audit (1,000 files)...");
-    const coldResult = await runBenchmark({
-      name: "Cold Stress Scan (1k)",
-      iterations: 20,
-      runs: 1,
-      onIteration: async () => {
-        // STEP 1: Purge schema indices out-of-band to prevent cache poisoning
-        await cacheService.clearByPattern("schema:*", null);
-
-        // STEP 2: Measure exclusively raw file discovery and file-system traversal speed
-        await contentSystem.scanForCollections();
-      },
-      silent: true,
-    });
+    // 🛡️ HONEST TIMING: purge the schema cache BEFORE the timed span — the old
+    // code called clearByPattern inside onIteration, so "Cold Scan" included
+    // the purge itself (and only the FIRST iteration was actually cold).
+    const coldTimes: number[] = [];
+    for (let i = 0; i < 20; i++) {
+      await cacheService.clearByPattern("schema:*", null);
+      const t0 = performance.now();
+      await contentSystem.scanForCollections();
+      coldTimes.push(performance.now() - t0);
+    }
+    const coldResult = computeStatistics(
+      coldTimes,
+      coldTimes.length / (coldTimes.reduce((a, b) => a + b, 0) / 1000),
+      { name: "Cold Stress Scan (1k)", runs: 1, concurrency: 1 },
+    );
 
     // 2. Warm Scan (Hit Cache)
     console.log("   🔬 Running Warm Scan Audit (1,000 files)...");
