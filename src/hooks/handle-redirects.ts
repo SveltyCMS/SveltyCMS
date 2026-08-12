@@ -6,7 +6,7 @@
  * ### Features:
  * - Tenant-scoped redirect MV lookups with negative caching
  * - In-flight coalescing to prevent stampede under cold cache
- * - Buffered 404 hit logging with atomic upsert flush
+ * - Buffered 404 hit logging with atomic upsert flush and delta-safe drain
  * - Content-system existence checks for language-prefixed collection paths
  */
 
@@ -43,8 +43,6 @@ function flush404Logs() {
   if (logBuffer.size === 0) return;
   const db = getDb();
   if (!db) return;
-  const schemaExists = cacheService.getSync<any>("schema:404_logs");
-  if (!schemaExists) return;
   // Snapshot with key + hit count so entries mutated DURING the flush window
   // are retained (their un-flushed delta stays buffered for the next interval).
   const logsToFlush = Array.from(logBuffer.entries()).map(([key, log]) => ({
@@ -96,11 +94,14 @@ function flush404Logs() {
           }
         }
       }
-      // Only remove flushed entries that were not mutated during the flush.
+      // Subtract the flushed delta: hits that arrived DURING the flush stay
+      // buffered for the next interval (strict equality would strand them
+      // in the buffer forever once the buffer grew past the snapshot).
       for (const log of logsToFlush) {
         const current = logBuffer.get(log.key);
-        if (current && current.hits === log.hits) {
-          logBuffer.delete(log.key);
+        if (current) {
+          current.hits -= log.hits;
+          if (current.hits <= 0) logBuffer.delete(log.key);
         }
       }
     } catch (err) {

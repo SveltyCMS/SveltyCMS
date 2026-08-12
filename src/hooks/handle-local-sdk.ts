@@ -4,8 +4,10 @@
  * Hardened SDK injection with error boundaries and static-asset short-circuiting.
  *
  * Injects `locals.cms` (LocalCMS) for zero-latency server-side SDK calls.
- * API routes get JSON 503 when the DB adapter is unavailable; page routes
- * surface a soft error flag for UI recovery.
+ * Prefers the request-scoped tenant adapter (`locals.dbAdapter`) when an
+ * upstream hook (authentication) bound one, falling back to the global
+ * adapter. API routes get JSON 503 when the DB adapter is unavailable;
+ * page routes surface a soft error flag for UI recovery.
  */
 
 import { getDbInitPromise, dbAdapter } from "@src/databases/db";
@@ -28,15 +30,19 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
     // 🚀 FAST-PATH: if the adapter is already booted, skip the getDbInitPromise
     // await entirely (getDbInitPromise may still incur a microtask/promise hop).
     if (dbAdapter) {
-      (locals as any).cms = LocalCMS.getLocals(dbAdapter, { ...locals });
+      // Prefer the request-scoped tenant adapter bound by the authentication
+      // hook — the global adapter would drop tenant isolation for this request.
+      const activeAdapter = (locals as any).dbAdapter || dbAdapter;
+      (locals as any).cms = LocalCMS.getLocals(activeAdapter, { ...locals });
       return resolve(event);
     }
 
     await getDbInitPromise();
 
     if (dbAdapter) {
+      const activeAdapter = (locals as any).dbAdapter || dbAdapter;
       // Shallow copy to prevent cross-request reference bleed
-      (locals as any).cms = LocalCMS.getLocals(dbAdapter, { ...locals });
+      (locals as any).cms = LocalCMS.getLocals(activeAdapter, { ...locals });
     }
   } catch (dbError: any) {
     logger.error(`[LocalSDK] Database boot failed: ${dbError.message}`);

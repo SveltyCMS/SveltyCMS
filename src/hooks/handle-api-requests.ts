@@ -35,6 +35,7 @@ import {
   negotiateEncoding,
   hasNativeCompression,
   setCompressionHeaders,
+  addVaryHeader,
   compressZstd,
 } from "./handle-compression";
 import {
@@ -102,7 +103,7 @@ function serveCachedEntry(cached: any, request: Request): Response {
     // never arrive → "socket closed unexpectedly" on every compressed cache hit.
     responseHeaders.delete("content-length");
     responseHeaders.set("X-Cache", "HIT");
-    responseHeaders.set("Vary", "Accept-Encoding");
+    addVaryHeader(responseHeaders, "Accept-Encoding");
     setCompressionHeaders(
       responseHeaders,
       algo!,
@@ -121,7 +122,7 @@ function serveCachedEntry(cached: any, request: Request): Response {
   responseHeaders.delete("content-length");
   responseHeaders.set("Content-Type", responseHeaders.get("Content-Type") || "application/json");
   responseHeaders.set("X-Cache", "HIT");
-  responseHeaders.set("Vary", "Accept-Encoding");
+  addVaryHeader(responseHeaders, "Accept-Encoding");
   const body = typeof cached.body === "string" ? cached.body : JSON.stringify(cached.data);
   return new Response(body, { status: 200, headers: responseHeaders });
 }

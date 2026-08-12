@@ -5,14 +5,52 @@
  *
  * ### Security:
  * - Only accepts `x-test-worker-index` from loopback addresses via getClientAddress
- * - Requires matching `x-test-secret` / TEST_API_SECRET
+ * - Requires matching `x-test-secret` / TEST_API_SECRET (env or tests/e2e/.auth/test-secret.txt)
  * - Never trusts Host header for isolation decisions
+ * - Missing secret fails closed (no file fallback grants access)
+ *
+ * ### Features:
+ * - disk-backed master-secret fallback with single fs read per process
+ * - in-flight worker init coalescing (one DB init per worker index)
  */
 
 import { testWorkerContext } from "@utils/test-worker-context";
 import type { Handle } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { getRequestFlags } from "@utils/hook-utils";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+// Resolved once per process: env first, then the shared E2E secret file
+// (tests/e2e/.auth/test-secret.txt) written by scripts/run-e2e.ts. Env changes
+// between tests are not a supported scenario, so the result is cached.
+let cachedMasterSecret: string | null | undefined;
+
+function resolveMasterSecret(): string | null {
+  if (cachedMasterSecret !== undefined) return cachedMasterSecret;
+  if (process.env.TEST_API_SECRET) {
+    cachedMasterSecret = process.env.TEST_API_SECRET;
+    return cachedMasterSecret;
+  }
+  try {
+    const secretPath = join(process.cwd(), "tests", "e2e", ".auth", "test-secret.txt");
+    if (existsSync(secretPath)) {
+      const fromFile = readFileSync(secretPath, "utf8").trim();
+      if (fromFile) {
+        cachedMasterSecret = fromFile;
+        return cachedMasterSecret;
+      }
+    }
+  } catch {
+    // Unreadable file → fall through; a null secret never validates (fail closed).
+  }
+  cachedMasterSecret = null;
+  return cachedMasterSecret;
+}
+
+// Coalesces concurrent init requests for the same fresh worker index so
+// parallel first requests do not race initWorkerConnection.
+const inflightWorkerInits = new Map<string, Promise<void>>();
 
 export const handleTestIsolation: Handle = async ({ event, resolve }) => {
   if (process.env.TEST_MODE !== "true") return resolve(event);
@@ -47,7 +85,7 @@ export const handleTestIsolation: Handle = async ({ event, resolve }) => {
       clientAddress === "::1" ||
       clientAddress === "::ffff:127.0.0.1";
 
-    const masterSecret = process.env.TEST_API_SECRET;
+    const masterSecret = resolveMasterSecret();
     const isSecretValid = !!(masterSecret && testSecret === masterSecret);
 
     if (!isLocal || !isSecretValid) {
@@ -62,13 +100,18 @@ export const handleTestIsolation: Handle = async ({ event, resolve }) => {
       try {
         const { dbAdapter } = await import("@src/databases/db");
         if (dbAdapter && (dbAdapter as any).initWorkerConnection) {
-          // ⏱️ Timeout guard: a hung DB connection must not hang the request.
-          await Promise.race([
-            (dbAdapter as any).initWorkerConnection(workerIndex),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("initWorkerConnection timeout (10s)")), 10_000),
-            ),
-          ]);
+          let initPromise = inflightWorkerInits.get(workerIndex);
+          if (!initPromise) {
+            // ⏱️ Timeout guard: a hung DB connection must not hang the request.
+            initPromise = Promise.race([
+              (dbAdapter as any).initWorkerConnection(workerIndex),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("initWorkerConnection timeout (10s)")), 10_000),
+              ),
+            ]).finally(() => inflightWorkerInits.delete(workerIndex));
+            inflightWorkerInits.set(workerIndex, initPromise);
+          }
+          await initPromise;
         }
       } catch (err: any) {
         // 🚨 FAIL-CLOSED: without worker isolation, concurrent test workers could

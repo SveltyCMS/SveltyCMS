@@ -69,6 +69,54 @@ describe("Request Classifier Lane Router", () => {
     expect(classifyRequest(graphqlUrl, "GET", sessionHeaders)).toBe(RequestLane.HYPER_TURBO);
   });
 
+  test("exact cookie boundary: lookalike cookie names never match the session token", () => {
+    const collectionsUrl = new URL("http://localhost:5173/api/collections/posts");
+    // `my_auth_sessions_extra` must NOT match the exact `auth_sessions` boundary —
+    // it is a public request (API_READ), not a warm-session HYPER_TURBO request.
+    const extraName = new Headers({ cookie: "my_auth_sessions_extra=1" });
+    const hostExtra = new Headers({ cookie: "__Host-auth_sessions_extra=1" });
+    const multiCookie = new Headers({
+      cookie: "theme=dark; my_auth_sessions_extra=1; auth_sessions=xyz123",
+    });
+
+    expect(classifyRequest(collectionsUrl, "GET", extraName)).toBe(RequestLane.API_READ);
+    expect(classifyRequest(collectionsUrl, "GET", hostExtra)).toBe(RequestLane.API_READ);
+    // The real session cookie later in the header still matches exactly.
+    expect(classifyRequest(collectionsUrl, "GET", multiCookie)).toBe(RequestLane.HYPER_TURBO);
+  });
+
+  test("classifies OPTIONS preflights as API_READ (never HYPER_TURBO / API_WRITE)", () => {
+    const collectionsUrl = new URL("http://localhost:5173/api/collections/posts");
+    const publicHeaders = new Headers();
+    const sessionHeaders = new Headers({ cookie: "auth_sessions=xyz123" });
+
+    expect(classifyRequest(collectionsUrl, "OPTIONS", publicHeaders)).toBe(RequestLane.API_READ);
+    // Even with a warm session on a cacheable path, preflights skip HYPER_TURBO.
+    expect(classifyRequest(collectionsUrl, "OPTIONS", sessionHeaders)).toBe(RequestLane.API_READ);
+    // Method matching is case-insensitive.
+    expect(classifyRequest(collectionsUrl, "options", publicHeaders)).toBe(RequestLane.API_READ);
+    // Non-cacheable API paths behave identically for preflights.
+    const nonCacheableUrl = new URL("http://localhost:5173/api/custom/route");
+    expect(classifyRequest(nonCacheableUrl, "OPTIONS", publicHeaders)).toBe(RequestLane.API_READ);
+  });
+
+  test("locale normalization only strips configured locales (en|de), never public paths", () => {
+    const headers = new Headers();
+    // Public paths like /about must NOT be misclassified as APP_SSR (generic
+    // [a-z]{2} locale regexes would strip them to "/").
+    const aboutUrl = new URL("http://localhost:5173/about");
+    const blogUrl = new URL("http://localhost:5173/blog");
+    // /en-US is not a configured locale (locales are en|de) — stays public.
+    const enUsUrl = new URL("http://localhost:5173/en-US/products");
+    // Real locale prefix on a public path is stripped, then re-classified.
+    const enAboutUrl = new URL("http://localhost:5173/en/about");
+
+    expect(classifyRequest(aboutUrl, "GET", headers)).toBe(RequestLane.PUBLIC_SITE);
+    expect(classifyRequest(blogUrl, "GET", headers)).toBe(RequestLane.PUBLIC_SITE);
+    expect(classifyRequest(enUsUrl, "GET", headers)).toBe(RequestLane.PUBLIC_SITE);
+    expect(classifyRequest(enAboutUrl, "GET", headers)).toBe(RequestLane.PUBLIC_SITE);
+  });
+
   test("classifies API_WRITE for mutation methods", () => {
     const collectionsUrl = new URL("http://localhost:5173/api/collections/posts");
     const headers = new Headers();

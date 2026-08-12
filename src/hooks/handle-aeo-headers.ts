@@ -7,7 +7,7 @@
  *
  * ### Features:
  * - Marks HTML responses with X-AEO-Enabled for answer engines
- * - Ensures Vary: Accept for content negotiation / CDN correctness
+ * - Ensures exact `Vary: Accept` token for content negotiation / CDN correctness
  * - Clones response headers (immutable Response safety)
  */
 
@@ -23,9 +23,14 @@ export const handleAeoHeaders: Handle = async ({ event, resolve }) => {
 
   const newHeaders = new Headers(response.headers);
 
-  // Ensure Vary header includes Accept for content negotiation
+  // Ensure Vary header includes the exact `Accept` token for content negotiation.
+  // A substring check would wrongly match `Accept-Encoding` (and vice versa).
   const vary = newHeaders.get("Vary") || "";
-  if (!vary.includes("Accept")) {
+  const varyTokens = vary
+    .split(",")
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean);
+  if (!varyTokens.includes("accept")) {
     newHeaders.set("Vary", vary ? `${vary}, Accept` : "Accept");
   }
 
