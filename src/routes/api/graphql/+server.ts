@@ -270,8 +270,15 @@ function resolveSchemaCacheKey(dbAdapter: any, tenantId?: string | null) {
   for (let i = 0; i < 4 && root && typeof root.unscoped === "function"; i++) {
     root = root.unscoped();
   }
-  const tenant = dbAdapter?.boundTenantId ?? tenantId ?? "global";
-  return { root, tenant };
+  const boundTenant = dbAdapter?.boundTenantId;
+  // "global" is the canonical CACHE marker for "no tenant" — but the schema
+  // itself must be built with null so resolvers fall back to the same default
+  // tenant ("default") a real no-tenant request would use (plugin state,
+  // tenant-scoped settings). Building it with "global" changes resolver
+  // semantics (e.g. isHubEnabled("global") misses the null-tenant state).
+  const tenant = boundTenant ?? (tenantId && tenantId !== "global" ? tenantId : null);
+  const tenantKey = String(tenant ?? "global");
+  return { root, tenant, tenantKey };
 }
 
 function getRootSchemaCache(root: any): Map<string, YogaCacheEntry> {
@@ -308,8 +315,11 @@ function setTenantSchemaCache(
 export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
   const { contentSystem } = await import("@src/content/index.server");
   const currentVersion = contentSystem.version;
-  const { root: rootAdapter, tenant: schemaTenant } = resolveSchemaCacheKey(dbAdapter, tenantId);
-  const tenantKey = String(schemaTenant ?? "global");
+  const {
+    root: rootAdapter,
+    tenant: schemaTenant,
+    tenantKey,
+  } = resolveSchemaCacheKey(dbAdapter, tenantId);
   const schemaCache = getRootSchemaCache(rootAdapter);
   const cached = schemaCache.get(tenantKey);
   if (cached && cached.version === currentVersion && cached.epoch === schemaRefreshEpoch) {

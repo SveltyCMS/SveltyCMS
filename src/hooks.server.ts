@@ -643,6 +643,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         overallStatus: state,
         database: isDbConnected ? "connected" : "disconnected",
         timestamp: Date.now(),
+        uptime: process.uptime(),
         dbType: process.env.DB_TYPE || "unknown",
       };
 
@@ -656,7 +657,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 
         const mem = process.memoryUsage();
         const hooks = getHookTimings();
-        health.uptime = process.uptime();
         health.memory = {
           rss: mem.rss,
           heapTotal: mem.heapTotal,

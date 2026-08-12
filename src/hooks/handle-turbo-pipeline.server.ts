@@ -123,6 +123,7 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
     overallStatus: db ? "READY" : "SETUP",
     database: !!db,
     timestamp: Date.now(),
+    uptime: process.uptime(),
     dbType: DB_TYPE || "unknown",
   };
 
@@ -133,7 +134,6 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
         (globalThis as any).Bun.gc(true);
       }
     }
-    health.uptime = process.uptime();
     health.memory = process.memoryUsage();
   }
 
