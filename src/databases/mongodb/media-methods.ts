@@ -1,5 +1,5 @@
 /**
- * @file src/databases/mongodb/methods/media-methods.ts
+ * @file src/databases/mongodb/media-methods.ts
  * @description Media file management for the MongoDB adapter.
  * This implementation uses flat file storage with hash-based naming.
  * Files are physically organized in year/month folders on disk.
@@ -21,7 +21,7 @@ import type {
 } from "../db-interface";
 import { type IMedia, mediaSchema } from "./media";
 import { CacheCategory, invalidateCategoryCache, withCache } from "./mongodb-cache-utils";
-import { createDatabaseError, generateId } from "./mongodb-utils";
+import { createDatabaseError, generateId, processDates } from "./mongodb-utils";
 import { assertTenantContext, safeQuery } from "@src/utils/security/safe-query";
 
 // Define model types for dependency injection
@@ -67,7 +67,15 @@ export class MongoMediaMethods {
         tenantId !== undefined && tenantId !== null
           ? files.map((f) => ({ ...f, tenantId }))
           : files;
-      const result = await this.mediaModel.insertMany(filesWithTenant, {
+      // The schema declares `_id: { type: String, default: generateId }` BUT also
+      // `_id: false` in the schema options — mongoose's _id:false disables its
+      // _id machinery entirely, so insertMany NEVER applies the declared default
+      // and MongoDB silently assigns an ObjectId. Every read renders that as a
+      // hex string (flattenObjectIds), so the system looks consistent — but
+      // every `_id`-keyed query (cast to String per the schema) misses. Stamp
+      // string UUIDs explicitly so _id queries round-trip.
+      const filesWithIds = filesWithTenant.map((f) => ({ ...f, _id: generateId() }));
+      const result = await this.mediaModel.insertMany(filesWithIds, {
         lean: true,
       });
 
@@ -262,6 +270,33 @@ export class MongoMediaMethods {
         success: false,
         message: "Failed to duplicate file",
         error: createDatabaseError(error, "DUPLICATE_ERROR", "Failed to duplicate file"),
+      };
+    }
+  }
+
+  // Retrieves a single media file by content hash (deduplication lookups).
+  // Reads through the media module's own model (system_media) — the crud path
+  // normalizes "media" to "collection_media" and can never see uploads.
+  async getByHash(
+    hash: string,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<MediaItem | null>> {
+    try {
+      assertTenantContext(options, "media.getByHash");
+      const query = safeQuery({ hash }, options?.tenantId as string, options);
+      const result = await this.mediaModel
+        .findOne(query as any)
+        .lean()
+        .exec();
+      return {
+        success: true,
+        data: result ? (processDates(result) as unknown as MediaItem) : null,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: "Failed to get media by hash",
+        error: createDatabaseError(error, "GET_MEDIA_BY_HASH_ERROR", "Failed to get media by hash"),
       };
     }
   }

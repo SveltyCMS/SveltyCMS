@@ -28,7 +28,7 @@ import type {
   QueryBuilder,
   IMonitoringAdapter,
 } from "../db-interface";
-import { MariaDBQueryBuilder } from "./maria-db-query-builder";
+import { SqlQueryBuilder, MARIADB_DIALECT } from "../core/sql-query-builder";
 import { AdapterCore } from "./adapter-core";
 import { MariaDBFtsAdapter } from "./fts-adapter";
 import { logger } from "@src/utils/logger";
@@ -100,14 +100,14 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
   ): Promise<DatabaseResult<void>> {
     const result = await super.connect(connectionOrOptions as any, options);
     if (result.success && this.pool) {
-      const { runMigrations } = await import("./migrations");
+      const { bootstrapSystemSchema } = await import("../core/system-schema-bootstrap");
       const pool = this.pool; // narrowed non-null for the lock closure
-      // 🛡️ HARDENING: Advisory lock so only one instance runs boot migrations
+      // 🛡️ HARDENING: Advisory lock so only one instance runs boot provisioning
       let migrationError: string | null = null;
       await withMigrationLock(this as any, "mariadb", async () => {
-        const migrationResult = await runMigrations(pool);
+        const migrationResult = await bootstrapSystemSchema("mariadb", pool);
         if (!migrationResult.success) {
-          migrationError = migrationResult.error || "Unknown migration error";
+          migrationError = migrationResult.error || "Unknown schema bootstrap error";
         }
       });
       if (migrationError) {
@@ -142,10 +142,12 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
       const tables = (rows as Record<string, string>[]).map((row) => Object.values(row)[0]);
 
       if (tables.length === 0) {
-        const { runMigrations } = await import("./migrations");
-        const migrationResult = await runMigrations(this.pool);
+        const { bootstrapSystemSchema } = await import("../core/system-schema-bootstrap");
+        const migrationResult = await bootstrapSystemSchema("mariadb", this.pool);
         if (!migrationResult.success) {
-          throw new Error(migrationResult.error || "Migration failed after empty database reset");
+          throw new Error(
+            migrationResult.error || "Schema bootstrap failed after empty database reset",
+          );
         }
         return;
       }
@@ -203,7 +205,7 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
   }
 
   public queryBuilder = <T extends BaseEntity>(collection: string): QueryBuilder<T> => {
-    return new MariaDBQueryBuilder<T>(this, collection);
+    return new SqlQueryBuilder<T>(this, collection, MARIADB_DIALECT);
   };
 
   public async getVersion(): Promise<DatabaseResult<string>> {

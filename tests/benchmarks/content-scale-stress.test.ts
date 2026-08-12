@@ -6,7 +6,7 @@
  * ### Features:
  * - 1,000+ collection file stress generation
  * - Multi-level nested directory scanning
- * - Sub-10ms persistence verification at scale
+ * - sub-5ms persistence verification at scale
  */
 
 import {

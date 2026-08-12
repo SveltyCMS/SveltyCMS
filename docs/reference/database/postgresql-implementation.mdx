@@ -42,32 +42,29 @@ graph TD
 
 ```
 src/databases/postgresql/
-├── postgresAdapter.ts      # Entry point (re-exports adapter)
-├── migrations.ts           # Automatic "CREATE TABLE IF NOT EXISTS" logic
-├── utils.ts               # Error handling and data transformation
-├── adapter/
-│   ├── index.ts           # Main adapter class with feature modules
-│   └── adapterCore.ts     # Core functionality (connect, disconnect, health)
-└── schema/
-    └── index.ts           # Drizzle ORM schema definitions
+├── postgres-adapter.ts      # Concrete adapter (entry point)
+├── adapter-core.ts          # Connection, pool, date normalization, registry
+├── fts-adapter.ts           # Full-text search (ILIKE + tsvector paths)
+├── schema.ts                # Drizzle ORM schema definitions
+└── transaction-module.ts    # Drizzle transaction wrapper
 ```
 
-## Schema Initialization (Migrations)
+## Schema Initialization (Boot Bootstrap)
 
-Unlike MongoDB which is schema-less, PostgreSQL requires table definitions. SveltyCMS implements an automatic migration system that runs during the initial setup or the first system access.
+Unlike MongoDB which is schema-less, PostgreSQL requires table definitions. SveltyCMS renders the system schema at boot directly from the single declarative source of truth (`src/databases/system-schema-spec.ts`) via `src/databases/core/system-schema-bootstrap.ts` — there are no per-engine migration files to keep in sync, so the three relational engines can never drift.
 
 ```
 sequenceDiagram
     participant S as Setup Wizard / System Init
     participant A as PostgreSQLAdapter
-    participant M as Migrations
+    participant B as Schema Bootstrap (core)
     participant D as PostgreSQL DB
 
-    S->>A: ensureSystem()
-    A->>M: runMigrations(sql)
-    M->>D: CREATE TABLE IF NOT EXISTS ...
-    D-->>M: Tables Created/Verified
-    M-->>A: { success: true }
+    S->>A: connect()
+    A->>B: bootstrapSystemSchema("postgresql", sql)
+    B->>D: CREATE TABLE IF NOT EXISTS ...
+    D-->>B: Tables Created/Verified
+    B-->>A: { success: true }
     A-->>S: Ready
 ```
 
@@ -154,7 +151,7 @@ To extend the PostgreSQL adapter:
 
 ### 1. Schema Updates
 
-Modify `src/databases/postgresql/schema/index.ts`. Remember to also update `src/databases/postgresql/migrations.ts` to ensure tables are created correctly for new users.
+Modify `src/databases/postgresql/schema.ts`. For schema shape changes that affect fresh installs, update the shared declarative spec `src/databases/system-schema-spec.ts` once — the boot bootstrap (`src/databases/core/system-schema-bootstrap.ts`) renders it for all three SQL engines. The spec↔schema.ts drift guard lives in `tests/unit/databases/schema-spec-parity.test.ts`.
 
 ### 2. Implementing Methods
 
@@ -197,7 +194,7 @@ Key PostgreSQL highlights:
 
 ### Key Optimizations
 
-- **JSONB with GIN Indexing**: All 20 metadata columns use PostgreSQL's binary `jsonb` type with 5 GIN indexes for sub-10ms search on complex containment queries.
+- **JSONB with GIN Indexing**: All 20 metadata columns use PostgreSQL's binary `jsonb` type with 5 GIN indexes for sub-5ms search on complex containment queries.
 - **Partial Indexes**: Only index active sessions and unconsumed tokens — reduces index size and speeds up common auth queries.
 - **Connection Health**: Optimized pooling via `postgres.js` with health checks, reconnection, keepalive, and query pipelining for up to 3× throughput on parallel workloads.
 - **TTL-Equivalent Cleanup**: `cleanupExpiredData()` method purges expired sessions and consumed tokens (equivalent to MongoDB's TTL indexes).

@@ -27,6 +27,7 @@ import {
   SESSION_COOKIE_NAME,
   getSessionCookieName,
   isSecureCookieContext,
+  sessionTtlMs,
 } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
 import { isValidApiKeyFormat, hashApiKey, hashApiKeyLegacy } from "@src/databases/auth/api-keys";
@@ -536,10 +537,11 @@ async function handleSessionRotation(
     // Rotated sessions keep the configured session lifetime (SESSION_TTL_HOURS,
     // default 24h) — rotation must NOT extend the session beyond the policy,
     // and device info is carried over for the device-policy + sessions UI.
-    const ttlHours = Number(getPrivateSettingSync("SESSION_TTL_HOURS")) || 24;
     const newSession = await auth.createSession({
       user_id: user._id as DatabaseId,
-      expires: new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString() as ISODateString,
+      expires: new Date(
+        Date.now() + sessionTtlMs(getPrivateSettingSync("SESSION_TTL_HOURS")),
+      ).toISOString() as ISODateString,
       tenantId: event.locals.tenantId as DatabaseId,
       userAgent: event.request.headers.get("user-agent") || undefined,
       ipAddress:

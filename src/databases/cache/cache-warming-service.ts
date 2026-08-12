@@ -189,7 +189,7 @@ export class CacheWarmingService {
    * Warms the cache from in-memory behavioral learning data.
    *
    * Note: the audit-log aggregation fallback was removed (2026-07). Collection reads
-   * are NOT audited (sub-10ms persistence target — see AGENTS.md), so `eventType:
+   * are NOT audited (sub-5ms persistence target — see AGENTS.md), so `eventType:
    * "collection_find"` never existed in audit_logs and the old `$group` on
    * `$targetId` could not produce collection names anyway. The behavioral learner
    * (getHotCollections/getHotEntries) is the single source of truth for hot paths.

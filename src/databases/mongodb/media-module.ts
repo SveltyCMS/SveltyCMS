@@ -91,6 +91,13 @@ export class MongoMediaModule extends DatabaseModule<MongoAdapterCore> implement
     return (await this._getMedia()).getFolders(parentId, options);
   }
 
+  async getByHash(
+    hash: string,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<MediaItem | null>> {
+    return (await this._getMedia()).getByHash(hash, options);
+  }
+
   async getFiles(
     folderId?: DatabaseId,
     options?: MediaQueryOptions,
@@ -123,8 +130,7 @@ export class MongoMediaModule extends DatabaseModule<MongoAdapterCore> implement
       (this.adapter as any).crud.restore("media", id, options),
     search: (q: string, opt?: MediaQueryOptions) =>
       this.getFiles(undefined, { ...opt, search: q, recursive: false }),
-    getByHash: (hash: string, options?: BaseQueryOptions) =>
-      (this.adapter as any).crud.findOne("media", { hash }, options),
+    getByHash: (hash: string, options?: BaseQueryOptions) => this.getByHash(hash, options),
   };
 
   folders = {

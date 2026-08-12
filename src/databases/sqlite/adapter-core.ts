@@ -24,7 +24,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
-import { SQLiteQueryBuilder } from "./sq-lite-query-builder";
+import { SqlQueryBuilder, SQLITE_DIALECT } from "../core/sql-query-builder";
 import { TransactionModule } from "./transaction-module";
 import { withMigrationLock } from "../migration-lock";
 
@@ -780,7 +780,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   }
 
   public queryBuilder<_T extends BaseEntity>(collection: string): any {
-    return new SQLiteQueryBuilder(this as any, collection);
+    return new SqlQueryBuilder(this, collection, SQLITE_DIALECT);
   }
 
   public transaction = async <T>(
@@ -804,10 +804,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
     this._provisionPromise = (async () => {
       try {
-        const { runMigrations } = await import("./migrations");
-        // 🛡️ HARDENING: File-based lock so only one instance runs boot migrations
+        const { bootstrapSystemSchema } = await import("../core/system-schema-bootstrap");
+        // 🛡️ HARDENING: File-based lock so only one instance runs boot provisioning
         await withMigrationLock(this as any, "sqlite", async () => {
-          await runMigrations(this._sqlite);
+          await bootstrapSystemSchema("sqlite", this._sqlite);
         });
         await this._warmTableRegistry();
         this._provisioned = true;

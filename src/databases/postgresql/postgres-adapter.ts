@@ -7,7 +7,7 @@ import type {
 } from "../db-interface";
 import { PostgresAdapterCore } from "./adapter-core";
 import * as utils from "../core/relational-utils";
-import { PostgresQueryBuilder } from "./postgres-query-builder";
+import { SqlQueryBuilder, POSTGRES_DIALECT } from "../core/sql-query-builder";
 import { PostgresFtsAdapter } from "./fts-adapter";
 import { withMigrationLock } from "../migration-lock";
 
@@ -45,14 +45,14 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
   async connect(connectionOrOptions: any, options?: any): Promise<DatabaseResult<void>> {
     const result = await super.connect(connectionOrOptions, options);
     if (result.success && this.sql) {
-      const { runMigrations } = await import("./migrations");
+      const { bootstrapSystemSchema } = await import("../core/system-schema-bootstrap");
       const sql = this.sql; // narrowed non-null for the lock closure
-      // 🛡️ HARDENING: Advisory lock so only one instance runs boot migrations
+      // 🛡️ HARDENING: Advisory lock so only one instance runs boot provisioning
       let migrationError: string | null = null;
       await withMigrationLock(this as any, "postgresql", async () => {
-        const migrationResult = await runMigrations(sql);
+        const migrationResult = await bootstrapSystemSchema("postgresql", sql);
         if (!migrationResult.success) {
-          migrationError = migrationResult.error || "Unknown migration error";
+          migrationError = migrationResult.error || "Unknown schema bootstrap error";
         }
       });
       if (migrationError) {
@@ -97,10 +97,12 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
       const tables = rows.map((r: any) => String(r.table_name));
 
       if (tables.length === 0) {
-        const { runMigrations } = await import("./migrations");
-        const migrationResult = await runMigrations(this.sql);
+        const { bootstrapSystemSchema } = await import("../core/system-schema-bootstrap");
+        const migrationResult = await bootstrapSystemSchema("postgresql", this.sql);
         if (!migrationResult.success) {
-          throw new Error(migrationResult.error || "Migration failed after clearing database");
+          throw new Error(
+            migrationResult.error || "Schema bootstrap failed after clearing database",
+          );
         }
         return;
       }
@@ -171,7 +173,7 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
   public queryBuilder<T extends BaseEntity>(
     collection: string,
   ): import("../db-interface").QueryBuilder<T> {
-    return new PostgresQueryBuilder<T>(this, collection);
+    return new SqlQueryBuilder<T>(this, collection, POSTGRES_DIALECT);
   }
 
   /**

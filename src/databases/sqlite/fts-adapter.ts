@@ -58,10 +58,11 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
 
     const filterSQL = this.buildFilterSQL(options);
 
-    // The FTS5 virtual table is created by the migrations with an explicit
-    // "_id" column (UNINDEXED) that mirrors content_nodes._id (TEXT UUID) via
-    // triggers — see sqlite/migrations.ts. The implicit FTS rowid is an integer
-    // and can never match a TEXT UUID, so the join must use the mirror column.
+    // The FTS5 virtual table is created at boot by the schema bootstrap with
+    // an explicit "_id" column (UNINDEXED) that mirrors content_nodes._id (TEXT
+    // UUID) via triggers — see src/databases/system-schema-spec.ts. The
+    // implicit FTS rowid is an integer and can never match a TEXT UUID, so the
+    // join must use the mirror column.
     const rawSQL = `
       SELECT c.*, bm25(${ftsTable}) AS relevance
       FROM "${ftsTable}" fts
@@ -72,11 +73,20 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
       LIMIT ${limit} OFFSET ${offset}
     `;
 
-    const result = await this.adapter.crud.find(
-      collection,
-      {} as any,
-      { rawSql: true, sql: rawSQL } as any,
-    );
+    // Real COUNT with the same MATCH expression + filters — items.length is
+    // capped by LIMIT and would lie about pagination metadata.
+    const countSQL = `
+      SELECT COUNT(*) AS total
+      FROM "${ftsTable}" fts
+      JOIN "${collection}" c ON c._id = fts."_id"
+      WHERE ${ftsTable} MATCH '${ftsQuery.replace(/'/g, "''")}'
+      ${filterSQL}
+    `;
+
+    const [result, countResult] = await Promise.all([
+      this.adapter.crud.find(collection, {} as any, { rawSql: true, sql: rawSQL } as any),
+      this.adapter.crud.find(collection, {} as any, { rawSql: true, sql: countSQL } as any),
+    ]);
 
     const items: any[] = [];
     if (result?.success && result.data) {
@@ -85,7 +95,12 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
       }
     }
 
-    return { success: true, data: { items, total: items.length } };
+    let total = items.length;
+    if (countResult?.success && countResult.data?.length > 0) {
+      total = Number((countResult.data[0] as any)?.total ?? total);
+    }
+
+    return { success: true, data: { items, total } };
   }
 
   private async searchWithLike(

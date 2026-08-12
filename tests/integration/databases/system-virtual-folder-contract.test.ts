@@ -4,8 +4,8 @@
  *
  * Regression guard for the relational (SQL) parity gap: addToFolder used to
  * return notImplemented on SQLite/MariaDB/PostgreSQL while MongoDB had a real
- * implementation. Verifies folder→media membership assignment and the
- * missing-folder failure path on every engine.
+ * implementation. Verifies folder→media membership assignment (via getByFolder
+ * and getByHash) and the missing-folder failure path on every engine.
  *
  * Run: bun test tests/integration/databases/system-virtual-folder-contract.test.ts
  * Matrix: DB=sqlite|postgresql|mariadb|mongodb bun test ...
@@ -106,17 +106,6 @@ describe("system.virtualFolder.addToFolder contract", () => {
     const itemId = await uploadFixtureItem(fileHash);
     if (!itemId) return;
 
-    // MongoDB quirk (pre-existing, out of scope for this parity contract): the
-    // direct-DB media upload returns an _id that subsequent reads/updates on
-    // the same connection cannot resolve — the media module's model registry
-    // and the crud path disagree on the physical collection (system_media vs
-    // collection_media, see src/utils/demo-cleanup.ts). The harness's HTTP
-    // media tests pass because they exercise the server process. The parity
-    // gap this contract guards is the RELATIONAL addToFolder stub, so the
-    // full membership assertion runs on SQL engines; MongoDB gets folder-side
-    // coverage (create above + missing-folder failure below).
-    if (db.type === "mongodb") return;
-
     const added = await db.system.virtualFolder.addToFolder(
       itemId as DatabaseId,
       folderPath,
@@ -132,6 +121,17 @@ describe("system.virtualFolder.addToFolder contract", () => {
     const inFolderItems = getData<PaginatedResult<MediaItem>>(inFolder);
     expect(Array.isArray(inFolderItems.items)).toBe(true);
     expect(inFolderItems.items.some((i) => String(i._id) === itemId)).toBe(true);
+
+    // Regression: getByHash must resolve the same row on every engine. On
+    // MongoDB the media module's own model (system_media) is the only path
+    // that can see uploads — the crud "media" name normalizes to
+    // collection_media and always missed.
+    const byHash = await db.media.files.getByHash(fileHash, { tenantId: TENANT });
+    expect(byHash.success).toBe(true);
+    const byHashItem = getData<MediaItem | null>(byHash);
+    expect(byHashItem).not.toBeNull();
+    expect(String(byHashItem!._id)).toBe(itemId);
+    expect(String(byHashItem!.folderId)).toBe(folderId);
   });
 
   it("fails when the target folder does not exist", async () => {

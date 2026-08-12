@@ -13,7 +13,7 @@
  * ### Usage:
  * ```typescript
  * const ran = await withMigrationLock(adapter, "sqlite", async () => {
- *   await runMigrations();
+ *   await bootstrapSystemSchema("sqlite", connection);
  * });
  * ```
  */

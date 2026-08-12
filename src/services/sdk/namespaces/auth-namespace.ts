@@ -9,6 +9,7 @@ import { verifyPassword } from "@utils/security/crypto";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions, invalidatePermissionCache } from "@src/databases/auth/permissions";
+import { sessionTtlMs } from "@src/databases/auth/constants";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { withTenant } from "@src/databases/core/db-adapter-wrapper";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
@@ -470,7 +471,7 @@ export class AuthNamespace {
         user_id: user._id as DatabaseId,
         tenantId: tenantId as DatabaseId,
         expires: new Date(
-          Date.now() + (Number(getPrivateSettingSync("SESSION_TTL_HOURS")) || 24) * 60 * 60 * 1000,
+          Date.now() + sessionTtlMs(getPrivateSettingSync("SESSION_TTL_HOURS")),
         ).toISOString() as ISODateString,
         userAgent: sessionMeta?.userAgent,
         ipAddress: sessionMeta?.ipAddress,

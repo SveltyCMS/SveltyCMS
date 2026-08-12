@@ -33,7 +33,7 @@ SveltyCMS is a powerful headless CMS built with SvelteKit 2, Svelte 5, TypeScrip
 ## Core Philosophy & Focus
 
 - **Data Security & Ownership**: Security is paramount—users always own their data. Implement strict protocols (e.g., no direct DB access outside adapters, secure headers).
-- **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, SSR-first architecture, SvelteKit 5 Server Functions, Valibot, Vite optimizations, and <1s cold starts via progressive initialization. **We continuously monitor benchmarks (see `docs/project/benchmarks/index.mdx`) to ensure we remain the fastest Java-enterprise-ready CMS, aiming for sub-10ms persistence and outperforming traditional enterprise platforms.**
+- **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, SSR-first architecture, SvelteKit 5 Server Functions, Valibot, Vite optimizations, and <1s cold starts via progressive initialization. **We continuously monitor benchmarks (see `docs/project/benchmarks/index.mdx`) to ensure we remain the fastest Java-enterprise-ready CMS, aiming for sub-5ms persistence and outperforming traditional enterprise platforms.**
 
 - **Universal Accessibility**: WCAG 2.2 AA and ATAG 2.0 compliant (full keyboard support, ARIA-live regions); **built for WCAG 3.0 Functional Performance standards with native Svelte 5 components.**
 - **Premium Design**: Modern UX with native Svelte 5 components and Tailwind v4 for white-labeling and deep theming.
@@ -309,7 +309,7 @@ When generating/modifying code:
     - **Svelte Attribute Placement (CRITICAL)**: HTML attributes (`aria-label`, `role`, `type`, etc.) MUST be on the **opening tag** of the element. Placing an attribute string between child elements causes Svelte to render it as **visible text content**, not as an HTML attribute.
       - ✅ `<button aria-label="Save" onclick={...}> <icon/> Save </button>`
       - ❌ `<button onclick={...}> <icon/> aria-label="Save" Save </button>` — renders the text "aria-label=\"Save\""
-12. **Performance Awareness**: Every change must consider the "sub-10ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
+12. **Performance Awareness**: Every change must consider the "sub-5ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
 13. **Empirical Performance Verification**: When implementing logic enhancements or optimizations:
     - **Baseline**: Run the relevant benchmark with recording: `BENCHMARK_RECORD=1 bun test tests/benchmarks/<test>.test.ts`
     - **Verification**: Run same benchmark after changes; compare trend labels in `docs/project/benchmarks/benchmark_<db>.mdx`

@@ -313,7 +313,7 @@ All plugin interaction with external frontends goes through **documented REST/Gr
 
 - **Origin validation** via plugin config (`allowedOrigins`, `frontendBaseUrl`, `allowedCheckoutOrigins`)
 - **Fail-closed semantics**: If a plugin configures `failClosedOnCacheMiss: true`, missing cache entries return 404 instead of falling through
-- **Edge KV synchronization**: Redirects and sitemaps push to edge stores for sub-10ms resolution on decoupled frontends
+- **Edge KV synchronization**: Redirects and sitemaps push to edge stores for sub-5ms resolution on decoupled frontends
 
 ---
 
