@@ -1284,12 +1284,76 @@ export class RelationalSystemModule implements ISystemAdapter {
     },
 
     addToFolder: async (
-      _contentId: DatabaseId,
-      _folderPath: string,
+      contentId: DatabaseId,
+      folderPath: string,
       options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>> => {
-      assertTenantContext(options, "system.virtualFolder.addToFolder");
-      return this.adapter.notImplemented("virtualFolder.addToFolder");
+      return this.adapter.wrap(async () => {
+        assertTenantContext(options, "system.virtualFolder.addToFolder");
+
+        // Step 1: Find the folder by path.
+        const folderConditions = [eq(this.schema.systemVirtualFolders.path, folderPath)];
+        utils.applyTenantFilter(
+          folderConditions,
+          this.schema.systemVirtualFolders.tenantId,
+          options,
+        );
+        const [folder] = await this.db
+          .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
+          .from(this.schema.systemVirtualFolders)
+          .where(and(...folderConditions))
+          .limit(1);
+        if (!folder) throw new Error("Target folder not found");
+        const foundFolderId = folder._id; // Store the ID immediately
+
+        // --- TOCTOU Mitigation ---
+        // Re-check folder existence just before updating the media item to
+        // reduce the TOCTOU window (mirrors the MongoDB implementation). If
+        // the folder was deleted between the lookup and this check, the
+        // update would otherwise use a stale folderId.
+        const folderCheckResult = await this.virtualFolder.getById(foundFolderId, options);
+        if (!folderCheckResult.success || !folderCheckResult.data) {
+          throw new Error("Target folder was deleted after lookup.");
+        }
+        // --- End TOCTOU Mitigation ---
+
+        // Update the media item with the confirmed folder ID. `.returning()` is
+        // unsupported on MariaDB — fall back to affected-rows/changes detection
+        // (same pattern as relational-auth consumeToken).
+        const itemConditions = [eq(this.schema.mediaItems._id, contentId as string)];
+        utils.applyTenantFilter(itemConditions, this.schema.mediaItems.tenantId, options);
+        let updatedRows = 0;
+        try {
+          const results = await this.db
+            .update(this.schema.mediaItems)
+            .set(
+              utils.convertISOToDates({
+                folderId: foundFolderId as any,
+                updatedAt: nowISODateString(),
+              }) as any,
+            )
+            .where(and(...itemConditions))
+            .returning();
+          updatedRows = Array.isArray(results) ? results.length : 0;
+        } catch {
+          // MariaDB: no RETURNING clause — use the raw affected-rows count.
+          // Literal table/column names only (scanner-safe); values are bound.
+          const raw = await this.adapter.raw.execute(
+            "UPDATE `media_items` SET `folderId` = ?, `updatedAt` = ? WHERE `_id` = ?",
+            [foundFolderId, new Date(), contentId],
+          );
+          updatedRows =
+            (raw as { changes?: number })?.changes ??
+            (raw as { affectedRows?: number })?.affectedRows ??
+            (raw as { rowCount?: number })?.rowCount ??
+            0;
+        }
+
+        // Check if the media item itself was found and updated.
+        if (updatedRows === 0) throw new Error("Media item not found or access denied");
+
+        return undefined;
+      }, "ADD_TO_FOLDER_FAILED");
     },
 
     ensure: async (

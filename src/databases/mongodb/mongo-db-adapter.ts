@@ -140,14 +140,43 @@ export class MongoDBAdapter extends MongoAdapterCore implements IDBAdapter {
       activeConnections: number;
     }>
   > {
-    return {
-      success: true,
-      data: {
-        healthy: this.isConnected(),
-        latency: 0,
-        activeConnections: this.isConnected() ? 1 : 0,
-      },
-    };
+    if (!this.isConnected()) {
+      // Keep the existing disconnected shape (success envelope, healthy: false).
+      return {
+        success: true,
+        data: {
+          healthy: false,
+          latency: 0,
+          activeConnections: 0,
+        },
+      };
+    }
+    // Real ping with latency measurement (parity with the SQL adapters).
+    const start = performance.now();
+    try {
+      const admin = this.connection!.db!.admin();
+      await admin.ping();
+      const latency = Math.round(performance.now() - start);
+      return {
+        success: true,
+        data: {
+          healthy: true,
+          latency,
+          activeConnections: 1,
+        },
+      };
+    } catch (error) {
+      // Ping failed — return the same failure shape used when disconnected.
+      logger.debug("[MongoDB] Health ping failed:", error);
+      return {
+        success: true,
+        data: {
+          healthy: false,
+          latency: 0,
+          activeConnections: 0,
+        },
+      };
+    }
   }
 
   async isEmpty(): Promise<DatabaseResult<boolean>> {

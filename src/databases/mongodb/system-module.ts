@@ -21,6 +21,8 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
 
     const { MongoWebsiteTokenMethods } = await import("./website-token-methods");
     const { websiteTokenSchema } = await import("./website-token-methods"); // Merged pilot: schema now in methods file
+    const { systemVirtualFolderSchema } = await import("./system-virtual-folder");
+    const { mediaSchema } = await import("./media");
 
     const SystemSettingModel = (this.adapter as any)._getOrCreateModel("SystemSetting");
     const SystemPreferencesModel = (this.adapter as any)._getOrCreateModel("SystemPreferences");
@@ -39,7 +41,10 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
     this._methods = {
       preferences: new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel),
       themes: new MongoThemeMethods(ThemeModel),
-      virtualFolder: new MongoSystemVirtualFolderMethods(),
+      virtualFolder: new MongoSystemVirtualFolderMethods(
+        (this.adapter as any)._getOrCreateModel("SystemVirtualFolder", systemVirtualFolderSchema),
+        (this.adapter as any)._getOrCreateModel("media", mediaSchema),
+      ),
       widgets: new MongoWidgetMethods(WidgetModel),
       websiteTokens: new MongoWebsiteTokenMethods(WebsiteTokenModel, this.adapter),
       tenants: {

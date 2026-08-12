@@ -11,6 +11,7 @@ import type {
 } from "@src/databases/db-interface";
 import { MediaModel } from ".";
 import { SystemVirtualFolderModel } from "./system-virtual-folder";
+import type { Model } from "mongoose";
 import { createDatabaseError, generateId } from "./mongodb-utils";
 
 /**
@@ -18,13 +19,23 @@ import { createDatabaseError, generateId } from "./mongodb-utils";
  * Implements the systemVirtualFolder interface from IDBAdapter.
  */
 export class MongoSystemVirtualFolderMethods {
+  /**
+   * Model bound to the ADAPTER connection (injected by system-module). The
+   * module-level default-connection model would throw under
+   * bufferCommands=false — the adapter connects via createConnection.
+   */
+  constructor(
+    private readonly folderModel: Model<SystemVirtualFolder> = SystemVirtualFolderModel,
+    private readonly mediaModel: Model<MediaItem> = MediaModel,
+  ) {}
+
   async create(
     folder: Omit<SystemVirtualFolder, "_id" | "createdAt" | "updatedAt">,
     tenantId?: string | null,
   ): Promise<DatabaseResult<SystemVirtualFolder>> {
     try {
       const ID = generateId();
-      const newFolder = new SystemVirtualFolderModel({
+      const newFolder = new this.folderModel({
         ...folder,
         _id: ID,
         ...(tenantId && { tenantId }),
@@ -52,17 +63,18 @@ export class MongoSystemVirtualFolderMethods {
       const query: any = { path: folder.path };
       if (tenantId) query.tenantId = tenantId;
 
-      const result = await SystemVirtualFolderModel.findOneAndUpdate(
-        query,
-        {
-          $setOnInsert: {
-            ...folder,
-            _id: generateId(),
-            ...(tenantId && { tenantId }),
+      const result = await this.folderModel
+        .findOneAndUpdate(
+          query,
+          {
+            $setOnInsert: {
+              ...folder,
+              _id: generateId(),
+              ...(tenantId && { tenantId }),
+            },
           },
-        },
-        { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
-      )
+          { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
+        )
         .lean()
         .exec();
 
@@ -87,7 +99,7 @@ export class MongoSystemVirtualFolderMethods {
     try {
       const query: any = { _id: folderId };
       if (tenantId) query.tenantId = tenantId;
-      const folder = await SystemVirtualFolderModel.findOne(query).lean().exec();
+      const folder = await this.folderModel.findOne(query).lean().exec();
       return { success: true, data: folder as SystemVirtualFolder | null };
     } catch (error) {
       return {
@@ -109,7 +121,7 @@ export class MongoSystemVirtualFolderMethods {
     try {
       const query: any = { parentId: parentId ?? null };
       if (tenantId) query.tenantId = tenantId;
-      const folders = await SystemVirtualFolderModel.find(query).lean().exec();
+      const folders = await this.folderModel.find(query).lean().exec();
       return { success: true, data: folders as SystemVirtualFolder[] };
     } catch (error) {
       return {
@@ -128,7 +140,7 @@ export class MongoSystemVirtualFolderMethods {
     try {
       const query: any = {};
       if (tenantId) query.tenantId = tenantId;
-      const folders = await SystemVirtualFolderModel.find(query).lean().exec();
+      const folders = await this.folderModel.find(query).lean().exec();
       return { success: true, data: folders as SystemVirtualFolder[] };
     } catch (error) {
       return {
@@ -153,11 +165,8 @@ export class MongoSystemVirtualFolderMethods {
       if (tenantId) query.tenantId = tenantId;
 
       // EXPLICITLY use $set to prevent document replacement and data loss
-      const updatedFolder = await SystemVirtualFolderModel.findOneAndUpdate(
-        query,
-        { $set: updateData },
-        { returnDocument: "after" },
-      )
+      const updatedFolder = await this.folderModel
+        .findOneAndUpdate(query, { $set: updateData }, { returnDocument: "after" })
         .lean()
         .exec();
       if (!updatedFolder) {
@@ -194,9 +203,10 @@ export class MongoSystemVirtualFolderMethods {
       if (tenantId) query.tenantId = tenantId;
 
       // Step 1: Find the folder by path.
-      const folderRes = await SystemVirtualFolderModel.findOne(query, {
-        _id: 1,
-      })
+      const folderRes = await this.folderModel
+        .findOne(query, {
+          _id: 1,
+        })
         .lean()
         .exec();
       if (!folderRes) {
@@ -229,7 +239,7 @@ export class MongoSystemVirtualFolderMethods {
       const updateQuery: any = { _id: contentId };
       if (tenantId) updateQuery.tenantId = tenantId;
       // Update the media item with the confirmed folder ID.
-      const result = await MediaModel.updateOne(updateQuery, {
+      const result = await this.mediaModel.updateOne(updateQuery, {
         $set: { folderId: foundFolderId }, // Use the confirmed folder ID
       });
 
@@ -266,7 +276,7 @@ export class MongoSystemVirtualFolderMethods {
     try {
       const query: any = { path: folderPath };
       if (tenantId) query.tenantId = tenantId;
-      const folder = await SystemVirtualFolderModel.findOne(query).lean().exec();
+      const folder = await this.folderModel.findOne(query).lean().exec();
 
       if (!folder) {
         return {
@@ -285,7 +295,7 @@ export class MongoSystemVirtualFolderMethods {
       if (tenantId) fileQuery.tenantId = tenantId;
 
       const [subfolders, files] = await Promise.all([
-        SystemVirtualFolderModel.find(subQuery).lean().exec(),
+        this.folderModel.find(subQuery).lean().exec(),
         MediaModel.find(fileQuery).lean().exec(),
       ]);
 
@@ -314,7 +324,7 @@ export class MongoSystemVirtualFolderMethods {
       const query: any = { _id: folderId };
       if (tenantId) query.tenantId = tenantId;
 
-      const folderToDelete = await SystemVirtualFolderModel.findOne(query).lean().exec();
+      const folderToDelete = await this.folderModel.findOne(query).lean().exec();
       if (!folderToDelete) {
         return {
           success: false,
@@ -327,7 +337,7 @@ export class MongoSystemVirtualFolderMethods {
       // and update/nullify media references
       await this._cascadeDelete(folderId, tenantId);
 
-      await SystemVirtualFolderModel.deleteOne(query).exec();
+      await this.folderModel.deleteOne(query).exec();
       return { success: true, data: undefined };
     } catch (error) {
       return {
@@ -349,7 +359,7 @@ export class MongoSystemVirtualFolderMethods {
     // 1. Find subfolders
     const subQuery: any = { parentId: folderId };
     if (tenantId) subQuery.tenantId = tenantId;
-    const subfolders = await SystemVirtualFolderModel.find(subQuery, { _id: 1 }).lean().exec();
+    const subfolders = await this.folderModel.find(subQuery, { _id: 1 }).lean().exec();
 
     // 2. Recursively delete subfolders
     for (const sub of subfolders) {
@@ -369,7 +379,7 @@ export class MongoSystemVirtualFolderMethods {
     try {
       const query: any = { path };
       if (tenantId) query.tenantId = tenantId;
-      const doc = await SystemVirtualFolderModel.findOne(query, { _id: 1 }).lean().exec();
+      const doc = await this.folderModel.findOne(query, { _id: 1 }).lean().exec();
       return { success: true, data: !!doc };
     } catch (error) {
       return {
