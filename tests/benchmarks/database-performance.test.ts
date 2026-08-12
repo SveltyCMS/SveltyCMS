@@ -429,6 +429,10 @@ function createCountCachedTest(db: any) {
     ...GLOBAL_TENANT_OPTS,
     mode: "exact" as const,
     skipMeta: true,
+    // This scenario measures the count-cache — it must NOT inherit the
+    // global bypassCache:true policy opt-out, or it measures an uncached
+    // COUNT while claiming to measure the cache.
+    bypassCache: false,
   });
   let warmed = false;
   return async () => {

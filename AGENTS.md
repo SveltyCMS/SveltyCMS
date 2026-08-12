@@ -723,7 +723,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 2. **Async Init**: Await `dbInitPromise`.
 3. **Date Handling & ISO Strings**:
    - **Type Safety**: Use `ISODateString` from `@src/content/types` for all dates in entities.
-   - **Utility**: Use `@src/utils/date-utils.ts` for ALL date operations.
+   - **Utility**: Use `@src/utils/date` (`nowISODateString`, `isoDateStringToDate`, `toISOString`) for ALL date operations.
    - **Current Time**: Always use `nowISODateString()` instead of `new Date().toISOString()`.
    - **Drizzle Consistency**: When assigning to Drizzle `Date` columns (MariaDB/SQLite), wrap ISO strings in `isoDateStringToDate()`: `updatedAt: isoDateStringToDate(nowISODateString())`.
    - **Database Agnostic**: Use `toISOString(value)` when reading from any database to ensure a consistent `ISODateString`.

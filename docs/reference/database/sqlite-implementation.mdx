@@ -104,6 +104,8 @@ The SQLite adapter implements a robust provisioning system that handles the comp
 1.  **Idempotent Provisioning**: The `provision()` method checks the internal `_provisioned` state and only executes schema creation (`CREATE TABLE IF NOT EXISTS`) if necessary.
 2.  **Explicit Reset**: During integration tests or system resets, `clearDatabase()` drops all tables and resets the `_provisioned` flag, ensuring the next access re-creates a clean schema.
 3.  **Path Auto-Creation**: The adapter automatically detects if the `DB_HOST` directory exists and creates it recursively if missing, preventing "File not found" errors on new installations.
+4.  **TTL-Equivalent Cleanup**: `cleanupExpiredData()` purges expired sessions/tokens (with consumed-token GC after 7 days) via parameter-bound DELETE — replicating MongoDB's TTL indexes for SQL (same as MariaDB/PostgreSQL).
+5.  **Boot Migration Lock**: Schema migrations run once under `withMigrationLock` at `provision()` — multi-instance boots cannot race DDL.
 
 ### ESM-First Driver Loading
 
