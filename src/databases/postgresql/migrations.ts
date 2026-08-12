@@ -113,6 +113,29 @@ async function createTablesIfNotExist(sql: postgres.Sql): Promise<void> {
     "CREATE INDEX IF NOT EXISTS auth_tokens_expires_idx ON auth_tokens (expires)",
     `CREATE INDEX IF NOT EXISTS auth_tokens_tenant_idx ON auth_tokens ("tenantId")`,
 
+    // Auth API Keys
+    `CREATE TABLE IF NOT EXISTS auth_api_keys (
+				"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+				"name" VARCHAR(255) NOT NULL,
+				"hash" VARCHAR(255) NOT NULL,
+				"prefix" VARCHAR(12) NOT NULL,
+				"userId" VARCHAR(36) NOT NULL,
+				"scopes" JSONB NOT NULL DEFAULT '[]',
+				"permissions" JSONB NOT NULL DEFAULT '[]',
+				"revoked" BOOLEAN NOT NULL DEFAULT FALSE,
+				"usageCount" INT NOT NULL DEFAULT 0,
+				"lastUsedAt" TIMESTAMP WITH TIME ZONE,
+				"lastUsedIp" VARCHAR(45),
+				"expiresAt" TIMESTAMP WITH TIME ZONE,
+				"tenantId" VARCHAR(36),
+				"createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				"updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)`,
+    "CREATE UNIQUE INDEX IF NOT EXISTS auth_api_keys_hash_unique ON auth_api_keys (hash)",
+    `CREATE INDEX IF NOT EXISTS auth_api_keys_user_idx ON auth_api_keys ("userId")`,
+    `CREATE INDEX IF NOT EXISTS auth_api_keys_tenant_idx ON auth_api_keys ("tenantId")`,
+    `CREATE INDEX IF NOT EXISTS auth_api_keys_tenant_hash_idx ON auth_api_keys ("tenantId", "hash")`,
+
     // Roles
     `CREATE TABLE IF NOT EXISTS roles (
 			"_id" VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,

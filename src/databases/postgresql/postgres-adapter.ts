@@ -9,6 +9,7 @@ import { PostgresAdapterCore } from "./adapter-core";
 import * as utils from "../core/relational-utils";
 import { PostgresQueryBuilder } from "./postgres-query-builder";
 import { PostgresFtsAdapter } from "./fts-adapter";
+import { withMigrationLock } from "../migration-lock";
 
 export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter {
   public readonly type = "postgresql";
@@ -45,15 +46,20 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
     const result = await super.connect(connectionOrOptions, options);
     if (result.success && this.sql) {
       const { runMigrations } = await import("./migrations");
-      const migrationResult = await runMigrations(this.sql);
-      if (!migrationResult.success) {
+      const sql = this.sql; // narrowed non-null for the lock closure
+      // 🛡️ HARDENING: Advisory lock so only one instance runs boot migrations
+      let migrationError: string | null = null;
+      await withMigrationLock(this as any, "postgresql", async () => {
+        const migrationResult = await runMigrations(sql);
+        if (!migrationResult.success) {
+          migrationError = migrationResult.error || "Unknown migration error";
+        }
+      });
+      if (migrationError) {
         return {
           success: false,
           message: "Migration failed",
-          error: utils.createDatabaseError(
-            "MIGRATION_FAILED",
-            migrationResult.error || "Unknown migration error",
-          ),
+          error: utils.createDatabaseError("MIGRATION_FAILED", migrationError),
         };
       }
     }

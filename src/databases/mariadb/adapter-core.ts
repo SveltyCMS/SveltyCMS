@@ -43,7 +43,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
     supportsTransactions: true,
     supportsIndexing: true,
     supportsFullTextSearch: true,
-    supportsAggregation: true,
+    supportsAggregation: false,
     supportsStreaming: false,
     supportsPartitioning: true,
     maxBatchSize: 1000,

@@ -104,6 +104,29 @@ async function createTablesIfNotExist(connection: mysql.Pool): Promise<void> {
 			INDEX tenant_idx (tenantId)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
+    // Auth API Keys
+    `CREATE TABLE IF NOT EXISTS auth_api_keys (
+			_id VARCHAR(36) PRIMARY KEY,
+			name VARCHAR(255) NOT NULL,
+			hash VARCHAR(255) NOT NULL,
+			prefix VARCHAR(12) NOT NULL,
+			userId VARCHAR(36) NOT NULL,
+			scopes JSON NOT NULL,
+			permissions JSON NOT NULL,
+			revoked BOOLEAN NOT NULL DEFAULT FALSE,
+			usageCount INT NOT NULL DEFAULT 0,
+			lastUsedAt DATETIME,
+			lastUsedIp VARCHAR(45),
+			expiresAt DATETIME,
+			tenantId VARCHAR(36),
+			createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			UNIQUE INDEX hash_unique (hash),
+			INDEX api_key_user_idx (userId),
+			INDEX api_key_tenant_idx (tenantId),
+			INDEX tenant_hash_idx (tenantId, hash)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
     // Roles
     `CREATE TABLE IF NOT EXISTS roles (
 			_id VARCHAR(36) PRIMARY KEY,

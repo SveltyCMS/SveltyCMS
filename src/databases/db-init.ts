@@ -118,13 +118,8 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     initialize: async (adapter) => {
       startServiceInitialization("database");
 
-      // 🚀 HARDENING: Run migrations before ANY services start
-      if (adapter.type === "sqlite") {
-        const { runMigrations } = await import("./sqlite/migrations");
-        const client = (adapter as any).sqlite;
-        await runMigrations(client);
-      }
-
+      // Migrations for SQLite run inside adapter.provision() (via ensure* below);
+      // PostgreSQL/MariaDB run them in their connect() implementations.
       const target = adapter as any;
       if (typeof target.ensureAuth === "function") await target.ensureAuth();
       if (typeof target.ensureSystem === "function") await target.ensureSystem();

@@ -32,6 +32,7 @@ import { MariaDBQueryBuilder } from "./maria-db-query-builder";
 import { AdapterCore } from "./adapter-core";
 import { MariaDBFtsAdapter } from "./fts-adapter";
 import { logger } from "@src/utils/logger";
+import { withMigrationLock } from "../migration-lock";
 
 function quoteMariaIdentifier(identifier: string): string {
   return `\`${identifier.replace(/`/g, "``")}\``;
@@ -100,14 +101,22 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
     const result = await super.connect(connectionOrOptions as any, options);
     if (result.success && this.pool) {
       const { runMigrations } = await import("./migrations");
-      const migrationResult = await runMigrations(this.pool);
-      if (!migrationResult.success) {
+      const pool = this.pool; // narrowed non-null for the lock closure
+      // 🛡️ HARDENING: Advisory lock so only one instance runs boot migrations
+      let migrationError: string | null = null;
+      await withMigrationLock(this as any, "mariadb", async () => {
+        const migrationResult = await runMigrations(pool);
+        if (!migrationResult.success) {
+          migrationError = migrationResult.error || "Unknown migration error";
+        }
+      });
+      if (migrationError) {
         return {
           success: false,
           message: "Migration failed",
           error: {
             code: "MIGRATION_FAILED",
-            message: migrationResult.error || "Unknown migration error",
+            message: migrationError,
           } as any,
         };
       }

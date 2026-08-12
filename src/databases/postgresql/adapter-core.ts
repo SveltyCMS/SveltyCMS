@@ -41,7 +41,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     supportsTransactions: true,
     supportsIndexing: true,
     supportsFullTextSearch: true,
-    supportsAggregation: true,
+    supportsAggregation: false,
     supportsStreaming: true,
     supportsPartitioning: true,
     maxBatchSize: 1000,

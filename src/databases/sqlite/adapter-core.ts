@@ -26,6 +26,7 @@ import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
 import { SQLiteQueryBuilder } from "./sq-lite-query-builder";
 import { TransactionModule } from "./transaction-module";
+import { withMigrationLock } from "../migration-lock";
 
 // Pre-register system table schemas for optimal row conversion
 for (const [tableName, columns] of Object.entries(helpers.SYSTEM_LITERAL_COLUMNS)) {
@@ -804,7 +805,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     this._provisionPromise = (async () => {
       try {
         const { runMigrations } = await import("./migrations");
-        await runMigrations(this._sqlite);
+        // 🛡️ HARDENING: File-based lock so only one instance runs boot migrations
+        await withMigrationLock(this as any, "sqlite", async () => {
+          await runMigrations(this._sqlite);
+        });
         await this._warmTableRegistry();
         this._provisioned = true;
       } catch (err: any) {
@@ -1009,7 +1013,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     supportsTransactions: true,
     supportsIndexing: true,
     supportsFullTextSearch: false,
-    supportsAggregation: true,
+    supportsAggregation: false,
     supportsStreaming: false,
     supportsPartitioning: false,
     maxBatchSize: 100,

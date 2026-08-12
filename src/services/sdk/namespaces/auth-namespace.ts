@@ -4,6 +4,7 @@
  */
 import { AppError, getErrorMessage, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
 import { verifyPassword } from "@utils/security/crypto";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
@@ -44,7 +45,7 @@ async function safeCall<T>(fn: () => Promise<T>, context?: string): Promise<Data
     };
   }
 }
-import type { Role } from "@src/databases/auth/types";
+import type { Role, User } from "@src/databases/auth/types";
 
 import { type LocalApiOptions } from "./types";
 
@@ -350,6 +351,29 @@ export class AuthNamespace {
       }
 
       const user = result.data;
+
+      // --- ACCOUNT LOCKOUT CHECK (parity with Auth.authenticate) ---
+      if (user.lockoutUntil) {
+        const lockoutDate = isoDateStringToDate(user.lockoutUntil);
+        if (lockoutDate > new Date()) {
+          const remainingMinutes = Math.ceil((lockoutDate.getTime() - Date.now()) / 60000);
+          logger.warn("Authentication attempt on locked account", {
+            email,
+            lockoutUntil: user.lockoutUntil,
+          });
+          throw new AppError(
+            `Account is temporarily locked. Please try again in ${remainingMinutes} minutes.`,
+            423,
+            "ACCOUNT_LOCKED",
+          );
+        }
+        // Lockout expired, clear it
+        await auth.updateUserAttributes(user._id, {
+          lockoutUntil: null,
+          failedAttempts: 0,
+        });
+      }
+
       if (user.blocked || !user.password) {
         logger.debug("Login failed: User blocked or no password", {
           userId: user._id,
@@ -360,11 +384,49 @@ export class AuthNamespace {
       if (password) {
         const isValid = await verifyPassword(user.password, password);
         if (!isValid) {
-          logger.debug("Login failed: Password mismatch", {
-            userId: user._id,
-            email: user.email,
-          });
+          // --- FAILED ATTEMPT TRACKING (parity with Auth.authenticate) ---
+          const failedAttempts = (user.failedAttempts || 0) + 1;
+          const updates: Partial<User> = { failedAttempts };
+
+          if (failedAttempts >= 5) {
+            // Lock for 15 minutes after 5 failures
+            const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000);
+            updates.lockoutUntil = dateToISODateString(lockoutUntil);
+            logger.error("Account locked due to multiple failed attempts", {
+              email,
+            });
+          }
+
+          try {
+            await auth.updateUserAttributes(user._id, updates, {
+              tenantId: tenantId as DatabaseId,
+            });
+          } catch (err) {
+            // Non-critical — login still fails, but the counter must not break the flow
+            logger.warn("Failed to persist failed-attempt counter", {
+              email,
+              userId: user._id,
+              error: getErrorMessage(err),
+            });
+          }
+          logger.warn("Password authentication failed", { email, failedAttempts });
           throw new AppError("Invalid credentials", 401);
+        }
+      }
+
+      // --- SUCCESS: RESET LOCKOUT STATE (parity with Auth.authenticate) ---
+      if (user.failedAttempts || user.lockoutUntil) {
+        try {
+          await auth.updateUserAttributes(user._id, {
+            failedAttempts: 0,
+            lockoutUntil: null,
+          });
+        } catch (err) {
+          logger.warn("Failed to reset failed-attempt counter", {
+            email,
+            userId: user._id,
+            error: getErrorMessage(err),
+          });
         }
       }
 

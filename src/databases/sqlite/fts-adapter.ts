@@ -58,10 +58,14 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
 
     const filterSQL = this.buildFilterSQL(options);
 
+    // The FTS5 virtual table is created by the migrations with an explicit
+    // "_id" column (UNINDEXED) that mirrors content_nodes._id (TEXT UUID) via
+    // triggers — see sqlite/migrations.ts. The implicit FTS rowid is an integer
+    // and can never match a TEXT UUID, so the join must use the mirror column.
     const rawSQL = `
       SELECT c.*, bm25(${ftsTable}) AS relevance
       FROM "${ftsTable}" fts
-      JOIN "${collection}" c ON c._id = fts.rowid
+      JOIN "${collection}" c ON c._id = fts."_id"
       WHERE ${ftsTable} MATCH '${ftsQuery.replace(/'/g, "''")}'
       ${filterSQL}
       ORDER BY relevance
