@@ -4,7 +4,12 @@
  */
 
 import type { ApiKey } from "@src/databases/auth/types";
-import type { DatabaseId, DatabaseResult, BaseQueryOptions } from "@src/databases/db-interface";
+import type {
+  ApiKeyUsageUpdate,
+  DatabaseId,
+  DatabaseResult,
+  BaseQueryOptions,
+} from "@src/databases/db-interface";
 import mongoose, { Schema, type Model } from "mongoose";
 import { generateId, getOrCreateModel } from "./mongodb-utils";
 import { safeQuery } from "@src/utils/security/safe-query";
@@ -169,6 +174,7 @@ export class ApiKeyAdapter {
     id: DatabaseId,
     ip?: string,
     options?: BaseQueryOptions,
+    usage?: ApiKeyUsageUpdate,
   ): Promise<DatabaseResult<void>> {
     try {
       const tenantId = options?.tenantId;
@@ -176,8 +182,8 @@ export class ApiKeyAdapter {
       const res = await this.ApiKeyModel.findOneAndUpdate(
         filter,
         {
-          $set: { lastUsedAt: new Date(), lastUsedIp: ip || null },
-          $inc: { usageCount: 1 },
+          $set: { lastUsedAt: usage?.lastUsedAt ?? new Date(), lastUsedIp: ip || null },
+          $inc: { usageCount: usage?.usageCount ?? 1 },
         },
         { returnDocument: "after" },
       ).lean();

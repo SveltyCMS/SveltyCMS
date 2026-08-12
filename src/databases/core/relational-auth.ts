@@ -21,6 +21,7 @@ import type {
   User,
   ISqlAdapter,
   ApiKey,
+  ApiKeyUsageUpdate,
 } from "../db-interface";
 import * as utils from "./relational-utils";
 import type { ISODateString } from "@src/content/types";
@@ -1602,6 +1603,7 @@ export class RelationalAuthModule implements IAuthAdapter {
     id: DatabaseId,
     ip?: string,
     options?: BaseQueryOptions,
+    usage?: ApiKeyUsageUpdate,
   ): Promise<DatabaseResult<void>> {
     return this.adapter.wrap(
       async () => {
@@ -1615,12 +1617,15 @@ export class RelationalAuthModule implements IAuthAdapter {
         }
 
         const now = isoDateStringToDate(nowISODateString());
+        const lastUsedAt = usage?.lastUsedAt
+          ? isoDateStringToDate(usage.lastUsedAt.toISOString() as ISODateString)
+          : now;
         await this.getDb(options)
           .update(this.schema.authApiKeys)
           .set({
-            lastUsedAt: now,
+            lastUsedAt,
             lastUsedIp: ip || null,
-            usageCount: sql`${this.schema.authApiKeys.usageCount} + 1`,
+            usageCount: sql`${this.schema.authApiKeys.usageCount} + ${usage?.usageCount ?? 1}`,
             updatedAt: now,
           })
           .where(and(...conditions));

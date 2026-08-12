@@ -10,7 +10,7 @@ import type { ISODateString, DatabaseId, FieldDefinition, BaseEntity } from "@sr
 
 // Re-export client-safe constants from the dedicated file
 // This preserves backward compatibility for all existing server-side consumers
-export { PermissionAction, PermissionType, icon, color } from "./permission-constants";
+export { PermissionAction, PermissionType } from "./permission-constants";
 export type {
   PermissionAction as PermissionActionType,
   PermissionType as PermissionTypeType,
@@ -222,31 +222,6 @@ export interface RateLimit {
   windowMs: number; // Time window in milliseconds
 }
 
-// Sanitizes a permissions dictionary by removing empty roles
-export const sanitizePermissions = (permissions: Record<string, Record<string, boolean>>) => {
-  const res = Object.entries(permissions).reduce(
-    (acc, [role, actions]) => {
-      const nonEmptyActions = Object.entries(actions).reduce(
-        (actionAcc, [action, value]) => {
-          if (value !== false) {
-            actionAcc[action] = value;
-          }
-          return actionAcc;
-        },
-        {} as Record<string, boolean>,
-      );
-
-      if (Object.keys(nonEmptyActions).length > 0) {
-        acc[role] = nonEmptyActions;
-      }
-      return acc;
-    },
-    {} as Record<string, Record<string, boolean>>,
-  );
-
-  return Object.keys(res).length === 0 ? undefined : res;
-};
-
 // Model Interface for Generic CRUD Operations
 export interface Model<T> {
   // Counts the number of documents matching the query
@@ -269,7 +244,6 @@ export interface Model<T> {
 
 // Additional Types
 export type WidgetId = string; // Unique identifier for a widget
-export declare const permissionMap: Map<string, Permission>;
 export type PermissionId = string;
 export type ConfigPermissionAction = string;
 export type Field = FieldDefinition;
@@ -281,22 +255,4 @@ export interface Schema {
   permissions?: RolePermissions; // Role-based permissions associated with the schema
   revision?: boolean; // Indicates if the schema supports revisions
   status?: string; // Optional status of the schema
-}
-
-// Helper to assign all permissions to a role (e.g., admin)
-export function assignAllPermissionsToRole(role: Role): Role {
-  return {
-    ...role,
-    permissions: Array.from(permissionMap.keys()),
-  };
-}
-
-// Helper to assign permissions by type or action
-export function assignPermissionsByFilter(role: Role, filter: (perm: Permission) => boolean): Role {
-  return {
-    ...role,
-    permissions: Array.from(permissionMap.values())
-      .filter(filter)
-      .map((perm) => perm._id as string),
-  };
 }

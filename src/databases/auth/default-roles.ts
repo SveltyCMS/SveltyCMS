@@ -13,7 +13,7 @@
  * - Database-first: defaultRoles are reference data, DB is source of truth
  */
 
-import { getAllPermissions } from "@src/databases/auth";
+import { getAllPermissions } from "./permissions";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/content/types";
 

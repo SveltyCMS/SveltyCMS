@@ -244,8 +244,6 @@ function stubServerModulesPlugin(): Plugin {
     "/src/databases/auth/session-manager.ts",
     "/src/databases/auth/two-factor-auth.ts",
     "/src/databases/auth/permissions.ts",
-    "/src/databases/cache/redis-store.ts",
-    "/src/databases/cache/inmemory-store.ts",
     "/src/content/engine.server.ts",
     "/src/content/loader.server.ts",
     "/src/components/emails/",

@@ -52,7 +52,7 @@ export {
 
 // Export safe constants
 export { generateRandomToken, generateTokenWithExpiry, SESSION_COOKIE_NAME } from "./constants";
-export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from "./two-factor-auth-types";
+export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from "./two-factor-auth";
 export type {
   Permission,
   PermissionAction,

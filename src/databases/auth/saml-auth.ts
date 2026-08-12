@@ -16,6 +16,7 @@ import { dbAdapter } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { json } from "@sveltejs/kit";
 import { dateToISODateString } from "@utils/date";
+import { getSessionCookieName, isSecureCookieContext } from "./constants";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -189,11 +190,21 @@ export async function handleSAMLACS(request: Request, cookies?: any) {
   try {
     const { user, session } = await processSAMLResponse(SAMLResponse, RelayState);
 
-    // Set Session Cookie
+    // Set Session Cookie — mirror the canonical cookie policy (see
+    // handle-authentication.ts): __Host-/__Secure- prefix and Secure flag in
+    // secure contexts via the constants.ts helpers.
+    let isSecure = false;
+    try {
+      const requestUrl = new URL(request.url);
+      isSecure = isSecureCookieContext(requestUrl.protocol, requestUrl.hostname);
+    } catch {
+      // Malformed/missing request URL (e.g. unit-test mocks) — plain cookie name
+    }
+    const cookieName = getSessionCookieName(isSecure);
     const response = json({ success: true, user });
     response.headers.append(
       "Set-Cookie",
-      `auth_sessions=${session._id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
+      `${cookieName}=${session._id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400${isSecure ? "; Secure" : ""}`,
     );
 
     return response;

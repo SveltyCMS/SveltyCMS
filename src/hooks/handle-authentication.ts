@@ -29,7 +29,8 @@ import {
   isSecureCookieContext,
 } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
-import { isValidApiKeyFormat, hashApiKeyWithLegacy } from "@src/databases/auth/api-keys";
+import { isValidApiKeyFormat, hashApiKey, hashApiKeyLegacy } from "@src/databases/auth/api-keys";
+import { recordApiKeyUsage } from "@src/databases/auth/api-key-usage-accumulator";
 import {
   getApiKeyAuthCacheSync,
   getWebsiteTokenAuthCacheSync,
@@ -903,9 +904,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       if (tokenValue) {
         if (isValidApiKeyFormat(tokenValue)) {
           // --- API Key Authentication (sck_...) ---
-          const hashes = hashApiKeyWithLegacy(tokenValue);
-          const hash = hashes.current;
-          const legacyHash = hashes.legacy;
+          const hash = hashApiKey(tokenValue);
           if (isApiKeyAuthNegativeHit(hash, locals.tenantId as DatabaseId)) {
             return await resolve(event);
           }
@@ -918,28 +917,28 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             locals.tenantId = (cachedKeyData.tenantId as DatabaseId) || locals.tenantId;
             logger.debug(`[Auth] Authenticated via API Key (Cache Hit)`);
 
-            // Fire-and-forget: update usage statistics in the background
+            // Batched usage statistics — aggregated in memory, flushed periodically.
             // getClientIp uses platform address only — never trust raw X-Forwarded-For
             const clientIp = getClientIp(event);
-            dbAdapter.auth
-              .updateApiKeyUsage(
-                (cachedKeyData.user._id as string).replace("apikey:", "") as DatabaseId,
-                clientIp,
-                {
-                  tenantId: locals.tenantId,
-                },
-              )
-              .catch(() => {});
+            recordApiKeyUsage(
+              (cachedKeyData.user._id as string).replace("apikey:", ""),
+              clientIp,
+              locals.tenantId,
+            );
           } else {
             metricsService.incrementAuthValidations();
             let res = await dbAdapter.auth.getApiKey(hash, {
               tenantId: locals.tenantId,
             });
             // Fallback: try legacy SHA-256 hash for keys created before HMAC migration
-            if (!res.success && legacyHash !== hash) {
-              res = await dbAdapter.auth.getApiKey(legacyHash, {
-                tenantId: locals.tenantId,
-              });
+            // (computed lazily — only a DB miss pays for the legacy digest)
+            if (!res.success) {
+              const legacyHash = hashApiKeyLegacy(tokenValue);
+              if (legacyHash !== hash) {
+                res = await dbAdapter.auth.getApiKey(legacyHash, {
+                  tenantId: locals.tenantId,
+                });
+              }
             }
             if (res.success && res.data) {
               const apiKey = res.data;
@@ -984,14 +983,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
                   locals.tenantId as DatabaseId,
                 ).catch((err: any) => logger.warn(`Failed to cache API Key: ${err.message}`));
 
-                // Fire-and-forget: update usage count and last used IP
+                // Batched usage statistics — aggregated in memory, flushed periodically.
                 // getClientIp uses platform address only — never trust raw X-Forwarded-For
                 const clientIp = getClientIp(event);
-                dbAdapter.auth
-                  .updateApiKeyUsage(apiKey._id, clientIp, {
-                    tenantId: locals.tenantId,
-                  })
-                  .catch(() => {});
+                recordApiKeyUsage(apiKey._id, clientIp, locals.tenantId);
 
                 logger.debug(`[Auth] Authenticated via API Key: ${apiKey.name}`);
               }

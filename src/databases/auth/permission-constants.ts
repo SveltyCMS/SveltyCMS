@@ -10,7 +10,6 @@
  * Features:
  * - client-safe permission action constants
  * - client-safe permission type constants
- * - UI icon and color mappings for permission actions
  */
 
 // Permission Actions
@@ -38,29 +37,3 @@ export const PermissionType = {
 } as const;
 
 export type PermissionType = (typeof PermissionType)[keyof typeof PermissionType];
-
-// Icon and Color Mapping for Permissions (UI display)
-export const icon = {
-  create: "bi:plus-circle-fill",
-  read: "bi:eye-fill",
-  write: "bi:pencil-fill",
-  delete: "bi:trash-fill",
-  share: "bi:share-fill",
-} as const;
-
-export const color = {
-  disabled: {
-    create: "preset-outline-primary-500",
-    read: "preset-outline-tertiary-500",
-    write: "variant-outline-warning",
-    delete: "variant-outline-error",
-    share: "preset-outline-secondary-500",
-  },
-  enabled: {
-    create: "preset-filled-tertiary-500 dark:preset-filled-primary-500",
-    read: "preset-filled-tertiary-500",
-    write: "variant-filled-warning",
-    delete: "preset-filled-error-500",
-    share: "variant-filled-secondary",
-  },
-} as const;

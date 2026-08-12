@@ -130,7 +130,7 @@ export async function decryptTotpSecret(stored: string): Promise<string | null> 
   if (!stored) return null;
 
   // Backward compatibility: if it looks like a base32 TOTP secret and NOT an envelope, it's legacy plaintext
-  if (!stored.startsWith("AQ") && /^[A-Z2-7]+=*$/.test(stored) && stored.length >= 16) {
+  if (!stored.startsWith("AQ") && isValidTOTPSecret(stored)) {
     return stored;
   }
 
@@ -343,12 +343,13 @@ export function generateManualEntryDetails(
   };
 }
 
-export async function getCurrentTOTPCode(secret: string): Promise<string> {
+/**
+ * RFC 6238 code computation for a given time counter: HMAC-SHA1 over the
+ * 8-byte big-endian counter buffer with dynamic truncation to 6 digits.
+ * The caller is responsible for decoding the base32 secret once.
+ */
+async function computeTotpCode(counter: number, keyBuffer: Buffer): Promise<string> {
   const cryptoModule = await getCrypto();
-  const now = Math.floor(Date.now() / 1000);
-  const counter = Math.floor(now / TOTP_CONFIG.STEP);
-
-  const keyBuffer = base32Decode(secret);
   const counterBuffer = Buffer.alloc(8);
   counterBuffer.writeUInt32BE(Math.floor(counter / 0x1_00_00_00_00), 0);
   counterBuffer.writeUInt32BE(counter & 0xff_ff_ff_ff, 4);
@@ -364,8 +365,14 @@ export async function getCurrentTOTPCode(secret: string): Promise<string> {
     ((digest[offset + 2] & 0xff) << 8) |
     (digest[offset + 3] & 0xff);
 
-  const code = (truncated % 10 ** TOTP_CONFIG.DIGITS).toString().padStart(TOTP_CONFIG.DIGITS, "0");
-  return code;
+  return (truncated % 10 ** TOTP_CONFIG.DIGITS).toString().padStart(TOTP_CONFIG.DIGITS, "0");
+}
+
+export async function getCurrentTOTPCode(secret: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const counter = Math.floor(now / TOTP_CONFIG.STEP);
+
+  return computeTotpCode(counter, base32Decode(secret));
 }
 
 export async function verifyTOTPCode(secret: string, userCode: string): Promise<boolean> {
@@ -375,30 +382,12 @@ export async function verifyTOTPCode(secret: string, userCode: string): Promise<
 
   const cryptoModule = await getCrypto();
   const now = Math.floor(Date.now() / 1000);
+  const keyBuffer = base32Decode(secret); // Decode once; shared across all windows
 
   // Check current window and adjacent windows (for time drift tolerance)
   for (let i = -TOTP_CONFIG.WINDOW; i <= TOTP_CONFIG.WINDOW; i++) {
     const counter = Math.floor(now / TOTP_CONFIG.STEP) + i;
-
-    const keyBuffer = base32Decode(secret);
-    const counterBuffer = Buffer.alloc(8);
-    counterBuffer.writeUInt32BE(Math.floor(counter / 0x1_00_00_00_00), 0);
-    counterBuffer.writeUInt32BE(counter & 0xff_ff_ff_ff, 4);
-
-    const hmac = cryptoModule.createHmac(TOTP_CONFIG.ALGORITHM, keyBuffer);
-    hmac.update(counterBuffer);
-    const digest = hmac.digest();
-
-    const offset = digest.at(-1)! & 0xf;
-    const truncated =
-      ((digest[offset] & 0x7f) << 24) |
-      ((digest[offset + 1] & 0xff) << 16) |
-      ((digest[offset + 2] & 0xff) << 8) |
-      (digest[offset + 3] & 0xff);
-
-    const code = (truncated % 10 ** TOTP_CONFIG.DIGITS)
-      .toString()
-      .padStart(TOTP_CONFIG.DIGITS, "0");
+    const code = await computeTotpCode(counter, keyBuffer);
 
     // Timing-safe comparison
     if (

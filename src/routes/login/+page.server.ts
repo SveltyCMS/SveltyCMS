@@ -6,8 +6,11 @@
  * The form actions below parse formData and delegate to those functions.
  */
 
-import { generateGoogleAuthUrl, googleAuth } from "@src/databases/auth/google-auth";
-import { generateGithubAuthUrl } from "@src/databases/auth/github-auth";
+import {
+  generateGithubAuthUrl,
+  generateGoogleAuthUrl,
+  googleAuth,
+} from "@src/databases/auth/google-auth";
 import { auth, dbInitPromise } from "@src/databases/db";
 import { readSessionCookie } from "@src/databases/auth/constants";
 import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";

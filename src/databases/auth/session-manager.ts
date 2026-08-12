@@ -245,9 +245,6 @@ export function createSessionManager(redisClient?: RedisLike): SessionStore {
 // Export the manager classes for direct use if needed
 export { InMemorySessionManager, RedisSessionManager };
 
-// Legacy aliases for backward compatibility
-export { InMemorySessionManager as InMemorySessionStore, RedisSessionManager as RedisSessionStore };
-
 // Default session manager instance
 const SESSION_STORE_GLOBAL_KEY = "__SVELTY_SESSION_STORE__";
 
