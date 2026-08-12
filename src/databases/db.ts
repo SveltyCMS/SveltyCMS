@@ -307,7 +307,6 @@ export async function ensureFullInitialization(): Promise<any | null> {
         adapter,
         `Database Boot (${cfg?.DB_TYPE || "unknown"})`,
       );
-      logger.info(`[Boot] Connection result: ${connectionResult.success}`);
       if (!connectionResult.success) {
         throw new Error(`Database connection failed: ${connectionResult.message}`);
       }

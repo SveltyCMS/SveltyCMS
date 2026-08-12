@@ -1,6 +1,11 @@
 /**
  * @file src/databases/cache/types.ts
- * @description Type definitions for the SveltyCMS caching system.
+ * @description Client-safe cache types and metrics interfaces.
+ *
+ * The cache engine itself lives in cache-service.ts (L1 LRU + L2 Redis with
+ * pipelining, stampede locks, pub/sub invalidation). The standalone
+ * CacheStore abstraction and its in-memory/redis implementations were removed
+ * (2026-08) — the engine never used them.
  */
 
 export enum CacheCategory {
@@ -18,12 +23,6 @@ export enum CacheCategory {
   WIDGET = "widget",
 }
 
-export interface CacheOptions {
-  category?: CacheCategory;
-  tags?: string[];
-  ttl?: number;
-}
-
 export interface CacheStats {
   evictions: number;
   hits: number;
@@ -33,23 +32,4 @@ export interface CacheStats {
   l1Size: number;
   size: number;
   deletes: number;
-}
-
-export interface CacheEntry<T = any> {
-  category: CacheCategory;
-  createdAt: number;
-  data: T;
-  expiresAt: number;
-  tags: string[];
-}
-
-export interface CacheStore {
-  initialize(): Promise<void>;
-  get<T>(key: string): Promise<T | null>;
-  set<T>(key: string, value: T, ttlSeconds: number, tags?: string[]): Promise<void>;
-  delete(key: string | string[]): Promise<void>;
-  clearByPattern(pattern: string): Promise<void>;
-  clearByTags(tags: string[]): Promise<void>;
-  disconnect(): Promise<void>;
-  getClient(): any | null;
 }

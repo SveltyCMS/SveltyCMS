@@ -11,7 +11,7 @@ import {
   setupBenchmarkServer,
   printTruthTable,
   printSummaryTable,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
   getDbType,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
@@ -19,12 +19,11 @@ import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
 
-// Reusable static structure layout
-const STATIC_AUTH_HEADERS = new Headers([
-  ["x-test-mode", "true"],
-  ["x-test-secret", TEST_API_SECRET],
-  ["connection", "keep-alive"],
-]);
+// Headers are built lazily after setupBenchmarkServer() — the REAL admin
+// session cookie only exists once the server is up and the login completed.
+function staticAuthHeaders(): Headers {
+  return new Headers([...Object.entries(benchmarkAuthHeaders()), ["connection", "keep-alive"]]);
+}
 
 async function runAuthAudit() {
   console.log(`🚀 Starting Enterprise Auth & RBAC Audit (${getDbType().toUpperCase()})...\n`);
@@ -39,7 +38,7 @@ async function runAuthAudit() {
     const targetUrl = `${baseUrl}/api/user/me`;
     const fetchConfig: RequestInit = {
       method: "GET",
-      headers: STATIC_AUTH_HEADERS,
+      headers: staticAuthHeaders(),
       keepalive: true,
     };
 

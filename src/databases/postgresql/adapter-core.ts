@@ -41,7 +41,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     supportsTransactions: true,
     supportsIndexing: true,
     supportsFullTextSearch: true,
-    supportsAggregation: true,
+    supportsAggregation: false,
     supportsStreaming: true,
     supportsPartitioning: true,
     maxBatchSize: 1000,
@@ -159,15 +159,26 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
         })
         .join(", ");
-      const boundValues = synthCols.map((c) => {
+      const boundValues: any[] = [];
+      const placeholders = synthCols.map((c) => {
+        const phys = this.getColumn(table, c);
+        const physName = phys?.name ?? c;
         const v = synthesized[c];
-        if (v instanceof Date) return (v as Date).toISOString();
-        if (v !== null && typeof v === "object" && !Array.isArray(v)) return JSON.stringify(v);
-        return v;
+        if (v instanceof Date) {
+          boundValues.push((v as Date).toISOString());
+          return `$${boundValues.length}`;
+        }
+        if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+          boundValues.push(JSON.stringify(v));
+          // Explicit jsonb cast: prepared statements must not infer text for a
+          // jsonb column (42804 class: "column is of type jsonb but expression
+          // is of type text").
+          return physName === "data" ? `$${boundValues.length}::jsonb` : `$${boundValues.length}`;
+        }
+        boundValues.push(v);
+        return `$${boundValues.length}`;
       });
-      const sqlText = `INSERT INTO "${tableName}" (${colList}) VALUES (${synthCols
-        .map((_, i) => `$${i + 1}`)
-        .join(", ")})`;
+      const sqlText = `INSERT INTO "${tableName}" (${colList}) VALUES (${placeholders.join(", ")})`;
       await exec.unsafe(sqlText, boundValues, { prepare: true });
       return utils.convertDatesToISO(synthesized, {
         ...this.convertDatesOptions,
@@ -197,6 +208,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     const txnSql = this.getTxnSql(options);
     if (!inOuterTxn || txnSql) {
       const exec = txnSql ?? this.sql!;
+      // 🛡️ Partial-write guard: once ANY chunk executed, falling back to
+      // super.insertMany would re-insert the already-committed rows (PK
+      // collisions / duplicates). Only a clean pre-write failure may fall back.
+      let wroteAny = false;
       try {
         const table = this.getTable(collection);
         if (!table) throw new Error(`Table not found: ${collection}`);
@@ -217,8 +232,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         if (cols.size > 0) {
           const maxParams = 65000; // PG limit is 65535; headroom for safety
           const chunkSize = Math.max(1, Math.floor(maxParams / cols.size));
+          // Drizzle def property names may differ from physical column names
+          // (e.g. plugin_storage: collectionName → `collection`) — map before
+          // quoting or the INSERT throws 42703 on every call.
           const colList = Array.from(cols)
-            .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+            .map((c) => {
+              const phys = this.getColumn(table, c);
+              return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
+            })
             .join(", ");
           const rowsOut: any[] = [];
           for (let start = 0; start < len; start += chunkSize) {
@@ -237,17 +258,29 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
                   rowPlaceholders.push("default");
                   continue;
                 }
-                // String-bound dates/objects (describe-phase Bind quirk).
-                if (v instanceof Date) params.push((v as Date).toISOString());
-                else if (v !== null && typeof v === "object" && !Array.isArray(v))
+                const phys = this.getColumn(table, c);
+                const physName = phys?.name ?? c;
+                // String-bound dates/objects (describe-phase Bind quirk);
+                // jsonb params get an explicit cast so prepared statements
+                // never infer text for a jsonb column (42804/22P02 class).
+                if (v instanceof Date) {
+                  params.push((v as Date).toISOString());
+                  rowPlaceholders.push(`$${params.length}`);
+                } else if (v !== null && typeof v === "object" && !Array.isArray(v)) {
                   params.push(JSON.stringify(v));
-                else params.push(v);
-                rowPlaceholders.push(`$${params.length}`);
+                  rowPlaceholders.push(
+                    physName === "data" ? `$${params.length}::jsonb` : `$${params.length}`,
+                  );
+                } else {
+                  params.push(v);
+                  rowPlaceholders.push(`$${params.length}`);
+                }
               }
               valuesSql.push(`(${rowPlaceholders.join(", ")})`);
             }
             const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
             const rows = await exec.unsafe(sqlText, params, { prepare: true });
+            wroteAny = true;
             if (Array.isArray(rows) && rows.length > 0) rowsOut.push(...rows);
           }
           if (skipReturning) {
@@ -262,9 +295,28 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               }) as T[],
             };
           }
+          if (wroteAny) {
+            // RETURNING mismatch after committed chunks — retrying via the
+            // base path would re-insert committed rows. Fail instead.
+            return this.handleError(
+              new Error(
+                `Partial insertMany write for "${collection}" (${rowsOut.length}/${len} rows returned)`,
+              ),
+              "INSERT_MANY_PARTIAL_WRITE",
+            );
+          }
         }
-      } catch {
-        /* fall through to the base Drizzle path */
+      } catch (err) {
+        if (wroteAny) {
+          logger.warn(
+            `[PostgreSQL insertMany] raw path partially wrote "${collection}" — returning failure instead of re-inserting committed chunks`,
+          );
+          return this.handleError(
+            err instanceof Error ? err : new Error(String(err)),
+            "INSERT_MANY_PARTIAL_WRITE",
+          );
+        }
+        /* nothing written yet — safe to fall through to the base Drizzle path */
       }
     }
     return super.insertMany(collection, data, options);
@@ -342,7 +394,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           return !this.getColumn(table, String(f));
         });
       const selectCols = this.getRawFindByIdCols(table, wantsData)
-        .map((c) => `"${c}"`)
+        .map((c) => {
+          // Drizzle def property names may differ from physical column names
+          // (e.g. plugin_storage: collectionName → `collection`) — map before
+          // quoting or the SELECT throws 42703 and silently falls back to the
+          // slower Drizzle path on EVERY read.
+          const phys = this.getColumn(table, c);
+          return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
+        })
         .join(", ");
       // Tagged template (NOT unsafe): postgres.js caches prepared statements by
       // SQL text, so this stable query gets parse-once + bind/execute reuse.
@@ -352,7 +411,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // connection (consistent snapshot, no pool bypass).
       const exec = this.getTxnSql(options) ?? this.sql!;
       const selectFragment = exec.unsafe(selectCols);
-      const tableFragment = exec.unsafe(tableName);
+      // 🐛 FIX: identifiers must be quoted — PostgreSQL folds unquoted
+      // identifiers to lowercase, so mixed-case collection tables
+      // (e.g. collection_BenchmarkStable) errored with 42P01 and silently
+      // fell back to the slower Drizzle path on EVERY read.
+      const tableFragment = exec.unsafe(`"${tableName.replace(/"/g, '""')}"`);
       const rows = tenantId
         ? await exec`SELECT ${selectFragment} FROM ${tableFragment} WHERE "_id" = ${String(
             id,
@@ -420,6 +483,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       // Bound SET pairs via nested fragments (stable SQL text → prepared cache);
       // dates/objects bind as strings (describe-phase Bind quirk, same as insert).
+      // jsonb columns get an explicit ::jsonb cast so prepared statements never
+      // infer text for a jsonb column (42804 class).
       const setFrags = cols.map((c) => {
         const v = values[c];
         const bound =
@@ -431,9 +496,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         // Drizzle def property names may differ from physical column names
         // (e.g. plugin_storage: collectionName → `collection`).
         const phys = this.getColumn(table, c);
-        return exec`"${exec.unsafe(
-          utils.assertSafeSqlIdentifier(phys?.name ?? c, "column"),
-        )}" = ${bound}`;
+        const physName = phys?.name ?? c;
+        const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
+        return physName === "data" && typeof bound === "string"
+          ? exec`"${exec.unsafe(safeCol)}" = ${bound}::jsonb`
+          : exec`"${exec.unsafe(safeCol)}" = ${bound}`;
       });
       let setFrag = setFrags[0];
       for (let i = 1; i < setFrags.length; i++) {
@@ -443,7 +510,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const skipReturning = (options as any)?.skipReturning === true;
       const tenantId =
         options?.tenantId && options?.tenantId !== "global" ? String(options.tenantId) : null;
-      const tableFrag = exec.unsafe(getTableName(table));
+      // 🐛 FIX: identifiers must be quoted — PostgreSQL folds unquoted
+      // identifiers to lowercase, so mixed-case collection tables
+      // (e.g. collection_BenchmarkStable) errored with 42P01 and silently
+      // fell back to the slower Drizzle path on EVERY update.
+      const tableFrag = exec.unsafe(`"${getTableName(table).replace(/"/g, '""')}"`);
       if (skipReturning) {
         await (tenantId
           ? exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
@@ -471,6 +542,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         );
       }
 
+      const t0 = performance.now();
       const rows = await (tenantId
         ? exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
             idColName,
@@ -478,6 +550,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         : exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
             idColName,
           )}" = ${String(id)} RETURNING *`);
+      if (process.env.PROFILE_WRITE === "1") {
+        process.stderr.write(
+          `[WRITE-PROFILE] pg:raw-update-query: ${(performance.now() - t0).toFixed(3)}ms\n`,
+        );
+      }
       if (Array.isArray(rows) && rows.length > 0) {
         const finalData = utils.convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,
@@ -493,7 +570,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           { ...options, isWrite: true },
         );
       }
-    } catch {
+    } catch (err: any) {
+      if (process.env.PROFILE_WRITE === "1") {
+        process.stderr.write(`[WRITE-PROFILE] pg:raw-update-FALLBACK: ${err?.message}\n`);
+      }
       /* fall back to the base Drizzle path */
     }
     return super.update(collection, id, data, options);
@@ -1287,8 +1367,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     if (!this.sql) {
       throw new Error("[PostgreSQLAdapter] Database not connected — cannot set tenant context");
     }
-    // Use postgres.js tagged template for proper value escaping
-    await this.sql`SET SESSION app.tenant_id = ${value}`;
+    // PostgreSQL does NOT allow parameter placeholders ($1) inside SET
+    // statements (42601) — the supported mechanism is set_config().
+    await this.sql`SELECT set_config('app.tenant_id', ${value}, false)`;
   }
 
   /**
@@ -1320,11 +1401,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         // Enable RLS on the table (idempotent)
         await this.raw.execute(`ALTER TABLE "${physicalName}" ENABLE ROW LEVEL SECURITY`);
 
-        // Create or replace the tenant isolation policy
-        // The USING clause compares the table's tenant_id column with the
-        // session variable set by setTenantContext() at the start of each request.
+        // Create or replace the tenant isolation policy.
+        // The USING clause compares the table's double-quoted "tenantId" column
+        // (the exact name used in CREATE TABLE — unquoted tenant_id would fold
+        // to lowercase and throw 42703) with the session variable set by
+        // setTenantContext(). missing_ok=true makes an unset session context
+        // yield NULL → zero rows → fail-closed instead of raising an error.
         await this.raw.execute(
-          `CREATE POLICY tenant_isolation ON "${physicalName}" FOR ALL USING (tenant_id = current_setting('app.tenant_id')::text)`,
+          `CREATE POLICY tenant_isolation ON "${physicalName}" FOR ALL USING ("tenantId" = current_setting('app.tenant_id', true))`,
         );
       },
       "ENFORCE_TENANT_POLICY_FAILED",

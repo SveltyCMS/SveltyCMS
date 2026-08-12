@@ -5,7 +5,8 @@
  *
  * Optimized for:
  * - Security: Captures ALL mutation outcomes (success + failure) for compliance/forensics.
- * - Performance: Microtask scheduling (Promise.resolve) for non-blocking audit writes.
+ * - Performance: Macrotask scheduling (setTimeout) for non-blocking audit writes —
+ *   deferred until after the response flushes to the client.
  * - Correctness: Removed __turboAuth mutation bypass that skipped audit on some sessions.
  * - IP via `getClientIp()` only (no X-Forwarded-For spoofing).
  */
@@ -61,6 +62,12 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
     return response;
   } catch (err) {
     executionError = err;
+    // SvelteKit error(403)/redirect(302) throw objects carrying `.status` —
+    // capture the real code instead of logging every failure as 500.
+    const thrownStatus = (err as { status?: unknown } | null)?.status;
+    if (typeof thrownStatus === "number" && thrownStatus >= 100 && thrownStatus < 600) {
+      statusCode = thrownStatus;
+    }
     throw err;
   } finally {
     const durationMs = (performance.now() - start).toFixed(1);
@@ -68,8 +75,8 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
 
     // Detached asynchronous execution pathway: defer log compilation so the HTTP response flushes
     // to the client before computing IP resolution and structured logging.
-    Promise.resolve()
-      .then(() => {
+    setTimeout(() => {
+      try {
         const logEntry: Record<string, unknown> = {
           timestamp: new Date().toISOString(),
           method,
@@ -99,9 +106,9 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
         // Fast O(1) rolling Merkle accumulator update (< 5µs)
         const entryHash = `${method}:${path}:${userId}:${logEntry.timestamp}`;
         rollingMerkleAccumulator.appendLeaf(entryHash).catch(() => {});
-      })
-      .catch((err) => {
+      } catch (err) {
         logger.error("[AUDIT Fallback] Secondary log pipeline failed:", err);
-      });
+      }
+    }, 0);
   }
 };

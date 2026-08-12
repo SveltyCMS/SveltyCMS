@@ -9,6 +9,10 @@ import { dbAdapter } from "@src/databases/db";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { DatabaseId } from "@src/content/types";
 import { generateApiKey } from "@src/databases/auth/api-keys";
+import {
+  flushNow,
+  resetApiKeyUsageAccumulator,
+} from "@src/databases/auth/api-key-usage-accumulator";
 
 // Mock dependencies
 vi.mock("$app/environment", () => ({
@@ -85,6 +89,7 @@ describe("handleAuthentication Middleware - API Keys", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetApiKeyUsageAccumulator();
     clearAllSessionCaches();
     mockResolve = vi.fn(() => Promise.resolve(new Response("OK", { status: 200 })));
   });
@@ -117,11 +122,16 @@ describe("handleAuthentication Middleware - API Keys", () => {
     expect(user?._id).toBe("apikey:key-123");
     expect(user?.tenantId).toBe("t1");
     expect(user?.scopes).toContain("content:read");
-    // updateApiKeyUsage(keyId, clientIp, opts) — getClientIp returns the test
-    // loopback in TEST_MODE (hook-utils shortcut; no XFF trust).
-    expect(dbAdapter.auth.updateApiKeyUsage).toHaveBeenCalledWith("key-123", "127.0.0.1", {
-      tenantId: "t1",
-    });
+    // Usage stats are aggregated in memory; flush once to observe the single
+    // batched write. getClientIp returns the test loopback in TEST_MODE
+    // (hook-utils shortcut; no XFF trust).
+    await flushNow();
+    expect(dbAdapter.auth.updateApiKeyUsage).toHaveBeenCalledWith(
+      "key-123",
+      "127.0.0.1",
+      { tenantId: "t1" },
+      { usageCount: 1, lastUsedAt: expect.any(Date) },
+    );
     expect(mockResolve).toHaveBeenCalled();
   });
 

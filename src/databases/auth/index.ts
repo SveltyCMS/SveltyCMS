@@ -52,7 +52,7 @@ export {
 
 // Export safe constants
 export { generateRandomToken, generateTokenWithExpiry, SESSION_COOKIE_NAME } from "./constants";
-export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from "./two-factor-auth-types";
+export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from "./two-factor-auth";
 export type {
   Permission,
   PermissionAction,
@@ -74,7 +74,7 @@ import {
   verifyPassword as cryptoVerifyPassword,
 } from "@utils/security/crypto";
 // Import for internal use
-import { SESSION_COOKIE_NAME, getSessionCookieName } from "./constants";
+import { SESSION_COOKIE_NAME, getSessionCookieName, sessionTtlMs } from "./constants";
 
 /** Normalize email to lowercase for consistent lookups */
 function normalizeEmail(email: string): string {
@@ -882,8 +882,9 @@ export class Auth {
         );
       }
 
-      const ttlHours = Number(getPrivateSettingSync("SESSION_TTL_HOURS")) || 24;
-      const expiresAt = dateToISODateString(new Date(Date.now() + ttlHours * 60 * 60 * 1000));
+      const expiresAt = dateToISODateString(
+        new Date(Date.now() + sessionTtlMs(getPrivateSettingSync("SESSION_TTL_HOURS"))),
+      );
       const session = await this.createSession(
         {
           user_id: user._id,

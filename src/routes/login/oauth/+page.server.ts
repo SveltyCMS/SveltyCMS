@@ -7,8 +7,11 @@
 import { contentSystem } from "@src/content/index.server";
 import type { DatabaseId, ISODateString } from "@src/content/types";
 // System Logger
-import { generateGoogleAuthUrl, getOAuthRedirectUri } from "@src/databases/auth/google-auth";
-import { generateGithubAuthUrl } from "@src/databases/auth/github-auth";
+import {
+  generateGithubAuthUrl,
+  generateGoogleAuthUrl,
+  getOAuthRedirectUri,
+} from "@src/databases/auth/google-auth";
 //Db
 import { auth, dbInitPromise } from "@src/databases/db";
 // Cache invalidation

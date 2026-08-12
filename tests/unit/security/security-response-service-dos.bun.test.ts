@@ -61,11 +61,11 @@ describe("Persistent DoS Protection", () => {
     const first = await service.checkRateLimit(ip, endpoint, undefined, true, 10);
     expect(first.action).toBe("throttle");
 
-    await service.destroy();
+    service.destroySync();
     expect(await fileExists((service as any).DUMP_PATH)).toBe(true);
 
     (service as any).limiters.clear();
-    await (service as any).restoreState();
+    (service as any).restoreStateSync();
 
     const restored = await service.checkRateLimit(ip, endpoint, undefined, true, 1);
     expect(restored.action).toBe("throttle");
@@ -74,28 +74,30 @@ describe("Persistent DoS Protection", () => {
 
   test("should handle corrupt dump file gracefully", async () => {
     await fs.writeFile((service as any).DUMP_PATH, "{invalid json");
-    await (service as any).restoreState();
+    (service as any).restoreStateSync();
     const check = await service.checkRateLimit("5.5.5.5", "/test", undefined, true, 1);
     expect(check.action).toBe("allow");
   });
 
   test("should handle missing dump file gracefully", async () => {
     await safeUnlink((service as any).DUMP_PATH);
-    await (service as any).restoreState();
+    (service as any).restoreStateSync();
   });
 
   test("should clean up dump after successful restore", async () => {
     await service.checkRateLimit("10.0.0.1", "/api/test", undefined, true, 10);
-    await service.destroy();
-    await (service as any).restoreState();
+    service.destroySync();
+    (service as any).restoreStateSync();
     expect(await fileExists((service as any).DUMP_PATH)).toBe(false);
   });
 
   test("should handle concurrent restore attempts safely", async () => {
     await service.checkRateLimit("172.16.0.1", "/api/login", undefined, true, 8);
-    await service.destroy();
+    service.destroySync();
 
-    const restores = Array.from({ length: 5 }, () => (service as any).restoreState());
-    await Promise.all(restores);
+    // restoreStateSync is idempotent and synchronous — concurrent callers
+    // simply run sequentially; nothing is left floating.
+    (service as any).restoreStateSync();
+    (service as any).restoreStateSync();
   });
 });

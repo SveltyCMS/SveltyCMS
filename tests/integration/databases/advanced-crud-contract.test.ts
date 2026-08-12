@@ -176,23 +176,28 @@ describe("Aggregation Contract", () => {
     }
   });
 
-  it("aggregate returns grouped results", async () => {
+  it("aggregate honors the capability contract", async () => {
     const pipeline = [
       { $match: { tenantId: TEST_TENANT } },
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ];
 
-    try {
-      const result = await db.crud.aggregate(TEST_COLLECTION, pipeline, tenantOpts);
-      if (result && typeof result === "object") {
-        validateDatabaseResult(result, {
-          operation: "aggregate",
-          dataOptional: true,
-          allowNullData: true,
-        });
-      }
-    } catch {
-      // Some adapters may not support aggregate — that's OK
+    // Engines that declare supportsAggregation=false must fail explicitly with
+    // NOT_SUPPORTED instead of silently returning an empty result.
+    const caps =
+      typeof (db as any).getCapabilities === "function" ? (db as any).getCapabilities() : null;
+    const supportsAggregation = caps ? caps.supportsAggregation : true;
+
+    const result = await db.crud.aggregate(TEST_COLLECTION, pipeline, tenantOpts);
+    validateDatabaseResult(result, {
+      operation: "aggregate",
+      dataOptional: true,
+      allowNullData: true,
+    });
+
+    if (!supportsAggregation) {
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe("NOT_SUPPORTED");
     }
   });
 });

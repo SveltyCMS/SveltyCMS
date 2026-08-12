@@ -229,7 +229,7 @@ The admin dashboard is composed of modular Svelte 5 widget packages (one folder 
 
 ### Widget Discovery (dual registration + package folders)
 
-Each dashboard widget is a **self-contained package** in its own kebab-case folder under `src/routes/(app)/dashboard/widgets/<folder>/`, containing the entry component `index.svelte`, a `widget.json` manifest, and the required `readme.mdx` marketplace description (enforced by `scripts/check-dashboard-widget-packages.mjs`):
+Each dashboard widget is a **self-contained package** in its own kebab-case folder under `src/routes/(app)/dashboard/widgets/<folder>/`, containing the entry component `index.svelte`, a `widget.json` manifest, and the required `readme.mdx` marketplace description (validated manually via `bun run lint:widgets`):
 
 ```text
 widgets/system-health/

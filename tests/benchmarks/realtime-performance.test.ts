@@ -3,6 +3,12 @@
  * @description Real-Time Event Processing Benchmark (Optimized)
  * @summary Measures EventBus prefix filter function and Chat RPC handler overhead for SveltyCMS real-time event pipeline.
  *
+ * ⚠️ HONESTY NOTE: the real EventBus/chat handlers live in the standalone
+ * yjs-sync-server bundle and are not importable here — the scenarios below
+ * benchmark LOCAL re-implementations of the same logic. They measure the
+ * algorithm's cost, NOT the product's runtime. Do not publish these as
+ * "product" numbers.
+ *
  * ### Features:
  * - EventBus prefix filter micro-benchmark (bridged vs filtered events)
  * - Chat RPC handler validation, rate-limit check, and message creation overhead
@@ -64,7 +70,7 @@ async function runRealtimeAudit() {
     }
 
     const filterResult = await runBenchmark({
-      name: "Prefix Filter (bridged)",
+      name: "Prefix Filter (synthetic local copy)",
       iterations: 1000,
       warmupIterations: 100,
       runs: 2,
@@ -100,7 +106,7 @@ async function runRealtimeAudit() {
     const RATE_LIMIT_MAX_MSGS = 99999; // Raised buffer cap to allow full velocity profiling without hard aborts
 
     const chatResult = await runBenchmark({
-      name: "Chat RPC (validation)",
+      name: "Chat RPC (synthetic validation copy)",
       iterations: 300,
       warmupIterations: 30,
       runs: 2,
@@ -153,7 +159,7 @@ async function runRealtimeAudit() {
     console.log("   → Measuring system event object creation...");
 
     const eventObjResult = await runBenchmark({
-      name: "System Event Creation",
+      name: "System Event Creation (synthetic)",
       iterations: 500,
       warmupIterations: 50,
       runs: 2,

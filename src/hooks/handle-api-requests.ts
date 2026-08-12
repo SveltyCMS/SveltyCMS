@@ -35,6 +35,7 @@ import {
   negotiateEncoding,
   hasNativeCompression,
   setCompressionHeaders,
+  addVaryHeader,
   compressZstd,
 } from "./handle-compression";
 import {
@@ -97,21 +98,33 @@ function serveCachedEntry(cached: any, request: Request): Response {
   const preComp = algo ? cached.compressed?.[algo] : null;
   if (preComp) {
     const responseHeaders = new Headers(cached.headers || {});
+    // 🐛 FIX: cached.headers carries the ORIGINAL (uncompressed) Content-Length.
+    // Serving the compressed variant with it makes clients wait for bytes that
+    // never arrive → "socket closed unexpectedly" on every compressed cache hit.
+    responseHeaders.delete("content-length");
     responseHeaders.set("X-Cache", "HIT");
-    responseHeaders.set("Vary", "Accept-Encoding");
+    addVaryHeader(responseHeaders, "Accept-Encoding");
     setCompressionHeaders(
       responseHeaders,
       algo!,
-      cached.body?.length || preComp.length,
+      cached.buffer?.length ||
+        (cached.body ? Buffer.byteLength(cached.body, "utf8") : preComp.length),
       preComp.length,
     );
     return new Response(preComp, { status: 200, headers: responseHeaders });
   }
 
-  return Response.json(cached.data, {
-    status: 200,
-    headers: { ...cached.headers, "X-Cache": "HIT", Vary: "Accept-Encoding" },
-  });
+  const responseHeaders = new Headers(cached.headers || {});
+  // cached.headers carries the ORIGINAL Content-Length; when the body is
+  // re-serialized from cached.data (JSON.stringify) the byte count differs
+  // and clients wait for bytes that never arrive. Node recomputes
+  // Content-Length for string bodies — drop the stale value.
+  responseHeaders.delete("content-length");
+  responseHeaders.set("Content-Type", responseHeaders.get("Content-Type") || "application/json");
+  responseHeaders.set("X-Cache", "HIT");
+  addVaryHeader(responseHeaders, "Accept-Encoding");
+  const body = typeof cached.body === "string" ? cached.body : JSON.stringify(cached.data);
+  return new Response(body, { status: 200, headers: responseHeaders });
 }
 
 // ─── Bounded in-process prewarm semaphore ─────────────────────────────────────
@@ -223,15 +236,14 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
           if (contentType?.includes("application/json")) {
             const ifNoneMatch = request.headers.get("if-none-match");
-            const isBenchmark = process.env.BENCHMARK === "true";
 
             const apiBody = (locals as any).apiBody;
             const apiData = (locals as { apiData?: unknown }).apiData || (locals as any).__apiData;
             let responseBody: string | null = typeof apiBody === "string" ? apiBody : null;
             let responseData: unknown = apiData || null;
 
-            // Benchmark / nocache: still warm sync L1 turbo map from stashed body, then return
-            if ((nocache && !ifNoneMatch) || (isBenchmark && !ifNoneMatch)) {
+            // Nocache: still warm sync L1 turbo map from stashed body, then return
+            if (nocache && !ifNoneMatch) {
               if (responseBody && locals.user?._id) {
                 const userIdStr = getUserCacheId(locals.user);
                 const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
@@ -244,7 +256,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                 );
               }
               return withMutableHeaders(response, (headers) => {
-                headers.set("X-Cache", nocache ? "NOCACHE" : "BYPASS-BENCH");
+                headers.set("X-Cache", "NOCACHE");
                 headers.set("Vary", "Accept-Encoding");
               });
             }
@@ -426,33 +438,41 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             ? `/api/local/${apiEndpoint}`
             : `/api/${apiEndpoint}`;
           const pattern = `api:${tenantIdString || "global"}:${String(locals.user!._id)}:${apiPathPrefix}`;
+          // 🐛 L1 TURBO INVALIDATION: handleTurboGet serves GETs from the sync
+          // responseCache BEFORE this handler runs — clearing only cacheService
+          // (L2) would leave up to 5 minutes of stale L1 reads after mutations.
+          responseCache.invalidateCollection(apiEndpoint, tenantIdString);
           await Promise.all([
             cacheService.clearByPattern(`${pattern}*`, currentTenantId),
             cacheService.clearByPattern(`${apiPathPrefix}*`, currentTenantId),
           ]);
 
-          if (
-            ["POST", "PUT", "PATCH"].includes(request.method) &&
-            event.url.origin &&
-            process.env.BENCHMARK !== "true"
-          ) {
-            const prewarmUrl = new URL(event.url.pathname, event.url.origin);
-            prewarmUrl.searchParams.set("warm-cache", "true");
-            // 🚀 IN-PROCESS PREWARM: `event.fetch` routes same-origin URLs
-            // through SvelteKit's internal resolver — no loopback socket, no
-            // OS network stack, no adapter round-trip. Bounded by a semaphore
-            // so mutation storms cannot pile up an unbounded prewarm queue.
-            if (prewarmConcurrency.tryAcquire()) {
-              event
-                .fetch(prewarmUrl, {
-                  method: "GET",
-                  headers: {
-                    Cookie: event.request.headers.get("Cookie") || "",
-                    Authorization: event.request.headers.get("Authorization") || "",
-                  },
-                })
-                .catch(() => {})
-                .finally(() => prewarmConcurrency.release());
+          if (["POST", "PUT", "PATCH"].includes(request.method) && event.url.origin) {
+            // 🚀 No prewarm for GraphQL: an internal GET carries no query string,
+            // so it can never populate the response cache — it only re-runs the
+            // full schema+auth pipeline per POST (measured: ~2x load, and its
+            // turbo-auth path flipped adapter identity for schema caches).
+            if (apiEndpoint !== "graphql") {
+              // Prewarm the EXACT GET URL (pathname + original search). A
+              // synthetic ?warm-cache=true would be cached under a key no real
+              // client ever requests (generateCacheKey includes url.search).
+              const prewarmUrl = new URL(event.url.pathname + event.url.search, event.url.origin);
+              // 🚀 IN-PROCESS PREWARM: `event.fetch` routes same-origin URLs
+              // through SvelteKit's internal resolver — no loopback socket, no
+              // OS network stack, no adapter round-trip. Bounded by a semaphore
+              // so mutation storms cannot pile up an unbounded prewarm queue.
+              if (prewarmConcurrency.tryAcquire()) {
+                event
+                  .fetch(prewarmUrl, {
+                    method: "GET",
+                    headers: {
+                      Cookie: event.request.headers.get("Cookie") || "",
+                      Authorization: event.request.headers.get("Authorization") || "",
+                    },
+                  })
+                  .catch(() => {})
+                  .finally(() => prewarmConcurrency.release());
+              }
             }
           }
         } catch (e) {

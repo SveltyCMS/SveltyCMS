@@ -32,11 +32,7 @@ import {
   verifyTOTPCode,
 } from "./totp";
 import { getTotpReplayRegistry } from "./totp-replay-registry";
-import type { TwoFactorSetupResponse, TwoFactorVerificationResult } from "./two-factor-auth-types";
 import type { User } from "./types";
-
-// Re-export types for compatibility
-export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from "./two-factor-auth-types";
 
 // Type for the auth interface extracted from IDBAdapter
 type AuthInterface = IDBAdapter["auth"];
@@ -563,4 +559,31 @@ export function getDefaultTwoFactorAuthService(db: AuthInterface): TwoFactorAuth
     defaultTwoFactorService = new TwoFactorAuthService(db);
   }
   return defaultTwoFactorService;
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────
+
+// 2FA Setup Response Interface
+export interface TwoFactorSetupResponse {
+  backupCodes: string[];
+  manualEntryDetails: {
+    secret: string;
+    account: string;
+    issuer: string;
+    algorithm: string;
+    digits: number;
+    period: number;
+  };
+  /** True when setup is in progress but not yet verified. Secret is persisted encrypted. */
+  pending?: boolean;
+  qrCodeURL: string;
+  secret: string;
+}
+
+// 2FA Verification Result Interface
+export interface TwoFactorVerificationResult {
+  backupCodeUsed?: boolean;
+  message: string;
+  method?: "totp" | "backup";
+  success: boolean;
 }

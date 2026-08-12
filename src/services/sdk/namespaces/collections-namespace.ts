@@ -21,6 +21,7 @@ import { resolvePopulatedRelations } from "./populate-resolver";
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import { sanitizeObject } from "@utils/security/input-sanitizer";
+import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 
 type ContentSystem = typeof serverContentSystem;
 
@@ -144,7 +145,7 @@ function getOutboxLazy() {
  * Tick-debounce set for cache invalidation: coalesces consecutive writes in
  * the same macrotask into a single clear pass (keyed by tenant + schema).
  */
-let _pendingInvalidations: Set<string> | null = null;
+let _pendingInvalidationTasks = new Map<string, number>();
 
 /**
  * Collections Namespace
@@ -158,7 +159,10 @@ export class CollectionsNamespace {
     ttl: 60_000,
   });
   private static _schemaCache = new LRUCache<string, Schema>({ max: 500 });
-  private static _tenantSettingsCache = new Map<string, { settings: any; exp: number }>();
+  private static _tenantSettingsCache = new LRUCache<string, { settings: any }>({
+    max: 200,
+    ttl: 10_000,
+  });
   private static _batchLoaders = new Map<
     string,
     { ids: Set<string>; promises: Map<string, any> }
@@ -560,8 +564,10 @@ export class CollectionsNamespace {
     // 🛡️ NON-ADMINS CANNOT REQUEST STATUSES: a caller-provided status=draft
     // would expose unpublished content to ordinary read users — force the
     // published filter regardless of what the caller asked for.
+    // NOTE: the canonical stored status value is "publish" (see find());
+    // "published" matched nothing in the DB.
     if (!isAdmin) {
-      baseFilter.status = "published";
+      baseFilter.status = "publish";
     } else if (status) {
       baseFilter.status = status;
     }
@@ -998,7 +1004,7 @@ export class CollectionsNamespace {
       throw new Error("Adapter does not support bulk operations.");
     }
 
-    if (result.success) {
+    if (result.success && !shouldSkipWriteSideEffects(options)) {
       try {
         const workflowService = await getWorkflowServiceLazy();
         const insertedIds = Array.from({
@@ -1055,7 +1061,7 @@ export class CollectionsNamespace {
       formattedUpdates,
     );
 
-    if (result.success) {
+    if (result.success && !shouldSkipWriteSideEffects(options)) {
       await this.invalidateCache(schema, tenantId);
     }
 
@@ -1079,7 +1085,7 @@ export class CollectionsNamespace {
       ids as DatabaseId[],
     );
 
-    if (result.success) {
+    if (result.success && !shouldSkipWriteSideEffects(options)) {
       await this.invalidateCache(schema, tenantId);
     }
 
@@ -1169,7 +1175,7 @@ export class CollectionsNamespace {
           collectionModel = await this._getModelResilient(schema);
           collectionModelCache.set(schema, collectionModel);
         }
-        const payload = [item];
+        const payload = [hot._hasActiveWidgets ? { ...item } : item];
         await modifyRequest({
           data: payload,
           fields: schema.fields as FieldInstance[],
@@ -1279,16 +1285,22 @@ export class CollectionsNamespace {
 
       const foundItems = (result.success && result.data ? result.data : []) as any[];
 
+      let resolvedItems = foundItems;
       if (foundItems.length > 0) {
         const hot = ensureSchemaHotFlags(schema);
         if (hot._hasActiveWidgets) {
+          // 🛡️ CLONE BEFORE modifyRequest: foundItems may come from the shared
+          // L1/L2 cache — widgets rewrite fields per request (tokens, language),
+          // and mutating cached objects would leak one request's view into the
+          // next. Clone only on the widget path (hot no-widget reads stay zero-alloc).
+          resolvedItems = foundItems.map((i) => ({ ...i }));
           let collectionModel = collectionModelCache.get(schema);
           if (!collectionModel) {
             collectionModel = await this._getModelResilient(schema);
             collectionModelCache.set(schema, collectionModel);
           }
           await modifyRequest({
-            data: foundItems,
+            data: resolvedItems,
             fields: schema.fields as FieldInstance[],
             collection: collectionModel as any,
             user: options.user || { _id: "system", role: "admin" },
@@ -1305,14 +1317,14 @@ export class CollectionsNamespace {
           name: schema.name,
           label: schema.label,
         };
-        for (let i = 0; i < foundItems.length; i++) {
-          foundItems[i]._collection = collectionMeta;
+        for (let i = 0; i < resolvedItems.length; i++) {
+          resolvedItems[i]._collection = collectionMeta;
         }
       }
 
       const itemsMap = new Map<string, any>();
-      for (let i = 0; i < foundItems.length; i++) {
-        itemsMap.set(String(foundItems[i]._id), foundItems[i]);
+      for (let i = 0; i < resolvedItems.length; i++) {
+        itemsMap.set(String(resolvedItems[i]._id), resolvedItems[i]);
       }
 
       for (const id of ids) {
@@ -1348,10 +1360,13 @@ export class CollectionsNamespace {
   async create(collectionId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = await this.getSchema(collectionId, tenantId);
+    const schema = PROFILE_WRITE_ENABLED
+      ? await profileSpan("ns:getSchema", () => this.getSchema(collectionId, tenantId))
+      : await this.getSchema(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
 
     // 🛡️ ACTIVE SANITIZATION: only when schema has string/html field types
+    const m1 = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
     const sanitizedData = hot._hasSanitizableFields
       ? sanitizeCollectionFields(data, schema as CollectionFieldSchema)
       : data;
@@ -1405,6 +1420,7 @@ export class CollectionsNamespace {
       schema,
     );
 
+    const m2 = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
     // Widget pipeline only when widgets declare modifyRequest; else lightweight sanitize
     if (hot._hasActiveWidgets) {
       let collectionModel = collectionModelCache.get(schema);
@@ -1429,8 +1445,10 @@ export class CollectionsNamespace {
     } else {
       finalData = sanitizeObject(finalData) as Record<string, unknown>;
     }
+    m2?.();
 
     const collectionName = this.getCollectionName(schema._id as string);
+    const m3 = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await this.persistWithOutbox(
       "create",
       async (txOpts) =>
@@ -1445,6 +1463,8 @@ export class CollectionsNamespace {
       (res) => res.data,
       { skipSideEffects: options.skipSideEffects },
     );
+    m3?.();
+    m1?.();
 
     if (result && result.success && result.data) {
       const createdId = result.data!._id as string;
@@ -1467,9 +1487,12 @@ export class CollectionsNamespace {
   async update(collectionId: string, entryId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = await this.getSchema(collectionId, tenantId);
+    const schema = PROFILE_WRITE_ENABLED
+      ? await profileSpan("ns:getSchema", () => this.getSchema(collectionId, tenantId))
+      : await this.getSchema(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
 
+    const m1u = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
     const sanitizedData = hot._hasSanitizableFields
       ? sanitizeCollectionFields(data, schema as CollectionFieldSchema)
       : data;
@@ -1522,6 +1545,7 @@ export class CollectionsNamespace {
       schema,
     );
 
+    const m2u = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
     if (hot._hasActiveWidgets) {
       let collectionModel = collectionModelCache.get(schema);
       if (!collectionModel) {
@@ -1546,7 +1570,9 @@ export class CollectionsNamespace {
     } else {
       finalData = sanitizeObject(finalData) as Record<string, unknown>;
     }
+    m2u?.();
 
+    const m3u = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await this.persistWithOutbox(
       "update",
       async (txOpts) =>
@@ -1563,6 +1589,8 @@ export class CollectionsNamespace {
       (res) => res.data,
       { skipSideEffects: options.skipSideEffects },
     );
+    m3u?.();
+    m1u?.();
 
     if (result && result.success && result.data) {
       // ⚡ Response-path: never await side effects — concurrent update RPS depends on this
@@ -1693,7 +1721,7 @@ export class CollectionsNamespace {
 
     let settings: any = {};
     const cachedSettings = CollectionsNamespace._tenantSettingsCache.get(activeTenantId);
-    if (cachedSettings && Date.now() < cachedSettings.exp) {
+    if (cachedSettings) {
       settings = cachedSettings.settings;
     } else if (
       this._dbAdapter.system?.tenants &&
@@ -1707,7 +1735,6 @@ export class CollectionsNamespace {
         : {};
       CollectionsNamespace._tenantSettingsCache.set(activeTenantId, {
         settings,
-        exp: Date.now() + 10000,
       });
     }
 
@@ -1776,13 +1803,20 @@ export class CollectionsNamespace {
     const tenantTag = tenantId || "global";
     const schemaId = schema._id as string | undefined;
     const tenantKey = (tenantId || undefined) as string | undefined;
-    if (!_pendingInvalidations) _pendingInvalidations = new Set<string>();
-    const pending = _pendingInvalidations;
     const requestKey = `${tenantTag}:${schemaId ?? "*"}`;
-    if (pending.has(requestKey)) return;
-    pending.add(requestKey);
+
+    // 🛡️ PASS COUNTER (not a Set): with a Set, a second write in the SAME
+    // macrotask returns early and — if that write populates the caches after
+    // the first pass already ran — its fresh data stays stale. The counter
+    // guarantees every write schedules a pass; only intermediate passes are
+    // skipped, so the newest pass always wins.
+    const currentPass = (_pendingInvalidationTasks.get(requestKey) || 0) + 1;
+    _pendingInvalidationTasks.set(requestKey, currentPass);
 
     queueMicrotask(async () => {
+      // A newer write scheduled its own pass — skip this intermediate one.
+      if (_pendingInvalidationTasks.get(requestKey) !== currentPass) return;
+
       try {
         const responseCache = await getResponseCacheLazy();
         responseCache.invalidateAll(tenantKey).catch(() => {});
@@ -1811,7 +1845,7 @@ export class CollectionsNamespace {
       } catch {}
 
       // Allow the next write batch to schedule a fresh pass.
-      pending.delete(requestKey);
+      _pendingInvalidationTasks.delete(requestKey);
     });
   }
 

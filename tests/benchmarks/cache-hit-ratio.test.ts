@@ -20,7 +20,7 @@ import {
   setupBenchmarkServer,
   ensureStableTestData,
   stabilize,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
@@ -45,10 +45,9 @@ async function runCacheAudit() {
 
     const entryPath = "/api/collections/BenchmarkStable/bench-shared-001";
 
-    // Canonical static headers layout
+    // Canonical static headers layout — REAL admin session cookie (production auth)
     const baseHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
     };
 
     const jsonHeaders = {
@@ -57,36 +56,25 @@ async function runCacheAudit() {
     };
 
     // Pre-serialized request payloads to protect micro-timing windows
-    const coldInvalidateBody = JSON.stringify({
-      action: "cache-invalidate",
-      pattern: "collection:BenchmarkStable:*",
-    });
-    const bulkInvalidateBody = JSON.stringify({
-      action: "cache-invalidate",
-      pattern: "collection:BenchmarkStable:bench-shared-*",
-    });
+    // PRODUCTION PARITY: cache invalidation happens through a real mutation
+    // (PATCH invalidates the entry caches) — no /api/testing purge action.
+    const invalidateBody = JSON.stringify({ count: 0 });
 
     // 1. Cold read (cache miss)
     console.log("   → Measuring Cold Read (cache miss)...");
+    // 🛡️ HONEST COLD: `?bypassCache=true` forces the real cache-miss path in
+    // handle-api-requests WITHOUT a PATCH mutation. The old version executed
+    // the PATCH (cache invalidation) inside the timed onIteration, so the
+    // "cold read" actually measured mutation + read.
     const coldResult = await runBenchmark({
       name: "Cache Miss (Cold)",
       iterations: 50,
       warmupIterations: 0,
       runs: 2,
-      concurrency: 1, // Must be serial to execute isolation invalidation blocks cleanly
+      concurrency: 1,
       silent: true,
       onIteration: async () => {
-        // STEP 1: Invalidate out-of-band to guarantee cache miss
-        const purgeRes = await fetch(`${baseUrl}/api/testing`, {
-          method: "POST",
-          headers: jsonHeaders,
-          body: coldInvalidateBody,
-        });
-        if (!purgeRes.ok) throw new Error(`Pre-iteration purge failed: ${purgeRes.status}`);
-        await purgeRes.arrayBuffer();
-
-        // STEP 2: Measure the pure cost of an isolated backend cache miss
-        const res = await fetch(`${baseUrl}${entryPath}`, {
+        const res = await fetch(`${baseUrl}${entryPath}?bypassCache=true`, {
           method: "GET",
           headers: baseHeaders,
         });
@@ -130,10 +118,12 @@ async function runCacheAudit() {
       concurrency: 1,
       silent: true,
       onIteration: async () => {
-        const res = await fetch(`${baseUrl}/api/testing`, {
-          method: "POST",
+        // PRODUCTION PARITY: real authenticated mutation — its cache-invalidation
+        // cost IS the production invalidation cost.
+        const res = await fetch(`${baseUrl}${entryPath}`, {
+          method: "PATCH",
           headers: jsonHeaders,
-          body: bulkInvalidateBody,
+          body: invalidateBody,
         });
         if (!res.ok) throw new Error(`Invalidation failed: ${res.status}`);
         await res.arrayBuffer();

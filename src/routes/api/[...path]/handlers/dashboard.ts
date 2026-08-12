@@ -235,6 +235,15 @@ export async function handleDashboardRoutes(
               cacheMisses: 0,
               cacheHitRate: 0,
             },
+            graphql: {
+              schemaHits: 0,
+              schemaMisses: 0,
+              schemaRebuildMs: 0,
+              responseHits: 0,
+              responseMisses: 0,
+              schemaHitRate: 0,
+              responseHitRate: 0,
+            },
             performance: { slowRequests: 0, avgHookExecutionTime: 0, bottlenecks: [] },
             security: { rateLimitViolations: 0, cspViolations: 0, authFailures: 0 },
           };

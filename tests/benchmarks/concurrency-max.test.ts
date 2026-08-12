@@ -13,7 +13,8 @@ import {
   printSummaryTable,
   exportResult,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
+  seedThroughputDocs,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
@@ -31,22 +32,17 @@ async function run() {
   await ensureStableTestData();
   await forceRefreshServer(baseUrl);
 
-  // Canonical lowercase header layouts to eliminate runtime normalization cycles
+  // Canonical lowercase header layouts — REAL admin session cookie (production auth)
   const H = {
     "content-type": "application/json",
-    "x-test-mode": "true",
-    "x-test-secret": TEST_API_SECRET,
+    ...benchmarkAuthHeaders(),
     "x-tenant-id": "global",
   };
   const dbType = getDbType();
 
-  // Seed 100 docs
+  // Seed 100 docs in-process (production mode has no /api/testing)
   console.log("   → Seeding 100 docs...");
-  await fetch(`${baseUrl}/api/testing`, {
-    method: "POST",
-    headers: H,
-    body: JSON.stringify({ action: "seed-throughput-docs", count: DOCS }),
-  }).catch(() => {});
+  await seedThroughputDocs(DOCS).catch(() => {});
 
   const seedPayload = JSON.stringify({ count: 0 });
 
@@ -75,7 +71,11 @@ async function run() {
     `   → Blasting ${totalWrites} writes (wave=${WAVE}${dbType === "sqlite" ? ", full parallel" : ", pool-safe waves"})...`,
   );
 
-  // Optimized fetch handler providing fast raw network retry loops
+  // Optimized fetch handler providing fast raw network retry loops.
+  // 🛡️ DISCLOSED RETRIES: 429/503/504 pool-pressure responses are retried like
+  // a production load balancer would, but every retry is COUNTED and reported
+  // below — success rate alone must not hide how much resilience was needed.
+  let retryCount = 0;
   async function fetchWithRetry(
     url: string,
     init: RequestInit,
@@ -89,12 +89,14 @@ async function run() {
         await res.arrayBuffer().catch(() => {});
         // Retry 429/503/502 — pool pressure under matrix shared server
         if ([429, 502, 503, 504].includes(res.status) && i < retries - 1) {
+          retryCount++;
           await new Promise((r) => setTimeout(r, delay * (i + 1) + Math.random() * 40));
           continue;
         }
         return res;
       } catch (err) {
         if (i === retries - 1) throw err;
+        retryCount++;
         await new Promise((resolve) => setTimeout(resolve, delay + Math.random() * 50));
       }
     }
@@ -160,6 +162,7 @@ async function run() {
     { key: "Duration", val: duration, unit: "ms" },
     { key: "Throughput", val: rps, unit: "RPS" },
     { key: "Success Rate", val: `${ok}/${totalWrites}`, unit: "" },
+    { key: "Retries (429/503/504)", val: retryCount, unit: "" },
   ]);
 
   await exportResult({

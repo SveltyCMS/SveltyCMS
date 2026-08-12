@@ -318,6 +318,9 @@ describe("syncContentState", () => {
     const gen = beginGuiCompileSession({ files: ["posts.ts"], ttlMs: 50 });
     try {
       expect(shouldSkipWatcherSync("posts.ts")).toBe(true); // owned by the GUI session
+      // Regression: the Vite watcher echo fires for the COMPILED output
+      // (.compiledCollections/posts.js) — extension-stripped keys must match.
+      expect(shouldSkipWatcherSync("posts.js")).toBe(true);
       expect(shouldSkipWatcherSync("other-collection.ts")).toBe(false); // external edit must compile
     } finally {
       endGuiCompileSession(gen, 0);

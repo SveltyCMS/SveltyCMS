@@ -1,10 +1,12 @@
 /**
- * @file src/databases/auth/googleAuth.ts
- * @description Utility functions for Google OAuth.
+ * @file src/databases/auth/google-auth.ts
+ * @description Utility functions for Google and GitHub OAuth.
  *
  * This module provides:
  * - Google OAuth client initialization
  * - Google OAuth client setup
+ * - GitHub OAuth authorization URL generation
+ * - Shared OAuth state signing/verification helpers
  */
 
 import { createHmac } from "node:crypto";
@@ -131,6 +133,42 @@ async function generateGoogleAuthUrl(
   logger.debug("Generated Google Auth URL", { tenantId, promptType });
 
   return authUrl;
+}
+
+// ─── GitHub OAuth ─────────────────────────────────────────────────────────
+
+export function getGithubOAuthRedirectUri(): string {
+  if (dev) {
+    logger.debug("🔧 Development mode detected - using development host for GitHub");
+    return `${publicEnv.HOST_DEV}/login/oauth?provider=github`;
+  }
+
+  logger.debug("🚀 Production mode detected - using production host for GitHub");
+  return `${publicEnv.HOST_PROD}/login/oauth?provider=github`;
+}
+
+export async function generateGithubAuthUrl(
+  token?: string | null,
+  _promptType?: "consent" | "none" | "select_account",
+  tenantId?: string | null,
+): Promise<string> {
+  const githubClientId = getPrivateSettingSync("GITHUB_CLIENT_ID");
+  if (!githubClientId) {
+    throw new Error("GitHub OAuth is not initialized");
+  }
+
+  const redirectUri = getGithubOAuthRedirectUri();
+  const state = signOAuthState(token) || "no-token";
+
+  const url = new URL("https://github.com/login/oauth/authorize");
+  url.searchParams.set("client_id", githubClientId as string);
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("scope", "user:email");
+  url.searchParams.set("state", state);
+
+  logger.debug("Generated GitHub Auth URL", { tenantId });
+
+  return url.toString();
 }
 
 export { generateGoogleAuthUrl, getOAuthRedirectUri, googleAuth, setCredentials, signOAuthState };

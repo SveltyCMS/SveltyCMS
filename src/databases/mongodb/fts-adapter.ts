@@ -66,15 +66,24 @@ export class MongoFtsAdapter implements IFtsAdapter {
       Object.assign(mongoFilter, options.filters);
     }
 
-    const result = await this.adapter.crud.findMany(collection, mongoFilter as any, {
-      limit,
-      offset,
-      tenantId: options?.tenantId as any,
-    });
+    const [result, countRes] = await Promise.all([
+      this.adapter.crud.findMany(collection, mongoFilter as any, {
+        limit,
+        offset,
+        tenantId: options?.tenantId as any,
+      }),
+      // Real COUNT with the same filter — items.length is capped by limit and
+      // would lie about pagination metadata on the $text path.
+      this.adapter.crud.count(collection, mongoFilter as any, {
+        tenantId: options?.tenantId as any,
+        mode: "exact",
+      }),
+    ]);
 
     if (result.success && result.data) {
       const items = result.data as unknown as any[];
-      return { success: true, data: { items, total: items.length } };
+      const total = countRes?.success ? countRes.data : items.length;
+      return { success: true, data: { items, total } };
     }
 
     return { success: true, data: { items: [], total: 0 } };
@@ -104,15 +113,23 @@ export class MongoFtsAdapter implements IFtsAdapter {
       Object.assign(mongoFilter, options.filters);
     }
 
-    const result = await this.adapter.crud.findMany(collection, mongoFilter as any, {
-      limit,
-      offset,
-      tenantId: options?.tenantId as any,
-    });
+    const [result, countRes] = await Promise.all([
+      this.adapter.crud.findMany(collection, mongoFilter as any, {
+        limit,
+        offset,
+        tenantId: options?.tenantId as any,
+      }),
+      // Real COUNT with the same filter (parity with the $text path).
+      this.adapter.crud.count(collection, mongoFilter as any, {
+        tenantId: options?.tenantId as any,
+        mode: "exact",
+      }),
+    ]);
 
     if (result.success && result.data) {
       const items = result.data as unknown as any[];
-      return { success: true, data: { items, total: items.length } };
+      const total = countRes?.success ? countRes.data : items.length;
+      return { success: true, data: { items, total } };
     }
 
     return { success: true, data: { items: [], total: 0 } };

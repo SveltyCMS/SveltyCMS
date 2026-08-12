@@ -14,7 +14,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 
@@ -99,14 +99,13 @@ async function runSoakTest() {
   await forceRefreshServer(baseUrl);
   await stabilize(2000);
 
-  // Canonical lowercase static header references
+  // Canonical lowercase static header references — REAL admin session (production auth)
   const baseHeaders = {
-    "x-test-mode": "true",
-    "x-test-secret": TEST_API_SECRET,
+    ...benchmarkAuthHeaders(),
   };
 
   const healthCheckHeaders = {
-    "x-test-secret": TEST_API_SECRET,
+    ...benchmarkAuthHeaders(),
   };
 
   const samples: SoakSample[] = [];

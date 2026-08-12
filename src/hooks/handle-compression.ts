@@ -14,7 +14,9 @@
  * - Native zstd (Node 22+/Bun) with optional CMS trained dictionary
  *   (`static/dictionaries/cms-payloads.dict`) for repetitive CMS JSON
  * - Streaming (zero-copy for large payloads — no OOM on 100K+ record API responses)
- * - Intelligent content-type filtering and minimum-size thresholds
+ * - Intelligent content-type filtering (text/*, json, xml, javascript, svg; SSE excluded)
+ *   and minimum-size thresholds
+ * - Case-insensitive Vary merging that preserves upstream values (e.g. Vary: Origin)
  * - Graceful fallback chain: zstd → Brotli → Gzip → Deflate → uncompressed
  * - Edge-safe lazy dynamic imports for `node:zlib` / `fs` / `path` / `stream`
  * - Exported sync compress + negotiate for Turbo fast-path pre-compression
@@ -33,16 +35,26 @@ const SIZE_SMALL = 32 * 1024; // < 32KB
 const SIZE_MEDIUM = 256 * 1024; // < 256KB
 const SYNC_MAX_SIZE = 64 * 1024; // 64KB
 
-const COMPRESSIBLE_TYPES = [
-  "text/html",
-  "text/css",
-  "text/plain",
-  "text/xml",
-  "application/javascript",
-  "application/xml",
-  "application/json",
-  "image/svg+xml",
-];
+/**
+ * Predicate for compressible content types (case-insensitive).
+ *
+ * Broader than a fixed allowlist so charset-suffixed and vendor variants
+ * (e.g. `application/json; charset=utf-8`, `application/vnd.api+json`) match —
+ * but `text/event-stream` (SSE) is ALWAYS excluded: compressing a live event
+ * stream corrupts framing and breaks EventSource clients.
+ */
+export function isCompressibleContentType(contentType: string | null): boolean {
+  if (!contentType) return false;
+  const type = contentType.toLowerCase();
+  if (type.includes("event-stream")) return false;
+  return (
+    type.startsWith("text/") ||
+    type.includes("json") ||
+    type.includes("xml") ||
+    type.includes("javascript") ||
+    type.includes("svg")
+  );
+}
 
 export type CompressionAlgorithm = "br" | "gzip" | "deflate" | "zstd";
 
@@ -380,6 +392,24 @@ export async function compressZstd(data: string | Uint8Array | Buffer): Promise<
 }
 
 /**
+ * Merge a token into the Vary header case-insensitively instead of overwriting,
+ * so upstream values (e.g. Vary: Origin from CORS) are preserved.
+ */
+export function addVaryHeader(headers: Headers, value: string): void {
+  const existing = headers.get("Vary");
+  if (!existing) {
+    headers.set("Vary", value);
+    return;
+  }
+  const tokens = existing.split(",").map((t) => t.trim());
+  const lower = value.toLowerCase();
+  if (!tokens.some((t) => t.toLowerCase() === lower)) {
+    tokens.push(value);
+  }
+  headers.set("Vary", tokens.join(", "));
+}
+
+/**
  * Set standard compression observability headers on a response.
  * Shared by handle-api-requests (cache HIT pre-compressed) and handle-turbo-get
  * to avoid duplicated header logic and ratio calculation.
@@ -394,7 +424,7 @@ export function setCompressionHeaders(
   compressedSize: number,
 ): void {
   headers.set("Content-Encoding", algo);
-  headers.set("Vary", "Accept-Encoding");
+  addVaryHeader(headers, "Accept-Encoding");
   if (originalSize > 0) headers.set("X-Original-Size", String(originalSize));
   if (compressedSize > 0 && originalSize > 0) {
     headers.set("X-Compressed-Size", String(compressedSize));
@@ -441,7 +471,7 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
   }
 
   const contentType = response.headers.get("Content-Type");
-  if (!(contentType && COMPRESSIBLE_TYPES.some((t) => contentType.includes(t)))) {
+  if (!isCompressibleContentType(contentType)) {
     return response;
   }
 

@@ -19,20 +19,18 @@ export const SECURITY_PATTERNS = {
     /\/\*[^*/]{0,5000}\*\//i,
   ],
 
-  // XSS patterns (tags, event handlers, javascript: URIs, encoded)
+  // XSS patterns (script-bearing tags, event handlers, javascript: URIs, encoded).
+  // 🛡️ FIX: the old generic `/<[^<>\n]{1,1000}?>/` matched ANY HTML tag,
+  // blocking legitimate rich-text content saves (`<p>`, `<b>`, `<img src=…>`)
+  // in production — a CMS must allow HTML content. Only actual script-execution
+  // vectors are flagged now; the encoded variants cover %3Cscript%3E-style bypasses.
   xss: [
-    /((%3C)|<)((%2F)|\/)*[a-z0-9%]+[^<>\n]{0,1000}?(?:(%3E)|>)/i,
-    /((%3C)|<)((%69)|i|(%49))((%6D)|m|(%4D))((%67)|g|(%47))[^<>\n]{1,500}?(?:(%3E)|>)/i,
-    /((%3C)|<)[^<>\n]{1,1000}?(?:(%3E)|>)/i,
+    /((%3C)|<)((%2F)|\/)?\s*(script|iframe|object|embed)\b[^<>\n]{0,1000}?(?:(%3E)|>)/i,
     /(?:on(?:load|error|click|mouseover|focus|blur|submit|change|input|keyup|keydown))\s*=/i,
     /javascript\s*:/i,
     /\beval\s*\(/i,
     /\bdocument\.(cookie|domain|write|location)/i,
     /\bwindow\.(location|open|eval)/i,
-    /<script[^>]{0,500}?>/i,
-    /<iframe[^>]{0,500}?>/i,
-    /<object[^>]{0,500}?>/i,
-    /<embed[^>]{0,500}?>/i,
   ],
 
   // Path traversal

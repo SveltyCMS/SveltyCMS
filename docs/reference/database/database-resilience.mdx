@@ -52,7 +52,7 @@ flowchart TD
 | Database status API                       | ✅     | `GET /api/database/status`                                       |
 | Log export API                            | ✅     | `GET /api/logs/download` (redacted)                              |
 | Health endpoint resilience metrics        | ✅     | `GET /api/system/health` includes `resilience` block             |
-| Redis connection retries                  | ✅     | `redis-store.ts`                                                 |
+| Redis connection retries                  | ✅     | `cache-service.ts` `initializeL2()` (reconnect strategy)         |
 | Self-healing adapter proxy                | ✅     | `createSelfHealingProxy` in `db.ts`                              |
 | Init promise locking                      | ✅     | `INIT_PROMISE_KEY` double-check in `db.ts`                       |
 | Capability guards                         | ✅     | `ensureAuth()`, `ensureSystem()`, …                              |

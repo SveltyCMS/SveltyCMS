@@ -276,9 +276,10 @@ class JobQueueService {
       clearInterval(this.pollInterval);
     }
 
-    // 🧪 PERFORMANCE: Disable background jobs during benchmarks to reduce noise and resource contention
-    if (process.env.BENCHMARK === "true" || process.env.DISABLE_JOBS === "true") {
-      logger.info("[JobQueue] Background worker disabled (Benchmark Mode)");
+    // 🧪 PERFORMANCE: Background jobs may be disabled explicitly (DISABLE_JOBS).
+    // Benchmark runs keep them enabled — production parity.
+    if (process.env.DISABLE_JOBS === "true") {
+      logger.info("[JobQueue] Background worker disabled (DISABLE_JOBS)");
       return;
     }
 

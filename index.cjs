@@ -4,12 +4,15 @@
 async function loadApp() {
   console.log("[SveltyCMS] Initializing application...");
 
+  // 🛡️ Production configuration — MUST run BEFORE importing the handler: the
+  // adapter-node reads BODY_SIZE_LIMIT at module-evaluation time (default 512K).
+  // Setting it after the import silently left the 512K cap active in every
+  // production deployment (uploads/imports >512KB failed with "Bad Request").
+  process.env.BODY_SIZE_LIMIT = "104857600"; // 100MB
+
   // Import the SvelteKit handler
   const { handler } = await import("./build/handler.js");
   const http = await import("node:http");
-
-  // Production configuration
-  process.env.BODY_SIZE_LIMIT = "104857600"; // 100MB
   // Prefer explicit ORIGIN. For local/CI preview (127.0.0.1 / localhost) default to
   // the listening URL so SvelteKit remote CSRF (completeSetup) is not rejected as
   // cross-site against the demo production host.
@@ -26,12 +29,11 @@ async function loadApp() {
       ? `http://${host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host}:${port}`
       : "https://demo.sveltycms.com";
   }
-  // Preserve harness NODE_ENV so /api/testing + test bypass stay open.
-  // Forcing production here was blocking BENCHMARK/TEST_MODE matrix seeding.
+  // Preserve harness NODE_ENV so /api/testing + test bypass stay open for
+  // E2E/integration. Benchmark runs are production-mode: BENCHMARK must NOT
+  // downgrade NODE_ENV — benchmarks measure real production semantics.
   const isHarness =
     process.env.TEST_MODE === "true" ||
-    process.env.BENCHMARK === "true" ||
-    process.env.SVELTY_BENCHMARK_SUITE === "true" ||
     process.env.PLAYWRIGHT_TEST === "true" ||
     process.env.PLAYWRIGHT_TEST === "1";
   if (!isHarness) {

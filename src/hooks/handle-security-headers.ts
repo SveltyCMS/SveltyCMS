@@ -8,6 +8,7 @@
  * - CORS allowlist via getCorsHeaders (never reflect Origin blindly)
  * - COOP/COEP/CORP for API isolation
  * - Permissions-Policy lockdown
+ * - deduplicated Vary header (case-insensitive token merge)
  *
  * The `applyAllSecurityHeaders()` utility is called inline from
  * `handleTurboPipeline`, `handleTurboGet`, the rate-limit 429 path, and the
@@ -29,6 +30,24 @@ const PERMISSIONS_POLICY = [
   "clipboard-write=(self)",
   "web-share=(self)",
 ].join(", ");
+
+/**
+ * Appends a `Vary` token only when the exact token (case-insensitive) is not
+ * already present, preventing duplicates like `Vary: Origin, Origin` when a
+ * downstream layer already added the same token.
+ */
+function addVaryHeader(headers: Headers, value: string): void {
+  const current = headers.get("Vary") || "";
+  const tokens = current
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
+  const target = value.toLowerCase();
+  if (!tokens.some((token) => token.toLowerCase() === target)) {
+    tokens.push(value);
+    headers.set("Vary", tokens.join(", "));
+  }
+}
 
 export function applyAllSecurityHeaders(
   headers: Headers,
@@ -66,7 +85,7 @@ export function applyAllSecurityHeaders(
         }
       }
     }
-    headers.append("Vary", "Origin");
+    addVaryHeader(headers, "Origin");
   }
 
   if (pathname.startsWith("/api/graphql")) {

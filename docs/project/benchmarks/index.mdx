@@ -117,14 +117,14 @@ flowchart TD
 
 ### Step-by-step
 
-| Step | Function                                  | What happens                                                                      |
-| ---- | ----------------------------------------- | --------------------------------------------------------------------------------- |
-| 1    | `setupBenchmarkServer()`                  | Shared or spawned server; `TEST_API_SECRET` + `BENCHMARK=true` for testing API    |
-| 2    | `runBenchmark()`                          | Timed iterations with abort-on-consecutive-errors                                 |
-| 3    | `exportResult()`                          | Appends debug log to `history.jsonl`; registers test file for finalize            |
-| 4    | `printTruthTable()` → `writeTruthTable()` | Surgical write: ASCII truth table **and** refreshed `<summary>` line              |
-| 5    | `finalizeReport()`                        | SQLite persist, collapsed ledger with trend, **partial executive**, summary slots |
-| 6    | Matrix `generateFinalReport()`            | Full executive, infrastructure collapse, dimension-grouped ledger regroup         |
+| Step | Function                                  | What happens                                                                                                                                           |
+| ---- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | `setupBenchmarkServer()`                  | Seeds state in-process, spawns the **production build in NODE_ENV=production**, performs a REAL login (session cookie). No testing API, no test bypass |
+| 2    | `runBenchmark()`                          | Timed iterations with abort-on-consecutive-errors                                                                                                      |
+| 3    | `exportResult()`                          | Appends debug log to `history.jsonl`; registers test file for finalize                                                                                 |
+| 4    | `printTruthTable()` → `writeTruthTable()` | Surgical write: ASCII truth table **and** refreshed `<summary>` line                                                                                   |
+| 5    | `finalizeReport()`                        | SQLite persist, collapsed ledger with trend, **partial executive**, summary slots                                                                      |
+| 6    | Matrix `generateFinalReport()`            | Full executive, infrastructure collapse, dimension-grouped ledger regroup                                                                              |
 
 ## MDX zones (writers must respect)
 

@@ -23,17 +23,15 @@ const BASE_HEADERS_ENTRIES = Object.entries(BASE_HEADERS);
 // 🚀 Cache static environment flag at module load.
 // SINGLE source of truth for middleware test-mode detection (was duplicated with
 // divergent env sets in handle-security / handle-rate-limit). NOTE: deliberately
-// NOT production-gated — the E2E/benchmark preview servers rely on these flags
-// even when NODE_ENV is unset/"production". The /api/testing gate in
-// test-bypass.server.ts keeps its own stricter production hard-gate.
+// NOT production-gated — the E2E preview servers rely on these flags even when
+// NODE_ENV is unset/"production". The /api/testing gate in test-bypass.server.ts
+// keeps its own stricter production hard-gate. BENCHMARK is deliberately absent:
+// benchmark runs must exercise real middleware, not test-mode shortcuts.
 export const IS_TEST_MODE = (() => {
   if (typeof globalThis === "undefined") return false;
   const env = (globalThis as any).process?.env;
   return (
-    env?.TEST_MODE === "true" ||
-    env?.VITE_TEST_MODE === "true" ||
-    env?.PLAYWRIGHT_TEST === "true" ||
-    env?.BENCHMARK === "true"
+    env?.TEST_MODE === "true" || env?.VITE_TEST_MODE === "true" || env?.PLAYWRIGHT_TEST === "true"
   );
 })();
 

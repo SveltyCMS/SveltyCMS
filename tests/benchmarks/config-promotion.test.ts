@@ -20,7 +20,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -38,13 +38,13 @@ const EXPORT_TIERS: [string, number][] = [
 
 let stopServer: (() => Promise<void>) | null = null;
 
-// Pre-frozen headers object to avoid per-iteration allocation
-const HEADERS = Object.freeze({
+// Headers are built lazily after setupBenchmarkServer() — the REAL admin
+// session cookie only exists once the server is up and the login completed.
+const HEADERS = (): Record<string, string> => ({
   "content-type": "application/json",
-  "x-test-mode": "true",
-  "x-test-secret": TEST_API_SECRET,
+  ...benchmarkAuthHeaders(),
   "x-tenant-id": "global",
-} as const);
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -93,7 +93,7 @@ async function seedCollections(count: number, baseUrl: string): Promise<string[]
       promises.push(
         fetch(`${baseUrl}/api/collections`, {
           method: "POST",
-          headers: HEADERS,
+          headers: HEADERS(),
           body: JSON.stringify(schema),
         }).then((r) => {
           if (!r.ok)
@@ -120,7 +120,7 @@ async function cleanupCollections(ids: string[], baseUrl: string) {
     const promises = ids.slice(batch, end).map((id) =>
       fetch(`${baseUrl}/api/collections/${id}?permanent=true`, {
         method: "DELETE",
-        headers: HEADERS,
+        headers: HEADERS(),
       }).catch(() => {}),
     );
     await Promise.all(promises);

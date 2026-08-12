@@ -43,7 +43,6 @@ import {
   startSystemMonitor,
 } from "@utils/system-monitor";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
-import { getMasterSecret, timingSafeEqual } from "@utils/test-bypass.server";
 
 // Eager start — snapshot loop runs in background; hot path stays fully sync
 startSystemMonitor();
@@ -51,10 +50,25 @@ startSystemMonitor();
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const DEFAULT_WINDOW_MS = 60_000;
-const DEFAULT_MAX_REQUESTS = process.env.NODE_ENV !== "production" ? 1000 : 100;
-const DEFAULT_TENANT_MAX_REQUESTS = DEFAULT_MAX_REQUESTS * 10;
 const MAX_TRACKED_BUCKETS = 10000;
 const CLEANUP_INTERVAL_MS = 60_000;
+
+/**
+ * Dynamically resolves the per-IP mutation ceiling on every check — module-load
+ * evaluation froze process.env.RATE_LIMIT_MAX_REQUESTS (test harnesses and
+ * benchmark runners set it at runtime after this module is loaded).
+ */
+function getMaxRequests(): number {
+  return (
+    Number(process.env.RATE_LIMIT_MAX_REQUESTS) ||
+    (process.env.NODE_ENV !== "production" ? 1000 : 100)
+  );
+}
+
+/** Aggregate tenant ceiling (10x the per-IP ceiling). */
+function getTenantMaxRequests(): number {
+  return getMaxRequests() * 10;
+}
 
 // Paths excluded from rate limiting
 const EXCLUDED_PREFIXES = [
@@ -104,11 +118,14 @@ function getClientKey(event: RequestEvent): string {
 
 /**
  * Derive the tenant key for per-tenant rate limit bucketing.
- * When multi-tenancy is disabled, returns "global" so there is effectively
- * no per-tenant separation (single shared aggregate bucket).
+ * Returns null when multi-tenancy is disabled or the request isn't bound to a
+ * tenant — a single shared "global" aggregate bucket would let concurrent
+ * users exhaust ONE bucket and 429 the entire site (site-wide lockout DoS).
  */
-function getTenantKey(event: RequestEvent): string {
-  return getTenantIdFromHostname(event.url.hostname, isMultiTenantEnabled()) || "global";
+function getTenantKey(event: RequestEvent): string | null {
+  if (!isMultiTenantEnabled()) return null;
+  const tenant = getTenantIdFromHostname(event.url.hostname, true);
+  return tenant && tenant !== "global" ? tenant : null;
 }
 
 function withSecurityHeaders(response: Response, event: RequestEvent): Response {
@@ -202,16 +219,19 @@ if (typeof setInterval !== "undefined" && !globalWithLimiter[LIMITER_CLEANUP_KEY
 }
 
 /**
- * Bounded bucket insert: evicts the oldest entry BEFORE inserting when the map
- * is at capacity. Evicting after insert (as before) allowed a burst of unique
- * IPs to grow the map beyond MAX_TRACKED_BUCKETS before stabilization.
+ * LRU-correct bounded bucket update: delete-then-set so an active key's window
+ * reset REFRESHES its iteration position. Without the refresh, busy keys
+ * inserted early stay at the FRONT of the Map and get evicted first under
+ * churn — resetting their counts mid-window (rate-limit bypass).
  */
 function setBoundedBucket(
   map: Map<string, RateLimitEntry>,
   key: string,
   bucket: RateLimitEntry,
 ): void {
-  if (!map.has(key) && map.size >= MAX_TRACKED_BUCKETS) {
+  if (map.has(key)) {
+    map.delete(key);
+  } else if (map.size >= MAX_TRACKED_BUCKETS) {
     const oldestKey = map.keys().next().value;
     if (oldestKey !== undefined) map.delete(oldestKey);
   }
@@ -239,17 +259,13 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
-  // Bypass rate limiting in test/benchmark mode — mirrors handle-security.ts:
-  // local traffic + TEST_MODE env, or a validated test secret. A bare
-  // `x-test-mode: true` header is NEVER trusted (client-forgeable).
+  // Bypass rate limiting only in explicit test environments (E2E/integration).
+  // A validated x-test-secret alone NO LONGER bypasses rate limiting — benchmark
+  // runs measure production semantics and must pay the same cost as real traffic.
   const clientIp = getClientIp(event);
   const isLocal =
     clientIp === "127.0.0.1" || clientIp === "::1" || event.url.hostname === "localhost";
-  const incomingSecret = event.request.headers.get("x-test-secret");
-  const masterSecret = getMasterSecret();
-  const hasValidTestSecret =
-    incomingSecret && masterSecret ? await timingSafeEqual(incomingSecret, masterSecret) : false;
-  if (isLocal && (IS_TEST_MODE || hasValidTestSecret)) {
+  if (isLocal && IS_TEST_MODE) {
     return resolve(event);
   }
 
@@ -261,6 +277,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   const clientKey = getClientKey(event);
   const now = Date.now();
+  const maxRequests = getMaxRequests();
 
   // Get or create per-IP bucket (bounded: evicts oldest BEFORE insert)
   let bucket = _buckets.get(clientKey);
@@ -305,19 +322,19 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   const cost = Math.max(1, Math.round(multiplier));
   bucket.count += cost;
 
-  const remaining = Math.max(0, DEFAULT_MAX_REQUESTS - bucket.count);
+  const remaining = Math.max(0, maxRequests - bucket.count);
   const resetTime = Math.ceil((bucket.windowStart + DEFAULT_WINDOW_MS - now) / 1000);
 
   // Per-IP rate limit exceeded
-  if (bucket.count > DEFAULT_MAX_REQUESTS) {
+  if (bucket.count > maxRequests) {
     logger.warn(
-      `[RateLimit] ${clientKey} exceeded limit (${bucket.count}/${DEFAULT_MAX_REQUESTS}, ${multiplier}x multiplier)`,
+      `[RateLimit] ${clientKey} exceeded limit (${bucket.count}/${maxRequests}, ${multiplier}x multiplier)`,
       { pathname, method },
     );
     return withSecurityHeaders(
       buildRateLimitResponse(event, {
         retryAfterSeconds: resetTime,
-        limit: DEFAULT_MAX_REQUESTS,
+        limit: maxRequests,
         reason: "Too Many Requests",
         scope: "ip",
       }),
@@ -325,46 +342,56 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     );
   }
 
-  // ─── Per-Tenant Bucket Check ──────────────────────────────────────────
-  // Aggregate tenant limit independent of individual IP limits — prevents
-  // one noisy tenant from starving others when each IP stays under the IP cap.
+  // ─── Per-Tenant Bucket Check (multi-tenant only) ──────────────────────
+  // Aggregate tenant limit independent of individual IP limits — prevents one
+  // noisy tenant from starving others when each IP stays under the IP cap.
+  // Skipped entirely when multi-tenancy is off: a single shared aggregate
+  // bucket is a site-wide 429 DoS vector, not a protection.
 
   const tenantKey = getTenantKey(event);
-  let tenantBucket = _tenantBuckets.get(tenantKey);
-  if (!tenantBucket || now - tenantBucket.windowStart > DEFAULT_WINDOW_MS) {
-    tenantBucket = { count: 0, windowStart: now };
-    setBoundedBucket(_tenantBuckets, tenantKey, tenantBucket);
-  }
+  let tenantRemaining = maxRequests;
 
-  tenantBucket.count += cost;
+  if (tenantKey) {
+    const tenantMaxRequests = getTenantMaxRequests();
+    let tenantBucket = _tenantBuckets.get(tenantKey);
+    if (!tenantBucket || now - tenantBucket.windowStart > DEFAULT_WINDOW_MS) {
+      tenantBucket = { count: 0, windowStart: now };
+      setBoundedBucket(_tenantBuckets, tenantKey, tenantBucket);
+    }
 
-  const tenantRemaining = Math.max(0, DEFAULT_TENANT_MAX_REQUESTS - tenantBucket.count);
-  const tenantResetTime = Math.ceil((tenantBucket.windowStart + DEFAULT_WINDOW_MS - now) / 1000);
+    tenantBucket.count += cost;
 
-  if (tenantBucket.count > DEFAULT_TENANT_MAX_REQUESTS) {
-    logger.warn(
-      `[RateLimit] Tenant ${tenantKey} exceeded limit (${tenantBucket.count}/${DEFAULT_TENANT_MAX_REQUESTS}, ${multiplier}x multiplier)`,
-      { pathname, method, tenant: tenantKey },
-    );
-    return withSecurityHeaders(
-      buildRateLimitResponse(event, {
-        retryAfterSeconds: tenantResetTime,
-        limit: DEFAULT_TENANT_MAX_REQUESTS,
-        reason: "Too Many Requests — tenant limit reached",
-        scope: "tenant",
-      }),
-      event,
-    );
+    tenantRemaining = Math.max(0, tenantMaxRequests - tenantBucket.count);
+    const tenantResetTime = Math.ceil((tenantBucket.windowStart + DEFAULT_WINDOW_MS - now) / 1000);
+
+    if (tenantBucket.count > tenantMaxRequests) {
+      logger.warn(
+        `[RateLimit] Tenant ${tenantKey} exceeded limit (${tenantBucket.count}/${tenantMaxRequests}, ${multiplier}x multiplier)`,
+        { pathname, method, tenant: tenantKey },
+      );
+      return withSecurityHeaders(
+        buildRateLimitResponse(event, {
+          retryAfterSeconds: tenantResetTime,
+          limit: tenantMaxRequests,
+          reason: "Too Many Requests — tenant limit reached",
+          scope: "tenant",
+        }),
+        event,
+      );
+    }
   }
 
   const response = await resolve(event);
 
   // Clone headers — resolve() Responses are often immutable
   return withMutableHeaders(response, (headers) => {
-    headers.set("X-RateLimit-Limit", String(DEFAULT_MAX_REQUESTS));
+    headers.set("X-RateLimit-Limit", String(maxRequests));
     headers.set("X-RateLimit-Remaining", String(remaining));
     headers.set("X-RateLimit-Reset", String(resetTime));
-    headers.set("X-RateLimit-Tenant-Remaining", String(tenantRemaining));
+    // Tenant telemetry only meaningful when a tenant bucket actually exists.
+    if (tenantKey) {
+      headers.set("X-RateLimit-Tenant-Remaining", String(tenantRemaining));
+    }
   });
 };
 

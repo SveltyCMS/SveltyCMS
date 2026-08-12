@@ -40,6 +40,7 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
     icon: { type: String, default: "bi:folder" },
     order: { type: Number, default: 0 },
     type: { type: String, enum: ["folder", "collection"], required: true },
+    tenantId: { type: String, index: true }, // Multi-tenant isolation ID
     metadata: Schema.Types.Mixed,
     createdAt: { type: String, default: () => nowISODateString() },
     updatedAt: { type: String, default: () => nowISODateString() },

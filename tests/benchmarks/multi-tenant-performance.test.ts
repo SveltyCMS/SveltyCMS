@@ -20,6 +20,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -38,8 +39,8 @@ async function runMultiTenantAudit() {
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
 
-    // Cache security variables outside hot iterations to prevent process.env lookup penalties
-    const apiSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
+    // REAL admin session cookie (production auth)
+    const authHeaders = benchmarkAuthHeaders();
 
     // 1. Parallelize tenant provisioning to optimize database seed time
     console.log(`   → Pre-seeding ${TENANT_COUNT} tenants concurrently...`);
@@ -62,8 +63,7 @@ async function runMultiTenantAudit() {
       onIteration: async () => {
         const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable?limit=5`, {
           headers: {
-            "x-test-mode": "true",
-            "x-test-secret": apiSecret,
+            ...authHeaders,
           },
         });
         if (!res.ok) throw new Error(`Baseline failed: ${res.status}`);
@@ -91,8 +91,7 @@ async function runMultiTenantAudit() {
         const tenantId = tenantLookups[i] ?? `tenant-0`;
         const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable?limit=5`, {
           headers: {
-            "x-test-mode": "true",
-            "x-test-secret": apiSecret,
+            ...authHeaders,
             "x-tenant-id": tenantId,
           },
         });

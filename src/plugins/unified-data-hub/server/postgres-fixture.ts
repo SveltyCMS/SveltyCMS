@@ -42,7 +42,7 @@ export function getFixtureConnectionString(): string {
   // postgres library to connect to the wrong port and hang on protocol handshake.
   const host = process.env.UDH_PG_HOST || process.env.DB_HOST || "127.0.0.1";
   const port = process.env.UDH_PG_PORT || "5432";
-  const database = process.env.UDH_PG_DATABASE || getIntegrationDbName();
+  const database = process.env.UDH_PG_DATABASE || getIntegrationDbName("postgresql");
   const creds = getDockerDefaultDbCredentials("postgresql");
   const user = process.env.UDH_PG_USER || creds.user;
   const password = process.env.UDH_PG_PASSWORD || creds.password;

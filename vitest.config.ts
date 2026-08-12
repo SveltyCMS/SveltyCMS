@@ -81,7 +81,20 @@ export default defineConfig({
     ...(isCI ? {} : { maxWorkers: localMaxWorkers }),
     server: {
       deps: {
-        inline: [/@sveltejs\/kit/, /sveltekit-rate-limiter/],
+        inline: [
+          /@sveltejs\/kit/,
+          /sveltekit-rate-limiter/,
+          // Single graphql realm under forks: graphql ships CJS+ESM builds (no
+          // "exports" map), so schema types built by @graphql-tools/schema can
+          // end up in a different realm than rules/predicates from the ESM
+          // build (e.g. NoSchemaIntrospectionCustomRule → isNonNullType crash).
+          // Inlining the Yoga chain forces one vite-processed instance.
+          /^graphql$/,
+          /graphql-yoga/,
+          /@graphql-tools\//,
+          /@envelop\//,
+          /graphql-jit/,
+        ],
       },
     },
   },

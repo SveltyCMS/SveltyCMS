@@ -5,6 +5,10 @@
  *
  * Rewrites token placeholders in JSON API payloads using the caller's roles/tenant.
  * Rebuilds Response with mutable headers + updated Content-Length after mutation.
+ *
+ * ### Features:
+ * - Compressed bodies (Content-Encoding) pass through untouched — decompression runs in a later hook
+ * - JSON primitives (true / 42 / "OK") pass through untouched — only objects/arrays are rewritten
  */
 
 import { processTokensInResponse } from "@src/services/token/helper";
@@ -45,6 +49,11 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
     const contentType = response.headers.get("content-type");
     if (!contentType?.includes("application/json")) return response;
 
+    // Never read a compressed body as text: gzip/br bytes would fail JSON.parse
+    // (500s). Token resolution must run BEFORE compression layers, so skip any
+    // response that is already content-encoded.
+    if (response.headers.has("content-encoding")) return response;
+
     // Size gating on both content-length and actual body
     const contentLengthStr = response.headers.get("content-length");
     if (contentLengthStr) {
@@ -70,6 +79,11 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
     } catch {
       return response;
     }
+
+    // JSON primitives (true / 42 / "OK") are valid payloads but carry no fields
+    // or tokens to rewrite — pass them through untouched. Arrays are typeof
+    // "object" and still flow through.
+    if (!body || typeof body !== "object") return response;
 
     // 🔐 FIELD-LEVEL PERMISSIONS: strip fields the caller's role may not read
     // (e.g. editor sees title/body but not internal_notes). Runs only when a

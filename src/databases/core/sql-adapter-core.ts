@@ -327,42 +327,42 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
   public get auth(): any {
     if (!this._auth) {
-      this._auth = new RelationalAuthModule(this as any, this.schema);
+      this._auth = new RelationalAuthModule(this, this.schema);
     }
     return this._auth;
   }
 
   public get content(): any {
     if (!this._content) {
-      this._content = new RelationalContentModule(this as any, this.schema);
+      this._content = new RelationalContentModule(this, this.schema);
     }
     return this._content;
   }
 
   public get media(): any {
     if (!this._media) {
-      this._media = new RelationalMediaModule(this as any, this.schema);
+      this._media = new RelationalMediaModule(this, this.schema);
     }
     return this._media;
   }
 
   public get system(): any {
     if (!this._system) {
-      this._system = new RelationalSystemModule(this as any, this.schema);
+      this._system = new RelationalSystemModule(this, this.schema);
     }
     return this._system;
   }
 
   public get batch(): any {
     if (!this._batch) {
-      this._batch = new BatchModule(this as any);
+      this._batch = new BatchModule(this);
     }
     return this._batch;
   }
 
   public get collection(): any {
     if (!this._collection) {
-      this._collection = new CollectionModule(this as any);
+      this._collection = new CollectionModule(this);
     }
     return this._collection;
   }
@@ -1795,9 +1795,17 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     _pipeline: unknown[],
     _options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<R[]>> {
-    // Return empty result silently — aggregate is a MongoDB-ism not needed by SQL adapters.
-    // Concrete adapters (PostgreSQL) can override with real GROUP BY implementation.
-    return { success: true, data: [] };
+    // SQL engines have no MongoDB-style aggregation pipeline, so report the
+    // limitation honestly instead of silently returning an empty result that
+    // callers would mistake for a real aggregation.
+    return {
+      success: false,
+      message: "aggregate is not supported on this engine",
+      error: {
+        code: "NOT_SUPPORTED",
+        message: "aggregate is not supported on this engine",
+      },
+    };
   }
 
   // --------------------------------------------------------------------------

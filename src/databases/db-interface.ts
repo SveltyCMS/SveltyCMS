@@ -182,6 +182,19 @@ export interface BaseQueryOptions {
 }
 
 /**
+ * Aggregated usage statistics for an API key write.
+ * Carried by the api-key usage accumulator so each key is written ONCE per
+ * flush interval instead of once per authenticated request. When omitted,
+ * adapters keep the historical per-request behavior (`+1` at the current time).
+ */
+export interface ApiKeyUsageUpdate {
+  /** Total request count accumulated for the key (replaces the default `+1`). */
+  usageCount?: number;
+  /** Timestamp of the most recent request (replaces the default "now"). */
+  lastUsedAt?: Date;
+}
+
+/**
  * Build a last-arg options bag with tenantId.
  * Prefer this over positional tenantId (options-last contract for all adapters).
  *
@@ -816,10 +829,15 @@ export interface IAuthAdapter {
     roleData: Partial<Role>,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Role>>;
+  /**
+   * Aggregated usage statistics for an API key. When omitted, adapters keep the
+   * historical per-request behavior (`$inc 1` at the current time).
+   */
   updateApiKeyUsage(
     id: DatabaseId,
     ip?: string,
     options?: BaseQueryOptions,
+    usage?: ApiKeyUsageUpdate,
   ): Promise<DatabaseResult<void>>;
   updateSessionExpiry(
     sessionId: DatabaseId,

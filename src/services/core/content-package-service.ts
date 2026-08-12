@@ -484,9 +484,14 @@ export class ContentPackageService {
       checksums: {}, // Filled after checksum computation
     };
 
-    // Compute checksums
+    // Compute checksums — the manifest.json checksum MUST cover the manifest
+    // WITHOUT the checksums key: validateImport re-hashes the checksum-free
+    // manifest (a self-referential hash of the manifest containing its own
+    // checksum can never match — the old code computed exactly that and every
+    // exported package failed its own validation).
     const checksums: Record<string, string> = {};
-    checksums["manifest.json"] = await createChecksum(manifest);
+    const { checksums: _manifestChecksums, ...manifestForHash } = manifest;
+    checksums["manifest.json"] = await createChecksum(manifestForHash);
     for (const [colName, ndjson] of Object.entries(collections)) {
       checksums[`collections/${colName}.ndjson`] = await createChecksum(ndjson);
     }
@@ -494,7 +499,6 @@ export class ContentPackageService {
     checksums["media/media-map.json"] = await createChecksum(mediaMap);
 
     manifest.checksums = checksums;
-    checksums["manifest.json"] = await createChecksum(manifest); // Recompute with checksums included
 
     const pkg: ContentPackage = {
       manifest,
@@ -578,16 +582,16 @@ export class ContentPackageService {
     // 3. Verify checksums
     let checksumsValid = true;
     try {
+      // 🛡️ Protocol: the manifest.json checksum covers the manifest WITHOUT the
+      // checksums key (runExport hashes the checksum-free manifest). The old
+      // self-referential fallback below could never match and only masked the
+      // real mismatch.
       const manifestChecksum = await createChecksum(
         Object.fromEntries(Object.entries(pkg.manifest).filter(([k]) => k !== "checksums")),
       );
       if (pkg.manifest.checksums?.["manifest.json"] !== manifestChecksum) {
-        // Re-verify with checksums present — some manifests include self-checksum
-        const fullChecksum = await createChecksum(pkg.manifest);
-        if (pkg.manifest.checksums?.["manifest.json"] !== fullChecksum) {
-          errors.push("Manifest checksum mismatch — package may be tampered or corrupted.");
-          checksumsValid = false;
-        }
+        errors.push("Manifest checksum mismatch — package may be tampered or corrupted.");
+        checksumsValid = false;
       }
 
       for (const [colName, ndjson] of Object.entries(pkg.collections ?? {})) {

@@ -19,6 +19,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -135,8 +136,7 @@ async function runMediaAudit() {
         const res = await fetch(`${baseUrl}/api/media/upload`, {
           method: "POST",
           headers: {
-            "x-test-mode": "true",
-            "x-test-secret": process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026",
+            ...benchmarkAuthHeaders(),
             Origin: baseUrl,
           },
           body: formData,

@@ -139,7 +139,7 @@ Redis is **already fully optional**.
 - **Memory sizing**: Start with 1–4 GB for moderate sites; monitor `cache:stats` / metrics. Our L1 (500k items) + negative bloom keeps most traffic off Redis.
 - **Security**: Password + TLS in production (redis client supports via URL options).
 
-See `src/databases/cache/cache-service.ts` (L1 always, L2 lazy) and `redis-store.ts` (tag support, multi exec).
+See `src/databases/cache/cache-service.ts` (L1 always, L2 lazy, tag support via sorted-set mappings, pipelined writes).
 
 In `reconfigure()` / startup we cleanly skip or cleanup if `!USE_REDIS`.
 

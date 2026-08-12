@@ -127,9 +127,12 @@ async function runWidgetAudit() {
     allResults.push({ ...widgetPipeline, layer: "Middleware" });
 
     // 3. Specific Widget: RichText Logic
-    console.log("   → Measuring Heavy Widget Logic (Simulated)...");
+    // ⚠️ HONESTY: the mocked scanner's factories have NO modifyRequest, so the
+    // "RichText Parse" row below measures an empty branch (0ms) — it is a
+    // dispatch-tax probe, not a real RichText parse. Relabeled accordingly.
+    console.log("   → Measuring Widget Dispatch (mock, no real modifyRequest)...");
     const heavyWidgetResult = await runBenchmark({
-      name: "Heavy Widget (RichText Parse)",
+      name: "Widget Dispatch (mock — no real parse)",
       iterations: ITERATIONS,
       warmupIterations: 20,
       runs: 1,
@@ -165,7 +168,7 @@ async function runWidgetAudit() {
     printSummaryTable([
       { key: "DB Baseline Latency", val: dbBaseline.avgMs, unit: "ms" },
       { key: "Widget Middleware Tax", val: taxPercent.toFixed(2), unit: "%" },
-      { key: "RichText Transform", val: heavyWidgetResult.avgMs, unit: "ms" },
+      { key: "Widget Dispatch (mock)", val: heavyWidgetResult.avgMs, unit: "ms" },
       { key: "Pipeline Stability", val: "STABLE", unit: "" },
     ]);
 

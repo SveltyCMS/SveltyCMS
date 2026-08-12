@@ -26,7 +26,7 @@ import {
   printSummaryTable,
   getDbType,
   forceRefreshServer,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -48,7 +48,7 @@ const graphqlScenarios = [
   },
   {
     name: "GQL: Concurrent Load",
-    query: `query { allCollections { _id name } __schema { types { name } } }`,
+    query: `query { allCollections { _id name } }`,
     shortLabel: "Load",
     concurrency: 5,
   },
@@ -96,10 +96,10 @@ export async function runGraphQLBenchmark() {
     await forceRefreshServer(baseUrl);
     await stabilize(1200);
 
+    // REAL admin session cookie (production auth)
     const requestHeaders: Record<string, string> = {
       "content-type": "application/json",
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
       "x-tenant-id": tenantId,
     };
 

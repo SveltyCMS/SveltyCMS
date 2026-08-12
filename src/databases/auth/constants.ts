@@ -130,6 +130,23 @@ export function generateRandomToken(length = 32): string {
   return result;
 }
 
+/**
+ * Default session lifetime in hours when `SESSION_TTL_HOURS` is not configured.
+ * The effective TTL is admin-configurable (System Settings → Security).
+ */
+export const SESSION_TTL_DEFAULT_HOURS = 24;
+
+/**
+ * Computes the session lifetime in milliseconds from the configured
+ * `SESSION_TTL_HOURS` value (read via `getPrivateSettingSync` at the call
+ * site). Falls back to {@link SESSION_TTL_DEFAULT_HOURS} when the setting is
+ * unset or invalid. Pure — safe for client and server imports.
+ */
+export function sessionTtlMs(configuredHours?: unknown): number {
+  const hours = Number(configuredHours) || SESSION_TTL_DEFAULT_HOURS;
+  return hours * 60 * 60 * 1000;
+}
+
 export function generateTokenWithExpiry(expirationMinutes = 60): {
   token: string;
   expires: Date;

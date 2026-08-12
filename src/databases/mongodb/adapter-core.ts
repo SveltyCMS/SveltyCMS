@@ -4,7 +4,7 @@
  */
 
 import { createRequire } from "node:module";
-if (import.meta.env.SSR && typeof (globalThis as any).require === "undefined") {
+if (import.meta.env?.SSR && typeof (globalThis as any).require === "undefined") {
   (globalThis as any).require = createRequire(import.meta.url);
 }
 
@@ -13,6 +13,26 @@ import { sanitizeMongoQuery } from "@src/utils/security/mongo-sanitize";
 import { logger } from "@utils/logger";
 import { BaseAdapter } from "../core/base-adapter";
 import type { DatabaseCapabilities, DatabaseResult, ConnectionPoolOptions } from "../db-interface";
+
+/** Escapes special regex characters so user input can't inject patterns or ReDoS. */
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Mongoose global toObject/toJSON options mutate SHARED global state — apply
+ * them once per process instead of on every connect() (multiple connections or
+ * concurrent test harnesses would otherwise clobber each other's settings).
+ */
+let mongooseGlobalsConfigured = false;
+function configureMongooseGlobals(options: Record<string, unknown>): void {
+  if (mongooseGlobalsConfigured) return;
+  mongooseGlobalsConfigured = true;
+  mongoose.set("toObject", options);
+  mongoose.set("toJSON", options);
+  mongoose.set("bufferCommands", false);
+  mongoose.set("autoCreate", false);
+}
 
 export abstract class MongoAdapterCore extends BaseAdapter {
   protected _connection: mongoose.Connection | null = null;
@@ -88,7 +108,6 @@ export abstract class MongoAdapterCore extends BaseAdapter {
       const isTestMode =
         (globalThis as any).process?.env?.TEST_MODE === "true" ||
         (globalThis as any).process?.env?.VITE_TEST_MODE === "true" ||
-        (globalThis as any).process?.env?.BENCHMARK === "true" ||
         (globalThis as any).process?.env?.NODE_ENV === "test" ||
         !!(globalThis as any).process?.env?.VITEST ||
         !!(globalThis as any).process?.env?.BUN_TEST;
@@ -118,10 +137,7 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         virtuals: true,
       };
 
-      mongoose.set("toObject", globalOptions);
-      mongoose.set("toJSON", globalOptions);
-      mongoose.set("bufferCommands", false);
-      mongoose.set("autoCreate", false);
+      configureMongooseGlobals(globalOptions);
 
       this._connection = await mongoose
         .createConnection(connectionString, connectOptions)
@@ -214,16 +230,31 @@ export abstract class MongoAdapterCore extends BaseAdapter {
     };
     const mongoOp = opMap[operator] || operator;
     let v = value;
-    if (operator === "$contains") v = new RegExp(String(value), "i");
-    else if (operator === "$like")
-      v = new RegExp("^" + String(value).replace(/%/g, ".*") + "$", "i");
+    // 🛡️ User input must be regex-escaped: raw interpolation allowed pattern
+    // injection ("a.b" matching any char) and ReDoS via crafted patterns.
+    if (operator === "$contains") {
+      v = new RegExp(escapeRegExp(String(value)), "i");
+    } else if (operator === "$like") {
+      // '%' is the only wildcard; every other character is matched literally.
+      const parts = String(value).split("%").map(escapeRegExp);
+      v = new RegExp("^" + parts.join(".*") + "$", "i");
+    }
 
-    if (mongoOp === "$eq") {
+    if (mongoOp === "$eq" && !(field in out)) {
       out[field] = v;
     } else {
+      // Merge with any earlier condition on the same field instead of
+      // overwriting: { age: { $eq: 20, $gt: 18 } } must keep BOTH constraints.
       const existing = out[field];
-      if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+      if (
+        existing &&
+        typeof existing === "object" &&
+        !Array.isArray(existing) &&
+        !(existing instanceof RegExp)
+      ) {
         existing[mongoOp] = v;
+      } else if (existing !== undefined) {
+        out[field] = { $eq: existing, [mongoOp]: v };
       } else {
         out[field] = { [mongoOp]: v };
       }
@@ -288,13 +319,18 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         isSimple = false;
         break;
       }
-      if (key === "isDeleted") {
-        // Only the exact safeQuery-injected shape may bypass the sanitizer walk.
-        const v = query[key];
-        const isSafe =
-          typeof v === "boolean" ||
-          (v && typeof v === "object" && !Array.isArray(v) && (v as any).$ne === true);
-        if (!isSafe) isSimple = false;
+      // 🛡️ Fast-path values MUST be primitives: an operator object like
+      // { token: { $gt: "" } } or { _id: { $where: ... } } would otherwise
+      // bypass sanitizeMongoQuery entirely (NoSQL injection / auth bypass).
+      const val = query[key];
+      if (val !== null && typeof val === "object") {
+        // Exception: the exact safeQuery-injected isDeleted filter shape.
+        const isSafeQueryShape =
+          key === "isDeleted" && !Array.isArray(val) && (val as any).$ne === true;
+        if (!isSafeQueryShape) {
+          isSimple = false;
+          break;
+        }
       }
     }
 

@@ -85,30 +85,27 @@ The pipeline is **dynamically dispatched** based on system state, with **two cac
 ```typescript
 // READY Pipeline (production order) — after classifyRequest + HEALTH/STATIC fast-paths:
 const pipeline = [
-  handleHyperTurbo, //  1. BENCHMARK AUTH
-  handleTurboPipeline, //  2. CONSOLIDATED GATEWAY
-  handleTestIsolation, //  3. CI ISOLATION
-  handleSecurity, //  4. Firewall, GraphQL Shield
-  handleRateLimit, //  5. Per-IP Fixed-Window Rate Limiting (adaptive pressure)
-  handleSystemState, //  6. AUTHORITATIVE GATEKEEPER
-  handleTurboGet, //  7. 🚀 TURBO GET (session cache + responseCache L1)
-  handleRedirects, //  8. SEO Redirects (tenant header post-auth only)
-  handleCompression, //  9. ESM-Native Streaming
-  handleAeoHeaders, // 10. Automatic Early Opinions
-  handleUserPreferences, // 11. i18n + SSR Theme
-  handleAuthentication, // 12. Identity, Sessions, x-test-secret bypass
-  handleAuthorization, // 13. Role-Based Access Control
-  handleLocalSdk, // 14. Zero-Latency CMS Bridge
-  handleContentInitialization, // 15. Content Manager per Tenant
-  handleAuditLogging, // 16. Fire-and-Forget Audit Trails (microtask)
-  handleApiRequests, // 17. API Caching (ETags, 2-Layer Cache)
-  handleTokenResolution, // 18. RBAC Token Replacement
+  handleTurboPipeline, //  1. CONSOLIDATED GATEWAY
+  handleTestIsolation, //  2. CI ISOLATION (TEST_MODE only)
+  handleSecurity, //  3. Firewall, GraphQL Shield
+  handleRateLimit, //  4. Per-IP Fixed-Window Rate Limiting (adaptive pressure)
+  handleSystemState, //  5. AUTHORITATIVE GATEKEEPER
+  handleTurboGet, //  6. 🚀 TURBO GET (session cache + responseCache L1)
+  handleRedirects, //  7. SEO Redirects (tenant header post-auth only)
+  handleCompression, //  8. ESM-Native Streaming
+  handleAeoHeaders, //  9. Automatic Early Opinions
+  handleUserPreferences, // 10. i18n + SSR Theme
+  handleAuthentication, // 11. Identity, Sessions
+  handleAuthorization, // 12. Role-Based Access Control
+  handleLocalSdk, // 13. Zero-Latency CMS Bridge
+  handleContentInitialization, // 14. Content Manager per Tenant
+  handleAuditLogging, // 15. Fire-and-Forget Audit Trails (microtask)
+  handleApiRequests, // 16. API Caching (ETags, 2-Layer Cache)
+  handleTokenResolution, // 17. RBAC Token Replacement
 ];
 ```
 
-> **2026-08-10**: READY pipeline runs **18 hooks**; immutable asset caching is served by `handleTurboPipeline` + the `FAST_STATIC` lane; `wrapHandle` passes resolved handles directly into `sequence()` when hook timing is disabled (zero per-request wrapper overhead).
-
-> **2026-08 Request Lane Router**: O(1) `classifyRequest` + `x-svelty-lane` on all responses; HEALTH/FAST_STATIC short-circuit before the sequence; HYPER_TURBO keys off `auth_sessions` cookie; user-scoped GraphQL/REST `responseCache` (`src/services/cache/response-cache.ts`).
+> **2026-08-11**: `handleHyperTurbo` (benchmark auth forge) was **removed**. Benchmarks run `NODE_ENV=production` with real session cookies — `BENCHMARK` grants no request-path bypass. READY pipeline runs **17 hooks**.
 
 > **2026-07 Security Hardening**: Turbo-auth restricted to GET/HEAD/OPTIONS (mutations pass through CSRF). `x-tenant-id` header only trusted when user is authenticated. Turbo-auth cache invalidated on role change, block, delete, and unblock. Auth methods use `safeCall` pattern (return `DatabaseResult` instead of throwing). `invalidateTurboAuthForUser()` exported for programmatic session revocation.
 
@@ -116,9 +113,9 @@ const pipeline = [
 
 > **2026-06-05**: `handleSecurityHeaders` inlined into `handleTurboPipeline`. `handleTurboGet` moved before auth/authz.
 
-### handleHyperTurbo - Benchmark Auth (Security-Gated)
+### handleTurboPipeline - Consolidated Gateway
 
-First hook. Active only when `BENCHMARK=true`. Requires `x-test-secret` + optional CSPRNG `x-bench-nonce`. Auth paths excluded. See [No Backdoor Policy](../security/index.mdx).
+First hook. Classification, static delegation, setup-state gating, health fast-path, and the TEST_MODE-only terminal bypass (real session user resolution when a session cookie is present). No benchmark forge — benchmarks authenticate with real sessions like production.
 
 ---
 
@@ -945,14 +942,13 @@ if (request.headers.get("if-none-match") === etag) {
 sequenceDiagram
     participant Client
     participant Guard as hooks.server.ts (Global Guard)
-    participant Hyper as 1. handleHyperTurbo
-    participant Turbo as 2. handleTurboPipeline
-    participant Test as 3. handleTestIsolation
-    participant Security as 4. handleSecurity
-    participant RateLimit as 5. handleRateLimit
-    participant State as 6. handleSystemState
-    participant TurboGet as 7. handleTurboGet
-    participant Redirects as 8. handleRedirects
+    participant Turbo as 1. handleTurboPipeline
+    participant Test as 2. handleTestIsolation
+    participant Security as 3. handleSecurity
+    participant RateLimit as 4. handleRateLimit
+    participant State as 5. handleSystemState
+    participant TurboGet as 6. handleTurboGet
+    participant Redirects as 7. handleRedirects
     participant Comp as 9. handleCompression
     participant Auth as 12. handleAuthentication
     participant Authz as 13. handleAuthorization

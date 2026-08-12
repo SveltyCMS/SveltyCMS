@@ -152,9 +152,6 @@ jobs:
               echo "::group::oxlint"
               bun run lint:ci
               echo "::endgroup::"
-              echo "::group::lint:widgets"
-              bun run lint:widgets
-              echo "::endgroup::"
               echo "::group::lockfile-sync"
               bun run scripts/check-lockfile-sync.ts
               echo "::endgroup::"
@@ -401,7 +398,14 @@ jobs:
           DB_PASSWORD: ${{ matrix.db_password }}
           ADMIN_PASSWORD: Password123!
           PASSWORD_MIN_LENGTH: 8
-          TEST_MODE: "true"
+          # 🛡️ PRODUCTION PARITY: benchmark servers run NODE_ENV=production
+          # without TEST_MODE — real sessions, rate limits, WAF, audits.
+          NODE_ENV: production
+          # 🏢 Audit mode: BENCHMARK_AUDIT_MODE=compliance enables the enterprise
+          # audit chain (AUDIT_CHAIN_SYNC=true, DISABLE_AUDIT_LOGS=false).
+          BENCHMARK_AUDIT_MODE: "production"
+          RATE_LIMIT_MAX_REQUESTS: "20000"
+          SECURITY_RATE_LIMIT_SCALE: "100"
           BENCHMARK_PROFILE: "ci-fresh"
           BENCHMARK_NO_REDIS: "1"
           BENCHMARK_RECORD: "1"

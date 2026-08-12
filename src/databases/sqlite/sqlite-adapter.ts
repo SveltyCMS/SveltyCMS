@@ -86,6 +86,7 @@ export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
           "auth_users",
           "auth_sessions",
           "auth_tokens",
+          "auth_api_keys",
           "roles",
           "content_nodes",
           "content_drafts",
@@ -134,6 +135,39 @@ export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
 
         logger.info("[SQLite Adapter] Database tables cleared/dropped (resilient clear)");
       }, "CLEAR_DATABASE_FAILED"),
+    );
+  }
+
+  /**
+   * Cleanup expired sessions and tokens (TTL-equivalent for SQL databases).
+   * MongoDB handles this automatically via TTL indexes; SQL databases need manual cleanup.
+   * SQLite stores timestamps as INTEGER epoch milliseconds (Drizzle `timestamp_ms` mode).
+   * @returns Number of rows cleaned up
+   */
+  public async cleanupExpiredData(): Promise<DatabaseResult<{ sessions: number; tokens: number }>> {
+    return this.wrap(
+      async () => {
+        if (!this.sqlite) throw new Error("Not connected");
+        const nowMs = Date.now();
+        const sevenDaysAgoMs = nowMs - 7 * 24 * 60 * 60 * 1000;
+        // Table/column names are hardcoded literals; only VALUES are bound
+        // (no string interpolation — scanner-safe and injection-proof).
+        const sessionResult = await this.raw.execute(
+          `DELETE FROM auth_sessions WHERE "expires" < ?`,
+          [nowMs],
+        );
+        const tokenResult = await this.raw.execute(
+          `DELETE FROM auth_tokens WHERE ("expires" < ?) OR ("consumed" = 1 AND "updatedAt" < ?)`,
+          [nowMs, sevenDaysAgoMs],
+        );
+        return {
+          sessions: (sessionResult as { changes?: number })?.changes || 0,
+          tokens: (tokenResult as { changes?: number })?.changes || 0,
+        };
+      },
+      "CLEANUP_EXPIRED_DATA_FAILED",
+      undefined,
+      { isWrite: true },
     );
   }
 }

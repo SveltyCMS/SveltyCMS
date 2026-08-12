@@ -33,7 +33,7 @@ SveltyCMS is a powerful headless CMS built with SvelteKit 2, Svelte 5, TypeScrip
 ## Core Philosophy & Focus
 
 - **Data Security & Ownership**: Security is paramount—users always own their data. Implement strict protocols (e.g., no direct DB access outside adapters, secure headers).
-- **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, SSR-first architecture, SvelteKit 5 Server Functions, Valibot, Vite optimizations, and <1s cold starts via progressive initialization. **We continuously monitor benchmarks (see `docs/project/benchmarks/index.mdx`) to ensure we remain the fastest Java-enterprise-ready CMS, aiming for sub-10ms persistence and outperforming traditional enterprise platforms.**
+- **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, SSR-first architecture, SvelteKit 5 Server Functions, Valibot, Vite optimizations, and <1s cold starts via progressive initialization. **We continuously monitor benchmarks (see `docs/project/benchmarks/index.mdx`) to ensure we remain the fastest Java-enterprise-ready CMS, aiming for sub-5ms persistence and outperforming traditional enterprise platforms.**
 
 - **Universal Accessibility**: WCAG 2.2 AA and ATAG 2.0 compliant (full keyboard support, ARIA-live regions); **built for WCAG 3.0 Functional Performance standards with native Svelte 5 components.**
 - **Premium Design**: Modern UX with native Svelte 5 components and Tailwind v4 for white-labeling and deep theming.
@@ -309,7 +309,7 @@ When generating/modifying code:
     - **Svelte Attribute Placement (CRITICAL)**: HTML attributes (`aria-label`, `role`, `type`, etc.) MUST be on the **opening tag** of the element. Placing an attribute string between child elements causes Svelte to render it as **visible text content**, not as an HTML attribute.
       - ✅ `<button aria-label="Save" onclick={...}> <icon/> Save </button>`
       - ❌ `<button onclick={...}> <icon/> aria-label="Save" Save </button>` — renders the text "aria-label=\"Save\""
-12. **Performance Awareness**: Every change must consider the "sub-10ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
+12. **Performance Awareness**: Every change must consider the "sub-5ms persistence" goal. Avoid heavy runtime dependencies and prioritize Svelte 5 runes for fine-grained reactivity.
 13. **Empirical Performance Verification**: When implementing logic enhancements or optimizations:
     - **Baseline**: Run the relevant benchmark with recording: `BENCHMARK_RECORD=1 bun test tests/benchmarks/<test>.test.ts`
     - **Verification**: Run same benchmark after changes; compare trend labels in `docs/project/benchmarks/benchmark_<db>.mdx`
@@ -420,12 +420,12 @@ Full decision record: **[docs/tests/adr-testing-2026.mdx](docs/tests/adr-testing
 
 `/api/testing` seed/reset actions (`seed-webhook`, `seed-automation`, `enable-plugin`, …) are **not** production features.
 
-| Requirement         | Enforcement                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Never in production | `NODE_ENV=production` → **403** (`assertTestingApiAllowed`)                                                   |
-| Explicit env flag   | `TEST_MODE` / `PLAYWRIGHT_TEST` / `BENCHMARK` / `SVELTY_BENCHMARK_SUITE` only — **not** bare `NODE_ENV=test`  |
-| Shared secret       | `x-test-secret` must match `TEST_API_SECRET` (timing-safe)                                                    |
-| Build strip         | `testBackdoorStripperPlugin` + `scripts/verify-prod-build-backdoor.ts` remove handler from production bundles |
+| Requirement         | Enforcement                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Never in production | `NODE_ENV=production` → **403** (`assertTestingApiAllowed`)                                                                                                                          |
+| Explicit env flag   | `TEST_MODE` / `PLAYWRIGHT_TEST` only — **not** bare `NODE_ENV=test`, and **not** `BENCHMARK` (benchmark servers run production-mode with real sessions; `/api/testing` is 403 there) |
+| Shared secret       | `x-test-secret` must match `TEST_API_SECRET` (timing-safe)                                                                                                                           |
+| Build strip         | `testBackdoorStripperPlugin` + `scripts/verify-prod-build-backdoor.ts` remove handler from production bundles                                                                        |
 
 **Do not** add alternate entry points that skip this gate. Prefer UI golden journeys + seeds only behind `/api/testing`. Never hardcode production-usable secrets. Unit proof: `tests/unit/utils/testing-api-gate.test.ts`, `tests/unit/hooks/route-access-audit.test.ts`.
 
@@ -723,7 +723,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 2. **Async Init**: Await `dbInitPromise`.
 3. **Date Handling & ISO Strings**:
    - **Type Safety**: Use `ISODateString` from `@src/content/types` for all dates in entities.
-   - **Utility**: Use `@src/utils/date-utils.ts` for ALL date operations.
+   - **Utility**: Use `@src/utils/date` (`nowISODateString`, `isoDateStringToDate`, `toISOString`) for ALL date operations.
    - **Current Time**: Always use `nowISODateString()` instead of `new Date().toISOString()`.
    - **Drizzle Consistency**: When assigning to Drizzle `Date` columns (MariaDB/SQLite), wrap ISO strings in `isoDateStringToDate()`: `updatedAt: isoDateStringToDate(nowISODateString())`.
    - **Database Agnostic**: Use `toISOString(value)` when reading from any database to ensure a consistent `ISODateString`.
@@ -788,6 +788,7 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 | `tests/unit/security/token-secret-leakage.test.ts`    | `docs/reference/security/secrets-inventory.mdx`                                                                           |
 | `tests/unit/scripts/scan-secret-misuse.test.ts`       | `docs/reference/security/secrets-inventory.mdx`                                                                           |
 | `tests/unit/widgets/core/*.test.ts`                   | `docs/tests/widget-test-coverage.mdx`                                                                                     |
+| `tests/unit/graphql/graphql-server.test.ts`           | `docs/reference/api/graphql.mdx`                                                                                          |
 | `tests/unit/content/sync-content-state.test.ts`       | `docs/reference/architecture/content-system.mdx`, `docs/reference/architecture/compilation-pipeline.mdx`                  |
 | `tests/unit/content/collection-save-sync.test.ts`     | `docs/reference/architecture/compilation-pipeline.mdx`, `docs/reference/architecture/collection-builder-architecture.mdx` |
 | `tests/unit/content/schema-contract.test.ts`          | `docs/reference/architecture/content-system.mdx`                                                                          |

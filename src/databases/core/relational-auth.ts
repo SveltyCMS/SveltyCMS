@@ -21,6 +21,7 @@ import type {
   User,
   ISqlAdapter,
   ApiKey,
+  ApiKeyUsageUpdate,
 } from "../db-interface";
 import * as utils from "./relational-utils";
 import type { ISODateString } from "@src/content/types";
@@ -867,6 +868,14 @@ export class RelationalAuthModule implements IAuthAdapter {
           .from(this.schema.authTokens)
           .where(and(...conditions))
           .limit(1);
+        // Blocked tokens must never validate (parity with mongodb/auth-token.ts)
+        if (t?.blocked) {
+          return {
+            success: false,
+            message: "Token is blocked",
+            error: { code: "TOKEN_BLOCKED", message: "Token is blocked" },
+          };
+        }
         return t
           ? {
               success: true,
@@ -901,11 +910,18 @@ export class RelationalAuthModule implements IAuthAdapter {
 
         const db = this.getDb(options);
 
-        // Atomic claim only for non-expired tokens
+        // Atomic claim only for non-expired, non-blocked tokens (blocked parity
+        // with mongodb/auth-token.ts claim filter)
         const result = await db
           .update(this.schema.authTokens)
           .set({ consumed: true })
-          .where(and(...baseConditions, gt(this.schema.authTokens.expires, new Date())));
+          .where(
+            and(
+              ...baseConditions,
+              gt(this.schema.authTokens.expires, new Date()),
+              eq(this.schema.authTokens.blocked, false),
+            ),
+          );
 
         const isClaimed =
           (result as any).changes > 0 || (result as any).affectedRows > 0 || result.length > 0;
@@ -914,11 +930,12 @@ export class RelationalAuthModule implements IAuthAdapter {
           return { status: true, message: "Consumed" };
         }
 
-        // Diagnose failure for better UX (expired vs missing vs already used)
+        // Diagnose failure for better UX (blocked vs expired vs missing vs already used)
         const [existing] = await db
           .select({
             expires: this.schema.authTokens.expires,
             consumed: this.schema.authTokens.consumed,
+            blocked: this.schema.authTokens.blocked,
           })
           .from(this.schema.authTokens)
           .where(eq(this.schema.authTokens.token, hashedToken))
@@ -926,6 +943,13 @@ export class RelationalAuthModule implements IAuthAdapter {
 
         if (!existing) {
           return { status: false, message: "Token not found", code: "TOKEN_NOT_FOUND" };
+        }
+        if (existing.blocked) {
+          return {
+            status: false,
+            message: "Token is blocked",
+            code: "TOKEN_BLOCKED",
+          };
         }
         if (existing.consumed) {
           return {
@@ -1602,6 +1626,7 @@ export class RelationalAuthModule implements IAuthAdapter {
     id: DatabaseId,
     ip?: string,
     options?: BaseQueryOptions,
+    usage?: ApiKeyUsageUpdate,
   ): Promise<DatabaseResult<void>> {
     return this.adapter.wrap(
       async () => {
@@ -1615,12 +1640,15 @@ export class RelationalAuthModule implements IAuthAdapter {
         }
 
         const now = isoDateStringToDate(nowISODateString());
+        const lastUsedAt = usage?.lastUsedAt
+          ? isoDateStringToDate(usage.lastUsedAt.toISOString() as ISODateString)
+          : now;
         await this.getDb(options)
           .update(this.schema.authApiKeys)
           .set({
-            lastUsedAt: now,
+            lastUsedAt,
             lastUsedIp: ip || null,
-            usageCount: sql`${this.schema.authApiKeys.usageCount} + 1`,
+            usageCount: sql`${this.schema.authApiKeys.usageCount} + ${usage?.usageCount ?? 1}`,
             updatedAt: now,
           })
           .where(and(...conditions));

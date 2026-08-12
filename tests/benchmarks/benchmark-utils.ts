@@ -79,6 +79,24 @@ export async function setupBenchmarkServer() {
   return canonicalServer();
 }
 
+export async function seedBenchmarkState() {
+  const { seedBenchmarkState: canonicalSeed } = await import("./modules/benchmark-utils");
+  return canonicalSeed();
+}
+
+export async function loginBenchmarkUser(baseUrl: string, email?: string, password?: string) {
+  const { loginBenchmarkUser: canonicalLogin } = await import("./modules/benchmark-utils");
+  return canonicalLogin(baseUrl, email, password);
+}
+
+export async function seedThroughputDocs(count?: number, collectionId?: string, tenantId?: string) {
+  const { seedThroughputDocs: canonical } = await import("./modules/benchmark-utils");
+  return canonical(count, collectionId, tenantId);
+}
+
+// Sync helpers are re-exported directly — they read module-level session state.
+export { benchmarkAuthHeaders, clearBenchmarkSession } from "./modules/benchmark-utils";
+
 export async function ensureStableTestData(db?: any, tenantId: string = "global") {
   const { ensureStableTestData: canonicalData } = await import("./modules/benchmark-utils");
   return canonicalData(db, tenantId);

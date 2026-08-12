@@ -15,6 +15,7 @@ import type {
   User,
   ISODateString,
   ApiKey,
+  ApiKeyUsageUpdate,
 } from "../db-interface";
 import type { MongoAdapterCore } from "./adapter-core";
 import { composeMongoAuthAdapter } from "./auth-composition";
@@ -196,7 +197,12 @@ export class MongoAuthModule extends DatabaseModule<MongoAdapterCore> implements
   revokeApiKey(id: DatabaseId, options?: BaseQueryOptions) {
     return this._auth.revokeApiKey(id, options);
   }
-  updateApiKeyUsage(id: DatabaseId, ip?: string, options?: BaseQueryOptions) {
-    return this._auth.updateApiKeyUsage(id, ip, options);
+  updateApiKeyUsage(
+    id: DatabaseId,
+    ip?: string,
+    options?: BaseQueryOptions,
+    usage?: ApiKeyUsageUpdate,
+  ) {
+    return this._auth.updateApiKeyUsage(id, ip, options, usage);
   }
 }

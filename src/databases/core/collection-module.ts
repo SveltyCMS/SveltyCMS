@@ -7,6 +7,7 @@ import type { Schema } from "@src/content/types";
 import type {
   BaseQueryOptions,
   CollectionModel,
+  DatabaseId,
   DatabaseResult,
   ICollectionAdapter,
   ISqlAdapter,
@@ -112,12 +113,78 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
     }, "CREATE_INDEXES_FAILED");
   }
 
-  async getSchema(_collectionName: string): Promise<DatabaseResult<Schema | null>> {
-    return { success: true, data: null };
+  async getSchema(
+    collectionName: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<Schema | null>> {
+    return this.adapter.wrap(async () => {
+      const filter: Record<string, any> = { nodeType: "collection", name: collectionName };
+      await this.applyStructureTenantFilter(filter, tenantId);
+      const res = await this.crud.findMany("content_nodes", filter as any, {
+        tenantId: tenantId ?? undefined,
+      });
+      if (!res.success) throw new Error(res.message || "Failed to query content structure");
+      const node = Array.isArray(res.data) && res.data.length > 0 ? res.data[0] : null;
+      return this.parseSchemaDefinition(node);
+    }, "GET_SCHEMA_FAILED");
   }
 
-  async getSchemaById(_collectionId: string): Promise<DatabaseResult<Schema | null>> {
-    return { success: true, data: null };
+  async getSchemaById(
+    collectionId: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<DatabaseResult<Schema | null>> {
+    return this.adapter.wrap(async () => {
+      // Mirror the MongoDB implementation: absent/empty ids resolve to null and
+      // dash-normalized ids are matched too, so lookups survive UUID formatting
+      // drift (e.g. after collection renames).
+      if (!collectionId || String(collectionId).trim() === "") return null;
+      const idNorm = String(collectionId).trim().replace(/-/g, "");
+      const filter: Record<string, any> = {
+        nodeType: "collection",
+        $or: [{ _id: collectionId }, { _id: idNorm }],
+      };
+      await this.applyStructureTenantFilter(filter, tenantId);
+      const res = await this.crud.findMany("content_nodes", filter as any, {
+        tenantId: tenantId ?? undefined,
+      });
+      if (!res.success) throw new Error(res.message || "Failed to query content structure");
+      const node = Array.isArray(res.data) && res.data.length > 0 ? res.data[0] : null;
+      return this.parseSchemaDefinition(node);
+    }, "GET_SCHEMA_BY_ID_FAILED");
+  }
+
+  /**
+   * Multi-tenant scoping for content structure lookups (mirrors listSchemas).
+   */
+  private async applyStructureTenantFilter(
+    filter: Record<string, any>,
+    tenantId?: DatabaseId | null,
+  ): Promise<void> {
+    let isMultiTenant = false;
+    try {
+      const { isMultiTenantEnabled } = await import("@utils/tenant");
+      isMultiTenant = isMultiTenantEnabled();
+    } catch {
+      isMultiTenant = process.env.MULTI_TENANT === "true";
+    }
+    if (isMultiTenant && tenantId) filter.tenantId = tenantId;
+  }
+
+  /**
+   * Extracts the Schema from a content structure node's collectionDef field,
+   * tolerating both pre-parsed objects and JSON strings (same as listSchemas).
+   */
+  private parseSchemaDefinition(node: any): Schema | null {
+    let def = node?.collectionDef;
+    if (!def) return null;
+    if (typeof def === "string") {
+      try {
+        def = JSON.parse(def);
+      } catch {
+        return null;
+      }
+    }
+    return def && typeof def === "object" ? (def as Schema) : null;
   }
 
   async listSchemas(

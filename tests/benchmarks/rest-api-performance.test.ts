@@ -22,7 +22,7 @@ import {
   printSummaryTable,
   getDbType,
   forceRefreshServer,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -63,10 +63,9 @@ async function runRestAudit() {
     await ensureStableTestData(null);
     await forceRefreshServer(baseUrl);
 
-    // Pre-allocated static headers to eliminate runtime object instantiation penalties
+    // Pre-allocated static headers — REAL admin session cookie (production auth)
     const requestHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
       "x-tenant-id": "global",
     };
 

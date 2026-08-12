@@ -30,14 +30,42 @@ test.describe("System Language Change", () => {
     await trigger.click({ force: true });
     const deOption = page.getByRole("button", { name: /german|deutsch/i }).first();
     await expect(deOption).toBeVisible({ timeout: 5_000 });
-    await deOption.click({ force: true });
+    // Portaled panel settle: useFloating positions the panel asynchronously after
+    // mount and it animates in (animate-in fade-in zoom-in-95, 200ms). Clicking
+    // before it settles can land on the trigger instead (which closes the panel
+    // and the language never changes). Wait for the panel's animation to finish.
+    await page.waitForFunction(
+      () => {
+        const panels = Array.from(document.querySelectorAll(".fixed"));
+        const panel = panels.find((p) =>
+          /german|deutsch/i.test((p as HTMLElement).textContent || ""),
+        );
+        if (!panel) return false;
+        return panel.getAnimations().every((a) => a.playState === "finished");
+      },
+      undefined,
+      { timeout: 5_000 },
+    );
+    await deOption.click();
     await expect(page.locator("html")).toHaveAttribute("lang", "de", { timeout: 5_000 });
 
     // EN: switch back and assert the html lang attr flips again.
     await trigger.click({ force: true });
     const enOption = page.getByRole("button", { name: /english|englisch/i }).first();
     await expect(enOption).toBeVisible({ timeout: 5_000 });
-    await enOption.click({ force: true });
+    await page.waitForFunction(
+      () => {
+        const panels = Array.from(document.querySelectorAll(".fixed"));
+        const panel = panels.find((p) =>
+          /english|englisch/i.test((p as HTMLElement).textContent || ""),
+        );
+        if (!panel) return false;
+        return panel.getAnimations().every((a) => a.playState === "finished");
+      },
+      undefined,
+      { timeout: 5_000 },
+    );
+    await enOption.click();
     await expect(page.locator("html")).toHaveAttribute("lang", "en", { timeout: 5_000 });
   });
 });

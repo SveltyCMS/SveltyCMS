@@ -36,10 +36,7 @@ export function parseAndValidateUrl(rawUrl: string, allowedHosts: string[]): URL
 
   const hostname = parsed.hostname.toLowerCase();
 
-  const isTestMode =
-    process.env.TEST_MODE === "true" ||
-    process.env.BENCHMARK === "true" ||
-    process.env.NODE_ENV === "test";
+  const isTestMode = process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test";
 
   const allowlistedLoopback =
     isTestMode &&

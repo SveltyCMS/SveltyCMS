@@ -18,7 +18,7 @@ import {
   stabilize,
   printTruthTable,
   printSummaryTable,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
   getDbType,
   forceRefreshServer,
 } from "./modules/benchmark-utils";
@@ -41,34 +41,79 @@ async function runRevisionAudit() {
 
     await ensureStableTestData();
 
-    // Cache authorization payload structure to isolate benchmarks from stack-allocation penalties
+    // Cache authorization payload structure — REAL admin session (production auth)
     const requestHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
       "Content-Type": "application/json",
     };
 
-    // Create REVISION_COLLECTION via HTTP API
-    await fetch(`${baseUrl}/api/testing`, {
-      method: "POST",
-      headers: requestHeaders,
-      body: JSON.stringify({
-        action: "create-collection",
-        schema: {
+    // Create REVISION_COLLECTION in-process (production mode has no
+    // /api/testing and the collection-builder endpoint is not part of the
+    // REST API). The authenticated /api/content/collections refresh below
+    // makes the RUNNING server pick the schema up (refreshContent preserves
+    // API-injected/dynamic collections).
+    try {
+      const { getDb, getDbInitPromise } = await import("@src/databases/db");
+      await getDbInitPromise(false, "CORE").catch(() => {});
+      const _db = getDb();
+      if (!_db) throw new Error("revision-stress: database adapter not initialized");
+      await (_db as any).collection.createModel({
+        _id: REVISION_COLLECTION,
+        name: REVISION_COLLECTION,
+        fields: [
+          { db_fieldName: "title", widget: { Name: "Input" }, required: true },
+          { db_fieldName: "content", widget: { Name: "RichText" } },
+        ],
+        revision: true,
+      });
+
+      // Register a content-structure node so the production server's in-memory
+      // contentStore can resolve the collection. createModel alone only
+      // provisions the physical table; the /revisions route
+      // (HistoryService.getRevisions → contentSystem.getCollectionById) reads
+      // contentStore, which is fed from content_nodes rows + compiled files.
+      // Mirrors the /api/testing create-collection recipe (testing.ts).
+      const node = {
+        _id: REVISION_COLLECTION,
+        path: `/collection/${REVISION_COLLECTION.toLowerCase()}`,
+        name: REVISION_COLLECTION,
+        nodeType: "collection",
+        collectionDef: {
           _id: REVISION_COLLECTION,
           name: REVISION_COLLECTION,
           fields: [
-            {
-              db_fieldName: "title",
-              widget: { Name: "Input" },
-              required: true,
-            },
+            { db_fieldName: "title", widget: { Name: "Input" }, required: true },
             { db_fieldName: "content", widget: { Name: "RichText" } },
           ],
           revision: true,
         },
-      }),
+        status: "publish",
+        source: "api", // "api" nodes survive fullReload pruning
+        tenantId: "global",
+      };
+      const upsertRes = await (_db as any).content?.nodes?.upsertContentStructureNode(node);
+      if (!upsertRes?.success && process.env.BENCHMARK_DEBUG === "true") {
+        process.stderr.write(
+          `[DEBUG] revision-stress: content node upsert failed: ${upsertRes?.error?.message ?? "unknown"}\n`,
+        );
+      }
+    } catch (e: any) {
+      // Collection may already exist — proceed; the refresh below re-syncs it.
+      if (process.env.BENCHMARK_DEBUG === "true") {
+        process.stderr.write(`[DEBUG] revision collection createModel: ${e.message}\n`);
+      }
+    }
+
+    // Authenticated content refresh — makes the running server see the schema
+    const refreshRes = await fetch(`${baseUrl}/api/content/collections`, {
+      method: "POST",
+      headers: requestHeaders,
+      body: JSON.stringify({}),
     });
+    if (!refreshRes.ok) {
+      const t = await refreshRes.text().catch(() => "");
+      throw new Error(`Content refresh failed (${refreshRes.status}): ${t.slice(0, 200)}`);
+    }
 
     await forceRefreshServer(baseUrl);
     await stabilize(1200);
@@ -132,8 +177,7 @@ async function runRevisionAudit() {
 
     // Read headers stripped of content-type for standard fetching operations
     const queryHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
     };
 
     // 2. Benchmark Latest Read (with heavy history)

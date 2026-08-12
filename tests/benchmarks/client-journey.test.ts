@@ -24,7 +24,7 @@ import {
   STABLE_COLLECTION,
   STABLE_ENTRY_ID,
   ensureStableTestData,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
   generateRealisticEntry,
 } from "./modules/benchmark-utils";
 
@@ -43,10 +43,9 @@ export async function runClientJourneyAudit() {
   const RUNS = 1;
   const allResults: any[] = [];
 
-  // Pre-allocate static headers using standard lowercase layout mapping
+  // Pre-allocate static headers — REAL admin session cookie (production auth)
   const baseHeaders = {
-    "x-test-mode": "true",
-    "x-test-secret": TEST_API_SECRET,
+    ...benchmarkAuthHeaders(),
     "content-type": "application/json",
   };
 
@@ -70,7 +69,9 @@ export async function runClientJourneyAudit() {
 
   console.log("    → Simulating Full User Journey (Auth > List > View > Save)...");
   const journeyRes = await runBenchmark({
-    name: "Full Journey @ 4c",
+    // 🛡️ HONEST LABEL: runs at concurrency 1 (sequential journey simulation) —
+    // the old "@ 4c" implied 4 concurrent journeys.
+    name: "Full Journey @ 1c",
     iterations: ITERATIONS,
     warmupIterations: 25,
     runs: RUNS,
@@ -207,13 +208,11 @@ if (isManual) {
     await ensureStableTestData(db);
 
     // Ensure bench-shared-001 exists for the journey PATCH step
-    const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     const checkRes = await fetch(
       `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}?bypassCache=true`,
       {
         headers: {
-          "x-test-mode": "true",
-          "x-test-secret": secret,
+          ...benchmarkAuthHeaders(),
           "x-tenant-id": "global",
         },
       },
@@ -224,8 +223,7 @@ if (isManual) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-test-mode": "true",
-          "x-test-secret": secret,
+          ...benchmarkAuthHeaders(),
           "x-tenant-id": "global",
         },
         body: JSON.stringify({

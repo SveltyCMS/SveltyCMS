@@ -23,9 +23,11 @@ export function isBenchmarkExternalServicesDisabled(): boolean {
   return getEnvFlag("BENCHMARK");
 }
 
-/** True when Redis L2 cache must not connect. */
+/** True when Redis L2 cache must not connect — controlled ONLY by BENCHMARK_NO_REDIS.
+ *  BENCHMARK alone no longer disables the L2 response cache: USE_REDIS=true
+ *  benchmark variants must exercise the real Redis path (production parity). */
 export function isBenchmarkRedisDisabled(): boolean {
-  return isBenchmarkExternalServicesDisabled() || process.env.BENCHMARK_NO_REDIS === "1";
+  return process.env.BENCHMARK_NO_REDIS === "1";
 }
 
 /** True when benchmark/test collections should be loaded. */

@@ -21,6 +21,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -42,9 +43,6 @@ async function runMixedWorkloadAudit() {
     await ensureStableTestData();
     await forceRefreshServer(baseUrl);
     await stabilize(1500);
-
-    const { TEST_API_SECRET } = await import("./modules/benchmark-utils");
-    const secret = TEST_API_SECRET;
 
     // Pre-serialize body variants — isolates benchmark from local JSON.stringify overhead
     const operations = [
@@ -105,8 +103,7 @@ async function runMixedWorkloadAudit() {
           method: op.method,
           headers: {
             "Content-Type": "application/json",
-            "x-test-mode": "true",
-            "x-test-secret": secret,
+            ...benchmarkAuthHeaders(),
           },
           body: op.body,
         });

@@ -33,10 +33,8 @@ class SystemWatchdog {
    * Starts the autonomous watchdog.
    */
   public start() {
-    if (process.env.BENCHMARK === "true") {
-      logger.info("🛡️ Autonomous Watchdog DISABLED (Benchmark Mode)");
-      return;
-    }
+    // Production parity: the watchdog runs during benchmarks too — autonomous
+    // recovery is part of real production behavior.
     if (this.intervalId) return;
     logger.info("🛡️ Autonomous System Watchdog started");
     this.intervalId = setInterval(() => this.check(), this.CHECK_INTERVAL);

@@ -2,24 +2,23 @@
  * @file src/utils/test-bypass.server.ts
  * @description Hardened test/benchmark bypass gate + Testing API access guard.
  *
- * ### Hardening (audit 2026-07):
- * - Production hard-gate: IS_PROD exits immediately, regardless of env flags
- * - Case-insensitive headers: Fetch API handles this natively, removed redundant fallback
+ * ### Hardening:
+ * - Production hard-gate: NODE_ENV=production exits immediately, regardless of env flags
+ * - Runtime env reads — no module-load freezing of TEST_API_SECRET (test runners
+ *   may set the env after module evaluation)
+ * - Unified secret resolution via getMasterSecret(): env → DB setting → getTestSecret()
+ * - Constant-time SHA-256 pre-hashed comparison (no length side-channel)
  * - Tenant sanitization: regex validates x-tenant-id before injection
- * - Simplified secret retrieval: single source (TEST_API_SECRET or getTestSecret)
- * - **Same gate for `/api/testing`** (`assertTestingApiAllowed`) — no weaker NODE_ENV=test path
+ * - Same fail-closed gate for `/api/testing` (assertTestingApiAllowed)
+ * - **BENCHMARK is NOT an allowlisted flag**: benchmark servers run in production
+ *   mode (real sessions, no test bypasses). Only TEST_MODE / VITE_TEST_MODE /
+ *   PLAYWRIGHT_TEST open the testing gate outside production.
  *
- * Test credentials are accepted ONLY when an explicit test/benchmark env flag is set
- * AND the secret matches via timing-safe comparison. No hardcoded fallback secrets.
- *
- * ### Features:
- * - Environment-gated bypass (TEST_MODE, PLAYWRIGHT, BENCHMARK)
- * - timingSafeEqual secret verification
- * - Single injection point for system admin test user
- * - Shared fail-closed gate for seed/reset testing actions
+ * Test credentials are accepted ONLY when an explicit test env flag is set
+ * AND the secret matches via constant-time comparison. No hardcoded fallback secrets.
  */
 
-import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 import type { RequestEvent } from "@sveltejs/kit";
 import { getTestSecret } from "@utils/server/setup-check";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
@@ -28,49 +27,54 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 // Moved here from handle-security.ts so the rate-limit hook does not depend on
 // the whole security handler module graph (v8, metrics, response-service).
 
-const TEST_API_SECRET =
-  typeof globalThis !== "undefined"
-    ? (globalThis as any).process?.env?.TEST_API_SECRET ||
-      (globalThis as any).process?.env?.VITE_TEST_API_SECRET
-    : undefined;
 let cachedMasterSecret: string | null = null;
 
 /**
- * Resolve the master test secret: env first, then DB setting (cached).
- * Shared by handle-security and handle-rate-limit test bypass gates.
+ * Resolve the master test secret at RUNTIME — process.env is read per call, so
+ * a secret set after module evaluation (test runners, harness bootstrap, HMR)
+ * is picked up instead of staying undefined forever.
+ *
+ * Precedence: process.env → DB setting (cached) → getTestSecret() (e2e file /
+ * generated). The DB setting is consulted BEFORE getTestSecret so a configured
+ * database-driven secret is never shadowed by the file/random fallback.
  */
 export function getMasterSecret(): string | undefined {
-  if (TEST_API_SECRET) return TEST_API_SECRET;
-  if (cachedMasterSecret !== null) return cachedMasterSecret || undefined;
+  const env = (globalThis as typeof globalThis & { process?: NodeJS.Process }).process?.env ?? {};
+  const envSecret = env.TEST_API_SECRET || env.VITE_TEST_API_SECRET;
+  if (envSecret) return envSecret;
+
+  if (cachedMasterSecret) return cachedMasterSecret;
   try {
-    cachedMasterSecret = getPrivateSettingSync("TEST_API_SECRET") || "";
+    const settingsSecret = getPrivateSettingSync("TEST_API_SECRET");
+    if (settingsSecret) {
+      cachedMasterSecret = settingsSecret;
+      return settingsSecret;
+    }
+  } catch {}
+  cachedMasterSecret = "";
+
+  try {
+    return getTestSecret();
   } catch {
-    cachedMasterSecret = "";
+    return undefined;
   }
-  return cachedMasterSecret || undefined;
 }
 
 /**
- * Timing-safe comparison (async HMAC via WebCrypto).
- * Distinct from the internal sync `secretsMatch` (node:crypto) used by
- * assertTestingApiAllowed — both are constant-time; callers pick per context.
+ * Constant-time string comparison via SHA-256 pre-hashing: both inputs become
+ * fixed 32-byte digests, so timingSafeEqual never short-circuits on a length
+ * mismatch — there is no length-oracle side channel against the secret.
  */
+export function constantTimeCompare(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const hashA = createHash("sha256").update(a).digest();
+  const hashB = createHash("sha256").update(b).digest();
+  return nodeTimingSafeEqual(hashA, hashB);
+}
+
+/** Async alias (backwards-compatible signature) for callers that await. */
 export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
-  if (a.length !== b.length) return false;
-  const encoder = new TextEncoder();
-  const aBuf = encoder.encode(a);
-  const bBuf = encoder.encode(b);
-  const key = await globalThis.crypto.subtle.importKey(
-    "raw",
-    aBuf,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sigA = new Uint8Array(await globalThis.crypto.subtle.sign("HMAC", key, bBuf));
-  const sigB = new Uint8Array(await globalThis.crypto.subtle.sign("HMAC", key, aBuf));
-  if (sigA.length !== sigB.length) return false;
-  return sigA.every((v, i) => v === sigB[i]);
+  return constantTimeCompare(a, b);
 }
 
 // 🛡️ Hardened Production Guard — never active in production
@@ -91,25 +95,18 @@ type BypassLocals = App.Locals & {
 /**
  * Strict environment check.
  * If NODE_ENV is production, this utility returns false immediately.
- * Does **not** treat bare `NODE_ENV=test` as sufficient (must set TEST_MODE / PLAYWRIGHT / BENCHMARK).
+ * Does **not** treat bare `NODE_ENV=test` as sufficient (must set TEST_MODE /
+ * VITE_TEST_MODE / PLAYWRIGHT_TEST).
+ * BENCHMARK is deliberately absent: benchmark runs are production-mode and must
+ * not open any test bypass — they authenticate via real sessions.
  */
 export function isTestOrBenchmarkEnvironment(): boolean {
   if (isProductionNodeEnv()) return false;
 
   const env = (globalThis as typeof globalThis & { process?: NodeJS.Process }).process?.env ?? {};
   return (
-    env.TEST_MODE === "true" ||
-    env.VITE_TEST_MODE === "true" ||
-    env.PLAYWRIGHT_TEST === "true" ||
-    env.BENCHMARK === "true"
+    env.TEST_MODE === "true" || env.VITE_TEST_MODE === "true" || env.PLAYWRIGHT_TEST === "true"
   );
-}
-
-/** Timing-safe comparison using Buffer lengths to prevent timing leaks. */
-function secretsMatch(incoming: string, expected: string): boolean {
-  const a = Buffer.from(incoming);
-  const b = Buffer.from(expected);
-  return a.length === b.length && nodeTimingSafeEqual(a, b);
 }
 
 export type TestingApiGateResult =
@@ -121,8 +118,9 @@ export type TestingApiGateResult =
  *
  * Requires:
  * 1. Not production NODE_ENV
- * 2. Explicit test/benchmark env flag (TEST_MODE / PLAYWRIGHT / BENCHMARK — not bare NODE_ENV=test)
- * 3. Matching x-test-secret (timing-safe) against TEST_API_SECRET / getTestSecret()
+ * 2. Explicit test env flag (TEST_MODE / VITE_TEST_MODE / PLAYWRIGHT_TEST — NOT
+ *    BENCHMARK, and not bare NODE_ENV=test)
+ * 3. Matching x-test-secret (constant-time) against getMasterSecret()
  *
  * Never opens on secret alone in production. Never opens on env flag alone without secret.
  */
@@ -156,9 +154,8 @@ export function assertTestingApiAllowed(request: Request): TestingApiGateResult 
     };
   }
 
-  const runtimeEnv = (globalThis as typeof globalThis & { process?: NodeJS.Process }).process?.env;
-  const expected = runtimeEnv?.TEST_API_SECRET || getTestSecret();
-  if (!expected || !secretsMatch(incoming, expected)) {
+  const expected = getMasterSecret();
+  if (!expected || !constantTimeCompare(incoming, expected)) {
     return {
       allowed: false,
       status: 401,
@@ -187,11 +184,9 @@ export function applyTestBypassFromRequest(
   const incoming = request.headers.get("x-test-secret");
   if (!incoming) return false;
 
-  // 3. Expected secret retrieval
-  const expected =
-    (globalThis as typeof globalThis & { process?: NodeJS.Process }).process?.env
-      ?.TEST_API_SECRET || getTestSecret();
-  if (!expected || !secretsMatch(incoming, expected)) return false;
+  // 3. Expected secret — same unified chain as assertTestingApiAllowed
+  const expected = getMasterSecret();
+  if (!expected || !constantTimeCompare(incoming, expected)) return false;
 
   // 4. Inject Test Admin
   locals.user = {

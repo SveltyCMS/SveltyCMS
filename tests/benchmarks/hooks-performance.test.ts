@@ -21,6 +21,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -59,6 +60,9 @@ const middlewareScenarios = [
     concurrency: 8,
   },
   {
+    // 🛡️ HONEST LABEL: benchmark servers default to DISABLE_AUDIT_LOGS=true
+    // (production mode). Only BENCHMARK_AUDIT_MODE=compliance enables the real
+    // crypto-chained audit pipeline — the label below is rewritten accordingly.
     name: "Mutation + Audit Logging",
     shortLabel: "Audit",
     path: "/api/collections/BenchmarkStable",
@@ -66,6 +70,11 @@ const middlewareScenarios = [
     concurrency: 1,
   },
 ];
+
+/** Audit pipeline is real only in compliance mode (AUDIT_CHAIN_SYNC=true). */
+function isAuditEnabled(): boolean {
+  return process.env.BENCHMARK_AUDIT_MODE === "compliance";
+}
 
 async function runHooksAudit() {
   console.log("🚀 Starting Enterprise Hooks & Middleware Audit...\n");
@@ -78,7 +87,6 @@ async function runHooksAudit() {
     await ensureStableTestData();
     await stabilize(3000);
 
-    const secret = process.env.TEST_API_SECRET || crypto.randomUUID();
     const results = [];
     const compStats: Array<{
       orig: number | null;
@@ -86,9 +94,9 @@ async function runHooksAudit() {
       ratio: string | null;
     }> = [];
 
+    // REAL admin session cookie (production auth)
     const baseHeaders = {
-      "x-test-mode": "true",
-      "x-test-secret": secret,
+      ...benchmarkAuthHeaders(),
       "content-type": "application/json",
       "x-tenant-id": "global",
     };
@@ -119,7 +127,14 @@ async function runHooksAudit() {
 
     for (let s = 0; s < middlewareScenarios.length; s++) {
       const scenario = middlewareScenarios[s]!;
-      console.log(`    → ${scenario.name}...`);
+      const auditEnabled = isAuditEnabled();
+      const scenarioName =
+        scenario.shortLabel === "Audit" && !auditEnabled
+          ? "Mutation (audit logging disabled)"
+          : scenario.name;
+      const shortLabel =
+        scenario.shortLabel === "Audit" && !auditEnabled ? "Mutation" : scenario.shortLabel;
+      console.log(`    → ${scenarioName}...`);
 
       const currentIterations =
         scenario.method === "POST" ? baseIterationsPost : baseIterationsHttp;
@@ -135,7 +150,7 @@ async function runHooksAudit() {
       const isPostAction = scenario.method === "POST";
 
       const result = await runBenchmark({
-        name: scenario.name,
+        name: scenarioName,
         iterations: currentIterations,
         warmupIterations: isSqlite ? 5 : 60,
         runs: maxTotalRuns,
@@ -178,7 +193,7 @@ async function runHooksAudit() {
 
       const enriched = {
         ...result,
-        shortLabel: scenario.shortLabel,
+        shortLabel,
         layer: "Middleware",
       };
 
@@ -231,7 +246,7 @@ async function runHooksAudit() {
         unit: "ms",
       },
       {
-        key: "Audit Logging Overhead",
+        key: isAuditEnabled() ? "Audit Logging Overhead" : "Mutation Overhead (audit off)",
         val: (audit.avgMs - full.avgMs).toFixed(3),
         unit: "ms",
       },

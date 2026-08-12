@@ -27,6 +27,9 @@ export const INTEGRATION_DB_MATRIX = ["sqlite", "mongodb", "mariadb", "postgresq
 
 export type IntegrationDbType = (typeof INTEGRATION_DB_MATRIX)[number];
 
+// NOTE: keep keys canonical — tests/unit/ci/db-credential-parity.test.ts asserts
+// every key here appears verbatim in .github/workflows/db-matrix.ts. Aliases
+// ("postgres", "mysql") are resolved by normalizeDbType() before lookup.
 export const DOCKER_DEFAULT_DB_CREDENTIALS: Record<string, TestDbCredentials> = {
   sqlite: { user: "", password: "" },
   mongodb: { user: "", password: "" },
@@ -41,19 +44,36 @@ const DB_PORTS: Record<string, string> = {
   postgresql: "5432",
 };
 
-export const getDockerDefaultDbCredentials = (dbType: string): TestDbCredentials =>
-  DOCKER_DEFAULT_DB_CREDENTIALS[dbType] ?? { user: "", password: "" };
+/** Normalizes raw dbType input for reliable key matching (casing, aliases). */
+function normalizeDbType(dbType: string = "sqlite"): string {
+  const clean = String(dbType || "sqlite")
+    .toLowerCase()
+    .trim();
+  if (clean === "postgres") return "postgresql";
+  if (clean === "mysql") return "mariadb"; // MySQL protocol compat — same image family
+  return clean;
+}
 
-export const getDefaultDbPort = (dbType: string): string => DB_PORTS[dbType] ?? "";
+export const getDockerDefaultDbCredentials = (dbType: string): TestDbCredentials => {
+  const key = normalizeDbType(dbType);
+  return DOCKER_DEFAULT_DB_CREDENTIALS[key] ?? { user: "", password: "" };
+};
+
+export const getDefaultDbPort = (dbType: string): string => {
+  const key = normalizeDbType(dbType);
+  return DB_PORTS[key] ?? "";
+};
 
 /** DB name used by integration tests and db-tests CI job. */
-export function getIntegrationDbName(dbType = "sqlite"): string {
-  return dbType === "sqlite" ? "sveltycms_test.sqlite" : "sveltycms_test";
+export function getIntegrationDbName(dbType: string = "sqlite"): string {
+  const normalized = normalizeDbType(dbType);
+  return normalized === "sqlite" ? "sveltycms_test.sqlite" : "sveltycms_test";
 }
 
 /** DB name used by bench-core CI job (isolated SQLite file for benchmarks). */
-export function getBenchmarkDbName(dbType: string): string {
-  return dbType === "sqlite" ? "benchmark_shared" : getIntegrationDbName();
+export function getBenchmarkDbName(dbType: string = "sqlite"): string {
+  const normalized = normalizeDbType(dbType);
+  return normalized === "sqlite" ? "benchmark_shared" : getIntegrationDbName(normalized);
 }
 
 /**
@@ -63,18 +83,23 @@ export function getBenchmarkDbName(dbType: string): string {
 export const UDH_BENCHMARK_FIXTURE_DB = "sveltycms_udh_fixture";
 
 /** UDH fixture database for bench-core — mirrors ci.yml bench-core env. */
-export function getBenchmarkUdhPgDatabase(dbType: string): string {
-  return dbType === "postgresql" ? UDH_BENCHMARK_FIXTURE_DB : getIntegrationDbName(dbType);
+export function getBenchmarkUdhPgDatabase(dbType: string = "sqlite"): string {
+  const normalized = normalizeDbType(dbType);
+  return normalized === "postgresql" ? UDH_BENCHMARK_FIXTURE_DB : getIntegrationDbName(normalized);
 }
 
 /** Env block shared by integration runner invocations (local + CI parity). */
-export function getIntegrationTestEnv(dbType: string, overrides: Record<string, string> = {}) {
-  const creds = getDockerDefaultDbCredentials(dbType);
+export function getIntegrationTestEnv(
+  dbType: string = "sqlite",
+  overrides: Record<string, string> = {},
+) {
+  const normalized = normalizeDbType(dbType);
+  const creds = getDockerDefaultDbCredentials(normalized);
   return {
-    DB_TYPE: dbType,
+    DB_TYPE: normalized,
     DB_HOST: "127.0.0.1",
-    DB_PORT: getDefaultDbPort(dbType),
-    DB_NAME: getIntegrationDbName(),
+    DB_PORT: getDefaultDbPort(normalized),
+    DB_NAME: getIntegrationDbName(normalized),
     DB_USER: creds.user,
     DB_PASSWORD: creds.password,
     TEST_MODE: "true",
@@ -84,23 +109,54 @@ export function getIntegrationTestEnv(dbType: string, overrides: Record<string, 
   };
 }
 
+/** Safely prepares the media sandbox dir (idempotent; env builders stay pure). */
+function ensureMediaSandboxDir(): void {
+  try {
+    const root = getLocalSandboxMediaRoot();
+    if (root) {
+      mkdirSync(root, { recursive: true });
+    }
+  } catch {
+    /* ignore mkdir races / sandbox permission errors */
+  }
+}
+
 /** Env block shared by bench-core CI job and local benchmark runners. */
 export function getBenchmarkTestEnv(
-  dbType: string,
+  dbType: string = "sqlite",
   overrides: Record<string, string> = {},
 ): Record<string, string> {
-  const creds = getDockerDefaultDbCredentials(dbType);
+  const normalized = normalizeDbType(dbType);
+  const creds = getDockerDefaultDbCredentials(normalized);
   const profile = overrides.BENCHMARK_PROFILE ?? resolveBenchmarkProfile();
 
+  // 🏢 THREE MODES (see docs/tests/benchmark-isolation.mdx):
+  // - production (default): AUDIT_CHAIN_SYNC=false, DISABLE_AUDIT_LOGS=true
+  // - compliance:           AUDIT_CHAIN_SYNC=true,  DISABLE_AUDIT_LOGS=false
+  // - e2e/testing:          TEST_MODE=true (separate harness, /api/testing gate)
+  const auditMode =
+    overrides.BENCHMARK_AUDIT_MODE || process.env.BENCHMARK_AUDIT_MODE || "production";
+  const compliance = auditMode === "compliance";
+
   const env: Record<string, string> = {
-    DB_TYPE: dbType,
+    DB_TYPE: normalized,
     DB_HOST: "127.0.0.1",
-    DB_PORT: getDefaultDbPort(dbType),
-    DB_NAME: process.env.DB_NAME || getBenchmarkDbName(dbType),
+    DB_PORT: getDefaultDbPort(normalized),
+    DB_NAME: process.env.DB_NAME || getBenchmarkDbName(normalized),
     DB_USER: creds.user,
     DB_PASSWORD: creds.password,
-    TEST_MODE: "true",
+    // 🛡️ PRODUCTION PARITY: benchmark servers run NODE_ENV=production without
+    // TEST_MODE — real sessions, real rate limits, real WAF, real audits.
+    // BENCHMARK stays as a harness marker only (env-only config, sandbox
+    // isolation, setup force-complete); it grants NO request-path bypasses.
+    NODE_ENV: "production",
     BENCHMARK: "true",
+    BENCHMARK_AUDIT_MODE: auditMode,
+    AUDIT_CHAIN_SYNC: compliance ? "true" : "false",
+    DISABLE_AUDIT_LOGS: compliance ? "false" : "true",
+    // Deployment-tuned rate ceilings for load-testing (bucket machinery stays active)
+    RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "20000",
+    SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
     // 🛡️ Allow CI to inject randomized secrets; fall back to benchmark defaults for local dev only
     JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "Benchmark-JWT-Secret-Key-2026-32ch",
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "Benchmark-Encryption-Key-2026-32ch",
@@ -108,10 +164,17 @@ export function getBenchmarkTestEnv(
     BENCHMARK_NO_REDIS: "1",
     BENCHMARK_RECORD: "1",
     PASSWORD_MIN_LENGTH: "8",
-    UDH_PG_DATABASE: process.env.UDH_PG_DATABASE || getBenchmarkUdhPgDatabase(dbType),
+    UDH_PG_DATABASE: process.env.UDH_PG_DATABASE || getBenchmarkUdhPgDatabase(normalized),
     BENCHMARK_PROFILE: profile,
     ...overrides,
   };
+
+  // BENCHMARK_AUDIT_MODE overrides passed via `overrides` must win over the
+  // derived flags above — re-derive after the spread.
+  const finalAuditMode = env.BENCHMARK_AUDIT_MODE || "production";
+  const finalCompliance = finalAuditMode === "compliance";
+  env.AUDIT_CHAIN_SYNC = finalCompliance ? "true" : "false";
+  env.DISABLE_AUDIT_LOGS = finalCompliance ? "false" : "true";
 
   // Always isolate media under the sandbox for benchmarks (local + ci-fresh).
   // Without this, ci-fresh wizard defaults can leave MEDIA_FOLDER missing/unwritable
@@ -122,11 +185,8 @@ export function getBenchmarkTestEnv(
   if (!env.MEDIA_FOLDER) {
     env.MEDIA_FOLDER = getLocalSandboxMediaRel();
   }
-  try {
-    mkdirSync(getLocalSandboxMediaRoot(), { recursive: true });
-  } catch {
-    /* ignore mkdir races */
-  }
+
+  ensureMediaSandboxDir();
 
   return env;
 }

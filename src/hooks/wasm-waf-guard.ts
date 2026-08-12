@@ -81,7 +81,7 @@ export class WafGuard {
   public inspectRequest(
     url: string,
     rawQuery: string,
-    headers: Record<string, string>,
+    headers: Headers | Record<string, string>,
   ): WafCheckResult {
     let decodedUrl = url;
     let decodedQuery = rawQuery;
@@ -155,13 +155,29 @@ export class WafGuard {
     }
 
     // 5. Header sanitization check (e.g. host header injection, suspicious control chars)
-    for (const [key, value] of Object.entries(headers)) {
-      if (typeof value === "string" && (value.includes("\r") || value.includes("\n"))) {
+    if (typeof (headers as Headers).forEach === "function") {
+      let badHeader: string | null = null;
+      (headers as Headers).forEach((value, key) => {
+        if (!badHeader && (value.includes("\r") || value.includes("\n"))) {
+          badHeader = key;
+        }
+      });
+      if (badHeader) {
         return {
           blocked: true,
-          reason: `Header splitting attempt in ${key}`,
+          reason: `Header splitting attempt in ${badHeader}`,
           threatType: "HEADER_SPLITTING",
         };
+      }
+    } else {
+      for (const [key, value] of Object.entries(headers as Record<string, string>)) {
+        if (typeof value === "string" && (value.includes("\r") || value.includes("\n"))) {
+          return {
+            blocked: true,
+            reason: `Header splitting attempt in ${key}`,
+            threatType: "HEADER_SPLITTING",
+          };
+        }
       }
     }
 

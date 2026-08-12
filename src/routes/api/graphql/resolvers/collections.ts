@@ -133,16 +133,6 @@ export async function registerCollections(tenantId?: string | null) {
     await import("@src/routes/setup/preset-collections.server");
   const isBenchmark = isBenchmarkRuntime();
 
-  // 🚀 BENCHMARK HARDENING: Force collection list refresh if in benchmark mode
-  if (isBenchmark) {
-    const { getDb } = await import("@src/databases/db");
-    const { refreshContent } = await import("@src/content/engine.server");
-    await refreshContent(tenantId, {
-      mode: "schemas",
-      adapter: getDb() || undefined,
-    });
-  }
-
   const collections: Schema[] = await contentSystem.getCollections(tenantId);
 
   // 🧪 Filter test collections from GraphQL schema registration.

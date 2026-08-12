@@ -38,7 +38,7 @@ This guide covers the **MariaDB-specific** implementation in SveltyCMS using Dri
 
 - Complete Drizzle schema (relational tables)
 - Connection pool management with mysql2
-- Automatic migration system
+- Automatic schema bootstrap (spec-rendered, engine-agnostic)
 - Database seeding infrastructure
 - Date conversion utilities (ISODateString compliance)
 - Multi-tenant support (nullable tenantId columns)
@@ -65,7 +65,7 @@ SveltyCMS uses **Drizzle ORM** for MariaDB, providing:
 
 - **Type-safe queries** - Full TypeScript support
 - **Relational schema** - Proper foreign keys and constraints
-- **Migration system** - Version-controlled schema changes
+- **Schema bootstrap** - Boot-time DDL rendered from the shared system schema spec
 - **Connection pooling** - Optimized mysql2 pool
 - **Multi-tenant support** - Built-in tenantId filtering
 
@@ -205,33 +205,34 @@ const health = await dbAdapter.getConnectionHealth();
 
 ---
 
-## 📈 Migration System
+## 📈 Schema Bootstrap
 
 ### Automatic Table Creation
 
-On first connection, all tables are created automatically:
+On first connection, the system schema is rendered from the single declarative source of truth (`src/databases/system-schema-spec.ts`) and executed against the live pool by `src/databases/core/system-schema-bootstrap.ts` — there are no per-engine migration files to keep in sync, so the three relational engines can never drift.
 
 ```
 sequenceDiagram
     participant S as Setup Wizard / System Init
     participant A as MariaDBAdapter
-    participant M as Migrations
+    participant B as Schema Bootstrap (core)
     participant D as MariaDB DB
 
-    S->>A: ensureSystem()
-    A->>M: runMigrations(conn)
-    M->>D: CREATE TABLE IF NOT EXISTS ...
-    D-->>M: Tables Created/Verified
-    M-->>A: { success: true }
+    S->>A: connect()
+    A->>B: bootstrapSystemSchema("mariadb", pool)
+    B->>D: CREATE TABLE IF NOT EXISTS ...
+    D-->>B: Tables Created/Verified
+    B-->>A: { success: true }
     A-->>S: Ready
 ```
 
 ```
-// migrations.ts
-- Creates all 13 tables if they don't exist
+// src/databases/system-schema-spec.ts + core/system-schema-bootstrap.ts
+- Creates all system tables if they don't exist (per-dialect types/defaults)
 - Adds proper indexes and constraints
 - Uses InnoDB engine with utf8mb4 charset
 - Ensures idempotent operations (CREATE TABLE IF NOT EXISTS)
+- Per-statement warn-and-continue execution (never aborts boot on one failure)
 ```
 
 ### Future Migration Management
@@ -542,7 +543,7 @@ All four phases are **complete** — the adapter is production-ready and runs in
 
 - [x] Drizzle schema definitions
 - [x] Connection pool management
-- [x] Migration system
+- [x] Schema bootstrap (spec-rendered, engine-agnostic)
 - [x] Database seeding
 - [x] Utility functions
 
@@ -621,8 +622,8 @@ MariaDB is a **production** SQL adapter (`SqlAdapterCore` + `mysql2`). For full 
 
 - `src/databases/mariadb/schema/index.ts` - Schema definitions
 - `src/databases/mariadb/connection.ts` - Connection management
-- `src/databases/mariadb/migrations.ts` - Migration system
-- `src/databases/mariadb/seed.ts` - Seeding logic
+- `src/databases/system-schema-spec.ts` - Declarative system schema (single source of truth)
+- `src/databases/core/system-schema-bootstrap.ts` - Boot-time renderer/executor
 - `src/databases/mariadb/utils.ts` - Helper functions
 - `MARIADB_IMPLEMENTATION.md` - Implementation guide
 

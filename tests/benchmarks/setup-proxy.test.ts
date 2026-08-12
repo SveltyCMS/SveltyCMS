@@ -18,6 +18,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
+  requireTestInfrastructure,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -25,6 +26,9 @@ import { logger } from "@utils/logger";
 let stopServer: (() => Promise<void>) | null = null;
 
 async function runSetupAudit() {
+  // Proxy spoofing (X-Forwarded-For/X-Real-IP) is test-infra behavior —
+  // production getClientIp trusts only the address adapter.
+  requireTestInfrastructure("setup-proxy");
   console.log("🚀 Starting Enterprise Setup & Proxy Audit...\n");
 
   try {

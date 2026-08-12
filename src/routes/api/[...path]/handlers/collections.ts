@@ -22,6 +22,7 @@ import { successResponse, rawResponse } from "./base";
 import { streamingJsonResponse } from "./streaming";
 import { setCollectionOrder } from "@utils/collection-order.server";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 
 /**
  * Sets a lightweight weak-ETag token on event.locals based on entry timestamps.
@@ -395,7 +396,9 @@ export async function handleCollectionCreate(
   user: any,
   collectionId: string,
 ) {
-  const rawData = await event.request.json();
+  const rawData = PROFILE_WRITE_ENABLED
+    ? await profileSpan("handler:json", () => event.request.json())
+    : await event.request.json();
 
   if (Array.isArray(rawData)) {
     // 🚀 BATCH SEEDING FAST-PATH: Array payload in POST /api/collections/[collection]
@@ -413,12 +416,28 @@ export async function handleCollectionCreate(
     return successResponse(event, result, 201);
   }
 
-  const data = await validateWritePayload(cms, collectionId, tenantId, rawData);
-  const result = await cms.collections.create(collectionId, data, {
-    user: user!,
-    tenantId,
-  });
-  return successResponse(event, result, 201);
+  const data = PROFILE_WRITE_ENABLED
+    ? await profileSpan("handler:validate", () =>
+        validateWritePayload(cms, collectionId, tenantId, rawData),
+      )
+    : await validateWritePayload(cms, collectionId, tenantId, rawData);
+  const result = PROFILE_WRITE_ENABLED
+    ? await profileSpan("handler:namespace.create", () =>
+        cms.collections.create(collectionId, data, {
+          user: user!,
+          tenantId,
+        }),
+      )
+    : await cms.collections.create(collectionId, data, {
+        user: user!,
+        tenantId,
+      });
+  if (!PROFILE_WRITE_ENABLED) return successResponse(event, result, 201);
+
+  const end = profileMark("handler:successResponse");
+  const res = successResponse(event, result, 201);
+  end();
+  return res;
 }
 
 export async function handleCollectionUpdate(
@@ -429,15 +448,31 @@ export async function handleCollectionUpdate(
   collectionId: string,
   entryId: string,
 ) {
-  const rawData = await event.request.json();
-  const data = await validateWritePayload(cms, collectionId, tenantId, rawData);
-  return successResponse(
-    event,
-    await cms.collections.update(collectionId, entryId, data, {
-      user: user!,
-      tenantId,
-    }),
-  );
+  const rawData = PROFILE_WRITE_ENABLED
+    ? await profileSpan("handler:json", () => event.request.json())
+    : await event.request.json();
+  const data = PROFILE_WRITE_ENABLED
+    ? await profileSpan("handler:validate", () =>
+        validateWritePayload(cms, collectionId, tenantId, rawData),
+      )
+    : await validateWritePayload(cms, collectionId, tenantId, rawData);
+  const result = PROFILE_WRITE_ENABLED
+    ? await profileSpan("handler:namespace.update", () =>
+        cms.collections.update(collectionId, entryId, data, {
+          user: user!,
+          tenantId,
+        }),
+      )
+    : await cms.collections.update(collectionId, entryId, data, {
+        user: user!,
+        tenantId,
+      });
+  if (!PROFILE_WRITE_ENABLED) return successResponse(event, result);
+
+  const end = profileMark("handler:successResponse");
+  const res = successResponse(event, result);
+  end();
+  return res;
 }
 
 export async function handleCollectionDelete(

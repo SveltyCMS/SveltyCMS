@@ -21,12 +21,7 @@ import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getClientIp, IS_TEST_MODE } from "@utils/hook-utils";
 import { wafGuard } from "./wasm-waf-guard";
-
-// IS_TEST_MODE imported from @utils/hook-utils (single source of truth).
-// Test-secret resolution moved to @utils/test-bypass.server (shared with
-// handle-rate-limit) so hooks don't depend on each other's module graphs.
-import { getMasterSecret, timingSafeEqual } from "@utils/test-bypass.server";
-export { getMasterSecret, timingSafeEqual };
+import { PROFILE_WRITE_ENABLED } from "@utils/write-profiler";
 
 const AI_BOT_RE =
   /gptbot|chatgpt-user|anthropic-ai|claude-web|claudebot|cohere-ai|perplexitybot|google-extended|omgili|omgilibot|ccbot|commoncrawl|bytespider|petalbot|facebookbot|zgrab|masscan|nmap|sqlmap|nikto|acunetix|burpsuite|gobuster|dirbuster|wfuzz|feroxbuster|rustscan|nessus|scrapy|python-requests\/2|curl\/|wget\/|axios\/|node-fetch|l9explore|l9tcpid|libwww-perl|go-http-client/i;
@@ -64,23 +59,60 @@ const IS_DEMO = getPrivateSettingSync("DEMO");
 
 const MAX_DEPTH = 12;
 const MAX_COMPLEXITY = 1000;
+/** Strict cap: a multi-MB query would synchronously block the event loop in
+ * JSON.parse + the GraphQL AST parser BEFORE any validation runs (CPU DoS). */
+const MAX_GRAPHQL_QUERY_LENGTH = 100 * 1024; // 100KB
 const LIST_SIZE_ARGS = new Set(["first", "last", "limit", "pageSize", "take", "count"]);
 const FAST_PATH_MAX_LENGTH = 256;
 
+/**
+ * O(n) brace-depth pre-filter. String literals and `#` comments are SKIPPED —
+ * a JSON-stringified argument or a doc comment containing braces must not
+ * trip the depth/braces counters (false 429s on valid queries).
+ */
 function quickComplexityCheck(query: string): number | null {
+  if (query.length > MAX_GRAPHQL_QUERY_LENGTH) return MAX_COMPLEXITY + 1;
+
   let depth = 0,
     maxDepth = 0,
-    braces = 0;
+    braces = 0,
+    inString = false,
+    escaped = false,
+    inComment = false;
+
   for (let i = 0; i < query.length; i++) {
-    if (query[i] === "{") {
+    const char = query[i];
+    if (inComment) {
+      if (char === "\n") inComment = false;
+      continue;
+    }
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (char === "#") {
+      inComment = true;
+      continue;
+    }
+    if (char === "{") {
       depth++;
       braces++;
       if (depth > maxDepth) maxDepth = depth;
       if (depth > MAX_DEPTH) return MAX_COMPLEXITY + 1;
-    } else if (query[i] === "}") {
+    } else if (char === "}") {
       depth--;
     }
   }
+
   if (query.length <= FAST_PATH_MAX_LENGTH && maxDepth <= 3 && braces <= 6)
     return braces * maxDepth;
   return null;
@@ -151,11 +183,10 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
   const clientIp = getClientIp(event);
   const isLocal = clientIp === "127.0.0.1" || clientIp === "::1" || url.hostname === "localhost";
-  const incomingSecret = request.headers.get("x-test-secret");
-  const masterSecret = getMasterSecret();
-  const hasValidTestSecret =
-    incomingSecret && masterSecret ? await timingSafeEqual(incomingSecret, masterSecret) : false;
-  if (isLocal && (IS_TEST_MODE || hasValidTestSecret) && !forceSecurity) return resolve(event);
+  // Security/WAF layer bypasses ONLY in explicit test environments (E2E/integration).
+  // A validated x-test-secret alone is NOT sufficient — benchmark runs exercise
+  // the full WAF/firewall path like real production traffic.
+  if (isLocal && IS_TEST_MODE && !forceSecurity) return resolve(event);
 
   // Load shedding: use cached v8 heap_size_limit ratio (100ms sample window)
   const physicalLimitRatio = getCachedHeapRatio();
@@ -189,23 +220,59 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   }
 
   // Layer 0 WASM/JS WAF Inspection
-  const headerObj: Record<string, string> = {};
-  request.headers.forEach((val, key) => {
-    headerObj[key] = val;
-  });
-  const wafCheck = wafGuard.inspectRequest(url.pathname, url.search, headerObj);
+  const wafCheck = wafGuard.inspectRequest(url.pathname, url.search, request.headers);
   if (wafCheck.blocked) {
     metricsService.incrementSecurityViolations(tenantId);
     logger.warn(`[WAF Blocked] ${wafCheck.reason} (${wafCheck.threatType}) from ${clientIp}`);
     return handleApiError(new AppError(wafCheck.reason ?? "Security Policy Violation", 400), event);
   }
 
+  let payloadSnapshot:
+    | {
+        json?: unknown;
+        text?: string;
+      }
+    | undefined;
+
   try {
     if (url.pathname.startsWith("/api/graphql") && request.method === "POST") {
-      const clonedReq = request.clone();
-      const body = await clonedReq.json().catch(() => ({}));
-      if (body.query) {
+      const bodyText = await request
+        .clone()
+        .text()
+        .catch(() => "");
+
+      // 🛡️ Length cap BEFORE JSON.parse / AST parse — unbounded bodies let an
+      // attacker block the event loop synchronously (CPU starvation DoS).
+      if (bodyText.length > MAX_GRAPHQL_QUERY_LENGTH) {
+        metricsService.incrementSecurityViolations(tenantId);
+        return handleApiError(
+          new AppError("GraphQL Query exceeds maximum allowed length", 400),
+          event,
+        );
+      }
+
+      let body: Record<string, unknown> = {};
+      try {
+        const parsed = JSON.parse(bodyText);
+        body =
+          parsed && typeof parsed === "object" && !Array.isArray(parsed)
+            ? (parsed as Record<string, unknown>)
+            : {};
+      } catch {
+        body = {};
+      }
+      payloadSnapshot = { json: body, text: bodyText };
+      (event.locals as any).__graphqlBodyText = bodyText;
+      (event.locals as any).__graphqlParsedBody = body;
+
+      if (typeof body.query === "string") {
+        const t0 = PROFILE_WRITE_ENABLED ? performance.now() : 0;
         const complexity = await calculateGraphqlComplexity(body.query);
+        if (PROFILE_WRITE_ENABLED) {
+          process.stderr.write(
+            `[WRITE-PROFILE] sec:gql-complexity: ${(performance.now() - t0).toFixed(3)}ms\n`,
+          );
+        }
         if (complexity > MAX_COMPLEXITY) {
           metricsService.incrementSecurityViolations(tenantId);
           logger.warn(`GraphQL Complexity Limit Exceeded: ${complexity}`, {
@@ -259,6 +326,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
       request,
       clientIp,
       tenantId,
+      payloadSnapshot,
     );
     if (securityStatus.action !== "allow") {
       metricsService.incrementSecurityViolations(tenantId);

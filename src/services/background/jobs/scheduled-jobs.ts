@@ -14,10 +14,8 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
   const db = getDb();
   if (!db) return;
 
-  // 1. Connection & Capability Guards
+  // 1. Connection Guard
   if (typeof db.isConnected === "function" && !db.isConnected()) return;
-  const caps = typeof db.getCapabilities === "function" ? db.getCapabilities() : null;
-  if (caps && !caps.supportsAggregation) return;
 
   // 2. Ensure content module is ready
   if (db.ensureContent) {

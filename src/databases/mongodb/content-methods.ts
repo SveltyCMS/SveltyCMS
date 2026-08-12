@@ -31,7 +31,7 @@ import type {
 } from "../db-interface";
 import type { MongoCrudMethods } from "./crud-methods";
 import { CacheCategory, invalidateCategoryCache, withCache } from "./mongodb-cache-utils";
-import { createDatabaseError, generateId } from "./mongodb-utils";
+import { createDatabaseError, generateId, processDates } from "./mongodb-utils";
 import { normalizeId } from "./normalize-id";
 
 export { normalizeId } from "./normalize-id";
@@ -199,9 +199,15 @@ export class MongoContentMethods {
       // Normalize parentId using safe helper to prevent [object Object] storage issues
       const normalizedParentId = normalizeId(parentId);
 
+      // Wrap the match filter with safeQuery to enforce tenant isolation (parity
+      // with bulkUpdateNodes) — prevents cross-tenant upserts in MULTI_TENANT mode.
+      const secureFilter = safeQuery({ path } as any, nodeData.tenantId as string, {
+        includeDeleted: true, // Find existing nodes regardless of soft-delete status
+      }) as MongoQueryFilter<ContentNode>;
+
       const result = await this.nodesRepo.model
         .findOneAndUpdate(
-          { path },
+          secureFilter,
           {
             $set: {
               ...nodeData,
@@ -224,7 +230,9 @@ export class MongoContentMethods {
       // Invalidate content structure caches
       await invalidateCategoryCache(CacheCategory.CONTENT);
 
-      return { success: true, data: result as ContentNode };
+      // Normalize the lean() result (mongoose timestamps store native Date
+      // instances) to the same ISODateString surface every SQL engine returns.
+      return { success: true, data: processDates(result) as ContentNode };
     } catch (error) {
       return {
         success: false,
@@ -345,9 +353,11 @@ export class MongoContentMethods {
       // Invalidate content structure caches
       await invalidateCategoryCache(CacheCategory.CONTENT);
 
+      // The echoed items are typed as ContentNode, so normalize any stray
+      // Date/ObjectId values to keep the return surface consistent with reads.
       return {
         success: true,
-        data: updates.map((u) => ({ ...u.changes, path: u.path }) as ContentNode),
+        data: processDates(updates.map((u) => ({ ...u.changes, path: u.path }) as ContentNode)),
       };
     } catch (error) {
       return {
@@ -480,10 +490,12 @@ export class MongoContentMethods {
 
     try {
       const paths = expectedNodes.map((n) => n.path);
-      const existingNodes = await this.nodesRepo.model
-        .find({ path: { $in: paths } })
-        .lean()
-        .exec();
+      const existingNodes = processDates(
+        (await this.nodesRepo.model
+          .find({ path: { $in: paths } })
+          .lean()
+          .exec()) as unknown[],
+      ) as any[];
       const existingMap = new Map(existingNodes.map((n) => [n.path, n]));
 
       const bulkOps: any[] = [];
@@ -661,18 +673,20 @@ export class MongoContentMethods {
         };
       }
 
-      const items = await this.revisionsRepo.model
-        .find(query)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * pageSize)
-        .limit(pageSize)
-        .lean()
-        .exec();
+      const items = processDates(
+        (await this.revisionsRepo.model
+          .find(query)
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * pageSize)
+          .limit(pageSize)
+          .lean()
+          .exec()) as unknown[],
+      ) as ContentRevision[];
 
       return {
         success: true,
         data: {
-          items: items as unknown as ContentRevision[],
+          items,
           total: totalRes.data,
           page,
           pageSize,

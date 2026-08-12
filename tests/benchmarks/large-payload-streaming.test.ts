@@ -16,7 +16,7 @@ import {
   printTruthTable,
   printSummaryTable,
   getDbType,
-  TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -32,7 +32,9 @@ let stopServer: (() => Promise<void>) | null = null;
 function generatePayload(sizeMb: number): { buffer: Buffer; name: string } {
   return {
     buffer: Buffer.from(randomBytes(Math.round(sizeMb * 1024 * 1024))),
-    name: `bench-stream-${sizeMb}mb-${Date.now()}.bin`,
+    // .jpg so the production MIME allowlist accepts the upload (image/jpeg);
+    // generic .bin payloads are rejected by production media security.
+    name: `bench-stream-${sizeMb}mb-${Date.now()}.jpg`,
   };
 }
 
@@ -40,7 +42,7 @@ async function getMemoryRSS(baseUrl: string): Promise<number> {
   try {
     const res = await fetch(`${baseUrl}/api/system/health?verbose=true`, {
       method: "GET",
-      headers: { "x-test-secret": TEST_API_SECRET },
+      headers: { ...benchmarkAuthHeaders() },
       signal: AbortSignal.timeout(5000),
     });
     const data = await res.json();
@@ -62,9 +64,7 @@ async function runPayloadAudit() {
   await stabilize(2000);
 
   const uploadHeaders = {
-    "x-test-mode": "true",
-    "x-test-secret": TEST_API_SECRET,
-    origin: baseUrl,
+    ...benchmarkAuthHeaders(), // includes the same-origin Origin header (CSRF)
   };
 
   const results: any[] = [];
@@ -78,12 +78,21 @@ async function runPayloadAudit() {
     const preallocatedFormData: FormData[] = Array.from({ length: uploadIterations }, () => {
       const { buffer, name } = generatePayload(sizeMb);
       const fd = new FormData();
-      fd.append("file", new Blob([new Uint8Array(buffer)]), name);
+      // Real MIME type required: production media security rejects Blobs whose
+      // type defaults to application/octet-stream. The old test discarded the
+      // upload response, silently measuring rejected uploads.
+      fd.append("file", new Blob([new Uint8Array(buffer)], { type: "image/jpeg" }), name);
       return fd;
     });
 
     console.log(`    → Uploading ${sizeMb}MB payload...`);
     const baselineRSS = await getMemoryRSS(baseUrl);
+
+    // 🛡️ HONEST DOWNLOAD SOURCE: capture the storage-relative path of the
+    // uploaded media so the download phase streams the REAL N MB payload via
+    // /files/<path>. The old code streamed /sitemap.xml (a few KB) and fell
+    // back to the health endpoint — the "Download N MB" label was fiction.
+    const uploadedPaths: string[] = [];
 
     const uploadResult = await runBenchmark({
       name: `Upload ${sizeMb}MB`,
@@ -106,7 +115,11 @@ async function runPayloadAudit() {
           const errBody = await res.text().catch(() => "<no body>");
           throw new Error(`Upload ${sizeMb}MB failed: ${res.status} - ${errBody}`);
         }
-        await res.arrayBuffer(); // Low-level socket flush prevents client heap inflation
+
+        const body = (await res.json().catch(() => null)) as any;
+        const mediaRecord = body?.data?.[0]?.data || body?.data?.[0] || null;
+        const p = mediaRecord?.path || mediaRecord?.filePath || null;
+        if (p && !uploadedPaths.includes(p)) uploadedPaths.push(p);
       },
     });
 
@@ -130,31 +143,25 @@ async function runPayloadAudit() {
       runs: 2,
       concurrency: 4,
       silent: true,
-      onIteration: async () => {
-        const res = await fetch(`${baseUrl}/sitemap.xml`, {
+      onIteration: async (i: number) => {
+        if (uploadedPaths.length === 0) {
+          throw new Error("No uploaded media path captured — cannot stream real payload");
+        }
+        const filePath = uploadedPaths[i % uploadedPaths.length]!;
+
+        const res = await fetch(`${baseUrl}/files/${filePath}`, {
           method: "GET",
           headers: {
-            "x-test-mode": "true",
-            "x-test-secret": TEST_API_SECRET,
+            ...benchmarkAuthHeaders(),
           },
           signal: AbortSignal.timeout(30000),
         });
 
-        let targetResponse = res;
         if (!res.ok) {
-          targetResponse = await fetch(`${baseUrl}/api/system/health?verbose=true`, {
-            method: "GET",
-            headers: {
-              "x-test-mode": "true",
-              "x-test-secret": TEST_API_SECRET,
-            },
-            signal: AbortSignal.timeout(10000),
-          });
-          if (!targetResponse.ok)
-            throw new Error(`Download fallback failed: ${targetResponse.status}`);
+          throw new Error(`Download failed: ${res.status} for /files/${filePath}`);
         }
 
-        const reader = targetResponse.body?.getReader();
+        const reader = res.body?.getReader();
         if (!reader) throw new Error("No readable stream available");
 
         let totalBytes = 0;

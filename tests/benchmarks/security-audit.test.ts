@@ -40,6 +40,13 @@ async function runSecurityAudit() {
     const { auditLogService, AuditEventType } =
       await import("@src/services/security/audit-service");
     const { hashPassword } = await import("@src/utils/security");
+    const { _checkEndpointPermission } = await import("@src/routes/api/[...path]/+server");
+
+    // 🛡️ HONESTY: the crypto-chained audit pipeline only persists when the
+    // server runs with audit ENABLED (BENCHMARK_AUDIT_MODE=compliance →
+    // DISABLE_AUDIT_LOGS=false). Default production benchmark servers disable
+    // it — auditLogService.log() then early-returns (a no-op, ~0ms).
+    const auditEnabled = process.env.BENCHMARK_AUDIT_MODE === "compliance";
 
     const results = [];
 
@@ -87,7 +94,7 @@ async function runSecurityAudit() {
     }));
 
     const auditResult = await runBenchmark({
-      name: "Audit Log Persistence",
+      name: auditEnabled ? "Audit Log Persistence" : "Audit Log Dispatch (disabled no-op)",
       iterations: AUDIT_ITERATIONS,
       warmupIterations: 80,
       runs: 2,
@@ -150,8 +157,20 @@ async function runSecurityAudit() {
       "system:settings",
       "config:collectionbuilder",
     ];
+    // Non-admin user exercising the REAL dispatcher gate (ENDPOINT_PERMISSIONS
+    // mapping + RBAC). The previous version measured `array.includes()` — a
+    // hand-rolled stand-in, not the dispatcher.
+    const mockNonAdminUser = {
+      _id: "test-editor",
+      email: "editor@test.com",
+      role: "editor",
+      isAdmin: false,
+      permissions: mockPermissions,
+      createdAt: staticTime as any,
+      updatedAt: staticTime as any,
+    } as any;
 
-    // Measure dispatcher-only check (single permission lookup)
+    // Measure dispatcher-only check (real ENDPOINT_PERMISSIONS mapping + RBAC)
     const dispatcherOnlyResult = await runBenchmark({
       name: "Dispatcher-Only Permission Check",
       iterations: 5000,
@@ -161,10 +180,9 @@ async function runSecurityAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const method = "POST" as "GET" | "POST" | "DELETE";
-        const mapping =
-          method === "DELETE" ? "media:delete" : method === "GET" ? "media:read" : "media:write";
-        const permitted = mockPermissions.includes(mapping);
+        const permitted = _checkEndpointPermission(mockNonAdminUser, mockRoles, "POST", "media", [
+          "media",
+        ]);
         void permitted;
       },
     });
@@ -174,7 +192,7 @@ async function runSecurityAudit() {
       layer: "Defense",
     });
 
-    // Measure defense-in-depth check (dispatcher + handler-level)
+    // Measure defense-in-depth check (dispatcher + handler-level RBAC)
     const defenseInDepthResult = await runBenchmark({
       name: "Full Defense-in-Depth Check",
       iterations: 5000,
@@ -184,13 +202,16 @@ async function runSecurityAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const method = "POST" as "GET" | "POST" | "DELETE";
-        const mapping =
-          method === "DELETE" ? "media:delete" : method === "GET" ? "media:read" : "media:write";
-        const dispatcherPassed = mockPermissions.includes(mapping);
+        const dispatcherPassed = _checkEndpointPermission(
+          mockNonAdminUser,
+          mockRoles,
+          "POST",
+          "media",
+          ["media"],
+        );
         if (!dispatcherPassed) return;
 
-        const handlerPassed = hasPermissionWithRoles(mockUser, "media:write", mockRoles);
+        const handlerPassed = hasPermissionWithRoles(mockNonAdminUser, "media:write", mockRoles);
         void handlerPassed;
       },
     });
@@ -200,7 +221,7 @@ async function runSecurityAudit() {
       layer: "Defense",
     });
 
-    // Measure worst-case: permission check + admin verification pattern
+    // Measure worst-case: admin fast-path + permission check pattern
     const adminCheckResult = await runBenchmark({
       name: "Admin Verification + Permission Check",
       iterations: 5000,
@@ -210,8 +231,8 @@ async function runSecurityAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const isAdmin =
-          mockUser.isAdmin === true || mockUser.role === "admin" || mockUser.role === "super-admin";
+        // REAL dispatcher admin fast-path (isAdmin/role check) + RBAC fallback
+        const isAdmin = _checkEndpointPermission(mockUser, mockRoles, "GET", "system", ["system"]);
         if (!isAdmin) {
           hasPermissionWithRoles(mockUser, "system:settings", mockRoles);
         }
@@ -233,7 +254,11 @@ async function runSecurityAudit() {
 
     printSummaryTable([
       { key: "WAF Analysis", val: wafResult.avgMs, unit: "ms" },
-      { key: "Audit Logging", val: auditResult.avgMs, unit: "ms" },
+      {
+        key: auditEnabled ? "Audit Logging" : "Audit Dispatch (no-op)",
+        val: auditResult.avgMs,
+        unit: "ms",
+      },
       { key: "Password Hashing", val: hashResult.avgMs, unit: "ms" },
       { key: "Dispatcher Check", val: dispatcherOnlyResult.avgMs, unit: "ms" },
       {

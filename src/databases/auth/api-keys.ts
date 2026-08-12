@@ -7,11 +7,24 @@ import crypto from "node:crypto";
 import { generateSecureToken } from "@src/utils/native-utils";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 
+/** Memoized derived HMAC secret (JWT_SECRET_KEY is a static infrastructure key). */
+let cachedHmacSecret: string | null = null;
+
 /** Derive the HMAC secret from the JWT secret for API key hashing. */
 function getHmacSecret(): string {
+  if (cachedHmacSecret) return cachedHmacSecret;
   const jwtSecret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
   if (!jwtSecret) throw new Error("HMAC secret unavailable — JWT_SECRET_KEY not configured");
-  return `apikey-hmac:${jwtSecret}`;
+  cachedHmacSecret = `apikey-hmac:${jwtSecret}`;
+  return cachedHmacSecret;
+}
+
+/**
+ * Test-only: drop the memoized HMAC secret so the next call re-reads
+ * `JWT_SECRET_KEY` (e.g. when a test swaps the secret mid-suite).
+ */
+export function resetApiKeyHmacSecretCache(): void {
+  cachedHmacSecret = null;
 }
 
 /**
@@ -67,4 +80,14 @@ export function hashApiKeyWithLegacy(key: string): { current: string; legacy: st
     current: crypto.createHmac("sha256", secret).update(key).digest("base64url"),
     legacy: crypto.createHash("sha256").update(key).digest("base64url"),
   };
+}
+
+/**
+ * Legacy plain SHA-256 hash (pre-v2 migration keys).
+ * Only compute this when the current HMAC lookup misses — hot authentication
+ * paths should never pay for the legacy digest.
+ * slop:suppress — legacy fallback intentionally uses SHA-256 for backward compat
+ */
+export function hashApiKeyLegacy(key: string): string {
+  return crypto.createHash("sha256").update(key).digest("base64url");
 }

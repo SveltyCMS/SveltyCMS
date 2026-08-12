@@ -22,15 +22,16 @@
  */
 
 import type { ISODateString } from "@databases/db-interface";
-import { BloomFilter } from "@utils/bloom-filter";
 import { generateCsrfToken, ensureCsrfToken } from "@utils/security/csrf-utils";
 import {
   SESSION_COOKIE_NAME,
   getSessionCookieName,
   isSecureCookieContext,
+  sessionTtlMs,
 } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
-import { isValidApiKeyFormat, hashApiKeyWithLegacy } from "@src/databases/auth/api-keys";
+import { isValidApiKeyFormat, hashApiKey, hashApiKeyLegacy } from "@src/databases/auth/api-keys";
+import { recordApiKeyUsage } from "@src/databases/auth/api-key-usage-accumulator";
 import {
   getApiKeyAuthCacheSync,
   getWebsiteTokenAuthCacheSync,
@@ -84,6 +85,20 @@ import { dev } from "$app/environment";
 import { runWithContext } from "@src/utils/context";
 import { invalidateTurboAuthContext } from "./handle-turbo-get";
 import { turboAuthCache } from "./handle-turbo-get";
+
+// Lazy module singletons — dynamic imports resolve from the module cache on
+// every call, but each await still costs a microtask + lookup on the hot path.
+// Cache the promise once per process (modules are immutable after load).
+let tenantAdapterPromise: Promise<typeof import("@src/databases/tenant-adapter")> | null = null;
+function getTenantAdapterLazy() {
+  return (tenantAdapterPromise ??= import("@src/databases/tenant-adapter"));
+}
+
+let sessionManagerPromise: Promise<typeof import("@src/databases/auth/session-manager")> | null =
+  null;
+function getSessionManagerLazy() {
+  return (sessionManagerPromise ??= import("@src/databases/auth/session-manager"));
+}
 
 // --- MODULE-LEVEL CACHES & STATE ---
 let multiTenantCached: boolean | null = null;
@@ -162,7 +177,31 @@ const inflightSessionChecks = new Map<string, Promise<SessionResolution>>();
  */
 const SESSION_ROTATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes — per industry best practice
 
-const negativeCache = new BloomFilter(100000, 0.0001); // 2392x speedup for repeat misses
+// 🛡️ Bounded NEGATIVE session cache — an EXACT Map with TTL, never a Bloom
+// filter: a Bloom false positive would randomly reject VALID sessions
+// (users logged out by a probabilistic collision on the auth gate). The Map
+// has deterministic zero-false-positive semantics with the same bounded memory.
+const MAX_NEGATIVE_CACHE = 10_000;
+const NEGATIVE_CACHE_TTL_MS = 60_000; // 1 minute negative-hit TTL
+const negativeSessionCache = new Map<string, number>();
+
+function isNegativeSessionHit(sessionId: string): boolean {
+  const expiry = negativeSessionCache.get(sessionId);
+  if (!expiry) return false;
+  if (Date.now() > expiry) {
+    negativeSessionCache.delete(sessionId);
+    return false;
+  }
+  return true;
+}
+
+function addNegativeSessionHit(sessionId: string): void {
+  if (negativeSessionCache.size >= MAX_NEGATIVE_CACHE) {
+    const oldestKey = negativeSessionCache.keys().next().value;
+    if (oldestKey) negativeSessionCache.delete(oldestKey);
+  }
+  negativeSessionCache.set(sessionId, Date.now() + NEGATIVE_CACHE_TTL_MS);
+}
 
 /**
  * Cooldown for log-only session-context anomaly warnings (per session).
@@ -184,6 +223,9 @@ function getSessionFromCache(sessionId: string): SessionCacheEntry | null {
     sessionCache.set(sessionId, entry);
     return entry;
   }
+  // Expired entry — drop it now instead of leaving it in RAM until the
+  // 10-minute cleanup interval sweeps.
+  if (entry) sessionCache.delete(sessionId);
   return null;
 }
 
@@ -218,8 +260,9 @@ if (typeof setInterval !== "undefined" && !(globalThis as any)[SESSION_CLEANUP_K
       for (const [sessionId, timestamp] of lastAnomalyLog.entries()) {
         if (now - timestamp > SESSION_ANOMALY_LOG_COOLDOWN_MS * 2) lastAnomalyLog.delete(sessionId);
       }
-      // Periodically reset negative cache to allow for eventual consistency
-      if (Math.random() < 0.1) negativeCache.clear();
+      for (const [sessionId, expiry] of negativeSessionCache.entries()) {
+        if (now > expiry) negativeSessionCache.delete(sessionId);
+      }
     },
     10 * 60 * 1000,
   );
@@ -275,9 +318,9 @@ async function getUserFromSession(
   clientIp?: string | null,
   userAgent?: string | null,
 ): Promise<SessionResolution> {
-  // --- Performance Tweak: Negative Caching ---
+  // --- Performance Tweak: Negative Caching (deterministic Map, not Bloom) ---
   const isTestMode = process.env.TEST_MODE === "true";
-  if (!isTestMode && negativeCache.has(sessionId)) return { status: "invalid" };
+  if (!isTestMode && isNegativeSessionHit(sessionId)) return { status: "invalid" };
 
   const now = Date.now();
   const idleMs = getIdleWindowMs();
@@ -286,7 +329,7 @@ async function getUserFromSession(
     // Idle timeout: the LRU entry timestamp is the sliding last-activity clock.
     if (idleMs > 0 && now - memCached.timestamp > idleMs) {
       invalidateSessionCache(sessionId, tenantId);
-      negativeCache.add(sessionId);
+      addNegativeSessionHit(sessionId);
       return { status: "invalid" };
     }
     // Slide the clock — the entry object is shared with the Map.
@@ -299,7 +342,7 @@ async function getUserFromSession(
 
   // Fallback to checking the default SessionStore (holds active in-memory/Redis sessions)
   try {
-    const { getDefaultSessionStore } = await import("@src/databases/auth/session-manager");
+    const { getDefaultSessionStore } = await getSessionManagerLazy();
     const store = getDefaultSessionStore();
     // Credential stripping at the store boundary (defense-in-depth: the store
     // already strips on set, but a stale pre-strip entry must never leak).
@@ -320,7 +363,7 @@ async function getUserFromSession(
       // Idle timeout applies to distributed entries too.
       if (idleMs > 0 && now - redisCached.timestamp > idleMs) {
         invalidateSessionCache(sessionId, tenantId);
-        negativeCache.add(sessionId);
+        addNegativeSessionHit(sessionId);
         return { status: "invalid" };
       }
       setSessionInCache(sessionId, { user: toSafeSessionUser(redisCached.user), timestamp: now });
@@ -370,13 +413,13 @@ async function getUserFromSession(
         logger.debug(
           `[Auth] getSessionTokenData returned null data for sessionId=${sessionId.slice(0, 12)}...`,
         );
-        negativeCache.add(sessionId);
+        addNegativeSessionHit(sessionId);
         return { status: "invalid" };
       }
 
       const expiresAt = new Date(sessionResult.data.expiresAt).getTime();
       if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
-        negativeCache.add(sessionId);
+        addNegativeSessionHit(sessionId);
         return { status: "invalid" };
       }
 
@@ -390,7 +433,7 @@ async function getUserFromSession(
           // 🛡️ Blocked users are cut off at DB re-validation time (not just
           // cached entries) — a block must take effect immediately.
           if (user.blocked) {
-            negativeCache.add(sessionId);
+            addNegativeSessionHit(sessionId);
             return { status: "invalid" };
           }
           // 🛡️ Session-context drift (IP / user-agent) — log-only per OWASP
@@ -410,7 +453,7 @@ async function getUserFromSession(
         } else {
           // Definitive: User not found in DB
           logger.debug(`[Auth] User not found in DB: ${sessionResult.data.user_id}`);
-          negativeCache.add(sessionId);
+          addNegativeSessionHit(sessionId);
           return { status: "invalid" };
         }
       } else {
@@ -494,10 +537,11 @@ async function handleSessionRotation(
     // Rotated sessions keep the configured session lifetime (SESSION_TTL_HOURS,
     // default 24h) — rotation must NOT extend the session beyond the policy,
     // and device info is carried over for the device-policy + sessions UI.
-    const ttlHours = Number(getPrivateSettingSync("SESSION_TTL_HOURS")) || 24;
     const newSession = await auth.createSession({
       user_id: user._id as DatabaseId,
-      expires: new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString() as ISODateString,
+      expires: new Date(
+        Date.now() + sessionTtlMs(getPrivateSettingSync("SESSION_TTL_HOURS")),
+      ).toISOString() as ISODateString,
       tenantId: event.locals.tenantId as DatabaseId,
       userAgent: event.request.headers.get("user-agent") || undefined,
       ipAddress:
@@ -610,6 +654,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // 🚀 TURBO GET FAST-PATH: Auth context already resolved by handleTurboGet.
   // User, roles, tenantId, and bitset are pre-injected — skip session validation entirely.
   if ((locals as any).__turboAuth === true) {
+    // Keep locals.dbAdapter populated — downstream handlers (GraphQL route,
+    // dispatcher) must not see an undefined adapter and fall back to getDb()
+    // (identity flips between proxy and raw break schema caches).
+    locals.dbAdapter = dbAdapter;
+    (locals as any).dbAdapterUnscoped = dbAdapter;
     return await resolve(event);
   }
 
@@ -692,11 +741,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     }
 
     // TEST_MODE: allow black-box multi-tenant isolation tests without flipping
-    // MULTI_TENANT for the whole process. Header is ignored outside test/benchmark.
-    const testMode =
-      process.env.TEST_MODE === "true" ||
-      process.env.PLAYWRIGHT_TEST === "true" ||
-      process.env.BENCHMARK === "true";
+    // MULTI_TENANT for the whole process. Header is ignored outside test mode.
+    const testMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
     if (testMode) {
       const explicitTenant = event.request.headers.get("x-test-tenant-id");
       if (explicitTenant && explicitTenant.length > 0 && explicitTenant !== "null") {
@@ -711,7 +757,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     // tenant-injecting proxy wrap on every authenticated multi-tenant request).
     const preUserTenant = locals.tenantId as DatabaseId | null | undefined;
     {
-      const { bindRequestDbAdapter } = await import("@src/databases/tenant-adapter");
+      const { bindRequestDbAdapter } = await getTenantAdapterLazy();
       const bound = bindRequestDbAdapter(
         dbAdapter,
         locals.tenantId as DatabaseId,
@@ -722,13 +768,24 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     }
 
     const authHeader = event.request.headers.get("Authorization");
-    // Accept whichever session cookie variant the auth layer issued. This keeps
-    // local/test traffic on 127.0.0.1 compatible with secure-prefixed cookies.
-    const sessionId =
-      cookies.get(cookieName) ||
-      cookies.get(SESSION_COOKIE_NAME) ||
-      cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
-      cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
+    // Accept whichever session cookie variant the auth layer issued — and
+    // remember the exact variant so invalidation can delete THAT cookie
+    // (a __Secure-session_id left behind while deleting session_id alone
+    // would loop the browser through invalid-cookie validation forever).
+    const sessionCandidates = [
+      cookieName,
+      SESSION_COOKIE_NAME,
+      `__Host-${SESSION_COOKIE_NAME}`,
+      `__Secure-${SESSION_COOKIE_NAME}`,
+    ];
+    let sessionId: string | undefined;
+    for (const name of sessionCandidates) {
+      const val = cookies.get(name);
+      if (val) {
+        sessionId = val;
+        break;
+      }
+    }
     if (sessionId) {
       // 🛡️ Guard: wrap session validation in try-catch so malformed/invalid session
       // cookies don't crash the server (integration tests inject poisoned values).
@@ -770,7 +827,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               sessionId,
             });
             metricsService.incrementAuthFailures();
-            cookies.delete(SESSION_COOKIE_NAME, { path: getCookiePath() });
+            clearAllSessionCookies(event);
             throw new AppError("Tenant isolation violation", 403, "FORBIDDEN_TENANT");
           }
           locals.user = user;
@@ -806,7 +863,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           // signed in before. Flag it (the login page defaults to the Sign In form) before deleting
           // the dead cookie.
           (locals as any).returningUser = true;
-          cookies.delete(cookieName, { path: getCookiePath() });
+          // Delete ALL session cookie variants — the incoming cookie may be
+          // __Secure-/__Host-prefixed while cookieName resolved to a different
+          // variant; leaving it behind creates an infinite invalid-cookie loop.
+          clearAllSessionCookies(event);
         } else {
           // Transient (DB blip / in-flight coalesce): keep the cookie so the user
           // is NOT logged out by a momentary failure. Stay unauthenticated for
@@ -834,11 +894,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         );
         metricsService.incrementAuthFailures();
         (locals as any).returningUser = true;
-        try {
-          cookies.delete(cookieName, { path: getCookiePath() });
-        } catch {
-          // Cookie delete is best-effort
-        }
+        clearAllSessionCookies(event);
       }
     } else {
       logger.debug(`[Auth] NO cookie found. path=${event.url.pathname} cookieName=${cookieName}`);
@@ -850,9 +906,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       if (tokenValue) {
         if (isValidApiKeyFormat(tokenValue)) {
           // --- API Key Authentication (sck_...) ---
-          const hashes = hashApiKeyWithLegacy(tokenValue);
-          const hash = hashes.current;
-          const legacyHash = hashes.legacy;
+          const hash = hashApiKey(tokenValue);
           if (isApiKeyAuthNegativeHit(hash, locals.tenantId as DatabaseId)) {
             return await resolve(event);
           }
@@ -865,28 +919,28 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             locals.tenantId = (cachedKeyData.tenantId as DatabaseId) || locals.tenantId;
             logger.debug(`[Auth] Authenticated via API Key (Cache Hit)`);
 
-            // Fire-and-forget: update usage statistics in the background
+            // Batched usage statistics — aggregated in memory, flushed periodically.
             // getClientIp uses platform address only — never trust raw X-Forwarded-For
             const clientIp = getClientIp(event);
-            dbAdapter.auth
-              .updateApiKeyUsage(
-                (cachedKeyData.user._id as string).replace("apikey:", "") as DatabaseId,
-                clientIp,
-                {
-                  tenantId: locals.tenantId,
-                },
-              )
-              .catch(() => {});
+            recordApiKeyUsage(
+              (cachedKeyData.user._id as string).replace("apikey:", ""),
+              clientIp,
+              locals.tenantId,
+            );
           } else {
             metricsService.incrementAuthValidations();
             let res = await dbAdapter.auth.getApiKey(hash, {
               tenantId: locals.tenantId,
             });
             // Fallback: try legacy SHA-256 hash for keys created before HMAC migration
-            if (!res.success && legacyHash !== hash) {
-              res = await dbAdapter.auth.getApiKey(legacyHash, {
-                tenantId: locals.tenantId,
-              });
+            // (computed lazily — only a DB miss pays for the legacy digest)
+            if (!res.success) {
+              const legacyHash = hashApiKeyLegacy(tokenValue);
+              if (legacyHash !== hash) {
+                res = await dbAdapter.auth.getApiKey(legacyHash, {
+                  tenantId: locals.tenantId,
+                });
+              }
             }
             if (res.success && res.data) {
               const apiKey = res.data;
@@ -931,14 +985,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
                   locals.tenantId as DatabaseId,
                 ).catch((err: any) => logger.warn(`Failed to cache API Key: ${err.message}`));
 
-                // Fire-and-forget: update usage count and last used IP
+                // Batched usage statistics — aggregated in memory, flushed periodically.
                 // getClientIp uses platform address only — never trust raw X-Forwarded-For
                 const clientIp = getClientIp(event);
-                dbAdapter.auth
-                  .updateApiKeyUsage(apiKey._id, clientIp, {
-                    tenantId: locals.tenantId,
-                  })
-                  .catch(() => {});
+                recordApiKeyUsage(apiKey._id, clientIp, locals.tenantId);
 
                 logger.debug(`[Auth] Authenticated via API Key: ${apiKey.name}`);
               }
@@ -1089,7 +1139,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         // Full async tree can use getRequestDbAdapter() when tenant-bound.
         const bound = locals.dbAdapter as any;
         if (bound && typeof bound === "object" && "boundTenantId" in bound) {
-          const { runWithTenantAdapter } = await import("@src/databases/tenant-adapter");
+          const { runWithTenantAdapter } = await getTenantAdapterLazy();
           return runWithTenantAdapter(bound, () => resolve(event));
         }
         return resolve(event);
@@ -1104,33 +1154,46 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
 // --- UTILITY EXPORTS ---
 
+/**
+ * Delete every session-cookie variant. The cookie that supplied the sessionId
+ * may be __Secure-/__Host-prefixed while the configured name resolved to a
+ * different variant — deleting only one leaves the invalid cookie behind and
+ * the browser re-sends it on every request (infinite invalid-cookie loop).
+ */
+function clearAllSessionCookies(event: RequestEvent) {
+  const cookiePath = getCookiePath();
+  const variants = [
+    SESSION_COOKIE_NAME,
+    `__Host-${SESSION_COOKIE_NAME}`,
+    `__Secure-${SESSION_COOKIE_NAME}`,
+  ];
+  for (const name of variants) {
+    try {
+      event.cookies.delete(name, { path: cookiePath });
+    } catch {}
+  }
+}
+
 export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId | null): void {
   sessionCache.delete(sessionId);
   lastRefreshAttempt.delete(sessionId);
   lastRotationAttempt.delete(sessionId);
   lastAnomalyLog.delete(sessionId);
+  negativeSessionCache.delete(sessionId);
 
   // 🚀 Turbo GET: Also invalidate the auth context cache so a revoked
   // session can't access cached API responses within the TTL window.
   invalidateTurboAuthContext(sessionId);
 
   // Invalidate global SessionStore
-  try {
-    const { getDefaultSessionStore } = require("@src/databases/auth/session-manager");
-    const store = getDefaultSessionStore();
-    if (store && typeof store.delete === "function") {
-      store.delete(sessionId as DatabaseId).catch(() => {});
-    }
-  } catch (e) {
-    // Dynamic fallback for non-CommonJS context
-    void e;
-    import("@src/databases/auth/session-manager")
-      .then((mod) => {
-        const store = mod.getDefaultSessionStore();
-        if (store) store.delete(sessionId as DatabaseId).catch(() => {});
-      })
-      .catch(() => {});
-  }
+  getSessionManagerLazy()
+    .then((mod) => {
+      const store = mod.getDefaultSessionStore();
+      if (store && typeof store.delete === "function") {
+        store.delete(sessionId as DatabaseId).catch(() => {});
+      }
+    })
+    .catch(() => {});
 
   const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
   cacheService.delete(cacheKey, tenantId ?? undefined).catch(() => {});
@@ -1146,7 +1209,7 @@ export function clearAllSessionCaches(): void {
   lastRefreshAttempt.clear();
   lastRotationAttempt.clear();
   lastAnomalyLog.clear();
-  negativeCache.clear();
+  negativeSessionCache.clear();
   multiTenantCached = null;
   demoModeCached = null;
 }
@@ -1156,7 +1219,9 @@ export function clearAllSessionCaches(): void {
  * Used by setup wizard and sign-in to ensure getUserFromSession gets an instant hit.
  */
 export function primeSessionMemoryCache(sessionId: string, user: User): void {
-  negativeCache.clear();
+  // Targeted negative-entry removal (the session is now known-valid) — never
+  // clear the whole negative cache for one session.
+  negativeSessionCache.delete(sessionId);
   // Credential-free snapshot — the in-memory cache must never hold password
   // hashes, TOTP secrets, backup codes, or reset/refresh tokens.
   const entry: SessionCacheEntry = { user: toSafeSessionUser(user), timestamp: Date.now() };

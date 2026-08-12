@@ -103,6 +103,84 @@ function computeTrendSlope(
 }
 
 /**
+ * 🎯 COLD/WARM RATIO CHECK: for metrics recorded in BOTH phases (runs.phase),
+ * trend the cold/warm latency ratio across runs. A degraded ratio (>20%) with
+ * flat warm latency is the signature of cache/schema-path regressions
+ * (per-request schema rebuilds, turbo/response-cache misses) that avg-based
+ * checks stay green on. Latent until a benchmark records both phases.
+ */
+function detectColdWarmRatioRegressions(
+  db: any,
+  dbKey: string,
+  regressions: RegressionResult[],
+): void {
+  try {
+    const baseDb = dbKey.replace("-redis", "");
+    const rows = db
+      .query(
+        `SELECT metric, phase, avg_ms, timestamp FROM runs
+         WHERE db_type = ? AND status = 'SUCCESS' AND avg_ms > 0
+         ORDER BY timestamp DESC LIMIT 800`,
+      )
+      .all(baseDb) as {
+      metric: string;
+      phase: string;
+      avg_ms: number;
+      timestamp: string;
+    }[];
+
+    // Group newest-first per metric + phase
+    const byMetric = new Map<string, { cold: number[]; warm: number[] }>();
+    for (const row of rows) {
+      if (row.phase !== "cold" && row.phase !== "warm") continue;
+      let entry = byMetric.get(row.metric);
+      if (!entry) {
+        entry = { cold: [], warm: [] };
+        byMetric.set(row.metric, entry);
+      }
+      entry[row.phase]!.push(row.avg_ms);
+    }
+
+    for (const [metric, { cold, warm }] of byMetric) {
+      if (cold.length < 2 || warm.length < 2) continue;
+      const latestRatio = cold[0]! / warm[0]!;
+      if (!Number.isFinite(latestRatio) || latestRatio <= 0) continue;
+
+      const priorRatios: number[] = [];
+      const n = Math.min(cold.length, warm.length);
+      for (let i = 1; i < n; i++) {
+        if (warm[i]! > 0) priorRatios.push(cold[i]! / warm[i]!);
+      }
+      if (priorRatios.length === 0) continue;
+
+      const sorted = [...priorRatios].sort((a, b) => a - b);
+      const baseline = sorted[Math.floor(sorted.length / 2)]!;
+      if (baseline <= 0) continue;
+
+      const deltaPct = ((latestRatio - baseline) / baseline) * 100;
+      if (deltaPct > 20) {
+        regressions.push({
+          db: dbKey,
+          metric: `${metric} (cold/warm ratio)`,
+          current: latestRatio,
+          previousAvg: baseline,
+          changePct: deltaPct,
+          isRegression: true,
+          reason: `Cold/warm latency ratio degraded ${deltaPct.toFixed(0)}% (${latestRatio.toFixed(2)} vs ${baseline.toFixed(2)} baseline) — cache/schema-path regression signature while warm latency may stay flat.`,
+          direction: "degrading",
+          confidence: 0.7,
+          rootCause: "cache-path-cold-degradation",
+          severity: "warn",
+          forecastRuns: null,
+        });
+      }
+    }
+  } catch {
+    /* history query is best-effort */
+  }
+}
+
+/**
  * Classify root cause by matching the set of degrading metrics against
  * correlation rules (e.g. middleware, adapter, native).
  */
@@ -507,6 +585,9 @@ export async function detectRegressions(
 
       // Baseline-building alerts (not enough history for stat analysis)
       emitBaselineAlerts(dbKey, checks, regressions);
+
+      // 🎯 Cold/warm ratio check (cache/schema-path regression signature)
+      detectColdWarmRatioRegressions(db, dbKey, regressions);
 
       // Build trend data
       const adapterTrends = buildAdapterTrends(dbKey, checks, 20);
