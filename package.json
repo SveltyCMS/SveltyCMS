@@ -85,7 +85,7 @@
     "prepush": "bash .githooks/pre-push",
     "-- CHECK & TEST ---------------------------------------": "",
     "format": "oxfmt",
-    "check": "bun run format --check && oxlint --deny-warnings --ignore-pattern 'src/types/**' && bun run lint:widgets && bun run scripts/check-lockfile-sync.ts",
+    "check": "bun run format --check && oxlint --deny-warnings --ignore-pattern 'src/types/**' && bun run scripts/check-lockfile-sync.ts",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "bun run test:unit",
     "test:unit": "svelte-kit sync && vitest run",

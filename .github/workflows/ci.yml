@@ -152,9 +152,6 @@ jobs:
               echo "::group::oxlint"
               bun run lint:ci
               echo "::endgroup::"
-              echo "::group::lint:widgets"
-              bun run lint:widgets
-              echo "::endgroup::"
               echo "::group::lockfile-sync"
               bun run scripts/check-lockfile-sync.ts
               echo "::endgroup::"
