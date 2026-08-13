@@ -44,15 +44,17 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
    */
   test("shell: page title and new collection control", async ({ page }) => {
     await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+    // 30s budget (matches the golden test): the first SSR after a DB reset may
+    // re-initialize the content system before the board renders.
     await expect(page.getByRole("heading", { level: 1, name: /collection builder/i })).toBeVisible({
-      timeout: 15_000,
+      timeout: 30_000,
     });
     await expect(
       page
         .getByTestId("collection-builder-board")
         .or(page.getByTestId("add-collection-button").first())
         .first(),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: 30_000 });
 
     const addCollection = page.getByTestId("add-collection-button").first();
     await expect(addCollection).toBeVisible({ timeout: 10_000 });
