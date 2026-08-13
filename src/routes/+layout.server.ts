@@ -152,7 +152,12 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     tenantId: locals.tenantId ?? null,
     darkMode: locals.darkMode ?? false,
     navigationStructure,
-    contentNodes: contentNodes ? structuredClone(contentNodes) : [],
+    // JSON round-trip instead of structuredClone: freshly-saved collections carry
+    // compiled valibot validation functions in their schema objects —
+    // structuredClone throws DataCloneError and 500s every (app) page until the
+    // structure is reloaded from the DB. JSON strips functions, which is exactly
+    // what client-bound data needs (functions are not serializable anyway).
+    contentNodes: contentNodes ? JSON.parse(JSON.stringify(contentNodes)) : [],
     contentVersion,
     // Pass CSRF token for state-changing API calls
     csrfToken:
