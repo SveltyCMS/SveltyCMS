@@ -46,9 +46,23 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
     // 30s budget (matches the golden test): the first SSR after a DB reset may
     // re-initialize the content system before the board renders.
-    await expect(page.getByRole("heading", { level: 1, name: /collection builder/i })).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect(page.getByRole("heading", { level: 1, name: /collection builder/i }))
+      .toBeVisible({
+        timeout: 30_000,
+      })
+      .catch(async (err) => {
+        // CI diagnostics: the public annotations carry this message, so a
+        // Linux-only render failure becomes debuggable without the artifacts.
+        const url = page.url();
+        const body =
+          (await page
+            .locator("body")
+            .innerText()
+            .catch(() => "<body unavailable>")) || "";
+        throw new Error(
+          `[E2E-DIAG] collectionbuilder heading never rendered\nURL: ${url}\nBody (first 1200 chars):\n${String(body).slice(0, 1200)}\n\nOriginal error: ${(err as Error).message}`,
+        );
+      });
     await expect(
       page
         .getByTestId("collection-builder-board")
@@ -148,7 +162,21 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
         createBtn,
         `Expected entry list or create control for collection "${fixture.slug}" after schema save`,
       ).toBeVisible({ timeout: 10_000 });
-    }).toPass({ timeout: 60_000, intervals: [2_000, 3_000, 5_000] });
+    })
+      .toPass({ timeout: 60_000, intervals: [2_000, 3_000, 5_000] })
+      .catch(async (err) => {
+        // CI diagnostics: the public annotations carry this message, so a
+        // Linux-only render failure becomes debuggable without the artifacts.
+        const url = page.url();
+        const body =
+          (await page
+            .locator("body")
+            .innerText()
+            .catch(() => "<body unavailable>")) || "";
+        throw new Error(
+          `[E2E-DIAG] entry list never rendered\nURL: ${url}\nBody (first 1200 chars):\n${String(body).slice(0, 1200)}\n\nOriginal error: ${(err as Error).message}`,
+        );
+      });
     await createBtn.click({ timeout: 10_000 });
 
     const titleBox = page
