@@ -18,7 +18,7 @@
 		type SmartTableSavedView
 	} from '@utils/smart-table-saved-views';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 
 	let {
 		scope,

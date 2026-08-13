@@ -34,7 +34,7 @@ import { logger } from "@utils/logger";
    * @description Responsive image component with automatic srcset generation from uploaded variants.
    */
 
-  import { browser, dev } from '$app/environment';
+  import { browser, dev } from '$app/env';
   import type { ThumbnailSet } from '@src/utils/media/media-models';
 
   /* -------------------------------------------------------------------------- */

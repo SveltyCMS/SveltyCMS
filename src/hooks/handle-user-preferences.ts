@@ -14,7 +14,7 @@ import { ThemeManager } from "@src/databases/theme-manager";
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import type { Locale } from "@src/paraglide/runtime";
 import { locales } from "@src/paraglide/runtime";
-import type { Handle } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { logger } from "@utils/logger";
 import { getRequestFlags } from "@utils/hook-utils";
 

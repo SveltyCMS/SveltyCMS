@@ -46,7 +46,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	// Logger
 	import { logger } from '@utils/logger';
 	// Using iconify-icon web component
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 
 	// Props with types
 	let {

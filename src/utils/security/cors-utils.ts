@@ -10,7 +10,7 @@
  * - Prevents DNS rebinding by validating host header
  */
 
-import { dev } from "$app/environment";
+import { dev } from "$app/env";
 
 const PRODUCTION_ALLOWED_ORIGINS = [
   "https://sveltycms.com",

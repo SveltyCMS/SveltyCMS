@@ -24,7 +24,7 @@ Part of the Three Pillars Architecture for the widget system.
 
 <script lang="ts">
 import { logger } from "@utils/logger";
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 		import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 		import Badge from '@components/ui/badge.svelte';
 		import Button from '@components/ui/button.svelte';

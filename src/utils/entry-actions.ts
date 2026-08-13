@@ -225,7 +225,7 @@ export async function saveEntry(
     // setMode('view'); // Handled by caller to ensure proper navigation flow
     invalidateCollectionCache(collId);
 
-    // Trigger SvelteKit SSR reload - Handled by caller via goto(..., { invalidateAll: true })
+    // Trigger SvelteKit SSR reload - Handled by caller via goto(..., { refreshAll: true })
     // await invalidateAll();
 
     // Clear client-side cache in EntryList component

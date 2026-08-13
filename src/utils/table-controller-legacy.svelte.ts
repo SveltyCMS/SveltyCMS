@@ -66,13 +66,14 @@ export class TableController<T> {
     // Debounced URL sync — prevents history spam on rapid filter changes
     clearTimeout(this.syncTimeout);
     this.syncTimeout = setTimeout(() => {
-      const newUrl = new URL(page.url);
+      // 🚀 SK3: page.url is ReadonlyURL — copy before mutating
+      const newUrl = new URL(page.url.href);
       Object.entries(this.filters).forEach(([key, val]) => newUrl.searchParams.set(key, val));
 
       goto(newUrl, {
-        replaceState: true,
-        keepFocus: true,
-        noScroll: true,
+        replace: true,
+        // 🚀 SK3: keepFocus + noScroll → reset: false
+        reset: false,
       });
     }, 150);
   }

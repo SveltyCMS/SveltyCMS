@@ -26,7 +26,7 @@
  */
 
 import { logger } from "@utils/logger";
-import type { Handle } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { getRequestFlags } from "@utils/hook-utils";
 
 const MIN_COMPRESSION_SIZE = 1024; // 1KB

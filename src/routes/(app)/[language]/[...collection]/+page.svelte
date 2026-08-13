@@ -34,7 +34,7 @@ import { parseURLToMode } from "@utils/navigation";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { getFieldName } from "@utils/utils";
 import { onMount, untrack } from "svelte";
-import { beforeNavigate, invalidateAll, replaceState } from "$app/navigation";
+import { beforeNavigate, refreshAll, goto } from "$app/navigation";
 import { page } from "$app/state";
 
 interface PageData {
@@ -158,10 +158,10 @@ $effect(() => {
 			if (newPath !== currentPath) {
 				logger.debug(`[URL Update] UUID → Pretty: ${newPath}`);
 				untrack(() => {
-					// Use replaceState at the end of the microtask to avoid recursive updates
+					// Use shallow goto at the end of the microtask to avoid recursive updates
 					Promise.resolve().then(() => {
 						if (page.url.pathname === currentPath) {
-							replaceState(newPath, {});
+							goto(newPath, { shallow: true, replace: true, state: {} });
 						}
 					});
 				});
@@ -298,7 +298,7 @@ $effect(() => {
 				initialCollectionValue = JSON.stringify(entryData);
 			} else {
 				// Need to reload data
-				invalidateAll().then(() => {
+				refreshAll().then(() => {
 					collections.setMode("edit");
 					logger.debug(`[URL Change] Reloaded entry ${parsed.entryId}`);
 				});

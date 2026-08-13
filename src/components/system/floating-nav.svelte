@@ -33,7 +33,7 @@ Home button and Settings available.
 	import { modalState } from '@utils/modal.svelte';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { linear } from 'svelte/easing';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { page } from '$app/state';
 
 	// Constants

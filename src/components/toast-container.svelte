@@ -17,7 +17,7 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { flip } from 'svelte/animate';
 	import { fade, fly } from 'svelte/transition';

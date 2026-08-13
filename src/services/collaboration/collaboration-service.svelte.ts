@@ -4,7 +4,7 @@
  * Manages document synchronization, awareness, and field-level presence.
  */
 
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { page } from "$app/state";
 import { collectionValue } from "@src/stores/collection-store.svelte";
 import { logger } from "@utils/logger";

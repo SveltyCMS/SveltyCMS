@@ -12,18 +12,30 @@
  */
 
 import { metricsService } from "@src/services/observability/metrics-service";
-import type { Handle, HandleServerError } from "@sveltejs/kit";
-import { sequence } from "@sveltejs/kit/hooks";
+import { sequence, type Handle, type HandleServerError } from "@sveltejs/kit/hooks";
 import { isRedirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 // 🔐 ENTERPRISE: chained audit file sink (logs/app.log) — activates once per boot.
 import "@utils/logger.server";
-import { building } from "$app/environment";
+import { building } from "$app/env";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import os from "node:os";
 import { runWithContext, runWithTrace, getTrace, traceSpan } from "@utils/context";
 import { createRequire } from "node:module";
+
+// 🚀 SK3: background services are STATICALLY imported (they start on READY).
+// Dynamic import() of these modules left Rolldown's cyclic-chunk initializers
+// un-run in the production build (named exports stayed undefined forever —
+// automationService.init() crashed the boot). Static imports participate in
+// the kit runtime's chunk graph, which initializes them correctly.
+import { jobQueue } from "@src/services/background/jobs/job-queue-service";
+import { automationService } from "@src/services/background/automation";
+import { watchdog } from "@src/services/system/watchdog";
+import { telemetryService } from "@src/services/observability/telemetry-service";
+import { startScheduler } from "@src/services/scheduler";
+import { startBehavioralEngine } from "@src/services/intelligence/behavioral-learner";
+import { outboxService } from "@src/services/outbox";
 // ESM Shims for legacy CJS compatibility in production build
 if (typeof (globalThis as any).require === "undefined") {
   (globalThis as any).require = createRequire(import.meta.url);
@@ -255,60 +267,41 @@ if (!building) {
         // Background services always start — production parity. Benchmark
         // runs measure the same runtime a real deployment has (pollers,
         // watchdog, scheduler, outbox all contend for the event loop).
+        // Background services always start — production parity. Benchmark
+        // runs measure the same runtime a real deployment has (pollers,
+        // watchdog, scheduler, outbox all contend for the event loop).
         {
-          Promise.all([
-            import("@src/services/background/jobs/job-queue-service"),
-            import("@src/services/background/automation"),
-            import("@src/services/system/watchdog"),
-            import("@src/services/observability/telemetry-service"),
-            import("@src/services/scheduler"),
-            import("@src/services/intelligence/behavioral-learner"),
-            import("@src/services/outbox"),
-          ])
-            .then(
-              ([
-                { jobQueue },
-                { automationService },
-                { watchdog },
-                { telemetryService },
-                scheduler,
-                { startBehavioralEngine },
-                { outboxService },
-              ]) => {
-                jobQueue.startPolling();
-                automationService.init();
-                watchdog.start();
-                scheduler.startScheduler();
-                startBehavioralEngine();
-                // Transactional outbox — deliver pending events (webhooks fan-out)
-                outboxService.startPolling(5_000);
+          jobQueue.startPolling();
+          automationService.init();
+          watchdog.start();
+          startScheduler();
+          startBehavioralEngine();
+          // Transactional outbox — deliver pending events (webhooks fan-out)
+          outboxService.startPolling(5_000);
 
-                // Telemetry check
-                const globalWithTelemetry = globalThis as typeof globalThis & {
-                  __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
-                };
+          // Telemetry check
+          const globalWithTelemetry = globalThis as typeof globalThis & {
+            __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
+          };
 
-                if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
-                  clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
-                }
+          if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
+            clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
+          }
 
-                setTimeout(() => {
-                  telemetryService
-                    .checkUpdateStatus()
-                    .catch((err) => logger.error("Initial telemetry check failed", err));
-                }, 10_000);
+          setTimeout(() => {
+            telemetryService
+              .checkUpdateStatus()
+              .catch((err) => logger.error("Initial telemetry check failed", err));
+          }, 10_000);
 
-                globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
-                  () => {
-                    telemetryService
-                      .checkUpdateStatus()
-                      .catch((err) => logger.error("Periodic telemetry check failed", err));
-                  },
-                  1000 * 60 * 60 * 12, // 12 hours
-                );
-              },
-            )
-            .catch((err) => logger.error("[System] Parallel initialization failed:", err));
+          globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = setInterval(
+            () => {
+              telemetryService
+                .checkUpdateStatus()
+                .catch((err) => logger.error("Periodic telemetry check failed", err));
+            },
+            1000 * 60 * 60 * 12, // 12 hours
+          );
         }
 
         // Cleanup: Unsubscribe once services are initialized
@@ -779,8 +772,13 @@ export const handle: Handle = async ({ event, resolve }) => {
  * Catches ALL unhandled errors from page loads, API routes, and server functions.
  * Extracts structured codes from raise() calls via `__sveltyCode` in the error body.
  * Single source of truth for production error logging.
+ *
+ * 🚀 SK3: handleError receives a `CaughtError & { event }` input — the HTTP
+ * status lives on the caught error object (app errors always carry status).
  */
-export const handleError: HandleServerError = async ({ error, event, status }) => {
+export const handleError: HandleServerError = async (input) => {
+  const { error, event } = input;
+  const status = (error as { status?: number } | null)?.status ?? 500;
   const body = (error as { body?: { __sveltyCode?: string; message?: string } } | null)?.body;
   const code = body?.__sveltyCode || `HTTP_${status}`;
   const message = body?.message || (error instanceof Error ? error.message : String(error ?? ""));

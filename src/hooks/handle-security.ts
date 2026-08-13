@@ -14,7 +14,8 @@
 import v8 from "node:v8";
 import { metricsService } from "@src/services/observability/metrics-service";
 import { securityResponseService } from "@src/services/security/response-service";
-import { error, type Handle } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";

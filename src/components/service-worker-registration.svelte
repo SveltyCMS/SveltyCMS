@@ -20,7 +20,7 @@ Registers and manages the service worker for offline support and caching.
 		import Button from '@components/ui/button.svelte';
 	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 
 	let updateAvailable = $state(false);
 	let registration: ServiceWorkerRegistration | null = $state(null);

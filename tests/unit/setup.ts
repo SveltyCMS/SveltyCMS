@@ -398,8 +398,16 @@ vi.mock("$app/navigation", () => ({
   goto: vi.fn(),
   preloadData: vi.fn(),
   invalidateAll: vi.fn(),
+  refreshAll: vi.fn(),
 }));
 vi.mock("$app/environment", () => ({
+  browser: true,
+  dev: true,
+  building: false,
+  version: "1.0.0",
+}));
+// 🚀 SK3: $app/environment was renamed to $app/env — same factory.
+vi.mock("$app/env", () => ({
   browser: true,
   dev: true,
   building: false,
@@ -678,6 +686,16 @@ moduleMock("$app/environment", () => ({
   default: { browser: false, dev: true, building: false, version: "1.0.0" },
 }));
 
+// 🚀 SK3: $app/env (renamed from $app/environment) — same factory.
+moduleMock("$app/env", () => ({
+  browser: false,
+  dev: true,
+  building: false,
+  version: "1.0.0",
+  __esModule: true,
+  default: { browser: false, dev: true, building: false, version: "1.0.0" },
+}));
+
 moduleMock("$env/dynamic/private", () => ({
   env: process.env,
   __esModule: true,
@@ -688,6 +706,7 @@ moduleMock("$app/navigation", () => ({
   goto: mock(() => Promise.resolve()),
   invalidate: mock(() => Promise.resolve()),
   invalidateAll: mock(() => Promise.resolve()),
+  refreshAll: mock(() => Promise.resolve()),
   beforeNavigate: mock(() => {}),
   afterNavigate: mock(() => {}),
   preloadData: mock(() => Promise.resolve()),

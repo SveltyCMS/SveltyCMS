@@ -49,7 +49,7 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import { Form } from "@utils/form.svelte.ts";
 import { signUpFormSchema } from "@utils/schemas";
 import { logger } from "@utils/logger";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { preloadData } from "$app/navigation";
 // Stores
 import { page } from "$app/state";

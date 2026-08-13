@@ -9,7 +9,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { screen, ScreenSize } from "@stores/screen-size-store.svelte.ts";
 
 // Test-friendly runtime checks.

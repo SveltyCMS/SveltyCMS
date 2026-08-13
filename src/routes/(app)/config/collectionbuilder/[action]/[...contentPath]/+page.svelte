@@ -271,9 +271,8 @@ async function handleCollectionSave(confirmDeletions = false) {
 		if (originalName !== name) {
 			originalName = name;
 			await goto(`/config/collectionbuilder/edit/${encodeURIComponent(name)}`, {
-				invalidateAll: false,
-				noScroll: true,
-				keepFocus: true,
+				refreshAll: false,
+				reset: false,
 			});
 		}
 	} catch (error) {
@@ -447,7 +446,7 @@ $effect(() => {
 				class="h-full min-h-0 {activeTab === 'define'
 					? 'mx-auto max-w-5xl p-4 sm:p-6 lg:p-10'
 					: activeTab === 'widgets'
-						? 'flex h-full min-h-[32rem] flex-col p-0'
+						? 'flex h-full min-h-128 flex-col p-0'
 						: 'mx-auto max-w-5xl p-4 sm:p-6'}"
 			>
 				{#if activeTab === 'define'}

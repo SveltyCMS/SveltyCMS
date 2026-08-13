@@ -325,7 +325,7 @@ async function uploadLocalFiles() {
 			handleCancel();
 			onUploadComplete();
 			if (redirectOnSuccess) {
-				goto("/mediagallery", { invalidateAll: true });
+				goto("/mediagallery", { refreshAll: true });
 			}
 		} else {
 			throw new Error(result.message || "Upload failed");

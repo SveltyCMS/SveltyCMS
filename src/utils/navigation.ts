@@ -16,6 +16,7 @@
 
 import { goto, preloadData } from "$app/navigation";
 import { page } from "$app/state";
+import type { ReadonlyURLSearchParams } from "$app/state";
 import { setCollectionValue, type ModeType } from "@src/stores/collection-store.svelte";
 import { globalLoadingStore, loadingOperations } from "@src/stores/loading-store.svelte.ts";
 import { modeTransitionGuard } from "@stores/mode-transition-guard.svelte";
@@ -131,8 +132,12 @@ export function reflectModeInURL(
 
 /**
  * Parses the current URL to determine the mode and entry ID.
+ * Accepts both mutable `URL` and SvelteKit 3's readonly page URL
+ * (ReadonlyURLSearchParams) — parsing is read-only.
  */
-export function parseURLToMode(url: URL): ParsedURL {
+export function parseURLToMode(
+  url: URL | { searchParams: URLSearchParams | ReadonlyURLSearchParams; pathname: string },
+): ParsedURL {
   const editParam = url.searchParams.get("edit");
   const createParam = url.searchParams.get("create");
 
@@ -182,8 +187,8 @@ class NavigationManager {
       if (!(await modeTransitionGuard.transitionTo("view"))) return;
 
       await goto(page.url.pathname, {
-        invalidateAll: options?.invalidate ?? true,
-        replaceState: false,
+        refreshAll: options?.invalidate ?? true,
+        replace: false,
       });
     });
   }

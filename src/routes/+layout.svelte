@@ -29,7 +29,7 @@ import "iconify-icon";
 import "@src/plugins/index";
 
 import { onMount, untrack } from "svelte";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { page } from "$app/state";
 import { beforeNavigate, afterNavigate } from "$app/navigation";
 

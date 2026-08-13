@@ -10,7 +10,7 @@ import type { Theme } from "@src/databases/db-interface";
 import { nowISODateString } from "@src/utils/date";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { logger } from "@utils/logger";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 
 // --- Theme Preference Type ---
 export type ThemePreference = "system" | "light" | "dark" | "unknown";

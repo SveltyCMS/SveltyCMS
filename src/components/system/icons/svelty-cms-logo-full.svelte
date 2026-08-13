@@ -11,7 +11,7 @@
 	import { logo_slogan } from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import Logo from './svelty-cms-logo.svelte';
 
 	interface Props {

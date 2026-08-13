@@ -18,7 +18,7 @@
   import Badge from '@components/ui/badge.svelte';
   import type { FederationEnrichment, FieldInstance } from '@src/content/types';
   import { collection, setCollection } from '@src/stores/collection-store.svelte';
-  import { normalizeFederationEnrichments } from '@plugins/unified-data-hub/server/federation-enrichment-utils';
+  import { normalizeFederationEnrichments } from '@plugins/unified-data-hub/federation-enrichment-utils';
 
   interface Props {
     isCollectionEditor?: boolean;

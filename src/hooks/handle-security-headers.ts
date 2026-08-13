@@ -16,7 +16,7 @@
  * Handle — the header set is always merged onto the already-produced response.
  */
 
-import { dev } from "$app/environment";
+import { dev } from "$app/env";
 import { getCorsHeaders } from "@utils/security/cors-utils";
 import { API_CONTENT_SECURITY_POLICY } from "@utils/security/constants";
 import { applySecurityHeaders } from "@utils/hook-utils";

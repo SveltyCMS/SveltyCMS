@@ -26,7 +26,7 @@
  */
 
 import { SvelteURLSearchParams } from "svelte/reactivity";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 
@@ -38,7 +38,8 @@ type ParsedValue = string | number | boolean;
  */
 export function useReactiveSearchParams() {
   // 🚀 Bind directly to SvelteKit's reactive page state
-  const params = new SvelteURLSearchParams(browser ? page.url.searchParams : "");
+  // (page.url is a ReadonlyURL in SK3 — copy via toString())
+  const params = new SvelteURLSearchParams(browser ? page.url.searchParams.toString() : "");
 
   /** Debounced history update to prevent browser history spam */
   let timeout: ReturnType<typeof setTimeout>;
@@ -46,9 +47,9 @@ export function useReactiveSearchParams() {
     clearTimeout(timeout);
     timeout = setTimeout(() => {
       goto(`?${params.toString()}`, {
-        replaceState: replace,
-        keepFocus: true,
-        noScroll: true,
+        replace,
+        // 🚀 SK3: keepFocus + noScroll → reset: false
+        reset: false,
       });
     }, 150);
   }

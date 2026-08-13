@@ -17,7 +17,7 @@
 
 import { logger } from "@utils/logger";
 import { eventBus } from "@utils/event-bus";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 
 // ── Types ──────────────────────────────────────────────
 

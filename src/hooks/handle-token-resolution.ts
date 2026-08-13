@@ -16,7 +16,7 @@ import {
   applyFieldPermissionsToBody,
   getCollectionFromPath,
 } from "@src/services/security/field-permission-service";
-import type { Handle } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { handleApiError } from "@utils/error-handling";
 
 const MAX_JSON_SIZE = 5 * 1024 * 1024;

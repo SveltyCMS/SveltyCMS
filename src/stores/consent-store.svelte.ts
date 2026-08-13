@@ -4,7 +4,7 @@
  * Uses Svelte 5 runes for fine-grained reactivity.
  */
 import { logger } from "@utils/logger";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 
 export type ConsentCategory = "necessary" | "analytics" | "marketing";
 

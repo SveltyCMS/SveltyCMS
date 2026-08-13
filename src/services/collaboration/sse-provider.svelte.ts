@@ -7,7 +7,7 @@
 import * as Y from "yjs";
 import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate } from "y-protocols/awareness";
 import { encodeYjsToBase64, decodeBase64ToYjs } from "@utils/tenant";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { logger } from "@utils/logger";
 
 export interface SseProviderOptions {

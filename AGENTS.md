@@ -28,12 +28,12 @@ This file provides comprehensive guidance to **AI Coding Assistants (Agents)** (
 
 ## Project Overview
 
-SveltyCMS is a powerful headless CMS built with SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS v4. It features a database-agnostic architecture (MongoDB, MariaDB/MySQL, PostgreSQL, and SQLite — all production-ready), GraphQL/REST APIs, multi-language support via Paraglide JS (compile-time, zero-runtime), and a modular widget-based content modeling system. Designed for edge compatibility, zero-runtime overhead, and enterprise readiness.
+SveltyCMS is a powerful headless CMS built with SvelteKit 3 (release candidate), Svelte 5, TypeScript, Tailwind CSS v4. It features a database-agnostic architecture (MongoDB, MariaDB/MySQL, PostgreSQL, and SQLite — all production-ready), GraphQL/REST APIs, multi-language support via Paraglide JS (compile-time, zero-runtime), and a modular widget-based content modeling system. Designed for edge compatibility, zero-runtime overhead, and enterprise readiness.
 
 ## Core Philosophy & Focus
 
 - **Data Security & Ownership**: Security is paramount—users always own their data. Implement strict protocols (e.g., no direct DB access outside adapters, secure headers).
-- **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, SSR-first architecture, SvelteKit 5 Server Functions, Valibot, Vite optimizations, and <1s cold starts via progressive initialization. **We continuously monitor benchmarks (see `docs/project/benchmarks/index.mdx`) to ensure we remain the fastest Java-enterprise-ready CMS, aiming for sub-5ms persistence and outperforming traditional enterprise platforms.**
+- **Performance & Optimization**: Target sub-millisecond latency with tree-shaking, SSR-first architecture, SvelteKit Server Functions, Valibot, Vite optimizations, and <1s cold starts via progressive initialization. **We continuously monitor benchmarks (see `docs/project/benchmarks/index.mdx`) to ensure we remain the fastest Java-enterprise-ready CMS, aiming for sub-5ms persistence and outperforming traditional enterprise platforms.**
 
 - **Universal Accessibility**: WCAG 2.2 AA and ATAG 2.0 compliant (full keyboard support, ARIA-live regions); **built for WCAG 3.0 Functional Performance standards with native Svelte 5 components.**
 - **Premium Design**: Modern UX with native Svelte 5 components and Tailwind v4 for white-labeling and deep theming.
@@ -292,7 +292,7 @@ When generating/modifying code:
    - **Arbitrary Values**: Prefer v4 CSS custom property syntax for design tokens over arbitrary values (e.g. `[... ]` syntax) when appropriate.
 4. **Leverage Modern SvelteKit Patterns**:
    - **SSR-First**: Prioritize Server-Side Rendering for critical paths (e.g., Setup, Collection Loading) to ensure fast FCP.
-   - **Server Functions (Remote Functions)**: Prefer SvelteKit 5 Server Functions in `+page.server.ts` over standalone API routes for type safety and reduced network complexity.
+   - **Server Functions (Remote Functions)**: Prefer SvelteKit Server Functions in `+page.server.ts` over standalone API routes for type safety and reduced network complexity.
    - **Middleware Security**: Respect the sequential middleware pipeline in `hooks.server.ts`. All requests are gated by `handleSystemState` for self-healing and security.
    - **Self-Healing State**: Use the `@stores/system` state machine (`IDLE` → `READY`) for resilient startup. reference `docs/reference/architecture/state-management.mdx`.
 5. **Strict Type Safety**: No `any`; use discriminated unions and Valibot for E2E validation.
@@ -762,6 +762,17 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 14. **API Response Envelopes**: `successResponse()` wraps payloads as `{ success: true, data: <payload> }`. Integration tests must access `result.data.*`. E2E collection polls should check `body.data` (an array), not `body.data._id` (undefined).
 15. **Private Config Field Persistence**: Settings with `category: "private"` source from `config/private.ts` on fresh page loads, overriding DB saves. Verify via API call rather than UI input after reload.
 16. **`check()` No-Op When Checked**: `checkbox.check()` is a no-op when already checked. Always toggle explicitly: `isChecked ? uncheck() : check()`.
+17. **SvelteKit 3 (RC) API Surface (CRITICAL)**: The project runs SvelteKit 3 (`@sveltejs/kit` 3.0.0-next, Rolldown-based). Migrated surfaces must not regress:
+    - `$app/environment` → **`$app/env`** (do not import the legacy module).
+    - `Handle`, `HandleServerError` now come from **`@sveltejs/kit/hooks`**; `error`, `redirect`, `RequestEvent`, `isRedirect`, `isHttpError` stay on `@sveltejs/kit`.
+    - `handleError` input no longer has a destructured `status` — read `error.status` off the `CaughtError & { event }` input.
+    - `goto()` option renames: `replaceState` → `replace`, `invalidateAll` → `refreshAll`, `keepFocus`/`noScroll` → `reset: false`.
+    - `$app/stores` → `$app/state` (runes) for client modules.
+    - External redirects MUST pass `redirect(302, url, { external: true })` — no bare cross-origin `redirect`.
+    - `vite.config.ts`: `config.vitePlugin` and `config.alias` are gone — pass vite-plugin-svelte options (e.g. `inspector`) directly to `sveltekit(...)` and use `resolve.alias` with **absolute** paths (`path.resolve(CWD, target)`) plus matching `paths` in `tsconfig.json` (relative aliases duplicate modules).
+    - `tsconfig.json` extends `$app/tsconfig` and MUST list `types: ["$app/types", ...]`.
+    - Rolldown cyclic-chunk caveat: destructuring named exports right after `await import()` of a cyclic module can yield `undefined` — prefer static imports for boot-time services (see `src/hooks.server.ts` background services).
+    - Never import `bun:test` — Vitest is the runner; `bun:sqlite` imports must be guarded (`typeof Bun !== "undefined"`).
 
 ## Test-to-Docs Cross-Reference
 

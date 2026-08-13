@@ -53,8 +53,8 @@ interface Field {
 
 const { "on:save": onSave = () => {} }: Props = $props() as Props;
 
-// Extract the collection name from the URL
-const contentTypes = page.params.contentTypes;
+// Extract the collection name from the URL (route param [...contentPath])
+const contentTypes = page.params.contentPath ?? "";
 
 // Fields state with proper typing
 let fields = $state<Field[]>(

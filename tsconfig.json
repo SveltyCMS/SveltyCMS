@@ -1,5 +1,5 @@
 {
-  "extends": "./.svelte-kit/tsconfig.json",
+  "extends": "$app/tsconfig",
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
@@ -18,7 +18,42 @@
     "allowArbitraryExtensions": true,
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
-    "types": ["node", "bun", "google.maps"]
+    "types": ["$app/types", "node", "bun", "google.maps"],
+    // 🚀 SK3: aliases no longer come from the generated .svelte-kit/tsconfig.json
+    // (config.alias is deprecated) — declared here and mirrored in Vite's
+    // resolve.alias (path-aliases.ts, single source of truth).
+    "paths": {
+      "@api": ["./src/routes/api"],
+      "@api/*": ["./src/routes/api/*"],
+      "@auth": ["./src/databases/auth"],
+      "@auth/*": ["./src/databases/auth/*"],
+      "@components": ["./src/components"],
+      "@components/*": ["./src/components/*"],
+      "@config": ["./config"],
+      "@config/*": ["./config/*"],
+      "@content": ["./src/content"],
+      "@content/*": ["./src/content/*"],
+      "@databases": ["./src/databases"],
+      "@databases/*": ["./src/databases/*"],
+      "@plugins": ["./src/plugins"],
+      "@plugins/*": ["./src/plugins/*"],
+      "@root": ["."],
+      "@root/*": ["./*"],
+      "@services": ["./src/services"],
+      "@services/*": ["./src/services/*"],
+      "@src": ["./src"],
+      "@src/*": ["./src/*"],
+      "@stores": ["./src/stores"],
+      "@stores/*": ["./src/stores/*"],
+      "@tests": ["./tests"],
+      "@tests/*": ["./tests/*"],
+      "@themes": ["./src/themes"],
+      "@themes/*": ["./src/themes/*"],
+      "@utils": ["./src/utils"],
+      "@utils/*": ["./src/utils/*"],
+      "@widgets": ["./src/widgets"],
+      "@widgets/*": ["./src/widgets/*"]
+    }
   },
   "include": [
     "src/**/*.js",
@@ -28,7 +63,9 @@
     "config/**/*.ts",
     "scripts/**/*.ts",
     "tests/**/*.ts",
+    "vite.config.ts",
+    "path-aliases.ts",
     "playwright.config.ts"
   ],
-  "exclude": ["node_modules", ".svelte-kit", "src/paraglide/**/*.js"]
+  "exclude": ["node_modules", ".svelte-kit", "src/paraglide/**/*.js", "src/service-worker/**"]
 }

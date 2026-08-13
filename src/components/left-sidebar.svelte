@@ -58,7 +58,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
 	import Avatar from '@components/ui/avatar.svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { page } from '$app/state';
 	import { scale } from 'svelte/transition';
 	import { getThemeContext } from '@components/ui/theme-context.svelte';

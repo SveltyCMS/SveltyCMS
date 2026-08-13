@@ -12,7 +12,8 @@
  */
 
 import { logger } from "@utils/logger";
-import type { Handle, RequestEvent } from "@sveltejs/kit";
+import type { RequestEvent } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { getClientIp } from "@utils/hook-utils";
 import {
   getAuditFlags,

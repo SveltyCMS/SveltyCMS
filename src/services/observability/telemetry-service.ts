@@ -18,7 +18,7 @@ import { getPrivateEnv } from "@src/databases/db";
 import { getPrivateSetting } from "@src/services/core/settings-service";
 import { getWidgetsByType } from "@src/widgets/proxy";
 import { logger } from "@utils/logger";
-import { building, dev } from "$app/environment";
+import { building, dev } from "$app/env";
 import pkg from "../../../package.json";
 
 // Dynamic env loading helper to avoid breaking unit tests

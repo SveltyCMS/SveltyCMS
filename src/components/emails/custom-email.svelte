@@ -9,7 +9,7 @@
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { Body, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
 	import Sanitize from '@src/utils/sanitize.svelte';
-	import { dev } from '$app/environment';
+	import { dev } from '$app/env';
 
 	interface Props {
 		body?: string;

@@ -16,7 +16,7 @@
 
 import { logger } from "@utils/logger";
 import { TableController as LegacyTableController } from "./table-controller-legacy.svelte";
-import { dev } from "$app/environment";
+import { dev } from "$app/env";
 
 /**
  * @deprecated Use `createSmartTable` from `@components/ui/smart-table`.
