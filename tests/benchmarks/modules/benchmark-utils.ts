@@ -1059,6 +1059,10 @@ export async function seedBenchmarkState(): Promise<void> {
   // 2. Admin user (idempotent — mirrors /api/testing action=seed)
   const email = "admin@example.com";
   const seedOpts = { tenantId } as any;
+  // Canonical lookup mirrors the server login EXACTLY: no tenant filter,
+  // oldest row wins (getUserByEmail orders by createdAt asc). Updating any
+  // other row left the login reading a stale hash and failing with 401.
+  const canonicalOpts = { bypassTenantCheck: true, tenantId: null } as any;
   let created = await cms.auth.createUser(
     {
       email,
@@ -1072,7 +1076,7 @@ export async function seedBenchmarkState(): Promise<void> {
     seedOpts,
   );
   if (!created?.success) {
-    const existing = await cms.auth.getUserByEmail(email, seedOpts);
+    const existing = await cms.auth.getUserByEmail(email, canonicalOpts);
     if (existing?.success && existing?.data) {
       await cms.auth.updateUserAttributes(
         (existing.data as { _id: string })._id,
@@ -1085,9 +1089,38 @@ export async function seedBenchmarkState(): Promise<void> {
           failedAttempts: 0,
           lockoutUntil: null,
         },
-        { ...seedOpts, allowPrivilegeEscalation: true },
+        { ...canonicalOpts, allowPrivilegeEscalation: true },
       );
     }
+  }
+
+  // 🛡️ DEDUPE: legacy runs could leave several admin@example.com rows (one
+  // per tenant or one per harness era). Login reads the oldest row, so any
+  // duplicate with a stale hash makes the benchmark 401 nondeterministically.
+  // Keep exactly ONE canonical row (the one login reads) and delete the rest.
+  try {
+    const allRes = await (db as any).auth.getAllUsers({ limit: 500 } as any);
+    const rows = Array.isArray(allRes)
+      ? allRes
+      : allRes?.success && Array.isArray(allRes.data)
+        ? allRes.data
+        : [];
+    const canonCheck = await cms.auth.getUserByEmail(email, canonicalOpts);
+    const canonId =
+      canonCheck?.success && canonCheck?.data
+        ? String((canonCheck.data as { _id: string })._id)
+        : "";
+    for (const row of rows as any[]) {
+      if (row?.email !== email) continue;
+      if (canonId && String(row._id) === canonId) continue;
+      await cms.auth
+        .deleteUser(String(row._id), {
+          tenantId: (row.tenantId as any) ?? null,
+        } as any)
+        .catch(() => {});
+    }
+  } catch (err: any) {
+    logger.warn(`[BenchSeed] Admin dedupe failed (non-fatal): ${err.message}`);
   }
 
   // 🛡️ SELF-HEALING: verify the stored hash really matches the password the
@@ -1098,7 +1131,7 @@ export async function seedBenchmarkState(): Promise<void> {
   // reproduce. Force one final hash refresh when verification fails.
   try {
     const { verifyPassword } = await import("@utils/security/crypto");
-    const check = await cms.auth.getUserByEmail(email, seedOpts);
+    const check = await cms.auth.getUserByEmail(email, canonicalOpts);
     const adminUser = check?.success && check?.data ? check.data : null;
     const storedPw = adminUser ? String((adminUser as any).password || "") : "";
     if (!storedPw || !(await verifyPassword(storedPw, password))) {
@@ -1108,7 +1141,7 @@ export async function seedBenchmarkState(): Promise<void> {
       await cms.auth.updateUserAttributes(
         (adminUser as { _id: string })._id,
         { password, failedAttempts: 0, lockoutUntil: null },
-        { ...seedOpts, allowPrivilegeEscalation: true },
+        { ...canonicalOpts, allowPrivilegeEscalation: true },
       );
     }
   } catch (err: any) {
