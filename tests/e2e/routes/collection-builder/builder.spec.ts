@@ -134,15 +134,21 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await openCollectionEntries(page, fixture.slug);
     await dismissCookieBannerIfPresent(page);
 
-    // EntryListMultiButton renders data-testid="entry-list-action-create" for empty collections
+    // EntryListMultiButton renders data-testid="entry-list-action-create" for empty collections.
+    // Retry with fresh navigation: in CI, parallel workers share one preview
+    // process and a concurrent reset can invalidate shared state mid-load
+    // (same toPass pattern as the API poll below).
     const createBtn = page
       .getByTestId("entry-list-action-create")
       .or(page.getByRole("button", { name: /create new entry|create/i }))
       .first();
-    await expect(
-      createBtn,
-      `Expected entry list or create control for collection "${fixture.slug}" after schema save`,
-    ).toBeVisible({ timeout: 25_000 });
+    await expect(async () => {
+      await openCollectionEntries(page, fixture.slug);
+      await expect(
+        createBtn,
+        `Expected entry list or create control for collection "${fixture.slug}" after schema save`,
+      ).toBeVisible({ timeout: 10_000 });
+    }).toPass({ timeout: 60_000, intervals: [2_000, 3_000, 5_000] });
     await createBtn.click({ timeout: 10_000 });
 
     const titleBox = page

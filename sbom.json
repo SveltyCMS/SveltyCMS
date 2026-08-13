@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:362b816f-8724-4bf4-b210-fc58ffeeff36",
+  "serialNumber": "urn:uuid:bcc1c698-7569-4db2-a6d4-5774a340fff2",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-12T12:30:42.911Z",
+    "timestamp": "2026-08-13T17:30:33.113Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -7861,13 +7861,13 @@
     {
       "type": "library",
       "name": "nanoid",
-      "version": "3.3.17",
-      "purl": "pkg:npm/nanoid@3.3.17",
+      "version": "3.3.18",
+      "purl": "pkg:npm/nanoid@3.3.18",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-xQLf0A3HOMlgHq0n247/LRuAOYmB7dXJ/DvAxGvsSBij45XtBSmQycu+F8ODbHwns/XyFZagyL1+J0Offw1E0g=="
+          "content": "sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w=="
         }
       ]
     },
