@@ -290,26 +290,50 @@ export class CollectionService {
     let totalItems = 0;
     let hasMore = false;
 
-    const entriesPromise = query.execute();
-    // Prefer L1-cached crud.count when filters are equality-only; else QueryBuilder count.
-    const countPromise = simpleCountEligible
-      ? dbAdapter.crud.count(collectionTableName, countFilter as any, {
-          tenantId: tenantId as any,
-          mode: "exact",
-          skipMeta: true,
-        })
-      : (() => {
-          let countQuery = dbAdapter.queryBuilder(collectionTableName);
-          countQuery = applyFiltersToQueryBuilder(countQuery, compiled, {
-            baseWhere,
-            globalSearch: search,
-            collection,
-            user,
-          }).qb;
-          return countQuery.count();
-        })();
+    // Re-runnable closures so a missing physical table can be healed + retried.
+    const runEntries = () => query.execute();
+    const runCount = () =>
+      simpleCountEligible
+        ? dbAdapter.crud.count(collectionTableName, countFilter as any, {
+            tenantId: tenantId as any,
+            mode: "exact",
+            skipMeta: true,
+          })
+        : (() => {
+            let countQuery = dbAdapter.queryBuilder(collectionTableName);
+            countQuery = applyFiltersToQueryBuilder(countQuery, compiled, {
+              baseWhere,
+              globalSearch: search,
+              collection,
+              user,
+            }).qb;
+            return countQuery.count();
+          })();
 
-    const [entriesResult, countResult] = await Promise.all([entriesPromise, countPromise]);
+    let [entriesResult, countResult] = await Promise.all([runEntries(), runCount()]);
+
+    // 🚀 SELF-HEALING READS: DB resets (testing reset / E2E) drop dynamic
+    // collection tables while the content system keeps compiled schemas in
+    // memory. Re-provision the physical model from the compiled schema and
+    // retry once — insert paths already self-heal missing tables; reads did
+    // not (public site SSR and admin lists hard-failed). Zero cost on the
+    // happy path (only runs on query failure).
+    if (!entriesResult.success || !countResult.success) {
+      try {
+        await dbAdapter.collection.createModel(collection);
+      } catch (healError) {
+        logger.warn(`[CollectionService] Physical model heal failed for ${collectionId}`, {
+          healError,
+        });
+      }
+      if (!entriesResult.success && !countResult.success) {
+        [entriesResult, countResult] = await Promise.all([runEntries(), runCount()]);
+      } else if (!entriesResult.success) {
+        entriesResult = await runEntries();
+      } else {
+        countResult = await runCount();
+      }
+    }
 
     if (entriesResult.success) {
       const raw = (entriesResult.data || []) as unknown as CollectionEntry[];
@@ -432,7 +456,11 @@ export class CollectionService {
       }
     }
 
-    const collectionSchemaForClient = structuredClone(collection);
+    // JSON round-trip instead of structuredClone: freshly-saved schemas carry
+    // compiled valibot validation functions that structuredClone cannot clone
+    // (DataCloneError). JSON serialization strips functions — exactly what a
+    // client-bound schema needs (functions are not serializable anyway).
+    const collectionSchemaForClient = JSON.parse(JSON.stringify(collection));
 
     return {
       contentLanguage: language,

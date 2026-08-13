@@ -711,7 +711,15 @@ search filtering, and RTL support.
 
         <!-- Per-node Action Buttons -->
         {#if node.actions && node.actions.length > 0 && computedDensity !== 'compact'}
-            <div class="absolute inset-e-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100">
+            <!--
+                role="group": generic wrapper divs are presentational, so without a
+                role these buttons become direct accessibility children of the
+                role="tree" root (aria-required-children violation). A group is an
+                allowed tree child and has no child-role restrictions.
+            -->
+            <div class="absolute inset-e-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100"
+                role="group"
+                aria-label="Item actions">
                 {#each node.actions as act (act.label)}
                     <Button variant="ghost"
                         type="button"
