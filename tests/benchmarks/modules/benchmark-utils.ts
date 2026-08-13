@@ -1057,47 +1057,49 @@ export async function seedBenchmarkState(): Promise<void> {
   }
 
   // 2. Admin user (idempotent — mirrors /api/testing action=seed)
+  //
+  // LOOKUP-FIRST: never create-then-fallback. Duplicate admin rows must not
+  // exist at all — createUser would race or mint a second row under a
+  // different tenant while the server login reads the oldest row without
+  // tenant filtering, turning every later benchmark login into a 401 lottery.
+  // The lookup scope mirrors the login EXACTLY (no tenant filter, oldest
+  // first), so the row we update IS the row login reads.
   const email = "admin@example.com";
-  const seedOpts = { tenantId } as any;
-  // Canonical lookup mirrors the server login EXACTLY: no tenant filter,
-  // oldest row wins (getUserByEmail orders by createdAt asc). Updating any
-  // other row left the login reading a stale hash and failing with 401.
   const canonicalOpts = { bypassTenantCheck: true, tenantId: null } as any;
-  let created = await cms.auth.createUser(
-    {
-      email,
-      password,
-      username: "admin",
-      role: "admin",
-      isAdmin: true,
-      isRegistered: true,
-      emailVerified: true,
-    },
-    seedOpts,
-  );
-  if (!created?.success) {
-    const existing = await cms.auth.getUserByEmail(email, canonicalOpts);
-    if (existing?.success && existing?.data) {
-      await cms.auth.updateUserAttributes(
-        (existing.data as { _id: string })._id,
-        {
-          password,
-          role: "admin",
-          isAdmin: true,
-          isRegistered: true,
-          emailVerified: true,
-          failedAttempts: 0,
-          lockoutUntil: null,
-        },
-        { ...canonicalOpts, allowPrivilegeEscalation: true },
-      );
-    }
+  const existing = await cms.auth.getUserByEmail(email, canonicalOpts);
+  if (existing?.success && existing?.data) {
+    await cms.auth.updateUserAttributes(
+      (existing.data as { _id: string })._id,
+      {
+        password,
+        role: "admin",
+        isAdmin: true,
+        isRegistered: true,
+        emailVerified: true,
+        failedAttempts: 0,
+        lockoutUntil: null,
+      },
+      { ...canonicalOpts, allowPrivilegeEscalation: true },
+    );
+  } else {
+    await cms.auth.createUser(
+      {
+        email,
+        password,
+        username: "admin",
+        role: "admin",
+        isAdmin: true,
+        isRegistered: true,
+        emailVerified: true,
+      },
+      { tenantId } as any,
+    );
   }
 
-  // 🛡️ DEDUPE: legacy runs could leave several admin@example.com rows (one
-  // per tenant or one per harness era). Login reads the oldest row, so any
-  // duplicate with a stale hash makes the benchmark 401 nondeterministically.
-  // Keep exactly ONE canonical row (the one login reads) and delete the rest.
+  // 🧹 LEGACY CLEANUP ONLY: remove pre-existing duplicate admin rows from
+  // older harness eras (they can no longer be created by this seed). Login
+  // reads the oldest row, so any stale duplicate would still win over the
+  // freshly-updated canonical row — delete them until exactly one remains.
   try {
     const allRes = await (db as any).auth.getAllUsers({ limit: 500 } as any);
     const rows = Array.isArray(allRes)
@@ -1120,7 +1122,7 @@ export async function seedBenchmarkState(): Promise<void> {
         .catch(() => {});
     }
   } catch (err: any) {
-    logger.warn(`[BenchSeed] Admin dedupe failed (non-fatal): ${err.message}`);
+    logger.warn(`[BenchSeed] Admin legacy-dedupe failed (non-fatal): ${err.message}`);
   }
 
   // 🛡️ SELF-HEALING: verify the stored hash really matches the password the
