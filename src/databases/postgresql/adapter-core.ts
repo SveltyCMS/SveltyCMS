@@ -1332,6 +1332,17 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         } catch {
           /* safe */
         }
+        // 🚀 COMPOSITE INDEX for the status-less tenant list (the default list
+        // page): WHERE "tenantId"=? ORDER BY "updatedAt" DESC LIMIT n — avoids
+        // the sort node the status-composite index cannot serve without a
+        // status predicate (middle column unconstrained).
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_updated" ON "${physicalName}" ("tenantId", "updatedAt" DESC)`,
+          );
+        } catch {
+          /* safe */
+        }
         // The pre-DDL table def (base columns only) is stale — rebuild with the
         // materialized columns on next getTable. Invalidate EVERY key variant
         // (logical id, dash-stripped, and the physical collection_ prefix): a

@@ -19,6 +19,14 @@ vi.mock("@src/databases/db", () => ({
   }),
   isDbConnected: vi.fn().mockReturnValue(true),
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
+  // 🛡️ REGRESSION SHAPE: the real `auth` export is a Proxy over
+  // __AUTH_INSTANCE__ — the proxy object is ALWAYS truthy, but every method
+  // lookup returns undefined while the global instance is unset (a page
+  // request racing the boot). getCachedRoles must guard the METHOD SHAPE
+  // (`typeof auth.getAllRoles !== "function"`), not the proxy itself —
+  // `if (!auth)` can never fire and previously threw
+  // "getAllRoles is not a function" on the login page during boot.
+  auth: new Proxy({}, { get: () => undefined }),
 }));
 
 vi.mock("$app/environment", () => ({
@@ -81,5 +89,36 @@ describe("Authorization Hook Unit Tests", () => {
     // Either the hook returns (test mode pass-through) or throws (redirect/error)
     // Both are acceptable outcomes — the important thing is no unhandled exception
     expect(typeof threw).toBe("boolean");
+  });
+
+  it("does not throw when the auth proxy has no getAllRoles yet (boot race)", async () => {
+    // 🛡️ REGRESSION: a truthy auth proxy whose __AUTH_INSTANCE__ is unset
+    // (every method lookup → undefined) previously threw
+    // "getAllRoles is not a function" on the roles path on EVERY page load
+    // racing the boot — the error was swallowed by getCachedRoles' catch and
+    // logged as "Roles fetch failed", spamming logs + paying exception
+    // overhead. The method-shape guard must short-circuit silently (same
+    // fallback behavior as the getUserCount path).
+    const { logger } = await import("@utils/logger");
+    const errorSpy = vi.spyOn(logger as any, "error").mockImplementation(() => {});
+
+    const event = createMockEvent("/admin", {
+      _id: "u1",
+      role: "editor",
+      isAdmin: false,
+    });
+    const resolve = vi.fn().mockResolvedValue(new Response("page"));
+
+    try {
+      await handleAuthorization({ event, resolve } as any);
+    } catch {
+      // SvelteKit redirects are legitimate control flow — ignore.
+    }
+
+    const rolesLogs = errorSpy.mock.calls.filter(([msg]) =>
+      String(msg).includes("Roles fetch failed"),
+    );
+    expect(rolesLogs).toHaveLength(0);
+    errorSpy.mockRestore();
   });
 });

@@ -62,7 +62,18 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
   try {
     const argon2 = await _loadArgon2();
     return await argon2.verify(hash, Buffer.from(password, "utf8"));
-  } catch {
+  } catch (err) {
+    // Never swallow silently: a broken argon2 binding / malformed hash must be
+    // visible in logs instead of surfacing as a generic "Invalid credentials".
+    try {
+      const { logger } = await import("@utils/logger");
+      logger.warn("verifyPassword failed", {
+        error: err instanceof Error ? err.message : String(err),
+        hashPrefix: typeof hash === "string" ? hash.slice(0, 14) : typeof hash,
+      });
+    } catch {
+      // logger unavailable (edge) — fall through to the security-safe result
+    }
     return false;
   }
 }

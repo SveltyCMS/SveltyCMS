@@ -106,10 +106,14 @@ export function resolvePageSort(sort?: unknown): ResolvedPageSort {
 
 /**
  * Stable default sort for keyset pagination when caller omits sort.
- * Uses -1 for Mongo/Mongoose compatibility; SQL applyOrderBy treats non-asc as desc.
+ * `updatedAt` desc (most recently updated first) — the universal CMS list
+ * default and the only default served directly by the (tenantId, updatedAt)
+ * composite index on all SQL engines (no temp B-tree sort / filesort).
+ * The keyset cursor carries the sort-field value + `_id` tiebreaker, so the
+ * non-unique `updatedAt` ordering stays seek-stable across pages.
  */
-export function defaultPageSortOption(): { _id: -1 } {
-  return { _id: -1 };
+export function defaultPageSortOption(): { updatedAt: -1 } {
+  return { updatedAt: -1 };
 }
 
 export function encodePageCursor(payload: PageCursorPayload): string {

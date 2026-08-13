@@ -33,6 +33,7 @@
  *   bun run scripts/benchmark-matrix/raw-db-ceiling.ts --db=sqlite
  *   bun run scripts/benchmark-matrix/raw-db-ceiling.ts --db=sqlite,postgresql,mariadb,mongodb
  *   bun run scripts/benchmark-matrix/raw-db-ceiling.ts --db=postgresql --scale=10000,1000000
+ *   CMS_BOARD_JSON='{"update":310}' bun run scripts/benchmark-matrix/raw-db-ceiling.ts --db=postgresql
  *
  * ### Features:
  * - fixed-duration measurement (warmup 800 ms, measure 2500 ms per op/concurrency)
@@ -40,6 +41,8 @@
  * - deterministic LCG pseudo-random row access (no Math.random)
  * - dedicated benchmark database per engine (never touches CMS data)
  * - per-scale truth table with avg latency + degradation ratio
+ * - CMS-vs-ceiling column auto-refreshed from recorded benchmark results
+ *   (tests/benchmarks/results/<db>/*.json, ≤30 days fresh; env override wins)
  */
 
 import { performance } from "node:perf_hooks";
@@ -70,14 +73,114 @@ const PAYLOAD = JSON.stringify({
   meta: { seo: "raw-ceiling", published: true, author: "probe" },
 });
 
-/** CMS HTTP board from the last concurrent 8c run (api-latency / concurrency suites). */
-const CMS_BOARD: Record<string, number> = {
+/** CMS HTTP board — concurrent 8c throughput (RPS) of the SAME operations the
+ * probe measures, so the "% of ceil" column is honest. Source: external
+ * cross-CMS harness, 2026-08-12 (SveltyCMS v0.0.7, real-auth, PostgreSQL).
+ * Freshness: recorded benchmark results (tests/benchmarks/results/<db>/*.json)
+ * automatically override these defaults per engine (≤ 30 days old); an explicit
+ * CMS_BOARD_JSON env override wins over everything.
+ */
+const DEFAULT_CMS_BOARD: Record<string, number> = {
   findById: 557, // uncached (findByIdRandom) — cached L1 turbo is 1571 (not DB-bound)
   findMissing: 2163, // L1 negative-cache hit — NOT raw-DB-bound (see note)
   create: 421,
   update: 240,
   listPlain: 684, // listLarge (uncached); cached listPlain is 1521 (not DB-bound)
 };
+
+/** Freshness guard: ignore recorded board entries older than this. */
+const BOARD_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Recorded metric names that feed each board key, in preference order
+ * (HTTP layer first — includes the full middleware tax, the honest comparison
+ * — then SDK/DB-layer fallbacks for ops without an HTTP record). */
+const BOARD_SOURCES: Record<string, RegExp[]> = {
+  findById: [/^HTTP: findById @ /, /^LocalCMS findById \(cold\)$/],
+  findMissing: [/negative-cache/i, /^LocalCMS findMissing/],
+  create: [/^HTTP: .*\bcreate\b/i, /^LocalCMS create$/],
+  update: [/^HTTP: .*\bupdate\b/i, /^LocalCMS update$/],
+  listPlain: [/^Collection List /, /^FIND_MANY \(limit 50\)$/],
+};
+
+/** Result files produced by the benchmark harness ({metric, rps, db, timestamp}). */
+interface RecordedBenchEntry {
+  metric?: string;
+  layer?: string;
+  rps?: number;
+  db?: string;
+  timestamp?: string;
+}
+
+/**
+ * Loads the freshest recorded CMS-board numbers from the benchmark results
+ * directory for one engine. Prefers entries whose `db` field matches the
+ * engine; accepts any recorded entry as a cross-machine fallback. Falls back
+ * to the dated DEFAULT_CMS_BOARD when no fresh record exists — never invents
+ * numbers.
+ */
+function loadRecordedCmsBoard(engine: string): Record<string, number> {
+  const board: Record<string, number> = { ...DEFAULT_CMS_BOARD };
+  const newest: Record<string, { ts: number; rps: number; exact: boolean }> = {};
+  const root = path.resolve(process.cwd(), "tests/benchmarks/results");
+  if (!fs.existsSync(root)) return board;
+
+  const now = Date.now();
+  const consider = (entry: RecordedBenchEntry, exact: boolean) => {
+    if (!entry || typeof entry.rps !== "number" || !entry.rps || Number.isNaN(entry.rps)) return;
+    const ts = Date.parse(entry.timestamp || "");
+    if (Number.isNaN(ts) || now - ts > BOARD_MAX_AGE_MS) return;
+    const metric = entry.metric || "";
+    for (const [key, matchers] of Object.entries(BOARD_SOURCES)) {
+      if (!matchers.some((rx) => rx.test(metric))) continue;
+      const prev = newest[key];
+      if (!prev || ts > prev.ts || (ts === prev.ts && exact && !prev.exact)) {
+        newest[key] = { ts, rps: entry.rps, exact };
+      }
+    }
+  };
+
+  for (const dir of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!dir.isDirectory()) continue;
+    const dbFolder = dir.name.replace(/-redis$/, "");
+    const folderExact = dbFolder === engine;
+    for (const file of fs.readdirSync(path.join(root, dir.name))) {
+      if (!file.endsWith(".json")) continue;
+      try {
+        const raw = JSON.parse(
+          fs.readFileSync(path.join(root, dir.name, file), "utf8"),
+        ) as RecordedBenchEntry;
+        const entryExact = folderExact || raw.db === engine;
+        consider(raw, entryExact);
+      } catch {
+        /* skip unreadable result files */
+      }
+    }
+  }
+
+  for (const [key, rec] of Object.entries(newest)) {
+    board[key] = Math.round(rec.rps);
+  }
+  return board;
+}
+
+/** Per-engine board cache (loaded once per run). */
+const CMS_BOARD_CACHE = new Map<string, Record<string, number>>();
+
+function getCmsBoard(engine: string): Record<string, number> {
+  const cached = CMS_BOARD_CACHE.get(engine);
+  if (cached) return cached;
+  let board: Record<string, number> = loadRecordedCmsBoard(engine);
+  const raw = process.env.CMS_BOARD_JSON;
+  if (raw) {
+    try {
+      board = { ...board, ...JSON.parse(raw) };
+    } catch {
+      /* fall through to recorded/defaults */
+    }
+  }
+  CMS_BOARD_CACHE.set(engine, board);
+  return board;
+}
 
 /** Default row-count scales (nearly-empty vs full); override with --scale=1,100000 */
 const SCALES = (() => {
@@ -270,6 +373,14 @@ class SqliteEngine implements Engine {
       );
       main.exec(
         `CREATE INDEX IF NOT EXISTS idx_content_bench_updated ON content_bench (updatedAt DESC)`,
+      );
+      // Composite indexes matching the production createModel DDL — the sorted
+      // list probe must measure the index-served query, not a temp B-tree sort.
+      main.exec(
+        `CREATE INDEX IF NOT EXISTS idx_content_bench_tenant_status_updated ON content_bench (tenantId, status, updatedAt)`,
+      );
+      main.exec(
+        `CREATE INDEX IF NOT EXISTS idx_content_bench_tenant_updated ON content_bench (tenantId, updatedAt)`,
       );
 
       // One connection per read worker + one write connection
@@ -490,6 +601,10 @@ class PostgresEngine implements Engine {
     await this
       .sql`CREATE INDEX IF NOT EXISTS idx_tenant_status ON content_bench ("tenantId", status)`;
     await this.sql`CREATE INDEX IF NOT EXISTS idx_updated ON content_bench ("updatedAt" DESC)`;
+    await this
+      .sql`CREATE INDEX IF NOT EXISTS idx_tenant_status_updated ON content_bench ("tenantId", status, "updatedAt" DESC)`;
+    await this
+      .sql`CREATE INDEX IF NOT EXISTS idx_tenant_updated ON content_bench ("tenantId", "updatedAt" DESC)`;
     await this.reseed();
 
     this.findStmt = (id: string, tenant: string) =>
@@ -674,6 +789,12 @@ class MariaDbEngine implements Engine {
       `CREATE INDEX IF NOT EXISTS idx_tenant_status ON content_bench (tenantId, status)`,
     );
     await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_updated ON content_bench (updatedAt)`);
+    await this.pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_tenant_status_updated ON content_bench (tenantId, status, updatedAt)`,
+    );
+    await this.pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_tenant_updated ON content_bench (tenantId, updatedAt)`,
+    );
     await this.reseed();
 
     // mysql2 pool has no .prepare() — execute() uses server-side prepared statements
@@ -866,11 +987,15 @@ class MongoEngine implements Engine {
       this.col = db.collection("content_bench");
       await this.col.createIndex({ tenantId: 1, status: 1 });
       await this.col.createIndex({ updatedAt: -1 });
+      await this.col.createIndex({ tenantId: 1, status: 1, updatedAt: -1 });
+      await this.col.createIndex({ tenantId: 1, updatedAt: -1 });
     } else {
       await this.col.drop().catch(() => {});
       this.col = this.client.db("sveltycms_bench").collection("content_bench");
       await this.col.createIndex({ tenantId: 1, status: 1 });
       await this.col.createIndex({ updatedAt: -1 });
+      await this.col.createIndex({ tenantId: 1, status: 1, updatedAt: -1 });
+      await this.col.createIndex({ tenantId: 1, updatedAt: -1 });
     }
 
     // Seed in insertMany chunks
@@ -1035,7 +1160,7 @@ function printTable(engine: string, scaleResults: Map<number, OpSample[]>) {
       const b = get(s2, op, c);
       if (!a || !b) continue;
       const delta = a.rps > 0 ? b.rps / a.rps : 0;
-      const cms = c === 8 ? CMS_BOARD[op] : undefined;
+      const cms = c === 8 ? getCmsBoard(engine)[op] : undefined;
       const cmsStr = cms
         ? `${String(cms).padStart(4)} RPS (${Math.round((cms / b.rps) * 100)}% of ceil)`
         : "—";
@@ -1106,11 +1231,11 @@ async function main() {
     `\n✅ Done. ΔRPS = 100k RPS ÷ 1k RPS (1.0 = latency-neutral; <1 = degrades at scale).`,
   );
   console.log(
-    `   CMS column uses uncached numbers (findByIdRandom=557, create=421, update=240, listLarge=684).`,
+    `   CMS column: freshest recorded benchmark (tests/benchmarks/results/, ≤30 days, ` +
+      `HTTP layer preferred, SDK/DB fallback where no HTTP record exists). ` +
+      `CMS_BOARD_JSON env wins over everything.`,
   );
-  console.log(
-    `   Cached CMS paths (findById L1 turbo=1571, listPlain=1521, findMissing=2163) are not DB-bound.`,
-  );
+  console.log(`   Cached CMS paths (L1 turbo / negative-cache) are not DB-bound.`);
 }
 
 main().catch((err) => {
