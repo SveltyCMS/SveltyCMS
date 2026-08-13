@@ -351,6 +351,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
 
       const cleanId = collection.replace(/-/g, "");
+      // 🛡️ Identifier allow-list: this name is embedded in raw SQL identifiers
+      // (SELECT/INSERT/DDL) across the adapter. Dash-stripping alone did not
+      // stop quote/backtick breakout from admin-typed collection names — fail
+      // closed BEFORE any SQL is assembled.
+      utils.assertSafeSqlIdentifier(cleanId, "collection");
       const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
 
       const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
@@ -1182,9 +1187,12 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     await this.wrap(
       async () => {
         const db = this.getDrizzleInstance(options);
-        const rawNames = conflictTarget.map((col: any) =>
-          col && typeof col === "object" && "name" in col ? `"${col.name}"` : `"${String(col)}"`,
-        );
+        // 🛡️ Conflict-target column names become raw SQL identifiers — assert
+        // the allow-list (fail closed) instead of trusting quote-doubling alone.
+        const rawNames = conflictTarget.map((col: any) => {
+          const name = col && typeof col === "object" && "name" in col ? col.name : String(col);
+          return `"${utils.assertSafeSqlIdentifier(name, "conflict-target")}"`;
+        });
         const rawTarget = sql.raw(rawNames.join(", "));
         // Strip undefined values — Drizzle SQLite insert crashes on undefined column values
         const cleanValues = Object.fromEntries(
@@ -1485,8 +1493,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
     if (isBun) {
       try {
-        // Use Function constructor to prevent TypeScript from resolving bun:sqlite
-        const { Database } = await new Function('return import("bun:sqlite")')();
+        // Standard dynamic import — "bun:sqlite" is declared in app.d.ts and
+        // listed in Vite's externals, so it is never statically bundled. The
+        // outer isBun guard (process.versions.bun) keeps this off the Node
+        // path; a failure still falls through to the node:sqlite fallback.
+        // (Previously used `new Function('return import(...)')` — an RCE-class
+        // eval sink that external scanners ban categorically.)
+        const { Database } = await import("bun:sqlite");
         let sqlite: any;
         let lastErr: any;
         for (let i = 0; i < 10; i++) {
@@ -1686,7 +1699,21 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       // Env DB_NAME is an explicit test-mode contract (the E2E/integration
       // harnesses pass it when no private.test.ts exists yet — e.g. the setup
       // wizard boot). The guard below only refuses when NO name is given.
-      const dbName = (config as any).DB_NAME || process.env.DB_NAME;
+      const rawDbName = (config as any).DB_NAME || process.env.DB_NAME;
+      // 🛡️ EXTENSION CANONICALIZATION: config-state's resolveSqlitePath
+      // (connection-string path) always appends ".sqlite". This fallback
+      // previously built `folder/<name>` WITHOUT the extension, so processes
+      // with and without a config landed on DIFFERENT files for the same
+      // logical DB (seed → sveltycms_test.sqlite, server → sveltycms_test)
+      // and benchmark logins 401'd against an empty sibling file. Append the
+      // extension here too so every code path resolves identically.
+      const dbName =
+        rawDbName &&
+        !rawDbName.endsWith(".sqlite") &&
+        !rawDbName.endsWith(".db") &&
+        !rawDbName.endsWith(":memory:")
+          ? `${rawDbName}.sqlite`
+          : rawDbName;
       const isTestDb =
         isTestHarness || (dbName && (dbName.includes("test") || dbName.includes("benchmark")));
       const defaultDbFolder = isTestDb ? "config/test-database" : "config/database";

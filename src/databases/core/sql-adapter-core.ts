@@ -889,10 +889,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if (isDynamic) {
           const selection = this.getProjectedSelection(table, options);
           const columns = Object.keys(selection);
-          const colList = columns.map((c) => this.quoteIdentifier(c)).join(", ");
+          // 🛡️ Defense-in-depth: quoteIdentifier escapes by quote-doubling, but
+          // the identifiers also pass the strict allow-list so a schema change
+          // can never smuggle a quote/backtick past the raw fragments.
+          const colList = columns
+            .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
+            .join(", ");
 
           let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(
-            this.quoteIdentifier(tableName),
+            this.quoteIdentifier(utils.assertSafeSqlIdentifier(tableName, "table")),
           )} WHERE ${where || sql`1=1`}`;
 
           if (options.sort) {

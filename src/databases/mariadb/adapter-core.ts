@@ -130,7 +130,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const selectCols = this.getRawFindByIdCols(table, wantsData)
         .map((c) => `\`${c}\``)
         .join(", ");
-      const rawSql = `SELECT ${selectCols} FROM \`${tableName}\` WHERE \`${idColName}\` = ?${tenantSql} LIMIT 1`;
+      // Defense-in-depth: tableName derives from getTable (already allow-listed),
+      // but assert again at the raw-SQL site so the invariant is local.
+      const rawSql = `SELECT ${selectCols} FROM \`${utils.assertSafeSqlIdentifier(
+        tableName,
+        "table",
+      )}\` WHERE \`${idColName}\` = ?${tenantSql} LIMIT 1`;
       // Read-path schema registration: raw reads must normalize timestamps to
       // ISODateString even on read-only workloads (relational-utils isEpochMs).
       if (!this._registeredSchemas.has(collection)) {
@@ -213,6 +218,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
 
       const cleanId = collection.replace(/-/g, "");
+      // 🛡️ Identifier allow-list: this name is embedded in raw SQL identifiers
+      // (rawFindById/insert/update/DDL). Dash-stripping alone did not stop
+      // backtick breakout from admin-typed collection names — fail closed
+      // BEFORE any SQL is assembled.
+      utils.assertSafeSqlIdentifier(cleanId, "collection");
       const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
 
       const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
@@ -1279,12 +1289,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
         for (const col of columns) {
           try {
-            const query = `SHOW COLUMNS FROM \`${physicalName}\` LIKE '${col.name}'`;
+            // 🛡️ col.name can be admin-typed field LABEL text — allow-list it
+            // before it reaches SHOW COLUMNS/ALTER/CREATE INDEX identifiers.
+            const colName = utils.assertSafeSqlIdentifier(col.name, "column");
+            const query = `SHOW COLUMNS FROM \`${physicalName}\` LIKE '${colName}'`;
             const res = await this.raw.execute(query);
             const exists = res.length > 0;
 
             if (!exists) {
-              const alterSql = `ALTER TABLE \`${physicalName}\` ADD COLUMN \`${col.name}\` ${col.type}`;
+              const alterSql = `ALTER TABLE \`${physicalName}\` ADD COLUMN \`${colName}\` ${col.type}`;
               await this.raw.execute(alterSql);
               // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in
               // the `data` blob — copy them into the new column so filters and
@@ -1311,8 +1324,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
           }
         }
 
-        for (const colName of dynamicCols) {
+        for (const colNameRaw of dynamicCols) {
           try {
+            // 🛡️ Same allow-list as the ALTER loop — dynamicCols can carry
+            // admin-typed labels too.
+            const colName = utils.assertSafeSqlIdentifier(colNameRaw, "column");
             const indexName = `${physicalName}_${colName}_idx`;
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS \`${indexName}\` ON \`${physicalName}\` (\`${colName}\`)`,
