@@ -68,10 +68,23 @@ test.describe("Site Starter", () => {
     await expect(page).toHaveURL(/\/en\/collection\/pages/i, { timeout: 15_000 });
 
     // Seeded website starter pages: the Home entry is always present.
+    // CI runs the shard with parallel workers sharing one preview process —
+    // a concurrent worker's reset can invalidate shared state mid-load, so the
+    // row wait retries with a fresh navigation (same toPass pattern as the
+    // golden test's API poll; no fixed sleeps).
     const homeRow = page.getByRole("row").filter({ hasText: /home/i }).first();
-    await expect(homeRow, "seeded Home entry must be listed in the pages collection").toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(async () => {
+      if (page.url().includes("/login")) {
+        await loginAsAdmin(page, "/en/collection/pages");
+      } else {
+        await page.goto("/en/collection/pages", { waitUntil: "domcontentloaded" });
+      }
+      await expect(homeRow, "seeded Home entry must be listed in the pages collection").toBeVisible(
+        {
+          timeout: 10_000,
+        },
+      );
+    }).toPass({ timeout: 60_000, intervals: [2_000, 3_000, 5_000] });
     await homeRow.click();
 
     // The pages collection declares livePreview and the editable-website plugin

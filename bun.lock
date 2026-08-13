@@ -5,7 +5,7 @@
     "": {
       "name": "sveltycms",
       "dependencies": {
-        "@aws-sdk/client-s3": "^3.1107.0",
+        "@aws-sdk/client-s3": "^3.1108.0",
         "@better-svelte-email/components": "^2.1.1",
         "@better-svelte-email/preview": "^2.1.1",
         "@better-svelte-email/server": "^2.1.1",
@@ -62,7 +62,7 @@
         "ollama": "^0.6.3",
         "rate-limiter-flexible": "^11.2.0",
         "redis": "^6.2.1",
-        "rolldown": "^1.2.3",
+        "rolldown": "^1.2.4",
         "sharp": "^0.35.3",
         "shiki": "^4.4.3",
         "stripe": "^22.5.0",
@@ -104,7 +104,7 @@
         "concurrently": "^10.0.4",
         "fast-check": "^4.9.0",
         "glob": "^13.0.6",
-        "globals": "^17.9.0",
+        "globals": "^17.11.0",
         "jsdom": "30.0.1",
         "lint-staged": "^17.3.0",
         "oxfmt": "^0.63.0",
@@ -131,6 +131,7 @@
     "brace-expansion": ">=5.0.9",
     "cookie": "0.7.0",
     "fast-uri": ">=3.1.5",
+    "nanoid": "3.3.18",
     "postcss": ">=8.5.23",
     "shell-quote": ">=1.8.5",
   },
@@ -1341,7 +1342,7 @@
 
     "named-placeholders": ["named-placeholders@1.1.6", "", { "dependencies": { "lru.min": "^1.1.0" } }, "sha512-Tz09sEL2EEuv5fFowm419c1+a/jSMiBjI9gHxVLrVdbUkkNUUfjsVYs9pVZu5oCon/kmRh9TfLEObFtkVxmY0w=="],
 
-    "nanoid": ["nanoid@3.3.17", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-xQLf0A3HOMlgHq0n247/LRuAOYmB7dXJ/DvAxGvsSBij45XtBSmQycu+F8ODbHwns/XyFZagyL1+J0Offw1E0g=="],
+    "nanoid": ["nanoid@3.3.18", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w=="],
 
     "node-addon-api": ["node-addon-api@8.9.0", "", {}, "sha512-ekZMeaaIzSQTSpr7X2X3iJM7lTzgnx8ahAG9pJfT/7+14mlEM8ZYQ9cgCDvSSRbReFK0oHli3WrZdCiRsgAT9Q=="],
 
