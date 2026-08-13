@@ -7,6 +7,9 @@
  *
  * The purpose is to stop guessing how much headroom remains: the ratio
  * `CMS HTTP RPS ÷ raw engine RPS` is the total middleware + adapter tax.
+ * Because that ratio mixes domains (in-process driver vs HTTP), each engine
+ * ALSO runs a RAW HTTP FLOOR: the same ops behind bare node:http + JSON
+ * framing. `CMS RPS ÷ raw HTTP floor RPS` is the honest middleware tax.
  *
  * ### Scale comparison (1 vs 100,000 rows)
  * A 1-row table lives in the root page / L1 cache; a 100k-row table has real
@@ -118,11 +121,15 @@ interface RecordedBenchEntry {
  * to the dated DEFAULT_CMS_BOARD when no fresh record exists — never invents
  * numbers.
  */
-function loadRecordedCmsBoard(engine: string): Record<string, number> {
+function loadRecordedCmsBoard(engine: string): {
+  board: Record<string, number>;
+  layers: Record<string, string>;
+} {
   const board: Record<string, number> = { ...DEFAULT_CMS_BOARD };
-  const newest: Record<string, { ts: number; rps: number; exact: boolean }> = {};
+  const layers: Record<string, string> = {};
+  const newest: Record<string, { ts: number; rps: number; exact: boolean; layer: string }> = {};
   const root = path.resolve(process.cwd(), "tests/benchmarks/results");
-  if (!fs.existsSync(root)) return board;
+  if (!fs.existsSync(root)) return { board, layers };
 
   const now = Date.now();
   const consider = (entry: RecordedBenchEntry, exact: boolean) => {
@@ -134,7 +141,7 @@ function loadRecordedCmsBoard(engine: string): Record<string, number> {
       if (!matchers.some((rx) => rx.test(metric))) continue;
       const prev = newest[key];
       if (!prev || ts > prev.ts || (ts === prev.ts && exact && !prev.exact)) {
-        newest[key] = { ts, rps: entry.rps, exact };
+        newest[key] = { ts, rps: entry.rps, exact, layer: entry.layer || "unknown" };
       }
     }
   };
@@ -159,27 +166,42 @@ function loadRecordedCmsBoard(engine: string): Record<string, number> {
 
   for (const [key, rec] of Object.entries(newest)) {
     board[key] = Math.round(rec.rps);
+    layers[key] = rec.layer;
   }
-  return board;
+  return { board, layers };
 }
 
 /** Per-engine board cache (loaded once per run). */
-const CMS_BOARD_CACHE = new Map<string, Record<string, number>>();
+const CMS_BOARD_CACHE = new Map<
+  string,
+  { board: Record<string, number>; layers: Record<string, string> }
+>();
 
-function getCmsBoard(engine: string): Record<string, number> {
+function getCmsBoardEntry(engine: string): {
+  board: Record<string, number>;
+  layers: Record<string, string>;
+} {
   const cached = CMS_BOARD_CACHE.get(engine);
   if (cached) return cached;
-  let board: Record<string, number> = loadRecordedCmsBoard(engine);
+  let { board, layers } = loadRecordedCmsBoard(engine);
   const raw = process.env.CMS_BOARD_JSON;
   if (raw) {
     try {
       board = { ...board, ...JSON.parse(raw) };
+      for (const key of Object.keys(JSON.parse(raw) as Record<string, number>)) {
+        layers[key] = "env-override";
+      }
     } catch {
       /* fall through to recorded/defaults */
     }
   }
-  CMS_BOARD_CACHE.set(engine, board);
-  return board;
+  const entry = { board, layers };
+  CMS_BOARD_CACHE.set(engine, entry);
+  return entry;
+}
+
+function getCmsBoard(engine: string): Record<string, number> {
+  return getCmsBoardEntry(engine).board;
 }
 
 /** Default row-count scales (nearly-empty vs full); override with --scale=1,100000 */
@@ -285,6 +307,8 @@ interface Engine {
   name: string;
   setup(seedRows: number): Promise<void>;
   bench(): Promise<OpSample[]>;
+  /** Raw driver op behind the bare HTTP floor server (same statement as bench). */
+  rawOp?(op: "findById" | "update" | "listPlain", w: number): unknown | Promise<unknown>;
   teardown(): Promise<void>;
 }
 
@@ -504,6 +528,18 @@ class SqliteEngine implements Engine {
     return samples;
   }
 
+  rawOp(op: "findById" | "update" | "listPlain", w: number): unknown {
+    const now = Date.now();
+    const N = this.seedRows;
+    if (op === "findById") {
+      return this.stmts.find[w % 8].get(`seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+    }
+    if (op === "update") {
+      return this.stmts.update.run(PAYLOAD, now, `seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+    }
+    return this.stmts.list[w % 8].all(TENANT, STATUS);
+  }
+
   async teardown(): Promise<void> {
     for (const conn of this.conns) {
       try {
@@ -707,6 +743,17 @@ class PostgresEngine implements Engine {
     );
 
     return samples;
+  }
+
+  rawOp(op: "findById" | "update" | "listPlain", w: number): unknown {
+    const N = this.seedRows;
+    if (op === "findById") {
+      return this.findStmt(`seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+    }
+    if (op === "update") {
+      return this.updateStmt(PAYLOAD, this.now, `seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+    }
+    return this.listStmt(TENANT, STATUS);
   }
 
   async teardown(): Promise<void> {
@@ -939,6 +986,24 @@ class MariaDbEngine implements Engine {
     return samples;
   }
 
+  async rawOp(op: "findById" | "update" | "listPlain", w: number): Promise<unknown> {
+    const N = this.seedRows;
+    if (op === "findById") {
+      const [rows] = await this.find.execute([`seed-${Math.floor(nextRand(w) * N)}`, TENANT]);
+      return rows;
+    }
+    if (op === "update") {
+      return this.update.execute([
+        PAYLOAD,
+        this.now,
+        `seed-${Math.floor(nextRand(w) * N)}`,
+        TENANT,
+      ]);
+    }
+    const [rows] = await this.list.execute([TENANT, STATUS]);
+    return rows;
+  }
+
   async teardown(): Promise<void> {
     if (this.pool) await this.pool.end().catch(() => {});
   }
@@ -1107,6 +1172,36 @@ class MongoEngine implements Engine {
     return samples;
   }
 
+  rawOp(op: "findById" | "update" | "listPlain", w: number): unknown {
+    const N = this.seedRows;
+    const projection = {
+      _id: 1,
+      tenantId: 1,
+      data: 1,
+      status: 1,
+      isDeleted: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    if (op === "findById") {
+      return this.col.findOne(
+        { _id: `seed-${Math.floor(nextRand(w) * N)}`, tenantId: TENANT },
+        { projection },
+      );
+    }
+    if (op === "update") {
+      return this.col.updateOne(
+        { _id: `seed-${Math.floor(nextRand(w) * N)}`, tenantId: TENANT },
+        { $set: { data: PAYLOAD, updatedAt: this.now } },
+      );
+    }
+    return this.col
+      .find({ tenantId: TENANT, status: STATUS, isDeleted: 0 })
+      .sort({ updatedAt: -1 })
+      .limit(50)
+      .toArray();
+  }
+
   async teardown(): Promise<void> {
     if (this.client) await this.client.close().catch(() => {});
   }
@@ -1173,6 +1268,96 @@ function printTable(engine: string, scaleResults: Map<number, OpSample[]>) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// Raw HTTP floor — bare node:http + driver + JSON (no CMS middleware)
+// ──────────────────────────────────────────────────────────────────────────
+//
+// The engine ceiling above measures an IN-PROCESS driver call, so comparing
+// it to CMS HTTP RPS mixes domains (HTTP÷driver ≈ 1-10%). The honest floor
+// for a full-stack CMS is the same op served over HTTP with minimal JSON
+// framing — the remaining gap is the actual CMS middleware tax.
+
+const RAW_HTTP_OPS: Array<{
+  op: "findById" | "update" | "listPlain";
+  label: string;
+  method: string;
+  path: string;
+}> = [
+  { op: "findById", label: "findById", method: "GET", path: "/entry" },
+  { op: "update", label: "update", method: "POST", path: "/entry" },
+  { op: "listPlain", label: "listPlain", method: "GET", path: "/list" },
+];
+
+async function startRawHttpServer(
+  engine: Engine,
+): Promise<{ port: number; close: () => Promise<void> }> {
+  const http = await import("node:http");
+  let w = 0; // round-robin worker index (mirrors bench worker selection)
+  const server = http.createServer(async (req, res) => {
+    try {
+      const worker = w++ % 8;
+      if (req.method === "GET" && req.url?.startsWith("/entry")) {
+        await engine.rawOp!("findById", worker);
+      } else if (req.method === "POST" && req.url?.startsWith("/entry")) {
+        await engine.rawOp!("update", worker);
+      } else if (req.method === "GET" && req.url?.startsWith("/list")) {
+        await engine.rawOp!("listPlain", worker);
+      } else {
+        res.writeHead(404).end();
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "application/json" }).end('{"ok":true}');
+    } catch {
+      res.writeHead(500).end();
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address() as { port: number };
+  return {
+    port: address.port,
+    close: () => new Promise((resolve) => server.close(() => resolve())),
+  };
+}
+
+async function benchRawHttpFloor(engine: Engine): Promise<void> {
+  if (typeof engine.rawOp !== "function") return;
+  const { port, close } = await startRawHttpServer(engine);
+  const base = `http://127.0.0.1:${port}`;
+  const floorSamples = new Map<string, OpSample>();
+  try {
+    for (const { op, label, method, path } of RAW_HTTP_OPS) {
+      const samples = await benchOp(`httpFloor.${op}`, [8], async () => {
+        const res = await fetch(`${base}${path}`, { method, signal: AbortSignal.timeout(5000) });
+        await res.arrayBuffer();
+      });
+      const s = samples.find((x) => x.concurrency === 8);
+      if (s) floorSamples.set(label, s);
+    }
+  } finally {
+    await close().catch(() => {});
+  }
+
+  const { board, layers } = getCmsBoardEntry(engine.name);
+  console.log(`\n┌── ${engine.name.toUpperCase()} — RAW HTTP FLOOR (driver + HTTP + JSON, no CMS)`);
+  console.log(`│ op          floor RPS   floor lat   CMS RPS   CMS/floor (middleware tax)`);
+  console.log(`├─────────────────────────────────────────────────────────────────────────`);
+  for (const { op, label } of RAW_HTTP_OPS) {
+    const s = floorSamples.get(label);
+    if (!s) continue;
+    const cms = board[op] ?? 0;
+    const layer = layers[op] || "default";
+    // Only HTTP-layer CMS records are comparable to the HTTP floor. SDK/DB
+    // records (in-process) or dated defaults would flatter the ratio.
+    const comparable = layer === "HTTP" || layer === "env-override";
+    const pct = comparable && cms > 0 ? Math.round((cms / s.rps) * 100) : 0;
+    const tax = comparable ? `${String(pct).padStart(3)}%` : "— (no HTTP record)";
+    console.log(
+      `│ ${label.padEnd(12)}  ${fmtNum(s.rps).padStart(9)}   ${fmtMs(s.avgMs).padStart(9)}   ${String(cms).padStart(7)}   ${tax}`,
+    );
+  }
+  console.log(`└─────────────────────────────────────────────────────────────────────────`);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Main
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -1219,6 +1404,8 @@ async function main() {
         scaleResults.set(scale, samples);
       }
       printTable(engine.name, scaleResults);
+      // Honest comparison: the same ops behind bare HTTP (driver + JSON only).
+      await benchRawHttpFloor(engine);
     } catch (err: any) {
       console.error(`\n❌ ${engine.name} FAILED: ${err?.message || err}`);
       if (process.env.RAW_CEILING_DEBUG === "true") console.error(err?.stack);
@@ -1229,6 +1416,10 @@ async function main() {
 
   console.log(
     `\n✅ Done. ΔRPS = 100k RPS ÷ 1k RPS (1.0 = latency-neutral; <1 = degrades at scale).`,
+  );
+  console.log(
+    `   Engine ceiling = in-process driver (unreachable over HTTP). Raw HTTP floor = driver + ` +
+      `HTTP + JSON framing — CMS/floor % is the honest middleware tax.`,
   );
   console.log(
     `   CMS column: freshest recorded benchmark (tests/benchmarks/results/, ≤30 days, ` +
