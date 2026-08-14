@@ -116,6 +116,38 @@ export function defaultPageSortOption(): { updatedAt: -1 } {
   return { updatedAt: -1 };
 }
 
+/**
+ * Appends the deterministic `_id` tiebreaker to a sort spec so keyset
+ * pagination stays seek-stable.
+ *
+ * `mergeKeysetFilter` emits a compound (field, _id) cursor — that contract
+ * only holds when the ORDER BY uses the SAME secondary `_id` direction. Rows
+ * sharing a non-unique sort value (e.g. `updatedAt` set to one timestamp by a
+ * bulk seed) previously came back in arbitrary order, so page N+1 overlapped
+ * page N (or silently skipped rows). Pure `_id` sorts are already unique and
+ * pass through unchanged.
+ */
+export function withIdTiebreaker(sort: unknown): unknown {
+  const primary = resolvePageSort(sort);
+  if (primary.field === "_id") return sort;
+  const secondary = primary.direction === "asc" ? { _id: 1 } : { _id: -1 };
+  if (Array.isArray(sort)) {
+    // Tuples / objects array — append the secondary tuple.
+    const tuple = primary.direction === "asc" ? ["_id", "asc"] : ["_id", "desc"];
+    return [...sort, tuple];
+  }
+  if (typeof sort === "string") {
+    // "-field"/"field" shorthand — convert to an explicit two-key object.
+    return primary.direction === "asc"
+      ? { [primary.field]: 1, _id: 1 }
+      : { [primary.field]: -1, _id: -1 };
+  }
+  if (sort && typeof sort === "object") {
+    return { ...(sort as Record<string, unknown>), ...secondary };
+  }
+  return { ...(sort as Record<string, unknown>), ...secondary };
+}
+
 export function encodePageCursor(payload: PageCursorPayload): string {
   const json = JSON.stringify(payload);
   if (typeof Buffer !== "undefined") {

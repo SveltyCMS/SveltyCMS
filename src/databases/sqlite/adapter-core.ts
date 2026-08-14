@@ -1435,6 +1435,18 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         } catch {
           /* safe */
         }
+        // 🚀 KEYSET TIEBREAKER variant: findPage appends "_id" to the default
+        // sort (updatedAt DESC, _id DESC) so pages never overlap when rows
+        // share a timestamp. Including _id in the index keeps that ORDER BY
+        // index-served (no temp B-tree sort). New name on purpose — existing
+        // deployments keep the legacy 3-column index via IF NOT EXISTS.
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_updated_id" ON "${physicalName}" ("tenantId", "status", "updatedAt", "_id")`,
+          );
+        } catch {
+          /* safe */
+        }
 
         // 🚀 COMPOSITE INDEX for the status-less tenant list (the default list
         // page): WHERE tenantId=? ORDER BY updatedAt DESC LIMIT n. Without it
@@ -1444,6 +1456,14 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         try {
           await this.raw.execute(
             `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_updated" ON "${physicalName}" ("tenantId", "updatedAt")`,
+          );
+        } catch {
+          /* safe */
+        }
+        // 🚀 KEYSET TIEBREAKER variant of the status-less tenant index (see above).
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_updated_id" ON "${physicalName}" ("tenantId", "updatedAt", "_id")`,
           );
         } catch {
           /* safe */

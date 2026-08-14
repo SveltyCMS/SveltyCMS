@@ -28,6 +28,7 @@ import {
   mergeKeysetFilter,
   resolvePageSort,
   shouldUseEstimateCount,
+  withIdTiebreaker,
 } from "../core/page-utils";
 import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "../core/lookup-query";
 
@@ -954,7 +955,13 @@ export class MongoCrudMethods<T extends BaseEntity> {
     options: FindPageOptions<T> = {},
   ): Promise<DatabaseResult<FindPageResult<T>>> {
     const pageSize = options.limit && options.limit > 0 ? options.limit : DEFAULT_PAGE_SIZE;
-    const sortOpt = (options.sort ?? defaultPageSortOption()) as FindOptions<T>["sort"];
+    // Keyset-stable ordering: append the _id tiebreaker in the same direction
+    // as the primary sort (matches mergeKeysetFilter's compound (field, _id)
+    // cursor) — without it, rows sharing the sort value order arbitrarily and
+    // page N+1 overlaps page N.
+    const sortOpt = withIdTiebreaker(
+      options.sort ?? defaultPageSortOption(),
+    ) as FindOptions<T>["sort"];
     const resolvedSort = resolvePageSort(sortOpt);
     const cursor = decodePageCursor(options.cursor);
     const pageQuery = cursor

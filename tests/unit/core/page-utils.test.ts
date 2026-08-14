@@ -13,6 +13,7 @@ import {
   mergeKeysetFilter,
   resolvePageSort,
   shouldUseEstimateCount,
+  withIdTiebreaker,
 } from "@src/databases/core/page-utils";
 
 describe("isEmptyQueryFilter", () => {
@@ -51,6 +52,45 @@ describe("resolvePageSort / keyset cursor", () => {
       direction: "asc",
     });
     expect(resolvePageSort(undefined)).toEqual({ field: "_id", direction: "desc" });
+  });
+
+  it("withIdTiebreaker appends a same-direction _id secondary sort", () => {
+    expect(withIdTiebreaker({ updatedAt: -1 })).toEqual({ updatedAt: -1, _id: -1 });
+    expect(withIdTiebreaker({ updatedAt: 1 })).toEqual({ updatedAt: 1, _id: 1 });
+    expect(withIdTiebreaker([["updatedAt", "desc"]])).toEqual([
+      ["updatedAt", "desc"],
+      ["_id", "desc"],
+    ]);
+    expect(withIdTiebreaker("-updatedAt")).toEqual({ updatedAt: -1, _id: -1 });
+    expect(withIdTiebreaker({ _id: -1 })).toEqual({ _id: -1 }); // already unique
+    expect(withIdTiebreaker(undefined)).toBeUndefined(); // default _id sort is unique
+  });
+
+  it("withIdTiebreaker keeps mergeKeysetFilter contract (no overlap window)", () => {
+    const sort = withIdTiebreaker({ updatedAt: -1 }) as { updatedAt: -1; _id: -1 };
+    const cursor = {
+      id: "id-5",
+      f: "updatedAt",
+      v: "2026-01-01T00:00:00.000Z",
+      d: "desc" as const,
+    };
+    const filter = mergeKeysetFilter({ tenantId: "t" }, cursor);
+    // compound (field, _id) filter: strictly-older rows OR same-timestamp rows
+    // with a lower _id — matches the compound sort direction appended above.
+    expect(filter).toEqual({
+      $and: [
+        { tenantId: "t" },
+        {
+          $or: [
+            { updatedAt: { $lt: "2026-01-01T00:00:00.000Z" } },
+            {
+              $and: [{ updatedAt: "2026-01-01T00:00:00.000Z" }, { _id: { $lt: "id-5" } }],
+            },
+          ],
+        },
+      ],
+    });
+    expect(resolvePageSort(sort).direction).toBe("desc");
   });
 
   it("round-trips encode/decode", () => {

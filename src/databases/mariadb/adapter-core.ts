@@ -1348,6 +1348,17 @@ export abstract class AdapterCore extends SqlAdapterCore {
         } catch {
           /* safe */
         }
+        // 🚀 KEYSET TIEBREAKER variant: findPage appends "_id" to the default
+        // sort so pages never overlap when rows share a timestamp; including
+        // _id keeps that ORDER BY index-served (no filesort). New name on
+        // purpose — existing deployments keep the legacy index via IF NOT EXISTS.
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS \`${physicalName}_tenant_status_updated_id\` ON \`${physicalName}\` (\`tenantId\`, \`status\`, \`updatedAt\`, \`_id\`)`,
+          );
+        } catch {
+          /* safe */
+        }
         // 🚀 COMPOSITE INDEX for the status-less tenant list (the default list
         // page): WHERE tenantId=? ORDER BY updatedAt DESC LIMIT n — avoids the
         // filesort the status-composite index cannot serve without a status
@@ -1355,6 +1366,14 @@ export abstract class AdapterCore extends SqlAdapterCore {
         try {
           await this.raw.execute(
             `CREATE INDEX IF NOT EXISTS \`${physicalName}_tenant_updated\` ON \`${physicalName}\` (\`tenantId\`, \`updatedAt\`)`,
+          );
+        } catch {
+          /* safe */
+        }
+        // 🚀 KEYSET TIEBREAKER variant of the status-less tenant index (see above).
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS \`${physicalName}_tenant_updated_id\` ON \`${physicalName}\` (\`tenantId\`, \`updatedAt\`, \`_id\`)`,
           );
         } catch {
           /* safe */
