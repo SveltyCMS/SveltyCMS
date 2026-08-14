@@ -7,7 +7,7 @@
  * - slot-driven fullscreen overlay rendering
  */
 
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 
 const PLUGIN_PARAM = "plugin";
 

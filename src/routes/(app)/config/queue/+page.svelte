@@ -89,13 +89,13 @@ function formatDate(date: string | Date | undefined) {
 }
 
 function getPaginationUrl(offset: number) {
-	const params = new URLSearchParams(page.url.searchParams);
+	const params = new URLSearchParams(page.url.searchParams.toString());
 	params.set("offset", offset.toString());
 	return `?${params.toString()}`;
 }
 
 function getFilterUrl(status: string | undefined = undefined) {
-	const params = new URLSearchParams(page.url.searchParams);
+	const params = new URLSearchParams(page.url.searchParams.toString());
 	if (status) {
 		params.set("status", status);
 	} else {

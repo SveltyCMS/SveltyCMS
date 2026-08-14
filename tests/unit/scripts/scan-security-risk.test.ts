@@ -138,12 +138,14 @@ describe("scanGlobalRisk — dynamic code execution", () => {
     ).toBe(true);
   });
 
-  it("allows the bun:sqlite dynamic-import workaround", () => {
+  it("flags the legacy bun:sqlite new Function idiom (workaround removed)", () => {
+    // The former `new Function('return import("bun:sqlite")')()` workaround was
+    // replaced by a plain dynamic import — the sink is now banned categorically.
     const violations = scanGlobalRisk(
       "adapter.ts",
       "new Function('return import(\"bun:sqlite\")')();",
     );
-    expect(violations.some((v) => v.category === "dynamic-code-execution")).toBe(false);
+    expect(violations.some((v) => v.category === "dynamic-code-execution")).toBe(true);
   });
 });
 

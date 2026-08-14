@@ -60,17 +60,22 @@ For **create / update / findById / mixed** regressions (the common CMS pain poin
 | Mixed read mix            | `bun test tests/benchmarks/mixed-workload.test.ts`       | Weighted REST + GraphQL + health             |
 | Truth layers              | `bun test tests/benchmarks/truth-latency.test.ts`        | Logic vs LocalCMS vs HTTP                    |
 
-**2026-08-07 local SQLite rebaseline (rebuild `bun run build` first for HTTP turbo):**
+**2026-08-13 local SQLite rebaseline (rebuild `bun run build` first for HTTP turbo):**
 
 | Metric                                | Result                                              |
 | ------------------------------------- | --------------------------------------------------- |
-| LocalCMS findById warm (L1)           | **~0.003 ms** · ~266k RPS                           |
-| LocalCMS findById cold                | ~0.14 ms (≈ adapter)                                |
-| LocalCMS create                       | ~0.74 ms · ~1.1k RPS                                |
-| LocalCMS update                       | ~0.44 ms · ~2.1k RPS                                |
-| LocalCMS mixed C/U/R                  | ~1.30 ms                                            |
-| HTTP findById **cold** (cache-busted) | ~8.0 ms @ 8c                                        |
-| HTTP findById **TURBO-HIT**           | **~3.7 ms** @ 8c · **100% hit** · **~2.2×** vs cold |
+| LocalCMS findById warm (L1)           | **~0.001 ms** · ~489k RPS                           |
+| LocalCMS findById cold                | ~0.007 ms (≈ adapter)                               |
+| LocalCMS create                       | ~0.094 ms · ~6.1k RPS                               |
+| LocalCMS update                       | **~0.073 ms · ~7.3k RPS** (was ~0.44 ms)            |
+| LocalCMS mixed C/U/R                  | ~0.225 ms                                           |
+| HTTP findById **cold** (cache-busted) | **~2.4 ms** @ 8c                                    |
+| HTTP findById **TURBO-HIT**           | **~1.2 ms** @ 8c · **100% hit** · **~2.0×** vs cold |
+
+Adapter raw CRUD (same run): UPDATE **0.029 ms** (was 0.125 ms — raw `UPDATE…RETURNING`),
+INSERT 0.053 ms, FIND ONE 0.008 ms, FIND PAGE (50, sorted) **0.12 ms** (was 0.70 ms —
+`(tenantId, updatedAt)` composite + `updatedAt` default sort). See
+[Performance Architecture](../../reference/database/performance-architecture.mdx).
 
 > [!IMPORTANT]
 > The benchmark child process loads `index.cjs` → `build/handler.js`. Hook/handler turbo changes are invisible until `bun run build`.

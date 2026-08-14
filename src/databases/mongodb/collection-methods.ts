@@ -395,6 +395,12 @@ export class MongoCollectionMethods {
         // (WHERE tenantId + status + isDeleted, ORDER BY updatedAt DESC LIMIT n) —
         // serves filter + sort from one index instead of {tenantId,status} + temp sort.
         { fields: { tenantId: 1, status: 1, updatedAt: -1 } },
+        // 🚀 KEYSET TIEBREAKER variants: findPage appends "_id" to the default
+        // sort (updatedAt DESC, _id DESC) so pages never overlap when rows
+        // share a timestamp. Including _id keeps the compound cursor served
+        // by one index instead of a blocking in-memory sort.
+        { fields: { tenantId: 1, updatedAt: -1, _id: -1 } },
+        { fields: { tenantId: 1, status: 1, updatedAt: -1, _id: -1 } },
       ];
 
       // Aggregate all text fields into a single text index (MongoDB restriction: only one text index per collection)

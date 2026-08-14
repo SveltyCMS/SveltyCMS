@@ -15,7 +15,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 
 export interface PinnedItem {
   id: string;

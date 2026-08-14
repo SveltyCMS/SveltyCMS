@@ -7,6 +7,9 @@
  *
  * The purpose is to stop guessing how much headroom remains: the ratio
  * `CMS HTTP RPS ÷ raw engine RPS` is the total middleware + adapter tax.
+ * Because that ratio mixes domains (in-process driver vs HTTP), each engine
+ * ALSO runs a RAW HTTP FLOOR: the same ops behind bare node:http + JSON
+ * framing. `CMS RPS ÷ raw HTTP floor RPS` is the honest middleware tax.
  *
  * ### Scale comparison (1 vs 100,000 rows)
  * A 1-row table lives in the root page / L1 cache; a 100k-row table has real
@@ -33,6 +36,7 @@
  *   bun run scripts/benchmark-matrix/raw-db-ceiling.ts --db=sqlite
  *   bun run scripts/benchmark-matrix/raw-db-ceiling.ts --db=sqlite,postgresql,mariadb,mongodb
  *   bun run scripts/benchmark-matrix/raw-db-ceiling.ts --db=postgresql --scale=10000,1000000
+ *   CMS_BOARD_JSON='{"update":310}' bun run scripts/benchmark-matrix/raw-db-ceiling.ts --db=postgresql
  *
  * ### Features:
  * - fixed-duration measurement (warmup 800 ms, measure 2500 ms per op/concurrency)
@@ -40,6 +44,8 @@
  * - deterministic LCG pseudo-random row access (no Math.random)
  * - dedicated benchmark database per engine (never touches CMS data)
  * - per-scale truth table with avg latency + degradation ratio
+ * - CMS-vs-ceiling column auto-refreshed from recorded benchmark results
+ *   (tests/benchmarks/results/<db>/*.json, ≤30 days fresh; env override wins)
  */
 
 import { performance } from "node:perf_hooks";
@@ -70,14 +76,133 @@ const PAYLOAD = JSON.stringify({
   meta: { seo: "raw-ceiling", published: true, author: "probe" },
 });
 
-/** CMS HTTP board from the last concurrent 8c run (api-latency / concurrency suites). */
-const CMS_BOARD: Record<string, number> = {
+/** CMS HTTP board — concurrent 8c throughput (RPS) of the SAME operations the
+ * probe measures, so the "% of ceil" column is honest. Source: external
+ * cross-CMS harness, 2026-08-12 (SveltyCMS v0.0.7, real-auth, PostgreSQL).
+ * Freshness: recorded benchmark results (tests/benchmarks/results/<db>/*.json)
+ * automatically override these defaults per engine (≤ 30 days old); an explicit
+ * CMS_BOARD_JSON env override wins over everything.
+ */
+const DEFAULT_CMS_BOARD: Record<string, number> = {
   findById: 557, // uncached (findByIdRandom) — cached L1 turbo is 1571 (not DB-bound)
   findMissing: 2163, // L1 negative-cache hit — NOT raw-DB-bound (see note)
   create: 421,
   update: 240,
   listPlain: 684, // listLarge (uncached); cached listPlain is 1521 (not DB-bound)
 };
+
+/** Freshness guard: ignore recorded board entries older than this. */
+const BOARD_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Recorded metric names that feed each board key, in preference order
+ * (HTTP layer first — includes the full middleware tax, the honest comparison
+ * — then SDK/DB-layer fallbacks for ops without an HTTP record). */
+const BOARD_SOURCES: Record<string, RegExp[]> = {
+  findById: [/^HTTP: findById @ /, /^LocalCMS findById \(cold\)$/],
+  findMissing: [/negative-cache/i, /^LocalCMS findMissing/],
+  create: [/^HTTP: .*\bcreate\b/i, /^LocalCMS create$/],
+  update: [/^HTTP: .*\bupdate\b/i, /^LocalCMS update$/],
+  listPlain: [/^Collection List /, /^FIND_MANY \(limit 50\)$/],
+};
+
+/** Result files produced by the benchmark harness ({metric, rps, db, timestamp}). */
+interface RecordedBenchEntry {
+  metric?: string;
+  layer?: string;
+  rps?: number;
+  db?: string;
+  timestamp?: string;
+}
+
+/**
+ * Loads the freshest recorded CMS-board numbers from the benchmark results
+ * directory for one engine. Prefers entries whose `db` field matches the
+ * engine; accepts any recorded entry as a cross-machine fallback. Falls back
+ * to the dated DEFAULT_CMS_BOARD when no fresh record exists — never invents
+ * numbers.
+ */
+function loadRecordedCmsBoard(engine: string): {
+  board: Record<string, number>;
+  layers: Record<string, string>;
+} {
+  const board: Record<string, number> = { ...DEFAULT_CMS_BOARD };
+  const layers: Record<string, string> = {};
+  const newest: Record<string, { ts: number; rps: number; exact: boolean; layer: string }> = {};
+  const root = path.resolve(process.cwd(), "tests/benchmarks/results");
+  if (!fs.existsSync(root)) return { board, layers };
+
+  const now = Date.now();
+  const consider = (entry: RecordedBenchEntry, exact: boolean) => {
+    if (!entry || typeof entry.rps !== "number" || !entry.rps || Number.isNaN(entry.rps)) return;
+    const ts = Date.parse(entry.timestamp || "");
+    if (Number.isNaN(ts) || now - ts > BOARD_MAX_AGE_MS) return;
+    const metric = entry.metric || "";
+    for (const [key, matchers] of Object.entries(BOARD_SOURCES)) {
+      if (!matchers.some((rx) => rx.test(metric))) continue;
+      const prev = newest[key];
+      if (!prev || ts > prev.ts || (ts === prev.ts && exact && !prev.exact)) {
+        newest[key] = { ts, rps: entry.rps, exact, layer: entry.layer || "unknown" };
+      }
+    }
+  };
+
+  for (const dir of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!dir.isDirectory()) continue;
+    const dbFolder = dir.name.replace(/-redis$/, "");
+    const folderExact = dbFolder === engine;
+    for (const file of fs.readdirSync(path.join(root, dir.name))) {
+      if (!file.endsWith(".json")) continue;
+      try {
+        const raw = JSON.parse(
+          fs.readFileSync(path.join(root, dir.name, file), "utf8"),
+        ) as RecordedBenchEntry;
+        const entryExact = folderExact || raw.db === engine;
+        consider(raw, entryExact);
+      } catch {
+        /* skip unreadable result files */
+      }
+    }
+  }
+
+  for (const [key, rec] of Object.entries(newest)) {
+    board[key] = Math.round(rec.rps);
+    layers[key] = rec.layer;
+  }
+  return { board, layers };
+}
+
+/** Per-engine board cache (loaded once per run). */
+const CMS_BOARD_CACHE = new Map<
+  string,
+  { board: Record<string, number>; layers: Record<string, string> }
+>();
+
+function getCmsBoardEntry(engine: string): {
+  board: Record<string, number>;
+  layers: Record<string, string>;
+} {
+  const cached = CMS_BOARD_CACHE.get(engine);
+  if (cached) return cached;
+  let { board, layers } = loadRecordedCmsBoard(engine);
+  const raw = process.env.CMS_BOARD_JSON;
+  if (raw) {
+    try {
+      board = { ...board, ...JSON.parse(raw) };
+      for (const key of Object.keys(JSON.parse(raw) as Record<string, number>)) {
+        layers[key] = "env-override";
+      }
+    } catch {
+      /* fall through to recorded/defaults */
+    }
+  }
+  const entry = { board, layers };
+  CMS_BOARD_CACHE.set(engine, entry);
+  return entry;
+}
+
+function getCmsBoard(engine: string): Record<string, number> {
+  return getCmsBoardEntry(engine).board;
+}
 
 /** Default row-count scales (nearly-empty vs full); override with --scale=1,100000 */
 const SCALES = (() => {
@@ -182,6 +307,8 @@ interface Engine {
   name: string;
   setup(seedRows: number): Promise<void>;
   bench(): Promise<OpSample[]>;
+  /** Raw driver op behind the bare HTTP floor server (same statement as bench). */
+  rawOp?(op: "findById" | "update" | "listPlain", w: number): unknown | Promise<unknown>;
   teardown(): Promise<void>;
 }
 
@@ -270,6 +397,14 @@ class SqliteEngine implements Engine {
       );
       main.exec(
         `CREATE INDEX IF NOT EXISTS idx_content_bench_updated ON content_bench (updatedAt DESC)`,
+      );
+      // Composite indexes matching the production createModel DDL — the sorted
+      // list probe must measure the index-served query, not a temp B-tree sort.
+      main.exec(
+        `CREATE INDEX IF NOT EXISTS idx_content_bench_tenant_status_updated ON content_bench (tenantId, status, updatedAt)`,
+      );
+      main.exec(
+        `CREATE INDEX IF NOT EXISTS idx_content_bench_tenant_updated ON content_bench (tenantId, updatedAt)`,
       );
 
       // One connection per read worker + one write connection
@@ -393,6 +528,18 @@ class SqliteEngine implements Engine {
     return samples;
   }
 
+  rawOp(op: "findById" | "update" | "listPlain", w: number): unknown {
+    const now = Date.now();
+    const N = this.seedRows;
+    if (op === "findById") {
+      return this.stmts.find[w % 8].get(`seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+    }
+    if (op === "update") {
+      return this.stmts.update.run(PAYLOAD, now, `seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+    }
+    return this.stmts.list[w % 8].all(TENANT, STATUS);
+  }
+
   async teardown(): Promise<void> {
     for (const conn of this.conns) {
       try {
@@ -490,6 +637,10 @@ class PostgresEngine implements Engine {
     await this
       .sql`CREATE INDEX IF NOT EXISTS idx_tenant_status ON content_bench ("tenantId", status)`;
     await this.sql`CREATE INDEX IF NOT EXISTS idx_updated ON content_bench ("updatedAt" DESC)`;
+    await this
+      .sql`CREATE INDEX IF NOT EXISTS idx_tenant_status_updated ON content_bench ("tenantId", status, "updatedAt" DESC)`;
+    await this
+      .sql`CREATE INDEX IF NOT EXISTS idx_tenant_updated ON content_bench ("tenantId", "updatedAt" DESC)`;
     await this.reseed();
 
     this.findStmt = (id: string, tenant: string) =>
@@ -594,6 +745,17 @@ class PostgresEngine implements Engine {
     return samples;
   }
 
+  rawOp(op: "findById" | "update" | "listPlain", w: number): unknown {
+    const N = this.seedRows;
+    if (op === "findById") {
+      return this.findStmt(`seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+    }
+    if (op === "update") {
+      return this.updateStmt(PAYLOAD, this.now, `seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+    }
+    return this.listStmt(TENANT, STATUS);
+  }
+
   async teardown(): Promise<void> {
     if (this.sql) await this.sql.end({ timeout: 2 }).catch(() => {});
   }
@@ -674,6 +836,12 @@ class MariaDbEngine implements Engine {
       `CREATE INDEX IF NOT EXISTS idx_tenant_status ON content_bench (tenantId, status)`,
     );
     await this.pool.query(`CREATE INDEX IF NOT EXISTS idx_updated ON content_bench (updatedAt)`);
+    await this.pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_tenant_status_updated ON content_bench (tenantId, status, updatedAt)`,
+    );
+    await this.pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_tenant_updated ON content_bench (tenantId, updatedAt)`,
+    );
     await this.reseed();
 
     // mysql2 pool has no .prepare() — execute() uses server-side prepared statements
@@ -818,6 +986,24 @@ class MariaDbEngine implements Engine {
     return samples;
   }
 
+  async rawOp(op: "findById" | "update" | "listPlain", w: number): Promise<unknown> {
+    const N = this.seedRows;
+    if (op === "findById") {
+      const [rows] = await this.find.execute([`seed-${Math.floor(nextRand(w) * N)}`, TENANT]);
+      return rows;
+    }
+    if (op === "update") {
+      return this.update.execute([
+        PAYLOAD,
+        this.now,
+        `seed-${Math.floor(nextRand(w) * N)}`,
+        TENANT,
+      ]);
+    }
+    const [rows] = await this.list.execute([TENANT, STATUS]);
+    return rows;
+  }
+
   async teardown(): Promise<void> {
     if (this.pool) await this.pool.end().catch(() => {});
   }
@@ -866,11 +1052,15 @@ class MongoEngine implements Engine {
       this.col = db.collection("content_bench");
       await this.col.createIndex({ tenantId: 1, status: 1 });
       await this.col.createIndex({ updatedAt: -1 });
+      await this.col.createIndex({ tenantId: 1, status: 1, updatedAt: -1 });
+      await this.col.createIndex({ tenantId: 1, updatedAt: -1 });
     } else {
       await this.col.drop().catch(() => {});
       this.col = this.client.db("sveltycms_bench").collection("content_bench");
       await this.col.createIndex({ tenantId: 1, status: 1 });
       await this.col.createIndex({ updatedAt: -1 });
+      await this.col.createIndex({ tenantId: 1, status: 1, updatedAt: -1 });
+      await this.col.createIndex({ tenantId: 1, updatedAt: -1 });
     }
 
     // Seed in insertMany chunks
@@ -982,6 +1172,36 @@ class MongoEngine implements Engine {
     return samples;
   }
 
+  rawOp(op: "findById" | "update" | "listPlain", w: number): unknown {
+    const N = this.seedRows;
+    const projection = {
+      _id: 1,
+      tenantId: 1,
+      data: 1,
+      status: 1,
+      isDeleted: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    if (op === "findById") {
+      return this.col.findOne(
+        { _id: `seed-${Math.floor(nextRand(w) * N)}`, tenantId: TENANT },
+        { projection },
+      );
+    }
+    if (op === "update") {
+      return this.col.updateOne(
+        { _id: `seed-${Math.floor(nextRand(w) * N)}`, tenantId: TENANT },
+        { $set: { data: PAYLOAD, updatedAt: this.now } },
+      );
+    }
+    return this.col
+      .find({ tenantId: TENANT, status: STATUS, isDeleted: 0 })
+      .sort({ updatedAt: -1 })
+      .limit(50)
+      .toArray();
+  }
+
   async teardown(): Promise<void> {
     if (this.client) await this.client.close().catch(() => {});
   }
@@ -1035,7 +1255,7 @@ function printTable(engine: string, scaleResults: Map<number, OpSample[]>) {
       const b = get(s2, op, c);
       if (!a || !b) continue;
       const delta = a.rps > 0 ? b.rps / a.rps : 0;
-      const cms = c === 8 ? CMS_BOARD[op] : undefined;
+      const cms = c === 8 ? getCmsBoard(engine)[op] : undefined;
       const cmsStr = cms
         ? `${String(cms).padStart(4)} RPS (${Math.round((cms / b.rps) * 100)}% of ceil)`
         : "—";
@@ -1045,6 +1265,96 @@ function printTable(engine: string, scaleResults: Map<number, OpSample[]>) {
     }
   }
   console.log(`└────────────────────────────────────────────────────────────────────────────────`);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Raw HTTP floor — bare node:http + driver + JSON (no CMS middleware)
+// ──────────────────────────────────────────────────────────────────────────
+//
+// The engine ceiling above measures an IN-PROCESS driver call, so comparing
+// it to CMS HTTP RPS mixes domains (HTTP÷driver ≈ 1-10%). The honest floor
+// for a full-stack CMS is the same op served over HTTP with minimal JSON
+// framing — the remaining gap is the actual CMS middleware tax.
+
+const RAW_HTTP_OPS: Array<{
+  op: "findById" | "update" | "listPlain";
+  label: string;
+  method: string;
+  path: string;
+}> = [
+  { op: "findById", label: "findById", method: "GET", path: "/entry" },
+  { op: "update", label: "update", method: "POST", path: "/entry" },
+  { op: "listPlain", label: "listPlain", method: "GET", path: "/list" },
+];
+
+async function startRawHttpServer(
+  engine: Engine,
+): Promise<{ port: number; close: () => Promise<void> }> {
+  const http = await import("node:http");
+  let w = 0; // round-robin worker index (mirrors bench worker selection)
+  const server = http.createServer(async (req, res) => {
+    try {
+      const worker = w++ % 8;
+      if (req.method === "GET" && req.url?.startsWith("/entry")) {
+        await engine.rawOp!("findById", worker);
+      } else if (req.method === "POST" && req.url?.startsWith("/entry")) {
+        await engine.rawOp!("update", worker);
+      } else if (req.method === "GET" && req.url?.startsWith("/list")) {
+        await engine.rawOp!("listPlain", worker);
+      } else {
+        res.writeHead(404).end();
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "application/json" }).end('{"ok":true}');
+    } catch {
+      res.writeHead(500).end();
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address() as { port: number };
+  return {
+    port: address.port,
+    close: () => new Promise((resolve) => server.close(() => resolve())),
+  };
+}
+
+async function benchRawHttpFloor(engine: Engine): Promise<void> {
+  if (typeof engine.rawOp !== "function") return;
+  const { port, close } = await startRawHttpServer(engine);
+  const base = `http://127.0.0.1:${port}`;
+  const floorSamples = new Map<string, OpSample>();
+  try {
+    for (const { op, label, method, path } of RAW_HTTP_OPS) {
+      const samples = await benchOp(`httpFloor.${op}`, [8], async () => {
+        const res = await fetch(`${base}${path}`, { method, signal: AbortSignal.timeout(5000) });
+        await res.arrayBuffer();
+      });
+      const s = samples.find((x) => x.concurrency === 8);
+      if (s) floorSamples.set(label, s);
+    }
+  } finally {
+    await close().catch(() => {});
+  }
+
+  const { board, layers } = getCmsBoardEntry(engine.name);
+  console.log(`\n┌── ${engine.name.toUpperCase()} — RAW HTTP FLOOR (driver + HTTP + JSON, no CMS)`);
+  console.log(`│ op          floor RPS   floor lat   CMS RPS   CMS/floor (middleware tax)`);
+  console.log(`├─────────────────────────────────────────────────────────────────────────`);
+  for (const { op, label } of RAW_HTTP_OPS) {
+    const s = floorSamples.get(label);
+    if (!s) continue;
+    const cms = board[op] ?? 0;
+    const layer = layers[op] || "default";
+    // Only HTTP-layer CMS records are comparable to the HTTP floor. SDK/DB
+    // records (in-process) or dated defaults would flatter the ratio.
+    const comparable = layer === "HTTP" || layer === "env-override";
+    const pct = comparable && cms > 0 ? Math.round((cms / s.rps) * 100) : 0;
+    const tax = comparable ? `${String(pct).padStart(3)}%` : "— (no HTTP record)";
+    console.log(
+      `│ ${label.padEnd(12)}  ${fmtNum(s.rps).padStart(9)}   ${fmtMs(s.avgMs).padStart(9)}   ${String(cms).padStart(7)}   ${tax}`,
+    );
+  }
+  console.log(`└─────────────────────────────────────────────────────────────────────────`);
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -1094,6 +1404,8 @@ async function main() {
         scaleResults.set(scale, samples);
       }
       printTable(engine.name, scaleResults);
+      // Honest comparison: the same ops behind bare HTTP (driver + JSON only).
+      await benchRawHttpFloor(engine);
     } catch (err: any) {
       console.error(`\n❌ ${engine.name} FAILED: ${err?.message || err}`);
       if (process.env.RAW_CEILING_DEBUG === "true") console.error(err?.stack);
@@ -1106,11 +1418,15 @@ async function main() {
     `\n✅ Done. ΔRPS = 100k RPS ÷ 1k RPS (1.0 = latency-neutral; <1 = degrades at scale).`,
   );
   console.log(
-    `   CMS column uses uncached numbers (findByIdRandom=557, create=421, update=240, listLarge=684).`,
+    `   Engine ceiling = in-process driver (unreachable over HTTP). Raw HTTP floor = driver + ` +
+      `HTTP + JSON framing — CMS/floor % is the honest middleware tax.`,
   );
   console.log(
-    `   Cached CMS paths (findById L1 turbo=1571, listPlain=1521, findMissing=2163) are not DB-bound.`,
+    `   CMS column: freshest recorded benchmark (tests/benchmarks/results/, ≤30 days, ` +
+      `HTTP layer preferred, SDK/DB fallback where no HTTP record exists). ` +
+      `CMS_BOARD_JSON env wins over everything.`,
   );
+  console.log(`   Cached CMS paths (L1 turbo / negative-cache) are not DB-bound.`);
 }
 
 main().catch((err) => {

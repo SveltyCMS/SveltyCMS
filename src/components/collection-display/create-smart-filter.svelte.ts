@@ -18,6 +18,7 @@
  */
 
 import type { Schema } from "@src/content/types";
+import type { ReadonlyURLSearchParams } from "$app/state";
 import {
   buildFilterDefinitions,
   parseNumberRange,
@@ -76,7 +77,7 @@ export interface SmartFilterApi {
   setFilter: (id: string, value: string | null | undefined) => void;
   clearFilter: (id: string) => void;
   clearAll: () => void;
-  syncFromURL: (searchParams: URLSearchParams) => boolean;
+  syncFromURL: (searchParams: URLSearchParams | ReadonlyURLSearchParams) => boolean;
   toURLParams: () => Record<string, string | null>;
   toFilterQuery: () => CollectionFilterMap;
   toPlainObject: () => Record<string, string>;
@@ -190,7 +191,7 @@ export function createSmartFilter(
     }
   }
 
-  function syncFromURL(searchParams: URLSearchParams): boolean {
+  function syncFromURL(searchParams: URLSearchParams | ReadonlyURLSearchParams): boolean {
     let hasChanges = false;
     const seen = new Set<string>();
     const anyFilterInUrl = [...searchParams.keys()].some((k) => k.startsWith(urlPrefix));

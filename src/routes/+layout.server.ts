@@ -20,7 +20,7 @@ import type { NavigationNode } from "@src/content";
 import type { Locale } from "@src/paraglide/runtime";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { loadSettingsCache } from "@src/services/core/settings-service";
-import { dev } from "$app/environment";
+import { dev } from "$app/env";
 import { version } from "../../package.json";
 import type { LayoutServerLoad } from "./$types";
 

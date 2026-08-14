@@ -61,7 +61,7 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import { Form } from "@utils/form.svelte.ts";
 import { logger } from "@utils/logger";
 import { forgotFormSchema, loginFormSchema, resetFormSchema } from "@utils/schemas";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { goto, preloadData } from "$app/navigation";
 // Stores
 import { page } from "$app/state";
@@ -236,7 +236,7 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 					duration: 4000,
 				})
 			);
-			await goto(result.redirectPath, { invalidateAll: true });
+			await goto(result.redirectPath, { refreshAll: true });
 			return;
 		}
 		
@@ -335,7 +335,7 @@ async function handlePasskeySignIn() {
 		});
 
 		if (result.success && result.redirectPath) {
-			await goto(result.redirectPath, { invalidateAll: true });
+			await goto(result.redirectPath, { refreshAll: true });
 		} else {
 			toast.error({ title: "Passkey failed", description: result.message || "Authentication failed." });
 		}
@@ -504,7 +504,7 @@ async function submitTwoFA() {
 		isVerifying2FA = false;
 		if (result.success && result.redirectPath) {
 				toast.success({ title: "Verification Successful", description: "Redirecting…" });
-				await goto(result.redirectPath, { invalidateAll: true });
+				await goto(result.redirectPath, { refreshAll: true });
 				return;
 		}
 		toast.error({ description: result.message || twofa_error_invalid_code() });

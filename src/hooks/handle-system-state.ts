@@ -19,7 +19,8 @@ import { dbInitPromise } from "@src/databases/db";
 import { metricsService } from "@src/services/observability/metrics-service";
 import { getSystemState, isSystemReady } from "@src/stores/system/state.svelte.ts";
 import type { SystemState } from "@src/stores/system/types";
-import type { Handle, RequestEvent } from "@sveltejs/kit";
+import type { RequestEvent } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
@@ -105,7 +106,7 @@ const IS_STRICT_SETUP_CHECK = process.env.STRICT_SETUP_CHECK === "true";
 function throwRestrictedError(state: SystemState, pathname: string, msg: string): never {
   logger.warn(`[handleSystemState] Request blocked: ${pathname} | System state: ${state}`);
   if (pathname.startsWith("/api/")) throw new AppError(msg, 503, `SYSTEM_${state}`);
-  throw error(503, { message: msg });
+  throw error(503, msg);
 }
 
 async function waitForInitialization(timeoutMs: number = INIT_TIMEOUT_MS): Promise<void> {

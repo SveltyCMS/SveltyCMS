@@ -16,7 +16,7 @@
 </div>
 
 <div align="center">
-  <a href="https://kit.svelte.dev"><img src="https://img.shields.io/badge/SvelteKit-V2-FF3E00?logo=svelte" alt="SvelteKit"></a>
+  <a href="https://kit.svelte.dev"><img src="https://img.shields.io/badge/SvelteKit-V3%20RC-FF3E00?logo=svelte" alt="SvelteKit"></a>
   <a href="https://voidzero.dev"><img src="https://img.shields.io/badge/Toolchain-Vite%2B-646CFF?logo=vite" alt="Vite+"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript" alt="TypeScript"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js" alt="Node.js"></a>
@@ -33,7 +33,7 @@
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we fully support **MongoDB**, **PostgreSQL**, **SQLite**, and **MariaDB/MySQL** (via [Drizzle ORM](https://drizzle.dev)).
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 3 / Svelte 5](https://svelte.dev) framework (on the SvelteKit 3 release-candidate — see [svelte.dev/blog/sveltekit-3-release-candidate](https://svelte.dev/blog/sveltekit-3-release-candidate)). Being designed to be database agnostic, we fully support **MongoDB**, **PostgreSQL**, **SQLite**, and **MariaDB/MySQL** (via [Drizzle ORM](https://drizzle.dev)).
 
 You can define Content Collections in two ways: in code or via the GUI-based collection builder. Full TypeScript support and a rich widget library make it straightforward to build custom data structures.
 

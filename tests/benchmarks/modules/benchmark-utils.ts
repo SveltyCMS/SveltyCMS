@@ -868,7 +868,7 @@ let _benchmarkSessionUserKey: string | null = null;
 export async function loginBenchmarkUser(
   baseUrl: string,
   email = "admin@example.com",
-  password = process.env.ADMIN_PASSWORD || "Password123!",
+  password = resolveBenchmarkAdminPassword(),
 ): Promise<string> {
   const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
   const userKey = `${email}\0${password}`;
@@ -954,6 +954,23 @@ export function requireTestInfrastructure(feature: string): void {
 }
 
 let _benchmarkSeeded = false;
+let _benchmarkSeededPassword = "";
+
+/**
+ * Single source of truth for the benchmark admin password.
+ *
+ * The seed hashes this password, `setupBenchmarkServer` exports it to the
+ * spawned server process, and `loginBenchmarkUser` authenticates with it.
+ * Three independent defaults (`Password123!` vs `Admin123!`) previously made
+ * the login 401 nondeterministically whenever one call site fell back while
+ * another did not — resolve it in ONE place so all three always agree.
+ */
+export function resolveBenchmarkAdminPassword(): string {
+  if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.length >= 8) {
+    return process.env.ADMIN_PASSWORD;
+  }
+  return "Admin123!";
+}
 
 /**
  * In-process equivalent of the legacy testing action `seed-throughput-docs`
@@ -1016,8 +1033,10 @@ export async function seedThroughputDocs(
  * sees a complete state.
  */
 export async function seedBenchmarkState(): Promise<void> {
-  if (_benchmarkSeeded) return;
+  const password = resolveBenchmarkAdminPassword();
+  if (_benchmarkSeeded && _benchmarkSeededPassword === password) return;
   _benchmarkSeeded = true;
+  _benchmarkSeededPassword = password;
   const started = performance.now();
   const tenantId = "global" as DatabaseId;
 
@@ -1038,38 +1057,97 @@ export async function seedBenchmarkState(): Promise<void> {
   }
 
   // 2. Admin user (idempotent — mirrors /api/testing action=seed)
+  //
+  // LOOKUP-FIRST: never create-then-fallback. Duplicate admin rows must not
+  // exist at all — createUser would race or mint a second row under a
+  // different tenant while the server login reads the oldest row without
+  // tenant filtering, turning every later benchmark login into a 401 lottery.
+  // The lookup scope mirrors the login EXACTLY (no tenant filter, oldest
+  // first), so the row we update IS the row login reads.
   const email = "admin@example.com";
-  const password = process.env.ADMIN_PASSWORD || "Password123!";
-  const seedOpts = { tenantId } as any;
-  let created = await cms.auth.createUser(
-    {
-      email,
-      password,
-      username: "admin",
-      role: "admin",
-      isAdmin: true,
-      isRegistered: true,
-      emailVerified: true,
-    },
-    seedOpts,
-  );
-  if (!created?.success) {
-    const existing = await cms.auth.getUserByEmail(email, seedOpts);
-    if (existing?.success && existing?.data) {
+  const canonicalOpts = { bypassTenantCheck: true, tenantId: null } as any;
+  const existing = await cms.auth.getUserByEmail(email, canonicalOpts);
+  if (existing?.success && existing?.data) {
+    await cms.auth.updateUserAttributes(
+      (existing.data as { _id: string })._id,
+      {
+        password,
+        role: "admin",
+        isAdmin: true,
+        isRegistered: true,
+        emailVerified: true,
+        failedAttempts: 0,
+        lockoutUntil: null,
+      },
+      { ...canonicalOpts, allowPrivilegeEscalation: true },
+    );
+  } else {
+    await cms.auth.createUser(
+      {
+        email,
+        password,
+        username: "admin",
+        role: "admin",
+        isAdmin: true,
+        isRegistered: true,
+        emailVerified: true,
+      },
+      { tenantId } as any,
+    );
+  }
+
+  // 🧹 LEGACY CLEANUP ONLY: remove pre-existing duplicate admin rows from
+  // older harness eras (they can no longer be created by this seed). Login
+  // reads the oldest row, so any stale duplicate would still win over the
+  // freshly-updated canonical row — delete them until exactly one remains.
+  try {
+    const allRes = await (db as any).auth.getAllUsers({ limit: 500 } as any);
+    const rows = Array.isArray(allRes)
+      ? allRes
+      : allRes?.success && Array.isArray(allRes.data)
+        ? allRes.data
+        : [];
+    const canonCheck = await cms.auth.getUserByEmail(email, canonicalOpts);
+    const canonId =
+      canonCheck?.success && canonCheck?.data
+        ? String((canonCheck.data as { _id: string })._id)
+        : "";
+    for (const row of rows as any[]) {
+      if (row?.email !== email) continue;
+      if (canonId && String(row._id) === canonId) continue;
+      await cms.auth
+        .deleteUser(String(row._id), {
+          tenantId: (row.tenantId as any) ?? null,
+        } as any)
+        .catch(() => {});
+    }
+  } catch (err: any) {
+    logger.warn(`[BenchSeed] Admin legacy-dedupe failed (non-fatal): ${err.message}`);
+  }
+
+  // 🛡️ SELF-HEALING: verify the stored hash really matches the password the
+  // benchmark will log in with. Stale legacy rows (seeded under a different
+  // ADMIN_PASSWORD in an older run) previously survived the update path when
+  // the duplicate row the login reads differed from the row the update wrote
+  // — the benchmark then failed with a 401 that crypto probes could not
+  // reproduce. Force one final hash refresh when verification fails.
+  try {
+    const { verifyPassword } = await import("@utils/security/crypto");
+    const check = await cms.auth.getUserByEmail(email, canonicalOpts);
+    const adminUser = check?.success && check?.data ? check.data : null;
+    const storedPw = adminUser ? String((adminUser as any).password || "") : "";
+    if (!storedPw || !(await verifyPassword(storedPw, password))) {
+      logger.warn(
+        "[BenchSeed] Admin hash mismatch — forcing password refresh for deterministic login",
+      );
       await cms.auth.updateUserAttributes(
-        (existing.data as { _id: string })._id,
-        {
-          password,
-          role: "admin",
-          isAdmin: true,
-          isRegistered: true,
-          emailVerified: true,
-          failedAttempts: 0,
-          lockoutUntil: null,
-        },
-        { ...seedOpts, allowPrivilegeEscalation: true },
+        (adminUser as { _id: string })._id,
+        { password, failedAttempts: 0, lockoutUntil: null },
+        { ...canonicalOpts, allowPrivilegeEscalation: true },
       );
     }
+  } catch (err: any) {
+    logger.warn(`[BenchSeed] Admin hash self-heal check failed (non-fatal): ${err.message}`);
   }
 
   // 3. Benchmark collections (mirrors /api/testing action=benchmark-seed)
@@ -1253,7 +1331,7 @@ export async function setupBenchmarkServer() {
   const dbName =
     process.env.DB_NAME || (dbType === "sqlite" ? "benchmark_shared" : "sveltycms_test");
   const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
-  const adminPw = process.env.ADMIN_PASSWORD || "Admin123!";
+  const adminPw = resolveBenchmarkAdminPassword();
 
   process.env.DB_TYPE = dbType;
   process.env.DB_NAME = dbName;

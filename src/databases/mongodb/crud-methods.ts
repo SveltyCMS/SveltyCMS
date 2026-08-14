@@ -28,6 +28,7 @@ import {
   mergeKeysetFilter,
   resolvePageSort,
   shouldUseEstimateCount,
+  withIdTiebreaker,
 } from "../core/page-utils";
 import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "../core/lookup-query";
 
@@ -457,7 +458,10 @@ export class MongoCrudMethods<T extends BaseEntity> {
             {
               returnDocument: "after",
               lean: true,
-              runValidators: true,
+              // 🚀 Validation already ran at the SDK/API layer (Valibot schema
+              // pipeline) — Mongoose re-validating every document on the hot
+              // update path is pure CPU overhead.
+              runValidators: false,
               cloneUpdate: false,
             },
           )
@@ -496,7 +500,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
           {
             returnDocument: "after",
             lean: true,
-            runValidators: true,
+            // 🚀 SDK/API layer already validates (Valibot) — skip Mongoose re-validation.
+            runValidators: false,
             // 🚀 Mongoose Performance: Skip redundant update object cloning
             cloneUpdate: false,
           },
@@ -588,7 +593,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
       // even on the update path.
       const findOptions: any = {
         returnDocument: "after",
-        runValidators: true,
+        // 🚀 SDK/API layer already validates (Valibot) — skip Mongoose re-validation.
+        runValidators: false,
         cloneUpdate: false,
       };
       if (options.hints?.mongo?.writeConcern) {
@@ -870,6 +876,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
           {
             returnDocument: "after",
             lean: true,
+            // Intentional: runValidators detects de-mangled unique-collisions
+            // (restore fails safely when the unmangled slug is taken).
             runValidators: true,
             cloneUpdate: false,
           },
@@ -947,7 +955,13 @@ export class MongoCrudMethods<T extends BaseEntity> {
     options: FindPageOptions<T> = {},
   ): Promise<DatabaseResult<FindPageResult<T>>> {
     const pageSize = options.limit && options.limit > 0 ? options.limit : DEFAULT_PAGE_SIZE;
-    const sortOpt = (options.sort ?? defaultPageSortOption()) as FindOptions<T>["sort"];
+    // Keyset-stable ordering: append the _id tiebreaker in the same direction
+    // as the primary sort (matches mergeKeysetFilter's compound (field, _id)
+    // cursor) — without it, rows sharing the sort value order arbitrarily and
+    // page N+1 overlaps page N.
+    const sortOpt = withIdTiebreaker(
+      options.sort ?? defaultPageSortOption(),
+    ) as FindOptions<T>["sort"];
     const resolvedSort = resolvePageSort(sortOpt);
     const cursor = decodePageCursor(options.cursor);
     const pageQuery = cursor

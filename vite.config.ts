@@ -8,7 +8,6 @@ import { existsSync, readFileSync, readdirSync, promises as fsPromises } from "n
 import { builtinModules } from "node:module";
 import { platform } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import adapter from "@sveltejs/adapter-node";
 
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
@@ -23,9 +22,6 @@ import { securityCheckPlugin } from "./src/utils/vite-plugin-security-check.ts";
 import { pathAliases } from "./path-aliases.ts";
 
 process.env.ESBUILD_WORKER_THREADS = "0";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // ── Shared: externally maintained lists ────────────────────────────────────
 const SERVER_EXTERNALS = [
@@ -931,21 +927,18 @@ export default defineConfig(() => {
       sveltekit({
         preprocess: [vitePreprocess()],
         compilerOptions: { runes: true },
-        // Inspector options only when enabled — false disables upstream plugin entirely
-        vitePlugin: {
-          inspector: enableInspector
-            ? {
-                // Sticky toggle: Alt+X once on, again/Esc off (holdMode flaky on Windows)
-                toggleKeyCombo: "alt-x",
-                holdMode: false,
-                showToggleButton: "always",
-                toggleButtonPos: "bottom-right",
-              }
-            : false,
-        },
+        // 🚀 SK3: vite-plugin-svelte options pass through directly (vitePlugin removed)
+        inspector: enableInspector
+          ? {
+              // Sticky toggle: Alt+X once on, again/Esc off (holdMode flaky on Windows)
+              toggleKeyCombo: "alt-x",
+              holdMode: false,
+              showToggleButton: "always",
+              toggleButtonPos: "bottom-right",
+            }
+          : false,
         adapter: adapter({ out: "build", precompress: true }),
         experimental: { remoteFunctions: true },
-        alias: pathAliases,
         // Bench/integration matrices bind 4173 + random offset; trust loopback port range.
         csrf: {
           trustedOrigins: [
@@ -967,6 +960,14 @@ export default defineConfig(() => {
       copyWorkerFilePlugin(),
       paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/paraglide" }),
     ],
+    // 🚀 SK3: aliases moved from the deprecated `config.alias` to plain Vite
+    // resolve.alias (types are wired via `paths` in tsconfig.json). Vite needs
+    // ABSOLUTE targets — relative entries would duplicate modules.
+    resolve: {
+      alias: Object.fromEntries(
+        Object.entries(pathAliases).map(([key, target]) => [key, path.resolve(CWD, target)]),
+      ),
+    },
     server: {
       fs: { allow: ["static", "."], deny: ["**/tests/**"] },
       watch: {

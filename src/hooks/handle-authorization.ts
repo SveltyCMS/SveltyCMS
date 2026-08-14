@@ -24,7 +24,8 @@ import {
   USER_PERM_CACHE_TTL_S,
 } from "@src/databases/cache/cache-service";
 import { auth } from "@src/databases/db";
-import { error, type Handle, redirect, type RequestEvent } from "@sveltejs/kit";
+import { error, redirect, type RequestEvent } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { isMultiTenantEnabled } from "@utils/tenant";
@@ -151,7 +152,13 @@ async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
 
   const workPromise = (async () => {
     try {
-      if (!auth) return [];
+      // 🛡️ PROXY SHAPE GUARD: `auth` is a Proxy over __AUTH_INSTANCE__ — the
+      // proxy object is ALWAYS truthy, even when the global instance is unset
+      // (a page request racing the boot, or the auth service initializer
+      // failing). `if (!auth)` can therefore never fire; a truthy proxy with a
+      // missing method previously threw "getAllRoles is not a function" on the
+      // roles path. Guard the method shape, mirroring getUserCount.
+      if (!auth || typeof auth.getAllRoles !== "function") return [];
       const bypassOpts =
         !tenantId || tenantId === "global"
           ? { bypassTenantCheck: true }

@@ -20,7 +20,7 @@ import { publicConfigSchema } from "../databases/public-config-schema";
 import { logger } from "@utils/logger";
 import type { InferOutput } from "valibot";
 
-// Helper to safely get browser mode without crashing if $app/environment is missing (e.g. in some Bun test contexts)
+// Helper to safely get browser mode without crashing if $app/env is missing (e.g. in some Bun test contexts)
 const isBrowser = (() => {
   try {
     return typeof window !== "undefined";

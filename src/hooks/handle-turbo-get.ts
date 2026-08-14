@@ -8,7 +8,7 @@
  * 2. `responseCache` has a pre-stringified response tuple.
  */
 
-import type { Handle } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import type { User, Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import {

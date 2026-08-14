@@ -335,14 +335,14 @@ FIXES:
 
 			if (currentCollectionId) {
 				const newPath = `/${selectedLanguage}/${currentCollectionId}${currentSearch}`;
-				goto(newPath, { replaceState: false, invalidateAll: true });
+				goto(newPath, { replace: false, refreshAll: true });
 			} else {
 				const currentPath = page.url.pathname;
 				const pathParts = currentPath.split('/').filter(Boolean);
 				if (pathParts.length > 0) {
 					pathParts[0] = selectedLanguage;
 					const newPath = `/${pathParts.join('/')}${currentSearch}`;
-					goto(newPath, { replaceState: false, invalidateAll: true });
+					goto(newPath, { replace: false, refreshAll: true });
 				}
 			}
 			return;

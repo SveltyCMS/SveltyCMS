@@ -28,7 +28,7 @@
  */
 
 import type { RequestHandler } from "@sveltejs/kit";
-import { dev } from "$app/environment";
+import { dev } from "$app/env";
 
 // ─── CSP for the AI Worker ──────────────────────────────────────────────────
 

@@ -597,7 +597,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	async function navigate(path: string, force = false): Promise<void> {
 		if (page.url.pathname === path && !force) return;
 		if (force || page.url.pathname === path) await invalidateAll();
-		await goto(path, { invalidateAll: true });
+		await goto(path, { refreshAll: true });
 	}
 
 	function selectNode(node: ExtendedContentNode): void {

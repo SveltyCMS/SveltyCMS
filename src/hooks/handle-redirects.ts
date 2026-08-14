@@ -12,7 +12,7 @@
 
 import { getDb, isDbConnected } from "@src/databases/db";
 import { isSystemReady } from "@src/stores/system/state.svelte.ts";
-import type { Handle } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { logger } from "@utils/logger";
 import { getTenantIdFromHostname } from "@utils/tenant";
 import { cacheService } from "@src/databases/cache/cache-service";

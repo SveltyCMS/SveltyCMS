@@ -391,7 +391,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
       });
       if (errorParam === "interaction_required" || errorParam === "access_denied") {
         const authUrl = await generateGoogleAuthUrl(token, "consent");
-        redirect(302, authUrl);
+        redirect(302, authUrl, { external: true });
       } else {
         throw error(
           400,
@@ -409,7 +409,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
           provider === "github"
             ? await generateGithubAuthUrl(token, "consent")
             : await generateGoogleAuthUrl(token, "consent");
-        redirect(302, authUrl);
+        redirect(302, authUrl, { external: true });
       }
 
       // For non-first users without a token, show token input form
@@ -423,7 +423,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
           provider === "github"
             ? await generateGithubAuthUrl(token, "consent")
             : await generateGoogleAuthUrl(token, "consent");
-        redirect(302, authUrl);
+        redirect(302, authUrl, { external: true });
       }
     }
 
@@ -623,12 +623,12 @@ export const actions: Actions = {
     try {
       // Generate OAuth URL with token in state parameter
       const authUrl = await generateGoogleAuthUrl(token?.toString() || null);
-      throw redirect(302, authUrl);
+      throw redirect(302, authUrl, { external: true });
     } catch (err) {
       if (err instanceof Error) {
         const errorMessage = err.message || "Failed to initialize OAuth";
         logger.error("Error during OAuth initialization:", errorMessage);
-        throw error(500, { message: errorMessage });
+        throw error(500, errorMessage);
       }
       throw err;
     }

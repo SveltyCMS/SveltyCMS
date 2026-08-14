@@ -49,7 +49,8 @@ import { evaluateSessionAnomaly, toSafeSessionUser } from "@src/databases/auth/s
 
 import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
 import { metricsService } from "@src/services/observability/metrics-service";
-import type { Handle, RequestEvent } from "@sveltejs/kit";
+import type { RequestEvent } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError, isAppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
@@ -81,7 +82,7 @@ function getCookiePath(): string {
 import { getClientIp, getRequestFlags } from "@utils/hook-utils";
 import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/settings-service";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
-import { dev } from "$app/environment";
+import { dev } from "$app/env";
 import { runWithContext } from "@src/utils/context";
 import { invalidateTurboAuthContext } from "./handle-turbo-get";
 import { turboAuthCache } from "./handle-turbo-get";

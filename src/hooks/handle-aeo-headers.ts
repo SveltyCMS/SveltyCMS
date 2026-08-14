@@ -11,7 +11,7 @@
  * - Clones response headers (immutable Response safety)
  */
 
-import type { Handle } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 
 export const handleAeoHeaders: Handle = async ({ event, resolve }) => {
   const response = await resolve(event);

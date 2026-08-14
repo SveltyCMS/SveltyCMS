@@ -17,7 +17,7 @@
  * ```
  */
 
-import { page } from "$app/stores";
+import { page } from "$app/state";
 import type { Action } from "svelte/action";
 
 export interface IsActiveLinkOptions {
@@ -35,19 +35,18 @@ export const isActiveLink: Action<HTMLAnchorElement, IsActiveLinkOptions | undef
 ) => {
   let { className = "active", startsWith = false, ariaCurrent = "page" } = options;
   let tokens = className.split(" ").filter(Boolean);
-  let currentPath = "";
 
-  const evaluate = () => {
+  const evaluate = (pathname: string) => {
     // O(1): use native HTMLAnchorElement.pathname (no URL parsing overhead)
     const linkPath = node.pathname;
 
     let match = false;
 
-    if (currentPath === linkPath) {
+    if (pathname === linkPath) {
       match = true;
     } else if (startsWith && linkPath !== "/") {
       // 🛡️ Prevent /user from matching /users/1 — require segment separator
-      match = currentPath.startsWith(linkPath + "/");
+      match = pathname.startsWith(linkPath + "/");
     }
 
     if (match) {
@@ -59,9 +58,11 @@ export const isActiveLink: Action<HTMLAnchorElement, IsActiveLinkOptions | undef
     }
   };
 
-  const unsubscribe = page.subscribe(($page) => {
-    currentPath = $page.url.pathname;
-    evaluate();
+  // 🚀 SK3: $app/state rune — reactive read inside an effect replaces the
+  // legacy $app/stores subscription (fine-grained: only pathname changes
+  // re-run the effect).
+  $effect(() => {
+    evaluate(page.url.pathname);
   });
 
   return {
@@ -75,10 +76,9 @@ export const isActiveLink: Action<HTMLAnchorElement, IsActiveLinkOptions | undef
       tokens = className.split(" ").filter(Boolean);
 
       // Re-evaluate immediately (fixes bug where UI didn't update until next navigation)
-      evaluate();
+      evaluate(page.url.pathname);
     },
     destroy() {
-      unsubscribe();
       if (tokens.length) node.classList.remove(...tokens);
       node.removeAttribute("aria-current");
     },

@@ -26,7 +26,8 @@
  * - Mutable header injection via `withMutableHeaders` (immutable Response safety)
  */
 
-import type { Handle, RequestEvent } from "@sveltejs/kit";
+import type { RequestEvent } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { logger } from "@utils/logger";
 import { renderRateLimitPage } from "@utils/rate-limit-page";
 import {

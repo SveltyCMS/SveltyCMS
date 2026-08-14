@@ -684,6 +684,40 @@ export function getColumnHelper(
   return undefined;
 }
 
+/**
+ * Coerce filter values for date/timestamp columns to real Date objects.
+ * Drizzle's timestamp column modes call `value.getTime()` / `value.toISOString()`
+ * in their driver mapping with no type guard, so ISO strings (keyset cursors)
+ * and epoch numbers (API filters) would throw. Only applies to real
+ * date/timestamp columns — JSON-field comparisons keep dialect-text semantics.
+ *
+ * Detection reads BOTH the public getters (sqlite-core) and `column.config`
+ * (mysql-core hides dataType/columnType from the public surface) and accepts
+ * both ISO-8601 and MariaDB space-separated datetime strings.
+ */
+function coerceDateColumnValue(col: any, val: unknown): unknown {
+  if (!col) return val;
+  const cfg = col?.config ?? {};
+  const isDateCol =
+    col?.dataType === "date" ||
+    (typeof col?.columnType === "string" && /(Timestamp|DateTime|Date)$/.test(col.columnType)) ||
+    cfg?.dataType === "date" ||
+    (typeof cfg?.columnType === "string" && /(Timestamp|DateTime|Date)$/.test(cfg.columnType));
+  if (!isDateCol) return val;
+  if (Array.isArray(val)) {
+    return val.map((v) => coerceDateColumnValue(col, v));
+  }
+  if (typeof val === "string" && val.length > 5) {
+    // ISO-8601 ("…T…Z") and MariaDB datetime ("YYYY-MM-DD HH:mm:ss") shapes
+    const normalized = val.includes("T") ? val : val.replace(" ", "T");
+    const ts = Date.parse(normalized);
+    if (!Number.isNaN(ts)) return new Date(ts);
+  } else if (typeof val === "number" && val > 0) {
+    return new Date(val);
+  }
+  return val;
+}
+
 export function translateCondition(col: Column, cond: QueryCondition): SQL {
   let val = cond.value;
 
@@ -696,6 +730,11 @@ export function translateCondition(col: Column, cond: QueryCondition): SQL {
         : v,
     );
   }
+  // Date/timestamp columns need real Date objects for the driver mapping
+  // (Drizzle timestamp modes call value.getTime() with no type guard).
+  // Keyset cursors and API filters pass ISO strings / epoch numbers — coerce
+  // them here or every comparison against a *At/*Date column throws.
+  val = coerceDateColumnValue(col, val);
 
   switch (cond.operator) {
     case "$eq":
@@ -761,6 +800,11 @@ function addSingleCondition(
         : v,
     );
   }
+  // Date/timestamp columns need real Date objects for the driver mapping
+  // (Drizzle timestamp modes call value.getTime() with no type guard).
+  // Keyset cursors and API filters pass ISO strings / epoch numbers — coerce
+  // them here or every comparison against a *At/*Date column throws.
+  val = coerceDateColumnValue(col, val);
 
   switch (operator) {
     case "$eq":

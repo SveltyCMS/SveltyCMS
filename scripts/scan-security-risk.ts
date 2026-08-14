@@ -119,7 +119,7 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
     if (!trimmed || trimmed.startsWith("*")) continue;
 
     // ── Dynamic code execution (error, RCE sink)
-    if (/\bnew\s+Function\s*\(/.test(line) && !/new Function\('return import\(/.test(line)) {
+    if (/\bnew\s+Function\s*\(/.test(line)) {
       violations.push({
         path: relPath,
         line: i + 1,

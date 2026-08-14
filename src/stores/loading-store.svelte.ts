@@ -33,7 +33,7 @@
  */
 
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { logger } from "@utils/logger";
 
 // Test-friendly browser check

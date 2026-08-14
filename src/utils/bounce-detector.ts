@@ -15,7 +15,7 @@
  * filter/sort/pagination/search-param changes.
  */
 
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { beforeNavigate, afterNavigate } from "$app/navigation";
 
 const BOUNCE_THRESHOLD_MS = 2000;

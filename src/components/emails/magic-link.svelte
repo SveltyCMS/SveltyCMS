@@ -10,7 +10,7 @@
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
 	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
-	import { dev } from '$app/environment';
+	import { dev } from '$app/env';
 
 	interface Props {
 		email?: string;

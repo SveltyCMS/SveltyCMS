@@ -15,7 +15,7 @@
  * All post-resolve header writes use `withMutableHeaders` (immutable Response safety).
  */
 
-import { dev } from "$app/environment";
+import { dev } from "$app/env";
 import {
   getSetupState,
   SetupState,
@@ -23,7 +23,8 @@ import {
   getTestSecret,
 } from "@utils/server/setup-check";
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
-import { isRedirect, isHttpError, type Handle } from "@sveltejs/kit";
+import { isRedirect, isHttpError } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import {
   isApiLike,

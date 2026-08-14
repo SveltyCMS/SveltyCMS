@@ -11,6 +11,11 @@ const mockFn = (fn?: any) => {
 export const goto = mockFn(() => Promise.resolve());
 export const invalidate = mockFn(() => Promise.resolve());
 export const invalidateAll = mockFn(() => Promise.resolve());
+export const refreshAll = mockFn(() => Promise.resolve());
+export const preloadData = mockFn(() => Promise.resolve());
+export const preloadCode = mockFn(() => Promise.resolve());
+export const pushState = mockFn();
+export const replaceState = mockFn();
 export const afterNavigate = mockFn();
 export const beforeNavigate = mockFn();
 export const applyAction = mockFn(() => Promise.resolve());

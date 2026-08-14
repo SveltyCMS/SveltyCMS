@@ -23,7 +23,7 @@ latest version available on GitHub with comprehensive status reporting.
 	import Badge from '@components/ui/badge.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { onDestroy, onMount } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import SystemTooltip from './system/system-tooltip.svelte';
 
 	// Types

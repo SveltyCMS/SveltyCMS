@@ -4,7 +4,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { building, dev } from "$app/environment";
+import { building, dev } from "$app/env";
 import { metricsService } from "../observability/metrics-service";
 import { AuthGuardService } from "./auth-guard";
 import { securityStore } from "./state-store";

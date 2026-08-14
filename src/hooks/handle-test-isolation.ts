@@ -15,7 +15,7 @@
  */
 
 import { testWorkerContext } from "@utils/test-worker-context";
-import type { Handle } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { logger } from "@utils/logger";
 import { getRequestFlags } from "@utils/hook-utils";
 import { existsSync, readFileSync } from "node:fs";

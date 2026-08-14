@@ -36,7 +36,7 @@ and configurable quality settings for weaker devices.
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 	import { SvelteMap } from 'svelte/reactivity';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 
 	// Define props with default values
 	const {

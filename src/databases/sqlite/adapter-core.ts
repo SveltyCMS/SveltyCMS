@@ -212,6 +212,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
    * reuse as rawFindById. Dates bind as epoch-ms integers (the adapter stores
    * INTEGER timestamps); objects are JSON-stringified (data column). Skips the
    * Drizzle AST build on the hot write path.
+   *
+   * Parameter coercion (boolean→1/0, Date→epoch ms, object→JSON text,
+   * Uint8Array→binary) is handled centrally by prepareAndExecute — do NOT
+   * pre-map here (double coercion cost + Uint8Array blobs would corrupt).
    */
   protected async rawInsertReturning<T extends BaseEntity>(
     table: any,
@@ -225,16 +229,95 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       if (cols.length === 0) return null;
       const colList = cols.map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`).join(", ");
       const placeholders = cols.map(() => "?").join(", ");
-      const params = cols.map((c) => {
-        const v = values[c];
-        if (v instanceof Date) return v.getTime();
-        if (v !== null && typeof v === "object" && !Array.isArray(v)) return JSON.stringify(v);
-        return v;
-      });
+      const params = cols.map((c) => values[c]);
       const rawSql = `INSERT INTO "${tableName}" (${colList}) VALUES (${placeholders}) RETURNING *`;
       const rows = this.prepareAndExecute(rawSql, "all", ...params);
       if (Array.isArray(rows) && rows.length > 0) {
-        return utils.convertDatesToISO(rows[0], { table: collection }) as T;
+        return utils.convertDatesToISO(rows[0], {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as T;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Raw single-statement UPDATE…RETURNING for SQLite — same prepared-cache
+   * reuse as rawInsertReturning/rawFindById. The base SqlAdapterCore.update()
+   * pays Drizzle's per-call AST build + `.returning()` SQL generation
+   * (~2× INSERT latency on the hot write path); this keeps UPDATE at INSERT
+   * parity with one bound statement + one round trip.
+   *
+   * `values` is the preparedValues output with the PK already stripped; all
+   * columns are bound (stable SQL text → statement-cache hits).
+   *
+   * skipReturning (full-document callers): runs the UPDATE without RETURNING
+   * and reconstructs the row from the prepared values — the no-read-back path
+   * mirrors the Drizzle branch at raw-statement cost.
+   *
+   * Returns null to defer to the Drizzle `.returning()` path.
+   */
+  protected async rawUpdateReturning<T extends BaseEntity>(
+    table: any,
+    collection: string,
+    values: Record<string, any>,
+    idCol: any,
+    id: DatabaseId,
+    options: BaseQueryOptions,
+  ): Promise<T | null> {
+    try {
+      const columns = Object.keys(values);
+      if (columns.length === 0) return null;
+      // tenantId === null needs an IS NULL predicate on the base path — the
+      // raw clause builder treats null as "no filter", which would widen the
+      // match beyond the Drizzle semantics. Defer.
+      if ((options as any)?.tenantId === null) return null;
+
+      const tableName = getTableName(table);
+      const idColName = idCol?.name || "_id";
+      const setPairs: string[] = [];
+      const params: any[] = [];
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i];
+        // Drizzle def property names may differ from physical column names
+        // (e.g. plugin_storage: collectionName → `collection`).
+        const phys = this.getColumn(table, col);
+        const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+        setPairs.push(`"${safeCol}" = ?`);
+        params.push(values[col]);
+      }
+
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
+        options,
+        "sqlite",
+      );
+      const setSql = setPairs.join(", ");
+      const whereSql = `"${idColName}" = ?${tenantSql}`;
+      const skipReturning = (options as any)?.skipReturning === true;
+
+      if (skipReturning) {
+        const runSql = `UPDATE "${tableName}" SET ${setSql} WHERE ${whereSql}`;
+        this.prepareAndExecute(runSql, "run", ...params, String(id), ...tenantParams);
+        const reconstructed = {
+          ...values,
+          [idColName]: id,
+        } as Record<string, unknown>;
+        return utils.convertDatesToISO(reconstructed, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as unknown as T;
+      }
+
+      const rawSql = `UPDATE "${tableName}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
+      const rows = this.prepareAndExecute(rawSql, "all", ...params, String(id), ...tenantParams);
+      if (Array.isArray(rows) && rows.length > 0) {
+        return utils.convertDatesToISO(rows[0], {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as T;
       }
       return null;
     } catch {
@@ -268,6 +351,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
 
       const cleanId = collection.replace(/-/g, "");
+      // 🛡️ Identifier allow-list: this name is embedded in raw SQL identifiers
+      // (SELECT/INSERT/DDL) across the adapter. Dash-stripping alone did not
+      // stop quote/backtick breakout from admin-typed collection names — fail
+      // closed BEFORE any SQL is assembled.
+      utils.assertSafeSqlIdentifier(cleanId, "collection");
       const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
 
       const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
@@ -445,6 +533,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           t.status,
           t.updatedAt,
         ),
+        // Status-less tenant list (default list page, ORDER BY updatedAt DESC)
+        tenantUpdatedIdx: index(`${name}_tenant_updated`).on(t.tenantId, t.updatedAt),
       };
       if (columnsToAdd) {
         for (const colName of columnsToAdd.keys()) {
@@ -1097,9 +1187,12 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     await this.wrap(
       async () => {
         const db = this.getDrizzleInstance(options);
-        const rawNames = conflictTarget.map((col: any) =>
-          col && typeof col === "object" && "name" in col ? `"${col.name}"` : `"${String(col)}"`,
-        );
+        // 🛡️ Conflict-target column names become raw SQL identifiers — assert
+        // the allow-list (fail closed) instead of trusting quote-doubling alone.
+        const rawNames = conflictTarget.map((col: any) => {
+          const name = col && typeof col === "object" && "name" in col ? col.name : String(col);
+          return `"${utils.assertSafeSqlIdentifier(name, "conflict-target")}"`;
+        });
         const rawTarget = sql.raw(rawNames.join(", "));
         // Strip undefined values — Drizzle SQLite insert crashes on undefined column values
         const cleanValues = Object.fromEntries(
@@ -1342,6 +1435,39 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         } catch {
           /* safe */
         }
+        // 🚀 KEYSET TIEBREAKER variant: findPage appends "_id" to the default
+        // sort (updatedAt DESC, _id DESC) so pages never overlap when rows
+        // share a timestamp. Including _id in the index keeps that ORDER BY
+        // index-served (no temp B-tree sort). New name on purpose — existing
+        // deployments keep the legacy 3-column index via IF NOT EXISTS.
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_updated_id" ON "${physicalName}" ("tenantId", "status", "updatedAt", "_id")`,
+          );
+        } catch {
+          /* safe */
+        }
+
+        // 🚀 COMPOSITE INDEX for the status-less tenant list (the default list
+        // page): WHERE tenantId=? ORDER BY updatedAt DESC LIMIT n. Without it
+        // SQLite scans the tenant index and sorts in a temp B-tree (~0.2ms/1k
+        // rows, growing linearly); with it the query is served directly from
+        // the index (measured ~6× faster, flat at 10k+ rows).
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_updated" ON "${physicalName}" ("tenantId", "updatedAt")`,
+          );
+        } catch {
+          /* safe */
+        }
+        // 🚀 KEYSET TIEBREAKER variant of the status-less tenant index (see above).
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_updated_id" ON "${physicalName}" ("tenantId", "updatedAt", "_id")`,
+          );
+        } catch {
+          /* safe */
+        }
 
         logger.info(`[SQLITE Adapter] Provisioned table: ${physicalName}`);
         this._provisionedTables.add(normalizedName);
@@ -1387,8 +1513,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
     if (isBun) {
       try {
-        // Use Function constructor to prevent TypeScript from resolving bun:sqlite
-        const { Database } = await new Function('return import("bun:sqlite")')();
+        // Standard dynamic import — "bun:sqlite" is declared in app.d.ts and
+        // listed in Vite's externals, so it is never statically bundled. The
+        // outer isBun guard (process.versions.bun) keeps this off the Node
+        // path; a failure still falls through to the node:sqlite fallback.
+        // (Previously used `new Function('return import(...)')` — an RCE-class
+        // eval sink that external scanners ban categorically.)
+        const { Database } = await import("bun:sqlite");
         let sqlite: any;
         let lastErr: any;
         for (let i = 0; i < 10; i++) {
@@ -1588,7 +1719,21 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       // Env DB_NAME is an explicit test-mode contract (the E2E/integration
       // harnesses pass it when no private.test.ts exists yet — e.g. the setup
       // wizard boot). The guard below only refuses when NO name is given.
-      const dbName = (config as any).DB_NAME || process.env.DB_NAME;
+      const rawDbName = (config as any).DB_NAME || process.env.DB_NAME;
+      // 🛡️ EXTENSION CANONICALIZATION: config-state's resolveSqlitePath
+      // (connection-string path) always appends ".sqlite". This fallback
+      // previously built `folder/<name>` WITHOUT the extension, so processes
+      // with and without a config landed on DIFFERENT files for the same
+      // logical DB (seed → sveltycms_test.sqlite, server → sveltycms_test)
+      // and benchmark logins 401'd against an empty sibling file. Append the
+      // extension here too so every code path resolves identically.
+      const dbName =
+        rawDbName &&
+        !rawDbName.endsWith(".sqlite") &&
+        !rawDbName.endsWith(".db") &&
+        !rawDbName.endsWith(":memory:")
+          ? `${rawDbName}.sqlite`
+          : rawDbName;
       const isTestDb =
         isTestHarness || (dbName && (dbName.includes("test") || dbName.includes("benchmark")));
       const defaultDbFolder = isTestDb ? "config/test-database" : "config/database";

@@ -76,7 +76,7 @@ beforeNavigate(({ cancel, to }) => {
 function selectGroup(groupId: string) {
 	const url = new URL(page.url.href);
 	url.searchParams.set("group", groupId);
-	goto(`${url.pathname}?${url.searchParams.toString()}`, { keepFocus: true, noScroll: true });
+	goto(`${url.pathname}?${url.searchParams.toString()}`, { reset: false });
 }
 
 // Repair Action State
@@ -176,7 +176,7 @@ onMount(() => {
 	if (!selectedGroupId && availableGroups.length > 0) {
 		const url = new URL(window.location.href);
 		url.searchParams.set("group", availableGroups[0].id);
-		goto(url.toString(), { replaceState: true });
+		goto(url.toString(), { replace: true });
 	}
 
 	checkAllGroupsForEmptyFields();

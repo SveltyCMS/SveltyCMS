@@ -12,7 +12,7 @@
  * bandwidth-intensive features (preloading, realtime streaming, animations).
  */
 
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 
 interface NavigatorConnection {
   effectiveType?: string;

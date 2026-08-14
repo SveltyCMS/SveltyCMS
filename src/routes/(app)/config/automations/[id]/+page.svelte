@@ -87,7 +87,7 @@ let flow: AutomationFlow = $state({
 onMount(async () => {
 	if (!isNew) {
 		try {
-			const result = await getAutomation(page.params.id);
+			const result = await getAutomation(page.params.id ?? "");
 			const loaded = unwrapFlow(result);
 			if (result.success && loaded) {
 				flow = loaded;

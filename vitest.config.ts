@@ -29,6 +29,7 @@ export default defineConfig({
     alias: {
       ...resolvedAliases,
       "$app/environment": path.resolve(__dirname, "tests/unit/mocks/$app/environment.ts"),
+      "$app/env": path.resolve(__dirname, "tests/unit/mocks/$app/environment.ts"),
       "$app/navigation": path.resolve(__dirname, "tests/unit/mocks/$app/navigation.ts"),
       "$app/state": path.resolve(__dirname, "tests/unit/mocks/$app/state.ts"),
       "$app/paths": path.resolve(__dirname, "tests/unit/mocks/$app/paths.ts"),

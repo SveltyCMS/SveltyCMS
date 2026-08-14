@@ -178,7 +178,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         boundValues.push(v);
         return `$${boundValues.length}`;
       });
-      const sqlText = `INSERT INTO "${tableName}" (${colList}) VALUES (${placeholders.join(", ")})`;
+      const sqlText = `INSERT INTO "${utils.assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders.join(", ")})`;
       await exec.unsafe(sqlText, boundValues, { prepare: true });
       return utils.convertDatesToISO(synthesized, {
         ...this.convertDatesOptions,
@@ -278,7 +278,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
               }
               valuesSql.push(`(${rowPlaceholders.join(", ")})`);
             }
-            const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
+            const sqlText = `INSERT INTO "${utils.assertSafeSqlIdentifier(
+              getTableName(table),
+              "table",
+            )}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
             const rows = await exec.unsafe(sqlText, params, { prepare: true });
             wroteAny = true;
             if (Array.isArray(rows) && rows.length > 0) rowsOut.push(...rows);
@@ -621,6 +624,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       }
 
       const cleanId = collection.replace(/-/g, "");
+      // 🛡️ Identifier allow-list: this name is embedded in raw SQL identifiers
+      // (rawFindById/insert/insertMany/update/DDL). Dash-stripping alone did
+      // not stop quote breakout from admin-typed collection names — fail
+      // closed BEFORE any SQL is assembled.
+      utils.assertSafeSqlIdentifier(cleanId, "collection");
       const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
 
       const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
@@ -1276,8 +1284,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
         for (const col of columns) {
           try {
+            // 🛡️ col.name can be admin-typed field LABEL text — allow-list it
+            // before it reaches ALTER/CREATE INDEX identifiers (the backfill
+            // loop below already asserts).
+            const colName = utils.assertSafeSqlIdentifier(col.name, "column");
             await this.raw.execute(
-              `ALTER TABLE "${physicalName}" ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type}`,
+              `ALTER TABLE "${physicalName}" ADD COLUMN IF NOT EXISTS "${colName}" ${col.type}`,
             );
           } catch {
             /* safe */
@@ -1310,8 +1322,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           }
         }
 
-        for (const colName of dynamicCols) {
+        for (const colNameRaw of dynamicCols) {
           try {
+            // 🛡️ Same allow-list as the ALTER loop — dynamicCols can carry
+            // admin-typed labels too.
+            const colName = utils.assertSafeSqlIdentifier(colNameRaw, "column");
             const indexName = `${physicalName}_${colName}_idx`;
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${colName}")`,
@@ -1328,6 +1343,36 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         try {
           await this.raw.execute(
             `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_updated" ON "${physicalName}" ("tenantId", status, "updatedAt" DESC)`,
+          );
+        } catch {
+          /* safe */
+        }
+        // 🚀 KEYSET TIEBREAKER variant: findPage appends "_id" to the default
+        // sort so pages never overlap when rows share a timestamp; including
+        // _id keeps that ORDER BY index-served (no sort node). New name on
+        // purpose — existing deployments keep the legacy index via IF NOT EXISTS.
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_updated_id" ON "${physicalName}" ("tenantId", status, "updatedAt" DESC, "_id" DESC)`,
+          );
+        } catch {
+          /* safe */
+        }
+        // 🚀 COMPOSITE INDEX for the status-less tenant list (the default list
+        // page): WHERE "tenantId"=? ORDER BY "updatedAt" DESC LIMIT n — avoids
+        // the sort node the status-composite index cannot serve without a
+        // status predicate (middle column unconstrained).
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_updated" ON "${physicalName}" ("tenantId", "updatedAt" DESC)`,
+          );
+        } catch {
+          /* safe */
+        }
+        // 🚀 KEYSET TIEBREAKER variant of the status-less tenant index (see above).
+        try {
+          await this.raw.execute(
+            `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_updated_id" ON "${physicalName}" ("tenantId", "updatedAt" DESC, "_id" DESC)`,
           );
         } catch {
           /* safe */

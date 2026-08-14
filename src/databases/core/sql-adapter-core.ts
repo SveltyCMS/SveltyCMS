@@ -59,6 +59,7 @@ import {
   mergeKeysetFilter,
   resolvePageSort,
   shouldUseEstimateCount,
+  withIdTiebreaker,
 } from "./page-utils";
 import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "./lookup-query";
 
@@ -267,6 +268,28 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     _table: any,
     _collection: string,
     _values: Record<string, any>,
+    _options: BaseQueryOptions,
+  ): Promise<T | null> {
+    return null;
+  }
+
+  /**
+   * Adapter-specific raw UPDATE…RETURNING — returns null when not used.
+   * SQLite overrides this to skip Drizzle's per-call AST build + `.returning()`
+   * SQL generation on the hot write path (UPDATE…RETURNING is one round trip
+   * like INSERT…RETURNING; the raw prepared statement keeps UPDATE at INSERT
+   * parity). The returned row is already date/JSON-normalized
+   * (convertDatesToISO applied) — the caller only applies after-hooks.
+   *
+   * `values` is the preparedValues output with the PK already stripped;
+   * `idCol` is the physical primary-key column.
+   */
+  protected async rawUpdateReturning<T extends BaseEntity>(
+    _table: any,
+    _collection: string,
+    _values: Record<string, any>,
+    _idCol: any,
+    _id: DatabaseId,
     _options: BaseQueryOptions,
   ): Promise<T | null> {
     return null;
@@ -594,9 +617,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           // (e.g. a materialized publishDate VARCHAR) and produced a Date that
           // SQLite bindings serialize as a JSON-quoted string — double-encoded
           // values that read back unparseable (temporal-integrity regression).
+          // Detection reads public getters (sqlite-core) AND `column.config`
+          // (mysql-core hides dataType/columnType from the public surface).
           const isDateColumn =
             isPhysical?.dataType === "date" ||
-            (isPhysical?.columnType && isPhysical.columnType.includes("Timestamp"));
+            (isPhysical?.columnType && String(isPhysical.columnType).includes("Timestamp")) ||
+            isPhysical?.config?.dataType === "date" ||
+            (isPhysical?.config?.columnType &&
+              String(isPhysical.config.columnType).includes("Timestamp"));
           const isSpecialTimestamp = k === "createdAt" || k === "updatedAt";
           if (typeof val === "number" && val > 0 && (isSpecialTimestamp || isDateColumn)) {
             val = new Date(val);
@@ -695,12 +723,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       table: getTableName(table),
     });
 
-    for (const k in result) {
-      const val = result[k];
-      if (val && typeof val === "object" && typeof (val as any).getTime === "function") {
-        result[k] = new Date((val as any).getTime());
-      }
-    }
+    // NOTE: no post-pass Date clone here — convertISOToDates already returns
+    // fresh Date objects for every date column (isoDateStringToDate / new
+    // Date(getTime())), and Drizzle + the raw prepared-statement paths bind
+    // Date instances natively (epoch ms via prepareAndExecute coercion).
+    // The former full-keys pass re-cloned every Date at pure cost.
 
     return result;
   }
@@ -863,10 +890,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if (isDynamic) {
           const selection = this.getProjectedSelection(table, options);
           const columns = Object.keys(selection);
-          const colList = columns.map((c) => this.quoteIdentifier(c)).join(", ");
+          // 🛡️ Defense-in-depth: quoteIdentifier escapes by quote-doubling, but
+          // the identifiers also pass the strict allow-list so a schema change
+          // can never smuggle a quote/backtick past the raw fragments.
+          const colList = columns
+            .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
+            .join(", ");
 
           let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(
-            this.quoteIdentifier(tableName),
+            this.quoteIdentifier(utils.assertSafeSqlIdentifier(tableName, "table")),
           )} WHERE ${where || sql`1=1`}`;
 
           if (options.sort) {
@@ -1069,7 +1101,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     options: FindPageOptions<T> = {},
   ): Promise<DatabaseResult<FindPageResult<T>>> {
     const pageSize = options.limit && options.limit > 0 ? options.limit : DEFAULT_PAGE_SIZE;
-    const sortOpt = (options.sort ?? defaultPageSortOption()) as FindOptions<T>["sort"];
+    // Keyset-stable ordering: append the _id tiebreaker in the same direction
+    // as the primary sort (matches mergeKeysetFilter's compound (field, _id)
+    // cursor) — without it, rows sharing the sort value order arbitrarily and
+    // page N+1 overlaps page N.
+    const sortOpt = withIdTiebreaker(
+      options.sort ?? defaultPageSortOption(),
+    ) as FindOptions<T>["sort"];
     const resolvedSort = resolvePageSort(sortOpt);
     const cursor = decodePageCursor(options.cursor);
     const pageQuery = cursor
@@ -1511,6 +1549,24 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         // untouched physical columns (status/createdAt/isDeleted) stay intact
         // in the response.
         const skipReturning = (options as any)?.skipReturning === true;
+
+        // 🚀 raw UPDATE fast path (SQLite): one prepared statement, one round
+        // trip — covers both RETURNING and skipReturning (no-read-back
+        // reconstruction from prepared values). Returns null when the adapter
+        // has no fast path or bailed; the Drizzle branches below fall back.
+        const rawRow = await this.rawUpdateReturning<T>(
+          table,
+          collection,
+          values,
+          idCol,
+          id,
+          options,
+        );
+        if (rawRow !== null) {
+          return this.hooks.length > 0
+            ? await this.runHooks("after", "update", collection, rawRow, options)
+            : rawRow;
+        }
 
         const query = this.getDrizzleInstance(options)
           .update(table)

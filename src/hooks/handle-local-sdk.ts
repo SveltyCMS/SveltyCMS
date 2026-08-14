@@ -12,7 +12,7 @@
 
 import { getDbInitPromise, dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
-import type { Handle } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { getRequestFlags } from "@utils/hook-utils";
 import { logger } from "@utils/logger";
 

@@ -99,7 +99,7 @@ bulk actions, and predictive preloading.
 	import { draggable, droppable } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 	import Checkbox from '@components/ui/checkbox.svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import {
@@ -156,7 +156,7 @@ bulk actions, and predictive preloading.
 	// 3. URL-BASED NAVIGATION (Replaces All Client-Side Fetching)
 	// =================================================================
 	function updateURL(updates: Record<string, string | number | null>) {
-		const newUrl = new URL(page.url);
+		const newUrl = new URL(page.url.href);
 		Object.entries(updates).forEach(([key, value]) => {
 			if (value === null || value === '') {
 				newUrl.searchParams.delete(key);
@@ -166,7 +166,7 @@ bulk actions, and predictive preloading.
 		});
 		// Guard: skip goto if URL hasn't changed to prevent effect_update_depth_exceeded
 		if (newUrl.href === page.url.href) return;
-		goto(newUrl, { keepFocus: true, noScroll: true });
+		goto(newUrl, { reset: false });
 	}
 
 	// Unified Smart Table (server mode) — selection, virtualization, density, sort/page callbacks

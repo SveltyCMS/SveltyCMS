@@ -57,7 +57,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
   import { untrack, onMount } from "svelte";
   import { goto, invalidate } from "$app/navigation";
   import { page } from "$app/state";
-  import { browser } from "$app/environment";
+  import { browser } from "$app/env";
   import {
     listThemes as apiListThemes,
     listMarketplaceThemes as apiListMarketplaceThemes,
@@ -302,17 +302,16 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
   const visibleTabs = $derived(ALL_TABS.filter((t) => !t.adminOnly || isAdmin));
 
-  function setActiveTab(id: AppearanceTabId) {
-    activeTab = id;
-    if (!browser) return;
-    const url = new URL(page.url);
-    url.searchParams.set("tab", id);
-    void goto(`${url.pathname}?${url.searchParams.toString()}`, {
-      replaceState: true,
-      keepFocus: true,
-      noScroll: true,
-    });
-  }
+  	function setActiveTab(id: AppearanceTabId) {
+  		activeTab = id;
+  		if (!browser) return;
+  		const url = new URL(page.url.href);
+  		url.searchParams.set("tab", id);
+  		void goto(`${url.pathname}?${url.searchParams.toString()}`, {
+  			replace: true,
+  			reset: false,
+  		});
+  	}
 
   // ── Form state (synced with live theme for preview) ──
   let density = $state<"compact" | "cozy" | "spacious">(

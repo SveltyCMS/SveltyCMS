@@ -10,7 +10,8 @@
  * - Static imports only — no per-request dynamic import microtasks
  */
 
-import { redirect, type Handle } from "@sveltejs/kit";
+import { redirect } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { contentSystem, ensureContentInitialized } from "@src/content/index.server";
 import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
