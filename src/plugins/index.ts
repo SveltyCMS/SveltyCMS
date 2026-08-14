@@ -91,37 +91,54 @@ for (const path in pluginModulesRaw) {
   }
 }
 
-// Isomorphic UI registration — available on client and server for slot/page renderers
-for (const plugin of availablePlugins) {
-  const pluginId = plugin.metadata.id;
+// Isomorphic UI registration — available on client and server for slot/page renderers.
+//
+// Idempotency guard: `+layout.svelte` (app shell) calls `registerPluginSlots()`
+// so bundlers can never hoist this module into a lazy route node without
+// executing it (Rolldown client builds ignore `manualChunks` when SvelteKit
+// sets `codeSplitting` — see vite.config.ts). The top-level call below keeps
+// server boot, dev, and eager consumers working; the exported function makes
+// the app shell a runtime dependency of the registration loop.
+let registrationsApplied = false;
 
-  if (plugin.ui?.slots) {
-    for (const slot of plugin.ui.slots) {
-      const registered = { ...slot, pluginId };
-      slotRegistry.register(registered);
+export function registerPluginSlots(): void {
+  if (registrationsApplied) return;
+  registrationsApplied = true;
 
-      if (slot.zone === "plugin_workspace" && slot.server) {
-        pluginServerRegistry.register(pluginId, slot.server);
+  for (const plugin of availablePlugins) {
+    const pluginId = plugin.metadata.id;
+
+    if (plugin.ui?.slots) {
+      for (const slot of plugin.ui.slots) {
+        const registered = { ...slot, pluginId };
+        slotRegistry.register(registered);
+
+        if (slot.zone === "plugin_workspace" && slot.server) {
+          pluginServerRegistry.register(pluginId, slot.server);
+        }
       }
     }
-  }
 
-  // Structured parts → isomorphic registries (pages + admin zones). Server-side
-  // validation happens in pluginRegistry.resolveParts during initializePlugins.
-  if (plugin.parts) {
-    for (const part of plugin.parts) {
-      if (part.type === "page") {
-        for (const page of part.pages) {
-          pluginPageRegistry.register(pluginId, page);
-        }
-      } else if (part.type === "adminTool") {
-        for (const tool of part.tools) {
-          adminZoneRegistry.registerTool(pluginId, tool);
+    // Structured parts → isomorphic registries (pages + admin zones). Server-side
+    // validation happens in pluginRegistry.resolveParts during initializePlugins.
+    if (plugin.parts) {
+      for (const part of plugin.parts) {
+        if (part.type === "page") {
+          for (const page of part.pages) {
+            pluginPageRegistry.register(pluginId, page);
+          }
+        } else if (part.type === "adminTool") {
+          for (const tool of part.tools) {
+            adminZoneRegistry.registerTool(pluginId, tool);
+          }
         }
       }
     }
   }
 }
+
+// Register eagerly — runs wherever this module executes (server boot, dev, HMR).
+registerPluginSlots();
 
 /**
  * Initialize plugin system

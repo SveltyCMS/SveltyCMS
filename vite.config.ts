@@ -1076,11 +1076,12 @@ export default defineConfig(() => {
       rollupOptions: {
         external: SERVER_EXTERNALS,
         output: {
-          // Force the plugin catalog (registration loop) into a shared shell chunk.
-          // Without this, Rollup hoists it into lazy route nodes (e.g. the collection
-          // page) that only statically import it for exports, so bare side-effect
-          // imports from the layout/overlay are dropped and plugin zones (workspace,
-          // config_grid, entry_edit_sidebar) stay unregistered on most pages.
+          // Force the plugin catalog (registration loop) into a shared shell chunk
+          // for the SSR build. NOTE: SvelteKit's CLIENT environment sets its own
+          // `output.codeSplitting`, which makes Rolldown IGNORE `manualChunks` —
+          // the client-side guarantee instead comes from `registerPluginSlots()`
+          // being called by the root layout (src/routes/+layout.svelte), which
+          // binds the catalog into the entry shell as a runtime dependency.
           manualChunks(id: string) {
             if (id.includes("/src/plugins/index.ts")) return "plugin-shell";
             return undefined;
