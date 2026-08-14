@@ -691,6 +691,80 @@ function copyWorkerFilePlugin(): Plugin {
 }
 
 /**
+ * adapter-node v6 (SvelteKit 3) post-build patches for the emitted server
+ * handler chunk:
+ *
+ * 1. `origin` is inlined at BUILD time (`const origin = ORIGIN`, i.e.
+ *    `const origin = void 0` when unset). It never reads `process.env.ORIGIN`
+ *    at runtime and falls back to deriving the origin from request headers
+ *    with a hardcoded `https` protocol default. On plain-HTTP previews
+ *    (CI e2e-prep, local `node build/index.js`, the `index.cjs` Plesk entry)
+ *    SvelteKit's remote same-origin gate then computes a self-origin of
+ *    `https://127.0.0.1:4173` while the browser sends
+ *    `Origin: http://127.0.0.1:4173`, so every non-GET remote function
+ *    (e.g. `completeSetup` in the setup wizard) is rejected with 403
+ *    "Cross-site remote requests are forbidden".
+ *    Fix: restore the adapter-node v5 runtime contract — read `ORIGIN` from
+ *    the environment at server start. When unset, behaviour is unchanged.
+ *
+ * 2. On Windows, Rolldown's code-splitting group for the adapter's `dir.js`
+ *    entry (which should emit `build/dir.js`) fails to match the Windows
+ *    path, so `dir.js` gets INLINED into the handler chunk as
+ *    `const dir = dirname(fileURLToPath(import.meta.url))`. Since the chunk
+ *    lives in `build/server/chunks/`, `dir` resolves there instead of the
+ *    build root, and every client asset 404s (asset_dir =
+ *    `<chunks>/client`) — the app never hydrates. On Linux the group splits
+ *    correctly, so this only rewrites the inlined form when present.
+ */
+function adapterNodeBuildPatchPlugin(): Plugin {
+  return {
+    name: "adapter-node-build-patch",
+    apply: "build",
+    // The kit adapter finalises `build/` in its own `buildApp` (order: 'post').
+    // Running as a post buildApp hook in array order means we patch AFTER the
+    // adapter has written the handler chunk.
+    buildApp: {
+      order: "post",
+      async handler() {
+        const chunkDirs = [
+          path.resolve(CWD, "build/server/chunks"),
+          path.resolve(CWD, ".svelte-kit/output/server/chunks"),
+        ];
+        const originPattern = /const origin\s*=\s*(?:void 0|undefined);/;
+        const inlineDirRegion =
+          /\/\/#region \.svelte-kit\/adapter-node\/entries\/dir\.js\nconst dir = dirname\(fileURLToPath\(import\.meta\.url\)\);\n\/\/#endregion/;
+        for (const dir of chunkDirs) {
+          if (!existsSync(dir)) continue;
+          for (const file of readdirSync(dir)) {
+            if (!/^handler-.*\.js$/.test(file)) continue;
+            const filePath = path.join(dir, file);
+            let code = readFileSync(filePath, "utf8");
+            let changed = false;
+            if (originPattern.test(code)) {
+              code = code.replace(originPattern, "const origin = process.env.ORIGIN;");
+              changed = true;
+            }
+            if (inlineDirRegion.test(code)) {
+              // Resolve the build root explicitly: chunks dir -> ../.. (works on
+              // Windows and Linux regardless of the chunk's hashed filename).
+              code = code.replace(
+                inlineDirRegion,
+                '//#region .svelte-kit/adapter-node/entries/dir.js (patched: resolve build root)\nconst dir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");\n//#endregion',
+              );
+              changed = true;
+            }
+            if (changed) {
+              await fsPromises.writeFile(filePath, code);
+              log.info(`patched adapter handler (${path.relative(CWD, filePath)})`);
+            }
+          }
+        }
+      },
+    },
+  };
+}
+
+/**
  * Vite 8 serves `/@vite/client` from `bundledDevClient.mjs` (and may use Windows
  * backslash ids). Built-in `@sveltejs/vite-plugin-svelte` inspector only transforms
  * `vite/dist/client/client.mjs`, so Alt+X never mounts.
@@ -958,6 +1032,7 @@ export default defineConfig(() => {
       sveltyCmsPlugin(),
       securityCheckPlugin(),
       copyWorkerFilePlugin(),
+      adapterNodeBuildPatchPlugin(),
       paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/paraglide" }),
     ],
     // 🚀 SK3: aliases moved from the deprecated `config.alias` to plain Vite

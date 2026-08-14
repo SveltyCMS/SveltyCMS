@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:b49ba9d2-7f40-45a4-8900-0f98d10d0cbb",
+  "serialNumber": "urn:uuid:c9462b01-0bb0-4ce8-a17c-36d6cc52342f",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-14T07:12:29.965Z",
+    "timestamp": "2026-08-14T08:50:21.627Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -2960,13 +2960,13 @@
     {
       "type": "library",
       "name": "@smithy/node-http-handler",
-      "version": "4.10.0",
-      "purl": "pkg:npm/@smithy/node-http-handler@4.10.0",
+      "version": "4.11.0",
+      "purl": "pkg:npm/@smithy/node-http-handler@4.11.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-nrh7VxqzPQS/ip1hS293aI/OAWDWARQvjUxCfuKhyrfHa2gTdk28066RNeWLI1uuoHXaKAkOF8IcSAHuOp0+SA=="
+          "content": "sha512-ssHIZsadPUA3lGdnoByxfnjtb9xPYQLvdfJRLKIwxOoa6tO1suG4sLFSsgd7D/CsvYd8QbBIuKTImuJha5l6aQ=="
         }
       ]
     },
@@ -9680,6 +9680,45 @@
     },
     {
       "type": "library",
+      "name": "@smithy/node-http-handler",
+      "version": "4.10.0",
+      "purl": "pkg:npm/@smithy/node-http-handler@4.10.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-nrh7VxqzPQS/ip1hS293aI/OAWDWARQvjUxCfuKhyrfHa2gTdk28066RNeWLI1uuoHXaKAkOF8IcSAHuOp0+SA=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@smithy/node-http-handler",
+      "version": "4.10.0",
+      "purl": "pkg:npm/@smithy/node-http-handler@4.10.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-nrh7VxqzPQS/ip1hS293aI/OAWDWARQvjUxCfuKhyrfHa2gTdk28066RNeWLI1uuoHXaKAkOF8IcSAHuOp0+SA=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@smithy/node-http-handler",
+      "version": "4.10.0",
+      "purl": "pkg:npm/@smithy/node-http-handler@4.10.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-nrh7VxqzPQS/ip1hS293aI/OAWDWARQvjUxCfuKhyrfHa2gTdk28066RNeWLI1uuoHXaKAkOF8IcSAHuOp0+SA=="
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "js-tokens",
       "version": "4.0.0",
       "purl": "pkg:npm/js-tokens@4.0.0",
@@ -9818,6 +9857,19 @@
         {
           "alg": "SHA-512",
           "content": "sha512-0JFs3V2y2M9tKW5na/qxe69Zv+uxLMO7QBbhxF/FHu/Gp2NFZAAL9tWl9PU02xxo07pb3G9FTyjNc6D5uZrJIg=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@smithy/core",
+      "version": "3.33.0",
+      "purl": "pkg:npm/@smithy/core@3.33.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-uKbkxgqLyepQDZoq8aRSdUqD1ID//rOqG96ixBhp++O7vBtmwYM6fwldGhr9HJP0iYrdc7GP/AlgzPWEZIrNRg=="
         }
       ]
     },
