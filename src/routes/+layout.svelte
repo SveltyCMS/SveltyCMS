@@ -23,10 +23,14 @@ import "../app.css";
 // Register Iconify custom element globally
 import "iconify-icon";
 
-// Plugin UI slot registration MUST run with the app shell — bundlers hoist this
-// side-effect module into lazy route nodes when only route pages import it,
-// leaving plugin workspaces (and other zones) unregistered on first load.
-import "@src/plugins/index";
+// Plugin UI slot registration MUST run with the app shell — bundlers hoist a
+// bare side-effect import into lazy route nodes when only route pages import
+// it, leaving plugin workspaces (and other zones) unregistered on first load.
+// A runtime call creates a hard dependency so the plugin catalog executes at
+// app start even when the bundler ignores manualChunks (Rolldown client builds
+// drop manualChunks when SvelteKit sets output.codeSplitting — see vite.config.ts).
+import { registerPluginSlots } from "@src/plugins/index";
+registerPluginSlots();
 
 import { onMount, untrack } from "svelte";
 import { browser } from "$app/env";
