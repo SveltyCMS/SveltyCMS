@@ -847,9 +847,13 @@ search filtering, and RTL support.
       changed — colour, width and style still come from the global rule, so the
       focus affordance stays identical to the rest of the app.
 
-      This is CSS rather than a utility class because `cn` is plain clsx with no
-      tailwind-merge: a competing utility would be resolved by stylesheet order,
-      not by its position in the class attribute.
+      Why not a Tailwind utility: `focus-visible:-outline-offset-2` compiles fine,
+      but Tailwind emits it into `@layer utilities` while the rule above is
+      UNLAYERED. Unlayered declarations beat every layered one regardless of
+      specificity, so the utility is generated and simply never applies. Verified
+      in the browser: computed outline-offset stayed 2px with the utility on the
+      element. Same reason the ring reset below is CSS — `cn` is plain clsx (no
+      tailwind-merge), so a competing utility loses on stylesheet order anyway.
     */
     :global(.tree-node-btn:focus-visible) {
         outline-offset: -2px;
