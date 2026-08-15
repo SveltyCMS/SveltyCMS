@@ -200,12 +200,20 @@ search filtering, and RTL support.
     // Normalize items: support both `items` and `nodes` props
     const rawItems: TreeItem[] = $derived((itemsProp ?? nodesProp ?? []) as TreeItem[]);
 
-    // Sync initial isExpanded from node data (one-time seed only when not already tracked)
+    // Seed expansion from node data. Strictly once per node id: `rawItems` is
+    // rebuilt on every upstream change, so re-seeding would keep re-opening a
+    // node the user has just collapsed.
+    const seededExpanded = new Set<string>();
     $effect(() => {
         if (variant === 'media') return;
         const syncExpanded = (nodes: TreeItem[]) => {
             nodes.forEach((node) => {
-                if (node.isExpanded && node.id && !expandedIds.has(node.id)) {
+                if (!node.id || seededExpanded.has(node.id)) {
+                    if (node.children) syncExpanded(node.children);
+                    return;
+                }
+                seededExpanded.add(node.id);
+                if (node.isExpanded && !expandedIds.has(node.id)) {
                     expandedIds.add(node.id);
                 }
                 if (node.children) syncExpanded(node.children);
@@ -544,24 +552,32 @@ search filtering, and RTL support.
 </script>
 
 {#snippet treeNode(node: TreeItem, depth: number)}
-    {const hasChildren = !!(node.children && node.children.length > 0)}
-    {const expanded = expandedIds.has(node.id)}
-    {const isSelected = selectedId === node.id}
-    {const isFocused = focusedNodeId === node.id}
-    {const nodeLabel = getNodeLabel(node)}
-    {const showBadge = shouldShowBadge(node)}
-    {const isMedia = variant === 'media'}
-    {const isRoot = depth === 0 && node.id === 'root'}
-    {const showChevron = hasChildren}
-    {const mediaIconTone = 'text-surface-300 dark:text-surface-300'}
-    {const mediaRootText = 'text-surface-200 dark:text-surface-200'}
-    {const mediaFolderText = 'text-surface-400 dark:text-surface-400'}
-    {const mediaSelectedText = 'text-amber-400 dark:text-amber-300'}
-    {const mediaGuideLine = 'bg-surface-600/50 dark:bg-white/10'}
+    {@const hasChildren = !!(node.children && node.children.length > 0)}
+    {@const expanded = expandedIds.has(node.id)}
+    {@const isSelected = selectedId === node.id}
+    {@const isFocused = focusedNodeId === node.id}
+    {@const nodeLabel = getNodeLabel(node)}
+    {@const showBadge = shouldShowBadge(node)}
+    {@const isMedia = variant === 'media'}
+    {@const isRoot = depth === 0 && node.id === 'root'}
+    {@const showChevron = hasChildren}
+    {@const mediaIconTone = 'text-surface-300 dark:text-surface-300'}
+    {@const mediaRootText = 'text-surface-200 dark:text-surface-200'}
+    {@const mediaFolderText = 'text-surface-400 dark:text-surface-400'}
+    {@const mediaSelectedText = 'text-amber-400 dark:text-amber-300'}
+    {@const mediaGuideLine = 'bg-surface-600/50 dark:bg-white/10'}
 
+    <div class="flex flex-col" data-item-id={node.id}>
+    <!--
+        Row wrapper. Everything that is positioned relative to a *row* (hover
+        actions, drop indicators, the sveltednd drop highlight) lives here and
+        NOT on the outer node div — the outer div also contains the expanded
+        child subtree, so `top-1/2` there centres on the whole subtree and the
+        overlay escapes the row. `isolate` gives the row its own stacking
+        context so inner z-indexes can never paint over sticky sidebar chrome.
+    -->
     <div
-        class="flex flex-col group/item relative"
-        data-item-id={node.id}
+        class="group/item relative isolate flex w-full min-w-0 items-center"
         data-node-type={node.type || node.nodeType || (isMedia ? 'folder' : undefined)}
         data-media-drop-target={externalDrop?.enabled ? node.id : undefined}
         use:droppable={externalDroppableOptions(node.id)}
@@ -576,7 +592,12 @@ search filtering, and RTL support.
             size="sm"
             id={`treenode-${node.id}`}
             class={cn(
-                'flex w-full group focus:outline-none justify-start text-start',
+                // Rows are full-bleed inside a clipping scroll container that has no
+                // inline-start padding, so any ring drawn *outside* the button box gets
+                // shaved off on the left. `tree-node-btn` keeps every focus ring inset
+                // (see the <style> block — `cn` is plain clsx, so a utility class alone
+                // cannot outrank Button's own focus-visible ring).
+                'tree-node-btn flex w-full min-w-0 group focus:outline-none justify-start text-start',
                 isMedia
                     ? cn(
                         'rounded-none border-0 bg-transparent px-0 shadow-none transition-colors',
@@ -590,7 +611,7 @@ search filtering, and RTL support.
                                 'min-h-7.5',
                                 isSelected ? cn('font-medium', mediaSelectedText) : 'font-normal',
                             ),
-                        isFocused && 'ring-1 ring-primary-500/40 ring-offset-1 ring-offset-transparent',
+                        isFocused && 'ring-1 ring-inset ring-primary-500/40',
                     )
                     : cn(
                         'items-center rounded-lg transition-all border border-transparent px-2',
@@ -599,7 +620,7 @@ search filtering, and RTL support.
                         isSelected
                             ? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-300 shadow-xs'
                             : 'hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-100',
-                        isFocused && 'ring-2 ring-primary-500/50 shadow-sm',
+                        isFocused && 'ring-2 ring-inset ring-primary-500/50 shadow-sm',
                     ),
                 draggedNode?.id === node.id && 'opacity-40 grayscale',
                 dragOverNode?.id === node.id && dropPosition === 'inside' && 'bg-tertiary-500/20! dark:bg-primary-500/20! border-tertiary-500! dark:border-primary-500!',
@@ -717,16 +738,19 @@ search filtering, and RTL support.
                 role="tree" root (aria-required-children violation). A group is an
                 allowed tree child and has no child-role restrictions.
             -->
-            <div class="absolute inset-e-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100"
+            <div class="absolute inset-e-2 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100"
                 role="group"
                 aria-label="Item actions">
                 {#each node.actions as act (act.label)}
+                    <!-- size="sm" + explicit box: the default md button is 40px tall and
+                         overhangs a 32px tree row on both edges. -->
                     <Button variant="ghost"
+                        size="sm"
                         type="button"
                         onclick={(e: MouseEvent) => { e.stopPropagation(); act.onClick(node, e); }}
                         aria-label={act.label}
                         title={act.label}
-                     class="p-0! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700">
+                     class="h-6! w-6! p-0! min-w-0 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700">
                         <iconify-icon icon={act.icon} width="16" class={act.colorClass || ''} aria-hidden="true"></iconify-icon>
                     </Button>
                 {/each}
@@ -737,11 +761,21 @@ search filtering, and RTL support.
         {#if dragOverNode?.id === node.id && dropPosition === 'after'}
             <div class="absolute -bottom-0.5 inset-s-0 inset-e-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
         {/if}
+    </div>
+    <!-- /row wrapper -->
 
         <!-- Children (recursive) -->
         {#if hasChildren}
+            <!--
+                sveltednd paints its "after" drop line on the droppable's
+                nextElementSibling — which, for a row, is this container. Mark it so
+                app.css can suppress that line (folder targets have no insert index).
+                A separate attribute, NOT data-media-drop-target: that one identifies
+                real drop zones and is queried by name in the media e2e specs.
+            -->
             <div
                 id={`node-${node.id}-children`}
+                data-media-drop-line-guard={externalDrop?.enabled ? '' : undefined}
                 class={cn(
                     'relative',
                     isMedia && isRoot ? 'ms-0' : computedDensity === 'compact' ? 'ms-1' : 'ms-4',
@@ -802,6 +836,29 @@ search filtering, and RTL support.
 </div>
 
 <style>
+    /*
+      Tree rows are full-bleed: the row button's box starts exactly at the
+      inline-start edge of the sidebar's clipping scroll container, which has no
+      inline-start padding. The global a11y focus ring in src/utilities.css uses
+      `outline-offset: 2px`, so on these rows those 2px land outside the clip and
+      the outline renders visibly cut off along the left edge.
+
+      Draw the same indicator just *inside* the row instead. Only the offset is
+      changed — colour, width and style still come from the global rule, so the
+      focus affordance stays identical to the rest of the app.
+
+      This is CSS rather than a utility class because `cn` is plain clsx with no
+      tailwind-merge: a competing utility would be resolved by stylesheet order,
+      not by its position in the class attribute.
+    */
+    :global(.tree-node-btn:focus-visible) {
+        outline-offset: -2px;
+        /* The outline above is the focus indicator; suppress Button's own
+           focus-visible ring so the two don't stack into a double border. */
+        --tw-ring-shadow: 0 0 #0000;
+        --tw-ring-offset-shadow: 0 0 #0000;
+    }
+
     @media (prefers-reduced-motion: reduce) {
         *,
         *::before,

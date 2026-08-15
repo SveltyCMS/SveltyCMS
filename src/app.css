@@ -300,7 +300,14 @@
 [data-media-drop-target].drop-before::before,
 [data-media-drop-target].drop-after::after,
 [data-media-drop-target].drop-left::before,
-[data-media-drop-target].drop-right::after {
+[data-media-drop-target].drop-right::after,
+/* sveltednd transfers the "after" line onto the drop zone's nextElementSibling.
+   In the sidebar tree that sibling is the node's children container, which is
+   not itself a drop zone — mark it so the line stays hidden there too. */
+[data-media-drop-line-guard].drop-before::before,
+[data-media-drop-line-guard].drop-after::after,
+[data-media-drop-line-guard].drop-left::before,
+[data-media-drop-line-guard].drop-right::after {
   content: none;
   display: none;
 }
