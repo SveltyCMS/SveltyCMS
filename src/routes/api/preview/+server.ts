@@ -38,6 +38,17 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
     maxAge: 60 * 60,
   });
 
+  // 🛡️ Only allow relative paths — block protocol-relative (//evil.com) and
+  // absolute URLs so a crafted slug cannot turn this into an open redirect.
+  if (
+    slug.startsWith("//") ||
+    slug.startsWith("http://") ||
+    slug.startsWith("https://") ||
+    slug.startsWith("/\\") ||
+    slug.includes("\\")
+  ) {
+    throw error(400, "Invalid preview target");
+  }
   const target = slug.startsWith("/") ? slug : `/${slug}`;
   throw redirect(307, `${target}?preview_token=${encodeURIComponent(previewToken)}`);
 };
