@@ -15,7 +15,7 @@
  * - Authenticated list as A includes A's marker
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { waitForServer, cleanupTestDatabase, getApiBaseUrl } from "../helpers/server";
 import { prepareAuthenticatedContext, testFixtures } from "../helpers/test-setup";
 
