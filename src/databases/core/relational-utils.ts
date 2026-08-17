@@ -704,10 +704,21 @@ export function applyTenantFilterToMongoQuery<T extends Record<string, unknown>>
 /**
  * Validate a SQL identifier before embedding in raw SQL (column/JSON key names).
  * Never use for values — bind those as parameters instead.
+ *
+ * Also enforces Postgres's NAMEDATALEN (63) identifier limit: PG silently
+ * truncates longer identifiers, which can collide two distinct names onto one
+ * column (PayloadCMS ea0d69d class). 63 is the strictest bound across
+ * supported dialects (MySQL 64, SQLite unbounded), so failing here keeps all
+ * adapters consistent and fails at DDL time instead of on silent truncation.
  */
 export function assertSafeSqlIdentifier(name: string, label = "field"): string {
   if (typeof name !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
     throw new Error(`Invalid SQL identifier for ${label}: ${String(name)}`);
+  }
+  if (name.length > 63) {
+    throw new Error(
+      `SQL identifier for ${label} exceeds 63 chars (Postgres NAMEDATALEN) and would be silently truncated: ${name.slice(0, 40)}… (${name.length} chars)`,
+    );
   }
   return name;
 }
