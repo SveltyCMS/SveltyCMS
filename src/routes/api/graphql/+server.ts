@@ -531,13 +531,15 @@ async function handleRequest(event: RequestEvent) {
   }
 
   // ── CACHE MISS PATH: Load content system, DB adapter & Yoga app ──
-  const { contentSystem } = await import("@src/content/index.server");
-  if (PROFILE_WRITE_ENABLED) {
-    const reloadEnd = profileMark("gql:waitForReload");
-    await contentSystem.waitForReload();
-    reloadEnd();
-  } else {
-    await contentSystem.waitForReload();
+  const { contentStore } = await import("@src/stores/content-registry.svelte");
+  if (contentStore.isReloading) {
+    if (PROFILE_WRITE_ENABLED) {
+      const reloadEnd = profileMark("gql:waitForReload");
+      await contentStore.waitForReload();
+      reloadEnd();
+    } else {
+      await contentStore.waitForReload();
+    }
   }
 
   let adapter = locals.dbAdapter;

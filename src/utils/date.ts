@@ -34,14 +34,30 @@ export function isISODateString(value: unknown): value is ISODateString {
 // Backward compatibility wrappers
 export const nowISODateString = (): ISODateString => dateToISODateString(new Date());
 
-export function isoDateStringToDate(isoString: ISODateString): Date {
-  return new Date(isoString);
+/**
+ * Safely converts an ISO date string to a Date object, returning null if invalid or NaN.
+ */
+export function safeIsoDateStringToDate(isoString: string | null | undefined): Date | null {
+  if (!isoString || typeof isoString !== "string") return null;
+  const d = new Date(isoString);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Converts an ISO date string to a Date object with automatic fallback to Date.now() on invalid input.
+ */
+export function isoDateStringToDate(isoString: ISODateString | string): Date {
+  const d = new Date(isoString);
+  return Number.isNaN(d.getTime()) ? new Date() : d;
 }
 
 /**
  * Convert Date to ISODateString with validation.
  */
 export function dateToISODateString(date: Date): ISODateString {
+  if (!date || Number.isNaN(date.getTime())) {
+    return new Date().toISOString() as ISODateString;
+  }
   return date.toISOString() as ISODateString;
 }
 

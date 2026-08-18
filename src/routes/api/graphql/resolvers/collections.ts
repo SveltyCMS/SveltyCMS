@@ -427,6 +427,25 @@ export async function registerCollections(tenantId?: string | null) {
   };
 }
 
+function extractGraphQLFields(info: any): string[] | undefined {
+  if (!info || !info.fieldNodes || info.fieldNodes.length === 0) return undefined;
+  const selections = info.fieldNodes[0]?.selectionSet?.selections;
+  if (!selections || selections.length === 0) return undefined;
+
+  const fields: string[] = [];
+  for (const sel of selections) {
+    if (sel.kind === "Field" && sel.name?.value && !sel.name.value.startsWith("__")) {
+      fields.push(sel.name.value);
+    }
+  }
+
+  if (fields.length > 0) {
+    if (!fields.includes("_id")) fields.push("_id");
+    return fields;
+  }
+  return undefined;
+}
+
 // Builds resolvers for querying collection data.
 export async function collectionsResolvers(
   dbAdapter: DatabaseAdapter,
@@ -450,6 +469,7 @@ export async function collectionsResolvers(
       _parent: unknown,
       args: { pagination?: { page?: number; limit?: number } },
       context: unknown,
+      info?: any,
     ): Promise<DocumentBase[]> {
       const ctx = context as {
         user?: User;
@@ -482,6 +502,7 @@ export async function collectionsResolvers(
       }
 
       const { page = 1, limit = 50 } = args.pagination || {};
+      const fields = extractGraphQLFields(info);
 
       try {
         let cms = ctx.cms;
@@ -496,6 +517,7 @@ export async function collectionsResolvers(
           offset: (page - 1) * limit,
           publicationFilter: ctx.publicationFilter || "all",
           user: ctx.user,
+          fields,
         });
 
         if (!result.success) {
@@ -503,54 +525,45 @@ export async function collectionsResolvers(
         }
 
         const resultArray = (result.data || []) as unknown as DocumentBase[];
+        if (resultArray.length === 0) return resultArray;
 
-        const processedResults = await Promise.all(
-          resultArray.map(async (doc) => {
-            // Fast-path token detection: scan string fields without allocating JSON.stringify(doc)
-            let hasToken = false;
-            for (const key in doc) {
-              if (!Object.hasOwn(doc, key)) continue;
-              const value = doc[key];
-              if (typeof value === "string" && value.includes("{{")) {
-                hasToken = true;
-                break;
+        // Quick check: does any document have a token placeholder?
+        let hasAnyTokens = false;
+        for (let i = 0; i < resultArray.length; i++) {
+          const doc = resultArray[i];
+          for (const key in doc) {
+            if (!Object.hasOwn(doc, key)) continue;
+            const value = (doc as any)[key];
+            if (typeof value === "string" && value.includes("{{")) {
+              hasAnyTokens = true;
+              break;
+            }
+          }
+          if (hasAnyTokens) break;
+        }
+
+        if (!hasAnyTokens) {
+          return resultArray;
+        }
+
+        // Only run async token replacement on documents containing {{
+        for (let i = 0; i < resultArray.length; i++) {
+          const doc = resultArray[i];
+          const tokenContext: TokenContext = { entry: doc, user: ctx.user };
+          for (const key in doc) {
+            if (!Object.hasOwn(doc, key)) continue;
+            const value = (doc as any)[key];
+            if (typeof value === "string" && value.includes("{{")) {
+              try {
+                (doc as any)[key] = await replaceTokens(value, tokenContext);
+              } catch {
+                /* ignore */
               }
             }
-            if (hasToken) {
-              const tokenContext: TokenContext = { entry: doc, user: ctx.user };
-              for (const key in doc) {
-                if (!Object.hasOwn(doc, key)) continue;
-                const value = doc[key];
-                if (typeof value === "string" && value.includes("{{")) {
-                  try {
-                    doc[key] = await replaceTokens(value, tokenContext);
-                  } catch {
-                    /* ignore */
-                  }
-                }
-              }
-            }
+          }
+        }
 
-            // 2. Date Normalization (Optimized: Skip re-parsing if already ISO)
-            const c = doc.createdAt as string;
-            if (c && typeof c === "string" && c.length >= 20 && c.endsWith("Z")) {
-              // Already ISO, skip re-parse
-            } else {
-              doc.createdAt = c ? new Date(c).toISOString() : new Date().toISOString();
-            }
-
-            const u = doc.updatedAt as string;
-            if (u && typeof u === "string" && u.length >= 20 && u.endsWith("Z")) {
-              // Already ISO, skip re-parse
-            } else {
-              doc.updatedAt = u ? new Date(u).toISOString() : doc.createdAt;
-            }
-
-            return doc;
-          }),
-        );
-
-        return processedResults;
+        return resultArray;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error(`Error fetching data for ${collection._id}: ${errorMessage}`);
