@@ -629,7 +629,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // not stop quote breakout from admin-typed collection names — fail
       // closed BEFORE any SQL is assembled.
       utils.assertSafeSqlIdentifier(cleanId, "collection");
-      const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
+      // ⚠️ Composite length guard: the interpolated identifier is
+      // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
+      // not enough — the composite can exceed NAMEDATALEN=63 and PG would
+      // silently truncate, colliding with a longer sibling name. Fail closed
+      // on the FINAL identifier.
+      const tableName = utils.assertSafeSqlIdentifier(
+        cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`,
+        "table",
+      );
 
       const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
       if (helpers.isSystemTable(cleanName) && cleanName !== collection) {
