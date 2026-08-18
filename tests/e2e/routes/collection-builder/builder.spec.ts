@@ -190,6 +190,9 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await titleBox.fill("Golden Entry");
     await page.getByRole("button", { name: /save/i }).first().click();
 
+    // Re-open entry list view to assert table row
+    await openCollectionEntries(page, fixture.slug);
+
     // List may truncate cell text — assert a data row with status affordance
     await expect(
       page

@@ -49,6 +49,10 @@ SveltyCMS uses high-entropy, cryptographically secure random tokens for session 
 - **Stored directly** in cookies and database — no additional hashing required due to CSPRNG source
 - **Rotated automatically** on login. On password change, all other active sessions across all devices are immediately invalidated.
 
+### Cookie Invalidation Parity
+
+When destroying sessions (`clearSessionCookies`), SveltyCMS sets exact matching deletion attributes (`path: "/"`, `httpOnly: true`, `sameSite`, `secure`) matching `setSessionCookie`. This ensures session cookies are cleanly invalidated by user agents across all cross-site or subdomain contexts.
+
 ### Multi-Tenancy 2.0
 
 Sessions are isolated by `tenantId`. A user's session is only valid for the tenant it was created for, preventing cross-tenant access even if a session ID were compromised.

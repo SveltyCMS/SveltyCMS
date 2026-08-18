@@ -82,7 +82,7 @@ export class TransactionModule {
           return { success: true, data: result } as any;
         }
 
-        if (!result.success) {
+        if (!result.success && (result as any).rollback !== false) {
           throw new Error(result.message || "Transaction failed");
         }
         return result;

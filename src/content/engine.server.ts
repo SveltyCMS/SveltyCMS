@@ -23,6 +23,7 @@ import { generateCategoryNodesFromPaths } from "./content-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { eventBus, SystemEvents } from "@utils/event-bus";
 import { generateSchemaHash, isSafeCollectionPath, loadSchema } from "./loader.server";
+import { getCollectionsPath } from "@utils/tenant.server";
 
 // ─── Cache helpers ───────────────────────────────────────────────────────────
 
@@ -669,6 +670,53 @@ export const contentService = {
     contentStore.sync(nodes);
   },
 
+  /**
+   * True when a source collection .ts file still exists on disk for a DB node.
+   *
+   * The content watcher can trigger a full reload mid-compile (the compiler
+   * replaces the compiled .js atomically: delete → rewrite), so a scan may
+   * briefly not see a file that still exists. Pruning a filesystem node is only
+   * safe when its SOURCE is really gone — otherwise a collection-save would
+   * race its own watcher echo and delete the structure node it just wrote.
+   */
+  hasSourceCollectionFile(node: ContentNode, tenantId?: string | null): boolean {
+    const dirs = new Set<string>([
+      getCollectionsPath(tenantId),
+      getCollectionsPath(null),
+      path.resolve(process.cwd(), "config", "collections"),
+      path.resolve(process.cwd(), "config", "test-collections"),
+    ]);
+
+    const bases = new Set<string>();
+    const pathPart = (node.path || "")
+      .replace(/^\/collection\//, "")
+      .replace(/^\/+/, "")
+      .toLowerCase();
+    if (pathPart) bases.add(pathPart);
+    for (const raw of [
+      node._id,
+      node.name,
+      (node.collectionDef as { slug?: string } | undefined)?.slug,
+    ]) {
+      if (!raw) continue;
+      const cleaned = String(raw)
+        .replace(/^\/collection\//, "")
+        .replace(/^\/+/, "")
+        .replace(/[\\/]/g, "")
+        .toLowerCase();
+      if (cleaned) bases.add(cleaned);
+    }
+
+    for (const dir of dirs) {
+      for (const base of bases) {
+        const candidate = path.resolve(dir, `${base}.ts`);
+        if (!candidate.toLowerCase().startsWith(dir.toLowerCase() + path.sep)) continue;
+        if (existsSync(candidate)) return true;
+      }
+    }
+    return false;
+  },
+
   calculateReconciledOperations(
     schemas: Schema[],
     dbNodes: ContentNode[],
@@ -755,13 +803,26 @@ export const contentService = {
       // Builder/API categories and organizational nodes are preserved.
       const source = dbNode.source || "filesystem";
 
+      // 🛡️ TRANSIENT-ABSENCE GUARD: the content watcher can trigger a full
+      // reload mid-compile (the compiler replaces the compiled .js atomically:
+      // delete → rewrite), so the scan may briefly not see a file that still
+      // exists on disk. Pruning is only safe when the SOURCE .ts is really
+      // gone — otherwise the just-saved node gets deleted from the DB and the
+      // builder board falls back to an empty state.
       if (source === "filesystem" && dbNode.nodeType !== "category") {
-        if (process.env.BENCHMARK_DEBUG === "true") {
-          logger.debug(
-            `[Reconcile] Pruning stale filesystem node: ${path} (type: ${dbNode.nodeType})`,
-          );
+        if (this?.hasSourceCollectionFile?.(dbNode, tenantId)) {
+          if (process.env.BENCHMARK_DEBUG === "true") {
+            logger.debug(`[Reconcile] Preserving transient node (source exists): ${path}`);
+          }
+          preservedNodes.push(dbNode);
+        } else {
+          if (process.env.BENCHMARK_DEBUG === "true") {
+            logger.debug(
+              `[Reconcile] Pruning stale filesystem node: ${path} (type: ${dbNode.nodeType})`,
+            );
+          }
+          if (path) prunedPaths.push(path);
         }
-        if (path) prunedPaths.push(path);
       } else {
         if (process.env.BENCHMARK_DEBUG === "true") {
           logger.debug(`[Reconcile] Preserving API/Internal node: ${path} (source: ${source})`);
@@ -983,6 +1044,10 @@ export const contentService = {
     const res = await db.content.nodes.getStructure(format as any, {
       tenantId: tenantId as any,
       bypassTenantCheck: true,
+      // Fresh read: callers use this right after structure writes (saves,
+      // GUI reorders) — a stale cached empty list would render an empty
+      // builder board even though the DB row exists.
+      bypassCache: true,
     });
     return res.success ? res.data : [];
   },

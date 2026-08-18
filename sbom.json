@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:9e9d2922-d733-4956-ab67-b7e35ce50e80",
+  "serialNumber": "urn:uuid:2f2981df-ae2d-43d4-a8fe-771bb1c19124",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-17T19:26:45.395Z",
+    "timestamp": "2026-08-18T13:47:30.140Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -74,13 +74,13 @@
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1111.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1111.0",
+      "version": "3.1112.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1112.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-VnLT6aSTN8tWl/NsXUysXNZor7wQBp9CRwufo7kt8cwGXvHLZ0S/cV1K9WFcREGboVYSo3NGQ3ZvU7LRidh2aQ=="
+          "content": "sha512-E+Z+rIkExcUQbnV9EYfT/fOnveV9B8vIZUzE+wYCVMKgcn/aJJy73FvRf46SGd1NqgT8ESqNlk3Wc/9wE/7/Og=="
         }
       ]
     },
@@ -3948,13 +3948,13 @@
     {
       "type": "library",
       "name": "@tiptap/y-tiptap",
-      "version": "3.0.8",
-      "purl": "pkg:npm/@tiptap/y-tiptap@3.0.8",
+      "version": "3.0.9",
+      "purl": "pkg:npm/@tiptap/y-tiptap@3.0.9",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-+kndlSuoUK9sKVRuxbAHXNrbDvyydnG/Y0NFU9XXqaSkI9IRcrjpOf1RGd7NrC9jJXquDqZS96wOQf6eUpP9Dg=="
+          "content": "sha512-7/El8NQ8R5V5MkdrOUdfj9IgZacpt0H071xNimX7B0AnYiWiKefQnMKd41neQYzo2MOXbWdN3iZ+7Z7BruzOSA=="
         }
       ]
     },
@@ -7029,13 +7029,13 @@
     {
       "type": "library",
       "name": "maplibre-gl",
-      "version": "6.4.0",
-      "purl": "pkg:npm/maplibre-gl@6.4.0",
+      "version": "6.4.1",
+      "purl": "pkg:npm/maplibre-gl@6.4.1",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-pCgDUsaYFuZwIH37aV2qF4m03nZPlW79DlqC+cQ+48tpqiqW2SJyA7fEOcFrS5ilDK493f0X3LxiH17T5BqV7g=="
+          "content": "sha512-KzxQKtfBu/pSz1C+yW1hNS9eyj2h2lC7ufdAi6/SEt177n3oAfDfmUmslRfJdXY7ReAFBcnvwsqmiyoDhtA9GQ=="
         }
       ]
     },

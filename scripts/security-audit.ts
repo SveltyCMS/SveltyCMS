@@ -147,21 +147,21 @@ if (RUN_SLOP_SCAN) {
     console.error("\n❌ Code quality scan failed\n", err);
     exitCode = 1;
   }
-
-  // ── API Payload Fuzzer ────────────────────────────────────────────
-  if (RUN_FUZZ_SCAN) {
-    console.log("\n━━━ API Payload Fuzzer ━━━\n");
-    try {
-      const { runFuzzAudit } = await import("./security/fuzzer");
-      const res = runFuzzAudit();
-      console.log(
-        `✅ Fuzzing passed (${res.iterations} payloads tested, ${res.blockedByWaf} blocked by WAF, 0 crashes)\n`,
-      );
-    } catch (err) {
-      console.error("\n❌ API payload fuzzer failed\n", err);
-      exitCode = 1;
-    }
-  }
-
-  process.exit(exitCode);
 }
+
+// ── API Payload Fuzzer ────────────────────────────────────────────
+if (RUN_FUZZ_SCAN) {
+  console.log("\n━━━ API Payload Fuzzer ━━━\n");
+  try {
+    const { runFuzzAudit } = await import("./security/fuzzer");
+    const res = runFuzzAudit();
+    console.log(
+      `✅ Fuzzing passed (${res.iterations} payloads tested, ${res.blockedByWaf} blocked by WAF, 0 crashes)\n`,
+    );
+  } catch (err) {
+    console.error("\n❌ API payload fuzzer failed\n", err);
+    exitCode = 1;
+  }
+}
+
+process.exit(exitCode);

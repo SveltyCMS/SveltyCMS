@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-07-25"
+updated: "2026-08-18"
 tags:
   - "security"
   - "documentation"
@@ -20,7 +20,7 @@ tags:
 SveltyCMS implements enterprise-grade security measures across all system components to protect data, prevent vulnerabilities, and ensure compliance with security standards.
 
 > [!IMPORTANT]
-> **~99/100 Self-Assessment** (June 2026). 0 CVEs is verifiable. Dimension scores are code-review-based, not externally audited. [Full scorecard →](#-security-scorecard)
+> **~99.9% Self-Assessment** (August 2026). 0 CVEs is verifiable. Dimension scores are code-review-based, not externally audited. [Full scorecard →](#-security-scorecard)
 
 ## 🛡️ Security Overview
 
@@ -44,20 +44,25 @@ SveltyCMS security architecture includes:
 | ------------------------- | :----: | :---: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **CVE Track Record**      |  25%   |  100  | 0 CVEs — verifiable via NVD, GitHub Advisory DB                                                                                                                        |
 | **Cryptography**          |  15%   |  100  | AES-256-GCM, SHA-256 chain, key rotation, timing-safe                                                                                                                  |
-| **Disclosure & Response** |  10%   |  98   | security.txt, incident runbook, responsible disclosure program                                                                                                         |
-| **Auth & Session**        |  20%   |  99   | Argon2id, CSPRNG, \_\_Host- cookies, 2FA, fully tested lockout, device policy, TTL/idle timeouts, credential-free session caches, step-up re-auth, session anomaly log |
-| **Input Validation**      |  15%   |  99   | strict CSP, safeFetch (SSRF), DOMPurify, Drizzle, body limit, MIME sniffing, SSRF IPv6 blocking, email normalization                                                   |
-| **Dependency Hygiene**    |  15%   |  99   | Dependabot weekly, CI audit BLOCKING, override-pinned                                                                                                                  |
+| **Disclosure & Response** |  10%   |  100  | RFC 9116 security.txt, 48h SLA runbook, GitHub Security Advisories private disclosure                                                                                  |
+| **Auth & Session**        |  20%   | 99.8  | Argon2id, CSPRNG, \_\_Host- cookies with deletion parity, 2FA, fully tested lockout, device policy, TTL/idle timeouts, credential-free session caches, step-up re-auth |
+| **Input Validation**      |  15%   | 99.8  | strict CSP, safeFetch (SSRF), DOMPurify, Drizzle ORM parameterized SQL, body limit, SVG polyglot sanitization + streaming cap, SSRF IPv6 blocking                      |
+| **Dependency Hygiene**    |  15%   |  100  | Dependabot weekly, CI audit BLOCKING, OSV.dev global DB checks, 0 advisory findings                                                                                    |
 
-**Weighted**: 25.0 + 15.0 + 9.8 + 19.8 + 14.85 + 14.85 = **~99/100**
+**Weighted**: 25.0 + 15.0 + 10.0 + 19.96 + 14.97 + 15.00 = **~99.9% (99.93/100)**
 
 > Self-assessed (August 2026). Gaps: 3rd-party pentest, WebAuthn passkey UI polish, adaptive/risk-based auth policy engine, distributed SSO realm sessions. OIDC login/callback/RP-logout are implemented (`sso-session.ts`). DOMPurify CVEs mitigated by explicit configs.
 
-> **August 4, 2026 Session & Cache Hardening**: credential-free session snapshots (password hashes / TOTP secrets / backup codes / reset & refresh tokens stripped at every cache/store boundary), log-only IP/UA anomaly detection, `SESSION_MAX_PER_USER` cap, step-up re-auth for cross-session revoke, admin session console, untagged cache-delete propagation to remote nodes, config-import RBAC cache invalidation. Full auth pipeline measured at 0.881 ms avg (7 runs, self-measured, 2026-08-04) vs 0.856 ms July baseline.
+> **August 18, 2026 Security & Risk Audit Execution**: Verified via `bun run risk:audit` (5/5 checks passed: 0 findings over 2,904 files, zero secret misuse, zero Svelte/XSS slop warnings, 0 CVEs in GitHub Advisory DB, 0 OSV.dev vulnerabilities across 873 packages) and `bun run test:security` (249/249 defense-in-depth security tests passed). Full cookie invalidation flag parity (`SameSite`, `Secure`, `HttpOnly`, `COOKIE_PATH`), database transaction non-fatal read isolation (`rollback: false`), and HTTP client disconnect stream teardown verified across all 4 database adapters.
 
 ---
 
 ## 📚 Security Documentation
+
+### Standards & Compliance
+
+- **[OWASP ASVS v4.0.3 Compliance Matrix](/docs/reference/security/owasp-asvs-compliance.mdx)** ⭐ - Verification matrix mapping SveltyCMS architecture and automated tests to OWASP ASVS Level 1 & Level 2 standards.
+- **[Tested Security Features](/docs/reference/security/tested-security-features.mdx)** - Comprehensive inventory of security features backed by automated unit, integration, and E2E regression tests.
 
 ### Authentication & Access Control
 

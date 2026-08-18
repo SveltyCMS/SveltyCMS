@@ -1,0 +1,93 @@
+---
+path: "docs/reference/security/owasp-asvs-compliance.mdx"
+title: "OWASP ASVS v4.0.3 Compliance Matrix"
+description: "Detailed mapping of SveltyCMS enterprise security architecture against the OWASP Application Security Verification Standard (ASVS v4.0.3 Level 1 & Level 2)."
+order: 3
+icon: "mdi:shield-check"
+author: "SveltyCMS Team"
+created: "2026-08-18"
+updated: "2026-08-18"
+tags:
+  - "security"
+  - "owasp"
+  - "asvs"
+  - "compliance"
+  - "audit"
+---
+
+# OWASP ASVS v4.0.3 Compliance Matrix
+
+The **OWASP Application Security Verification Standard (ASVS)** is a comprehensive framework defining rigorous security requirements for modern web applications and APIs.
+
+SveltyCMS aligns its security architecture and automated test matrix with **OWASP ASVS v4.0.3 Level 1 (Automated / Baseline)** and **Level 2 (Standard Applications)**.
+
+---
+
+## 📊 Verification Summary
+
+| ASVS Chapter | Domain                             | Level 1 | Level 2 | SveltyCMS Implementation & Verification                                                           |
+| :----------- | :--------------------------------- | :-----: | :-----: | :------------------------------------------------------------------------------------------------ |
+| **V1**       | **Architecture & Threat Modeling** |   ✅    |   ✅    | 4-layer defense-in-depth (`hooks.server.ts`), fail-closed API dispatcher, Policy-as-Code.         |
+| **V2**       | **Authentication**                 |   ✅    |   ✅    | Argon2id (64MB memory cost), 15m lockout after 5 failed attempts, TOTP 2FA, WebAuthn passkeys.    |
+| **V3**       | **Session Management**             |   ✅    |   ✅    | CSPRNG 32-char tokens, `__Host-` cookies, matching logout deletion flags, credential-free caches. |
+| **V4**       | **Access Control**                 |   ✅    |   ✅    | Granular RBAC, tenantId partition on all queries, `hasPermissionWithRoles` authorization guards.  |
+| **V5**       | **Validation & Sanitization**      |   ✅    |   ✅    | Strict CSP (`script-src 'self'`), Valibot schemas, SVG polyglot DOMPurify sanitization.           |
+| **V6**       | **Stored Cryptography**            |   ✅    |   ✅    | AES-256-GCM for secrets/TOTP, constant-time HMAC-SHA256 token comparisons, CSPRNG-only.           |
+| **V7**       | **Error Handling & Logging**       |   ✅    |   ✅    | Tamper-evident SHA-256 Merkle audit chains, generic error responses without stack traces.         |
+| **V8**       | **Data Protection**                |   ✅    |   ✅    | Sensitive attribute stripping (`stripPrivilegedUserFields`), GDPR data export/erasure endpoints.  |
+| **V9**       | **Communications**                 |   ✅    |   ✅    | HSTS `max-age=31536000; includeSubDomains; preload`, COOP/COEP/CORP cross-origin isolation.       |
+| **V10**      | **Malicious Code**                 |   ✅    |   ✅    | Static AST risk scanner (`scripts/scan-security-risk.ts`), zero eval/unsafe reflection.           |
+| **V11**      | **Business Logic**                 |   ✅    |   ✅    | Distributed stampede locks, transaction isolation (`rollback: false`), rate limiting.             |
+| **V12**      | **File & Resource Handling**       |   ✅    |   ✅    | Path traversal normalization, SSRF egress guard (`safeFetch`), stream abort teardown.             |
+| **V13**      | **API & Web Service**              |   ✅    |   ✅    | GraphQL depth limit (8), production introspection block, strict JSON payload parsers.             |
+| **V14**      | **Configuration**                  |   ✅    |   ✅    | RFC 9116 `security.txt`, lockfile dependency sync guard, automated OSV.dev supply-chain scan.     |
+
+---
+
+## 🛡️ Detailed Chapter Mapping
+
+### V1: Architecture, Design and Threat Modeling
+
+- **V1.1.1 Secure Architecture**: Layered pipeline enforces security hooks before business logic execution.
+- **V1.4.1 Access Control Architecture**: Centralized permissions in `src/utils/security/user-attribute-policy.ts` and `src/routes/api/[...path]/+server.ts`.
+
+### V2: Authentication Verification
+
+- **V2.1.1 Password Strength**: Minimum 8 characters with upper, lower, numbers, and special symbols enforced via `Auth.validatePasswordStrength`.
+- **V2.2.1 Brute-force Resistance**: Automatic 15-minute account lockout after 5 consecutive failed attempts.
+- **V2.4.1 Credential Storage**: Password hashes stored via Argon2id with 64MB memory cost.
+
+### V3: Session Management Verification
+
+- **V3.2.1 Token Randomness**: Cryptographically secure 256-bit entropy generated using `globalThis.crypto.getRandomValues()`.
+- **V3.4.1 Cookie Security**: Strict `__Host-` prefix on secure HTTPS, `SameSite=Strict`, `HttpOnly=true`, and exact attribute matching during session revocation (`clearSessionCookies()`).
+
+### V5: Validation, Sanitization and Encoding
+
+- **V5.1.1 Input Validation**: Type-safe validation using Valibot schemas across API and server actions.
+- **V5.2.1 SVG & Rich Text Sanitization**: Full polyglot SVG sanitization (`DOMPurify` + tag whitelist) and Tiptap URI protocol restriction (`http`, `https`, `mailto`, `tel`).
+
+### V6: Stored Cryptography Verification
+
+- **V6.2.1 Secret Encryption**: All sensitive configuration entries and 2FA TOTP secrets are encrypted at rest using AES-256-GCM.
+
+### V9: Communications Verification
+
+- **V9.1.1 TLS & Security Headers**: Verified via automated test `tests/unit/security/observatory-headers.test.ts` satisfying Mozilla Observatory A+ standards.
+
+---
+
+## 🧪 Automated Continuous Verification
+
+SveltyCMS enforces these controls through automated git pre-commit hooks and CI pipelines:
+
+```bash
+# Full Risk Audit (Static AST + Secret Misuse + OSV.dev + Dependency Check)
+bun run risk:audit
+
+# Security Regression Suite (249 test cases)
+bun run test:security
+
+# Live Dynamic Fuzzing
+bun run security --fuzz --auth
+```
