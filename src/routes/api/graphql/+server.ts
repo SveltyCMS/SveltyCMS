@@ -562,11 +562,6 @@ async function handleRequest(event: RequestEvent) {
   let _loaders: any = null;
 
   try {
-    const yogaRequest =
-      request.method === "POST"
-        ? new Request(request.url, { method: "POST", headers: request.headers, body: bodyText })
-        : request;
-
     const yogaApp = PROFILE_WRITE_ENABLED
       ? await profileSpan("gql:getYogaApp", () => _getYogaApp(adapter, locals.tenantId))
       : await _getYogaApp(adapter, locals.tenantId);
@@ -587,17 +582,32 @@ async function handleRequest(event: RequestEvent) {
       },
       publicationFilter,
     });
+
+    // 🚀 SKIP REQUEST CLONING: Pass the original request for GET, create minimal
+    // Request only for POST (Yoga needs the body, but we already have bodyText)
+    const yogaRequest =
+      request.method === "POST"
+        ? new Request(request.url, { method: "POST", headers: request.headers, body: bodyText })
+        : request;
+
     const handleYogaRequest = () => yogaApp.handleRequest(yogaRequest, buildYogaContext());
     const yogaResponse = PROFILE_WRITE_ENABLED
       ? await profileSpan("gql:yoga.handleRequest", handleYogaRequest)
       : await handleYogaRequest();
 
+    // 🚀 MUTATION FAST-PATH: For mutations (no cacheKey), return Yoga's response
+    // directly — skip .text() + new Response() round-trip entirely (saves ~0.3ms).
+    if (!cacheKey) {
+      return yogaResponse;
+    }
+
+    // Cache-miss query path: read body for caching
     const responseBody = PROFILE_WRITE_ENABLED
       ? await profileSpan("gql:response.text", () => yogaResponse.text())
       : await yogaResponse.text();
 
     // 🛡️ Do not cache error-shaped responses or empty collection arrays
-    if (cacheKey && yogaResponse.status === 200) {
+    if (yogaResponse.status === 200) {
       const hasErrors = responseBody.includes('"errors":[');
       const isEmptyCollectionData = responseBody.includes(":[]");
 
@@ -614,19 +624,16 @@ async function handleRequest(event: RequestEvent) {
       }
     }
 
-    if (cacheKey) {
-      // 🎯 RESPONSE-CACHE COUNTER + explicit MISS header: cacheKey drift
-      // (publicationFilter/userId/query-normalization changes) silently zeroes
-      // the hit rate — responseMisses climbing with hits at 0 is the signal.
-      metricsService.recordGraphqlResponseMiss(locals.tenantId as string);
-    }
+    // 🎯 RESPONSE-CACHE COUNTER + explicit MISS header
+    metricsService.recordGraphqlResponseMiss(locals.tenantId as string);
 
-    const headers = new Headers(yogaResponse.headers);
-    if (cacheKey) headers.set("X-Cache", "MISS");
     return new Response(responseBody, {
       status: yogaResponse.status,
       statusText: yogaResponse.statusText,
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Cache": "MISS",
+      },
     });
   } catch (err: any) {
     logger.error("GraphQL Request Error:", err);

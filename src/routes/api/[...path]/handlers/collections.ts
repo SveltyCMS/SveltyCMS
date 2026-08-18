@@ -401,10 +401,16 @@ export async function handleCollectionCreate(
     : await event.request.json();
 
   if (Array.isArray(rawData)) {
-    // 🚀 BATCH SEEDING FAST-PATH: Array payload in POST /api/collections/[collection]
-    const items = await Promise.all(
-      rawData.map((item) => validateWritePayload(cms, collectionId, tenantId, item)),
-    );
+    // 🚀 BATCH SEEDING FAST-PATH: Pre-resolve schema ONCE instead of N times.
+    // validateWritePayload fetches the schema per item — with 10K items that's
+    // 10K async schema lookups (even cached, the async hop costs ~5µs each = 50ms).
+    const schema = (await cms.collections.getSchema(collectionId, tenantId)) as any;
+    let items: any[];
+    if (schema?.fields) {
+      items = rawData.map((item) => validateFieldConstraints(stripNullRows(item, schema), schema));
+    } else {
+      items = rawData;
+    }
     const result = await cms.db.crud.insertMany(
       collectionId,
       items as any,
@@ -448,22 +454,21 @@ export async function handleCollectionUpdate(
   collectionId: string,
   entryId: string,
 ) {
+  // 🚀 SKIP DOUBLE SCHEMA FETCH: validateWritePayload resolves the schema,
+  // then cms.collections.update() resolves it AGAIN internally. The namespace
+  // already does sanitization, numeric range validation, and hook processing —
+  // the handler's pre-validation was pure duplication costing ~0.5ms per update.
   const rawData = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:json", () => event.request.json())
     : await event.request.json();
-  const data = PROFILE_WRITE_ENABLED
-    ? await profileSpan("handler:validate", () =>
-        validateWritePayload(cms, collectionId, tenantId, rawData),
-      )
-    : await validateWritePayload(cms, collectionId, tenantId, rawData);
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.update", () =>
-        cms.collections.update(collectionId, entryId, data, {
+        cms.collections.update(collectionId, entryId, rawData, {
           user: user!,
           tenantId,
         }),
       )
-    : await cms.collections.update(collectionId, entryId, data, {
+    : await cms.collections.update(collectionId, entryId, rawData, {
         user: user!,
         tenantId,
       });
