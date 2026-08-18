@@ -72,6 +72,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   /** The tenant ID for the current request context, set by setTenantContext() */
   private _currentTenantId: string | null = null;
 
+  /** Active tenant for pool routing / txn GUC (null = unset). */
+  public get currentTenantId(): string | null {
+    return this._currentTenantId;
+  }
+
   protected _transactionModule?: import("./transaction-module").TransactionModule;
 
   // --------------------------------------------------------------------------
@@ -224,10 +229,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         if (v instanceof Date) {
           boundValues.push((v as Date).toISOString());
           setPairs.push(`"${safeCol}" = $${boundValues.length}`);
-        } else if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+        } else if (v === null || v === undefined) {
+          boundValues.push(null);
+          setPairs.push(`"${safeCol}" = $${boundValues.length}`);
+        } else if (typeof v === "object") {
           boundValues.push(JSON.stringify(v));
           setPairs.push(
-            physName === "data"
+            physName === "data" || (phys as any)?.dataType === "json"
               ? `"${safeCol}" = $${boundValues.length}::jsonb`
               : `"${safeCol}" = $${boundValues.length}`,
           );
@@ -1506,15 +1514,24 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * @param tenantId - The tenant ID to set, or null to use the "global" context
    * @throws {Error} if the database is not connected
    */
-  public async setTenantContext(tenantId: string | null): Promise<void> {
+  public async setTenantContext(
+    tenantId: string | null,
+    sql?: ReturnType<typeof postgres> | null,
+  ): Promise<void> {
     this._currentTenantId = tenantId;
     const value = tenantId ?? "global";
     if (!this.sql) {
       throw new Error("[PostgreSQLAdapter] Database not connected — cannot set tenant context");
     }
-    // PostgreSQL does NOT allow parameter placeholders ($1) inside SET
-    // statements (42601) — the supported mechanism is set_config().
-    await this.sql`SELECT set_config('app.tenant_id', ${value}, false)`;
+    // Shared postgres.js pools multiplex connections: a pool-level
+    // set_config() would land on a random socket and leak or vanish.
+    // Apply session GUC only on a dedicated tenant pool (is_local=false)
+    // or on a caller-provided txn client (is_local=true, same connection).
+    const tenantPool = tenantId ? this._tenantPools.get(tenantId) : undefined;
+    const exec = sql ?? tenantPool;
+    if (!exec) return;
+    const isLocal = Boolean(sql);
+    await exec`SELECT set_config('app.tenant_id', ${value}, ${isLocal})`;
   }
 
   /**
@@ -1543,7 +1560,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }
         const physicalName = getTableName(table as any);
 
-        // Enable RLS on the table (idempotent)
+        // ENABLE (not FORCE): the CMS typically connects as table owner, so
+        // FORCE without a reserved per-request connection would hide every
+        // row when app.tenant_id is unset on a pooled socket. App-level
+        // WHERE tenantId=? remains the request-path isolator; RLS + GUC
+        // apply inside transactions / dedicated tenant pools.
         await this.raw.execute(`ALTER TABLE "${physicalName}" ENABLE ROW LEVEL SECURITY`);
 
         // Create or replace the tenant isolation policy.
@@ -1551,7 +1572,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         // (the exact name used in CREATE TABLE — unquoted tenant_id would fold
         // to lowercase and throw 42703) with the session variable set by
         // setTenantContext(). missing_ok=true makes an unset session context
-        // yield NULL → zero rows → fail-closed instead of raising an error.
+        // Drop existing policy first to ensure idempotency across migrations
+        await this.raw.execute(`DROP POLICY IF EXISTS tenant_isolation ON "${physicalName}"`);
         await this.raw.execute(
           `CREATE POLICY tenant_isolation ON "${physicalName}" FOR ALL USING ("tenantId" = current_setting('app.tenant_id', true))`,
         );

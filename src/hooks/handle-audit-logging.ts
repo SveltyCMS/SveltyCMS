@@ -14,7 +14,7 @@
 import { logger } from "@utils/logger";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
-import { getClientIp } from "@utils/hook-utils";
+import { getClientIp, MUTATION_HTTP_METHODS } from "@utils/hook-utils";
 import { getAuditFlagsSync, isAuditDisabledByEnv } from "@utils/security/audit-flags";
 import { rollingMerkleAccumulator } from "@src/services/security/rolling-merkle";
 
@@ -100,8 +100,7 @@ export const handleAuditLogging: Handle = async ({ event, resolve }) => {
   // so SSR page traffic (the majority) never touches the audit-flag machinery.
   if (!event.url.pathname.startsWith("/api/")) return resolve(event);
   const method = event.request.method;
-  const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(method);
-  if (!isMutation) return resolve(event);
+  if (!MUTATION_HTTP_METHODS.has(method)) return resolve(event);
 
   // Fast exit for benchmark and testing contexts
   if ((event.locals as any)?.__testBypass) return resolve(event);

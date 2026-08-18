@@ -1,7 +1,7 @@
 ---
 path: "docs/tests/routes/collection-builder.mdx"
 title: "Collection Builder Tests — Control Map"
-description: "Testing 2026: shell + one golden E2E; structure/utils/persistence in unit + integration."
+description: "Testing 2026: shell + structure persistence + golden E2E; utils/persistence also in unit + integration."
 order: 16
 icon: "mdi:database-edit"
 author: "SveltyCMS Team"
@@ -21,16 +21,17 @@ tags:
 Follows **[ADR: Testing 2026](../adr-testing-2026.mdx)** — **one domain, shell + golden**, same pattern as webhooks.
 
 > [!IMPORTANT]
-> Do **not** re-grow a multi-file Playwright suite for builder. Structure persistence, empty board, widget catalog, and federation belong in unit/integration (or plugin-specific tests).
+> Do **not** re-grow a multi-file Playwright suite for builder. Empty board, widget catalog, and federation stay in unit/integration (or plugin-specific tests). One extra seed-backed structure journey is allowed on the same spec.
 
 ## Layer map
 
-| Layer           | What it proves                                                                  | Where                                                                   |
-| --------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| **E2E shell**   | Title, board / add-collection, new editor tabs                                  | `builder.spec.ts` — `shell: page title and new collection control`      |
-| **E2E golden**  | Schema (Input field) → save → entry → list → **API** body + default `unpublish` | `builder.spec.ts` — `golden: schema → entry → API`                      |
-| **Unit**        | Pure tree/slug utils; page.server permission + structure shape                  | `collectionbuilder-utils`, `collectionbuilder-page-server`              |
-| **Integration** | Collections list auth; structure persistence matrix / code-gui parity           | `collection-structure.test.ts`, `tests/integration/collectionbuilder/*` |
+| Layer             | What it proves                                                                  | Where                                                                   |
+| ----------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **E2E shell**     | Title, board / add-collection, new editor tabs                                  | `builder.spec.ts` — `shell: page title and new collection control`      |
+| **E2E structure** | Category create → reload → name still on the board                              | `builder.spec.ts` — `structure: category create survives reload`        |
+| **E2E golden**    | Schema (Input field) → save → entry → list → **API** body + default `unpublish` | `builder.spec.ts` — `golden: schema → entry → API`                      |
+| **Unit**          | Pure tree/slug utils; page.server permission + structure shape                  | `collectionbuilder-utils`, `collectionbuilder-page-server`              |
+| **Integration**   | Collections list auth; structure persistence matrix / code-gui parity           | `collection-structure.test.ts`, `tests/integration/collectionbuilder/*` |
 
 ## Demoted (removed from E2E)
 
@@ -54,7 +55,7 @@ Follows **[ADR: Testing 2026](../adr-testing-2026.mdx)** — **one domain, shell
 | Name + Input field + save   | utils / helpers | collections HTTP                              | **golden**                      |
 | Entry create + list         | —               | collections                                   | **golden**                      |
 | Entry value + status        | —               | API in golden                                 | **golden** (API)                |
-| Org structure save          | structure unit  | structure-persistence matrix                  | —                               |
+| Org structure save          | structure unit  | structure-persistence matrix                  | **structure** (category reload) |
 | Widget catalog / extensions | —               | widgets list surface                          | extensions golden (not builder) |
 
 ## Run

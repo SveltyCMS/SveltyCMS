@@ -16,9 +16,8 @@ import { error, fail, isRedirect, isHttpError } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { Actions, PageServerLoad } from "./$types";
-// 🚀 PERFORMANCE: Move static node module imports to the top level
-import path from "node:path";
-import fs from "node:fs";
+import { serializeStructureNodes } from "./collectionbuilder-local.server";
+import { parseIdList, parseJsonArray, parseOperations } from "./collectionbuilder-utils";
 
 /**
  * @internal Helper function to enforce collection builder permissions.
@@ -36,91 +35,35 @@ function requireCollectionBuilderPermission(locals: App.Locals): void {
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-  logger.info("[CB-DEBUG] Load function started");
   try {
-    logger.info("[CB-DEBUG] locals keys: " + Object.keys(locals).join(", "));
     const user = getAuthenticatedUser(locals);
     const { isAdmin, tenantId } = locals;
-    logger.info(`[CB-DEBUG] user=${!!user}, isAdmin=${isAdmin}, tenantId=${tenantId}`);
 
     requireCollectionBuilderPermission(locals);
-    logger.info("[CB-DEBUG] Permission check passed");
 
-    // Ensure content system is initialized for this tenant
     if (!contentSystem.isInitialized) {
-      logger.info("[CB-DEBUG] Content system NOT initialized, initializing...");
       await contentSystem.initialize(tenantId, true);
-      logger.info("[CB-DEBUG] Content system initialized");
-    } else {
-      logger.info("[CB-DEBUG] Content system already initialized");
     }
 
-    // Fetch the initial content structure directly from database for organizational work
-    logger.info("[CB-DEBUG] Fetching content structure from database...");
     let contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
-    logger.info(`[CB-DEBUG] Content structure fetched: ${contentStructure?.length ?? 0} nodes`);
 
-    // 🚑 SELF-HEALING: If no content nodes in DB but system was already marked as
-    // initialized (e.g. from a prior skipReconciliation setup), trigger a full refresh.
+    // Self-heal empty DB after a skipReconciliation setup — one full refresh only.
     if ((!contentStructure || contentStructure.length === 0) && contentSystem.isInitialized) {
       logger.warn(
         "[CollectionBuilder] No content nodes found despite system being initialized. Triggering refresh...",
       );
       await contentSystem.refresh(tenantId, false, false);
       contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
-      logger.info(
-        "[CollectionBuilder] After refresh, found",
-        contentStructure?.length || 0,
-        "content nodes",
-      );
     }
 
     if (!Array.isArray(contentStructure)) {
       logger.error("[CollectionBuilder] contentStructure is not an array!", {
         type: typeof contentStructure,
-        value: contentStructure,
       });
     }
 
-    // Serialize and sanitize structures for client-side usage
-    const serializedStructure = (contentStructure || []).map((node: any) => {
-      try {
-        // Deep clone and strip non-serializable properties (like validationSchema functions)
-        const sanitizedNode = JSON.parse(JSON.stringify(node));
-
-        if (!sanitizedNode._id) {
-          logger.warn("[CollectionBuilder] Node missing _id!", { node });
-        }
-
-        return {
-          ...sanitizedNode,
-          _id: sanitizedNode._id?.toString() || "missing-id",
-          ...(sanitizedNode.parentId ? { parentId: sanitizedNode.parentId.toString() } : {}),
-        };
-      } catch (mapErr) {
-        logger.error("[CollectionBuilder] Error mapping node:", {
-          error: mapErr instanceof Error ? mapErr.message : String(mapErr),
-          node,
-        });
-        return {
-          _id: "error-node",
-          name: "Error Node",
-          nodeType: "category" as const,
-          path: "/error",
-          order: 0,
-          translations: [],
-          createdAt: new Date().toISOString() as any,
-          updatedAt: new Date().toISOString() as any,
-        };
-      }
-    });
-
-    // Return user data with proper admin status and the content structure
+    const serializedStructure = serializeStructureNodes(contentStructure || []);
     const userId = user._id?.toString();
-
-    if (!userId) {
-      logger.error("[CollectionBuilder] user._id is missing!", { user });
-    }
 
     return {
       user: {
@@ -152,34 +95,31 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   deleteCollections: async ({ request, locals }) => {
-    // 🛡️ SECURITY FIX: Use centralized permission check
     requireCollectionBuilderPermission(locals);
 
     const formData = await request.formData();
-    const ids = JSON.parse(formData.get("ids") as string);
+    const ids = parseIdList(parseJsonArray(formData.get("ids")));
 
-    if (!(ids && Array.isArray(ids))) {
+    if (!ids) {
       return fail(400, { message: "Invalid IDs for deletion" });
     }
 
     try {
-      // Find paths for IDs to handle deletion via reconciler
       const currentStructure = await contentSystem.getContentStructureFromDatabase(
         "flat",
         locals.tenantId,
       );
-      const pathsToDelete = currentStructure
-        .filter((node: any) => ids.includes(node._id.toString()))
-        .map((node: any) => node.path);
-
-      const operations = (pathsToDelete as string[]).map((path: string) => ({
-        type: "delete" as const,
-        node: { path } as any,
-      }));
+      const idSet = new Set(ids);
+      const operations = (currentStructure || [])
+        .filter((node: { _id?: { toString(): string }; path?: string }) =>
+          idSet.has(node._id?.toString() ?? ""),
+        )
+        .map((node: { path?: string }) => ({
+          type: "delete" as const,
+          node: { path: node.path ?? "" },
+        }));
 
       await contentSystem.upsertContentNodes(operations, locals.tenantId);
-
-      // ✨ FORCE REFRESH: Ensure the system and navigation caches are updated immediately
       await contentSystem.refresh(locals.tenantId);
 
       return { success: true };
@@ -193,15 +133,15 @@ export const actions: Actions = {
     requireCollectionBuilderPermission(locals);
 
     const formData = await request.formData();
-    const items = JSON.parse(formData.get("items") as string);
+    const operations = parseOperations(parseJsonArray(formData.get("items")));
 
-    if (!(items && Array.isArray(items))) {
+    if (!operations) {
       return fail(400, { message: "Invalid items for save" });
     }
 
     try {
       const { executeGuiStructureSave } = await import("./collectionbuilder.server");
-      return await executeGuiStructureSave(locals.tenantId ?? null, items);
+      return await executeGuiStructureSave(locals.tenantId ?? null, operations);
     } catch (err) {
       logger.error("Error saving config:", err);
       return fail(500, { message: "Failed to save configuration" });
@@ -209,46 +149,16 @@ export const actions: Actions = {
   },
 
   loadPreset: async ({ request, locals }) => {
-    // 🛡️ SECURITY FIX: Use centralized permission check
     requireCollectionBuilderPermission(locals);
 
     const formData = await request.formData();
-    const presetId = formData.get("presetId") as string;
-
-    if (!presetId || presetId === "blank") {
-      return fail(400, { message: "Invalid preset ID parameter" });
-    }
+    const presetId = String(formData.get("presetId") ?? "").trim();
 
     try {
-      // 🚀 PERFORMANCE FIX: Use top-level imports for node modules (path and fs)
-      const { resolve } = path;
-      const { cpSync, existsSync, mkdirSync } = fs;
-
-      // The full absolute paths are complex to manage. We rely on relative resolution from the script's location.
-      const presetDir = resolve(process.cwd(), "src", "presets", presetId);
-      const expectedPresetBase = resolve(process.cwd(), "src", "presets");
-
-      if (!presetDir.startsWith(expectedPresetBase) || !existsSync(presetDir)) {
-        return fail(404, { message: "Preset directory not found" });
-      }
-
-      // Define target path relative to the project root (using locals.tenantId or default config/collections)
-      const targetDir = locals.tenantId
-        ? resolve(process.cwd(), "config", locals.tenantId, "collections")
-        : resolve(process.cwd(), "config", "collections");
-
-      mkdirSync(targetDir, { recursive: true });
-      cpSync(presetDir, targetDir, { recursive: true, force: true });
-
-      // Trigger compilation and refresh manager
-      await contentSystem.refresh(locals.tenantId);
-
-      return {
-        success: true,
-        message: `Preset ${presetId} installed successfully`,
-      };
+      const { installPresetCollections } = await import("./collectionbuilder.server");
+      return await installPresetCollections(locals.tenantId ?? null, presetId);
     } catch (err) {
-      logger.error("❌ Failed to install preset:", err);
+      logger.error("Failed to install preset:", err);
       return fail(500, { message: "Failed to install preset" });
     }
   },

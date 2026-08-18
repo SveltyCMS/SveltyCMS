@@ -12,11 +12,16 @@ import type {
   DatabaseId,
 } from "@src/content/types";
 
+let _cmsCache: { adapter: NonNullable<ReturnType<typeof getDb>>; cms: LocalCMS } | null = null;
+
 export async function getCollectionBuilderCms(_tenantId: string | null): Promise<LocalCMS> {
   const adapter = await getDb();
   if (!adapter) throw new Error("[CollectionBuilder] Database adapter not initialized");
+  if (_cmsCache && _cmsCache.adapter === adapter) return _cmsCache.cms;
   const { contentSystem } = await import("@src/content/index.server");
-  return new LocalCMS(adapter, contentSystem);
+  const cms = new LocalCMS(adapter, contentSystem);
+  _cmsCache = { adapter, cms };
+  return cms;
 }
 
 export function serializeStructureNodes(
@@ -35,6 +40,16 @@ export function serializeStructureNodes(
       _id: node._id?.toString(),
     };
     if (node.parentId) serialized.parentId = node.parentId.toString();
+    const def = (node as { collectionDef?: Record<string, unknown> }).collectionDef;
+    if (def && typeof def === "object") {
+      serialized.collectionDef = {
+        _id: (def._id as { toString?: () => string })?.toString?.() ?? def._id,
+        name: def.name,
+        path: def.path,
+        icon: def.icon,
+        slug: def.slug,
+      };
+    }
     return serialized;
   });
 }

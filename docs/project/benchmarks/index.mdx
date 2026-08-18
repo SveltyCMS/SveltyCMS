@@ -51,14 +51,17 @@ Compared to previous ledger: full auth **−43%** latency, turbo **−42%**, RES
 
 For **create / update / findById / mixed** regressions (the common CMS pain points), run these first on SQLite before a full matrix:
 
-| Suite                     | Command                                                  | Layer                                        |
-| ------------------------- | -------------------------------------------------------- | -------------------------------------------- |
-| Adapter CRUD              | `bun test tests/benchmarks/database-performance.test.ts` | Direct `db.crud` INSERT / FIND ONE / UPDATE  |
-| Local wave throughput     | `bun test tests/benchmarks/local-api-throughput.test.ts` | Adapter waves (no HTTP)                      |
-| **LocalCMS SDK CRUD tax** | `bun test tests/benchmarks/local-cms-crud.test.ts`       | `cms.collections` create / update / findById |
-| HTTP findById             | `bun test tests/benchmarks/api-latency.test.ts`          | Cold (cache-busted) + **TURBO-HIT** @ 8c     |
-| Mixed read mix            | `bun test tests/benchmarks/mixed-workload.test.ts`       | Weighted REST + GraphQL + health             |
-| Truth layers              | `bun test tests/benchmarks/truth-latency.test.ts`        | Logic vs LocalCMS vs HTTP                    |
+| Suite                           | Command                                                          | Layer                                          |
+| ------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------- |
+| **Competitive 9-Workload**      | `bun test tests/benchmarks/competitive-workload-replica.test.ts` | Exact 8-worker HTTP replica of external matrix |
+| **Middleware Flamegraph**       | `bun test tests/benchmarks/middleware-flamegraph.test.ts`        | Microsecond cost per middleware stage          |
+| **Event Loop Lag & Saturation** | `bun test tests/benchmarks/event-loop-lag.test.ts`               | Event loop delay & microtask queue drain       |
+| Adapter CRUD                    | `bun test tests/benchmarks/database-performance.test.ts`         | Direct `db.crud` INSERT / FIND ONE / UPDATE    |
+| Local wave throughput           | `bun test tests/benchmarks/local-api-throughput.test.ts`         | Adapter waves (no HTTP)                        |
+| **LocalCMS SDK CRUD tax**       | `bun test tests/benchmarks/local-cms-crud.test.ts`               | `cms.collections` create / update / findById   |
+| HTTP findById                   | `bun test tests/benchmarks/api-latency.test.ts`                  | Cold (cache-busted) + **TURBO-HIT** @ 8c       |
+| Mixed read mix                  | `bun test tests/benchmarks/mixed-workload.test.ts`               | Weighted REST + GraphQL + health               |
+| Truth layers                    | `bun test tests/benchmarks/truth-latency.test.ts`                | Logic vs LocalCMS vs HTTP                      |
 
 **August 2026 local SQLite rebaseline (rebuild `bun run build` first for HTTP turbo):**
 

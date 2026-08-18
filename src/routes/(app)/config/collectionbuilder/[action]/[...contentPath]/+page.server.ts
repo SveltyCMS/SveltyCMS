@@ -19,19 +19,19 @@ import path from "node:path";
 import { contentSystem } from "@src/content/index.server";
 import type { Schema } from "@src/content/types";
 // Auth
-import {
-  hasCollectionBuilderPermission,
-  permissionConfigs,
-  permissions,
-} from "@src/databases/auth/permissions";
+import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { MigrationEngine } from "@src/services/core/migration-engine";
 // Widgets
 import { widgets } from "@src/stores/widget-store.svelte.ts";
-import { type Actions, error } from "@sveltejs/kit";
+import { type Actions, error, fail } from "@sveltejs/kit";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 // System Logger
 import { logger } from "@utils/logger";
-import { getCollectionDisplayPath, getCollectionFilePath } from "@utils/tenant.server";
+import {
+  getCollectionDisplayPath,
+  getCollectionFilePath,
+  getCollectionsPath,
+} from "@utils/tenant.server";
 import * as ts from "typescript";
 import type { PageServerLoad } from "./$types";
 
@@ -60,26 +60,31 @@ interface WidgetDefinition {
 
 type FieldsData = Record<string, FieldWithWidget>;
 
-/** Resolved path to the user collections directory (matches vite.config.ts paths.userCollections) */
-const userCollectionsPath = path.resolve(
-  process.cwd(),
-  process.env.COLLECTIONS_DIR || "config/collections",
-);
+const WIDGET_NAME_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
 
-// Format generated TypeScript with oxfmt (replaces prettier)
-async function formatTypeScript(code: string): Promise<string> {
-  try {
-    const { spawnSync } = await import("node:child_process");
-    const result = spawnSync("bun", ["x", "oxfmt", "--stdin"], {
-      input: code,
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-    if (result.status === 0 && result.stdout) return result.stdout;
-  } catch (err) {
-    logger.warn("oxfmt not available for formatting, writing unformatted code.", err);
-  }
-  return code;
+function isPathInside(root: string, candidate: string): boolean {
+  const rel = path.relative(path.resolve(root), path.resolve(candidate));
+  return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+}
+
+function publicBuilderUser(user: { _id?: { toString(): string } | string }, isAdmin: boolean) {
+  const raw = user as {
+    _id?: { toString(): string } | string;
+    email?: string;
+    username?: string;
+    role?: string;
+    avatar?: unknown;
+    locale?: string;
+  };
+  return {
+    id: raw._id?.toString() ?? "",
+    email: raw.email,
+    username: raw.username,
+    role: raw.role,
+    avatar: raw.avatar,
+    locale: raw.locale,
+    isAdmin,
+  };
 }
 
 // Define load function as async function that takes an event parameter
@@ -98,22 +103,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       throw error(403, "Insufficient permissions");
     }
 
-    // 4. Serialize user data (like the example)
-    const { _id, ...rest } = user;
-    const serializedUser = {
-      id: _id.toString(),
-      ...rest,
-      isAdmin, // Include admin status
-    };
+    const serializedUser = publicBuilderUser(user, Boolean(isAdmin));
 
     // 5. Handle 'new' action
     if (action === "new") {
       return {
         user: serializedUser,
-        roles: tenantRoles || [], // Roles:' key
-        permissions, // Permissions data
-        permissionConfigs, // Permission configs
-        collection: null, // Pass null for 'new' action
+        roles: tenantRoles || [],
+        collection: null,
       };
     }
 
@@ -172,9 +169,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
     return {
       user: serializedUser,
-      roles: tenantRoles || [], // roles:' key
-      permissions, // Permissions data
-      permissionConfigs, //Permission configs
+      roles: tenantRoles || [],
       collection: serializableCollection,
     };
   } catch (err) {
@@ -195,7 +190,7 @@ export const actions: Actions = {
     const { roles: tenantRoles, isAdmin } = locals;
     try {
       if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
-        return { status: 403, error: "Insufficient permissions" };
+        return fail(403, { error: "Insufficient permissions" });
       }
 
       const formData = await request.formData();
@@ -206,15 +201,15 @@ export const actions: Actions = {
       // direct POST, which previously could write files like `"   .ts"`.
       const contentName = String(formData.get("name") ?? "").trim();
       if (!contentName) {
-        return { status: 400, error: "Collection name is required" };
+        return fail(400, { error: "Collection name is required" });
       }
       if (contentName.length > 64) {
-        return { status: 400, error: "Collection name must be 64 characters or fewer" };
+        return fail(400, { error: "Collection name must be 64 characters or fewer" });
       }
       // Defense-in-depth beyond path.basename(): reject traversal / separator
       // characters outright instead of silently basenaming them.
       if (/[\\/]|\.\./.test(contentName) || contentName.includes("\u0000")) {
-        return { status: 400, error: "Collection name contains invalid characters" };
+        return fail(400, { error: "Collection name contains invalid characters" });
       }
       const collectionIcon = formData.get("icon") as string;
       const collectionSlug = formData.get("slug") as string;
@@ -234,7 +229,7 @@ export const actions: Actions = {
         try {
           federationEnrichments = JSON.parse(federationEnrichmentsRaw);
         } catch {
-          return { status: 400, error: "Invalid federationEnrichments JSON" };
+          return fail(400, { error: "Invalid federationEnrichments JSON" });
         }
       }
 
@@ -250,7 +245,7 @@ export const actions: Actions = {
               : parsed
           ) as FieldsData;
         } catch {
-          return { status: 400, error: "Invalid fields JSON" };
+          return fail(400, { error: "Invalid fields JSON" });
         }
       }
 
@@ -271,7 +266,6 @@ export const actions: Actions = {
           `Drift detected for collection ${contentName}. Save blocked pending confirmation.`,
         );
         return {
-          status: 202, // Accepted for check but not yet processed
           driftDetected: true,
           plan: migrationPlan,
         };
@@ -279,8 +273,7 @@ export const actions: Actions = {
 
       const imports = await goThrough(fields, fieldsData);
 
-      // Get tenant ID from request locals (set by hooks.server.ts)
-      const tenantId = (request as any).locals?.tenantId;
+      const tenantId = locals.tenantId ?? null;
 
       // Generate collection file using AST transformation
       const content = await generateCollectionFileWithAST({
@@ -302,6 +295,13 @@ export const actions: Actions = {
       // Use tenant-aware path resolution
       const collectionPath = getCollectionFilePath(contentName, tenantId);
       const oldCollectionPath = originalName ? getCollectionFilePath(originalName, tenantId) : null;
+      const collectionsRoot = getCollectionsPath(tenantId);
+      if (!isPathInside(collectionsRoot, collectionPath)) {
+        return fail(400, { error: "Invalid collection path" });
+      }
+      if (oldCollectionPath && !isPathInside(collectionsRoot, oldCollectionPath)) {
+        return fail(400, { error: "Invalid collection path" });
+      }
 
       if (originalName && originalName !== contentName && oldCollectionPath) {
         fs.renameSync(oldCollectionPath, collectionPath);
@@ -326,60 +326,13 @@ export const actions: Actions = {
         `[SaveCollection] synced ${contentName} in ${syncResult.metrics.totalMs}ms (processed=${syncResult.metrics.processed})`,
       );
       return {
-        status: 200,
         contentVersion: syncResult.contentVersion,
         changedIds: syncResult.changedIds,
       };
     } catch (err) {
       const message = `Error in saveCollection action: ${err instanceof Error ? err.message : String(err)}`;
       logger.error(message);
-      return { status: 500, error: message };
-    }
-  },
-
-  // Save config
-  saveConfig: async ({ request, locals }) => {
-    const user = getAuthenticatedUser(locals);
-    const { roles: tenantRoles, isAdmin } = locals;
-    try {
-      if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
-        return { status: 403, error: "Insufficient permissions" };
-      }
-
-      const formData = await request.formData();
-      const categories = JSON.parse(formData.get("categories") as string);
-
-      // Convert categories to path-based structure
-      interface Category {
-        collections?: Array<{
-          name: string;
-          path?: string;
-        }>;
-        name: string;
-        path?: string;
-      }
-
-      const pathCategories = (categories as Category[]).map((cat) => ({
-        ...cat,
-        path: cat.name.toLowerCase().replace(/\s+/g, "-"),
-        collections:
-          cat.collections?.map((col) => ({
-            ...col,
-            path: `${cat.path || cat.name.toLowerCase().replace(/\s+/g, "-")}/${col.name.toLowerCase().replace(/\s+/g, "-")}`,
-          })) || [],
-      }));
-
-      // Update collections with new category paths
-      await contentSystem.refresh();
-
-      return {
-        status: 200,
-        categories: pathCategories,
-      };
-    } catch (err) {
-      const message = `Error in saveConfig action: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      return { status: 500, error: message };
+      return fail(500, { error: message });
     }
   },
 
@@ -389,33 +342,37 @@ export const actions: Actions = {
     const { roles: tenantRoles, isAdmin } = locals;
     try {
       if (!hasCollectionBuilderPermission(user, tenantRoles, isAdmin)) {
-        return { status: 403, error: "Insufficient permissions" };
+        return fail(403, { error: "Insufficient permissions" });
       }
 
       const formData = await request.formData();
-      const contentTypes = JSON.parse(formData.get("contentTypes") as string);
-
-      // Path traversal check
-      const pathMod = await import("node:path");
-      const safeContentType = pathMod.basename(contentTypes);
-      const targetFile = pathMod.resolve(userCollectionsPath, `${safeContentType}.ts`);
-
-      if (!targetFile.startsWith(userCollectionsPath)) {
-        return { status: 400, error: "Invalid collection ID" };
+      const rawName = String(formData.get("name") ?? formData.get("contentTypes") ?? "").trim();
+      if (!rawName || /[\\/]|\.\./.test(rawName) || rawName.includes("\u0000")) {
+        return fail(400, { error: "Invalid collection name" });
       }
 
-      fs.unlinkSync(targetFile);
+      const tenantId = locals.tenantId ?? null;
+      const targetFile = getCollectionFilePath(rawName, tenantId);
+      const collectionsRoot = getCollectionsPath(tenantId);
+      if (!isPathInside(collectionsRoot, targetFile)) {
+        return fail(400, { error: "Invalid collection path" });
+      }
+
+      if (fs.existsSync(targetFile)) {
+        fs.unlinkSync(targetFile);
+      }
       const { syncContentState } = await import("@src/content/sync-content-state.server");
       await syncContentState({
         reason: "collection-save",
+        tenantId,
         fullBuild: true,
         changedFile: targetFile,
       });
-      return { status: 200 };
+      return { success: true };
     } catch (err) {
       const message = `Error in deleteCollections action: ${err instanceof Error ? err.message : String(err)}`;
       logger.error(message);
-      return { status: 500, error: message };
+      return fail(500, { error: message });
     }
   },
 };
@@ -449,8 +406,11 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
         continue;
       }
 
-      // Get widget definition
+      // Get widget definition — only registered, identifier-safe names
       const widgetName = fieldWithWidget.widget.Name;
+      if (typeof widgetName !== "string" || !WIDGET_NAME_RE.test(widgetName)) {
+        continue;
+      }
       const widget = widgets.widgetFunctions[widgetName] as unknown as WidgetDefinition;
       if (!widget?.GuiSchema) {
         continue;
@@ -601,13 +561,11 @@ export const schema: Schema = {
     const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
     let result = printer.printFile(transformedSourceFile);
 
-    // Clean up the 🗑️ markers, unescape JSON quotes, and format with oxfmt
+    // Clean up the 🗑️ markers and unescape JSON quotes (format off the request path)
     result = result
       .replace(/["']🗑️|🗑️["']/g, "")
       .replace(/🗑️/g, "")
       .replace(/\\"/g, '"');
-
-    result = await formatTypeScript(result);
 
     return result;
   } catch (error) {

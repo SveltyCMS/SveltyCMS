@@ -1,0 +1,79 @@
+/**
+ * @file tests/unit/security/publication-policy.test.ts
+ * @description Unit tests for publication visibility policy.
+ *
+ * Ensures unprivileged callers cannot observe draft/unpublished content across
+ * REST, GraphQL, or SDK queries even if requesting publicationFilter=all or draft.
+ */
+
+import { describe, it, expect } from "vitest";
+import {
+  applyPublicationToQuery,
+  resolvePublicationFilter,
+} from "../../../src/utils/security/publication-policy";
+
+describe("publication-policy — draft isolation & privilege gating", () => {
+  it("forces unprivileged anonymous users to published", () => {
+    expect(resolvePublicationFilter({}, "all")).toBe("published");
+    expect(resolvePublicationFilter({}, "draft")).toBe("published");
+    expect(resolvePublicationFilter({}, "published")).toBe("published");
+    expect(resolvePublicationFilter({}, undefined)).toBe("published");
+  });
+
+  it("forces authenticated non-admin / non-editor users to published", () => {
+    const regularUser = { _id: "u1", role: "user", email: "user@example.com" };
+    expect(resolvePublicationFilter({ user: regularUser }, "all")).toBe("published");
+    expect(resolvePublicationFilter({ user: regularUser }, "draft")).toBe("published");
+    expect(resolvePublicationFilter({ user: regularUser }, "published")).toBe("published");
+    expect(resolvePublicationFilter({ user: regularUser }, undefined)).toBe("published");
+
+    const viewerUser = { _id: "u2", role: "viewer", email: "viewer@example.com" };
+    expect(resolvePublicationFilter({ user: viewerUser }, "all")).toBe("published");
+    expect(resolvePublicationFilter({ user: viewerUser }, "draft")).toBe("published");
+  });
+
+  it("allows admin users to choose any publication filter and defaults to all", () => {
+    const adminRoleUser = { _id: "admin1", role: "admin" };
+    expect(resolvePublicationFilter({ user: adminRoleUser }, "all")).toBe("all");
+    expect(resolvePublicationFilter({ user: adminRoleUser }, "draft")).toBe("draft");
+    expect(resolvePublicationFilter({ user: adminRoleUser }, "published")).toBe("published");
+    expect(resolvePublicationFilter({ user: adminRoleUser }, undefined)).toBe("all");
+
+    const adminFlagUser = { _id: "admin2", isAdmin: true };
+    expect(resolvePublicationFilter({ user: adminFlagUser }, "all")).toBe("all");
+    expect(resolvePublicationFilter({ user: adminFlagUser }, "draft")).toBe("draft");
+    expect(resolvePublicationFilter({ user: adminFlagUser }, undefined)).toBe("all");
+  });
+
+  it("allows editor users to choose any publication filter and defaults to all", () => {
+    const editorUser = { _id: "editor1", role: "editor" };
+    expect(resolvePublicationFilter({ user: editorUser }, "all")).toBe("all");
+    expect(resolvePublicationFilter({ user: editorUser }, "draft")).toBe("draft");
+    expect(resolvePublicationFilter({ user: editorUser }, "published")).toBe("published");
+    expect(resolvePublicationFilter({ user: editorUser }, undefined)).toBe("all");
+  });
+
+  it("allows system caller to choose any publication filter and defaults to all", () => {
+    expect(resolvePublicationFilter({ system: true }, "all")).toBe("all");
+    expect(resolvePublicationFilter({ system: true }, "draft")).toBe("draft");
+    expect(resolvePublicationFilter({ system: true }, "published")).toBe("published");
+    expect(resolvePublicationFilter({ system: true }, undefined)).toBe("all");
+  });
+});
+
+describe("applyPublicationToQuery — adapter-level status binding", () => {
+  it("binds status=publish for the published filter", () => {
+    const query = applyPublicationToQuery({ _id: "1" }, "published");
+    expect(query).toEqual({ _id: "1", status: "publish" });
+  });
+
+  it("binds draft/unpublish $in for the draft filter", () => {
+    const query = applyPublicationToQuery({ _id: "1" }, "draft");
+    expect(query).toEqual({ _id: "1", status: { $in: ["draft", "unpublish"] } });
+  });
+
+  it("leaves the query unchanged for all", () => {
+    const query = applyPublicationToQuery({ _id: "1", tenantId: "t1" }, "all");
+    expect(query).toEqual({ _id: "1", tenantId: "t1" });
+  });
+});

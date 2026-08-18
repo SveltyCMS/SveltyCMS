@@ -12,11 +12,17 @@ import { AppError } from "@utils/error-handling";
 import { getDb, getDbInitPromise, isDbConnected } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
-import { isPublicRoute, getUserCacheId, buildUserCacheKey } from "@src/utils/hook-utils";
+import {
+  isPublicRoute,
+  getUserCacheId,
+  buildUserCacheKey,
+  MUTATION_HTTP_METHODS,
+  WRITE_HTTP_METHODS,
+} from "@src/utils/hook-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
-import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import { SESSION_COOKIE_NAME, isSecureCookieContext } from "@src/databases/auth/constants";
 import {
   responseCache,
   buildUserResponseCacheKey,
@@ -53,19 +59,32 @@ const HANDLERS: Record<string, () => Promise<any>> = {
 };
 
 // Eager-preload hot handlers on first request (lazy-init to not break unit test mocks).
-// Once triggered, subsequent requests resolve the cached module instantly.
+// Once triggered, subsequent requests resolve the cached module synchronously.
+const LOADED_HANDLERS: Record<string, any> = {};
 let _hotPreload: Promise<void> | null = null;
 function ensureHotPreload() {
   if (!_hotPreload) {
     _hotPreload = Promise.all([
-      HANDLERS.collections(),
-      HANDLERS.content(),
-      HANDLERS.auth(),
-      HANDLERS.system(),
-      HANDLERS.tokens(),
+      HANDLERS.collections().then((m) => {
+        LOADED_HANDLERS.collections = m;
+      }),
+      HANDLERS.content().then((m) => {
+        LOADED_HANDLERS.content = m;
+      }),
+      HANDLERS.auth().then((m) => {
+        LOADED_HANDLERS.auth = m;
+      }),
+      HANDLERS.system().then((m) => {
+        LOADED_HANDLERS.system = m;
+      }),
+      HANDLERS.tokens().then((m) => {
+        LOADED_HANDLERS.tokens = m;
+      }),
     ])
       .then(() => {})
-      .catch(() => {});
+      .catch(() => {
+        _hotPreload = null;
+      });
   }
   return _hotPreload;
 }
@@ -483,9 +502,8 @@ export const _handler = async (event: RequestEvent) => {
     (globalThis as any).process?.env?.TEST_MODE !== "true" &&
     !(user as any)?.isApiKey &&
     !(user as any)?.isApiToken &&
-    ["POST", "PUT", "PATCH", "DELETE"].includes(request.method.toUpperCase())
+    MUTATION_HTTP_METHODS.has(request.method.toUpperCase())
   ) {
-    const { isSecureCookieContext } = await import("@src/databases/auth/constants");
     const isSecure = isSecureCookieContext(url.protocol, url.hostname);
     const csrfResult = validateCsrfForRequest(cookies, request, isSecure);
     if (!csrfResult.isValid)
@@ -494,7 +512,7 @@ export const _handler = async (event: RequestEvent) => {
 
   // --- Body Size Limit (prevents memory exhaustion) ---
   const MAX_BODY_SIZE = 15 * 1024 * 1024; // 15MB for API requests (allows 10MB multipart uploads)
-  if (["POST", "PUT", "PATCH"].includes(request.method) && request.headers.get("content-length")) {
+  if (WRITE_HTTP_METHODS.has(request.method) && request.headers.get("content-length")) {
     const contentLength = parseInt(request.headers.get("content-length") || "0", 10);
     if (contentLength > MAX_BODY_SIZE) {
       throw new AppError(
@@ -542,7 +560,11 @@ export const _handler = async (event: RequestEvent) => {
   ensureHotPreload();
 
   const config = NAMESPACE_CONFIG[namespace];
-  const handlerModule = await HANDLERS[config.handler]();
+  let handlerModule = LOADED_HANDLERS[config.handler];
+  if (!handlerModule) {
+    handlerModule = await HANDLERS[config.handler]();
+    LOADED_HANDLERS[config.handler] = handlerModule;
+  }
   const fn = handlerModule[config.fn];
 
   if (typeof fn !== "function") {

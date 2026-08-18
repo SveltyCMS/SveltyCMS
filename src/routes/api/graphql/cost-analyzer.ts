@@ -14,7 +14,7 @@
  * - Descriptive over-budget error messages
  */
 
-import { parse, visit, type ASTNode, type FieldNode } from "graphql";
+import { parse, visit, type ASTNode, type DocumentNode, type FieldNode } from "graphql";
 
 /** Default maximum query cost before rejection. */
 export const DEFAULT_MAX_COST = 1000;
@@ -31,6 +31,8 @@ export interface CostAnalysisResult {
   allowed: boolean;
   /** List of top-level field names requested */
   fields: string[];
+  /** Parsed document from the single parse used for cost analysis (reuse on the request path). */
+  document?: DocumentNode;
 }
 
 /** Normalizes a GraphQL query string by stripping comments and collapsing whitespace for fast cache matching */
@@ -119,6 +121,7 @@ export function analyzeQueryCost(
     cost: totalCost,
     allowed: totalCost <= maxCost,
     fields,
+    document,
   };
 
   // O(1) sliding window: when current fills, swap — no iterator allocation

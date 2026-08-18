@@ -45,13 +45,13 @@ tags:
 > [!NOTE]
 > **Partial update** — dimension rollups and issues reflect only tests invoked in this run.
 
-**✅ PASS** _(partial invocation)_ · 1/36 tests · 35 skipped · **mongodb** · standalone run
+**✅ PASS** _(partial invocation)_ · 1/39 tests · 38 skipped · **mongodb** · standalone run
 
 ### Dimension health
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    14 | 🟢     | -16%    | 0      |
+| **Core**       |    10 | 🟢     | —       | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,30 +62,26 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario                 | Latency | Trend                                    | Budget | Result |
-| ------------------------ | ------- | ---------------------------------------- | ------ | ------ |
-| **Database Performance** | 0.670ms | ⚪ stable at 0.729ms (±0.089ms) (2 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.600ms | ⚪ stable at 0.654ms (±0.116ms) (2 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.821ms | ⚪ stable at 0.908ms (±0.140ms) (2 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.867ms | ⚪ established at 0.867ms (1 run)        | < 5ms  | 🟢     |
-| **Database Performance** | 0.748ms | ⚪ established at 0.748ms (1 run)        | < 5ms  | 🟢     |
-| **Database Performance** | 0.705ms | ⚪ established at 0.705ms (1 run)        | < 5ms  | 🟢     |
-| **Database Performance** | 4.925ms | ⚪ established at 4.92ms (1 run)         | < 5ms  | 🟢     |
-| **Database Performance** | 0.752ms | ⚪ stable at 0.895ms (±0.297ms) (2 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 0.746ms | ⚪ stable at 0.816ms (±0.136ms) (2 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 3.817ms | ⚪ stable at 4.31ms (±0.598ms) (2 runs)  | < 5ms  | 🟢     |
-| **Database Performance** | 0.492ms | ⚪ established at 0.492ms (1 run)        | < 5ms  | 🟢     |
-| **Database Performance** | 0.025ms | ⚪ established at 0.025ms (1 run)        | < 5ms  | 🟢     |
-| **Database Performance** | 0.972ms | ⚪ stable at 0.935ms (±0.139ms) (2 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 4.584ms | ⚪ stable at 4.44ms (±0.390ms) (2 runs)  | < 5ms  | 🟢     |
+| Scenario                         | Latency  | Trend                             | Budget | Result |
+| -------------------------------- | -------- | --------------------------------- | ------ | ------ |
+| **Competitive Workload Replica** | 1.739ms  | ⚪ established at 1.74ms (1 run)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 5.739ms  | ⚪ established at 5.74ms (1 run)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.680ms  | ⚪ established at 1.68ms (1 run)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.520ms  | ⚪ established at 1.52ms (1 run)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.636ms  | ⚪ established at 1.64ms (1 run)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.498ms  | ⚪ established at 1.50ms (1 run)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 4.828ms  | ⚪ established at 4.83ms (1 run)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 14.842ms | ⚪ established at 14.84ms (1 run) | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 12.787ms | ⚪ established at 12.79ms (1 run) | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 9.663ms  | ⚪ established at 9.66ms (1 run)  | < 5ms  | 🟢     |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric                                          | Trend | Sparkline | Latest  |
-| ----------------------------------------------- | ----- | --------- | ------- |
-| database performance (BULK INSERT (100)) (warm) | 🟢    | `█▁▇`     | 4.584ms |
+| Metric                                          | Trend | Sparkline      | Latest  |
+| ----------------------------------------------- | ----- | -------------- | ------- |
+| database performance (BULK INSERT (100)) (warm) | 🟢    | `▁▇▆▆███▃▄▄▃▄` | 5.760ms |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
@@ -96,27 +92,6 @@ xychart-beta
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
-```
-
-</details>
-<details>
-<summary>📊 Regression severity matrix (quadrant)</summary>
-
-```mermaid
-quadrantChart
-  title "Regression severity (impact vs delta)"
-  x-axis Low latency impact --> High latency impact
-  y-axis Low delta --> High delta
-  quadrant-1 Monitor
-  quadrant-2 Investigate soon
-  quadrant-3 Acceptable variance
-  quadrant-4 Critical — fix first
-    Database Performance: [0.18, 0.40]
-    Database Performance: [0.16, 0.41]
-    Database Performance: [0.22, 0.48]
-    Database Performance: [0.20, 0.80]
-    Database Performance: [0.20, 0.43]
-    Database Performance: [0.95, 0.57]
 ```
 
 </details>
@@ -132,46 +107,43 @@ quadrantChart
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-08-04)
+### Current Run Summary (2026-08-18)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `aba353ac-8818-4c4a-af96-0329843648e5` · **Tests invoked:** 1 · **Metrics:** 14 · **DB:** mongodb
+**Run ID:** `e953bdf3-a96c-4e6d-96b8-b8dc549f54a4` · **Tests invoked:** 1 · **Metrics:** 10 · **DB:** mongodb
 
-| Test                 | Metric                 | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                                   |
-| -------------------- | ---------------------- | -------- | -------- | ----- | ----- | ---------------------------------------- |
-| Database Performance | INSERT                 | 0.670    | 0.823    | 1167  | 🟢    | ⚪ stable at 0.729ms (±0.089ms) (2 runs) |
-| Database Performance | FIND ONE               | 0.600    | 0.727    | 1420  | 🟢    | ⚪ stable at 0.654ms (±0.116ms) (2 runs) |
-| Database Performance | FIND MANY (limit 50)   | 0.821    | 0.958    | 1055  | 🟢    | ⚪ stable at 0.908ms (±0.140ms) (2 runs) |
-| Database Performance | FIND PAGE (50 hasMore) | 0.867    | 0.994    | 1007  | 🟢    | ⚪ established at 0.867ms (1 run)        |
-| Database Performance | FIND PAGE keyset       | 0.748    | 0.863    | 1164  | 🟢    | ⚪ established at 0.748ms (1 run)        |
-| Database Performance | FIND MANY offset 50    | 0.705    | 0.805    | 1251  | 🟢    | ⚪ established at 0.705ms (1 run)        |
-| Database Performance | LIST+COUNT (legacy)    | 4.925    | 6.379    | 200   | 🟢    | ⚪ established at 4.92ms (1 run)         |
-| Database Performance | UPDATE                 | 0.752    | 0.890    | 997   | 🟢    | ⚪ stable at 0.895ms (±0.297ms) (2 runs) |
-| Database Performance | NATIVE UPSERT          | 0.746    | 0.884    | 1019  | 🟢    | ⚪ stable at 0.816ms (±0.136ms) (2 runs) |
-| Database Performance | COUNT                  | 3.817    | 5.445    | 259   | 🟢    | ⚪ stable at 4.31ms (±0.598ms) (2 runs)  |
-| Database Performance | COUNT ESTIMATE         | 0.492    | 0.672    | 1708  | 🟢    | ⚪ established at 0.492ms (1 run)        |
-| Database Performance | COUNT CACHED           | 0.025    | 0.028    | 37204 | 🟢    | ⚪ established at 0.025ms (1 run)        |
-| Database Performance | DELETE                 | 0.972    | 2.212    | 847   | 🟢    | ⚪ stable at 0.935ms (±0.139ms) (2 runs) |
-| Database Performance | BULK INSERT (100)      | 4.584    | 7.584    | 181   | 🟢    | ⚪ stable at 4.44ms (±0.390ms) (2 runs)  |
+| Test                         | Metric                         | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                            |
+| ---------------------------- | ------------------------------ | -------- | -------- | ---- | ----- | --------------------------------- |
+| Competitive Workload Replica | findById (Concurrent 8c)       | 1.739    | 3.412    | 2792 | 🟢    | ⚪ established at 1.74ms (1 run)  |
+| Competitive Workload Replica | findByIdRandom (Concurrent 8c) | 5.739    | 8.329    | 1165 | 🟢    | ⚪ established at 5.74ms (1 run)  |
+| Competitive Workload Replica | listPlain (Concurrent 8c)      | 1.680    | 3.256    | 2805 | 🟢    | ⚪ established at 1.68ms (1 run)  |
+| Competitive Workload Replica | listFilterSort (Concurrent 8c) | 1.520    | 2.585    | 3044 | 🟢    | ⚪ established at 1.52ms (1 run)  |
+| Competitive Workload Replica | listLarge (Concurrent 8c)      | 1.636    | 2.812    | 2933 | 🟢    | ⚪ established at 1.64ms (1 run)  |
+| Competitive Workload Replica | findMissing (Concurrent 8c)    | 1.498    | 3.158    | 3184 | 🟢    | ⚪ established at 1.50ms (1 run)  |
+| Competitive Workload Replica | GraphQL Query (Concurrent 8c)  | 4.828    | 5.328    | 1535 | 🟢    | ⚪ established at 4.83ms (1 run)  |
+| Competitive Workload Replica | create (Concurrent 8c)         | 14.842   | 17.631   | 522  | 🟢    | ⚪ established at 14.84ms (1 run) |
+| Competitive Workload Replica | update (Concurrent 8c)         | 12.787   | 14.326   | 605  | 🟢    | ⚪ established at 12.79ms (1 run) |
+| Competitive Workload Replica | mixed (Concurrent 8c 50/50)    | 9.663    | 11.976   | 742  | 🟢    | ⚪ established at 9.66ms (1 run)  |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-08-04)
+### Historical Trends (2026-08-18)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
 **Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='mongodb' AND redis=0 ORDER BY timestamp DESC`
 
-**Series:** 1 · **DB:** mongodb
+**Series:** 2 · **DB:** mongodb
 
-| Metric                      | Trend | Sparkline (last 7) | Latest  |
-| --------------------------- | ----- | ------------------ | ------- |
-| DATABASE PERFORMANCE (warm) | 🟢    | `▁▁▁▁█▁▁`          | 0.752ms |
+| Metric                              | Trend | Sparkline (last 7) | Latest   |
+| ----------------------------------- | ----- | ------------------ | -------- |
+| DATABASE PERFORMANCE (warm)         | 🟢    | `▁▂▁█▁▁▁`          | 0.810ms  |
+| COMPETITIVE WORKLOAD REPLICA (warm) | ⚪    | `▄▁▁▁▁▆█`          | 12.787ms |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 

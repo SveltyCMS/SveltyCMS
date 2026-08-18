@@ -2,17 +2,18 @@
  * @file tests/e2e/routes/collection-builder/builder.spec.ts
  * @description Collection Builder E2E — Testing 2026 pattern (webhooks reference).
  *
- * **One domain → shell guard + one golden journey.** Do not re-grow a 9-file suite.
+ * **One domain → shell + one structure journey + one golden.** Do not re-grow a 9-file suite.
  *
  * | Layer | Coverage |
  * | ----- | -------- |
  * | E2E shell | Board / add-collection chrome |
+ * | E2E structure | Category create → reload persistence |
  * | E2E golden | Schema → entry → API (full lifecycle) |
  * | Unit | collectionbuilder-utils, page.server |
  * | Integration | collection-structure, structure-persistence*, code-gui-parity |
  *
  * Demoted from E2E (do not re-add without ADR review):
- * empty-state, structure-persistence UI, federation, widget toggles, field reorder,
+ * empty-state, federation, widget toggles, field reorder,
  * extensions widget catalog, entry publish UI (API status asserted in golden).
  */
 
@@ -22,6 +23,7 @@ import { dismissCookieBanner } from "../../helpers/auth";
 import {
   addInputField,
   collectionSlugCandidates,
+  createPersistedCategory,
   openCollectionEntries,
   openNewCollectionEditor,
   saveCollectionSchema,
@@ -119,6 +121,30 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     expect(mark, "Expected in-page mark after schema save (soft invalidate, not hard reload)").toBe(
       42,
     );
+  });
+
+  /**
+   * Structure persistence — category create → reload → still on the board.
+   * Complements integration structure-persistence tests with a real UI save.
+   */
+  test("structure: category create survives reload", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { level: 1, name: /collection builder/i })).toBeVisible({
+      timeout: 30_000,
+    });
+
+    const fixture = uniqueCollectionFixture("Cat");
+    await createPersistedCategory(page, fixture.name);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { level: 1, name: /collection builder/i })).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByText(fixture.name, { exact: true }).first()).toBeVisible({
+      timeout: 20_000,
+    });
   });
 
   /**

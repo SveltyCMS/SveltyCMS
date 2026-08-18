@@ -30,7 +30,10 @@ import { metricsService } from "@src/services/observability/metrics-service";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
+import { isDbConnected, getDbInitPromise, getDb } from "@src/databases/db";
+import { contentSystem, contentStore } from "@src/content/index.server";
 import { analyzeQueryCost, formatCostError, normalizeQueryString } from "./cost-analyzer";
+import { resolvePublicationFilter } from "@utils/security/publication-policy";
 
 // GraphQL validation plugin: enforces query depth (max 8), alias count (max 15),
 // and blocks schema introspection in production environments
@@ -83,7 +86,7 @@ const securityValidationPlugin = {
         });
       }
       try {
-        const doc = getOrParseDocument(query);
+        const doc = analysis.document ?? getOrParseDocument(query);
         if (typeof setParsedDocument === "function") {
           setParsedDocument(doc);
         }
@@ -325,15 +328,13 @@ const MAX_TENANT_SCHEMA_CACHE = 32;
  */
 function resolveSchemaCacheKey(dbAdapter: any, tenantId?: string | null) {
   let root: any = dbAdapter;
-  for (let i = 0; i < 4 && root && typeof root.unscoped === "function"; i++) {
+  if (root && typeof root.unscoped === "function") {
     root = root.unscoped();
+    if (root && typeof root.unscoped === "function") {
+      root = root.unscoped();
+    }
   }
   const boundTenant = dbAdapter?.boundTenantId;
-  // "global" is the canonical CACHE marker for "no tenant" — but the schema
-  // itself must be built with null so resolvers fall back to the same default
-  // tenant ("default") a real no-tenant request would use (plugin state,
-  // tenant-scoped settings). Building it with "global" changes resolver
-  // semantics (e.g. isHubEnabled("global") misses the null-tenant state).
   const tenant = boundTenant ?? (tenantId && tenantId !== "global" ? tenantId : null);
   const tenantKey = String(tenant ?? "global");
   return { root, tenant, tenantKey };
@@ -371,7 +372,6 @@ function setTenantSchemaCache(
 }
 
 export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
-  const { contentSystem } = await import("@src/content/index.server");
   const currentVersion = contentSystem.version;
   const {
     root: rootAdapter,
@@ -467,10 +467,10 @@ async function handleRequest(event: RequestEvent) {
   const url = event.url;
   const publicationFilterParam = url.searchParams.get("publicationFilter");
   const publicationFilterHeader = request.headers.get("x-publication-filter");
-  const publicationFilter = (publicationFilterParam || publicationFilterHeader || "all") as
-    | "published"
-    | "draft"
-    | "all";
+  const publicationFilter = resolvePublicationFilter(
+    { user: locals.user, system: (locals as any).isSystem },
+    publicationFilterParam || publicationFilterHeader,
+  );
 
   let query = "";
   let variables: any = {};
@@ -531,7 +531,6 @@ async function handleRequest(event: RequestEvent) {
   }
 
   // ── CACHE MISS PATH: Load content system, DB adapter & Yoga app ──
-  const { contentStore } = await import("@src/stores/content-registry.svelte");
   if (contentStore.isReloading) {
     if (PROFILE_WRITE_ENABLED) {
       const reloadEnd = profileMark("gql:waitForReload");
@@ -544,7 +543,6 @@ async function handleRequest(event: RequestEvent) {
 
   let adapter = locals.dbAdapter;
   if (!adapter || (typeof adapter.isConnected === "function" && !adapter.isConnected())) {
-    const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
     if (!isDbConnected()) {
       await getDbInitPromise();
     }

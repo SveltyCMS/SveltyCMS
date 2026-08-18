@@ -217,6 +217,22 @@ export async function getCollectionFields(
   if (hit && Date.now() - hit.at < FIELD_SCHEMA_CACHE_TTL_MS) return hit.fields;
 
   try {
+    try {
+      const { contentStore } = await import("@src/stores/content-registry.svelte");
+      const inMemory = contentStore.getCollection(collection, tenantId);
+      if (inMemory?.fields && inMemory.fields.length > 0) {
+        const fields = inMemory.fields as FieldInstance[];
+        if (fieldSchemaCache.size >= FIELD_SCHEMA_CACHE_MAX) {
+          const oldest = fieldSchemaCache.keys().next().value;
+          if (oldest) fieldSchemaCache.delete(oldest);
+        }
+        fieldSchemaCache.set(key, { fields, at: Date.now() });
+        return fields;
+      }
+    } catch {
+      /* content store may not be initialized yet — fall through to adapter */
+    }
+
     const { dbAdapter } = await import("@src/databases/db");
     const res = await dbAdapter.collection.listSchemas(tenantId as any);
     let fields: FieldInstance[] | null = null;

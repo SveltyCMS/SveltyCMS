@@ -661,6 +661,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     // (identity flips between proxy and raw break schema caches).
     locals.dbAdapter = dbAdapter;
     (locals as any).dbAdapterUnscoped = dbAdapter;
+    {
+      const { applyAdapterTenantContext } = await getTenantAdapterLazy();
+      await applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
+    }
     return await resolve(event);
   }
 
@@ -759,7 +763,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     // tenant-injecting proxy wrap on every authenticated multi-tenant request).
     const preUserTenant = locals.tenantId as DatabaseId | null | undefined;
     {
-      const { bindRequestDbAdapter } = await getTenantAdapterLazy();
+      const { bindRequestDbAdapter, applyAdapterTenantContext } = await getTenantAdapterLazy();
       const bound = bindRequestDbAdapter(
         dbAdapter,
         locals.tenantId as DatabaseId,
@@ -767,6 +771,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       );
       locals.dbAdapter = bound.dbAdapter as any;
       (locals as any).dbAdapterUnscoped = bound.dbAdapterUnscoped;
+      await applyAdapterTenantContext(bound.dbAdapterUnscoped, locals.tenantId ?? null);
     }
 
     const authHeader = event.request.headers.get("Authorization");
@@ -903,6 +908,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               true,
             );
             locals.dbAdapter = bound.dbAdapter as any;
+            const { applyAdapterTenantContext } = await import("@src/databases/tenant-adapter");
+            await applyAdapterTenantContext(bound.dbAdapterUnscoped, locals.tenantId ?? null);
           }
           await handleSessionRotation(event, user, sessionId);
         } else if (resolution.status === "invalid") {
