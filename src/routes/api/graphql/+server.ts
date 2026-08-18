@@ -464,7 +464,7 @@ async function handleRequest(event: RequestEvent) {
     throw new AppError("Unauthorized: Login required for GraphQL", 401);
   }
 
-  const url = new URL(request.url);
+  const url = event.url;
   const publicationFilterParam = url.searchParams.get("publicationFilter");
   const publicationFilterHeader = request.headers.get("x-publication-filter");
   const publicationFilter = (publicationFilterParam || publicationFilterHeader || "all") as

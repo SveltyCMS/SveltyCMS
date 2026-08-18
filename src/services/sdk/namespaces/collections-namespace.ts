@@ -1124,17 +1124,8 @@ export class CollectionsNamespace {
       } catch {}
     }
 
-    if (bypassCache) {
-      return this.loadOneById(schema, entryId, {
-        ...options,
-        tenantId,
-        bypassCache,
-      });
-    }
-
-    // Same-tick N+1: open a microtask batch window so concurrent findById join.
-    // Single-id batches resolve via findOne (loadOneById) — no $in overhead.
-    return this.enqueueBatchLoad(schema, entryId, {
+    // Single-id hot path: direct loadOneById with coalescing (no microtask batch delay)
+    return this.loadOneById(schema, entryId, {
       ...options,
       tenantId,
       bypassCache,
