@@ -72,6 +72,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   /** The tenant ID for the current request context, set by setTenantContext() */
   private _currentTenantId: string | null = null;
 
+  /** Active tenant for pool routing / txn GUC (null = unset). */
+  public get currentTenantId(): string | null {
+    return this._currentTenantId;
+  }
+
   protected _transactionModule?: import("./transaction-module").TransactionModule;
 
   // --------------------------------------------------------------------------
@@ -184,6 +189,101 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         ...this.convertDatesOptions,
         table: collection,
       }) as unknown as T;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Raw prepared-SQL UPDATE…RETURNING fast path for PostgreSQL:
+   * Uses a single prepared statement with parameter binding instead of Drizzle's
+   * per-call AST build + SQL compilation on the hot write path.
+   */
+  protected override async rawUpdateReturning<T extends import("../db-interface").BaseEntity>(
+    table: any,
+    collection: string,
+    values: Record<string, any>,
+    idCol: any,
+    id: DatabaseId,
+    options: BaseQueryOptions,
+  ): Promise<T | null> {
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql!;
+    try {
+      const columns = Object.keys(values);
+      if (columns.length === 0) return null;
+      if ((options as any)?.tenantId === null) return null;
+
+      const tableName = getTableName(table);
+      const idColName = idCol?.name || "_id";
+      const setPairs: string[] = [];
+      const boundValues: any[] = [];
+
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i];
+        const phys = this.getColumn(table, col);
+        const physName = phys?.name ?? col;
+        const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
+        const v = values[col];
+        if (v instanceof Date) {
+          boundValues.push((v as Date).toISOString());
+          setPairs.push(`"${safeCol}" = $${boundValues.length}`);
+        } else if (v === null || v === undefined) {
+          boundValues.push(null);
+          setPairs.push(`"${safeCol}" = $${boundValues.length}`);
+        } else if (typeof v === "object") {
+          boundValues.push(JSON.stringify(v));
+          setPairs.push(
+            physName === "data" || (phys as any)?.dataType === "json"
+              ? `"${safeCol}" = $${boundValues.length}::jsonb`
+              : `"${safeCol}" = $${boundValues.length}`,
+          );
+        } else {
+          boundValues.push(v);
+          setPairs.push(`"${safeCol}" = $${boundValues.length}`);
+        }
+      }
+
+      boundValues.push(String(id));
+      const idParamIdx = boundValues.length;
+
+      let whereSql = `"${utils.assertSafeSqlIdentifier(idColName, "column")}" = $${idParamIdx}`;
+      if (
+        options?.tenantId !== undefined &&
+        options.tenantId !== null &&
+        options.tenantId !== "global"
+      ) {
+        boundValues.push(String(options.tenantId));
+        whereSql += ` AND "tenantId" = $${boundValues.length}`;
+      }
+
+      const skipReturning = (options as any)?.skipReturning === true;
+      const setSql = setPairs.join(", ");
+      const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+
+      if (skipReturning) {
+        const runSql = `UPDATE "${safeTableName}" SET ${setSql} WHERE ${whereSql}`;
+        await exec.unsafe(runSql, boundValues, { prepare: true });
+        const reconstructed = {
+          ...values,
+          [idColName]: id,
+        } as Record<string, unknown>;
+        return utils.convertDatesToISO(reconstructed, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as unknown as T;
+      }
+
+      const rawSql = `UPDATE "${safeTableName}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
+      const rows = await exec.unsafe(rawSql, boundValues, { prepare: true });
+      if (Array.isArray(rows) && rows.length > 0) {
+        return utils.convertDatesToISO(rows[0], {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as T;
+      }
+      return null;
     } catch {
       return null;
     }
@@ -629,7 +729,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // not stop quote breakout from admin-typed collection names — fail
       // closed BEFORE any SQL is assembled.
       utils.assertSafeSqlIdentifier(cleanId, "collection");
-      const tableName = cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`;
+      // ⚠️ Composite length guard: the interpolated identifier is
+      // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
+      // not enough — the composite can exceed NAMEDATALEN=63 and PG would
+      // silently truncate, colliding with a longer sibling name. Fail closed
+      // on the FINAL identifier.
+      const tableName = utils.assertSafeSqlIdentifier(
+        cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`,
+        "table",
+      );
 
       const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
       if (helpers.isSystemTable(cleanName) && cleanName !== collection) {
@@ -1406,15 +1514,24 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * @param tenantId - The tenant ID to set, or null to use the "global" context
    * @throws {Error} if the database is not connected
    */
-  public async setTenantContext(tenantId: string | null): Promise<void> {
+  public async setTenantContext(
+    tenantId: string | null,
+    sql?: ReturnType<typeof postgres> | null,
+  ): Promise<void> {
     this._currentTenantId = tenantId;
     const value = tenantId ?? "global";
     if (!this.sql) {
       throw new Error("[PostgreSQLAdapter] Database not connected — cannot set tenant context");
     }
-    // PostgreSQL does NOT allow parameter placeholders ($1) inside SET
-    // statements (42601) — the supported mechanism is set_config().
-    await this.sql`SELECT set_config('app.tenant_id', ${value}, false)`;
+    // Shared postgres.js pools multiplex connections: a pool-level
+    // set_config() would land on a random socket and leak or vanish.
+    // Apply session GUC only on a dedicated tenant pool (is_local=false)
+    // or on a caller-provided txn client (is_local=true, same connection).
+    const tenantPool = tenantId ? this._tenantPools.get(tenantId) : undefined;
+    const exec = sql ?? tenantPool;
+    if (!exec) return;
+    const isLocal = Boolean(sql);
+    await exec`SELECT set_config('app.tenant_id', ${value}, ${isLocal})`;
   }
 
   /**
@@ -1443,7 +1560,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }
         const physicalName = getTableName(table as any);
 
-        // Enable RLS on the table (idempotent)
+        // ENABLE (not FORCE): the CMS typically connects as table owner, so
+        // FORCE without a reserved per-request connection would hide every
+        // row when app.tenant_id is unset on a pooled socket. App-level
+        // WHERE tenantId=? remains the request-path isolator; RLS + GUC
+        // apply inside transactions / dedicated tenant pools.
         await this.raw.execute(`ALTER TABLE "${physicalName}" ENABLE ROW LEVEL SECURITY`);
 
         // Create or replace the tenant isolation policy.
@@ -1451,7 +1572,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         // (the exact name used in CREATE TABLE — unquoted tenant_id would fold
         // to lowercase and throw 42703) with the session variable set by
         // setTenantContext(). missing_ok=true makes an unset session context
-        // yield NULL → zero rows → fail-closed instead of raising an error.
+        // Drop existing policy first to ensure idempotency across migrations
+        await this.raw.execute(`DROP POLICY IF EXISTS tenant_isolation ON "${physicalName}"`);
         await this.raw.execute(
           `CREATE POLICY tenant_isolation ON "${physicalName}" FOR ALL USING ("tenantId" = current_setting('app.tenant_id', true))`,
         );

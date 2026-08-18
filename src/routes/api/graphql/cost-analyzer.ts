@@ -14,7 +14,7 @@
  * - Descriptive over-budget error messages
  */
 
-import { parse, visit, type ASTNode, type FieldNode } from "graphql";
+import { parse, visit, type ASTNode, type DocumentNode, type FieldNode } from "graphql";
 
 /** Default maximum query cost before rejection. */
 export const DEFAULT_MAX_COST = 1000;
@@ -31,6 +31,18 @@ export interface CostAnalysisResult {
   allowed: boolean;
   /** List of top-level field names requested */
   fields: string[];
+  /** Parsed document from the single parse used for cost analysis (reuse on the request path). */
+  document?: DocumentNode;
+}
+
+/** Normalizes a GraphQL query string by stripping comments and collapsing whitespace for fast cache matching */
+export function normalizeQueryString(str: string): string {
+  if (!str) return "";
+  // Strip single-line comments (# to newline) and collapse multiple whitespace
+  return str
+    .replace(/#[^\r\n]*/g, "")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 /**
@@ -48,14 +60,15 @@ export function analyzeQueryCost(
   queryString: string,
   maxCost: number = DEFAULT_MAX_COST,
 ): CostAnalysisResult {
+  const normalized = normalizeQueryString(queryString);
   // Dual-map cache: check current → old → promote → compute
-  let cached = currentCache.get(queryString);
+  let cached = currentCache.get(normalized);
   if (cached) return cached;
 
-  cached = oldCache.get(queryString);
+  cached = oldCache.get(normalized);
   if (cached) {
     // Promote to fresh window
-    currentCache.set(queryString, cached);
+    currentCache.set(normalized, cached);
     return cached;
   }
 
@@ -108,6 +121,7 @@ export function analyzeQueryCost(
     cost: totalCost,
     allowed: totalCost <= maxCost,
     fields,
+    document,
   };
 
   // O(1) sliding window: when current fills, swap — no iterator allocation
@@ -115,7 +129,7 @@ export function analyzeQueryCost(
     oldCache = currentCache;
     currentCache = new Map();
   }
-  currentCache.set(queryString, result);
+  currentCache.set(normalized, result);
 
   return result;
 }

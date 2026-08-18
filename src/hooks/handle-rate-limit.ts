@@ -248,6 +248,12 @@ function setBoundedBucket(
  * so that unauthenticated brute-force attempts are rate-limited.
  */
 export const handleRateLimit: Handle = async ({ event, resolve }) => {
+  // Skip non-mutating GET/HEAD/OPTIONS immediately (mutations only)
+  const method = event.request.method;
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
+    return resolve(event);
+  }
+
   const pathname = event.url.pathname;
   const flags = getRequestFlags(event.locals);
 
@@ -267,12 +273,6 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   const isLocal =
     clientIp === "127.0.0.1" || clientIp === "::1" || event.url.hostname === "localhost";
   if (isLocal && IS_TEST_MODE) {
-    return resolve(event);
-  }
-
-  // Skip non-mutating GET/HEAD/OPTIONS (mutations only)
-  const method = event.request.method;
-  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
     return resolve(event);
   }
 

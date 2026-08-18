@@ -261,6 +261,7 @@ bun run db:push
 2. **Favor `LocalCMS`**: Use the SDK bridge in server files for 0ms internal latency.
 3. **Respect `tenantId`**: Ensure every query includes a tenant scope to maintain data isolation. For bearer auth, pass `locals.tenantId` into `websiteTokens.getByToken()` when the request tenant is already resolved.
 4. **Error Checking**: Always check `result.success` before accessing `result.data`.
+5. **Transactions & Soft Failures**: Inside `db.transaction(fn)`, returning `{ success: false, rollback: false }` allows returning non-fatal read/query misses without triggering an automatic outer database transaction rollback.
 
 ---
 

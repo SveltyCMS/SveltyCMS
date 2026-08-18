@@ -82,13 +82,17 @@ export async function getAuditFlags(): Promise<AuditFlags> {
 
 /**
  * Synchronous fast path for hot request loops: returns the memoized DB flags
- * when fresh, or the env fast-path result, or null when a DB load is needed.
+ * when fresh, or the env fast-path result, or a safe default while refreshing
+ * in the background — never blocks the request loop.
  */
-export function getAuditFlagsSync(): AuditFlags | null {
+export function getAuditFlagsSync(): AuditFlags {
   const env = envFlags();
   if (env) return env;
-  if (cached && Date.now() - cachedAt < AUDIT_FLAGS_TTL_MS) return cached;
-  return null;
+  const now = Date.now();
+  if (cached && now - cachedAt < AUDIT_FLAGS_TTL_MS) return cached;
+  // Trigger background refresh without awaiting
+  getAuditFlags().catch(() => {});
+  return cached ?? { disabled: false, chainSync: false };
 }
 
 /** Synchronous fast check — true only when env flags are present and disabling. */

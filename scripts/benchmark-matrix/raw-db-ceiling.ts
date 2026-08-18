@@ -98,11 +98,26 @@ const BOARD_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
  * (HTTP layer first — includes the full middleware tax, the honest comparison
  * — then SDK/DB-layer fallbacks for ops without an HTTP record). */
 const BOARD_SOURCES: Record<string, RegExp[]> = {
-  findById: [/^HTTP: findById @ /, /^LocalCMS findById \(cold\)$/],
-  findMissing: [/negative-cache/i, /^LocalCMS findMissing/],
-  create: [/^HTTP: .*\bcreate\b/i, /^LocalCMS create$/],
-  update: [/^HTTP: .*\bupdate\b/i, /^LocalCMS update$/],
-  listPlain: [/^Collection List /, /^FIND_MANY \(limit 50\)$/],
+  findById: [
+    /^HTTP: findById @ /,
+    /competitive\.find_by_id/i,
+    /^findById \(/i,
+    /^LocalCMS findById \(cold\)$/,
+  ],
+  findMissing: [
+    /negative-cache/i,
+    /competitive\.find_missing/i,
+    /^findMissing \(/i,
+    /^LocalCMS findMissing/,
+  ],
+  create: [/^HTTP: .*\bcreate\b/i, /competitive\.create/i, /^create \(/i, /^LocalCMS create$/],
+  update: [/^HTTP: .*\bupdate\b/i, /competitive\.update/i, /^update \(/i, /^LocalCMS update$/],
+  listPlain: [
+    /^Collection List /,
+    /competitive\.list_plain/i,
+    /^listPlain \(/i,
+    /^FIND_MANY \(limit 50\)$/,
+  ],
 };
 
 /** Result files produced by the benchmark harness ({metric, rps, db, timestamp}). */

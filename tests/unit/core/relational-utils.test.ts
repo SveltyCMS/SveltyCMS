@@ -323,4 +323,17 @@ describe("relational-utils — tenant filter centralization", () => {
     expect(() => utils.assertSafeSqlIdentifier("a;drop table")).toThrow(/Invalid SQL identifier/);
     expect(() => utils.assertFiniteAmount(Number.NaN)).toThrow(/finite number/);
   });
+
+  it("assertSafeSqlIdentifier rejects identifiers that would exceed Postgres NAMEDATALEN (63)", () => {
+    // 63 chars is fine (PG truncates at 64)
+    const exactly63 = "a".repeat(63);
+    expect(utils.assertSafeSqlIdentifier(exactly63)).toBe(exactly63);
+    // 64+ chars would be silently truncated by Postgres → must throw at DDL time
+    expect(() => utils.assertSafeSqlIdentifier("a".repeat(64))).toThrow(/63 chars/);
+    // Typical worst case: idx_<uuid32>_<fieldName> leaves only 26 chars for the field
+    const uuidLike = "550e8400e29b41d4a716446655440000"; // 32 chars
+    expect(() =>
+      utils.assertSafeSqlIdentifier(`idx_${uuidLike}_${"b".repeat(27)}`, "index"),
+    ).toThrow(/63 chars/);
+  });
 });

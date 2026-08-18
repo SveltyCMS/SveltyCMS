@@ -82,8 +82,7 @@ describe("collectionbuilder +page.server load", () => {
         translations: [],
       },
     ]);
-    // JSON.parse(JSON.stringify) drops methods — object ids become {}
-    // Production path uses JSON clone; ensure our mock plain objects stringify cleanly
+    // serializeStructureNodes uses _id.toString() — plain string ids stay strings
     mockGetContentStructure.mockResolvedValue([
       {
         _id: "plain-id",

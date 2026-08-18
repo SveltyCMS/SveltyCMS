@@ -151,8 +151,7 @@ class RedirectIndexService {
 const redirectIndexService = new RedirectIndexService();
 
 export const handleRedirects: Handle = async ({ event, resolve }) => {
-  const url = new URL(event.url);
-  const path = url.pathname;
+  const path = event.url.pathname;
 
   const flags = getRequestFlags(event.locals as any);
   if (

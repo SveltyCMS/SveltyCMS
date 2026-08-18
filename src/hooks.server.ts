@@ -56,6 +56,7 @@ import { handleTurboGet, turboAuthCache } from "./hooks/handle-turbo-get";
 import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-registry";
+import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
 
 // 🔐 /ws COLLABORATION AUTH: the standalone yjs-sync-server bundle cannot import
 // app internals, so it consults this registry (globalThis bridge) at upgrade
@@ -472,8 +473,7 @@ export function getHookTimings(): Record<
 // on every request for every hook. This contributes to the "Middleware/Hooks over budget"
 // (target <2ms full pipeline in exec matrix). Gate to diagnostics/benchmark only.
 // Turbo path remains fast (1.6-2.1ms) because it short-circuits many later hooks.
-const HOOK_TIMING_ENABLED =
-  process.env.ENABLE_HOOK_TIMING === "1" || process.env.NODE_ENV !== "production";
+const HOOK_TIMING_ENABLED = process.env.ENABLE_HOOK_TIMING === "1";
 
 function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
   // Resolve once at wrap time (pipeline build). Saves per-request function call overhead.
@@ -573,6 +573,7 @@ function withLane(res: Response, lane: RequestLane): Response {
 export const handle: Handle = async ({ event, resolve }) => {
   const lane = classifyRequest(event.url, event.request.method, event.request.headers);
   (event.locals as any).lane = lane;
+  (event.locals as any).routeSpec = routeResourceStateMachine.classifyRouteSpec(event.url.pathname);
 
   if (lane === RequestLane.FAST_STATIC) {
     if (event.url.pathname === "/favicon.ico")

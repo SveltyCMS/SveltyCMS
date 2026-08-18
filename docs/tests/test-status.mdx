@@ -147,7 +147,7 @@ Details: [git-workflow.mdx](./git-workflow.mdx)
 | **Status**  | **Unified coordinator** — IDE edit + GUI save + boot share one path; soft HMR; surgical client patch when possible                                                                                                                |
 | **Product** | `syncContentState` reasons: `boot` · `watcher` · `collection-save` · `gui-save` · `sidebar-reorder`; GUI compile lock; atomic `.js`; hash-backed drift; tenant paths via `tenant.server`                                          |
 | **Unit**    | `sync-content-state` (13+), `collection-save-sync` (2), `schema-contract` (6+ Valibot), `compile-manifest` (atomic/`noOp`/`changedJsPaths`), `collection-store-reactive` (`patchActiveSchema`)                                    |
-| **E2E**     | `collection-builder/builder.spec.ts` — shell + **soft-refresh** (in-page mark survives save) + golden schema→entry→API                                                                                                            |
+| **E2E**     | `collection-builder/builder.spec.ts` — shell + **soft-refresh** + **structure** (category create survives reload) + golden schema→entry→API                                                                                       |
 | **Docs**    | [compilation-pipeline](../reference/architecture/compilation-pipeline.mdx) · [content-system](../reference/architecture/content-system.mdx) · [collection-builder](../reference/architecture/collection-builder-architecture.mdx) |
 
 ### `/user` — profile & management (2026-07-19)

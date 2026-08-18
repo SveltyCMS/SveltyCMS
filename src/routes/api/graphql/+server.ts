@@ -18,7 +18,7 @@
 import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
-import { GraphQLError, NoSchemaIntrospectionCustomRule } from "graphql";
+import { GraphQLError, NoSchemaIntrospectionCustomRule, parse, type DocumentNode } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
 import {
   responseCache,
@@ -30,7 +30,10 @@ import { metricsService } from "@src/services/observability/metrics-service";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
-import { analyzeQueryCost, formatCostError } from "./cost-analyzer";
+import { isDbConnected, getDbInitPromise, getDb } from "@src/databases/db";
+import { contentSystem, contentStore } from "@src/content/index.server";
+import { analyzeQueryCost, formatCostError, normalizeQueryString } from "./cost-analyzer";
+import { resolvePublicationFilter } from "@utils/security/publication-policy";
 
 // GraphQL validation plugin: enforces query depth (max 8), alias count (max 15),
 // and blocks schema introspection in production environments
@@ -43,8 +46,33 @@ const isProduction = () => process.env.NODE_ENV === "production";
 const depthLimitRule = createDepthLimitRule(MAX_QUERY_DEPTH);
 const maxAliasesRule = createMaxAliasesRule(MAX_ALIASES);
 
+// ─── Query AST & Document Validation Cache ──────────────────────────────────
+const MAX_AST_CACHE = 1000;
+const astCache = new Map<string, DocumentNode>();
+const validatedDocuments = new WeakMap<DocumentNode, number>();
+
+function getOrParseDocument(rawQuery: string): DocumentNode {
+  const key = normalizeQueryString(rawQuery);
+  let cached = astCache.get(key);
+  if (cached) return cached;
+
+  cached = parse(rawQuery);
+  if (astCache.size >= MAX_AST_CACHE) {
+    const oldestKey = astCache.keys().next().value;
+    if (oldestKey !== undefined) astCache.delete(oldestKey);
+  }
+  astCache.set(key, cached);
+  return cached;
+}
+
 const securityValidationPlugin = {
-  onParse({ params }: { params?: { source?: string; query?: string } }) {
+  onParse({
+    params,
+    setParsedDocument,
+  }: {
+    params?: { source?: string; query?: string };
+    setParsedDocument?: (doc: any) => void;
+  }) {
     const endParse = profileMark("gql:parse");
     // Cost-budget queries at parse time — no request.clone() needed.
     // Throw GraphQLError (not AppError) so Yoga surfaces the real reason in
@@ -57,11 +85,38 @@ const securityValidationPlugin = {
           extensions: { code: "QUERY_TOO_EXPENSIVE" },
         });
       }
+      try {
+        const doc = analysis.document ?? getOrParseDocument(query);
+        if (typeof setParsedDocument === "function") {
+          setParsedDocument(doc);
+        }
+      } catch {
+        // Fall back to default Yoga parser on parse error
+      }
     }
     endParse();
   },
-  onValidate({ addValidationRule }: { addValidationRule: (rule: any) => void }) {
+  onValidate({
+    params,
+    addValidationRule,
+    setResult,
+  }: {
+    params?: { documentAST?: DocumentNode };
+    addValidationRule: (rule: any) => void;
+    setResult?: (res: any) => void;
+  }) {
     const endValidate = profileMark("gql:validate");
+    const doc = params?.documentAST;
+    if (
+      doc &&
+      validatedDocuments.get(doc) === schemaRefreshEpoch &&
+      typeof setResult === "function"
+    ) {
+      setResult([]);
+      endValidate();
+      return;
+    }
+
     addValidationRule(depthLimitRule);
     addValidationRule(maxAliasesRule);
     // 🛡️ Explicit introspection block in production (belt-and-suspenders with Yoga's default)
@@ -69,6 +124,12 @@ const securityValidationPlugin = {
       addValidationRule(NoSchemaIntrospectionCustomRule);
     }
     endValidate();
+
+    return ({ result }: { result?: any[] }) => {
+      if (doc && (!result || result.length === 0)) {
+        validatedDocuments.set(doc, schemaRefreshEpoch);
+      }
+    };
   },
 };
 
@@ -267,15 +328,13 @@ const MAX_TENANT_SCHEMA_CACHE = 32;
  */
 function resolveSchemaCacheKey(dbAdapter: any, tenantId?: string | null) {
   let root: any = dbAdapter;
-  for (let i = 0; i < 4 && root && typeof root.unscoped === "function"; i++) {
+  if (root && typeof root.unscoped === "function") {
     root = root.unscoped();
+    if (root && typeof root.unscoped === "function") {
+      root = root.unscoped();
+    }
   }
   const boundTenant = dbAdapter?.boundTenantId;
-  // "global" is the canonical CACHE marker for "no tenant" — but the schema
-  // itself must be built with null so resolvers fall back to the same default
-  // tenant ("default") a real no-tenant request would use (plugin state,
-  // tenant-scoped settings). Building it with "global" changes resolver
-  // semantics (e.g. isHubEnabled("global") misses the null-tenant state).
   const tenant = boundTenant ?? (tenantId && tenantId !== "global" ? tenantId : null);
   const tenantKey = String(tenant ?? "global");
   return { root, tenant, tenantKey };
@@ -313,7 +372,6 @@ function setTenantSchemaCache(
 }
 
 export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
-  const { contentSystem } = await import("@src/content/index.server");
   const currentVersion = contentSystem.version;
   const {
     root: rootAdapter,
@@ -406,13 +464,13 @@ async function handleRequest(event: RequestEvent) {
     throw new AppError("Unauthorized: Login required for GraphQL", 401);
   }
 
-  const url = new URL(request.url);
+  const url = event.url;
   const publicationFilterParam = url.searchParams.get("publicationFilter");
   const publicationFilterHeader = request.headers.get("x-publication-filter");
-  const publicationFilter = (publicationFilterParam || publicationFilterHeader || "all") as
-    | "published"
-    | "draft"
-    | "all";
+  const publicationFilter = resolvePublicationFilter(
+    { user: locals.user, system: (locals as any).isSystem },
+    publicationFilterParam || publicationFilterHeader,
+  );
 
   let query = "";
   let variables: any = {};
@@ -473,18 +531,18 @@ async function handleRequest(event: RequestEvent) {
   }
 
   // ── CACHE MISS PATH: Load content system, DB adapter & Yoga app ──
-  const { contentSystem } = await import("@src/content/index.server");
-  if (PROFILE_WRITE_ENABLED) {
-    const reloadEnd = profileMark("gql:waitForReload");
-    await contentSystem.waitForReload();
-    reloadEnd();
-  } else {
-    await contentSystem.waitForReload();
+  if (contentStore.isReloading) {
+    if (PROFILE_WRITE_ENABLED) {
+      const reloadEnd = profileMark("gql:waitForReload");
+      await contentStore.waitForReload();
+      reloadEnd();
+    } else {
+      await contentStore.waitForReload();
+    }
   }
 
   let adapter = locals.dbAdapter;
   if (!adapter || (typeof adapter.isConnected === "function" && !adapter.isConnected())) {
-    const { isDbConnected, getDbInitPromise, getDb } = await import("@src/databases/db");
     if (!isDbConnected()) {
       await getDbInitPromise();
     }
@@ -502,11 +560,6 @@ async function handleRequest(event: RequestEvent) {
   let _loaders: any = null;
 
   try {
-    const yogaRequest =
-      request.method === "POST"
-        ? new Request(request.url, { method: "POST", headers: request.headers, body: bodyText })
-        : request;
-
     const yogaApp = PROFILE_WRITE_ENABLED
       ? await profileSpan("gql:getYogaApp", () => _getYogaApp(adapter, locals.tenantId))
       : await _getYogaApp(adapter, locals.tenantId);
@@ -527,53 +580,58 @@ async function handleRequest(event: RequestEvent) {
       },
       publicationFilter,
     });
+
+    // 🚀 SKIP REQUEST CLONING: Pass the original request for GET, create minimal
+    // Request only for POST (Yoga needs the body, but we already have bodyText)
+    const yogaRequest =
+      request.method === "POST"
+        ? new Request(request.url, { method: "POST", headers: request.headers, body: bodyText })
+        : request;
+
     const handleYogaRequest = () => yogaApp.handleRequest(yogaRequest, buildYogaContext());
     const yogaResponse = PROFILE_WRITE_ENABLED
       ? await profileSpan("gql:yoga.handleRequest", handleYogaRequest)
       : await handleYogaRequest();
 
+    // 🚀 MUTATION FAST-PATH: For mutations (no cacheKey), return Yoga's response
+    // directly — skip .text() + new Response() round-trip entirely (saves ~0.3ms).
+    if (!cacheKey) {
+      return yogaResponse;
+    }
+
+    // Cache-miss query path: read body for caching
     const responseBody = PROFILE_WRITE_ENABLED
       ? await profileSpan("gql:response.text", () => yogaResponse.text())
       : await yogaResponse.text();
 
     // 🛡️ Do not cache error-shaped responses or empty collection arrays
-    if (cacheKey && yogaResponse.status === 200) {
-      try {
-        const parsedBody = JSON.parse(responseBody);
-        const hasErrors =
-          parsedBody?.errors && Array.isArray(parsedBody.errors) && parsedBody.errors.length > 0;
-        const isEmptyCollectionData =
-          parsedBody?.data &&
-          typeof parsedBody.data === "object" &&
-          Object.values(parsedBody.data).some((val) => Array.isArray(val) && val.length === 0);
+    if (yogaResponse.status === 200) {
+      const hasErrors = responseBody.includes('"errors":[');
+      const isEmptyCollectionData = responseBody.includes(":[]");
 
-        if (!hasErrors && !isEmptyCollectionData) {
-          const etag = PROFILE_WRITE_ENABLED
-            ? await profileSpan("gql:etag", () => generateContentEtag(responseBody))
-            : generateContentEtag(responseBody);
-          responseCache.set(
-            cacheKey,
-            { body: responseBody, etag },
-            60_000,
-            locals.tenantId as string,
-          );
-        }
-      } catch {}
+      if (!hasErrors && !isEmptyCollectionData) {
+        const etag = PROFILE_WRITE_ENABLED
+          ? await profileSpan("gql:etag", () => generateContentEtag(responseBody))
+          : generateContentEtag(responseBody);
+        responseCache.set(
+          cacheKey,
+          { body: responseBody, etag },
+          60_000,
+          locals.tenantId as string,
+        );
+      }
     }
 
-    if (cacheKey) {
-      // 🎯 RESPONSE-CACHE COUNTER + explicit MISS header: cacheKey drift
-      // (publicationFilter/userId/query-normalization changes) silently zeroes
-      // the hit rate — responseMisses climbing with hits at 0 is the signal.
-      metricsService.recordGraphqlResponseMiss(locals.tenantId as string);
-    }
+    // 🎯 RESPONSE-CACHE COUNTER + explicit MISS header
+    metricsService.recordGraphqlResponseMiss(locals.tenantId as string);
 
-    const headers = new Headers(yogaResponse.headers);
-    if (cacheKey) headers.set("X-Cache", "MISS");
     return new Response(responseBody, {
       status: yogaResponse.status,
       statusText: yogaResponse.statusText,
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Cache": "MISS",
+      },
     });
   } catch (err: any) {
     logger.error("GraphQL Request Error:", err);

@@ -704,10 +704,47 @@ export function applyTenantFilterToMongoQuery<T extends Record<string, unknown>>
 /**
  * Validate a SQL identifier before embedding in raw SQL (column/JSON key names).
  * Never use for values — bind those as parameters instead.
+ *
+ * Also enforces Postgres's NAMEDATALEN (63) identifier limit: PG silently
+ * truncates longer identifiers, which can collide two distinct names onto one
+ * column (PayloadCMS ea0d69d class). 63 is the strictest bound across
+ * supported dialects (MySQL 64, SQLite unbounded), so failing here keeps all
+ * adapters consistent and fails at DDL time instead of on silent truncation.
  */
+const _safeSqlIdentifierSet = new Set<string>();
+const SAFE_SQL_IDENTIFIER_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
+/** Physical columns present on every collection table — skip regex after the type check. */
+const COMMON_SQL_IDENTIFIERS = new Set([
+  "_id",
+  "tenantId",
+  "status",
+  "data",
+  "createdAt",
+  "updatedAt",
+  "createdBy",
+  "updatedBy",
+  "isDeleted",
+  "slug",
+  "locale",
+  "collection",
+  "publishedAt",
+]);
+
 export function assertSafeSqlIdentifier(name: string, label = "field"): string {
-  if (typeof name !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+  if (typeof name !== "string") {
     throw new Error(`Invalid SQL identifier for ${label}: ${String(name)}`);
+  }
+  if (COMMON_SQL_IDENTIFIERS.has(name) || _safeSqlIdentifierSet.has(name)) return name;
+  if (!SAFE_SQL_IDENTIFIER_REGEX.test(name)) {
+    throw new Error(`Invalid SQL identifier for ${label}: ${String(name)}`);
+  }
+  if (name.length > 63) {
+    throw new Error(
+      `SQL identifier for ${label} exceeds 63 chars (Postgres NAMEDATALEN) and would be silently truncated: ${name.slice(0, 40)}… (${name.length} chars)`,
+    );
+  }
+  if (_safeSqlIdentifierSet.size < 4096) {
+    _safeSqlIdentifierSet.add(name);
   }
   return name;
 }

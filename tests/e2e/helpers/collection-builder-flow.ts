@@ -253,6 +253,25 @@ export async function addInputField(
   });
 }
 
+/** Create a category on the board and wait until it is persisted (toast). */
+export async function createPersistedCategory(page: Page, name: string): Promise<void> {
+  const addCategory = page.getByTestId("add-category-button").first();
+  await expect(addCategory).toBeVisible({ timeout: 15_000 });
+  await stableClick(addCategory, 10_000);
+
+  const nameInput = page.getByTestId("category-name-input");
+  await expect(nameInput).toBeVisible({ timeout: 10_000 });
+  await nameInput.fill(name);
+
+  const saveBtn = page.getByTestId("category-save-button");
+  await expect(saveBtn).toBeEnabled({ timeout: 10_000 });
+  await stableClick(saveBtn, 10_000);
+
+  await expect(page.getByText(new RegExp(`category "${name}" created`, "i"))).toBeVisible({
+    timeout: 20_000,
+  });
+}
+
 export async function saveCollectionSchema(page: Page): Promise<void> {
   await dismissOpenDialogs(page);
 

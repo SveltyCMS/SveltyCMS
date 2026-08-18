@@ -675,7 +675,9 @@ search filtering, and RTL support.
             {/if}
 
             <!-- Label -->
-            <span class={cn(
+            <span
+                title={nodeLabel}
+                class={cn(
                 'truncate transition-colors',
                 isMedia
                     ? cn(

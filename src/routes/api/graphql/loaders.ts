@@ -9,6 +9,7 @@ import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter, DatabaseId, MediaItem } from "@src/databases/db-interface";
 import { BatchLoader } from "@src/utils/server/batch-loader";
 import { logger } from "@utils/logger";
+import { applyPublicationToQuery } from "@utils/security/publication-policy";
 
 /**
  * Creates a fresh set of loaders for a single request.
@@ -34,7 +35,10 @@ export function createLoaders(
       const collectionName = `collection_${collectionId}`;
       loader = new BatchLoader(async (ids) => {
         try {
-          const result = await dbAdapter.crud.findByIds(collectionName, ids as DatabaseId[], {
+          const query: Record<string, unknown> = { _id: { $in: ids } };
+          applyPublicationToQuery(query, publicationFilter);
+
+          const result = await dbAdapter.crud.findMany(collectionName, query, {
             tenantId: tenantId as DatabaseId,
           });
 
@@ -48,15 +52,7 @@ export function createLoaders(
             return ids.map(() => null);
           }
 
-          let data = result.data;
-          if (publicationFilter === "published") {
-            data = data.filter((entry: any) => entry.status === "publish");
-          } else if (publicationFilter === "draft") {
-            data = data.filter(
-              (entry: any) => entry.status === "draft" || entry.status === "unpublish",
-            );
-          }
-
+          const data = result.data;
           const entryMap = new Map(data.map((entry: any) => [entry._id.toString(), entry]));
           return ids.map((id) => entryMap.get(id.toString()) || null);
         } catch (err: any) {

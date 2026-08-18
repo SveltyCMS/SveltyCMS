@@ -6,7 +6,57 @@
  * ### Features:
  * - Tree traversal for descendant ID collection
  * - Slug generation with deduplication
+ * - Fail-closed payload parsers for remotes / form actions
  */
+
+import type { ContentNodeInput, ContentNodeOperation } from "@src/content/types";
+
+const NODE_ID_RE = /^[A-Za-z0-9_.:-]{1,128}$/;
+const OP_TYPES = new Set(["create", "delete", "move", "rename", "update"]);
+export const MAX_COLLECTION_BUILDER_IDS = 200;
+export const MAX_COLLECTION_BUILDER_OPS = 500;
+
+/** Parse a JSON array from a form field. Returns null on missing/invalid JSON. */
+export function parseJsonArray(raw: FormDataEntryValue | null): unknown[] | null {
+  if (typeof raw !== "string" || raw.length === 0) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Validate a list of content-node ids (UUIDs, slugs, dotted paths). */
+export function parseIdList(ids: unknown): string[] | null {
+  if (!Array.isArray(ids) || ids.length > MAX_COLLECTION_BUILDER_IDS) return null;
+  const out: string[] = [];
+  for (const id of ids) {
+    if (typeof id !== "string" || !NODE_ID_RE.test(id)) return null;
+    out.push(id);
+  }
+  return out;
+}
+
+/** Validate GUI structure operations before they hit LocalCMS. */
+export function parseOperations(ops: unknown): ContentNodeOperation[] | null {
+  if (!Array.isArray(ops) || ops.length > MAX_COLLECTION_BUILDER_OPS) return null;
+  const out: ContentNodeOperation[] = [];
+  for (const raw of ops) {
+    if (!raw || typeof raw !== "object") return null;
+    const type = (raw as { type?: unknown }).type;
+    const node = (raw as { node?: unknown }).node;
+    if (typeof type !== "string" || !OP_TYPES.has(type)) return null;
+    if (!node || typeof node !== "object") return null;
+    const path = (node as { path?: unknown }).path;
+    if (typeof path !== "string") return null;
+    out.push({
+      type: type as ContentNodeOperation["type"],
+      node: node as ContentNodeInput,
+    });
+  }
+  return out;
+}
 
 /** Collect category id and all descendant node ids from a flat node list. */
 export function getDescendantIds(

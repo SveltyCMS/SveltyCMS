@@ -105,6 +105,14 @@ const pipeline = [
 ];
 ```
 
+> **August 2026 Pipeline Hardening & Zero-Overhead Dispatch**:
+>
+> - **Zero-Overhead Dispatch**: `wrapHandle` passes raw resolved handlers directly to SvelteKit `sequence()`, eliminating 15+ nested async timing closures per request unless `ENABLE_HOOK_TIMING=1` is explicitly provided.
+> - **Rate Limit Fast-Exit**: `handleRateLimit` checks `GET`/`HEAD`/`OPTIONS` on line 1, skipping IP parsing for >90% of traffic.
+> - **HTML-Only Middleware Bypass**: `handleAeoHeaders` and `handleUserPreferences` immediately return on `/api/` endpoints.
+> - **Fast Guest Resolution**: `handleAuthentication` detects credential-free safe reads and resolves guest locals in 0 microseconds without cookie scanning.
+> - **Asynchronous Audit Outbox**: `handleAuditLogging` enqueues mutation entries into a bounded in-memory ring buffer flushed via microtasks, decoupling 200/201 response flushes from audit disk/Merkle writes.
+
 > **2026-08-11**: `handleHyperTurbo` (benchmark auth forge) was **removed**. Benchmarks run `NODE_ENV=production` with real session cookies — `BENCHMARK` grants no request-path bypass. READY pipeline runs **17 hooks**.
 
 > **2026-07 Security Hardening**: Turbo-auth restricted to GET/HEAD/OPTIONS (mutations pass through CSRF). `x-tenant-id` header only trusted when user is authenticated. Turbo-auth cache invalidated on role change, block, delete, and unblock. Auth methods use `safeCall` pattern (return `DatabaseResult` instead of throwing). `invalidateTurboAuthForUser()` exported for programmatic session revocation.

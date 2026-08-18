@@ -668,6 +668,7 @@ export async function runBenchmark(config: any) {
     if (lag > maxEventLoopLagMs) maxEventLoopLagMs = lag;
   };
 
+  const benchWallStart = performance.now();
   for (let r = 0; r < runs; r++) {
     if (onSetup) await onSetup();
     if (concurrency > 1) {
@@ -722,10 +723,18 @@ export async function runBenchmark(config: any) {
       }
     }
   }
+  const benchWallDurationMs = performance.now() - benchWallStart;
   const validResults = results.filter((r) => !isNaN(r));
   const sum = validResults.reduce((a, b) => a + b, 0);
   const totalCompleted = validResults.length + failResults.length;
-  const rps = sum > 0 ? totalCompleted / (sum / 1000) : 0;
+  const rps =
+    concurrency > 1
+      ? benchWallDurationMs > 0
+        ? totalCompleted / (benchWallDurationMs / 1000)
+        : 0
+      : sum > 0
+        ? totalCompleted / (sum / 1000)
+        : 0;
   const stats = computeStatistics(
     validResults,
     rps,
@@ -1333,6 +1342,13 @@ export async function setupBenchmarkServer() {
   const secret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
   const adminPw = resolveBenchmarkAdminPassword();
 
+  const { getBenchmarkTestEnv } = await import("@src/utils/test-db-credentials");
+  const defaultEnv = getBenchmarkTestEnv(dbType);
+  for (const [k, v] of Object.entries(defaultEnv)) {
+    if (!process.env[k] && v) {
+      process.env[k] = v;
+    }
+  }
   process.env.DB_TYPE = dbType;
   process.env.DB_NAME = dbName;
   process.env.API_BASE_URL = `http://127.0.0.1:${port}`;

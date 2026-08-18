@@ -70,7 +70,7 @@ Features:
 	// Populate form when editing
 	$effect(() => {
 		formData.newCategoryName = existingCategory.name ?? "";
-		formData.newCategoryIcon = existingCategory.icon ?? DEFAULT_ICON;
+		formData.newCategoryIcon = existingCategory.icon || DEFAULT_ICON;
 		formData.newCategoryDescription = (existingCategory as any)?.description ?? "";
 	});
 
