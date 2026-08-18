@@ -22,6 +22,7 @@ import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import { sanitizeObject } from "@utils/security/input-sanitizer";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
+import { decodePageCursor, mergeKeysetFilter } from "@src/databases/core/page-utils";
 
 type ContentSystem = typeof serverContentSystem;
 
@@ -671,8 +672,13 @@ export class CollectionsNamespace {
     const ttl = options.ttl ? Number(options.ttl) : undefined;
     const schema = await this.getSchema(collectionId, tenantId);
     const normalizedFilter = this.normalizeRelationshipFilter(filter);
+    const decodedCursor = decodePageCursor(options.cursor);
+    const baseQuery: any = decodedCursor
+      ? mergeKeysetFilter(normalizedFilter as Record<string, unknown>, decodedCursor)
+      : normalizedFilter;
+
     const query: any = {
-      ...normalizedFilter,
+      ...baseQuery,
       ...(tenantId && { tenantId: tenantId as DatabaseId }),
     };
 

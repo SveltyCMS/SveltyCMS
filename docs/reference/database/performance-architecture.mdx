@@ -26,17 +26,18 @@ SveltyCMS delivers enterprise-grade performance through its database-agnostic ar
 
 | Operation                 | Latency      | RPS                         |
 | ------------------------- | ------------ | --------------------------- |
-| FIND ONE                  | **0.008 ms** | 100–119k                    |
-| FIND MANY (50)            | **0.081 ms** | 10,397–11,507               |
-| INSERT                    | **0.038 ms** | 14,170                      |
-| UPDATE                    | **0.080 ms** | 9,341–11,195                |
-| DELETE                    | **0.049 ms** | 14,010–14,422               |
-| NATIVE UPSERT             | **0.067 ms** | 11,838–12,227               |
-| Peak Throughput           | —            | **390,617 req/s**           |
+| FIND ONE                  | **0.006 ms** | 129,080                     |
+| FIND MANY (50)            | **0.056 ms** | 14,215                      |
+| INSERT                    | **0.064 ms** | 5,498–13,574                |
+| UPDATE                    | **0.030 ms** | 12,735–14,956               |
+| DELETE                    | **0.064 ms** | 8,158–14,422                |
+| NATIVE UPSERT             | **0.068 ms** | 9,009–12,227                |
+| COUNT CACHED              | **0.001 ms** | **491,434 req/s**           |
+| LocalCMS SDK (Warm L1)    | **0.001 ms** | **511,829 req/s**           |
 | **LocalCMS SDK Overhead** | —            | **0.00%** (verified parity) |
 
 > [!NOTE]
-> Adapter `findOne` (100–119k RPS) is ~50% of the raw SQLite engine ceiling (~205k) — the remaining delta is Drizzle AST + date conversion on the non-raw path. `findMany` with a pure `_id` filter routes through the same raw path and measures ~111k RPS. INSERT uses a raw `INSERT…RETURNING` fast path (85% of the 16.7k ceiling) — the benchmark measures the production path (the ambient `BENCHMARK` env no longer toggles `skipReturning`; only the explicit seed option does).
+> Adapter `findOne` (129k RPS) is ~47% of the raw in-memory SQLite engine ceiling (~274k) — the remaining delta is Drizzle AST + date conversion on the non-raw path. `findMany` with a pure `_id` filter routes through the same raw path and measures ~126k RPS. INSERT uses a raw `INSERT…RETURNING` fast path (85% of the 16.7k ceiling) — the benchmark measures the production path (the ambient `BENCHMARK` env no longer toggles `skipReturning`; only the explicit seed option does). Warm L1 micro-caching serves `findById` in 0.001ms (511k RPS), outperforming the underlying disk engine.
 
 ### Core database layer (all 4 engines)
 

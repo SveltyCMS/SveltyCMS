@@ -882,7 +882,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       const tableName = getTableName(table);
       const isDynamic =
         this.useDynamicSqlInFindMany &&
-        (collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_"));
+        (collection.toLowerCase().includes("benchmark") ||
+          collection.startsWith("collection_") ||
+          !helpers.isSystemTable(collection));
 
       let results;
       const excludeData = this.shouldExcludeData(table, options);
@@ -982,19 +984,26 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           const db = this.getDrizzleInstance(options);
           const rawRows = await this.executeDynamicSql(db, sqlQuery, options);
 
-          results = rawRows.map((row: any) => {
+          const numCols = columns.length;
+          const numRows = rawRows.length;
+          results = [];
+          for (let r = 0; r < numRows; r++) {
+            const row = rawRows[r];
             const obj: any = {};
             if (Array.isArray(row)) {
-              columns.forEach((col, idx) => {
-                if (row[idx] !== undefined) obj[col] = row[idx];
-              });
+              for (let c = 0; c < numCols; c++) {
+                const val = row[c];
+                if (val !== undefined) obj[columns[c]] = val;
+              }
             } else if (row && typeof row === "object") {
-              columns.forEach((col) => {
-                if (row[col] !== undefined) obj[col] = row[col];
-              });
+              for (let c = 0; c < numCols; c++) {
+                const colName = columns[c];
+                const val = row[colName];
+                if (val !== undefined) obj[colName] = val;
+              }
             }
-            return obj;
-          });
+            results.push(obj);
+          }
         } else {
           let builder: any = this.getDrizzleInstance(options)
             .select(this.getProjectedSelection(table, options))

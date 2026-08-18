@@ -190,6 +190,98 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   }
 
   /**
+   * Raw prepared-SQL UPDATE…RETURNING fast path for PostgreSQL:
+   * Uses a single prepared statement with parameter binding instead of Drizzle's
+   * per-call AST build + SQL compilation on the hot write path.
+   */
+  protected override async rawUpdateReturning<T extends import("../db-interface").BaseEntity>(
+    table: any,
+    collection: string,
+    values: Record<string, any>,
+    idCol: any,
+    id: DatabaseId,
+    options: BaseQueryOptions,
+  ): Promise<T | null> {
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql!;
+    try {
+      const columns = Object.keys(values);
+      if (columns.length === 0) return null;
+      if ((options as any)?.tenantId === null) return null;
+
+      const tableName = getTableName(table);
+      const idColName = idCol?.name || "_id";
+      const setPairs: string[] = [];
+      const boundValues: any[] = [];
+
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i];
+        const phys = this.getColumn(table, col);
+        const physName = phys?.name ?? col;
+        const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
+        const v = values[col];
+        if (v instanceof Date) {
+          boundValues.push((v as Date).toISOString());
+          setPairs.push(`"${safeCol}" = $${boundValues.length}`);
+        } else if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+          boundValues.push(JSON.stringify(v));
+          setPairs.push(
+            physName === "data"
+              ? `"${safeCol}" = $${boundValues.length}::jsonb`
+              : `"${safeCol}" = $${boundValues.length}`,
+          );
+        } else {
+          boundValues.push(v);
+          setPairs.push(`"${safeCol}" = $${boundValues.length}`);
+        }
+      }
+
+      boundValues.push(String(id));
+      const idParamIdx = boundValues.length;
+
+      let whereSql = `"${utils.assertSafeSqlIdentifier(idColName, "column")}" = $${idParamIdx}`;
+      if (
+        options?.tenantId !== undefined &&
+        options.tenantId !== null &&
+        options.tenantId !== "global"
+      ) {
+        boundValues.push(String(options.tenantId));
+        whereSql += ` AND "tenantId" = $${boundValues.length}`;
+      }
+
+      const skipReturning = (options as any)?.skipReturning === true;
+      const setSql = setPairs.join(", ");
+      const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+
+      if (skipReturning) {
+        const runSql = `UPDATE "${safeTableName}" SET ${setSql} WHERE ${whereSql}`;
+        await exec.unsafe(runSql, boundValues, { prepare: true });
+        const reconstructed = {
+          ...values,
+          [idColName]: id,
+        } as Record<string, unknown>;
+        return utils.convertDatesToISO(reconstructed, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as unknown as T;
+      }
+
+      const rawSql = `UPDATE "${safeTableName}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
+      const rows = await exec.unsafe(rawSql, boundValues, { prepare: true });
+      if (Array.isArray(rows) && rows.length > 0) {
+        return utils.convertDatesToISO(rows[0], {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as T;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Raw multi-VALUES INSERT fast path — mirrors the SQLite insertMany path:
    * one prepared statement per chunk (stable SQL text → postgres.js statement
    * cache) instead of Drizzle's per-call AST build. Chunked under the 65535

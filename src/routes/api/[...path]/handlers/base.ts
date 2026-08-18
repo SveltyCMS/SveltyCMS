@@ -10,35 +10,47 @@
  */
 
 import { AppError } from "@utils/error-handling";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import type { RequestEvent } from "@sveltejs/kit";
 
-// ─── Response Helpers ────────────────────────────────────────────────────────
+function buildJsonResponse(event: RequestEvent, data: any, status = 200): Response {
+  let serialized = "";
+  if (typeof data === "string") {
+    serialized = data;
+  } else {
+    try {
+      serialized = JSON.stringify(data);
+    } catch {
+      serialized = "{}";
+    }
+  }
 
-/**
- * Standard success response wrapper.
- * Automatically detects and unwraps DatabaseResult objects to prevent
- * nested `{ success: true, data: { success: true, data: ... } }` patterns.
- */
+  if (event?.locals) {
+    (event.locals as any).apiData = data;
+    (event.locals as any).apiBody = serialized;
+  }
+
+  return new Response(serialized, {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
 
 export function successResponse(event: RequestEvent, result: any, status = 200) {
   let body: any;
   if (isDatabaseResult(result)) {
     if (!result.success) {
-      return json(result, { status: result.error?.status || 400 });
+      return buildJsonResponse(event, result, result.error?.status || 400);
     }
     body = { success: true, data: result.data, meta: result.meta };
   } else {
     body = { success: true, data: result };
   }
 
-  // Stash for turbo GET / handle-api-requests — single stringify, zero re-read of Response body
-  stashInLocals(event, body);
-  return json(body, { status });
+  return buildJsonResponse(event, body, status);
 }
 
 export function rawResponse(event: RequestEvent, data: any, status = 200) {
-  stashInLocals(event, data);
-  return json(data, { status });
+  return buildJsonResponse(event, data, status);
 }
 
 /**
@@ -46,8 +58,7 @@ export function rawResponse(event: RequestEvent, data: any, status = 200) {
  */
 export function createdResponse(event: RequestEvent, data: any) {
   const body = { success: true, data };
-  stashInLocals(event, body);
-  return json(body, { status: 201 });
+  return buildJsonResponse(event, body, 201);
 }
 
 /**
@@ -56,8 +67,7 @@ export function createdResponse(event: RequestEvent, data: any) {
 export function errorResponse(event: RequestEvent, message: string, status = 400, code?: string) {
   const body: Record<string, any> = { success: false, message };
   if (code) body.error = { code, status };
-  stashInLocals(event, body);
-  return json(body, { status });
+  return buildJsonResponse(event, body, status);
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -98,18 +108,4 @@ export function isDatabaseResult(obj: any): obj is {
  */
 export function notAllowed(): never {
   throw new AppError("Method not allowed", 405);
-}
-
-// ─── Internal ────────────────────────────────────────────────────────────────
-
-/** Stores response data and pre-serialized string in event.locals for single-pass middleware. */
-function stashInLocals(event: RequestEvent, data: any) {
-  if (event?.locals) {
-    (event.locals as any).apiData = data;
-    try {
-      (event.locals as any).apiBody = typeof data === "string" ? data : JSON.stringify(data);
-    } catch {
-      /* non-serializable payload fallback */
-    }
-  }
 }

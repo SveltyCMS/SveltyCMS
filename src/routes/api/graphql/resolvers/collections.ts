@@ -506,11 +506,17 @@ export async function collectionsResolvers(
 
         const processedResults = await Promise.all(
           resultArray.map(async (doc) => {
-            // Whole-document scan: JSON.stringify once, check for {{ marker.
-            // Catches tokens anywhere in the string (start, mid, nested), unlike
-            // charCodeAt(0) which only catches leading-brace tokens.
-            const docBody = JSON.stringify(doc);
-            if (docBody.includes("{{")) {
+            // Fast-path token detection: scan string fields without allocating JSON.stringify(doc)
+            let hasToken = false;
+            for (const key in doc) {
+              if (!Object.hasOwn(doc, key)) continue;
+              const value = doc[key];
+              if (typeof value === "string" && value.includes("{{")) {
+                hasToken = true;
+                break;
+              }
+            }
+            if (hasToken) {
               const tokenContext: TokenContext = { entry: doc, user: ctx.user };
               for (const key in doc) {
                 if (!Object.hasOwn(doc, key)) continue;

@@ -33,6 +33,16 @@ export interface CostAnalysisResult {
   fields: string[];
 }
 
+/** Normalizes a GraphQL query string by stripping comments and collapsing whitespace for fast cache matching */
+export function normalizeQueryString(str: string): string {
+  if (!str) return "";
+  // Strip single-line comments (# to newline) and collapse multiple whitespace
+  return str
+    .replace(/#[^\r\n]*/g, "")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
 /**
  * Analyzes a raw GraphQL query string and computes its cost.
  *
@@ -48,14 +58,15 @@ export function analyzeQueryCost(
   queryString: string,
   maxCost: number = DEFAULT_MAX_COST,
 ): CostAnalysisResult {
+  const normalized = normalizeQueryString(queryString);
   // Dual-map cache: check current → old → promote → compute
-  let cached = currentCache.get(queryString);
+  let cached = currentCache.get(normalized);
   if (cached) return cached;
 
-  cached = oldCache.get(queryString);
+  cached = oldCache.get(normalized);
   if (cached) {
     // Promote to fresh window
-    currentCache.set(queryString, cached);
+    currentCache.set(normalized, cached);
     return cached;
   }
 
@@ -115,7 +126,7 @@ export function analyzeQueryCost(
     oldCache = currentCache;
     currentCache = new Map();
   }
-  currentCache.set(queryString, result);
+  currentCache.set(normalized, result);
 
   return result;
 }

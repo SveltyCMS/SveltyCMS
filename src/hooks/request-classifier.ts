@@ -53,6 +53,7 @@ export const CACHEABLE_PREFIXES = [
   "/api/workflows",
   "/api/api-keys",
   "/api/graphql",
+  "/api/user",
 ];
 
 const ADMIN_APP_PREFIXES = [

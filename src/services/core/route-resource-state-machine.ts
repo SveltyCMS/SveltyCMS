@@ -16,7 +16,14 @@
 import { CacheCategory } from "@src/databases/cache/types";
 import { logger } from "@utils/logger";
 
-export type RouteResourceLane = "bootstrap" | "media" | "collection" | "dashboard" | "settings";
+export type RouteResourceLane =
+  | "bootstrap"
+  | "media"
+  | "collection"
+  | "dashboard"
+  | "settings"
+  | "api"
+  | "graphql";
 
 export interface RouteResourceSpec {
   lane: RouteResourceLane;
@@ -40,7 +47,12 @@ const ROUTE_SPECS: Record<RouteResourceLane, RouteResourceSpec> = {
   },
   collection: {
     lane: "collection",
-    requiredCacheCategories: [CacheCategory.SCHEMA, CacheCategory.AUTH, CacheCategory.SYSTEM],
+    requiredCacheCategories: [
+      CacheCategory.SCHEMA,
+      CacheCategory.AUTH,
+      CacheCategory.SYSTEM,
+      CacheCategory.CONTENT,
+    ],
     preloadEndpoints: ["/api/collections", "/api/content"],
     skipMiddlewares: ["scim"],
   },
@@ -56,6 +68,23 @@ const ROUTE_SPECS: Record<RouteResourceLane, RouteResourceSpec> = {
     preloadEndpoints: ["/api/settings", "/api/config"],
     skipMiddlewares: ["media", "collaboration"],
   },
+  graphql: {
+    lane: "graphql",
+    requiredCacheCategories: [
+      CacheCategory.SCHEMA,
+      CacheCategory.AUTH,
+      CacheCategory.SYSTEM,
+      CacheCategory.CONTENT,
+    ],
+    preloadEndpoints: ["/api/graphql"],
+    skipMiddlewares: ["media", "preferences", "scim", "collaboration"],
+  },
+  api: {
+    lane: "api",
+    requiredCacheCategories: [CacheCategory.SCHEMA, CacheCategory.AUTH, CacheCategory.SYSTEM],
+    preloadEndpoints: ["/api/system/health"],
+    skipMiddlewares: ["media", "preferences", "scim", "collaboration"],
+  },
 };
 
 export class RouteResourceStateMachine {
@@ -64,6 +93,22 @@ export class RouteResourceStateMachine {
    */
   public classifyRouteSpec(path: string): RouteResourceSpec {
     const p = path.toLowerCase();
+
+    if (p.startsWith("/api/graphql")) {
+      return ROUTE_SPECS.graphql;
+    }
+    if (p.startsWith("/api/collections") || p.startsWith("/api/content")) {
+      return ROUTE_SPECS.collection;
+    }
+    if (p.startsWith("/api/media")) {
+      return ROUTE_SPECS.media;
+    }
+    if (p.startsWith("/api/settings") || p.startsWith("/api/config")) {
+      return ROUTE_SPECS.settings;
+    }
+    if (p.startsWith("/api/")) {
+      return ROUTE_SPECS.api;
+    }
 
     if (p === "/login" || p === "/setup" || p.startsWith("/auth")) {
       return ROUTE_SPECS.bootstrap;

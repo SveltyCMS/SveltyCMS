@@ -18,7 +18,7 @@
 import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
-import { GraphQLError, NoSchemaIntrospectionCustomRule } from "graphql";
+import { GraphQLError, NoSchemaIntrospectionCustomRule, parse, type DocumentNode } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
 import {
   responseCache,
@@ -30,7 +30,7 @@ import { metricsService } from "@src/services/observability/metrics-service";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
 import { registerCollections, collectionsResolvers } from "./resolvers/collections";
-import { analyzeQueryCost, formatCostError } from "./cost-analyzer";
+import { analyzeQueryCost, formatCostError, normalizeQueryString } from "./cost-analyzer";
 
 // GraphQL validation plugin: enforces query depth (max 8), alias count (max 15),
 // and blocks schema introspection in production environments
@@ -43,8 +43,33 @@ const isProduction = () => process.env.NODE_ENV === "production";
 const depthLimitRule = createDepthLimitRule(MAX_QUERY_DEPTH);
 const maxAliasesRule = createMaxAliasesRule(MAX_ALIASES);
 
+// ─── Query AST & Document Validation Cache ──────────────────────────────────
+const MAX_AST_CACHE = 1000;
+const astCache = new Map<string, DocumentNode>();
+const validatedDocuments = new WeakMap<DocumentNode, number>();
+
+function getOrParseDocument(rawQuery: string): DocumentNode {
+  const key = normalizeQueryString(rawQuery);
+  let cached = astCache.get(key);
+  if (cached) return cached;
+
+  cached = parse(rawQuery);
+  if (astCache.size >= MAX_AST_CACHE) {
+    const oldestKey = astCache.keys().next().value;
+    if (oldestKey !== undefined) astCache.delete(oldestKey);
+  }
+  astCache.set(key, cached);
+  return cached;
+}
+
 const securityValidationPlugin = {
-  onParse({ params }: { params?: { source?: string; query?: string } }) {
+  onParse({
+    params,
+    setParsedDocument,
+  }: {
+    params?: { source?: string; query?: string };
+    setParsedDocument?: (doc: any) => void;
+  }) {
     const endParse = profileMark("gql:parse");
     // Cost-budget queries at parse time — no request.clone() needed.
     // Throw GraphQLError (not AppError) so Yoga surfaces the real reason in
@@ -57,11 +82,38 @@ const securityValidationPlugin = {
           extensions: { code: "QUERY_TOO_EXPENSIVE" },
         });
       }
+      try {
+        const doc = getOrParseDocument(query);
+        if (typeof setParsedDocument === "function") {
+          setParsedDocument(doc);
+        }
+      } catch {
+        // Fall back to default Yoga parser on parse error
+      }
     }
     endParse();
   },
-  onValidate({ addValidationRule }: { addValidationRule: (rule: any) => void }) {
+  onValidate({
+    params,
+    addValidationRule,
+    setResult,
+  }: {
+    params?: { documentAST?: DocumentNode };
+    addValidationRule: (rule: any) => void;
+    setResult?: (res: any) => void;
+  }) {
     const endValidate = profileMark("gql:validate");
+    const doc = params?.documentAST;
+    if (
+      doc &&
+      validatedDocuments.get(doc) === schemaRefreshEpoch &&
+      typeof setResult === "function"
+    ) {
+      setResult([]);
+      endValidate();
+      return;
+    }
+
     addValidationRule(depthLimitRule);
     addValidationRule(maxAliasesRule);
     // 🛡️ Explicit introspection block in production (belt-and-suspenders with Yoga's default)
@@ -69,6 +121,12 @@ const securityValidationPlugin = {
       addValidationRule(NoSchemaIntrospectionCustomRule);
     }
     endValidate();
+
+    return ({ result }: { result?: any[] }) => {
+      if (doc && (!result || result.length === 0)) {
+        validatedDocuments.set(doc, schemaRefreshEpoch);
+      }
+    };
   },
 };
 
@@ -538,27 +596,20 @@ async function handleRequest(event: RequestEvent) {
 
     // 🛡️ Do not cache error-shaped responses or empty collection arrays
     if (cacheKey && yogaResponse.status === 200) {
-      try {
-        const parsedBody = JSON.parse(responseBody);
-        const hasErrors =
-          parsedBody?.errors && Array.isArray(parsedBody.errors) && parsedBody.errors.length > 0;
-        const isEmptyCollectionData =
-          parsedBody?.data &&
-          typeof parsedBody.data === "object" &&
-          Object.values(parsedBody.data).some((val) => Array.isArray(val) && val.length === 0);
+      const hasErrors = responseBody.includes('"errors":[');
+      const isEmptyCollectionData = responseBody.includes(":[]");
 
-        if (!hasErrors && !isEmptyCollectionData) {
-          const etag = PROFILE_WRITE_ENABLED
-            ? await profileSpan("gql:etag", () => generateContentEtag(responseBody))
-            : generateContentEtag(responseBody);
-          responseCache.set(
-            cacheKey,
-            { body: responseBody, etag },
-            60_000,
-            locals.tenantId as string,
-          );
-        }
-      } catch {}
+      if (!hasErrors && !isEmptyCollectionData) {
+        const etag = PROFILE_WRITE_ENABLED
+          ? await profileSpan("gql:etag", () => generateContentEtag(responseBody))
+          : generateContentEtag(responseBody);
+        responseCache.set(
+          cacheKey,
+          { body: responseBody, etag },
+          60_000,
+          locals.tenantId as string,
+        );
+      }
     }
 
     if (cacheKey) {

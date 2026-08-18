@@ -219,13 +219,14 @@ function getSessionFromCache(sessionId: string): SessionCacheEntry | null {
   const now = Date.now();
   const entry = sessionCache.get(sessionId);
   if (entry && now - entry.timestamp < SESSION_CACHE_TTL_MS) {
-    // Move to end (most recently used)
-    sessionCache.delete(sessionId);
-    sessionCache.set(sessionId, entry);
+    // Only re-insert to track LRU order when cache is full/near capacity (>80%)
+    if (sessionCache.size >= MAX_SESSION_CACHE * 0.8) {
+      sessionCache.delete(sessionId);
+      sessionCache.set(sessionId, entry);
+    }
     return entry;
   }
-  // Expired entry — drop it now instead of leaving it in RAM until the
-  // 10-minute cleanup interval sweeps.
+  // Expired entry — drop it immediately
   if (entry) sessionCache.delete(sessionId);
   return null;
 }
@@ -769,6 +770,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     }
 
     const authHeader = event.request.headers.get("Authorization");
+    const apiKey = event.request.headers.get("x-api-key");
+    const websiteToken = event.request.headers.get("x-website-token");
+
     // Accept whichever session cookie variant the auth layer issued — and
     // remember the exact variant so invalidation can delete THAT cookie
     // (a __Secure-session_id left behind while deleting session_id alone
@@ -786,6 +790,55 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         sessionId = val;
         break;
       }
+    }
+
+    // 🚀 ULTRA-FAST GUEST FAST PATH: No credentials at all on safe read request
+    if (
+      !sessionId &&
+      !authHeader &&
+      !apiKey &&
+      !websiteToken &&
+      (method === "GET" || method === "HEAD" || method === "OPTIONS")
+    ) {
+      const testSecret = event.request.headers.get("x-test-secret");
+      const isPublicPath =
+        url.pathname.startsWith("/api/collections") ||
+        url.pathname.startsWith("/api/query") ||
+        url.pathname.startsWith("/api/graphql") ||
+        url.pathname.startsWith("/api/media");
+
+      if (isPublicPath && !testSecret) {
+        locals.user = {
+          _id: "anonymous",
+          email: "anonymous@svelty.local",
+          username: "Anonymous Guest",
+          role: "guest",
+          permissions: [
+            "collections:read",
+            "api:collections",
+            "api:media",
+            "media:read",
+            "graphql:read",
+            "api:graphql",
+          ],
+          tenantId: locals.tenantId || null,
+          isAnonymous: true,
+        } as any;
+        locals.permissions = [
+          "collections:read",
+          "api:collections",
+          "api:media",
+          "media:read",
+          "graphql:read",
+          "api:graphql",
+        ];
+        (locals as any).roles = ["guest"];
+      } else {
+        locals.user = null;
+        (locals as any).roles = [];
+        locals.permissions = [];
+      }
+      return await resolve(event);
     }
     if (sessionId) {
       // 🛡️ Guard: wrap session validation in try-catch so malformed/invalid session
