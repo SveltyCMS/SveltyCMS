@@ -91,17 +91,25 @@ The **Autonomous System Watchdog** (`src/services/system/watchdog.ts`):
 
 ---
 
-## 6. Route Resource State Machine
+## 6. Route Resource State Machine & Cache Synergy
 
-The **Route Resource State Machine** (`src/services/core/route-resource-state-machine.ts`) classifies every URL into precise operational resource profiles in **`< 10 microseconds`**:
+The **Route Resource State Machine** (`src/services/core/route-resource-state-machine.ts`) classifies every URL into precise operational resource profiles in **`< 10 microseconds`**, orchestrating with **`CacheService`** (`src/databases/cache/cache-service.ts`) for sub-millisecond route latency:
 
-| Resource Lane    | Routes                         | Required Cache Categories     | Memory Profile     | Middleware Bypass                                     |
-| :--------------- | :----------------------------- | :---------------------------- | :----------------- | :---------------------------------------------------- |
-| **`bootstrap`**  | `/login`, `/setup`, `/auth/*`  | `SETTINGS`                    | **`< 2MB` RAM**    | Skips `media`, `preferences`, `scim`, `collaboration` |
-| **`media`**      | `/mediagallery`, `/media/*`    | `MEDIA`, `SETTINGS`           | Focused Media RAM  | Skips `scim`, `collaboration`                         |
-| **`collection`** | `/collections/*`, `/content/*` | `SCHEMA`, `ROLES`, `SETTINGS` | Schema & Field RAM | Skips `scim`                                          |
-| **`dashboard`**  | `/dashboard`, `/admin`         | `SETTINGS`, `SYSTEM_STATE`    | Layout Metrics RAM | Skips `scim`                                          |
-| **`settings`**   | `/settings`, `/config`         | `SETTINGS`, `ROLES`           | Config RAM         | Skips `media`, `collaboration`                        |
+| Resource Lane    | Routes                         | Required Cache Categories             | Memory Profile     | Middleware Bypass                                     |
+| :--------------- | :----------------------------- | :------------------------------------ | :----------------- | :---------------------------------------------------- |
+| **`bootstrap`**  | `/login`, `/setup`, `/auth/*`  | `SYSTEM`, `AUTH`                      | **`< 2MB` RAM**    | Skips `media`, `preferences`, `scim`, `collaboration` |
+| **`media`**      | `/mediagallery`, `/media/*`    | `MEDIA`, `SYSTEM`                     | Focused Media RAM  | Skips `scim`, `collaboration`                         |
+| **`collection`** | `/collections/*`, `/content/*` | `SCHEMA`, `AUTH`, `SYSTEM`, `CONTENT` | Schema & Field RAM | Skips `scim`                                          |
+| **`graphql`**    | `/api/graphql`                 | `SCHEMA`, `AUTH`, `SYSTEM`, `CONTENT` | JIT Executor RAM   | Skips `media`, `preferences`, `scim`, `collaboration` |
+| **`api`**        | `/api/*` (REST endpoints)      | `SCHEMA`, `AUTH`, `SYSTEM`            | Streaming JSON RAM | Skips `media`, `preferences`, `scim`, `collaboration` |
+| **`dashboard`**  | `/dashboard`, `/admin`         | `SYSTEM`, `SETTINGS`                  | Layout Metrics RAM | Skips `scim`                                          |
+| **`settings`**   | `/settings`, `/config`         | `SYSTEM`, `AUTH`                      | Config RAM         | Skips `media`, `collaboration`                        |
+
+### Cache Service Integration
+
+- **Adaptive TTLs**: Configured per category in `CATEGORY_TTL_SECONDS` (`schema`: 3600s, `setting`: 1800s, `content`: 120s, `api`: 30s).
+- **Targeted Tag Invalidation**: When database mutations occur, `cacheService.invalidateTag(collection)` purges only the modified collection's cache entries without affecting other route lanes.
+- **Negative Bloom Cache**: Bypasses dead DB lookups for non-existent records in `< 1µs`.
 
 ---
 

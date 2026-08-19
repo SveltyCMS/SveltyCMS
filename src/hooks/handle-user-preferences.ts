@@ -30,12 +30,15 @@ function isValidLocale(lang: string | undefined): lang is Locale {
 // --- MAIN HOOK ---
 
 export const handleUserPreferences: Handle = async ({ event, resolve }) => {
+  const pathname = event.url.pathname;
+  if (pathname.startsWith("/api/")) return resolve(event);
+
   const { cookies, locals } = event;
 
   // 🧪 TERMINAL BYPASS: Verified benchmarks skip UI preference sync
   if ((locals as any).__testBypass) return resolve(event);
 
-  // 🚀 FAST-PATH: Skip entirely for API routes and static assets using pre-computed flags
+  // 🚀 FAST-PATH: Skip entirely for static assets using pre-computed flags
   const flags = getRequestFlags(locals as any);
   if (flags.isApi || flags.isStatic) return resolve(event);
 

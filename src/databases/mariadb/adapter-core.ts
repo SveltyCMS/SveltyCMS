@@ -1045,9 +1045,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
         setPairs.push(`\`${safeCol}\` = ?`);
         const val = values[col];
         params.push(
-          val !== null && typeof val === "object" && !(val instanceof Date)
-            ? JSON.stringify(val)
-            : val,
+          val === null || val === undefined
+            ? null
+            : typeof val === "object" && !(val instanceof Date)
+              ? JSON.stringify(val)
+              : val,
         );
       }
       if (setPairs.length === 0) {

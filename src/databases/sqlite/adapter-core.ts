@@ -1319,7 +1319,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       async () => {
         const debugMode = process.env.BENCHMARK_DEBUG === "true";
 
-        const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "status" TEXT DEFAULT 'draft', "isDeleted" INTEGER DEFAULT 0, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
+        const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "collection" TEXT, "slug" TEXT, "locale" TEXT, "status" TEXT DEFAULT 'draft', "publishedAt" INTEGER, "isDeleted" INTEGER DEFAULT 0, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
         if (debugMode) logger.debug(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
         await this.raw.execute(ddl);
 
@@ -1386,18 +1386,24 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         // This avoids noisy CREATE INDEX errors when a column couldn't be added
         // (e.g. under node:sqlite proxy driver where ALTER TABLE may silently fail).
         const addedColumns = new Set<string>();
+        // One PRAGMA per table — the previous per-column loop re-read table_info N times.
+        let existingCols = new Set<string>();
+        try {
+          const tableInfo = this.prepareAndExecute(
+            `PRAGMA table_info("${physicalName}")`,
+            "all",
+          ) as any[];
+          if (Array.isArray(tableInfo)) {
+            existingCols = new Set(tableInfo.map((c: any) => c.name as string));
+          }
+        } catch {
+          /* table may not exist yet — ALTER path still runs */
+        }
         for (const col of allColumnsToEnsure) {
           try {
             // Defense-in-depth: schema-defined column names are interpolated as identifiers
             const safeColName = utils.assertSafeSqlIdentifier(col.name, "column");
-            // PRAGMA returns rows — force the "all" method (raw.execute would
-            // route it to stmt.run() and return {changes} instead of rows).
-            const tableInfo = this.prepareAndExecute(
-              `PRAGMA table_info("${physicalName}")`,
-              "all",
-            ) as any[];
-            const exists =
-              Array.isArray(tableInfo) && tableInfo.some((c: any) => c.name === safeColName);
+            const exists = existingCols.has(safeColName);
             if (!exists) {
               await this.raw.execute(
                 `ALTER TABLE "${physicalName}" ADD COLUMN "${safeColName}" ${col.type}`,
@@ -1413,6 +1419,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               } catch {
                 /* backfill is best-effort */
               }
+              existingCols.add(safeColName);
             }
             addedColumns.add(safeColName);
           } catch {

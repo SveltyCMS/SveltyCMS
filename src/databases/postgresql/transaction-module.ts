@@ -37,6 +37,10 @@ export class TransactionModule {
         // to Drizzle (single code path, no rollback bypass).
         const txSql = (_tx as any)?.session?.client ?? null;
         const txnOpts = txSql ? { db: _tx, sql: txSql } : { db: _tx };
+        // Same-connection GUC so RLS sees this tenant for the life of the txn.
+        if (txSql && typeof this.core.setTenantContext === "function") {
+          await this.core.setTenantContext(this.core.currentTenantId, txSql);
+        }
         const dbTransaction: DatabaseTransaction & any = {
           commit: async () => ({ success: true, data: undefined }),
           rollback: async () => {
@@ -82,7 +86,7 @@ export class TransactionModule {
           return { success: true, data: result } as any;
         }
 
-        if (!result.success) {
+        if (!result.success && (result as any).rollback !== false) {
           throw new Error(result.message || "Transaction failed");
         }
         return result;

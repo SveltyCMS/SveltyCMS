@@ -75,8 +75,8 @@ export async function createConnection(
     database: config.database,
     ssl: config.ssl === true || config.ssl === "require" ? "require" : undefined,
     max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 100,
-    idle_timeout: 60, // Idle connection timeout in seconds
-    connect_timeout: 30, // Connection timeout in seconds
+    idle_timeout: 30, // Idle connection timeout in seconds
+    connect_timeout: 10, // Connection timeout in seconds
     prepare: effectivePrepare,
     pipeline: true as any,
     onnotice: () => {

@@ -476,6 +476,24 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   public getProjectedSelection(table: any, options: any): any {
+    const fields = options?.fields;
+    if (Array.isArray(fields) && fields.length > 0 && this.shouldExcludeData(table, options)) {
+      const projected: any = {};
+      const requestedSet = new Set(fields.map((f: string) => (f === "id" ? "_id" : f)));
+      requestedSet.add("_id");
+      if (this.getColumn(table, "tenantId")) requestedSet.add("tenantId");
+
+      for (const fieldName of requestedSet) {
+        const col = this.getColumn(table, fieldName);
+        if (col) {
+          projected[fieldName] = col;
+        }
+      }
+      if (Object.keys(projected).length > 0) {
+        return projected;
+      }
+    }
+
     const self = this as any;
     const lastRef = {
       get table() {
@@ -617,26 +635,35 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           // (e.g. a materialized publishDate VARCHAR) and produced a Date that
           // SQLite bindings serialize as a JSON-quoted string — double-encoded
           // values that read back unparseable (temporal-integrity regression).
-          // Detection reads public getters (sqlite-core) AND `column.config`
-          // (mysql-core hides dataType/columnType from the public surface).
-          const isDateColumn =
-            isPhysical?.dataType === "date" ||
-            (isPhysical?.columnType && String(isPhysical.columnType).includes("Timestamp")) ||
-            isPhysical?.config?.dataType === "date" ||
-            (isPhysical?.config?.columnType &&
-              String(isPhysical.config.columnType).includes("Timestamp"));
           const isSpecialTimestamp = k === "createdAt" || k === "updatedAt";
-          if (typeof val === "number" && val > 0 && (isSpecialTimestamp || isDateColumn)) {
-            val = new Date(val);
-          } else if (
-            typeof val === "string" &&
-            val.length > 5 &&
-            (isSpecialTimestamp || isDateColumn) &&
-            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)
-          ) {
-            const ts = Date.parse(val);
-            if (!isNaN(ts)) {
-              val = new Date(ts);
+          const mayBeDate =
+            isSpecialTimestamp ||
+            k.includes("Date") ||
+            k.includes("date") ||
+            k.includes("At") ||
+            k.includes("Time") ||
+            k.includes("time");
+          const isDateColumn =
+            isSpecialTimestamp ||
+            (mayBeDate &&
+              (isPhysical?.dataType === "date" ||
+                (isPhysical?.columnType && String(isPhysical.columnType).includes("Timestamp")) ||
+                isPhysical?.config?.dataType === "date" ||
+                (isPhysical?.config?.columnType &&
+                  String(isPhysical.config.columnType).includes("Timestamp"))));
+
+          if (isDateColumn) {
+            if (typeof val === "number" && val > 0) {
+              val = new Date(val);
+            } else if (
+              typeof val === "string" &&
+              val.length > 5 &&
+              /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)
+            ) {
+              const ts = Date.parse(val);
+              if (!isNaN(ts)) {
+                val = new Date(ts);
+              }
             }
           } else if (
             this.shouldJsonSerializeInPrepare &&
@@ -882,7 +909,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       const tableName = getTableName(table);
       const isDynamic =
         this.useDynamicSqlInFindMany &&
-        (collection.toLowerCase().includes("benchmark") || collection.startsWith("collection_"));
+        (collection.toLowerCase().includes("benchmark") ||
+          collection.startsWith("collection_") ||
+          !helpers.isSystemTable(collection));
 
       let results;
       const excludeData = this.shouldExcludeData(table, options);
@@ -982,19 +1011,26 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           const db = this.getDrizzleInstance(options);
           const rawRows = await this.executeDynamicSql(db, sqlQuery, options);
 
-          results = rawRows.map((row: any) => {
+          const numCols = columns.length;
+          const numRows = rawRows.length;
+          results = [];
+          for (let r = 0; r < numRows; r++) {
+            const row = rawRows[r];
             const obj: any = {};
             if (Array.isArray(row)) {
-              columns.forEach((col, idx) => {
-                if (row[idx] !== undefined) obj[col] = row[idx];
-              });
+              for (let c = 0; c < numCols; c++) {
+                const val = row[c];
+                if (val !== undefined) obj[columns[c]] = val;
+              }
             } else if (row && typeof row === "object") {
-              columns.forEach((col) => {
-                if (row[col] !== undefined) obj[col] = row[col];
-              });
+              for (let c = 0; c < numCols; c++) {
+                const colName = columns[c];
+                const val = row[colName];
+                if (val !== undefined) obj[colName] = val;
+              }
             }
-            return obj;
-          });
+            results.push(obj);
+          }
         } else {
           let builder: any = this.getDrizzleInstance(options)
             .select(this.getProjectedSelection(table, options))

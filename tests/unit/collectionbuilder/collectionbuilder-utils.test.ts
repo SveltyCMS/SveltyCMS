@@ -8,6 +8,9 @@
 import { describe, it, expect } from "vitest";
 import {
   getDescendantIds,
+  parseIdList,
+  parseJsonArray,
+  parseOperations,
   uniquePathForCategory,
 } from "@src/routes/(app)/config/collectionbuilder/collectionbuilder-utils";
 
@@ -72,6 +75,47 @@ describe("Collection Builder Utilities", () => {
 
     it("returns '/category' for empty name", () => {
       expect(uniquePathForCategory("")).toBe("/category");
+    });
+  });
+
+  describe("parseJsonArray", () => {
+    it("parses a JSON array", () => {
+      expect(parseJsonArray('["a","b"]')).toEqual(["a", "b"]);
+    });
+
+    it("returns null for invalid JSON or non-arrays", () => {
+      expect(parseJsonArray("not-json")).toBeNull();
+      expect(parseJsonArray('{"a":1}')).toBeNull();
+      expect(parseJsonArray(null)).toBeNull();
+    });
+  });
+
+  describe("parseIdList", () => {
+    it("accepts uuid and slug ids", () => {
+      expect(parseIdList(["cat-1", "posts.abc"])).toEqual(["cat-1", "posts.abc"]);
+    });
+
+    it("rejects empty strings, traversal, and oversized lists", () => {
+      expect(parseIdList(["../etc"])).toBeNull();
+      expect(parseIdList([""])).toBeNull();
+      expect(parseIdList(null)).toBeNull();
+      expect(parseIdList(Array.from({ length: 201 }, () => "a"))).toBeNull();
+    });
+  });
+
+  describe("parseOperations", () => {
+    it("accepts a valid create operation", () => {
+      const parsed = parseOperations([
+        { type: "create", node: { path: "/blog", name: "Blog", nodeType: "category" } },
+      ]);
+      expect(parsed).toHaveLength(1);
+      expect(parsed?.[0].type).toBe("create");
+    });
+
+    it("rejects unknown types and nodes without a path", () => {
+      expect(parseOperations([{ type: "explode", node: { path: "/x" } }])).toBeNull();
+      expect(parseOperations([{ type: "create", node: { name: "X" } }])).toBeNull();
+      expect(parseOperations("nope")).toBeNull();
     });
   });
 });

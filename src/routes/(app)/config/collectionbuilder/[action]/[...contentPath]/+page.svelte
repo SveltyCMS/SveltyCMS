@@ -290,11 +290,18 @@ function handleCollectionDelete() {
 		onConfirm: async () => {
 			const res = await fetch("?/deleteCollections", {
 				method: "POST",
-				body: obj2formData({ ids: JSON.stringify([collection.value?._id]) }),
+				body: obj2formData({ name: collection.value?.name ?? "" }),
 			});
-			if (res.ok) {
+			const result = await res.json().catch(() => ({} as { type?: string }));
+			if (res.ok && result?.type !== "failure") {
 				toast.success("Collection Deleted");
 				goto("/config/collectionbuilder");
+			} else {
+				const msg =
+					(result as { data?: { error?: string }; error?: string })?.data?.error ||
+					(result as { error?: string }).error ||
+					"Failed to delete collection";
+				toast.error(msg);
 			}
 		},
 	});

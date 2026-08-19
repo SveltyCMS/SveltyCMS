@@ -24,6 +24,8 @@ import {
   withMutableHeaders,
   getUserCacheId,
   buildUserCacheKey,
+  MUTATION_HTTP_METHODS,
+  WRITE_HTTP_METHODS,
 } from "@utils/hook-utils";
 import {
   responseCache,
@@ -41,6 +43,7 @@ import {
 import {
   getCollectionFromPath,
   getCollectionFields,
+  hasGuardedFields,
   assertWriteAllowed,
 } from "@src/services/security/field-permission-service";
 
@@ -404,11 +407,16 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     // enforceFieldAccess when a guarded field is present in the payload.
     // Admin/system and unguarded collections skip at zero cost; schema is
     // memoized (30s) so the mutation path stays DB-free after first load.
-    if (["POST", "PUT", "PATCH"].includes(request.method)) {
+    if (
+      WRITE_HTTP_METHODS.has(request.method) &&
+      !isAdmin(locals.user) &&
+      locals.user?.role !== "admin" &&
+      locals.user?._id !== "system"
+    ) {
       const collection = getCollectionFromPath(url.pathname);
       if (collection) {
         const fields = await getCollectionFields(collection, tenantIdString);
-        if (fields && fields.length > 0) {
+        if (fields && fields.length > 0 && hasGuardedFields(fields)) {
           const body = (await event.request
             .clone()
             .json()
@@ -426,7 +434,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
     const response = await resolve(event);
     if (
-      ["POST", "PUT", "DELETE", "PATCH"].includes(request.method) &&
+      MUTATION_HTTP_METHODS.has(request.method) &&
       response.ok &&
       !url.pathname.endsWith("/warm-cache") &&
       locals.user?._id
@@ -447,7 +455,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             cacheService.clearByPattern(`${apiPathPrefix}*`, currentTenantId),
           ]);
 
-          if (["POST", "PUT", "PATCH"].includes(request.method) && event.url.origin) {
+          if (WRITE_HTTP_METHODS.has(request.method) && event.url.origin) {
             // 🚀 No prewarm for GraphQL: an internal GET carries no query string,
             // so it can never populate the response cache — it only re-runs the
             // full schema+auth pipeline per POST (measured: ~2x load, and its

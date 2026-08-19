@@ -201,12 +201,25 @@ function setSessionCookie(event: RequestEvent, sessionId: string) {
   });
 }
 
-/** Deletes both secure and non-secure variants of the session cookie. */
+/** Deletes both secure and non-secure variants of the session cookie with matching attributes. */
 function clearSessionCookies(event: RequestEvent) {
   const { name, isSecure } = getCookieConfig(event);
-  event.cookies.delete(name, { path: "/" });
+  const sameSite = isSecure ? "strict" : "lax";
+  event.cookies.delete(name, {
+    path: "/",
+    httpOnly: true,
+    sameSite,
+    secure: isSecure,
+  });
   // Also delete the non-secure variant in case it was set previously
-  if (isSecure) event.cookies.delete(SESSION_COOKIE_NAME, { path: "/" });
+  if (isSecure) {
+    event.cookies.delete(SESSION_COOKIE_NAME, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+    });
+  }
 }
 
 // ─── Core Handlers ───────────────────────────────────────────────────────────

@@ -35,6 +35,12 @@ export const IS_TEST_MODE = (() => {
   );
 })();
 
+/** Mutation verbs that must run CSRF + cache invalidation. */
+export const MUTATION_HTTP_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/** Body-bearing verbs (field-write guard, payload size limit). */
+export const WRITE_HTTP_METHODS = new Set(["POST", "PUT", "PATCH"]);
+
 /** Standardized user ID string extraction for cache key isolation. */
 export function getUserCacheId(user: { _id?: unknown; id?: unknown } | null | undefined): string {
   if (!user) return "";

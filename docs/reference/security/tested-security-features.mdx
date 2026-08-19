@@ -138,6 +138,19 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 - ✅ **Turbo Auth Skip Guard**: `__turboAuth` flag prevents duplicate audit on turbo-served mutations without bypassing any auth checks. Turbo path still requires valid session + absolute-expiry auth cache (`src/hooks/handle-turbo-get.ts`).
 - ✅ **Hook Timing Gate**: `HOOK_TIMING_ENABLED` gate disables per-request instrumentation in production. No security hooks are skipped — only timing/tracing overhead is removed (`src/hooks.server.ts`).
 
+### 8. August 2026 Security & Cookie Parity Hardening
+
+**Assessment Outcome**: Full cookie flag alignment, non-fatal transaction isolation, and translation catalog integrity verification.
+
+- ✅ **Logout Cookie Attribute Parity**: `clearSessionCookies()` in `src/routes/api/[...path]/handlers/auth.ts` explicitly enforces matching `path: "/"`, `httpOnly: true`, `sameSite`, and `secure` deletion flags aligned with `setSessionCookie()`.
+- ✅ **Transaction Read Isolation**: PostgreSQL and MariaDB `transaction-module.ts` adapters respect `rollback: false`, ensuring non-fatal query misses do not abort outer transactions.
+- ✅ **Media Stream Abort Teardown**: Attached `request.signal` abort listener to destroyed file streams on HTTP client disconnects (`src/routes/api/[...path]/handlers/media.ts`).
+- ✅ **Translation Catalog Integrity**: Automated `scripts/check-translations.ts` checks locale JSON files in `src/messages/` for key parity, empty values, and duplicate catalog keys.
+
+**Files Modified**: `src/routes/api/[...path]/handlers/auth.ts`, `src/databases/postgresql/transaction-module.ts`, `src/databases/mariadb/transaction-module.ts`, `src/routes/api/[...path]/handlers/media.ts`, `scripts/check-translations.ts`.
+
+**Tests**: `tests/unit/routes/cookie-logout.test.ts`, `tests/unit/databases/transaction-read-isolation.test.ts`.
+
 - ✅ **Pre-Compressed Cache**: Compression utilities operate on response bodies only — never touch authentication, authorization, or input validation. No bypass paths introduced.
 - ✅ **Batch Relational Upserts**: `setMany` + `bulkUpdate` use parameterized Drizzle ORM queries — no SQL injection risk. Tenant isolation preserved via existing `tenantId` scoping.
 - ✅ **CDN Purge Fast-Path**: Cached `_cdnActive` flag reduces invalidation overhead without changing the purge security model. Fire-and-forget Cloudflare API calls unchanged.

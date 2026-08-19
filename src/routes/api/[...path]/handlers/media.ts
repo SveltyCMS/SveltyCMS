@@ -897,6 +897,15 @@ export async function handleMediaShareDownload(
   const normalizedFolder = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "");
   const fullPath = path.join(process.cwd(), normalizedFolder, item.path);
 
+  // 🛡️ Defense-in-depth: mirror the LocalStorageAdapter guard. item.path is
+  // normally written only via buildOriginalRelPath (which the upload path
+  // constrains), but legacy rows / direct DB edits must not turn this
+  // download endpoint into a file-read primitive outside the media root.
+  const mediaRootFull = path.resolve(process.cwd(), normalizedFolder) + path.sep;
+  if (!path.resolve(fullPath).startsWith(mediaRootFull)) {
+    throw new AppError("Invalid media path", 400, "BAD_REQUEST");
+  }
+
   try {
     const stats = await fsp.stat(fullPath);
     const mimeType = mime.lookup(fullPath) || "application/octet-stream";

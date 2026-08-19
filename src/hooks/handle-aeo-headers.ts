@@ -14,11 +14,12 @@
 import type { Handle } from "@sveltejs/kit/hooks";
 
 export const handleAeoHeaders: Handle = async ({ event, resolve }) => {
+  // AEO headers only apply to HTML pages — return JSON/API responses unchanged
+  if (event.url.pathname.startsWith("/api/")) return resolve(event);
+
   const response = await resolve(event);
 
-  // AEO headers only apply to HTML pages — return JSON/API responses
-  // unchanged and skip the header-clone + Response re-wrap entirely
-  // (measured ~43µs per API response on the hot path).
+  // Skip the header-clone + Response re-wrap for non-HTML responses
   if (!response.headers.get("content-type")?.includes("text/html")) return response;
 
   const newHeaders = new Headers(response.headers);

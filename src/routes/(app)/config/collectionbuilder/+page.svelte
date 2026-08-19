@@ -35,9 +35,10 @@ None (TreeView has its own keyboard navigation)
 -->
 <script lang="ts">
 import { SvelteSet } from "svelte/reactivity";
-import type { ISODateString } from "@src/content/types";
 import type { ContentNode, DatabaseId } from "@src/databases/db-interface";
+import { nowISODateString } from "@src/utils/date";
 import { hasDuplicateSiblingName } from "@src/content";
+import { getDescendantIds } from "./collectionbuilder-utils";
 import {
     button_save,
     collection_add,
@@ -83,10 +84,16 @@ onMount(() => {
     registerHotkey(
         "mod+n",
         () => {
-            if (!isLoading) {
-                setupNewCollection();
-                goto(newCollectionHref);
+            if (isLoading) return;
+            const addBtn = document.querySelector<HTMLAnchorElement>(
+                '[data-testid="add-collection-button"]',
+            );
+            if (addBtn) {
+                addBtn.click();
+                return;
             }
+            setupNewCollection();
+            goto(newCollectionHref);
         },
         "New collection"
     );
@@ -190,20 +197,6 @@ async function handleNodeUpdate(updatedNodes: ContentNode[]) {
     });
 }
 
-/** Collect category id and all descendant node ids from flat list (for category delete). */
-function getDescendantIds(categoryId: string, flat: ContentNode[]): string[] {
-    const idSet = new SvelteSet<string>();
-    const add = (id: string) => {
-        if (idSet.has(id)) return;
-        idSet.add(id);
-        flat
-            .filter((n) => n.parentId?.toString() === id)
-            .forEach((n) => add(n._id?.toString() ?? ""));
-    };
-    add(categoryId);
-    return Array.from(idSet);
-}
-
 async function doDelete(idsToDelete: string[]) {
     try {
         const { deleteContentNodes } = await import("./collectionbuilder.remote");
@@ -298,7 +291,7 @@ function handleDuplicateNode(node: Partial<ContentNode>) {
     const isCategory = original.nodeType === "category";
     if (isCategory) {
         // Duplicate only the category (no attached collections)
-        const now = new Date().toISOString() as ISODateString;
+        const now = nowISODateString();
         const newId = crypto.randomUUID() as unknown as DatabaseId;
         const baseName = (original.name || "category")
             .toString()
@@ -306,12 +299,16 @@ function handleDuplicateNode(node: Partial<ContentNode>) {
         const newName = `${baseName}_copy`;
         const rootCount = currentConfig.filter((n) => !n.parentId).length;
         const newNode: ContentNode = {
-            ...structuredClone(original),
             _id: newId,
             name: newName,
-            parentId: undefined,
+            icon: original.icon,
             path: String(newId),
             order: rootCount,
+            translations: original.translations ?? [],
+            description: original.description,
+            nodeType: original.nodeType,
+            source: original.source ?? "builder",
+            parentId: undefined,
             updatedAt: now,
             createdAt: now,
         };
@@ -345,22 +342,24 @@ function handleDuplicateNode(node: Partial<ContentNode>) {
     const idBasedPath =
         parentId != null ? `${String(parentId)}.${String(newId)}` : String(newId);
 
-    const newNode: ContentNode = structuredClone({
-        ...original,
+    const now = nowISODateString();
+    const newNode: ContentNode = {
         _id: newId,
         name: newName,
-        parentId: parentId ?? undefined,
+        icon: original.icon,
         path: idBasedPath,
-        slug: undefined,
-        updatedAt: new Date().toISOString() as ISODateString,
-        createdAt: new Date().toISOString() as ISODateString,
-    });
-
-    if (newNode.collectionDef) {
-        (newNode.collectionDef as { name?: string; path?: string }).name = newName;
-        (newNode.collectionDef as { name?: string; path?: string }).path =
-            newNode.path;
-    }
+        order: original.order,
+        translations: original.translations ?? [],
+        description: original.description,
+        nodeType: original.nodeType,
+        source: original.source,
+        parentId: parentId ?? undefined,
+        updatedAt: now,
+        createdAt: now,
+        collectionDef: original.collectionDef
+            ? ({ name: newName, path: idBasedPath } as ContentNode["collectionDef"])
+            : undefined,
+    };
 
     currentConfig = [...currentConfig, newNode];
     setContentStructure(currentConfig);
@@ -510,7 +509,7 @@ function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = u
                         name: form.newCategoryName,
                         icon,
                         description: form.newCategoryDescription ?? (existingCategory as any)?.description ?? "",
-                        updatedAt: new Date().toISOString() as ISODateString,
+                        updatedAt: nowISODateString(),
                     } as ContentNode;
 
                     const result = await saveContentStructure([
@@ -550,8 +549,8 @@ function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = u
                         order: currentConfig.length,
                         translations: [],
                         description: form.newCategoryDescription ?? "",
-                        updatedAt: new Date().toISOString() as ISODateString,
-                        createdAt: new Date().toISOString() as ISODateString,
+                        updatedAt: nowISODateString(),
+                        createdAt: nowISODateString(),
                         parentId: undefined,
                         nodeType: "category",
                         source: "builder",
