@@ -184,6 +184,7 @@ import { LocalCMS } from "@src/services/sdk";
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import { withMutableHeaders } from "@utils/hook-utils";
 
 import { registerPermission } from "@src/databases/auth/permissions";
 import { PermissionAction, PermissionType } from "@src/databases/auth/types";
@@ -593,45 +594,30 @@ async function handleRequest(event: RequestEvent) {
       ? await profileSpan("gql:yoga.handleRequest", handleYogaRequest)
       : await handleYogaRequest();
 
-    // 🚀 MUTATION FAST-PATH: For mutations (no cacheKey), return Yoga's response
-    // directly — skip .text() + new Response() round-trip entirely (saves ~0.3ms).
-    if (!cacheKey) {
-      return yogaResponse;
+    // Serve Yoga's body immediately. Buffer + SHA-256 etag + cache write
+    // happen off the response path so query RPS isn't capped by serialization.
+    if (cacheKey && yogaResponse.status === 200) {
+      const tenant = locals.tenantId as string;
+      const cloned = yogaResponse.clone();
+      queueMicrotask(() => {
+        cloned
+          .text()
+          .then((responseBody) => {
+            if (responseBody.includes('"errors":[') || responseBody.includes(":[]")) return;
+            responseCache.set(
+              cacheKey,
+              { body: responseBody, etag: generateContentEtag(responseBody) },
+              60_000,
+              tenant,
+            );
+          })
+          .catch(() => {});
+      });
+      metricsService.recordGraphqlResponseMiss(tenant);
     }
 
-    // Cache-miss query path: read body for caching
-    const responseBody = PROFILE_WRITE_ENABLED
-      ? await profileSpan("gql:response.text", () => yogaResponse.text())
-      : await yogaResponse.text();
-
-    // 🛡️ Do not cache error-shaped responses or empty collection arrays
-    if (yogaResponse.status === 200) {
-      const hasErrors = responseBody.includes('"errors":[');
-      const isEmptyCollectionData = responseBody.includes(":[]");
-
-      if (!hasErrors && !isEmptyCollectionData) {
-        const etag = PROFILE_WRITE_ENABLED
-          ? await profileSpan("gql:etag", () => generateContentEtag(responseBody))
-          : generateContentEtag(responseBody);
-        responseCache.set(
-          cacheKey,
-          { body: responseBody, etag },
-          60_000,
-          locals.tenantId as string,
-        );
-      }
-    }
-
-    // 🎯 RESPONSE-CACHE COUNTER + explicit MISS header
-    metricsService.recordGraphqlResponseMiss(locals.tenantId as string);
-
-    return new Response(responseBody, {
-      status: yogaResponse.status,
-      statusText: yogaResponse.statusText,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Cache": "MISS",
-      },
+    return withMutableHeaders(yogaResponse, (headers) => {
+      if (cacheKey) headers.set("X-Cache", "MISS");
     });
   } catch (err: any) {
     logger.error("GraphQL Request Error:", err);

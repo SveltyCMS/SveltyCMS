@@ -47,7 +47,7 @@ import type { DatabaseId } from "../content/types";
 import { cacheService, SESSION_CACHE_TTL_MS } from "@src/databases/cache/cache-service";
 import { evaluateSessionAnomaly, toSafeSessionUser } from "@src/databases/auth/session-user";
 
-import { getDbInitPromise, auth, dbAdapter } from "@src/databases/db";
+import { getDbInitPromise, auth, dbAdapter, isDbConnected } from "@src/databases/db";
 import { metricsService } from "@src/services/observability/metrics-service";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
@@ -84,8 +84,11 @@ import { getPrivateSettingSync, getPublicSettingSync } from "@src/services/core/
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { dev } from "$app/env";
 import { runWithContext } from "@src/utils/context";
-import { invalidateTurboAuthContext } from "./handle-turbo-get";
-import { turboAuthCache } from "./handle-turbo-get";
+import {
+  invalidateTurboAuthContext,
+  turboAuthCache,
+  getTurboAuthContext,
+} from "./handle-turbo-get";
 
 // Lazy module singletons — dynamic imports resolve from the module cache on
 // every call, but each await still costs a microtask + lookup on the hot path.
@@ -719,8 +722,24 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     ensureCsrfToken(cookies, isSecure);
   }
 
+  // 🚀 UNIVERSAL TURBO AUTH: After CSRF establishment on mutations, check if session is warm
+  if (turboSessionId) {
+    const turboCtx = turboAuthCache.get(turboSessionId);
+    if (turboCtx && Date.now() < turboCtx.expiresAt) {
+      (locals as any).user = turboCtx.user;
+      (locals as any).roles = turboCtx.roles;
+      (locals as any).tenantId = turboCtx.tenantId ?? locals.tenantId;
+      locals.dbAdapter = dbAdapter;
+      (locals as any).dbAdapterUnscoped = dbAdapter;
+      (locals as any).__turboAuth = true;
+      return await resolve(event);
+    }
+  }
+
   // Ensure DB is initialized to at least CORE phase
-  await getDbInitPromise(false, "CORE");
+  if (!isDbConnected()) {
+    await getDbInitPromise(false, "CORE");
+  }
 
   const isSystemUser = (locals as any).user?._id === "system";
   if (isSystemUser) return resolve(event);
@@ -856,13 +875,23 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           return await resolve(event);
         }
 
-        const resolution = await getUserFromSession(
-          sessionId as string,
-          locals.tenantId as DatabaseId,
-          getClientIp(event),
-          event.request.headers.get("user-agent") || "",
-        );
-        const user = resolution.status === "ok" ? resolution.user : null;
+        const turboCtx = getTurboAuthContext(sessionId as string);
+        let user: User | null = null;
+        let resolution: SessionResolution = { status: "invalid" };
+        if (turboCtx) {
+          user = turboCtx.user;
+          resolution = { status: "ok", user };
+          (locals as any).roles = turboCtx.roles;
+          (locals as any)._rbacBitset = turboCtx.bitset;
+        } else {
+          resolution = await getUserFromSession(
+            sessionId as string,
+            locals.tenantId as DatabaseId,
+            getClientIp(event),
+            event.request.headers.get("user-agent") || "",
+          );
+          user = resolution.status === "ok" ? resolution.user : null;
+        }
         logger.debug(
           `[Auth] getUserFromSession: ${user ? "FOUND " + maskEmail(user.email) + " (" + user.role + ")" : "NULL"} path=${event.url.pathname} tenantId=${locals.tenantId}`,
         );

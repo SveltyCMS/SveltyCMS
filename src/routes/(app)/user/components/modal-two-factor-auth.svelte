@@ -65,7 +65,7 @@ This component provides a user interface for managing 2FA settings:
 	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	// Native UI Components & Stores
 	// getModalStore deprecated - use modalState from @utils/modal-state.svelte;
 	import TwoFactorVerifyModal from './two-factor-verify-modal.svelte';
@@ -189,7 +189,7 @@ This component provides a user interface for managing 2FA settings:
 			}
 
 			showSuccessToast(twofa_success_enabled());
-			await invalidateAll();
+			await refreshAll();
 			close?.({ success: true });
 		} catch (error) {
 			logger.error('2FA verification error:', error);
@@ -235,7 +235,7 @@ This component provides a user interface for managing 2FA settings:
 					}
 
 					showSuccessToast(twofa_success_disabled());
-					await invalidateAll();
+					await refreshAll();
 				} catch (error) {
 					logger.error('2FA disable error:', error);
 					showErrorToast(error instanceof Error ? error.message : 'Failed to disable 2FA');

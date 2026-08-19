@@ -29,7 +29,7 @@ latest version available on GitHub with comprehensive status reporting.
 	// Types
 	interface VersionStatus {
 		badgeColor: string;
-		badgeVariant: 'variant-filled' | 'variant-soft' | 'variant-outline' | 'variant-glass';
+		badgeVariant: 'filled' | 'tonal' | 'outlined' | 'ghost';
 		error: string | null;
 		githubVersion: string;
 		isLoading: boolean;
@@ -58,7 +58,7 @@ latest version available on GitHub with comprehensive status reporting.
 	// State - use publicEnv directly instead of page.data
 	const pkg = $derived(publicEnv?.PKG_VERSION || '0.0.0');
 	let githubVersion = $state('');
-	let badgeVariant = $state<'variant-filled' | 'variant-soft' | 'variant-outline' | 'variant-glass'>('variant-filled');
+	let badgeVariant = $state<'filled' | 'tonal' | 'outlined' | 'ghost'>('filled');
 	let badgeColor = $state('bg-tertiary-500 dark:bg-primary-500 text-white');
 	let versionStatusMessage = $state('Checking for updates...');
 	let statusIcon = $state('mdi:loading');
@@ -119,7 +119,7 @@ latest version available on GitHub with comprehensive status reporting.
 
 		if (!check) {
 			githubVersion = pkg;
-			badgeVariant = 'variant-filled';
+			badgeVariant = 'filled';
 			badgeColor = 'bg-surface-500 text-white';
 			versionStatusMessage = 'Version check unavailable';
 			statusIcon = 'mdi:shield-off';
@@ -131,7 +131,7 @@ latest version available on GitHub with comprehensive status reporting.
 
 		if (check.error) {
 			githubVersion = check.currentVersion || pkg;
-			badgeVariant = 'variant-filled';
+			badgeVariant = 'filled';
 			badgeColor = 'bg-warning-500 text-white';
 			versionStatusMessage = 'Could not check for updates';
 			statusIcon = 'mdi:wifi-off';
@@ -139,14 +139,14 @@ latest version available on GitHub with comprehensive status reporting.
 			error = check.error;
 		} else if (check.latestVersion && check.updateAvailable) {
 			githubVersion = check.latestVersion;
-			badgeVariant = 'variant-filled';
+			badgeVariant = 'filled';
 			badgeColor = 'bg-warning-500 text-black';
 			versionStatusMessage = `Update to v${check.latestVersion} recommended`;
 			statusIcon = 'mdi:information';
 			statusSeverity = 'warning';
 		} else {
 			githubVersion = check.currentVersion || pkg;
-			badgeVariant = 'variant-filled';
+			badgeVariant = 'filled';
 			badgeColor = 'bg-tertiary-500 dark:bg-primary-500 text-white';
 			versionStatusMessage = 'You are up to date';
 			statusIcon = 'mdi:check-circle';
@@ -191,7 +191,7 @@ latest version available on GitHub with comprehensive status reporting.
 				setTimeout(() => checkVersion(retry + 1), RETRY_DELAY * 2 ** retry);
 			} else {
 				githubVersion = pkg;
-				badgeVariant = 'variant-soft';
+				badgeVariant = 'tonal';
 				badgeColor = 'bg-surface-500 text-white';
 				versionStatusMessage = 'Update check failed';
 				statusIcon = 'mdi:alert-octagon';

@@ -175,7 +175,7 @@ import { logger } from "@utils/logger";
 					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
 					<span><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days start to test the Advanced, Social, and Schema SEO features.</span>
 				</div>
-				<a href="https://marketplace.sveltycms.com" target="_blank" class="preset-filled-warning text-sm px-3 py-1">Get License</a>
+				<a href="https://marketplace.sveltycms.com" target="_blank" class="preset-filled-warning-500 rounded text-sm px-3 py-1 font-medium shadow-xs">Get License</a>
 			</div>
 		{/if}
 	{/if}
@@ -213,7 +213,7 @@ import { logger } from "@utils/logger";
 					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"></iconify-icon>
 					<h3 class="h3 font-bold mb-2">Premium SEO Locked</h3>
 					<p class="mb-4">Your 14-day trial has expired. To continue using the Social, Advanced, Schema, and AI features, please purchase a license.</p>
-					<a href="https://marketplace.sveltycms.com" target="_blank" class="preset-filled-error w-full text-center py-2 px-4 rounded font-medium">Purchase License</a>
+					<a href="https://marketplace.sveltycms.com" target="_blank" class="preset-filled-error-500 w-full text-center py-2 px-4 rounded font-medium shadow-xs">Purchase License</a>
 				</div>
 			</div>
 		{/if}

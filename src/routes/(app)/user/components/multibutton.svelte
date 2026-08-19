@@ -31,7 +31,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { onDestroy, onMount, untrack, tick } from 'svelte';
 	import { quintOut } from 'svelte/easing';
 	import { scale } from 'svelte/transition';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import ModalEditForm from './modal-edit-form.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
@@ -270,7 +270,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 			toast.success({ description: data.message || config.toastMessage() });
 			onUpdate({ ids: type === 'user' ? (body as any).userIds : (body as any).tokenIds, action, type });
-			await invalidateAll();
+			await refreshAll();
 		} catch (error) {
 			toast.error({ description: error instanceof Error ? error.message : 'An error occurred' });
 		}

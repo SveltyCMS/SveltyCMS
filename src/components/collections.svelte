@@ -40,7 +40,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	import { validateSchemaWidgets } from '@widgets/widget-validation';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import type { Snippet } from 'svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 
 	interface ExtendedContentNode extends ContentNode {
@@ -596,7 +596,10 @@ Provides an organized interface for navigating hierarchical content structures.
 
 	async function navigate(path: string, force = false): Promise<void> {
 		if (page.url.pathname === path && !force) return;
-		if (force || page.url.pathname === path) await invalidateAll();
+		if (page.url.pathname === path) {
+			await refreshAll();
+			return;
+		}
 		await goto(path, { refreshAll: true });
 	}
 

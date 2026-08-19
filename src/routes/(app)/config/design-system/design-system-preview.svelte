@@ -127,7 +127,7 @@ so preview stays in sync with Layout & Visual Style tabs.
 			<Select label="Card variant" bind:value={variant} options={variantOptions} />
 			<div class="flex flex-col gap-2">
 				<span class="text-sm font-medium" style="color: var(--admin-text-body)">Color mode</span>
-				<ThemeToggle showTooltip={false} buttonClass="preset-outline-surface-500 btn-icon" />
+				<ThemeToggle showTooltip={false} buttonClass="preset-outlined-surface-500 btn-icon" />
 			</div>
 			{#if showAppearanceLink}
 				<div class="flex gap-2">

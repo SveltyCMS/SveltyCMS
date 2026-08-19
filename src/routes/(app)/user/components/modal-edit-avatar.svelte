@@ -23,7 +23,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import { logger } from '@src/utils/logger';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 
 	let files = $state<File[]>([]);
@@ -266,10 +266,10 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 				await response.json();
 
-				// Avatar updated on server — invalidateAll below will refresh page.data.user
+				// Avatar updated on server — refreshAll below will refresh page.data.user
 
-			// Invalidate all data to ensure consistency
-			await invalidateAll();
+			// Refresh all data to ensure consistency
+			await refreshAll();
 
 			// Show success toast
 			toast.success('Avatar updated successfully!');
@@ -316,7 +316,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					const result = await response.json();
 
 					if (response.ok && result.success) {
-						// Avatar deleted on server — invalidateAll below will refresh page.data.user
+						// Avatar deleted on server — refreshAll below will refresh page.data.user
 							previewUrl = null;
 
 						// Show success message
@@ -328,7 +328,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 						modalState.close();
 
 						// Reload page data
-						await invalidateAll();
+						await refreshAll();
 					} else {
 						throw new Error(result.error || 'Delete failed');
 					}

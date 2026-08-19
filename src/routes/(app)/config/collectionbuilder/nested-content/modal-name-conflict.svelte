@@ -63,12 +63,10 @@ const suggestionOptions = $derived(
 </script>
 
 <div class="modal-body p-4">
-	<div class="alert variant-filled-warning mb-4">
-		<div class="alert-message">
-			<h3 class="h3">Collection Name Conflict</h3>
-			<p>The collection name "<code class="font-bold">{conflictingName}</code>" already exists at:</p>
-			<code class="mt-2 block rounded bg-surface-900 p-2">{conflictPath}</code>
-		</div>
+	<div class="alert preset-tonal-warning p-4 rounded-xl mb-4 flex flex-col gap-1">
+		<h3 class="text-base font-bold">Collection Name Conflict</h3>
+		<p class="text-sm">The collection name "<code class="font-bold">{conflictingName}</code>" already exists at:</p>
+		<code class="mt-2 block rounded bg-surface-900 text-white p-2 text-xs">{conflictPath}</code>
 	</div>
 
 	<div class="mb-4">

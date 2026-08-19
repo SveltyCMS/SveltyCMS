@@ -988,7 +988,7 @@ import { tick, untrack } from "svelte";
               navigator.clipboard.writeText(apiUrl);
               toast.success("API URL Copied");
             }}
-           class="preset-outline-surface-500">
+           class="preset-outlined-surface-500">
             Copy
           </Button>
         </div>

@@ -9,6 +9,7 @@
 import { describe, it, expect } from "vitest";
 import {
   applyPublicationToQuery,
+  publicationCacheSuffix,
   resolvePublicationFilter,
 } from "../../../src/utils/security/publication-policy";
 
@@ -75,5 +76,16 @@ describe("applyPublicationToQuery — adapter-level status binding", () => {
   it("leaves the query unchanged for all", () => {
     const query = applyPublicationToQuery({ _id: "1", tenantId: "t1" }, "all");
     expect(query).toEqual({ _id: "1", tenantId: "t1" });
+  });
+});
+
+describe("publicationCacheSuffix — privileged keys stay unfragmented", () => {
+  it("omits a suffix for the unconstrained all filter (matches pre-policy keys)", () => {
+    expect(publicationCacheSuffix("all")).toBe("");
+  });
+
+  it("keeps published/draft distinct so an all-cached row cannot leak to clamped callers", () => {
+    expect(publicationCacheSuffix("published")).toBe(":published");
+    expect(publicationCacheSuffix("draft")).toBe(":draft");
   });
 });

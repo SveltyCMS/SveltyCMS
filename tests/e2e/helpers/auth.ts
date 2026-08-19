@@ -207,104 +207,103 @@ export async function prepareLoginForm(page: Page) {
     }
   }
 
-  // Wait for login form to be visible - use data-testid
+  // Wait for login form or detect first-user signup form
   console.log("[Auth] Waiting for signin-email field...");
-  await page
-    .getByTestId("signin-email")
-    .waitFor({ state: "visible", timeout: 15_000 })
-    .catch(async (e) => {
-      console.error("[Auth] ERROR: signin-email field not found!");
-      // Provide debug info about available inputs
-      const inputs = await page.locator("input").all();
-      for (let i = 0; i < inputs.length; i++) {
-        const input = inputs[i];
-        const name = await input.getAttribute("name");
-        const testId = await input.getAttribute("data-testid");
-        console.error(`[Auth]   Input ${i}: name=${name}, data-testid=${testId}`);
+  const signinField = page.getByTestId("signin-email");
+  const confirmPassword = page.locator('input[name="confirm_password"]');
+  const signUpIconEl = page.getByTestId("signup-icon");
+
+  // Fast check: if signup form or only signup icon is showing, seed immediately without waiting 15s
+  const isSignupShowing = await confirmPassword.isVisible({ timeout: 1000 }).catch(() => false);
+  const isSignupIconOnly =
+    !signInIconVisible && (await signUpIconEl.isVisible({ timeout: 1000 }).catch(() => false));
+
+  if (!isSignupShowing && !isSignupIconOnly) {
+    // Try waiting for signin-email with 4s timeout (so fallback seeds quickly if DB unseeded)
+    await signinField.waitFor({ state: "visible", timeout: 4_000 }).catch(() => {
+      console.log(
+        "[Auth] signin-email not visible within 4s, checking for auto-seeding fallback...",
+      );
+    });
+  }
+
+  if (!(await signinField.isVisible().catch(() => false))) {
+    console.log("[Auth] Signup form / unseeded DB detected. Auto-seeding admin user...");
+    try {
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: "seed",
+          email: ADMIN_CREDENTIALS.email,
+          password: ADMIN_CREDENTIALS.password,
+        },
+      });
+      console.log("[Auth] ✓ Admin user seeded, reloading and retrying...");
+    } catch (seedError) {
+      console.log("[Auth] Seed failed, trying reset first...", seedError);
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: { action: "reset" },
+      });
+      await page.request.post("/api/testing", {
+        headers: TEST_API_HEADERS,
+        data: {
+          action: "seed",
+          email: ADMIN_CREDENTIALS.email,
+          password: ADMIN_CREDENTIALS.password,
+        },
+      });
+      console.log("[Auth] ✓ Database reset and seeded");
+    }
+
+    // Reload and re-click SIGN IN — wait for the chooser instead of a fixed sleep.
+    // The post-reset adapter swap is transient: a seed can land before the new
+    // adapter's tables are fully re-provisioned (signup view persists). Retry
+    // seed + reload a bounded number of times instead of failing on the first.
+    let seededRetries = 0;
+    while (seededRetries < 3) {
+      seededRetries++;
+      await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
+      await page
+        .getByTestId("signin-icon")
+        .or(page.getByTestId("signup-icon"))
+        .or(page.getByTestId("signin-email"))
+        .first()
+        .waitFor({ state: "visible", timeout: 15_000 })
+        .catch(() => undefined);
+
+      const signInIconRetry = page.getByTestId("signin-icon");
+      if (await signInIconRetry.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await signInIconRetry.click({ force: true, timeout: 10000 });
+        // Let the form transition settle before checking for the email field.
+        // CI runners can be slow to render the animated form swap.
+        await page.waitForTimeout(500);
       }
 
-      // Check if signup form is showing (first-user mode / no users in DB)
-      const confirmPassword = page.locator('input[name="confirm_password"]');
-      if (await confirmPassword.isVisible({ timeout: 2000 }).catch(() => false)) {
-        console.log("[Auth] Signup form detected (first-user mode). Auto-seeding admin user...");
-        try {
-          await page.request.post("/api/testing", {
-            headers: TEST_API_HEADERS,
-            data: {
-              action: "seed",
-              email: ADMIN_CREDENTIALS.email,
-              password: ADMIN_CREDENTIALS.password,
-            },
-          });
-          console.log("[Auth] ✓ Admin user seeded, reloading and retrying...");
-        } catch (seedError) {
-          console.log("[Auth] Seed failed, trying reset first...", seedError);
-          await page.request.post("/api/testing", {
-            headers: TEST_API_HEADERS,
-            data: { action: "reset" },
-          });
-          await page.request.post("/api/testing", {
-            headers: TEST_API_HEADERS,
-            data: {
-              action: "seed",
-              email: ADMIN_CREDENTIALS.email,
-              password: ADMIN_CREDENTIALS.password,
-            },
-          });
-          console.log("[Auth] ✓ Database reset and seeded");
-        }
-
-        // Reload and re-click SIGN IN — wait for the chooser instead of a fixed sleep.
-        // The post-reset adapter swap is transient: a seed can land before the new
-        // adapter's tables are fully re-provisioned (signup view persists). Retry
-        // seed + reload a bounded number of times instead of failing on the first.
-        let seededRetries = 0;
-        while (seededRetries < 3) {
-          seededRetries++;
-          await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 30_000 });
-          await page
-            .getByTestId("signin-icon")
-            .or(page.getByTestId("signup-icon"))
-            .or(page.getByTestId("signin-email"))
-            .first()
-            .waitFor({ state: "visible", timeout: 15_000 })
-            .catch(() => undefined);
-
-          const signInIconRetry = page.getByTestId("signin-icon");
-          if (await signInIconRetry.isVisible({ timeout: 5000 }).catch(() => false)) {
-            await signInIconRetry.click({ force: true, timeout: 10000 });
-            // Let the form transition settle before checking for the email field.
-            // CI runners can be slow to render the animated form swap.
-            await page.waitForTimeout(500);
-          }
-
-          const retryField = page.getByTestId("signin-email");
-          if (await retryField.isVisible({ timeout: 10_000 }).catch(() => false)) {
-            console.log("[Auth] ✓ Login form ready after auto-seeding");
-            return;
-          }
-
-          // Still in first-user mode — re-seed (idempotent) and loop.
-          await page.request
-            .post("/api/testing", {
-              headers: TEST_API_HEADERS,
-              data: {
-                action: "seed",
-                email: ADMIN_CREDENTIALS.email,
-                password: ADMIN_CREDENTIALS.password,
-              },
-            })
-            .catch(() => {});
-        }
-
-        // Final attempt: hard gate so the failure surface is the form itself.
-        await page.getByTestId("signin-email").waitFor({ state: "visible", timeout: 15_000 });
+      const retryField = page.getByTestId("signin-email");
+      if (await retryField.isVisible({ timeout: 10_000 }).catch(() => false)) {
         console.log("[Auth] ✓ Login form ready after auto-seeding");
         return;
       }
 
-      throw e;
-    });
+      // Still in first-user mode — re-seed (idempotent) and loop.
+      await page.request
+        .post("/api/testing", {
+          headers: TEST_API_HEADERS,
+          data: {
+            action: "seed",
+            email: ADMIN_CREDENTIALS.email,
+            password: ADMIN_CREDENTIALS.password,
+          },
+        })
+        .catch(() => {});
+    }
+
+    // Final attempt: hard gate so the failure surface is the form itself.
+    await page.getByTestId("signin-email").waitFor({ state: "visible", timeout: 15_000 });
+    console.log("[Auth] ✓ Login form ready after auto-seeding");
+    return;
+  }
 }
 
 /**

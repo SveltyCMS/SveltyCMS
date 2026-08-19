@@ -100,7 +100,7 @@ bulk actions, and predictive preloading.
 	import type { DragDropState } from '@thisux/sveltednd';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import { browser } from '$app/env';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import {
 		createSmartTable,
@@ -357,7 +357,7 @@ bulk actions, and predictive preloading.
 
 	async function onActionSuccess() {
 		smartTable.clearSelection();
-		await invalidateAll();
+		await refreshAll();
 	}
 
 	// =================================================================

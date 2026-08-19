@@ -21,6 +21,7 @@ vi.mock("@src/databases/db", () => {
     auth: { validateSession: vi.fn(), getUserById: vi.fn() },
     getDbInitPromise: vi.fn(() => Promise.resolve()),
     getDb: vi.fn(() => mockAdapter),
+    isDbConnected: vi.fn(() => true),
   };
 });
 

@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    10 | 🟢     | +17%    | 0      |
+| **Core**       |    10 | 🟢     | +30%    | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,18 +62,18 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario                         | Latency  | Trend                                   | Budget | Result |
-| -------------------------------- | -------- | --------------------------------------- | ------ | ------ |
-| **Competitive Workload Replica** | 1.708ms  | ⚪ stable at 1.69ms (±0.094ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 4.766ms  | ⚪ stable at 4.60ms (±0.757ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.687ms  | ⚪ stable at 1.67ms (±0.019ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.645ms  | ⚪ stable at 1.67ms (±0.078ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.636ms  | ⚪ stable at 1.87ms (±0.257ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.589ms  | ⚪ stable at 1.46ms (±0.231ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 4.903ms  | ⚪ stable at 4.86ms (±0.578ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 18.249ms | ⚪ stable at 17.54ms (±2.05ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 15.996ms | ⚪ stable at 13.71ms (±2.22ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 8.353ms  | ⚪ stable at 8.66ms (±3.07ms) (7 runs)  | < 5ms  | 🟢     |
+| Scenario                         | Latency  | Trend                                      | Budget | Result |
+| -------------------------------- | -------- | ------------------------------------------ | ------ | ------ |
+| **Competitive Workload Replica** | 1.766ms  | ⚪ stable at 2.04ms (±0.329ms) (7 runs)    | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 4.828ms  | ⚪ stable at 4.97ms (±0.699ms) (7 runs)    | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.916ms  | ⚪ stable at 1.93ms (±0.296ms) (7 runs)    | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.716ms  | ⚪ stable at 1.98ms (±0.204ms) (7 runs)    | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 2.354ms  | 🔴 slower: 1.81ms → 2.35ms (+30%) (7 runs) | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.769ms  | ⚪ stable at 1.44ms (±0.403ms) (7 runs)    | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 5.515ms  | ⚪ stable at 4.96ms (±1.58ms) (3 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 10.323ms | ⚪ stable at 10.78ms (±8.05ms) (7 runs)    | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 11.371ms | ⚪ stable at 13.17ms (±5.97ms) (7 runs)    | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 6.610ms  | ⚪ stable at 7.42ms (±3.02ms) (7 runs)     | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -110,9 +110,13 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    Competitive Workload Replica: [0.10, 0.63]
-    Competitive Workload Replica: [0.10, 0.46]
-    Competitive Workload Replica: [0.95, 0.84]
+    Competitive Workload Replica: [0.16, 0.45]
+    Competitive Workload Replica: [0.15, 0.44]
+    Competitive Workload Replica: [0.21, 0.95]
+    Competitive Workload Replica: [0.16, 0.76]
+    Competitive Workload Replica: [0.49, 0.37]
+    Competitive Workload Replica: [0.95, 0.45]
+    Competitive Workload Replica: [0.58, 0.36]
 ```
 
 </details>
@@ -128,32 +132,32 @@ quadrantChart
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-08-18)
+### Current Run Summary (2026-08-19)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `85bd888f-4b2d-41c4-afb4-b1d05805ef37` · **Tests invoked:** 1 · **Metrics:** 10 · **DB:** sqlite
+**Run ID:** `1a931e78-bee1-4a80-acb8-9d4a5bb387b5` · **Tests invoked:** 1 · **Metrics:** 10 · **DB:** sqlite
 
-| Test                         | Metric                         | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                  |
-| ---------------------------- | ------------------------------ | -------- | -------- | ---- | ----- | --------------------------------------- |
-| Competitive Workload Replica | findById (Concurrent 8c)       | 1.708    | 2.715    | 2835 | 🟢    | ⚪ stable at 1.69ms (±0.094ms) (7 runs) |
-| Competitive Workload Replica | findByIdRandom (Concurrent 8c) | 4.766    | 7.432    | 1468 | 🟢    | ⚪ stable at 4.60ms (±0.757ms) (7 runs) |
-| Competitive Workload Replica | listPlain (Concurrent 8c)      | 1.687    | 2.711    | 2892 | 🟢    | ⚪ stable at 1.67ms (±0.019ms) (7 runs) |
-| Competitive Workload Replica | listFilterSort (Concurrent 8c) | 1.645    | 2.768    | 2829 | 🟢    | ⚪ stable at 1.67ms (±0.078ms) (7 runs) |
-| Competitive Workload Replica | listLarge (Concurrent 8c)      | 1.636    | 2.829    | 2847 | 🟢    | ⚪ stable at 1.87ms (±0.257ms) (7 runs) |
-| Competitive Workload Replica | findMissing (Concurrent 8c)    | 1.589    | 3.358    | 3110 | 🟢    | ⚪ stable at 1.46ms (±0.231ms) (7 runs) |
-| Competitive Workload Replica | GraphQL Query (Concurrent 8c)  | 4.903    | 5.806    | 1517 | 🟢    | ⚪ stable at 4.86ms (±0.578ms) (7 runs) |
-| Competitive Workload Replica | create (Concurrent 8c)         | 18.249   | 36.554   | 434  | 🟢    | ⚪ stable at 17.54ms (±2.05ms) (7 runs) |
-| Competitive Workload Replica | update (Concurrent 8c)         | 15.996   | 37.254   | 495  | 🟢    | ⚪ stable at 13.71ms (±2.22ms) (7 runs) |
-| Competitive Workload Replica | mixed (Concurrent 8c 50/50)    | 8.353    | 12.287   | 935  | 🟢    | ⚪ stable at 8.66ms (±3.07ms) (7 runs)  |
+| Test                         | Metric                                   | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                     |
+| ---------------------------- | ---------------------------------------- | -------- | -------- | ---- | ----- | ------------------------------------------ |
+| Competitive Workload Replica | findById (Concurrent 8c)                 | 1.766    | 3.334    | 2654 | 🟢    | ⚪ stable at 2.04ms (±0.329ms) (7 runs)    |
+| Competitive Workload Replica | findByIdRandom (Concurrent 8c)           | 4.828    | 8.504    | 1424 | 🟢    | ⚪ stable at 4.97ms (±0.699ms) (7 runs)    |
+| Competitive Workload Replica | listPlain (Concurrent 8c)                | 1.916    | 3.933    | 2442 | 🟢    | ⚪ stable at 1.93ms (±0.296ms) (7 runs)    |
+| Competitive Workload Replica | listFilterSort (Concurrent 8c)           | 1.716    | 2.820    | 2741 | 🟢    | ⚪ stable at 1.98ms (±0.204ms) (7 runs)    |
+| Competitive Workload Replica | findMissing (Concurrent 8c)              | 1.769    | 4.857    | 2663 | 🟢    | ⚪ stable at 1.44ms (±0.403ms) (7 runs)    |
+| Competitive Workload Replica | GraphQL Collection Query (Concurrent 8c) | 5.515    | 6.878    | 1364 | 🟢    | ⚪ stable at 4.96ms (±1.58ms) (3 runs)     |
+| Competitive Workload Replica | create (Concurrent 8c)                   | 10.323   | 27.211   | 754  | 🟢    | ⚪ stable at 10.78ms (±8.05ms) (7 runs)    |
+| Competitive Workload Replica | update (Concurrent 8c)                   | 11.371   | 26.993   | 689  | 🟢    | ⚪ stable at 13.17ms (±5.97ms) (7 runs)    |
+| Competitive Workload Replica | mixed (Concurrent 8c 50/50)              | 6.610    | 10.921   | 1074 | 🟢    | ⚪ stable at 7.42ms (±3.02ms) (7 runs)     |
+| Competitive Workload Replica | listLarge (Concurrent 8c)                | 2.354    | 4.516    | 2151 | ⚪    | 🔴 slower: 1.81ms → 2.35ms (+30%) (7 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-08-18)
+### Historical Trends (2026-08-19)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
@@ -173,7 +177,7 @@ quadrantChart
 | CONTENT SCALE STRESS (warm)         | 🟢    | `▁`                | 0.181ms    |
 | DATABASE PERFORMANCE (warm)         | 🟢    | `▅▅▂█▃▁▁`          | 0.029ms    |
 | GRAPHQL API PERFORMANCE (warm)      | 🟢    | `▁█▆▅▅▂▁`          | 1.238ms    |
-| GRAPHQL STRESS (warm)               | 🟢    | `█▁▂▄▁▅▇`          | 54.597ms   |
+| GRAPHQL STRESS (warm)               | 🟢    | `█▁▃▅▁▆▆`          | 36.888ms   |
 | HOOKS PERFORMANCE (warm)            | 🟢    | `▂▁▂█▁▂▁`          | 0.297ms    |
 | LARGE PAYLOAD STREAMING (warm)      | 🟢    | `▅▆▅▁▄█▆`          | 4.291ms    |
 | LOCAL CMS CRUD (warm)               | 🟢    | `▄▁▄▁▁█▄`          | 0.072ms    |
@@ -185,7 +189,7 @@ quadrantChart
 | TRANSACTION ACID (warm)             | 🟢    | `█▃▁▃▁▄▂`          | 0.170ms    |
 | TRUTH LATENCY (warm)                | 🟢    | `▁█▁▁▁█▁`          | 0.007ms    |
 | WIDGET PERFORMANCE (warm)           | 🟢    | `▆▁█▄▁▅`           | 0.037ms    |
-| COMPETITIVE WORKLOAD REPLICA (warm) | ⚪    | `▃▁▁▁▁▄█`          | 15.996ms   |
+| COMPETITIVE WORKLOAD REPLICA (warm) | ⚪    | `▁▄▇▁▁▅█`          | 11.371ms   |
 | CONCURRENCY MAX (warm)              | ⚪    | `▂▁█`              | 1.058ms    |
 | MIDDLEWARE FLAMEGRAPH (warm)        | ⚪    | `▂▁▁▃▂▂█`          | 2.757ms    |
 | REST API PERFORMANCE (warm)         | ⚪    | `▇▆▁▇█▇▁`          | 0.560ms    |
@@ -201,7 +205,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- LEDGER_DIMENSION:CORE:START -->
 
 <details id="ledger-dimension-core">
-<summary><strong>Core</strong> · 31 tests</summary>
+<summary><strong>Core</strong> · 32 tests</summary>
 
 <!-- SECTION:API_LATENCY:START -->
 
@@ -816,6 +820,16 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 </details>
 <!-- SECTION:TURBO:END -->
 
+<!-- SECTION:STRESS:START -->
+<details id="section-stress">
+<summary><strong>🏷️ Stress</strong> · 🟢 46.459ms · ➡️ ⚪ established at 46.46ms (1 run) (2026-08-19 12:35:09) · <a href="../../../tests/benchmarks/graphql-stress.test.ts">source</a></summary>
+<!-- LEDGER_TRUTH_START -->
+> ⏳ Pending
+<!-- LEDGER_TRUTH_END -->
+
+</details>
+<!-- SECTION:STRESS:END -->
+
 </details>
 
 <!-- LEDGER_DIMENSION:CORE:END -->
@@ -1274,7 +1288,7 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 <!-- SECTION:GQL_STRESS:START -->
 
 <details id="section-gql_stress">
-<summary><strong>🏷️ GraphQL Load Stress</strong> · 🟢 3.047ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-stress.test.ts">source</a></summary>
+<summary><strong>🏷️ GraphQL Load Stress</strong> · 🟢 4.075ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-stress.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -1282,16 +1296,16 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 ╔═════════════════════════════════════════════════════════════════════════════════════════╗
 ║                         SVELTYCMS — GRAPHQL CAPACITY DISCOVERY                          ║
 ║                      File: tests/benchmarks/graphql-stress.test.ts                      ║
-║                                Ran: 2026-08-11 22:06:18                                 ║
+║                                Ran: 2026-08-19 12:35:09                                 ║
 ║  Discovers the server's maximum sustainable GraphQL throughput by ramping concurrency   ║
 ╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup                 │        3.047 ms │ p95:        3.948 ms │ RPS:        311 ║
-║ GQL: 10c Light                 │        5.521 ms │ p95:        6.171 ms │ RPS:        175 ║
-║ GQL: 20c Moderate              │       21.856 ms │ p95:       24.937 ms │ RPS:         47 ║
-║ GQL: 40c Heavy                 │       33.097 ms │ p95:       40.015 ms │ RPS:         30 ║
-║ GQL: 60c Stress                │       37.875 ms │ p95:       48.518 ms │ RPS:         26 ║
-║ GQL: 80c Extreme               │       47.648 ms │ p95:       56.206 ms │ RPS:         21 ║
-║ GQL: 100c Max                  │       59.837 ms │ p95:       71.431 ms │ RPS:         17 ║
+║ GQL: 5c Warmup                 │        4.075 ms │ p95:        5.156 ms │ RPS:      1,071 ║
+║ GQL: 10c Light                 │        5.937 ms │ p95:        7.432 ms │ RPS:      1,490 ║
+║ GQL: 20c Moderate              │       18.654 ms │ p95:       21.051 ms │ RPS:      1,078 ║
+║ GQL: 40c Heavy                 │       28.895 ms │ p95:       35.170 ms │ RPS:      1,310 ║
+║ GQL: 60c Stress                │       31.467 ms │ p95:       44.291 ms │ RPS:      1,661 ║
+║ GQL: 80c Extreme               │       36.888 ms │ p95:       47.465 ms │ RPS:      1,837 ║
+║ GQL: 100c Max                  │       46.459 ms │ p95:       56.658 ms │ RPS:      1,848 ║
 ╚═════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 

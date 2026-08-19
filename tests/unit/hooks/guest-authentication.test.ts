@@ -22,6 +22,7 @@ vi.mock("@src/databases/db", () => ({
   },
   getDb: vi.fn(),
   getDbInitPromise: vi.fn().mockResolvedValue(null),
+  isDbConnected: vi.fn().mockReturnValue(true),
 }));
 
 vi.mock("@src/services/observability/metrics-service", () => ({

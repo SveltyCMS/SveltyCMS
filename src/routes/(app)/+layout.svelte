@@ -59,6 +59,7 @@ import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
 import { floatingNavStore } from "@src/stores/floating-nav-store.svelte";
 	import { onMount, untrack } from "svelte";
+	import { browser } from "$app/env";
 	import { initBounceDetector } from "@utils/bounce-detector";
 	import { initPredictivePreload } from "@utils/predictive-preload";
 	import { registerHotkey } from "@src/utils/hotkeys";
@@ -163,6 +164,24 @@ $effect(() => {
 	theme.variant = merged.variant as any;
 	theme.features = merged.features;
 	theme.customCss = dbAdminConfig?.customCss;
+});
+
+// Sync active theme variables and data attributes to document.documentElement so teleported Portals (Modals, Drawers) inherit them
+$effect(() => {
+	if (!browser) return;
+	const root = document.documentElement;
+	root.setAttribute('data-admin-theme', theme.themeName);
+	root.setAttribute('data-density', theme.density);
+	root.setAttribute('data-reduced-motion', theme.features.reducedMotion ? 'true' : 'false');
+	root.style.setProperty('--admin-spacing-scale', String(theme.spacingScale));
+	root.style.setProperty('--admin-density', String(theme.densityScale));
+	root.style.setProperty('--admin-radius-base', theme.radiusBase);
+	root.style.setProperty('--admin-radius-card', theme.radiusCard);
+	root.style.setProperty('--admin-radius-input', theme.radiusInput);
+	root.style.setProperty('--admin-radius-button', theme.radiusButton);
+	root.style.setProperty('--admin-sidebar-width', theme.sidebarWidth);
+	root.style.setProperty('--admin-header-height', theme.headerHeight);
+	root.style.setProperty('--admin-sticky-bar-height', theme.stickyBarHeight);
 });
 
 // ── Layout state: tenant defaults, then per-user overrides ──

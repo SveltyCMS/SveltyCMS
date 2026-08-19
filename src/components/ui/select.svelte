@@ -63,6 +63,9 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		allowEmptySelection?: boolean;
 		onchange?: (value: string) => void;
 		data_testid?: string;
+		'aria-label'?: string;
+		ariaLabel?: string;
+		[key: string]: any;
 	}
 
 	let {
@@ -81,13 +84,16 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		class: className = '',
 		allowEmptySelection = false,
 		onchange,
-		data_testid
+		data_testid,
+		'aria-label': ariaLabelProp,
+		ariaLabel
 	}: Props = $props();
 
 	const fallbackId = generateId('select');
 	const generatedId = $derived(id ?? fallbackId);
 	const errorId = $derived(error ? `${generatedId}-error` : undefined);
 	const descriptionId = $derived(description ? `${generatedId}-description` : undefined);
+	const effectiveAriaLabel = $derived(ariaLabelProp || ariaLabel || label || undefined);
 
 	const describedBy = $derived([descriptionId, errorId].filter(Boolean).join(' ') || undefined);
 
@@ -110,7 +116,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 	{#if variant === 'floating' && label}
 		<!-- Floating label variant -->
 		<div class="relative">
-			<select aria-label={label || undefined}
+			<select aria-label={effectiveAriaLabel}
 				id={generatedId}
 				{disabled}
 				{required}
@@ -178,7 +184,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		{/if}
 
 		<div class="relative">
-			<select aria-label={label || undefined}
+			<select aria-label={effectiveAriaLabel}
 				id={generatedId}
 				{disabled}
 				{required}

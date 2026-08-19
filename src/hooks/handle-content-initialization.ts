@@ -14,7 +14,7 @@ import { redirect } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { contentSystem, ensureContentInitialized } from "@src/content/index.server";
 import { logger } from "@utils/logger";
-import { getDbInitPromise } from "@src/databases/db";
+import { getDbInitPromise, isDbConnected } from "@src/databases/db";
 import { getSetupState, SetupState } from "@utils/server/setup-check";
 
 // Routes reachable with zero collections (fresh install / E2E after seed).
@@ -41,7 +41,10 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
     return await resolve(event);
   }
 
-  await getDbInitPromise(false, "CORE");
+  // Resolved-promise await still costs a microtask per request. Skip once booted.
+  if (!isDbConnected()) {
+    await getDbInitPromise(false, "CORE");
+  }
 
   // Phase 2: Coalesced content system initialization (prevents thundering herd)
   if (tenantId && !contentSystem.isInitializedForTenant(tenantId)) {

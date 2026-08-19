@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-import { invalidateAll } from "$app/navigation";
+import { refreshAll } from "$app/navigation";
 import { page } from "$app/state";
 import { clearCompleted, deleteJob, retryJob } from "./queue.remote";
 import { toast } from "@src/stores/toast.svelte.ts";
@@ -32,7 +32,7 @@ async function handleClearCompleted() {
 				const result = await clearCompleted({});
 				if (result.success) {
 					toast.success("Completed jobs cleared.");
-					await invalidateAll();
+					await refreshAll();
 				}
 			} catch (e: unknown) {
 				toast.error(e instanceof Error ? e.message || String(e) : "Failed to clear completed jobs.");
@@ -53,7 +53,7 @@ function handleDeleteJob(jobId: string) {
 				const result = await deleteJob(jobId);
 				if (result.success) {
 					toast.success("Job deleted.");
-					await invalidateAll();
+					await refreshAll();
 				}
 			} catch (e: unknown) {
 				toast.error(e instanceof Error ? e.message || String(e) : "Failed to delete job.");
@@ -116,7 +116,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 	{#snippet actions()}
 		<Button
 			variant="ghost"
-			onclick={() => invalidateAll()}
+			onclick={() => refreshAll()}
 			size="sm"
 			leadingIcon="mdi:refresh"
 			data-testid="queue-refresh"
@@ -270,13 +270,13 @@ function getFilterUrl(status: string | undefined = undefined) {
 									{/if}
 								</div>
 							</td>
-							<td class="px-4 py-3">
-								<span class="text-sm">{job.attempts} / {job.maxAttempts}</span>
+							<td class="px-4 py-3 text-sm">
+								{job.attempts} / {job.maxAttempts}
 							</td>
 							<td class="px-4 py-3 text-sm">
 								{formatDate(job.nextRunAt)}
 							</td>
-							<td class="px-4 py-3 text-sm">
+							<td class="px-4 py-3 text-surface-500 dark:text-surface-400 text-xs">
 								{formatDate(job.createdAt)}
 							</td>
 							<td class="px-4 py-3 text-end">
@@ -288,7 +288,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 												const result = await retryJob(job._id);
 												if (result.success) {
 													toast.success('Job rescheduled.');
-													invalidateAll();
+													await refreshAll();
 												}
 											} catch (e: unknown) {
 												toast.error(e instanceof Error ? e.message || String(e) : 'Failed to retry job.');

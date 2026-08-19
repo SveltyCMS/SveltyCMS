@@ -14,7 +14,7 @@ import { SIZES } from "../../../../src/utils/media/media-utils";
 
 // The SIZES constant includes configured sizes + built-in "original" (0) and "thumbnail" (200)
 // We only care about sizes with w > 0 (the resizeable ones)
-const resizeableSizes = Object.entries(SIZES).filter(([_, w]) => w > 0);
+const resizeableSizes = Object.entries(SIZES).filter(([, w]) => w > 0);
 
 describe("saveResized — size enumeration", () => {
   it("has at least 1 resizeable thumbnail size (configurable via IMAGE_SIZES)", () => {
@@ -42,7 +42,7 @@ describe("saveResized — parallel execution contract", () => {
   it("processes each size as an independent promise (no sequential coupling)", async () => {
     // Simulate what the parallel saveResized does: each size task is independent
     const trace: number[] = [];
-    const tasks = resizeableSizes.map(async ([_, w], idx) => {
+    const tasks = resizeableSizes.map(async ([, w], idx) => {
       // Each task should start immediately (not wait for previous)
       trace.push(idx);
       await new Promise((r) => setTimeout(r, Math.random() * 5));
