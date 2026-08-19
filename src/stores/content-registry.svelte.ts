@@ -19,6 +19,8 @@ class ContentStore {
   private _pathIndex = new Map<string, string>();
   /** O(1) lowercased schema id/name → schema id. */
   private _schemaAliasIndex = new Map<string, string>();
+  /** Fast-path cached sanitized client nodes per tenant. */
+  private _clientNodesCache = new Map<string, ContentNode[]>();
 
   #initState = $state<ContentState>("uninitialized");
   public contentVersion = $state(0);
@@ -148,6 +150,27 @@ class ContentStore {
   getNodesForTenant(tenantId?: string | null): ContentNode[] {
     const tid = tenantId || "global";
     return this._nodes.get(tid) || [];
+  }
+
+  /**
+   * Fast-path sanitized client nodes (strips non-serializable function props
+   * and caches the resulting structure until the next store mutation).
+   */
+  getClientNodes(tenantId?: string | null): ContentNode[] {
+    const tid = tenantId || "global";
+    const cached = this._clientNodesCache.get(tid);
+    if (cached) return cached;
+
+    const nodes = this.getNodesForTenant(tenantId);
+    if (nodes.length === 0) return [];
+
+    try {
+      const sanitized = JSON.parse(JSON.stringify(nodes)) as ContentNode[];
+      this._clientNodesCache.set(tid, sanitized);
+      return sanitized;
+    } catch {
+      return nodes;
+    }
   }
 
   getNode(id: string): ContentNode | undefined {
@@ -309,6 +332,7 @@ class ContentStore {
   }
 
   updateVersion() {
+    this._clientNodesCache.clear();
     this.contentVersion++;
   }
 
@@ -331,6 +355,7 @@ class ContentStore {
     if (tenantId) {
       this._collections.delete(tenantId);
       this._nodes.delete(tenantId);
+      this._clientNodesCache.delete(tenantId);
       // Remove from allNodes + indexes
       for (const [id, node] of this._allNodes.entries()) {
         if (node.tenantId === tenantId) {

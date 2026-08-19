@@ -139,8 +139,10 @@ export async function applyAdapterTenantContext(
     typeof (adapter as TenantBoundAdapter).unscoped === "function"
       ? (adapter as TenantBoundAdapter).unscoped()
       : adapter;
+  const targetTenant = tenantId ?? null;
+  if ((raw as any)._currentTenantId === targetTenant) return;
   const fn = (raw as { setTenantContext?: (id: string | null) => Promise<void> }).setTenantContext;
   if (typeof fn === "function") {
-    await fn.call(raw, tenantId ?? null);
+    await fn.call(raw, targetTenant);
   }
 }

@@ -365,14 +365,14 @@ backup-2026-07-10.svelty-backup
 
 ## 🏗️ Current Implementation Status
 
-| Domain                  | Handler | Core Logic                               | Status         |
-| :---------------------- | :------ | :--------------------------------------- | :------------- |
-| Configuration Promotion | ✅      | Partial (status, resources, plan, apply) | 🟡 In progress |
-| Content Packages        | ✅      | Stub (501)                               | 🔴 Planned     |
-| Data Migrations         | ✅      | Stub (501)                               | 🔴 Planned     |
-| External Importers      | ✅      | Hybrid (sources implemented)             | 🟡 Partial     |
-| Backups                 | ✅      | Stub (501)                               | 🔴 Planned     |
-| Content Sync            | ✅      | Stub (501)                               | 🔴 Planned     |
+| Domain                  | Handler | Core Logic                                                               | Status      |
+| :---------------------- | :------ | :----------------------------------------------------------------------- | :---------- |
+| Configuration Promotion | ✅      | `ConfigService` (`src/services/core/config-service.ts`)                  | 🟢 Complete |
+| Content Packages        | ✅      | `ContentPackageService` (`src/services/core/content-package-service.ts`) | 🟢 Complete |
+| Data Migrations         | ✅      | `DataMigrationService` (`src/services/core/migration-engine.ts`)         | 🟢 Complete |
+| External Importers      | ✅      | Smart Importer Plugin (`src/plugins/smart-importer/`)                    | 🟢 Complete |
+| Backups                 | ✅      | `BackupService` (`src/services/core/backup-service.ts`)                  | 🟢 Complete |
+| Content Sync            | ✅      | `ContentSyncService` (`src/services/core/content-sync-service.ts`)       | 🟢 Complete |
 
 > **Legend**: 🟢 Complete · 🟡 In progress / Partial · 🔴 Planned
 
@@ -381,7 +381,13 @@ backup-2026-07-10.svelty-backup
 ## Related Documentation
 
 - [Configuration Promotion API](../api/configuration-promotion.mdx)
-- [Configuration Management Architecture](./configuration-management.mdx)
+- [Data Operations Status](./data-operations-status.mdx)
+- [Collection Builder Architecture](./collection-builder-architecture.mdx)
+- [Content Transfer API](../api/content-transfer.mdx)
+- [Content Sync API](../api/content-sync.mdx)
+- [Data Migrations API](../api/data-migrations.mdx)
+- [External Importers API](../api/importers.mdx)
+- [Backup & Restore API](../api/backups.mdx)
 - [Server Hooks (Middleware Pipeline)](./server-hooks.mdx)
 - [State Management & Readiness](./state-management.mdx)
 - [Cache System](./cache-system.mdx)

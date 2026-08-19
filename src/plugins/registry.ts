@@ -20,6 +20,7 @@ import { logger } from "@utils/logger";
 import { PluginSettingsService } from "./settings";
 import { capabilityRegistry } from "@src/services/security/capability-registry";
 import { registerSugarType } from "@src/widgets/desugar-field";
+import { pluginRouteRegistry } from "./plugin-route-registry";
 import type { PluginCapability } from "./types";
 import type {
   IPluginService,
@@ -559,17 +560,16 @@ export class PluginRegistry implements IPluginService {
 
         case "route": {
           for (const route of part.routes) {
-            // Security: requiredCapabilities MUST be defined
             if (route.requiredCapabilities === undefined) {
               throw new Error(
                 `[Security Violation] Plugin "${pluginId}" attempted to register route "${route.path}" without requiredCapabilities. Every route must declare requiredCapabilities: use [] for auth-only, "public" for unauthenticated, or a string[] of specific capabilities.`,
               );
-            } else if (route.requiredCapabilities === "public") {
+            }
+            if (route.requiredCapabilities === "public") {
               logger.warn(
                 `[PluginRegistry] Plugin "${pluginId}" route "${route.path}" is explicitly public`,
               );
             } else {
-              // Validate route capabilities are declared in plugin metadata
               const declaredCaps = plugin.metadata.capabilities || [];
               for (const cap of route.requiredCapabilities) {
                 if (!declaredCaps.includes(cap as any) && !cap.startsWith("plugin:")) {
@@ -578,10 +578,11 @@ export class PluginRegistry implements IPluginService {
                   );
                 }
               }
-              logger.debug(
-                `[PluginRegistry] Plugin "${pluginId}" route "${route.path}" requires caps: [${route.requiredCapabilities.join(", ")}]`,
-              );
             }
+            pluginRouteRegistry.register(pluginId, route);
+            logger.debug(
+              `[PluginRegistry] Plugin "${pluginId}" registered HTTP route ${route.method || "GET"} ${route.path}`,
+            );
           }
           break;
         }

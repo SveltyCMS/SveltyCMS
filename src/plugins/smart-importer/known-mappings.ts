@@ -145,6 +145,19 @@ export const KNOWN_MAPPINGS: Record<string, KnownFieldMapping[]> = {
     { source: "createdAt", target: "createdAt", confidence: 90, type: "date" },
     { source: "updatedAt", target: "updatedAt", confidence: 90, type: "date" },
   ],
+  woocommerce: [
+    { source: "title", target: "title", confidence: 95, type: "text" },
+    { source: "content", target: "content", confidence: 85, type: "richtext" },
+    { source: "slug", target: "slug", confidence: 90, type: "text" },
+    { source: "sku", target: "sku", confidence: 95, type: "text" },
+    { source: "price", target: "price", confidence: 95, type: "number" },
+    { source: "regular_price", target: "comparePrice", confidence: 80, type: "number" },
+    { source: "stock_quantity", target: "inventoryQty", confidence: 90, type: "number" },
+    { source: "weight", target: "weight", confidence: 85, type: "number" },
+    { source: "product_cat", target: "categories", confidence: 85, type: "taxonomy" },
+    { source: "product_tag", target: "tags", confidence: 85, type: "taxonomy" },
+    { source: "featuredImage", target: "images", confidence: 80, type: "media" },
+  ],
   shopify: [
     { source: "title", target: "title", confidence: 95, type: "text" },
     {

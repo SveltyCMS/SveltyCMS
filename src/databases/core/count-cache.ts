@@ -59,6 +59,11 @@ export function createCountCachedCrud(inner: ICrudAdapter): ICrudAdapter {
           const key = buildCountCacheKey(collection, query, options);
           const tenantId = options?.tenantId ?? null;
 
+          const syncCached = cacheService.getSync<number>(key, tenantId, CacheCategory.CONTENT);
+          if (typeof syncCached === "number" && Number.isFinite(syncCached)) {
+            return { success: true, data: syncCached };
+          }
+
           const cached = await cacheService.get<number>(key, tenantId, CacheCategory.CONTENT);
           // get() returns undefined on miss, null on negative cache — only numbers are hits
           if (typeof cached === "number" && Number.isFinite(cached)) {

@@ -24,6 +24,7 @@ export const load: PageServerLoad = async ({ params, locals, parent, url }) => {
     tenantId,
     draft: parentData.isDraft,
     entryId: parentData.previewEntryId || url.searchParams.get("entryId") || undefined,
+    user: locals.user,
   });
 
   if (!page) {

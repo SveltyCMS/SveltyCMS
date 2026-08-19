@@ -33,6 +33,8 @@ describe("dashboard license gate — endpoint map", () => {
       "cache-metrics": "cache-monitor",
       "online-user": "user-online",
       metrics: "unified-metrics",
+      "commerce-orders": "commerce-orders",
+      "commerce-inventory": "commerce-inventory",
     });
   });
 
@@ -89,6 +91,21 @@ describe("checkDashboardEndpointLicense", () => {
       code: "LICENSE_REQUIRED",
     });
     expect(mockedCheck).toHaveBeenCalledWith("dashboard", "security");
+  });
+
+  it("gates commerce-orders with dashboard:commerce-orders", async () => {
+    mockedCheck.mockResolvedValue({ active: false, daysRemaining: 0, hasLicense: false });
+    await expect(checkDashboardEndpointLicense("commerce-orders")).rejects.toMatchObject({
+      status: 403,
+      code: "LICENSE_REQUIRED",
+    });
+    expect(mockedCheck).toHaveBeenCalledWith("dashboard", "commerce-orders");
+  });
+
+  it("gates commerce-inventory with dashboard:commerce-inventory", async () => {
+    mockedCheck.mockResolvedValue({ active: true, daysRemaining: 14, hasLicense: false });
+    await expect(checkDashboardEndpointLicense("commerce-inventory")).resolves.toBeUndefined();
+    expect(mockedCheck).toHaveBeenCalledWith("dashboard", "commerce-inventory");
   });
 });
 

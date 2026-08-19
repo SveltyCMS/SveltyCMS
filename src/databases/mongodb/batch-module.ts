@@ -13,6 +13,20 @@ import type {
 } from "../db-interface";
 import type { MongoAdapterCore } from "./adapter-core";
 
+function sameMongoPayload(updates: Array<{ data: EntityUpdate<any> }>): boolean {
+  if (updates.length <= 1) return true;
+  const first = updates[0].data as Record<string, unknown>;
+  const keys = Object.keys(first);
+  for (let i = 1; i < updates.length; i++) {
+    const next = updates[i].data as Record<string, unknown>;
+    if (Object.keys(next).length !== keys.length) return false;
+    for (const key of keys) {
+      if (next[key] !== first[key]) return false;
+    }
+  }
+  return true;
+}
+
 export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
   async execute(
     ops: Array<{
@@ -53,9 +67,23 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
     collection: string,
     updates: Array<{ id: DatabaseId; data: EntityUpdate<any> }>,
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
-    // 🚀 Adapter Hot Path: Use MongoDB bulkWrite instead of Promise.all
-    // of individual updates. A single bulkWrite command is ~10-50x faster.
+    if (!updates.length) {
+      return { success: true as const, data: { modifiedCount: 0 } };
+    }
+
     const model = (this.adapter as any).getModel?.(collection);
+
+    // Homogeneous payload (status/archive) → one updateMany, not N updateOne ops.
+    if (model && sameMongoPayload(updates)) {
+      const ids = updates.map((upd) => upd.id);
+      const result = await model.updateMany({ _id: { $in: ids } }, { $set: updates[0].data });
+      return {
+        success: true as const,
+        data: { modifiedCount: result.modifiedCount ?? ids.length },
+      };
+    }
+
+    // Heterogeneous payloads: one bulkWrite round-trip (~10-50x vs Promise.all).
     if (model && updates.length > 1) {
       const bulkOps = updates.map((upd) => ({
         updateOne: {
@@ -69,7 +97,6 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
         data: { modifiedCount: result.modifiedCount },
       };
     }
-    // Fallback for single updates or when model is unavailable
     const res = await Promise.all(
       updates.map((upd) =>
         (this.adapter as any)["crud"].update(collection, upd.id, upd.data as any),
@@ -77,7 +104,7 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
     );
     return {
       success: true as const,
-      data: { modifiedCount: res.filter((r) => r.success).length },
+      data: { modifiedCount: res.filter((r: { success?: boolean }) => r.success).length },
     };
   }
 

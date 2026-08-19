@@ -786,10 +786,12 @@ This is optional — most deployments use the shared pool with RLS. Dedicated po
 
 The rate limiter (`src/hooks/handle-rate-limit.ts`) uses a two-tier token bucket system to ensure fair resource distribution across tenants:
 
-| Tier                  | Scope                    | Purpose                                           |
-| --------------------- | ------------------------ | ------------------------------------------------- |
-| **Per-IP bucket**     | Single IP address        | Prevents a single client from flooding the server |
-| **Per-tenant bucket** | All traffic for a tenant | Prevents one noisy tenant from starving others    |
+| Tier                  | Scope                                                  | Purpose                                           |
+| --------------------- | ------------------------------------------------------ | ------------------------------------------------- |
+| **Per-IP bucket**     | Single IP address + **lane** (`default` or `commerce`) | Prevents a single client from flooding the server |
+| **Per-tenant bucket** | All traffic for a tenant + **lane**                    | Prevents one noisy tenant from starving others    |
+
+Guest `/api/commerce/*` mutations use a **commerce** lane (tighter ceiling, isolated buckets). Exhausting cart/coupon traffic does not 429 admin `/api/collections`. Override with `RATE_LIMIT_COMMERCE_MAX_REQUESTS` (default: 40% of `RATE_LIMIT_MAX_REQUESTS`).
 
 A tenant's budget is isolated — Tenant A exhausting its rate limit has zero impact on Tenant B's available requests.
 
@@ -802,12 +804,13 @@ A tenant's budget is isolated — Tenant A exhausting its rate limit has zero im
 
 **Response Headers:**
 
-| Header                         | Example  | Description                                                                             |
-| ------------------------------ | -------- | --------------------------------------------------------------------------------------- |
-| `X-RateLimit-Remaining`        | `42`     | Per-IP remaining requests                                                               |
-| `X-RateLimit-Tenant-Remaining` | `950`    | Per-tenant remaining requests                                                           |
-| `X-RateLimit-Scope`            | `tenant` | Present only when a tenant-level limit was exceeded (distinguishes from IP-level block) |
-| `Retry-After`                  | `15`     | Seconds until the window resets                                                         |
+| Header                         | Example    | Description                                                                             |
+| ------------------------------ | ---------- | --------------------------------------------------------------------------------------- |
+| `X-RateLimit-Remaining`        | `42`       | Per-IP remaining requests                                                               |
+| `X-RateLimit-Tenant-Remaining` | `950`      | Per-tenant remaining requests                                                           |
+| `X-RateLimit-Lane`             | `commerce` | `commerce` for `/api/commerce/*`, `default` otherwise                                   |
+| `X-RateLimit-Scope`            | `tenant`   | Present only when a tenant-level limit was exceeded (distinguishes from IP-level block) |
+| `Retry-After`                  | `15`       | Seconds until the window resets                                                         |
 
 The adaptive cost multiplier from `SystemMonitor` (0.8x idle → 2.0x critical) applies to both tiers equally, ensuring system-wide pressure protection.
 

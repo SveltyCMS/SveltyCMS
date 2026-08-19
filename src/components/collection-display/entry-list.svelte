@@ -207,12 +207,31 @@ bulk actions, and predictive preloading.
 	}
 
 	function onSortChange(fieldName: string) {
+		if (!fieldName) return;
 		smartTable.setSort(fieldName);
 		entryListPaginationSettings.sorting = {
 			sortedBy: smartTable.sort.sortedBy,
 			isSorted: smartTable.sort.isSorted as SortOrder
 		};
 	}
+
+	// Keep header sort indicators in sync with the URL after SSR navigation.
+	$effect(() => {
+		const sortField = page.url.searchParams.get('sort') || '';
+		const orderRaw = page.url.searchParams.get('order');
+		const isSorted = (orderRaw === 'asc' ? 1 : orderRaw === 'desc' ? -1 : 0) as SortOrder;
+		untrack(() => {
+			if (smartTable.sort.sortedBy !== sortField || smartTable.sort.isSorted !== isSorted) {
+				smartTable.setSort(sortField, { emit: false, direction: isSorted });
+			}
+			if (
+				entryListPaginationSettings.sorting.sortedBy !== sortField ||
+				entryListPaginationSettings.sorting.isSorted !== isSorted
+			) {
+				entryListPaginationSettings.sorting = { sortedBy: sortField, isSorted };
+			}
+		});
+	});
 
 	let filterTimeoutId: ReturnType<typeof setTimeout>;
 	const filterDebounce = (fn: () => void) => {
@@ -1155,7 +1174,7 @@ bulk actions, and predictive preloading.
 			onscroll={onVirtualScroll}
 			class="{SMART_TABLE_SCROLL} max-h-[calc(100vh-14rem)] overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-800 shadow-xs"
 		>
-			<table class={SMART_TABLE}>
+			<table class="{SMART_TABLE} min-w-max">
 				<!-- Table Header -->
 				<thead class={SMART_TABLE_THEAD}>
 					{#if filterShow && visibleTableHeaders.length > 0}
@@ -1181,30 +1200,32 @@ bulk actions, and predictive preloading.
 
 						{#each visibleTableHeaders as header (header.id)}
 							{@const colKey = ((header as TableHeader).name || header.id) as string}
+							{@const isActiveSort = (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy}
 							<th
-								class="relative text-center text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-300 {cellPaddingClass}"
+								class="relative min-w-[7rem] overflow-hidden text-center text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-300 {cellPaddingClass}"
 								style={smartTable.getColumnWidthStyle(colKey)}
-								aria-sort={(header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy
+								aria-sort={isActiveSort
 									? entryListPaginationSettings.sorting.isSorted === 1
 										? 'ascending'
-										: 'descending'
+										: entryListPaginationSettings.sorting.isSorted === -1
+											? 'descending'
+											: 'none'
 									: 'none'}
 							>
-								<Button
-									variant="ghost"
-									class="flex w-full items-center justify-center font-semibold text-xs tracking-wider focus:outline-none {(header as TableHeader).name ===
-									entryListPaginationSettings.sorting.sortedBy
+								<button
+									type="button"
+									class="inline-flex max-w-full min-w-0 items-center justify-center gap-1 rounded px-1 py-1 font-semibold text-xs tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {isActiveSort
 										? 'text-primary-600 dark:text-primary-400 font-bold'
 										: 'text-surface-700 dark:text-surface-300 hover:text-primary-500'}"
 									onclick={() => onSortChange((header as TableHeader).name || '')}
-									aria-label="sort-column"
+									aria-label="Sort by {(header as TableHeader).label}"
 								>
-									{(header as TableHeader).label}
-									{#if (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
+									<span class="truncate">{(header as TableHeader).label}</span>
+									{#if isActiveSort && entryListPaginationSettings.sorting.isSorted !== 0}
 										{@const sortIcon = entryListPaginationSettings.sorting.isSorted === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-										<iconify-icon icon={sortIcon} width="16" class="ms-1 origin-center"></iconify-icon>
+										<iconify-icon icon={sortIcon} width="14" class="shrink-0 origin-center"></iconify-icon>
 									{/if}
-								</Button>
+								</button>
 								<ColumnResizeHandle columnKey={colKey} onResize={smartTable.setColumnWidth} />
 							</th>
 						{/each}

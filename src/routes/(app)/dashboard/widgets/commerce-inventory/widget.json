@@ -1,0 +1,17 @@
+{
+  "id": "commerce-inventory",
+  "name": "Commerce Inventory",
+  "description": "Low-stock and out-of-stock products, including variant quantities",
+  "icon": "mdi:warehouse",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "freemium",
+  "price": 12.99,
+  "component": "index",
+  "defaultSize": {
+    "w": 1,
+    "h": 2
+  },
+  "category": "content"
+}

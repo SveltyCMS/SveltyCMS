@@ -146,6 +146,64 @@ describe("Headless CMS Parsers", () => {
 });
 
 describe("E-Commerce Parsers", () => {
+  it("WooCommerce REST JSON maps sku, sale price, and nested variants", async () => {
+    const { parseWooCommerceExport } = await import("@plugins/smart-importer/parsers/ecommerce");
+    const j = JSON.stringify({
+      products: [
+        {
+          id: 10,
+          name: "Tee",
+          slug: "tee",
+          status: "publish",
+          sku: "TEE",
+          regular_price: "30",
+          sale_price: "25",
+          stock_quantity: 3,
+          variations: [
+            {
+              id: 11,
+              sku: "TEE-S",
+              price: "25",
+              stock_quantity: 2,
+              attributes: [{ name: "Size", option: "S" }],
+            },
+          ],
+        },
+      ],
+    });
+    const env = parseWooCommerceExport(j, "t")!;
+    expect(env.sourcePlatform).toBe("woocommerce");
+    expect(env.entries).toHaveLength(1);
+    expect(env.entries[0].ecommerce?.sku).toBe("TEE");
+    expect(env.entries[0].ecommerce?.price).toBe(25);
+    expect(env.entries[0].ecommerce?.compareAtPrice).toBe(30);
+    expect(env.entries[0].ecommerce?.variants).toHaveLength(1);
+    expect(env.entries[0].ecommerce?.variants[0].sku).toBe("TEE-S");
+  });
+
+  it("WooCommerce WXR nests product_variation under parent", async () => {
+    const { parseWooCommerceExport } = await import("@plugins/smart-importer/parsers/ecommerce");
+    const xml = `<?xml version="1.0"?><rss><channel>
+<item><title>Hoodie</title><wp:post_id>1</wp:post_id><wp:post_type><![CDATA[product]]></wp:post_type><wp:status><![CDATA[publish]]></wp:status><wp:post_name><![CDATA[hoodie]]></wp:post_name>
+<wp:postmeta><wp:meta_key><![CDATA[_sku]]></wp:meta_key><wp:meta_value><![CDATA[HOOD]]></wp:meta_value></wp:postmeta>
+<wp:postmeta><wp:meta_key><![CDATA[_regular_price]]></wp:meta_key><wp:meta_value><![CDATA[40]]></wp:meta_value></wp:postmeta>
+</item>
+<item><title>Hoodie - Blue</title><wp:post_id>2</wp:post_id><wp:post_type><![CDATA[product_variation]]></wp:post_type><wp:post_parent>1</wp:post_parent>
+<wp:postmeta><wp:meta_key><![CDATA[_sku]]></wp:meta_key><wp:meta_value><![CDATA[HOOD-BL]]></wp:meta_value></wp:postmeta>
+<wp:postmeta><wp:meta_key><![CDATA[_price]]></wp:meta_key><wp:meta_value><![CDATA[42]]></wp:meta_value></wp:postmeta>
+<wp:postmeta><wp:meta_key><![CDATA[_stock]]></wp:meta_key><wp:meta_value><![CDATA[5]]></wp:meta_value></wp:postmeta>
+<wp:postmeta><wp:meta_key><![CDATA[attribute_pa_color]]></wp:meta_key><wp:meta_value><![CDATA[blue]]></wp:meta_value></wp:postmeta>
+</item>
+</channel></rss>`;
+    const env = parseWooCommerceExport(xml, "t")!;
+    expect(env.entries).toHaveLength(1);
+    expect(env.entries[0].ecommerce?.sku).toBe("HOOD");
+    expect(env.entries[0].ecommerce?.price).toBe(40);
+    expect(env.entries[0].ecommerce?.variants).toHaveLength(1);
+    expect(env.entries[0].ecommerce?.variants[0].sku).toBe("HOOD-BL");
+    expect(env.entries[0].ecommerce?.inventoryQuantity).toBe(5);
+  });
+
   it("Shopify", async () => {
     const { parseShopifyExport } = await import("@plugins/smart-importer/parsers/ecommerce");
     const j = JSON.stringify({

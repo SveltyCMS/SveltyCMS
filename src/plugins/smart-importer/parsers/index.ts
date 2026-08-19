@@ -6,7 +6,7 @@
  *   WordPress:    parsers/wordpress.ts  (WXR XML)
  *   Drupal:       parsers/drupal.ts     (JSON:API, YAML, CSV)
  *   Headless:     parsers/headless.ts   (Contentful, Sanity, Strapi, Directus, Payload, Storyblok, Prismic)
- *   E-commerce:   parsers/ecommerce.ts  (Shopify, Magento, PrestaShop, OpenCart)
+ *   E-commerce:   parsers/ecommerce.ts  (Shopify, WooCommerce, Magento, PrestaShop, OpenCart)
  *   SaaS:         parsers/saas.ts       (Ghost, Webflow, HubSpot, Wix, Squarespace, Duda, Tilda, Builder)
  *   PHP CMS:      parsers/php-cms.ts    (Joomla, TYPO3, Craft, Grav + 12 others)
  *   Universal:    parsers/universal.ts  (CSV, Markdown, SQL, API, Notion, Airtable, MongoDB)
@@ -94,6 +94,11 @@ export async function parseFileToSNC(
     case "shopify": {
       const { parseShopifyExport } = await import("./ecommerce");
       envelope = parseShopifyExport(rawText, transactionToken);
+      break;
+    }
+    case "woocommerce": {
+      const { parseWooCommerceExport } = await import("./ecommerce");
+      envelope = parseWooCommerceExport(rawText, transactionToken);
       break;
     }
     case "magento": {

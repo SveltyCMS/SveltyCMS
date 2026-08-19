@@ -431,13 +431,18 @@ export abstract class BaseAdapter {
   ): Promise<DatabaseResult<Record<string, unknown[]>>> {
     return this.wrap(async () => {
       const results: Record<string, unknown[]> = {};
-      for (const name of collectionNames) {
-        const res = await this.getCollectionData(name, {
-          limit: options?.limit,
-          fields: options?.fields,
-        });
-        if (res.success) {
-          results[name] = res.data.data;
+      const fetched = await Promise.all(
+        collectionNames.map(async (name) => {
+          const res = await this.getCollectionData(name, {
+            limit: options?.limit,
+            fields: options?.fields,
+          });
+          return { name, data: res.success ? res.data.data : null };
+        }),
+      );
+      for (const item of fetched) {
+        if (item.data) {
+          results[item.name] = item.data;
         }
       }
       return results;

@@ -2,8 +2,10 @@
  * @file src/plugins/stripe/server/webhooks.ts
  * @description Stripe webhook handler for async payment events — uses upsert for idempotency.
  *
- * Handles: payment_intent.succeeded, payment_intent.payment_failed
- * Uses dbAdapter.crud.upsert to safely handle duplicate webhook deliveries.
+ * Handles: payment_intent.succeeded, payment_intent.payment_failed,
+ * payment_intent.refunded, invoice.paid.
+ * Tenant is taken from intent metadata (authoritative after signature verify)
+ * and always included in find/insert so records cannot leak across tenants.
  */
 
 import type { DatabaseId, IDBAdapter } from "@databases/db-interface";
@@ -50,12 +52,18 @@ export async function handleStripeWebhook(
     const event = stripe.webhooks.constructEvent(payload, signature, webhookSecret) as WebhookEvent;
 
     const intent = event.data.object;
-    const status = event.type === "payment_intent.succeeded" ? "succeeded" : "failed";
+    const scopedTenant = String(intent.metadata?.tenantId || tenantId);
+    const status =
+      event.type === "payment_intent.succeeded" || event.type === "invoice.paid"
+        ? "succeeded"
+        : event.type === "payment_intent.refunded"
+          ? "refunded"
+          : "failed";
     const now = new Date().toISOString();
 
-    // Use findOne + insert/update for idempotent webhook handling
     const existing = await dbAdapter.crud.findOne("plugin_stripe_payments", {
       stripeIntentId: intent.id,
+      tenantId: scopedTenant,
     } as Record<string, unknown>);
 
     if (existing?.success && existing.data) {
@@ -80,7 +88,7 @@ export async function handleStripeWebhook(
         metadata: intent.metadata || {},
         createdAt: now,
         updatedAt: now,
-        tenantId: tenantId as DatabaseId,
+        tenantId: scopedTenant as DatabaseId,
       } as Record<string, unknown>);
     }
 

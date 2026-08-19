@@ -1,0 +1,17 @@
+{
+  "id": "commerce-orders",
+  "name": "Commerce Orders",
+  "description": "Recent orders, status mix, and order volume for the ecommerce preset",
+  "icon": "mdi:receipt-text-outline",
+  "version": "1.0.0",
+  "type": "dashboard-widget",
+  "author": "SveltyCMS",
+  "license": "freemium",
+  "price": 12.99,
+  "component": "index",
+  "defaultSize": {
+    "w": 2,
+    "h": 2
+  },
+  "category": "content"
+}

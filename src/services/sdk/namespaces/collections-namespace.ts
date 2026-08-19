@@ -34,6 +34,7 @@ import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-pr
 import { decodePageCursor, mergeKeysetFilter } from "@src/databases/core/page-utils";
 import { applyBeforeValidate, applyAfterValidate } from "@src/content/schema-hooks";
 import { nowISODateString } from "@src/utils/date";
+import { assertWriteAllowed } from "@src/services/security/field-permission-service";
 
 type ContentSystem = typeof serverContentSystem;
 
@@ -62,6 +63,28 @@ const SANITIZE_FIELD_TYPES = new Set(["richtext", "markdown", "text", "textarea"
 /** True when the caller explicitly opted out — no outbox, workflow, plugin afterSave, L2 fan-out. */
 function shouldSkipWriteSideEffects(options: LocalApiOptions): boolean {
   return options.skipSideEffects === true;
+}
+
+/** Status/schedule patches have no nested arrays — skip recursive row-id walks. */
+function isShallowPatch(data: Record<string, unknown>): boolean {
+  for (const value of Object.values(data)) {
+    if (value !== null && typeof value === "object") return false;
+  }
+  return true;
+}
+
+function sameShallowPayload(updates: Array<{ data: Record<string, unknown> }>): boolean {
+  if (updates.length <= 1) return true;
+  const first = updates[0].data;
+  const keys = Object.keys(first);
+  for (let i = 1; i < updates.length; i++) {
+    const next = updates[i].data;
+    if (Object.keys(next).length !== keys.length) return false;
+    for (const key of keys) {
+      if (next[key] !== first[key]) return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -557,6 +580,11 @@ export class CollectionsNamespace {
     }
 
     try {
+      const syncCached = cacheService.getSync<any>(cacheKey, (tenantId || undefined) as string);
+      if (syncCached) {
+        CollectionsNamespace.setRequestCache(cacheKey, syncCached, undefined, tenantId);
+        return syncCached;
+      }
       const cached = await cacheService.get(cacheKey, (tenantId || undefined) as string);
       if (cached) {
         CollectionsNamespace.setRequestCache(cacheKey, cached, undefined, tenantId);
@@ -637,12 +665,17 @@ export class CollectionsNamespace {
       isAdmin = false,
     } = options;
 
+    const cs = await getContentSystem();
+    const allCollections = await cs.getCollections(tenantId);
+    const collectionMap = new Map<string, Schema>();
+    for (const col of allCollections) {
+      if (col._id) collectionMap.set(col._id, col);
+    }
+
     let collectionsToSearch: string[] = [];
     if (collections && collections.length > 0) {
       collectionsToSearch = collections;
     } else {
-      const cs = await getContentSystem();
-      const allCollections = await cs.getCollections(tenantId);
       collectionsToSearch = allCollections
         .map((c) => c._id)
         .filter((id): id is string => id !== undefined);
@@ -661,9 +694,9 @@ export class CollectionsNamespace {
       baseFilter.status = status;
     }
 
-    const cs = await getContentSystem();
     const searchPromises = collectionsToSearch.map(async (collectionId) => {
-      const collection = await cs.getCollectionById(collectionId, tenantId);
+      const collection =
+        collectionMap.get(collectionId) || (await cs.getCollectionById(collectionId, tenantId));
       if (!collection) return [];
 
       try {
@@ -828,14 +861,22 @@ export class CollectionsNamespace {
     if (!bypassCache && cacheKey) {
       const syncCached = cacheService.getSync?.<any>(cacheKey, (tenantId || undefined) as string);
       if (syncCached !== undefined && syncCached !== null) {
-        CollectionsNamespace.setRequestCache(cacheKey, syncCached, schema._id as string, tenantId);
-        return syncCached;
+        const payload =
+          syncCached && typeof syncCached === "object" && "success" in syncCached
+            ? syncCached
+            : { success: true, data: syncCached };
+        CollectionsNamespace.setRequestCache(cacheKey, payload, schema._id as string, tenantId);
+        return payload;
       }
       try {
         const cached = await cacheService.get<any>(cacheKey, (tenantId || undefined) as string);
         if (cached !== undefined && cached !== null) {
-          CollectionsNamespace.setRequestCache(cacheKey, cached, schema._id as string, tenantId);
-          return cached;
+          const payload =
+            cached && typeof cached === "object" && "success" in cached
+              ? cached
+              : { success: true, data: cached };
+          CollectionsNamespace.setRequestCache(cacheKey, payload, schema._id as string, tenantId);
+          return payload;
         }
       } catch {}
     }
@@ -889,12 +930,12 @@ export class CollectionsNamespace {
     }
 
     if (options.populate && result.success && Array.isArray(result.data)) {
-      result.data = await resolvePopulatedRelations(
+      await resolvePopulatedRelations(
         result.data,
         schema,
         options.populate,
-        this._dbAdapter,
         tenantId,
+        this._dbAdapter,
         this.getCollectionName.bind(this),
       );
     }
@@ -1170,20 +1211,38 @@ export class CollectionsNamespace {
     const { user, tenantId } = options;
     if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.getSchema(collectionId, tenantId);
+    const now = nowISODateString();
 
-    const formattedUpdates = updates.map((u) => ({
-      id: u.id as DatabaseId,
-      data: {
-        ...(copyDataWithFreshRowIds(u.data) as Record<string, unknown>),
-        updatedBy: user?._id,
-        updatedAt: nowISODateString(),
-      },
-    }));
+    const formattedUpdates = updates.map((u) => {
+      const raw = (u.data ?? {}) as Record<string, unknown>;
+      const patched = isShallowPatch(raw)
+        ? raw
+        : (copyDataWithFreshRowIds(raw) as Record<string, unknown>);
+      return {
+        id: u.id as DatabaseId,
+        data: {
+          ...patched,
+          updatedBy: user?._id,
+          updatedAt: now,
+        },
+      };
+    });
 
-    const result = await this._dbAdapter.batch.bulkUpdate(
-      this.getCollectionName(schema._id as string),
-      formattedUpdates,
-    );
+    const table = this.getCollectionName(schema._id as string);
+    let result;
+
+    // Homogeneous payload (bulk publish/draft/archive) → one UPDATE WHERE _id IN (...)
+    // instead of N per-row statements. Tenant is applied by crud.updateMany.
+    if (formattedUpdates.length > 0 && sameShallowPayload(formattedUpdates)) {
+      result = await this._dbAdapter.crud.updateMany(
+        table,
+        { _id: { $in: formattedUpdates.map((u) => u.id) } } as any,
+        formattedUpdates[0].data as any,
+        { tenantId: tenantId as DatabaseId },
+      );
+    } else {
+      result = await this._dbAdapter.batch.bulkUpdate(table, formattedUpdates);
+    }
 
     if (result.success && !shouldSkipWriteSideEffects(options)) {
       await this.invalidateCache(schema, tenantId);
@@ -1204,9 +1263,12 @@ export class CollectionsNamespace {
       );
     }
 
-    const result = await this._dbAdapter.batch.bulkDelete(
+    // Single DELETE WHERE _id IN (...) with tenant isolation via mapQuery.
+    // `permanent: true` matches previous batch.bulkDelete (hard delete, not isDeleted).
+    const result = await this._dbAdapter.crud.deleteMany(
       this.getCollectionName(schema._id as string),
-      ids as DatabaseId[],
+      { _id: { $in: ids as DatabaseId[] } } as any,
+      { tenantId: tenantId as DatabaseId, userId: user?._id as DatabaseId, permanent: true },
     );
 
     if (result.success && !shouldSkipWriteSideEffects(options)) {
@@ -1216,12 +1278,30 @@ export class CollectionsNamespace {
     return result;
   }
 
+  /**
+   * Raw id lookup — one `WHERE _id IN (...)` query, no widget modifyRequest.
+   * Used by bulk clone so source rows are not processed twice.
+   */
+  async findByIds(collectionId: string, ids: string[], options: LocalApiOptions = {}) {
+    if (!ids.length) return { success: true, data: [] };
+    const { tenantId } = options;
+    const schema = await this.getSchema(collectionId, tenantId);
+    return this._dbAdapter.crud.findByIds(
+      this.getCollectionName(schema._id as string),
+      ids as DatabaseId[],
+      { tenantId: tenantId as DatabaseId, limit: ids.length },
+    );
+  }
+
   async findById(collectionId: string, entryId: string, options: LocalApiOptions = {}) {
     const { tenantId, bypassCache = false, disableErrors = false } = options;
-    const schema = await this.getSchema(collectionId, tenantId).catch((err) => {
-      if (disableErrors && err.status === 404) return null;
-      throw err;
-    });
+    const schemaKey = `${tenantId || "global"}:${collectionId}`;
+    const schema =
+      CollectionsNamespace._schemaCache.get(schemaKey) ||
+      (await this.getSchema(collectionId, tenantId).catch((err) => {
+        if (disableErrors && err.status === 404) return null;
+        throw err;
+      }));
 
     if (!schema) return { success: true, data: null };
 
@@ -1402,6 +1482,13 @@ export class CollectionsNamespace {
       }
     }
 
+    if (!system && !user?.isAdmin && schema.fields && schema.fields.length > 0) {
+      await assertWriteAllowed(schema.fields as FieldInstance[], entryData, user, {
+        collectionName: schema.name,
+        tenantId: tenantId ?? undefined,
+      });
+    }
+
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
     let finalData = await this.triggerLifecycleHook(
@@ -1529,6 +1616,14 @@ export class CollectionsNamespace {
       if (rangeErrors.length > 0) {
         throw new AppError(rangeErrors.join("; "), 400, "FIELD_VALIDATION_ERROR");
       }
+    }
+
+    if (!system && !user?.isAdmin && schema.fields && schema.fields.length > 0) {
+      await assertWriteAllowed(schema.fields as FieldInstance[], updateData, user, {
+        collectionName: schema.name,
+        entryId,
+        tenantId: tenantId ?? undefined,
+      });
     }
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;

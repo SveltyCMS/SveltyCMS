@@ -155,7 +155,16 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     url.pathname,
   );
 
-  if (resEntry.etag) responseHeaders.set("ETag", resEntry.etag);
+  if (resEntry.etag) {
+    responseHeaders.set("ETag", resEntry.etag);
+    const ifNoneMatch = request.headers.get("If-None-Match");
+    if (ifNoneMatch && (ifNoneMatch === resEntry.etag || ifNoneMatch === `W/${resEntry.etag}`)) {
+      return new Response(null, {
+        status: 304,
+        headers: responseHeaders,
+      });
+    }
+  }
 
   const rawBody = resEntry.body;
   let bodyToSend: BodyInit | Uint8Array | null = rawBody;

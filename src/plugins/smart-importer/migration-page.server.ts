@@ -100,6 +100,18 @@ export const actions = {
           ? [...new Set(Array.from(typeMatch, (m) => m.replace(/<\/?wp:post_type>/g, "")))]
           : ["post"];
         fieldMappings = getKnownMappingsForFormat("wordpress");
+        const productOnly =
+          contentTypes.includes("product") &&
+          !contentTypes.some((t) => t === "post" || t === "page");
+        if (productOnly) {
+          format = "woocommerce";
+          fieldMappings = getKnownMappingsForFormat("woocommerce");
+          contentTypes = contentTypes.filter((t) => t === "product" || t === "product_variation");
+        }
+      } else if (header.includes('"regular_price"') || header.includes('"type":"variable"')) {
+        format = "woocommerce";
+        fieldMappings = getKnownMappingsForFormat("woocommerce");
+        contentTypes = ["product"];
       } else if (header.includes('"db"') && header.includes('"posts"')) {
         format = "ghost";
         contentTypes = ["post", "page"];

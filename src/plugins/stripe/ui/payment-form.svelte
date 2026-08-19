@@ -1,7 +1,7 @@
 <!--
-@file src/plugins/stripe/ui/PaymentForm.svelte
-@component Stripe Elements payment form for collecting card details.
-Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
+@file src/plugins/stripe/ui/payment-form.svelte
+@component Stripe Elements payment form. Amount is never posted — the server
+charges order grandTotal (F1). Display amount is optional UI only.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -9,17 +9,19 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 
 	interface Props {
-		amount: number;
-		currency?: string;
+		orderId: string;
 		label?: string;
+		displayAmount?: number;
+		displayCurrency?: string;
 		onSuccess?: (intentId: string) => void;
 		onError?: (error: string) => void;
 	}
 
 	let {
-		amount,
-		currency = 'usd',
+		orderId,
 		label = 'Pay',
+		displayAmount,
+		displayCurrency = 'eur',
 		onSuccess,
 		onError
 	}: Props = $props();
@@ -34,13 +36,12 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 	let publishableKey = $state('');
 
 	onMount(async () => {
-		// Load publishable key from plugin config
 		try {
-			const res = await fetch('/api/plugins/stripe/config');
+			const res = await fetch('/api/stripe/config');
 			const config = await res.json();
-			publishableKey = config.publishableKey || '';
+			publishableKey = config.data?.publishableKey || config.publishableKey || '';
 		} catch {
-			// Fallback: Stripe.js may already be loaded with key
+			publishableKey = '';
 		}
 
 		const StripeJS = (window as any).Stripe;
@@ -63,25 +64,24 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 			}
 		});
 		card.mount(cardElement);
-		card.on('change', (e: any) => error = e.error?.message ?? '');
+		card.on('change', (e: any) => (error = e.error?.message ?? ''));
 	});
 
 	async function handlePayment() {
-		if (!stripe || !card) return;
+		if (!stripe || !card || !orderId) return;
 		processing = true;
 		error = '';
 
 		try {
-			// 1. Create PaymentIntent on server
-			const res = await fetch('/api/plugins/stripe/create-intent', {
+			const res = await fetch('/api/commerce/pay', {
 				method: 'POST',
 				headers: clientJsonHeaders(),
-				body: JSON.stringify({ amount, currency })
+				body: JSON.stringify({ orderId })
 			});
-			const { clientSecret } = await res.json();
-			if (!clientSecret) throw new Error('Failed to create payment intent');
+			const payload = await res.json();
+			const clientSecret = payload.data?.clientSecret || payload.clientSecret;
+			if (!clientSecret) throw new Error(payload.message || 'Failed to create payment intent');
 
-			// 2. Confirm with Stripe
 			const result = await stripe.confirmCardPayment(clientSecret);
 			if (result.error) {
 				error = result.error.message;
@@ -90,11 +90,10 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 				return;
 			}
 
-			// 3. Verify on server
-			await fetch('/api/plugins/stripe/confirm', {
+			await fetch('/api/commerce/confirm', {
 				method: 'POST',
 				headers: clientJsonHeaders(),
-				body: JSON.stringify({ intentId: result.paymentIntent.id })
+				body: JSON.stringify({ orderId, intentId: result.paymentIntent.id })
 			});
 
 			succeeded = true;
@@ -106,29 +105,38 @@ Uses Stripe.js loaded via CDN for PCI-compliant iframe isolation.
 			processing = false;
 		}
 	}
+
+	const display = $derived(
+		typeof displayAmount === 'number'
+			? `${(displayAmount / 100).toFixed(2)} ${displayCurrency.toUpperCase()}`
+			: ''
+	);
 </script>
 
 <div class="space-y-4">
 	{#if succeeded}
-		<div class="flex items-center gap-3 p-4 rounded bg-success-500/10 border border-success-500/20">
-			<iconify-icon icon="mdi:check-circle" class="text-success-500 text-2xl"></iconify-icon>
+		<div class="flex items-center gap-3 rounded border border-success-500/20 bg-success-500/10 p-4">
+			<iconify-icon icon="mdi:check-circle" class="text-2xl text-success-500"></iconify-icon>
 			<div>
 				<p class="font-bold text-success-600 dark:text-success-400">Payment successful!</p>
 				<p class="text-sm text-surface-500">Your payment has been processed.</p>
 			</div>
 		</div>
 	{:else}
-		<div bind:this={cardElement} class="min-h-11 p-3 rounded border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 transition-all focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-tertiary-500"></div>
+		<div
+			bind:this={cardElement}
+			class="min-h-11 rounded border border-surface-200 bg-surface-50 p-3 transition-all focus-within:border-tertiary-500 focus-within:ring-2 focus-within:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900"
+		></div>
 
 		{#if error}
-			<p class="text-xs text-error-500 font-medium" role="alert">{error}</p>
+			<p class="text-xs font-medium text-error-500" role="alert">{error}</p>
 		{/if}
 
-		<Button aria-label={label} variant="primary" class="w-full" onclick={handlePayment} loading={processing} disabled={!stripe}>
-			{label} — ${(amount / 100).toFixed(2)} {currency.toUpperCase()}
+		<Button aria-label={label} variant="primary" class="w-full" onclick={handlePayment} loading={processing} disabled={!stripe || !orderId}>
+			{label}{display ? ` — ${display}` : ''}
 		</Button>
 
-		<p class="text-[10px] text-surface-400 text-center">
+		<p class="text-center text-[10px] text-surface-400">
 			Secured by Stripe. Your card details are never stored on our servers.
 		</p>
 	{/if}

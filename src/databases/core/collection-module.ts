@@ -122,6 +122,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
       await this.applyStructureTenantFilter(filter, tenantId);
       const res = await this.crud.findMany("content_nodes", filter as any, {
         tenantId: tenantId ?? undefined,
+        limit: 1,
       });
       if (!res.success) throw new Error(res.message || "Failed to query content structure");
       const node = Array.isArray(res.data) && res.data.length > 0 ? res.data[0] : null;
@@ -146,6 +147,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
       await this.applyStructureTenantFilter(filter, tenantId);
       const res = await this.crud.findMany("content_nodes", filter as any, {
         tenantId: tenantId ?? undefined,
+        limit: 1,
       });
       if (!res.success) throw new Error(res.message || "Failed to query content structure");
       const node = Array.isArray(res.data) && res.data.length > 0 ? res.data[0] : null;

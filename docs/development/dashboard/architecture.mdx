@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:widgets-outline"
 author: "SveltyCMS Team"
 created: "2026-08-04"
-updated: "2026-08-04"
+updated: "2026-08-19"
 tags:
   - "dashboard"
   - "widgets"
@@ -136,7 +136,7 @@ Dashboard widgets use the same license model as content widgets and plugins:
 | **Paid**     | License required from install; widget renders an upgrade prompt otherwise. |
 
 - **Client-side gating** — `checkExtensionLicense("dashboard", widgetId)`; on failure render `<UpgradePrompt extensionId="dashboard:<widgetId>" price="…" />` instead of content.
-- **Server-side gating** — premium dashboard endpoints are gated in `src/routes/api/[...path]/handlers/dashboard-license.ts` (`requireDashboardWidgetLicense`), which calls `checkExtensionLicense("dashboard", widgetId)` and returns `403 LICENSE_REQUIRED` when the trial expired without a license. The endpoint → widget-id map (`DASHBOARD_ENDPOINT_LICENSE`) covers `/api/dashboard/{audit, logs, security, scim, cache-metrics, online-user, metrics}` and `/api/database/pool-diagnostics`. Free widgets are not gated. When you add a premium widget backed by a new endpoint, register it in that map.
+- **Server-side gating** — premium dashboard endpoints are gated in `src/routes/api/[...path]/handlers/dashboard-license.ts` (`requireDashboardWidgetLicense`), which calls `checkExtensionLicense("dashboard", widgetId)` and returns `403 LICENSE_REQUIRED` when the trial expired without a license. The endpoint → widget-id map (`DASHBOARD_ENDPOINT_LICENSE`) covers `/api/dashboard/{audit, logs, security, scim, cache-metrics, online-user, metrics, commerce-orders, commerce-inventory}` and `/api/database/pool-diagnostics`. Free widgets are not gated. When you add a premium widget backed by a new endpoint, register it in that map.
 
 Example (`cache-monitor/index.svelte`):
 

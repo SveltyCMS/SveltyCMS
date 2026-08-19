@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:table"
 author: "SveltyCMS Team"
 created: "2026-01-04"
-updated: "2026-07-15"
+updated: "2026-08-19"
 tags:
   - "components"
   - "entry-list"
@@ -72,10 +72,11 @@ flowchart LR
 | **Saved views**          | `SmartTableSavedViewsMenu` — named filter/sort/layout presets per collection                      |
 | **Column resize**        | Header drag handles via `ColumnResizeHandle` + `layoutKey: entry-list:{id}`                       |
 | **List metrics**         | SSR `listMetrics` + `SmartTableMetricsBadge` when `?debug=table`                                  |
-| **Sortable columns**     | Header click toggles ASC/DESC; synced to URL                                                      |
+| **Sortable columns**     | Header click toggles ASC/DESC; `sort`/`order` URL params restored after SSR                       |
+| **Compact filter row**   | In-header controls stay inside column cells (no overlapping floating labels)                      |
 | **Pagination**           | `TablePagination`; page sizes via `rowsPerPage` URL param                                         |
 | **Multi-select**         | Shift+click range selection; select-all checkbox                                                  |
-| **Bulk actions**         | Delegated to `entry-list-multi-button.svelte`                                                     |
+| **Bulk actions**         | `POST /api/collections/:id/batch` (`delete`, `status`, `clone`) via `entry-list-multi-button`     |
 | **Archived view**        | `showDeleted` toggles active vs archived entries                                                  |
 | **Column manager**       | Show/hide columns; **drag-and-drop reorder** (`svelte-dnd-action`)                                |
 | **Density**              | `normal` / `compact` via `TableFilter` → `entryListPaginationSettings.density`                    |

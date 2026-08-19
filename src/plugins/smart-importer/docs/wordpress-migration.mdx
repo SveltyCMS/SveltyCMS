@@ -39,17 +39,17 @@ This guide walks you through migrating a WordPress site to SveltyCMS. It covers 
 
 ## What Doesn't Migrate (And Alternatives)
 
-| WordPress Feature                      | Why                       | SveltyCMS Alternative                                                                         |
-| :------------------------------------- | :------------------------ | :-------------------------------------------------------------------------------------------- |
-| **Plugins** (Yoast, WooCommerce, etc.) | PHP code, not data        | [Plugins](/docs/guides/development/plugin/architecture.mdx) — Stripe, SEO, etc.               |
-| **Themes**                             | PHP/CSS templates         | [Design System](/docs/guides/configuration/admin-theme-settings) — admin theme + Tailwind v4  |
-| **Widgets** (sidebar)                  | PHP widgets               | [Widget System](/docs/widgets) — Svelte 5 native                                              |
-| **Shortcodes**                         | PHP-rendered placeholders | [Token System](/docs/architecture/token-system.mdx) — auto-converted during import            |
-| **User Accounts**                      | Different auth system     | Manually recreate in [Access Management](/docs/guides/configuration/access-management)        |
-| **Menus**                              | Navigation structure      | Rebuild using [Collection Presets](/docs/guides/content/collections)                          |
-| **Gutenberg Blocks**                   | React-based editor        | RichText widget (HTML preserved, block structure in `rawCustomFields`)                        |
-| **Custom Post Type Definitions**       | Register in PHP           | [Collection Builder](/docs/guides/development/collection-builder.mdx) — visual schema builder |
-| **URL Structure** (/blog/post-name)    | WordPress permalink rules | [Redirect Manager](/docs/plugins/redirect-manager) + entry slugs                              |
+| WordPress Feature                       | Why                       | SveltyCMS Alternative                                                                                                                                                                |
+| :-------------------------------------- | :------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Plugins** (Yoast, checkout PHP, etc.) | PHP code, not data        | [Plugins](/docs/guides/development/plugin/architecture.mdx) — Stripe, SEO, etc. WooCommerce **catalog data** does migrate (see [WooCommerce Products](#woocommerce-products) below). |
+| **Themes**                              | PHP/CSS templates         | [Design System](/docs/guides/configuration/admin-theme-settings) — admin theme + Tailwind v4                                                                                         |
+| **Widgets** (sidebar)                   | PHP widgets               | [Widget System](/docs/widgets) — Svelte 5 native                                                                                                                                     |
+| **Shortcodes**                          | PHP-rendered placeholders | [Token System](/docs/architecture/token-system.mdx) — auto-converted during import                                                                                                   |
+| **User Accounts**                       | Different auth system     | Manually recreate in [Access Management](/docs/guides/configuration/access-management)                                                                                               |
+| **Menus**                               | Navigation structure      | Rebuild using [Collection Presets](/docs/guides/content/collections)                                                                                                                 |
+| **Gutenberg Blocks**                    | React-based editor        | RichText widget (HTML preserved, block structure in `rawCustomFields`)                                                                                                               |
+| **Custom Post Type Definitions**        | Register in PHP           | [Collection Builder](/docs/guides/development/collection-builder.mdx) — visual schema builder                                                                                        |
+| **URL Structure** (/blog/post-name)     | WordPress permalink rules | [Redirect Manager](/docs/plugins/redirect-manager) + entry slugs                                                                                                                     |
 
 ---
 
@@ -219,12 +219,22 @@ bun run migrate import --file=export.xml --format=wordpress --collection=pages \
 
 ### WooCommerce Products
 
+Prefer the dedicated catalog parser (nests variations, fills `ecommerce` SKU/price/stock):
+
+```bash
+bun run migrate import --file=export.xml --format=woocommerce --collection=products
+# or Woo REST JSON:
+bun run migrate import --file=products.json --format=woocommerce --collection=products
+```
+
+A product-only WXR is auto-detected as `woocommerce`. Mixed WordPress dumps (posts + products) still use `--format=wordpress`; product items now also get an `ecommerce` block from `_sku` / `_price` / `_stock` meta.
+
+Imported SKUs land in the ecommerce **preset** `products` collection. Add the **Commerce Inventory** dashboard widget (14-day trial) to watch low stock — see [E-Commerce Overview](/docs/reference/architecture/ecommerce-overview.mdx). Checkout PHP / cart sessions do **not** migrate; those belong in the optional Commerce plugin.
+
 ```bash
 bun run migrate import --file=export.xml --format=wordpress --collection=products \
   --filter-content-type=product
 ```
-
-> WooCommerce product data (price, SKU, stock) is in `rawCustomFields` — create dedicated fields after import.
 
 ### Sample / Test Import (First 10 Posts)
 

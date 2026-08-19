@@ -24,14 +24,11 @@ import type { Schema } from "@src/content/types";
 import { collections } from "@src/stores/collection-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte";
 
-function getCsrfToken(): string {
-  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
-  return match ? match[1] : '';
-}
 import { app, validationStore } from "@src/stores/store.svelte.ts";
 import { logger } from "@utils/logger";
 import { parseURLToMode } from "@utils/navigation";
 import { toast } from "@src/stores/toast.svelte.ts";
+import { createEntry, updateEntry } from "@utils/api";
 import { getFieldName } from "@utils/utils";
 import { onMount, untrack } from "svelte";
 import { beforeNavigate, refreshAll, goto } from "$app/navigation";
@@ -379,15 +376,13 @@ async function autoSaveDraft(): Promise<boolean> {
 
 	isSavingDraft = true;
 	try {
-		const entryData = collections.activeValue as any;
+		const entryData = collections.activeValue as Record<string, unknown>;
 		const collectionId = collections.active?._id;
-		const tenantId = page.data?.tenantId;
 
 		if (!(collectionId && entryData)) {
 			return false;
 		}
 
-		// Use collection's default status or current entry status
 		// FORCE 'draft' status for auto-saves to bypass validation for required fields
 		const draftData = {
 			...entryData,
@@ -395,38 +390,25 @@ async function autoSaveDraft(): Promise<boolean> {
 			updatedAt: new Date().toISOString(),
 		};
 
-		// Determine if creating new or updating existing
 		const isNewEntry = !entryData._id;
-		const endpoint = isNewEntry
-			? `/api/collections/${collectionId}`
-			: `/api/collections/${collectionId}/${entryData._id}`;
+		const result = isNewEntry
+			? await createEntry(String(collectionId), draftData)
+			: await updateEntry(String(collectionId), String(entryData._id), draftData);
 
-		const method = isNewEntry ? "POST" : "PUT";
-
-		const response = await fetch(endpoint, {
-			method,
-			headers: {
-				"Content-Type": "application/json",
-				"X-CSRF-Token": getCsrfToken(),
-			},
-			body: JSON.stringify({
-				data: draftData,
-				tenantId,
-			}),
-		});
-
-		if (response.ok) {
-			const result = await response.json();
-
-			// Update collectionValue with the saved draft (including _id for new entries)
-			if (isNewEntry && result.data?._id) {
-				collections.activeValue = { ...draftData, _id: result.data._id };
+		if (result.success) {
+			const saved = (result.data as Record<string, unknown> | undefined) ?? {};
+			const savedId = (saved._id ?? (saved.data as Record<string, unknown> | undefined)?._id) as
+				| string
+				| undefined;
+			if (isNewEntry && savedId) {
+				collections.activeValue = { ...draftData, _id: savedId };
 			}
 
+			document.dispatchEvent(new CustomEvent("entrySaved", { bubbles: true }));
 			logger.debug("[Auto-save] Draft saved successfully");
 			return true;
 		}
-		logger.error("[Auto-save] Failed to save draft:", response.statusText);
+		logger.error("[Auto-save] Failed to save draft:", result.error || result.message);
 		return false;
 	} catch (error) {
 		logger.error("[Auto-save] Error saving draft:", error);
@@ -461,7 +443,7 @@ $effect(() => {
 });
 
 // Navigation guard: auto-save draft if changes exist
-beforeNavigate(async ({ cancel }) => {
+beforeNavigate(async ({ cancel, to }) => {
 	// Skip if user clicked cancel button
 	if (userClickedCancel) {
 		logger.debug("[Auto-save] Skipping auto-save due to cancel");
@@ -490,10 +472,12 @@ beforeNavigate(async ({ cancel }) => {
 
 			if (saved) {
 				toast.success("Changes auto-saved as draft");
-				// Update initial value to prevent re-saving
+				// Update initial value to prevent re-saving on the resumed navigation
 				initialCollectionValue = JSON.stringify(collections.activeValue);
-				// Allow navigation to continue
 				collections.setMode("view");
+				if (to?.url) {
+					await goto(to.url.href);
+				}
 			} else {
 				toast.error("Failed to auto-save. Please save manually.");
 			}

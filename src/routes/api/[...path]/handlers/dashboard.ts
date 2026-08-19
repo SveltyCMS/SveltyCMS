@@ -1,6 +1,11 @@
 /**
  * @file src/routes/api/[...path]/handlers/dashboard.ts
  * @description Unified dashboard API handler for metrics, system info, and content insights.
+ *
+ * Commerce widget endpoints (`commerce-orders`, `commerce-inventory`) are
+ * freemium: `checkDashboardEndpointLicense` applies the 14-day trial, then
+ * `403 LICENSE_REQUIRED`. Missing ecommerce preset collections return
+ * `{ available: false }` instead of 404 so the widgets can show an empty state.
  */
 
 import { logger } from "@utils/logger";
@@ -16,6 +21,13 @@ import type { Session } from "@src/databases/auth/types";
 import { rawResponse } from "./base";
 import type { DatabaseId } from "@src/content/types";
 import { checkDashboardEndpointLicense } from "./dashboard-license";
+import {
+  commerceRows,
+  emptyInventorySnapshot,
+  emptyOrdersSnapshot,
+  summarizeInventory,
+  summarizeOrders,
+} from "@src/services/commerce/dashboard-snapshot";
 
 interface DashboardQuery {
   method: string;
@@ -595,6 +607,38 @@ export async function handleDashboardRoutes(
         });
       }
 
+      case "commerce-orders": {
+        const collectionId = await resolveNamedCollection(cms, ["orders"], tenantId);
+        if (!collectionId) {
+          return rawResponse(event, emptyOrdersSnapshot());
+        }
+        const found = await cms.collections.find(collectionId, {
+          tenantId,
+          limit: Math.max(query.limit || 20, 20),
+          sortField: "createdAt",
+          sortDirection: "desc",
+          user: event.locals.user,
+          publicationFilter: "all",
+        });
+        return rawResponse(event, summarizeOrders(commerceRows(found), query.limit || 5));
+      }
+
+      case "commerce-inventory": {
+        const collectionId = await resolveNamedCollection(cms, ["products"], tenantId);
+        if (!collectionId) {
+          return rawResponse(event, emptyInventorySnapshot());
+        }
+        const found = await cms.collections.find(collectionId, {
+          tenantId,
+          limit: 100,
+          sortField: "updatedAt",
+          sortDirection: "desc",
+          user: event.locals.user,
+          publicationFilter: "all",
+        });
+        return rawResponse(event, summarizeInventory(commerceRows(found), query.limit || 8));
+      }
+
       default:
         throw new AppError(`Dashboard action '${query.method}' not implemented`, 404);
     }
@@ -606,6 +650,23 @@ export async function handleDashboardRoutes(
     if (isAppError(err)) throw err;
     throw new AppError(err.message || "Dashboard operation failed", 500);
   }
+}
+
+/** Resolve a collection by machine name; missing ecommerce preset → null. */
+async function resolveNamedCollection(
+  cms: LocalCMS,
+  names: string[],
+  tenantId: DatabaseId,
+): Promise<string | null> {
+  for (const name of names) {
+    try {
+      const schema = await cms.collections.getSchema(name, tenantId);
+      if (schema?._id) return String(schema._id);
+    } catch {
+      /* try next alias */
+    }
+  }
+  return null;
 }
 
 /** Helper: Retrieve blocked IP count from cache/L1 */

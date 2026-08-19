@@ -15,6 +15,7 @@ import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, Schema } from "@src/content/types";
+import { StatusTypes } from "@src/content/types";
 import { validateFieldConstraints, stripNullRows } from "@src/content/content-utils";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
@@ -23,6 +24,45 @@ import { streamingJsonResponse } from "./streaming";
 import { setCollectionOrder } from "@utils/collection-order.server";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
+
+/** Maximum number of items allowed in a single bulk operation to prevent memory exhaustion. */
+const MAX_BULK_ITEMS = 1000;
+
+/**
+ * Admin list/edit clients historically wrapped writes as `{ data, tenantId }`.
+ * Only unwrap when those are the sole keys so a real `data` widget field is preserved.
+ */
+function unwrapWritePayload(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const obj = raw as Record<string, unknown>;
+  if (obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)) {
+    const extras = Object.keys(obj).filter((k) => k !== "data" && k !== "tenantId");
+    if (extras.length === 0) return obj.data;
+  }
+  return raw;
+}
+
+/** Accept `string[]`, `{ entryIds }`, `{ ids }`, or `{ entries: [{ _id }] }`. */
+function extractEntryIds(payload: unknown): string[] {
+  if (Array.isArray(payload)) {
+    return payload
+      .map((item) => {
+        if (typeof item === "string" && item.length > 0) return item;
+        if (item && typeof item === "object" && "_id" in item) {
+          const id = (item as { _id?: unknown })._id;
+          return typeof id === "string" && id.length > 0 ? id : "";
+        }
+        return "";
+      })
+      .filter((id) => id.length > 0);
+  }
+  if (payload && typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    const raw = obj.entryIds ?? obj.ids ?? obj.entries;
+    return extractEntryIds(raw);
+  }
+  return [];
+}
 
 /**
  * Sets a lightweight weak-ETag token on event.locals based on entry timestamps.
@@ -100,7 +140,8 @@ export async function handleCollectionsRoutes(
         return handlePostRoutes(event, cms, tenantId, user, collectionId, entryId, subAction);
 
       case "PATCH":
-        return handlePatchRoutes(event, cms, tenantId, user, collectionId, entryId);
+      case "PUT":
+        return handlePatchRoutes(event, cms, tenantId, user, collectionId, entryId, subAction);
 
       case "DELETE":
         return handleDeleteRoutes(event, cms, tenantId, user, collectionId, entryId, url);
@@ -159,6 +200,9 @@ async function handlePostRoutes(
   if (collectionId === "warm-cache") {
     return handleCollectionWarmCache(event, cms, tenantId);
   }
+  if (entryId === "batch" || entryId === "batch-clone") {
+    return handleCollectionBatchAction(event, cms, tenantId, user, collectionId, entryId);
+  }
   if (entryId === "bulk")
     return handleCollectionBulkCreate(event, cms, tenantId, user, collectionId);
   if (subAction === "increment")
@@ -173,9 +217,13 @@ async function handlePatchRoutes(
   user: any,
   collectionId: string,
   entryId: string | undefined,
+  subAction?: string,
 ) {
   if (entryId === "bulk")
     return handleCollectionBulkUpdate(event, cms, tenantId, user, collectionId);
+  if (entryId && subAction === "status") {
+    return handleCollectionStatusUpdate(event, cms, tenantId, user, collectionId, entryId);
+  }
   if (entryId) return handleCollectionUpdate(event, cms, tenantId, user, collectionId, entryId);
   throw new AppError("Entry ID required for update", 400);
 }
@@ -383,9 +431,11 @@ export async function handleCollectionCreate(
   user: any,
   collectionId: string,
 ) {
-  const rawData = PROFILE_WRITE_ENABLED
-    ? await profileSpan("handler:json", () => event.request.json())
-    : await event.request.json();
+  const rawData = unwrapWritePayload(
+    PROFILE_WRITE_ENABLED
+      ? await profileSpan("handler:json", () => event.request.json())
+      : await event.request.json(),
+  );
 
   if (Array.isArray(rawData)) {
     const result = await cms.collections.bulkCreate(collectionId, rawData, {
@@ -426,9 +476,11 @@ export async function handleCollectionUpdate(
   // then cms.collections.update() resolves it AGAIN internally. The namespace
   // already does sanitization, numeric range validation, and hook processing —
   // the handler's pre-validation was pure duplication costing ~0.5ms per update.
-  const rawData = PROFILE_WRITE_ENABLED
-    ? await profileSpan("handler:json", () => event.request.json())
-    : await event.request.json();
+  const rawData = unwrapWritePayload(
+    PROFILE_WRITE_ENABLED
+      ? await profileSpan("handler:json", () => event.request.json())
+      : await event.request.json(),
+  );
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.update", () =>
         cms.collections.update(collectionId, entryId, rawData, {
@@ -533,9 +585,6 @@ export async function handleCollectionBulkCreate(
   );
 }
 
-/** Maximum number of items allowed in a single bulk operation to prevent memory exhaustion. */
-const MAX_BULK_ITEMS = 1000;
-
 export async function handleCollectionBulkUpdate(
   event: RequestEvent,
   cms: LocalCMS,
@@ -616,29 +665,219 @@ export async function handleCollectionBulkDelete(
   collectionId: string,
 ) {
   const payload = await event.request.json();
-  if (Array.isArray(payload) && payload.length > MAX_BULK_ITEMS) {
+  const ids = extractEntryIds(payload);
+  return runBulkDelete(event, cms, tenantId, user, collectionId, ids);
+}
+
+/**
+ * POST /api/collections/:id/batch  `{ action: "delete"|"clone"|"status", entryIds, status? }`
+ * POST /api/collections/:id/batch-clone `{ entries }` or `{ entryIds }`
+ *
+ * Previously these URLs fell through to create(), so delete/clone/status
+ * inserted a new document instead of mutating the selected rows.
+ */
+async function handleCollectionBatchAction(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  entryId: string,
+) {
+  const body = (await event.request.json().catch(() => ({}))) as Record<string, unknown>;
+  const action =
+    entryId === "batch-clone"
+      ? "clone"
+      : typeof body.action === "string"
+        ? body.action.toLowerCase()
+        : "";
+
+  if (!action) {
     throw new AppError(
-      `Bulk delete limit exceeded: ${payload.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
+      'Batch action required. Expected { action: "delete" | "clone" | "status", entryIds }',
+      400,
+    );
+  }
+
+  if (action === "delete") {
+    return runBulkDelete(event, cms, tenantId, user, collectionId, extractEntryIds(body));
+  }
+
+  if (action === "status") {
+    const ids = extractEntryIds(body);
+    const status = body.status;
+    if (typeof status !== "string" || !status) {
+      throw new AppError("status is required for batch status updates", 400);
+    }
+    return runBulkStatusUpdate(event, cms, tenantId, user, collectionId, ids, status, body);
+  }
+
+  if (action === "clone") {
+    return runBulkClone(event, cms, tenantId, user, collectionId, body);
+  }
+
+  throw new AppError(`Unsupported batch action: ${action}`, 400);
+}
+
+/** PATCH /api/collections/:id/:entryId/status — single or `{ entries: ids[] }` bulk. */
+async function handleCollectionStatusUpdate(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  entryId: string,
+) {
+  const body = (await event.request.json().catch(() => ({}))) as Record<string, unknown>;
+  const status = body.status;
+  if (typeof status !== "string" || !status) {
+    throw new AppError("status is required", 400);
+  }
+
+  const ids = extractEntryIds(body);
+  if (ids.length > 0) {
+    return runBulkStatusUpdate(event, cms, tenantId, user, collectionId, ids, status, body);
+  }
+
+  const extra = extraStatusFields(body);
+  return successResponse(
+    event,
+    await cms.collections.update(collectionId, entryId, { status, ...extra }, { user, tenantId }),
+  );
+}
+
+function extraStatusFields(body: Record<string, unknown>): Record<string, unknown> {
+  const skip = new Set(["action", "entryIds", "ids", "entries", "status", "data", "tenantId"]);
+  const extra: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(body)) {
+    if (!skip.has(key)) extra[key] = value;
+  }
+  return extra;
+}
+
+async function runBulkDelete(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  ids: string[],
+) {
+  if (ids.length === 0) {
+    throw new AppError("entryIds[] is required for bulk delete", 400);
+  }
+  if (ids.length > MAX_BULK_ITEMS) {
+    throw new AppError(
+      `Bulk delete limit exceeded: ${ids.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
       413,
     );
   }
 
-  // 🛡️ BULK DELETE GUARD: Check collection-level disableBulkDelete flag
-  const schema = await cms.collections.getSchema(collectionId, tenantId);
-  if (schema?.disableBulkDelete) {
+  // Schema disableBulkDelete + tenant-scoped DELETE/UPDATE WHERE _id IN (...) live in the SDK.
+  return successResponse(
+    event,
+    await cms.collections.bulkDelete(collectionId, ids, {
+      user: user!,
+      tenantId,
+    }),
+  );
+}
+
+async function runBulkStatusUpdate(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  ids: string[],
+  status: string,
+  body: Record<string, unknown>,
+) {
+  if (ids.length === 0) {
+    throw new AppError("entryIds[] is required for bulk status updates", 400);
+  }
+  if (ids.length > MAX_BULK_ITEMS) {
     throw new AppError(
-      `Bulk delete is disabled for collection "${schema.name || collectionId}"`,
-      403,
-      "BULK_DELETE_DISABLED",
+      `Bulk update limit exceeded: ${ids.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
+      413,
+    );
+  }
+
+  const extra = extraStatusFields(body);
+  const updates = ids.map((id) => ({
+    id,
+    data: { status, ...extra },
+  }));
+
+  return successResponse(
+    event,
+    await cms.collections.bulkUpdate(collectionId, updates, {
+      user: user!,
+      tenantId,
+    }),
+  );
+}
+
+async function runBulkClone(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  body: Record<string, unknown>,
+) {
+  let clones: Record<string, unknown>[] = [];
+
+  if (Array.isArray(body.entries) && body.entries.length > 0) {
+    clones = body.entries.map((entry) => {
+      const row = { ...(entry as Record<string, unknown>) };
+      delete row._id;
+      delete row.createdAt;
+      delete row.updatedAt;
+      if (!row.status) row.status = StatusTypes.draft;
+      return row;
+    });
+  } else {
+    const ids = extractEntryIds(body);
+    if (ids.length === 0) {
+      throw new AppError("entries[] or entryIds[] is required for clone", 400);
+    }
+    if (ids.length > MAX_BULK_ITEMS) {
+      throw new AppError(
+        `Bulk clone limit exceeded: ${ids.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
+        413,
+      );
+    }
+
+    const found = await cms.collections.findByIds(collectionId, ids, { tenantId, user });
+    const source = (found?.data ?? []) as Record<string, unknown>[];
+    clones = source.map((entry) => {
+      const { _id, createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = entry;
+      return {
+        ...rest,
+        clonedFrom: _id,
+        status: StatusTypes.draft,
+      };
+    });
+  }
+
+  if (clones.length === 0) {
+    throw new AppError("No entries found to clone", 404);
+  }
+  if (clones.length > MAX_BULK_ITEMS) {
+    throw new AppError(
+      `Bulk clone limit exceeded: ${clones.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
+      413,
     );
   }
 
   return successResponse(
     event,
-    await cms.collections.bulkDelete(collectionId, payload, {
+    await cms.collections.bulkCreate(collectionId, clones, {
       user: user!,
       tenantId,
     }),
+    201,
   );
 }
 

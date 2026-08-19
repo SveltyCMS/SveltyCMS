@@ -84,6 +84,8 @@ const HANDLER_FN: Record<string, string> = {
   config_sync: "handleConfigRoutes",
   "config-sync": "handleConfigRoutes",
   gdpr: "handleGdprRoutes",
+  commerce: "handleCommerceRoutes",
+  stripe: "handleStripeRoutes",
 };
 
 /**
@@ -311,6 +313,8 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
 
   // Plugin system
   "plugin-settings": ["tests/unit/plugins/settings-crypto.test.ts"],
+  commerce: ["tests/unit/plugins/commerce.test.ts"],
+  stripe: ["tests/unit/plugins/commerce.test.ts"],
 };
 
 describe("API namespace ownership inventory (completeness Phase D)", () => {

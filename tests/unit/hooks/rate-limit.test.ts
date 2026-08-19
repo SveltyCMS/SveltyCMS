@@ -1,6 +1,6 @@
 /**
  * @file tests/unit/hooks/rate-limit.test.ts
- * @description handleRateLimit — bypass gates, secret gate, XFF independence, JSON/HTML 429.
+ * @description handleRateLimit — bypass gates, secret gate, XFF independence, JSON/HTML 429, commerce lane.
  *
  * IS_TEST_MODE is forced false (real hook-utils for everything else) so the limiter
  * actually runs; the pressure multiplier is mocked so a handful of requests exceed
@@ -200,5 +200,104 @@ describe("handleRateLimit", () => {
     expect(res.status).toBe(503);
     const body = await res.json();
     expect(body.code).toBe("HEAP_PRESSURE");
+  });
+
+  it("isolates /api/commerce mutations from the default API bucket", async () => {
+    const prev = process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS;
+    process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS = "2";
+    try {
+      const cart1 = await handleRateLimit({
+        event: postEvent("/api/commerce/cart"),
+        resolve: mockResolve as any,
+      });
+      const cart2 = await handleRateLimit({
+        event: postEvent("/api/commerce/cart"),
+        resolve: mockResolve as any,
+      });
+      expect(cart1.status).toBe(200);
+      expect(cart1.headers.get("X-RateLimit-Lane")).toBe("commerce");
+      expect(cart1.headers.get("X-RateLimit-Limit")).toBe("2");
+      expect(cart2.status).toBe(200);
+
+      const cart3 = await handleRateLimit({
+        event: postEvent("/api/commerce/cart"),
+        resolve: mockResolve as any,
+      });
+      expect(cart3.status).toBe(429);
+      expect(cart3.headers.get("X-RateLimit-Lane")).toBe("commerce");
+      const body = await cart3.json();
+      expect(body.code).toBe("RATE_LIMITED");
+      expect(body.lane).toBe("commerce");
+
+      const admin = await handleRateLimit({
+        event: postEvent("/api/collections"),
+        resolve: mockResolve as any,
+      });
+      expect(admin.status).toBe(200);
+      expect(admin.headers.get("X-RateLimit-Lane")).toBe("default");
+    } finally {
+      if (prev === undefined) delete process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS;
+      else process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS = prev;
+    }
+  });
+
+  it("does not spend the commerce lane when the default API bucket is exhausted", async () => {
+    vi.mocked(getPressureMultiplier).mockReturnValue(1000);
+    await handleRateLimit({
+      event: postEvent("/api/foo"),
+      resolve: mockResolve as any,
+    });
+    const blocked = await handleRateLimit({
+      event: postEvent("/api/foo"),
+      resolve: mockResolve as any,
+    });
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("X-RateLimit-Lane")).toBe("default");
+
+    vi.mocked(getPressureMultiplier).mockReturnValue(1);
+    const cart = await handleRateLimit({
+      event: postEvent("/api/commerce/cart"),
+      resolve: mockResolve as any,
+    });
+    expect(cart.status).toBe(200);
+    expect(cart.headers.get("X-RateLimit-Lane")).toBe("commerce");
+  });
+
+  it("charges coupon/pay/checkout more tokens than a cart mutation", async () => {
+    const prev = process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS;
+    process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS = "4";
+    try {
+      const coupon = await handleRateLimit({
+        event: postEvent("/api/commerce/coupon"),
+        resolve: mockResolve as any,
+      });
+      expect(coupon.status).toBe(200);
+
+      const second = await handleRateLimit({
+        event: postEvent("/api/commerce/coupon"),
+        resolve: mockResolve as any,
+      });
+      expect(second.status).toBe(429);
+
+      resetRateLimitBuckets();
+      const cart1 = await handleRateLimit({
+        event: postEvent("/api/commerce/cart"),
+        resolve: mockResolve as any,
+      });
+      const cart2 = await handleRateLimit({
+        event: postEvent("/api/commerce/cart"),
+        resolve: mockResolve as any,
+      });
+      const cart3 = await handleRateLimit({
+        event: postEvent("/api/commerce/cart"),
+        resolve: mockResolve as any,
+      });
+      expect(cart1.status).toBe(200);
+      expect(cart2.status).toBe(200);
+      expect(cart3.status).toBe(200);
+    } finally {
+      if (prev === undefined) delete process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS;
+      else process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS = prev;
+    }
   });
 });

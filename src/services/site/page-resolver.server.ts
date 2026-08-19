@@ -14,6 +14,7 @@ export interface ResolveSitePageOptions {
   tenantId?: string | null;
   draft?: boolean;
   entryId?: string;
+  user?: any;
 }
 
 function localizeField(value: string | Record<string, string> | undefined, lang: string): string {
@@ -39,7 +40,7 @@ export function localizeSitePage(page: SitePage, lang: string): SitePage {
 export async function resolveSitePage(options: ResolveSitePageOptions): Promise<SitePage | null> {
   if (!dbAdapter) return null;
 
-  const { pathname, tenantId, draft = false, entryId } = options;
+  const { pathname, tenantId, draft = false, entryId, user } = options;
   const cms = new LocalCMS(dbAdapter, { tenantId: tenantId ?? undefined });
   const slug = pathToPageSlug(pathname);
 
@@ -51,6 +52,8 @@ export async function resolveSitePage(options: ResolveSitePageOptions): Promise<
       limit: 1,
       tenantId,
       publicationFilter: draft ? "all" : "published",
+      user,
+      system: draft ? true : undefined,
     });
 
     if (!result?.success || !Array.isArray(result.data) || result.data.length === 0) {

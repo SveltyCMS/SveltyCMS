@@ -9,6 +9,8 @@
  * ### Features:
  * - Per-IP + per-tenant-hostname fixed-window rate limiting (adaptive pressure)
  * - **Two-tier token buckets**: per-IP (fine-grained) + per-tenant (aggregate)
+ * - **Dedicated `/api/commerce` lane**: isolated buckets + tighter cap so guest
+ *   cart/coupon/checkout floods cannot exhaust admin API quota (and vice versa)
  * - Per-tenant limit defaults to 10x the per-IP limit, preventing noisy-tenant starvation
  * - Sync client-key hashing (no async wasm on mutation hot path)
  * - Adaptive cost multiplier from SystemMonitor (0.8x idle → 2.0x critical)
@@ -54,21 +56,57 @@ const DEFAULT_WINDOW_MS = 60_000;
 const MAX_TRACKED_BUCKETS = 10000;
 const CLEANUP_INTERVAL_MS = 60_000;
 
+type RateLimitLane = "commerce" | "default";
+
+const COMMERCE_PREFIX = "/api/commerce";
+
+/** Coupon brute-force / checkout spam costs more than a cart line update. */
+const COMMERCE_SENSITIVE_PREFIXES = [
+  "/api/commerce/coupon",
+  "/api/commerce/pay",
+  "/api/commerce/checkout",
+  "/api/commerce/confirm",
+] as const;
+const COMMERCE_SENSITIVE_COST = 4;
+
+function getRateLimitLane(pathname: string): RateLimitLane {
+  return pathname.startsWith(COMMERCE_PREFIX) ? "commerce" : "default";
+}
+
+function isCommerceSensitive(pathname: string): boolean {
+  for (let i = 0; i < COMMERCE_SENSITIVE_PREFIXES.length; i++) {
+    if (pathname.startsWith(COMMERCE_SENSITIVE_PREFIXES[i])) return true;
+  }
+  return false;
+}
+
 /**
  * Dynamically resolves the per-IP mutation ceiling on every check — module-load
  * evaluation froze process.env.RATE_LIMIT_MAX_REQUESTS (test harnesses and
  * benchmark runners set it at runtime after this module is loaded).
+ *
+ * Commerce is a public guest lane: default is 40% of the general ceiling
+ * (`RATE_LIMIT_COMMERCE_MAX_REQUESTS` overrides). Benchmarks that raise
+ * `RATE_LIMIT_MAX_REQUESTS` therefore raise commerce too unless they set the
+ * commerce env explicitly.
  */
-function getMaxRequests(): number {
-  return (
+function getMaxRequests(lane: RateLimitLane = "default"): number {
+  const general =
     Number(process.env.RATE_LIMIT_MAX_REQUESTS) ||
-    (process.env.NODE_ENV !== "production" ? 1000 : 100)
-  );
+    (process.env.NODE_ENV !== "production" ? 1000 : 100);
+  if (lane !== "commerce") return general;
+  const explicit = Number(process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS);
+  if (explicit > 0) return explicit;
+  return Math.max(1, Math.floor(general * 0.4));
 }
 
-/** Aggregate tenant ceiling (10x the per-IP ceiling). */
-function getTenantMaxRequests(): number {
-  return getMaxRequests() * 10;
+/** Aggregate tenant ceiling (10x the per-IP ceiling for that lane). */
+function getTenantMaxRequests(lane: RateLimitLane = "default"): number {
+  return getMaxRequests(lane) * 10;
+}
+
+function getLaneCost(pathname: string, pressureCost: number): number {
+  return isCommerceSensitive(pathname) ? pressureCost * COMMERCE_SENSITIVE_COST : pressureCost;
 }
 
 // Paths excluded from rate limiting
@@ -111,10 +149,10 @@ function hashClientKeySync(input: string): string {
  * Bucket key from platform-resolved client IP + tenant host.
  * Uses getClientIp (getClientAddress) — never raw X-Forwarded-For.
  */
-function getClientKey(event: RequestEvent): string {
+function getClientKey(event: RequestEvent, lane: RateLimitLane): string {
   const rawIp = getClientIp(event);
   const tenant = getTenantIdFromHostname(event.url.hostname, isMultiTenantEnabled()) || "global";
-  return hashClientKeySync(`${rawIp || "unknown"}:${tenant}`);
+  return hashClientKeySync(`${rawIp || "unknown"}:${tenant}:${lane}`);
 }
 
 /**
@@ -123,10 +161,10 @@ function getClientKey(event: RequestEvent): string {
  * tenant — a single shared "global" aggregate bucket would let concurrent
  * users exhaust ONE bucket and 429 the entire site (site-wide lockout DoS).
  */
-function getTenantKey(event: RequestEvent): string | null {
+function getTenantKey(event: RequestEvent, lane: RateLimitLane): string | null {
   if (!isMultiTenantEnabled()) return null;
   const tenant = getTenantIdFromHostname(event.url.hostname, true);
-  return tenant && tenant !== "global" ? tenant : null;
+  return tenant && tenant !== "global" ? `${tenant}:${lane}` : null;
 }
 
 function withSecurityHeaders(response: Response, event: RequestEvent): Response {
@@ -152,14 +190,16 @@ function buildRateLimitResponse(
     limit: number;
     reason: string;
     scope?: "ip" | "tenant";
+    lane: RateLimitLane;
   },
 ): Response {
-  const { retryAfterSeconds, limit, reason, scope } = opts;
+  const { retryAfterSeconds, limit, reason, scope, lane } = opts;
   const headers: Record<string, string> = {
     "Retry-After": String(retryAfterSeconds),
     "X-RateLimit-Limit": String(limit),
     "X-RateLimit-Remaining": "0",
     "X-RateLimit-Reset": String(retryAfterSeconds),
+    "X-RateLimit-Lane": lane,
   };
   if (scope === "tenant") headers["X-RateLimit-Scope"] = "tenant";
 
@@ -170,6 +210,7 @@ function buildRateLimitResponse(
         error: reason,
         code: "RATE_LIMITED",
         retryAfter: retryAfterSeconds,
+        lane,
         ...(scope ? { scope } : {}),
       }),
       {
@@ -276,9 +317,10 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
-  const clientKey = getClientKey(event);
+  const lane = getRateLimitLane(pathname);
+  const clientKey = getClientKey(event, lane);
   const now = Date.now();
-  const maxRequests = getMaxRequests();
+  const maxRequests = getMaxRequests(lane);
 
   // Get or create per-IP bucket (bounded: evicts oldest BEFORE insert)
   let bucket = _buckets.get(clientKey);
@@ -319,8 +361,9 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     // SystemMonitor not available — use baseline
   }
 
-  // Apply adaptive cost: critical pressure makes each request count more
-  const cost = Math.max(1, Math.round(multiplier));
+  // Apply adaptive cost: critical pressure makes each request count more.
+  // Commerce coupon/pay/checkout consume extra tokens (guest brute-force).
+  const cost = getLaneCost(pathname, Math.max(1, Math.round(multiplier)));
   bucket.count += cost;
 
   const remaining = Math.max(0, maxRequests - bucket.count);
@@ -338,6 +381,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
         limit: maxRequests,
         reason: "Too Many Requests",
         scope: "ip",
+        lane,
       }),
       event,
     );
@@ -349,11 +393,11 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   // Skipped entirely when multi-tenancy is off: a single shared aggregate
   // bucket is a site-wide 429 DoS vector, not a protection.
 
-  const tenantKey = getTenantKey(event);
+  const tenantKey = getTenantKey(event, lane);
   let tenantRemaining = maxRequests;
 
   if (tenantKey) {
-    const tenantMaxRequests = getTenantMaxRequests();
+    const tenantMaxRequests = getTenantMaxRequests(lane);
     let tenantBucket = _tenantBuckets.get(tenantKey);
     if (!tenantBucket || now - tenantBucket.windowStart > DEFAULT_WINDOW_MS) {
       tenantBucket = { count: 0, windowStart: now };
@@ -376,6 +420,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
           limit: tenantMaxRequests,
           reason: "Too Many Requests — tenant limit reached",
           scope: "tenant",
+          lane,
         }),
         event,
       );
@@ -389,6 +434,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     headers.set("X-RateLimit-Limit", String(maxRequests));
     headers.set("X-RateLimit-Remaining", String(remaining));
     headers.set("X-RateLimit-Reset", String(resetTime));
+    headers.set("X-RateLimit-Lane", lane);
     // Tenant telemetry only meaningful when a tenant bucket actually exists.
     if (tenantKey) {
       headers.set("X-RateLimit-Tenant-Remaining", String(tenantRemaining));

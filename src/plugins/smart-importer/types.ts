@@ -40,6 +40,7 @@ export interface SNCEnvelope {
     | "pimcore"
     | "cockpit"
     | "shopify"
+    | "woocommerce"
     | "wix"
     | "squarespace"
     | "webflow"

@@ -89,6 +89,7 @@ export const smartImporterPlugin = definePlugin({
           "prismic",
           "webflow",
           "shopify",
+          "woocommerce",
           "magento",
           "prestashop",
           "opencart",

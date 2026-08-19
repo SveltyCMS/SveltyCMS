@@ -46,12 +46,24 @@ describe("publication-policy — draft isolation & privilege gating", () => {
     expect(resolvePublicationFilter({ user: adminFlagUser }, undefined)).toBe("all");
   });
 
-  it("allows editor users to choose any publication filter and defaults to all", () => {
-    const editorUser = { _id: "editor1", role: "editor" };
-    expect(resolvePublicationFilter({ user: editorUser }, "all")).toBe("all");
-    expect(resolvePublicationFilter({ user: editorUser }, "draft")).toBe("draft");
-    expect(resolvePublicationFilter({ user: editorUser }, "published")).toBe("published");
-    expect(resolvePublicationFilter({ user: editorUser }, undefined)).toBe("all");
+  it("forces editor role without draft permissions to published", () => {
+    const unprivilegedEditor = { _id: "editor1", role: "editor" };
+    expect(resolvePublicationFilter({ user: unprivilegedEditor }, "all")).toBe("published");
+    expect(resolvePublicationFilter({ user: unprivilegedEditor }, "draft")).toBe("published");
+    expect(resolvePublicationFilter({ user: unprivilegedEditor }, "published")).toBe("published");
+    expect(resolvePublicationFilter({ user: unprivilegedEditor }, undefined)).toBe("published");
+  });
+
+  it("allows users with draft read permissions to choose any publication filter", () => {
+    const privilegedEditor = {
+      _id: "editor2",
+      role: "editor",
+      permissions: ["content:read_drafts"],
+    };
+    expect(resolvePublicationFilter({ user: privilegedEditor }, "all")).toBe("all");
+    expect(resolvePublicationFilter({ user: privilegedEditor }, "draft")).toBe("draft");
+    expect(resolvePublicationFilter({ user: privilegedEditor }, "published")).toBe("published");
+    expect(resolvePublicationFilter({ user: privilegedEditor }, undefined)).toBe("all");
   });
 
   it("allows system caller to choose any publication filter and defaults to all", () => {

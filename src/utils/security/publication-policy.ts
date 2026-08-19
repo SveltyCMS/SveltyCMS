@@ -35,9 +35,12 @@ export function resolvePublicationFilter(
 ): PublicationFilter {
   const isPrivileged =
     actor?.system === true ||
+    actor?.user?.isAdmin === true ||
     actor?.user?.role === "admin" ||
-    actor?.user?.role === "editor" ||
-    actor?.user?.isAdmin === true;
+    (Array.isArray(actor?.user?.permissions) &&
+      (actor.user.permissions.includes("content:read_drafts") ||
+        actor.user.permissions.includes("collections:read_drafts") ||
+        actor.user.permissions.includes("admin")));
 
   if (isPrivileged) {
     if (requested === "published" || requested === "draft" || requested === "all") {

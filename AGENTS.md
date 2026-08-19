@@ -456,21 +456,22 @@ Reference implementation to copy for new admin routes:
 
 ### Documentation Matrix
 
-| Feature Type          | Primary MDX Location                                        | Also Update                                           |
-| :-------------------- | :---------------------------------------------------------- | :---------------------------------------------------- |
-| **Database**          | `docs/reference/database/`                                  | `technical-evaluation-2026.mdx`                       |
-| **Auth/Security**     | `docs/reference/security/authentication-system.mdx`         | `technical-evaluation-2026.mdx`                       |
-| **Admin Theme / UI**  | `docs/contributing/style-guide-gui.mdx`                     |                                                       |
-| **Content/Preview**   | `docs/reference/architecture/live-preview-architecture.mdx` | Integration docs                                      |
-| **Widgets**           | (inline in widget package)                                  | `widget-system-overview.mdx`                          |
-| **API**               | `docs/reference/api/`                                       | Relevant service docs                                 |
-| **Performance**       | `docs/reference/database/performance-architecture.mdx`      | `technical-evaluation-2026.mdx`                       |
-| **Benchmarks**        | `docs/tests/benchmark-matrix.mdx`                           | `docs/project/benchmarks/index.mdx`                   |
-| **Testing Scripts**   | `docs/tests/testing-scripts.mdx`                            | `docs/tests/index.mdx`                                |
-| **Intelligence / AI** | `docs/reference/architecture/behavioral-learning.mdx`       | `ai-integration.mdx`, `technical-evaluation-2026.mdx` |
-| **Preloading**        | `docs/reference/architecture/hover-preloading.mdx`          | `behavioral-learning.mdx`, `cache-system.mdx`         |
-| **Marketplace**       | `docs/reference/architecture/marketplace.mdx`               | `ai-integration.mdx`                                  |
-| **Packages / SDK**    | `docs/development/package-model.mdx`                        | `docs/development/local-vs-http-api.mdx`              |
+| Feature Type          | Primary MDX Location                                        | Also Update                                                                      |
+| :-------------------- | :---------------------------------------------------------- | :------------------------------------------------------------------------------- |
+| **Database**          | `docs/reference/database/`                                  | `technical-evaluation-2026.mdx`                                                  |
+| **Auth/Security**     | `docs/reference/security/authentication-system.mdx`         | `technical-evaluation-2026.mdx`                                                  |
+| **Admin Theme / UI**  | `docs/contributing/style-guide-gui.mdx`                     |                                                                                  |
+| **Content/Preview**   | `docs/reference/architecture/live-preview-architecture.mdx` | Integration docs                                                                 |
+| **Widgets**           | (inline in widget package)                                  | `widget-system-overview.mdx`                                                     |
+| **API**               | `docs/reference/api/`                                       | Relevant service docs                                                            |
+| **Performance**       | `docs/reference/database/performance-architecture.mdx`      | `technical-evaluation-2026.mdx`                                                  |
+| **Benchmarks**        | `docs/tests/benchmark-matrix.mdx`                           | `docs/project/benchmarks/index.mdx`                                              |
+| **Testing Scripts**   | `docs/tests/testing-scripts.mdx`                            | `docs/tests/index.mdx`                                                           |
+| **Intelligence / AI** | `docs/reference/architecture/behavioral-learning.mdx`       | `ai-integration.mdx`, `technical-evaluation-2026.mdx`                            |
+| **Preloading**        | `docs/reference/architecture/hover-preloading.mdx`          | `behavioral-learning.mdx`, `cache-system.mdx`                                    |
+| **Marketplace**       | `docs/reference/architecture/marketplace.mdx`               | `ai-integration.mdx`                                                             |
+| **E-commerce**        | `docs/reference/architecture/ecommerce-overview.mdx`        | Plugins / widgets / gated API (core stays light); Stripe MDX; `roadmap-2026.mdx` |
+| **Packages / SDK**    | `docs/development/package-model.mdx`                        | `docs/development/local-vs-http-api.mdx`                                         |
 
 **Key Documentation Files:**
 
@@ -781,6 +782,10 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 | Test File                                             | Documentation                                                                                                             |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `tests/unit/api/collections.test.ts`                  | `docs/tests/api-testing.mdx`, `docs/reference/architecture/collection-store-dataflow.mdx`                                 |
+| `tests/integration/api/collections-mutations.test.ts` | `docs/tests/api-testing.mdx` (create/update/delete/clone/schedule HTTP contract)                                          |
+| `tests/unit/services/commerce/price.test.ts`          | `docs/reference/architecture/ecommerce-overview.mdx`                                                                      |
+| `tests/unit/plugins/commerce.test.ts`                 | `docs/reference/architecture/ecommerce-overview.mdx`                                                                      |
 | `tests/unit/hooks/defense-in-depth.test.ts`           | `docs/reference/security/index.mdx`, `docs/tests/security-testing.mdx`                                                    |
 | `tests/unit/hooks/authentication.test.ts`             | `docs/reference/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`                                         |
 | `tests/unit/hooks/authorization.test.ts`              | `docs/tests/rbac-testing.mdx`, `docs/reference/security/index.mdx`                                                        |

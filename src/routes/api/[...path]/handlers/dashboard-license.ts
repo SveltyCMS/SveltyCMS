@@ -24,7 +24,8 @@ import { logger } from "@utils/logger";
  * Premium dashboard endpoints → the widget id (from `widget.json`) whose license
  * gates the endpoint. Free widgets (cpu, memory, disk, system-health,
  * last5-content, last5media, system-messages, tenant-analytics,
- * media-storage-analytics) are intentionally NOT gated.
+ * media-storage-analytics) are intentionally NOT gated. Commerce widgets
+ * (commerce-orders, commerce-inventory) are freemium — 14-day trial then license.
  *
  * `metrics` feeds both the unified-metrics and performance widgets — both use
  * the same install-wide trial model, so gating on unified-metrics covers both.
@@ -37,6 +38,8 @@ export const DASHBOARD_ENDPOINT_LICENSE: Readonly<Record<string, string>> = {
   "cache-metrics": "cache-monitor",
   "online-user": "user-online",
   metrics: "unified-metrics",
+  "commerce-orders": "commerce-orders",
+  "commerce-inventory": "commerce-inventory",
 };
 
 /**

@@ -7,9 +7,10 @@
 	import Button from '@components/ui/button.svelte';
   interface Props {
     siteName: string;
+    signedIn?: boolean;
   }
 
-  let { siteName }: Props = $props();
+  let { siteName, signedIn = false }: Props = $props();
 </script>
 
 <header class="border-b border-surface-200 bg-white/80 backdrop-blur dark:border-surface-700 dark:bg-surface-900/80">
@@ -18,6 +19,11 @@
       {siteName}
     </a>
     <nav class="flex items-center gap-2" aria-label="Site navigation">
+      <Button variant="ghost" size="sm" href="/shop" data-preload="hover">Shop</Button>
+      <Button variant="ghost" size="sm" href="/cart" data-preload="hover">Cart</Button>
+      {#if signedIn}
+        <Button variant="ghost" size="sm" href="/account/orders" data-preload="hover">Account</Button>
+      {/if}
       <Button variant="ghost" size="sm" href="/about">About</Button>
       <Button variant="outline" size="sm" href="/login">CMS Login</Button>
     </nav>

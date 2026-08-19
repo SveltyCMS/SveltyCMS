@@ -18,6 +18,8 @@ vi.mock("@src/databases/db", () => {
       update: vi.fn().mockResolvedValue({ success: true, data: {} }),
       delete: vi.fn().mockResolvedValue({ success: true }),
       deleteMany: vi.fn().mockResolvedValue({ success: true, deletedCount: 0 }),
+      updateMany: vi.fn().mockResolvedValue({ success: true, data: { modifiedCount: 0 } }),
+      findByIds: vi.fn().mockResolvedValue({ success: true, data: [] }),
       count: vi.fn().mockResolvedValue({ success: true, data: 0 }),
       exists: vi.fn().mockResolvedValue({ success: true, data: false }),
     },
@@ -61,6 +63,11 @@ vi.mock("@src/databases/db", () => {
       getModel: () => Promise.resolve({ name: "collection_test" }),
       createModel: () => Promise.resolve({ success: true }),
       listSchemas: () => Promise.resolve({ success: true, data: [] }),
+    },
+    batch: {
+      bulkDelete: vi.fn().mockResolvedValue({ success: true, deletedCount: 2 }),
+      bulkUpdate: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      bulkInsert: vi.fn().mockResolvedValue({ success: true, data: [{ _id: "clone-1" }] }),
     },
     media: {},
     widgets: {},
@@ -235,6 +242,143 @@ describe("Collections API Unit Tests", () => {
         fields: [],
       });
       const response = await dispatch(event("DELETE", "collections/col-1/entry-1"));
+      const data = await response!.json();
+      expect(data.success).toBe(true);
+    });
+  });
+
+  describe("POST /api/collections/[collectionId]/batch", () => {
+    const postsSchema = {
+      _id: "col-1",
+      name: "posts",
+      fields: [{ name: "title", type: "text" }],
+    };
+
+    beforeEach(() => {
+      mockContentSystem.getCollectionById.mockResolvedValue(postsSchema);
+      (mockDbAdapter as any).batch.bulkDelete = vi
+        .fn()
+        .mockResolvedValue({ success: true, deletedCount: 2 });
+      (mockDbAdapter as any).batch.bulkUpdate = vi
+        .fn()
+        .mockResolvedValue({ success: true, data: [] });
+      (mockDbAdapter as any).batch.bulkInsert = vi
+        .fn()
+        .mockResolvedValue({ success: true, data: [{ _id: "clone-1" }] });
+      (mockDbAdapter as any).crud.insert = vi
+        .fn()
+        .mockResolvedValue({ success: true, data: { _id: "should-not-create" } });
+      (mockDbAdapter as any).crud.deleteMany = vi
+        .fn()
+        .mockResolvedValue({ success: true, data: { deletedCount: 2 } });
+      (mockDbAdapter as any).crud.updateMany = vi
+        .fn()
+        .mockResolvedValue({ success: true, data: { modifiedCount: 2 } });
+      (mockDbAdapter as any).crud.findByIds = vi
+        .fn()
+        .mockResolvedValue({ success: true, data: [] });
+    });
+
+    it("deletes selected ids instead of creating a new entry", async () => {
+      const response = await dispatch(
+        event("POST", "collections/col-1/batch", {
+          action: "delete",
+          entryIds: ["e1", "e2"],
+        }),
+      );
+      const data = await response!.json();
+      expect(data.success).toBe(true);
+      expect((mockDbAdapter as any).crud.deleteMany).toHaveBeenCalledTimes(1);
+      expect((mockDbAdapter as any).crud.deleteMany).toHaveBeenCalledWith(
+        expect.any(String),
+        { _id: { $in: ["e1", "e2"] } },
+        expect.objectContaining({ permanent: true }),
+      );
+      expect((mockDbAdapter as any).crud.insert).not.toHaveBeenCalled();
+    });
+
+    it("bulk-updates status for all entryIds in a single query", async () => {
+      const response = await dispatch(
+        event("POST", "collections/col-1/batch", {
+          action: "status",
+          entryIds: ["e1", "e2"],
+          status: "publish",
+        }),
+      );
+      const data = await response!.json();
+      expect(data.success).toBe(true);
+      expect((mockDbAdapter as any).crud.updateMany).toHaveBeenCalledTimes(1);
+      expect((mockDbAdapter as any).crud.updateMany).toHaveBeenCalledWith(
+        expect.any(String),
+        { _id: { $in: ["e1", "e2"] } },
+        expect.objectContaining({ status: "publish" }),
+        expect.anything(),
+      );
+      expect((mockDbAdapter as any).batch.bulkUpdate).not.toHaveBeenCalled();
+      expect((mockDbAdapter as any).crud.insert).not.toHaveBeenCalled();
+    });
+
+    it("rejects unknown batch actions without creating", async () => {
+      await expect(
+        dispatch(event("POST", "collections/col-1/batch", { action: "explode", entryIds: ["e1"] })),
+      ).rejects.toThrow(/Unsupported batch action/);
+      expect((mockDbAdapter as any).crud.insert).not.toHaveBeenCalled();
+    });
+
+    it("schedules by writing status + _scheduled in one updateMany", async () => {
+      const when = Date.now() + 86_400_000;
+      const response = await dispatch(
+        event("POST", "collections/col-1/batch", {
+          action: "status",
+          entryIds: ["e1", "e2"],
+          status: "draft",
+          _scheduled: when,
+        }),
+      );
+      const data = await response!.json();
+      expect(data.success).toBe(true);
+      expect((mockDbAdapter as any).crud.updateMany).toHaveBeenCalledWith(
+        expect.any(String),
+        { _id: { $in: ["e1", "e2"] } },
+        expect.objectContaining({ status: "draft", _scheduled: when }),
+        expect.anything(),
+      );
+      expect((mockDbAdapter as any).crud.insert).not.toHaveBeenCalled();
+    });
+
+    it("clones by ids via findByIds + bulkInsert, never create", async () => {
+      (mockDbAdapter as any).crud.findByIds = vi.fn().mockResolvedValue({
+        success: true,
+        data: [{ _id: "e1", title: "Home", status: "publish" }],
+      });
+      const response = await dispatch(
+        event("POST", "collections/col-1/batch", {
+          action: "clone",
+          entryIds: ["e1"],
+        }),
+      );
+      const data = await response!.json();
+      expect(data.success).toBe(true);
+      expect((mockDbAdapter as any).crud.findByIds).toHaveBeenCalled();
+      expect((mockDbAdapter as any).batch.bulkInsert).toHaveBeenCalled();
+      expect((mockDbAdapter as any).crud.insert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("PUT /api/collections/[collectionId]/[entryId] - Update alias", () => {
+    it("accepts PUT as an alias for PATCH", async () => {
+      mockContentSystem.getCollectionById.mockResolvedValue({
+        _id: "col-1",
+        name: "posts",
+        fields: [{ name: "title", type: "text" }],
+      });
+      (mockDbAdapter as any).crud.update.mockResolvedValue({
+        success: true,
+        data: { _id: "updated-id" },
+      });
+      const response = await dispatch(
+        event("PUT", "collections/col-1/entry-1", { title: "Updated via PUT" }),
+      );
       const data = await response!.json();
       expect(data.success).toBe(true);
     });

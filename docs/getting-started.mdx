@@ -6,7 +6,7 @@ order: 0
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-07-10"
+updated: "2026-08-19"
 tags:
   - "getting-started"
   - "quickstart"
@@ -128,10 +128,14 @@ See the [Site Starter guide](/docs/development/site-starter.mdx). For Astro/Next
 
 ### E-Commerce Catalog
 
-1. Create collections: `Products` (Price, SKU, Description), `Inventory`
-2. Upload images to 📁 Media Hub, link to entries
-3. Query via `/api/collections/products` for your frontend
-4. Add Stripe plugin for payment processing
+Use the **E-commerce** Setup Wizard preset (products + variants, carts, orders, coupons, tax, shipping) rather than inventing collections. Full map: [E-Commerce Overview](./reference/architecture/ecommerce-overview.mdx).
+
+1. Select the **ecommerce** template (or add the ecommerce preset collections)
+2. Optional: import an existing catalog with [Smart Importer](/src/plugins/smart-importer/smart-importer.mdx) — WooCommerce WXR/REST (`--format=woocommerce`) or Shopify JSON/CSV (`--format=shopify`) into `products`
+3. Upload images in 📁 Media Hub and link them on `products`
+4. Add the **Commerce Orders** and **Commerce Inventory** dashboard widgets (14-day trial) from the dashboard picker
+5. Query `/api/collections/products` for the storefront (publication policy applies)
+6. Enable the Commerce plugin (Extensions) and the [Stripe plugin](/src/plugins/stripe/stripe.mdx) for card payments — amount is server `grandTotal`. Map: [E-Commerce Overview](./reference/architecture/ecommerce-overview.mdx)
 
 ### Multi-Language
 
@@ -158,3 +162,6 @@ Granular **RBAC** with field-level access control:
 - [Widget Development](./development/widgets/index.mdx) — Build custom field types
 - [Security Overview](./reference/security/index.mdx) — 4-layer defense-in-depth
 - [Performance Benchmarks](./project/benchmarks/index.mdx) — 48 tests across 4 databases
+- [E-Commerce Overview](./reference/architecture/ecommerce-overview.mdx) — Opt-in store: plugins, widgets, gated API — core stays a CMS
+- [Smart Importer](/src/plugins/smart-importer/smart-importer.mdx) — WooCommerce / Shopify catalog import
+- [Dashboard widgets](./development/dashboard/index.mdx) — Commerce Orders + Inventory (14-day trial)

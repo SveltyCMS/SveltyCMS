@@ -271,10 +271,13 @@ await cacheService.clearByPattern(`collection:${collectionId}:*`);
 The following API endpoints automatically invalidate server-side page cache after successful mutations:
 
 - `POST /api/collections/[collectionId]` - Create entry
-- `PATCH /api/collections/[collectionId]/[entryId]` - Update entry
+- `PATCH` / `PUT` `/api/collections/[collectionId]/[entryId]` - Update entry
 - `DELETE /api/collections/[collectionId]/[entryId]` - Delete entry
-- `PATCH /api/collections/[collectionId]/[entryId]/status` - Update status
-- `POST /api/collections/[collectionId]/batch` - Batch operations (delete, status, clone)
+- `PATCH /api/collections/[collectionId]/[entryId]/status` - Update status (optional `entries[]` for bulk)
+- `POST /api/collections/[collectionId]/batch` - Batch operations (`action`: `delete`, `status`, `clone`)
+- `POST /api/collections/[collectionId]/batch-clone` - Bulk clone (`entries[]` or `entryIds[]`)
+
+Batch **status** and **delete** use one tenant-scoped statement (`UPDATE`/`DELETE WHERE _id IN (...)`). Clone-by-id is `findByIds` + `insertMany` (two queries, no per-row widget pass on the source).
 
 This ensures that the next SSR load will always fetch fresh data after any data modification.
 

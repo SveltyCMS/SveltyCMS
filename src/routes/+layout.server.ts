@@ -97,9 +97,8 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     defaultContentLanguage;
 
   // Content System Hydration with error handling for preview mode
-  const { contentSystem } = await import("@src/content/index.server");
+  const { contentSystem, contentStore } = await import("@src/content/index.server");
   let navigationStructure: NavigationNode[] = [];
-  let contentNodes: any[] = [];
   let contentVersion = 0;
   let firstCollectionRedirectUrl = "";
 
@@ -112,7 +111,6 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
       maxDepth: 1,
       tenantId: locals.tenantId,
     });
-    contentNodes = await contentSystem.getContentStructure(locals.tenantId);
     contentVersion = contentSystem.getContentVersion();
 
     // Get the redirect URL for the first collection
@@ -152,12 +150,8 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     tenantId: locals.tenantId ?? null,
     darkMode: locals.darkMode ?? false,
     navigationStructure,
-    // JSON round-trip instead of structuredClone: freshly-saved collections carry
-    // compiled valibot validation functions in their schema objects —
-    // structuredClone throws DataCloneError and 500s every (app) page until the
-    // structure is reloaded from the DB. JSON strips functions, which is exactly
-    // what client-bound data needs (functions are not serializable anyway).
-    contentNodes: contentNodes ? JSON.parse(JSON.stringify(contentNodes)) : [],
+    // Pre-sanitized client nodes (cached in contentStore until next store mutation)
+    contentNodes: contentStore.getClientNodes(locals.tenantId),
     contentVersion,
     // Pass CSRF token for state-changing API calls
     csrfToken:

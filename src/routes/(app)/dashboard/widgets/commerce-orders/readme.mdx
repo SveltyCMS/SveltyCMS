@@ -1,0 +1,47 @@
+---
+path: "src/routes/(app)/dashboard/widgets/commerce-orders/readme.mdx"
+title: "Commerce Orders Dashboard Widget"
+description: "Recent orders and status mix for the ecommerce preset. Freemium — 14-day key-less trial, then a marketplace license."
+order: 100
+icon: "mdi:receipt-text-outline"
+author: "SveltyCMS Team"
+created: "2026-08-19"
+updated: "2026-08-19"
+tags:
+  - "dashboard"
+  - "commerce"
+  - "orders"
+  - "freemium"
+---
+
+# Commerce Orders Widget
+
+Shows recent `orders` collection rows (order number, status, total, customer) plus a status mix. Requires the ecommerce **preset** (`orders` collection). If the collection is missing, the widget explains how to enable the preset — it does not load a store into every CMS.
+
+---
+
+## 💰 Licensing
+
+**Freemium** — **14-day key-less trial** from the first admin’s `createdAt` (same as other dashboard widgets). After the trial, `checkExtensionLicense("dashboard", "commerce-orders")` must be active.
+
+- Client: `GET /api/system/license-status?type=dashboard&id=commerce-orders` → `<UpgradePrompt extensionId="dashboard:commerce-orders" price="€12.99" />`
+- Server: `/api/dashboard/commerce-orders` is gated (`403 LICENSE_REQUIRED`)
+
+Marketplace listing: `dashboard:commerce-orders` · **€12.99**
+
+This is a **dashboard widget**, not a cart field widget. Checkout still lives in the optional Commerce plugin.
+
+---
+
+## Features
+
+| Feature       | Description                                                  |
+| :------------ | :----------------------------------------------------------- |
+| Recent orders | Latest orders with status and total                          |
+| Status mix    | Counts for pending / processing / shipped / …                |
+| Empty preset  | Clear empty state when `orders` is not installed             |
+| Trial hint    | Remaining trial days shown while the 14-day window is active |
+
+### Data source
+
+`GET /api/dashboard/commerce-orders?limit=5` — `{ available, total, byStatus, recent }`. Tenant-scoped via LocalCMS.

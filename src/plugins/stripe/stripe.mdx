@@ -8,7 +8,7 @@ author: "SveltyCMS Team"
 license: "Freemium (marketplace.sveltycms.com)"
 pricing: "Free tier: basic checkout; Pro tier unlocks subscription billing, webhooks, premium features"
 created: "2025-10-05"
-updated: "2026-07-07"
+updated: "2026-08-19"
 tags:
   - "plugin"
   - "stripe"
@@ -19,6 +19,8 @@ tags:
 # Stripe Payments Plugin
 
 Accept payments via Stripe for gated content, memberships, or e-commerce with PCI-compliant card collection. Uses the official Stripe SDK server-side and Stripe.js client-side for secure, isolated payment fields.
+
+**Scope:** this plugin is a **payment adapter** (keys, Elements, PaymentIntent, webhooks). It does **not** own cart, tax, shipping, or coupons. Those belong in the optional [Commerce plugin](../../docs/reference/architecture/ecommerce-overview.mdx). Store checkout calls `POST /api/commerce/pay` with **orderId only** — the amount is the server `grandTotal` (F1). Webhooks are `POST /api/stripe/webhook` (signature + tenant from metadata). Catalog import is [Smart Importer](../smart-importer/smart-importer.mdx). Admin snapshots are the Commerce Orders / Inventory dashboard widgets.
 
 ---
 

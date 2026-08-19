@@ -1,0 +1,33 @@
+---
+path: "src/plugins/taxjar/taxjar.mdx"
+title: "TaxJar"
+description: "Paid Commerce add-on: live sales-tax quotes. Preset tax_rates stay free."
+order: 102
+icon: "mdi:receipt-text-outline"
+author: "SveltyCMS Team"
+created: "2026-08-19"
+updated: "2026-08-19"
+license: "Paid (marketplace.sveltycms.com)"
+tags:
+  - "commerce"
+  - "tax"
+  - "marketplace"
+---
+
+# TaxJar
+
+Paid **plugin** (`plugin:taxjar`). Not a field widget and not stuffed into Commerce Pro: live tax APIs are their own SKU (same idea as Stripe vs Commerce).
+
+| Piece           | Kind                                       | Role                                         |
+| --------------- | ------------------------------------------ | -------------------------------------------- |
+| `tax_rates`     | Ecommerce **preset** + Commerce plugin     | Free country/state table (`shippingTaxable`) |
+| **TaxJar**      | **Paid plugin**                            | Live nexus quotes via `TaxProvider`          |
+| Tax report card | Future **dashboard widget** (optional SKU) | Admin snapshot — not the quote engine        |
+
+Enable in **Config → Extensions**. License: `checkExtensionLicense("plugin", "taxjar")` + 14-day key-less trial. After trial, checkout **keeps `tax_rates`** until a key is active.
+
+`testRatePercent` is a sandbox quote for local/dev until the TaxJar HTTP contract is keyed. Secret: `apiToken`.
+
+Commerce `POST /api/commerce/quote` tries this provider first, then falls back to `tax_rates`.
+
+Map: [E-Commerce Overview](/docs/reference/architecture/ecommerce-overview.mdx).

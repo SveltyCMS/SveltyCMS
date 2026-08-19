@@ -34,6 +34,18 @@ describe("createSmartTable", () => {
     expect(onQueryChange).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
   });
 
+  it("setSort can restore an absolute direction without cycling", () => {
+    const onQueryChange = vi.fn();
+    const table = createSmartTable({
+      mode: "server",
+      onQueryChange,
+      getRowId: (row) => String(row._id),
+    });
+    table.setSort("title", { emit: false, direction: -1 });
+    expect(table.sort).toEqual({ sortedBy: "title", isSorted: -1 });
+    expect(onQueryChange).not.toHaveBeenCalled();
+  });
+
   it("selects by stable row id (virtualization-safe)", () => {
     const table = createSmartTable({
       mode: "server",

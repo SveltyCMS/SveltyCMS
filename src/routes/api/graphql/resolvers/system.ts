@@ -183,6 +183,8 @@ export const systemResolvers = {
         const result = await cms.collections.find(args.collection, {
           tenantId: context.tenantId,
           limit: args.limit,
+          user: context.user,
+          publicationFilter: context.publicationFilter || "all",
         });
         if (!result.success) {
           throw new Error(

@@ -510,7 +510,7 @@ export function hashCollectionListQuery(input: {
       textSearch: input.compiled.textSearch,
     },
     search: (input.search || "").trim(),
-    sort: input.sort || { field: "_createdAt", direction: "desc" },
+    sort: input.sort || { field: "createdAt", direction: "desc" },
   });
 }
 

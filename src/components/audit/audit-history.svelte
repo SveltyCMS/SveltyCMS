@@ -63,13 +63,19 @@
 
 		try {
 			const result = await queryAuditLogs({ targetId, limit });
-			if (result.success) {
-				logs = (result.data ?? []) as AuditLogEntry[];
-			} else {
+			if (!result) {
+				error = 'Failed to load audit logs';
+				logs = [];
+			} else if (Array.isArray(result)) {
+				logs = result as AuditLogEntry[];
+			} else if (result.success === false) {
 				error = result.message ?? 'Failed to load audit logs';
+				logs = [];
+			} else {
+				logs = (result.data ?? []) as AuditLogEntry[];
 			}
 		} catch (err) {
-			error = String(err);
+			error = err instanceof Error ? err.message : String(err);
 		} finally {
 			isLoading = false;
 		}
@@ -80,7 +86,18 @@
 		isVerifying = true;
 		verifyResult = null;
 		try {
-			verifyResult = await verifyAuditChain({});
+			const result = await verifyAuditChain({});
+			if (result && typeof result === 'object' && 'valid' in result) {
+				verifyResult = result as ChainVerificationResult;
+			} else {
+				verifyResult = {
+					valid: false,
+					brokenAt: null,
+					totalEntries: 0,
+					tamperedEntries: 0,
+					details: ['Unexpected verification response'],
+				};
+			}
 		} catch (err) {
 			verifyResult = {
 				valid: false,

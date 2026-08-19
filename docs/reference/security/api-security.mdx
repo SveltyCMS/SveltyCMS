@@ -124,13 +124,14 @@ Every Bearer-token request is verified against the environment's `tenantId`. Mis
 
 ## 5. Rate Limiting & DoS Prevention
 
-| Mechanism                | Location                   | Detail                                                                 |
-| ------------------------ | -------------------------- | ---------------------------------------------------------------------- |
-| **Login brute-force**    | `handle-authentication.ts` | `sveltekit-rate-limiter` — 5 attempts → 15-min lockout (HTTP 423)      |
-| **API rate limit**       | `SecurityResponseService`  | `rate-limiter-flexible` with Redis-backed state, per-IP and per-tenant |
-| **Body size limit**      | `api-handler.ts`           | 10MB cap — returns 413 `PAYLOAD_TOO_LARGE` before parsing              |
-| **Memory load shedding** | `hooks.server.ts`          | Rejects mutation traffic (503) when heap > 90%                         |
-| **Retry-After header**   | RFC 6585 compliant         | All 429 responses include `Retry-After: 60`                            |
+| Mechanism                | Location                   | Detail                                                                                                 |
+| ------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Login brute-force**    | `handle-authentication.ts` | `sveltekit-rate-limiter` — 5 attempts → 15-min lockout (HTTP 423)                                      |
+| **API rate limit**       | `handle-rate-limit.ts`     | Per-IP + per-tenant fixed window; **commerce lane** isolated from admin mutations (`X-RateLimit-Lane`) |
+| **WAF endpoint limits**  | `SecurityResponseService`  | `rate-limiter-flexible` per path; `/api/commerce` is 60/min (prefix-matched)                           |
+| **Body size limit**      | `api-handler.ts`           | 10MB cap — returns 413 `PAYLOAD_TOO_LARGE` before parsing                                              |
+| **Memory load shedding** | `hooks.server.ts`          | Rejects mutation traffic (503) when heap > 90%                                                         |
+| **Retry-After header**   | RFC 6585 compliant         | All 429 responses include `Retry-After: 60`                                                            |
 
 ---
 

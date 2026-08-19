@@ -26,6 +26,7 @@ export const PRO_PLATFORMS = new Set([
   "prismic",
   "webflow",
   "shopify",
+  "woocommerce",
   "magento",
   "prestashop",
   "opencart",

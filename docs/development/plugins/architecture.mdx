@@ -6,7 +6,7 @@ icon: "mdi:puzzle-outline"
 order: 10
 author: "SveltyCMS Team"
 created: 2026-02-05
-updated: "2026-08-04"
+updated: "2026-08-19"
 tags:
   - plugins
   - architecture
@@ -77,6 +77,31 @@ SveltyCMS dynamically scans and registers plugins on system boot. There are no s
 - **Bun/Node runtime (CLI/Vitest)**: Utilizes a resilient directory scanning fallback (`fs.readdirSync`) to import plugins dynamically.
 
 This allows any custom or optional plugin to be added to or deleted from the `src/plugins/` directory without causing compile-time errors.
+
+## HTTP APIs from plugins (not a fifth extension type)
+
+Plugins already expose backend endpoints. There is no separate “API extension” product.
+
+1. **`{ type: "route" }`** in `definePlugin` — registered in `pluginRouteRegistry` at boot. The catch-all dispatcher (`src/routes/api/[...path]/+server.ts`) matches `METHOD + path` when the first path segment is **not** a core namespace. `requiredCapabilities: "public"` skips session auth (use for signed webhooks). `[]` requires a signed-in user. String arrays are checked with `hasPermissionWithRoles`. Disabled plugins return `403 PLUGIN_DISABLED`.
+2. **Dedicated handlers** (Commerce, Stripe) live under `handlers/*.ts` and **still** gate on `pluginRegistry.getPluginState`. That is for guest CSRF / tenant rules, not a second plugin system.
+
+```typescript
+parts: [
+  {
+    type: "route",
+    routes: [
+      {
+        path: "/api/my-integration/webhook",
+        method: "POST",
+        requiredCapabilities: "public",
+        handler: async (event) => Response.json({ ok: true }),
+      },
+    ],
+  },
+];
+```
+
+Do not add `/api/plugins/[pluginId]` actions for guest storefront traffic — that path requires `plugins:execute`.
 
 ---
 

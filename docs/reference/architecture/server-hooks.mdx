@@ -88,7 +88,7 @@ const pipeline = [
   handleTurboPipeline, //  1. CONSOLIDATED GATEWAY
   handleTestIsolation, //  2. CI ISOLATION (TEST_MODE only)
   handleSecurity, //  3. Firewall, GraphQL Shield
-  handleRateLimit, //  4. Per-IP Fixed-Window Rate Limiting (adaptive pressure)
+  handleRateLimit, //  4. Per-IP Fixed-Window Rate Limiting (adaptive pressure; `/api/commerce` lane)
   handleSystemState, //  5. AUTHORITATIVE GATEKEEPER
   handleTurboGet, //  6. 🚀 TURBO GET (session cache + responseCache L1)
   handleRedirects, //  7. SEO Redirects (tenant header post-auth only)
@@ -548,8 +548,9 @@ The auth context (`{ user, roles, bitset, tenantId }`) is populated by `handleAu
 
 Rate limiting is handled at two levels for defense-in-depth:
 
-1. **Global** (in `handle-security.ts`): `securityResponseService.analyzeRequest()` applies IP/IPUA/cookie rate limits to all requests via the centralized security pipeline.
-2. **Per-endpoint** (e.g., auth actions in `login/+page.server.ts`): Critical endpoints apply additional `RateLimiter` instances from `sveltekit-rate-limiter` for targeted protection.
+1. **Global** (in `handle-security.ts`): `securityResponseService.analyzeRequest()` applies IP/IPUA/cookie rate limits to all requests via the centralized security pipeline. `/api/commerce/*` maps to a dedicated WAF limiter (60/min).
+2. **Hook lane** (`handle-rate-limit.ts`): Per-IP + per-tenant fixed window. Guest `/api/commerce` mutations use an isolated **commerce** lane (tighter cap, `X-RateLimit-Lane`) so cart floods cannot exhaust admin APIs.
+3. **Per-endpoint** (e.g., auth actions in `login/+page.server.ts`): Critical endpoints apply additional `RateLimiter` instances from `sveltekit-rate-limiter` for targeted protection.
 
 ```
 export const handleSecurity: Handle = async ({ event, resolve }) => {

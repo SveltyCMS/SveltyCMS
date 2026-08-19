@@ -144,30 +144,34 @@ export class RelationalMediaModule implements IMediaAdapter {
               if (column) q = q.orderBy(order(column));
             }
 
-            // 🚀 findPage pattern: limit+1 for hasNextPage; parallel COUNT for total
+            // 🚀 findPage pattern: limit+1 for hasNextPage; lazy/parallel COUNT only when needed
             const limit = options?.pageSize || 20;
-            const offset = ((options?.page || 1) - 1) * limit;
+            const page = options?.page || 1;
+            const offset = (page - 1) * limit;
             q = q.limit(limit + 1).offset(offset);
 
-            const [results, countRows] = await Promise.all([
-              q,
-              this.getDb(options)
-                .select({ count: count() })
-                .from(this.schema.mediaItems)
-                .where(and(...conditions)),
-            ]);
-
+            const results = await q;
             const hasNextPage = results.length > limit;
             const pageRows = hasNextPage ? results.slice(0, limit) : results;
-            const total = Number(countRows[0]?.count || 0);
+
+            let total: number;
+            if (page === 1 && !hasNextPage) {
+              total = pageRows.length;
+            } else {
+              const countRows = await this.getDb(options)
+                .select({ count: count() })
+                .from(this.schema.mediaItems)
+                .where(and(...conditions));
+              total = Number(countRows[0]?.count || 0);
+            }
 
             return {
               items: utils.convertArrayDatesToISO(pageRows) as unknown as MediaItem[],
               total,
-              page: options?.page || 1,
+              page,
               pageSize: limit,
               hasNextPage,
-              hasPreviousPage: (options?.page || 1) > 1,
+              hasPreviousPage: page > 1,
             };
           },
           "GET_FILES_BY_FOLDER_FAILED",
@@ -221,24 +225,32 @@ export class RelationalMediaModule implements IMediaAdapter {
           }
 
           const limit = options?.pageSize || 20;
-          const offset = ((options?.page || 1) - 1) * limit;
-          q = q.limit(limit).offset(offset);
+          const page = options?.page || 1;
+          const offset = (page - 1) * limit;
+          q = q.limit(limit + 1).offset(offset);
 
           const results = await q;
-          const [countResult] = await this.db
-            .select({ count: count() })
-            .from(this.schema.mediaItems)
-            .where(and(...conditions));
+          const hasNextPage = results.length > limit;
+          const pageRows = hasNextPage ? results.slice(0, limit) : results;
 
-          const total = Number(countResult?.count || 0);
+          let total: number;
+          if (page === 1 && !hasNextPage) {
+            total = pageRows.length;
+          } else {
+            const countRows = await this.db
+              .select({ count: count() })
+              .from(this.schema.mediaItems)
+              .where(and(...conditions));
+            total = Number(countRows[0]?.count || 0);
+          }
 
           return {
-            items: utils.convertArrayDatesToISO(results) as unknown as MediaItem[],
+            items: utils.convertArrayDatesToISO(pageRows) as unknown as MediaItem[],
             total,
-            page: options?.page || 1,
+            page,
             pageSize: limit,
-            hasNextPage: offset + limit < total,
-            hasPreviousPage: (options?.page || 1) > 1,
+            hasNextPage,
+            hasPreviousPage: page > 1,
           };
         }, "SEARCH_FILES_FAILED");
       },

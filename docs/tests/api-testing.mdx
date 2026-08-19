@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:api-check"
 author: "SveltyCMS Team"
 created: "2026-02-17"
-updated: "2026-07-15"
+updated: "2026-08-19"
 tags:
   - "testing"
   - "api"
@@ -37,6 +37,7 @@ SveltyCMS is designed so test runs never touch live user data. The safety contra
 
 - **Execution Style**: Real HTTP requests against a running SvelteKit server
 - **Primary Concerns**: Authentication, RBAC, setup gating, CRUD contracts, and DB parity
+- **Collection mutations**: `tests/integration/api/collections-mutations.test.ts` — create → PATCH → schedule → bulk publish → clone → bulk delete, with a **count-must-decrease** assertion so “delete created a row” cannot go green. Unit dispatcher: `tests/unit/api/collections.test.ts` (`POST /batch` delete/status/clone/schedule). Adapter `insertMany`/`updateMany`/`deleteMany` alone does **not** cover the HTTP batch router.
 - **Database Matrix**: SQLite, MongoDB, MariaDB, PostgreSQL
 - **Security Posture**: Fail-closed, loopback-only test API with shared secret
 - **Runtime Parity**: Production build preview for CI integration and most E2E jobs

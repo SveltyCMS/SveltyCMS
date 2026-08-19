@@ -112,7 +112,21 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/auth/saml/login",
 ]);
 
-const PUBLIC_PREFIX_ROUTES = ["/api/settings/public", "/api/theme/public", "/share"];
+const PUBLIC_PREFIX_ROUTES = [
+  "/api/settings/public",
+  "/api/theme/public",
+  "/share",
+  "/api/commerce/cart",
+  "/api/commerce/quote",
+  "/api/commerce/coupon",
+  "/api/commerce/checkout",
+  "/api/commerce/pay",
+  "/api/commerce/confirm",
+  "/api/commerce/panes",
+  "/api/commerce/downloads",
+  "/api/stripe/webhook",
+  "/api/stripe/config",
+];
 
 /**
  * Public route prefixes/paths for audits and docs.

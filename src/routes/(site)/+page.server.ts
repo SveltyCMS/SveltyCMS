@@ -69,6 +69,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
     tenantId,
     draft: parentData.isDraft,
     entryId: parentData.previewEntryId || undefined,
+    user: locals.user,
   });
 
   if (!page) {
