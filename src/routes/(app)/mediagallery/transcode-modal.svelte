@@ -8,6 +8,7 @@ import { logger } from "@utils/logger";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { slide } from "svelte/transition";
 	import Button from '@components/ui/button.svelte';
+	import Select from '@components/ui/select.svelte';
 
 interface Props {
 	video: { _id: string; filename: string; url: string };
@@ -97,13 +98,17 @@ function toggleResolution(res: string) {
 
 		<!-- Bitrate -->
 		<div class="space-y-2">
-			<label for="target-bitrate" class="label text-sm font-bold uppercase tracking-widest opacity-60">Target Bitrate</label>
-			<select id="target-bitrate" bind:value={bitrate} class="select">
-				<option value="auto">Auto-Optimize</option>
-				<option value="high">High (8Mbps)</option>
-				<option value="medium">Medium (4Mbps)</option>
-				<option value="low">Low (1.5Mbps)</option>
-			</select>
+			<Select
+				id="target-bitrate"
+				label="Target Bitrate"
+				bind:value={bitrate}
+				options={[
+					{ value: 'auto', label: 'Auto-Optimize' },
+					{ value: 'high', label: 'High (8Mbps)' },
+					{ value: 'medium', label: 'Medium (4Mbps)' },
+					{ value: 'low', label: 'Low (1.5Mbps)' },
+				]}
+			/>
 		</div>
 	</div>
 

@@ -54,7 +54,7 @@ describe("Tier A Optimizations — Dual Schema Registration", () => {
   });
 });
 
-import { getUserCacheId, buildUserCacheKey } from "@utils/hook-utils";
+import { getUserCacheId, buildUserCacheKey, isGraphqlReadOperation } from "@utils/hook-utils";
 
 describe("Tier A Optimizations — User-Aware Turbo & Dispatcher Cache Keys", () => {
   it("should resolve user ID cleanly from _id or id properties", () => {
@@ -77,6 +77,15 @@ describe("Tier A Optimizations — User-Aware Turbo & Dispatcher Cache Keys", ()
     expect(keyUserB).toBe("/api/collections/posts?page=1:u:user_B");
     expect(keyAnon).toBe("/api/collections/posts?page=1");
     expect(keyUserA).not.toEqual(keyUserB);
+  });
+
+  it("treats GraphQL query POSTs as reads so they do not invalidate the response cache", () => {
+    expect(isGraphqlReadOperation("{ posts { id } }")).toBe(true);
+    expect(isGraphqlReadOperation("query GetPosts { posts { id } }")).toBe(true);
+    expect(isGraphqlReadOperation("")).toBe(true);
+    expect(isGraphqlReadOperation(undefined)).toBe(true);
+    expect(isGraphqlReadOperation('mutation { createPost(title: "x") { id } }')).toBe(false);
+    expect(isGraphqlReadOperation("subscription { entryUpdated }")).toBe(false);
   });
 });
 

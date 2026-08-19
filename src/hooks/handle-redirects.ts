@@ -167,9 +167,9 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
 
   const tenantId =
     (event.locals as any).tenantId ||
-    ((event.locals as any).user ? event.request.headers.get("x-tenant-id") : null) ||
-    getTenantIdFromHostname(event.url.hostname, true) ||
-    "default";
+    event.request.headers.get("x-tenant-id") ||
+    getTenantIdFromHostname(event.url.hostname, false) ||
+    "global";
 
   const cacheKey = `redirect:${path}`;
   let cached = cacheService.getSync<any>(cacheKey, tenantId);

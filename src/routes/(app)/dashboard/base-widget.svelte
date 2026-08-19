@@ -405,12 +405,12 @@ $effect(() => {
 		</div>
 
 		<div class="flex items-center gap-1">
-			<Button variant="ghost" onclick={() => refresh()} aria-label="Refresh widget" disabled={loading} title="Refresh data" class="p-0! min-w-0 preset-outline">
+			<Button variant="ghost" onclick={() => refresh()} aria-label="Refresh widget" disabled={loading} title="Refresh data" class="p-0! min-w-0 preset-outlined-surface-500">
 				<iconify-icon icon="mdi:refresh" width={16} class={loading ? 'animate-spin' : ''}></iconify-icon>
 			</Button>
 
 			<div class="relative" style="overflow: visible;">
-				<Button variant="ghost" onclick={() => (showSizeMenu = !showSizeMenu)} aria-label="Change widget size" class="p-0! min-w-0 preset-outline">
+				<Button variant="ghost" onclick={() => (showSizeMenu = !showSizeMenu)} aria-label="Change widget size" class="p-0! min-w-0 preset-outlined-surface-500">
 					<iconify-icon icon="mdi:dots-vertical" width={18}></iconify-icon>
 				</Button>
 				{#if showSizeMenu}

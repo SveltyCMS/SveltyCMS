@@ -70,7 +70,7 @@ Get up and running fast:
 ```bash
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
-bun install  # or npm/pnpm
+bun install  # or npm install --legacy-peer-deps / pnpm install
 ```
 
 2. **Start dev server** (guided installer auto-launches)
@@ -135,7 +135,7 @@ bun run build
 bun run preview
 ```
 
-**⚠️ Windows users**: If `bun install` fails with `ParserError` or corrupted packages (null bytes in package.json files), use `npm install` instead. `bun run dev` and other commands work normally after `npm install`. This is an upstream bun bug affecting Windows only.
+**⚠️ Windows users**: If `bun install` fails with `ParserError` or corrupted packages (null bytes in package.json files), use `npm install --legacy-peer-deps` instead. `bun run dev` and other commands work normally after install.
 
 </details>
 
@@ -143,8 +143,8 @@ bun run preview
 <summary><b>npm</b></summary>
 
 ```bash
-# Install all dependencies
-npm install
+# Install all dependencies (use --legacy-peer-deps for SvelteKit 3 RC peer resolution)
+npm install --legacy-peer-deps
 
 # Development (CLI installer launches automatically if needed)
 npm run dev

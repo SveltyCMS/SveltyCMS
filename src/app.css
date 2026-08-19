@@ -148,6 +148,13 @@
   @apply bg-surface-200 text-surface-900;
 }
 
+@utility preset-filled-warning {
+  @apply bg-warning-500 text-white;
+}
+@utility preset-filled-error {
+  @apply bg-error-500 text-white;
+}
+
 @utility preset-tonal-primary {
   @apply bg-primary-500/10 text-primary-700;
 }
@@ -185,7 +192,13 @@
 @utility preset-outlined-tertiary-500 {
   @apply border border-tertiary-500 text-tertiary-500 bg-transparent;
 }
+@utility preset-outlined-success-500 {
+  @apply border border-success-500 text-success-500 bg-transparent;
+}
 @utility preset-outlined-surface-500 {
+  @apply border border-surface-500 text-surface-500 bg-transparent;
+}
+@utility preset-outline-surface-500 {
   @apply border border-surface-500 text-surface-500 bg-transparent;
 }
 @utility preset-outlined-error-500 {

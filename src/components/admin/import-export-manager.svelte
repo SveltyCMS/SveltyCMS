@@ -599,7 +599,7 @@
 			</div>
 
 			<div class="flex justify-end border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<Button variant="outline" onclick={() => (showResultsModal = false)} aria-label="Close import results" class="variant-primary">Close</Button>
+				<Button variant="primary" onclick={() => (showResultsModal = false)} aria-label="Close import results">Close</Button>
 			</div>
 		</div>
 	</div>

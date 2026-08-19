@@ -66,3 +66,14 @@ export function applyPublicationToQuery<T extends Record<string, unknown>>(
   }
   return query;
 }
+
+/**
+ * Cache-key suffix for a publication filter.
+ * `"all"` is unconstrained (same query as pre-policy keys) so it MUST stay
+ * suffix-free — otherwise every privileged findById fragments the L1 keyspace
+ * and 10k-id random reads thrash a 2k LRU. Published/draft keep a suffix so
+ * a cached "all" document can never be served to a clamped caller.
+ */
+export function publicationCacheSuffix(filter: PublicationFilter): string {
+  return filter === "all" ? "" : `:${filter}`;
+}

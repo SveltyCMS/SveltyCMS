@@ -64,7 +64,7 @@ export function setTurboAuthContext(
   });
 }
 
-function getTurboAuthContext(sessionId: string): TurboAuthContext | null {
+export function getTurboAuthContext(sessionId: string): TurboAuthContext | null {
   const ctx = turboAuthCache.get(sessionId);
   if (!ctx) return null;
 

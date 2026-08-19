@@ -26,6 +26,7 @@ import {
   buildUserCacheKey,
   MUTATION_HTTP_METHODS,
   WRITE_HTTP_METHODS,
+  isGraphqlReadOperation,
 } from "@utils/hook-utils";
 import {
   responseCache,
@@ -130,20 +131,29 @@ function serveCachedEntry(cached: any, request: Request): Response {
   return new Response(body, { status: 200, headers: responseHeaders });
 }
 
-// ─── Bounded in-process prewarm semaphore ─────────────────────────────────────
-// Mutation storms must never pile up an unbounded queue of cache-warm requests.
-const MAX_PREWARM_CONCURRENCY = 4;
-const prewarmConcurrency = {
-  active: 0,
-  tryAcquire(): boolean {
-    if (this.active >= MAX_PREWARM_CONCURRENCY) return false;
-    this.active++;
-    return true;
-  },
-  release(): void {
-    this.active = Math.max(0, this.active - 1);
-  },
-};
+// 10ms batch flusher for L2 pattern invalidations so write storms don't saturate event loop
+const _pendingPatterns = new Set<string>();
+let _patternFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function schedulePatternClear(pattern: string, tenantId?: DatabaseId | null) {
+  _pendingPatterns.add(`${pattern}::${tenantId || "default"}`);
+  if (!_patternFlushTimer) {
+    _patternFlushTimer = setTimeout(async () => {
+      _patternFlushTimer = null;
+      const copy = Array.from(_pendingPatterns);
+      _pendingPatterns.clear();
+      for (const item of copy) {
+        const [pat, tid] = item.split("::");
+        await cacheService
+          .clearByPattern(pat, tid === "default" ? undefined : (tid as DatabaseId))
+          .catch(() => {});
+      }
+    }, 10);
+    if (typeof _patternFlushTimer?.unref === "function") {
+      _patternFlushTimer.unref();
+    }
+  }
+}
 
 export const handleApiRequests: Handle = async ({ event, resolve }) => {
   const { url, locals, request } = event;
@@ -432,61 +442,36 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
       }
     }
 
+    const gqlParsed = (locals as any).__graphqlParsedBody;
+    const graphqlIsRead =
+      apiEndpoint === "graphql" &&
+      isGraphqlReadOperation(typeof gqlParsed?.query === "string" ? gqlParsed.query : "");
+
     const response = await resolve(event);
     if (
       MUTATION_HTTP_METHODS.has(request.method) &&
       response.ok &&
       !url.pathname.endsWith("/warm-cache") &&
-      locals.user?._id
+      locals.user?._id &&
+      !graphqlIsRead
     ) {
       const currentTenantId = locals.tenantId;
-      (async () => {
-        try {
-          const apiPathPrefix = url.pathname.includes("/local/")
-            ? `/api/local/${apiEndpoint}`
-            : `/api/${apiEndpoint}`;
-          const pattern = `api:${tenantIdString || "global"}:${String(locals.user!._id)}:${apiPathPrefix}`;
-          // 🐛 L1 TURBO INVALIDATION: handleTurboGet serves GETs from the sync
-          // responseCache BEFORE this handler runs — clearing only cacheService
-          // (L2) would leave up to 5 minutes of stale L1 reads after mutations.
-          responseCache.invalidateCollection(apiEndpoint, tenantIdString);
-          await Promise.all([
-            cacheService.clearByPattern(`${pattern}*`, currentTenantId),
-            cacheService.clearByPattern(`${apiPathPrefix}*`, currentTenantId),
-          ]);
-
-          if (WRITE_HTTP_METHODS.has(request.method) && event.url.origin) {
-            // 🚀 No prewarm for GraphQL: an internal GET carries no query string,
-            // so it can never populate the response cache — it only re-runs the
-            // full schema+auth pipeline per POST (measured: ~2x load, and its
-            // turbo-auth path flipped adapter identity for schema caches).
-            if (apiEndpoint !== "graphql") {
-              // Prewarm the EXACT GET URL (pathname + original search). A
-              // synthetic ?warm-cache=true would be cached under a key no real
-              // client ever requests (generateCacheKey includes url.search).
-              const prewarmUrl = new URL(event.url.pathname + event.url.search, event.url.origin);
-              // 🚀 IN-PROCESS PREWARM: `event.fetch` routes same-origin URLs
-              // through SvelteKit's internal resolver — no loopback socket, no
-              // OS network stack, no adapter round-trip. Bounded by a semaphore
-              // so mutation storms cannot pile up an unbounded prewarm queue.
-              if (prewarmConcurrency.tryAcquire()) {
-                event
-                  .fetch(prewarmUrl, {
-                    method: "GET",
-                    headers: {
-                      Cookie: event.request.headers.get("Cookie") || "",
-                      Authorization: event.request.headers.get("Authorization") || "",
-                    },
-                  })
-                  .catch(() => {})
-                  .finally(() => prewarmConcurrency.release());
-              }
-            }
-          }
-        } catch (e) {
-          logger.error(`Cache invalidation failed: ${getErrorMessage(e)}`);
-        }
-      })();
+      try {
+        const apiPathPrefix = url.pathname.includes("/local/")
+          ? `/api/local/${apiEndpoint}`
+          : `/api/${apiEndpoint}`;
+        const pattern = `api:${tenantIdString || "global"}:${String(locals.user!._id)}:${apiPathPrefix}`;
+        // 🐛 L1 TURBO INVALIDATION: handleTurboGet serves GETs from the sync
+        // responseCache BEFORE this handler runs — clearing only cacheService
+        // (L2) would leave up to 5 minutes of stale L1 reads after mutations.
+        responseCache.invalidateCollection(apiEndpoint, tenantIdString);
+        // 🚀 Debounce L2 pattern evictions to a 10ms batch flusher so write bursts
+        // do not spawn concurrent pattern scans or steal PG connections.
+        schedulePatternClear(`${pattern}*`, currentTenantId);
+        schedulePatternClear(`${apiPathPrefix}*`, currentTenantId);
+      } catch (e) {
+        logger.error(`Cache invalidation failed: ${getErrorMessage(e)}`);
+      }
     }
     return response;
   } catch (err) {

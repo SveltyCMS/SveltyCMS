@@ -43,7 +43,7 @@
 	import { normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
 	import { onMount, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import AdminArea from './components/admin-area.svelte';
 	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
@@ -598,7 +598,7 @@
 
 	function open2FAModal(): void {
 		modalState.trigger(ModalTwoFactorAuth, { user, size: 'fullscreen' }, async (r: any) => {
-			if (r) await invalidateAll();
+			if (r) await refreshAll();
 		});
 	}
 
@@ -630,7 +630,7 @@
 				} else {
 					toast.warning({ title: 'Disabled', description: `Preference "${key}" disabled` });
 				}
-				await invalidateAll();
+				await refreshAll();
 			} else if (res.status === 401 || res.status === 403) {
 				toast.error({ title: 'Auth error', description: 'Please reload the page and try again.' });
 			} else {
@@ -681,7 +681,7 @@
 						title: 'Avatar updated',
 						description: 'Your profile photo was saved.'
 					});
-					await invalidateAll();
+					await refreshAll();
 				}
 			}
 		);
@@ -709,7 +709,7 @@
 					});
 					if (res.ok) {
 						toast.success({ title: 'Account deleted', description: 'Your account has been removed.' });
-						await invalidateAll();
+						await refreshAll();
 						window.location.href = '/login';
 						return;
 					}

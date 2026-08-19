@@ -23,7 +23,7 @@ import { logger } from "@utils/logger";
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { editUserSchema } from '@utils/schemas';
 	import { modalState } from '@utils/modal.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 
 	// Get data from page store
@@ -149,7 +149,7 @@ import { logger } from "@utils/logger";
 				title: 'User Data Updated',
 				description: 'Your profile changes were saved.'
 			});
-			await invalidateAll();
+			await refreshAll();
 			modalState.close();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
@@ -214,7 +214,7 @@ import { logger } from "@utils/logger";
 				description: `<iconify-icon icon="mdi:alert-circle" width={24}></iconify-icon> ${successMessage}`
 			});
 
-			await invalidateAll();
+			await refreshAll();
 			// modalStore.close();
 			modalState.close();
 		} catch (err) {

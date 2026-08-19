@@ -245,7 +245,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       streamed: {}, // SvelteKit streaming marker
       pluginStates,
       firstCollection: contentPromise
-        .then(([_, first]) => {
+        .then(([, first]) => {
           try {
             return first ? structuredClone(first) : null;
           } catch {

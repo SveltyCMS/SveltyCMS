@@ -348,7 +348,7 @@ import { logger } from "@utils/logger";
 							<div transition:slide class="mt-2 space-y-1">
 								{#each tokens as t (t.token)}
 									<AdminCard
-										class="preset-filled-surface-500 hover:variant-soft-primary cursor-pointer p-2 transition-colors"
+										class="preset-filled-surface-500 hover:preset-tonal-primary cursor-pointer p-2 transition-colors"
 										onclick={() => selectToken(t)}
 										onkeydown={(e) => e.key === 'Enter' && selectToken(t)}
 										tabindex={0}
@@ -387,7 +387,7 @@ import { logger } from "@utils/logger";
 		{:else if selectedToken}
 			<div class="flex-1 space-y-4 overflow-y-auto pe-2">
 				<!-- Token Info -->
-				<div class="card variant-soft-primary border border-tertiary-500 dark:border-primary-500/30 p-4">
+				<div class="card preset-tonal-primary border border-tertiary-500 dark:border-primary-500/30 p-4">
 					<div class="mb-2 flex items-center justify-between">
 						<div class="text-lg font-bold text-primary-700 dark:text-primary-500">{selectedToken.name}</div>
 						<Badge variant="primary">{selectedToken.type}</Badge>
@@ -401,7 +401,7 @@ import { logger } from "@utils/logger";
 					<div class="space-y-2">
 						<div class="text-xs font-bold uppercase opacity-50">Applied Modifiers</div>
 						{#each selectedModifiers as mod, i (mod.def.name + i)}
-							<div class="card variant-ringed-surface group relative p-3">
+							<div class="card preset-outlined-surface-500 group relative p-3">
 								<div class="mb-2 flex items-center justify-between">
 									<span class="font-bold text-secondary-500">{mod.def.label}</span>
 									<Button variant="error"
@@ -469,9 +469,9 @@ import { logger } from "@utils/logger";
 				<div>
 					<div class="mb-1 text-[10px] uppercase opacity-50">Live Result</div>
 					{#if isLoadingPreview}
-						<div class="card preset-tonal animate-pulse p-3 text-sm">Resolving...</div>
+						<div class="card preset-tonal-surface-500 animate-pulse p-3 text-sm">Resolving...</div>
 					{:else}
-						<div class="card variant-soft-secondary p-3 text-sm font-bold">{resolvedPreview || '(Empty)'}</div>
+						<div class="card preset-tonal-secondary p-3 text-sm font-bold">{resolvedPreview || '(Empty)'}</div>
 					{/if}
 				</div>
 

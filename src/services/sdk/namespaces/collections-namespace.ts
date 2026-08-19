@@ -12,6 +12,7 @@ import {
 } from "@src/content/content-utils";
 import {
   applyPublicationToQuery,
+  publicationCacheSuffix,
   resolvePublicationFilter,
 } from "@utils/security/publication-policy";
 import { cacheService } from "@src/databases/cache/cache-service";
@@ -29,7 +30,6 @@ import { copyDataWithFreshRowIds } from "@src/utils/data/copy-data-with-fresh-id
 import { resolvePopulatedRelations } from "./populate-resolver";
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
-import { sanitizeObject } from "@utils/security/input-sanitizer";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import { decodePageCursor, mergeKeysetFilter } from "@src/databases/core/page-utils";
 import { applyBeforeValidate, applyAfterValidate } from "@src/content/schema-hooks";
@@ -190,25 +190,25 @@ let _outboxFlushScheduled = false;
 export class CollectionsNamespace {
   private _proxy: CollectionProxy;
 
+  /**
+   * List-query keys only (low cardinality). Per-entry findById keys are
+   * high-cardinality — indexing them + running a string-split dispose on every
+   * LRU eviction is what tanked findByIdRandom (10k distinct IDs vs max 2000).
+   * Write invalidation scans the LRU (≤2000) which is cheap vs read-path thrash.
+   */
   private static _requestCacheKeys = new Map<string, Set<string>>();
 
   private static _requestCache = new LRUCache<string, any>({
     max: 2000,
     ttl: 60_000,
-    dispose: (_value, key) => {
-      const parts = key.split(":");
-      if (parts.length >= 3 && parts[1] === "collection") {
-        const prefix = `${parts[0]}:${parts[2]}`;
-        const set = CollectionsNamespace._requestCacheKeys.get(prefix);
-        if (set) {
-          set.delete(key);
-          if (set.size === 0) CollectionsNamespace._requestCacheKeys.delete(prefix);
-        }
-      }
-    },
   });
 
-  /** Set entry and track key in keyspace index for O(1) eviction */
+  /** True when this key is a list/query key worth indexing for scoped eviction. */
+  private static isListCacheKey(key: string): boolean {
+    return key.includes(":find:");
+  }
+
+  /** Set entry. Only list keys join the keyspace index (no dispose hook). */
   public static setRequestCache(
     key: string,
     value: any,
@@ -216,7 +216,7 @@ export class CollectionsNamespace {
     tenantId?: DatabaseId | null,
   ): void {
     CollectionsNamespace._requestCache.set(key, value);
-    if (collectionId) {
+    if (collectionId && CollectionsNamespace.isListCacheKey(key)) {
       const prefix = `${tenantId || "global"}:${collectionId}`;
       let set = CollectionsNamespace._requestCacheKeys.get(prefix);
       if (!set) {
@@ -241,13 +241,14 @@ export class CollectionsNamespace {
         CollectionsNamespace._requestCache.delete(key);
       }
       CollectionsNamespace._requestCacheKeys.delete(prefix);
-    } else {
-      const token = `collection:${collectionId}`;
-      for (const key of CollectionsNamespace._requestCache.keys()) {
-        if (key.includes(token)) {
-          CollectionsNamespace._requestCache.delete(key);
-        }
-      }
+    }
+    // Entry keys (findById) are not indexed — scan the bounded LRU.
+    const token = `collection:${collectionId}`;
+    const tenantPrefix = tenantId ? `${tenantId}:` : null;
+    for (const key of CollectionsNamespace._requestCache.keys()) {
+      if (!key.includes(token)) continue;
+      if (tenantPrefix && !key.startsWith(tenantPrefix) && !key.startsWith("global:")) continue;
+      CollectionsNamespace._requestCache.delete(key);
     }
   }
 
@@ -779,6 +780,7 @@ export class CollectionsNamespace {
 
     if (!skipRequestCache || !bypassCache) {
       const tenantPrefix = tenantId ? `${tenantId}:` : "global:";
+      const extraQueryKeys = Object.keys(query).filter((k) => k !== "tenantId" && k !== "status");
       const isDefaultList =
         !options.fields &&
         !options.populate &&
@@ -786,11 +788,10 @@ export class CollectionsNamespace {
         offset === 0 &&
         !sort &&
         !decodedCursor &&
-        Object.keys(query).length === (tenantId ? 2 : 1) &&
-        query.status === "publish";
+        extraQueryKeys.length === 0;
 
       if (isDefaultList) {
-        cacheKey = `${tenantPrefix}collection:${schema._id}:find:default_50`;
+        cacheKey = `${tenantPrefix}collection:${schema._id}:find:default_50${publicationCacheSuffix(effectivePublicationFilter)}`;
       } else if (
         query._id &&
         Object.keys(query).length === 1 &&
@@ -1228,7 +1229,7 @@ export class CollectionsNamespace {
       { user: options.user, system: options.system },
       options.publicationFilter,
     );
-    const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}:${effectivePublicationFilter}`;
+    const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}${publicationCacheSuffix(effectivePublicationFilter)}`;
     const skipRequestCache = bypassCache || options.bypassRequestCache;
 
     if (!skipRequestCache && CollectionsNamespace._requestCache.has(cacheKey)) {
@@ -1321,7 +1322,7 @@ export class CollectionsNamespace {
     }
 
     const finalResult = { success: true, data: item || null };
-    const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}:${effectivePublicationFilter}`;
+    const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}${publicationCacheSuffix(effectivePublicationFilter)}`;
 
     if (!bypassCache) {
       // 🚀 FIRE-AND-FORGET L2: Don't await async cache write on the response path.
@@ -1355,23 +1356,20 @@ export class CollectionsNamespace {
 
     // 🛡️ ACTIVE SANITIZATION: only when schema has string/html field types
     const m1 = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
-    let constrainedData = hot._hasSanitizableFields
+    let entryData = hot._hasSanitizableFields
       ? sanitizeCollectionFields(data, schema as CollectionFieldSchema)
       : data;
 
     if (hot._hasConstrainedFields) {
-      constrainedData = validateFieldConstraints(
-        stripNullRows(constrainedData, schema as any),
-        schema as any,
-      );
+      entryData = validateFieldConstraints(stripNullRows(entryData, schema as any), schema as any);
     }
 
-    let entryData: Record<string, unknown> = {
-      ...constrainedData,
-      tenantId,
-      createdBy: system ? "system" : user?._id,
-      createdAt: nowISODateString(),
-    } as Record<string, unknown>;
+    if (entryData === data) {
+      entryData = { ...data };
+    }
+    entryData.tenantId = tenantId;
+    entryData.createdBy = system ? "system" : user?._id;
+    entryData.createdAt = nowISODateString();
 
     // ── Schema Lifecycle Hooks: beforeValidate → range gate → afterValidate ──
     if (hot._hasHooks && schema.hooks) {
@@ -1383,7 +1381,7 @@ export class CollectionsNamespace {
       };
       entryData = await applyBeforeValidate(schema.hooks, entryData, {
         ...hookCtx,
-        document: { ...entryData },
+        document: entryData,
       });
 
       if (hot._hasNumberFields) {
@@ -1395,7 +1393,7 @@ export class CollectionsNamespace {
 
       entryData = await applyAfterValidate(schema.hooks, entryData, {
         ...hookCtx,
-        document: { ...entryData },
+        document: entryData,
       });
     } else if (hot._hasNumberFields) {
       const rangeErrors = validateNumericFields(entryData, schema as CollectionFieldSchema);
@@ -1415,7 +1413,7 @@ export class CollectionsNamespace {
     );
 
     const m2 = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
-    // Widget pipeline only when widgets declare modifyRequest; else lightweight sanitize
+    // Widget pipeline only when widgets declare modifyRequest
     if (hot._hasActiveWidgets) {
       let collectionModel = collectionModelCache.get(schema);
       if (!collectionModel) {
@@ -1436,9 +1434,6 @@ export class CollectionsNamespace {
         system,
       });
       finalData = payload[0] ?? finalData;
-    } else if (hot._hasSanitizableFields) {
-      // 🚀 Only run deep-object sanitizer when schema has HTML/text fields
-      finalData = sanitizeObject(finalData) as Record<string, unknown>;
     }
     m2?.();
 
@@ -1488,22 +1483,22 @@ export class CollectionsNamespace {
     const hot = ensureSchemaHotFlags(schema);
 
     const m1u = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
-    let constrainedData = hot._hasSanitizableFields
+    let updateData = hot._hasSanitizableFields
       ? sanitizeCollectionFields(data, schema as CollectionFieldSchema)
       : data;
 
     if (hot._hasConstrainedFields) {
-      constrainedData = validateFieldConstraints(
-        stripNullRows(constrainedData, schema as any),
+      updateData = validateFieldConstraints(
+        stripNullRows(updateData, schema as any),
         schema as any,
       );
     }
 
-    let updateData: Record<string, unknown> = {
-      ...constrainedData,
-      updatedBy: system ? "system" : user?._id,
-      updatedAt: nowISODateString(),
-    } as Record<string, unknown>;
+    if (updateData === data) {
+      updateData = { ...data };
+    }
+    updateData.updatedBy = system ? "system" : user?._id;
+    updateData.updatedAt = nowISODateString();
 
     // ── Schema Lifecycle Hooks: beforeValidate → range gate → afterValidate ──
     if (hot._hasHooks && schema.hooks) {
@@ -1515,7 +1510,7 @@ export class CollectionsNamespace {
       };
       updateData = await applyBeforeValidate(schema.hooks, updateData, {
         ...hookCtx,
-        document: { ...updateData },
+        document: updateData,
       });
 
       if (hot._hasNumberFields) {
@@ -1527,7 +1522,7 @@ export class CollectionsNamespace {
 
       updateData = await applyAfterValidate(schema.hooks, updateData, {
         ...hookCtx,
-        document: { ...updateData },
+        document: updateData,
       });
     } else if (hot._hasNumberFields) {
       const rangeErrors = validateNumericFields(updateData, schema as CollectionFieldSchema);
@@ -1568,9 +1563,6 @@ export class CollectionsNamespace {
         system,
       });
       finalData = payload[0] ?? finalData;
-    } else if (hot._hasSanitizableFields) {
-      // 🚀 Only run deep-object sanitizer when schema has HTML/text fields
-      finalData = sanitizeObject(finalData) as Record<string, unknown>;
     }
     m2u?.();
 
@@ -1689,7 +1681,15 @@ export class CollectionsNamespace {
           if (action === "create") {
             try {
               const workflowService = await getWorkflowServiceLazy();
-              await workflowService.initializeWorkflow(id, schemaId, tid);
+              // Negative cache hit: collection has no workflow — skip the
+              // extra findMany round-trip that previously ran on every create.
+              const peeked =
+                typeof workflowService.peekWorkflowCache === "function"
+                  ? workflowService.peekWorkflowCache(schemaId, tid)
+                  : undefined;
+              if (peeked !== null) {
+                await workflowService.initializeWorkflow(id, schemaId, tid);
+              }
             } catch {
               /* no workflow for collection / service unavailable */
             }
@@ -1716,13 +1716,12 @@ export class CollectionsNamespace {
     options: LocalApiOptions,
     schema: Schema,
   ): Promise<any> {
-    const plugins = pluginRegistry.getAll();
-    if (plugins.length === 0) {
+    // beforeSave runs on the critical path — bail fast when no plugin implements it
+    if (!pluginRegistry.hasAnyHook(hookName)) {
       return data;
     }
-    // beforeSave runs on the critical path — bail fast when no plugin implements it
-    const hasAnyMatchingHook = pluginRegistry.hasAnyHook(hookName);
-    if (!hasAnyMatchingHook) {
+    const plugins = pluginRegistry.getAll();
+    if (plugins.length === 0) {
       return data;
     }
 

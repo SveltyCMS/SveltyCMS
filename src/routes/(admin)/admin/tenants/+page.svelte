@@ -15,7 +15,7 @@
 <script lang="ts">
 import type { PageData } from "./$types";
 import { createTenant, toggleTenantStatus } from "./tenants.remote";
-import { invalidateAll } from '$app/navigation';
+import { refreshAll } from '$app/navigation';
 import AdminCard from '@components/admin-card.svelte';
 import AdminPageShell from '@components/admin-page-shell.svelte';
 import Badge from '@components/ui/badge.svelte';
@@ -39,7 +39,7 @@ async function handleCreate() {
 	try {
 		const name = `Tenant ${Date.now()}`;
 		await createTenant({ name });
-		await invalidateAll();
+		await refreshAll();
 	} finally {
 		creating = false;
 	}
@@ -120,7 +120,7 @@ function formatBytes(bytes: number, decimals = 2) {
 											tenantId: tenant._id,
 											status: tenant.status === 'active' ? 'suspended' : 'active',
 										});
-										await invalidateAll();
+										await refreshAll();
 									}}
 								>
 									{tenant.status === 'active' ? 'Suspend' : 'Activate'}

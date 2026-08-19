@@ -42,6 +42,7 @@ export const widgetMeta = {
 <script lang="ts">
 import type { WidgetSize } from '@src/content/types';
 import BaseWidget from '../../base-widget.svelte';
+import Select from '@components/ui/select.svelte';
 
 interface LogEntry {
 		timestamp: string;
@@ -151,14 +152,14 @@ interface LogEntry {
 		{#if !isCompact}
 			<!-- Controls (rich layout only) -->
 			<div class="mb-3 flex flex-wrap items-center gap-2">
-				<select aria-label="Log level"
-					bind:value={filterLevel}
-					class="rounded border border-surface-200 bg-surface-50 px-3 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
-				>
-					{#each levels as opt (opt.value)}
-						<option value={opt.value}>{opt.label}</option>
-					{/each}
-				</select>
+				<div class="w-28">
+					<Select
+						label="Log level"
+						bind:value={filterLevel}
+						options={levels}
+						size="sm"
+					/>
+				</div>
 
 				<div class="relative flex-1 min-w-30">
 					<input aria-label="Search logs"

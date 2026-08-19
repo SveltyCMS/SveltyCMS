@@ -18,6 +18,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import Select from '@components/ui/select.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	// ParaglideJS
 	import {
@@ -36,7 +37,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { addUserTokenSchema } from '@utils/schemas';
 	// Utils
 	import { modalState } from '@utils/modal.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 
 	// Props
@@ -177,7 +178,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			}
 
 			// Invalidate data first
-			await invalidateAll();
+			await refreshAll();
 
 			// If it's a new token and we have the value, don't close yet so user can copy it
 			if (!isEditMode && createdToken) {
@@ -218,7 +219,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				title: 'Success',
 				description: modal_token_deleted_successfully()
 			});
-			await invalidateAll();
+			await refreshAll();
 
 			if (close) {
 				close({ success: true });
@@ -257,7 +258,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 <div class="modal-example-form space-y-4 text-black dark:text-white p-4">
 	{#if createdToken}
-		<div class="card p-6 space-y-4 variant-soft-success border border-success-500/30 shadow-lg">
+		<div class="card p-6 space-y-4 preset-tonal-success border border-success-500/30 shadow-lg">
 			<h3 class="text-xl font-bold text-success-700 dark:text-success-400">Invitation Token Created</h3>
 			<p class="text-sm opacity-80">Since email delivery might be disabled or delayed, you can provide this link to the user directly:</p>
 
@@ -336,19 +337,19 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 			<!-- Expires field -->
 			<div class="group relative z-0 w-full mt-2">
-				<label for="expires-select" class="mb-1 block text-sm opacity-70">{modaltokenuser_tokenvalidity()}</label>
-				<select aria-label="Token expiration"
+				<Select
 					id="expires-select"
+					label={modaltokenuser_tokenvalidity()}
 					bind:value={tokenForm.data.expiresIn}
-					class="input bg-white text-black dark:bg-surface-700 dark:text-white"
-				>
-					<option value="2 hrs">2 Hours</option>
-					<option value="12 hrs">12 Hours</option>
-					<option value="2 days">2 Days (default)</option>
-					<option value="1 week">1 Week</option>
-					<option value="2 weeks">2 Weeks</option>
-					<option value="1 month">1 Month</option>
-				</select>
+					options={[
+						{ value: '2 hrs', label: '2 Hours' },
+						{ value: '12 hrs', label: '12 Hours' },
+						{ value: '2 days', label: '2 Days (default)' },
+						{ value: '1 week', label: '1 Week' },
+						{ value: '2 weeks', label: '2 Weeks' },
+						{ value: '1 month', label: '1 Month' },
+					]}
+				/>
 			</div>
 
 			<footer class="modal-footer flex flex-wrap items-center justify-between gap-4 border-t border-surface-500/20 pt-6 mt-2">

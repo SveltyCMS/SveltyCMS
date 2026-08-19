@@ -41,6 +41,17 @@ export const MUTATION_HTTP_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
 /** Body-bearing verbs (field-write guard, payload size limit). */
 export const WRITE_HTTP_METHODS = new Set(["POST", "PUT", "PATCH"]);
 
+/**
+ * GraphQL is almost always POST, including read-only queries. Treating those
+ * POSTs as mutations wipes the GraphQL response cache on every query.
+ * Empty/missing query is treated as read (fail-open for cache; Yoga still rejects).
+ */
+export function isGraphqlReadOperation(query: string | null | undefined): boolean {
+  if (!query) return true;
+  const trimmed = query.trim().toLowerCase();
+  return !trimmed.startsWith("mutation") && !trimmed.startsWith("subscription");
+}
+
 /** Standardized user ID string extraction for cache key isolation. */
 export function getUserCacheId(user: { _id?: unknown; id?: unknown } | null | undefined): string {
   if (!user) return "";

@@ -35,6 +35,7 @@ import { widgets } from "@src/stores/widget-store.svelte";
 // System Logger
 import { logger } from "@utils/logger";
 import { getFieldName } from "@utils/utils";
+import { applyPublicationToQuery } from "@src/utils/security/publication-policy";
 // deepmerge import removed
 import type { GraphQLFieldResolver } from "graphql";
 
@@ -505,26 +506,47 @@ export async function collectionsResolvers(
       const fields = extractGraphQLFields(info);
 
       try {
-        let cms = ctx.cms;
-        if (!cms) {
-          const { LocalCMS } = await import("@src/services/sdk");
-          cms = new LocalCMS(dbAdapter);
+        const tableName = `collection_${(collection._id as string).replace(/-/g, "")}`;
+        const query: Record<string, unknown> = {};
+        if (ctx.tenantId && ctx.tenantId !== "global") {
+          query.tenantId = ctx.tenantId;
         }
+        applyPublicationToQuery(query, ctx.publicationFilter || "all");
 
-        const result = await cms.collections.find(collection._id as string, {
-          tenantId: ctx.tenantId,
+        const findOptions: any = {
           limit,
-          offset: (page - 1) * limit,
-          publicationFilter: ctx.publicationFilter || "all",
-          user: ctx.user,
-          fields,
-        });
-
-        if (!result.success) {
-          throw new Error(`Database query failed: ${result.error?.message || "Unknown error"}`);
+          skip: (page - 1) * limit,
+          tenantId: ctx.tenantId || "default",
+        };
+        if (fields && fields.length > 0) {
+          findOptions.projection = fields;
         }
 
-        const resultArray = (result.data || []) as unknown as DocumentBase[];
+        let resultArray: DocumentBase[];
+        try {
+          const rawDocs = await dbAdapter.crud.findMany(tableName, query, findOptions);
+          resultArray = (rawDocs || []) as unknown as DocumentBase[];
+        } catch {
+          // Fallback to cms.collections.find if direct table lookup needs schema hydration
+          let cms = ctx.cms;
+          if (!cms) {
+            const { LocalCMS } = await import("@src/services/sdk");
+            cms = new LocalCMS(dbAdapter);
+          }
+          const result = await cms.collections.find(collection._id as string, {
+            tenantId: ctx.tenantId,
+            limit,
+            offset: (page - 1) * limit,
+            publicationFilter: ctx.publicationFilter || "all",
+            user: ctx.user,
+            fields,
+          });
+          if (!result.success) {
+            throw new Error(`Database query failed: ${result.error?.message || "Unknown error"}`);
+          }
+          resultArray = (result.data || []) as unknown as DocumentBase[];
+        }
+
         if (resultArray.length === 0) return resultArray;
 
         // Quick check: does any document have a token placeholder?

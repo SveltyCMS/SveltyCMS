@@ -46,7 +46,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 	} from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, refreshAll } from '$app/navigation';
 	// Stores
 	import { contentStructure } from '@src/stores/collection-store.svelte';
 	import { ui, toggleUIElement } from '@src/stores/ui-store.svelte';
@@ -208,7 +208,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 				}
 			});
 			if (!res.ok && res.status === 403) {
-				await invalidateAll();
+				await refreshAll();
 				await new Promise(r => setTimeout(r, 100));
 				await fetch('/api/user/logout', {
 					method: 'POST',
@@ -259,7 +259,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Close Sidebar"
-			 class="p-0! min-w-0 preset-outline-surface-500">
+			 class="p-0! min-w-0 preset-outlined-surface-500">
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</Button>
 
