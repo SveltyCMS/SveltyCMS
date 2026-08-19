@@ -239,7 +239,7 @@ test.describe("Multi-tenancy isolation (HTTP API enforcement)", () => {
         name: `Entries ${RUN_ID}`,
         fields: [
           { db_fieldName: "title", name: "Title", widget: { Name: "Input" }, type: "string" },
-          { db_fieldName: "body", name: "Body", widget: { Name: "Textarea" }, type: "string" },
+          { db_fieldName: "body", name: "Body", widget: { Name: "Input" }, type: "string" },
         ],
       },
     });
