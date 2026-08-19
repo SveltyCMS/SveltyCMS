@@ -263,22 +263,18 @@ function getFilterUrl(status: string | undefined = undefined) {
 									</Badge>
 									{#if job.lastError}
 										<iconify-icon
-				{:else}
-					{#each paginatedJobs as job (job._id)}
-						<tr class="hover:bg-surface-50 dark:hover:bg-surface-800/30 transition-colors">
-							<td class="px-4 py-3">
-								<div class="font-medium text-surface-900 dark:text-surface-100">{job.name}</div>
-								{#if job.error}
-									<div class="text-xs text-error-600 dark:text-error-400 truncate max-w-xs">{job.error}</div>
-								{/if}
+											icon="mdi:information-outline"
+											class="text-error-500 cursor-help"
+											title={job.lastError}
+										></iconify-icon>
+									{/if}
+								</div>
 							</td>
-							<td class="px-4 py-3">
-								<Badge variant={statusBadge(job.status)} size="sm">
-									{job.status}
-								</Badge>
+							<td class="px-4 py-3 text-sm">
+								{job.attempts} / {job.maxAttempts}
 							</td>
-							<td class="px-4 py-3 text-surface-600 dark:text-surface-400">
-								{job.attempts ?? 0}/{job.maxAttempts ?? 3}
+							<td class="px-4 py-3 text-sm">
+								{formatDate(job.nextRunAt)}
 							</td>
 							<td class="px-4 py-3 text-surface-500 dark:text-surface-400 text-xs">
 								{formatDate(job.createdAt)}
