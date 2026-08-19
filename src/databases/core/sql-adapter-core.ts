@@ -1683,11 +1683,17 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const values = this.prepareValues(table, data, null, new Date(), options);
         const whereCondition = this.mapQuery(table, query, options);
 
-        // Atomic single UPDATE instead of N+1 sequential loop
-        const result = await this.getDrizzleInstance(options)
+        // Atomic single UPDATE instead of N+1 sequential loop.
+        // SQLite drizzle builders are lazy until `.run()`; awaiting the builder
+        // alone does not execute (batch.bulkUpdate already uses this pattern).
+        const queryBuilder = this.getDrizzleInstance(options)
           .update(table)
           .set(values)
           .where(whereCondition);
+        const result =
+          typeof (queryBuilder as { run?: () => Promise<unknown> }).run === "function"
+            ? await (queryBuilder as { run: () => Promise<unknown> }).run()
+            : await queryBuilder;
 
         return {
           // postgres.js exposes .count; sqlite .changes; mysql2 .affectedRows
@@ -1782,8 +1788,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       async () => {
         const table = this.getTable(collection);
         if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const execWrite = async (builder: { run?: () => Promise<unknown> }) =>
+          typeof builder.run === "function" ? builder.run() : builder;
+
         if (options.permanent && (!query || Object.keys(query).length === 0)) {
-          await this.getDrizzleInstance(options).delete(table);
+          await execWrite(
+            this.getDrizzleInstance(options).delete(table) as { run?: () => Promise<unknown> },
+          );
           return { deletedCount: -1 };
         }
         // 🚀 Single-statement soft/hard delete instead of findMany + N deletes.
@@ -1791,13 +1802,19 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const hasIsDeleted = !!this.getColumn(table, "isDeleted");
         const db = this.getDrizzleInstance(options);
         if (options.permanent || !hasIsDeleted) {
-          await db.delete(table).where(whereCondition);
+          await execWrite(
+            db.delete(table).where(whereCondition) as { run?: () => Promise<unknown> },
+          );
           return { deletedCount: -1 };
         }
-        const res = await db
-          .update(table)
-          .set({ isDeleted: true, updatedAt: new Date() })
-          .where(whereCondition);
+        const res = await execWrite(
+          db
+            .update(table)
+            .set({ isDeleted: true, updatedAt: new Date() })
+            .where(whereCondition) as {
+            run?: () => Promise<unknown>;
+          },
+        );
         // Affected rows differ per dialect: postgres.js -> .count, sqlite -> .changes,
         // mysql2 -> .affectedRows. Fall back to -1 (unknown) when not exposed.
         const affected =
