@@ -13,6 +13,7 @@
  */
 
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { isAdmin } from "@src/databases/auth/constants";
 import { error, isHttpError } from "@sveltejs/kit";
 // System Logs
 import { logger } from "@utils/logger";
@@ -25,23 +26,20 @@ import "./admin.remote";
 export const load: PageServerLoad = async ({ locals }) => {
   try {
     const user = getAuthenticatedUser(locals);
-    const isAdmin =
-      locals.isAdmin === true ||
-      (user as any)?.isAdmin === true ||
-      (locals.isAdmin == null && (user.role === "admin" || user.role === "super-admin"));
+    const isAdminUser = locals.isAdmin === true || isAdmin(user);
     const tenantRoles = locals.roles ?? [];
 
     // Log successful session validation
     logger.trace(`User authenticated successfully for user: ${user._id}`);
 
     const hasSystemSettingsPermission =
-      isAdmin || hasPermissionWithRoles(user, "config:settings", tenantRoles);
+      isAdminUser || hasPermissionWithRoles(user, "config:settings", tenantRoles);
 
     if (!hasSystemSettingsPermission) {
       const message = `User ${user._id} does not have permission to access system settings`;
       logger.warn(message, {
         userRole: user.role,
-        isAdmin,
+        isAdmin: isAdminUser,
       });
       throw error(403, "Insufficient permissions");
     }
@@ -53,7 +51,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         _id: _id.toString(),
         ...rest,
       },
-      isAdmin,
+      isAdmin: isAdminUser,
     };
   } catch (err) {
     if (isHttpError(err)) {

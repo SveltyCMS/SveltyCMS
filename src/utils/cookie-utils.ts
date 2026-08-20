@@ -10,7 +10,7 @@
  * Standardized cookie parsing utilities for SveltyCMS (WebSocket auth bridge).
  */
 
-import { str } from "./string-utils";
+import { str } from "./string.ts";
 
 /**
  * 🛡️ Hardened: Parses cookie header with protection against prototype pollution

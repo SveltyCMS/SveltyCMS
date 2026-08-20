@@ -167,13 +167,14 @@ function resolveWidgetName(field: FieldTemplate): string {
 /**
  * Converts a CollectionPreset template into a database Schema object.
  */
-export function collectionPresetToSchema(collection: CollectionPreset): Schema {
+export function collectionPresetToSchema(collection: CollectionPreset, order?: number): Schema {
   const schema: Schema = {
     _id: collection.name,
     name: collection.label,
     slug: collection.name,
     icon: collection.icon,
     description: collection.description,
+    order: collection.order ?? order,
     fields: collection.fields.map((field) => {
       const schemaField: Record<string, unknown> = {
         db_fieldName: field.db_fieldName,
@@ -201,7 +202,10 @@ export function collectionPresetToSchema(collection: CollectionPreset): Schema {
 /**
  * Generates a TypeScript collection definition file from a CollectionPreset template.
  */
-export function generateCollectionFileContent(collection: CollectionPreset): string {
+export function generateCollectionFileContent(
+  collection: CollectionPreset,
+  order?: number,
+): string {
   const fieldEntries = collection.fields
     .map((f) => {
       const widgetName = resolveWidgetName(f);
@@ -237,7 +241,8 @@ export default {
   name: "${collection.name}",
   label: "${collection.label}",
   description: "${collection.description}",
-  icon: "${collection.icon}",${collection.livePreview !== undefined ? `\n  livePreview: ${typeof collection.livePreview === "string" ? `"${collection.livePreview}"` : collection.livePreview},` : ""}${collection.plugins?.length ? `\n  plugins: ${JSON.stringify(collection.plugins)},` : ""}
+  icon: "${collection.icon}",
+  order: ${collection.order ?? order ?? 999},${collection.livePreview !== undefined ? `\n  livePreview: ${typeof collection.livePreview === "string" ? `"${collection.livePreview}"` : collection.livePreview},` : ""}${collection.plugins?.length ? `\n  plugins: ${JSON.stringify(collection.plugins)},` : ""}
   fields: [
 ${fieldEntries}
   ],
@@ -252,12 +257,17 @@ ${fieldEntries}
 export async function getWizardPresetSchemas(presetId: string): Promise<Schema[]> {
   const preset = PRESETS.find((p) => p.id === presetId);
   if (preset?.collections?.length) {
-    return preset.collections.map(collectionPresetToSchema);
+    return preset.collections.map((collection, index) =>
+      collectionPresetToSchema(collection, index),
+    );
   }
 
   // Benchmark / demo presets keep using seed.ts definitions
   const { PRESET_COLLECTIONS } = await import("./seed");
-  return PRESET_COLLECTIONS[presetId] || [];
+  return (PRESET_COLLECTIONS[presetId] || []).map((schema, index) => ({
+    ...schema,
+    order: schema.order ?? index,
+  }));
 }
 
 export interface WritePresetFilesOptions {
@@ -285,9 +295,9 @@ export async function writePresetCollectionFiles(
     await purgeBenchmarkCollectionArtifacts({ wipeAllSource: true });
   }
 
-  for (const collection of collections) {
+  for (const [index, collection] of collections.entries()) {
     const fileName = `${collection.name}.ts`;
-    const content = generateCollectionFileContent(collection);
+    const content = generateCollectionFileContent(collection, index);
     await fs.writeFile(path.join(dir, fileName), content, "utf-8");
     logger.info(`📄 Wrote collection file: config/collections/${fileName}`);
   }

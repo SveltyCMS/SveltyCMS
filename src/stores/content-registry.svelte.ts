@@ -3,6 +3,11 @@
  * @description Reactive registry of the content tree — ContentNode hierarchy and derived Schema catalog with HMR support.
  */
 
+import {
+  getFirstCollectionSchema,
+  getSchemaKey,
+  getSchemaPath,
+} from "@src/content/first-collection";
 import type { ContentNode, Schema } from "@src/content/types";
 
 // ✨ Absolute Global Singleton Pattern using 'process' to bypass bundler chunk isolation
@@ -21,6 +26,8 @@ class ContentStore {
   private _schemaAliasIndex = new Map<string, string>();
   /** Fast-path cached sanitized client nodes per tenant. */
   private _clientNodesCache = new Map<string, ContentNode[]>();
+  /** Tenants that completed content initialization, including empty tenants. */
+  private _initializedTenants = new Set<string>();
 
   #initState = $state<ContentState>("uninitialized");
   public contentVersion = $state(0);
@@ -65,8 +72,16 @@ class ContentStore {
     this.#reloadResolvers.clear();
   }
 
+  private _tenantKey(tenantId?: string | null): string {
+    return tenantId || "global";
+  }
+
   isInitializedForTenant(_tenantId?: string | null): boolean {
     return this.isInitialized;
+  }
+
+  markInitializedForTenant(tenantId?: string | null): void {
+    this._initializedTenants.add(this._tenantKey(tenantId));
   }
 
   get nodeCount(): number {
@@ -78,18 +93,27 @@ class ContentStore {
   }
 
   getCollections(tenantId?: string | null): Schema[] {
-    const tid = tenantId || "global";
+    const tid = this._tenantKey(tenantId);
     const nodes = this._nodes.get(tid) || [];
-    return nodes
+    const fromNodes = nodes
       .filter((n) => n.nodeType === "collection" && n.collectionDef)
       .map((n) => n.collectionDef!);
+    if (fromNodes.length > 0) return fromNodes;
+    const explicit = this._collections.get(tid);
+    if (explicit && explicit.length > 0) return explicit;
+    if (tid === "global") return Array.from(this._schemas.values());
+    return [];
   }
 
   getAllCollections(tenantId?: string | null): Schema[] {
     return this.getCollections(tenantId);
   }
 
-  getCollection(id: string, _tenantId?: string | null): Schema | undefined {
+  getCollection(id: string, tenantId?: string | null): Schema | undefined {
+    if (tenantId) {
+      return this._findCollectionInList(this.getCollections(tenantId), id);
+    }
+
     let schema = this._schemas.get(id);
     if (schema) return schema;
 
@@ -116,24 +140,19 @@ class ContentStore {
     return schema;
   }
 
-  getSmartFirstCollection(_tenantId?: string | null): Schema | null {
-    // Skip system-only collections (redirects, 404_logs, etc.) that are not user content
-    const systemPrefixes = ["redirects", "404_logs", "plugin_", "workflow_"];
-    for (const schema of this._schemas.values()) {
-      const id = (schema._id || schema.name || "").toLowerCase();
-      if (systemPrefixes.some((prefix) => id.startsWith(prefix))) continue;
-      return schema;
-    }
-    // Fall back to first available if no user collection found
-    return Array.from(this._schemas.values())[0] || null;
+  getSmartFirstCollection(tenantId?: string | null): Schema | null {
+    const collections = this.getCollections(tenantId);
+    return getFirstCollectionSchema(collections) || collections[0] || null;
   }
 
   setCollections(tenantId: string, collections: Schema[]) {
     this._collections.set(tenantId, collections);
-    for (const schema of collections) {
-      if (schema._id) {
-        this._schemas.set(schema._id as string, schema);
-        this._indexSchemaAliases(schema);
+    if (this._tenantKey(tenantId) === "global") {
+      for (const schema of collections) {
+        if (schema._id) {
+          this._schemas.set(schema._id as string, schema);
+          this._indexSchemaAliases(schema);
+        }
       }
     }
     this.updateVersion();
@@ -246,6 +265,24 @@ class ContentStore {
     if (slug) this._schemaAliasIndex.set(String(slug).toLowerCase(), schemaId);
   }
 
+  private _findCollectionInList(collections: Schema[], id: string): Schema | undefined {
+    const cleanId = id.replace(/^\/+/, "").toLowerCase();
+    const stripped = cleanId.replace(/^collection\//, "");
+    return collections.find((schema) => {
+      const schemaId = getSchemaKey(schema);
+      const path = (schema.path || "").replace(/^\/+/, "").toLowerCase();
+      const slug = String((schema as { slug?: string }).slug || "").toLowerCase();
+      return (
+        schemaId === cleanId ||
+        schemaId === stripped ||
+        path === cleanId ||
+        path === stripped ||
+        slug === cleanId ||
+        slug === stripped
+      );
+    });
+  }
+
   sync(nodes: ContentNode[]) {
     for (const node of nodes) {
       this._upsertInternal(node);
@@ -305,8 +342,10 @@ class ContentStore {
         }
         const schemaId = (schema._id || node._id) as string;
 
-        this._schemas.set(schemaId, schema);
-        this._indexSchemaAliases(schema);
+        if (tid === "global") {
+          this._schemas.set(schemaId, schema);
+          this._indexSchemaAliases(schema);
+        }
 
         let tCollections = this._collections.get(tid) || [];
         const colIndex = tCollections.findIndex((c) => c._id === schemaId);
@@ -343,7 +382,7 @@ class ContentStore {
       _id: col._id,
       name: col.name,
       icon: col.icon || "mdi:folder",
-      path: col.path || `/collection/${col.name}`,
+      path: getSchemaPath(col as any),
       fieldCount: (col.fields || []).length,
       hasRevisions: col.revision || false,
       hasLivePreview: !!col.livePreview,
@@ -375,6 +414,7 @@ class ContentStore {
       this._allNodes.clear();
       this._pathIndex.clear();
       this._schemaAliasIndex.clear();
+      this._initializedTenants.clear();
     }
     this.updateVersion();
   }

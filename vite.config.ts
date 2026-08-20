@@ -27,6 +27,11 @@ process.env.ESBUILD_WORKER_THREADS = "0";
 const SERVER_EXTERNALS = [
   ...builtinModules,
   ...builtinModules.map((m) => `node:${m}`),
+  "bun",
+  "bun:sqlite",
+  "bun:test",
+  "bun:ffi",
+  "bun:jsc",
   "redis",
   "mongoose",
   "mongodb",
@@ -231,9 +236,8 @@ function stubServerModulesPlugin(): Plugin {
     "/src/databases/cache/cache-warming-service.ts",
     "/src/databases/cache/cache-metrics.ts",
     "/src/databases/config-state.ts",
-    "/src/databases/webhook-wrapper.ts",
     "/src/databases/theme-manager.ts",
-    "/src/databases/db-adapter-wrapper.ts",
+    "/src/databases/core/db-adapter-wrapper.ts",
     "/src/databases/db-utils.ts",
     "/src/databases/schemas.ts",
     "/src/databases/auth/index.ts",
@@ -587,6 +591,8 @@ function buildWarningManagerPlugin(): Plugin {
     /".*" is imported from external module ".*" but never used/i,
     /\[PLUGIN_TIMINGS\]/i,
     /Your build spent significant time in plugins/i,
+    /Reading `config\.kit` inside adapters is deprecated/i,
+    /\[UNRESOLVED_IMPORT\].*bun:sqlite/i,
   ];
 
   const sourcemapPattern = /\[SOURCEMAP_BROKEN\]|Sourcemap is likely to be incorrect/i;
@@ -618,6 +624,13 @@ function buildWarningManagerPlugin(): Plugin {
       const message = typeof chunk === "string" ? chunk : (chunk?.toString?.() ?? "");
       if (filter(message)) return true;
       return originalStderrWrite(chunk, ...rest);
+    };
+
+    const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+    process.stdout.write = (chunk: any, ...rest: any[]): boolean => {
+      const message = typeof chunk === "string" ? chunk : (chunk?.toString?.() ?? "");
+      if (filter(message)) return true;
+      return originalStdoutWrite(chunk, ...rest);
     };
   }
 

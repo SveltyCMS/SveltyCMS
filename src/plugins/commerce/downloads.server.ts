@@ -11,7 +11,7 @@ import { raise } from "@utils/error-handling";
 const TTL_MS = 15 * 60 * 1000;
 
 function secret(): string {
-  const s = getPrivateSettingSync("JWT_SECRET_KEY" as never);
+  const s = getPrivateSettingSync("JWT_SECRET_KEY") as string;
   if (typeof s !== "string" || !s.trim()) {
     raise(503, "Download signing secret is not configured.", "DOWNLOAD_SECRET_MISSING");
   }

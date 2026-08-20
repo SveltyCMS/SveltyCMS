@@ -16,14 +16,14 @@ import type { IDBAdapter, IFtsAdapter, DatabaseResult } from "../db-interface";
 import { logger } from "@src/utils/logger";
 import { SQLiteAdapterCore } from "./adapter-core";
 import { SQLiteFtsAdapter } from "./fts-adapter";
+import { PerformanceModule } from "../core/performance-module";
+import { CacheModule } from "../core/cache-module";
 
 export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
   private _monitoring: any = null;
 
   public get monitoring(): any {
     if (!this._monitoring) {
-      const { PerformanceModule } = require("../core/performance-module");
-      const { CacheModule } = require("../core/cache-module");
       this._monitoring = {
         performance: new PerformanceModule(this as any),
         cache: new CacheModule(this as any),

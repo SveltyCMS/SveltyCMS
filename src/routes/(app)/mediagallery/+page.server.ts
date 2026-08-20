@@ -21,6 +21,7 @@ import type { MediaAccess } from "@root/src/utils/media/media-models";
 import { dbAdapter } from "@src/databases/db";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { MediaService } from "@src/utils/media/media-service.server";
+import { isAdmin } from "@src/databases/auth/constants";
 import { error, isHttpError, isRedirect } from "@sveltejs/kit";
 import { getAuthenticatedUser, requirePagePermission } from "@utils/page-guards.server";
 // System Logger
@@ -58,17 +59,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   try {
     const user = getAuthenticatedUser(locals);
-    const isAdmin =
-      locals.isAdmin === true ||
-      (user as any)?.isAdmin === true ||
-      (locals.isAdmin == null && (user.role === "admin" || user.role === "super-admin"));
+    const isAdminUser = locals.isAdmin === true || isAdmin(user);
     // Admin early-return in handleAuthorization can leave locals.roles undefined — never
     // call Object.values on undefined (that 500s the whole media gallery).
     const tenantRoles = (locals.roles ?? []) as Array<{ permissions?: string[] }>;
 
     // Check if user has permission to access media gallery
     const hasMediaPermission =
-      isAdmin ||
+      isAdminUser ||
       tenantRoles.some(
         (role) =>
           (role.permissions || []).includes("media:read") ||

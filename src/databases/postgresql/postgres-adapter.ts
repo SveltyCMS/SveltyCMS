@@ -10,6 +10,8 @@ import * as utils from "../core/relational-utils";
 import { SqlQueryBuilder, POSTGRES_DIALECT } from "../core/sql-query-builder";
 import { PostgresFtsAdapter } from "./fts-adapter";
 import { withMigrationLock } from "../migration-lock";
+import { PerformanceModule } from "../core/performance-module";
+import { CacheModule } from "../core/cache-module";
 
 export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter {
   public readonly type = "postgresql";
@@ -17,8 +19,6 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
 
   public get monitoring(): IMonitoringAdapter {
     if (!this._monitoring) {
-      const { PerformanceModule } = require("../core/performance-module");
-      const { CacheModule } = require("../core/cache-module");
       this._monitoring = {
         performance: new PerformanceModule(this as any),
         cache: new CacheModule(this as any),
@@ -165,6 +165,7 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
       this.tableRegistry.clear();
       this.dynamicTables.clear();
       this.modelRegistry.clear();
+      this._insertTemplateCache.clear();
 
       logger.info("[PostgreSQL Adapter] Fast single-shot database clear completed");
     }, "CLEAR_DATABASE_FAILED");

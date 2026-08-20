@@ -432,6 +432,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             .clone()
             .json()
             .catch(() => null)) as Record<string, unknown> | null;
+          (locals as any).__parsedJsonBody = body;
           if (body && typeof body === "object") {
             await assertWriteAllowed(fields, body, locals.user, {
               collectionName: collection,

@@ -37,6 +37,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 	import ThemeToggle from '@src/components/theme-toggle.svelte';
 	import VersionCheck from '@src/components/version-check.svelte';
 	import type { ContentNode } from '@src/content/types';
+	import { getFirstCollectionRedirectPathFromNodes } from '@src/content/first-collection';
 	// Paraglide Messages
 	import {
 		applayout_signout,
@@ -97,12 +98,11 @@ Route-driven sidebar content (no dual collapsible section headers):
 	);
 
 	const firstCollectionPath = $derived.by(() => {
-		if (collections?.[0]) {
-			const node = collections[0] as any;
-			const pathValue = node.path || `/collection/${node._id}`;
-			return `/${getLocale()}${pathValue.startsWith("/") ? pathValue : `/${pathValue}`}`;
-		}
-		return '/collections';
+		return getFirstCollectionRedirectPathFromNodes(
+			collections,
+			getLocale(),
+			page.data.collectionOrder as Record<string, number> | undefined
+		) ?? '/collections';
 	});
 
 	// Plugin pages (declarative nav) — capability-filtered for UX; the server
@@ -249,7 +249,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 <div class="sidebar-root flex h-full w-full flex-col justify-between bg-transparent">
 	<!-- Corporate Identity -->
 	{#if isSidebarFull}
-		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex min-h-12 shrink-0 items-center pt-2 no-underline!" data-sveltekit-preload-data="hover">
+		<a href="/" aria-label="SveltyCMS Logo" class="-ms-2 flex min-h-12 shrink-0 items-center pe-10 pt-2 no-underline!" data-sveltekit-preload-data="hover">
 			<SveltyCMSLogo fill="red" className="h-9" />
 			<span class="base-font-color relative -ms-1 text-2xl font-bold leading-none"><SiteName siteName={publicEnv.SITE_NAME} highlight="CMS" /></span>
 		</a>

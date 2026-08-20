@@ -13,6 +13,7 @@ import { dbAdapter } from "@src/databases/db";
 import type { Role } from "@src/databases/auth/types";
 import type { Widget, Theme } from "@src/databases/db-interface";
 import { createChecksum } from "@utils/security/crypto";
+import { getSchemaPath } from "@src/content/first-collection";
 import { logger } from "@utils/logger";
 
 // ---------------------------------------------------------------------------
@@ -433,7 +434,7 @@ export class ConfigService {
             } as Record<string, unknown>,
             {
               _id: item.uuid,
-              path: schema.path || `/collection/${(item.name || item.uuid).toLowerCase()}`,
+              path: getSchemaPath({ ...(schema as any), name: item.name, _id: item.uuid }),
               name: item.name,
               icon: (schema.icon as string) || "bi:file",
               nodeType: "collection",

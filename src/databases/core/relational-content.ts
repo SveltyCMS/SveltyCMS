@@ -136,12 +136,19 @@ export class RelationalContentModule implements IContentAdapter {
     ): Promise<DatabaseResult<{ publishedCount: number }>> => {
       return this.adapter.wrap(
         async () => {
-          const result = await this.db
+          if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
+            const result = await this.db
+              .update(this.schema.contentDrafts)
+              .set({ status: "archived" })
+              .where(inArray(this.schema.contentDrafts._id, draftIds as string[]))
+              .returning();
+            return { publishedCount: result.length };
+          }
+          const [result] = await this.db
             .update(this.schema.contentDrafts)
             .set({ status: "archived" })
-            .where(inArray(this.schema.contentDrafts._id, draftIds as string[]))
-            .returning();
-          return { publishedCount: result.length };
+            .where(inArray(this.schema.contentDrafts._id, draftIds as string[]));
+          return { publishedCount: (result as any)?.affectedRows || draftIds.length };
         },
         "PUBLISH_MANY_DRAFTS_FAILED",
         undefined,

@@ -153,13 +153,13 @@ smartFilter.toFilterQuery(); // { status: { contains: "publish" } }
 
 ### Shared modules
 
-| Module                             | Role                                                               |
-| ---------------------------------- | ------------------------------------------------------------------ |
-| `@utils/collection-query-filters`  | URL parse, schema whitelist, stable `queryHash`, cache key builder |
-| `create-smart-filter.svelte.ts`    | Reactive filter UI state + control types from schema widgets       |
-| `system/table/table-filter.svelte` | Toolbar (search, density, filter/column toggles)                   |
-| `ui/table/filter.svelte`           | Generic table toolbar primitive (design system)                    |
-| `@utils/table-controller.svelte`   | Shared selection/sort class (re-exported from collection-display)  |
+| Module                             | Role                                                                 |
+| ---------------------------------- | -------------------------------------------------------------------- |
+| `@utils/collection-query-filters`  | URL parse, schema whitelist, stable `queryHash`, cache key builder   |
+| `create-smart-filter.svelte.ts`    | Reactive filter UI state + control types from schema widgets         |
+| `system/table/table-filter.svelte` | Toolbar (search, density, filter/column toggles)                     |
+| `ui/table/filter.svelte`           | Generic table toolbar primitive (design system)                      |
+| `@components/ui/smart-table`       | Shared SmartTable component suite (selection, sorting, layout prefs) |
 
 ### Architecture docs
 

@@ -1,6 +1,12 @@
 /**
  * @file tests/unit/content/schema-hooks.test.ts
  * @description Unit tests for schema lifecycle hook runners.
+ *
+ * Features tested:
+ * - beforeValidate/afterValidate transforms (sync and async)
+ * - applySchemaHookPipeline ordering (before → validate → after)
+ * - default plain-Error throwing with joined messages
+ * - optional createError factory for typed errors (e.g. FIELD_VALIDATION_ERROR)
  */
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -123,5 +129,36 @@ describe("applySchemaHookPipeline", () => {
       () => [],
     );
     expect(result.done).toBe(true);
+  });
+
+  it("throws a plain Error with joined messages by default", async () => {
+    await expect(
+      applySchemaHookPipeline(undefined, { x: 1 }, baseCtx, () => ["missing title", "bad slug"]),
+    ).rejects.toThrow("missing title; bad slug");
+  });
+
+  it("uses the custom createError factory and passes the raw messages array", async () => {
+    const factory = vi.fn((msgs: string[]) => {
+      const err = new Error(msgs.join("; ")) as Error & { code?: string };
+      err.code = "FIELD_VALIDATION_ERROR";
+      return err;
+    });
+
+    await expect(
+      applySchemaHookPipeline(undefined, { x: 1 }, baseCtx, () => ["e1", "e2"], {
+        createError: factory,
+      }),
+    ).rejects.toMatchObject({ message: "e1; e2", code: "FIELD_VALIDATION_ERROR" });
+
+    expect(factory).toHaveBeenCalledWith(["e1", "e2"]);
+  });
+
+  it("does not invoke createError when validation passes", async () => {
+    const factory = vi.fn((msgs: string[]) => new Error(msgs.join("; ")));
+    const result = await applySchemaHookPipeline(undefined, { x: 1 }, baseCtx, () => [], {
+      createError: factory,
+    });
+    expect(result).toEqual({ x: 1 });
+    expect(factory).not.toHaveBeenCalled();
   });
 });

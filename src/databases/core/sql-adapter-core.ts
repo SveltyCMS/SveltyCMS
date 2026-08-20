@@ -32,6 +32,7 @@ import type {
   ISqlAdapter,
 } from "../db-interface";
 import * as helpers from "./drizzle-sql-helpers";
+import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "./lookup-query";
 import { generateUUID } from "@utils/native-utils";
 import {
   count as drizzleCount,
@@ -61,7 +62,7 @@ import {
   shouldUseEstimateCount,
   withIdTiebreaker,
 } from "./page-utils";
-import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "./lookup-query";
+import { parseIdLookup } from "./lookup-query";
 
 // ============================================================================
 // Abstract SqlAdapterCore — shared base for all SQL adapters
@@ -270,6 +271,19 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     _values: Record<string, any>,
     _options: BaseQueryOptions,
   ): Promise<T | null> {
+    return null;
+  }
+
+  /**
+   * Adapter-specific raw multi-row INSERT…RETURNING — returns null when not used.
+   * Skips Drizzle AST build and executes multi-tuple raw parameterized SQL.
+   */
+  protected async rawInsertManyReturning<T extends BaseEntity>(
+    _table: any,
+    _collection: string,
+    _batchValues: Record<string, any>[],
+    _options: BaseQueryOptions,
+  ): Promise<T[] | null> {
     return null;
   }
 
@@ -707,8 +721,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     }
 
     // Map common fields explicitly
-    if (schemaCols?.["collection"] || getCol(table, "collection")) {
-      values.collection = data.collection || getTableName(table).replace(/^collection_/, "");
+    if ((schemaCols?.["collection"] || getCol(table, "collection")) && "collection" in data) {
+      values.collection = data.collection;
     }
 
     if (schemaCols?.["publishedAt"] || getCol(table, "publishedAt")) {
@@ -781,19 +795,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
     // 🚀 ALL-SQL ULTRA PATH: pure {_id} / {_id,tenantId} → findById
     // (SQLite raw SELECT, Postgres/MariaDB eq+limit — skips mapQuery translation)
-    if (
-      isIdLookupQuery(query) &&
-      !options.includeDeleted &&
-      !options.bypassSafeQuery &&
-      this.hooks.length === 0
-    ) {
-      const lookupId = extractLookupId(query)!;
-      const qTenant = extractLookupTenantId(query);
-      const fastOpts =
-        qTenant !== undefined && !options.tenantId
-          ? { ...options, tenantId: qTenant as any }
-          : options;
-      return this.findById<T>(collection, lookupId as DatabaseId, fastOpts);
+    if (!options.includeDeleted && !options.bypassSafeQuery && this.hooks.length === 0) {
+      const lookup = parseIdLookup(query);
+      if (lookup) {
+        const fastOpts =
+          lookup.tenantId !== undefined && !options.tenantId
+            ? { ...options, tenantId: lookup.tenantId as any }
+            : options;
+        return this.findById<T>(collection, lookup.id as DatabaseId, fastOpts);
+      }
     }
 
     return this.wrap(async () => {
@@ -803,19 +813,20 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           : query;
 
       // After hooks, re-check for id-only lookup
-      if (isIdLookupQuery(q) && !options.includeDeleted) {
-        const lookupId = extractLookupId(q)!;
-        const qTenant = extractLookupTenantId(q);
-        const fastOpts =
-          qTenant !== undefined && !options.tenantId
-            ? { ...options, tenantId: qTenant as any }
-            : options;
-        const byId = await this.findById<T>(collection, lookupId as DatabaseId, fastOpts);
-        if (!byId.success) throw new Error(byId.message || "findById failed");
-        const data = byId.data;
-        return this.hooks.length > 0
-          ? await this.runHooks("after", "find", collection, data, options)
-          : data;
+      if (!options.includeDeleted) {
+        const lookup = parseIdLookup(q);
+        if (lookup) {
+          const fastOpts =
+            lookup.tenantId !== undefined && !options.tenantId
+              ? { ...options, tenantId: lookup.tenantId as any }
+              : options;
+          const byId = await this.findById<T>(collection, lookup.id as DatabaseId, fastOpts);
+          if (!byId.success) throw new Error(byId.message || "findById failed");
+          const data = byId.data;
+          return this.hooks.length > 0
+            ? await this.runHooks("after", "find", collection, data, options)
+            : data;
+        }
       }
 
       const table = this.getTable(collection);
@@ -1501,6 +1512,16 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           const item = data[i];
           const id = (item as any)._id || generateUUID();
           batchValues[i] = this.prepareValues(table, item, id, now, options);
+        }
+
+        if (this.insertReturnsRows) {
+          const rawBatch = await this.rawInsertManyReturning<T>(
+            table,
+            collection,
+            batchValues as Record<string, any>[],
+            options,
+          );
+          if (rawBatch !== null) return rawBatch;
         }
 
         const query = this.getDrizzleInstance(options).insert(table).values(batchValues);

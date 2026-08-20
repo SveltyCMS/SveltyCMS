@@ -15,7 +15,7 @@
  * - Active-connection tracking for graceful shutdown (1001 Going Away)
  */
 
-import { SESSION_COOKIE_NAME, isSecureCookieContext } from "@src/databases/auth/constants";
+import { isSecureCookieContext, readSessionCookie } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
@@ -165,15 +165,14 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
 
     // Cookie name handling (secure prefix)
     const isSecure = isSecureCookieContext(url.protocol, url.hostname);
-    const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
     // Extract session ID
     let sessionId: string | null = null;
     if (typeof ctx.cookies?.get === "function") {
-      sessionId = ctx.cookies.get(cookieName) || ctx.cookies.get(SESSION_COOKIE_NAME) || null;
+      sessionId = readSessionCookie(ctx.cookies, isSecure) || null;
     } else if (cookieHeader) {
       const parsed = parseCookies(cookieHeader);
-      sessionId = parsed[cookieName] || parsed[SESSION_COOKIE_NAME] || null;
+      sessionId = readSessionCookie({ get: (name: string) => parsed[name] }, isSecure) || null;
     }
 
     // ==================== TEST MODE BYPASS ====================

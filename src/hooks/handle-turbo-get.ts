@@ -17,7 +17,7 @@ import {
   buildGraphQLResponseCacheKey,
 } from "@src/services/cache/response-cache";
 import { CACHEABLE_PREFIXES } from "./request-classifier";
-import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@src/databases/auth/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getRequestFlags } from "@utils/hook-utils";
 import {
@@ -105,13 +105,7 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") return resolve(event);
   if (!isCacheableApiPath(url.pathname)) return resolve(event);
 
-  // Cookie session (production) — benchmark pseudo-sessions were removed:
-  // benchmark runs authenticate via REAL session cookies like production.
-  let sessionId =
-    cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
-    cookies.get(`__Secure-${SESSION_COOKIE_NAME}`) ||
-    cookies.get(SESSION_COOKIE_NAME) ||
-    null;
+  const sessionId = readSessionCookie(cookies) || null;
 
   if (!sessionId) return resolve(event);
 

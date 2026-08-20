@@ -14,6 +14,7 @@ import { logger } from "@utils/logger";
 import { pluginRegistry } from "@src/plugins/registry";
 
 export interface OrderMailPayload {
+  [key: string]: unknown;
   orderNumber: string;
   email: string;
   total: string;

@@ -10,6 +10,8 @@
  *   the policy forces "published" to eliminate draft leaks.
  */
 
+import { isAdmin } from "@src/databases/auth/constants";
+
 export type PublicationFilter = "published" | "draft" | "all";
 
 export interface ActorContext {
@@ -35,8 +37,7 @@ export function resolvePublicationFilter(
 ): PublicationFilter {
   const isPrivileged =
     actor?.system === true ||
-    actor?.user?.isAdmin === true ||
-    actor?.user?.role === "admin" ||
+    isAdmin(actor?.user) ||
     (Array.isArray(actor?.user?.permissions) &&
       (actor.user.permissions.includes("content:read_drafts") ||
         actor.user.permissions.includes("collections:read_drafts") ||

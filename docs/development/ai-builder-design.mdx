@@ -1,0 +1,248 @@
+---
+path: "docs/development/ai-builder-design.mdx"
+title: "AI-Assisted Builder Design — Roadmap"
+description: "Vision and implementation roadmap for designing collections, widgets, pages, and automations with AI assistance — the next evolution of the SveltyCMS AI stack."
+order: 51
+icon: "mdi:creation"
+author: "SveltyCMS Team"
+created: "2026-08-20"
+updated: "2026-08-20"
+tags:
+  - "ai"
+  - "roadmap"
+  - "collection-builder"
+  - "widgets"
+  - "design-to-code"
+  - "pseo"
+  - "generative-ui"
+---
+
+# AI-Assisted Builder Design — Roadmap
+
+> [!NOTE]
+> This document is the **forward-looking companion** to [AI Integration & Local Knowledge Core](./ai-integration.mdx). It describes what we will build so that the **Collection Builder** and every other builder in SveltyCMS (widgets, pages, forms, automations, workflows) can be **designed with AI assistance** — from natural-language intent to validated, versioned, and deployable artifacts.
+
+> [!IMPORTANT]
+> **Status: Roadmap — Phase 0 shipped, Phases 1–3 not yet implemented.** Each feature below lists the building blocks that already exist, the gaps to close, and the acceptance criteria that define "done". Implementation order follows the phases in [Rollout Plan](#rollout-plan).
+
+---
+
+## Why: From "AI Helps Write Content" to "AI Designs the CMS"
+
+Today SveltyCMS AI already writes **content** (Co-Pilot scoring, translation, auto-tags, summaries) and **single widgets** (Widget Scaffolder). The next step is to make AI design the **structures themselves**:
+
+| Today (implemented)                                 | Tomorrow (this roadmap)                                      |
+| :-------------------------------------------------- | :----------------------------------------------------------- |
+| Field suggestions via `POST /api/ai/suggest-fields` | Full **collection schema** generated from a sentence         |
+| Widget Scaffolder from a structured config object   | Widget generated from natural language, with tests + preview |
+| Generative UI specs via `json-render-svelte`        | **Whole admin sections / landing pages** designed by prompt  |
+| Agentic task as one automation operation            | **Automation flows & FSM workflows** drafted by AI           |
+| Human reads docs, writes schema files by hand       | Human **reviews and approves** AI-drafted schema in the GUI  |
+
+The guiding principle: **the human stays in charge, the AI drafts.** Every generated artifact goes through the same draft-gated, diff-previewed, validated path that content does today.
+
+---
+
+## Building Blocks That Already Exist
+
+Everything below is implemented and can be composed — no new infrastructure is required to start:
+
+| Block                                 | Location / API                                                  | What it gives us                                                                                        |
+| :------------------------------------ | :-------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------ |
+| **Schema-aware field suggestions**    | `POST /api/ai/suggest-fields`                                   | Widget/field recommendations from a collection name + description                                       |
+| **Widget Scaffolder**                 | `src/services/intelligence/ai-codegen/widget-scaffolder.ts`     | Generates complete 3-pillar widgets (`index.ts`, `Input.svelte`, `Display.svelte`) from a config object |
+| **Generative UI renderer**            | `json-render-svelte` + `sveltyRegistry`                         | Renders LLM-produced JSON specs as live, state-bound Svelte 5 UI                                        |
+| **Collection Builder**                | `/config/collectionbuilder`                                     | 3-tab editor (Define / Widgets / Permissions); `createSchemaObjectLiteral` is the write path            |
+| **Automation Builder**                | `/config/automations`, `docs/development/automation-system.mdx` | Event-driven flows with `agentic_task` operations                                                       |
+| **Workflow Engine (FSM)**             | `/config/workflows`, `docs/development/workflow-engine.mdx`     | Visual finite-state-machine content lifecycles                                                          |
+| **WebMCP + airgap**                   | `src/plugins/webmcp/`                                           | Draft-by-default mutation path for AI agents, prompt-injection shield                                   |
+| **Model backends**                    | LiteRT.js (browser) → Ollama (server, NPU) → hosted MCP         | Inference routing that scales from laptop to cloud                                                      |
+| **Behavioral / Content Intelligence** | `src/services/intelligence/`                                    | Smart defaults, similarity, quality scoring, anomaly detection                                          |
+
+**Key insight — the Collection Builder parity gap is an opportunity:** today the GUI exposes only **9 of 24** Schema properties; a GUI re-save silently drops the other 15 (see the parity audit). An AI designer that writes the **complete schema file** (not the GUI round-trip) can emit the full property set — label, path, permissions, plugins, translations, `displaySpec`, etc. — and let the GUI display what it understands. The AI is not constrained by the GUI's lossy write path.
+
+---
+
+## 1. AI Collection Designer (P1 — first to build)
+
+**Goal:** "Create a `recipes` collection with a title, a rich-text body, 3–8 tags, an image, and a featured toggle — German label, slug `rezepte`" → a complete, validated collection schema + widget set, drafted in seconds.
+
+### UX flow
+
+1. **Prompt box** in the Collection Builder ("Design with AI…").
+2. AI returns a **structured proposal**: collection meta + field list with suggested widgets, validation, and rationale per field.
+3. **Interactive refinement** (chat): "make ingredients a repeating group", "add a publication date with smart scheduling".
+4. **Diff preview**: the proposal is rendered against the current schema (add/remove/change), with a **Schema Warning modal** for anything that would be lost on re-save (existing `modal-schema-warning.svelte`).
+5. **Draft-gated creation**: the collection is created as a **draft schema** — not active until an admin approves (reuses the WebMCP airgap philosophy).
+6. **Approval writes the file** through the existing AST write path (`generateCollectionFileWithAST` / `createSchemaObjectLiteral`), now extended to carry the code-only properties.
+
+### Backend
+
+- New service: `src/services/ai-builder/collection-designer.ts` (Phase 0: design/refine implemented, see [Rollout Plan](#rollout-plan))
+- Endpoints:
+  - `POST /api/ai-builder/design-collection` — prompt → structured `CollectionDesignProposal` ✅ (Phase 0)
+  - `POST /api/ai-builder/refine-collection` — chat turn against an existing proposal ✅ (Phase 0)
+  - `POST /api/ai-builder/approve-collection` — validates + writes schema (respects permissions, tenant scope, audit log) — Phase 1
+- **Validation layer (non-negotiable):** every AI field maps to a real widget from the registry; Valibot schemas are re-validated; duplicate `db_fieldName` is rejected; reserved names blocked. ✅ implemented in `validator.ts` (Phase 0).
+
+### Acceptance criteria
+
+- [ ] A German-language prompt produces a German-labeled collection with correct `db_fieldName` slugs
+- [ ] AI output covers **all 24 Schema properties** (no parity loss) — verified against `createSchemaObjectLiteral`
+- [ ] Draft → approve → compiled collection appears in the sidebar and API
+- [ ] Unit tests (proposal validation), integration tests (endpoints, auth gating), E2E (prompt → approve → use)
+
+---
+
+## 2. AI Widget Builder (P1)
+
+**Goal:** "A testimonial carousel with name, role, quote, avatar, and auto-play" → a complete custom widget, registered and usable in the builder.
+
+### Flow
+
+1. Prompt → `WidgetScaffoldConfig` (reuse existing scaffolder contract).
+2. Scaffolder emits the 3 pillars; **LLM fills in the gaps**: Svelte 5 runes, Tailwind v4 classes, ARIA labels, empty states.
+3. **Auto-generated unit tests** (Vitest) for the Valibot schema and a smoke render test.
+4. **Live preview** in the builder (render the generated `Input.svelte`/`Display.svelte` in an iframe-ish sandbox before registration).
+5. Register as `custom` widget type; optionally publish to the marketplace.
+
+### Gap to close
+
+The current scaffolder is **config-driven**; the missing piece is the LLM→config step plus the test/preview harness. Reuse `src/services/ai-client/` for client-side inference or Ollama server-side, depending on context.
+
+---
+
+## 3. AI Page / Site Designer (P2 — design-to-code)
+
+**Goal:** "A landing page with hero, 3 feature cards, FAQ accordion, and a newsletter form" → a page spec (JSON layout via `json-render-svelte`) **or** a starter site, ready for content.
+
+### Two output modes
+
+| Mode          | Output                                                                                          | Consumer                                                      |
+| :------------ | :---------------------------------------------------------------------------------------------- | :------------------------------------------------------------ |
+| **Live spec** | JSON layout rendered immediately by `json-render-svelte` (same engine as the agentic dashboard) | Admin preview, then export                                    |
+| **Code**      | Svelte page components + collection scaffolding (uses the Widget Scaffolder per section)        | `site-starter` pipeline (`docs/development/site-starter.mdx`) |
+
+### Competitive note (BetterCMS)
+
+BetterCMS sells exactly this as its headline agent ("Figma file + copy.md → deployed site"). Our local-first advantage: the design stays **inside the CMS**, reuses our own widgets/components, and never leaves the tenant's infrastructure. We do not need Figma parsing in v1 — markdown/structured copy input is enough and avoids the proprietary-file dependency.
+
+---
+
+## 4. AI Automation & Workflow Designer (P2)
+
+**Goal:** "When an entry is published, generate tags, translate it to German and French, then notify the marketing role on Discord" → a complete automation (triggers + operations + conditions) and/or an FSM workflow draft.
+
+### Flow
+
+1. Prompt in the Automation Builder / Workflow Builder.
+2. AI returns a structured flow: trigger, operation chain (reusing existing operation types + `agentic_task`), condition nodes, error handling.
+3. **Graph preview** (render into the existing workflow FSM editor for approval).
+4. Approve → automation is active (draft-gated, audit-logged).
+
+**Why this matters:** it turns the Automation Builder from "power-user tool" into "any editor can automate" — and it is a direct upgrade of the existing `agentic_task` operation, not a new subsystem.
+
+---
+
+## 5. Programmatic SEO (pSEO) & ABM Pages (P3)
+
+**Goal:** generate hundreds of on-brand pages from a template + data source (BetterCMS differentiator we should match).
+
+- **Input:** a collection ("cities", "products", "partners") + a page template (existing widgets/components).
+- **AI-assisted steps:** SEO metadata per entry (title/meta/FAQ schema), internal linking suggestions, content skeletons with placeholders for human fill-in.
+- **Guardrail:** **pSEO pages are drafts by default**; a quality score (`score_content`) gate prevents mass-publishing thin content. Anomaly detection already flags bulk edits.
+- **ABM (Account-Based Marketing):** personalized landing variants per segment, driven by collection data + merge fields.
+
+---
+
+## 6. AI Traffic Analytics & AEO Insights (P3)
+
+**Goal:** "Which AI assistants send us readers?" — answer-engine optimization insights.
+
+- Track **AI-referrer attribution** (chatgpt.com, perplexity.ai, gemini.google.com, claude.ai, copilot.microsoft.com, plus generic LLM user-agents) in the existing analytics layer.
+- **AEO score per page**: is the content structured to be citable (FAQ schema, `handle-aeo-headers.ts` already emits AEO headers) — with AI-generated fix suggestions.
+- Report as a dashboard widget (reuse dashboard widget architecture).
+
+---
+
+## Architecture: The Builder AI Gateway
+
+All builder features share one service layer — no per-feature model plumbing:
+
+```
+Prompt (GUI) → Builder AI Gateway (src/services/ai-builder/)
+                    │
+                    ├─ Model routing: LiteRT.js (browser) → Ollama (server/NPU) → hosted MCP
+                    ├─ Prompt templates (schema-aware, injection-shielded)
+                    ├─ Structured-output validator (Valibot) — LLM output MUST parse
+                    ├─ Registry awareness (widgets, collections, permissions, tenants)
+                    ├─ Diff engine (proposal vs current state)
+                    └─ Approval pipeline (draft-gated, audit-logged, permission-checked)
+```
+
+### Routing rules
+
+| Context                                               | Backend                        |
+| :---------------------------------------------------- | :----------------------------- |
+| Browser, short tasks (naming, one-field suggestions)  | LiteRT.js client model         |
+| Server, private content (schema design, translations) | Ollama (NPU/GPU)               |
+| Heavy / cross-project reasoning                       | Hosted MCP `mcp.sveltycms.com` |
+
+### Security & governance (reuses section 8 of ai-integration.mdx)
+
+- **Draft-by-default:** every generated artifact is a draft until an admin approves.
+- **Prompt-injection shield:** all user-provided sample data wrapped in `<user_data>` passive-reference tags. ✅ implemented in `prompts.ts` (Phase 0)
+- **Schema validation before write:** no AI output is persisted without passing the same Valibot/registry validation as hand-written schemas. ✅ `validator.ts` (Phase 0)
+- **Permission & tenant checks** on every `approve-*` endpoint; full audit trail.
+- **Rate limits + quotas** on AI builder endpoints (pattern from `ai-translation.ts`: 30-min cache TTL, per-user limits). ✅ `gateway.ts` sliding-window quota (Phase 0)
+
+---
+
+## Rollout Plan
+
+| Phase                                          | Contents                                                                                                                                                                                                                                           | Effort | Depends on        |
+| :--------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----- | :---------------- |
+| **0 — Gateway skeleton** ✅ shipped 2026-08-20 | `src/services/ai-builder/` (gateway, prompts, validator, diff, collection-designer) + `ai-builder` API namespace in the existing fail-closed dispatcher (`design-collection`, `refine-collection`; `approve-collection` returns 501 until Phase 1) | S      | —                 |
+| **1 — AI Collection Designer**                 | Section 1, full test stack                                                                                                                                                                                                                         | L      | Phase 0           |
+| **1 — AI Widget Builder**                      | Section 2, preview + tests                                                                                                                                                                                                                         | M      | Phase 0           |
+| **2 — Page/Site Designer**                     | Section 3, live-spec mode first, code mode second                                                                                                                                                                                                  | L      | Phase 1 (widgets) |
+| **2 — Automation/Workflow Designer**           | Section 4, graph preview                                                                                                                                                                                                                           | M      | Phase 0           |
+| **3 — pSEO/ABM**                               | Section 5, quality gate                                                                                                                                                                                                                            | L      | Phase 2 (pages)   |
+| **3 — AI Traffic Analytics**                   | Section 6, dashboard widget                                                                                                                                                                                                                        | M      | analytics layer   |
+
+_Effort: S = days, M = 1–2 weeks, L = 2–4 weeks (one developer, based on comparable past features)._
+
+### Testing strategy (per feature, all three layers)
+
+1. **Unit:** proposal validation, diff engine, prompt-template injection resistance, scaffold output parity.
+2. **Integration:** endpoints auth-gated, permission checks, tenant isolation, audit entries, rate limits.
+3. **E2E:** prompt → draft → approve → artifact usable (collection in sidebar / widget in picker / automation fires).
+
+**Benchmark:** extend `tests/benchmarks/` so each phase ships with a self-measured latency/quality gate (e.g., Collection Designer must produce a valid schema in < 15 s on Ollama).
+
+---
+
+## Files to Create (planned)
+
+| Path                                                         | Purpose                                                                                                                                                                                                                                                |
+| :----------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/services/ai-builder/gateway.ts`                         | Router, model selection, quotas ✅ shipped                                                                                                                                                                                                             |
+| `src/services/ai-builder/prompts.ts`                         | Schema-aware prompt templates + injection shields ✅ shipped                                                                                                                                                                                           |
+| `src/services/ai-builder/validator.ts`                       | Valibot structured-output validation ✅ shipped                                                                                                                                                                                                        |
+| `src/services/ai-builder/diff.ts`                            | Proposal-vs-current diff engine ✅ shipped                                                                                                                                                                                                             |
+| `src/services/ai-builder/collection-designer.ts`             | Phase 1 feature (design/refine shipped in Phase 0) ✅                                                                                                                                                                                                  |
+| `src/services/ai-builder/widget-builder.ts`                  | Phase 1 feature (LLM → `WidgetScaffoldConfig`)                                                                                                                                                                                                         |
+| `src/services/ai-builder/page-designer.ts`                   | Phase 2 feature                                                                                                                                                                                                                                        |
+| `src/services/ai-builder/automation-designer.ts`             | Phase 2 feature                                                                                                                                                                                                                                        |
+| `src/routes/api/[...path]/+server.ts` + `handlers/system.ts` | `ai-builder` namespace registered in the existing fail-closed dispatcher (`ENDPOINT_PERMISSIONS: system:settings` + `handleAiBuilderRoutes`) ✅ shipped — no second dispatcher, so the fail-closed model and hooks pipeline are reused, not duplicated |
+| UI: `src/routes/(app)/config/collectionbuilder/`             | "Design with AI" prompt box + diff preview + approval                                                                                                                                                                                                  |
+
+---
+
+## Related
+
+- [AI Integration & Local Knowledge Core](./ai-integration.mdx) — the implemented AI stack this roadmap builds on
+- [GUI Automation System](./automation-system.mdx) — Automation Builder, extended by the AI Automation Designer
+- [Visual Workflow Engine](./workflow-engine.mdx) — FSM engine, extended by the AI Workflow Designer
+- [Site Starter](./site-starter.mdx) — target of the Page/Site Designer code mode
+- [Widget System](../../development/widgets/widget-system-overview.mdx) — 3-pillar architecture generated by the Widget Builder

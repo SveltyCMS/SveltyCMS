@@ -23,7 +23,7 @@
 			return;
 		}
 		order = body.data || body;
-		if (['processing', 'shipped', 'delivered'].includes(String(order.status))) {
+		if (['processing', 'shipped', 'delivered'].includes(String(order?.status))) {
 			const d = await fetch(`/api/commerce/orders/${id}/downloads`);
 			const dj = await d.json().catch(() => ({}));
 			if (d.ok) downloads = dj.data || [];

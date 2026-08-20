@@ -3,7 +3,7 @@
  * @description Unit tests for centralized string-utils.ts
  */
 import { describe, it, expect } from "vitest";
-import { str } from "@utils/string-utils";
+import { str } from "@utils/string";
 
 describe("string-utils", () => {
   describe("normalizeId", () => {

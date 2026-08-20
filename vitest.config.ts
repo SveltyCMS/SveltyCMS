@@ -11,7 +11,7 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { pathAliases } from "./path-aliases";
+import { pathAliases } from "./path-aliases.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isCI = process.env.CI === "true" || process.env.CI === "1";
@@ -24,7 +24,7 @@ const resolvedAliases = Object.fromEntries(
 const localMaxWorkers = Math.min(4, Math.max(1, os.cpus().length - 1));
 
 export default defineConfig({
-  plugins: [svelte() as any],
+  plugins: [svelte({ configFile: false } as any)],
   resolve: {
     alias: {
       ...resolvedAliases,

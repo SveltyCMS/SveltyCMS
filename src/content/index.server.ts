@@ -133,6 +133,7 @@ export async function ensureContentInitialized(
         });
 
         contentStore.initState = "initialized";
+        contentStore.markInitializedForTenant(tenantId);
         initializedTenants.add(tenantId);
 
         // Guard against duplicate watcher registration across tenants / forced

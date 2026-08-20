@@ -17,20 +17,21 @@ import {
 } from "@src/databases/core/relational-utils";
 
 describe("Tier A Optimizations — Dual Schema Registration", () => {
-  it("should register both physical collection_* and logical collection names", () => {
-    registerTableSchema("collection_articles", ["createdAt", "updatedAt", "data", "title"]);
+  it("should register the raw key and the canonical collection_* variant", () => {
+    registerTableSchema("collection_blog-posts", ["createdAt", "updatedAt", "data", "title"]);
 
-    // Physical key assertion
-    const physDates = getTableDateColumns("collection_articles");
-    const physJsons = getTableJsonColumns("collection_articles");
+    // Raw key assertion (exactly as passed)
+    const rawDates = getTableDateColumns("collection_blog-posts");
+    const rawJsons = getTableJsonColumns("collection_blog-posts");
+    expect(rawDates).toEqual(["createdAt", "updatedAt"]);
+    expect(rawJsons).toEqual(["data"]);
+
+    // Canonical variant assertion: hyphens are stripped so the key matches
+    // the physical table name getTable produces (collection_blogposts).
+    const physDates = getTableDateColumns("collection_blogposts");
+    const physJsons = getTableJsonColumns("collection_blogposts");
     expect(physDates).toEqual(["createdAt", "updatedAt"]);
     expect(physJsons).toEqual(["data"]);
-
-    // Logical key assertion (dual key alias)
-    const logDates = getTableDateColumns("articles");
-    const logJsons = getTableJsonColumns("articles");
-    expect(logDates).toEqual(["createdAt", "updatedAt"]);
-    expect(logJsons).toEqual(["data"]);
   });
 
   it("should register physical collection_* key when provided logical name first", () => {

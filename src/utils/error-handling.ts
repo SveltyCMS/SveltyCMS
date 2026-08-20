@@ -24,8 +24,38 @@ const isDev = (() => {
 
 // ─── Standardized response types ────────────────────────────────────────
 
+/**
+ * Canonical application error codes for API and service layers.
+ * Using an open string literal union to ensure strict autocompletion
+ * while maintaining forward and plugin extensibility.
+ */
+export type KnownAppErrorCode =
+  | "UNAUTHORIZED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "BAD_REQUEST"
+  | "VALIDATION_FAILED"
+  | "VALIDATION_ERROR"
+  | "CONFLICT"
+  | "RATE_LIMITED"
+  | "REAUTH_REQUIRED"
+  | "INVALID_PASSWORD"
+  | "PASSWORD_REQUIRED"
+  | "INVALID_BATCH_ACTION"
+  | "INVALID_BATCH_IDS"
+  | "BATCH_FAILED"
+  | "CSRF_VIOLATION"
+  | "API_ENDPOINT_NOT_AVAILABLE"
+  | "INVALID_HANDLER_RESPONSE"
+  | "METHOD_NOT_ALLOWED"
+  | "INTERNAL_ERROR"
+  | "INTERNAL_SERVER_ERROR"
+  | "UNEXPECTED_SYSTEM_ERROR";
+
+export type AppErrorCode = KnownAppErrorCode | (string & {});
+
 export interface ApiErrorResponse {
-  code: string;
+  code: AppErrorCode;
   issues?: string[];
   message: string;
   stack?: string;
@@ -37,14 +67,14 @@ export interface ApiErrorResponse {
  */
 export class AppError extends Error {
   public readonly status: number;
-  public readonly code: string;
+  public readonly code: AppErrorCode;
   public readonly details?: unknown;
   public readonly originalError?: unknown;
 
   constructor(
     message: string,
     status = 500,
-    code: string | unknown = "INTERNAL_ERROR",
+    code: AppErrorCode | unknown = "INTERNAL_ERROR",
     details?: unknown,
   ) {
     super(message);
@@ -57,7 +87,7 @@ export class AppError extends Error {
     }
 
     if (typeof code === "string") {
-      this.code = code;
+      this.code = code as AppErrorCode;
       if (details instanceof Error) {
         this.originalError = details;
       }
@@ -220,7 +250,7 @@ export function getErrorMessage(err: unknown): string {
   return String(err);
 }
 
-export function raise(status: number, message: string, code?: string): never {
+export function raise(status: number, message: string, code?: AppErrorCode): never {
   throw new AppError(message, status, code);
 }
 
@@ -266,4 +296,31 @@ export function wrapError(
 
   const errorMsg = getErrorMessage(error);
   return new AppError(errorMsg || message, status, "INTERNAL_ERROR", error);
+}
+
+// ─── Architectural Integrity Error Classes ───────────────────────────────
+
+export class ContextMissingError extends Error {
+  constructor(
+    message = "SveltyContext is not initialized. Ensure request is wrapped in runWithContext.",
+  ) {
+    super(message);
+    this.name = "ContextMissingError";
+  }
+}
+
+export class PathTraversalError extends Error {
+  constructor(targetPath: string, baseDir: string) {
+    super(
+      `Path traversal detected: "${targetPath}" is outside the allowed directory "${baseDir}".`,
+    );
+    this.name = "PathTraversalError";
+  }
+}
+
+export class IntegrityError extends Error {
+  constructor(path: string, reason: string) {
+    super(`System integrity check failed for "${path}": ${reason}`);
+    this.name = "IntegrityError";
+  }
 }

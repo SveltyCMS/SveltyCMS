@@ -9,6 +9,7 @@ import { logger } from "@utils/logger";
 import { setContext, getContext } from "svelte";
 import { contentStore } from "@stores/content-registry.svelte";
 import { contentNavigation, contentMetrics } from "./content-utils";
+import { getCollectionRedirectPathFromSchema } from "./first-collection";
 
 export * from "./types";
 export { contentStore } from "@stores/content-registry.svelte";
@@ -66,8 +67,7 @@ export const contentSystemBase = {
   ): Promise<string | null> {
     const first = contentStore.getSmartFirstCollection(tenantId);
     if (!first) return null;
-    const pathValue = first.path || `/collection/${first._id}`;
-    return `/${lang}${pathValue.startsWith("/") ? pathValue : `/${pathValue}`}`;
+    return getCollectionRedirectPathFromSchema(first, lang);
   },
 
   async getNavigationStructure(tenantId: string | null = null) {

@@ -24,9 +24,10 @@
 import type { ISODateString } from "@databases/db-interface";
 import { generateCsrfToken, ensureCsrfToken } from "@utils/security/csrf-utils";
 import {
-  SESSION_COOKIE_NAME,
   getSessionCookieName,
   isSecureCookieContext,
+  readSessionCookie,
+  clearAllSessionCookies as clearCookiesHelper,
   sessionTtlMs,
 } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
@@ -128,8 +129,16 @@ function getCachedSettings() {
 function initRotationRateLimiter() {
   if (rotationRateLimiter) return rotationRateLimiter;
 
-  const secret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
-  const isTestMode = process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test";
+  // JWT_SECRET_KEY is an infrastructure key (config/env only). The sync settings
+  // cache may not be warmed yet on API-only cold boots (e.g. benchmark servers
+  // that never load a page), so fall back to the runtime env before declaring
+  // the secret missing — it arrives via env in every env-based deployment.
+  const secret = (getPrivateSettingSync("JWT_SECRET_KEY") as string) || process.env.JWT_SECRET_KEY;
+  const isTestMode =
+    process.env.TEST_MODE === "true" ||
+    process.env.NODE_ENV === "test" ||
+    process.env.BENCHMARK === "true" ||
+    process.env.SVELTY_BENCHMARK_SUITE === "true";
   if (!secret && !dev && !isTestMode) {
     logger.error(
       "CRITICAL: JWT_SECRET_KEY is missing in production. Rate limiting will be unreliable.",
@@ -622,11 +631,7 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
   }
 
   // If user has a session cookie but no user is present, skip assignment
-  if (
-    (cookies.get(SESSION_COOKIE_NAME) || cookies.get(`__Host-${SESSION_COOKIE_NAME}`)) &&
-    !isUserPresent
-  )
-    return;
+  if (readSessionCookie(cookies, isSecure) && !isUserPresent) return;
 
   // Generate a unique tenantId per visitor — no shared dedup
   const tenantId = crypto.randomUUID();
@@ -635,15 +640,15 @@ async function handleDemoTenantAssignment(event: RequestEvent, isUserPresent: bo
   // where sign-up arrives mid-seed and generates a different tenantId.
   const maxAge = getDemoTTLSeconds();
   cookies.set(cookieName, tenantId, {
-    path: getCookiePath(),
+    path: "/",
     httpOnly: true,
     secure: isSecure,
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge,
   });
   locals.tenantId = tenantId as DatabaseId;
 
-  // Fire-and-forget seeding — cookie is already set, user can proceed
+  // Seed immediately so the first authenticated demo route has its content tree.
   try {
     const { seedDemoTenant } = await import("@src/routes/setup/seed");
     await seedDemoTenant(dbAdapter!, tenantId);
@@ -683,11 +688,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // 🚀 UNIVERSAL TURBO AUTH: Check session → turbo auth cache BEFORE any
   // dynamic imports, tenant resolution, or CSRF work. On a warm cache hit,
   // this skips ~2ms of per-request auth overhead for ALL request types.
-  const turboSessionId =
-    cookies.get(cookieName) ||
-    cookies.get(SESSION_COOKIE_NAME) ||
-    cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
-    cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
+  const turboSessionId = readSessionCookie(cookies, isSecure);
   // 🛡️ Turbo-auth only for safe methods — mutations must go through CSRF
   const method = event.request.method;
   if (turboSessionId && (method === "GET" || method === "HEAD" || method === "OPTIONS")) {
@@ -798,24 +799,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     const apiKey = event.request.headers.get("x-api-key");
     const websiteToken = event.request.headers.get("x-website-token");
 
-    // Accept whichever session cookie variant the auth layer issued — and
-    // remember the exact variant so invalidation can delete THAT cookie
-    // (a __Secure-session_id left behind while deleting session_id alone
-    // would loop the browser through invalid-cookie validation forever).
-    const sessionCandidates = [
-      cookieName,
-      SESSION_COOKIE_NAME,
-      `__Host-${SESSION_COOKIE_NAME}`,
-      `__Secure-${SESSION_COOKIE_NAME}`,
-    ];
-    let sessionId: string | undefined;
-    for (const name of sessionCandidates) {
-      const val = cookies.get(name);
-      if (val) {
-        sessionId = val;
-        break;
-      }
-    }
+    const sessionId = readSessionCookie(cookies, isSecure);
 
     // 🚀 ULTRA-FAST GUEST FAST PATH: No credentials at all on safe read request
     if (
@@ -1179,12 +1163,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     }
 
     // Ephemeral Guest Authentication for public API endpoints
-    const hasAuthAttempt =
-      !!authHeader ||
-      cookies.get(cookieName) ||
-      cookies.get(SESSION_COOKIE_NAME) ||
-      cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
-      cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
+    const hasAuthAttempt = !!authHeader || !!readSessionCookie(cookies, isSecure);
 
     // Skip ephemeral guest creation for test-mode requests — they should hit the real 401 path
     const testSecret = event.request.headers.get("x-test-secret");
@@ -1261,17 +1240,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
  * the browser re-sends it on every request (infinite invalid-cookie loop).
  */
 function clearAllSessionCookies(event: RequestEvent) {
-  const cookiePath = getCookiePath();
-  const variants = [
-    SESSION_COOKIE_NAME,
-    `__Host-${SESSION_COOKIE_NAME}`,
-    `__Secure-${SESSION_COOKIE_NAME}`,
-  ];
-  for (const name of variants) {
-    try {
-      event.cookies.delete(name, { path: cookiePath });
-    } catch {}
-  }
+  clearCookiesHelper(event.cookies, getCookiePath());
 }
 
 export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId | null): void {

@@ -129,3 +129,12 @@ export interface PinnedColumnGroups<T = Record<string, unknown>> {
   /** start + center + end */
   ordered: SmartTableColumn<T>[];
 }
+
+/** Approximate row height in pixels (44px = 40px content + 4px border) */
+export const ROW_HEIGHT = 44;
+
+/** Extra rows rendered above and below the visible viewport to prevent blank flashes during scroll */
+export const VIRTUAL_BUFFER = 5;
+
+/** Minimum page size threshold for enabling row virtualization */
+export const VIRTUALIZATION_THRESHOLD = 25;

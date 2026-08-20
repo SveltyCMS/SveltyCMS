@@ -16,13 +16,14 @@
  */
 
 import { spawn, execSync } from "node:child_process";
-import { createWriteStream, existsSync } from "node:fs";
+import { openSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import * as v from "valibot";
 import {
   buildIntegrationServerEnv,
   cleanSqliteTestFiles,
   createIntegrationContext,
+  ensureIntegrationBuild,
   ensurePortAvailable,
   writePrivateTestConfig,
 } from "./integration-harness.ts";
@@ -125,6 +126,8 @@ async function main() {
   const ctx = createIntegrationContext(ROOT);
   const { port, apiBaseUrl, secrets } = ctx;
 
+  await ensureIntegrationBuild(ROOT, { noBuild: true });
+
   if (!existsSync(entryPoint)) {
     console.error("❌ Build not found. Run: bun run scripts/run-integration.ts");
     process.exit(1);
@@ -163,18 +166,15 @@ async function main() {
   const env = buildIntegrationServerEnv(ctx);
   console.log(`🚀 Starting server on port ${port} (DB_TYPE=${ctx.dbType})...`);
 
+  const logFd = openSync(join(ROOT, "preview.log"), "a");
   const server = spawn("node", [entryPoint], {
     cwd: ROOT,
     env,
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["ignore", logFd, logFd],
     detached: true,
     shell: false,
   });
   server.unref();
-
-  const logStream = createWriteStream("preview.log", { flags: "a" });
-  server.stdout?.pipe(logStream);
-  server.stderr?.pipe(logStream);
 
   // ── Health check ────────────────────────────────────────────────────────
   if (await pollUntilReady(apiBaseUrl, secrets.testApiSecret)) {

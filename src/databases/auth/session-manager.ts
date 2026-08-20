@@ -1,5 +1,5 @@
 /**
- * @file src/databases/auth/sessionCleanup.ts
+ * @file src/databases/auth/session-manager.ts
  * @description Session persistence management
  *
  * This module provides a unified session management system that works with both Redis and in-memory storage.

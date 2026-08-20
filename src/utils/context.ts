@@ -14,7 +14,7 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { DatabaseId } from "@src/content/types";
-import { ContextMissingError } from "./errors.ts";
+import { ContextMissingError } from "./error-handling.ts";
 
 export interface TraceSpan {
   name: string;

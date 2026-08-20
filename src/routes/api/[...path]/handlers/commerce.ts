@@ -91,7 +91,11 @@ export async function handleCommerceRoutes(
     }
 
     const action = (segments[1] || "").toLowerCase();
-    const user = event.locals.user as { _id?: string; isAnonymous?: boolean } | null;
+    const user = event.locals.user as {
+      _id?: string;
+      isAnonymous?: boolean;
+      email?: string;
+    } | null;
     const customerId = user && !user.isAnonymous && user._id ? String(user._id) : null;
     const currency = await currencyFor(String(scoped));
     const sessionId = ensureCartSessionId(event.cookies, event.url);

@@ -279,6 +279,8 @@ export async function completeSetup(
     ).dbAdapter;
   }
 
+  let effectiveTenantId: string | null = null;
+
   // Seed preset collections once the user has chosen their blueprint (step 2).
   // Step 0 seedDatabase() always runs with preset "blank" — collections are applied here only.
   if (system.preset && system.preset !== "blank") {
@@ -286,7 +288,6 @@ export async function completeSetup(
 
     // In multi-tenant mode, resolve the primary tenant ID so collection files
     // are written to config/{tenant}/collections/ instead of flat config/collections/
-    let effectiveTenantId: string | null = null;
     if (system.multiTenant && dbAdapter?.system?.tenants) {
       const primaryTenantId = system.siteName
         ? system.siteName.toLowerCase().replace(/[^a-z0-9]+/g, "-")
@@ -593,7 +594,7 @@ export async function completeSetup(
     try {
       const { getCachedFirstCollectionPath } =
         await import("@utils/server/collection-utils.server");
-      const path = await getCachedFirstCollectionPath("en" as any);
+      const path = await getCachedFirstCollectionPath("en" as any, effectiveTenantId);
       if (path) redirectPath = path;
     } catch {
       // Collections may not be seeded yet — keep /login

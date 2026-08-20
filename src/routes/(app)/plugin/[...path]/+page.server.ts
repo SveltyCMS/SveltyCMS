@@ -8,6 +8,7 @@
  */
 
 import { error } from "@sveltejs/kit";
+import { isAdmin } from "@src/databases/auth/constants";
 import { pluginPageRegistry } from "@src/plugins/plugin-page-registry.svelte.ts";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { logger } from "@utils/logger";
@@ -24,15 +25,12 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
   // RBAC gate — admins bypass via fast-path; otherwise roles must carry every
   // required capability. Mirrors the dashboard permission pattern.
-  const isAdmin =
-    locals.isAdmin === true ||
-    (user as any)?.isAdmin === true ||
-    (locals.isAdmin == null && (user.role === "admin" || user.role === "super-admin"));
+  const isAdminUser = locals.isAdmin === true || isAdmin(user);
   const tenantRoles = locals.roles ?? [];
 
   const hasCapabilities =
     page.requiredCapabilities.length === 0 ||
-    isAdmin ||
+    isAdminUser ||
     tenantRoles.some((role) =>
       role.permissions?.some((p) => page.requiredCapabilities.includes(p)),
     );

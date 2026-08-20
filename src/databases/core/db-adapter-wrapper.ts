@@ -1,11 +1,11 @@
 /**
- * @file src/databases/db-adapter-wrapper.ts
+ * @file src/databases/core/db-adapter-wrapper.ts
  * @description Central wrapper to enforce strict tenant isolation across database calls.
  */
 
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { getPrivateEnv, loadPrivateConfig } from "../db";
+import { getPrivateEnv, loadPrivateConfig } from "../config-state";
 import type { DatabaseId } from "@src/content/types";
 
 /**

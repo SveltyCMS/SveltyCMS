@@ -9,8 +9,9 @@
  * - Middleware-compatible locals storage for debugging
  */
 
-import { AppError } from "@utils/error-handling";
+import { AppError, type AppErrorCode } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
+import { safeParse, type GenericSchema, type InferOutput } from "valibot";
 
 const STATIC_JSON_HEADERS = { "content-type": "application/json" } as const;
 
@@ -66,10 +67,45 @@ export function createdResponse(event: RequestEvent, data: any) {
 /**
  * Standardized error response with optional error code.
  */
-export function errorResponse(event: RequestEvent, message: string, status = 400, code?: string) {
+export function errorResponse(
+  event: RequestEvent,
+  message: string,
+  status = 400,
+  code?: AppErrorCode,
+) {
   const body: Record<string, any> = { success: false, message };
   if (code) body.error = { code, status };
   return buildJsonResponse(event, body, status);
+}
+
+/**
+ * Parses and validates request body with a Valibot schema.
+ * Throws a formatted AppError(400, "VALIDATION_FAILED") if parsing or validation fails.
+ */
+export async function validateRequestBody<TSchema extends GenericSchema>(
+  event: RequestEvent,
+  schema: TSchema,
+): Promise<InferOutput<TSchema>> {
+  let rawBody: unknown;
+  try {
+    rawBody = await event.request.json();
+  } catch {
+    throw new AppError("Invalid JSON body in request", 400, "BAD_REQUEST");
+  }
+
+  const result = safeParse(schema, rawBody);
+  if (!result.success) {
+    const issues = result.issues.map((issue) => {
+      const pathKeys = issue.path
+        ?.map((p: any) => p.key)
+        .filter((key) => key !== undefined && key !== null)
+        .join(".");
+      return pathKeys ? `${pathKeys}: ${issue.message}` : issue.message;
+    });
+    throw new AppError(issues[0] || "Validation failed", 400, "VALIDATION_FAILED", { issues });
+  }
+
+  return result.output;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -109,5 +145,5 @@ export function isDatabaseResult(obj: any): obj is {
  * Not-allowed helper — throws a 405 for unsupported HTTP methods.
  */
 export function notAllowed(): never {
-  throw new AppError("Method not allowed", 405);
+  throw new AppError("Method not allowed", 405, "METHOD_NOT_ALLOWED");
 }

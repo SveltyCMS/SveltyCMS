@@ -59,18 +59,6 @@ vi.mock("@src/databases/mongodb/mongodb-utils", () => ({
   processDates: vi.fn((doc) => doc),
 }));
 
-// Relative path used by crud-methods itself (Bun mock.module matches specifier)
-vi.mock("./mongodb-utils", () => ({
-  createDatabaseError: vi.fn((error, code, message) => ({
-    code,
-    message,
-    details: error instanceof Error ? error.message : String(error),
-    originalCode: (error as any)?.code,
-  })),
-  generateId: vi.fn(() => "new-id"),
-  processDates: vi.fn((doc) => doc),
-}));
-
 describe("Soft Delete Engine", () => {
   let MongoCrudMethods: any;
   let mockModel: any;

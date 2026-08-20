@@ -114,7 +114,7 @@ export class Auth {
       }
 
       // Delegate to adapter — each adapter has its own manual rollback.
-      // MongoDB: auth-composition.ts line 100-112 (deleteUser on session failure).
+      // MongoDB: auth-module.ts createUserAndSession (deleteUser on session failure).
       // SQL: relational-auth.ts createUserAndSession (same pattern).
       return await this.db.auth.createUserAndSession(userData, sessionData, options);
     } catch (err: any) {

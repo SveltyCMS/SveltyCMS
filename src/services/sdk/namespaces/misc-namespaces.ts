@@ -20,6 +20,7 @@ import * as settingsService from "@src/services/core/settings-service";
 import { generateSecureToken } from "@utils/native-utils";
 import { withTenant } from "@src/databases/core/db-adapter-wrapper";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
+import { collectionTableName } from "@src/databases/core/collection-name";
 import { MediaService } from "@utils/media/media-service.server";
 import { type LocalApiOptions, type TokenOptions } from "./types";
 
@@ -282,14 +283,18 @@ export class ImporterNamespace {
     else if (sourceType === "wordpress")
       externalData = await fetchWordPressData(sourceUrl, contentType, apiKey);
     else throw new AppError("Unsupported source", 400);
+    // Resolve the target schema ONCE — the physical table name derives from the
+    // schema _id (single source of truth, same convention as cms.collections).
+    const collectionsResult = await this._dbAdapter.collection.listSchemas(tenantId as DatabaseId);
+    const targetCol = collectionsResult.success
+      ? collectionsResult.data.find(
+          (c: any) => c.name === targetCollection || c._id === targetCollection,
+        )
+      : null;
+    const tableName = collectionTableName(String(targetCol?._id || targetCollection));
+
     let finalMapping = mapping;
     if (!finalMapping) {
-      const collectionsResult = await this._dbAdapter.collection.listSchemas(
-        tenantId as DatabaseId,
-      );
-      const targetCol = collectionsResult.success
-        ? collectionsResult.data.find((c: any) => c.name === targetCollection)
-        : null;
       if (!targetCol) throw new AppError("Target collection not found", 404);
       finalMapping = await aiService.suggestMapping(externalData.schema, targetCol);
     }
@@ -397,11 +402,9 @@ export class ImporterNamespace {
           transformed[targetKey] = value;
         }
 
-        const result = await this._dbAdapter.crud.insert(
-          `collection_${targetCollection}`,
-          transformed,
-          { tenantId: tenantId as DatabaseId },
-        );
+        const result = await this._dbAdapter.crud.insert(tableName, transformed, {
+          tenantId: tenantId as DatabaseId,
+        });
         if (result.success) {
           const newId = (result.data as any)?._id || "";
           if (sourceUuid && newId) {
@@ -448,7 +451,7 @@ export class ImporterNamespace {
           .filter(Boolean) as string[];
         if (resolvedIds.length > 0) {
           await this._dbAdapter.crud.update(
-            `collection_${targetCollection}`,
+            tableName,
             ref.docId as unknown as DatabaseId,
             { [ref.field]: resolvedIds },
             { tenantId: tenantId as DatabaseId },
@@ -463,10 +466,8 @@ export class ImporterNamespace {
     // Phase 3: Import revisions if Drupal source
     let revisionCount = 0;
     if (sourceType === "drupal") {
-      const collectionSchema = (
-        (await this._dbAdapter.collection.listSchemas(tenantId as DatabaseId)) as any
-      ).data?.find((c: any) => c.name === targetCollection);
-      const supportsRevisions = collectionSchema?.revision !== false;
+      // Reuse the schema resolved above — no second listSchemas round-trip.
+      const supportsRevisions = targetCol?.revision !== false;
 
       if (supportsRevisions) {
         for (const item of externalData.items) {

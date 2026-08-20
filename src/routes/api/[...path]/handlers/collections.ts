@@ -16,7 +16,8 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, Schema } from "@src/content/types";
 import { StatusTypes } from "@src/content/types";
-import { validateFieldConstraints, stripNullRows } from "@src/content/content-utils";
+import { prepareCollectionFields } from "@src/content/content-utils";
+import { collectionTableName } from "@src/databases/core/collection-name";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import { successResponse, rawResponse } from "./base";
@@ -24,6 +25,7 @@ import { streamingJsonResponse } from "./streaming";
 import { setCollectionOrder } from "@utils/collection-order.server";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
+import { parseCollectionQueryParams } from "@utils/api-params";
 
 /** Maximum number of items allowed in a single bulk operation to prevent memory exhaustion. */
 const MAX_BULK_ITEMS = 1000;
@@ -273,94 +275,46 @@ export async function handleCollectionFind(
   collectionId: string,
   url: URL,
 ) {
-  const limit = Number(url.searchParams.get("limit")) || 50;
-  const offset = Number(url.searchParams.get("offset")) || 0;
-  const sortField = url.searchParams.get("sortField") || url.searchParams.get("sort") || undefined;
-  const sortDirection = (url.searchParams.get("sortDirection") ||
-    url.searchParams.get("order") ||
-    "desc") as "asc" | "desc";
-  const publicationFilter = url.searchParams.get("publicationFilter") as
-    | "published"
-    | "draft"
-    | "all"
-    | undefined;
-
-  // Parse filters from both query string formats
-  const filter: Record<string, any> = {};
-  for (const [key, value] of url.searchParams.entries()) {
-    if (key.startsWith("filter[")) {
-      filter[key.slice(7, -1)] = value;
-    }
-  }
-  const filterJson = url.searchParams.get("filter");
-  if (filterJson) {
-    try {
-      Object.assign(filter, JSON.parse(filterJson));
-    } catch {
-      /* ignore */
-    }
-  }
+  const params = parseCollectionQueryParams(url.searchParams);
 
   // Streaming for large datasets or explicit stream requests
-  const isLargeRequest = limit > 500;
-  if (url.searchParams.get("stream") === "true" || isLargeRequest) {
+  const isLargeRequest = params.limit > 500;
+  if (params.stream || isLargeRequest) {
     const iterator = await cms.collections.findStreaming(collectionId, {
       tenantId,
       user,
-      limit,
-      offset,
-      sortField,
-      sortDirection,
-      filter,
-      publicationFilter,
+      limit: params.limit,
+      offset: params.offset,
+      sortField: params.sortField,
+      sortDirection: params.sortDirection,
+      filter: params.filter,
+      publicationFilter: params.publicationFilter,
     });
 
     let totalCount: number | undefined;
-    if (url.searchParams.get("includeCount") === "true") {
+    if (params.includeCount) {
       const countRes = await cms.collections.count(collectionId, {
         tenantId,
         user,
-        publicationFilter,
+        publicationFilter: params.publicationFilter,
       });
       if (countRes.success) totalCount = countRes.data;
     }
     return streamingJsonResponse(iterator, totalCount);
   }
 
-  const bypassCache =
-    url.searchParams.get("bypassCache") === "true" || url.searchParams.get("nocache") === "true";
-
-  // Parse populate: comma-separated field names
-  const populateRaw = url.searchParams.get("populate");
-  const populate: string[] | undefined = populateRaw
-    ? populateRaw
-        .split(",")
-        .map((f) => f.trim())
-        .filter(Boolean)
-    : undefined;
-
-  // Optional projection: comma-separated field names → adapter-level SELECT
-  // pruning (skips the JSON data blob when all requested fields are physical).
-  const fieldsRaw = url.searchParams.get("fields");
-  const fields: string[] | undefined = fieldsRaw
-    ? fieldsRaw
-        .split(",")
-        .map((f) => f.trim())
-        .filter(Boolean)
-    : undefined;
-
   const result = await cms.collections.find(collectionId, {
     tenantId,
     user,
-    limit,
-    offset,
-    sortField,
-    sortDirection,
-    filter,
-    publicationFilter,
-    bypassCache,
-    populate,
-    fields,
+    limit: params.limit,
+    offset: params.offset,
+    sortField: params.sortField,
+    sortDirection: params.sortDirection,
+    filter: params.filter,
+    publicationFilter: params.publicationFilter,
+    bypassCache: params.bypassCache,
+    populate: params.populate,
+    fields: params.fields,
   });
   setApiDataHash(event, result);
   return successResponse(event, result);
@@ -374,27 +328,13 @@ export async function handleCollectionEntry(
   collectionId: string,
   entryId: string,
 ) {
-  const bypassCache =
-    event.url.searchParams.get("bypassCache") === "true" ||
-    event.url.searchParams.get("nocache") === "true";
-  const publicationFilter = event.url.searchParams.get("publicationFilter") as
-    | "published"
-    | "draft"
-    | "all"
-    | undefined;
-  const populateRaw = event.url.searchParams.get("populate");
-  const populate: string[] | undefined = populateRaw
-    ? populateRaw
-        .split(",")
-        .map((f) => f.trim())
-        .filter(Boolean)
-    : undefined;
+  const params = parseCollectionQueryParams(event.url.searchParams);
   const result = await cms.collections.findById(collectionId, entryId, {
     tenantId,
     user,
-    publicationFilter,
-    bypassCache,
-    populate,
+    publicationFilter: params.publicationFilter,
+    bypassCache: params.bypassCache,
+    populate: params.populate,
   });
   setApiDataHash(event, result);
   return successResponse(event, result);
@@ -404,7 +344,9 @@ export async function handleCollectionEntry(
 
 /**
  * Shared pre-validation for bulk update payloads (Array<{ id: string; data: Record }>).
- * Validates constraints on each entry's `.data` portion and strips null array rows.
+ * Enforces field constraints on each entry's `.data` portion (null row stripping
+ * and maxLength truncation) in a single pass. Sanitization is intentionally NOT
+ * applied here — bulk update validation must not change sanitization behavior today.
  */
 async function validateBulkUpdatePayload(
   cms: LocalCMS,
@@ -417,10 +359,7 @@ async function validateBulkUpdatePayload(
 
   return updates.map((entry) => ({
     ...entry,
-    data: validateFieldConstraints(
-      stripNullRows(entry.data, schema as any),
-      schema as any,
-    ) as Record<string, unknown>,
+    data: prepareCollectionFields(entry.data, schema as any, { constraints: true }),
   }));
 }
 
@@ -432,9 +371,10 @@ export async function handleCollectionCreate(
   collectionId: string,
 ) {
   const rawData = unwrapWritePayload(
-    PROFILE_WRITE_ENABLED
-      ? await profileSpan("handler:json", () => event.request.json())
-      : await event.request.json(),
+    (event.locals as any)?.__parsedJsonBody ||
+      (PROFILE_WRITE_ENABLED
+        ? await profileSpan("handler:json", () => event.request.json())
+        : await event.request.json()),
   );
 
   if (Array.isArray(rawData)) {
@@ -477,9 +417,10 @@ export async function handleCollectionUpdate(
   // already does sanitization, numeric range validation, and hook processing —
   // the handler's pre-validation was pure duplication costing ~0.5ms per update.
   const rawData = unwrapWritePayload(
-    PROFILE_WRITE_ENABLED
-      ? await profileSpan("handler:json", () => event.request.json())
-      : await event.request.json(),
+    (event.locals as any)?.__parsedJsonBody ||
+      (PROFILE_WRITE_ENABLED
+        ? await profileSpan("handler:json", () => event.request.json())
+        : await event.request.json()),
   );
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.update", () =>
@@ -542,9 +483,9 @@ export async function handleCollectionWarmCache(
   }
 
   // Single bulk query instead of N individual lookups
-  const sanitizedTable = `collection_${collectionId.replace(/-/g, "")}`;
+  const tableName = collectionTableName(collectionId);
   const bulkResult = await cms.db.crud.findMany(
-    sanitizedTable,
+    tableName,
     { _id: { $in: entryIds as DatabaseId[] } },
     { tenantId, limit: entryIds.length },
   );
@@ -907,7 +848,7 @@ export async function handleCollectionIncrement(
 
   // Resolve physical collection name from schema
   const schema = await (cms.collections as any).getSchema(collectionId, tenantId);
-  const collectionName = `collection_${(schema._id as string).replace(/-/g, "")}`;
+  const collectionName = collectionTableName(schema._id as string);
 
   let result: any;
 

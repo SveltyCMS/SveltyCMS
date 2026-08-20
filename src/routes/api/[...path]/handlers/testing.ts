@@ -6,9 +6,11 @@
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { contentSystem } from "@src/content/index.server";
+import { getSchemaPath } from "@src/content/first-collection";
 import type { DatabaseId } from "@src/databases/db-interface";
 import type { RequestEvent } from "@sveltejs/kit";
 import fs from "node:fs";
+import { collectionTableName } from "@src/databases/core/collection-name";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { generateUUID } from "@utils/native-utils";
@@ -695,7 +697,7 @@ export async function handleTestingRoutes(
             );
             const node: any = {
               _id: collectionId,
-              path: `/collection/${(schema.name || collectionId).toLowerCase()}`,
+              path: getSchemaPath(schema),
               name: schema.name || collectionId,
               nodeType: "collection",
               collectionDef: { ...schema, _id: collectionId },
@@ -981,7 +983,7 @@ export async function handleTestingRoutes(
           tableName = cms.collections.getCollectionName(schema._id);
         } catch {
           // 🚀 RESILIENCE: Fallback to naming convention if schema is missing from cache (common during hot-reloads)
-          tableName = `collection_${collectionId.replace(/-/g, "")}`;
+          tableName = collectionTableName(collectionId);
           if (process.env.BENCHMARK_DEBUG === "true") {
             process.stderr.write(
               `[TestingHandler] clear-collection: Schema missing for ${collectionId}, using fallback: ${tableName}\n`,
@@ -1385,7 +1387,7 @@ export async function handleTestingRoutes(
       const localCms = new LocalCMS(initializedAdapter);
 
       for (const schema of collectionSchemas) {
-        localCms.collections.registerSchema(schema._id, schema as any, tenantId);
+        await localCms.collections.registerSchema(schema._id, schema as any, tenantId);
       }
 
       // Seed authors
@@ -1638,7 +1640,7 @@ export async function handleTestingRoutes(
       }
       const entryId = String(params.entryId || `trash_${generateUUID().slice(0, 12)}`);
       const title = String(params.title || `E2E Trash Item ${generateUUID().slice(0, 6)}`);
-      const collectionName = `collection_${collectionId.replace(/-/g, "")}`;
+      const collectionName = collectionTableName(collectionId);
 
       try {
         await initializedAdapter.collection.createModel({
@@ -1660,7 +1662,7 @@ export async function handleTestingRoutes(
       if (initializedAdapter.content?.nodes?.upsertContentStructureNode) {
         await initializedAdapter.content.nodes.upsertContentStructureNode({
           _id: collectionId,
-          path: `/collection/${collectionId.toLowerCase()}`,
+          path: getSchemaPath({ _id: collectionId, slug: collectionId }),
           name: collectionId,
           nodeType: "collection",
           collectionDef: {
@@ -1722,7 +1724,7 @@ export async function handleTestingRoutes(
       if (!collectionId || !entryId) {
         throw new AppError("collectionId and entryId required for purge-trash", 400);
       }
-      const collectionName = `collection_${collectionId.replace(/-/g, "")}`;
+      const collectionName = collectionTableName(collectionId);
       await initializedAdapter.crud.delete(collectionName, entryId as any, {
         tenantId,
         permanent: true,

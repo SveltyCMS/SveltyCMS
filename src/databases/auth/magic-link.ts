@@ -179,7 +179,10 @@ export async function verifyMagicLink({
       });
 
     const { getCachedFirstCollectionPath } = await import("@utils/server/collection-utils.server");
-    const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage as any);
+    const finalCollectionPath = await getCachedFirstCollectionPath(
+      userLanguage as any,
+      ((user as { tenantId?: string | null }).tenantId as string | null) ?? null,
+    );
     return {
       success: true,
       redirectPath: finalCollectionPath ?? "/config/collectionbuilder",

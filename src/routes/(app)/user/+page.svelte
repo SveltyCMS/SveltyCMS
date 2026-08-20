@@ -28,6 +28,7 @@
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { updateUserThemePrefs } from '../config/design-system/appearance-api';
 	import { userThemePrefs } from '@src/stores/user-prefs-overlay.svelte.ts';
+	import { isAdmin } from '@src/databases/auth/constants';
 	import {
 		button_delete,
 		email,
@@ -50,7 +51,7 @@
 	import '@src/stores/store.svelte.ts';
 	import { setCollection } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { triggerActionStore } from '@utils/global-search-index';
+	import { globalSearch } from '@utils/global-search-index.svelte';
 	import { modalState, showConfirm } from '@utils/modal.svelte';
 	import ModalEditAvatar from './components/modal-edit-avatar.svelte';
 	import ModalEditForm from './components/modal-edit-form.svelte';
@@ -123,9 +124,8 @@
 	});
 
 	const canManageUsers = $derived(
-		user.isAdmin === true ||
-			(data as { isAdmin?: boolean }).isAdmin === true ||
-			user.role === 'admin' ||
+		isAdmin(user) ||
+			isAdmin(data) ||
 			(data as { permissions?: Record<string, { hasPermission?: boolean }> }).permissions?.[
 				'config/adminArea'
 			]?.hasPermission === true
@@ -646,17 +646,17 @@
 	}
 
 	function executeActions() {
-		const actions = $triggerActionStore;
+		const actions = globalSearch.triggerActions;
 		if (actions.length === 1) {
 			actions[0]();
 		} else {
 			for (const action of actions) action();
 		}
-		triggerActionStore.set([]);
+		globalSearch.clearTriggerActions();
 	}
 
 	onMount(() => {
-		if ($triggerActionStore.length > 0) executeActions();
+		if (globalSearch.triggerActions.length > 0) executeActions();
 		setCollection(null);
 		loadSessions().catch(() => {});
 	});

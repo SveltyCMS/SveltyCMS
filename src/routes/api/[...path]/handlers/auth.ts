@@ -15,9 +15,11 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, ISODateString } from "@src/content/types";
 import {
-  SESSION_COOKIE_NAME,
   getSessionCookieName,
   isSecureCookieContext,
+  readSessionCookie,
+  clearAllSessionCookies,
+  isAdmin,
 } from "@src/databases/auth/constants";
 import { TwoFactorAuthService } from "@src/databases/auth/two-factor-auth";
 import {
@@ -203,23 +205,7 @@ function setSessionCookie(event: RequestEvent, sessionId: string) {
 
 /** Deletes both secure and non-secure variants of the session cookie with matching attributes. */
 function clearSessionCookies(event: RequestEvent) {
-  const { name, isSecure } = getCookieConfig(event);
-  const sameSite = isSecure ? "strict" : "lax";
-  event.cookies.delete(name, {
-    path: "/",
-    httpOnly: true,
-    sameSite,
-    secure: isSecure,
-  });
-  // Also delete the non-secure variant in case it was set previously
-  if (isSecure) {
-    event.cookies.delete(SESSION_COOKIE_NAME, {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false,
-    });
-  }
+  clearAllSessionCookies(event.cookies, "/");
 }
 
 // ─── Core Handlers ───────────────────────────────────────────────────────────
@@ -340,8 +326,8 @@ export async function handleLogout(
   tenantId: DatabaseId,
   cookies: any,
 ) {
-  const { name } = getCookieConfig(event);
-  const sessionId = cookies.get(name) || cookies.get(SESSION_COOKIE_NAME);
+  const isSecure = event.url.protocol === "https:";
+  const sessionId = readSessionCookie(cookies, isSecure);
 
   if (sessionId) {
     await cms.auth.logout(sessionId);
@@ -368,8 +354,8 @@ export async function handleOidcLogout(
   tenantId: DatabaseId,
   cookies: any,
 ) {
-  const { name } = getCookieConfig(event);
-  const sessionId = cookies.get(name) || cookies.get(SESSION_COOKIE_NAME);
+  const isSecure = event.url.protocol === "https:";
+  const sessionId = readSessionCookie(cookies, isSecure);
 
   // Parse OIDC params from query (GET) or body (POST)
   let idTokenHint: string | undefined;
@@ -838,8 +824,7 @@ export async function handleUpdateUserAttributesRoute(
   // 🔄 Refresh session caches so the next page load returns updated user data
   const currentSessionId =
     (event.locals.session_id as DatabaseId | undefined) ??
-    event.cookies.get(getSessionCookieName(event.url.protocol === "https:")) ??
-    event.cookies.get(SESSION_COOKIE_NAME);
+    readSessionCookie(event.cookies, event.url.protocol === "https:");
   if (targetId === event.locals.user?._id && currentSessionId && result.data) {
     primeSessionMemoryCache(currentSessionId, result.data as User);
     // Also clear the Redis cache key so it's re-read from DB on next cache miss
@@ -1044,17 +1029,17 @@ export async function handleSessionsRoutes(
     return handleSessionReauth(event, cms, tenantId, user);
   }
 
-  const isAdmin = user.isAdmin === true || user.role === "admin";
+  const isAdminUser = isAdmin(user);
   const adminConsole = event.url.searchParams.get("admin") === "1";
 
   if (sessionId && event.request.method === "DELETE") {
     const currentSessionId = String(
       event.locals.session_id ??
-        event.cookies.get(getSessionCookieName(event.url.protocol === "https:")) ??
+        readSessionCookie(event.cookies, event.url.protocol === "https:") ??
         "",
     );
     const isCurrent = currentSessionId.length > 0 && sessionId === currentSessionId;
-    const adminBypass = adminConsole && isAdmin;
+    const adminBypass = adminConsole && isAdminUser;
 
     // Cross-session revocation requires a fresh password proof — a stolen
     // session must not be able to revoke the real user's other devices.
@@ -1073,7 +1058,7 @@ export async function handleSessionsRoutes(
 
   if (event.request.method === "GET") {
     // Admin session console: ?userId=X lists another user's sessions (admins only)
-    const targetUserId = adminConsole && isAdmin ? event.url.searchParams.get("userId") : null;
+    const targetUserId = adminConsole && isAdminUser ? event.url.searchParams.get("userId") : null;
     const userId = targetUserId || user._id || user.id;
     if (!userId) {
       throw new AppError("Authentication required", 401, "UNAUTHORIZED");

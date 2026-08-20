@@ -25,7 +25,7 @@ import {
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import { isRedirect, isHttpError } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
-import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import { readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import {
   isApiLike,
   isBootstrapRoute,
@@ -286,10 +286,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         logger.debug(`[Turbo] TEST BYPASS for ${pathname} method=${event.request.method}`);
       }
 
-      // 🛡️ HARDENING: Resolve real user from session if possible to maintain test state
-      const sessionId =
-        event.cookies.get(SESSION_COOKIE_NAME) ||
-        event.cookies.get(`__Host-${SESSION_COOKIE_NAME}`);
+      const sessionId = readSessionCookie(event.cookies);
       if (sessionId) {
         // Using globalThis access for the auth service to ensure we don't trigger recursive imports
         const authService = (globalThis as any).__AUTH_INSTANCE__;
@@ -351,8 +348,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         }
       }
 
-      (event.locals as any).isAdmin =
-        !!event.locals.user?.isAdmin || event.locals.user?.role === "admin";
+      (event.locals as any).isAdmin = isAdmin(event.locals.user);
       (event.locals as any).dbAdapter = db;
       // 🛡️ HARDENING: Only set testBypass when explicitly requested — never in benchmarks.
       if (event.request.headers.get("x-test-security") !== "true") {

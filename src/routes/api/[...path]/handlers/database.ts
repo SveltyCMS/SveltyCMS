@@ -16,15 +16,14 @@ import { getDatabaseResilience } from "@src/databases/database-resilience";
 import { getSystemStatus } from "@src/databases/resilience-integration";
 import { requireDashboardWidgetLicense } from "./dashboard-license";
 
+import { isAdmin } from "@src/databases/auth/constants";
+
 /**
  * Validates admin authorization against the standardized SvelteKit locals context.
  */
 function requireAdmin(event: RequestEvent): void {
   const { locals } = event;
-  const user = locals.user as Record<string, any> | undefined;
-  const role = user?.role;
-
-  if (locals.isAdmin || role === "admin" || role === "super-admin") return;
+  if (locals.isAdmin || isAdmin(locals.user)) return;
   throw new AppError("Admin access required", 403, "FORBIDDEN");
 }
 

@@ -429,3 +429,49 @@ describe("scanSvelteKitRisk — config risks", () => {
     expect(violations).toHaveLength(0);
   });
 });
+
+describe("scanGlobalRisk — code fragmentation detection", () => {
+  it("flags ad-hoc admin checks in application files", () => {
+    const vulnerable = 'if (user.role === "admin") { doAdminAction(); }';
+    const violations = scanGlobalRisk("routes/api/custom-route.ts", vulnerable);
+    expect(
+      violations.some((v) => v.category === "admin-role-fragmentation" && v.severity === "error"),
+    ).toBe(true);
+  });
+
+  it("passes canonical isAdmin(user) checks", () => {
+    const fixed = "if (isAdmin(user)) { doAdminAction(); }";
+    const violations = scanGlobalRisk("routes/api/custom-route.ts", fixed);
+    expect(violations.some((v) => v.category === "admin-role-fragmentation")).toBe(false);
+  });
+
+  it("flags ad-hoc session cookie deletions", () => {
+    const vulnerable = 'cookies.delete("auth_sessions");';
+    const violations = scanGlobalRisk("routes/api/logout-helper.ts", vulnerable);
+    expect(
+      violations.some((v) => v.category === "cookie-clear-fragmentation" && v.severity === "error"),
+    ).toBe(true);
+  });
+
+  it("passes canonical clearAllSessionCookies calls", () => {
+    const fixed = "clearAllSessionCookies(cookies);";
+    const violations = scanGlobalRisk("routes/api/logout-helper.ts", fixed);
+    expect(violations.some((v) => v.category === "cookie-clear-fragmentation")).toBe(false);
+  });
+
+  it("flags ad-hoc collection path construction", () => {
+    const vulnerable = "const node = { path: `/collection/${name}` };";
+    const violations = scanGlobalRisk("services/custom-tree.ts", vulnerable);
+    expect(
+      violations.some(
+        (v) => v.category === "collection-path-fragmentation" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes canonical getSchemaPath / getNodePath calls", () => {
+    const fixed = "const node = { path: getSchemaPath(schema) };";
+    const violations = scanGlobalRisk("services/custom-tree.ts", fixed);
+    expect(violations.some((v) => v.category === "collection-path-fragmentation")).toBe(false);
+  });
+});

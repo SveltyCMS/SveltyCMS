@@ -5,6 +5,7 @@
 
 // Auth - getAllPermissions is lightweight, no heavy queries needed
 import { getAllPermissions } from "@src/databases/auth/permissions";
+import { isAdmin } from "@src/databases/auth/constants";
 import { error } from "@sveltejs/kit";
 // System Logger - Ensure logger is optimized for performance in production (e.g., disabled debug logs)
 import { logger } from "@utils/logger";
@@ -15,12 +16,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   try {
     const user = getAuthenticatedUser(locals);
     const { roles: tenantRoles = [], tenantId } = locals;
-    const localsIsAdmin = !!(
-      locals.isAdmin ||
-      (user as any)?.isAdmin ||
-      user.role === "admin" ||
-      user.role === "super-admin"
-    );
+    const localsIsAdmin = !!(locals.isAdmin || isAdmin(user));
 
     // Check if user is admin — prefer hook flag, fall back to role string
     if (!localsIsAdmin) {

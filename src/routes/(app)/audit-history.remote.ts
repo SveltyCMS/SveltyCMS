@@ -34,10 +34,13 @@ export const queryAuditLogs = query(
       return { success: false, data: [], message: "No audit result returned" };
     }
 
+    if (result.success === false) {
+      return { success: false, data: [], message: result.message };
+    }
+
     return {
-      success: result.success !== false,
+      success: true,
       data: Array.isArray(result.data) ? result.data : [],
-      message: result.message,
     };
   },
 );

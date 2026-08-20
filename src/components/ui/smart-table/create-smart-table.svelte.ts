@@ -22,7 +22,7 @@
  * @see docs/reference/components/smart-table.mdx
  */
 
-import { ROW_HEIGHT, VIRTUAL_BUFFER, VIRTUALIZATION_THRESHOLD } from "@utils/table-constants";
+import { ROW_HEIGHT, VIRTUAL_BUFFER, VIRTUALIZATION_THRESHOLD } from "./types";
 import {
   isValidDensity,
   loadTableLayout,

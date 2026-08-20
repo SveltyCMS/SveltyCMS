@@ -10,6 +10,7 @@
  */
 
 import { error, json } from "@sveltejs/kit";
+import { isAdmin } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
@@ -69,17 +70,14 @@ logger.trace(`Discovered ${_widgets.length} dashboard widgets (compile-time)`);
 export const load: PageServerLoad = async ({ locals }) => {
   const user = getAuthenticatedUser(locals);
   // Prefer hook flag; only treat role as admin when locals.isAdmin is undefined
-  const isAdmin =
-    locals.isAdmin === true ||
-    (user as any)?.isAdmin === true ||
-    (locals.isAdmin == null && (user.role === "admin" || user.role === "super-admin"));
+  const isAdminUser = locals.isAdmin === true || isAdmin(user);
   const tenantRoles = locals.roles ?? [];
 
   // Check if user has permission to access dashboard.
   // Guard tenantRoles: locals.roles can be undefined (e.g. roles not yet loaded), and calling
   // .some() on undefined would 500 the whole dashboard instead of doing a clean permission check.
   const hasDashboardPermission =
-    isAdmin ||
+    isAdminUser ||
     tenantRoles.some((role) =>
       role.permissions?.some((p) => {
         const [resource, action] = p.split(":");
@@ -117,7 +115,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   return {
     pageData: {
       user: { id: _id.toString(), ...rest },
-      isAdmin,
+      isAdmin: isAdminUser,
     },
     availableWidgets: sortedWidgets,
     hotCollections,

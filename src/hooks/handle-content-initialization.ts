@@ -73,16 +73,17 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
   }
 
   // Phase 3: Auth & fresh install redirects (no global store — request-scoped only)
-  if (locals.user && tenantId) {
+  if (locals.user) {
     let collections = contentSystem.getCollections(tenantId);
 
     if (collections.length === 0 && !contentSystem.isInitializedForTenant(tenantId)) {
-      let activeFlight = tenantInitializationFlights.get(tenantId);
+      const flightKey = tenantId || "global";
+      let activeFlight = tenantInitializationFlights.get(flightKey);
       if (!activeFlight) {
         activeFlight = contentSystem.initialize(tenantId, false).finally(() => {
-          tenantInitializationFlights.delete(tenantId!);
+          tenantInitializationFlights.delete(flightKey);
         });
-        tenantInitializationFlights.set(tenantId, activeFlight);
+        tenantInitializationFlights.set(flightKey, activeFlight);
       }
       await activeFlight;
       collections = contentSystem.getCollections(tenantId);

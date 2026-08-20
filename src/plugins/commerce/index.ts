@@ -15,6 +15,7 @@
  */
 
 import { definePlugin } from "../define-plugin";
+import type { IDBAdapter } from "@databases/db-interface";
 
 export const commercePlugin = definePlugin({
   metadata: {
@@ -46,9 +47,7 @@ export const commercePlugin = definePlugin({
       pluginId: "commerce",
       version: 1,
       description: "Customer address book collection (tenant-scoped)",
-      up: async (dbAdapter: {
-        collection: { createModel: (schema: unknown) => Promise<unknown> };
-      }) => {
+      up: async (dbAdapter: IDBAdapter) => {
         await dbAdapter.collection.createModel({
           _id: "commerce_addresses",
           name: "commerce_addresses",

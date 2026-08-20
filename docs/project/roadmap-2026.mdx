@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-08-19"
+updated: "2026-08-20"
 tags:
   - "roadmap"
   - "todo"
@@ -59,6 +59,9 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 ---
 
 ## 🏗️ In Progress
+
+- 🏗️ **AI-Assisted Builder (Phase 0 shipped 2026-08-20)** — `src/services/ai-builder/` gateway skeleton: `gateway.ts` (ordered backend failover via the existing Ollama `aiService` + per-user sliding-window quotas), `prompts.ts` (`<user_data>` passive-reference injection shield), `validator.ts` (Valibot structured-output validation + widget-registry awareness + reserved `db_fieldName` blocking), `diff.ts` (proposal-vs-schema diff), `collection-designer.ts` (design/refine). API namespace `ai-builder` registered in the existing fail-closed dispatcher (`ENDPOINT_PERMISSIONS: system:settings`, admin-gated handler): `POST /api/ai-builder/design-collection` and `refine-collection` live; `approve-collection` returns 501 until Phase 1 (schema write via AST path). See [AI-Assisted Builder Design](../development/ai-builder-design.mdx).
+- 🏗️ **CollectionsNamespace consolidation (2026-08)** — `src/services/sdk/namespaces/collections-namespace.ts` split from a ~2,100-line monolith into a thin orchestrator + single-purpose modules (`schema-store`, `read-pipeline`, `write-pipeline`, `post-write`, `request-cache`, `lazy-services`). Write field prep is now ONE schema walk + ONE clone via `prepareCollectionFields()` in `content-utils.ts` (previously 3 walks / up to 3 clones); create/update share `applySchemaHookPipeline`; `collectionTableName()` centralizes physical table naming (namespace + handlers); dead code removed (`emitOutboxEvent`, `modifyRequest` passthrough). **Adapter naming reconciled**: SQL `getTable`/`createIndexes`/`registerTableSchema` and Mongo `normalizeCollectionName`/`createModel` now all derive from `normalizeCollectionTableName()` — fixes hyphenated-id index/model-registry mismatches (see [Performance Architecture](../reference/database/performance-architecture.mdx)). Security invariants preserved: publication clamping, tenant injection, sanitization, `assertWriteAllowed`, best-effort side effects. See [Local SDK vs HTTP/GraphQL API](../development/local-vs-http-api.mdx). Pending: re-run `local-cms-crud` / `local-sdk-vs-direct` benchmarks to refresh trend labels.
 
 - 🏗️ **Marketplace Phase 2 (in-app catalog)** — **August 2026 progress:** Extensions page **Marketplace** tab + `marketplace-view.svelte` + `GET /api/marketplace` offline-first merge (local listings + `marketplace-client` remote). Dashboard widgets refactored into **marketplace-portable package folders** (`widgets/<folder>/<component>.svelte` + required `widget.json` + `.mdx`) with `installDashboardWidget()` and local catalog listings (type filter incl. `dashboard`, license/price badges). **Licensing aligned with widgets/plugins/site starter**: Free / Freemium (14-day key-less trial) / Paid via `checkExtensionLicense("dashboard", id)` — client-side upgrade prompts **and** server-side `403 LICENSE_REQUIRED` gates on premium dashboard endpoints (see [license-endpoint-inventory](../reference/security/license-endpoint-inventory.mdx)). Still open: one-click install pipeline for remote packages, richer package cards, in-app license UX.
 - 🏗️ **Plugin Admin Pages (`page` part)** — plugins contribute full admin pages under `/plugin/<path>` with server `load`, RBAC gating (403), declarative sidebar nav, and the `<AdminZone>` renderer for `adminTool` + `AdminAreaExtension` zones. See [Plugin Architecture](../development/plugins/architecture.mdx).

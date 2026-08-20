@@ -208,13 +208,7 @@ export function isApiLike(pathname: string): boolean {
   return pathname.startsWith("/api/") || pathname.includes("/api-");
 }
 
-export function isAdmin(user: any): boolean {
-  if (!user) return false;
-  // SQLite may return isAdmin as 0/1; treat any truthy value as admin
-  if (user.isAdmin === true || user.isAdmin === 1 || user.isAdmin === "1") return true;
-  const role = String(user.role ?? "").toLowerCase();
-  return role === "admin" || role === "super-admin";
-}
+export { isAdmin } from "@src/databases/auth/constants";
 
 /**
  * High-performance client IP detection.

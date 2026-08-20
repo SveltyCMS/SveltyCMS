@@ -65,6 +65,7 @@
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	// Types
 	import { type Role as RoleType, type Token, type User } from '@src/databases/auth/types';
+	import { isAdmin } from '@src/databases/auth/constants';
 	// Types
 	import {
 		adminarea_activesession,
@@ -475,7 +476,7 @@
 		}
 
 		// System protection: admins cannot be blocked
-		if (user.role === 'admin' || user.isAdmin) {
+		if (isAdmin(user)) {
 			toast.warning('System admins cannot be blocked.');
 			return;
 		}

@@ -3,8 +3,8 @@
  * @description Collection builder field utilities — name generation, GUI extraction, data extraction.
  */
 
-import type { FieldInstance, FieldValue } from "@src/content/types";
-import { deepCopy } from "@src/utils/object-utils";
+import { deepCopy } from "@src/utils/data-utils";
+import type { FieldInstance, FieldValue } from "@content/types";
 
 /**
  * Interface for GUI field configuration in the Collection Builder.

@@ -36,13 +36,13 @@ export async function registerSystemModels(connection: Connection): Promise<void
     }
 
     // Themes
-    const { themeSchema } = await import("./theme-methods"); // Merged pilot: theme schema now in theme-methods.ts
+    const { themeSchema } = await import("./theme");
     if (!connection.models.system_theme) {
       connection.model("system_theme", themeSchema);
     }
 
     // Settings & Preferences
-    const { systemSettingSchema } = await import("./system-setting");
+    const { systemSettingSchema } = await import("./system-module");
     if (!connection.models.SystemSetting) {
       connection.model("SystemSetting", systemSettingSchema);
     }

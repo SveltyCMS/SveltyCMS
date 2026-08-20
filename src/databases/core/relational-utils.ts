@@ -21,6 +21,7 @@ import type {
 import { hasTenantBypass } from "../system-tenant-scope";
 import { eq, isNull } from "drizzle-orm";
 import { assertTenantContext } from "@src/utils/security/safe-query";
+import { normalizeCollectionTableName } from "./collection-name";
 
 export { isoDateStringToDate, nowISODateString };
 
@@ -226,11 +227,11 @@ export function registerTableSchema(
   };
 
   registerKey(table);
-  if (table.startsWith("collection_")) {
-    registerKey(table.slice(11));
-  } else {
-    registerKey(`collection_${table}`);
-  }
+  // Canonical physical-name variant: normalizeCollectionTableName strips
+  // hyphens so the variant key matches the physical table name getTable
+  // produces for hyphenated ids (the old prefix-toggle kept the hyphens in
+  // the variant key, which never matched the physical table).
+  registerKey(normalizeCollectionTableName(table));
 }
 
 export function getTableDateColumns(table: string): string[] {

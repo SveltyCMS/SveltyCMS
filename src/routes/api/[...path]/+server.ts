@@ -22,7 +22,7 @@ import {
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
-import { SESSION_COOKIE_NAME, isSecureCookieContext } from "@src/databases/auth/constants";
+import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import { pluginRouteRegistry } from "@src/plugins/plugin-route-registry";
 import {
   responseCache,
@@ -115,6 +115,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "system-settings": { handler: "system", fn: "handleSettingsRoutes" },
   importer: { handler: "system", fn: "handleImporterRoutes" },
   ai: { handler: "system", fn: "handleAiRoutes" },
+  "ai-builder": { handler: "system", fn: "handleAiBuilderRoutes" },
   automations: { handler: "system", fn: "handleAutomationRoutes" },
   workflows: { handler: "system", fn: "handleWorkflowRoutes" },
   setup: { handler: "setup", fn: "handleSetupRoutes" },
@@ -213,6 +214,7 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   import: "config:importexport",
   export: "config:importexport",
   ai: "system:settings",
+  "ai-builder": "system:settings",
   automations: "config:automations",
   workflows: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "config:automations" : "config:automations",
@@ -286,7 +288,7 @@ export function _checkEndpointPermission(
   segments: string[],
 ): boolean {
   // 🚀 ADMIN FAST-PATH: System and super admins have all access
-  if (user.isAdmin === true || user.role === "admin" || user.role === "super-admin") {
+  if (isAdmin(user)) {
     return true;
   }
 
@@ -441,10 +443,8 @@ export const _handler = async (event: RequestEvent) => {
   // Last-chance session hydration for requests that carry a valid session cookie
   // but arrive before upstream auth middleware has populated locals.user.
   if (!user) {
-    const sessionId =
-      cookies.get(SESSION_COOKIE_NAME) ||
-      cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
-      cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
+    const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+    const sessionId = readSessionCookie(cookies, isSecure);
 
     if (sessionId && adapter?.auth?.getSessionTokenData && adapter?.auth?.getUserById) {
       const sessionResult = await adapter.auth.getSessionTokenData(sessionId as any);
@@ -592,9 +592,8 @@ export const _handler = async (event: RequestEvent) => {
       if (caps !== "public") {
         if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
         const roles = locals.roles || [];
-        const isAdmin =
-          user.isAdmin === true || user.role === "admin" || user.role === "super-admin";
-        if (!isAdmin && Array.isArray(caps) && caps.length > 0) {
+        const isAdminUser = isAdmin(user);
+        if (!isAdminUser && Array.isArray(caps) && caps.length > 0) {
           const ok = caps.every((cap) => hasPermissionWithRoles(user, cap, roles));
           if (!ok) throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
         }

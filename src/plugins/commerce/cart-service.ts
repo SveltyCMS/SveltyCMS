@@ -298,7 +298,7 @@ export async function setCartCoupon(
     updatedAt: nowISODateString(),
   });
   const saved = await store.findOne("carts", { _id: cart.id });
-  return toView(saved || cart, input.currency);
+  return toView((saved || cart) as CommerceRow, input.currency);
 }
 
 export function cartSubtotalCents(cart: CartView): number {

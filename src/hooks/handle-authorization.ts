@@ -13,7 +13,7 @@
 import { AuthGuardService } from "@src/services/security/auth-guard";
 import { isAdmin, getRequestFlags, isPublicRoute } from "@utils/hook-utils";
 import { SetupState } from "@utils/server/setup-check";
-import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@src/databases/auth/constants";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import {
@@ -321,10 +321,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 function _populateTurboAuth(event: RequestEvent, user: any, roles: Role[]): void {
   try {
-    const sessionId =
-      event.cookies.get(SESSION_COOKIE_NAME) ||
-      event.cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
-      event.cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
+    const sessionId = readSessionCookie(event.cookies);
     if (!sessionId) return;
     let bitset: Uint32Array;
     if (roles.length > 0) {

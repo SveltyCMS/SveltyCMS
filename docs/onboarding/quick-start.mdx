@@ -1,0 +1,99 @@
+---
+path: "docs/onboarding/quick-start.mdx"
+title: "Quick Start"
+description: "Launch SveltyCMS in under 5 minutes with Bun, SvelteKit, and SQLite."
+order: 2
+icon: "mdi:lightning-bolt"
+author: "SveltyCMS Team"
+created: "2026-08-20"
+updated: "2026-08-20"
+tags:
+  - "quickstart"
+  - "tutorial"
+  - "installation"
+  - "development"
+---
+
+# Quick Start Tutorial
+
+Get SveltyCMS running locally in under 5 minutes. This tutorial walks you through installation, booting the dev server, completing the initial setup, and creating your first content collection.
+
+---
+
+## Prerequisites
+
+Before starting, ensure your local environment meets these requirements:
+
+- **Runtime**: [Bun](https://bun.sh) (v1.2+) or Node.js (v24+)
+- **OS**: macOS, Linux, or Windows (WSL / PowerShell)
+- **Browser**: Any modern browser (Chrome, Firefox, Safari, Edge)
+
+> [!TIP]
+> **Bun Recommended**: SveltyCMS leverages Bun for 3–4× faster startup times and sub-millisecond local SQLite execution.
+
+---
+
+## Step 1: Clone and Install
+
+Clone the repository and install dependencies with a single command:
+
+```bash
+# Clone the repository
+git clone https://github.com/SveltyCMS/SveltyCMS.git
+cd SveltyCMS
+
+# Install dependencies
+bun install
+```
+
+---
+
+## Step 2: Start the Development Server
+
+Launch the Vite development server:
+
+```bash
+bun run dev
+```
+
+The terminal will output the local development URL:
+
+```text
+  VITE v7.3.1  ready in 420 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+```
+
+Open **`http://localhost:5173/`** in your browser.
+
+---
+
+## Step 3: Complete the Initial Setup
+
+When you first open SveltyCMS, the system detects that no database or admin user exists and automatically opens the **Setup Wizard**:
+
+1. **Database Selection**: Choose **SQLite (In-Process)** for instant zero-configuration local setup.
+2. **Admin Credentials**: Enter your Administrator Email and Password (minimum 8 characters).
+3. **Site Configuration**: Enter your Site Name and default language (e.g., English / `en`).
+4. **Complete Setup**: Click **Initialize CMS**.
+
+> [!IMPORTANT]
+> **Setup Gating**: Once initialized, all `/setup` and `/api/setup` routes are permanently locked with a 403 Forbidden fail-closed guard to ensure security.
+
+---
+
+## Step 4: Access Your Dashboard & First Collection
+
+1. Log in at `http://localhost:5173/login` using your admin credentials.
+2. Navigate to **Config $\rightarrow$ Collection Builder** in the sidebar.
+3. Click **Create Collection** and add your fields (e.g., `title`, `slug`, `content`).
+4. Save and publish — your collection is immediately available via **REST API** (`/api/collections/posts`), **GraphQL** (`/api/graphql`), and the **Admin UI**.
+
+---
+
+## Next Steps
+
+- Follow the **[Setup Wizard Guide](./setup-wizard.mdx)** for multi-database configurations (PostgreSQL, MariaDB, MongoDB).
+- Explore **[Persona Paths](./persona-paths.mdx)** to tailor workflows for your team.
+- Read about our **[Local SDK Architecture](../reference/architecture/index.mdx)** for zero-network CMS data access.

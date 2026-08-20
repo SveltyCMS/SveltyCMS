@@ -20,6 +20,7 @@ import { contentStore } from "@src/stores/content-registry.svelte";
 import type { ContentNode, Schema, DatabaseId } from "./types";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import { generateCategoryNodesFromPaths } from "./content-utils";
+import { compareCollectionSchemas } from "./first-collection";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { eventBus, SystemEvents } from "@utils/event-bus";
 import { generateSchemaHash, isSafeCollectionPath, loadSchema } from "./loader.server";
@@ -385,9 +386,10 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
     } finally {
       _scanPromises.delete(collectionsDir);
     }
-    return fileList
+    const schemas = fileList
       .map((f) => _schemaCache.get(f.fullPath))
       .filter((s): s is Schema => s !== undefined);
+    return schemas.sort(compareCollectionSchemas);
   })();
 
   _scanPromises.set(collectionsDir, promise);
@@ -762,9 +764,15 @@ export const contentService = {
         existing?.parentId ??
         categoryIdMap.get(schemaPath.split("/").slice(0, -1).join("/")) ??
         undefined;
-      const schemaId = String(schema._id || existing?._id || schema.name || "unknown");
+      const schemaId = String(
+        schema._id || existing?._id || schema.slug || schema.name || "unknown",
+      );
       const manifestSort =
-        manifestOrder[schemaId] ?? manifestOrder[schemaId.toLowerCase()] ?? existing?.order ?? 999;
+        manifestOrder[schemaId] ??
+        manifestOrder[schemaId.toLowerCase()] ??
+        existing?.order ??
+        schema.order ??
+        999;
       const hasChanged =
         !existing ||
         existing.source !== "filesystem" ||
@@ -932,14 +940,14 @@ export const contentService = {
 
     const node: ContentNode = {
       ...existing,
-      _id: (schema._id || existing?._id || schema.name || "unknown") as DatabaseId,
+      _id: (schema._id || existing?._id || schema.slug || schema.name || "unknown") as DatabaseId,
       path: schema.path,
       name: String(schema.name),
       icon: schema.icon || "bi:file",
       nodeType: "collection",
       collectionDef: schema,
       tenantId: tenantId as any,
-      order: existing?.order ?? 999,
+      order: existing?.order ?? schema.order ?? 999,
       translations: schema.translations || [],
       source: "filesystem",
       createdAt: existing?.createdAt || now,

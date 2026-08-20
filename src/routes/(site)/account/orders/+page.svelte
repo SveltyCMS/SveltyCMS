@@ -4,7 +4,6 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Button from '@components/ui/button.svelte';
 
 	let orders = $state<Array<{ _id: string; orderNumber: string; status: string; total: number; createdAt: string }>>([]);
 	let error = $state('');

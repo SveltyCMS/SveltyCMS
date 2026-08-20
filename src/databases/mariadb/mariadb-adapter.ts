@@ -33,6 +33,8 @@ import { AdapterCore } from "./adapter-core";
 import { MariaDBFtsAdapter } from "./fts-adapter";
 import { logger } from "@src/utils/logger";
 import { withMigrationLock } from "../migration-lock";
+import { PerformanceModule } from "../core/performance-module";
+import { CacheModule } from "../core/cache-module";
 
 function quoteMariaIdentifier(identifier: string): string {
   return `\`${identifier.replace(/`/g, "``")}\``;
@@ -44,8 +46,6 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
 
   public get monitoring(): IMonitoringAdapter {
     if (!this._monitoring) {
-      const { PerformanceModule } = require("../core/performance-module");
-      const { CacheModule } = require("../core/cache-module");
       this._monitoring = {
         performance: new PerformanceModule(this as any),
         cache: new CacheModule(this as any),

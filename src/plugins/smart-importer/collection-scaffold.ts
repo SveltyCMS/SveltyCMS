@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { logger } from "@utils/logger";
 import type { Schema } from "@src/content/types";
+import { getSchemaPath } from "@src/content/first-collection";
 import type { MappingFieldInput } from "./schema-preview";
 import { buildProposedFieldsFromMappings } from "./schema-preview";
 import { normalizeCollectionId } from "./infer-collection";
@@ -88,7 +89,7 @@ export function buildCollectionSchemaFromMappings(
     icon: "mdi:database-import-outline",
     status: "publish",
     description: `Auto-scaffolded from ${sourcePlatform} migration`,
-    path: `/collection/${collectionId}`,
+    path: getSchemaPath({ _id: collectionId, slug: collectionId }),
     fields,
   };
 }

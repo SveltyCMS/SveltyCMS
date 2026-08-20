@@ -4,6 +4,7 @@
  */
 
 import { contentSystem } from "@src/content/index.server";
+import { getSchemaPath } from "@src/content/first-collection";
 import type { User } from "@src/databases/auth/types";
 import { logger } from "@utils/logger";
 
@@ -12,6 +13,7 @@ interface GraphQLContext {
   tenantId?: string | null;
   user?: User;
   cms?: any;
+  publicationFilter?: string;
 }
 
 export const systemTypeDefs = `
@@ -151,7 +153,7 @@ export const systemResolvers = {
             _id: col._id,
             name: col.name,
             icon: col.icon || "mdi:folder",
-            path: col.path || `/collection/${col.name}`,
+            path: getSchemaPath(col),
             fieldCount: (col.fields || []).length,
             hasRevisions: col.revision || false,
             hasLivePreview: !!col.livePreview,

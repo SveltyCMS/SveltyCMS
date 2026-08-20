@@ -26,6 +26,7 @@ import RightSidebar from "@src/components/right-sidebar.svelte";
 import CommandPalette from "@src/components/command-palette.svelte";
 // Type Imports
 import type { User } from "@src/databases/auth/types";
+import { isAdmin } from "@src/databases/auth/constants";
 import type { ContentNode } from "@src/content/types";
 // Stores
 import {
@@ -147,8 +148,7 @@ $effect(() => {
 	const u = data.user as any;
 	setAdminZoneCapabilityChecker((required: string[]) => {
 		if (!u) return false;
-		const isAdmin = !!u.isAdmin || u.role === "admin" || u.role === "super-admin";
-		return isAdmin || required.length === 0;
+		return isAdmin(u) || required.length === 0;
 	});
 });
 
@@ -257,9 +257,9 @@ $effect(() => {
 		if (!data.user) return;
 
 		const prefs = uiStateToLayoutPrefs(ui.state);
-		const isAdmin = data.user.isAdmin || data.user.role === "admin";
+		const isAdminUser = isAdmin(data.user);
 
-		if (isAdmin) {
+		if (isAdminUser) {
 			try {
 				await fetch("/api/theme/admin-theme", {
 					method: "POST",

@@ -13,6 +13,9 @@
  * - Fully optional — schemas without hooks work unchanged
  * - Pure `applySchemaHooks` helper for unit testing and shared use
  * - ValidationContext provides schema metadata and operation context
+ * - Optional error factory: write paths can throw typed errors
+ *   (e.g. AppError with FIELD_VALIDATION_ERROR) without coupling this
+ *   dependency-light module to the error-handling package
  */
 
 import type { Schema } from "./types";
@@ -107,15 +110,30 @@ export async function applyAfterValidate(
 }
 
 /**
+ * Options for `applySchemaHookPipeline`.
+ */
+export interface SchemaHookPipelineOptions {
+  /**
+   * Turns validation error messages into a throwable.
+   * Default: `(msgs) => new Error(msgs.join("; "))`.
+   * Write paths may supply a factory that throws a typed error
+   * (e.g. `AppError(msgs.join("; "), 400, "FIELD_VALIDATION_ERROR")`).
+   */
+  createError?: (messages: string[]) => Error;
+}
+
+/**
  * Run beforeValidate → optional sync validator → afterValidate.
  * `validate` should throw or return error strings; when it returns a non-empty
- * string array the runner throws an Error with joined messages.
+ * string array the runner throws an Error with joined messages (or the error
+ * returned by `options.createError` when provided).
  */
 export async function applySchemaHookPipeline(
   hooks: SchemaHooks | undefined | null,
   data: Record<string, unknown>,
   context: Omit<ValidationContext, "document">,
   validate?: (data: Record<string, unknown>) => string[] | void,
+  options?: SchemaHookPipelineOptions,
 ): Promise<Record<string, unknown>> {
   let current = data;
   const ctx: ValidationContext = {
@@ -131,7 +149,8 @@ export async function applySchemaHookPipeline(
   if (validate) {
     const errors = validate(current);
     if (Array.isArray(errors) && errors.length > 0) {
-      throw new Error(errors.join("; "));
+      const createError = options?.createError;
+      throw createError ? createError(errors) : new Error(errors.join("; "));
     }
   }
 
