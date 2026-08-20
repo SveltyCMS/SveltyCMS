@@ -767,7 +767,7 @@ export async function handleWorkflowRoutes(
 
 export async function handleAutomationRoutes(
   event: RequestEvent,
-  cms: LocalCMS,
+  _cms: LocalCMS,
   tenantId: DatabaseId,
   segments: string[],
 ) {
@@ -788,64 +788,71 @@ export async function handleAutomationRoutes(
       `[handleAutomationRoutes] Method: ${request.method}, segments: ${segments.join(",")}, tenantId: ${tenantId}`,
     );
   }
-  if (isMultiTenantEnabled() && !tenantId) {
+
+  const { url } = event;
+  const queryTenantId = url.searchParams.get("tenantId");
+  let effectiveTenantId = tenantId as string;
+
+  if (queryTenantId && queryTenantId !== tenantId) {
+    if (user.role === "super-admin") {
+      effectiveTenantId = queryTenantId;
+    } else {
+      throw new AppError("Forbidden: Cannot access other tenants", 403, "FORBIDDEN");
+    }
+  }
+
+  if (isMultiTenantEnabled() && !effectiveTenantId) {
     throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
   }
   const id = segments[1]; // Corrected index: namespace is [0], id is [1]
 
+  const { automationService: service } =
+    await import("@src/services/background/automation/automation-service");
+
   if (request.method === "GET") {
     if (!id || id === "list")
-      return successResponse(
-        event,
-        await cms.automation.getFlow(undefined as any, {
-          tenantId: tenantId as any,
-        }),
-      );
+      return successResponse(event, await service.getFlow(undefined as any, effectiveTenantId));
 
-    if (segments[2] === "logs")
-      return successResponse(event, await cms.automation.getLogs(id, { tenantId }));
+    if (segments[2] === "logs") return successResponse(event, await service.getLogs(id));
 
-    const flow = await cms.automation.getFlow(id, {
-      tenantId: tenantId as any,
-    });
+    const flow = await service.getFlow(id, effectiveTenantId);
     if (!flow) throw new AppError("Automation flow not found", 404);
     return successResponse(event, flow);
   }
 
   if (request.method === "POST") {
     if (segments[2] === "test") {
-      const result = await cms.automation.executeFlow(id, await request.json(), {
-        tenantId: tenantId as any,
+      const flow = await service.getFlow(id, effectiveTenantId);
+      if (!flow) throw new AppError("Automation flow not found", 404);
+      const testPayload = (await request.json().catch(() => ({}))) as any;
+      const result = await service.executeFlow(flow, {
+        event: "entry:create",
+        data: testPayload,
+        timestamp: new Date().toISOString(),
+        tenantId: effectiveTenantId,
       });
       return successResponse(event, result);
     }
-    const { automationService: service } =
-      await import("@src/services/background/automation/automation-service");
     return successResponse(
       event,
-      await service.saveFlow(await request.json(), tenantId as string),
+      await service.saveFlow(await request.json(), effectiveTenantId),
       201,
     );
   }
 
   if ((request.method === "DELETE" || request.method === "PATCH") && id) {
-    const flow = await cms.automation.getFlow(id, {
-      tenantId: tenantId as any,
-    });
+    const flow = await service.getFlow(id, effectiveTenantId);
     if (!flow) throw new AppError("Automation flow not found", 404);
 
-    const { automationService: service } =
-      await import("@src/services/background/automation/automation-service");
-
     if (request.method === "DELETE") {
-      await service.deleteFlow(id, tenantId as any);
+      await service.deleteFlow(id, effectiveTenantId);
       return successResponse(event, { success: true });
     }
 
     if (request.method === "PATCH") {
       return successResponse(
         event,
-        await service.saveFlow({ ...flow, ...(await request.json()) }, tenantId as any),
+        await service.saveFlow({ ...flow, ...(await request.json()) }, effectiveTenantId),
       );
     }
   }
