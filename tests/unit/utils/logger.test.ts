@@ -5,23 +5,19 @@
  * Uses the real module via relative import path so global @utils/logger mock does not apply.
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { createRequire } from "node:module";
-import path from "node:path";
 
-// Load real logger from source (bypass moduleMock of @utils/logger)
-const require = createRequire(import.meta.url);
-const loggerPath = path.resolve(process.cwd(), "src/utils/logger.ts");
+// Load real logger from source (bypass the global vi.mock("@utils/logger", ...) in tests/unit/setup.ts)
+const loadLogger = () => vi.importActual<typeof import("@utils/logger")>("@utils/logger");
 
 describe("logger (levels & once)", () => {
   const originalError = console.error;
   let logger: typeof import("@utils/logger").logger;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     console.error = vi.fn();
-    // Fresh require after cache bust for once keys isolation is hard (module singleton);
+    // Fresh import after cache bust for once keys isolation is hard (module singleton);
     // use unique keys per test instead.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    logger = require(loggerPath).logger;
+    logger = (await loadLogger()).logger;
   });
 
   afterEach(() => {
@@ -83,8 +79,8 @@ describe("logger (levels & once)", () => {
     expect(out).not.toContain("jane@example.com");
   });
 
-  it("resolveLogConfig: QUIET/BENCHMARK flag suppress above warn on server", () => {
-    const { resolveLogConfig } = require(loggerPath);
+  it("resolveLogConfig: QUIET/BENCHMARK flag suppress above warn on server", async () => {
+    const { resolveLogConfig } = await loadLogger();
     expect(resolveLogConfig({ QUIET: "true", NODE_ENV: "test" }).quiet).toBe(true);
     expect(resolveLogConfig({ BENCHMARK: "true", NODE_ENV: "test" }).quiet).toBe(true);
     expect(resolveLogConfig({ NODE_ENV: "test" }).quiet).toBe(false);
@@ -99,8 +95,8 @@ describe("logger (levels & once)", () => {
     expect(resolveLogConfig({ NODE_ENV: "test" }).priority).toBe(4);
   });
 
-  it("resolveLogConfig: level resolution honors LOG_LEVEL, LOG_LEVELS, prod default, invalid fallback", () => {
-    const { resolveLogConfig } = require(loggerPath);
+  it("resolveLogConfig: level resolution honors LOG_LEVEL, LOG_LEVELS, prod default, invalid fallback", async () => {
+    const { resolveLogConfig } = await loadLogger();
     expect(resolveLogConfig({ LOG_LEVEL: "error", NODE_ENV: "test" }).level).toBe("error");
     expect(resolveLogConfig({ LOG_LEVELS: "debug", NODE_ENV: "test" }).level).toBe("debug");
     expect(resolveLogConfig({ VITE_LOG_LEVELS: "warn" }).level).toBe("warn");
