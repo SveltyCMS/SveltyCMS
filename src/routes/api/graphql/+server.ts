@@ -602,7 +602,7 @@ async function handleRequest(event: RequestEvent) {
       queueMicrotask(() => {
         cloned
           .text()
-          .then((responseBody) => {
+          .then((responseBody: string) => {
             if (responseBody.includes('"errors":[') || responseBody.includes(":[]")) return;
             responseCache.set(
               cacheKey,

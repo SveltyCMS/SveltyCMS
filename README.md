@@ -197,13 +197,20 @@ bun run dev  # or npm run dev / pnpm run dev
 
 ### Development and Production
 
-We use the unified **Vite+ Alpha (VoidZero)** toolchain for an ultra-fast development experience.
+We use the unified **Vite+ (VoidZero)** toolchain and support dual-target execution for both **Node.js (>=24)** and **Bun (>=1.3)**:
 
-- **Development**: `bun run dev` (runs on `localhost:5173`)
-- **Production Build**: `bun run build` (Rust-based Rolldown bundler)
+- **Development**: `bun run dev` (or `npm run dev` / `pnpm run dev` on `localhost:5173`)
+- **Production Build**: `bun run build` (or `npm run build`)
+- **Production Server (Node.js)**: `npm run start:node` or `node index.cjs` (standard production server powered by Node 24 V8 engine)
+- **Production Server (Bun)**: `bun run start:bun` or `bun index.bun.ts` (native high-throughput `Bun.serve` runtime)
 - **Preview**: `bun run preview` (runs on `localhost:4173`)
-- **Linting**: `bun run lint` (oxlint — project-wide checks in <50ms)
-- **Formatting**: `bun run format` (oxfmt — blazing fast Rust-based formatter)
+- **Linting**: `bun run check` (oxfmt + oxlint — project-wide checks in <50ms)
+
+| Task / Lifecycle                   | Recommended Runtime | Why                                                                                          |
+| :--------------------------------- | :------------------ | :------------------------------------------------------------------------------------------- |
+| **Development & Tooling**          | **Bun**             | 3–4× faster cold starts, instant package management, lightning-fast `bun test` and `oxlint`. |
+| **Production Server (Node.js)**    | **Node.js 24**      | Maximum V8 JSON parsing/serialization performance on high-volume JSON API workloads.         |
+| **Production Server (Bun Native)** | **Bun 1.3+**        | Native `Bun.serve` event loop, zero-copy socket I/O, and native `bun:sqlite` performance.    |
 
 See our `package.json` for all available commands.
 

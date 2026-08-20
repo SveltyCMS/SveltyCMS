@@ -27,6 +27,7 @@ import type { FieldInstance, Schema } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
 import { isMultiTenantEnabled } from "@utils/tenant";
+import type { PublicationFilter } from "@src/utils/security/publication-policy";
 // Token Engine
 import { replaceTokens } from "@src/services/token/engine";
 import type { TokenContext } from "@src/services/token/types";
@@ -35,7 +36,6 @@ import { widgets } from "@src/stores/widget-store.svelte";
 // System Logger
 import { logger } from "@utils/logger";
 import { getFieldName } from "@utils/utils";
-import { applyPublicationToQuery } from "@src/utils/security/publication-policy";
 // deepmerge import removed
 import type { GraphQLFieldResolver } from "graphql";
 
@@ -356,7 +356,9 @@ export async function registerCollections(tenantId?: string | null) {
     collectionSchema += "\t}";
 
     collectionSchemas.push(`${collectionSchema}\n`);
-    queryFields.push(`${cleanTypeName}(pagination: PaginationInput): [${cleanTypeName}]`);
+    queryFields.push(
+      `${cleanTypeName}(pagination: PaginationInput, limit: Int, page: Int): [${cleanTypeName}]`,
+    );
   }
 
   // Add allCollections query for listing all collection schemas.
@@ -468,7 +470,7 @@ export async function collectionsResolvers(
     const cleanTypeName = createCleanTypeName({ _id: collection._id, name });
     resolvers.Query[cleanTypeName] = async function resolver(
       _parent: unknown,
-      args: { pagination?: { page?: number; limit?: number } },
+      args: { pagination?: { page?: number; limit?: number }; page?: number; limit?: number },
       context: unknown,
       info?: any,
     ): Promise<DocumentBase[]> {
@@ -477,23 +479,25 @@ export async function collectionsResolvers(
         tenantId?: string | null;
         locale?: string;
         bypassTenantIsolation?: boolean;
-        publicationFilter?: string;
+        publicationFilter?: PublicationFilter;
         cms?: any;
       };
       if (!ctx.user) {
         throw new Error("Authentication required");
       }
 
-      if (isMultiTenantEnabled() && ctx.tenantId !== tenantId) {
-        logger.error(`Resolver tenantId mismatch. Expected ${tenantId}, got ${ctx.tenantId}`);
+      const expectedTenant = tenantId || "global";
+      const actualTenant = ctx.tenantId || "global";
+      if (isMultiTenantEnabled() && actualTenant !== expectedTenant) {
+        logger.error(`Resolver tenantId mismatch. Expected ${expectedTenant}, got ${actualTenant}`);
         throw new Error("Internal server error: Tenant context mismatch.");
       }
 
       // Check user tenant isolation
       if (isMultiTenantEnabled() && !ctx.bypassTenantIsolation) {
-        const userTenantId = ctx.user.tenantId;
-        const isGlobalAdmin = !userTenantId || userTenantId === "global";
-        if (!isGlobalAdmin && userTenantId !== ctx.tenantId) {
+        const userTenantId = ctx.user.tenantId || "global";
+        const isGlobalAdmin = userTenantId === "global";
+        if (!isGlobalAdmin && userTenantId !== actualTenant) {
           throw new Error("Forbidden: Tenant isolation mismatch");
         }
       }
@@ -502,50 +506,27 @@ export async function collectionsResolvers(
         throw new Error("Database adapter is not initialized");
       }
 
-      const { page = 1, limit = 50 } = args.pagination || {};
+      const limit = args.pagination?.limit ?? args.limit ?? 50;
+      const page = args.pagination?.page ?? args.page ?? 1;
       const fields = extractGraphQLFields(info);
 
       try {
-        const tableName = `collection_${(collection._id as string).replace(/-/g, "")}`;
-        const query: Record<string, unknown> = {};
-        if (ctx.tenantId && ctx.tenantId !== "global") {
-          query.tenantId = ctx.tenantId;
+        let cms = ctx.cms;
+        if (!cms) {
+          const { LocalCMS } = await import("@src/services/sdk");
+          cms = new LocalCMS(dbAdapter);
         }
-        applyPublicationToQuery(query, ctx.publicationFilter || "all");
-
-        const findOptions: any = {
+        const result = await cms.collections.find(collection._id as string, {
+          tenantId: ctx.tenantId,
           limit,
-          skip: (page - 1) * limit,
-          tenantId: ctx.tenantId || "default",
-        };
-        if (fields && fields.length > 0) {
-          findOptions.projection = fields;
-        }
-
-        let resultArray: DocumentBase[];
-        try {
-          const rawDocs = await dbAdapter.crud.findMany(tableName, query, findOptions);
-          resultArray = (rawDocs || []) as unknown as DocumentBase[];
-        } catch {
-          // Fallback to cms.collections.find if direct table lookup needs schema hydration
-          let cms = ctx.cms;
-          if (!cms) {
-            const { LocalCMS } = await import("@src/services/sdk");
-            cms = new LocalCMS(dbAdapter);
-          }
-          const result = await cms.collections.find(collection._id as string, {
-            tenantId: ctx.tenantId,
-            limit,
-            offset: (page - 1) * limit,
-            publicationFilter: ctx.publicationFilter || "all",
-            user: ctx.user,
-            fields,
-          });
-          if (!result.success) {
-            throw new Error(`Database query failed: ${result.error?.message || "Unknown error"}`);
-          }
-          resultArray = (result.data || []) as unknown as DocumentBase[];
-        }
+          offset: (page - 1) * limit,
+          publicationFilter: ctx.publicationFilter || "all",
+          user: ctx.user,
+          fields,
+        });
+        const resultArray = (result.success && Array.isArray(result.data)
+          ? result.data
+          : []) as unknown as DocumentBase[];
 
         if (resultArray.length === 0) return resultArray;
 

@@ -9,6 +9,19 @@
 @source "../src/**/*.svelte";
 @source "../src/**/*.html";
 
+/* ------------------------------------------------------------------------
+   SAFELIST — classes built by string concatenation at runtime
+   ------------------------------------------------------------------------
+   Tailwind v4 emits a utility only when it finds the literal class string in
+   a scanned file. alert.svelte / badge.svelte / card.svelte build their
+   preset names dynamically, so without this every one of them is purged and
+   the component renders unstyled. Keep this in sync with the preset matrix.
+   ------------------------------------------------------------------------ */
+@source inline("preset-{filled,tonal,outlined,ghost}-{primary,secondary,tertiary,success,warning,error,surface}-500");
+@source inline("preset-tonal-{primary,secondary,tertiary,success,warning,error,surface}");
+@source inline("preset-filled-{primary,secondary,tertiary,success,warning,error,surface}-600");
+@source inline("dark:preset-{filled,tonal,outlined,ghost}-{primary,secondary,tertiary,success,warning,error,surface}-500");
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ========================================================================
@@ -113,21 +126,34 @@
 
 /* ========================================================================
    🧩 PRESET UTILITIES — filled, tonal, outlined, ghost
+   ========================================================================
+   THEME ALIGNMENT NOTE
+   --------------------
+   Alert / Badge / Card build their class names by concatenation at runtime
+   (e.g. `preset-tonal-${color}` in alert.svelte / badge.svelte / card.svelte).
+   Tailwind v4 only emits a @utility when it finds the LITERAL string in a
+   scanned source file, so those concatenated names were silently purged and
+   the component rendered with no background, no border and no colour.
+
+   Two things keep that from happening again:
+     1. The matrix below is COMPLETE — every colour has all four variants,
+        so no prop combination the components accept can be undefined.
+     2. The @source inline(...) safelist above pins the generated names into
+        the build even though they never appear literally in any .svelte file.
+
+   Every variant also carries a dark: pair so a preset means the same thing in
+   both themes. Light-mode values are unchanged from the original design.
    ======================================================================== */
+
+/* --- filled: solid background, used for primary actions and status pills --- */
 @utility preset-filled-primary-500 {
   @apply bg-primary-500 text-white shadow-sm;
-}
-@utility preset-filled-primary-600 {
-  @apply bg-primary-600 text-white;
 }
 @utility preset-filled-secondary-500 {
   @apply bg-secondary-500 text-white;
 }
 @utility preset-filled-tertiary-500 {
   @apply bg-tertiary-500 text-white;
-}
-@utility preset-filled-tertiary-600 {
-  @apply bg-tertiary-600 text-white;
 }
 @utility preset-filled-success-500 {
   @apply bg-success-500 text-white;
@@ -138,104 +164,148 @@
 @utility preset-filled-error-500 {
   @apply bg-error-500 text-white;
 }
-@utility preset-filled-info-500 {
-  @apply bg-primary-500 text-white;
-}
 @utility preset-filled-surface-500 {
   @apply bg-surface-500 text-white;
 }
+@utility preset-filled-primary-600 {
+  @apply bg-primary-600 text-white;
+}
+@utility preset-filled-secondary-600 {
+  @apply bg-secondary-600 text-white;
+}
+@utility preset-filled-tertiary-600 {
+  @apply bg-tertiary-600 text-white;
+}
+@utility preset-filled-success-600 {
+  @apply bg-success-600 text-white;
+}
+@utility preset-filled-warning-600 {
+  @apply bg-warning-600 text-white;
+}
+@utility preset-filled-error-600 {
+  @apply bg-error-600 text-white;
+}
+@utility preset-filled-surface-600 {
+  @apply bg-surface-600 text-white;
+}
 @utility preset-filled-surface-200 {
-  @apply bg-surface-200 text-surface-900;
+  @apply bg-surface-200 text-surface-900 dark:bg-surface-700 dark:text-surface-100;
+}
+@utility preset-filled-info-500 {
+  @apply bg-primary-500 text-white;
 }
 
-@utility preset-filled-warning {
-  @apply bg-warning-500 text-white;
-}
-@utility preset-filled-error {
-  @apply bg-error-500 text-white;
-}
-
+/* --- tonal: 10% wash of the colour, used for passive/informational surfaces --- */
 @utility preset-tonal-primary {
-  @apply bg-primary-500/10 text-primary-700;
+  @apply bg-primary-500/10 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200;
 }
 @utility preset-tonal-primary-500 {
-  @apply bg-primary-500/10 text-primary-600;
+  @apply bg-primary-500/10 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200;
 }
 @utility preset-tonal-secondary {
-  @apply bg-secondary-500/10 text-secondary-700;
+  @apply bg-secondary-500/10 text-secondary-700 dark:bg-secondary-500/20 dark:text-secondary-200;
+}
+@utility preset-tonal-secondary-500 {
+  @apply bg-secondary-500/10 text-secondary-700 dark:bg-secondary-500/20 dark:text-secondary-200;
 }
 @utility preset-tonal-tertiary {
-  @apply bg-tertiary-500/10 text-tertiary-700;
+  @apply bg-tertiary-500/10 text-tertiary-700 dark:bg-tertiary-500/20 dark:text-tertiary-200;
+}
+@utility preset-tonal-tertiary-500 {
+  @apply bg-tertiary-500/10 text-tertiary-700 dark:bg-tertiary-500/20 dark:text-tertiary-200;
 }
 @utility preset-tonal-success {
-  @apply bg-success-500/10 text-success-700;
+  @apply bg-success-500/10 text-success-700 dark:bg-success-500/20 dark:text-success-200;
+}
+@utility preset-tonal-success-500 {
+  @apply bg-success-500/10 text-success-700 dark:bg-success-500/20 dark:text-success-200;
 }
 @utility preset-tonal-warning {
-  @apply bg-warning-500/10 text-warning-700;
+  @apply bg-warning-500/10 text-warning-700 dark:bg-warning-500/20 dark:text-warning-200;
+}
+@utility preset-tonal-warning-500 {
+  @apply bg-warning-500/10 text-warning-700 dark:bg-warning-500/20 dark:text-warning-200;
 }
 @utility preset-tonal-error {
-  @apply bg-error-500/10 text-error-700;
+  @apply bg-error-500/10 text-error-700 dark:bg-error-500/20 dark:text-error-200;
+}
+@utility preset-tonal-error-500 {
+  @apply bg-error-500/10 text-error-700 dark:bg-error-500/20 dark:text-error-200;
 }
 @utility preset-tonal-surface {
-  @apply bg-surface-500/10 text-surface-700;
+  @apply bg-surface-500/10 text-surface-700 dark:bg-surface-500/20 dark:text-surface-200;
 }
 @utility preset-tonal-surface-500 {
-  @apply bg-surface-500/10 text-surface-600;
+  @apply bg-surface-500/10 text-surface-700 dark:bg-surface-500/20 dark:text-surface-200;
 }
 
+/* --- outlined: 1px ring, transparent fill, used for secondary actions --- */
 @utility preset-outlined-primary-500 {
-  @apply border border-primary-500 text-primary-500 bg-transparent;
+  @apply border border-primary-500 text-primary-500 bg-transparent dark:border-primary-400 dark:text-primary-300;
 }
 @utility preset-outlined-secondary-500 {
-  @apply border border-secondary-500 text-secondary-500 bg-transparent;
+  @apply border border-secondary-500 text-secondary-500 bg-transparent dark:border-secondary-400 dark:text-secondary-300;
 }
 @utility preset-outlined-tertiary-500 {
-  @apply border border-tertiary-500 text-tertiary-500 bg-transparent;
+  @apply border border-tertiary-500 text-tertiary-500 bg-transparent dark:border-tertiary-400 dark:text-tertiary-300;
 }
 @utility preset-outlined-success-500 {
-  @apply border border-success-500 text-success-500 bg-transparent;
-}
-@utility preset-outlined-surface-500 {
-  @apply border border-surface-500 text-surface-500 bg-transparent;
-}
-@utility preset-outline-surface-500 {
-  @apply border border-surface-500 text-surface-500 bg-transparent;
-}
-@utility preset-outlined-error-500 {
-  @apply border border-error-500 text-error-500 bg-transparent;
+  @apply border border-success-500 text-success-500 bg-transparent dark:border-success-400 dark:text-success-300;
 }
 @utility preset-outlined-warning-500 {
-  @apply border border-warning-500 text-warning-500 bg-transparent;
+  @apply border border-warning-500 text-warning-500 bg-transparent dark:border-warning-400 dark:text-warning-300;
+}
+@utility preset-outlined-error-500 {
+  @apply border border-error-500 text-error-500 bg-transparent dark:border-error-400 dark:text-error-300;
+}
+@utility preset-outlined-surface-500 {
+  @apply border border-surface-500 text-surface-500 bg-transparent dark:border-surface-400 dark:text-surface-300;
 }
 
+/* --- ghost: no chrome until hover, used for icon buttons and toolbars --- */
 @utility preset-ghost-primary-500 {
-  @apply bg-transparent text-primary-500 hover:bg-primary-500/10;
+  @apply bg-transparent text-primary-500 hover:bg-primary-500/10 dark:text-primary-300 dark:hover:bg-primary-500/20;
 }
 @utility preset-ghost-secondary-500 {
-  @apply bg-transparent text-secondary-500 hover:bg-secondary-500/10;
+  @apply bg-transparent text-secondary-500 hover:bg-secondary-500/10 dark:text-secondary-300 dark:hover:bg-secondary-500/20;
 }
 @utility preset-ghost-tertiary-500 {
-  @apply bg-transparent text-tertiary-500 hover:bg-tertiary-500/10;
-}
-@utility preset-ghost-surface-500 {
-  @apply bg-transparent text-surface-500 hover:bg-surface-500/10;
+  @apply bg-transparent text-tertiary-500 hover:bg-tertiary-500/10 dark:text-tertiary-300 dark:hover:bg-tertiary-500/20;
 }
 @utility preset-ghost-success-500 {
-  @apply bg-transparent text-success-500 hover:bg-success-500/10;
+  @apply bg-transparent text-success-500 hover:bg-success-500/10 dark:text-success-300 dark:hover:bg-success-500/20;
 }
 @utility preset-ghost-warning-500 {
-  @apply bg-transparent text-warning-500 hover:bg-warning-500/10;
+  @apply bg-transparent text-warning-500 hover:bg-warning-500/10 dark:text-warning-300 dark:hover:bg-warning-500/20;
 }
 @utility preset-ghost-error-500 {
-  @apply bg-transparent text-error-500 hover:bg-error-500/10;
+  @apply bg-transparent text-error-500 hover:bg-error-500/10 dark:text-error-300 dark:hover:bg-error-500/20;
+}
+@utility preset-ghost-surface-500 {
+  @apply bg-transparent text-surface-500 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-500/20;
 }
 
+/* --- legacy alias kept for existing markup --- */
 @utility preset-soft-surface {
-  @apply bg-surface-200/30 text-surface-700;
+  @apply bg-surface-200/30 text-surface-700 dark:bg-surface-700/30 dark:text-surface-200;
 }
 
 /* ========================================================================
-   🧱 COMPONENT CLASSES — card, badge, btn, input
+   🧱 COMPONENT CLASSES
+   ========================================================================
+   THEME ALIGNMENT NOTE
+   --------------------
+   Every class in this layer reads its geometry and its surface colours from
+   the --admin-* token layer (defaults in src/utilities.css :root, overridden
+   per theme/density by the app layout). That is what makes a card on /setup,
+   a card on /login and a card on /dashboard look like the same product: they
+   resolve the same variables instead of each hardcoding surface-50 / rounded.
+
+   The fallback in every var() is the previous hardcoded value, so an
+   unthemed route still renders exactly as it did before.
+
+   Spacing is scaled by --admin-density (0.85 compact / 1 cozy / 1.25
+   spacious) so the density switch actually changes density, not just radii.
    ======================================================================== */
 @layer components {
   .card {
@@ -256,33 +326,174 @@
   }
 
   .btn {
-    @apply inline-flex items-center justify-center font-bold tracking-tight rounded
+    @apply inline-flex items-center justify-center font-bold tracking-tight
              transition-colors duration-200 gap-2;
     @apply active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+    border-radius: var(--admin-radius-button, 0.25rem);
+    padding-inline: calc(1rem * var(--admin-density, 1));
+    padding-block: calc(0.5rem * var(--admin-density, 1));
   }
   .btn-sm {
-    @apply h-8 px-3 text-xs;
+    @apply h-8 text-xs;
+    padding-inline: calc(0.75rem * var(--admin-density, 1));
+    padding-block: 0;
   }
 
   .btn-icon {
     @apply inline-flex items-center justify-center rounded-full transition-colors
-             duration-200 border-none bg-transparent p-2;
+             duration-200 border-none bg-transparent;
+    padding: calc(0.5rem * var(--admin-density, 1));
   }
   .btn-icon-sm {
-    @apply p-1;
+    padding: calc(0.25rem * var(--admin-density, 1));
   }
 
-  .input {
-    @apply w-full rounded border border-surface-300 bg-surface-50/50 px-4 py-2.5 text-sm text-surface-900
-           transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] backdrop-blur-sm;
-    @apply hover:border-tertiary-500/50 hover:bg-white;
-    @apply focus:outline-none focus:ring-4 focus:ring-tertiary-500/20 focus:border-tertiary-500 focus:bg-white;
+  /* ----------------------------------------------------------------
+     Form controls — .input / .select / .textarea share one look.
+     .select and .textarea previously had NO rule at all, so a <select>
+     next to an <input> on the same form rendered as a raw browser
+     control. They are defined here off the same tokens.
+     ---------------------------------------------------------------- */
+  .input,
+  .select,
+  .textarea {
+    @apply w-full text-sm transition-all duration-300 backdrop-blur-sm;
+    @apply shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)];
+    border-radius: var(--admin-radius-input, 0.375rem);
+    border-width: var(--admin-border-width, 1px);
+    border-style: solid;
+    border-color: var(--admin-border-default, var(--color-surface-300));
+    background-color: var(
+      --admin-bg-input,
+      color-mix(in oklch, var(--color-surface-50) 50%, transparent)
+    );
+    color: var(--admin-text-body, var(--color-surface-900));
+    padding-inline: calc(1rem * var(--admin-density, 1));
+    padding-block: calc(0.625rem * var(--admin-density, 1));
+
+    @apply hover:border-tertiary-500/50;
+    @apply focus:outline-none focus:ring-4 focus:ring-tertiary-500/20 focus:border-tertiary-500;
     @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-100 disabled:hover:border-surface-300;
 
-    @apply dark:border-surface-700 dark:bg-surface-950/50 dark:text-surface-50 dark:shadow-[inset_0_1px_2px_rgba(255,255,255,0.02)];
-    @apply dark:hover:border-primary-500/50 dark:hover:bg-surface-900/80;
-    @apply dark:focus:ring-primary-500/20 dark:focus:border-primary-500 dark:focus:bg-surface-900;
+    @apply dark:shadow-[inset_0_1px_2px_rgba(255,255,255,0.02)];
+    @apply dark:hover:border-primary-500/50;
+    @apply dark:focus:ring-primary-500/20 dark:focus:border-primary-500;
     @apply dark:disabled:bg-surface-800 dark:disabled:hover:border-surface-700;
+  }
+  /* Hover/focus lift the field out of the page tint — same behaviour as before,
+     but sourced from tokens so a theme can restyle it in one place. */
+  .input:hover,
+  .select:hover,
+  .textarea:hover {
+    background-color: var(--admin-bg-input-hover, #fff);
+  }
+  .input:focus,
+  .select:focus,
+  .textarea:focus {
+    background-color: var(--admin-bg-input-focus, #fff);
+  }
+  .input:disabled,
+  .select:disabled,
+  .textarea:disabled {
+    background-color: var(--admin-bg-input-disabled, var(--color-surface-100));
+  }
+
+  /* Native select needs its own arrow back once we remove the UA appearance,
+     otherwise it reads as a plain text input and users miss that it opens. */
+  .select {
+    appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position:
+      calc(100% - 18px) calc(50% + 2px),
+      calc(100% - 13px) calc(50% + 2px);
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+    padding-inline-end: calc(2.25rem * var(--admin-density, 1));
+  }
+  [dir="rtl"] .select {
+    background-position:
+      18px calc(50% + 2px),
+      23px calc(50% + 2px);
+  }
+
+  .textarea {
+    @apply min-h-24 resize-y leading-relaxed;
+    backdrop-filter: none;
+  }
+
+  /* ----------------------------------------------------------------
+     .chip — small selectable/removable token. Had no rule; every chip
+     in the app was relying on whatever preset happened to sit next to
+     it, which is why chip rows looked different page to page.
+     ---------------------------------------------------------------- */
+  .chip {
+    @apply inline-flex items-center justify-center gap-1.5 whitespace-nowrap
+           text-xs font-medium transition-colors duration-200;
+    border-radius: 9999px;
+    padding-inline: calc(0.75rem * var(--admin-density, 1));
+    padding-block: calc(0.25rem * var(--admin-density, 1));
+    background-color: var(
+      --admin-bg-chip,
+      color-mix(in oklch, var(--color-surface-500) 12%, transparent)
+    );
+    color: var(--admin-text-body, var(--color-surface-900));
+    border: var(--admin-border-width, 1px) solid transparent;
+  }
+  .chip:is(button, a, [role="button"]):hover {
+    background-color: color-mix(in oklch, var(--color-surface-500) 22%, transparent);
+  }
+
+  /* ----------------------------------------------------------------
+     .alert — block-level status message. Had no rule, so the padding
+     and radius came from whatever utilities each call site remembered
+     to add, and several call sites added none.
+     ---------------------------------------------------------------- */
+  .alert {
+    @apply flex items-start gap-3 text-sm;
+    border-radius: var(--admin-radius-card, 0.75rem);
+    border-width: var(--admin-border-width, 1px);
+    border-style: solid;
+    border-color: var(--admin-border-default, var(--color-surface-200));
+    background-color: var(--admin-bg-card, var(--color-surface-50));
+    color: var(--admin-text-body, var(--color-surface-900));
+    padding: calc(1rem * var(--admin-density, 1));
+  }
+  .alert-message {
+    @apply flex min-w-0 flex-1 flex-col gap-1;
+  }
+
+  /* ----------------------------------------------------------------
+     .table — data tables. Had no rule, so permission matrices and
+     media lists rendered as unstyled HTML tables with collapsed
+     borders and no padding.
+     ---------------------------------------------------------------- */
+  .table {
+    @apply w-full border-collapse text-start text-sm;
+    color: var(--admin-text-body, var(--color-surface-900));
+  }
+  .table thead th {
+    @apply text-start text-xs font-semibold uppercase tracking-wider;
+    color: var(--admin-text-muted, var(--color-surface-500));
+    border-bottom: var(--admin-border-width, 1px) solid
+      var(--admin-border-default, var(--color-surface-200));
+    padding-inline: calc(0.75rem * var(--admin-density, 1));
+    padding-block: calc(0.625rem * var(--admin-density, 1));
+  }
+  .table tbody td {
+    border-bottom: var(--admin-border-width, 1px) solid
+      var(--admin-border-subtle, var(--color-surface-100));
+    padding-inline: calc(0.75rem * var(--admin-density, 1));
+    padding-block: calc(0.625rem * var(--admin-density, 1));
+  }
+  .table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .table tbody tr:hover {
+    background-color: color-mix(in oklch, var(--color-surface-500) 8%, transparent);
   }
 }
 
@@ -290,11 +501,15 @@
    🎯 BASE
    ======================================================================== */
 @layer base {
+  /* The page background comes from the token, not from a hardcoded ramp step.
+     admin-page-shell.svelte already painted itself with --admin-bg-page, so the
+     routes OUTSIDE the app shell (/setup, /login, /admin, marketing pages) used
+     to sit on a slightly different grey than the CMS itself. Same token here
+     means the same page colour everywhere, and a theme can move all of it at
+     once. */
   html {
-    @apply bg-secondary-50 text-surface-900;
-  }
-  html.dark {
-    @apply bg-surface-950 text-surface-100;
+    background-color: var(--admin-bg-page, var(--color-surface-50));
+    color: var(--admin-text-body, var(--color-surface-900));
   }
 }
 

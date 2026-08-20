@@ -152,7 +152,7 @@ focus restoration.
 		<div
 			bind:this={floatingEl}
 			class={cn(
-				'z-200 card p-4 shadow-xl border border-surface-200 dark:border-surface-800 bg-surface-100/90 dark:bg-surface-900/90 backdrop-blur-md fixed',
+				'z-200 card p-4 shadow-xl border border-(--admin-border-default) bg-(--admin-bg-overlay) backdrop-blur-md fixed',
 				'transition-[opacity,transform] duration-200 animate-in fade-in zoom-in-95',
 				className
 			)}
@@ -163,7 +163,7 @@ focus restoration.
 			{#if arrow}
 				<div
 					bind:this={arrowEl}
-					class="absolute size-3 bg-surface-100 dark:bg-surface-900 border-s border-t border-surface-200 dark:border-surface-800 rotate-45"
+					class="absolute size-3 bg-(--admin-bg-overlay) border-s border-t border-(--admin-border-default) rotate-45"
 					style="
 						left: {floating.arrowX != null ? `${floating.arrowX}px` : ''};
 						top: {floating.arrowY != null ? `${floating.arrowY}px` : ''};

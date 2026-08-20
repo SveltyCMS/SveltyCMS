@@ -36,6 +36,22 @@ export class RollingMerkleAccumulator {
     return this.currentRoot;
   }
 
+  /**
+   * Appends multiple leaf hashes sequentially in a single batch.
+   */
+  public async appendLeaves(leafHashes: string[]): Promise<string> {
+    if (leafHashes.length === 0) return this.currentRoot;
+    const encoder = new TextEncoder();
+    for (let i = 0; i < leafHashes.length; i++) {
+      const data = encoder.encode(this.currentRoot + leafHashes[i]);
+      const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      this.currentRoot = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+      this.count++;
+    }
+    return this.currentRoot;
+  }
+
   public get root(): string {
     return this.currentRoot;
   }

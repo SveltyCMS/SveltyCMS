@@ -213,7 +213,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     try {
       const columns = Object.keys(values);
       if (columns.length === 0) return null;
-      if ((options as any)?.tenantId === null) return null;
 
       const tableName = getTableName(table);
       const idColName = idCol?.name || "_id";

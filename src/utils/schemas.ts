@@ -21,6 +21,7 @@ import {
   email as emailValidator,
   forward,
   type InferInput,
+  literal,
   maxLength,
   minLength,
   nullable,
@@ -35,6 +36,7 @@ import {
   string,
   transform,
   trim,
+  union,
 } from "valibot";
 
 import { publicEnv } from "@src/stores/global-settings.svelte";
@@ -126,7 +128,7 @@ export const signUpFormSchema = pipe(
     email: emailSchema,
     password: passwordSchema,
     confirm_password: confirmPasswordSchema,
-    token: optional(tokenSchema),
+    token: optional(union([literal(""), tokenSchema])),
   }),
   check((input) => input.password === input.confirm_password, "The passwords do not match."),
 );

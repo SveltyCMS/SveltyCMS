@@ -23,7 +23,7 @@ function makeRequest(slug: string) {
 
 /** SvelteKit's error()/redirect() throw branded errors — capture them (async route). */
 async function captureThrow(
-  fn: () => Promise<unknown>,
+  fn: () => unknown | Promise<unknown>,
 ): Promise<{ status?: number; location?: string }> {
   try {
     await fn();

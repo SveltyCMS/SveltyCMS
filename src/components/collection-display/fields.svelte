@@ -603,6 +603,21 @@ import { tick, untrack } from "svelte";
     <p class="text-surface-500">Initializing widgets...</p>
   </div>
 {:else}
+  <div class="mb-2 flex items-center justify-between w-full px-4 py-2 rounded-t-container bg-surface-100/70 dark:bg-surface-800/70 border border-surface-200 dark:border-surface-700/60 text-sm">
+    <div class="flex items-center gap-2">
+      <iconify-icon icon={collection.value?.icon || "mdi:folder-outline"} width="18" class="text-primary-500"></iconify-icon>
+      <span class="font-semibold text-primary-600 dark:text-primary-400">{collection.value?.name || "Collection"}</span>
+      <span class="text-surface-400">/</span>
+      <span class="text-surface-600 dark:text-surface-300 font-medium">
+        {#if (collectionValue as any)?.value?._id}
+          Edit <span class="font-mono text-xs opacity-80">({String((collectionValue as any).value._id).slice(0, 8)})</span>
+        {:else}
+          New Entry
+        {/if}
+      </span>
+    </div>
+  </div>
+
   <Tabs
     value={localTabSet}
     onValueChange={(e) => (localTabSet = e.value)}

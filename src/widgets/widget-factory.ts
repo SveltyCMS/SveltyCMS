@@ -116,6 +116,12 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
   }) => Promise<Record<string, unknown>[]>;
   Name: string;
 
+  /** Semver version of the widget package (e.g. '1.0.0'). Defaults to '1.0.0'. */
+  version?: string;
+
+  /** Author or vendor of the widget package. Defaults to 'SveltyCMS'. */
+  author?: string;
+
   /**
    * Valibot validation schema for the widget's data.
    *  Accepts either a static schema object (Valibot BaseSchema) or a function that receives the FieldInstance and returns one.
@@ -218,6 +224,9 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(
     validateWidgetAccessibility(config.Name, config.inputComponentPath);
   }
 
+  const version = config.version || "1.0.0";
+  const author = config.author || "SveltyCMS";
+
   // 1. Create the immutable widget definition once.
   // This now includes all the "Three Pillars" information.
   const widgetDefinition: WidgetDefinition = {
@@ -225,6 +234,13 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(
     Name: config.Name,
     Icon: config.Icon,
     Description: config.Description,
+    version,
+    author,
+    metadata: {
+      type: "core",
+      version,
+      author,
+    },
     inputComponentPath: config.inputComponentPath || "",
     displayComponentPath: config.displayComponentPath || "",
     // validationSchema may be a function or a static schema. Keep as-is so other systems can call it.
@@ -305,6 +321,8 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(
   widgetFactoryFunction.Name = config.Name;
   widgetFactoryFunction.Icon = config.Icon;
   widgetFactoryFunction.Description = config.Description;
+  widgetFactoryFunction.version = version;
+  widgetFactoryFunction.author = author;
   widgetFactoryFunction.GuiSchema = config.GuiSchema;
   widgetFactoryFunction.GraphqlSchema = config.GraphqlSchema;
   widgetFactoryFunction.aggregations = config.aggregations as WidgetDefinition["aggregations"];

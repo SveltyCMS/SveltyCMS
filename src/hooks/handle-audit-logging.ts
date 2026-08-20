@@ -51,6 +51,7 @@ function flushAuditOutbox() {
   // Schedule microtask or next-tick drain
   queueMicrotask(() => {
     try {
+      const hashesToAppend: string[] = [];
       while (auditOutboxQueue.length > 0) {
         const item = auditOutboxQueue.shift();
         if (!item) break;
@@ -74,9 +75,12 @@ function flushAuditOutbox() {
           logger.warn("[AUDIT] Mutation logged with failure flags", logEntry);
         }
 
-        // Fast O(1) rolling Merkle accumulator update (< 5µs)
-        const entryHash = `${item.method}:${item.path}:${item.userId}:${item.timestamp}`;
-        rollingMerkleAccumulator.appendLeaf(entryHash).catch(() => {});
+        // Fast O(1) rolling Merkle accumulator update
+        hashesToAppend.push(`${item.method}:${item.path}:${item.userId}:${item.timestamp}`);
+      }
+
+      if (hashesToAppend.length > 0) {
+        rollingMerkleAccumulator.appendLeaves(hashesToAppend).catch(() => {});
       }
     } catch (err) {
       logger.error("[AUDIT Fallback] Secondary log pipeline failed:", err);

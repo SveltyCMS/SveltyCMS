@@ -285,6 +285,27 @@ The marketplace client is **offline-resilient**: if marketplace.sveltycms.com is
 
 Local **dashboard widget packages** (core bundled) and built-in themes always appear in `GET /api/marketplace` (type `dashboard`) so the in-app catalog works offline; the remote catalog adds marketplace-published widgets when reachable.
 
+## 📦 Unified Extension Versioning Standard
+
+To ensure `marketplace.sveltycms.com` can reliably verify package versions, compatibility, and automated update notifications, all three extension categories adhere to a unified SemVer standard:
+
+| Extension Category           | Manifest Location                                     | Version Field                      | Example              |
+| :--------------------------- | :---------------------------------------------------- | :--------------------------------- | :------------------- |
+| **Plugins**                  | `src/plugins/<id>/index.ts`                           | `metadata.version`                 | `version: "1.2.0"`   |
+| **Dashboard Widgets**        | `src/routes/(app)/dashboard/widgets/<id>/widget.json` | `version`                          | `"version": "1.0.0"` |
+| **Custom / Content Widgets** | `src/widgets/custom/<id>/index.ts`                    | `createWidget({ version: "..." })` | `version: "1.1.0"`   |
+
+### Version Invariants & Rules
+
+1. **Semantic Versioning (SemVer 2.0.0)**: All versions must match `MAJOR.MINOR.PATCH` format (e.g. `1.0.0`, `1.2.3`).
+2. **Version Bump on Every Change**: Any modification to logic, UI templates, validation schemas, database migrations, or lifecycle hooks requires a version bump:
+   - **PATCH** (`1.0.0` → `1.0.1`): Bug fixes, styling tweaks, internal performance optimizations.
+   - **MINOR** (`1.0.0` → `1.1.0`): New features, backward-compatible props/slots/settings, non-breaking schema additions.
+   - **MAJOR** (`1.0.0` → `2.0.0`): Breaking changes, altered schema data structures, removed props, deprecated hook signatures.
+3. **Marketplace Verification**: When a package is published or uploaded to `marketplace.sveltycms.com`:
+   - The marketplace verifies that the version in `widget.json`, `metadata.version`, or `createWidget({ version })` matches the published release.
+   - SveltyCMS instances check for updates via `marketplace.checkUpdates([{ id, version }])`, comparing local versions against the highest published version in the marketplace.
+
 ## Telemetry & Ecosystem Health
 
 SveltyCMS measures extension adoption anonymously through the [Security Updates & Telemetry](./telemetry-ecology.mdx) heartbeat, which now reports the marketplace ecosystem:

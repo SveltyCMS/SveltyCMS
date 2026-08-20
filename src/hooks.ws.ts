@@ -216,6 +216,28 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
       tenantId = tenantIdHeader || url.searchParams.get("tenantId") || tenantId || "default";
     }
 
+    // ==================== WEBSOCKET RATE LIMITING ====================
+    const clientIp = getHeader(ctx, "x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
+    const wsRateLimitPrefix =
+      process.env.RATE_LIMITER_WEBSOCKETS_REDIS_PREFIX || "svelty:ws:ratelimit:";
+    const rawMax =
+      process.env.RATE_LIMITER_WEBSOCKETS_MAX_CONNECTIONS ||
+      (getPrivateSettingSync as any)("RATE_LIMITER_WEBSOCKETS_MAX_CONNECTIONS") ||
+      "100";
+    const maxConnsPerIp = parseInt(String(rawMax), 10);
+
+    if (!isAuthorizedTest && clientIp !== "127.0.0.1" && clientIp !== "localhost") {
+      const activeFromIp = Array.from(activeConnections).filter(
+        (ws) => (ws as any).clientIp === clientIp,
+      ).length;
+      if (activeFromIp >= maxConnsPerIp) {
+        logger.warn(
+          `[WS Upgrade] Rate limit exceeded for IP: ${clientIp} (${activeFromIp}/${maxConnsPerIp}) [prefix: ${wsRateLimitPrefix}]`,
+        );
+        return false;
+      }
+    }
+
     // Final security checks
     if (!profile) {
       logger.info(`[WS Upgrade] Rejected - No profile (session: ${!!sessionId})`);

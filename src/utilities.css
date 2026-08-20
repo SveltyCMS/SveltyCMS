@@ -5,11 +5,22 @@
  */
 
 /* ------------------------------------------------------------------ */
-/* Button Base                                                         */
+/* Button Base — REMOVED, see src/app.css @layer components .btn        */
 /* ------------------------------------------------------------------ */
-.btn {
-  padding: calc(var(--spacing) * 2);
-}
+/* There used to be an UNLAYERED rule here:
+ *
+ *     .btn { padding: calc(var(--spacing) * 2); }   // 8px, all sides
+ *
+ * Unlayered CSS outranks every @layer, including Tailwind's `utilities`
+ * layer. So that single declaration beat every padding utility in the
+ * product: `.btn px-6` computed to 8px, and Button's whole size scale
+ * (sm px-3 / md px-4 / lg px-6 / xl px-8) collapsed — every button in
+ * SveltyCMS rendered at the same 8px inset regardless of its size prop.
+ *
+ * The base is now defined once, inside @layer components in app.css, so
+ * `px-*` utilities and per-call-site overrides win again as intended.
+ * Do not re-add an unlayered .btn here.
+ */
 
 /* ------------------------------------------------------------------ */
 /* Gradient Utilities (Tailwind v4 — @layer components)                */
@@ -323,6 +334,24 @@ select:focus {
   --admin-text-body: var(--color-surface-900);
   --admin-text-muted: var(--color-surface-500);
 
+  /* Form-control surfaces. Split out so a theme can restyle every input,
+     select and textarea in the product from one place instead of the dual
+     light/dark utility stacks that used to be baked into .input. */
+  --admin-bg-input: color-mix(in oklch, var(--color-surface-50) 50%, transparent);
+  --admin-bg-input-hover: #fff;
+  --admin-bg-input-focus: #fff;
+  --admin-bg-input-disabled: var(--color-surface-100);
+  --admin-bg-chip: color-mix(in oklch, var(--color-surface-500) 12%, transparent);
+
+  /* Overlay surfaces — modal / drawer / popover / tooltip.
+     These are rendered through a portal into <body>, so they sit OUTSIDE the
+     app layout element. Keeping the tokens on :root is what lets an overlay
+     match the page it was opened from. */
+  --admin-bg-overlay: var(--color-surface-100);
+  --admin-bg-backdrop: rgb(0 0 0 / 0.5);
+  --admin-bg-tooltip: var(--color-surface-900);
+  --admin-text-tooltip: var(--color-surface-50);
+
   /* Layout Sizing */
   --admin-sidebar-width: 240px;
   --admin-header-height: 64px;
@@ -348,6 +377,17 @@ html.dark [data-admin-theme] {
   --admin-border-subtle: var(--color-surface-700);
   --admin-text-body: var(--color-surface-100);
   --admin-text-muted: var(--color-surface-400);
+
+  --admin-bg-input: color-mix(in oklch, var(--color-surface-950) 50%, transparent);
+  --admin-bg-input-hover: color-mix(in oklch, var(--color-surface-900) 80%, transparent);
+  --admin-bg-input-focus: var(--color-surface-900);
+  --admin-bg-input-disabled: var(--color-surface-800);
+  --admin-bg-chip: color-mix(in oklch, var(--color-surface-100) 12%, transparent);
+
+  --admin-bg-overlay: var(--color-surface-800);
+  --admin-bg-backdrop: rgb(0 0 0 / 0.65);
+  --admin-bg-tooltip: var(--color-surface-100);
+  --admin-text-tooltip: var(--color-surface-900);
 }
 
 /* ------------------------------------------------------------------ */

@@ -13,6 +13,7 @@ declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     imageResize: {
       setImageDescription: (description: string) => ReturnType;
+      setImageCaption: (caption: string) => ReturnType;
       setImageFloat: (size: "left" | "right" | "unset") => ReturnType;
       setImage: (options: {
         src: string;
@@ -20,6 +21,7 @@ declare module "@tiptap/core" {
         title?: string;
         id?: string;
         storage_image?: string;
+        caption?: string;
       }) => ReturnType;
     };
   }
@@ -52,7 +54,11 @@ const ImageResize = ImageExtension.extend({
       setImageDescription:
         (description: string) =>
         ({ commands }: { commands: any }) =>
-          commands.updateAttributes(this.name, { description }),
+          commands.updateAttributes(this.name, { description, caption: description }),
+      setImageCaption:
+        (caption: string) =>
+        ({ commands }: { commands: any }) =>
+          commands.updateAttributes(this.name, { caption, description: caption }),
     };
   },
 
@@ -64,17 +70,20 @@ const ImageResize = ImageExtension.extend({
       storage_image: {
         default: null,
         parseHTML: (element: HTMLElement) =>
-          (element.querySelector("img") as HTMLElement).getAttribute("storage_image"),
+          (element.querySelector("img") as HTMLElement)?.getAttribute("storage_image") ||
+          element.getAttribute("storage_image"),
       },
       src: {
         default: null,
         parseHTML: (element: HTMLElement) =>
-          (element.querySelector("img") as HTMLElement).getAttribute("src"),
+          (element.querySelector("img") as HTMLElement)?.getAttribute("src") ||
+          element.getAttribute("src"),
       },
       alt: {
         default: null,
         parseHTML: (element: HTMLElement) =>
-          (element.querySelector("img") as HTMLElement).getAttribute("alt"),
+          (element.querySelector("img") as HTMLElement)?.getAttribute("alt") ||
+          element.getAttribute("alt"),
       },
       float: {
         default: "unset",
@@ -102,7 +111,21 @@ const ImageResize = ImageExtension.extend({
       description: {
         default: "",
         parseHTML: (element: HTMLElement) => {
-          return (element.querySelector(".description") as HTMLElement)?.innerText || "";
+          return (
+            (element.querySelector("figcaption") as HTMLElement)?.innerText ||
+            (element.querySelector(".description") as HTMLElement)?.innerText ||
+            ""
+          );
+        },
+      },
+      caption: {
+        default: "",
+        parseHTML: (element: HTMLElement) => {
+          return (
+            (element.querySelector("figcaption") as HTMLElement)?.innerText ||
+            (element.querySelector(".description") as HTMLElement)?.innerText ||
+            ""
+          );
         },
       },
       style: {
@@ -115,28 +138,55 @@ const ImageResize = ImageExtension.extend({
   },
 
   renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, any> }) {
-    const { float, w, h, margin, textAlign, description, ...rest } = HTMLAttributes;
+    const { float, w, h, margin, textAlign, description, caption, ...rest } = HTMLAttributes;
+    const captionText = caption || description || "";
+    if (captionText) {
+      return [
+        "figure",
+        {
+          class: "image-figure",
+          style: `text-align: ${textAlign || "center"}; float: ${float}; width: ${w}; height: ${h}; margin: ${margin || "1em auto"}; position: relative; display: inline-block;`,
+        },
+        ["img", this.options.HTMLAttributes, rest],
+        [
+          "figcaption",
+          {
+            class: "image-caption description text-xs text-surface-500 mt-1 italic text-center",
+            style: "text-align: center; margin-top: 4px; font-size: 0.875rem; color: #6b7280;",
+          },
+          captionText,
+        ],
+      ];
+    }
     return [
       "div",
       {
-        style: `text-align: ${textAlign};float: ${float};width: ${w};height: ${h}; margin: ${margin}; position: relative;`,
+        style: `text-align: ${textAlign};float: ${float};width: ${w};height: ${h}; margin: ${margin}; position: relative; display: inline-block;`,
       },
       ["img", this.options.HTMLAttributes, rest],
-      description
-        ? [
-            "div",
-            {
-              class: "description",
-              style: DESCRIPTION_STYLE,
-            },
-            description,
-          ]
-        : "",
     ];
   },
 
   parseHTML() {
     return [
+      {
+        tag: "figure",
+        getAttrs: (node: string | Node) => {
+          const el = node as HTMLElement;
+          const img = el.querySelector("img");
+          if (!img) return false;
+          const figcaption = el.querySelector("figcaption");
+          return {
+            src: img.getAttribute("src"),
+            alt: img.getAttribute("alt"),
+            caption: figcaption ? figcaption.innerText : "",
+            description: figcaption ? figcaption.innerText : "",
+            float: el.style.float || "unset",
+            w: el.style.width || img.style.width || "200px",
+            h: el.style.height || img.style.height || null,
+          };
+        },
+      },
       {
         tag: 'div[style*="float"]',
         getAttrs: (node: string | Node) => {
@@ -149,7 +199,10 @@ const ImageResize = ImageExtension.extend({
       {
         tag: "img[src]",
         getAttrs: (node: string | Node) => {
-          if ((node as HTMLElement).closest('div[style*="float"]')) {
+          if (
+            (node as HTMLElement).closest('div[style*="float"]') ||
+            (node as HTMLElement).closest("figure")
+          ) {
             return false;
           }
           return {};
@@ -196,11 +249,12 @@ const ImageResize = ImageExtension.extend({
       resizer.appendChild(img);
       container.appendChild(resizer);
 
-      if (nodeAttrs.description) {
+      const captionVal = nodeAttrs.caption || nodeAttrs.description;
+      if (captionVal) {
         const desc = document.createElement("div");
         // SECURITY: textContent auto-escapes HTML (safe)
         // Never use innerHTML here - would allow XSS via image description
-        desc.textContent = nodeAttrs.description as string;
+        desc.textContent = captionVal as string;
         desc.style.cssText = DESCRIPTION_STYLE;
         container.appendChild(desc);
       }

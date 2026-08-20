@@ -12,6 +12,8 @@
 import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 
+const STATIC_JSON_HEADERS = { "content-type": "application/json" } as const;
+
 function buildJsonResponse(event: RequestEvent, data: any, status = 200): Response {
   let serialized = "";
   if (typeof data === "string") {
@@ -31,7 +33,7 @@ function buildJsonResponse(event: RequestEvent, data: any, status = 200): Respon
 
   return new Response(serialized, {
     status,
-    headers: { "content-type": "application/json" },
+    headers: STATIC_JSON_HEADERS,
   });
 }
 

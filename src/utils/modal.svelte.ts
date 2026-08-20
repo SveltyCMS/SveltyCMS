@@ -177,9 +177,9 @@ class ModalManager {
 
     const adminWarning =
       isAdmin && !isArchive
-        ? `<div class="alert preset-tonal-warning p-3 rounded-lg mt-4 flex items-center gap-3">
+        ? `<div class="alert preset-filled-warning-500 mt-4">
           <iconify-icon icon="mdi:alert" width="24"></iconify-icon>
-          <div><strong>Important:</strong> This action is irreversible.</div>
+          <div class="alert-message"><strong>Important:</strong> This action is irreversible.</div>
          </div>`
         : "";
 

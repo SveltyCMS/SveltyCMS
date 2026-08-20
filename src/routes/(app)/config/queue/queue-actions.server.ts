@@ -1,11 +1,28 @@
 /**
- * @file src/routes/(app)/config/queue/queue.remote.ts
- * @description Queue Observability Remote Functions.
+ * @file src/routes/(app)/config/queue/queue-actions.server.ts
+ * @description Queue Observability Server Actions with defense-in-depth authorization.
  */
 
+import { getRequestEvent } from "$app/server";
+import { error } from "@sveltejs/kit";
+
+function requireAdminPermission() {
+  try {
+    const event = getRequestEvent();
+    if (event) {
+      if (!event.locals.user) throw error(401, "Unauthorized");
+      if (!event.locals.isAdmin && event.locals.user.role !== "admin") {
+        throw error(403, "Admin privileges required");
+      }
+    }
+  } catch (err: any) {
+    if (err?.status) throw err;
+  }
+}
+
 export const retryJob = async (data: any) => {
+  requireAdminPermission();
   const { getDb } = await import("@src/databases/db");
-  const { error } = await import("@sveltejs/kit");
   const { logger } = await import("@utils/logger");
   const jobId = String(data);
 
@@ -29,8 +46,8 @@ export const retryJob = async (data: any) => {
 };
 
 export const deleteJob = async (data: any) => {
+  requireAdminPermission();
   const { getDb } = await import("@src/databases/db");
-  const { error } = await import("@sveltejs/kit");
   const { logger } = await import("@utils/logger");
   const jobId = String(data);
 
@@ -49,8 +66,8 @@ export const deleteJob = async (data: any) => {
 };
 
 export const clearCompleted = async (_data?: any) => {
+  requireAdminPermission();
   const { getDb } = await import("@src/databases/db");
-  const { error } = await import("@sveltejs/kit");
   const { logger } = await import("@utils/logger");
 
   const db = getDb();

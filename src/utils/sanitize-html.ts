@@ -69,6 +69,7 @@ export function sanitizeHtml(html: string): string {
  */
 export function stripHtml(html: string): string {
   if (!html) return "";
+  if (!html.includes("<")) return html;
 
   let output = "";
   let inTag = false;

@@ -88,6 +88,7 @@ import {
   invalidateTurboAuthContext,
   turboAuthCache,
   getTurboAuthContext,
+  setTurboAuthContext,
 } from "./handle-turbo-get";
 
 // Lazy module singletons — dynamic imports resolve from the module cache on
@@ -921,6 +922,15 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           locals.user = user;
           locals.session_id = sessionId as DatabaseId;
           locals.permissions = user.permissions || [];
+          if (!turboCtx && sessionId) {
+            setTurboAuthContext(
+              sessionId as string,
+              user,
+              (locals as any).roles || [],
+              (locals as any)._rbacBitset || new Uint32Array(1),
+              locals.tenantId || null,
+            );
+          }
           // Prefer host/header tenant; if only user.tenantId is set, bind that for MT.
           if (!locals.tenantId && user.tenantId) {
             locals.tenantId = user.tenantId as DatabaseId;
@@ -1296,6 +1306,7 @@ export function invalidateSessionCache(sessionId: string, tenantId?: DatabaseId 
  */
 export function clearAllSessionCaches(): void {
   sessionCache.clear();
+  turboAuthCache.clear();
   lastRefreshAttempt.clear();
   lastRotationAttempt.clear();
   lastAnomalyLog.clear();

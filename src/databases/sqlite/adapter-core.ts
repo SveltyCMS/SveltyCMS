@@ -271,10 +271,6 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     try {
       const columns = Object.keys(values);
       if (columns.length === 0) return null;
-      // tenantId === null needs an IS NULL predicate on the base path — the
-      // raw clause builder treats null as "no filter", which would widen the
-      // match beyond the Drizzle semantics. Defer.
-      if ((options as any)?.tenantId === null) return null;
 
       const tableName = getTableName(table);
       const idColName = idCol?.name || "_id";

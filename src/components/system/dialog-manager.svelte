@@ -1,5 +1,12 @@
 <script lang="ts" module>
-	let activeInstances = 0;
+	/**
+	 * Single-instance guard.
+	 *
+	 * DialogManager renders from the shared global `modalState`, so a second mount renders every
+	 * modal twice, pixel-aligned: the top copy intercepts pointer events and the lower copy is
+	 * inert but still visible. Mount it ONCE, in src/routes/+layout.svelte.
+	 */
+	let liveInstances = 0;
 </script>
 
 <script lang="ts">
@@ -10,14 +17,14 @@
 	import { logger } from '@utils/logger';
 
 	onMount(() => {
-		activeInstances++;
-		if (dev && activeInstances > 1) {
+		liveInstances += 1;
+		if (dev && liveInstances > 1) {
 			logger.error(
-				`[DialogManager] Multiple (${activeInstances}) <DialogManager /> instances are mounted simultaneously. Modals will duplicate. Only the root layout should mount DialogManager.`
+				`[DialogManager] Multiple (${liveInstances}) <DialogManager /> instances are mounted simultaneously. Modals will duplicate. Only the root layout should mount DialogManager.`
 			);
 		}
 		return () => {
-			activeInstances--;
+			liveInstances = Math.max(0, liveInstances - 1);
 		};
 	});
 

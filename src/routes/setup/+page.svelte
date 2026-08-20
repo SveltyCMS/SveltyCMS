@@ -7,7 +7,11 @@
 	import Button from '@components/ui/button.svelte';
 	// Stores
 
-
+	// Native UI Components v4
+	// NOTE: <DialogManager /> is mounted once in the ROOT layout (src/routes/+layout.svelte).
+	// It renders from the shared global `modalState`, so mounting a second instance here made
+	// every setup-wizard modal render twice, pixel-aligned — the top copy swallowed the click
+	// and the lower copy was inert. Do not re-add it. See dialog-manager.svelte for the guard.
 	// ParaglideJS
 	import {
 		label_database,

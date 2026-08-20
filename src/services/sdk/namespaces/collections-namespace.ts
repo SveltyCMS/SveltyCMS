@@ -903,7 +903,7 @@ export class CollectionsNamespace {
           collectionModelCache.set(schema, collectionModel);
         }
         await modifyRequest({
-          data: result.data as EntryData[],
+          data: result.data as unknown as EntryData[],
           fields: schema.fields as FieldInstance[],
           collection: collectionModel as any,
           user: options.user || { _id: "system", role: "admin" },
@@ -916,14 +916,16 @@ export class CollectionsNamespace {
       }
 
       if (Array.isArray(result.data)) {
+        const collectionMeta = (schema as any)._collectionMeta || {
+          id: schema._id,
+          name: schema.name,
+          label: schema.label,
+        };
+        (schema as any)._collectionMeta = collectionMeta;
         for (let i = 0; i < result.data.length; i++) {
-          const item = result.data[i];
+          const item = result.data[i] as any;
           if (item) {
-            item._collection = {
-              id: schema._id,
-              name: schema.name,
-              label: schema.label,
-            };
+            item._collection = collectionMeta;
           }
         }
       }
@@ -1138,20 +1140,21 @@ export class CollectionsNamespace {
       return doc as EntryData;
     });
 
-    const collectionModel = await this._getModelResilient(schema);
-
-    await modifyRequest({
-      data: entries,
-      fields: schema.fields as FieldInstance[],
-      collection: collectionModel,
-      user: effectiveUser,
-      type: "POST",
-      tenantId,
-      collectionName: schema.name,
-      skipValidation: options.skipValidation,
-      action: "bulkCreate",
-      system,
-    });
+    if (hot._hasActiveWidgets) {
+      const collectionModel = await this._getModelResilient(schema);
+      await modifyRequest({
+        data: entries,
+        fields: schema.fields as FieldInstance[],
+        collection: collectionModel,
+        user: effectiveUser,
+        type: "POST",
+        tenantId,
+        collectionName: schema.name,
+        skipValidation: options.skipValidation,
+        action: "bulkCreate",
+        system,
+      });
+    }
 
     let result;
     if (this._dbAdapter.batch && typeof this._dbAdapter.batch.bulkInsert === "function") {
@@ -1394,11 +1397,12 @@ export class CollectionsNamespace {
         item = payload[0] ?? item;
       }
 
-      item._collection = {
+      item._collection = (schema as any)._collectionMeta || {
         id: schema._id,
         name: schema.name,
         label: schema.label,
       };
+      (schema as any)._collectionMeta = item._collection;
     }
 
     const finalResult = { success: true, data: item || null };

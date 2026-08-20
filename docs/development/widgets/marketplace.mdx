@@ -24,11 +24,12 @@ All marketplace widgets are "Portable Modules". They are self-contained and incl
 ## 🛡️ Submission Standards
 
 - Must follow the 3-Pillar Architecture.
+- **Must declare a valid SemVer `version` (e.g., `"1.0.0"`) and `author`** in `createWidget`.
 - Must include unit tests in a `tests/` folder.
 - Must be accessible (WCAG 2.2 AA).
 - **Must follow the single naming convention** (below). Invalid packages are **not registered**.
 
-## Naming Convention (required)
+## Naming Convention & Versioning (required)
 
 Custom widgets (`src/widgets/custom/`) and marketplace packages (`src/widgets/marketplace/`) share one rule set with core:
 
@@ -36,6 +37,7 @@ Custom widgets (`src/widgets/custom/`) and marketplace packages (`src/widgets/ma
 | ------------------ | ------------------------ | --------------------------------- |
 | **Folder**         | kebab-case               | `phone-number/`                   |
 | **Factory `Name`** | PascalCase (or acronyms) | `Name: "PhoneNumber"`             |
+| **Version**        | SemVer string            | `version: "1.0.0"`                |
 | **Schema field**   | factory Name only        | `widget: { Name: "PhoneNumber" }` |
 
 **Invariant:** `widgetNameToFolder(Name) === folderName`
@@ -55,7 +57,7 @@ Helpers live in `src/widgets/widget-naming.ts`. Registration (store, proxy, `Wid
 
 ```text
 src/widgets/marketplace/phone-number/
-  index.ts          # createWidget({ Name: "PhoneNumber", … })
+  index.ts          # createWidget({ Name: "PhoneNumber", version: "1.0.0", … })
   input.svelte
   display.svelte
   tests/
@@ -65,6 +67,8 @@ src/widgets/marketplace/phone-number/
 // index.ts — Name must match folder via widgetNameToFolder
 export default createWidget({
   Name: "PhoneNumber", // → folder phone-number
+  version: "1.0.0", // Semver version for marketplace verification
+  author: "Vendor Name",
   Icon: "mdi:phone",
   // …
 });

@@ -494,7 +494,7 @@ Uses the same shared TreeView as collections:
 		</div>
 	{/if}
 
-	<div class="media-folders-list">
+	<div class="media-folders-list min-w-0 overflow-x-hidden">
 		{#if isLoading && folders.length === 0}
 			<div class="flex flex-col items-center justify-center gap-3 p-6">
 				<div class="flex gap-2">

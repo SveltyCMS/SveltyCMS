@@ -545,10 +545,15 @@ async function run() {
     let serverLogs = "";
     /** True when the shared server child has exited (crash / kill). */
     let serverExited = false;
-    // Prefer index.cjs (Yjs /ws on upgrade). adapter-node build/index.js has no WS attach.
-    const serverEntry = fs.existsSync(path.join(process.cwd(), "index.cjs"))
-      ? "index.cjs"
-      : "build/index.js";
+    const isBunRuntime = process.env.RUNTIME === "bun";
+    // Prefer index.bun.ts when RUNTIME=bun, index.cjs when Node (Yjs /ws on upgrade)
+    const serverEntry =
+      isBunRuntime && fs.existsSync(path.join(process.cwd(), "index.bun.ts"))
+        ? "index.bun.ts"
+        : fs.existsSync(path.join(process.cwd(), "index.cjs"))
+          ? "index.cjs"
+          : "build/index.js";
+    const runtimeExe = isBunRuntime ? "bun" : "node";
 
     /**
      * Rebuild if mid-run cleanup wiped production artifacts.
@@ -561,7 +566,9 @@ async function run() {
       const yjs = path.join(process.cwd(), "build", "yjs-sync-server.js");
       const needsHandler = !fs.existsSync(handler);
       const needsAdapter = !fs.existsSync(adapterEntry);
-      const needsYjs = serverEntry.endsWith("index.cjs") && !fs.existsSync(yjs);
+      const needsYjs =
+        (serverEntry.endsWith("index.cjs") || serverEntry.endsWith("index.bun.ts")) &&
+        !fs.existsSync(yjs);
       // Detect deploy-stripped builds (testing backdoor removed)
       let stripped = false;
       if (fs.existsSync(handler)) {
@@ -601,9 +608,9 @@ async function run() {
 
     const startServer = () => {
       ensureBuildArtifacts();
-      process.stdout.write(`  Starting server (${serverEntry})... `);
+      process.stdout.write(`  Starting server (${runtimeExe} ${serverEntry})... `);
       serverExited = false;
-      const proc = spawn("node", [serverEntry], {
+      const proc = spawn(runtimeExe, [serverEntry], {
         env: serverEnv,
         stdio: "pipe",
         shell: false,

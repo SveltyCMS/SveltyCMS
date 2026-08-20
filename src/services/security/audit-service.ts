@@ -315,10 +315,41 @@ export class AuditService {
       if (options.tenantId) {
         filters.tenantId = options.tenantId;
       }
+      const limit = options.limit || 100;
+      const offset = options.offset || 0;
+      const sort = options.sort || { timestamp: -1 };
+
+      // 🚀 ID-FIRST PAGINATION: For paginated queries with large details payloads,
+      // fetch lightweight IDs first on MySQL/MariaDB to prevent sort_buffer_size overflow.
+      const adapterType = (dbAdapterInstance as any).type;
+      const isMySQLFamily = adapterType === "mariadb" || adapterType === "mysql";
+      if (isMySQLFamily && offset > 0) {
+        const idResult = await dbAdapterInstance.crud.findMany<any>(this.collectionName, filters, {
+          limit,
+          offset,
+          tenantId: options.tenantId,
+          fields: ["_id"],
+          sort,
+        });
+        if (!idResult.success || !Array.isArray(idResult.data) || idResult.data.length === 0) {
+          return idResult as any;
+        }
+        const ids = idResult.data.map((r: any) => r._id).filter(Boolean);
+        return await dbAdapterInstance.crud.findMany<AuditLogEntry>(
+          this.collectionName,
+          { _id: { $in: ids } },
+          {
+            tenantId: options.tenantId,
+            sort,
+          },
+        );
+      }
+
       return await dbAdapterInstance.crud.findMany<AuditLogEntry>(this.collectionName, filters, {
-        limit: options.limit || 100,
-        offset: options.offset || 0,
+        limit,
+        offset,
         tenantId: options.tenantId,
+        sort,
       });
     } catch (error) {
       return { success: false, message: String(error) } as any;

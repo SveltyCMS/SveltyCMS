@@ -37,11 +37,10 @@ const createdIds: string[] = [];
 test("Competitive 9-Workload Replica Benchmark", async () => {
   logger.info("🚀 Starting Competitive 9-Workload Replica Benchmark (8 Workers)...");
 
+  await ensureStableTestData();
   const serverInfo = await setupBenchmarkServer();
   stopServer = serverInfo.stop;
   baseUrl = serverInfo.baseUrl;
-
-  await ensureStableTestData();
   const headers = {
     ...benchmarkAuthHeaders(),
     "content-type": "application/json",
@@ -59,7 +58,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
         slug: `item-${i}`,
         content: `Content for item ${i} with representative text payload`,
         published: true,
-        status: "publish",
+        status: "published",
         views: i * 10,
       }),
     });
@@ -160,7 +159,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
           method: "POST",
           headers,
           body: JSON.stringify({
-            query: "{ BenchmarkStable(pagination: { limit: 10 }) { _id title } }",
+            query: "query { BenchmarkStable(pagination: { limit: 10 }) { _id title } }",
           }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

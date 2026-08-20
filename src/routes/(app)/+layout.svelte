@@ -166,22 +166,55 @@ $effect(() => {
 	theme.customCss = dbAdminConfig?.customCss;
 });
 
-// Sync active theme variables and data attributes to document.documentElement so teleported Portals (Modals, Drawers) inherit them
+/* ────────────────────────────────────────────────────────────────────────
+   Theme token propagation — mirror onto <html>
+   ────────────────────────────────────────────────────────────────────────
+   The --admin-* custom properties are also written inline on the layout
+   element below (so SSR paints the correct theme with no flash). But CSS
+   custom properties only cascade to DESCENDANTS, and three things live
+   outside that element:
+
+     • Modal / Drawer / Popover / Tooltip — portalled into <body>, so they
+       are siblings of the app shell, not children of it. Before this, an
+       overlay opened from a spacious dark theme rendered with :root's cozy
+       light defaults.
+     • The page background itself, painted on <html> / <body>.
+     • Anything a plugin renders through its own portal.
+
+   Mirroring the same values onto document.documentElement makes the token
+   layer document-wide, so every route and every overlay resolves one theme.
+   The values are identical to the inline ones, so nothing conflicts.
+   ──────────────────────────────────────────────────────────────────────── */
 $effect(() => {
 	if (!browser) return;
 	const root = document.documentElement;
-	root.setAttribute('data-admin-theme', theme.themeName);
-	root.setAttribute('data-density', theme.density);
-	root.setAttribute('data-reduced-motion', theme.features.reducedMotion ? 'true' : 'false');
-	root.style.setProperty('--admin-spacing-scale', String(theme.spacingScale));
-	root.style.setProperty('--admin-density', String(theme.densityScale));
-	root.style.setProperty('--admin-radius-base', theme.radiusBase);
-	root.style.setProperty('--admin-radius-card', theme.radiusCard);
-	root.style.setProperty('--admin-radius-input', theme.radiusInput);
-	root.style.setProperty('--admin-radius-button', theme.radiusButton);
-	root.style.setProperty('--admin-sidebar-width', theme.sidebarWidth);
-	root.style.setProperty('--admin-header-height', theme.headerHeight);
-	root.style.setProperty('--admin-sticky-bar-height', theme.stickyBarHeight);
+	const tokens: Record<string, string> = {
+		"--admin-spacing-scale": String(theme.spacingScale),
+		"--admin-density": String(theme.densityScale),
+		"--admin-radius-base": theme.radiusBase,
+		"--admin-radius-card": theme.radiusCard,
+		"--admin-radius-input": theme.radiusInput,
+		"--admin-radius-button": theme.radiusButton,
+		"--admin-sidebar-width": theme.sidebarWidth,
+		"--admin-header-height": theme.headerHeight,
+		"--admin-sticky-bar-height": theme.stickyBarHeight,
+	};
+	for (const [key, value] of Object.entries(tokens)) {
+		if (value != null && value !== "undefined") root.style.setProperty(key, value);
+	}
+	root.setAttribute("data-admin-theme", theme.themeName);
+	root.setAttribute("data-density", theme.density);
+	root.setAttribute("data-reduced-motion", theme.features.reducedMotion ? "true" : "false");
+
+	return () => {
+		// Leaving the (app) group (e.g. logout → /login) must hand the document
+		// back to the :root defaults, otherwise the login screen keeps the last
+		// admin's density and radii.
+		for (const key of Object.keys(tokens)) root.style.removeProperty(key);
+		root.removeAttribute("data-admin-theme");
+		root.removeAttribute("data-density");
+		root.removeAttribute("data-reduced-motion");
+	};
 });
 
 // ── Layout state: tenant defaults, then per-user overrides ──

@@ -13,6 +13,7 @@
 
 import { hasApiPermission } from "@src/databases/auth/api-permissions";
 import { API_CACHE_TTL_S, cacheService } from "@src/databases/cache/cache-service";
+import type { DatabaseId } from "@src/databases/db-interface";
 import { metricsService } from "@src/services/observability/metrics-service";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, getErrorMessage, handleApiError } from "@utils/error-handling";
