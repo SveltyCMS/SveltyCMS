@@ -102,12 +102,39 @@ Provides an organized interface for navigating hierarchical content structures.
 	// === Drag & Drop: reactive order overrides and flat node lookup map ===
 	let orderOverrides = new SvelteMap<string, number>();
 	let flatNodeMap = new Map<string, ExtendedContentNode>();
+	let lastStructureOrderSignature = $state('');
 
 	// Seed orderOverrides from persisted manifest order (survives restarts)
 	$effect(() => {
 		const persisted = page.data.collectionOrder as Record<string, number> | undefined;
 		if (persisted && typeof persisted === 'object') {
 			for (const [id, order] of Object.entries(persisted)) {
+				orderOverrides.set(id, order);
+			}
+		}
+	});
+
+	$effect(() => {
+		const nodes = contentStructure.value ?? [];
+		const signature = nodes
+			.map((node) => `${node._id}:${node.parentId ?? ''}:${node.order ?? 0}`)
+			.sort()
+			.join('|');
+
+		if (!signature || signature === lastStructureOrderSignature) return;
+		lastStructureOrderSignature = signature;
+
+		const liveIds = new Set(nodes.map((node) => String(node._id)));
+		for (const id of orderOverrides.keys()) {
+			if (!liveIds.has(id)) {
+				orderOverrides.delete(id);
+			}
+		}
+
+		for (const node of nodes) {
+			const id = String(node._id);
+			const order = node.order ?? 0;
+			if (orderOverrides.has(id) && orderOverrides.get(id) !== order) {
 				orderOverrides.set(id, order);
 			}
 		}
@@ -345,11 +372,12 @@ Provides an organized interface for navigating hierarchical content structures.
 
 		function filterNode(node: ExtendedContentNode): ExtendedContentNode | null {
 			if (node.nodeType === 'category') {
-				if (!node.children?.length) return null;
-				const filtered = node.children
+				const filtered = (node.children ?? [])
 					.map(filterNode)
 					.filter((n): n is ExtendedContentNode => n !== null);
-				return filtered.length ? { ...node, children: filtered } : null;
+				if (filtered.length) return { ...node, children: filtered };
+				if (!showOnlyFavorites && !selectedTagFilter) return { ...node, children: [] };
+				return null;
 			}
 			if (showOnlyFavorites && !favorites.includes(node._id)) return null;
 			if (selectedTagFilter && !(tagMap[node._id] || []).includes(selectedTagFilter)) return null;

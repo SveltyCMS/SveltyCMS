@@ -85,6 +85,7 @@ let treeRoots = $state<EnhancedTreeViewItem[]>([]);
 let initialized = $state(false);
 // eslint-disable-next-line svelte/no-unnecessary-state-wrap
 let expandedNodes = $state(new SvelteSet<string>());
+let autoExpandedNodes = new SvelteSet<string>();
 // isDragging is now tracked via dndState.isDragging from @thisux/sveltednd
 	let lastContentNodesHash = $state("");
 /** Hash of the nodes we last sent in saveTreeData; skip rebuilding until contentNodes matches this (avoids revert on same-level or next move). */
@@ -442,7 +443,7 @@ function resolveTreeDropIntent(
 	return "inside";
 }
 
-/** Auto-expand categories while dragging so nested drop zones appear. */
+/** Track hovered categories for inside-drop intent without expanding the tree layout. */
 function handleCategoryDragOver(state: DragDropState<{ itemId: string }>) {
 	const el = state.targetElement;
 	if (!(el instanceof Element)) return;
@@ -450,9 +451,14 @@ function handleCategoryDragOver(state: DragDropState<{ itemId: string }>) {
 	const id = itemEl?.dataset?.itemId;
 	if (!id) return;
 	const node = findNode(treeRoots, id);
-	if (node?.nodeType === "category" && !expandedNodes.has(id)) {
-		expandedNodes.add(id);
+	if (node?.nodeType === "category") {
+		autoExpandedNodes.add(id);
 	}
+}
+
+function clearAutoExpandedNodes(keepId: string | null = null): void {
+	void keepId;
+	autoExpandedNodes.clear();
 }
 
 function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
@@ -499,6 +505,7 @@ function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
 			`Cannot move "${draggedNode?.name || "item"}" into its own sub-category`,
 		);
 		toast.warning("Cannot drop a category into itself or its descendants.");
+		clearAutoExpandedNodes();
 		return;
 	}
 
@@ -527,6 +534,7 @@ function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
 		toast.warning(
 			"A collection with this name already exists in the target category.",
 		);
+		clearAutoExpandedNodes();
 		return;
 	}
 
@@ -572,6 +580,7 @@ function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
 
 	// Optimistic local persistence + parent/sidebar sync
 	saveTreeData();
+	clearAutoExpandedNodes(intent === "inside" ? targetParentId : null);
 	announce(
 		intent === "inside"
 			? `Moved ${draggedNode.name} into category`
@@ -1170,12 +1179,13 @@ const flipDurationMs = 200;
 			tabindex={rovingTabIndex === item.id ? 0 : -1}
 		/>
 
-		{#if expandedNodes.has(item.id) || (dndState.isDragging && item.nodeType === 'category')}
+		{#if expandedNodes.has(item.id)}
 			{#if item.children?.length > 0 || item.nodeType === 'category'}
 				<div
-					class="dnd-zone nested-zone mt-2"
+					class="dnd-zone nested-zone"
 					class:dropping={dndState.isDragging}
-					style="margin-left: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem; padding-left: 0.5rem; border-left: 2px solid rgb(var(--color-surface-300));"
+					class:has-children={item.children?.length > 0}
+					style="margin-left: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem;"
 					use:droppable={{
 						container: 'children:' + item.id,
 						callbacks: {
@@ -1221,9 +1231,6 @@ const flipDurationMs = 200;
 								{@render treeNode(child, level + 1)}
 							</div>
 						{/each}
-					{:else if dndState.isDragging}
-						<!-- Empty category: explicit drop surface while dragging -->
-						<div class="empty-drop-zone min-h-10" aria-hidden="true"></div>
 					{/if}
 				</div>
 			{/if}
@@ -1256,34 +1263,12 @@ const flipDurationMs = 200;
 
 	.dnd-zone {
 		position: relative;
-		min-height: 60px;
-		border: 2px dashed transparent;
-		border-radius: 0.5rem;
+		min-height: 0;
+		border: 0;
+		border-radius: 0;
 		transition:
 			background-color 0.2s ease,
 			border-color 0.2s ease;
-	}
-
-	.dnd-zone:empty,
-	.empty-drop-zone {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 2px;
-		padding: 0;
-		margin: 0;
-		background: transparent;
-		border: 2px dashed transparent;
-		border-radius: 0.5rem;
-		transition: all 0.2s ease;
-	}
-
-	.dnd-active .empty-drop-zone {
-		min-height: 48px;
-		padding: 0.5rem;
-		margin: 0.5rem 0;
-		background: rgb(var(--color-surface-200) / 0.3);
-		border-color: rgb(var(--color-surface-400));
 	}
 
 	.tree-node-wrapper {
@@ -1298,8 +1283,8 @@ const flipDurationMs = 200;
 
 	/* Drop target on zone level */
 	:global(.dnd-zone.drag-over-zone) {
-		background: rgb(var(--color-primary-500) / 0.1) !important;
-		outline: 2px dashed rgb(var(--color-primary-500)) !important;
+		background: transparent !important;
+		outline: 0 !important;
 	}
 
 	/* Drop target on individual item (sibling before/after) */
@@ -1317,9 +1302,9 @@ const flipDurationMs = 200;
 
 	/* Category drop zone feedback */
 	:global(.nested-zone.drag-over-zone) {
-		background: rgb(var(--color-tertiary-500) / 0.1) !important;
-		outline: 2px dashed rgb(var(--color-tertiary-500)) !important;
-		min-height: 48px;
+		background: transparent !important;
+		outline: 0 !important;
+		min-height: 0;
 	}
 
 	/* Disable selection during drag */
@@ -1329,6 +1314,8 @@ const flipDurationMs = 200;
 
 	.nested-zone {
 		position: relative;
+		margin-top: 0.5rem;
+		padding-left: 0.5rem;
 	}
 
 	.nested-zone::before {
@@ -1341,19 +1328,14 @@ const flipDurationMs = 200;
 		background: rgb(var(--color-surface-300));
 	}
 
-	/* Empty drop zone visible during drag */
-	.empty-drop-zone {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 40px;
-		background: rgb(var(--color-surface-200) / 0.2);
-		border: 2px dashed rgb(var(--color-surface-400));
-		border-radius: 0.5rem;
+	.nested-zone:not(.has-children) {
+		height: 0;
+		margin-top: 0;
+		padding-left: 0;
+		overflow: hidden;
 	}
 
-	/* Hide empty drop zones when not dragging */
-	.dnd-zone:not(.dropping) .empty-drop-zone {
+	.nested-zone:not(.has-children)::before {
 		display: none;
 	}
 </style>

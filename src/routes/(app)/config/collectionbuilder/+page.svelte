@@ -49,6 +49,7 @@ import {
 import TreeViewBoard from "@src/routes/(app)/config/collectionbuilder/nested-content/tree-view-board.svelte";
 // Stores
 import {
+    contentStructure,
     setCollectionValue,
     setContentStructure,
 } from '@src/stores/collection-store.svelte';
@@ -169,6 +170,45 @@ $effect(() => {
     untrack(() => {
         setContentStructure(structure);
     });
+});
+
+$effect(() => {
+    const sharedStructure = contentStructure.value as ContentNode[];
+    if (!sharedStructure?.length || Object.keys(nodesToSave).length > 0) return;
+
+    const sharedIds = new Set(sharedStructure.map((node) => node._id?.toString()));
+    const currentIds = new Set(currentConfig.map((node) => node._id?.toString()));
+    if (
+        sharedIds.size !== currentIds.size ||
+        [...currentIds].some((id) => !sharedIds.has(id))
+    ) {
+        return;
+    }
+
+    const sharedHash = JSON.stringify(
+        sharedStructure.map((node) => ({
+            id: node._id?.toString(),
+            name: node.name,
+            nodeType: node.nodeType,
+            parentId: node.parentId?.toString(),
+            order: node.order ?? 0,
+            path: node.path ?? "",
+        })),
+    );
+    const currentHash = JSON.stringify(
+        currentConfig.map((node) => ({
+            id: node._id?.toString(),
+            name: node.name,
+            nodeType: node.nodeType,
+            parentId: node.parentId?.toString(),
+            order: node.order ?? 0,
+            path: node.path ?? "",
+        })),
+    );
+
+    if (sharedHash === currentHash) return;
+    currentConfig = sharedStructure;
+    treeVersion++;
 });
 
 async function handleNodeUpdate(updatedNodes: ContentNode[]) {
