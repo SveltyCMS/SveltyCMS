@@ -308,12 +308,13 @@ data: {"imported":1382,"failed":0,"durationMs":42300}
 ```
 
 > [!NOTE]
-> The SSE endpoint at `/api/migration/import` is the recommended path for full-scale CMS migrations. It combines format detection, preview, and execution into one real-time stream with granular progress events.
+> The SSE endpoint at `/api/migration/import` is the recommended path for full-scale CMS migrations. It combines format detection, preview, and execution into one real-time stream with granular progress events. CLI commands are also supported via `bun run migrate import --file=<export> --format=<source> --collection=<target>`.
 
 ---
 
 ## Next Steps
 
+- [Configuration Promotion](./configuration-promotion.mdx) — Promote site schemas and settings between environments (Schema as Code).
 - [Content Export & Import](./content-transfer.mdx) — Transfer content between SveltyCMS instances with NDJSON streaming.
 - [Data Migrations](./data-migrations.mdx) — Apply and verify schema migrations with risk scoring.
 - [Backup & Restore](./backups.mdx) — Full-instance backup with safety gating and encryption.

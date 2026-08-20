@@ -11,7 +11,7 @@
  * - Enum values
  */
 
-import { getScreenSize, ScreenSize } from "@src/utils/screen-size";
+import { getScreenSize, ScreenSize } from "@src/stores/screen-size-store.svelte";
 
 describe("Screen Size Store - Size Detection", () => {
   it("should detect extra small screens (XS)", () => {

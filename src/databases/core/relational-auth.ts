@@ -561,12 +561,33 @@ export class RelationalAuthModule implements IAuthAdapter {
     return this.adapter.wrap(
       async () => {
         const nowMs = Date.now();
-        // Bypass Drizzle proxy — use direct SQL to avoid sqlite-proxy shim issues
+        // Bypass Drizzle proxy — use direct SQL for high-performance session validation
         try {
-          const rows = await this.adapter.raw.execute(
-            `SELECT u.* FROM auth_sessions s INNER JOIN auth_users u ON s.user_id = u._id WHERE s._id = ? AND s.expires > ? LIMIT 1`,
-            [sessionId, nowMs],
-          );
+          const isSQLite = this.isSQLiteAdapter();
+          const isPg =
+            (this.adapter as any).type === "postgresql" ||
+            (this.adapter as any).dbType === "postgres" ||
+            (this.adapter as any).dbType === "postgresql";
+
+          let rows: any[];
+          if (isSQLite) {
+            rows = await this.adapter.raw.execute(
+              `SELECT u.* FROM auth_sessions s INNER JOIN auth_users u ON s.user_id = u._id WHERE s._id = ? AND s.expires > ? LIMIT 1`,
+              [sessionId, nowMs],
+            );
+          } else if (isPg) {
+            rows = await this.adapter.raw.execute(
+              `SELECT u.* FROM auth_sessions s INNER JOIN auth_users u ON s.user_id = u._id WHERE s._id = $1 AND s.expires > NOW() LIMIT 1`,
+              [sessionId],
+            );
+          } else {
+            // MariaDB / MySQL
+            rows = await this.adapter.raw.execute(
+              `SELECT u.* FROM auth_sessions s INNER JOIN auth_users u ON s.user_id = u._id WHERE s._id = ? AND s.expires > NOW() LIMIT 1`,
+              [sessionId],
+            );
+          }
+
           if (rows && rows.length > 0) {
             return this.mapUser(rows[0]);
           }

@@ -679,11 +679,10 @@ Presets are pre-configured collections of schemas, widgets, and settings designe
 #### 7. E-commerce
 
 - **Best for**: Online stores, catalogs.
-- **Collections**:
-  - `Products`: Full catalog with **Repeater** for attributes.
-  - `Orders`: Transaction records.
-  - `Customers`: CRM data.
-  - `Variants`: SKU management.
+- **Collections**: `products` (variants with own SKU/price/inventory), `product_categories`, `product_reviews`, `coupons`, `tax_rates`, `shipping_zones`, `carts`, `orders`.
+- **Import**: [Smart Importer](../../../src/plugins/smart-importer/smart-importer.mdx) maps WooCommerce (WXR/REST) or Shopify JSON/CSV into `products`.
+- **Dashboard**: add **Commerce Orders** and **Commerce Inventory** widgets (freemium, 14-day trial) from the dashboard picker.
+- **Map**: [E-Commerce Overview](../../reference/architecture/ecommerce-overview.mdx) — preset, importer, dashboard widgets, checkout pipeline, Stripe.
 
 ---
 

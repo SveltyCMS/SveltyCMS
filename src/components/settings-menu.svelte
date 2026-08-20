@@ -11,6 +11,7 @@ Sidebar navigation for System Settings
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { SettingGroup } from '@src/routes/(app)/config/system-settings/settings-groups';
 	import { getSettingGroupsByRole } from '@src/routes/(app)/config/system-settings/settings-groups';
+	import { isAdmin as checkIsAdmin } from '@src/databases/auth/constants';
 	// Stores
 	import { groupsNeedingConfig } from '@src/stores/settings-config-state.svelte';
 	import { page } from '$app/state';
@@ -23,7 +24,7 @@ Sidebar navigation for System Settings
 
 	// Derived
 	const user = $derived(page.data.user);
-	const isAdmin = $derived(user?.role === 'admin'); // Simple admin check, should match +page logic
+	const isAdmin = $derived(checkIsAdmin(user));
 	const availableGroups: SettingGroup[] = $derived(getSettingGroupsByRole(isAdmin).sort((a, b) => a.name.localeCompare(b.name)));
 	const selectedGroupId = $derived(page.url.searchParams.get('group'));
 

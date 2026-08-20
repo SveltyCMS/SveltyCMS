@@ -5,6 +5,7 @@
 
 import type { DatabaseId } from "@src/databases/db-interface";
 import type { CollectionMap } from "@src/content/types";
+import type { PublicationFilter } from "@src/utils/security/publication-policy";
 
 export interface LocalApiOptions {
   user?: any;
@@ -16,6 +17,7 @@ export interface LocalApiOptions {
   skipValidation?: boolean;
   disableErrors?: boolean;
   populate?: string[];
+  publicationFilter?: PublicationFilter | string;
   /** Passed through to session creation for device deduplication. */
   sessionMeta?: { userAgent?: string; ipAddress?: string };
   /**

@@ -22,7 +22,7 @@
  * @see docs/reference/components/smart-table.mdx
  */
 
-import { ROW_HEIGHT, VIRTUAL_BUFFER, VIRTUALIZATION_THRESHOLD } from "@utils/table-constants";
+import { ROW_HEIGHT, VIRTUAL_BUFFER, VIRTUALIZATION_THRESHOLD } from "./types";
 import {
   isValidDensity,
   loadTableLayout,
@@ -74,7 +74,7 @@ export interface SmartTableApi<T extends Record<string, unknown> = Record<string
   setColumns: (columns: SmartTableColumn<T>[]) => void;
   setPaginationMeta: (meta: Partial<SmartTablePagination>) => void;
   setDensity: (density: TableDensity) => void;
-  setSort: (field: string, options?: { emit?: boolean }) => void;
+  setSort: (field: string, options?: { emit?: boolean; direction?: TableSortOrder }) => void;
   setPage: (page: number, options?: { emit?: boolean }) => void;
   setPageSize: (size: number, options?: { emit?: boolean }) => void;
   toggleSelect: (rowId: string) => void;
@@ -304,10 +304,15 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
     persistLayout();
   }
 
-  function setSort(field: string, options?: { emit?: boolean }) {
+  function setSort(field: string, options?: { emit?: boolean; direction?: TableSortOrder }) {
     const shouldEmit = options?.emit !== false;
     let next: SmartTableSort;
-    if (sort.sortedBy === field) {
+    if (options?.direction !== undefined) {
+      next = {
+        sortedBy: options.direction === 0 ? "" : field,
+        isSorted: options.direction,
+      };
+    } else if (sort.sortedBy === field) {
       const cycle: TableSortOrder = sort.isSorted === 1 ? -1 : sort.isSorted === -1 ? 0 : 1;
       next = {
         sortedBy: cycle === 0 ? "" : field,

@@ -361,6 +361,12 @@ When generating/modifying code:
       - **Media URL cache staleness** → `getUrl()` in `src/utils/media/storage-adapters.ts` caches path→URL mappings for 5min. If you change storage adapter config or add a new CDN endpoint, call `invalidateMediaUrlCache()` to clear it. The metadata cache in `media-processing.server.ts` uses file hash keys — no manual invalidation needed (immutable per hash).
       - **Integration tests fail with `Content node upsert result for iso_tenant_fixture: FAILED`** → The `bulk-seed` testing action requires the target collection to exist. The test provisions it in `beforeAll` via `create-collection`. If the fixture name (`iso_tenant_fixture`) was previously used with a different schema, the upsert can fail. Reset by deleting the collection or using `ISO_TEST_COLLECTION` env var to pick a fresh name.
 21. **E2E Control-Map Policy (CRITICAL)**: See [E2E & Control-Map Testing Policy](#e2e--control-map-testing-policy). Soft-skips on control rows are banned; seed fixtures instead.
+22. **Lean & Anti-Bloat Code Architecture (Zero Slop & Zero Indirection)**:
+    - **No Micro-File Fragmentation**: Do not split cohesive domain features into tiny 20–30 line micro-files (e.g., `404-logs.ts`, `seo.ts`, `workflow.ts`, `system-setting.ts`, `auth-methods.ts`, `content-methods.ts`). Keep domain schemas, models, and methods consolidated in cohesive domain modules.
+    - **Zero Legacy Compatibility Bridges**: When refactoring or upgrading (e.g., Svelte 5 Runes, store consolidation, adapter simplifications), never leave re-export bridge files, legacy proxy wrappers, or compatibility shims. Directly update all consumers and delete the obsolete files in the same changeset.
+    - **Pre-Compiled Hot Paths**: Hot execution paths (document writes, field sanitization, schema validation, query parameter parsing) must never execute repeated full-array traversals with dynamic branch checks on every request. Pre-compile execution plans with `WeakMap` (e.g., `getOrCompilePrepPlan(schema)`) and use $O(N)$ single-pass token parsers (`parseCollectionQueryParams`).
+    - **Cross-Database Architectural Parity**: Maintain clean structural parity across all 4 database adapters (`sqlite`, `postgresql`, `mariadb`, `mongodb`). Use single-statement multi-row batch inserts (`insertMany`) and push field projections directly to database queries rather than doing in-memory post-filtering.
+    - **Modern Static ESM Only**: Never use CommonJS `require(...)` inside runtime adapters or modules. All runtime code must use clean, tree-shakable static ESM imports.
 
 ## E2E & Control-Map Testing Policy
 
@@ -456,21 +462,22 @@ Reference implementation to copy for new admin routes:
 
 ### Documentation Matrix
 
-| Feature Type          | Primary MDX Location                                        | Also Update                                           |
-| :-------------------- | :---------------------------------------------------------- | :---------------------------------------------------- |
-| **Database**          | `docs/reference/database/`                                  | `technical-evaluation-2026.mdx`                       |
-| **Auth/Security**     | `docs/reference/security/authentication-system.mdx`         | `technical-evaluation-2026.mdx`                       |
-| **Admin Theme / UI**  | `docs/contributing/style-guide-gui.mdx`                     |                                                       |
-| **Content/Preview**   | `docs/reference/architecture/live-preview-architecture.mdx` | Integration docs                                      |
-| **Widgets**           | (inline in widget package)                                  | `widget-system-overview.mdx`                          |
-| **API**               | `docs/reference/api/`                                       | Relevant service docs                                 |
-| **Performance**       | `docs/reference/database/performance-architecture.mdx`      | `technical-evaluation-2026.mdx`                       |
-| **Benchmarks**        | `docs/tests/benchmark-matrix.mdx`                           | `docs/project/benchmarks/index.mdx`                   |
-| **Testing Scripts**   | `docs/tests/testing-scripts.mdx`                            | `docs/tests/index.mdx`                                |
-| **Intelligence / AI** | `docs/reference/architecture/behavioral-learning.mdx`       | `ai-integration.mdx`, `technical-evaluation-2026.mdx` |
-| **Preloading**        | `docs/reference/architecture/hover-preloading.mdx`          | `behavioral-learning.mdx`, `cache-system.mdx`         |
-| **Marketplace**       | `docs/reference/architecture/marketplace.mdx`               | `ai-integration.mdx`                                  |
-| **Packages / SDK**    | `docs/development/package-model.mdx`                        | `docs/development/local-vs-http-api.mdx`              |
+| Feature Type          | Primary MDX Location                                        | Also Update                                                                      |
+| :-------------------- | :---------------------------------------------------------- | :------------------------------------------------------------------------------- |
+| **Database**          | `docs/reference/database/`                                  | `technical-evaluation-2026.mdx`                                                  |
+| **Auth/Security**     | `docs/reference/security/authentication-system.mdx`         | `technical-evaluation-2026.mdx`                                                  |
+| **Admin Theme / UI**  | `docs/contributing/style-guide-gui.mdx`                     |                                                                                  |
+| **Content/Preview**   | `docs/reference/architecture/live-preview-architecture.mdx` | Integration docs                                                                 |
+| **Widgets**           | (inline in widget package)                                  | `widget-system-overview.mdx`                                                     |
+| **API**               | `docs/reference/api/`                                       | Relevant service docs                                                            |
+| **Performance**       | `docs/reference/database/performance-architecture.mdx`      | `technical-evaluation-2026.mdx`                                                  |
+| **Benchmarks**        | `docs/tests/benchmark-matrix.mdx`                           | `docs/project/benchmarks/index.mdx`                                              |
+| **Testing Scripts**   | `docs/tests/testing-scripts.mdx`                            | `docs/tests/index.mdx`                                                           |
+| **Intelligence / AI** | `docs/reference/architecture/behavioral-learning.mdx`       | `ai-integration.mdx`, `technical-evaluation-2026.mdx`                            |
+| **Preloading**        | `docs/reference/architecture/hover-preloading.mdx`          | `behavioral-learning.mdx`, `cache-system.mdx`                                    |
+| **Marketplace**       | `docs/reference/architecture/marketplace.mdx`               | `ai-integration.mdx`                                                             |
+| **E-commerce**        | `docs/reference/architecture/ecommerce-overview.mdx`        | Plugins / widgets / gated API (core stays light); Stripe MDX; `roadmap-2026.mdx` |
+| **Packages / SDK**    | `docs/development/package-model.mdx`                        | `docs/development/local-vs-http-api.mdx`                                         |
 
 **Key Documentation Files:**
 
@@ -781,6 +788,10 @@ Svelte 5 runes: `$state()` for state, `$derived()` for computations, `$effect()`
 
 | Test File                                             | Documentation                                                                                                             |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `tests/unit/api/collections.test.ts`                  | `docs/tests/api-testing.mdx`, `docs/reference/architecture/collection-store-dataflow.mdx`                                 |
+| `tests/integration/api/collections-mutations.test.ts` | `docs/tests/api-testing.mdx` (create/update/delete/clone/schedule HTTP contract)                                          |
+| `tests/unit/services/commerce/price.test.ts`          | `docs/reference/architecture/ecommerce-overview.mdx`                                                                      |
+| `tests/unit/plugins/commerce.test.ts`                 | `docs/reference/architecture/ecommerce-overview.mdx`                                                                      |
 | `tests/unit/hooks/defense-in-depth.test.ts`           | `docs/reference/security/index.mdx`, `docs/tests/security-testing.mdx`                                                    |
 | `tests/unit/hooks/authentication.test.ts`             | `docs/reference/security/login-security.mdx`, `docs/tests/hook-test-coverage.mdx`                                         |
 | `tests/unit/hooks/authorization.test.ts`              | `docs/tests/rbac-testing.mdx`, `docs/reference/security/index.mdx`                                                        |

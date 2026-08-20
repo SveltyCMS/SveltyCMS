@@ -639,7 +639,7 @@
 						onclick={() => {
 							useCustomPort = true;
 						}}
-					 size="sm" class="preset-outlined dark:border-surface-600 whitespace-nowrap">
+					 size="sm" class="dark:border-surface-600 whitespace-nowrap">
 						<iconify-icon icon="mdi:pencil" class="text-lg" aria-hidden="true"></iconify-icon>
 						{setup_email_button_custom()}
 					</Button>
@@ -648,7 +648,7 @@
 				{#if selectedPort}
 					<div class="mt-1 flex items-center gap-2">
 						{#if effectiveSecure()}
-							<span class="variant-soft-success badge flex items-center gap-1 text-xs">
+							<span class="preset-tonal-success badge flex items-center gap-1 text-xs">
 								<iconify-icon icon="mdi:lock" class="text-sm"></iconify-icon>
 								{setup_email_port_encrypted()}
 							</span>

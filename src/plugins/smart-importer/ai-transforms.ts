@@ -116,7 +116,9 @@ export function analyzeDataFlow(
 
       // Determine tier
       const needsAST = ["contentful", "sanity", "ghost", "typo3", "craft"].includes(sourcePlatform);
-      const needsEcom = ["shopify", "magento", "prestashop", "opencart"].includes(sourcePlatform);
+      const needsEcom = ["shopify", "woocommerce", "magento", "prestashop", "opencart"].includes(
+        sourcePlatform,
+      );
       const needsAdvanced = ["storyblok", "prismic", "webflow", "builder", "hygraph"].includes(
         sourcePlatform,
       );

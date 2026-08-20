@@ -1,6 +1,7 @@
 /**
  * @file tests/unit/content/content-validation.test.ts
- * @description Unit tests for content validation utilities: validateFieldConstraints and stripNullRows.
+ * @description Unit tests for content validation utilities: validateFieldConstraints,
+ * stripNullRows, and the single-pass prepareCollectionFields.
  *
  * Features tested:
  * - String field maxLength validation with default and custom limits
@@ -8,10 +9,16 @@
  * - Non-string and non-string-type field bypass
  * - Array null row stripping for array/block/repeater widget fields
  * - Widget-based array detection (blocks, group, repeater)
+ * - prepareCollectionFields: single-pass sanitize + constraints, lazy cloning,
+ *   zero-cost flagless path, and legacy-wrapper equivalence
  */
 
 import { describe, it, expect } from "vitest";
-import { validateFieldConstraints, stripNullRows } from "@src/content/content-utils";
+import {
+  prepareCollectionFields,
+  validateFieldConstraints,
+  stripNullRows,
+} from "@src/content/content-utils";
 
 // ─────────────────────────────────────────────────────────────
 // validateFieldConstraints
@@ -287,5 +294,146 @@ describe("stripNullRows", () => {
     const result = stripNullRows(data, schema);
     expect(result.tags).toEqual(["a", "b"]);
     expect(result.blocks).toEqual([{ x: 1 }]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// prepareCollectionFields (single-pass write-path preparation)
+// ─────────────────────────────────────────────────────────────
+
+describe("prepareCollectionFields", () => {
+  it("returns data by reference when flags are omitted (zero cost)", () => {
+    const schema = { fields: [{ db_fieldName: "title", type: "string" }] };
+    const data = { title: "Hello" };
+    expect(prepareCollectionFields(data, schema)).toBe(data);
+  });
+
+  it("returns data by reference when both flags are false", () => {
+    const schema = { fields: [{ db_fieldName: "title", type: "string" }] };
+    const data = { title: "Hello" };
+    expect(prepareCollectionFields(data, schema, {})).toBe(data);
+    expect(prepareCollectionFields(data, schema, { sanitize: false, constraints: false })).toBe(
+      data,
+    );
+  });
+
+  it("returns data by reference when nothing changed under both flags", () => {
+    const schema = {
+      fields: [
+        { db_fieldName: "title", type: "string" },
+        { db_fieldName: "items", type: "array" },
+      ],
+    };
+    const data = { title: "Clean", items: [1, 2, 3] };
+    expect(prepareCollectionFields(data, schema, { sanitize: true, constraints: true })).toBe(data);
+  });
+
+  it("sanitizes richtext/markdown with sanitizeHtml and text/textarea with stripHtml", () => {
+    const schema = {
+      fields: [
+        { db_fieldName: "body", type: "richtext" },
+        { db_fieldName: "notes", type: "textarea" },
+      ],
+    };
+    const data = {
+      body: "<p>Hi</p><script>alert(1)</script>",
+      notes: "Plain <b>text</b>",
+    };
+    const result = prepareCollectionFields(data, schema, { sanitize: true });
+    // Dangerous tag (and its content) removed from richtext, safe tags kept
+    expect(result.body).toContain("<p>Hi</p>");
+    expect(result.body).not.toContain("script");
+    // All tags stripped from textarea
+    expect(result.notes).toBe("Plain text");
+  });
+
+  it("does not sanitize when only constraints flag is set", () => {
+    const schema = { fields: [{ db_fieldName: "body", type: "richtext" }] };
+    const data = { body: "<script>alert(1)</script>" };
+    const result = prepareCollectionFields(data, schema, { constraints: true });
+    expect(result.body).toBe("<script>alert(1)</script>");
+  });
+
+  it("does not truncate when only sanitize flag is set", () => {
+    const longString = "a".repeat(300);
+    const schema = { fields: [{ db_fieldName: "title", type: "text" }] };
+    const result = prepareCollectionFields({ title: longString }, schema, { sanitize: true });
+    expect(result.title).toHaveLength(300);
+  });
+
+  it("truncates string-like fields to maxLength ?? 255 under constraints", () => {
+    const longString = "a".repeat(300);
+    const schema = { fields: [{ db_fieldName: "title", type: "string" }] };
+    const result = prepareCollectionFields({ title: longString }, schema, { constraints: true });
+    expect(result.title).toHaveLength(255);
+    expect(result.title).toBe(longString.slice(0, 255));
+  });
+
+  it("respects custom maxLength under constraints", () => {
+    const longString = "a".repeat(50);
+    const schema = { fields: [{ db_fieldName: "title", type: "string", maxLength: 10 }] };
+    const result = prepareCollectionFields({ title: longString }, schema, { constraints: true });
+    expect(result.title).toBe(longString.slice(0, 10));
+  });
+
+  it("strips null rows from array-like fields (type and widget.Name) under constraints", () => {
+    const schema = {
+      fields: [
+        { db_fieldName: "items", type: "array" },
+        { db_fieldName: "blocks", type: "blocks" },
+        { db_fieldName: "rows", widget: { Name: "repeater" } },
+        { db_fieldName: "groups", widget: { Name: "group" } },
+      ],
+    };
+    const data = {
+      items: [1, null, 2],
+      blocks: [{ x: 1 }, undefined],
+      rows: [null, { a: 1 }],
+      groups: [{ g: 1 }, null],
+    };
+    const result = prepareCollectionFields(data, schema, { constraints: true });
+    expect(result.items).toEqual([1, 2]);
+    expect(result.blocks).toEqual([{ x: 1 }]);
+    expect(result.rows).toEqual([{ a: 1 }]);
+    expect(result.groups).toEqual([{ g: 1 }]);
+  });
+
+  it("applies sanitize before truncation on text fields (combined flags)", () => {
+    const schema = { fields: [{ db_fieldName: "notes", type: "textarea", maxLength: 10 }] };
+    const data = { notes: "<b>Hello World</b>" }; // stripHtml → "Hello World" (11 chars) → truncated to 10
+    const result = prepareCollectionFields(data, schema, {
+      sanitize: true,
+      constraints: true,
+    });
+    expect(result.notes).toBe("Hello Worl");
+  });
+
+  it("leaves non-string types untouched under constraints", () => {
+    const schema = { fields: [{ db_fieldName: "count", type: "number" }] };
+    const data = { count: 42 };
+    const result = prepareCollectionFields(data, schema, { constraints: true });
+    expect(result.count).toBe(42);
+    expect(result).toBe(data);
+  });
+
+  it("does not mutate the original data object", () => {
+    const schema = { fields: [{ db_fieldName: "title", type: "string" }] };
+    const data = { title: "a".repeat(300) };
+    const result = prepareCollectionFields(data, schema, { constraints: true });
+    expect(result.title).toHaveLength(255);
+    expect(data.title).toHaveLength(300);
+  });
+
+  it("matches the legacy chained behavior (stripNullRows + validateFieldConstraints)", () => {
+    const schema = {
+      fields: [
+        { db_fieldName: "title", type: "string", maxLength: 10 },
+        { db_fieldName: "items", type: "array" },
+      ],
+    };
+    const data = { title: "a".repeat(50), items: [1, null, 2] };
+    const legacy = validateFieldConstraints(stripNullRows(data, schema as any), schema as any);
+    const singlePass = prepareCollectionFields(data, schema, { constraints: true });
+    expect(singlePass).toEqual(legacy);
   });
 });

@@ -16,6 +16,7 @@ import { type DatabaseId } from "@src/databases/db-interface";
 import { rawResponse, successResponse } from "./base";
 import { AppError } from "@utils/error-handling";
 import { isAdmin } from "@utils/hook-utils";
+import { parsePaginationQueryParams } from "@src/utils/api-params";
 
 export async function handleTokenRoutes(
   event: RequestEvent,
@@ -58,24 +59,21 @@ export async function handleTokenRoutes(
       throw new AppError("Forbidden", 403, "FORBIDDEN");
     }
     const isWebsite = segments[0] === "website-tokens";
-    const search = url.searchParams.get("search") || undefined;
-    const pageStr = url.searchParams.get("page");
-    const limitStr = url.searchParams.get("limit");
-    const page = pageStr ? parseInt(pageStr, 10) : undefined;
-    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
-    const sort = url.searchParams.get("sort") || undefined;
-    const order = url.searchParams.get("order") as "asc" | "desc" | undefined;
+    const { page, limit, search, sort, order, raw } = parsePaginationQueryParams(
+      url.searchParams,
+      10,
+    );
 
     if (isWebsite) {
       const result = await cms.websiteTokens.list({
         tenantId,
-        page: page || 1,
-        limit: limit || 10,
+        page,
+        limit,
         sort,
         order,
       });
 
-      if (url.searchParams.get("raw") === "true") {
+      if (raw) {
         return rawResponse(event, { success: true, data: result.data });
       }
 
@@ -97,7 +95,7 @@ export async function handleTokenRoutes(
 
     if (!result.success) return successResponse(event, result);
 
-    if (url.searchParams.get("raw") === "true") {
+    if (raw) {
       return rawResponse(event, result.data);
     }
 
@@ -110,7 +108,7 @@ export async function handleTokenRoutes(
 
   // GET /api/token/validate-token/:tokenId or /api/token/:tokenId -> Public validation
   if (request.method === "GET" && action === "validate-token") {
-    if (!tokenId) throw new AppError("Token ID is required", 400);
+    if (!tokenId) throw new AppError("Token ID is required", 400, "BAD_REQUEST");
 
     // Try validating using the auth system
     const validateRes = await cms.auth.validateToken(tokenId, {
@@ -126,11 +124,11 @@ export async function handleTokenRoutes(
       });
     }
 
-    throw new AppError("Token not found or invalid", 404);
+    throw new AppError("Token not found or invalid", 404, "NOT_FOUND");
   }
 
   // All other methods require authentication
-  if (!locals.user) throw new AppError("Authentication required", 401);
+  if (!locals.user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
 
   const isWebsite = segments[0] === "website-tokens";
 
@@ -146,13 +144,17 @@ export async function handleTokenRoutes(
         const { cacheService } = await import("@src/databases/cache/cache-service");
         const recent = await cacheService.get(resetKey);
         if (recent) {
-          throw new AppError("Password reset already requested. Please wait 60 seconds.", 429);
+          throw new AppError(
+            "Password reset already requested. Please wait 60 seconds.",
+            429,
+            "RATE_LIMITED",
+          );
         }
         await cacheService.set(resetKey, "1", 60);
       }
 
       if (isWebsite) {
-        if (!body.name) throw new AppError("Name is required", 400);
+        if (!body.name) throw new AppError("Name is required", 400, "VALIDATION_FAILED");
         // Allow the client to override tenantId (null = global scope)
         const tokenTenantId = body.tenantId !== undefined ? body.tenantId : tenantId;
         const result = await cms.websiteTokens.create({
@@ -172,7 +174,7 @@ export async function handleTokenRoutes(
         tenantId,
       });
       if (!(result as any).success)
-        throw new AppError((result as any).message || "Failed to create token", 400);
+        throw new AppError((result as any).message || "Failed to create token", 400, "BAD_REQUEST");
 
       // Test expects { success: true, token: { value: ... } }
       return rawResponse(event, {
@@ -185,7 +187,7 @@ export async function handleTokenRoutes(
       const ids = body.ids || body.tokenIds;
       const op = body.op || body.action;
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
-        throw new AppError("Array of IDs required", 400);
+        throw new AppError("Array of IDs required", 400, "INVALID_BATCH_IDS");
       }
 
       switch (op) {
@@ -201,19 +203,21 @@ export async function handleTokenRoutes(
           return successResponse(event, { deletedCount: results.length });
         }
         case "block":
-          if (isWebsite) throw new AppError("Block not supported for website tokens", 400);
+          if (isWebsite)
+            throw new AppError("Block not supported for website tokens", 400, "BAD_REQUEST");
           return successResponse(event, await cms.auth.tokens.block(ids, { tenantId }));
         case "unblock":
-          if (isWebsite) throw new AppError("Unblock not supported for website tokens", 400);
+          if (isWebsite)
+            throw new AppError("Unblock not supported for website tokens", 400, "BAD_REQUEST");
           return successResponse(event, await cms.auth.tokens.unblock(ids, { tenantId }));
         default:
-          throw new AppError(`Unsupported batch operation: ${op}`, 400);
+          throw new AppError(`Unsupported batch operation: ${op}`, 400, "INVALID_BATCH_ACTION");
       }
     }
   }
 
   if (request.method === "DELETE" && action === "delete") {
-    if (!tokenId) throw new AppError("Token ID is required", 400);
+    if (!tokenId) throw new AppError("Token ID is required", 400, "BAD_REQUEST");
     if (isWebsite) {
       return successResponse(event, await cms.websiteTokens.delete(tokenId, { tenantId }));
     }

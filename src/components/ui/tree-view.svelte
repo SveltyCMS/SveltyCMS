@@ -581,23 +581,31 @@ search filtering, and RTL support.
         data-node-type={node.type || node.nodeType || (isMedia ? 'folder' : undefined)}
         data-media-drop-target={externalDrop?.enabled ? node.id : undefined}
         use:droppable={externalDroppableOptions(node.id)}
+        role="treeitem"
+        id={`treenode-${node.id}`}
+        tabindex={isFocused || (selectedId === node.id) || (focusedNodeId === null && depth === 0) ? 0 : -1}
+        aria-expanded={hasChildren ? expanded : undefined}
+        aria-selected={isSelected}
+        aria-level={depth + 1}
+        aria-setsize={-1}
+        onclick={() => toggleNode(node)}
+        onkeydown={(e: KeyboardEvent) => handleKeyDown(e, node)}
+        onmouseenter={() => handleHover?.(node)}
+        draggable={allowDragDrop && node.id !== 'root'}
+        ondragstart={(e: DragEvent) => handleDragStart(e, node)}
+        ondragover={(e: DragEvent) => handleDragOver(e, node)}
+        ondragleave={handleDragLeave}
+        ondrop={(e: DragEvent) => handleDrop(e, node)}
+        ondragend={handleDragEnd}
     >
         <!-- Drag drop indicator: before -->
         {#if dragOverNode?.id === node.id && dropPosition === 'before'}
             <div class="absolute -top-0.5 inset-s-0 inset-e-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
         {/if}
 
-        <Button
-            variant="surface"
-            size="sm"
-            id={`treenode-${node.id}`}
+        <div
             class={cn(
-                // Rows are full-bleed inside a clipping scroll container that has no
-                // inline-start padding, so any ring drawn *outside* the button box gets
-                // shaved off on the left. `tree-node-btn` keeps every focus ring inset
-                // (see the <style> block — `cn` is plain clsx, so a utility class alone
-                // cannot outrank Button's own focus-visible ring).
-                'tree-node-btn flex w-full min-w-0 group focus:outline-none justify-start text-start',
+                'flex w-full group focus:outline-none justify-start text-start cursor-pointer select-none',
                 isMedia
                     ? cn(
                         'rounded-none border-0 bg-transparent px-0 shadow-none transition-colors',
@@ -631,23 +639,6 @@ search filtering, and RTL support.
                 : !isRoot
                     ? `padding-inline-start: ${1.75 + Math.max(0, depth - 1) * 1.25}rem`
                     : undefined}
-            onclick={() => toggleNode(node)}
-            onkeydown={(e: KeyboardEvent) => handleKeyDown(e, node)}
-            onmouseenter={() => handleHover?.(node)}
-
-            draggable={allowDragDrop && node.id !== 'root'}
-            ondragstart={(e: DragEvent) => handleDragStart(e, node)}
-            ondragover={(e: DragEvent) => handleDragOver(e, node)}
-            ondragleave={handleDragLeave}
-            ondrop={(e: DragEvent) => handleDrop(e, node)}
-            ondragend={handleDragEnd}
-
-            tabindex={isFocused || (selectedId === node.id) || (focusedNodeId === null && depth === 0) ? 0 : -1}
-            aria-expanded={hasChildren ? expanded : undefined}
-            aria-selected={isSelected}
-            aria-level={depth + 1}
-            aria-setsize={-1}
-            role="treeitem"
         >
             <!-- Expand/Collapse Chevron or Loading Spinner -->
             {#if showChevron}
@@ -730,18 +721,12 @@ search filtering, and RTL support.
 	                    {node.badge?.count ?? ''}
 	                </Badge>
 	            {/if}
-        </Button>
+        </div>
 
         <!-- Per-node Action Buttons -->
         {#if node.actions && node.actions.length > 0 && computedDensity !== 'compact'}
-            <!--
-                role="group": generic wrapper divs are presentational, so without a
-                role these buttons become direct accessibility children of the
-                role="tree" root (aria-required-children violation). A group is an
-                allowed tree child and has no child-role restrictions.
-            -->
-            <div class="absolute inset-e-2 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100"
-                role="group"
+            <div class="absolute inset-e-2 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 focus-within:opacity-100"
+                role="toolbar"
                 aria-label="Item actions">
                 {#each node.actions as act (act.label)}
                     <!-- size="sm" + explicit box: the default md button is 40px tall and

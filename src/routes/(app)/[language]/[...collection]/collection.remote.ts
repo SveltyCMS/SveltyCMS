@@ -3,17 +3,16 @@
  * @description Collection Editor Remote Functions — typed CRUD without URL construction.
  *
  * All exports are SvelteKit query() wrappers per .remote.ts requirements.
- * Eliminates endpoint string building (isNew ? POST : PUT) and manual JSON parsing.
+ * Create uses POST; updates use PATCH (PUT is accepted as an alias).
  */
 
-import { query } from "$app/server";
+import { getRequestEvent, query } from "$app/server";
 
 export const saveEntry = query(
   "unchecked",
   async ({
     collectionId,
     data,
-    tenantId,
     entryId,
   }: {
     collectionId: string;
@@ -26,21 +25,23 @@ export const saveEntry = query(
     data?: Record<string, unknown>;
     error?: string;
   }> => {
+    const event = getRequestEvent();
     const isNew = !entryId;
     const endpoint = isNew
       ? `/api/collections/${collectionId}`
       : `/api/collections/${collectionId}/${entryId}`;
-    const method = isNew ? "POST" : "PUT";
+    const method = isNew ? "POST" : "PATCH";
 
-    const r = await fetch(endpoint, {
+    const r = await event.fetch(endpoint, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data, tenantId }),
+      body: JSON.stringify(data),
     });
-    const d = await r.json();
+    const d = await r.json().catch(() => ({}));
+    const saved = (d?.data ?? d) as Record<string, unknown> | undefined;
     return r.ok
-      ? { success: true, entryId: d.data?._id, data: d.data }
-      : { success: false, error: d.message };
+      ? { success: true, entryId: saved?._id as string | undefined, data: saved }
+      : { success: false, error: d.message || d.error };
   },
 );
 

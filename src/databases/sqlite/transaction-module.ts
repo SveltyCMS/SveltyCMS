@@ -5,8 +5,7 @@
 
 import type { DatabaseResult, DatabaseTransaction } from "../db-interface";
 import { SQLiteAdapterCore } from "./adapter-core";
-import * as utils from "./utils";
-
+import * as utils from "../core/relational-utils";
 import { DatabaseModule } from "../core/base-adapter";
 
 export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {

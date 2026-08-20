@@ -94,45 +94,46 @@ throw new AppError("Validation failed", 400, "VALIDATION_ERROR", { fields: ["ema
 
 ### Error Codes
 
-Standard error codes used across the application:
+Standard error codes (`KnownAppErrorCode`) used across the application:
 
-| Code               | Status | Description                 |
-| ------------------ | ------ | --------------------------- |
-| `VALIDATION_ERROR` | 400    | Invalid input data          |
-| `UNAUTHORIZED`     | 401    | Authentication required     |
-| `FORBIDDEN`        | 403    | Insufficient permissions    |
-| `NOT_FOUND`        | 404    | Resource not found          |
-| `CONFLICT`         | 409    | Resource already exists     |
-| `INTERNAL_ERROR`   | 500    | Server error                |
-| `NETWORK_ERROR`    | -      | Client-side network failure |
+| Code                      | Status | Description                         |
+| ------------------------- | ------ | ----------------------------------- |
+| `VALIDATION_FAILED`       | 400    | Invalid input data (Valibot schema) |
+| `VALIDATION_ERROR`        | 400    | Invalid input data                  |
+| `BAD_REQUEST`             | 400    | Malformed request or missing params |
+| `UNAUTHORIZED`            | 401    | Authentication required             |
+| `REAUTH_REQUIRED`         | 401    | Fresh credentials required          |
+| `FORBIDDEN`               | 403    | Insufficient permissions            |
+| `NOT_FOUND`               | 404    | Resource not found                  |
+| `CONFLICT`                | 409    | Resource already exists             |
+| `RATE_LIMITED`            | 429    | Request rate exceeded               |
+| `INTERNAL_ERROR`          | 500    | Server error                        |
+| `UNEXPECTED_SYSTEM_ERROR` | 500    | Unhandled runtime error             |
 
 ---
 
 ## Server-Side Usage
 
-### Unified Gatekeeper Handlers
+### Declarative Request Validation with Valibot
 
-In the new architecture, all API logic is encapsulated in handlers within `src/routes/api/[...path]/handlers/`.
+In the new architecture, all mutating API logic is encapsulated in handlers within `src/routes/api/[...path]/handlers/` using `validateRequestBody`:
 
-```
+```typescript
 // src/routes/api/[...path]/handlers/user.ts
-import { json } from "@sveltejs/kit";
+import { json, type RequestEvent } from "@sveltejs/kit";
 import { AppError } from "@utils/error-handling";
+import { validateRequestBody, successResponse } from "./base";
+import * as v from "valibot";
 
-export async function handleUserRoutes(event, cms, segments) {
-  const userId = segments[1];
+const CreateUserSchema = v.object({
+  email: v.pipe(v.string(), v.email()),
+  role: v.optional(v.string(), "editor"),
+});
 
-  if (!userId) {
-    throw new AppError("User ID is required", 400, "MISSING_USER_ID");
-  }
-
-  const user = await cms.users.findById(userId);
-
-  if (!user) {
-    throw new AppError("User not found", 404, "NOT_FOUND");
-  }
-
-  return json({ success: true, data: user });
+export async function handleUserRoutes(event: RequestEvent, cms: LocalCMS, segments: string[]) {
+  const body = await validateRequestBody(event, CreateUserSchema);
+  const user = await cms.users.create(body);
+  return successResponse(event, user, 201);
 }
 ```
 

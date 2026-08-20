@@ -19,6 +19,8 @@
  * - pure helpers suitable for unit tests and static scanners
  */
 
+import { isAdmin } from "@src/databases/auth/constants";
+
 /** Fields that grant administrator / RBAC power — fail-closed at every write path. */
 export const PRIVILEGE_ESCALATION_FIELDS = ["role", "isAdmin", "roleIds", "permissions"] as const;
 
@@ -101,6 +103,7 @@ export function hasPrivilegedUserFields(updates: Record<string, unknown>): boole
 }
 
 /** Caller is a system/super admin for attribute-update purposes. */
+
 export function isAdminCaller(
   caller:
     | {
@@ -110,8 +113,7 @@ export function isAdminCaller(
     | null
     | undefined,
 ): boolean {
-  if (!caller) return false;
-  return caller.isAdmin === true || caller.role === "admin" || caller.role === "super-admin";
+  return isAdmin(caller);
 }
 
 /**

@@ -15,8 +15,17 @@ import { generateApiKey } from "@src/databases/auth/api-keys";
 import { nowISODateString } from "@utils/date";
 import { AppError } from "@utils/error-handling";
 import { isAdmin } from "@utils/hook-utils";
-import { rawResponse } from "./base";
+import { rawResponse, validateRequestBody } from "./base";
 import type { ApiKey } from "@src/databases/auth/types";
+import * as v from "valibot";
+
+const CreateApiKeySchema = v.object({
+  name: v.pipe(v.string(), v.minLength(1, "Name is required")),
+  userId: v.optional(v.string()),
+  permissions: v.optional(v.array(v.string()), []),
+  scopes: v.optional(v.array(v.string()), []),
+  expiresAt: v.optional(v.string()),
+});
 
 function scrubApiKey(key: ApiKey) {
   const { hash: _hash, ...safe } = key;
@@ -75,19 +84,17 @@ export async function handleApiKeyRoutes(
       throw new AppError("Forbidden", 403, "FORBIDDEN");
     }
 
-    const body = await request.json();
-    const name = String(body?.name || "").trim();
-    if (!name) throw new AppError("Name is required", 400, "VALIDATION_ERROR");
+    const body = await validateRequestBody(event, CreateApiKeySchema);
 
     const { full, prefix, hash } = generateApiKey();
     const createResult = await auth!.createApiKey(
       {
-        name,
+        name: body.name,
         hash,
         prefix,
         userId: (body.userId as DatabaseId) || (locals.user._id as DatabaseId),
-        permissions: Array.isArray(body.permissions) ? body.permissions : [],
-        scopes: Array.isArray(body.scopes) ? body.scopes : [],
+        permissions: body.permissions || [],
+        scopes: body.scopes || [],
         expiresAt: body.expiresAt,
         tenantId,
         revoked: false,

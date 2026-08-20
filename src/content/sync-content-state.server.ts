@@ -20,6 +20,7 @@ import path from "node:path";
 import { xxhash64 } from "hash-wasm";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
 import type { ContentNode, ContentNodeOperation, Schema } from "./types";
+import { getSchemaPath } from "./first-collection";
 import { compile } from "@utils/compilation/compile";
 import type { CompilationResult } from "@utils/compilation/types";
 import { logger } from "@utils/logger";
@@ -295,7 +296,7 @@ function collectChangedNodesForHmr(
       const node: ContentNode = {
         _id: (schema._id || id) as ContentNode["_id"],
         name: String(schema.name || id),
-        path: schema.path || `/collection/${String(schema.name || id).toLowerCase()}`,
+        path: getSchemaPath(schema),
         nodeType: "collection",
         collectionDef: schema,
         icon: schema.icon || "mdi:database",

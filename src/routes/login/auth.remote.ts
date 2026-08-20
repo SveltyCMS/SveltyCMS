@@ -20,6 +20,7 @@ import { publicEnv } from "@src/stores/global-settings.svelte";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { isMultiTenantEnabled } from "@utils/tenant";
+import { isAdmin } from "@utils/hook-utils";
 import { isAutomatedTestHarness, resolvePrivateConfigFileName } from "@utils/private-config-policy";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { tenantService } from "@src/services/core/tenant-service";
@@ -230,7 +231,7 @@ export const resetSetup = command("unchecked", async (_payload?: {}) => {
   const event = getRequestEvent();
 
   const systemState = getSystemState();
-  const isAdmin = event.locals.user?.role === "admin";
+  const isAdminUser = isAdmin(event.locals.user);
   const isSystemFailed = systemState.overallState === "FAILED";
   const isTestMode = isAutomatedTestHarness();
 
@@ -247,7 +248,7 @@ export const resetSetup = command("unchecked", async (_payload?: {}) => {
     isDbUnhealthy = true;
   }
 
-  if (!(isAdmin || isSystemFailed || isTestMode || isDbUnhealthy)) {
+  if (!(isAdminUser || isSystemFailed || isTestMode || isDbUnhealthy)) {
     return {
       success: false,
       message: "You do not have permission to reset the setup.",
@@ -533,7 +534,10 @@ async function signInInternal(event: RequestEvent, input: any) {
       const { getCachedFirstCollectionPath } =
         await import("@utils/server/collection-utils.server");
       const userLanguage = (user as any).locale || (user as any).language || "en";
-      const path = await getCachedFirstCollectionPath(userLanguage as any);
+      const userTenantId = (event.locals.tenantId || (user as any).tenantId || null) as
+        | string
+        | null;
+      const path = await getCachedFirstCollectionPath(userLanguage as any, userTenantId);
       if (path) redirectPath = path;
     } catch {
       // Fall back to builder

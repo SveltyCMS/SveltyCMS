@@ -15,7 +15,9 @@ import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, Schema } from "@src/content/types";
-import { validateFieldConstraints, stripNullRows } from "@src/content/content-utils";
+import { StatusTypes } from "@src/content/types";
+import { prepareCollectionFields } from "@src/content/content-utils";
+import { collectionTableName } from "@src/databases/core/collection-name";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import { successResponse, rawResponse } from "./base";
@@ -23,6 +25,46 @@ import { streamingJsonResponse } from "./streaming";
 import { setCollectionOrder } from "@utils/collection-order.server";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
+import { parseCollectionQueryParams } from "@utils/api-params";
+
+/** Maximum number of items allowed in a single bulk operation to prevent memory exhaustion. */
+const MAX_BULK_ITEMS = 1000;
+
+/**
+ * Admin list/edit clients historically wrapped writes as `{ data, tenantId }`.
+ * Only unwrap when those are the sole keys so a real `data` widget field is preserved.
+ */
+function unwrapWritePayload(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const obj = raw as Record<string, unknown>;
+  if (obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)) {
+    const extras = Object.keys(obj).filter((k) => k !== "data" && k !== "tenantId");
+    if (extras.length === 0) return obj.data;
+  }
+  return raw;
+}
+
+/** Accept `string[]`, `{ entryIds }`, `{ ids }`, or `{ entries: [{ _id }] }`. */
+function extractEntryIds(payload: unknown): string[] {
+  if (Array.isArray(payload)) {
+    return payload
+      .map((item) => {
+        if (typeof item === "string" && item.length > 0) return item;
+        if (item && typeof item === "object" && "_id" in item) {
+          const id = (item as { _id?: unknown })._id;
+          return typeof id === "string" && id.length > 0 ? id : "";
+        }
+        return "";
+      })
+      .filter((id) => id.length > 0);
+  }
+  if (payload && typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    const raw = obj.entryIds ?? obj.ids ?? obj.entries;
+    return extractEntryIds(raw);
+  }
+  return [];
+}
 
 /**
  * Sets a lightweight weak-ETag token on event.locals based on entry timestamps.
@@ -100,7 +142,8 @@ export async function handleCollectionsRoutes(
         return handlePostRoutes(event, cms, tenantId, user, collectionId, entryId, subAction);
 
       case "PATCH":
-        return handlePatchRoutes(event, cms, tenantId, user, collectionId, entryId);
+      case "PUT":
+        return handlePatchRoutes(event, cms, tenantId, user, collectionId, entryId, subAction);
 
       case "DELETE":
         return handleDeleteRoutes(event, cms, tenantId, user, collectionId, entryId, url);
@@ -159,6 +202,9 @@ async function handlePostRoutes(
   if (collectionId === "warm-cache") {
     return handleCollectionWarmCache(event, cms, tenantId);
   }
+  if (entryId === "batch" || entryId === "batch-clone") {
+    return handleCollectionBatchAction(event, cms, tenantId, user, collectionId, entryId);
+  }
   if (entryId === "bulk")
     return handleCollectionBulkCreate(event, cms, tenantId, user, collectionId);
   if (subAction === "increment")
@@ -173,9 +219,13 @@ async function handlePatchRoutes(
   user: any,
   collectionId: string,
   entryId: string | undefined,
+  subAction?: string,
 ) {
   if (entryId === "bulk")
     return handleCollectionBulkUpdate(event, cms, tenantId, user, collectionId);
+  if (entryId && subAction === "status") {
+    return handleCollectionStatusUpdate(event, cms, tenantId, user, collectionId, entryId);
+  }
   if (entryId) return handleCollectionUpdate(event, cms, tenantId, user, collectionId, entryId);
   throw new AppError("Entry ID required for update", 400);
 }
@@ -225,94 +275,46 @@ export async function handleCollectionFind(
   collectionId: string,
   url: URL,
 ) {
-  const limit = Number(url.searchParams.get("limit")) || 50;
-  const offset = Number(url.searchParams.get("offset")) || 0;
-  const sortField = url.searchParams.get("sortField") || url.searchParams.get("sort") || undefined;
-  const sortDirection = (url.searchParams.get("sortDirection") ||
-    url.searchParams.get("order") ||
-    "desc") as "asc" | "desc";
-  const publicationFilter = url.searchParams.get("publicationFilter") as
-    | "published"
-    | "draft"
-    | "all"
-    | undefined;
-
-  // Parse filters from both query string formats
-  const filter: Record<string, any> = {};
-  for (const [key, value] of url.searchParams.entries()) {
-    if (key.startsWith("filter[")) {
-      filter[key.slice(7, -1)] = value;
-    }
-  }
-  const filterJson = url.searchParams.get("filter");
-  if (filterJson) {
-    try {
-      Object.assign(filter, JSON.parse(filterJson));
-    } catch {
-      /* ignore */
-    }
-  }
+  const params = parseCollectionQueryParams(url.searchParams);
 
   // Streaming for large datasets or explicit stream requests
-  const isLargeRequest = limit > 500;
-  if (url.searchParams.get("stream") === "true" || isLargeRequest) {
+  const isLargeRequest = params.limit > 500;
+  if (params.stream || isLargeRequest) {
     const iterator = await cms.collections.findStreaming(collectionId, {
       tenantId,
       user,
-      limit,
-      offset,
-      sortField,
-      sortDirection,
-      filter,
-      publicationFilter,
+      limit: params.limit,
+      offset: params.offset,
+      sortField: params.sortField,
+      sortDirection: params.sortDirection,
+      filter: params.filter,
+      publicationFilter: params.publicationFilter,
     });
 
     let totalCount: number | undefined;
-    if (url.searchParams.get("includeCount") === "true") {
+    if (params.includeCount) {
       const countRes = await cms.collections.count(collectionId, {
         tenantId,
         user,
-        publicationFilter,
+        publicationFilter: params.publicationFilter,
       });
       if (countRes.success) totalCount = countRes.data;
     }
     return streamingJsonResponse(iterator, totalCount);
   }
 
-  const bypassCache =
-    url.searchParams.get("bypassCache") === "true" || url.searchParams.get("nocache") === "true";
-
-  // Parse populate: comma-separated field names
-  const populateRaw = url.searchParams.get("populate");
-  const populate: string[] | undefined = populateRaw
-    ? populateRaw
-        .split(",")
-        .map((f) => f.trim())
-        .filter(Boolean)
-    : undefined;
-
-  // Optional projection: comma-separated field names → adapter-level SELECT
-  // pruning (skips the JSON data blob when all requested fields are physical).
-  const fieldsRaw = url.searchParams.get("fields");
-  const fields: string[] | undefined = fieldsRaw
-    ? fieldsRaw
-        .split(",")
-        .map((f) => f.trim())
-        .filter(Boolean)
-    : undefined;
-
   const result = await cms.collections.find(collectionId, {
     tenantId,
     user,
-    limit,
-    offset,
-    sortField,
-    sortDirection,
-    filter,
-    publicationFilter,
-    bypassCache,
-    populate,
-    fields,
+    limit: params.limit,
+    offset: params.offset,
+    sortField: params.sortField,
+    sortDirection: params.sortDirection,
+    filter: params.filter,
+    publicationFilter: params.publicationFilter,
+    bypassCache: params.bypassCache,
+    populate: params.populate,
+    fields: params.fields,
   });
   setApiDataHash(event, result);
   return successResponse(event, result);
@@ -326,27 +328,13 @@ export async function handleCollectionEntry(
   collectionId: string,
   entryId: string,
 ) {
-  const bypassCache =
-    event.url.searchParams.get("bypassCache") === "true" ||
-    event.url.searchParams.get("nocache") === "true";
-  const publicationFilter = event.url.searchParams.get("publicationFilter") as
-    | "published"
-    | "draft"
-    | "all"
-    | undefined;
-  const populateRaw = event.url.searchParams.get("populate");
-  const populate: string[] | undefined = populateRaw
-    ? populateRaw
-        .split(",")
-        .map((f) => f.trim())
-        .filter(Boolean)
-    : undefined;
+  const params = parseCollectionQueryParams(event.url.searchParams);
   const result = await cms.collections.findById(collectionId, entryId, {
     tenantId,
     user,
-    publicationFilter,
-    bypassCache,
-    populate,
+    publicationFilter: params.publicationFilter,
+    bypassCache: params.bypassCache,
+    populate: params.populate,
   });
   setApiDataHash(event, result);
   return successResponse(event, result);
@@ -356,7 +344,9 @@ export async function handleCollectionEntry(
 
 /**
  * Shared pre-validation for bulk update payloads (Array<{ id: string; data: Record }>).
- * Validates constraints on each entry's `.data` portion and strips null array rows.
+ * Enforces field constraints on each entry's `.data` portion (null row stripping
+ * and maxLength truncation) in a single pass. Sanitization is intentionally NOT
+ * applied here — bulk update validation must not change sanitization behavior today.
  */
 async function validateBulkUpdatePayload(
   cms: LocalCMS,
@@ -369,10 +359,7 @@ async function validateBulkUpdatePayload(
 
   return updates.map((entry) => ({
     ...entry,
-    data: validateFieldConstraints(
-      stripNullRows(entry.data, schema as any),
-      schema as any,
-    ) as Record<string, unknown>,
+    data: prepareCollectionFields(entry.data, schema as any, { constraints: true }),
   }));
 }
 
@@ -383,9 +370,12 @@ export async function handleCollectionCreate(
   user: any,
   collectionId: string,
 ) {
-  const rawData = PROFILE_WRITE_ENABLED
-    ? await profileSpan("handler:json", () => event.request.json())
-    : await event.request.json();
+  const rawData = unwrapWritePayload(
+    (event.locals as any)?.__parsedJsonBody ||
+      (PROFILE_WRITE_ENABLED
+        ? await profileSpan("handler:json", () => event.request.json())
+        : await event.request.json()),
+  );
 
   if (Array.isArray(rawData)) {
     const result = await cms.collections.bulkCreate(collectionId, rawData, {
@@ -426,9 +416,12 @@ export async function handleCollectionUpdate(
   // then cms.collections.update() resolves it AGAIN internally. The namespace
   // already does sanitization, numeric range validation, and hook processing —
   // the handler's pre-validation was pure duplication costing ~0.5ms per update.
-  const rawData = PROFILE_WRITE_ENABLED
-    ? await profileSpan("handler:json", () => event.request.json())
-    : await event.request.json();
+  const rawData = unwrapWritePayload(
+    (event.locals as any)?.__parsedJsonBody ||
+      (PROFILE_WRITE_ENABLED
+        ? await profileSpan("handler:json", () => event.request.json())
+        : await event.request.json()),
+  );
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.update", () =>
         cms.collections.update(collectionId, entryId, rawData, {
@@ -490,9 +483,9 @@ export async function handleCollectionWarmCache(
   }
 
   // Single bulk query instead of N individual lookups
-  const sanitizedTable = `collection_${collectionId.replace(/-/g, "")}`;
+  const tableName = collectionTableName(collectionId);
   const bulkResult = await cms.db.crud.findMany(
-    sanitizedTable,
+    tableName,
     { _id: { $in: entryIds as DatabaseId[] } },
     { tenantId, limit: entryIds.length },
   );
@@ -532,9 +525,6 @@ export async function handleCollectionBulkCreate(
     201,
   );
 }
-
-/** Maximum number of items allowed in a single bulk operation to prevent memory exhaustion. */
-const MAX_BULK_ITEMS = 1000;
 
 export async function handleCollectionBulkUpdate(
   event: RequestEvent,
@@ -616,29 +606,219 @@ export async function handleCollectionBulkDelete(
   collectionId: string,
 ) {
   const payload = await event.request.json();
-  if (Array.isArray(payload) && payload.length > MAX_BULK_ITEMS) {
+  const ids = extractEntryIds(payload);
+  return runBulkDelete(event, cms, tenantId, user, collectionId, ids);
+}
+
+/**
+ * POST /api/collections/:id/batch  `{ action: "delete"|"clone"|"status", entryIds, status? }`
+ * POST /api/collections/:id/batch-clone `{ entries }` or `{ entryIds }`
+ *
+ * Previously these URLs fell through to create(), so delete/clone/status
+ * inserted a new document instead of mutating the selected rows.
+ */
+async function handleCollectionBatchAction(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  entryId: string,
+) {
+  const body = (await event.request.json().catch(() => ({}))) as Record<string, unknown>;
+  const action =
+    entryId === "batch-clone"
+      ? "clone"
+      : typeof body.action === "string"
+        ? body.action.toLowerCase()
+        : "";
+
+  if (!action) {
     throw new AppError(
-      `Bulk delete limit exceeded: ${payload.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
+      'Batch action required. Expected { action: "delete" | "clone" | "status", entryIds }',
+      400,
+    );
+  }
+
+  if (action === "delete") {
+    return runBulkDelete(event, cms, tenantId, user, collectionId, extractEntryIds(body));
+  }
+
+  if (action === "status") {
+    const ids = extractEntryIds(body);
+    const status = body.status;
+    if (typeof status !== "string" || !status) {
+      throw new AppError("status is required for batch status updates", 400);
+    }
+    return runBulkStatusUpdate(event, cms, tenantId, user, collectionId, ids, status, body);
+  }
+
+  if (action === "clone") {
+    return runBulkClone(event, cms, tenantId, user, collectionId, body);
+  }
+
+  throw new AppError(`Unsupported batch action: ${action}`, 400);
+}
+
+/** PATCH /api/collections/:id/:entryId/status — single or `{ entries: ids[] }` bulk. */
+async function handleCollectionStatusUpdate(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  entryId: string,
+) {
+  const body = (await event.request.json().catch(() => ({}))) as Record<string, unknown>;
+  const status = body.status;
+  if (typeof status !== "string" || !status) {
+    throw new AppError("status is required", 400);
+  }
+
+  const ids = extractEntryIds(body);
+  if (ids.length > 0) {
+    return runBulkStatusUpdate(event, cms, tenantId, user, collectionId, ids, status, body);
+  }
+
+  const extra = extraStatusFields(body);
+  return successResponse(
+    event,
+    await cms.collections.update(collectionId, entryId, { status, ...extra }, { user, tenantId }),
+  );
+}
+
+function extraStatusFields(body: Record<string, unknown>): Record<string, unknown> {
+  const skip = new Set(["action", "entryIds", "ids", "entries", "status", "data", "tenantId"]);
+  const extra: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(body)) {
+    if (!skip.has(key)) extra[key] = value;
+  }
+  return extra;
+}
+
+async function runBulkDelete(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  ids: string[],
+) {
+  if (ids.length === 0) {
+    throw new AppError("entryIds[] is required for bulk delete", 400);
+  }
+  if (ids.length > MAX_BULK_ITEMS) {
+    throw new AppError(
+      `Bulk delete limit exceeded: ${ids.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
       413,
     );
   }
 
-  // 🛡️ BULK DELETE GUARD: Check collection-level disableBulkDelete flag
-  const schema = await cms.collections.getSchema(collectionId, tenantId);
-  if (schema?.disableBulkDelete) {
+  // Schema disableBulkDelete + tenant-scoped DELETE/UPDATE WHERE _id IN (...) live in the SDK.
+  return successResponse(
+    event,
+    await cms.collections.bulkDelete(collectionId, ids, {
+      user: user!,
+      tenantId,
+    }),
+  );
+}
+
+async function runBulkStatusUpdate(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  ids: string[],
+  status: string,
+  body: Record<string, unknown>,
+) {
+  if (ids.length === 0) {
+    throw new AppError("entryIds[] is required for bulk status updates", 400);
+  }
+  if (ids.length > MAX_BULK_ITEMS) {
     throw new AppError(
-      `Bulk delete is disabled for collection "${schema.name || collectionId}"`,
-      403,
-      "BULK_DELETE_DISABLED",
+      `Bulk update limit exceeded: ${ids.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
+      413,
+    );
+  }
+
+  const extra = extraStatusFields(body);
+  const updates = ids.map((id) => ({
+    id,
+    data: { status, ...extra },
+  }));
+
+  return successResponse(
+    event,
+    await cms.collections.bulkUpdate(collectionId, updates, {
+      user: user!,
+      tenantId,
+    }),
+  );
+}
+
+async function runBulkClone(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  body: Record<string, unknown>,
+) {
+  let clones: Record<string, unknown>[] = [];
+
+  if (Array.isArray(body.entries) && body.entries.length > 0) {
+    clones = body.entries.map((entry) => {
+      const row = { ...(entry as Record<string, unknown>) };
+      delete row._id;
+      delete row.createdAt;
+      delete row.updatedAt;
+      if (!row.status) row.status = StatusTypes.draft;
+      return row;
+    });
+  } else {
+    const ids = extractEntryIds(body);
+    if (ids.length === 0) {
+      throw new AppError("entries[] or entryIds[] is required for clone", 400);
+    }
+    if (ids.length > MAX_BULK_ITEMS) {
+      throw new AppError(
+        `Bulk clone limit exceeded: ${ids.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
+        413,
+      );
+    }
+
+    const found = await cms.collections.findByIds(collectionId, ids, { tenantId, user });
+    const source = (found?.data ?? []) as Record<string, unknown>[];
+    clones = source.map((entry) => {
+      const { _id, createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = entry;
+      return {
+        ...rest,
+        clonedFrom: _id,
+        status: StatusTypes.draft,
+      };
+    });
+  }
+
+  if (clones.length === 0) {
+    throw new AppError("No entries found to clone", 404);
+  }
+  if (clones.length > MAX_BULK_ITEMS) {
+    throw new AppError(
+      `Bulk clone limit exceeded: ${clones.length} items. Maximum is ${MAX_BULK_ITEMS}.`,
+      413,
     );
   }
 
   return successResponse(
     event,
-    await cms.collections.bulkDelete(collectionId, payload, {
+    await cms.collections.bulkCreate(collectionId, clones, {
       user: user!,
       tenantId,
     }),
+    201,
   );
 }
 
@@ -668,7 +848,7 @@ export async function handleCollectionIncrement(
 
   // Resolve physical collection name from schema
   const schema = await (cms.collections as any).getSchema(collectionId, tenantId);
-  const collectionName = `collection_${(schema._id as string).replace(/-/g, "")}`;
+  const collectionName = collectionTableName(schema._id as string);
 
   let result: any;
 

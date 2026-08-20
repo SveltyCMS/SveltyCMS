@@ -320,6 +320,21 @@ import { logger } from "@utils/logger";
 							label: 'Heading 3',
 							cmd: () => editor?.chain().focus().toggleHeading({ level: 3 }).run(),
 							active: () => editor?.isActive('heading', { level: 3 }) ?? false
+						},
+						{
+							label: 'Heading 4',
+							cmd: () => editor?.chain().focus().toggleHeading({ level: 4 }).run(),
+							active: () => editor?.isActive('heading', { level: 4 }) ?? false
+						},
+						{
+							label: 'Blockquote',
+							cmd: () => editor?.chain().focus().toggleBlockquote().run(),
+							active: () => editor?.isActive('blockquote') ?? false
+						},
+						{
+							label: 'Code Block',
+							cmd: () => editor?.chain().focus().toggleCodeBlock().run(),
+							active: () => editor?.isActive('codeBlock') ?? false
 						}
 					]
 				}

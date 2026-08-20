@@ -131,6 +131,20 @@ export class WorkflowService {
     logger.info(`Workflow ${workflowId} deleted by user: ${user._id}`);
   }
 
+  /**
+   * Sync peek of the workflow cache. `undefined` = unknown (need a lookup),
+   * `null` = confirmed no workflow, otherwise the cached definition.
+   */
+  public peekWorkflowCache(
+    collectionId: string,
+    tenantId?: string,
+  ): WorkflowDefinition | null | undefined {
+    const cacheKey = `${tenantId || "global"}:${collectionId}`;
+    const cached = this._workflowByCollection.get(cacheKey);
+    if (!cached || cached.exp <= Date.now()) return undefined;
+    return cached.value;
+  }
+
   public async getWorkflowForCollection(
     collectionId: string,
     tenantId?: string,
@@ -153,7 +167,7 @@ export class WorkflowService {
       const items = workflows?.success && Array.isArray(workflows.data) ? workflows.data : [];
 
       if (!workflows?.success || items.length === 0) {
-        logger.warn(
+        logger.debug(
           `[WorkflowService] getWorkflowForCollection null for ${collectionId}: success=${workflows?.success}, count=${items.length}`,
         );
         this._workflowByCollection.set(cacheKey, {

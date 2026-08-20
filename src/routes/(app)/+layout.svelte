@@ -26,6 +26,7 @@ import RightSidebar from "@src/components/right-sidebar.svelte";
 import CommandPalette from "@src/components/command-palette.svelte";
 // Type Imports
 import type { User } from "@src/databases/auth/types";
+import { isAdmin } from "@src/databases/auth/constants";
 import type { ContentNode } from "@src/content/types";
 // Stores
 import {
@@ -59,6 +60,7 @@ import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
 import { floatingNavStore } from "@src/stores/floating-nav-store.svelte";
 	import { onMount, untrack } from "svelte";
+	import { browser } from "$app/env";
 	import { initBounceDetector } from "@utils/bounce-detector";
 	import { initPredictivePreload } from "@utils/predictive-preload";
 	import { registerHotkey } from "@src/utils/hotkeys";
@@ -146,8 +148,7 @@ $effect(() => {
 	const u = data.user as any;
 	setAdminZoneCapabilityChecker((required: string[]) => {
 		if (!u) return false;
-		const isAdmin = !!u.isAdmin || u.role === "admin" || u.role === "super-admin";
-		return isAdmin || required.length === 0;
+		return isAdmin(u) || required.length === 0;
 	});
 });
 
@@ -163,6 +164,57 @@ $effect(() => {
 	theme.variant = merged.variant as any;
 	theme.features = merged.features;
 	theme.customCss = dbAdminConfig?.customCss;
+});
+
+/* ────────────────────────────────────────────────────────────────────────
+   Theme token propagation — mirror onto <html>
+   ────────────────────────────────────────────────────────────────────────
+   The --admin-* custom properties are also written inline on the layout
+   element below (so SSR paints the correct theme with no flash). But CSS
+   custom properties only cascade to DESCENDANTS, and three things live
+   outside that element:
+
+     • Modal / Drawer / Popover / Tooltip — portalled into <body>, so they
+       are siblings of the app shell, not children of it. Before this, an
+       overlay opened from a spacious dark theme rendered with :root's cozy
+       light defaults.
+     • The page background itself, painted on <html> / <body>.
+     • Anything a plugin renders through its own portal.
+
+   Mirroring the same values onto document.documentElement makes the token
+   layer document-wide, so every route and every overlay resolves one theme.
+   The values are identical to the inline ones, so nothing conflicts.
+   ──────────────────────────────────────────────────────────────────────── */
+$effect(() => {
+	if (!browser) return;
+	const root = document.documentElement;
+	const tokens: Record<string, string> = {
+		"--admin-spacing-scale": String(theme.spacingScale),
+		"--admin-density": String(theme.densityScale),
+		"--admin-radius-base": theme.radiusBase,
+		"--admin-radius-card": theme.radiusCard,
+		"--admin-radius-input": theme.radiusInput,
+		"--admin-radius-button": theme.radiusButton,
+		"--admin-sidebar-width": theme.sidebarWidth,
+		"--admin-header-height": theme.headerHeight,
+		"--admin-sticky-bar-height": theme.stickyBarHeight,
+	};
+	for (const [key, value] of Object.entries(tokens)) {
+		if (value != null && value !== "undefined") root.style.setProperty(key, value);
+	}
+	root.setAttribute("data-admin-theme", theme.themeName);
+	root.setAttribute("data-density", theme.density);
+	root.setAttribute("data-reduced-motion", theme.features.reducedMotion ? "true" : "false");
+
+	return () => {
+		// Leaving the (app) group (e.g. logout → /login) must hand the document
+		// back to the :root defaults, otherwise the login screen keeps the last
+		// admin's density and radii.
+		for (const key of Object.keys(tokens)) root.style.removeProperty(key);
+		root.removeAttribute("data-admin-theme");
+		root.removeAttribute("data-density");
+		root.removeAttribute("data-reduced-motion");
+	};
 });
 
 // ── Layout state: tenant defaults, then per-user overrides ──
@@ -205,9 +257,9 @@ $effect(() => {
 		if (!data.user) return;
 
 		const prefs = uiStateToLayoutPrefs(ui.state);
-		const isAdmin = data.user.isAdmin || data.user.role === "admin";
+		const isAdminUser = isAdmin(data.user);
 
-		if (isAdmin) {
+		if (isAdminUser) {
 			try {
 				await fetch("/api/theme/admin-theme", {
 					method: "POST",

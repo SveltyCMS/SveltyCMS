@@ -17,6 +17,7 @@
 // Import inlang settings directly (TypeScript/SvelteKit handles JSON imports)
 import inlangSettings from "@root/project.inlang/settings.json";
 import type { ContentNode, DatabaseId, Schema } from "@src/content/types";
+import { getFirstCollectionSchema } from "@src/content/first-collection";
 import { getAllPermissions } from "@src/databases/auth";
 import { defaultRoles as importedDefaultRoles } from "@src/databases/auth/default-roles";
 import type { DatabaseAdapter, Theme, BaseQueryOptions } from "@src/databases/db-interface";
@@ -27,6 +28,138 @@ import { logger } from "@utils/logger";
 import { safeParse } from "valibot";
 import { setupManager } from "./setup-manager";
 import { buildDefaultAdminThemeConfig } from "@src/themes/builtin-defaults";
+
+type SeedNodeSource = "filesystem" | "database";
+
+function normalizeSeedCollectionSchema(schema: Schema, order: number): Schema {
+  const id = String(schema._id || schema.slug || schema.name || "").toLowerCase();
+  const pathValue =
+    schema.path ||
+    `/collection/${String(schema.slug || schema._id || schema.name || "").toLowerCase()}`;
+  return {
+    ...schema,
+    _id: schema._id || id,
+    order: schema.order ?? order,
+    path: pathValue.startsWith("/") ? pathValue : `/${pathValue}`,
+  };
+}
+
+async function tenantScopedNodeId(
+  tenantId: string | null | undefined,
+  logicalId: string,
+): Promise<DatabaseId> {
+  if (!tenantId) return logicalId as DatabaseId;
+
+  const subtle = globalThis.crypto?.subtle || (await import("node:crypto")).webcrypto.subtle;
+  const input = new TextEncoder().encode(`sveltycms-content-node:${tenantId}:${logicalId}`);
+  const bytes = new Uint8Array(await subtle.digest("SHA-256", input)).slice(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(
+    16,
+    20,
+  )}-${hex.slice(20, 32)}` as DatabaseId;
+}
+
+async function buildContentNodeUpdates(
+  collections: Schema[],
+  tenantId?: string | null,
+  source: SeedNodeSource = "filesystem",
+): Promise<{
+  nodes: ContentNode[];
+  updates: { path: string; id?: string; changes: Partial<ContentNode> }[];
+}> {
+  const { generateCategoryNodesFromPaths } = await import("@src/content/content-utils");
+  const normalized = collections.map(normalizeSeedCollectionSchema);
+  const categoryNodes = generateCategoryNodesFromPaths(normalized, tenantId);
+  const categoryIdsByPath = new Map<string, DatabaseId>();
+  const nodes: ContentNode[] = [];
+
+  for (const node of categoryNodes) {
+    if (!node.path) continue;
+    const logicalId = String(node._id || node.path);
+    const nodeId = await tenantScopedNodeId(tenantId, logicalId);
+    categoryIdsByPath.set(node.path, nodeId);
+    nodes.push({
+      ...node,
+      _id: nodeId,
+      nodeType: "category",
+      order: node.order ?? 0,
+      parentId: node.parentId,
+      translations: node.translations || [],
+      source,
+      tenantId: tenantId as DatabaseId,
+    } as ContentNode);
+  }
+
+  for (const schema of normalized) {
+    if (!schema.path) continue;
+    const pathParts = schema.path.split("/").filter(Boolean);
+    const parentPath = pathParts.slice(0, -1).join("/");
+    const parentPathKey = parentPath ? `/${parentPath}` : "";
+    const parentId = parentPathKey ? categoryIdsByPath.get(parentPathKey) : undefined;
+    const logicalId = String(schema._id || schema.slug || schema.name || schema.path);
+    const nodeId = await tenantScopedNodeId(tenantId, logicalId);
+    nodes.push({
+      _id: nodeId,
+      name: String(schema.name || schema._id),
+      path: schema.path,
+      nodeType: "collection",
+      order: schema.order ?? 999,
+      icon: schema.icon,
+      parentId: parentId as DatabaseId | undefined,
+      translations: schema.translations || [],
+      collectionDef: schema,
+      source,
+      tenantId: tenantId as DatabaseId,
+    } as ContentNode);
+  }
+
+  return {
+    nodes,
+    updates: nodes
+      .filter((node) => !!node.path)
+      .map((node) => ({ path: node.path!, id: String(node._id), changes: node })),
+  };
+}
+
+export async function persistCollectionContentNodes(
+  dbAdapter: DatabaseAdapter,
+  collections: Schema[],
+  tenantId?: string | null,
+  options?: BaseQueryOptions,
+  source: SeedNodeSource = "filesystem",
+): Promise<ContentNode[]> {
+  if (!dbAdapter?.content?.nodes?.bulkUpdate) {
+    logger.warn("[Seed] content.nodes.bulkUpdate unavailable; content tree was not persisted.");
+    return [];
+  }
+
+  const { nodes, updates } = await buildContentNodeUpdates(collections, tenantId, source);
+  if (updates.length === 0) return [];
+
+  logger.debug(
+    `💾 Persisting ${updates.length} content nodes${tenantId ? ` for tenant ${tenantId}` : ""}...`,
+  );
+  const result = await dbAdapter.content.nodes.bulkUpdate(updates, {
+    tenantId: tenantId as DatabaseId,
+    bypassTenantCheck: true,
+    bypassCache: true,
+    transaction: options?.transaction,
+  });
+
+  if (!result.success) {
+    logger.warn(
+      "⚠️ Failed to persist content nodes:",
+      typeof result.message === "object" ? JSON.stringify(result.message) : result.message,
+    );
+    return [];
+  }
+
+  logger.debug(`✅ Successfully persisted ${result.data.length} content nodes.`);
+  return nodes;
+}
 
 // ============================================================================
 // EXPORTED DEFAULTS - Loaded from project.inlang/settings.json
@@ -484,6 +617,8 @@ export async function seedPresetCollections(
 
   logger.debug(`✅ ${schemas.length} preset collections seeded`);
 
+  await persistCollectionContentNodes(dbAdapter, schemas, _tenantId, options, "filesystem");
+
   const presetDef = PRESETS.find((p) => p.id === preset);
   if (presetDef?.collections?.length) {
     await writePresetCollectionFiles(presetDef.collections, {
@@ -661,7 +796,9 @@ export async function seedCollectionsForSetup(
     }
 
     const scanStart = performance.now();
-    const collections = (await scanFn()).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    const collections = (await scanFn())
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+      .map(normalizeSeedCollectionSchema);
     const scanTime = performance.now() - scanStart;
     logger.debug(
       `⏱️  Collection scan: ${scanTime.toFixed(2)}ms (found ${collections.length}, sorted alphabetically)`,
@@ -696,15 +833,9 @@ export async function seedCollectionsForSetup(
           );
           successCount++;
 
-          // Capture the first collection for redirect (deterministic from sorted array)
-          // Skip utility collections and placeholders
+          // Capture the first user-facing collection for redirect.
           if (!firstCollection) {
-            const candidate = collections.find(
-              (c) =>
-                !["Menu", "Navigation", "Form", "WidgetTest", "Relation"].includes(
-                  c.name as string,
-                ),
-            );
+            const candidate = getFirstCollectionSchema(collections);
             if (candidate?.path && candidate?.name) {
               firstCollection = {
                 name: candidate.name as string,
@@ -741,82 +872,10 @@ export async function seedCollectionsForSetup(
 
     const modelCreationTime = performance.now() - modelCreationStart;
 
-    // Step 5: PERSISTENCE - Populate contentNodes table so content-manager sees them immediately
+    // Step 5: PERSISTENCE - Populate contentNodes table so content-manager sees them immediately.
     // This ensures skipReconciliation: true in content-manager works correctly after setup.
     try {
-      logger.debug("🌳 Generating category nodes and mapping structure...");
-      const utilsMod = await import("@src/content/content-utils");
-      const genFn =
-        utilsMod.generateCategoryNodesFromPaths ||
-        (utilsMod as any).default?.generateCategoryNodesFromPaths;
-
-      if (typeof genFn !== "function") {
-        throw new Error("generateCategoryNodesFromPaths is not a function");
-      }
-
-      const categoryNodes = genFn(collections as Schema[]);
-      const updates: { path: string; changes: Partial<ContentNode> }[] = [];
-
-      // Add Category Nodes
-      for (const node of categoryNodes) {
-        if (!node.path) continue;
-        updates.push({
-          path: node.path,
-          changes: {
-            _id: node._id,
-            name: node.name,
-            nodeType: "category",
-            order: 0,
-            parentId: node.parentId,
-            translations: [],
-          } as any,
-        });
-      }
-
-      // Add Collection Nodes
-      for (const schema of collections) {
-        if (!schema.path) {
-          continue;
-        }
-        // Compute parentId from the category path
-        const pathParts = schema.path.split("/").filter(Boolean);
-        // Remove the last segment (collection name) to get parent category path
-        const parentPath = pathParts.slice(0, -1).join("/");
-        const parentId = parentPath ? `/${parentPath}`.replace(/\//g, "_") : null;
-        updates.push({
-          path: schema.path,
-          changes: {
-            _id: schema._id as any,
-            name: schema.name || schema._id,
-            nodeType: "collection",
-            order: schema.order || 0,
-            icon: schema.icon,
-            parentId: parentId as any,
-            translations: schema.translations || [],
-            collectionDef: schema,
-          } as any,
-        });
-      }
-
-      if (updates.length > 0) {
-        logger.debug(`💾 Persisting ${updates.length} content nodes to database...`);
-        const structResult = await dbAdapter.content.nodes.bulkUpdate(updates, {
-          tenantId: tenantId as DatabaseId,
-          bypassTenantCheck: true,
-          bypassCache: true,
-          transaction: options?.transaction,
-        });
-        if (structResult.success) {
-          logger.debug(`✅ Successfully persisted ${structResult.data.length} content nodes.`);
-        } else {
-          logger.warn(
-            "⚠️ Failed to persist content nodes:",
-            typeof structResult.message === "object"
-              ? JSON.stringify(structResult.message)
-              : structResult.message,
-          );
-        }
-      }
+      await persistCollectionContentNodes(dbAdapter, collections, tenantId, options, "filesystem");
     } catch (structError: unknown) {
       logger.warn(
         "⚠️ Error building/persisting content structure:",
@@ -1943,7 +2002,7 @@ export async function importSettingsSnapshot(
 }
 
 /**
- * Seeds a demo tenant with default settings, theme, roles, and a user.
+ * Seeds a demo tenant with default settings, theme, roles, preset collections, content structure, and an admin user.
  */
 export async function seedDemoTenant(
   dbAdapter: DatabaseAdapter,
@@ -1961,8 +2020,28 @@ export async function seedDemoTenant(
   // 3. Seed Roles
   await seedRoles(dbAdapter, tenantId, options);
 
-  // 4. Create Admin User
-  // We need to import auth service or use dbAdapter.auth directly
+  // 4. Seed Preset Collections & Content Nodes for tenant
+  const preset = "demo";
+  const schemas = await seedPresetCollections(dbAdapter, preset, tenantId, options);
+
+  // 5. Initialize Content Structure in contentSystem
+  try {
+    const { contentSystem } = await import("@src/content/index.server");
+    await contentSystem.initialize(
+      tenantId,
+      { force: true, ...(options?.transaction && { transaction: options.transaction }) },
+      dbAdapter,
+    );
+  } catch (e) {
+    logger.warn(`Demo tenant contentSystem init warning:`, e);
+  }
+
+  // 6. Seed Demo Records
+  if (schemas && schemas.length > 0) {
+    await seedDemoRecords(dbAdapter, schemas, tenantId, options);
+  }
+
+  // 7. Create Admin User
   if (dbAdapter.auth) {
     const result = await dbAdapter.auth.getRoleById("admin" as DatabaseId, {
       tenantId: tenantId as DatabaseId,
@@ -1972,7 +2051,8 @@ export async function seedDemoTenant(
     const adminRole = result.success ? result.data : null;
     if (adminRole) {
       const email = `demo-${tenantId.substring(0, 8)}@sveltycms.com`;
-      const password = "demo"; // Simple password for demo
+      const { generateRandomToken } = await import("@src/databases/auth/constants");
+      const password = generateRandomToken(16);
       try {
         await dbAdapter.auth.createUser(
           {

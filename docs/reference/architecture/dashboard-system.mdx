@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:view-dashboard"
 author: "SveltyCMS Team"
 created: "2025-10-17"
-updated: "2026-08-04"
+updated: "2026-08-19"
 tags:
   - "dashboard"
   - "widgets"
@@ -517,7 +517,7 @@ The audit widget seamlessly integrates with:
 
 ## Dashboard API Endpoints
 
-The dashboard handler (`src/routes/api/[...path]/handlers/dashboard.ts`) exposes 13 RESTful sub-routes under `/api/dashboard/*`. All require session authentication and the `dashboard:read` permission (mapped in `ENDPOINT_PERMISSIONS`). Paths use kebab-case (`system-info`, `last5-content`, `online-user`).
+The dashboard handler (`src/routes/api/[...path]/handlers/dashboard.ts`) exposes 16 RESTful sub-routes under `/api/dashboard/*`. All require session authentication and the `dashboard:read` permission (mapped in `ENDPOINT_PERMISSIONS`). Paths use kebab-case (`system-info`, `last5-content`, `online-user`, `commerce-orders`, `commerce-inventory`). Freemium commerce widgets also require an active 14-day trial or marketplace license (`403 LICENSE_REQUIRED` after expiry).
 
 ### Authentication & Multi-tenancy
 
@@ -887,6 +887,22 @@ Security incident statistics and active threats.
 SCIM provisioning status for the scim-status widget.
 
 **Authentication**: Required (`dashboard:read`)
+
+#### 13. **GET /api/dashboard/commerce-orders**
+
+Recent `orders` collection rows plus a status mix for the Commerce Orders widget. Returns `{ available: false }` when the ecommerce preset is not installed (not 404).
+
+**Authentication**: Required (`dashboard:read`). **License**: freemium (`dashboard:commerce-orders`, 14-day trial).
+
+**Response**: `{ available, total, byStatus, recent: [{ id, orderNumber, total, status, createdAt, customerEmail }] }`
+
+#### 14. **GET /api/dashboard/commerce-inventory**
+
+Low-stock and out-of-stock products (variant-aware `inventory`) for the Commerce Inventory widget. Returns `{ available: false }` when the `products` collection is missing.
+
+**Authentication**: Required (`dashboard:read`). **License**: freemium (`dashboard:commerce-inventory`, 14-day trial).
+
+**Response**: `{ available, tracked, outOfStock, lowStock: [{ id, title, sku, qty, threshold }] }`
 
 ---
 

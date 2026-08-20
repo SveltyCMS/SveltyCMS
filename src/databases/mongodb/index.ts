@@ -29,18 +29,17 @@ export { MediaModel, mediaSchema } from "./media";
 // Revisions
 export { RevisionModel } from "./revision";
 // System Preferences
-export { SystemPreferencesModel } from "./system-preferences";
-export type { SystemSetting } from "./system-setting";
+export type { SystemSetting } from "./system-module";
 // System Settings
-export { SystemSettingModel } from "./system-setting";
+export { SystemSettingModel, systemSettingSchema } from "./system-module";
 // System Virtual Folders
 export { SystemVirtualFolderModel } from "./system-virtual-folder";
-export type { Tenant, TenantQuota, TenantUsage } from "./tenant-methods"; // Merged pilot
+export type { Tenant, TenantQuota, TenantUsage } from "./tenant";
 // Tenants
-export { TenantModel } from "./tenant-methods"; // Merged pilot: model now lives with methods for reduced file count
+export { TenantModel } from "./tenant";
 // Themes
-export { ThemeModel } from "./theme-methods"; // Merged pilot: model now lives with methods for reduced file count
+export { ThemeModel } from "./theme";
 // Website Tokens
-export { WebsiteTokenModel } from "./website-token-methods"; // Merged pilot: model now lives with methods for reduced file count
+export { WebsiteTokenModel } from "./website-token";
 // Widgets
-export { WidgetModel } from "./widget-methods"; // Merged pilot: model now lives with methods for reduced file count
+export { WidgetModel } from "./widget";

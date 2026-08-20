@@ -1,0 +1,35 @@
+---
+path: "src/plugins/shipping-live/shipping-live.mdx"
+title: "Live Shipping (UPS / FedEx / DHL)"
+description: "Paid Commerce add-on: live carrier quotes. Table-rate shipping_zones stay free."
+order: 101
+icon: "mdi:truck-delivery-outline"
+author: "SveltyCMS Team"
+created: "2026-08-19"
+updated: "2026-08-19"
+license: "Paid (marketplace.sveltycms.com)"
+tags:
+  - "commerce"
+  - "shipping"
+  - "marketplace"
+---
+
+# Live Shipping (UPS / FedEx / DHL)
+
+Paid **plugin** (`plugin:shipping-live`). This is **not** a field widget and **not** Commerce Pro: live carrier APIs need their own secrets, outbound HTTP, and marketplace SKU — the same packaging as Stripe vs Commerce.
+
+| Piece                   | Kind                                       | Role                                                |
+| ----------------------- | ------------------------------------------ | --------------------------------------------------- |
+| `shipping_zones`        | Ecommerce **preset** + Commerce plugin     | Free table rates (`rate`, `freeThreshold`)          |
+| **Live Shipping**       | **Paid plugin**                            | UPS / FedEx / DHL quotes via `ShippingRateProvider` |
+| Tracking dashboard card | Future **dashboard widget** (optional SKU) | Admin snapshot — not the quote engine               |
+
+Enable in **Config → Extensions**. License: `checkExtensionLicense("plugin", "shipping-live")` + 14-day key-less trial. After trial, checkout **keeps table rates** until a key is active (`403` is never thrown at the guest).
+
+## Settings
+
+Encrypted secrets: `upsAccessKey`, `fedexApiKey`, `dhlApiKey`. `testRateCents` is a sandbox integer-cent quote for local/dev until the carrier HTTP contract is keyed.
+
+Commerce `POST /api/commerce/quote` tries this provider first, then falls back to `shipping_zones`.
+
+Map: [E-Commerce Overview](/docs/reference/architecture/ecommerce-overview.mdx).

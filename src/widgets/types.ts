@@ -132,6 +132,10 @@ export interface WidgetDefinition<
   // Metadata
   metadata?: WidgetMetadata;
   Name: string;
+  /** Semver version of the widget package (e.g. '1.0.0'). Required for marketplace verification. */
+  version?: string;
+  /** Widget package author. */
+  author?: string;
 
   // Validation (can be static schema or function)
   validationSchema: unknown | ((field: FieldInstance) => unknown);
@@ -174,6 +178,10 @@ export interface WidgetFactory<TProps extends Record<string, unknown> = Record<s
 
   // Static properties attached to the function (for compatibility)
   Name: string;
+  /** Semver version of the widget package (e.g. '1.0.0'). */
+  version?: string;
+  /** Widget package author. */
+  author?: string;
 
   // String representation
   toString(): string;

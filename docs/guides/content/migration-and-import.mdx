@@ -29,16 +29,17 @@ SveltyCMS provides six operational domains for moving content in, out, and betwe
 
 ## Quick Guide: What Do You Need?
 
-| You want to…                                   | Use                  | Where                             |
-| ---------------------------------------------- | -------------------- | --------------------------------- |
-| Migrate from WordPress, Drupal, or another CMS | **Smart Importer**   | Admin → Config → Migration tile   |
-| Export content to a file                       | **Content Export**   | Admin → Data Management → Export  |
-| Import a content package                       | **Content Import**   | Admin → Data Management → Import  |
-| Back up your entire instance                   | **Backup**           | Admin → Data Management → Backups |
-| Restore from a backup                          | **Restore**          | Admin → Data Management → Backups |
-| Move config from dev to production             | **Config Promotion** | Admin → Operations → Config       |
-| Sync content between environments              | **Content Sync**     | Admin → Operations → Sync         |
-| Transform schema or data across versions       | **Data Migrations**  | Admin → Operations → Migrations   |
+| You want to…                                   | Use                  | Where                                            |
+| ---------------------------------------------- | -------------------- | ------------------------------------------------ |
+| Migrate from WordPress, Drupal, or another CMS | **Smart Importer**   | Admin → Config → Migration tile                  |
+| Import a WooCommerce / Shopify catalog         | **Smart Importer**   | `--format=woocommerce` or `shopify` → `products` |
+| Export content to a file                       | **Content Export**   | Admin → Data Management → Export                 |
+| Import a content package                       | **Content Import**   | Admin → Data Management → Import                 |
+| Back up your entire instance                   | **Backup**           | Admin → Data Management → Backups                |
+| Restore from a backup                          | **Restore**          | Admin → Data Management → Backups                |
+| Move config from dev to production             | **Config Promotion** | Admin → Operations → Config                      |
+| Sync content between environments              | **Content Sync**     | Admin → Operations → Sync                        |
+| Transform schema or data across versions       | **Data Migrations**  | Admin → Operations → Migrations                  |
 
 ---
 
@@ -48,15 +49,17 @@ SveltyCMS includes the **Smart AI-Driven Migration Pro** plugin — a visual mig
 
 ### Supported Source Platforms (40+)
 
-| Format                     | Auto-Detection | What's Imported                                                |
-| -------------------------- | -------------- | -------------------------------------------------------------- |
-| **WordPress** (WXR/XML)    | ✅             | Posts, pages, categories, tags, media, ACF fields, CMB2 fields |
-| **Drupal** (JSON export)   | ✅             | Nodes, taxonomy, users, files, paragraphs                      |
-| **Strapi** (JSON export)   | ✅             | Collection types, single types, components, media              |
-| **Directus** (JSON export) | ✅             | Collections, fields, relations, files                          |
-| **SveltyCMS** (package)    | ✅             | Full content packages with identity matching                   |
-| **CSV**                    | ✅             | Flat data with column-to-field mapping                         |
-| **JSON**                   | ✅             | Nested or flat JSON with heuristic structure detection         |
+| Format                            | Auto-Detection | What's Imported                                                    |
+| --------------------------------- | -------------- | ------------------------------------------------------------------ |
+| **WordPress** (WXR/XML)           | ✅             | Posts, pages, categories, tags, media, ACF fields, CMB2 fields     |
+| **WooCommerce** (WXR / REST JSON) | ✅             | Products + variations (SKU, price, sale price, stock) → `products` |
+| **Shopify** (JSON / CSV)          | ✅             | Products + variants (SKU, price, inventory) → `products`           |
+| **Drupal** (JSON export)          | ✅             | Nodes, taxonomy, users, files, paragraphs                          |
+| **Strapi** (JSON export)          | ✅             | Collection types, single types, components, media                  |
+| **Directus** (JSON export)        | ✅             | Collections, fields, relations, files                              |
+| **SveltyCMS** (package)           | ✅             | Full content packages with identity matching                       |
+| **CSV**                           | ✅             | Flat data with column-to-field mapping                             |
+| **JSON**                          | ✅             | Nested or flat JSON with heuristic structure detection             |
 
 ### Migration Workflow
 
@@ -68,7 +71,7 @@ SveltyCMS includes the **Smart AI-Driven Migration Pro** plugin — a visual mig
 6. **Run the import** — Content streams in via SSE with real-time progress. Failed rows go to a dead-letter queue for manual review.
 
 > [!NOTE]
-> The Smart Importer is a marketplace plugin. See the [plugin documentation](/src/plugins/smart-importer/smart-importer.mdx) for installation and platform-specific guides (WordPress, Drupal).
+> The Smart Importer is a marketplace plugin. See the [plugin documentation](/src/plugins/smart-importer/smart-importer.mdx) for installation and platform-specific guides (WordPress, Drupal). WooCommerce and Shopify catalogs import into the ecommerce **preset** `products` collection — see [E-Commerce Overview](../../reference/architecture/ecommerce-overview.mdx). After import, the **Commerce Inventory** dashboard widget (14-day trial) shows low-stock SKUs.
 
 ---
 
@@ -127,22 +130,29 @@ The **Backup system** creates full-instance snapshots with AES-256-GCM encryptio
 
 ---
 
-## 4. Configuration Promotion
+## 4. Configuration Promotion (Schema as Code)
 
 Move CMS configuration (collections, roles, permissions, settings, widgets, themes, webhooks, automations) between environments — typically **dev → staging → production**.
 
+SveltyCMS follows a **Schema as Code** paradigm similar to **Drupal's `drush cex`/`drush cim`** (Configuration Export/Import) and **Directus 12.3 Environment Sync**:
+
+- **Collection Schemas** live as TypeScript files in `config/collections/*.ts` (version-controlled in Git).
+- **System Configuration** is exported to deterministic JSON bundles in `config/sync/`.
+- **Database State** is reconciled via `ConfigService` with drift detection and safety modes (`add`, `merge`, `mirror`, `replace`).
+
 ### Workflow
 
-1. Go to **Admin → Operations → Config**.
-2. **Export** the source environment's configuration.
-3. **Check drift** — the system compares checksums to detect what's different between environments.
-4. **Review the plan** — see which resources will be created, updated, or deleted.
-5. **Apply** the plan. All changes are audit-logged with deterministic checksums.
+1. **Make Changes in Development** — Create or modify collections using the visual Collection Builder (which updates `config/collections/*.ts`) or adjust system settings.
+2. **Export Configuration** — Run `POST /api/config/export` or go to **Admin → Operations → Config Sync** to export the active configuration to `config/sync/`.
+3. **Commit to Git** — Commit `config/collections/` and `config/sync/` to your version control repository and open a Pull Request.
+4. **Deploy to Staging / Production** — After merging, deploy the code to the target environment.
+5. **Check Drift & Review Plan** — The system checks drift (`GET /api/config/status` / `POST /api/config/plan`) to detect what is new, updated, or deleted.
+6. **Apply the Plan** — Apply the configuration via the UI or `POST /api/config/apply`. All operations are audit-logged with deterministic checksums.
 
 > [!IMPORTANT]
-> Configuration promotion moves **structure** (schemas, settings, roles), not content. Use Content Transfer for editorial content.
+> **Configuration Promotion moves structure (schemas, settings, roles), not content.** Use [Content Transfer](#2-exporting-importing-content) for editorial content packages, or [Content Sync](#5-content-sync-cross-environment) for real-time channel synchronization.
 
-> **API reference**: [Configuration Promotion](/docs/reference/api/configuration-promotion) — full endpoint documentation with resource types, drift detection, and audit logging.
+> **API reference**: [Configuration Promotion](/docs/reference/api/configuration-promotion) — full endpoint documentation with resource types, drift detection, safety modes, and audit logging.
 
 ---
 

@@ -13,7 +13,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { slide } from "svelte/transition";
-import { invalidateAll } from "$app/navigation";
+import { refreshAll } from "$app/navigation";
 import { page } from "$app/state";
 import type { PageData } from "./$types";
 import MediaGrid from "./media-grid.svelte";
@@ -359,7 +359,7 @@ onMount(() => {
 			selectedFiles.delete(id);
 		}
 		// Reconcile with server (folder membership, counts, etc.)
-		void invalidateAll();
+		void refreshAll();
 	};
 
 	document.addEventListener("externalUpload", onExternalUpload);
@@ -395,8 +395,6 @@ async function handleEditorSave(detail: any) {
 		}
 
 		// --- SERVER-SIDE BAKING ---
-		// Refresh CSRF token (rotates after each mutation) then POST.
-		await invalidateAll();
 		const response = await fetch(`/api/media/manipulate/${mediaId}`, {
 			method: "POST",
 			headers: {
@@ -410,7 +408,7 @@ async function handleEditorSave(detail: any) {
 			await response.json();
 			toast.success("Image processed and saved");
 
-			await invalidateAll();
+			await refreshAll();
 		} else {
 			const error = await response.json();
 			toast.error(`Save failed: ${error.message || "Unknown error"}`);
@@ -477,7 +475,7 @@ async function handleBulkDelete(filesToDelete: (MediaBase | MediaImage)[]) {
 			} else if (result.success) {
 				const n = result.files?.length || list.length;
 				toast.success(n > 1 ? `${n} files uploaded successfully` : "Media uploaded successfully");
-				await invalidateAll();
+				await refreshAll();
 			} else {
 				toast.error(result.message || "Upload failed");
 			}
@@ -558,10 +556,6 @@ async function handleCreateFolder() {
 			if (!name?.trim()) return;
 
 			try {
-				// The CSRF token is single-use and rotates on every successful
-				// mutation, so the cached page.data.csrfToken may be stale.
-				// Refresh it right before posting to guarantee a valid token.
-				await invalidateAll();
 				const response = await fetch("/api/system-virtual-folder", {
 					method: "POST",
 					headers: {
@@ -575,10 +569,8 @@ async function handleCreateFolder() {
 				});
 				if (response.ok) {
 					toast.success("Folder created");
-					// Refresh the sidebar folder tree and re-fetch gallery data
-					// without a full page reload.
 					document.dispatchEvent(new CustomEvent("folderCreated"));
-					await invalidateAll();
+					await refreshAll();
 				} else {
 					const result = await response.json().catch(() => null);
 					toast.error(result?.error?.message || result?.message || "Folder creation failed");

@@ -24,6 +24,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
+import { normalizeCollectionTableName } from "../core/collection-name";
 import { SqlQueryBuilder, SQLITE_DIALECT } from "../core/sql-query-builder";
 import { TransactionModule } from "./transaction-module";
 import { withMigrationLock } from "../migration-lock";
@@ -245,6 +246,50 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   }
 
   /**
+   * Raw single-statement multi-row INSERT…RETURNING for SQLite.
+   * Parameter coercion (boolean→1/0, Date→epoch ms, object→JSON text) is handled centrally by prepareAndExecute.
+   */
+  protected override async rawInsertManyReturning<T extends BaseEntity>(
+    table: any,
+    collection: string,
+    batchValues: Record<string, any>[],
+    _options: BaseQueryOptions,
+  ): Promise<T[] | null> {
+    try {
+      const len = batchValues.length;
+      if (len === 0) return [];
+      const tableName = getTableName(table);
+      const cols = Object.keys(batchValues[0]);
+      if (cols.length === 0) return null;
+
+      const colList = cols.map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`).join(", ");
+      const rowPlaceholder = `(${cols.map(() => "?").join(", ")})`;
+      const rowTuples: string[] = [];
+      const allParams: any[] = [];
+
+      for (let r = 0; r < len; r++) {
+        const row = batchValues[r];
+        rowTuples.push(rowPlaceholder);
+        for (let c = 0; c < cols.length; c++) {
+          allParams.push(row[cols[c]]);
+        }
+      }
+
+      const rawSql = `INSERT INTO "${tableName}" (${colList}) VALUES ${rowTuples.join(", ")} RETURNING *`;
+      const rows = this.prepareAndExecute(rawSql, "all", ...allParams);
+      if (Array.isArray(rows) && rows.length > 0) {
+        return utils.convertArrayDatesToISO(rows, {
+          ...this.convertDatesOptions,
+          table: collection,
+        }) as T[];
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Raw single-statement UPDATE…RETURNING for SQLite — same prepared-cache
    * reuse as rawInsertReturning/rawFindById. The base SqlAdapterCore.update()
    * pays Drizzle's per-call AST build + `.returning()` SQL generation
@@ -271,10 +316,6 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     try {
       const columns = Object.keys(values);
       if (columns.length === 0) return null;
-      // tenantId === null needs an IS NULL predicate on the base path — the
-      // raw clause builder treats null as "no filter", which would widen the
-      // match beyond the Drizzle semantics. Defer.
-      if ((options as any)?.tenantId === null) return null;
 
       const tableName = getTableName(table);
       const idColName = idCol?.name || "_id";
@@ -360,9 +401,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
       // not enough — the composite can exceed SQLite's identifier limits and
       // would be silently truncated, colliding with a longer sibling name.
-      // Fail closed on the FINAL identifier.
+      // Fail closed on the FINAL identifier (normalizeCollectionTableName is
+      // the single source of truth for the physical name derivation).
       const tableName = utils.assertSafeSqlIdentifier(
-        cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`,
+        normalizeCollectionTableName(collection),
         "table",
       );
 
@@ -953,10 +995,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
       let warmed = 0;
       for (const row of rows) {
-        const cleanId = String(row._id).replace(/-/g, "");
-        const collectionName = cleanId.startsWith("collection_")
-          ? cleanId
-          : `collection_${cleanId}`;
+        const collectionName = normalizeCollectionTableName(String(row._id));
         if (this.tableRegistry.has(collectionName)) continue;
         try {
           this.getTable(collectionName);
@@ -1492,7 +1531,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         // materialized columns on next getTable.
         this.tableRegistry.delete(tableName);
         this.tableRegistry.delete(normalizedName);
-        this.tableRegistry.delete(`collection_${normalizedName}`);
+        this.tableRegistry.delete(normalizeCollectionTableName(normalizedName));
       },
       "CREATE_MODEL_FAILED",
       undefined,

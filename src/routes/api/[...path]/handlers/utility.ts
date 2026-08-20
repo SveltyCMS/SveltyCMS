@@ -17,6 +17,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
+import { collectionTableName } from "@src/databases/core/collection-name";
 
 // ─── Lazy-loaded service singletons ──────────────────────────────────────────
 
@@ -318,7 +319,7 @@ async function handleTrashRoutes(
     const queries = schemas
       .filter((s: any) => s._id)
       .map(async (schema: any) => {
-        const col = `collection_${schema._id.replace(/-/g, "")}`;
+        const col = collectionTableName(schema._id);
         const r = await cms.db.crud.findMany(
           col,
           { isDeleted: true },

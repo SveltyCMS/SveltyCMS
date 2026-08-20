@@ -146,7 +146,7 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     initialize: async (adapter) => {
       startServiceInitialization("cache");
       const { cacheService } = await import("./cache/cache-service");
-      const { loadPrivateConfig } = await import("./db");
+      const { loadPrivateConfig } = await import("./config-state");
       const config = await loadPrivateConfig();
       await cacheService.initialize(config);
       updateServiceHealth("cache", "healthy", "Cache service online");

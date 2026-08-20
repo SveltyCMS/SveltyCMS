@@ -40,6 +40,7 @@ export function createLoaders(
 
           const result = await dbAdapter.crud.findMany(collectionName, query, {
             tenantId: tenantId as DatabaseId,
+            limit: Math.max(ids.length, 1000),
           });
 
           if (!result.success || !result.data) {
@@ -76,6 +77,7 @@ export function createLoaders(
           try {
             const result = await dbAdapter.crud.findByIds<User>("users", ids as DatabaseId[], {
               tenantId: tenantId as DatabaseId,
+              limit: Math.max(ids.length, 1000),
             });
 
             if (!result.success || !result.data) {
@@ -112,6 +114,7 @@ export function createLoaders(
                 ids as DatabaseId[],
                 {
                   tenantId: tenantId as DatabaseId,
+                  limit: Math.max(ids.length, 1000),
                 },
               );
 
@@ -147,9 +150,12 @@ export function createLoaders(
     createInverseLoader: (collectionName: string, foreignKeyField: string) =>
       new BatchLoader<string | DatabaseId, any[]>(async (parentIds) => {
         try {
-          const result = await dbAdapter.crud.findMany(collectionName, {
+          const query: Record<string, unknown> = {
             [foreignKeyField]: { $in: parentIds },
-            ...(tenantId ? { tenantId: tenantId as DatabaseId } : {}),
+          };
+          const result = await dbAdapter.crud.findMany(collectionName, query, {
+            tenantId: tenantId as DatabaseId,
+            limit: Math.max(parentIds.length * 50, 1000),
           });
           if (!result.success || !result.data) {
             if (!result.success) {

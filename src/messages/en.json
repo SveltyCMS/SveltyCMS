@@ -1042,5 +1042,8 @@
   "global_search_config_title": "Configuration",
   "global_search_config_description": "System configuration overview and navigation hub.",
   "global_search_invite_user_title": "Invite user",
-  "global_search_invite_user_description": "Open user management to send an invite token."
+  "global_search_invite_user_description": "Open user management to send an invite token.",
+  "media_upload_file_too_large": "{filename} exceeds maximum file size of {maxSize}",
+  "media_upload_invalid_type": "{filename} is not an allowed file type",
+  "media_upload_no_files": "No files selected or recognized for upload"
 }

@@ -22,6 +22,7 @@
 import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import type { SNCEnvelope, SNCEntry } from "../types";
+import { buildWooCommerceEcommerce } from "./ecommerce";
 
 // ============================================================================
 // Main WXR Parser
@@ -224,6 +225,10 @@ export function parseWordPressWXR(xmlText: string, transactionToken: string): SN
 
       if (Object.keys(customFields).length > 0) {
         entry.rawCustomFields = { ...entry.rawCustomFields, ...customFields };
+      }
+
+      if (postType === "product" || postType === "product_variation") {
+        entry.ecommerce = buildWooCommerceEcommerce(entry.rawCustomFields);
       }
 
       // ── Handle attachments (media items) ──

@@ -37,11 +37,10 @@ const createdIds: string[] = [];
 test("Competitive 9-Workload Replica Benchmark", async () => {
   logger.info("🚀 Starting Competitive 9-Workload Replica Benchmark (8 Workers)...");
 
+  await ensureStableTestData();
   const serverInfo = await setupBenchmarkServer();
   stopServer = serverInfo.stop;
   baseUrl = serverInfo.baseUrl;
-
-  await ensureStableTestData();
   const headers = {
     ...benchmarkAuthHeaders(),
     "content-type": "application/json",
@@ -59,6 +58,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
         slug: `item-${i}`,
         content: `Content for item ${i} with representative text payload`,
         published: true,
+        status: "published",
         views: i * 10,
       }),
     });
@@ -90,8 +90,8 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       name: "findByIdRandom (Concurrent 8c)",
       shortLabel: "findByIdRandom",
       fn: async () => {
-        const randId = createdIds[Math.floor(Math.random() * createdIds.length)] || stableId;
-        const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable/${randId}`, {
+        const randomId = createdIds[Math.floor(Math.random() * createdIds.length)] || stableId;
+        const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable/${randomId}`, {
           headers,
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -116,7 +116,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       shortLabel: "listFilterSort",
       fn: async () => {
         const res = await fetch(
-          `${baseUrl}/api/collections/BenchmarkStable?limit=10&sort=-createdAt`,
+          `${baseUrl}/api/collections/BenchmarkStable?limit=10&sort=createdAt&sortDirection=desc`,
           { headers },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -140,27 +140,33 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       name: "findMissing (Concurrent 8c)",
       shortLabel: "findMissing",
       fn: async () => {
-        const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable/non-existent-999999`, {
-          headers,
-        });
+        const res = await fetch(
+          `${baseUrl}/api/collections/BenchmarkStable/non-existent-id-999999`,
+          {
+            headers,
+          },
+        );
         if (res.status !== 404 && !res.ok) throw new Error(`Unexpected HTTP ${res.status}`);
         await res.text();
       },
       concurrency: 8,
     },
     {
-      name: "GraphQL Query (Concurrent 8c)",
+      name: "GraphQL Collection Query (Concurrent 8c)",
       shortLabel: "GraphQL",
       fn: async () => {
         const res = await fetch(`${baseUrl}/api/graphql`, {
           method: "POST",
           headers,
           body: JSON.stringify({
-            query: "{ contentSystemHealth { state version } }",
+            query: "query { BenchmarkStable(pagination: { limit: 10 }) { _id title } }",
           }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        await res.json();
+        const body = (await res.json()) as any;
+        if (!Array.isArray(body?.data?.BenchmarkStable) || body.data.BenchmarkStable.length === 0) {
+          throw new Error(`GraphQL BenchmarkStable returned 0 rows: ${JSON.stringify(body)}`);
+        }
       },
       concurrency: 8,
     },

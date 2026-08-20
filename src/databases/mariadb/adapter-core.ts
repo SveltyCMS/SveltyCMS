@@ -35,6 +35,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { mysqlTable, varchar, json, datetime, boolean, int } from "drizzle-orm/mysql-core";
 import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
+import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 
 export abstract class AdapterCore extends SqlAdapterCore {
@@ -227,9 +228,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
       // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
       // not enough — the composite can exceed MariaDB's 64-char identifier
       // limit and would be silently truncated, colliding with a longer
-      // sibling name. Fail closed on the FINAL identifier.
+      // sibling name. Fail closed on the FINAL identifier
+      // (normalizeCollectionTableName is the single source of truth for the
+      // physical name derivation).
       const tableName = utils.assertSafeSqlIdentifier(
-        cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`,
+        normalizeCollectionTableName(collection),
         "table",
       );
 
@@ -1397,7 +1400,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         // materialized columns from later reads.
         this.tableRegistry.delete(tableName);
         this.tableRegistry.delete(normalizedName);
-        this.tableRegistry.delete(`collection_${normalizedName}`);
+        this.tableRegistry.delete(normalizeCollectionTableName(normalizedName));
         this.tableRegistry.delete(`collection_${tableName}`);
       },
       "CREATE_MODEL_FAILED",

@@ -1206,7 +1206,7 @@ export async function seedBenchmarkState(): Promise<void> {
   );
   for (const schema of collectionSchemas) {
     try {
-      cms.collections.registerSchema(schema._id, schema as any, tenantId);
+      await cms.collections.registerSchema(schema._id, schema as any, tenantId);
     } catch {
       /* schema may already be registered */
     }
@@ -1391,6 +1391,12 @@ export async function setupBenchmarkServer() {
       BENCHMARK: "true",
       TEST_API_SECRET: secret,
       NODE_ENV: "production",
+      // 🏔️ CI-PARITY SECRETS: explicitly carry the bootstrap secrets like
+      // scripts/run-e2e.ts startPreviewServer does — the sync settings cache is
+      // cold on API-only boots, so the auth hook falls back to process.env for
+      // JWT_SECRET_KEY. Do not rely on the parent-env spread alone.
+      JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "Benchmark-JWT-Secret-Key-2026-32ch",
+      ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "Benchmark-Encryption-Key-2026-32ch",
       SVELTY_BENCHMARK_SERVER_MODE: "production",
       // 🏢 Audit mode: compliance → AUDIT_CHAIN_SYNC=true, DISABLE_AUDIT_LOGS=false
       BENCHMARK_AUDIT_MODE: process.env.BENCHMARK_AUDIT_MODE || "production",

@@ -59,33 +59,90 @@ export function getSessionCookieName(isSecure: boolean): string {
   return isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 }
 
+export interface CookieReader {
+  get(name: string, ...args: any[]): string | undefined;
+}
+
+export interface CookieDeleter {
+  delete(name: string, opts: { path: string; [key: string]: any }): void;
+}
+
 /**
- * Reads the session cookie value from an event's cookies, trying both the
- * __Host- prefixed and unprefixed variants in the correct security order.
+ * Reads the session cookie according to environment security requirements.
  *
  * - Secure connections: ONLY accept __Host- prefixed cookie (prevents subdomain cookie tossing)
  * - Insecure connections: ONLY accept unprefixed cookie (never fall back to __Host-)
+ * - Unspecified: checks in standard precedence (__Host- -> raw -> __Secure-)
  *
  * @param cookies - The event's Cookies object
- * @param isSecure - Whether the connection is secure
+ * @param isSecure - Whether the connection is secure (optional)
  * @returns The session ID string, or undefined if not found
  */
 export function readSessionCookie(
-  cookies: { get: (name: string) => string | undefined },
-  isSecure: boolean,
+  cookies?: CookieReader | { get?: (name: string, ...args: any[]) => string | undefined } | null,
+  isSecure?: boolean,
 ): string | undefined {
+  if (!cookies || typeof cookies.get !== "function") return undefined;
   const hostPrefixed = `__Host-${SESSION_COOKIE_NAME}`;
   const securePrefixed = `__Secure-${SESSION_COOKIE_NAME}`;
-  if (isSecure) {
+  if (isSecure === true) {
     // Prefer __Host-; fall back for transitional deploys
     return (
       cookies.get(hostPrefixed) || cookies.get(SESSION_COOKIE_NAME) || cookies.get(securePrefixed)
     );
   }
-  // Loopback/http: prefer plain name; accept accidental secure leftovers
+  if (isSecure === false) {
+    // Loopback/http: prefer plain name; accept accidental secure leftovers
+    return (
+      cookies.get(SESSION_COOKIE_NAME) || cookies.get(hostPrefixed) || cookies.get(securePrefixed)
+    );
+  }
   return (
-    cookies.get(SESSION_COOKIE_NAME) || cookies.get(hostPrefixed) || cookies.get(securePrefixed)
+    cookies.get(hostPrefixed) || cookies.get(SESSION_COOKIE_NAME) || cookies.get(securePrefixed)
   );
+}
+
+/**
+ * Deletes all session cookie variants (__Host-, __Secure-, and plain) to ensure
+ * clean session termination without leaving stale prefixed cookies.
+ */
+export function clearAllSessionCookies(
+  cookies?: CookieDeleter | { delete?: (name: string, opts: any) => void } | null,
+  cookiePathOrOptions:
+    | string
+    | {
+        path?: string;
+        isSecure?: boolean;
+        httpOnly?: boolean;
+        sameSite?: "strict" | "lax" | "none";
+      } = "/",
+): void {
+  if (!cookies || typeof cookies.delete !== "function") return;
+  const isString = typeof cookiePathOrOptions === "string";
+  const cookiePath = isString ? cookiePathOrOptions : (cookiePathOrOptions?.path ?? "/");
+  const isSecureOpt = !isString ? cookiePathOrOptions?.isSecure : undefined;
+  const sameSiteOpt = !isString ? cookiePathOrOptions?.sameSite : undefined;
+  const httpOnlyOpt =
+    !isString && cookiePathOrOptions?.httpOnly !== undefined ? cookiePathOrOptions.httpOnly : true;
+
+  const variants = [
+    { name: `__Host-${SESSION_COOKIE_NAME}`, isSecure: true },
+    { name: `__Secure-${SESSION_COOKIE_NAME}`, isSecure: true },
+    { name: SESSION_COOKIE_NAME, isSecure: false },
+  ];
+  for (const { name, isSecure: variantSecure } of variants) {
+    try {
+      const effectiveSecure = isSecureOpt !== undefined ? isSecureOpt : variantSecure;
+      const effectiveSameSite =
+        sameSiteOpt !== undefined ? sameSiteOpt : effectiveSecure ? "strict" : "lax";
+      cookies.delete(name, {
+        path: cookiePath,
+        httpOnly: httpOnlyOpt,
+        secure: effectiveSecure,
+        sameSite: effectiveSameSite,
+      });
+    } catch {}
+  }
 }
 
 /**
@@ -155,4 +212,19 @@ export function generateTokenWithExpiry(expirationMinutes = 60): {
     token: generateRandomToken(),
     expires: new Date(Date.now() + expirationMinutes * 60 * 1000),
   };
+}
+
+/**
+ * Canonical administrator check across all database dialects and role formats.
+ *
+ * Handles:
+ * - SQLite numeric booleans (`isAdmin: 1` or `"1"`)
+ * - Native boolean (`isAdmin: true`)
+ * - Role names (`role: "admin"` or `role: "super-admin"`)
+ */
+export function isAdmin(user: any): boolean {
+  if (!user) return false;
+  if (user.isAdmin === true || user.isAdmin === 1 || user.isAdmin === "1") return true;
+  const role = String(user.role ?? "").toLowerCase();
+  return role === "admin" || role === "super-admin";
 }

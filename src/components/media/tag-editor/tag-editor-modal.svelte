@@ -15,7 +15,7 @@ Features:
 	import Modal from '@components/ui/modal.svelte';
 	import ToastContainer from '@src/components/toast-container.svelte';
 	import { page } from "$app/state";
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/media-models';
@@ -91,7 +91,6 @@ Features:
 			return;
 		}
 		try {
-			await invalidateAll();
 			const response = await fetch(`/api/media/${file._id}`, {
 				method: 'PATCH',
 				headers: {
@@ -113,6 +112,7 @@ Features:
 			file = { ...file, metadata: { ...file.metadata, aiTags: [...(file.metadata?.aiTags || []), newTagInput.trim()] } };
 			onUpdate(file);
 			newTagInput = '';
+			await refreshAll();
 			toast.success('Tag added!');
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Failed to add tag';
@@ -125,7 +125,6 @@ Features:
 			return;
 		}
 		try {
-			await invalidateAll();
 			const metadata = { ...file.metadata };
 			if (type === 'ai') {
 				metadata.aiTags = metadata.aiTags?.filter((t) => t !== tag) || [];
@@ -148,6 +147,7 @@ Features:
 
 			file = { ...file, metadata };
 			onUpdate(file);
+			await refreshAll();
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Failed to remove tag';
 			toast.error({ description: message });
@@ -161,7 +161,6 @@ Features:
 		}
 
 		try {
-			await invalidateAll();
 			const metadata = { ...file.metadata };
 			if (type === 'ai') {
 				metadata.aiTags = metadata.aiTags?.map((t) => (t === oldTag ? newTag.trim() : t)) || [];
@@ -184,6 +183,7 @@ Features:
 
 			file = { ...file, metadata };
 			onUpdate(file);
+			await refreshAll();
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Failed to update tag';
 			toast.error({ description: message });
@@ -198,7 +198,6 @@ Features:
 		}
 		isSaving = true;
 		try {
-			await invalidateAll();
 			const currentTags = new SvelteSet(file.metadata?.tags || []);
 			file.metadata?.aiTags?.forEach((t) => {
 				currentTags.add(t);
@@ -226,6 +225,7 @@ Features:
 			const mergedTags = Array.from(currentTags);
 			file = { ...file, metadata: { ...file.metadata, tags: mergedTags, aiTags: [] } };
 			onUpdate(file);
+			await refreshAll();
 			toast.success('Tags saved!');
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Failed to save tags';

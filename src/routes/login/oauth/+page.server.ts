@@ -266,16 +266,28 @@ async function handleGoogleUser(
       // Send welcome email for new admin
       await sendWelcomeEmail(fetchFn, email, googleUser.name || "", request);
     } else {
-      // For non-first users, validate the invite token
-      if (!token) {
+      const { isMultiTenantEnabled } = await import("@utils/tenant");
+      const isOpenSignup = isMultiTenantEnabled() && Boolean(getPrivateSettingSync("DEMO"));
+
+      // For non-first users, validate the invite token (unless open signup demo mode is active)
+      if (!token && !isOpenSignup) {
         throw new Error("A valid invitation is required to create an account via OAuth");
       }
       // TEST_MODE: skip real token validation for E2E test mocks
       let inviteRole: any = undefined;
-      if (isTestOAuthMock) {
+      let tenantId: DatabaseId | undefined = undefined;
+
+      if (isOpenSignup && !token) {
+        const roles = await auth?.getAllRoles();
+        const adminRole = roles?.find((r: any) => r.isAdmin);
+        inviteRole = adminRole?._id || "admin";
+        tenantId = (cookies.get("__Host-demo_tenant_id") ||
+          cookies.get("demo_tenant_id") ||
+          crypto.randomUUID()) as DatabaseId;
+      } else if (isTestOAuthMock) {
         inviteRole = url.searchParams.get("__test_role__") || "admin";
       } else {
-        const tokenValidation = await auth?.validateRegistrationToken(token);
+        const tokenValidation = await auth?.validateRegistrationToken(token!);
         if (!(tokenValidation?.isValid && tokenValidation?.details)) {
           throw new Error("This invitation is invalid, expired, or has already been used");
         }
@@ -285,6 +297,7 @@ async function handleGoogleUser(
         }
         // Use the role from the token for invited users
         inviteRole = tokenValidation.details.role;
+        tenantId = tokenValidation.details.tenantId as DatabaseId;
       }
       let avatarUrl: string | null = null;
       if (!isTestOAuthMock && googleUser.picture) {
@@ -299,6 +312,7 @@ async function handleGoogleUser(
         lastName: googleUser.family_name ?? undefined,
         avatar: avatarUrl ?? undefined,
         role: inviteRole,
+        tenantId,
         lastAuthMethod: "google",
         isRegistered: true,
         blocked: false,
@@ -314,7 +328,17 @@ async function handleGoogleUser(
       invalidateUserCountCache();
 
       // Consume the invite token after successful user creation
-      await auth?.consumeRegistrationToken(token);
+      if (token) {
+        await auth?.consumeRegistrationToken(token);
+      }
+      if (isOpenSignup && isMultiTenantEnabled() && tenantId && user?._id) {
+        const { tenantService } = await import("@src/services/core/tenant-service");
+        tenantService
+          .createTenant(googleUser.name || "My Organisation", user._id, tenantId)
+          .catch(() => {
+            logger.debug("Tenant creation failed silently during OAuth signup");
+          });
+      }
       logger.info(
         `Invited user ${user?.username} created successfully via OAuth and token consumed`,
       );

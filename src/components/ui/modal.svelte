@@ -99,8 +99,12 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		fullscreen: 'h-[100dvh] max-h-[100dvh] w-full max-w-none rounded-none border-0 m-0',
 	};
 
+	// `surface` is the default and by far the most used. It reads the shared overlay
+	// tokens rather than hardcoding surface-100/900 so a modal matches the cards on
+	// the page behind it — including under a custom theme, which the hardcoded pair
+	// could never follow. The semantic colours keep their explicit ramps.
 	const colorClasses: Record<string, string> = {
-		surface: 'bg-surface-100 dark:bg-surface-900 border-surface-200 dark:border-surface-700',
+		surface: 'bg-(--admin-bg-overlay) border-(--admin-border-default)',
 		primary: 'bg-primary-50 dark:bg-primary-950 border-primary-200 dark:border-primary-800',
 		secondary: 'bg-secondary-50 dark:bg-secondary-950 border-secondary-200 dark:border-secondary-800',
 		tertiary: 'bg-tertiary-50 dark:bg-tertiary-950 border-tertiary-200 dark:border-tertiary-800',
@@ -119,7 +123,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		data-fullscreen={isFullscreen ? 'true' : undefined}
 		data-editor={isEditorShell ? 'true' : undefined}
 		class={cn(
-			'fixed inset-0 z-101 bg-transparent border-0 backdrop:bg-surface-900/60 backdrop:backdrop-blur-sm',
+			'fixed inset-0 z-101 bg-transparent border-0 backdrop:bg-(--admin-bg-backdrop) backdrop:backdrop-blur-sm',
 			isFullscreen
 				? 'open:flex m-0 h-dvh max-h-dvh w-full max-w-none overflow-hidden p-0'
 				: isEditorShell
@@ -148,7 +152,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 		>
 			<!-- Header -->
 			{#if header || title}
-				<header class={cn('flex items-center justify-between border-b border-surface-200 p-4 shrink-0 dark:border-surface-700', headerClass)}>
+				<header class={cn('flex items-center justify-between border-b border-(--admin-border-default) p-4 shrink-0', headerClass)}>
 					{#if header}
 						{@render header()}
 					{:else}
@@ -181,7 +185,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 
 			<!-- Footer -->
 			{#if footer}
-				<footer class="p-4 bg-surface-50 dark:bg-surface-900/50 border-t border-surface-200 dark:border-surface-700 flex justify-end gap-3 shrink-0">
+				<footer class="p-4 bg-(--admin-bg-page) border-t border-(--admin-border-default) flex justify-end gap-3 shrink-0">
 					{@render footer()}
 				</footer>
 			{/if}

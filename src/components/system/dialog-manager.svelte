@@ -1,8 +1,32 @@
-<!-- @file src/components/system/dialog-manager.svelte @description DialogManager for handling modals features: [modal lifecycle management, backdrop/escape close support, fullscreen mode support] -->
+<script lang="ts" module>
+	/**
+	 * Single-instance guard.
+	 *
+	 * DialogManager renders from the shared global `modalState`, so a second mount renders every
+	 * modal twice, pixel-aligned: the top copy intercepts pointer events and the lower copy is
+	 * inert but still visible. Mount it ONCE, in src/routes/+layout.svelte.
+	 */
+	let liveInstances = 0;
+</script>
 
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { dev } from '$app/env';
 	import Modal from '@components/ui/modal.svelte';
 	import { modalState } from '@utils/modal.svelte';
+	import { logger } from '@utils/logger';
+
+	onMount(() => {
+		liveInstances += 1;
+		if (dev && liveInstances > 1) {
+			logger.error(
+				`[DialogManager] Multiple (${liveInstances}) <DialogManager /> instances are mounted simultaneously. Modals will duplicate. Only the root layout should mount DialogManager.`
+			);
+		}
+		return () => {
+			liveInstances = Math.max(0, liveInstances - 1);
+		};
+	});
 
 	// Bind open state to modalState
 	let open = $state(false);

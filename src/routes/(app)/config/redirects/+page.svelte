@@ -22,7 +22,7 @@
 	import { toast } from '@src/stores/toast.svelte';
 	import { button_save } from '@src/paraglide/messages';
 	import { showConfirm } from '@utils/modal.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import {
 		filterRedirectsByQuery,
 		toRedirectPayload,
@@ -119,7 +119,7 @@
 			});
 			toast.success({ description: 'Redirect saved' });
 			closeModal();
-			await invalidateAll();
+			await refreshAll();
 		} catch (err) {
 			toast.error({
 				description: err instanceof Error ? err.message : 'Failed to save redirect',
@@ -143,7 +143,7 @@
 				try {
 					await deleteRedirect(id);
 					toast.success({ description: 'Redirect deleted' });
-					await invalidateAll();
+					await refreshAll();
 				} catch (err) {
 					toast.error({
 						description: err instanceof Error ? err.message : 'Failed to delete redirect',

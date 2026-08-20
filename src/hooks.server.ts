@@ -507,6 +507,7 @@ function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
 // We don't pre-compile the sequence into a single const, instead we build it
 // based on the current system state.
 let cachedPipelineReady: Handle | null = null;
+let cachedPipelineApi: Handle | null = null;
 let cachedPipelineSetup: Handle | null = null;
 
 // 🛡️ AWAIT full middleware before building the READY pipeline: at boot,
@@ -515,10 +516,37 @@ let cachedPipelineSetup: Handle | null = null;
 // cached pipeline — and wrapHandle() binds the resolved fn at wrap time, so
 // security/rate-limit/auth would stay bypassed until a setup-state change or
 // process restart.
-const getPipeline = async (): Promise<Handle> => {
+const getPipeline = async (lane?: RequestLane): Promise<Handle> => {
   if (setupComplete) {
     if (!fullMiddlewareInitialized) {
       await ensureFullMiddleware();
+    }
+    const isApiLane =
+      lane === RequestLane.API_READ ||
+      lane === RequestLane.API_WRITE ||
+      lane === RequestLane.HYPER_TURBO;
+    // API lanes skip page-only hooks (redirects / AEO / user-preferences).
+    // Auth, WAF, rate-limit, turbo-get, and RBAC stay in place.
+    if (isApiLane) {
+      if (!cachedPipelineApi) {
+        cachedPipelineApi = sequence(
+          wrapHandle("turbo-pipeline", () => handleTurboPipeline),
+          wrapHandle("test-isolation", () => handleTestIsolation),
+          wrapHandle("security", () => handleSecurity),
+          wrapHandle("rate-limit", () => handleRateLimit),
+          wrapHandle("system-state", () => handleSystemState),
+          wrapHandle("turbo-get", () => handleTurboGet),
+          wrapHandle("compression", () => handleCompression),
+          wrapHandle("authentication", () => handleAuthentication),
+          wrapHandle("authorization", () => handleAuthorization),
+          wrapHandle("local-sdk", () => handleLocalSdk),
+          wrapHandle("content-initialization", () => handleContentInitialization),
+          wrapHandle("audit-logging", () => handleAuditLogging),
+          wrapHandle("api-requests", () => handleApiRequests),
+          wrapHandle("token-resolution", () => handleTokenResolution),
+        );
+      }
+      return cachedPipelineApi;
     }
     if (!cachedPipelineReady) {
       cachedPipelineReady = sequence(
@@ -591,6 +619,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     logger.info(`🔄 System setup state change detected: ${setupComplete} -> ${currentSetupState}`);
     setupComplete = currentSetupState;
     cachedPipelineReady = null;
+    cachedPipelineApi = null;
     cachedPipelineSetup = null;
     if (setupComplete) {
       try {
@@ -695,7 +724,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   if (!traceEnabled) {
     (event.locals as any).requestId = traceId;
     try {
-      const pipeline = await getPipeline();
+      const pipeline = await getPipeline(lane);
       const res = await pipeline({ event, resolve });
       return withLane(res, lane);
     } catch (err: any) {
@@ -724,7 +753,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     () => {
       return runWithTrace(traceId, traceEnabled, async () => {
         try {
-          const pipeline = await getPipeline();
+          const pipeline = await getPipeline(lane);
           const response = await pipeline({ event, resolve });
 
           if (traceEnabled) {

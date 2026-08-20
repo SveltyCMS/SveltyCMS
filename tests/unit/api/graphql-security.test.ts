@@ -31,7 +31,14 @@ vi.mock("@src/databases/db", () => ({
     collection: {},
   },
   getDbInitPromise: vi.fn().mockResolvedValue(undefined),
-  getDb: vi.fn(),
+  getDb: vi.fn().mockReturnValue({
+    crud: {},
+    auth: {},
+    media: {},
+    system: {},
+    collection: {},
+    isConnected: () => true,
+  }),
   isDbConnected: vi.fn().mockReturnValue(true),
   getAuth: vi.fn().mockReturnValue({}),
 }));

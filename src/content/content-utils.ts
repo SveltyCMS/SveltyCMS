@@ -3,6 +3,12 @@
  * @description
  * Shared utility functions, navigation logic, and performance metrics.
  * Safe for both client-side UI and server-side reconciliation.
+ *
+ * ### Features:
+ * - content tree/navigation generation, sorting, and sibling-name checks
+ * - content performance metrics
+ * - single-pass write-path field preparation (sanitize + constraints)
+ * - numeric range validation
  */
 import { contentStore } from "@stores/content-registry.svelte";
 import type { ContentNode, NavigationNode, Schema } from "./types";
@@ -108,7 +114,7 @@ export const contentNavigation = {
     // Fix: Filter by tenant BEFORE building the tree for better performance
     const allNodes = contentStore.getAllNodes();
     const filteredNodes = tenantId
-      ? allNodes.filter((node) => !node.tenantId || node.tenantId === tenantId)
+      ? allNodes.filter((node) => node.tenantId === tenantId)
       : allNodes;
 
     const nodesMap = new Map<string, ContentNode>();
@@ -204,7 +210,7 @@ export const contentNavigation = {
     // Single pass to build map: O(n)
     for (const node of allNodes) {
       const nTenantId = node.tenantId?.toString() || undefined;
-      if (targetTenantId && nTenantId && nTenantId !== targetTenantId) continue;
+      if (targetTenantId && nTenantId !== targetTenantId) continue;
 
       const rawParentId = node.parentId?.toString() || undefined;
       const nParentId = rawParentId === "null" || rawParentId === "" ? undefined : rawParentId;
@@ -407,29 +413,7 @@ export function sanitizeCollectionFields(
     }>;
   },
 ): Record<string, unknown> {
-  if (!data || !schema.fields || schema.fields.length === 0) return data;
-  let sanitized: Record<string, unknown> | null = null;
-
-  for (let i = 0; i < schema.fields.length; i++) {
-    const field = schema.fields[i];
-    if (!field) continue;
-    const type = field.type;
-    if (type !== "richtext" && type !== "markdown" && type !== "text" && type !== "textarea") {
-      continue;
-    }
-    const value = data[field.db_fieldName];
-    if (typeof value !== "string") continue;
-
-    if (!sanitized) sanitized = { ...data };
-
-    if (type === "richtext" || type === "markdown") {
-      sanitized[field.db_fieldName] = sanitizeHtml(value);
-    } else if (type === "text" || type === "textarea") {
-      sanitized[field.db_fieldName] = stripHtml(value);
-    }
-  }
-
-  return sanitized || data;
+  return prepareFieldsCore(data, schema, { sanitize: true, stripNulls: false, truncate: false });
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -464,28 +448,7 @@ export function validateFieldConstraints(
     }>;
   },
 ): Record<string, unknown> {
-  if (!schema.fields || !data) return data;
-  let validated: Record<string, unknown> | null = null;
-
-  for (const field of schema.fields) {
-    const value = (validated || data)[field.db_fieldName];
-    if (typeof value !== "string") continue;
-
-    // Only enforce maxLength for fields that hold string-like content
-    if (field.type && !STRING_FIELD_TYPES.has(field.type)) continue;
-
-    const maxLen = field.maxLength ?? 255;
-    if (value.length > maxLen) {
-      if (!validated) validated = { ...data };
-      validated[field.db_fieldName] = value.slice(0, maxLen);
-      logger.warn(
-        `[validateFieldConstraints] Field "${field.db_fieldName}" (type: ${field.type}) ` +
-          `truncated from ${value.length} to ${maxLen} characters`,
-      );
-    }
-  }
-
-  return validated || data;
+  return prepareFieldsCore(data, schema, { sanitize: false, stripNulls: false, truncate: true });
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -511,30 +474,204 @@ export function stripNullRows(
     }>;
   },
 ): Record<string, unknown> {
-  if (!schema.fields || !data) return data;
-  let stripped: Record<string, unknown> | null = null;
+  return prepareFieldsCore(data, schema, { sanitize: false, stripNulls: true, truncate: false });
+}
 
-  for (const field of schema.fields) {
-    const value = (stripped || data)[field.db_fieldName];
-    if (!Array.isArray(value)) continue;
+// ─────────────────────────────────────────────────────────────
+// Single-Pass Field Preparation (SDK write path)
+// ─────────────────────────────────────────────────────────────
 
-    // Identify array/block fields by widget type or field type
-    const isArrayField =
-      (field.type && ARRAY_WIDGET_TYPES.has(field.type)) ||
-      (field.widget?.Name && ARRAY_WIDGET_TYPES.has(field.widget.Name));
+/** Granular operation mode for the single-pass field preparation core. */
+interface FieldPrepMode {
+  sanitize: boolean;
+  stripNulls: boolean;
+  truncate: boolean;
+}
 
-    if (!isArrayField) continue;
+/** Field descriptor accepted by the single-pass field preparation core. */
+interface PrepField {
+  db_fieldName: string;
+  type?: string;
+  maxLength?: number;
+  widget?: { Name?: string };
+}
 
-    const originalLength = value.length;
-    const filtered = value.filter((item) => item != null);
-    if (filtered.length < originalLength) {
-      if (!stripped) stripped = { ...data };
-      stripped[field.db_fieldName] = filtered;
-      logger.warn(
-        `[stripNullRows] Field "${field.db_fieldName}" had ${originalLength - filtered.length} null entries removed`,
-      );
+interface CompiledPrepPlan {
+  sanitizeRich: string[];
+  sanitizeText: string[];
+  arrayFields: string[];
+  truncateFields: Array<{ name: string; maxLen: number }>;
+}
+
+const prepPlanCache = new WeakMap<object, CompiledPrepPlan>();
+
+function getOrCompilePrepPlan(schema: { fields?: Array<PrepField> }): CompiledPrepPlan {
+  let plan = prepPlanCache.get(schema);
+  if (plan) return plan;
+
+  const sanitizeRich: string[] = [];
+  const sanitizeText: string[] = [];
+  const arrayFields: string[] = [];
+  const truncateFields: Array<{ name: string; maxLen: number }> = [];
+
+  if (schema.fields) {
+    for (let i = 0; i < schema.fields.length; i++) {
+      const field = schema.fields[i];
+      if (!field || !field.db_fieldName) continue;
+      const name = field.db_fieldName;
+      const type = field.type;
+
+      if (type === "richtext" || type === "markdown") {
+        sanitizeRich.push(name);
+      } else if (type === "text" || type === "textarea") {
+        sanitizeText.push(name);
+      }
+
+      if (
+        (type && ARRAY_WIDGET_TYPES.has(type)) ||
+        (field.widget?.Name && ARRAY_WIDGET_TYPES.has(field.widget.Name))
+      ) {
+        arrayFields.push(name);
+      }
+
+      if (type && STRING_FIELD_TYPES.has(type)) {
+        truncateFields.push({ name, maxLen: field.maxLength ?? 255 });
+      }
     }
   }
 
-  return stripped || data;
+  plan = { sanitizeRich, sanitizeText, arrayFields, truncateFields };
+  try {
+    prepPlanCache.set(schema, plan);
+  } catch {
+    // Non-object or non-extensible fallback
+  }
+  return plan;
+}
+
+/**
+ * Single-pass field preparation core with pre-compiled WeakMap plan.
+ *
+ * Replaces full schema traversal on every write with direct iteration
+ * over pre-compiled target field lists (sanitize, strip nulls, truncate).
+ *
+ * @returns `data` by reference when nothing changed; otherwise a shallow clone
+ *          with only the affected fields replaced.
+ */
+function prepareFieldsCore(
+  data: Record<string, unknown>,
+  schema: { fields?: Array<PrepField> },
+  mode: FieldPrepMode,
+): Record<string, unknown> {
+  if (!data || !schema.fields) return data;
+
+  const plan = getOrCompilePrepPlan(schema);
+  let result: Record<string, unknown> | null = null;
+
+  // 1. Sanitize richtext/markdown
+  if (mode.sanitize) {
+    for (let i = 0; i < plan.sanitizeRich.length; i++) {
+      const fieldName = plan.sanitizeRich[i];
+      const value = (result || data)[fieldName];
+      if (typeof value === "string") {
+        if (!result) result = { ...data };
+        result[fieldName] = sanitizeHtml(value);
+      }
+    }
+    // Sanitize text/textarea
+    for (let i = 0; i < plan.sanitizeText.length; i++) {
+      const fieldName = plan.sanitizeText[i];
+      const value = (result || data)[fieldName];
+      if (typeof value === "string") {
+        if (!result) result = { ...data };
+        result[fieldName] = stripHtml(value);
+      }
+    }
+  }
+
+  // 2. Strip null/undefined entries from array-like fields
+  if (mode.stripNulls) {
+    for (let i = 0; i < plan.arrayFields.length; i++) {
+      const fieldName = plan.arrayFields[i];
+      const value = (result || data)[fieldName];
+      if (Array.isArray(value)) {
+        const originalLength = value.length;
+        const filtered = value.filter((item) => item != null);
+        if (filtered.length < originalLength) {
+          if (!result) result = { ...data };
+          result[fieldName] = filtered;
+          logger.warn(
+            `[stripNullRows] Field "${fieldName}" had ${originalLength - filtered.length} null entries removed`,
+          );
+        }
+      }
+    }
+  }
+
+  // 3. Enforce maxLength on string-like fields
+  if (mode.truncate) {
+    for (let i = 0; i < plan.truncateFields.length; i++) {
+      const { name: fieldName, maxLen } = plan.truncateFields[i];
+      const value = (result || data)[fieldName];
+      if (typeof value === "string" && value.length > maxLen) {
+        if (!result) result = { ...data };
+        result[fieldName] = value.slice(0, maxLen);
+        logger.warn(
+          `[validateFieldConstraints] Field "${fieldName}" truncated from ${value.length} to ${maxLen} characters`,
+        );
+      }
+    }
+  }
+
+  return result || data;
+}
+
+/**
+ * Write-path field preparation flags for `prepareCollectionFields`.
+ */
+export interface CollectionFieldPrepFlags {
+  /** Sanitize richtext/markdown/text/textarea fields (stored-XSS prevention). */
+  sanitize?: boolean;
+  /** Strip null rows from array/block/group/repeater fields AND enforce maxLength. */
+  constraints?: boolean;
+}
+
+/**
+ * Single-pass field preparation for collection write paths.
+ *
+ * Replaces the legacy `sanitizeCollectionFields` → `stripNullRows` →
+ * `validateFieldConstraints` chain (up to 3 schema walks and 3 clones) with
+ * ONE loop over `schema.fields` and at most one lazy shallow clone.
+ *
+ * - `flags.sanitize`: mirrors `sanitizeCollectionFields` exactly.
+ * - `flags.constraints`: strips null array rows (same warn message as
+ *   `stripNullRows`) AND enforces maxLength truncation (same warn message as
+ *   `validateFieldConstraints`).
+ * - When both flags are false/undefined the input is returned untouched
+ *   WITHOUT iterating fields (zero cost).
+ *
+ * @returns `data` by reference when nothing changed; otherwise a shallow clone
+ *          with only the affected fields replaced.
+ */
+export function prepareCollectionFields(
+  data: Record<string, unknown>,
+  schema: {
+    fields?: Array<{
+      db_fieldName: string;
+      type?: string;
+      maxLength?: number;
+      widget?: { Name?: string };
+    }>;
+  },
+  flags?: CollectionFieldPrepFlags,
+): Record<string, unknown> {
+  const sanitize = flags?.sanitize === true;
+  const constraints = flags?.constraints === true;
+  if (!sanitize && !constraints) return data;
+
+  return prepareFieldsCore(data, schema, {
+    sanitize,
+    stripNulls: constraints,
+    truncate: constraints,
+  });
 }

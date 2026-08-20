@@ -31,6 +31,14 @@ export const FILTER_URL_PREFIX = "filter_";
 /** System columns always allowed for filtering (when present on entries). */
 export const SYSTEM_FILTER_FIELDS = ["status", "createdAt", "updatedAt", "_id"] as const;
 
+/** Map Mongo-style / snake_case sort keys onto stored column names. */
+const SORT_FIELD_ALIASES: Record<string, string> = {
+  _createdAt: "createdAt",
+  _updatedAt: "updatedAt",
+  created_at: "createdAt",
+  updated_at: "updatedAt",
+};
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 /**
@@ -219,17 +227,21 @@ export function parseCollectionListQuery(
     Math.min(500, Number(searchParams.get("pageSize") ?? defaults.pageSize ?? 10) || 10),
   );
   const search = (searchParams.get("search") || "").trim();
-  const sortField = searchParams.get("sort") || defaults.sortField || "_createdAt";
+  const rawFilters = parseUrlFilterParams(searchParams);
+  const allowed = getAllowedFilterFieldIds(collection);
+  const filter = whitelistFilterParams(rawFilters, allowed);
+
+  const rawSort =
+    searchParams.get("sort") || searchParams.get("sortField") || defaults.sortField || "createdAt";
+  const aliasedSort = SORT_FIELD_ALIASES[rawSort] || rawSort;
+  const sortField = allowed.has(aliasedSort) ? aliasedSort : "createdAt";
   const sortOrderRaw = (
     searchParams.get("order") ||
+    searchParams.get("sortDirection") ||
     defaults.sortDirection ||
     "desc"
   ).toLowerCase();
   const direction: "asc" | "desc" = sortOrderRaw === "asc" ? "asc" : "desc";
-
-  const rawFilters = parseUrlFilterParams(searchParams);
-  const allowed = getAllowedFilterFieldIds(collection);
-  const filter = whitelistFilterParams(rawFilters, allowed);
 
   const queryHash = hashQueryPayload({ filter, search, sort: { field: sortField, direction } });
 

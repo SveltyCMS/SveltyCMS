@@ -25,6 +25,7 @@ import type {
 import * as utils from "./relational-utils";
 import { buildMediaJsonPathSqlConditions, resolveMediaJsonSqlDialect } from "./media-json-path";
 import { assertTenantContext } from "@src/utils/security/safe-query";
+import { isAdmin } from "@src/databases/auth/constants";
 
 export class RelationalMediaModule implements IMediaAdapter {
   protected readonly adapter: ISqlAdapter;
@@ -103,8 +104,8 @@ export class RelationalMediaModule implements IMediaAdapter {
             utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
             if (options?.user) {
-              const isAdmin = options.user.role === "admin" || options.user.isAdmin === true;
-              if (!isAdmin) {
+              const isAdminUser = isAdmin(options.user);
+              if (!isAdminUser) {
                 const userConditions = or(
                   eq(this.schema.mediaItems.createdBy, options.user._id as string),
                   like(this.schema.mediaItems.path, "global/%"),
@@ -144,30 +145,34 @@ export class RelationalMediaModule implements IMediaAdapter {
               if (column) q = q.orderBy(order(column));
             }
 
-            // 🚀 findPage pattern: limit+1 for hasNextPage; parallel COUNT for total
+            // 🚀 findPage pattern: limit+1 for hasNextPage; lazy/parallel COUNT only when needed
             const limit = options?.pageSize || 20;
-            const offset = ((options?.page || 1) - 1) * limit;
+            const page = options?.page || 1;
+            const offset = (page - 1) * limit;
             q = q.limit(limit + 1).offset(offset);
 
-            const [results, countRows] = await Promise.all([
-              q,
-              this.getDb(options)
-                .select({ count: count() })
-                .from(this.schema.mediaItems)
-                .where(and(...conditions)),
-            ]);
-
+            const results = await q;
             const hasNextPage = results.length > limit;
             const pageRows = hasNextPage ? results.slice(0, limit) : results;
-            const total = Number(countRows[0]?.count || 0);
+
+            let total: number;
+            if (page === 1 && !hasNextPage) {
+              total = pageRows.length;
+            } else {
+              const countRows = await this.getDb(options)
+                .select({ count: count() })
+                .from(this.schema.mediaItems)
+                .where(and(...conditions));
+              total = Number(countRows[0]?.count || 0);
+            }
 
             return {
               items: utils.convertArrayDatesToISO(pageRows) as unknown as MediaItem[],
               total,
-              page: options?.page || 1,
+              page,
               pageSize: limit,
               hasNextPage,
-              hasPreviousPage: (options?.page || 1) > 1,
+              hasPreviousPage: page > 1,
             };
           },
           "GET_FILES_BY_FOLDER_FAILED",
@@ -198,8 +203,8 @@ export class RelationalMediaModule implements IMediaAdapter {
           utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
           if (options?.user) {
-            const isAdmin = options.user.role === "admin" || options.user.isAdmin === true;
-            if (!isAdmin) {
+            const isAdminUser = isAdmin(options.user);
+            if (!isAdminUser) {
               const userConditions = or(
                 eq(this.schema.mediaItems.createdBy, options.user._id as string),
                 like(this.schema.mediaItems.path, "global/%"),
@@ -221,24 +226,32 @@ export class RelationalMediaModule implements IMediaAdapter {
           }
 
           const limit = options?.pageSize || 20;
-          const offset = ((options?.page || 1) - 1) * limit;
-          q = q.limit(limit).offset(offset);
+          const page = options?.page || 1;
+          const offset = (page - 1) * limit;
+          q = q.limit(limit + 1).offset(offset);
 
           const results = await q;
-          const [countResult] = await this.db
-            .select({ count: count() })
-            .from(this.schema.mediaItems)
-            .where(and(...conditions));
+          const hasNextPage = results.length > limit;
+          const pageRows = hasNextPage ? results.slice(0, limit) : results;
 
-          const total = Number(countResult?.count || 0);
+          let total: number;
+          if (page === 1 && !hasNextPage) {
+            total = pageRows.length;
+          } else {
+            const countRows = await this.db
+              .select({ count: count() })
+              .from(this.schema.mediaItems)
+              .where(and(...conditions));
+            total = Number(countRows[0]?.count || 0);
+          }
 
           return {
-            items: utils.convertArrayDatesToISO(results) as unknown as MediaItem[],
+            items: utils.convertArrayDatesToISO(pageRows) as unknown as MediaItem[],
             total,
-            page: options?.page || 1,
+            page,
             pageSize: limit,
-            hasNextPage: offset + limit < total,
-            hasPreviousPage: (options?.page || 1) > 1,
+            hasNextPage,
+            hasPreviousPage: page > 1,
           };
         }, "SEARCH_FILES_FAILED");
       },
@@ -286,7 +299,22 @@ export class RelationalMediaModule implements IMediaAdapter {
               .limit(1);
 
             const newMetadata = { ...(existing?.metadata as any), ...metadata };
-            const [updated] = await this.db
+            if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
+              const [updated] = await this.db
+                .update(this.schema.mediaItems)
+                .set(
+                  utils.convertISOToDates({
+                    metadata: newMetadata,
+                    updatedAt: nowISODateString(),
+                  }) as any,
+                )
+                .where(and(...conditions))
+                .returning();
+
+              return utils.convertDatesToISO(updated) as unknown as MediaItem;
+            }
+
+            await this.db
               .update(this.schema.mediaItems)
               .set(
                 utils.convertISOToDates({
@@ -294,8 +322,13 @@ export class RelationalMediaModule implements IMediaAdapter {
                   updatedAt: nowISODateString(),
                 }) as any,
               )
+              .where(and(...conditions));
+
+            const [updated] = await this.db
+              .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
+              .from(this.schema.mediaItems)
               .where(and(...conditions))
-              .returning();
+              .limit(1);
 
             return utils.convertDatesToISO(updated) as unknown as MediaItem;
           },
@@ -316,7 +349,21 @@ export class RelationalMediaModule implements IMediaAdapter {
             const conditions = [inArray(this.schema.mediaItems._id, fileIds as string[])];
             utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
-            const results = await this.db
+            if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
+              const results = await this.db
+                .update(this.schema.mediaItems)
+                .set(
+                  utils.convertISOToDates({
+                    folderId: (targetFolderId || null) as any,
+                    updatedAt: nowISODateString(),
+                  }) as any,
+                )
+                .where(and(...conditions))
+                .returning();
+              return { movedCount: results.length };
+            }
+
+            const [result] = await this.db
               .update(this.schema.mediaItems)
               .set(
                 utils.convertISOToDates({
@@ -324,9 +371,9 @@ export class RelationalMediaModule implements IMediaAdapter {
                   updatedAt: nowISODateString(),
                 }) as any,
               )
-              .where(and(...conditions))
-              .returning();
-            return { movedCount: results.length };
+              .where(and(...conditions));
+
+            return { movedCount: (result as any)?.affectedRows || fileIds.length };
           },
           "MOVE_FILES_FAILED",
           undefined,

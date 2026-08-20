@@ -1,0 +1,45 @@
+---
+path: "src/routes/(app)/dashboard/widgets/commerce-inventory/readme.mdx"
+title: "Commerce Inventory Dashboard Widget"
+description: "Low-stock and out-of-stock products from the ecommerce products collection. Freemium — 14-day key-less trial, then a marketplace license."
+order: 100
+icon: "mdi:warehouse"
+author: "SveltyCMS Team"
+created: "2026-08-19"
+updated: "2026-08-19"
+tags:
+  - "dashboard"
+  - "commerce"
+  - "inventory"
+  - "freemium"
+---
+
+# Commerce Inventory Widget
+
+Lists products at or below `lowStockThreshold` (default 5), counting variant `inventoryQty` when present. Requires the ecommerce **preset** (`products` collection).
+
+---
+
+## 💰 Licensing
+
+**Freemium** — **14-day key-less trial**. After expiry: `checkExtensionLicense("dashboard", "commerce-inventory")`.
+
+- Client: `GET /api/system/license-status?type=dashboard&id=commerce-inventory` → `<UpgradePrompt extensionId="dashboard:commerce-inventory" price="€12.99" />`
+- Server: `/api/dashboard/commerce-inventory` → `403 LICENSE_REQUIRED` when the trial ended without a key
+
+Marketplace listing: `dashboard:commerce-inventory` · **€12.99**
+
+---
+
+## Features
+
+| Feature            | Description                                                               |
+| :----------------- | :------------------------------------------------------------------------ |
+| Low stock list     | Title, SKU, quantity vs threshold                                         |
+| Out of stock count | Products with qty ≤ 0                                                     |
+| Variant-aware      | One row per variant using preset `inventory` (and `inventoryQty` aliases) |
+| Trial hint         | Remaining trial days shown while the 14-day window is active              |
+
+### Data source
+
+`GET /api/dashboard/commerce-inventory?limit=8` — `{ available, tracked, outOfStock, lowStock }`. Tenant-scoped via LocalCMS.

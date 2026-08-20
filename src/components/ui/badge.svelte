@@ -80,11 +80,41 @@ presets, and progressive corner-shape angled corners.
     finalColor.startsWith('var(')
   );
 
+  const FILLED_MAP: Record<string, string> = {
+    primary: 'preset-filled-primary-500',
+    secondary: 'preset-filled-secondary-500',
+    tertiary: 'preset-filled-tertiary-500',
+    success: 'preset-filled-success-500',
+    warning: 'preset-filled-warning-500',
+    error: 'preset-filled-error-500',
+    surface: 'preset-filled-surface-500',
+  };
+
+  const OUTLINED_MAP: Record<string, string> = {
+    primary: 'preset-outlined-primary-500',
+    secondary: 'preset-outlined-secondary-500',
+    tertiary: 'preset-outlined-tertiary-500',
+    success: 'preset-outlined-success-500',
+    warning: 'preset-outlined-warning-500',
+    error: 'preset-outlined-error-500',
+    surface: 'preset-outlined-surface-500',
+  };
+
+  const TONAL_MAP: Record<string, string> = {
+    primary: 'preset-tonal-primary',
+    secondary: 'preset-tonal-secondary',
+    tertiary: 'preset-tonal-tertiary',
+    success: 'preset-tonal-success',
+    warning: 'preset-tonal-warning',
+    error: 'preset-tonal-error',
+    surface: 'preset-tonal-surface',
+  };
+
   const getPresetClass = $derived(() => {
     if (isCustomColor) return 'preset-custom';
-    if (finalPreset === 'tonal') return `preset-tonal-${finalColor}`;
-    if (finalPreset === 'outlined') return `preset-outlined-${finalColor}-500`;
-    return `preset-filled-${finalColor}-500`;
+    if (finalPreset === 'tonal') return TONAL_MAP[finalColor] ?? `preset-tonal-${finalColor}`;
+    if (finalPreset === 'outlined') return OUTLINED_MAP[finalColor] ?? `preset-outlined-${finalColor}-500`;
+    return FILLED_MAP[finalColor] ?? `preset-filled-${finalColor}-500`;
   });
 
   // Calculate dynamic custom variables for custom color preset fallbacks and theme contexts

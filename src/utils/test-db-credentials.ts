@@ -156,6 +156,7 @@ export function getBenchmarkTestEnv(
     DISABLE_AUDIT_LOGS: compliance ? "false" : "true",
     // Deployment-tuned rate ceilings for load-testing (bucket machinery stays active)
     RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "20000",
+    RATE_LIMIT_COMMERCE_MAX_REQUESTS: process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS || "20000",
     SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
     // 🛡️ Allow CI to inject randomized secrets; fall back to benchmark defaults for local dev only
     JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "Benchmark-JWT-Secret-Key-2026-32ch",

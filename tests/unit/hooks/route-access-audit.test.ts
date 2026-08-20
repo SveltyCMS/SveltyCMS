@@ -23,6 +23,7 @@ const PROTECTED_CMS_ROUTES = [
   "/api/collections/posts",
   "/api/media",
   "/api/graphql",
+  "/api/commerce/orders",
   "/api/chat",
   "/api/permission/update",
   "/email-previews",
@@ -39,6 +40,9 @@ const INTENTIONAL_PUBLIC_ROUTES = [
   "/share/abc123",
   "/api/media/share",
   "/api/preview",
+  "/api/commerce/cart",
+  "/api/commerce/checkout",
+  "/api/stripe/webhook",
 ];
 
 describe("Route Access Audit", () => {

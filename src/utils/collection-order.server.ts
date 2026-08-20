@@ -114,6 +114,7 @@ export async function setOrganizationalManifest(
 export function buildOrganizationalManifestFromNodes(
   nodes: Array<{
     _id?: unknown;
+    collectionDef?: { _id?: unknown; slug?: unknown };
     name?: string;
     nodeType?: string;
     path?: string;
@@ -132,6 +133,13 @@ export function buildOrganizationalManifestFromNodes(
 
     if (node.nodeType === "collection") {
       order[id] = node.order ?? 0;
+      const collectionId = node.collectionDef?._id?.toString();
+      if (collectionId) {
+        order[collectionId] = node.order ?? 0;
+        order[collectionId.toLowerCase()] = node.order ?? 0;
+      }
+      const collectionSlug = node.collectionDef?.slug?.toString();
+      if (collectionSlug) order[collectionSlug.toLowerCase()] = node.order ?? 0;
     }
 
     if (node.nodeType === "category" || node.source === "builder") {

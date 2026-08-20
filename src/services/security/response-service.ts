@@ -76,12 +76,20 @@ const ENDPOINT_RATE_LIMITS: Record<string, number> = {
   "/api/website-tokens": 30,
   "/api/permission/update": 30,
   "/api/collections": 100,
+  "/api/commerce": 60,
   "/api/setup": 10,
   "/api/setup/test-db": 5,
   "/api/setup/seed-db": 3,
   "/api/setup/complete": 3,
   "/api/testing": 100,
 };
+
+function resolveRateLimitScope(cleanEndpoint: string): string {
+  if (ENDPOINT_RATE_LIMITS[cleanEndpoint]) return cleanEndpoint;
+  if (cleanEndpoint.includes("/api/graphql")) return "/api/graphql";
+  if (cleanEndpoint.startsWith("/api/commerce")) return "/api/commerce";
+  return "global";
+}
 
 const GLOBAL_RATE_LIMIT = 500;
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB
@@ -119,12 +127,7 @@ export class SecurityResponseService {
     // Normalize away query strings so /api/graphql?foo=1 and /api/graphql share
     // one limiter key instead of creating a fresh bucket per query string.
     const cleanEndpoint = endpoint.split("?")[0] || endpoint;
-    const isGraphql = cleanEndpoint.includes("/api/graphql");
-    const scope = ENDPOINT_RATE_LIMITS[cleanEndpoint]
-      ? cleanEndpoint
-      : isGraphql
-        ? "/api/graphql"
-        : "global";
+    const scope = resolveRateLimitScope(cleanEndpoint);
     const cacheKey = tenantId ? `${scope}_${tenantId}` : scope;
     const cached = this.limiters.get(cacheKey);
     if (cached) return cached;

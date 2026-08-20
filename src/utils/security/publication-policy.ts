@@ -10,6 +10,8 @@
  *   the policy forces "published" to eliminate draft leaks.
  */
 
+import { isAdmin } from "@src/databases/auth/constants";
+
 export type PublicationFilter = "published" | "draft" | "all";
 
 export interface ActorContext {
@@ -35,9 +37,11 @@ export function resolvePublicationFilter(
 ): PublicationFilter {
   const isPrivileged =
     actor?.system === true ||
-    actor?.user?.role === "admin" ||
-    actor?.user?.role === "editor" ||
-    actor?.user?.isAdmin === true;
+    isAdmin(actor?.user) ||
+    (Array.isArray(actor?.user?.permissions) &&
+      (actor.user.permissions.includes("content:read_drafts") ||
+        actor.user.permissions.includes("collections:read_drafts") ||
+        actor.user.permissions.includes("admin")));
 
   if (isPrivileged) {
     if (requested === "published" || requested === "draft" || requested === "all") {
@@ -65,4 +69,15 @@ export function applyPublicationToQuery<T extends Record<string, unknown>>(
     (query as Record<string, unknown>).status = { $in: ["draft", "unpublish"] };
   }
   return query;
+}
+
+/**
+ * Cache-key suffix for a publication filter.
+ * `"all"` is unconstrained (same query as pre-policy keys) so it MUST stay
+ * suffix-free — otherwise every privileged findById fragments the L1 keyspace
+ * and 10k-id random reads thrash a 2k LRU. Published/draft keep a suffix so
+ * a cached "all" document can never be served to a clamped caller.
+ */
+export function publicationCacheSuffix(filter: PublicationFilter): string {
+  return filter === "all" ? "" : `:${filter}`;
 }

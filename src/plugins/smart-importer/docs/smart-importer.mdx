@@ -365,7 +365,9 @@ WordPress (WXR XML), Drupal (JSON:API/YAML/CSV), Strapi, Directus, SveltyCMS
 
 **Headless:** Contentful, Sanity, Payload, Storyblok, Prismic, Hygraph, Contentstack, DatoCMS, Kontent.ai, Cockpit
 
-**E-commerce:** Shopify, Magento, PrestaShop, OpenCart
+**E-commerce:** Shopify, WooCommerce (WXR + REST JSON), Magento, PrestaShop, OpenCart
+
+Catalog imports target the optional ecommerce **preset** (`products` + variants). WooCommerce: `--format=woocommerce` (WXR or REST JSON). Shopify: `--format=shopify`. After import, add the **Commerce Orders** and **Commerce Inventory** dashboard widgets (freemium, 14-day trial) from the admin dashboard picker. Map: [E-Commerce Overview](/docs/reference/architecture/ecommerce-overview.mdx). Checkout sessions / PHP carts are **not** imported — enable the optional Commerce plugin for guest checkout.
 
 **SaaS:** Ghost, Webflow, HubSpot, Wix, Squarespace, Duda, Tilda, Builder.io
 

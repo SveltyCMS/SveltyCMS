@@ -123,6 +123,7 @@ function platformFallback(platform: string): string {
     case "drupal":
       return "nodes";
     case "shopify":
+    case "woocommerce":
       return "products";
     case "strapi":
       return "entries";

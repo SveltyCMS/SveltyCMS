@@ -15,7 +15,7 @@
  * - Active-connection tracking for graceful shutdown (1001 Going Away)
  */
 
-import { SESSION_COOKIE_NAME, isSecureCookieContext } from "@src/databases/auth/constants";
+import { isSecureCookieContext, readSessionCookie } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { getDbInitPromise } from "@src/databases/db";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
@@ -165,15 +165,14 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
 
     // Cookie name handling (secure prefix)
     const isSecure = isSecureCookieContext(url.protocol, url.hostname);
-    const cookieName = isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 
     // Extract session ID
     let sessionId: string | null = null;
     if (typeof ctx.cookies?.get === "function") {
-      sessionId = ctx.cookies.get(cookieName) || ctx.cookies.get(SESSION_COOKIE_NAME) || null;
+      sessionId = readSessionCookie(ctx.cookies, isSecure) || null;
     } else if (cookieHeader) {
       const parsed = parseCookies(cookieHeader);
-      sessionId = parsed[cookieName] || parsed[SESSION_COOKIE_NAME] || null;
+      sessionId = readSessionCookie({ get: (name: string) => parsed[name] }, isSecure) || null;
     }
 
     // ==================== TEST MODE BYPASS ====================
@@ -214,6 +213,28 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
       } as User;
 
       tenantId = tenantIdHeader || url.searchParams.get("tenantId") || tenantId || "default";
+    }
+
+    // ==================== WEBSOCKET RATE LIMITING ====================
+    const clientIp = getHeader(ctx, "x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
+    const wsRateLimitPrefix =
+      process.env.RATE_LIMITER_WEBSOCKETS_REDIS_PREFIX || "svelty:ws:ratelimit:";
+    const rawMax =
+      process.env.RATE_LIMITER_WEBSOCKETS_MAX_CONNECTIONS ||
+      (getPrivateSettingSync as any)("RATE_LIMITER_WEBSOCKETS_MAX_CONNECTIONS") ||
+      "100";
+    const maxConnsPerIp = parseInt(String(rawMax), 10);
+
+    if (!isAuthorizedTest && clientIp !== "127.0.0.1" && clientIp !== "localhost") {
+      const activeFromIp = Array.from(activeConnections).filter(
+        (ws) => (ws as any).clientIp === clientIp,
+      ).length;
+      if (activeFromIp >= maxConnsPerIp) {
+        logger.warn(
+          `[WS Upgrade] Rate limit exceeded for IP: ${clientIp} (${activeFromIp}/${maxConnsPerIp}) [prefix: ${wsRateLimitPrefix}]`,
+        );
+        return false;
+      }
     }
 
     // Final security checks

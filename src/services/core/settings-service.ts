@@ -21,35 +21,11 @@ export type PublicEnv = InferOutput<typeof publicConfigSchema> & {
   PKG_VERSION?: string;
 };
 
-// Extract setting keys from schemas (single source of truth)
-const KNOWN_PUBLIC_KEYS = Object.keys(publicConfigSchema.entries);
-
-// Infrastructure keys that come from config file, not database.
-const INFRASTRUCTURE_KEYS = new Set([
-  "DB_TYPE",
-  "DB_HOST",
-  "DB_PORT",
-  "DB_NAME",
-  "DB_USER",
-  "DB_PASSWORD",
-  "DB_RETRY_ATTEMPTS",
-  "DB_RETRY_DELAY",
-  "DB_POOL_SIZE",
-  "JWT_SECRET_KEY",
-  "ENCRYPTION_KEY",
-  "MULTI_TENANT",
-  "DEMO",
-  "TEST_API_SECRET",
-  "PASSWORD_MIN_LENGTH",
-  "SAML_CLIENT_SECRET_VERIFIER",
-  "SAML_ENCRYPTION_KEY",
-  "SAML_JWT_SIGNING_PRIVATE_KEY",
-  "SAML_JWT_SIGNING_PUBLIC_KEY",
-]);
-
-const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter(
-  (key) => !INFRASTRUCTURE_KEYS.has(key),
-);
+import {
+  INFRASTRUCTURE_KEYS,
+  KNOWN_PUBLIC_KEYS,
+  KNOWN_PRIVATE_KEYS,
+} from "@src/databases/db-utils";
 
 // Internal server-side cache per tenant
 interface SettingsCache {

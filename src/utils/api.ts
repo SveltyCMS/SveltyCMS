@@ -200,9 +200,9 @@ export function batchUpdateEntries(
 ): Promise<ApiResponse<unknown>> {
   const { ids, status, ...otherFields } = payload;
   if (status && ids && Array.isArray(ids)) {
-    return fetchApi(`/api/collections/${collectionId}/${ids[0]}/status`, {
-      method: "PATCH",
-      body: JSON.stringify({ status, entries: ids, ...otherFields }),
+    return fetchApi(`/api/collections/${collectionId}/batch`, {
+      method: "POST",
+      body: JSON.stringify({ action: "status", entryIds: ids, status, ...otherFields }),
     });
   }
   // Return unified error object instead of throwing, to prevent unhandled promise rejections

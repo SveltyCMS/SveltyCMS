@@ -100,11 +100,13 @@ export const myPlugin: Plugin = {
 
 Because SveltyCMS features **System Discovery & Autoloading**, there is no need to manually register or import your plugin inside any central files. Simply saving your plugin code inside the `src/plugins/` directory is enough for the CMS to automatically scan, register, and boot your plugin.
 
-## Plugin Interface
+## Plugin Interface & Versioning
+
+Every plugin must declare a valid **SemVer version** in `metadata.version`. Whenever new features, database migrations, hooks, or bug fixes are added, increment this version. `marketplace.sveltycms.com` checks this version to verify compatibility, manage update notifications, and validate package signatures.
 
 ```typescript
 interface Plugin {
-  metadata: PluginMetadata; // Required: id, name, version, enabled
+  metadata: PluginMetadata; // Required: id, name, version (semver), enabled, author
   config?: PluginConfig; // Public/private settings
   hooks?: PluginLifecycleHooks; // CRUD interception
   ssrHook?: PluginSSRHook; // SSR data enrichment

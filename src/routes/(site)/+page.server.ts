@@ -7,6 +7,7 @@ import { contentSystem } from "@src/content/index.server";
 import { localizeSitePage, resolveSitePage } from "@src/services/site/page-resolver.server";
 import { isSiteStarterEnabled } from "@src/services/site/site-config.server";
 import { isMultiTenantEnabled } from "@utils/tenant";
+import { isAdmin } from "@utils/hook-utils";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { error, isHttpError, isRedirect, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
@@ -34,8 +35,7 @@ async function redirectAuthenticatedUserToCms(locals: App.Locals, url: URL): Pro
     throw redirect(302, redirectUrl);
   }
 
-  const isAdmin = Boolean(user?.isAdmin || user?.role === "admin");
-  if (isAdmin) {
+  if (isAdmin(user)) {
     throw redirect(302, "/config/collectionbuilder");
   }
   throw redirect(302, "/user/profile");
@@ -69,6 +69,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
     tenantId,
     draft: parentData.isDraft,
     entryId: parentData.previewEntryId || undefined,
+    user: locals.user,
   });
 
   if (!page) {

@@ -8,7 +8,7 @@ import { isSiteStarterEnabled } from "@src/services/site/site-config.server";
 import { previewService } from "@src/services/content/preview-service";
 import type { LayoutServerLoad } from "./$types";
 
-export const load: LayoutServerLoad = async ({ url, cookies }) => {
+export const load: LayoutServerLoad = async ({ url, cookies, locals }) => {
   if (!isSiteStarterEnabled()) {
     return { siteStarterEnabled: false };
   }
@@ -34,5 +34,6 @@ export const load: LayoutServerLoad = async ({ url, cookies }) => {
     isDraft,
     contentLanguage,
     previewEntryId,
+    signedIn: Boolean(locals.user && !(locals.user as { isAnonymous?: boolean }).isAnonymous),
   };
 };

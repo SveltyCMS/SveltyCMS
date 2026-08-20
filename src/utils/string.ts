@@ -146,3 +146,31 @@ export function parse<T>(obj: unknown): T {
   }
   return result as T;
 }
+
+/**
+ * Unified string sanitization and validation utilities.
+ */
+export const str = {
+  /** Trim whitespace from an identifier without changing character set */
+  normalizeId: (id: string): string => id.trim(),
+
+  /** Normalize to a safe filesystem/URL key (trim, lowercase, strip non [a-z0-9_-]) */
+  toSafeKey: (key: string): string =>
+    key
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, ""),
+
+  /** Unified empty-value check — handles null, undefined, and whitespace-only strings */
+  isEmpty: (val: unknown): boolean => val == null || (typeof val === "string" && val.trim() === ""),
+
+  /** Safe truncation for UI labels with optional ellipsis */
+  truncate: (s: string, len: number): string => (s.length > len ? `${s.slice(0, len)}...` : s),
+
+  /** Securely strips a known base prefix from a path, preventing leakage */
+  stripBase: (fullPath: string, base: string): string =>
+    fullPath.startsWith(base) ? fullPath.slice(base.length) : fullPath,
+
+  /** Escape a string for safe use in regex patterns */
+  escapeRegex: (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+} as const;

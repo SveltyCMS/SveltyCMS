@@ -120,6 +120,12 @@ describe("collection-query-filters", () => {
       expect(q.filter.hacked).toBeUndefined();
       expect(q.queryHash).toMatch(/^[0-9a-f]{8}$/);
     });
+
+    it("aliases _createdAt sort fields onto createdAt", () => {
+      const params = new URLSearchParams({ sort: "_createdAt", order: "asc" });
+      const q = parseCollectionListQuery(params, sampleCollection);
+      expect(q.sort).toEqual({ field: "createdAt", direction: "asc" });
+    });
   });
 
   describe("buildCollectionQueryCacheKey", () => {

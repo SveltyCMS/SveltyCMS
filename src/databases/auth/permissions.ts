@@ -100,6 +100,18 @@ const DEFAULT_ROLE_NAMES: Record<string, string> = {
   author: "Author",
 };
 
+const _roleIdsArrayCache = new WeakMap<Role[], string[]>();
+
+function getRoleIdsArray(roles: Role[]): string[] {
+  if (roles.length === 0) return [];
+  let cached = _roleIdsArrayCache.get(roles);
+  if (!cached) {
+    cached = roles.map((r) => String(r._id));
+    _roleIdsArrayCache.set(roles, cached);
+  }
+  return cached;
+}
+
 // Check if a user has a specific permission (with roles parameter to avoid circular dependency)
 // Supports multiple roles — grants access if ANY role has the permission.
 export function hasPermissionWithRoles(
@@ -117,7 +129,7 @@ export function hasPermissionWithRoles(
   let roleIds: string[] | undefined;
 
   if (userId) {
-    roleIds = safeRoles.length === 0 ? [] : safeRoles.map((r) => String(r._id));
+    roleIds = getRoleIdsArray(safeRoles);
     const cached = permissionCache.get(userId, permissionId, roleIds);
     if (cached !== null) return cached;
   }

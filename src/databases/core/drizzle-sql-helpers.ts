@@ -90,19 +90,28 @@ const NON_SCALAR_WIDGETS = new Set([
   "AIEnrichment",
 ]);
 
+const _widgetNameCache = new Map<string, string>();
+
 function widgetNameOf(field: any): string {
   const raw =
     field?.widget?.Name ??
     field?.widget?.name ??
     (typeof field.widget === "string" ? field.widget : "");
   if (!raw) return "";
+
+  const cached = _widgetNameCache.get(raw);
+  if (cached !== undefined) return cached;
+
   // The GUI builder stores the palette key (kebab-case: "media-upload") in
   // widget.Name on some paths; canonical code schemas use the PascalCase name
   // ("MediaUpload"). Normalize to PascalCase so the allowlists match both.
-  return raw
+  const normalized = raw
     .replace(/[-_\s]+/g, " ")
     .replace(/\b\w/g, (c: string) => c.toUpperCase())
     .replace(/\s+/g, "");
+
+  _widgetNameCache.set(raw, normalized);
+  return normalized;
 }
 
 /**

@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database-clock"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-08-09"
+updated: "2026-08-19"
 tags:
   - "cache"
   - "redis"
@@ -25,7 +25,9 @@ SveltyCMS implements a **dual-layer caching system**: L1 is an in-memory LRU cac
 
 ### HTTP response cache (turbo GET + GraphQL)
 
-Separate from `cacheService` entity keys: **`responseCache`** (`src/services/cache/response-cache.ts`) stores user-scoped pre-stringified API/GraphQL bodies + ETags for the **Request Lane Router** (`HYPER_TURBO` / handler-level GraphQL HIT). Keys are `u:{userId}:…` with deep-sorted variables; mutations invalidate `res:*` / GraphQL patterns. Supports zero-copy `Uint8Array` binary byte buffers directly in L1 RAM to bypass string allocations and UTF-8 encoding.
+Separate from `cacheService` entity keys: **`responseCache`** (`src/services/cache/response-cache.ts`) stores user-scoped pre-stringified API/GraphQL bodies + ETags for the **Request Lane Router** (`HYPER_TURBO` / handler-level GraphQL HIT). Keys are `u:{userId}:…` with deep-sorted variables; mutations invalidate `res:*` / GraphQL patterns. Supports zero-copy `Uint8Array` binary byte buffers directly in L1 RAM to bypass string allocations and UTF-8 encoding. Requests carrying matching `If-None-Match` headers short-circuit in `handleTurboGet` with **HTTP 304 Not Modified** responses without body allocation.
+
+**Layout L0:** `ContentStore.getClientNodes(tenantId)` memoizes JSON-sanitized navigation nodes per tenant and invalidates on `updateVersion()` / `clear()`. Root `+layout.server.ts` uses that cache instead of cloning the structure on every load. Schema lookups use `limit: 1`; `CollectionsNamespace` and `count` use a synchronous L1 `getSync` fast-path. In-memory sessions are a bounded `Map` (`MAX_SESSIONS = 10000`).
 
 ### N+1 batching in GraphQL
 
@@ -67,7 +69,7 @@ The L1 cache is a local `LRUCache` instance (not Redis). Redis is the optional L
 The content scanner adds a **process-local L0** on top of the dual-layer cache:
 
 ```
-L0: Mtime Tree + _schemaCache (engine.server.ts) → skip fs/import when unchanged
+L0: Mtime Tree + _schemaCache (engine.server.ts) + _clientNodesCache (contentStore) → skip fs/import and layout serialization
 L1: cacheService LRU (schema:*, navigation:tree:*)       → sub-µs metadata hits
 L2: Redis MGET/MSET (optional)                            → cross-node schema + nav snapshots
 ```

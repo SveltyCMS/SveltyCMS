@@ -19,6 +19,7 @@
  */
 
 import { browser } from "$app/env";
+import { isAdmin } from "@src/databases/auth/constants";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -213,7 +214,7 @@ export function getUserStorageKey(userId: string): string {
 }
 
 export function isAdminUser(user?: FloatingNavUserContext | null): boolean {
-  return user?.isAdmin === true || user?.role === "admin";
+  return isAdmin(user);
 }
 
 export function findSystemEndpointByPath(pathname: string): SystemEndpointDef | undefined {

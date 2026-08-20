@@ -3,7 +3,7 @@
  * @description Unit tests for in-process WordPress REST fixture server.
  */
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   getRestFixtureServerPort,
   isWordPressRestFixtureReachable,

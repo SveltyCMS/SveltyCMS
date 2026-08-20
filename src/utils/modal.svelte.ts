@@ -134,7 +134,7 @@ class ModalManager {
           buttonTextCancel: options.cancelText || m.button_cancel?.() || "Cancel",
           modalClasses: `!bg-${theme.color}-500/10 !border-${theme.color}-500/20`,
           meta: {
-            buttonConfirmClasses: `variant-${theme.variant}-${theme.color}`,
+            buttonConfirmClasses: `preset-${theme.variant === "filled" ? "filled" : "tonal"}-${theme.color}-500`,
             buttonCancelClasses: "preset-outlined-surface-500",
           },
         },
@@ -177,9 +177,9 @@ class ModalManager {
 
     const adminWarning =
       isAdmin && !isArchive
-        ? `<div class="alert variant-filled-warning mt-4">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-          <div><h3>Important</h3><p>This action is irreversible.</p></div>
+        ? `<div class="alert preset-filled-warning-500 mt-4">
+          <iconify-icon icon="mdi:alert" width="24"></iconify-icon>
+          <div class="alert-message"><strong>Important:</strong> This action is irreversible.</div>
          </div>`
         : "";
 

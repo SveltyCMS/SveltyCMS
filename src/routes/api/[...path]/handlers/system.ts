@@ -8,11 +8,42 @@ import { AppError } from "@utils/error-handling";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
-import { rawResponse, successResponse } from "./base";
-import { webhookService } from "@src/services/background/webhook-service";
+import { rawResponse, successResponse, validateRequestBody } from "./base";
+import { webhookService, type Webhook } from "@src/services/background/webhook-service";
 import { settingsGroups } from "@src/routes/(app)/config/system-settings/settings-groups";
 import { isMultiTenantEnabled } from "@utils/tenant";
+import { isAdmin } from "@src/databases/auth/constants";
 import { cacheService } from "@src/databases/cache/cache-service";
+import * as v from "valibot";
+
+const SaveWebhookSchema = v.object({
+  id: v.optional(v.string()),
+  name: v.optional(v.string()),
+  url: v.optional(v.string()),
+  events: v.optional(v.array(v.string())),
+  event: v.optional(v.string()),
+  active: v.optional(v.boolean()),
+  secret: v.optional(v.string()),
+  headers: v.optional(v.record(v.string(), v.string())),
+});
+
+const ImportPresetSchema = v.object({
+  presetJson: v.pipe(v.string(), v.minLength(1, "presetJson is required")),
+});
+
+const CreateThemeSchema = v.object({
+  name: v.pipe(v.string(), v.minLength(1, "name is required")),
+  settings: v.optional(v.any()),
+});
+
+const ThemeIdSchema = v.object({
+  themeId: v.pipe(v.string(), v.minLength(1, "themeId is required")),
+});
+
+const CloneThemeSchema = v.object({
+  sourceId: v.pipe(v.string(), v.minLength(1, "sourceId is required")),
+  name: v.pipe(v.string(), v.minLength(1, "name is required")),
+});
 
 export async function handleSystemRoutes(
   event: RequestEvent,
@@ -236,12 +267,14 @@ export async function handleWebhookRoutes(
   if (!webhookId) {
     if (request.method === "GET")
       return successResponse(event, await webhookService.getWebhooks(tenantId as string));
-    if (request.method === "POST")
+    if (request.method === "POST") {
+      const body = await validateRequestBody(event, SaveWebhookSchema);
       return successResponse(
         event,
-        await webhookService.saveWebhook(await request.json(), tenantId as string),
+        await webhookService.saveWebhook(body as unknown as Partial<Webhook>, tenantId as string),
         201,
       );
+    }
   } else {
     const webhooks = await webhookService.getWebhooks(tenantId as string);
     const exists = webhooks.some((w: any) => w.id === webhookId);
@@ -256,14 +289,16 @@ export async function handleWebhookRoutes(
         ),
       });
 
-    if (request.method === "PATCH" || request.method === "PUT")
+    if (request.method === "PATCH" || request.method === "PUT") {
+      const body = await validateRequestBody(event, SaveWebhookSchema);
       return successResponse(
         event,
         await webhookService.saveWebhook(
-          { ...(await request.json()), id: webhookId },
+          { ...body, id: webhookId } as unknown as Partial<Webhook>,
           tenantId as string,
         ),
       );
+    }
     if (request.method === "DELETE") {
       await webhookService.deleteWebhook(webhookId, tenantId as string);
       return successResponse(event, { success: true });
@@ -679,6 +714,102 @@ export async function handleAiRoutes(
 }
 
 /**
+ * --- AI BUILDER (Phase 0) ---
+ *
+ * Design/refine are read-only AI proposal actions; approve-collection is
+ * reserved for Phase 1 (persisting approved proposals) and returns 501.
+ */
+export async function handleAiBuilderRoutes(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  tenantId: DatabaseId,
+  segments: string[],
+) {
+  const { request, locals } = event;
+
+  if (isMultiTenantEnabled() && !tenantId) {
+    throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
+  }
+
+  // 🛡️ SECURITY: AI builder is an admin-only design surface.
+  // Defense-in-depth: handler-level check independent of the middleware pipeline.
+  const { user } = locals;
+  if (!user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+  if (!isAdmin(user)) {
+    throw new AppError("Admin access required for AI builder", 403, "FORBIDDEN");
+  }
+
+  if (request.method !== "POST") {
+    throw new AppError(
+      `Method ${request.method} not allowed for ai-builder`,
+      405,
+      "METHOD_NOT_ALLOWED",
+    );
+  }
+
+  const action = segments[1];
+  const body = await request.json().catch(() => ({}));
+
+  if (action === "design-collection") {
+    const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    if (!prompt) {
+      throw new AppError("prompt is required", 400, "BAD_REQUEST");
+    }
+
+    const { builderAiGateway, designCollection } = await import("@src/services/ai-builder");
+    builderAiGateway.checkQuota(String(user._id));
+    const result = await designCollection(
+      {
+        prompt,
+        tenantId,
+        existingSchema: body.existingSchema,
+        language: body.language,
+        availableWidgets: body.availableWidgets,
+      },
+      String(user._id),
+    );
+    return successResponse(event, result);
+  }
+
+  if (action === "refine-collection") {
+    const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    if (!prompt) {
+      throw new AppError("prompt is required", 400, "BAD_REQUEST");
+    }
+    if (!body.previousProposal) {
+      throw new AppError("previousProposal is required", 400, "BAD_REQUEST");
+    }
+
+    const { builderAiGateway, refineCollection } = await import("@src/services/ai-builder");
+    builderAiGateway.checkQuota(String(user._id));
+    const result = await refineCollection(
+      {
+        prompt,
+        tenantId,
+        existingSchema: body.existingSchema,
+        language: body.language,
+        previousProposal: body.previousProposal,
+      },
+      String(user._id),
+    );
+    return successResponse(event, result);
+  }
+
+  if (action === "approve-collection") {
+    // Reserved for Phase 1: persist the approved proposal.
+    throw new AppError(
+      "Collection approval is not implemented yet (Phase 1)",
+      501,
+      "NOT_IMPLEMENTED",
+    );
+  }
+
+  throw new AppError("Unknown AI builder action", 404, "NOT_FOUND");
+}
+
+/**
  * --- AUTOMATION ---
  */
 /**
@@ -767,7 +898,7 @@ export async function handleWorkflowRoutes(
 
 export async function handleAutomationRoutes(
   event: RequestEvent,
-  cms: LocalCMS,
+  _cms: LocalCMS,
   tenantId: DatabaseId,
   segments: string[],
 ) {
@@ -788,64 +919,71 @@ export async function handleAutomationRoutes(
       `[handleAutomationRoutes] Method: ${request.method}, segments: ${segments.join(",")}, tenantId: ${tenantId}`,
     );
   }
-  if (isMultiTenantEnabled() && !tenantId) {
+
+  const { url } = event;
+  const queryTenantId = url.searchParams.get("tenantId");
+  let effectiveTenantId = tenantId as string;
+
+  if (queryTenantId && queryTenantId !== tenantId) {
+    if (user.role === "super-admin") {
+      effectiveTenantId = queryTenantId;
+    } else {
+      throw new AppError("Forbidden: Cannot access other tenants", 403, "FORBIDDEN");
+    }
+  }
+
+  if (isMultiTenantEnabled() && !effectiveTenantId) {
     throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
   }
   const id = segments[1]; // Corrected index: namespace is [0], id is [1]
 
+  const { automationService: service } =
+    await import("@src/services/background/automation/automation-service");
+
   if (request.method === "GET") {
     if (!id || id === "list")
-      return successResponse(
-        event,
-        await cms.automation.getFlow(undefined as any, {
-          tenantId: tenantId as any,
-        }),
-      );
+      return successResponse(event, await service.getFlow(undefined as any, effectiveTenantId));
 
-    if (segments[2] === "logs")
-      return successResponse(event, await cms.automation.getLogs(id, { tenantId }));
+    if (segments[2] === "logs") return successResponse(event, await service.getLogs(id));
 
-    const flow = await cms.automation.getFlow(id, {
-      tenantId: tenantId as any,
-    });
+    const flow = await service.getFlow(id, effectiveTenantId);
     if (!flow) throw new AppError("Automation flow not found", 404);
     return successResponse(event, flow);
   }
 
   if (request.method === "POST") {
     if (segments[2] === "test") {
-      const result = await cms.automation.executeFlow(id, await request.json(), {
-        tenantId: tenantId as any,
+      const flow = await service.getFlow(id, effectiveTenantId);
+      if (!flow) throw new AppError("Automation flow not found", 404);
+      const testPayload = (await request.json().catch(() => ({}))) as any;
+      const result = await service.executeFlow(flow, {
+        event: "entry:create",
+        data: testPayload,
+        timestamp: new Date().toISOString(),
+        tenantId: effectiveTenantId,
       });
       return successResponse(event, result);
     }
-    const { automationService: service } =
-      await import("@src/services/background/automation/automation-service");
     return successResponse(
       event,
-      await service.saveFlow(await request.json(), tenantId as string),
+      await service.saveFlow(await request.json(), effectiveTenantId),
       201,
     );
   }
 
   if ((request.method === "DELETE" || request.method === "PATCH") && id) {
-    const flow = await cms.automation.getFlow(id, {
-      tenantId: tenantId as any,
-    });
+    const flow = await service.getFlow(id, effectiveTenantId);
     if (!flow) throw new AppError("Automation flow not found", 404);
 
-    const { automationService: service } =
-      await import("@src/services/background/automation/automation-service");
-
     if (request.method === "DELETE") {
-      await service.deleteFlow(id, tenantId as any);
+      await service.deleteFlow(id, effectiveTenantId);
       return successResponse(event, { success: true });
     }
 
     if (request.method === "PATCH") {
       return successResponse(
         event,
-        await service.saveFlow({ ...flow, ...(await request.json()) }, tenantId as any),
+        await service.saveFlow({ ...flow, ...(await request.json()) }, effectiveTenantId),
       );
     }
   }
@@ -971,8 +1109,7 @@ export async function handleThemeRoutes(
     return successResponse(event, result);
   }
   if (action === "import-preset" && request.method === "POST") {
-    const { presetJson } = await request.json();
-    if (!presetJson) throw new AppError("presetJson is required", 400);
+    const { presetJson } = await validateRequestBody(event, ImportPresetSchema);
     const { adminThemeService } = await import("@src/services/core/admin-theme-service");
     const { theme, contrastWarnings } = await adminThemeService.importPreset(presetJson, tenantId);
     return json({ success: true, data: theme, warnings: contrastWarnings });
@@ -985,29 +1122,25 @@ export async function handleThemeRoutes(
     return json(themes);
   }
   if (action === "create" && request.method === "POST") {
-    const { name, settings } = await request.json();
-    if (!name) throw new AppError("name is required", 400);
+    const { name, settings } = await validateRequestBody(event, CreateThemeSchema);
     const { adminThemeService } = await import("@src/services/core/admin-theme-service");
     const result = await adminThemeService.createTheme(name, settings, tenantId);
     return successResponse(event, result, 201);
   }
   if (action === "delete" && request.method === "POST") {
-    const { themeId } = await request.json();
-    if (!themeId) throw new AppError("themeId is required", 400);
+    const { themeId } = await validateRequestBody(event, ThemeIdSchema);
     const { adminThemeService } = await import("@src/services/core/admin-theme-service");
     await adminThemeService.deleteTheme(themeId, tenantId);
     return successResponse(event, { success: true });
   }
   if (action === "activate" && request.method === "POST") {
-    const { themeId } = await request.json();
-    if (!themeId) throw new AppError("themeId is required", 400);
+    const { themeId } = await validateRequestBody(event, ThemeIdSchema);
     const { adminThemeService } = await import("@src/services/core/admin-theme-service");
     const result = await adminThemeService.activateTheme(themeId, tenantId);
     return successResponse(event, result);
   }
   if (action === "clone" && request.method === "POST") {
-    const { sourceId, name } = await request.json();
-    if (!sourceId || !name) throw new AppError("sourceId and name are required", 400);
+    const { sourceId, name } = await validateRequestBody(event, CloneThemeSchema);
     const { adminThemeService } = await import("@src/services/core/admin-theme-service");
     const result = await adminThemeService.cloneTheme(sourceId, name, tenantId);
     return successResponse(event, result, 201);

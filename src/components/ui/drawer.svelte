@@ -95,7 +95,7 @@ configurable position, and full focus management via `useDialog`.
 	});
 
 	const colorClasses: Record<string, string> = {
-		surface: 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-800',
+		surface: 'bg-(--admin-bg-overlay) border-(--admin-border-default)',
 		primary: 'bg-primary-50 dark:bg-primary-950 border-primary-200 dark:border-primary-800',
 		secondary: 'bg-secondary-50 dark:bg-secondary-950 border-secondary-200 dark:border-secondary-800',
 		tertiary: 'bg-tertiary-50 dark:bg-tertiary-950 border-tertiary-200 dark:border-tertiary-800',
@@ -109,7 +109,7 @@ configurable position, and full focus management via `useDialog`.
 		onclick={dialog.onBackdropClick}
 		onkeydown={dialog.onKeydown}
 		class={cn(
-			'fixed inset-0 z-101 bg-transparent border-0 p-0 overflow-hidden backdrop:bg-surface-900/60 backdrop:backdrop-blur-sm',
+			'fixed inset-0 z-101 bg-transparent border-0 p-0 overflow-hidden backdrop:bg-(--admin-bg-backdrop) backdrop:backdrop-blur-sm',
 			'open:flex flex-col',
 		)}
 		{...dialog.dialogAria}
@@ -121,7 +121,7 @@ configurable position, and full focus management via `useDialog`.
 			<div
 				data-dialog-content
 				class={cn(
-					'fixed z-102 flex flex-col border-s dark:border-surface-800 shadow-2xl transition-all duration-300',
+					'fixed z-102 flex flex-col border-s border-(--admin-border-default) shadow-2xl transition-all duration-300',
 					colorClasses[color],
 					positionClasses[position],
 					size,
@@ -131,7 +131,7 @@ configurable position, and full focus management via `useDialog`.
 				tabindex="-1"
 			>
 				<!-- Header -->
-				<header class="flex items-center justify-between p-4 border-b border-surface-200 dark:border-surface-800 shrink-0">
+				<header class="flex items-center justify-between p-4 border-b border-(--admin-border-default) shrink-0">
 					<div>
 						{#if title}
 							<h3 class="text-lg font-bold text-surface-900 dark:text-white">{title}</h3>
@@ -156,7 +156,7 @@ configurable position, and full focus management via `useDialog`.
 
 				<!-- Footer -->
 				{#if footer}
-					<footer class="p-4 bg-surface-50 dark:bg-surface-950/50 border-t border-surface-200 dark:border-surface-800 flex justify-end gap-3 shrink-0">
+					<footer class="p-4 bg-(--admin-bg-page) border-t border-(--admin-border-default) flex justify-end gap-3 shrink-0">
 						{@render footer()}
 					</footer>
 				{/if}

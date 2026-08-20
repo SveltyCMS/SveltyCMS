@@ -684,11 +684,19 @@ async function lintSingleFile(fp: string) {
       resolved = linkPath.startsWith("/")
         ? linkPath.replace(/^\/docs\//, "").replace(/^\//, "")
         : path.posix.normalize(path.posix.join(docDir, linkPath));
+      const fileInDocs =
+        fileIndex.has(resolved) ||
+        fileIndex.has(resolved + ".md") ||
+        fileIndex.has(resolved + ".mdx");
+      const fileInRepo =
+        fs.existsSync(path.join(process.cwd(), resolved)) ||
+        fs.existsSync(path.join(process.cwd(), resolved + ".md")) ||
+        fs.existsSync(path.join(process.cwd(), resolved + ".mdx"));
+
       if (
         !isSkippableLinkTarget(raw) &&
-        !fileIndex.has(resolved) &&
-        !fileIndex.has(resolved + ".md") &&
-        !fileIndex.has(resolved + ".mdx") &&
+        !fileInDocs &&
+        !fileInRepo &&
         !hasStaticAsset(raw) &&
         !resolved.startsWith("..") // Skip relative paths outside docs/
       ) {
@@ -702,9 +710,13 @@ async function lintSingleFile(fp: string) {
         continue;
       }
       for (const ext of [".md", ".mdx", ""]) {
-        const f = path.join(process.cwd(), "docs", resolved + ext);
-        if (fs.existsSync(f)) {
-          targetFile = f;
+        const fDocs = path.join(process.cwd(), "docs", resolved + ext);
+        const fRepo = path.join(process.cwd(), resolved + ext);
+        if (fs.existsSync(fDocs)) {
+          targetFile = fDocs;
+          break;
+        } else if (fs.existsSync(fRepo)) {
+          targetFile = fRepo;
           break;
         }
       }

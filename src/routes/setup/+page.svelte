@@ -8,7 +8,10 @@
 	// Stores
 
 	// Native UI Components v4
-	import DialogManager from '@src/components/system/dialog-manager.svelte';
+	// NOTE: <DialogManager /> is mounted once in the ROOT layout (src/routes/+layout.svelte).
+	// It renders from the shared global `modalState`, so mounting a second instance here made
+	// every setup-wizard modal render twice, pixel-aligned — the top copy swallowed the click
+	// and the lower copy was inert. Do not re-add it. See dialog-manager.svelte for the guard.
 	// ParaglideJS
 	import {
 		label_database,
@@ -315,7 +318,6 @@
 
 		<!-- Main: absolute footer so Redis / multi-tenant expand cannot reflow navigation -->
 		<main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-100 dark:bg-surface-800">
-			<DialogManager />
 			<!-- Mobile Stepper (shared UI Stepper) -->
 			<div class="z-10 shrink-0 border-b border-surface-200 bg-white p-4 dark:border-surface-700 dark:bg-surface-800 lg:hidden">
 				<Stepper
@@ -423,7 +425,7 @@
 										<Button variant="outline"
 											type="button"
 											onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
-										 size="sm" class="preset-outlined rounded flex items-center gap-1">
+										 size="sm" class="flex items-center gap-1">
 											<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
 											<span class="hidden sm:inline">{wizard.showDbDetails ? setup_db_test_details_hide() : setup_db_test_details_show()}</span>
 										</Button>

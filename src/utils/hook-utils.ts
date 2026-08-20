@@ -41,6 +41,17 @@ export const MUTATION_HTTP_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
 /** Body-bearing verbs (field-write guard, payload size limit). */
 export const WRITE_HTTP_METHODS = new Set(["POST", "PUT", "PATCH"]);
 
+/**
+ * GraphQL is almost always POST, including read-only queries. Treating those
+ * POSTs as mutations wipes the GraphQL response cache on every query.
+ * Empty/missing query is treated as read (fail-open for cache; Yoga still rejects).
+ */
+export function isGraphqlReadOperation(query: string | null | undefined): boolean {
+  if (!query) return true;
+  const trimmed = query.trim().toLowerCase();
+  return !trimmed.startsWith("mutation") && !trimmed.startsWith("subscription");
+}
+
 /** Standardized user ID string extraction for cache key isolation. */
 export function getUserCacheId(user: { _id?: unknown; id?: unknown } | null | undefined): string {
   if (!user) return "";
@@ -101,7 +112,21 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/auth/saml/login",
 ]);
 
-const PUBLIC_PREFIX_ROUTES = ["/api/settings/public", "/api/theme/public", "/share"];
+const PUBLIC_PREFIX_ROUTES = [
+  "/api/settings/public",
+  "/api/theme/public",
+  "/share",
+  "/api/commerce/cart",
+  "/api/commerce/quote",
+  "/api/commerce/coupon",
+  "/api/commerce/checkout",
+  "/api/commerce/pay",
+  "/api/commerce/confirm",
+  "/api/commerce/panes",
+  "/api/commerce/downloads",
+  "/api/stripe/webhook",
+  "/api/stripe/config",
+];
 
 /**
  * Public route prefixes/paths for audits and docs.
@@ -183,13 +208,7 @@ export function isApiLike(pathname: string): boolean {
   return pathname.startsWith("/api/") || pathname.includes("/api-");
 }
 
-export function isAdmin(user: any): boolean {
-  if (!user) return false;
-  // SQLite may return isAdmin as 0/1; treat any truthy value as admin
-  if (user.isAdmin === true || user.isAdmin === 1 || user.isAdmin === "1") return true;
-  const role = String(user.role ?? "").toLowerCase();
-  return role === "admin" || role === "super-admin";
-}
+export { isAdmin } from "@src/databases/auth/constants";
 
 /**
  * High-performance client IP detection.

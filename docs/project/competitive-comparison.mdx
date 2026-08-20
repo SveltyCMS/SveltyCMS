@@ -4,7 +4,7 @@ title: "Competitive Comparison"
 description: "A strategic, EU-compliant buyer's guide comparing SveltyCMS with Payload CMS, Strapi, and Directus across total cost of ownership, compliance readiness, and time-to-market."
 author: "SveltyCMS Team"
 created: "2026-03-21"
-updated: "2026-08-04"
+updated: "2026-08-19"
 tags:
   - "comparison"
   - "buyers-guide"
@@ -42,6 +42,7 @@ What differs in **public product packaging** and **our self-measured stack** (no
 | **Admin UI runtime model** | Svelte 5 compile (no React VDOM in admin)                 | React VDOM                                               | React admin                       | Vue reactivity                        |
 | **i18n**                   | Paraglide compile-time                                    | i18next runtime                                          | Plugin runtime                    | vue-i18n runtime                      |
 | **Out-of-the-box API**     | REST + GraphQL + OpenAPI 3.1                              | REST + GraphQL                                           | REST + GraphQL                    | REST + GraphQL                        |
+| **Multi-environment sync** | Hybrid TS schemas + 4 safety modes + PII-safe sync (core) | Code-first schemas + DB migrations                       | Data transfer CLI / plugins       | CLI schema sync (`d6s sync`) (v12.3)  |
 
 > Competitor cold-start numbers are **not** measured with our suite. Treat them as orientation only. Verify current tiers on each vendor’s pricing page.
 
@@ -165,6 +166,26 @@ Time-to-market depends on the platform your team can ship with today. This is ho
 
 **A note on Strapi's marketplace:** Strapi's plugin marketplace is one of the largest of the four, to our knowledge — a real strength if you need a mature off-the-shelf integration, and a reason Strapi remains a strong default for teams that assemble integrations.
 
+## Multi-Environment Synchronization: Schema as Code & Content Promotion
+
+Moving configuration and content across dev, staging, and production environments is a critical workflow for enterprise delivery pipelines. Each platform takes a distinct architectural approach:
+
+| Capability                        | SveltyCMS                                                                                                | Payload CMS                            | Strapi                                                         | Directus                                    |
+| :-------------------------------- | :------------------------------------------------------------------------------------------------------- | :------------------------------------- | :------------------------------------------------------------- | :------------------------------------------ |
+| **Schema definition model**       | **Hybrid — native TypeScript (`config/collections/*.ts`) + GUI with bi-directional sync**                | Code-first (TypeScript configs)        | GUI-first (schema files generated)                             | GUI-first + code extensions                 |
+| **Configuration sync workflow**   | **`ConfigPromotionService` (`/api/config/*`) with 4 safety modes (`add`, `merge`, `mirror`, `replace`)** | Git repo commits + database migrations | Data transfer CLI (`strapi transfer`) / community sync plugins | `@directus/cli` (`d6s sync pull/diff/push`) |
+| **Drift detection**               | **Deterministic SHA-256 checksums + plan preview before apply**                                          | Custom / Drizzle migration checks      | CLI data transfer diff                                         | JSON diff preview (`d6s sync diff`)         |
+| **Content movement between envs** | **Channel-based push/pull (`/api/content-sync/*`) + NDJSON packages**                                    | Custom migration scripts / REST export | `strapi transfer` (content & files)                            | Directus sync / API export                  |
+| **PII anonymization on sync**     | **Deterministic PII scrubbing on pull (Core, free)**                                                     | _Not documented as built-in_           | _Not documented as built-in_                                   | _Not documented as built-in_                |
+| **Audit logging for sync**        | **Tamper-evident SHA-256 chained audit ledger**                                                          | Enterprise tier                        | Plugin / Enterprise tier                                       | Enterprise module                           |
+
+**Workflow comparison:**
+
+- **SveltyCMS** maintains schemas as native TypeScript files on disk (`config/collections/*.ts`), ensuring compile-time type safety. Platform configuration (roles, permissions, settings, automations) is exported to deterministic JSON bundles in `config/sync/` for Git promotion. Content sync operates over dedicated channels with native PII anonymization.
+- **Directus 12.3** introduced Environment Sync via `@directus/cli` (`d6s`), which exports schema and configuration to JSON files in Git and provides `sync pull`, `sync diff`, and `sync push` commands for multi-environment delivery.
+- **Payload CMS** uses a code-first model where schemas live directly in TypeScript files in Git, relying on standard Git pull requests and database migrations across environments.
+- **Strapi** provides `strapi transfer` (Data Transfer) for pushing and pulling schemas, content, and files between instances via CLI transfer tokens.
+
 ## Accessibility: Compliance for Every User
 
 Accessibility is a procurement requirement in public-sector and enterprise deals. WCAG conformance should be designed in, not retrofitted.
@@ -207,20 +228,38 @@ Accessibility is a procurement requirement in public-sector and enterprise deals
 
 **How the alternatives compare.** Alternatives typically rely on buffer-based uploads and plugin-based workflows for sharing, deduplication, and analytics, or on separate file-sharing tooling.
 
+## Commerce packaging (public docs, August 2026)
+
+Like-for-like notes on **documented native ecommerce capabilities**. Not a ranking; verify current vendor docs before a purchase decision.
+
+| Area                                     | SveltyCMS (self-hosted, Aug 2026)                                 | Payload CMS ecommerce plugin (public docs / RFC)                 |
+| :--------------------------------------- | :---------------------------------------------------------------- | :--------------------------------------------------------------- |
+| Catalog (products, variants, categories) | Preset collections                                                | Documented native                                                |
+| Catalog import (Woo / Shopify)           | Smart Importer (`--format=woocommerce` / `shopify`)               | Documented import paths vary by plugin                           |
+| Admin dashboard (orders / inventory)     | Freemium widgets, 14-day trial (`dashboard:commerce-*`)           | Admin UI is documented as part of the ecommerce plugin           |
+| Reviews                                  | Preset `product_reviews`                                          | Not listed as a native plugin feature                            |
+| Carts / orders                           | Opt-in Commerce plugin: guest cart + checkout (`/api/commerce/*`) | Documented native                                                |
+| Coupons / shipping / tax **data**        | Preset tables; live UPS/FedEx/DHL + TaxJar are **paid plugins**   | Shipping, taxes, discount codes documented as native gaps or RFC |
+| Totals / PaymentIntent amount            | `computeTotals`; pay uses server `grandTotal` (orderId only)      | Open issue: adapter uses `cart.subtotal` as PaymentIntent amount |
+| Subscriptions / gift cards / bundles     | Commerce Pro-gated; Stripe Billing not wired                      | Documented native gaps / RFC                                     |
+| Multi-tenancy on commerce data           | `tenantId` on every commerce query                                | Not documented as built-in                                       |
+
+Product map: [E-Commerce Overview](../reference/architecture/ecommerce-overview.mdx) (core stays a CMS; store pieces are plugins / widgets / gated handlers).
+
 ## Verdict
 
 No CMS wins every evaluation — and claiming otherwise is how trust gets lost. Here is our honest read:
 
-- **Choose SveltyCMS when** you need enterprise-grade security and compliance (SSO, SCIM, tamper-evident audit logs) without enterprise pricing; you're building performance-sensitive or edge-deployed products; you run multi-tenant SaaS; your team is already SvelteKit or wants a single coherent stack rather than a separate admin framework layered on the front end; or your workloads are media-heavy.
+- **Choose SveltyCMS when** you need enterprise-grade security and compliance (SSO, SCIM, tamper-evident audit logs) without enterprise pricing; you need Git-driven Schema as Code with native TypeScript and PII-safe multi-environment sync in core; you're building performance-sensitive or edge-deployed products; you run multi-tenant SaaS; your team is already SvelteKit or wants a single coherent stack rather than a separate admin framework layered on the front end; or your workloads are media-heavy.
 - **Choose Payload CMS when** your team is React/Next.js and wants to share components between the admin and the front end, or when a code-first model deeply integrated with Next.js outweighs the cost of composing plugins for SSO, audit, and rate limiting.
 - **Choose Strapi when** the plugin marketplace is your priority — one of the largest ecosystems of the four, to our knowledge, suited to teams that ship by assembling integrations — and your security requirements fit within its free tier; SSO, SCIM, and audit logs are offered in paid tiers.
-- **Choose Directus when** you want to manage an existing SQL database with a powerful admin UI, you're data-first rather than content-first, or you need MSSQL support. Budget for enterprise modules if compliance-grade audit logging or SCIM are on your checklist.
+- **Choose Directus when** you want to manage an existing SQL database with a powerful admin UI, you want to use the Directus 12.3 CLI (`d6s`) for JSON-based environment sync, you're data-first rather than content-first, or you need MSSQL support. Budget for enterprise modules if compliance-grade audit logging or SCIM are on your checklist.
 
 ---
 
 ## Sources and Methodology
 
-- **Date of assessment:** July 2026 (list/count adapter numbers refreshed **2026-08-04**). Vendor docs and pricing change; re-check before purchase decisions.
+- **Date of assessment:** July 2026 (list/count adapter numbers refreshed **2026-08-04**; commerce table **2026-08-19**). Vendor docs and pricing change; re-check before purchase decisions.
 - **Like-for-like basis:** SveltyCMS free core vs each platform’s free/community edition where applicable; paid tiers noted separately. Self-hosted deployments.
 - **Performance figures:** SveltyCMS numbers are **self-measured** (`tests/benchmarks/`, Intel i7-13700H class host, Bun 1.3.x). Competitor cold starts are **public write-ups**, **not** our harness. No third-party audit of our benches.
 - **What we avoid:** Absolute speed rankings, “only platform,” or “0.024 ms list responses” without defining the exact operation (count L1 vs full list vs HTTP).

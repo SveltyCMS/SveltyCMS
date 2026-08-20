@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:lightning-bolt"
 author: "SveltyCMS Team"
 created: "2026-01-04"
-updated: "2026-03-27"
+updated: "2026-08-19"
 tags:
   - "components"
   - "enterprise"
@@ -88,6 +88,8 @@ flowchart TB
 ---
 
 ## Core Features
+
+Bulk delete, publish, draft, and clone call `POST /api/collections/:id/batch` with `{ action, entryIds }`. That route is handled as a batch action — it must not fall through to create.
 
 ### 1. Action Queue System
 

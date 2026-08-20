@@ -15,15 +15,6 @@
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 
-// --- Direct Exports from Sub-modules ---
-export { fourOhFourLogs } from "./404-logs";
-export { redirectsMV } from "./seo";
-export { workflowDefinitions, workflowInstances } from "./workflow";
-
-// --- Local Schema Definitions ---
-import { fourOhFourLogs } from "./404-logs";
-import { redirectsMV } from "./seo";
-import { workflowDefinitions, workflowInstances } from "./workflow";
 import type { TenantQuota, TenantUsage } from "../db-interface";
 
 // Helper to create UUID primary key
@@ -625,6 +616,106 @@ export const authApiKeys = sqliteTable(
     userIdx: index("api_key_user_idx").on(table.userId),
     tenantIdx: index("api_key_tenant_idx").on(table.tenantId),
     tenantHashIdx: index("tenant_hash_idx").on(table.tenantId, table.hash), // 🚀 Compound index for optimization
+  }),
+);
+
+// 404 Logs Collection Schema
+export const fourOhFourLogs = sqliteTable(
+  "404_logs",
+  {
+    _id: text("_id", { length: 36 }).primaryKey(),
+    path: text("path").notNull(),
+    tenantId: text("tenantId", { length: 36 }),
+    hits: integer("hits").default(1).notNull(),
+    lastHit: integer("lastHit", { mode: "timestamp_ms" })
+      .default(sql`(strftime('%s','now')*1000)`)
+      .notNull(),
+    metadata: text("metadata"),
+    ...timestamps,
+  },
+  (table) => ({
+    tenantIdx: index("four_oh_four_logs_tenant_idx").on(table.tenantId),
+    pathIdx: index("four_oh_four_logs_path_idx").on(table.path),
+    tenantPathIdx: index("four_oh_four_logs_tenant_path_idx").on(table.tenantId, table.path),
+  }),
+);
+
+// Redirects Materialized View (MV) Schema
+export const redirectsMV = sqliteTable(
+  "redirects_mv",
+  {
+    _id: text("_id", { length: 36 }).primaryKey(),
+    tenantId: text("tenantId", { length: 36 }).notNull(),
+    source: text("source").notNull(),
+    target: text("target").notNull(),
+    type: integer("type").notNull().default(301),
+    isRegex: integer("isRegex", { mode: "boolean" }).notNull().default(false),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    metadata: text("metadata"),
+    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+      .default(sql`(strftime('%s','now')*1000)`)
+      .notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+      .default(sql`(strftime('%s','now')*1000)`)
+      .notNull(),
+  },
+  (table) => ({
+    tenantIdx: index("redirects_mv_tenant_idx").on(table.tenantId),
+    sourceIdx: index("redirects_mv_source_idx").on(table.source),
+    lookupIdx: index("idx_redirects_mv_lookup").on(table.tenantId, table.source, table.active),
+  }),
+);
+
+// Workflow Definitions Collection Schema
+export const workflowDefinitions = sqliteTable(
+  "workflow_definitions",
+  {
+    _id: text("_id", { length: 36 }).primaryKey(),
+    tenantId: text("tenantId", { length: 36 }),
+    collectionId: text("collectionId", { length: 255 }).notNull(),
+    name: text("name", { length: 255 }).notNull(),
+    description: text("description"),
+    states: text("states")
+      .notNull()
+      .default("[]" as any),
+    transitions: text("transitions")
+      .notNull()
+      .default("[]" as any),
+    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(strftime('%s','now')*1000)`),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(strftime('%s','now')*1000)`),
+  },
+  (table) => ({
+    tenantIdx: index("workflow_def_tenant_idx").on(table.tenantId),
+    collectionIdx: index("workflow_def_collection_idx").on(table.collectionId),
+  }),
+);
+
+// Workflow Instances Collection Schema
+export const workflowInstances = sqliteTable(
+  "workflow_instances",
+  {
+    _id: text("_id", { length: 36 }).primaryKey(),
+    tenantId: text("tenantId", { length: 36 }),
+    entryId: text("entryId", { length: 36 }).notNull(),
+    collectionId: text("collectionId", { length: 255 }).notNull(),
+    currentState: text("currentState", { length: 255 }).notNull(),
+    history: text("history")
+      .notNull()
+      .default("[]" as any),
+    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(strftime('%s','now')*1000)`),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(strftime('%s','now')*1000)`),
+  },
+  (table) => ({
+    tenantIdx: index("workflow_inst_tenant_idx").on(table.tenantId),
+    entryIdx: index("workflow_inst_entry_idx").on(table.entryId),
   }),
 );
 

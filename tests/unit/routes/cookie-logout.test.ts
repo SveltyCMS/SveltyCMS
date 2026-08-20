@@ -40,7 +40,7 @@ describe("Cookie Logout Attribute Alignment", () => {
       },
     };
 
-    await handleAuthUserRoutes(mockEvent, cms, "tenant1", ["auth", "logout"]);
+    await handleAuthUserRoutes(mockEvent, cms, "tenant1" as any, ["auth", "logout"]);
 
     expect(deletedCookies.length).toBeGreaterThan(0);
     const mainCookieDelete = deletedCookies.find(

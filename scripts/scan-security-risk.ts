@@ -408,6 +408,105 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
     }
   }
 
+  // ── Code Fragmentation Detection & Prevention ──────────────────────────────
+  const isTestOrDocFile = /[\\/](tests|docs|scripts)[\\/]|\.(?:test|spec)\.[tj]sx?$/.test(relPath);
+
+  if (!isTestOrDocFile && !content.includes("slop:suppress")) {
+    // 1. Ad-hoc admin check fragmentation
+    const isAuthDefinitionFile =
+      /databases[\\/]auth[\\/]constants\.ts|databases[\\/]database-resilience\.ts|databases[\\/]core[\\/]relational-auth\.ts|utils[\\/]theme-merge\.ts|routes[\\/]login[\\/]auth\.remote\.ts/.test(
+        relPath,
+      );
+    if (!isAuthDefinitionFile) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = stripComments(lines[i]).trim();
+        if (!line || line.startsWith("*")) continue;
+        if (
+          /\b(?:user|caller|locals\.user)\??\.(?:role\s*===\s*["']admin["']|isAdmin\s*===\s*true)/.test(
+            line,
+          ) &&
+          !/\bisAdmin\s*\(/.test(line)
+        ) {
+          violations.push({
+            path: relPath,
+            line: i + 1,
+            category: "admin-role-fragmentation",
+            message:
+              "Ad-hoc admin check — use canonical isAdmin(user) from @src/databases/auth/constants to support SQLite integer flags (1) and super-admin",
+            severity: "error",
+          });
+        }
+      }
+    }
+
+    // 2. Ad-hoc session cookie deletion fragmentation
+    const isConstantsFile = /databases[\\/]auth[\\/]constants\.ts/.test(relPath);
+    if (!isConstantsFile) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = stripComments(lines[i]).trim();
+        if (!line || line.startsWith("*")) continue;
+        if (
+          /\bcookies\.delete\(\s*(?:SESSION_COOKIE_NAME|["'](?:auth_sessions|__Host-auth_sessions|__Secure-auth_sessions)["'])/.test(
+            line,
+          )
+        ) {
+          violations.push({
+            path: relPath,
+            line: i + 1,
+            category: "cookie-clear-fragmentation",
+            message:
+              "Direct session cookie deletion — use clearAllSessionCookies(cookies) from @src/databases/auth/constants for complete multi-variant (RFC 6265bis) cleanup",
+            severity: "error",
+          });
+        }
+      }
+    }
+
+    // 3. Ad-hoc collection path construction
+    const isFirstCollectionFile =
+      /content[\\/]first-collection\.ts|routes[\\/]setup[\\/]seed\.ts/.test(relPath);
+    if (!isFirstCollectionFile) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = stripComments(lines[i]).trim();
+        if (!line || line.startsWith("*")) continue;
+        if (
+          /\bpath\s*:\s*[`'"]\/collection\/\$\{/.test(line) ||
+          /\bpath\s*\|\|\s*[`'"]\/collection\/\$\{/.test(line)
+        ) {
+          violations.push({
+            path: relPath,
+            line: i + 1,
+            category: "collection-path-fragmentation",
+            message:
+              "Ad-hoc /collection/${...} path construction — use getSchemaPath(schema) or getNodePath(node) from @src/content/first-collection",
+            severity: "error",
+          });
+        }
+      }
+    }
+
+    // 4. Legacy svelte/store import fragmentation
+    const isLegacyStoreAllowedFile = /stores[\\/]system[\\/](?:state\.svelte\.ts|metrics\.ts)/.test(
+      relPath,
+    );
+    if (!isLegacyStoreAllowedFile) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = stripComments(lines[i]).trim();
+        if (!line || line.startsWith("*")) continue;
+        if (/\b(?:from|import)\s+["']svelte\/store["']/.test(line)) {
+          violations.push({
+            path: relPath,
+            line: i + 1,
+            category: "legacy-store-fragmentation",
+            message:
+              "Legacy svelte/store import — use native Svelte 5 runes ($state, $derived) instead of writable/readable stores",
+            severity: "error",
+          });
+        }
+      }
+    }
+  }
+
   return violations;
 }
 

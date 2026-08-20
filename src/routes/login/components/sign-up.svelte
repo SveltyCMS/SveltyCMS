@@ -87,16 +87,16 @@ const siteName = $derived(branding?.siteName || publicEnv.SITE_NAME || "SveltyCM
 const brandedLogin = $derived(branding?.brandedLogin ?? false);
 const brandedVariant = $derived(branding?.variant ?? "bordered");
 
-const pageData = page.data as PageData;
-const hasAdminUser = pageData.hasAdminUser;
-const showGoogleOAuth = pageData.showGoogleOAuth;
-const showGithubOAuth = pageData.showGithubOAuth;
-const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
+const pageData = $derived(page.data as PageData);
+const hasAdminUser = $derived(pageData?.hasAdminUser ?? false);
+const showGoogleOAuth = $derived(pageData?.showGoogleOAuth ?? false);
+const showGithubOAuth = $derived(pageData?.showGithubOAuth ?? false);
+const hasExistingOAuthUsers = $derived(pageData?.hasExistingOAuthUsers ?? false);
 
 // isOpenSignup: true only when multiTenant AND demoMode are both active.
 // This is the only scenario where a registration token is not required.
 // Requires +page.server.ts load to return: isOpenSignup: !!(multiTenant && demoMode)
-const isOpenSignup = pageData.isOpenSignup ?? false;
+const isOpenSignup = $derived(Boolean(pageData?.isOpenSignup));
 
 const isInteractiveCard = $derived(active === undefined);
 const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);

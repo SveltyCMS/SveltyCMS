@@ -55,10 +55,40 @@ const variantMap = {
 const finalColor = $derived(propColor || (variant ? variantMap[variant].color : 'surface'));
 const finalIcon = $derived(propIcon || (variant ? variantMap[variant].icon : undefined));
 
+const FILLED_MAP: Record<string, string> = {
+    primary: 'preset-filled-primary-500',
+    secondary: 'preset-filled-secondary-500',
+    tertiary: 'preset-filled-tertiary-500',
+    success: 'preset-filled-success-500',
+    warning: 'preset-filled-warning-500',
+    error: 'preset-filled-error-500',
+    surface: 'preset-filled-surface-500',
+};
+
+const OUTLINED_MAP: Record<string, string> = {
+    primary: 'preset-outlined-primary-500',
+    secondary: 'preset-outlined-secondary-500',
+    tertiary: 'preset-outlined-tertiary-500',
+    success: 'preset-outlined-success-500',
+    warning: 'preset-outlined-warning-500',
+    error: 'preset-outlined-error-500',
+    surface: 'preset-outlined-surface-500',
+};
+
+const TONAL_MAP: Record<string, string> = {
+    primary: 'preset-tonal-primary',
+    secondary: 'preset-tonal-secondary',
+    tertiary: 'preset-tonal-tertiary',
+    success: 'preset-tonal-success',
+    warning: 'preset-tonal-warning',
+    error: 'preset-tonal-error',
+    surface: 'preset-tonal-surface',
+};
+
 const presetClass = $derived.by(() => {
-    if (preset === 'filled') return `preset-filled-${finalColor}-500`;
-    if (preset === 'outlined') return `preset-outlined-${finalColor}-500`;
-    return `preset-tonal-${finalColor}`;
+    if (preset === 'filled') return FILLED_MAP[finalColor] ?? `preset-filled-${finalColor}-500`;
+    if (preset === 'outlined') return OUTLINED_MAP[finalColor] ?? `preset-outlined-${finalColor}-500`;
+    return TONAL_MAP[finalColor] ?? `preset-tonal-${finalColor}`;
 });
 </script>
 

@@ -101,7 +101,7 @@ export class CollectionService {
       collection,
       page = 1,
       pageSize = 10,
-      sort = { field: "_createdAt", direction: "desc" },
+      sort = { field: "createdAt", direction: "desc" },
       filter = {},
       search = "",
       language,
@@ -218,7 +218,7 @@ export class CollectionService {
       collection,
       page = 1,
       pageSize = 10,
-      sort = { field: "_createdAt", direction: "desc" },
+      sort = { field: "createdAt", direction: "desc" },
       filter = {},
       search = "",
       language,
@@ -456,11 +456,14 @@ export class CollectionService {
       }
     }
 
-    // JSON round-trip instead of structuredClone: freshly-saved schemas carry
-    // compiled valibot validation functions that structuredClone cannot clone
-    // (DataCloneError). JSON serialization strips functions — exactly what a
-    // client-bound schema needs (functions are not serializable anyway).
-    const collectionSchemaForClient = JSON.parse(JSON.stringify(collection));
+    // Memoized client-sanitized schema (avoids JSON serialization on hot edit page loads)
+    let collectionSchemaForClient = (collection as any)._clientSchema;
+    if (!collectionSchemaForClient) {
+      collectionSchemaForClient = JSON.parse(JSON.stringify(collection));
+      try {
+        (collection as any)._clientSchema = collectionSchemaForClient;
+      } catch {}
+    }
 
     return {
       contentLanguage: language,

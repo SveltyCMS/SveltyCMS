@@ -58,9 +58,12 @@ export interface ImageProcessingConfig {
 
 /** Maximum output dimension in pixels for any generated variant.
  * Prevents denial-of-wallet attacks via oversized image requests.
- * 3000px is the recommended default — exceeding this risks excessive
- * memory/CPU consumption during variant generation. */
-export const MAX_OUTPUT_DIMENSION = 3000;
+ * 6000px can be overridden via environment variables. */
+export const MAX_OUTPUT_DIMENSION =
+  Number(
+    process.env.ASSETS_TRANSFORM_IMAGE_MAX_OUTPUT_DIMENSION ||
+      process.env.IMAGE_MAX_OUTPUT_DIMENSION,
+  ) || 6000;
 
 // ─── Default presets ───────────────────────────────────────────────────────
 

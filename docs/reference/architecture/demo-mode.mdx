@@ -1,146 +1,147 @@
 ---
 path: "docs/reference/architecture/demo-mode.mdx"
 title: "Demo Mode Architecture"
-description: "Architecture and implementation details of SveltyCMS Demo Mode."
+description: "Architecture, seeding guarantees, tenant lifecycle, and first-collection routing in SveltyCMS Demo Mode."
 order: 5
 icon: "mdi:presentation-play"
 author: "SveltyCMS Team"
 created: "2025-11-30"
-updated: "2026-07-07"
+updated: "2026-08-20"
 tags:
   - "architecture"
   - "demo-mode"
   - "multi-tenancy"
   - "seeding"
+  - "routing"
 ---
 
 # Demo Mode Architecture
 
-Demo Mode is a specialized configuration of the Multi-Tenancy system designed to provide instant, ephemeral, and isolated environments for users to evaluate SveltyCMS.
+Demo Mode is a specialized configuration of the Multi-Tenancy system designed to provide instant, ephemeral, and isolated environments for users to evaluate SveltyCMS with zero setup overhead.
 
-## Features
+## Core Capabilities
 
-- **Instant Provisioning**: Every visitor is assigned a unique tenant ID via `crypto.randomUUID()`. No hostname-based deduplication — each visitor gets their own isolated tenant.
-- **Cookie-First Assignment**: The `demo_tenant_id` cookie is set _before_ async seeding completes, preventing race conditions where sign-up requests could generate a mismatched tenant ID.
-- **Automatic Seeding**: The system seeds the new tenant with default settings, themes, roles, and a demo admin user (`demo-{shortId}@sveltycms.com`).
-- **Ephemeral Sessions**: Tenants and their data are automatically deleted after a configurable expiration time (default: 60 minutes, configurable via `DEMO_TTL` public setting).
-- **Isolation**: Each demo user sees only their own data.
+- **Instant Provisioning**: Every visitor is assigned a unique tenant ID via `crypto.randomUUID()`. No hostname-based deduplication — each visitor receives an isolated tenant environment.
+- **Cookie-First Assignment**: The `demo_tenant_id` cookie is set with `path: "/"` and `sameSite: "lax"` before seeding, preventing race conditions with concurrent sign-up requests while preserving sessions across external referral links (e.g. docs, GitHub).
+- **Full Content & Collection Seeding**: When a demo tenant is initialized, the system automatically seeds settings, default theme, roles, preset collection schemas (`posts`, `categories`, `authors`), content nodes, and sample records.
+- **Deterministic First-Collection Routing**: Navigation and initial redirects land deterministically on the headline preset collection (`posts`) via a unified resolver that respects declared schema order across server restarts.
+- **Ephemeral Sessions & Cascade Cleanup**: Tenants and their associated data (media files, DB records, compiled collections, virtual folders) are automatically pruned by background workers after expiration (default: 60 minutes, configurable via `DEMO_TTL`).
+- **Strict Isolation**: Each demo tenant operates with isolated content nodes, collections, and database records.
 
-### 1. Project Setup (Clone & Link)
+---
 
-- Clone your `next` branch: `git clone -b next <repo>`
-- Run setup: `bun install && bun run dev`
-- Setup Wizard: Connect to your **existing Demo Database**.
-- **Important**: Manually set `MULTI_TENANT: true` and `DEMO: true` in `config/private.ts` (requires restart).
+## Enabling Demo Mode
 
-### Bypassing Host Validation (March 2026)
-
-In March 2026, the `handleSystemState` hook was optimized to allow bootstrap routes (like `/setup`) from any host when `DEMO: true` is active (`process.env.SVELTYCMS_DEMO === "true"`). This ensures that live demo environments on dynamic URLs (e.g., Vercel, Netlify) do not trigger 403 Forbidden errors before the system is fully initialized.
-
-### Enabling Demo Mode
-
-Demo mode is strictly controlled via `config/private.ts` to prevent accidental disabling in production.
+Demo mode is strictly controlled via `config/private.ts` to prevent accidental activation in standard production deployments.
 
 > [!IMPORTANT]
 > **Both `MULTI_TENANT` and `DEMO` must be set to `true`** for demo mode to function correctly. Demo mode leverages the multi-tenancy architecture to isolate ephemeral user data.
 
-1.  **Strict Configuration**:
-    - Edit `config/private.ts`:
-
-    ```typescript
-    export const privateEnv = {
-      // ...
-      MULTI_TENANT: true,
-      DEMO: true,
-    };
-    ```
-
-    - Restart the server.
-
-2.  **Environment Variable** (Dev only):
-    - `SVELTYCMS_DEMO=true bun run dev`
-
-### Configurable TTL
-
-The demo session time-to-live is controlled by the `DEMO_TTL` public setting (default: 60 minutes). This value drives:
-
-- **Cookie `maxAge`**: The `demo_tenant_id` cookie expires after `DEMO_TTL` minutes (synced at assignment time).
-- **Cleanup cutoff**: Background cleanup deletes tenants where the admin user's `createdAt` exceeds `DEMO_TTL` minutes.
-- **Login countdown**: The login page displays remaining time based on `DEMO_TTL`.
-
-To change the TTL, update the `DEMO_TTL` public setting via System Settings or the API (`min: 1`, `max: 1440` minutes).
-
-### Tenant Lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> NewUser: Visits /login or /setup
-
-    state "Demo Mode Detection" as Detect {
-        NewUser --> NoCookie: No demo_tenant_id
-        NoCookie --> CheckSession: Session exists?
-        CheckSession --> GlobalAdmin: Yes (tenantId: null)
-        CheckSession --> GenTenant: No
-        GenTenant --> SetCookie: Generate UUID + Set Cookie
-        SetCookie --> SeedTenant: Seed Roles & Admin (async)
-    }
-
-    SeedTenant --> UserActive: Use CMS (Isolated)
-    GlobalAdmin --> UserActive: Manage All (Bypass)
-
-    UserActive --> Cleanup: After DEMO_TTL
-    Cleanup --> [*]: Data + Filesystem Deleted
+```typescript
+export const privateEnv = {
+  // ...
+  MULTI_TENANT: true,
+  DEMO: true,
+};
 ```
 
-1.  **Creation**:
-    - **Method A (No Token)**: User visits `/login` -> Click "Sign Up".
-      - If `MULTI_TENANT=true` AND `DEMO=true`, they can register _without_ a token.
-      - The registration UI automatically hides the "Registration Token" field in Demo Mode to simplify the experience.
-      - The sign-up handler reads the `demo_tenant_id` cookie (checking both `__Host-demo_tenant_id` and `demo_tenant_id` variants) to ensure the tenant ID matches what the middleware assigned.
-      - A new Tenant is created for them automatically.
-    - **Method B (Automatic)**: `handleAuthentication` hook detects missing `demo_tenant_id` cookie.
-      - Generates a new `tenantId` using `crypto.randomUUID()` — no hostname-based deduplication.
-      - **Sets the cookie immediately** (before async seeding) to avoid race conditions with concurrent sign-up requests.
-      - Cookie uses `__Host-` prefix on HTTPS (RFC 6265bis subdomain isolation), `sameSite: strict`, `httpOnly: true`.
-      - Cookie `maxAge` is synchronized with the `DEMO_TTL` public setting.
-      - Calls `seedDemoTenant(tenantId)` to populate the database with default roles, settings, and a demo admin.
+Environment variable alternative (development):
 
-2.  **Usage**:
-    - User interacts with the CMS as a normal tenant.
-    - `tenantId` is preserved in the cookie and session.
-
-3.  **Expiration & Cleanup**:
-    - A background job (`setInterval` in `src/databases/db.ts`) runs every **5 minutes**.
-    - It identifies tenanted admin users created past the cleanup TTL (configurable via `DEMO_TTL`, default 60 minutes) or those with expired sessions.
-    - **Global Administrator Protection**: The primary administrator (created during setup with `tenantId: null`) is explicitly excluded from cleanup to ensure the system remains manageable.
-    - **Cleanup scope** per expired tenant:
-      - **Media**: Full pagination through all media files, physical file deletion, media record deletion, and empty directory cleanup.
-      - **Content**: `content_nodes`, `content_drafts`, `content_revisions`.
-      - **Filesystem**: `.compiledCollections/{tenantId}/`, `config/{tenantId}/`, `uploads/{tenantId}/`.
-      - **System**: Themes, user-scoped preferences, virtual folders.
-      - **Auth**: Sessions invalidated, users deleted, expired sessions/tokens purged globally.
-    - **Security**: The cleanup process queries the central user registry and then iterates through each expired tenant, using its specific `tenantId` to safely delete associated data without violating tenant isolation.
-
-### Seeding Strategy
-
-The `seedDemoTenant` function (`src/routes/setup/seed.ts`) performs:
-
-1.  **Settings**: Seeds default settings including `DEMO_TTL=60`, `SEASONS=true`, `SEASON_REGION='Western_Europe'`.
-2.  **Theme**: Seeds the default SveltyCMS theme.
-3.  **Roles**: Seeds default roles.
-4.  **User**: Creates a `demo-{shortId}@sveltycms.com` admin user with password `demo`.
-
-## Security
-
-- **Cookie Hardening**: `__Host-` prefix on HTTPS prevents subdomain cookie leakage per RFC 6265bis. `sameSite: strict` blocks cross-site request forgery.
-- **Tenant Isolation**: Each demo visitor receives a unique `tenantId` — no shared tenants between concurrent visitors.
-- **Global Capacity Limit**: A hard cap of 100 total users prevents resource exhaustion (`signUpInternal` in `auth.remote.ts`).
-- **Setup Completion Gating**: All `/api/setup` requests are rejected with 403 after setup completes.
-- **Host Validation Bypass**: When `DEMO: true`, `handleSystemState` allows bootstrap routes from any host, enabling dynamic URL deployments.
+```bash
+SVELTYCMS_DEMO=true bun run dev
+```
 
 ---
 
-## Related
+## Redirect & Routing Behavior
+
+The routing middleware in `hooks.server.ts` enforces a deterministic 3-tier redirect hierarchy:
+
+```mermaid
+flowchart TD
+    A[Incoming Request] --> B{private.ts exists?}
+    B -- No --> C[Redirect to /setup]
+    B -- Yes --> D{Tenant has collections?}
+    D -- No --> E[Redirect to /config/collectionbuilder]
+    D -- Yes --> F[Redirect to First Collection /lang/collection/posts]
+```
+
+1. **Unconfigured System (`private.ts` missing)** $\rightarrow$ `/setup` (Setup Wizard).
+2. **Empty Tenant (zero collections configured)** $\rightarrow$ `/config/collectionbuilder` (Collection Builder).
+3. **Active Tenant (collections exist)** $\rightarrow$ `/${lang}/collection/${firstCollection}` (e.g., `/en/collection/posts`).
+
+---
+
+## Unified First-Collection Resolution
+
+To ensure the setup wizard, sidebar navigation, content registry, and route redirects agree on the initial landing collection:
+
+- **Canonical Resolver (`src/content/first-collection.ts`)**: Evaluates collections against a unified system filter (`Menu`, `Navigation`, `Form`, `WidgetTest`, `Relation`, `redirects`, `404_logs`, `plugin_`, `workflow_`, `system_`).
+- **Order-First Sorting**: Respects explicit `schema.order` or `manifestOrder` metadata ahead of alphabetical file order, ensuring preset intent (e.g. `posts` before `authors`) survives server restarts.
+- **Tenant-Scoped Caching**: Caches redirect targets by `${tenantId}:${language}` to prevent cross-tenant cache contamination.
+
+---
+
+## Tenant Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> NewVisitor: Visits / or /login
+    state "Demo Tenant Provisioning" as Provision {
+        NewVisitor --> CheckCookie: Has demo_tenant_id?
+        CheckCookie --> ExistingTenant: Yes
+        CheckCookie --> MintUUID: No
+        MintUUID --> SetCookie: Set __Host-demo_tenant_id (path=/, sameSite=lax)
+        SetCookie --> SeedAll: Seed Settings, Theme, Roles, Schemas, Content Nodes & Records
+    }
+    SeedAll --> ActiveSession: Ready for CMS exploration
+    ExistingTenant --> ActiveSession
+    ActiveSession --> ExpirationCheck: Background worker (every 5 min)
+    ExpirationCheck --> CascadeCleanup: createdAt > DEMO_TTL
+    CascadeCleanup --> [*]: Database records + uploads deleted
+```
+
+### 1. Creation & Seeding (`seedDemoTenant`)
+
+When `handleAuthentication` detects a visitor without a `demo_tenant_id` cookie:
+
+1. Generates `tenantId = crypto.randomUUID()`.
+2. Sets `__Host-demo_tenant_id` cookie (`path: "/"`, `sameSite: "lax"`, `httpOnly: true`, `secure: isSecure`, `maxAge: DEMO_TTL`).
+3. Executes synchronous tenant seeding:
+   - **Settings**: Seeds default system settings (`DEMO_TTL=60`, `SEASONS=true`, `SEASON_REGION='Western_Europe'`).
+   - **Theme**: Applies default SveltyCMS theme.
+   - **Roles**: Configures default RBAC roles (`admin`, `editor`, `viewer`).
+   - **Collections**: Creates models for `PRESET_COLLECTIONS.demo` (`posts`, `categories`, `authors`, `BenchmarkStable`).
+   - **Content Structure**: Persists `content_nodes` to the database and initializes `contentSystem`.
+   - **Sample Records**: Seeds introductory blog posts and menu items.
+   - **Admin User**: Creates `demo-{shortId}@sveltycms.com` with a secure randomized credential.
+
+### 2. Ephemeral Expiration & Cascade Cleanup
+
+A background job in `src/databases/db.ts` executes every 5 minutes:
+
+- Queries tenanted admin accounts created beyond `DEMO_TTL` (default: 60 minutes).
+- **Global Admin Exclusion**: The root system administrator (`tenantId: null`) is permanently protected from cleanup.
+- **Cascade Purge Scope**:
+  - **Media**: Paginated deletion of physical files, media records, and empty directories in `uploads/{tenantId}/`.
+  - **Content**: Purges `content_nodes`, `content_drafts`, and `content_revisions`.
+  - **Filesystem**: Deletes `.compiledCollections/{tenantId}/` and `config/{tenantId}/`.
+  - **System**: Deletes tenant-scoped themes, preferences, and virtual folders.
+  - **Auth**: Revokes sessions, API tokens, and deletes tenant user records.
+
+---
+
+## Security Architecture
+
+- **Subdomain Cookie Isolation**: Uses `__Host-` prefix on HTTPS with `path: "/"` per RFC 6265bis.
+- **Cross-Site Navigation Stability**: `sameSite: "lax"` permits external referral navigation without minting duplicate tenants while defending against CSRF on state-changing requests.
+- **No Hardcoded Credentials**: Demo user accounts are generated with secure random tokens via CSPRNG (`globalThis.crypto.getRandomValues`).
+- **Global User Cap**: A ceiling of 100 concurrent users prevents denial-of-service or storage exhaustion.
+- **Dynamic Host Validation**: When `DEMO: true`, bootstrap routes allow dynamic cloud deployments (e.g. preview environments) without triggering host mismatch errors.
+
+---
+
+## Related Documentation
 
 - [Architecture Overview](./index.mdx)
 - [Multi-Tenancy Architecture](./multi-tenancy.mdx)

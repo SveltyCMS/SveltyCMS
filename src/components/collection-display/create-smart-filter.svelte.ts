@@ -262,7 +262,7 @@ export function createSmartFilter(
     return hashQueryPayload({
       filter: toFilterQuery(),
       search: search.trim(),
-      sort: { field: "_createdAt", direction: "desc" as const },
+      sort: { field: "createdAt", direction: "desc" as const },
     });
   }
 

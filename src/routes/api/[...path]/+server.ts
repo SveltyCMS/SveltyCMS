@@ -22,7 +22,8 @@ import {
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
-import { SESSION_COOKIE_NAME, isSecureCookieContext } from "@src/databases/auth/constants";
+import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
+import { pluginRouteRegistry } from "@src/plugins/plugin-route-registry";
 import {
   responseCache,
   buildUserResponseCacheKey,
@@ -56,6 +57,8 @@ const HANDLERS: Record<string, () => Promise<any>> = {
   backups: () => import("./handlers/backups"),
   "content-sync": () => import("./handlers/content-sync"),
   gdpr: () => import("./handlers/gdpr"),
+  commerce: () => import("./handlers/commerce"),
+  stripe: () => import("./handlers/stripe"),
 };
 
 // Eager-preload hot handlers on first request (lazy-init to not break unit test mocks).
@@ -112,6 +115,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "system-settings": { handler: "system", fn: "handleSettingsRoutes" },
   importer: { handler: "system", fn: "handleImporterRoutes" },
   ai: { handler: "system", fn: "handleAiRoutes" },
+  "ai-builder": { handler: "system", fn: "handleAiBuilderRoutes" },
   automations: { handler: "system", fn: "handleAutomationRoutes" },
   workflows: { handler: "system", fn: "handleWorkflowRoutes" },
   setup: { handler: "setup", fn: "handleSetupRoutes" },
@@ -168,6 +172,8 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
 
   // GDPR Right to Access / Erasure (self or admin)
   gdpr: { handler: "gdpr", fn: "handleGdprRoutes" },
+  commerce: { handler: "commerce", fn: "handleCommerceRoutes" },
+  stripe: { handler: "stripe", fn: "handleStripeRoutes" },
 
   // Deprecated Aliases
   "import-data": { handler: "importers", fn: "handleImporterRoutes" },
@@ -208,6 +214,7 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   import: "config:importexport",
   export: "config:importexport",
   ai: "system:settings",
+  "ai-builder": "system:settings",
   automations: "config:automations",
   workflows: (method: string) =>
     ["GET", "OPTIONS"].includes(method) ? "config:automations" : "config:automations",
@@ -261,6 +268,10 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
 
   // GDPR — authenticated self-service (handler enforces self-or-admin)
   gdpr: (method: string) => (["GET", "OPTIONS"].includes(method) ? "user:read" : "user:write"),
+  commerce: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collections:read" : "collections:write",
+  stripe: (method: string) =>
+    ["GET", "OPTIONS"].includes(method) ? "collections:read" : "collections:write",
 };
 
 /**
@@ -277,7 +288,7 @@ export function _checkEndpointPermission(
   segments: string[],
 ): boolean {
   // 🚀 ADMIN FAST-PATH: System and super admins have all access
-  if (user.isAdmin === true || user.role === "admin" || user.role === "super-admin") {
+  if (isAdmin(user)) {
     return true;
   }
 
@@ -432,10 +443,8 @@ export const _handler = async (event: RequestEvent) => {
   // Last-chance session hydration for requests that carry a valid session cookie
   // but arrive before upstream auth middleware has populated locals.user.
   if (!user) {
-    const sessionId =
-      cookies.get(SESSION_COOKIE_NAME) ||
-      cookies.get(`__Host-${SESSION_COOKIE_NAME}`) ||
-      cookies.get(`__Secure-${SESSION_COOKIE_NAME}`);
+    const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+    const sessionId = readSessionCookie(cookies, isSecure);
 
     if (sessionId && adapter?.auth?.getSessionTokenData && adapter?.auth?.getUserById) {
       const sessionResult = await adapter.auth.getSessionTokenData(sessionId as any);
@@ -483,12 +492,20 @@ export const _handler = async (event: RequestEvent) => {
 
   // Fail-closed authentication
   const isPublic = isPublicRoute(url.pathname, (locals as any).__testBypass === true);
-  if (!user && !isPublic && request.method.toUpperCase() !== "OPTIONS") {
+  const pluginMatch = pluginRouteRegistry.match(request.method, url.pathname);
+  const pluginRoutePublic = pluginMatch?.requiredCapabilities === "public";
+  if (!user && !isPublic && !pluginRoutePublic && request.method.toUpperCase() !== "OPTIONS") {
     throw new AppError("Authentication required", 401, "UNAUTHORIZED");
   }
 
-  // Fail-closed authorization
-  if (!isPublic && !(locals as any).__testBypass && request.method.toUpperCase() !== "OPTIONS") {
+  // Fail-closed authorization (core namespaces). Plugin `{ type: "route" }`
+  // entries skip ENDPOINT_PERMISSIONS and use requiredCapabilities instead.
+  if (
+    !isPublic &&
+    !pluginMatch &&
+    !(locals as any).__testBypass &&
+    request.method.toUpperCase() !== "OPTIONS"
+  ) {
     const roles = locals.roles || [];
     if (!_checkEndpointPermission(user, roles, request.method, namespace, segments)) {
       throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
@@ -496,8 +513,16 @@ export const _handler = async (event: RequestEvent) => {
   }
 
   // --- CSRF Protection ---
+  // Guest commerce mutations are public but still CSRF-gated. Stripe webhooks
+  // and plugin routes declared `requiredCapabilities: "public"` use their own
+  // authenticity check (signature, etc.).
+  const commerceMutation =
+    namespace === "commerce" && MUTATION_HTTP_METHODS.has(request.method.toUpperCase());
+  const stripeWebhook = namespace === "stripe" && segments[1] === "webhook";
   if (
-    !isPublic &&
+    (!isPublic || commerceMutation) &&
+    !stripeWebhook &&
+    !pluginRoutePublic &&
     !(locals as any).__testBypass &&
     (globalThis as any).process?.env?.TEST_MODE !== "true" &&
     !(user as any)?.isApiKey &&
@@ -549,9 +574,33 @@ export const _handler = async (event: RequestEvent) => {
   }
 
   if (!NAMESPACE_CONFIG[namespace]) {
+    if (pluginMatch) {
+      const { pluginRegistry } = await import("@src/plugins/registry");
+      const tenantKey = String(tenantId || "default");
+      const state = await pluginRegistry.getPluginState(pluginMatch.pluginId, tenantKey);
+      const enabled = state
+        ? state.enabled
+        : (pluginRegistry.get(pluginMatch.pluginId)?.metadata?.enabled ?? false);
+      if (!enabled) {
+        throw new AppError(
+          `Plugin '${pluginMatch.pluginId}' is not enabled`,
+          403,
+          "PLUGIN_DISABLED",
+        );
+      }
+      const caps = pluginMatch.requiredCapabilities;
+      if (caps !== "public") {
+        if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+        const roles = locals.roles || [];
+        const isAdminUser = isAdmin(user);
+        if (!isAdminUser && Array.isArray(caps) && caps.length > 0) {
+          const ok = caps.every((cap) => hasPermissionWithRoles(user, cap, roles));
+          if (!ok) throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
+        }
+      }
+      return pluginMatch.handler(event);
+    }
     // Fail-closed: unknown namespaces are Forbidden (not 404).
-    // Admin fast-path must not bypass this — avoids advertising valid vs invalid routes.
-    // Integration contract: tests/integration/databases/contract.test.ts Gate 5.
     throw new AppError(`API Namespace "/api/${namespace}" not found`, 403, "NAMESPACE_FORBIDDEN");
   }
 

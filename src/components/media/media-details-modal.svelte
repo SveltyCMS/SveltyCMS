@@ -22,7 +22,7 @@
   import { toast } from "@src/stores/toast.svelte.ts";
   import { mediaUrl } from "@utils/media/media-utils";
   import { debounce } from "@utils/debounce";
-  import { invalidateAll } from '$app/navigation';
+  import { refreshAll } from '$app/navigation';
   import { clientJsonHeaders } from "@utils/security/client-csrf";
 
   // Props
@@ -211,7 +211,6 @@
 
     isSavingTags = true;
     try {
-      await invalidateAll();
       const currentTags = file.metadata?.tags || [];
       if (currentTags.includes(newTagInput.trim())) {
         toast.error("Tag already exists");
@@ -234,6 +233,7 @@
         file = { ...file, metadata: updatedMetadata };
         onUpdate(file);
         newTagInput = "";
+        await refreshAll();
         toast.success("Tag added successfully");
       } else {
         toast.error(body?.message || "Failed to add tag");
@@ -249,7 +249,6 @@
     if (!file?._id) return;
 
     try {
-      await invalidateAll();
       const currentTags = file.metadata?.tags || [];
       const updatedMetadata = {
         ...file.metadata,
@@ -266,6 +265,7 @@
       if (response.ok && body.success) {
         file = { ...file, metadata: updatedMetadata };
         onUpdate(file);
+        await refreshAll();
         toast.success("Tag removed");
       } else {
         toast.error(body?.message || "Failed to remove tag");

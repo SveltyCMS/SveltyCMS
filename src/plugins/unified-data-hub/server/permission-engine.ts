@@ -9,6 +9,7 @@
  */
 
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+import { isAdmin } from "@src/databases/auth/constants";
 import type { VirtualCollectionRecord } from "../types";
 import { FederationError } from "../types";
 
@@ -21,7 +22,7 @@ export async function assertVirtualWritePermission(
     throw new FederationError("PERMISSION_DENIED", "Authentication required", 401);
   }
 
-  if (user.isAdmin || user.role === "admin" || user.role === "super-admin") {
+  if (isAdmin(user)) {
     return;
   }
 
@@ -48,7 +49,7 @@ export async function assertVirtualReadPermission(
     throw new FederationError("PERMISSION_DENIED", "Authentication required", 401);
   }
 
-  if (user.isAdmin || user.role === "admin" || user.role === "super-admin") {
+  if (isAdmin(user)) {
     return;
   }
 
@@ -73,7 +74,7 @@ export function assertConnectorAdmin(
   if (!user) {
     throw new FederationError("PERMISSION_DENIED", "Authentication required", 401);
   }
-  if (user.isAdmin || user.role === "admin" || user.role === "super-admin") {
+  if (isAdmin(user)) {
     return;
   }
   if (hasPermissionWithRoles(user as any, "system:settings", roles as any[])) {

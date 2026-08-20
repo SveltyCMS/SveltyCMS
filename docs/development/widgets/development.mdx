@@ -34,10 +34,32 @@ Invariant: `widgetNameToFolder(Name) === folder`. Invalid custom widgets are **n
 
 ### Folder Structure
 
-- `index.ts`: Definition (`createWidget({ Name: "…" })`)
+- `index.ts`: Definition (`createWidget({ Name: "…", version: "1.0.0" })`)
 - `input.svelte`: Input component
 - `display.svelte`: Display component
 - `tests/`: Portable unit tests (Drupal-style)
+
+### Versioning & Marketplace Verification (required)
+
+Every widget (core, custom, or marketplace) must declare its **SemVer version** in `createWidget`:
+
+```typescript
+// src/widgets/custom/my-widget/index.ts
+export default createWidget({
+  Name: "MyWidget",
+  version: "1.0.0", // Semver version (e.g. 1.0.0, 1.1.0, 2.0.0)
+  author: "YourName or Organization",
+  Icon: "mdi:cube-outline",
+  Description: "Custom widget description",
+  // ...
+});
+```
+
+Whenever any change is made to the widget (logic, input/display templates, validation schema, or lifecycle hooks), **update the version**. This version is used by `marketplace.sveltycms.com` to:
+
+1. Verify package authenticity and compatibility.
+2. Notify users of available updates in the Extensions Marketplace tab.
+3. Track telemetry and extension inventory across CMS installations.
 
 ### Try It Live
 

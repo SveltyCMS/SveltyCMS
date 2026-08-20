@@ -22,7 +22,7 @@
 
 {#if data.siteStarterEnabled}
   <div class="flex min-h-screen flex-col bg-surface-50 text-surface-900 dark:bg-surface-950 dark:text-surface-50">
-    <SiteHeader siteName={data.siteName ?? "Site"} />
+    <SiteHeader siteName={data.siteName ?? "Site"} signedIn={data.signedIn} />
     <main class="flex-1">
       {@render children()}
     </main>

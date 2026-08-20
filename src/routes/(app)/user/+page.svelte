@@ -28,6 +28,7 @@
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { updateUserThemePrefs } from '../config/design-system/appearance-api';
 	import { userThemePrefs } from '@src/stores/user-prefs-overlay.svelte.ts';
+	import { isAdmin } from '@src/databases/auth/constants';
 	import {
 		button_delete,
 		email,
@@ -43,14 +44,14 @@
 	import { normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
 	import { onMount, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import AdminArea from './components/admin-area.svelte';
 	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
 	import '@src/stores/store.svelte.ts';
 	import { setCollection } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { triggerActionStore } from '@utils/global-search-index';
+	import { globalSearch } from '@utils/global-search-index.svelte';
 	import { modalState, showConfirm } from '@utils/modal.svelte';
 	import ModalEditAvatar from './components/modal-edit-avatar.svelte';
 	import ModalEditForm from './components/modal-edit-form.svelte';
@@ -123,9 +124,8 @@
 	});
 
 	const canManageUsers = $derived(
-		user.isAdmin === true ||
-			(data as { isAdmin?: boolean }).isAdmin === true ||
-			user.role === 'admin' ||
+		isAdmin(user) ||
+			isAdmin(data) ||
 			(data as { permissions?: Record<string, { hasPermission?: boolean }> }).permissions?.[
 				'config/adminArea'
 			]?.hasPermission === true
@@ -598,7 +598,7 @@
 
 	function open2FAModal(): void {
 		modalState.trigger(ModalTwoFactorAuth, { user, size: 'fullscreen' }, async (r: any) => {
-			if (r) await invalidateAll();
+			if (r) await refreshAll();
 		});
 	}
 
@@ -630,7 +630,7 @@
 				} else {
 					toast.warning({ title: 'Disabled', description: `Preference "${key}" disabled` });
 				}
-				await invalidateAll();
+				await refreshAll();
 			} else if (res.status === 401 || res.status === 403) {
 				toast.error({ title: 'Auth error', description: 'Please reload the page and try again.' });
 			} else {
@@ -646,17 +646,17 @@
 	}
 
 	function executeActions() {
-		const actions = $triggerActionStore;
+		const actions = globalSearch.triggerActions;
 		if (actions.length === 1) {
 			actions[0]();
 		} else {
 			for (const action of actions) action();
 		}
-		triggerActionStore.set([]);
+		globalSearch.clearTriggerActions();
 	}
 
 	onMount(() => {
-		if ($triggerActionStore.length > 0) executeActions();
+		if (globalSearch.triggerActions.length > 0) executeActions();
 		setCollection(null);
 		loadSessions().catch(() => {});
 	});
@@ -681,7 +681,7 @@
 						title: 'Avatar updated',
 						description: 'Your profile photo was saved.'
 					});
-					await invalidateAll();
+					await refreshAll();
 				}
 			}
 		);
@@ -709,7 +709,7 @@
 					});
 					if (res.ok) {
 						toast.success({ title: 'Account deleted', description: 'Your account has been removed.' });
-						await invalidateAll();
+						await refreshAll();
 						window.location.href = '/login';
 						return;
 					}

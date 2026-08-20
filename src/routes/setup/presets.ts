@@ -67,6 +67,8 @@ export interface CollectionPreset {
   livePreview?: boolean | string;
   /** Plugin IDs to enable on this collection */
   plugins?: string[];
+  /** Display order in the generated content tree. */
+  order?: number;
 }
 
 export interface Preset {

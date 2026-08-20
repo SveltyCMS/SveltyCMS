@@ -37,3 +37,12 @@ export async function applySyncPlan(
     body: JSON.stringify({ planId, mode }),
   });
 }
+
+export async function exportConfig(
+  options: { uuids?: string[]; tenantId?: string } = {},
+): Promise<ApiResponse<{ dirPath: string }>> {
+  return fetchApi("/api/config/export", {
+    method: "POST",
+    body: JSON.stringify(options),
+  });
+}

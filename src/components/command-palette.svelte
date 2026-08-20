@@ -23,11 +23,10 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 	import { ui } from '@src/stores/ui-store.svelte';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import {
+		globalSearch,
 		pluginIndexToEntries,
-		globalSearchIndex,
-		triggerActionStore,
 		searchGlobalIndex
-	} from '@utils/global-search-index';
+	} from '@utils/global-search-index.svelte';
 	import {
 		type CommandPaletteEntry,
 		type RankedPaletteItem,
@@ -136,7 +135,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 				? pathname.split('/').filter(Boolean)[0]!
 				: 'en'
 		);
-		const pluginEntries = pluginIndexToEntries($globalSearchIndex);
+		const pluginEntries = pluginIndexToEntries(globalSearch.entries);
 		// Dedupe by id / path
 		const map = new Map<string, CommandPaletteEntry>();
 		for (const e of [...staticEntries, ...collectionEntries, ...pluginEntries, ...semanticEntries]) {
@@ -282,20 +281,12 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 
 	function closePalette() {
 		ui.closeGlobalSearch();
-		isSearchVisibleCompat(false);
 		searchQuery = '';
 		selectedIndex = 0;
 		semanticEntries = [];
 		tick().then(() => {
 			previousFocus?.focus?.();
 			previousFocus = null;
-		});
-	}
-
-	function isSearchVisibleCompat(open: boolean) {
-		// Keep legacy writable in sync for any external subscribers
-		import('@utils/global-search-index').then(({ isSearchVisible }) => {
-			isSearchVisible.set(open);
 		});
 	}
 
@@ -308,7 +299,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		// Navigation is handled by the anchor (data-preload="hover") so SvelteKit's
 		// speculative preloading pipeline stays in charge — no goto() for primary nav.
 		if (triggerActions && triggerActions.length > 0) {
-			triggerActionStore.set(triggerActions);
+			globalSearch.setTriggerActions(triggerActions);
 		}
 
 		pushRecent(recentsKey(), {
@@ -445,12 +436,10 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		mq.addEventListener('change', onMq);
 
 		recents = loadRecents(recentsKey());
-		isSearchVisibleCompat(true);
 		tick().then(() => inputRef?.focus());
 
 		return () => {
 			mq.removeEventListener('change', onMq);
-			isSearchVisibleCompat(false);
 		};
 	});
 

@@ -18,6 +18,8 @@ tags:
 
 The admin Dashboard is a widget-based grid. Each widget is a **self-contained package** living in its own kebab-case folder under `src/routes/(app)/dashboard/widgets/<folder>/`. Packages are discovered at build time by Vite `import.meta.glob` — no manual registration, no runtime filesystem scans.
 
+Core commerce packages (freemium, 14-day trial): **Commerce Orders** (`commerce-orders`) and **Commerce Inventory** (`commerce-inventory`). They read the optional ecommerce preset collections and stay empty on a non-store CMS. Catalog data can be imported with [Smart Importer](../../src/plugins/smart-importer/smart-importer.mdx) (WooCommerce / Shopify). Product map: [E-Commerce Overview](../../reference/architecture/ecommerce-overview.mdx).
+
 ## 📚 Documentation Map
 
 | Guide                                  | Description                                                        |
@@ -39,6 +41,10 @@ src/routes/(app)/dashboard/widgets/
     widget.json     # Marketplace manifest (required)
     readme.mdx      # Marketplace description (REQUIRED, fixed name)
   logs/
+    index.svelte
+    widget.json
+    readme.mdx
+  commerce-orders/   # freemium, 14-day trial
     index.svelte
     widget.json
     readme.mdx

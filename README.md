@@ -70,7 +70,7 @@ Get up and running fast:
 ```bash
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
-bun install  # or npm/pnpm
+bun install  # or npm install --legacy-peer-deps / pnpm install
 ```
 
 2. **Start dev server** (guided installer auto-launches)
@@ -135,7 +135,7 @@ bun run build
 bun run preview
 ```
 
-**⚠️ Windows users**: If `bun install` fails with `ParserError` or corrupted packages (null bytes in package.json files), use `npm install` instead. `bun run dev` and other commands work normally after `npm install`. This is an upstream bun bug affecting Windows only.
+**⚠️ Windows users**: If `bun install` fails with `ParserError` or corrupted packages (null bytes in package.json files), use `npm install --legacy-peer-deps` instead. `bun run dev` and other commands work normally after install.
 
 </details>
 
@@ -143,8 +143,8 @@ bun run preview
 <summary><b>npm</b></summary>
 
 ```bash
-# Install all dependencies
-npm install
+# Install all dependencies (use --legacy-peer-deps for SvelteKit 3 RC peer resolution)
+npm install --legacy-peer-deps
 
 # Development (CLI installer launches automatically if needed)
 npm run dev
@@ -197,13 +197,20 @@ bun run dev  # or npm run dev / pnpm run dev
 
 ### Development and Production
 
-We use the unified **Vite+ Alpha (VoidZero)** toolchain for an ultra-fast development experience.
+We use the unified **Vite+ (VoidZero)** toolchain and support dual-target execution for both **Node.js (>=24)** and **Bun (>=1.3)**:
 
-- **Development**: `bun run dev` (runs on `localhost:5173`)
-- **Production Build**: `bun run build` (Rust-based Rolldown bundler)
+- **Development**: `bun run dev` (or `npm run dev` / `pnpm run dev` on `localhost:5173`)
+- **Production Build**: `bun run build` (or `npm run build`)
+- **Production Server (Node.js)**: `npm run start:node` or `node index.cjs` (standard production server powered by Node 24 V8 engine)
+- **Production Server (Bun)**: `bun run start:bun` or `bun index.bun.ts` (native high-throughput `Bun.serve` runtime)
 - **Preview**: `bun run preview` (runs on `localhost:4173`)
-- **Linting**: `bun run lint` (oxlint — project-wide checks in <50ms)
-- **Formatting**: `bun run format` (oxfmt — blazing fast Rust-based formatter)
+- **Linting**: `bun run check` (oxfmt + oxlint — project-wide checks in <50ms)
+
+| Task / Lifecycle                   | Recommended Runtime | Why                                                                                          |
+| :--------------------------------- | :------------------ | :------------------------------------------------------------------------------------------- |
+| **Development & Tooling**          | **Bun**             | 3–4× faster cold starts, instant package management, lightning-fast `bun test` and `oxlint`. |
+| **Production Server (Node.js)**    | **Node.js 24**      | Maximum V8 JSON parsing/serialization performance on high-volume JSON API workloads.         |
+| **Production Server (Bun Native)** | **Bun 1.3+**        | Native `Bun.serve` event loop, zero-copy socket I/O, and native `bun:sqlite` performance.    |
 
 See our `package.json` for all available commands.
 

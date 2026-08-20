@@ -80,14 +80,7 @@ describe("Circular Import Detection (utils barrel)", () => {
   });
 
   it("should have the barrel exporting expected domain files", () => {
-    const required = [
-      "./date",
-      "./string",
-      "./logger",
-      "./debounce",
-      "./object-utils",
-      "./array-utils",
-    ];
+    const required = ["./date", "./string", "./logger", "./debounce", "./data-utils"];
     for (const exp of required) {
       expect(barrelExports).toContain(exp);
     }

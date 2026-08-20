@@ -1,6 +1,6 @@
 /**
- * @file src\databases\sqlite\performance-module.ts
- * @description Performance metrics module for SQLite
+ * @file src/databases/core/performance-module.ts
+ * @description Performance metrics module for SQL adapters
  */
 
 import type { DatabaseResult, PerformanceMetrics, ISqlAdapter } from "../db-interface";

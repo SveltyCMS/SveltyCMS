@@ -26,7 +26,6 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 <script lang="ts">
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
-	import FloatingInput from '@components/ui/floating-input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import type { TableHeader } from '@src/content/types';
 	import {
@@ -137,17 +136,18 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 	</tr>
 {/if}
 
-<tr class="dark:divide-surface-600">
-	<th class="w-10">
+<tr class="border-b border-surface-200/80 bg-surface-50 dark:border-surface-700 dark:bg-surface-900">
+	<th class="w-10 overflow-hidden p-1 align-middle">
 		{#if showClearInFirstCell && hasActive}
 			<Button
 				variant="outline"
+				size="sm"
 				onclick={onClearAll}
 				aria-label="clear-all-filters"
-				class="p-0! min-w-0"
+				class="h-8 w-8 p-0! min-w-0"
 				title="Clear all filters"
 			>
-				<iconify-icon icon="material-symbols:close" width={24}></iconify-icon>
+				<iconify-icon icon="material-symbols:close" width={18}></iconify-icon>
 			</Button>
 		{/if}
 	</th>
@@ -157,26 +157,26 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 		{@const type = def?.type ?? 'text'}
 		{@const name = header.name || ''}
 		{@const value = currentValue(header)}
-		<th class="min-w-24 align-bottom">
-			<div class="flex items-center justify-between gap-1">
+		<th class="min-w-[7rem] max-w-[16rem] overflow-hidden p-1 align-middle">
+			<div class="flex min-w-0 items-center gap-1">
 				{#if type === 'select' || type === 'boolean'}
 					<Select
 						size="sm"
-						variant="floating"
-						label={`Filter ${def?.label ?? header.label}`}
-						placeholder="All"
+						label=""
+						placeholder={def?.label ?? header.label}
 						allowEmptySelection={true}
 						options={def?.options ?? []}
 						value={value}
 						onchange={(v) => onFilterChange(name, v)}
 						class="w-full min-w-0"
+						aria-label="Filter {def?.label ?? header.label}"
 					/>
 				{:else if type === 'date'}
 					<label class="flex w-full min-w-0 flex-col gap-0.5 text-start">
 						<span class="sr-only">Filter {def?.label ?? header.label} by date</span>
 						<input aria-label="Filter {def?.label ?? header.label}"
 							type="date"
-							class="h-8 w-full rounded border border-surface-200 bg-surface-50 px-2 text-xs dark:border-surface-700 dark:bg-surface-900 dark:text-primary-500"
+							class="h-8 w-full min-w-0 rounded border border-surface-200 bg-white px-2 text-xs text-surface-800 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-100"
 							value={value}
 							oninput={(e) => onFilterChange(name, (e.currentTarget as HTMLInputElement).value)}
 						/>
@@ -184,35 +184,32 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 				{:else if type === 'numberRange'}
 					{@const range = parseNumberRange(value)}
 					<div class="flex w-full min-w-0 items-center gap-1" role="group" aria-label="Filter {def?.label ?? header.label} range">
-						<input aria-label="{def?.label ?? header.label} minimum"
+						<input aria-label={`${def?.label ?? header.label} minimum`}
 							type="number"
 							inputmode="decimal"
 							placeholder="Min"
-							class="h-8 w-1/2 min-w-0 rounded border border-surface-200 bg-surface-50 px-1.5 text-xs dark:border-surface-700 dark:bg-surface-900 dark:text-primary-500"
+							class="h-8 w-1/2 min-w-0 rounded border border-surface-200 bg-white px-1.5 text-xs text-surface-800 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-100"
 							value={range.min}
 							oninput={(e) => handleNumberPart(header, 'min', (e.currentTarget as HTMLInputElement).value)}
 						/>
 						<span class="text-surface-400" aria-hidden="true">–</span>
-						<input aria-label="{def?.label ?? header.label} maximum"
+						<input aria-label={`${def?.label ?? header.label} maximum`}
 							type="number"
 							inputmode="decimal"
 							placeholder="Max"
-							class="h-8 w-1/2 min-w-0 rounded border border-surface-200 bg-surface-50 px-1.5 text-xs dark:border-surface-700 dark:bg-surface-900 dark:text-primary-500"
+							class="h-8 w-1/2 min-w-0 rounded border border-surface-200 bg-white px-1.5 text-xs text-surface-800 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-100"
 							value={range.max}
 							oninput={(e) => handleNumberPart(header, 'max', (e.currentTarget as HTMLInputElement).value)}
 						/>
 					</div>
 				{:else}
-					<FloatingInput
-						type="text"
-						icon="material-symbols:search-rounded"
-						label={`Filter ${def?.label ?? header.label}`}
+					<input aria-label={`Filter ${def?.label ?? header.label}`}
+						type="search"
 						name={name}
 						value={value}
-						onInput={(v: string) => onFilterChange(name, v)}
-						inputClass="text-xs dark:text-primary-500"
-						textColor=""
-						labelClass="dark:text-white"
+						placeholder={def?.label ?? header.label}
+						class="h-8 w-full min-w-0 rounded border border-surface-200 bg-white px-2 text-xs text-surface-800 placeholder:text-surface-400 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-100 dark:placeholder:text-surface-500"
+						oninput={(e) => onFilterChange(name, (e.currentTarget as HTMLInputElement).value)}
 					/>
 				{/if}
 			</div>

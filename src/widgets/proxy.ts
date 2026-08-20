@@ -113,7 +113,7 @@ class WidgetRegistryImpl {
 
   getByType(type: WidgetType): string[] {
     return Array.from(this.metadata.entries())
-      .filter(([_, meta]) => meta.type === type)
+      .filter(([, meta]) => meta.type === type)
       .map(([name]) => name);
   }
 

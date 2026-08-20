@@ -20,6 +20,12 @@ tags:
 
 The Content Sync API provides bidirectional content synchronization between SveltyCMS instances via configurable channels. It supports push and pull operations with plan-first safety, optional PII anonymization for production-to-dev workflows, and a disabled-by-default design that prevents accidental data leakage.
 
+> [!NOTE]
+> **Content Sync and Configuration Promotion**:
+>
+> - **Content Sync** (`/api/content-sync/*`) moves _editorial content entries_ between active environments (e.g. pulling production articles into staging with PII anonymization).
+> - **Configuration Promotion** (`/api/config/*`) moves _site structure and settings_ (collections, roles, permissions, widgets, automations) through version control (Git) in a Schema-as-Code workflow.
+
 > [!IMPORTANT]
 > All content sync endpoints are **admin-gated**. GET requests require `content:read`, POST/PATCH/DELETE requests require `content:write`. Unmapped namespaces fail-closed via the dispatcher's `ENDPOINT_PERMISSIONS` mapping.
 

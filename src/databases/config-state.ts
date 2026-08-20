@@ -50,6 +50,9 @@ export function setPrivateEnv(env: AppPrivateConfig | null) {
   privateEnv = env ? (Object.freeze(env) as AppPrivateConfig) : null;
   loadPromise = null;
   configStamp++;
+  dbConfigCache = null;
+  redisConfigCache = null;
+  connectionStringCache = null;
 }
 
 /**
@@ -97,7 +100,10 @@ export async function loadPrivateConfig(forceReload = false): Promise<AppPrivate
       }
 
       // 3. Environment variable overrides (always take precedence)
-      const overrides = getEnvOverrides();
+      // `!fileConfig` marks env-only assembly (benchmark/test without a
+      // config/private*.ts file) — the sqlite branch supplies a DB_HOST
+      // default there so the schema validation below succeeds.
+      const overrides = getEnvOverrides(!fileConfig);
       config = { ...config, ...overrides };
 
       // 4. Validate and Freeze
@@ -212,9 +218,17 @@ async function loadConfigFromFileIfNeeded(svelteEnv: any): Promise<any | null> {
   }
 }
 
-/** Extract env overrides cleanly */
-function getEnvOverrides() {
-  const overrides: any = {};
+/**
+ * Extract env overrides cleanly.
+ *
+ * @param envOnly True when no config/private*.ts file was loaded (benchmark/test
+ * env-only assembly). Only then may the sqlite branch inject a DB_HOST default —
+ * file-based configs keep full ownership of DB_HOST and a real private.ts missing
+ * DB_HOST still fails schema validation.
+ * Exported for the regression tests in tests/unit/databases/config-state-env-only.test.ts.
+ */
+export function getEnvOverrides(envOnly = false): Record<string, any> {
+  const overrides: Record<string, any> = {};
   const e = runtimeEnv();
 
   // --- Environment variable overrides ---
@@ -230,6 +244,15 @@ function getEnvOverrides() {
     if (e.DB_PORT) overrides.DB_PORT = Number(e.DB_PORT);
     if (e.DB_USER) overrides.DB_USER = e.DB_USER;
     if (e.DB_PASSWORD) overrides.DB_PASSWORD = e.DB_PASSWORD;
+  } else if (envOnly) {
+    // 🚀 ENV-ONLY SQLITE (benchmark/test without config/private*.ts):
+    // privateConfigSchema requires DB_HOST (minLength ≥ 1) while sqlite configs
+    // legitimately omit host/port/credentials. Respect an explicit env value,
+    // else supply a loopback default so env-only assemblies validate and ALL
+    // settings (JWT, session TTL, password policy, …) populate the cache.
+    // File-based configs are untouched — a missing DB_HOST in a real
+    // config/private.ts still fails validation.
+    overrides.DB_HOST = e.DB_HOST || "127.0.0.1";
   }
 
   if (e.DB_NAME) overrides.DB_NAME = e.DB_NAME;
@@ -246,12 +269,11 @@ function getEnvOverrides() {
   if (e.REDIS_PORT) overrides.REDIS_PORT = Number(e.REDIS_PORT);
   if (e.REDIS_PASSWORD) overrides.REDIS_PASSWORD = e.REDIS_PASSWORD;
 
-  // Security
+  // Security & Secrets
   if (e.JWT_SECRET_KEY) overrides.JWT_SECRET_KEY = e.JWT_SECRET_KEY;
   if (e.ENCRYPTION_KEY) overrides.ENCRYPTION_KEY = e.ENCRYPTION_KEY;
   if (e.TEST_API_SECRET) overrides.TEST_API_SECRET = e.TEST_API_SECRET;
   if (e.PREVIEW_SECRET) overrides.PREVIEW_SECRET = e.PREVIEW_SECRET;
-  // Auth
   if (e.PASSWORD_MIN_LENGTH) overrides.PASSWORD_MIN_LENGTH = Number(e.PASSWORD_MIN_LENGTH);
 
   // External CDN
@@ -330,6 +352,7 @@ export function getPrivateEnv(): AppPrivateConfig | null {
 // Micro-caches for derived configs
 let dbConfigCache: any = null;
 let redisConfigCache: any = null;
+let connectionStringCache: string | null = null;
 
 export function getDatabaseConfig() {
   if (dbConfigCache) return dbConfigCache;
@@ -473,8 +496,12 @@ const DATABASE_REGISTRY: Record<string, DriverDefinition> = {
  * Avoids growing switch statements and improves extensibility.
  */
 export function getDatabaseConnectionString(): string {
+  if (connectionStringCache) return connectionStringCache;
+
   const config = getDatabaseConfig();
   if (!config) return "";
+
+  let connStr: string;
 
   // If host is already a full connection string, use it
   if (config.host.includes("://")) {
@@ -483,27 +510,29 @@ export function getDatabaseConnectionString(): string {
       const separator = config.host.includes("?") ? "?" : "/";
       if (separator === "?") {
         const [base, query] = config.host.split("?");
-        return `${base}/${config.name}?${query}`;
+        connStr = `${base}/${config.name}?${query}`;
+      } else {
+        connStr = `${config.host}/${config.name}`;
       }
-      return `${config.host}/${config.name}`;
+    } else {
+      connStr = config.host;
     }
-    return config.host;
+  } else {
+    // Use the registry
+    const driver = DATABASE_REGISTRY[config.type];
+    if (!driver) {
+      throw new Error(`[DB] No driver found in registry for type: ${config.type}`);
+    }
+
+    connStr = driver.buildConnectionString(config);
+    logger.info(`[DB] Registry resolved database user: ${config.user || "default/empty"}`);
+    const masked = connStr.includes("://") ? connStr.replace(/:([^@]+)@/, ":****@") : connStr;
+
+    logger.info(`[DB] Registry resolved connection string: ${masked}`);
   }
 
-  // Use the registry
-  const driver = DATABASE_REGISTRY[config.type];
-  if (!driver) {
-    throw new Error(`[DB] No driver found in registry for type: ${config.type}`);
-  }
-
-  const connectionString = driver.buildConnectionString(config);
-  logger.info(`[DB] Registry resolved database user: ${config.user || "default/empty"}`);
-  const masked = connectionString.includes("://")
-    ? connectionString.replace(/:([^@]+)@/, ":****@")
-    : connectionString;
-
-  logger.info(`[DB] Registry resolved connection string: ${masked}`);
-  return connectionString;
+  connectionStringCache = connStr;
+  return connStr;
 }
 
 /**
@@ -571,6 +600,7 @@ export function clearPrivateConfigCache(keepPrivateEnv = false) {
   }
   dbConfigCache = null;
   redisConfigCache = null;
+  connectionStringCache = null;
 }
 
 if (import.meta.hot) {

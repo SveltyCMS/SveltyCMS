@@ -59,7 +59,9 @@ export async function modifyRequest(params: ModifyRequestParams) {
   // 🚀 Performance: map-filter chain is replaced with a single-pass loop
   const activeWidgets: { field: FieldInstance; widget: any; name: string }[] = [];
   for (const f of fields) {
-    const wFn = widgetRegistryService.getWidgetSync(f.widget.Name);
+    const widgetName = f.widget?.Name;
+    if (!widgetName) continue;
+    const wFn = widgetRegistryService.getWidgetSync(widgetName);
     if (wFn && (wFn as any).modifyRequest) {
       activeWidgets.push({ field: f, widget: wFn, name: getFieldName(f) });
     }

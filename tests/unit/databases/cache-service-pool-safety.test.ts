@@ -58,7 +58,7 @@ describe("Ring Buffer Pool Cache Safety", () => {
       status: "published",
     };
 
-    ns.registerSchema("Articles", schema as any);
+    await ns.registerSchema("Articles", schema as any);
 
     // 1. Initial find query -> caches payload
     const initialResult = await ns.find("Articles", { limit: 10, skipValidation: true } as any);

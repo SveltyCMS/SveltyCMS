@@ -13,6 +13,7 @@
  * - proxy-based reactive adapter caching
  * - double-check lock initialization
  * - clean state resets for test isolation
+ * - settings-cache warming for API-only cold boots
  */
 
 import { logger } from "@utils/logger";
@@ -338,6 +339,22 @@ export async function ensureFullInitialization(): Promise<any | null> {
 
       const authInstance = (adapter as any).authService;
       setGlobal(AUTH_KEY, authInstance);
+
+      // 🚀 WARM SETTINGS CACHE (API-only cold boot): eagerly load the global
+      // settings cache so synchronous getters (getPrivateSettingSync, e.g.
+      // JWT_SECRET_KEY) return real values on the very first API request —
+      // without waiting for a page load or WebSocket upgrade. Placed BEFORE
+      // BOOT_PHASE becomes READY: loadSettingsCache re-enters
+      // ensureFullInitialization internally, and the INITIALIZING fast-path
+      // (deadlock protection) resolves immediately instead of awaiting this
+      // in-flight promise. Dynamic import avoids a static db ↔ settings-service
+      // cycle. Non-fatal on failure — the next settings load retries.
+      await import("@src/services/core/settings-service")
+        .then(({ loadSettingsCache }) => loadSettingsCache())
+        .catch((err) => {
+          logger.warn(`[Boot] Settings cache warm failed (non-fatal): ${(err as Error).message}`);
+        });
+
       setGlobal(BOOT_PHASE_KEY, "READY");
       // Synchronize the reactive state machine so handleSystemState unblocks immediately
       setSystemState("READY");

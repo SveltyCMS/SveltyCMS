@@ -6,7 +6,7 @@ order: 19
 icon: "mdi:view-dashboard-outline"
 author: "SveltyCMS Team"
 created: "2026-03-24"
-updated: "2026-08-04"
+updated: "2026-08-19"
 tags:
   - "api"
   - "dashboard"
@@ -42,6 +42,8 @@ All dashboard routes require an authenticated session and the `dashboard:read` p
 | **Recent Media** | `/api/dashboard/last5media` | `GET` | `dashboard:read` |
 | **Online Users** | `/api/dashboard/online-user` | `GET` | `dashboard:read` |
 | **System Messages** | `/api/dashboard/system-messages` | `GET` | `dashboard:read` |
+| **Commerce Orders** | `/api/dashboard/commerce-orders` | `GET` | `dashboard:read` + license |
+| **Commerce Inventory** | `/api/dashboard/commerce-inventory` | `GET` | `dashboard:read` + license |
 
 ---
 
@@ -192,6 +194,55 @@ Returns users with active sessions. Session duration is estimated from expiry mi
 
 **Endpoint**: `GET /api/dashboard/online-user`
 
+### Commerce Orders (freemium)
+
+Recent rows from the ecommerce `orders` collection plus a status mix. Returns `{ available: false }` when the preset is not installed (not 404). Gated by `checkExtensionLicense("dashboard", "commerce-orders")` — 14-day key-less trial, then `403 LICENSE_REQUIRED`.
+
+**Endpoint**: `GET /api/dashboard/commerce-orders`
+
+**Parameters**: `?limit=5` — Number of recent orders (default: 5, max: 50). Status mix is computed from up to 20 newest rows.
+
+**Response**:
+
+```json
+{
+  "available": true,
+  "total": 12,
+  "byStatus": { "pending": 4, "processing": 8 },
+  "recent": [
+    {
+      "id": "…",
+      "orderNumber": "ORD-1042",
+      "total": 49.0,
+      "status": "processing",
+      "createdAt": "2026-08-19T10:00:00.000Z",
+      "customerEmail": "guest@example.com"
+    }
+  ]
+}
+```
+
+### Commerce Inventory (freemium)
+
+Low-stock and out-of-stock products from the `products` collection. Variant-aware (preset `inventory` plus importer aliases). Returns `{ available: false }` when `products` is missing. Gated by `checkExtensionLicense("dashboard", "commerce-inventory")`.
+
+**Endpoint**: `GET /api/dashboard/commerce-inventory`
+
+**Parameters**: `?limit=8` — Number of low-stock rows (default: 8).
+
+**Response**:
+
+```json
+{
+  "available": true,
+  "tracked": 24,
+  "outOfStock": 2,
+  "lowStock": [
+    { "id": "p1:TEE-S", "title": "Tee · Small", "sku": "TEE-S", "qty": 1, "threshold": 5 }
+  ]
+}
+```
+
 ---
 
 ## 4. Dashboard Widgets (UI)
@@ -214,18 +265,20 @@ The admin dashboard is composed of modular Svelte 5 widget packages (one folder 
 | **Activity Logs**   | `logs/index.svelte`            | `/api/dashboard/logs`                  |
 | **System Messages** | `system-messages/index.svelte` | `/api/dashboard/system-messages`       |
 
-| Widget                        | File                                     | Data Source                       |
-| :---------------------------- | :--------------------------------------- | :-------------------------------- |
-| **Last 5 Content**            | `last5-content/index.svelte`             | `/api/dashboard/last5-content`    |
-| **Last 5 Media**              | `last5-media/index.svelte`               | `/api/dashboard/last5media`       |
-| **Online Users**              | `user-online/index.svelte`               | `/api/dashboard/online-user`      |
-| **Security**                  | `security/index.svelte`                  | `/api/dashboard/security`         |
-| **Database Pool Diagnostics** | `database-pool-diagnostics/index.svelte` | `/api/database/pool-diagnostics`  |
-| **SCIM Status**               | `scim-status/index.svelte`               | `/api/dashboard/scim`             |
-| **Media Storage Analytics**   | `media-storage-analytics/index.svelte`   | `/api/media/analytics`            |
-| **Tenant Analytics**          | `tenant-analytics/index.svelte`          | `/api/dashboard/tenant-analytics` |
-| **Task List Widget**          | `todo-list/index.svelte`                 | — (client-side, static)           |
-| **Calendar View**             | `calendar-view/index.svelte`             | — (client-side, static)           |
+| Widget                        | File                                     | Data Source                         |
+| :---------------------------- | :--------------------------------------- | :---------------------------------- |
+| **Last 5 Content**            | `last5-content/index.svelte`             | `/api/dashboard/last5-content`      |
+| **Last 5 Media**              | `last5-media/index.svelte`               | `/api/dashboard/last5media`         |
+| **Online Users**              | `user-online/index.svelte`               | `/api/dashboard/online-user`        |
+| **Security**                  | `security/index.svelte`                  | `/api/dashboard/security`           |
+| **Database Pool Diagnostics** | `database-pool-diagnostics/index.svelte` | `/api/database/pool-diagnostics`    |
+| **SCIM Status**               | `scim-status/index.svelte`               | `/api/dashboard/scim`               |
+| **Media Storage Analytics**   | `media-storage-analytics/index.svelte`   | `/api/media/analytics`              |
+| **Tenant Analytics**          | `tenant-analytics/index.svelte`          | `/api/dashboard/tenant-analytics`   |
+| **Commerce Orders**           | `commerce-orders/index.svelte`           | `/api/dashboard/commerce-orders`    |
+| **Commerce Inventory**        | `commerce-inventory/index.svelte`        | `/api/dashboard/commerce-inventory` |
+| **Task List Widget**          | `todo-list/index.svelte`                 | — (client-side, static)             |
+| **Calendar View**             | `calendar-view/index.svelte`             | — (client-side, static)             |
 
 ### Widget Discovery (dual registration + package folders)
 
@@ -269,16 +322,18 @@ Certain advanced dashboard widgets are designated as premium features (e.g. SCIM
   - **Client-side gating**: Each widget checks `checkExtensionLicense("dashboard", widgetId)` (via `GET /api/system/license-status?type=dashboard&id=<widget-id>`) and renders an upgrade prompt instead of dashboard content when the trial expired and no `SLM-`/`SLM-DEMO-` key is configured.
   - **Server-side gating**: The backing API endpoints call `checkExtensionLicense` and return **`403 LICENSE_REQUIRED`** when the check fails — premium data is never served without entitlement. See `dashboard-license.ts` in the dashboard handler for the endpoint → widget-id map:
 
-| Endpoint                             | Gating widget id            | License  |
-| :----------------------------------- | :-------------------------- | :------- |
-| `GET /api/dashboard/audit`           | `audit-log`                 | freemium |
-| `GET /api/dashboard/logs`            | `logs`                      | freemium |
-| `GET /api/dashboard/security`        | `security`                  | freemium |
-| `GET /api/dashboard/scim`            | `scim-status`               | paid     |
-| `GET /api/dashboard/cache-metrics`   | `cache-monitor`             | freemium |
-| `GET /api/dashboard/online-user`     | `user-online`               | freemium |
-| `GET /api/dashboard/metrics`         | `unified-metrics`           | freemium |
-| `GET /api/database/pool-diagnostics` | `database-pool-diagnostics` | freemium |
+| Endpoint                                | Gating widget id            | License  |
+| :-------------------------------------- | :-------------------------- | :------- |
+| `GET /api/dashboard/audit`              | `audit-log`                 | freemium |
+| `GET /api/dashboard/logs`               | `logs`                      | freemium |
+| `GET /api/dashboard/security`           | `security`                  | freemium |
+| `GET /api/dashboard/scim`               | `scim-status`               | paid     |
+| `GET /api/dashboard/cache-metrics`      | `cache-monitor`             | freemium |
+| `GET /api/dashboard/online-user`        | `user-online`               | freemium |
+| `GET /api/dashboard/metrics`            | `unified-metrics`           | freemium |
+| `GET /api/dashboard/commerce-orders`    | `commerce-orders`           | freemium |
+| `GET /api/dashboard/commerce-inventory` | `commerce-inventory`        | freemium |
+| `GET /api/database/pool-diagnostics`    | `database-pool-diagnostics` | freemium |
 
 Free widgets (health, system-info, last5-content, last5media, system-messages, tenant-analytics, media-storage-analytics) are **not** gated. Endpoints consumed by multiple widgets use the install-wide trial model, so one gate covers them all (e.g. `metrics` powers both Unified Metrics and Performance).
 

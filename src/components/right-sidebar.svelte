@@ -326,7 +326,7 @@
 							disabled={!canCreate}
 						 class="gradient-secondary gradient-secondary-hover w-full gap-2 text-white shadow-md">
 							<iconify-icon icon="bi:clipboard-data-fill" width="18"></iconify-icon>
-							Clone <span class="font-semibold text-tertiary-500 dark:text-primary-500">{currentCollection?.name}</span>
+							Clone <span class="font-semibold text-white">{currentCollection?.name}</span>
 						</Button>
 
 						<Button variant="error" type="button" onclick={handleDelete} disabled={!canDelete} class="w-full gap-2 shadow-md">
@@ -351,11 +351,11 @@
 								{new Date(scheduleTimestamp).toLocaleString(getLocale())}
 							</p>
 						{/if}
-						<Button variant="surface"
+						<Button variant="outline"
 							onclick={openSchedule}
-						 class="hover: w-full justify-start gap-2 text-start">
+						 class="w-full justify-start gap-2 text-start text-surface-800 dark:text-surface-100">
 							<iconify-icon icon="bi:clock" width="16"></iconify-icon>
-							<span class="text-sm text-tertiary-500 dark:text-primary-500">
+							<span class="text-sm font-medium text-surface-800 dark:text-surface-100">
 								{scheduleTimestamp ? 'Change schedule...' : 'Schedule publication...'}
 							</span>
 						</Button>
@@ -374,17 +374,17 @@
 
 				<div class="space-y-3">
 					<div class="space-y-1">
-						<p class="text-sm font-medium">{sidebar_createdby()}</p>
-						<div class="preset-filled-surface-500 rounded p-1.5 text-center">
-							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500"> {getDisplayName(currentEntry?.createdBy as string)} </span>
+						<p class="text-sm font-medium text-surface-600 dark:text-surface-300">{sidebar_createdby()}</p>
+						<div class="rounded-lg border border-surface-200 bg-surface-100 px-3 py-2 text-center dark:border-surface-700 dark:bg-surface-800">
+							<span class="text-sm font-semibold text-surface-800 dark:text-surface-100"> {getDisplayName(currentEntry?.createdBy as string)} </span>
 						</div>
 					</div>
 
 					{#if currentEntry?.updatedBy}
 						<div class="space-y-1">
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
-							<div class="preset-filled-surface-500 rounded p-1.5 text-center">
-								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
+							<div class="rounded-lg border border-surface-200 bg-surface-100 px-3 py-2 text-center dark:border-surface-700 dark:bg-surface-800">
+								<span class="text-sm font-semibold text-surface-800 dark:text-surface-100">
 									{getDisplayName(currentEntry?.updatedBy as string)}
 								</span>
 							</div>

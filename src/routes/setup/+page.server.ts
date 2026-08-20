@@ -41,14 +41,8 @@ type DatabaseType = keyof typeof DRIVER_PACKAGES;
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   // Clear ALL existing auth session cookie variants to ensure fresh start
-  const { SESSION_COOKIE_NAME } = await import("@src/databases/auth/constants");
-  for (const name of [
-    SESSION_COOKIE_NAME,
-    `__Host-${SESSION_COOKIE_NAME}`,
-    `__Secure-${SESSION_COOKIE_NAME}`,
-  ]) {
-    cookies.delete(name, { path: "/" });
-  }
+  const { clearAllSessionCookies } = await import("@src/databases/auth/constants");
+  clearAllSessionCookies(cookies, "/");
 
   const availableLanguages: string[] = inlangSettings.locales || ["en", "de"];
 

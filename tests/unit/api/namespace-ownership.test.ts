@@ -38,6 +38,7 @@ const HANDLER_FN: Record<string, string> = {
   "system-settings": "handleSettingsRoutes",
   importer: "handleImporterRoutes",
   ai: "handleAiRoutes",
+  "ai-builder": "handleAiBuilderRoutes",
   automations: "handleAutomationRoutes",
   workflows: "handleWorkflowRoutes",
   setup: "handleSetupRoutes",
@@ -84,6 +85,8 @@ const HANDLER_FN: Record<string, string> = {
   config_sync: "handleConfigRoutes",
   "config-sync": "handleConfigRoutes",
   gdpr: "handleGdprRoutes",
+  commerce: "handleCommerceRoutes",
+  stripe: "handleStripeRoutes",
 };
 
 /**
@@ -252,6 +255,7 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
     "tests/integration/api/config-admin-surface.test.ts",
   ],
   ai: ["tests/unit/api/ai-security.test.ts", "tests/unit/api/ai-copilot.test.ts"],
+  "ai-builder": ["tests/unit/api/ai-builder.test.ts"],
   importer: ["tests/unit/api/export-import-security.test.ts"],
   export: ["tests/unit/api/export-import-security.test.ts"],
   import: ["tests/unit/api/export-import-security.test.ts"],
@@ -311,6 +315,8 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
 
   // Plugin system
   "plugin-settings": ["tests/unit/plugins/settings-crypto.test.ts"],
+  commerce: ["tests/unit/plugins/commerce.test.ts"],
+  stripe: ["tests/unit/plugins/commerce.test.ts"],
 };
 
 describe("API namespace ownership inventory (completeness Phase D)", () => {

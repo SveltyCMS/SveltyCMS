@@ -32,6 +32,7 @@ import type {
   ISqlAdapter,
 } from "../db-interface";
 import * as helpers from "./drizzle-sql-helpers";
+import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "./lookup-query";
 import { generateUUID } from "@utils/native-utils";
 import {
   count as drizzleCount,
@@ -61,7 +62,7 @@ import {
   shouldUseEstimateCount,
   withIdTiebreaker,
 } from "./page-utils";
-import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "./lookup-query";
+import { parseIdLookup } from "./lookup-query";
 
 // ============================================================================
 // Abstract SqlAdapterCore — shared base for all SQL adapters
@@ -270,6 +271,19 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     _values: Record<string, any>,
     _options: BaseQueryOptions,
   ): Promise<T | null> {
+    return null;
+  }
+
+  /**
+   * Adapter-specific raw multi-row INSERT…RETURNING — returns null when not used.
+   * Skips Drizzle AST build and executes multi-tuple raw parameterized SQL.
+   */
+  protected async rawInsertManyReturning<T extends BaseEntity>(
+    _table: any,
+    _collection: string,
+    _batchValues: Record<string, any>[],
+    _options: BaseQueryOptions,
+  ): Promise<T[] | null> {
     return null;
   }
 
@@ -707,8 +721,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     }
 
     // Map common fields explicitly
-    if (schemaCols?.["collection"] || getCol(table, "collection")) {
-      values.collection = data.collection || getTableName(table).replace(/^collection_/, "");
+    if ((schemaCols?.["collection"] || getCol(table, "collection")) && "collection" in data) {
+      values.collection = data.collection;
     }
 
     if (schemaCols?.["publishedAt"] || getCol(table, "publishedAt")) {
@@ -781,19 +795,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
     // 🚀 ALL-SQL ULTRA PATH: pure {_id} / {_id,tenantId} → findById
     // (SQLite raw SELECT, Postgres/MariaDB eq+limit — skips mapQuery translation)
-    if (
-      isIdLookupQuery(query) &&
-      !options.includeDeleted &&
-      !options.bypassSafeQuery &&
-      this.hooks.length === 0
-    ) {
-      const lookupId = extractLookupId(query)!;
-      const qTenant = extractLookupTenantId(query);
-      const fastOpts =
-        qTenant !== undefined && !options.tenantId
-          ? { ...options, tenantId: qTenant as any }
-          : options;
-      return this.findById<T>(collection, lookupId as DatabaseId, fastOpts);
+    if (!options.includeDeleted && !options.bypassSafeQuery && this.hooks.length === 0) {
+      const lookup = parseIdLookup(query);
+      if (lookup) {
+        const fastOpts =
+          lookup.tenantId !== undefined && !options.tenantId
+            ? { ...options, tenantId: lookup.tenantId as any }
+            : options;
+        return this.findById<T>(collection, lookup.id as DatabaseId, fastOpts);
+      }
     }
 
     return this.wrap(async () => {
@@ -803,19 +813,20 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           : query;
 
       // After hooks, re-check for id-only lookup
-      if (isIdLookupQuery(q) && !options.includeDeleted) {
-        const lookupId = extractLookupId(q)!;
-        const qTenant = extractLookupTenantId(q);
-        const fastOpts =
-          qTenant !== undefined && !options.tenantId
-            ? { ...options, tenantId: qTenant as any }
-            : options;
-        const byId = await this.findById<T>(collection, lookupId as DatabaseId, fastOpts);
-        if (!byId.success) throw new Error(byId.message || "findById failed");
-        const data = byId.data;
-        return this.hooks.length > 0
-          ? await this.runHooks("after", "find", collection, data, options)
-          : data;
+      if (!options.includeDeleted) {
+        const lookup = parseIdLookup(q);
+        if (lookup) {
+          const fastOpts =
+            lookup.tenantId !== undefined && !options.tenantId
+              ? { ...options, tenantId: lookup.tenantId as any }
+              : options;
+          const byId = await this.findById<T>(collection, lookup.id as DatabaseId, fastOpts);
+          if (!byId.success) throw new Error(byId.message || "findById failed");
+          const data = byId.data;
+          return this.hooks.length > 0
+            ? await this.runHooks("after", "find", collection, data, options)
+            : data;
+        }
       }
 
       const table = this.getTable(collection);
@@ -1503,6 +1514,16 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           batchValues[i] = this.prepareValues(table, item, id, now, options);
         }
 
+        if (this.insertReturnsRows) {
+          const rawBatch = await this.rawInsertManyReturning<T>(
+            table,
+            collection,
+            batchValues as Record<string, any>[],
+            options,
+          );
+          if (rawBatch !== null) return rawBatch;
+        }
+
         const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
         if (this.insertReturnsRows) {
           const results = await (query as any).returning();
@@ -1683,11 +1704,17 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const values = this.prepareValues(table, data, null, new Date(), options);
         const whereCondition = this.mapQuery(table, query, options);
 
-        // Atomic single UPDATE instead of N+1 sequential loop
-        const result = await this.getDrizzleInstance(options)
+        // Atomic single UPDATE instead of N+1 sequential loop.
+        // SQLite drizzle builders are lazy until `.run()`; awaiting the builder
+        // alone does not execute (batch.bulkUpdate already uses this pattern).
+        const queryBuilder = this.getDrizzleInstance(options)
           .update(table)
           .set(values)
           .where(whereCondition);
+        const result =
+          typeof (queryBuilder as { run?: () => Promise<unknown> }).run === "function"
+            ? await (queryBuilder as { run: () => Promise<unknown> }).run()
+            : await queryBuilder;
 
         return {
           // postgres.js exposes .count; sqlite .changes; mysql2 .affectedRows
@@ -1782,8 +1809,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       async () => {
         const table = this.getTable(collection);
         if (!table) throw new Error(`Collection table not found: ${collection}`);
+        const execWrite = async (builder: { run?: () => Promise<unknown> }) =>
+          typeof builder.run === "function" ? builder.run() : builder;
+
         if (options.permanent && (!query || Object.keys(query).length === 0)) {
-          await this.getDrizzleInstance(options).delete(table);
+          await execWrite(
+            this.getDrizzleInstance(options).delete(table) as { run?: () => Promise<unknown> },
+          );
           return { deletedCount: -1 };
         }
         // 🚀 Single-statement soft/hard delete instead of findMany + N deletes.
@@ -1791,13 +1823,19 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const hasIsDeleted = !!this.getColumn(table, "isDeleted");
         const db = this.getDrizzleInstance(options);
         if (options.permanent || !hasIsDeleted) {
-          await db.delete(table).where(whereCondition);
+          await execWrite(
+            db.delete(table).where(whereCondition) as { run?: () => Promise<unknown> },
+          );
           return { deletedCount: -1 };
         }
-        const res = await db
-          .update(table)
-          .set({ isDeleted: true, updatedAt: new Date() })
-          .where(whereCondition);
+        const res = await execWrite(
+          db
+            .update(table)
+            .set({ isDeleted: true, updatedAt: new Date() })
+            .where(whereCondition) as {
+            run?: () => Promise<unknown>;
+          },
+        );
         // Affected rows differ per dialect: postgres.js -> .count, sqlite -> .changes,
         // mysql2 -> .affectedRows. Fall back to -1 (unknown) when not exposed.
         const affected =

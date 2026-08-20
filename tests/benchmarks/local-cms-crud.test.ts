@@ -48,11 +48,27 @@ async function runLocalCmsCrudBenchmark() {
   const { LocalCMS } = await import("@src/services/sdk");
   const cms = new LocalCMS(db);
 
+  // Provision the physical collection model in the in-process DB. In harness
+  // modes where ensureStableTestData seeds through the HTTP API, this process's
+  // DB never gets the collection table. registerSchema below provisions the
+  // model best-effort too; the explicit createModel is kept as a harness-mode
+  // safety net (same pattern as local-sdk-vs-direct.test.ts).
+  await db.collection
+    .createModel({
+      _id: COLLECTION,
+      name: COLLECTION,
+      fields: [
+        { db_fieldName: "title", type: "string", widget: { Name: "Input" } },
+        { db_fieldName: "count", type: "number", widget: { Name: "Input" } },
+      ],
+    } as any)
+    .catch(() => {});
+
   // Ensure schema is registered (content store may lag in sandbox)
   try {
     await cms.collections.getSchema(COLLECTION, TENANT as any);
   } catch {
-    cms.collections.registerSchema(
+    await cms.collections.registerSchema(
       COLLECTION,
       {
         _id: COLLECTION,
@@ -73,13 +89,19 @@ async function runLocalCmsCrudBenchmark() {
     system: false,
     skipValidation: true,
   });
+  // Reads run as the same admin actor that wrote the seed rows: SDK creates
+  // default to status "draft" (adapter DDL default) and anonymous readers are
+  // publication-clamped to status "publish" — anonymous findById would return
+  // data:null for every seeded row and fail the warmup assertion.
   const readOpts = Object.freeze({
     tenantId: TENANT,
     bypassCache: false,
+    user: systemUser,
   });
   const readOptsCold = Object.freeze({
     tenantId: TENANT,
     bypassCache: true,
+    user: systemUser,
   });
 
   // Seed a stable id for findById / update

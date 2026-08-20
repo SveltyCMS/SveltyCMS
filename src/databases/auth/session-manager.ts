@@ -1,5 +1,5 @@
 /**
- * @file src/databases/auth/sessionCleanup.ts
+ * @file src/databases/auth/session-manager.ts
  * @description Session persistence management
  *
  * This module provides a unified session management system that works with both Redis and in-memory storage.
@@ -35,7 +35,8 @@ interface RedisLike {
 
 // In-memory session storage as fallback
 class InMemorySessionManager implements SessionStore {
-  private readonly sessions: Map<string, { user: WeakRef<User>; expiresAt: Date }> = new Map();
+  private readonly sessions: Map<string, { user: User; expiresAt: Date }> = new Map();
+  private static readonly MAX_SESSIONS = 10000;
 
   async get(sessionId: string): Promise<User | null> {
     const session = this.sessions.get(sessionId);
@@ -48,21 +49,23 @@ class InMemorySessionManager implements SessionStore {
       return null;
     }
 
-    const user = session.user.deref();
-    if (!user) {
-      this.sessions.delete(sessionId);
-      return null;
-    }
-
-    return user;
+    return session.user;
   }
 
   async set(sessionId: string, user: User, expiration: ISODateString): Promise<void> {
     const expirationDate = isoDateStringToDate(expiration);
+    // Bounded capacity protection: prune expired or oldest if exceeding MAX_SESSIONS
+    if (this.sessions.size >= InMemorySessionManager.MAX_SESSIONS) {
+      this.cleanup();
+      if (this.sessions.size >= InMemorySessionManager.MAX_SESSIONS) {
+        const oldestKey = this.sessions.keys().next().value;
+        if (oldestKey) this.sessions.delete(oldestKey);
+      }
+    }
     // Defense-in-depth: never retain credential material (password hash, TOTP
     // secret, backup codes, reset/refresh tokens) in the session store.
     this.sessions.set(sessionId, {
-      user: new WeakRef(toSafeSessionUser(user)),
+      user: toSafeSessionUser(user),
       expiresAt: expirationDate,
     });
   }

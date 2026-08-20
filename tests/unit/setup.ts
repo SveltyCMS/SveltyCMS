@@ -1105,6 +1105,7 @@ if (isBun && !isBenchmark && ENABLE_MOCKS) {
     widgetRegistryService: {
       getAllWidgets: async () => widgetMap,
       getWidget: async (name: string) => widgetMap.get(name),
+      getWidgetSync: (name: string) => widgetMap.get(name),
       initialize: async () => {},
       isInitializedState: () => true,
     },

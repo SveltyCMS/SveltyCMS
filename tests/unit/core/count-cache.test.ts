@@ -17,11 +17,13 @@ import type {
 } from "@src/databases/db-interface";
 
 const mockGet = vi.fn();
+const mockGetSync = vi.fn();
 const mockSet = vi.fn();
 
 vi.mock("@src/databases/cache/cache-service", () => ({
   cacheService: {
     get: (...args: unknown[]) => mockGet(...args),
+    getSync: (...args: unknown[]) => mockGetSync(...args),
     set: (...args: unknown[]) => mockSet(...args),
   },
 }));
@@ -43,6 +45,7 @@ describe("createCountCachedCrud", () => {
 
   beforeEach(() => {
     mockGet.mockReset();
+    mockGetSync.mockReset();
     mockSet.mockReset();
     innerCount.mockReset();
     inner = {
@@ -52,14 +55,16 @@ describe("createCountCachedCrud", () => {
   });
 
   it("returns cached number without calling inner on hit", async () => {
-    mockGet.mockResolvedValue(42);
+    mockGetSync.mockReturnValue(42);
     const wrapped = createCountCachedCrud(inner);
     const res = await wrapped.count("posts", {}, { tenantId: "t1" as DatabaseId });
     expect(res).toEqual({ success: true, data: 42 });
     expect(innerCount).not.toHaveBeenCalled();
+    expect(mockGet).not.toHaveBeenCalled();
   });
 
   it("calls inner on miss and writes cache", async () => {
+    mockGetSync.mockReturnValue(null);
     mockGet.mockResolvedValue(undefined);
     innerCount.mockResolvedValue({ success: true, data: 7 });
     mockSet.mockResolvedValue(undefined);

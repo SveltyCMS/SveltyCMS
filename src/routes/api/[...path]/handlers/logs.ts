@@ -14,12 +14,11 @@ import { buildLogExport, type LogExportFormat, type LogExportType } from "@src/u
 
 const VALID_LOG_LEVELS = new Set(["debug", "info", "warn", "error", "fatal"]);
 
+import { isAdmin } from "@src/databases/auth/constants";
+
 function requireAdmin(event: RequestEvent): void {
   const { locals } = event;
-  const user = locals.user as Record<string, any> | undefined;
-  const role = user?.role;
-
-  if (locals.isAdmin || role === "admin" || role === "super-admin") return;
+  if (locals.isAdmin || isAdmin(locals.user)) return;
   throw new AppError("Admin access required", 403, "FORBIDDEN");
 }
 

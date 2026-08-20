@@ -18,6 +18,7 @@ import { auth } from "@src/databases/db";
 import { SCIM_SCHEMAS } from "@src/types/scim";
 import type { ScimError, ScimPatchOp } from "@src/types/scim";
 import { AppError } from "@utils/error-handling";
+import { isAdmin } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { json } from "@sveltejs/kit";
 
@@ -291,7 +292,7 @@ export async function validateScimAuth(
   }
 
   // Option 2: Session-based admin auth (fallback for dashboard usage)
-  if (locals.user && locals.user.role === "admin") {
+  if (locals.user && isAdmin(locals.user)) {
     return {
       authenticated: true,
       tenantId: locals.tenantId || null,

@@ -30,7 +30,7 @@ import {
   shouldUseEstimateCount,
   withIdTiebreaker,
 } from "../core/page-utils";
-import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "../core/lookup-query";
+import { parseIdLookup } from "../core/lookup-query";
 
 export class MongoCrudMethods<T extends BaseEntity> {
   public readonly model: Model<T>;
@@ -74,29 +74,29 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       // 🚀 ULTRA FAST PATH: shared isIdLookupQuery (SQL + Mongo parity).
       // Multi-tenant: require tenantId on options or query. Single-tenant: allow bare _id.
-      const qTenant = extractLookupTenantId(query);
-      const effectiveTenant = options.tenantId ?? qTenant;
-      const canFastLookup =
-        isIdLookupQuery(query) &&
+      if (
         !options.includeDeleted &&
         !options.bypassSafeQuery &&
-        this.model.collection.name !== "auth_tokens" &&
-        this.model.collection.name !== "sessions" &&
-        (effectiveTenant || !isMultiTenantMode());
+        this.model.collection?.name !== "auth_tokens" &&
+        this.model.collection?.name !== "sessions"
+      ) {
+        const lookup = parseIdLookup(query);
+        if (lookup) {
+          const effectiveTenant = options.tenantId ?? lookup.tenantId;
+          if (effectiveTenant || !isMultiTenantMode()) {
+            const filter: Record<string, unknown> = { _id: lookup.id };
+            if (effectiveTenant) filter.tenantId = effectiveTenant;
 
-      if (canFastLookup) {
-        const id = extractLookupId(query)!;
-        const filter: Record<string, unknown> = { _id: id };
-        if (effectiveTenant) filter.tenantId = effectiveTenant;
+            const projection = options.fields?.length ? options.fields.join(" ") : undefined;
+            const result = await this.model.findOne(filter, projection).lean().exec();
 
-        const projection = options.fields?.length ? options.fields.join(" ") : undefined;
-        const result = await this.model.findOne(filter, projection).lean().exec();
-
-        const meta = { executionTime: performance.now() - startTime };
-        if (!result || (result as any).isDeleted === true) {
-          return { success: true, data: null, meta };
+            const meta = { executionTime: performance.now() - startTime };
+            if (!result || (result as any).isDeleted === true) {
+              return { success: true, data: null, meta };
+            }
+            return { success: true, data: this.mapDates(result) as T, meta };
+          }
         }
-        return { success: true, data: this.mapDates(result) as T, meta };
       }
 
       const secureQuery = this.adapter.mapQuery(
@@ -191,31 +191,31 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       // 🚀 ULTRA FAST PATH: pure {_id} / {_id,tenantId} → findOne lean (skips
       // safeQuery + mapQuery + cursor chain — same shape as SQL adapters).
-      const qTenant = extractLookupTenantId(query);
-      const effectiveTenant = options.tenantId ?? qTenant;
-      const canFastLookup =
-        isIdLookupQuery(query) &&
+      if (
         !options.includeDeleted &&
         !options.bypassSafeQuery &&
         !options.sort &&
         !options.offset &&
-        this.model.collection.name !== "auth_tokens" &&
-        this.model.collection.name !== "sessions" &&
-        (effectiveTenant || !isMultiTenantMode());
+        this.model.collection?.name !== "auth_tokens" &&
+        this.model.collection?.name !== "sessions"
+      ) {
+        const lookup = parseIdLookup(query);
+        if (lookup) {
+          const effectiveTenant = options.tenantId ?? lookup.tenantId;
+          if (effectiveTenant || !isMultiTenantMode()) {
+            const filter: Record<string, unknown> = { _id: lookup.id };
+            if (effectiveTenant) filter.tenantId = effectiveTenant;
 
-      if (canFastLookup) {
-        const id = extractLookupId(query)!;
-        const filter: Record<string, unknown> = { _id: id };
-        if (effectiveTenant) filter.tenantId = effectiveTenant;
+            const projection = options.fields?.length ? options.fields.join(" ") : undefined;
+            const result = await this.model.findOne(filter, projection).lean().exec();
 
-        const projection = options.fields?.length ? options.fields.join(" ") : undefined;
-        const result = await this.model.findOne(filter, projection).lean().exec();
-
-        const meta = { executionTime: performance.now() - startTime };
-        if (!result || (result as any).isDeleted === true) {
-          return { success: true, data: [], meta };
+            const meta = { executionTime: performance.now() - startTime };
+            if (!result || (result as any).isDeleted === true) {
+              return { success: true, data: [], meta };
+            }
+            return { success: true, data: [this.mapDates(result) as T], meta };
+          }
         }
-        return { success: true, data: [this.mapDates(result) as T], meta };
       }
 
       const secureQuery = this.adapter.mapQuery(

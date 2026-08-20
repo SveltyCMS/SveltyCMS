@@ -19,7 +19,7 @@ import { successResponse } from "./base";
 import { safeParse } from "valibot";
 import { databaseConfigSchema, type DatabaseConfig } from "@src/databases/schemas";
 import { setupAdminSchema } from "@utils/schemas";
-import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
+import { SESSION_COOKIE_NAME, isAdmin } from "@src/databases/auth/constants";
 import type { ISODateString } from "@src/databases/db-interface";
 import { setupManager } from "@src/routes/setup/setup-manager";
 
@@ -47,10 +47,7 @@ export async function handleSetupRoutes(
     const setupDone = await isSetupCompleteAsync();
     const caller = event.locals.user;
     const isRealAdmin =
-      !!caller &&
-      caller._id !== "system" &&
-      caller.email !== "system@sveltycms" &&
-      (caller.isAdmin === true || caller.role === "admin" || caller.role === "super-admin");
+      !!caller && caller._id !== "system" && caller.email !== "system@sveltycms" && isAdmin(caller);
 
     if (!isTestReq && setupDone) {
       // complete/seed/test-db must never run after install (admin takeover class)

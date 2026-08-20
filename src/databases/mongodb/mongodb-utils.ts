@@ -1,5 +1,5 @@
 /**
- * @file src/databases/mongodb/methods/mongodb-utils.ts
+ * @file src/databases/mongodb/mongodb-utils.ts
  * @description A comprehensive suite of shared utility functions for the MongoDB adapter.
  * This module provides robust, performant, and type-safe helpers for error handling,
  * data processing, performance monitoring, and intelligent caching.
@@ -8,6 +8,7 @@
 import type { DatabaseId } from "@src/content/types";
 import { logger } from "@src/utils/logger";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
+import { normalizeCollectionTableName } from "../core/collection-name";
 import type { DatabaseError, PaginatedResult, PaginationOptions } from "../db-interface";
 import type { Model, Schema, Connection } from "mongoose";
 import mongoose from "mongoose";
@@ -69,9 +70,15 @@ export function validateId(id: string): boolean {
 }
 
 /**
- * Normalizes collection names according to the CMS's conventions.
- * - `media_` and `auth_` prefixes are preserved.
- * - All other names are prefixed with `collection_` unless already present.
+ * Normalizes collection names to the canonical physical model/table name.
+ * - System-prefixed names (`media_`, `auth_`, `system_`, `svelty_`, `plugin_`)
+ *   pass through unchanged.
+ * - All other names (raw collection ids OR already-prefixed names) are
+ *   normalized via `normalizeCollectionTableName`: exactly one `collection_`
+ *   prefix and hyphens stripped (e.g. "blog-posts" → "collection_blogposts").
+ *
+ * Idempotent by design. For hyphen-free ids the output is byte-identical to the
+ * legacy prefix-only behavior.
  */
 export function normalizeCollectionName(collection: string): string {
   if (
@@ -83,7 +90,7 @@ export function normalizeCollectionName(collection: string): string {
   ) {
     return collection;
   }
-  return collection.startsWith("collection_") ? collection : `collection_${collection}`;
+  return normalizeCollectionTableName(collection);
 }
 
 // ===================================================================================

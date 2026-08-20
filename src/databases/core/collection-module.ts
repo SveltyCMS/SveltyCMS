@@ -14,6 +14,7 @@ import type {
 } from "../db-interface";
 import { DatabaseModule } from "./base-adapter";
 import { assertSafeSqlIdentifier } from "./relational-utils";
+import { normalizeCollectionTableName } from "./collection-name";
 import { logger } from "@src/utils/logger";
 
 export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICollectionAdapter {
@@ -86,7 +87,11 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
       // Identifiers are embedded in DDL — assert they are safe (collection ids
       // and db_fieldNames are config-derived, but field LABELS are admin-typed
       // text and must never break out of the quoted identifier).
-      const safeTableName = assertSafeSqlIdentifier(`collection_${id}`, "table");
+      // normalizeCollectionTableName strips hyphens so the index targets the
+      // SAME physical table name getTable produces (hyphenated ids previously
+      // targeted a phantom `collection_${id}` name and CREATE INDEX silently
+      // failed).
+      const safeTableName = assertSafeSqlIdentifier(normalizeCollectionTableName(id), "table");
       const fields = (schema.fields || []) as any[];
 
       // SQLite-specific indexing (Hardened)
@@ -122,6 +127,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
       await this.applyStructureTenantFilter(filter, tenantId);
       const res = await this.crud.findMany("content_nodes", filter as any, {
         tenantId: tenantId ?? undefined,
+        limit: 1,
       });
       if (!res.success) throw new Error(res.message || "Failed to query content structure");
       const node = Array.isArray(res.data) && res.data.length > 0 ? res.data[0] : null;
@@ -146,6 +152,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
       await this.applyStructureTenantFilter(filter, tenantId);
       const res = await this.crud.findMany("content_nodes", filter as any, {
         tenantId: tenantId ?? undefined,
+        limit: 1,
       });
       if (!res.success) throw new Error(res.message || "Failed to query content structure");
       const node = Array.isArray(res.data) && res.data.length > 0 ? res.data[0] : null;

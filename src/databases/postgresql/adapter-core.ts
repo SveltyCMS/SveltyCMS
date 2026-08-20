@@ -33,6 +33,7 @@ import { sql as drizzleSql, type SQL } from "drizzle-orm";
 import { pgTable, varchar, jsonb, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
+import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 
 export abstract class PostgresAdapterCore extends SqlAdapterCore {
@@ -117,16 +118,46 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return tx?.sql ?? tx?.db?.session?.client ?? null;
   }
 
+  protected _insertTemplateCache = new Map<
+    string,
+    {
+      synthCols: string[];
+      sqlText: string;
+      isJsonMap: boolean[];
+    }
+  >();
+
+  private _getInsertTemplate(table: any, tableName: string, synthesized: Record<string, any>) {
+    let tpl = this._insertTemplateCache.get(tableName);
+    if (!tpl) {
+      const synthCols = Object.keys(synthesized);
+      const colList = synthCols
+        .map((c) => {
+          const phys = this.getColumn(table, c);
+          return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
+        })
+        .join(", ");
+      const isJsonMap: boolean[] = [];
+      const placeholders = synthCols.map((c, i) => {
+        const phys = this.getColumn(table, c);
+        const physName = phys?.name ?? c;
+        const isJson = physName === "data" || (phys as any)?.dataType === "json";
+        isJsonMap[i] = isJson;
+        return isJson ? `$${i + 1}::jsonb` : `$${i + 1}`;
+      });
+      const sqlText = `INSERT INTO "${utils.assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders.join(", ")})`;
+      tpl = { synthCols, sqlText, isJsonMap };
+      this._insertTemplateCache.set(tableName, tpl);
+    }
+    return tpl;
+  }
+
   protected async rawInsertReturning<T extends import("../db-interface").BaseEntity>(
     table: any,
     collection: string,
     values: Record<string, any>,
     options: BaseQueryOptions,
   ): Promise<T | null> {
-    // Inside an outer transaction WITHOUT a raw handle (e.g. a Drizzle tx
-    // created by another caller) the pool-level unsafe() would commit the
-    // insert immediately (bypassing rollback) — defer to the base Drizzle
-    // path which routes through options.transaction.db.
     const txnSql = this.getTxnSql(options);
     if (options?.transaction && !txnSql) return null;
     const exec = txnSql ?? this.sql!;
@@ -135,12 +166,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const valuesCols = Object.keys(values);
       if (valuesCols.length === 0) return null;
 
-      // 🚀 NO-READ-BACK INSERT: the returned row is synthesized from the
-      // prepared values + column defaults instead of RETURNING * (saves the
-      // row materialization + jsonb parse on the write round trip). Exact for
-      // CMS tables — the Drizzle def mirrors the DDL and there are no
-      // triggers/generated columns. If the table shape is unknown, bail out
-      // BEFORE inserting so the base Drizzle path can RETURNING normally.
       let synthesized: Record<string, any>;
       try {
         synthesized = this.synthesizeInsertRow(table, values);
@@ -148,47 +173,96 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         return null;
       }
 
-      // postgres.js 3.x removed sql.join — one flat unsafe() call with explicit
-      // prepare:true gives the same stable-SQL-text statement-cache hit as
-      // nested fragments with a fraction of the per-call allocation. Dates and
-      // objects bind as strings (describe-phase Bind quirk, see above). Bind
-      // the SYNTHESIZED row: all columns defined (defaults + NULLs), so
-      // postgres.js never substitutes undefined params client-side — stable
-      // SQL text + full bind list on the prepared statement.
-      const synthCols = Object.keys(synthesized);
-      const colList = synthCols
-        .map((c) => {
-          // Drizzle def property names may differ from physical column names
-          // (e.g. plugin_storage: collectionName → `collection`).
-          const phys = this.getColumn(table, c);
-          return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
-        })
-        .join(", ");
+      const tpl = this._getInsertTemplate(table, tableName, synthesized);
       const boundValues: any[] = [];
-      const placeholders = synthCols.map((c) => {
-        const phys = this.getColumn(table, c);
-        const physName = phys?.name ?? c;
+      for (let i = 0; i < tpl.synthCols.length; i++) {
+        const c = tpl.synthCols[i];
         const v = synthesized[c];
         if (v instanceof Date) {
           boundValues.push((v as Date).toISOString());
-          return `$${boundValues.length}`;
-        }
-        if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+        } else if (v !== null && typeof v === "object" && !Array.isArray(v)) {
           boundValues.push(JSON.stringify(v));
-          // Explicit jsonb cast: prepared statements must not infer text for a
-          // jsonb column (42804 class: "column is of type jsonb but expression
-          // is of type text").
-          return physName === "data" ? `$${boundValues.length}::jsonb` : `$${boundValues.length}`;
+        } else {
+          boundValues.push(v);
         }
-        boundValues.push(v);
-        return `$${boundValues.length}`;
-      });
-      const sqlText = `INSERT INTO "${utils.assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders.join(", ")})`;
-      await exec.unsafe(sqlText, boundValues, { prepare: true });
+      }
+
+      await exec.unsafe(tpl.sqlText, boundValues, { prepare: true });
       return utils.convertDatesToISO(synthesized, {
         ...this.convertDatesOptions,
         table: collection,
       }) as unknown as T;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Fast multi-row raw INSERT for PostgreSQL:
+   * Batches multiple synthesized rows into a single parameterized SQL query.
+   */
+  protected override async rawInsertManyReturning<T extends import("../db-interface").BaseEntity>(
+    table: any,
+    collection: string,
+    batchValues: Record<string, any>[],
+    options: BaseQueryOptions,
+  ): Promise<T[] | null> {
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql!;
+    try {
+      const len = batchValues.length;
+      if (len === 0) return [];
+      const tableName = getTableName(table);
+      const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+
+      const synthesizedRows: Record<string, any>[] = [];
+      for (let i = 0; i < len; i++) {
+        try {
+          synthesizedRows.push(this.synthesizeInsertRow(table, batchValues[i]));
+        } catch {
+          return null;
+        }
+      }
+
+      const tpl = this._getInsertTemplate(table, tableName, synthesizedRows[0]);
+      const numCols = tpl.synthCols.length;
+      const boundValues: any[] = [];
+      const rowTuples: string[] = [];
+
+      for (let r = 0; r < len; r++) {
+        const row = synthesizedRows[r];
+        const rowPlaceholders: string[] = [];
+        for (let c = 0; c < numCols; c++) {
+          const colName = tpl.synthCols[c];
+          const v = row[colName];
+          if (v instanceof Date) {
+            boundValues.push((v as Date).toISOString());
+          } else if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+            boundValues.push(JSON.stringify(v));
+          } else {
+            boundValues.push(v);
+          }
+          const paramIdx = boundValues.length;
+          rowPlaceholders.push(tpl.isJsonMap[c] ? `$${paramIdx}::jsonb` : `$${paramIdx}`);
+        }
+        rowTuples.push(`(${rowPlaceholders.join(", ")})`);
+      }
+
+      const colList = tpl.synthCols
+        .map((c) => {
+          const phys = this.getColumn(table, c);
+          return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
+        })
+        .join(", ");
+
+      const sqlText = `INSERT INTO "${safeTableName}" (${colList}) VALUES ${rowTuples.join(", ")}`;
+      await exec.unsafe(sqlText, boundValues, { prepare: false });
+
+      return utils.convertArrayDatesToISO(synthesizedRows, {
+        ...this.convertDatesOptions,
+        table: collection,
+      }) as unknown as T[];
     } catch {
       return null;
     }
@@ -213,7 +287,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     try {
       const columns = Object.keys(values);
       if (columns.length === 0) return null;
-      if ((options as any)?.tenantId === null) return null;
 
       const tableName = getTableName(table);
       const idColName = idCol?.name || "_id";
@@ -547,141 +620,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   }
 
-  /**
-   * Raw single-statement UPDATE…RETURNING (or no-read-back UPDATE) for PG —
-   * same tagged-template statement-cache pattern as rawInsertReturning.
-   * Skipping the read-back is opt-in (skipReturning) for full-document callers;
-   * the returned row is reconstructed from the prepared values.
-   */
-  override async update<T extends import("../db-interface").BaseEntity>(
-    collection: string,
-    id: import("../db-interface").DatabaseId,
-    data: import("../db-interface").EntityUpdate<T>,
-    options: import("../db-interface").BaseQueryOptions = {},
-  ): Promise<import("../db-interface").DatabaseResult<T>> {
-    // Inside an outer transaction WITHOUT a raw handle (a Drizzle tx from
-    // another caller) the pool-level sql! fragments would bypass the txn
-    // connection — defer to the base Drizzle path (txn-aware). With the
-    // TransactionModule's raw handle, run the raw UPDATE on the txn instance.
-    const txnSql = this.getTxnSql(options);
-    if (options?.transaction && !txnSql) {
-      return super.update(collection, id, data, options);
-    }
-    const exec = txnSql ?? this.sql!;
-    try {
-      const d =
-        this.hooks.length > 0
-          ? await this.runHooks("before", "update", collection, data, options)
-          : data;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
-      const idColName = idCol.name || "_id";
-      const values = this.prepareValues(table, d, id, new Date(), options);
-      delete values[idColName];
-      delete values["id"];
-      const cols = Object.keys(values);
-      if (cols.length === 0) return super.update(collection, id, data, options);
-
-      // Bound SET pairs via nested fragments (stable SQL text → prepared cache);
-      // dates/objects bind as strings (describe-phase Bind quirk, same as insert).
-      // jsonb columns get an explicit ::jsonb cast so prepared statements never
-      // infer text for a jsonb column (42804 class).
-      const setFrags = cols.map((c) => {
-        const v = values[c];
-        const bound =
-          v instanceof Date
-            ? (v as Date).toISOString()
-            : v !== null && typeof v === "object" && !Array.isArray(v)
-              ? JSON.stringify(v)
-              : v;
-        // Drizzle def property names may differ from physical column names
-        // (e.g. plugin_storage: collectionName → `collection`).
-        const phys = this.getColumn(table, c);
-        const physName = phys?.name ?? c;
-        const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
-        return physName === "data" && typeof bound === "string"
-          ? exec`"${exec.unsafe(safeCol)}" = ${bound}::jsonb`
-          : exec`"${exec.unsafe(safeCol)}" = ${bound}`;
-      });
-      let setFrag = setFrags[0];
-      for (let i = 1; i < setFrags.length; i++) {
-        setFrag = exec`${setFrag}, ${setFrags[i]}`;
-      }
-
-      const skipReturning = (options as any)?.skipReturning === true;
-      const tenantId =
-        options?.tenantId && options?.tenantId !== "global" ? String(options.tenantId) : null;
-      // 🐛 FIX: identifiers must be quoted — PostgreSQL folds unquoted
-      // identifiers to lowercase, so mixed-case collection tables
-      // (e.g. collection_BenchmarkStable) errored with 42P01 and silently
-      // fell back to the slower Drizzle path on EVERY update.
-      const tableFrag = exec.unsafe(`"${getTableName(table).replace(/"/g, '""')}"`);
-      if (skipReturning) {
-        await (tenantId
-          ? exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
-              idColName,
-            )}" = ${String(id)} AND "tenantId" = ${tenantId}`
-          : exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
-              idColName,
-            )}" = ${String(id)}`);
-        const reconstructed = {
-          ...values,
-          [idColName]: id,
-        } as Record<string, unknown>;
-        const finalData = utils.convertDatesToISO(reconstructed, {
-          ...this.convertDatesOptions,
-          table: collection,
-        }) as unknown as T;
-        return this.wrap(
-          async () =>
-            this.hooks.length > 0
-              ? await this.runHooks("after", "update", collection, finalData, options)
-              : finalData,
-          "UPDATE_FAILED",
-          undefined,
-          { ...options, isWrite: true },
-        );
-      }
-
-      const t0 = performance.now();
-      const rows = await (tenantId
-        ? exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
-            idColName,
-          )}" = ${String(id)} AND "tenantId" = ${tenantId} RETURNING *`
-        : exec`UPDATE ${tableFrag} SET ${setFrag} WHERE "${exec.unsafe(
-            idColName,
-          )}" = ${String(id)} RETURNING *`);
-      if (process.env.PROFILE_WRITE === "1") {
-        process.stderr.write(
-          `[WRITE-PROFILE] pg:raw-update-query: ${(performance.now() - t0).toFixed(3)}ms\n`,
-        );
-      }
-      if (Array.isArray(rows) && rows.length > 0) {
-        const finalData = utils.convertDatesToISO(rows[0], {
-          ...this.convertDatesOptions,
-          table: collection,
-        }) as unknown as T;
-        return this.wrap(
-          async () =>
-            this.hooks.length > 0
-              ? await this.runHooks("after", "update", collection, finalData, options)
-              : finalData,
-          "UPDATE_FAILED",
-          undefined,
-          { ...options, isWrite: true },
-        );
-      }
-    } catch (err: any) {
-      if (process.env.PROFILE_WRITE === "1") {
-        process.stderr.write(`[WRITE-PROFILE] pg:raw-update-FALLBACK: ${err?.message}\n`);
-      }
-      /* fall back to the base Drizzle path */
-    }
-    return super.update(collection, id, data, options);
-  }
-
   protected isMissingTableError(err: any): boolean {
     return err?.code === "42P01";
   }
@@ -733,9 +671,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
       // not enough — the composite can exceed NAMEDATALEN=63 and PG would
       // silently truncate, colliding with a longer sibling name. Fail closed
-      // on the FINAL identifier.
+      // on the FINAL identifier (normalizeCollectionTableName is the single
+      // source of truth for the physical name derivation).
       const tableName = utils.assertSafeSqlIdentifier(
-        cleanId.startsWith("collection_") ? cleanId : `collection_${cleanId}`,
+        normalizeCollectionTableName(collection),
         "table",
       );
 
@@ -1492,7 +1431,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         // materialized columns from later reads.
         this.tableRegistry.delete(tableName);
         this.tableRegistry.delete(normalizedName);
-        this.tableRegistry.delete(`collection_${normalizedName}`);
+        this.tableRegistry.delete(normalizeCollectionTableName(normalizedName));
         this.tableRegistry.delete(`collection_${tableName}`);
       },
       "CREATE_MODEL_FAILED",

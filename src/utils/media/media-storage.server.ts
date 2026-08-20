@@ -153,7 +153,7 @@ export async function saveResized(
   const quality = formatConfig?.quality ?? 80;
 
   // 🚀 PREMIUM FEATURE: Multi-format generation (AVIF + WebP)
-  const variants = Object.entries(SIZES).filter(([_, w]) => w > 0);
+  const variants = Object.entries(SIZES).filter(([, w]) => w > 0);
 
   // Run all thumbnail sizes in parallel — each is an independent sharp pipeline.
   const tasks = variants.map(async ([key, w]) => {

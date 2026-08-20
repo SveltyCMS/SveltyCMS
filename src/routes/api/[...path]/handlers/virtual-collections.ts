@@ -22,48 +22,11 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { FederationError } from "@plugins/unified-data-hub/types";
+import { parseVirtualCollectionQueryParams } from "@src/utils/api-params";
 import { successResponse } from "./base";
 
 function parseQueryOptions(url: URL) {
-  const limit = url.searchParams.get("limit");
-  const offset = url.searchParams.get("offset");
-  const sortField = url.searchParams.get("sortField");
-  const sortDirection = url.searchParams.get("sortDirection") as "asc" | "desc" | null;
-  const filterRaw = url.searchParams.get("filter");
-
-  let filter: Record<string, unknown> | undefined;
-  if (filterRaw) {
-    try {
-      filter = JSON.parse(filterRaw);
-    } catch {
-      throw new AppError("Invalid filter JSON", 400, "VALIDATION_ERROR");
-    }
-  }
-
-  const includeRaw = url.searchParams.get("include");
-  const include = includeRaw
-    ? includeRaw
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : undefined;
-
-  const cursor = url.searchParams.get("cursor") ?? undefined;
-
-  return {
-    limit: limit ? Number(limit) : undefined,
-    offset: offset ? Number(offset) : undefined,
-    cursor,
-    sort: sortField
-      ? {
-          field: sortField,
-          direction: sortDirection === "desc" ? ("desc" as const) : ("asc" as const),
-        }
-      : undefined,
-    filter,
-    bypassCache: url.searchParams.get("bypassCache") === "true",
-    include,
-  };
+  return parseVirtualCollectionQueryParams(url.searchParams);
 }
 
 async function parseWriteBody(request: Request): Promise<Record<string, unknown>> {

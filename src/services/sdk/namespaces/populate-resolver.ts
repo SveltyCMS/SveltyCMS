@@ -20,14 +20,14 @@ export async function resolvePopulatedRelations(
   _dbAdapter: any,
   getCollectionName: (id: string) => string,
 ): Promise<void> {
-  for (const fieldName of populateFields) {
+  const populatePromises = populateFields.map(async (fieldName) => {
     const field = (schema.fields as any[])?.find(
       (f: any) => f.db_fieldName === fieldName || f.name === fieldName,
     );
-    if (!field) continue;
+    if (!field) return;
 
     const relationCollection = field.relation || field.collection;
-    if (!relationCollection) continue;
+    if (!relationCollection) return;
 
     // Collect all unique related IDs
     const relatedIds = new Set<string>();
@@ -37,7 +37,7 @@ export async function resolvePopulatedRelations(
       else if (Array.isArray(val)) val.forEach((v: string) => v && relatedIds.add(v));
     }
 
-    if (relatedIds.size === 0) continue;
+    if (relatedIds.size === 0) return;
 
     // Fetch related entries
     try {
@@ -69,5 +69,7 @@ export async function resolvePopulatedRelations(
     } catch {
       // Silently skip failed relation resolution
     }
-  }
+  });
+
+  await Promise.all(populatePromises);
 }

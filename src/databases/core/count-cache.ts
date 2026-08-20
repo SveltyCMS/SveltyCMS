@@ -39,6 +39,8 @@ export function buildCountCacheKey(
   return `count:${collection}:${mode}:${includeDeleted}:${filterHash}`;
 }
 
+const inFlightCounts = new Map<string, Promise<DatabaseResult<number>>>();
+
 /**
  * Wrap an ICrudAdapter so count() is L1/L2 cached per tenant+filter+mode.
  * Other methods (including findPage) pass through bound to the inner adapter.
@@ -59,24 +61,43 @@ export function createCountCachedCrud(inner: ICrudAdapter): ICrudAdapter {
           const key = buildCountCacheKey(collection, query, options);
           const tenantId = options?.tenantId ?? null;
 
+          const syncCached = cacheService.getSync<number>(key, tenantId);
+          if (typeof syncCached === "number" && Number.isFinite(syncCached)) {
+            return { success: true, data: syncCached };
+          }
+
           const cached = await cacheService.get<number>(key, tenantId, CacheCategory.CONTENT);
           // get() returns undefined on miss, null on negative cache — only numbers are hits
           if (typeof cached === "number" && Number.isFinite(cached)) {
             return { success: true, data: cached };
           }
 
-          const result = await target.count(collection, query, options);
-          if (result.success && typeof result.data === "number") {
-            await cacheService.set(
-              key,
-              result.data,
-              COUNT_CACHE_TTL_SECONDS,
-              tenantId,
-              CacheCategory.CONTENT,
-              [`count`, `count:${collection}`, `collection:${collection}`],
-            );
-          }
-          return result;
+          // Single-flight deduplication: coalesce identical in-flight COUNT queries
+          const inFlightKey = `${tenantId || "default"}:${key}`;
+          const existing = inFlightCounts.get(inFlightKey);
+          if (existing) return existing;
+
+          const execute = (async () => {
+            try {
+              const result = await target.count(collection, query, options);
+              if (result.success && typeof result.data === "number") {
+                await cacheService.set(
+                  key,
+                  result.data,
+                  COUNT_CACHE_TTL_SECONDS,
+                  tenantId,
+                  CacheCategory.CONTENT,
+                  [`count`, `count:${collection}`, `collection:${collection}`],
+                );
+              }
+              return result;
+            } finally {
+              inFlightCounts.delete(inFlightKey);
+            }
+          })();
+
+          inFlightCounts.set(inFlightKey, execute);
+          return execute;
         };
       }
 

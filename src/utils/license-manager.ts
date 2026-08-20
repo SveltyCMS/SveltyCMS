@@ -10,9 +10,9 @@
  * - Install date cached at module scope: DB query runs once per server lifetime
  *
  * Resilience:
- * - Extension not on marketplace → works (treated as licensed)
- * - Marketplace down + key → trust key, stay licensed
- * - Marketplace down + no key → works (fail-open)
+ * - Extension not on marketplace (verify 404) → treated as local/free (licensed)
+ * - Marketplace down + key → trust key, stay licensed (fail-open)
+ * - Marketplace down + no key → fail-closed (`active: false`) unless a 14-day trial still applies
  * - NEVER throws
  */
 

@@ -163,6 +163,11 @@ function formatMimeType(mime: string | undefined = undefined): string {
 }
 
 function validateAndAddFiles(newFiles: File[]) {
+	if (!newFiles || newFiles.length === 0) {
+		toast.warning({ description: "No files selected or recognized for upload" });
+		return;
+	}
+
 	const validFiles: File[] = [];
 	const errors: string[] = [];
 
@@ -172,9 +177,7 @@ function validateAndAddFiles(newFiles: File[]) {
 		} else if (ALLOWED_TYPES.includes(file.type)) {
 			// Check for duplicates
 			const fileKey = `${file.name}-${file.size}`;
-			if (fileSet.has(fileKey)) {
-				// Silent skip or warn? using simple toast if needed, but usually redundant
-			} else {
+			if (!fileSet.has(fileKey)) {
 				validFiles.push(file);
 				fileSet.add(fileKey);
 			}
@@ -189,12 +192,16 @@ function validateAndAddFiles(newFiles: File[]) {
 
 	if (validFiles.length > 0) {
 		files = [...files, ...validFiles];
+	} else if (errors.length === 0) {
+		toast.warning({ description: "No new files to upload (all files already added)" });
 	}
 }
 
 function handleFileDrop(event: DragEvent) {
 	event.preventDefault();
-	if (!event.dataTransfer) {
+	dropZone?.style.removeProperty("border-color");
+	if (!event.dataTransfer || !event.dataTransfer.files || event.dataTransfer.files.length === 0) {
+		toast.warning({ description: "No files recognized in drop" });
 		return;
 	}
 	validateAndAddFiles(Array.from(event.dataTransfer.files));

@@ -25,6 +25,20 @@ import * as utils from "./relational-utils";
 
 import { DatabaseModule } from "../core/base-adapter";
 
+function sameBatchPayload<T>(updates: Array<{ data: Partial<T> }>): boolean {
+  const first = updates[0]?.data as Record<string, unknown> | undefined;
+  if (!first) return true;
+  const keys = Object.keys(first);
+  for (let i = 1; i < updates.length; i++) {
+    const next = updates[i].data as Record<string, unknown>;
+    if (Object.keys(next).length !== keys.length) return false;
+    for (const key of keys) {
+      if (next[key] !== first[key]) return false;
+    }
+  }
+  return true;
+}
+
 export class BatchModule extends DatabaseModule<ISqlAdapter> {
   constructor(core: ISqlAdapter) {
     super(core);
@@ -196,22 +210,44 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     return this.core.wrap(async () => {
       const table = this.core.getTable(collection);
+      if (!updates.length) return { modifiedCount: 0 };
+
+      const now = isoDateStringToDate(nowISODateString());
+
+      // Homogeneous payload → one UPDATE ... WHERE _id IN (...) instead of N statements.
+      if (updates.length === 1 || sameBatchPayload(updates)) {
+        const ids = updates.map((u) => u.id as string);
+        const query = this.db
+          .update(table as any)
+          .set(
+            utils.convertISOToDates({
+              ...updates[0].data,
+              updatedAt: now,
+            }) as unknown as Record<string, unknown>,
+          )
+          .where(inArray((table as any)._id, ids));
+        const result = (
+          typeof (query as any).run === "function" ? await (query as any).run() : await query
+        ) as any;
+        return {
+          modifiedCount: result?.changes ?? result?.rowsAffected ?? result?.count ?? ids.length,
+        };
+      }
+
       let modifiedCount = 0;
       await this.db.transaction(async (tx: any) => {
         for (const update of updates) {
-          const result = (await tx
+          const stmt = tx
             .update(table as any)
             .set(
               utils.convertISOToDates({
                 ...update.data,
-                updatedAt: isoDateStringToDate(nowISODateString()),
+                updatedAt: now,
               }) as unknown as Record<string, unknown>,
             )
-            .where(eq((table as any)._id, update.id as string))
-            .run()) as any;
-
-          // Support Bun and node:sqlite (.changes) and LibSQL (.rowsAffected)
-          modifiedCount += result?.changes ?? result?.rowsAffected ?? 0;
+            .where(eq((table as any)._id, update.id as string));
+          const result = (typeof stmt.run === "function" ? await stmt.run() : await stmt) as any;
+          modifiedCount += result?.changes ?? result?.rowsAffected ?? result?.count ?? 0;
         }
       });
       return { modifiedCount };

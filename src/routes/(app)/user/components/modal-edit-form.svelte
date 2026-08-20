@@ -23,7 +23,7 @@ import { logger } from "@utils/logger";
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { editUserSchema } from '@utils/schemas';
 	import { modalState } from '@utils/modal.svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 
 	// Get data from page store
@@ -32,6 +32,7 @@ import { logger } from "@utils/logger";
 
 	import { Form } from '@root/src/utils/form.svelte.ts';
 	import { updateProfile, verifyPassword as verifyPw, deleteUser as deleteUserRemote } from '../user.remote';
+	import { isAdmin } from '@src/databases/auth/constants';
 
 	// Props
 	interface Props {
@@ -71,10 +72,10 @@ import { logger } from "@utils/logger";
 
 	let showPassword = $state(false);
 	const isOwnProfile = $derived(editForm.data.user_id === user?._id || !isGivenData);
-	const canChangePassword = $derived(isOwnProfile || user?.isAdmin);
+	const canChangePassword = $derived(isOwnProfile || isAdmin(user));
 
 	// Check if user has delete permission for layout purposes
-	const hasDeletePermission = user?.isAdmin || user?.role === 'admin';
+	const hasDeletePermission = $derived(isAdmin(user));
 	const showDeleteButton = $derived(hasDeletePermission && !isOwnProfile && !isFirstUser);
 
 	async function onFormSubmit(event: SubmitEvent): Promise<void> {
@@ -149,7 +150,7 @@ import { logger } from "@utils/logger";
 				title: 'User Data Updated',
 				description: 'Your profile changes were saved.'
 			});
-			await invalidateAll();
+			await refreshAll();
 			modalState.close();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
@@ -214,7 +215,7 @@ import { logger } from "@utils/logger";
 				description: `<iconify-icon icon="mdi:alert-circle" width={24}></iconify-icon> ${successMessage}`
 			});
 
-			await invalidateAll();
+			await refreshAll();
 			// modalStore.close();
 			modalState.close();
 		} catch (err) {

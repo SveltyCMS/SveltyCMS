@@ -1,0 +1,50 @@
+---
+path: "src/plugins/commerce/commerce.mdx"
+title: "Commerce Plugin"
+description: "Optional guest cart, quotes, inventory, and checkout. Tenant-scoped. Stripe is a payment adapter only."
+order: 100
+icon: "mdi:cart-outline"
+author: "SveltyCMS Team"
+created: "2026-08-19"
+updated: "2026-08-19"
+license: "Freemium (marketplace.sveltycms.com)"
+tags:
+  - "commerce"
+  - "cart"
+  - "checkout"
+  - "multi-tenancy"
+---
+
+# Commerce Plugin
+
+Opt-in store pipeline. Enable it in **Config → Extensions**. Without it, `/api/commerce/*` returns `403 COMMERCE_DISABLED`. The ecommerce Setup Wizard **preset** still provides collections; this plugin provides behavior.
+
+There is no fifth “API extension” type: HTTP is either `{ type: "route" }` on a plugin or a catch-all handler that calls `assertPluginEnabled`. Commerce uses the latter so guest CSRF and `tenantId` stay in one place.
+
+Guest cart and checkout do **not** go through `/api/plugins/[pluginId]` (that path requires `plugins:execute`). They use `/api/commerce/*` with CSRF on mutations.
+
+## Multi-tenancy
+
+Every cart, order, coupon, tax rate, shipping zone, and stock update is filtered by `locals.tenantId`. The cart cookie stores only an opaque session id — never a tenant id. When multi-tenancy is on, a missing tenant is `400 TENANT_REQUIRED`.
+
+## Guest API
+
+| Method                        | Path                              | Auth                                              |
+| ----------------------------- | --------------------------------- | ------------------------------------------------- |
+| `GET`/`POST`/`PATCH`/`DELETE` | `/api/commerce/cart`              | Public + CSRF on mutations                        |
+| `POST`                        | `/api/commerce/quote`             | Public + CSRF                                     |
+| `POST`                        | `/api/commerce/coupon`            | Public + CSRF                                     |
+| `POST`                        | `/api/commerce/checkout`          | Public + CSRF                                     |
+| `POST`                        | `/api/commerce/pay`               | Public + CSRF — amount is **server `grandTotal`** |
+| `GET`                         | `/api/commerce/orders`            | Authenticated                                     |
+| `POST`                        | `/api/commerce/orders/:id/refund` | Authenticated write                               |
+
+Line prices are loaded from `products` (tenant-scoped). Client `amount` is ignored.
+
+## Commerce Pro
+
+Gift cards, bundles, subscriptions, and custom checkout panes require `checkExtensionLicense("plugin", "commerce")` after the 14-day trial.
+
+Live UPS / FedEx / DHL and TaxJar are **separate paid plugins** (`plugin:shipping-live`, `plugin:taxjar`) on the `ShippingRateProvider` / `TaxProvider` ports. They are not Commerce Pro and not field widgets. Unlicensed: `shipping_zones` / `tax_rates` still quote.
+
+Map: [E-Commerce Overview](/docs/reference/architecture/ecommerce-overview.mdx).
