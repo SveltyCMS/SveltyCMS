@@ -67,6 +67,15 @@ export interface CookieDeleter {
   delete(name: string, opts: { path: string; [key: string]: any }): void;
 }
 
+export const HOST_SESSION_COOKIE_NAME = `__Host-${SESSION_COOKIE_NAME}`;
+export const SECURE_SESSION_COOKIE_NAME = `__Secure-${SESSION_COOKIE_NAME}`;
+
+export const SESSION_COOKIE_VARIANTS = Object.freeze([
+  { name: HOST_SESSION_COOKIE_NAME, isSecure: true },
+  { name: SECURE_SESSION_COOKIE_NAME, isSecure: true },
+  { name: SESSION_COOKIE_NAME, isSecure: false },
+]);
+
 /**
  * Reads the session cookie according to environment security requirements.
  *
@@ -83,22 +92,26 @@ export function readSessionCookie(
   isSecure?: boolean,
 ): string | undefined {
   if (!cookies || typeof cookies.get !== "function") return undefined;
-  const hostPrefixed = `__Host-${SESSION_COOKIE_NAME}`;
-  const securePrefixed = `__Secure-${SESSION_COOKIE_NAME}`;
   if (isSecure === true) {
     // Prefer __Host-; fall back for transitional deploys
     return (
-      cookies.get(hostPrefixed) || cookies.get(SESSION_COOKIE_NAME) || cookies.get(securePrefixed)
+      cookies.get(HOST_SESSION_COOKIE_NAME) ||
+      cookies.get(SESSION_COOKIE_NAME) ||
+      cookies.get(SECURE_SESSION_COOKIE_NAME)
     );
   }
   if (isSecure === false) {
     // Loopback/http: prefer plain name; accept accidental secure leftovers
     return (
-      cookies.get(SESSION_COOKIE_NAME) || cookies.get(hostPrefixed) || cookies.get(securePrefixed)
+      cookies.get(SESSION_COOKIE_NAME) ||
+      cookies.get(HOST_SESSION_COOKIE_NAME) ||
+      cookies.get(SECURE_SESSION_COOKIE_NAME)
     );
   }
   return (
-    cookies.get(hostPrefixed) || cookies.get(SESSION_COOKIE_NAME) || cookies.get(securePrefixed)
+    cookies.get(HOST_SESSION_COOKIE_NAME) ||
+    cookies.get(SESSION_COOKIE_NAME) ||
+    cookies.get(SECURE_SESSION_COOKIE_NAME)
   );
 }
 
@@ -125,12 +138,7 @@ export function clearAllSessionCookies(
   const httpOnlyOpt =
     !isString && cookiePathOrOptions?.httpOnly !== undefined ? cookiePathOrOptions.httpOnly : true;
 
-  const variants = [
-    { name: `__Host-${SESSION_COOKIE_NAME}`, isSecure: true },
-    { name: `__Secure-${SESSION_COOKIE_NAME}`, isSecure: true },
-    { name: SESSION_COOKIE_NAME, isSecure: false },
-  ];
-  for (const { name, isSecure: variantSecure } of variants) {
+  for (const { name, isSecure: variantSecure } of SESSION_COOKIE_VARIANTS) {
     try {
       const effectiveSecure = isSecureOpt !== undefined ? isSecureOpt : variantSecure;
       const effectiveSameSite =

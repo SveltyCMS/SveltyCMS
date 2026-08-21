@@ -41,6 +41,7 @@ const CONFIG_TTL_MS = 60_000;
 let cachedConfig: FieldPermissionConfig | null = null;
 let cachedAt = 0;
 let hasConfig = false;
+const cachedAllowedSets = new Map<string, Set<string> | null>();
 
 /**
  * Returns the parsed field-permission config (memoized, 60s TTL).
@@ -68,6 +69,7 @@ export function getFieldPermissionConfig(): FieldPermissionConfig | null {
   hasConfig = parsed !== null && Object.keys(parsed).length > 0;
   cachedConfig = parsed;
   cachedAt = now;
+  cachedAllowedSets.clear();
   return hasConfig ? parsed : null;
 }
 
@@ -76,6 +78,36 @@ export function invalidateFieldPermissionCache(): void {
   cachedConfig = null;
   hasConfig = false;
   cachedAt = 0;
+  cachedAllowedSets.clear();
+}
+
+/**
+ * Returns the pre-compiled allowed field Set for a (collection, role) pair.
+ * Returns `null` when there is no restrictive policy for this role (full access).
+ */
+export function getAllowedFieldSet(
+  collection: string,
+  role: string | undefined,
+): Set<string> | null {
+  if (!role || !collection) return null;
+  const config = getFieldPermissionConfig();
+  if (!config) return null;
+
+  const key = `${collection}:${role}`;
+  if (cachedAllowedSets.has(key)) {
+    return cachedAllowedSets.get(key) ?? null;
+  }
+
+  const allowed = config[collection]?.[role];
+  if (!allowed || allowed.length === 0) {
+    cachedAllowedSets.set(key, null);
+    return null;
+  }
+
+  const set = new Set<string>(allowed);
+  set.add("_id"); // `_id` is the record identity — never strip it.
+  cachedAllowedSets.set(key, set);
+  return set;
 }
 
 /**
@@ -88,21 +120,23 @@ export function filterEntryFields<T extends Record<string, unknown>>(
   collection: string,
   role: string | undefined,
   isAdmin = false,
+  precomputedAllowedSet?: Set<string> | null,
 ): T {
   if (isAdmin || !entry || typeof entry !== "object") return entry;
   if (!role) return entry;
 
-  const config = getFieldPermissionConfig();
-  const allowed = config?.[collection]?.[role];
-  if (!allowed || allowed.length === 0) return entry; // no policy → full access
+  const allowedSet =
+    precomputedAllowedSet !== undefined
+      ? precomputedAllowedSet
+      : getAllowedFieldSet(collection, role);
 
-  const allowedSet = new Set(allowed);
-  // `_id` is the record identity — never strip it.
-  allowedSet.add("_id");
+  if (!allowedSet) return entry; // no policy → full access
 
   const result: Record<string, unknown> = {};
-  for (const key of Object.keys(entry)) {
-    if (allowedSet.has(key)) result[key] = entry[key];
+  for (const key in entry) {
+    if (Object.hasOwn(entry, key) && allowedSet.has(key)) {
+      result[key] = entry[key];
+    }
   }
   return result as T;
 }
@@ -118,32 +152,45 @@ export function applyFieldPermissionsToBody(
   role: string | undefined,
   isAdmin = false,
 ): unknown {
-  if (isAdmin || !collection || !body) return body;
-  if (!role) return body;
-  // Fast path: no config at all → nothing to do (avoid per-item work).
-  if (!getFieldPermissionConfig()) return body;
+  if (isAdmin || !collection || !body || !role) return body;
+
+  // Pre-resolve the allowed Set once per response (avoid per-item resolution)
+  const allowedSet = getAllowedFieldSet(collection, role);
+  if (!allowedSet) return body;
 
   const filterEntry = <T extends Record<string, unknown>>(item: T): T =>
-    filterEntryFields(item, collection, role, isAdmin);
+    filterEntryFields(item, collection, role, isAdmin, allowedSet);
 
   if (Array.isArray(body)) {
-    return (body as unknown[]).map((item) =>
-      item && typeof item === "object" && !Array.isArray(item)
-        ? filterEntry(item as Record<string, unknown>)
-        : item,
-    );
+    const arr = body as unknown[];
+    const res: unknown[] = [];
+    for (let i = 0; i < arr.length; i++) {
+      const item = arr[i];
+      res.push(
+        item && typeof item === "object" && !Array.isArray(item)
+          ? filterEntry(item as Record<string, unknown>)
+          : item,
+      );
+    }
+    return res;
   }
 
   if (body && typeof body === "object") {
     const record = body as Record<string, unknown>;
     if (Array.isArray(record.data)) {
-      return {
-        ...record,
-        data: (record.data as unknown[]).map((item) =>
+      const arr = record.data as unknown[];
+      const filteredData: unknown[] = [];
+      for (let i = 0; i < arr.length; i++) {
+        const item = arr[i];
+        filteredData.push(
           item && typeof item === "object" && !Array.isArray(item)
             ? filterEntry(item as Record<string, unknown>)
             : item,
-        ),
+        );
+      }
+      return {
+        ...record,
+        data: filteredData,
       };
     }
     if (record.data && typeof record.data === "object" && !Array.isArray(record.data)) {

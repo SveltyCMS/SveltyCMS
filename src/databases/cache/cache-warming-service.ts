@@ -87,13 +87,7 @@ export class CacheWarmingService {
         }
       }
 
-      // 4. Register standard prefetch patterns
-      cacheService.registerPrefetchPattern("schema:", ["collection:data:"]);
-
-      // User lifecycle patterns (Predicted by docs/architecture/cache-system.mdx)
-      cacheService.registerPrefetchPattern("user:", ["user:permissions:", "user:roles:"]);
-
-      // 5. Predictive Telemetry Warming (v1.2 "Agency OS" Feature)
+      // 4. Predictive Telemetry Warming (v1.2 "Agency OS" Feature)
       // ⚡ NON-BLOCKING: Run in background after a short delay to allow system to settle
       setTimeout(() => {
         this.warmFromTelemetry(db).catch((err) =>

@@ -7,6 +7,7 @@ import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { logger } from "@utils/logger";
+import type { PublicationFilter } from "@src/utils/security/publication-policy";
 
 // Registers media schemas dynamically.
 export function mediaTypeDefs() {
@@ -64,6 +65,8 @@ interface PaginationArgs {
 interface GraphQLContext {
   tenantId?: string | null;
   user?: User;
+  /** Publication visibility of the request (resolved in +server.ts context). */
+  publicationFilter?: PublicationFilter;
 }
 
 type MediaResolverParent = unknown;

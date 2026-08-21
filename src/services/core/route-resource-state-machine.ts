@@ -88,42 +88,43 @@ const ROUTE_SPECS: Record<RouteResourceLane, RouteResourceSpec> = {
 };
 
 export class RouteResourceStateMachine {
+  private _cache = new Map<string, RouteResourceSpec>();
+
   /**
    * Classifies URL into a precise RouteResourceSpec in < 10 microseconds.
    */
   public classifyRouteSpec(path: string): RouteResourceSpec {
+    let spec = this._cache.get(path);
+    if (spec !== undefined) return spec;
+
     const p = path.toLowerCase();
 
     if (p.startsWith("/api/graphql")) {
-      return ROUTE_SPECS.graphql;
-    }
-    if (p.startsWith("/api/collections") || p.startsWith("/api/content")) {
-      return ROUTE_SPECS.collection;
-    }
-    if (p.startsWith("/api/media")) {
-      return ROUTE_SPECS.media;
-    }
-    if (p.startsWith("/api/settings") || p.startsWith("/api/config")) {
-      return ROUTE_SPECS.settings;
-    }
-    if (p.startsWith("/api/")) {
-      return ROUTE_SPECS.api;
-    }
-
-    if (p === "/login" || p === "/setup" || p.startsWith("/auth")) {
-      return ROUTE_SPECS.bootstrap;
-    }
-    if (p.startsWith("/mediagallery") || p.startsWith("/media")) {
-      return ROUTE_SPECS.media;
-    }
-    if (p.startsWith("/collections") || p.startsWith("/content")) {
-      return ROUTE_SPECS.collection;
-    }
-    if (p.startsWith("/settings") || p.startsWith("/config")) {
-      return ROUTE_SPECS.settings;
+      spec = ROUTE_SPECS.graphql;
+    } else if (p.startsWith("/api/collections") || p.startsWith("/api/content")) {
+      spec = ROUTE_SPECS.collection;
+    } else if (p.startsWith("/api/media")) {
+      spec = ROUTE_SPECS.media;
+    } else if (p.startsWith("/api/settings") || p.startsWith("/api/config")) {
+      spec = ROUTE_SPECS.settings;
+    } else if (p.startsWith("/api/")) {
+      spec = ROUTE_SPECS.api;
+    } else if (p === "/login" || p === "/setup" || p.startsWith("/auth")) {
+      spec = ROUTE_SPECS.bootstrap;
+    } else if (p.startsWith("/mediagallery") || p.startsWith("/media")) {
+      spec = ROUTE_SPECS.media;
+    } else if (p.startsWith("/collections") || p.startsWith("/content")) {
+      spec = ROUTE_SPECS.collection;
+    } else if (p.startsWith("/settings") || p.startsWith("/config")) {
+      spec = ROUTE_SPECS.settings;
+    } else {
+      spec = ROUTE_SPECS.dashboard;
     }
 
-    return ROUTE_SPECS.dashboard;
+    if (this._cache.size < 256) {
+      this._cache.set(path, spec);
+    }
+    return spec;
   }
 
   /**

@@ -15,6 +15,7 @@ import type {
   ICrudAdapter,
   QueryFilter,
 } from "@src/databases/db-interface";
+import { CacheCategory } from "@src/databases/cache/types";
 
 const mockGet = vi.fn();
 const mockGetSync = vi.fn();
@@ -61,6 +62,9 @@ describe("createCountCachedCrud", () => {
     expect(res).toEqual({ success: true, data: 42 });
     expect(innerCount).not.toHaveBeenCalled();
     expect(mockGet).not.toHaveBeenCalled();
+    // getSync takes exactly 2 runtime args (key, tenantId) — never a category.
+    expect(mockGetSync).toHaveBeenCalledTimes(1);
+    expect(mockGetSync).toHaveBeenCalledWith(expect.stringContaining("count:posts:auto:"), "t1");
   });
 
   it("calls inner on miss and writes cache", async () => {
@@ -78,6 +82,13 @@ describe("createCountCachedCrud", () => {
     if (!res.success) throw new Error("expected count to succeed");
     expect(res.data).toBe(7);
     expect(innerCount).toHaveBeenCalledOnce();
+    // Async get takes exactly 3 runtime args (key, tenantId, category).
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(mockGet).toHaveBeenCalledWith(
+      expect.stringContaining("count:posts:exact:"),
+      "t1",
+      CacheCategory.CONTENT,
+    );
     expect(mockSet).toHaveBeenCalledWith(
       expect.stringContaining("count:posts:exact:"),
       7,

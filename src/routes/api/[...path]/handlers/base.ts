@@ -42,7 +42,7 @@ export function successResponse(event: RequestEvent, result: any, status = 200) 
   let body: any;
   if (isDatabaseResult(result)) {
     if (!result.success) {
-      return buildJsonResponse(event, result, result.error?.status || 400);
+      return buildJsonResponse(event, result, result.error?.statusCode || 400);
     }
     body = { success: true, data: result.data, meta: result.meta };
   } else {
@@ -136,7 +136,7 @@ export function isDatabaseResult(obj: any): obj is {
   data?: any;
   message?: string;
   meta?: any;
-  error?: { status: number };
+  error?: { code?: string; message?: string; statusCode?: number };
 } {
   return obj && typeof obj === "object" && typeof (obj as any).success === "boolean";
 }

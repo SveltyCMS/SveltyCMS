@@ -22,13 +22,120 @@ import type { ISODateString } from "../content/types";
 
 // --- ISO Date Utilities (Merged from date-utils.ts) ---
 
+// Days per month for non-leap years, indexed by month - 1.
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
+
+/** True for leap years (proleptic Gregorian rule, matching `Date` semantics). */
+function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+/** True when both characters at `offset` are ASCII digits ('0'-'9'). */
+function hasTwoDigits(value: string, offset: number): boolean {
+  const a = value.charCodeAt(offset);
+  const b = value.charCodeAt(offset + 1);
+  return a >= 48 && a <= 57 && b >= 48 && b <= 57;
+}
+
+/** Parses two ASCII digits at `offset` into 0-99 (caller must pre-validate with `hasTwoDigits`). */
+function parseTwoDigits(value: string, offset: number): number {
+  return (value.charCodeAt(offset) - 48) * 10 + (value.charCodeAt(offset + 1) - 48);
+}
+
 /**
  * Type guard for ISODateString.
+ *
+ * Zero-allocation validator: pure `charCodeAt` + integer arithmetic (no `Date`,
+ * regex, `.slice`, `.split`, or per-call string allocation). Accepts the ISO forms
+ * the codebase produces (`YYYY-MM-DD`, `YYYY-MM-DDTHH:mm:ss[.sss]Z`, and ±HH:MM
+ * offsets) while reproducing the previous `new Date()` semantics: the UTC instant
+ * must fall on the literal YYYY-MM-DD date, so `2025-01-20T00:00:00+05:00` is
+ * rejected (it is 2025-01-19 UTC) and calendar-invalid dates such as `2025-02-30`
+ * or `2025-13-45` are rejected. A time part without a timezone designator is
+ * interpreted as UTC (matching the date-only form).
  */
 export function isISODateString(value: unknown): value is ISODateString {
   if (typeof value !== "string" || value.length < 10) return false;
-  const date = new Date(value);
-  return !Number.isNaN(date.getTime()) && value.startsWith(date.toISOString().slice(0, 10));
+
+  // --- YYYY-MM-DD (fixed offsets) ---
+  const y0 = value.charCodeAt(0);
+  const y1 = value.charCodeAt(1);
+  const y2 = value.charCodeAt(2);
+  const y3 = value.charCodeAt(3);
+  if (y0 < 48 || y0 > 57 || y1 < 48 || y1 > 57 || y2 < 48 || y2 > 57 || y3 < 48 || y3 > 57) {
+    return false;
+  }
+  const year = (y0 - 48) * 1000 + (y1 - 48) * 100 + (y2 - 48) * 10 + (y3 - 48);
+  if (value.charCodeAt(4) !== 45 /* '-' */) return false;
+  if (!hasTwoDigits(value, 5)) return false;
+  const month = parseTwoDigits(value, 5);
+  if (value.charCodeAt(7) !== 45 /* '-' */) return false;
+  if (!hasTwoDigits(value, 8)) return false;
+  const day = parseTwoDigits(value, 8);
+
+  if (month < 1 || month > 12) return false;
+  const daysInMonth = month === 2 ? (isLeapYear(year) ? 29 : 28) : DAYS_IN_MONTH[month - 1];
+  if (day < 1 || day > daysInMonth) return false;
+
+  // --- Date-only form: "YYYY-MM-DD" ---
+  if (value.length === 10) return true;
+
+  // --- Time part: 'T' or ' ' separator ---
+  const separator = value.charCodeAt(10);
+  if (separator !== 84 /* 'T' */ && separator !== 32 /* ' ' */) return false;
+  if (value.length < 19) return false; // minimum "YYYY-MM-DDTHH:mm:ss"
+
+  // --- HH:mm:ss ---
+  if (!hasTwoDigits(value, 11)) return false;
+  const hour = parseTwoDigits(value, 11);
+  if (value.charCodeAt(13) !== 58 /* ':' */) return false;
+  if (!hasTwoDigits(value, 14)) return false;
+  const minute = parseTwoDigits(value, 14);
+  if (value.charCodeAt(16) !== 58 /* ':' */) return false;
+  if (!hasTwoDigits(value, 17)) return false;
+  const second = parseTwoDigits(value, 17);
+  if (hour > 23 || minute > 59 || second > 59) return false;
+
+  let index = 19;
+
+  // --- Optional fractional seconds: '.' followed by 1+ digits ---
+  if (value.charCodeAt(index) === 46 /* '.' */) {
+    index++;
+    let fractionDigits = 0;
+    while (index < value.length) {
+      const c = value.charCodeAt(index);
+      if (c < 48 || c > 57) break;
+      index++;
+      fractionDigits++;
+    }
+    if (fractionDigits === 0) return false;
+  }
+
+  // --- Timezone designator: 'Z' or ±HH:MM (absent = UTC, as for date-only) ---
+  let offsetMinutes = 0;
+  if (index < value.length) {
+    const tz = value.charCodeAt(index);
+    if (tz === 90 /* 'Z' */) {
+      index++;
+    } else if (tz === 43 /* '+' */ || tz === 45 /* '-' */) {
+      if (value.length < index + 6 || !hasTwoDigits(value, index + 1)) return false;
+      const offsetHour = parseTwoDigits(value, index + 1);
+      if (value.charCodeAt(index + 3) !== 58 /* ':' */) return false;
+      if (!hasTwoDigits(value, index + 4)) return false;
+      const offsetMinute = parseTwoDigits(value, index + 4);
+      if (offsetHour > 23 || offsetMinute > 59) return false;
+      offsetMinutes = (offsetHour * 60 + offsetMinute) * (tz === 45 /* '-' */ ? -1 : 1);
+      index += 6;
+    } else {
+      return false;
+    }
+  }
+  if (index !== value.length) return false;
+
+  // --- UTC instant must fall on the literal date (reproduces the old
+  //     `value.startsWith(date.toISOString().slice(0, 10))` semantics) ---
+  const utcMinutes = hour * 60 + minute - offsetMinutes;
+  return utcMinutes >= 0 && utcMinutes < 1440;
 }
 
 // Backward compatibility wrappers
@@ -117,6 +224,15 @@ export function formatDateString(
 const dateTimeFormatCache = new Map<string, Intl.DateTimeFormat>();
 const relativeTimeFormatCache = new Map<string, Intl.RelativeTimeFormat>();
 
+export const DEFAULT_DISPLAY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+};
+
 /**
  * Format date for localized display.
  * Pass the app's content language explicitly: `app.contentLanguage` from `@src/stores/store.svelte`.
@@ -124,21 +240,17 @@ const relativeTimeFormatCache = new Map<string, Intl.RelativeTimeFormat>();
 export function formatDisplayDate(
   dateInput: Date | number | string,
   locale = "en",
-  options: Intl.DateTimeFormatOptions = {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  },
+  options: Intl.DateTimeFormatOptions = DEFAULT_DISPLAY_DATE_OPTIONS,
 ): string {
   try {
     const date = new Date(
       typeof dateInput === "number" ? (dateInput > 1e12 ? dateInput : dateInput * 1000) : dateInput,
     );
     if (Number.isNaN(date.getTime())) return "Invalid Date";
-    const cacheKey = `${locale}:${JSON.stringify(options)}`;
+    const cacheKey =
+      options === DEFAULT_DISPLAY_DATE_OPTIONS
+        ? `${locale}:default`
+        : `${locale}:${JSON.stringify(options)}`;
     let formatter = dateTimeFormatCache.get(cacheKey);
     if (!formatter) {
       formatter = new Intl.DateTimeFormat(locale, options);

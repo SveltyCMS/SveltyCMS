@@ -685,6 +685,17 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   const isSecure = isSecureCookieContext(url.protocol, url.hostname);
   const cookieName = getSessionCookieName(isSecure);
 
+  // 🧪 TEST-MODE TENANT HEADER: Resolve once so ALL turbo fast paths (and the
+  // main flow) honor x-test-tenant-id even when a warm session context exists.
+  // Without this, a cached turboCtx.tenantId from an earlier request in the same
+  // session (e.g. tenant A) leaks into later requests for tenant B.
+  const testMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
+  const testTenantHeader = testMode ? event.request.headers.get("x-test-tenant-id") : null;
+  const testTenantOverride =
+    testTenantHeader && testTenantHeader.length > 0 && testTenantHeader !== "null"
+      ? (testTenantHeader as DatabaseId)
+      : null;
+
   // 🚀 UNIVERSAL TURBO AUTH: Check session → turbo auth cache BEFORE any
   // dynamic imports, tenant resolution, or CSRF work. On a warm cache hit,
   // this skips ~2ms of per-request auth overhead for ALL request types.
@@ -698,7 +709,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (turboCtx && Date.now() < turboCtx.expiresAt) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
-      (locals as any).tenantId = turboCtx.tenantId ?? locals.tenantId;
+      (locals as any).tenantId = testTenantOverride ?? turboCtx.tenantId ?? locals.tenantId;
       (locals as any).__turboAuth = true;
       return await resolve(event);
     }
@@ -730,7 +741,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (turboCtx && Date.now() < turboCtx.expiresAt) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
-      (locals as any).tenantId = turboCtx.tenantId ?? locals.tenantId;
+      (locals as any).tenantId = testTenantOverride ?? turboCtx.tenantId ?? locals.tenantId;
       locals.dbAdapter = dbAdapter;
       (locals as any).dbAdapterUnscoped = dbAdapter;
       (locals as any).__turboAuth = true;
@@ -1282,6 +1293,28 @@ export function clearAllSessionCaches(): void {
   negativeSessionCache.clear();
   multiTenantCached = null;
   demoModeCached = null;
+}
+
+/**
+ * Drop every cached session + turbo-auth context belonging to a user.
+ * Profile edits (username/email/avatar) must be visible on the next reload;
+ * cached user snapshots in the session LRU would otherwise serve the old
+ * values for up to the session cache TTL.
+ */
+export function invalidateUserSessionCaches(userId: string): void {
+  const id = String(userId);
+  for (const [sessionId, entry] of sessionCache.entries()) {
+    if (String(entry.user?._id ?? entry.user?.id ?? "") === id) {
+      sessionCache.delete(sessionId);
+      lastRefreshAttempt.delete(sessionId);
+      lastRotationAttempt.delete(sessionId);
+      lastAnomalyLog.delete(sessionId);
+      negativeSessionCache.delete(sessionId);
+      // Turbo GET serves cached responses via the per-session auth context —
+      // drop it too or a warm context keeps serving the stale user.
+      invalidateTurboAuthContext(sessionId);
+    }
+  }
 }
 
 /**

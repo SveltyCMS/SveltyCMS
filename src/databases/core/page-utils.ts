@@ -19,7 +19,7 @@ export function isEmptyQueryFilter(query: unknown): boolean {
   if (query === undefined || query === null) return true;
   if (typeof query !== "object" || Array.isArray(query)) return false;
   for (const _k in query as object) {
-    if (Object.prototype.hasOwnProperty.call(query, _k)) return false;
+    if (Object.hasOwn(query as object, _k)) return false;
   }
   return true;
 }
@@ -94,9 +94,9 @@ export function resolvePageSort(sort?: unknown): ResolvedPageSort {
     }
   }
   if (typeof sort === "object" && sort !== null && !Array.isArray(sort)) {
-    const entries = Object.entries(sort as Record<string, unknown>);
-    if (entries.length > 0) {
-      const [field, dir] = entries[0];
+    for (const field in sort as Record<string, unknown>) {
+      if (!Object.hasOwn(sort, field)) continue;
+      const dir = (sort as Record<string, unknown>)[field];
       const direction = dir === 1 || dir === "asc" || dir === "ASC" ? "asc" : "desc";
       return { field, direction };
     }
@@ -149,6 +149,17 @@ export function withIdTiebreaker(sort: unknown): unknown {
 }
 
 export function encodePageCursor(payload: PageCursorPayload): string {
+  // 🚀 Fast-path: Compact delimited encoding for standard id-only cursors (avoids JSON.stringify)
+  if (!payload.f && payload.v === undefined) {
+    const dir = payload.d === "asc" ? "a" : "d";
+    const compact = `k1:${dir}:${payload.id}`;
+    if (typeof Buffer !== "undefined") {
+      return Buffer.from(compact, "utf8").toString("base64url");
+    }
+    const b64 = btoa(unescape(encodeURIComponent(compact)));
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
   const json = JSON.stringify(payload);
   if (typeof Buffer !== "undefined") {
     return Buffer.from(json, "utf8").toString("base64url");
@@ -161,14 +172,27 @@ export function encodePageCursor(payload: PageCursorPayload): string {
 export function decodePageCursor(cursor: string | undefined | null): PageCursorPayload | null {
   if (!cursor || typeof cursor !== "string") return null;
   try {
-    let json: string;
+    let raw: string;
     if (typeof Buffer !== "undefined") {
-      json = Buffer.from(cursor, "base64url").toString("utf8");
+      raw = Buffer.from(cursor, "base64url").toString("utf8");
     } else {
       const b64 = cursor.replace(/-/g, "+").replace(/_/g, "/");
-      json = decodeURIComponent(escape(atob(b64)));
+      raw = decodeURIComponent(escape(atob(b64)));
     }
-    const parsed = JSON.parse(json) as PageCursorPayload;
+
+    // 🚀 Fast-path: Compact delimited decode (avoids JSON.parse)
+    if (raw.startsWith("k1:")) {
+      const secondColon = raw.indexOf(":", 3);
+      if (secondColon !== -1) {
+        const dirCode = raw.slice(3, secondColon);
+        const id = raw.slice(secondColon + 1);
+        if (id) {
+          return { id, d: dirCode === "a" ? "asc" : "desc" };
+        }
+      }
+    }
+
+    const parsed = JSON.parse(raw) as PageCursorPayload;
     if (!parsed || typeof parsed.id !== "string" || !parsed.id) return null;
     return parsed;
   } catch {

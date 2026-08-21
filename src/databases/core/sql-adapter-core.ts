@@ -1514,15 +1514,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           batchValues[i] = this.prepareValues(table, item, id, now, options);
         }
 
-        if (this.insertReturnsRows) {
-          const rawBatch = await this.rawInsertManyReturning<T>(
-            table,
-            collection,
-            batchValues as Record<string, any>[],
-            options,
-          );
-          if (rawBatch !== null) return rawBatch;
-        }
+        const rawBatch = await this.rawInsertManyReturning<T>(
+          table,
+          collection,
+          batchValues as Record<string, any>[],
+          options,
+        );
+        if (rawBatch !== null) return rawBatch;
 
         const query = this.getDrizzleInstance(options).insert(table).values(batchValues);
         if (this.insertReturnsRows) {

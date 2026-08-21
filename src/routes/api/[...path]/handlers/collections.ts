@@ -38,8 +38,14 @@ function unwrapWritePayload(raw: unknown): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
   const obj = raw as Record<string, unknown>;
   if (obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)) {
-    const extras = Object.keys(obj).filter((k) => k !== "data" && k !== "tenantId");
-    if (extras.length === 0) return obj.data;
+    let hasExtras = false;
+    for (const k in obj) {
+      if (Object.hasOwn(obj, k) && k !== "data" && k !== "tenantId") {
+        hasExtras = true;
+        break;
+      }
+    }
+    if (!hasExtras) return obj.data;
   }
   return raw;
 }
@@ -47,16 +53,19 @@ function unwrapWritePayload(raw: unknown): unknown {
 /** Accept `string[]`, `{ entryIds }`, `{ ids }`, or `{ entries: [{ _id }] }`. */
 function extractEntryIds(payload: unknown): string[] {
   if (Array.isArray(payload)) {
-    return payload
-      .map((item) => {
-        if (typeof item === "string" && item.length > 0) return item;
-        if (item && typeof item === "object" && "_id" in item) {
-          const id = (item as { _id?: unknown })._id;
-          return typeof id === "string" && id.length > 0 ? id : "";
+    const ids: string[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      const item = payload[i];
+      if (typeof item === "string" && item.length > 0) {
+        ids.push(item);
+      } else if (item && typeof item === "object" && "_id" in item) {
+        const id = (item as { _id?: unknown })._id;
+        if (typeof id === "string" && id.length > 0) {
+          ids.push(id);
         }
-        return "";
-      })
-      .filter((id) => id.length > 0);
+      }
+    }
+    return ids;
   }
   if (payload && typeof payload === "object") {
     const obj = payload as Record<string, unknown>;

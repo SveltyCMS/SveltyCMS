@@ -31,12 +31,10 @@ export {
   checkPermissions,
   getAllPermissions,
   getPermissionById,
-  getPermissionConfig,
   getRolePermissionsWithRoles as checkRolePermissions,
   hasPermissionByAction,
   hasPermissionWithRoles as hasPermission,
   isAdminRoleWithRoles,
-  permissionConfigs,
   permissions,
   registerPermission,
   validateUserPermission,
@@ -983,6 +981,15 @@ export class Auth {
     }
     const result = await this.db.auth.updateUserAttributes(userId, attrs as Partial<User>, options);
     if (result?.success) {
+      // 🛡️ Turbo-auth contexts cache per-session user/roles — clear the user's
+      // sessions so profile edits (username/email/avatar) show immediately after
+      // reload instead of after the 60s TTL (same as Auth.updateUser).
+      try {
+        const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
+        invalidateTurboAuthForUser(String(userId));
+      } catch {
+        // Non-critical — turbo contexts expire naturally after TTL
+      }
       return result.data;
     }
     throw error(500, "Failed to update user attributes");

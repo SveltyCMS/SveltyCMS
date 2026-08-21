@@ -45,7 +45,25 @@ export interface CartView {
 
 function asLines(raw: unknown): CartLine[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((row) => row && typeof row === "object") as CartLine[];
+  const lines: CartLine[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const rec = row as Record<string, unknown>;
+    const qty = Math.floor(Number(rec.qty));
+    const unitAmount = Number(rec.unitAmount);
+    if (!Number.isFinite(qty) || qty < 1 || !Number.isFinite(unitAmount)) continue;
+    lines.push({
+      productId: String(rec.productId ?? ""),
+      variantSku: rec.variantSku ? String(rec.variantSku) : undefined,
+      title: String(rec.title ?? ""),
+      sku: String(rec.sku ?? ""),
+      qty,
+      unitAmount,
+      currency: typeof rec.currency === "string" ? rec.currency : "",
+      downloadable: Boolean(rec.downloadable),
+    });
+  }
+  return lines;
 }
 
 function expiresAt(): string {
@@ -55,7 +73,7 @@ function expiresAt(): string {
 function toView(row: CommerceRow, currency: string): CartView {
   const items = asLines(row.items);
   const subtotal = items.reduce(
-    (sum, line) => add(sum, money(line.unitAmount * line.qty, line.currency || currency)),
+    (sum, line) => add(sum, money(line.unitAmount * line.qty, currency)),
     money(0, currency),
   );
   return {
@@ -148,7 +166,7 @@ function mergeLines(base: CartLine[], extra: CartLine[]): CartLine[] {
 
 function lineSubtotal(items: CartLine[], currency: string) {
   return items.reduce(
-    (sum, line) => add(sum, money(line.unitAmount * line.qty, line.currency || currency)),
+    (sum, line) => add(sum, money(line.unitAmount * line.qty, currency)),
     money(0, currency),
   );
 }

@@ -13,6 +13,11 @@
 import { logger } from "@utils/logger";
 // ─── Streaming JSON Response ─────────────────────────────────────────────────
 
+const SHARED_TEXT_ENCODER = new TextEncoder();
+const OPEN_DATA_CHUNK = SHARED_TEXT_ENCODER.encode('{"success":true,"data":[');
+const COMMA_CHUNK = SHARED_TEXT_ENCODER.encode(",");
+const STREAM_ERROR_CHUNK = SHARED_TEXT_ENCODER.encode('],"error":"Stream interrupted"}');
+
 /**
  * Creates a streaming JSON response from an async iterable or array.
  *
@@ -29,7 +34,6 @@ export function streamingJsonResponse(
   } = {},
 ) {
   const { maxItems = Infinity, enableBackpressure = true } = options;
-  const encoder = new TextEncoder();
 
   let itemCount = 0;
   let isClosed = false;
@@ -37,8 +41,8 @@ export function streamingJsonResponse(
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        // Opening bracket
-        controller.enqueue(encoder.encode('{"success":true,"data":['));
+        // Opening bracket (pre-encoded zero-allocation chunk)
+        controller.enqueue(OPEN_DATA_CHUNK);
 
         let first = true;
 
@@ -46,9 +50,9 @@ export function streamingJsonResponse(
           if (isClosed) break;
           if (itemCount >= maxItems) break;
 
-          if (!first) controller.enqueue(encoder.encode(","));
+          if (!first) controller.enqueue(COMMA_CHUNK);
 
-          controller.enqueue(encoder.encode(JSON.stringify(item)));
+          controller.enqueue(SHARED_TEXT_ENCODER.encode(JSON.stringify(item)));
           first = false;
           itemCount++;
 
@@ -68,12 +72,12 @@ export function streamingJsonResponse(
             ? `,"metadata":{"totalCount":${totalCount},"returned":${itemCount}}`
             : "";
 
-        controller.enqueue(encoder.encode(`]${metadata}}`));
+        controller.enqueue(SHARED_TEXT_ENCODER.encode(`]${metadata}}`));
       } catch (err) {
         logger.error("[Streaming] Error during JSON stream:", err);
         // Send partial data with error marker rather than corrupting the JSON
         try {
-          controller.enqueue(encoder.encode(`],"error":"Stream interrupted"}`));
+          controller.enqueue(STREAM_ERROR_CHUNK);
         } catch {
           /* already closed */
         }
@@ -109,6 +113,82 @@ export function streamingArrayResponse(
   options?: { maxItems?: number },
 ) {
   return streamingJsonResponse(items, totalCount, options);
+}
+
+/**
+ * Direct zero-copy streaming response for pre-serialized raw JSON slices / buffers.
+ * Bypasses JSON.parse() and JSON.stringify() round-trip completely.
+ */
+export function streamingRawJsonResponse(
+  rawChunks: AsyncIterable<string | Uint8Array> | Array<string | Uint8Array>,
+  totalCount?: number,
+  options: { maxItems?: number; enableBackpressure?: boolean } = {},
+) {
+  const { maxItems = Infinity, enableBackpressure = true } = options;
+
+  let itemCount = 0;
+  let isClosed = false;
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        controller.enqueue(OPEN_DATA_CHUNK);
+        let first = true;
+
+        for await (const chunk of rawChunks as AsyncIterable<string | Uint8Array>) {
+          if (isClosed || itemCount >= maxItems) break;
+
+          if (!first) controller.enqueue(COMMA_CHUNK);
+
+          if (typeof chunk === "string") {
+            controller.enqueue(SHARED_TEXT_ENCODER.encode(chunk));
+          } else if (chunk instanceof Uint8Array) {
+            controller.enqueue(chunk);
+          }
+          first = false;
+          itemCount++;
+
+          if (
+            enableBackpressure &&
+            controller.desiredSize !== null &&
+            controller.desiredSize <= 0
+          ) {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+        }
+
+        const metadata =
+          totalCount !== undefined
+            ? `,"metadata":{"totalCount":${totalCount},"returned":${itemCount}}`
+            : "";
+
+        controller.enqueue(SHARED_TEXT_ENCODER.encode(`]${metadata}}`));
+      } catch (err) {
+        logger.error("[StreamingRaw] Error during raw JSON stream:", err);
+        try {
+          controller.enqueue(STREAM_ERROR_CHUNK);
+        } catch {}
+      } finally {
+        if (!isClosed) {
+          controller.close();
+          isClosed = true;
+        }
+      }
+    },
+
+    cancel() {
+      isClosed = true;
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/json",
+      "Transfer-Encoding": "chunked",
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "no-cache",
+    },
+  });
 }
 
 // ─── Server-Sent Events (SSE) ────────────────────────────────────────────────

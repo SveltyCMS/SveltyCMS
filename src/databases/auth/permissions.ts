@@ -147,14 +147,40 @@ export function hasPermissionWithRoles(
  * Split out so the result can be cached (and invalidated) as a unit.
  */
 function evaluatePermissionWithRoles(user: User, permissionId: string, safeRoles: Role[]): boolean {
-  // Find ALL roles matching the user (supports multiple roles)
-  const userRoles = safeRoles.filter((role) => {
-    if (role._id === user.role) return true;
-    const roleName = DEFAULT_ROLE_NAMES[(user.role || "").toLowerCase()];
-    return roleName ? role.name === roleName : false;
-  });
+  const userRoleLower = (user.role || "").toLowerCase();
+  const defaultRoleName = DEFAULT_ROLE_NAMES[userRoleLower];
+  let matchedAnyRole = false;
 
-  if (userRoles.length === 0) {
+  const index = permissionToBitIndex.get(permissionId);
+  const bitMask = index !== undefined ? 1 << (index & 31) : 0;
+  const wordIndex = index !== undefined ? index >> 5 : -1;
+
+  // Single linear walk — zero array allocations, instant admin & bitset matching
+  for (let ri = 0, rlen = safeRoles.length; ri < rlen; ri++) {
+    const role = safeRoles[ri];
+    const matches =
+      role._id === user.role || (defaultRoleName ? role.name === defaultRoleName : false);
+    if (!matches) continue;
+    matchedAnyRole = true;
+
+    // ADMIN OVERRIDE: If ANY matching role is admin, grant all permissions
+    if (role.isAdmin) {
+      logger.trace("Admin role granted permission", {
+        email: user.email,
+        permissionId,
+      });
+      return true;
+    }
+
+    if (index !== undefined) {
+      const bitset = getRoleBitset(role);
+      if (wordIndex < bitset.length && (bitset[wordIndex] & bitMask) !== 0) {
+        return true;
+      }
+    }
+  }
+
+  if (!matchedAnyRole) {
     logger.warn("Role not found for user", {
       email: user.email,
       userRoleId: user.role,
@@ -163,51 +189,13 @@ function evaluatePermissionWithRoles(user: User, permissionId: string, safeRoles
     return false;
   }
 
-  // ADMIN OVERRIDE: If ANY role is admin, grant all permissions
-  for (let ri = 0; ri < userRoles.length; ri++) {
-    if (userRoles[ri].isAdmin) {
-      logger.trace("Admin role granted permission", {
-        email: user.email,
-        permissionId,
-      });
-      return true;
-    }
-  }
-
-  // Bitset Fast Path Check — OR across ALL user roles
-  const index = permissionToBitIndex.get(permissionId);
-  if (index === undefined) {
-    logger.warn("Permission denied (unregistered ID) for user", {
-      email: user.email,
-      userId: user._id,
-      permissionId,
-    });
-    return false;
-  }
-
-  const bitMask = 1 << (index & 31);
-  const wordIndex = index >> 5;
-
-  for (let ri = 0; ri < userRoles.length; ri++) {
-    const bitset = getRoleBitset(userRoles[ri]);
-    if (wordIndex < bitset.length && (bitset[wordIndex] & bitMask) !== 0) {
-      return true;
-    }
-  }
-
   logger.warn("Permission denied for user across all roles", {
     email: user.email,
     userId: user._id,
-    userRoleIds: userRoles.map((r) => r._id),
+    userRoleId: user.role,
     permissionId,
     rolesAvailable: safeRoles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
   });
-  logger.trace("Permission check for user", {
-    permissionId,
-    granted: false,
-    email: user.email,
-  });
-
   return false;
 }
 
@@ -235,10 +223,12 @@ export function hasPermissionByAction(
     return false;
   }
 
+  // ADMIN FAST-PATH: If user is admin, grant immediately without role lookup
+  if (user.isAdmin) {
+    return true;
+  }
+
   const roles: Role[] = userRoles || [];
-  // No global roles fallback: callers must supply roles. (The former `__ROLES_CACHE__`
-  // global was never written anywhere and has been removed.) Deny when missing rather
-  // than guessing — permission checks fail closed.
   if (!userRoles) {
     logger.warn("No roles available for permission check - defaulting to deny");
     return false;
@@ -296,47 +286,6 @@ export function isAdminRoleWithRoles(roleId: string, roles: Role[] = []): boolea
   return role?.isAdmin === true;
 }
 
-// Legacy permission config compatibility - maps old config keys to new permission IDs
-export function getPermissionConfig(configKey: string): PermissionConfig | null {
-  const configMap: Record<string, string> = {
-    collectionManagement: "config:collectionManagement",
-    collectionbuilder: "config:collectionbuilder",
-    graphql: "config:graphql",
-    imageeditor: "config:imageeditor",
-    dashboard: "config:dashboard",
-    widgetManagement: "config:widgetManagement",
-    themeManagement: "config:themeManagement",
-    settings: "config:settings",
-    accessManagement: "config:accessManagement",
-    adminAccess: "admin:access",
-    emailPreviews: "config:emailPreviews",
-    adminAreaPermissionConfig: "config:adminArea",
-    exportData: "api:exportData",
-    apiUser: "api:user",
-    userCreateToken: "user.create",
-  };
-
-  const permissionId = configMap[configKey];
-  if (!permissionId) {
-    logger.warn("Unknown permission config key", { configKey });
-    return null;
-  }
-
-  const permission = getPermissionById(permissionId);
-  if (!permission) {
-    logger.warn("Permission not found for ID", { permissionId });
-    return null;
-  }
-
-  return {
-    contextId: permission.contextId || permissionId,
-    name: permission.name,
-    action: permission.action,
-    contextType: permission.type || "",
-    description: permission.description ?? "",
-  };
-}
-
 // Validate user permission from locals.permissions array
 export function validateUserPermission(
   userPermissions: string[] | undefined,
@@ -356,225 +305,6 @@ export function validateUserPermission(
   });
   return hasPermission;
 }
-
-// Legacy config map for compatibility
-export const permissionConfigs: Record<
-  string,
-  {
-    contextId: string;
-    action: string;
-    type: string;
-    name: string;
-    description: string;
-  }
-> = {
-  collectionManagement: {
-    contextId: "config:collectionManagement",
-    action: "read",
-    type: "config",
-    name: "Collection Management",
-    description: "Access to collection management",
-  },
-  collectionbuilder: {
-    contextId: "config:collectionbuilder",
-    action: "read",
-    type: "config",
-    name: "Collection Builder",
-    description: "Access to collection builder",
-  },
-  graphql: {
-    contextId: "config:graphql",
-    action: "read",
-    type: "config",
-    name: "GraphQL",
-    description: "Access to GraphQL interface",
-  },
-  imageeditor: {
-    contextId: "config:imageeditor",
-    action: "read",
-    type: "config",
-    name: "Image Editor",
-    description: "Access to image editor",
-  },
-  dashboard: {
-    contextId: "config:dashboard",
-    action: "read",
-    type: "config",
-    name: "Dashboard",
-    description: "Access to dashboard",
-  },
-  widgetManagement: {
-    contextId: "config:widgetManagement",
-    action: "read",
-    type: "config",
-    name: "Widget Management",
-    description: "Access to widget management",
-  },
-  themeManagement: {
-    contextId: "config:themeManagement",
-    action: "read",
-    type: "config",
-    name: "Theme Management",
-    description: "Access to theme management",
-  },
-  settings: {
-    contextId: "config:settings",
-    action: "read",
-    type: "config",
-    name: "Settings",
-    description: "Access to settings",
-  },
-
-  // Fine-grained System Settings permissions (13 groups)
-  settingsCache: {
-    contextId: "config:settings:cache",
-    action: "manage",
-    type: "config",
-    name: "Cache & Performance Settings",
-    description: "Manage cache TTLs and performance settings",
-  },
-  settingsDatabase: {
-    contextId: "config:settings:database",
-    action: "manage",
-    type: "config",
-    name: "Database Settings",
-    description: "Manage database and MongoDB settings",
-  },
-  settingsRedis: {
-    contextId: "config:settings:redis",
-    action: "manage",
-    type: "config",
-    name: "Redis Cache Settings",
-    description: "Manage Redis configuration and connection",
-  },
-  settingsEmail: {
-    contextId: "config:settings:email",
-    action: "manage",
-    type: "config",
-    name: "Email/SMTP Settings",
-    description: "Manage email server and SMTP configuration",
-  },
-  settingsSecurity: {
-    contextId: "config:settings:security",
-    action: "manage",
-    type: "config",
-    name: "Security Settings",
-    description: "Manage 2FA, session, and security settings",
-  },
-  settingsOAuth: {
-    contextId: "config:settings:oauth",
-    action: "manage",
-    type: "config",
-    name: "OAuth & Social Login",
-    description: "Manage Google OAuth and social login",
-  },
-  settingsMedia: {
-    contextId: "config:settings:media",
-    action: "manage",
-    type: "config",
-    name: "Media Storage Settings",
-    description: "Manage media folder, sizes, and formats",
-  },
-  settingsLanguages: {
-    contextId: "config:settings:languages",
-    action: "manage",
-    type: "config",
-    name: "Languages & Localization",
-    description: "Manage content languages and locales",
-  },
-  settingsIntegrations: {
-    contextId: "config:settings:integrations",
-    action: "manage",
-    type: "config",
-    name: "Third-Party Integrations",
-    description: "Manage MapBox, TikTok, Twitch integrations",
-  },
-  settingsSite: {
-    contextId: "config:settings:site",
-    action: "manage",
-    type: "config",
-    name: "Site Configuration",
-    description: "Manage site name, URLs, and basic config",
-  },
-  settingsAppearance: {
-    contextId: "config:settings:appearance",
-    action: "manage",
-    type: "config",
-    name: "Appearance Settings",
-    description: "Manage default theme and appearance",
-  },
-  settingsLogging: {
-    contextId: "config:settings:logging",
-    action: "manage",
-    type: "config",
-    name: "Logging Settings",
-    description: "Manage log levels, retention, and rotation",
-  },
-  settingsAdvanced: {
-    contextId: "config:settings:advanced",
-    action: "manage",
-    type: "config",
-    name: "Advanced Settings",
-    description: "Manage server port, roles, permissions, and demo mode",
-  },
-
-  accessManagement: {
-    contextId: "config:accessManagement",
-    action: "read",
-    type: "config",
-    name: "Access Management",
-    description: "Access to user management",
-  },
-  adminAccess: {
-    contextId: "admin:access",
-    action: "read",
-    type: "admin",
-    name: "Admin Access",
-    description: "Administrative access",
-  },
-  emailPreviews: {
-    contextId: "config:emailPreviews",
-    action: "read",
-    type: "config",
-    name: "Email Previews",
-    description: "Access to email previews",
-  },
-  adminAreaPermissionConfig: {
-    contextId: "config:adminArea",
-    action: "read",
-    type: "config",
-    name: "Admin Area",
-    description: "Access to admin area",
-  },
-  exportData: {
-    contextId: "api:exportData",
-    action: "export",
-    type: "api",
-    name: "Export Data",
-    description: "Export system data",
-  },
-  apiUser: {
-    contextId: "api:user",
-    action: "read",
-    type: "api",
-    name: "User API",
-    description: "Access to user API",
-  },
-  userCreateToken: {
-    contextId: "user.create",
-    action: "create",
-    type: "user",
-    name: "Create User Token",
-    description: "Create user registration tokens",
-  },
-  userManage: {
-    contextId: "user:manage",
-    action: "manage",
-    type: "user",
-    name: "User Management",
-    description: "Manage user accounts and roles",
-  },
-};
 
 // Export permissions array for compatibility
 export const permissions = getAllPermissions();

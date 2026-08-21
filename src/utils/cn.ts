@@ -18,6 +18,23 @@ type ClassArray = ClassValue[];
  * 🛡️ Hardened: Array-join pattern minimizes GC pressure vs string concatenation.
  */
 export function cn(...inputs: ClassValue[]): string {
+  const len = inputs.length;
+  // 🚀 Fast-path: 1 argument (most common in Svelte 5 components)
+  if (len === 1) {
+    const a = inputs[0];
+    if (typeof a === "string") return a;
+    if (!a) return "";
+  }
+  // 🚀 Fast-path: 2 simple arguments
+  if (len === 2) {
+    const a = inputs[0];
+    const b = inputs[1];
+    if (typeof a === "string" && typeof b === "string") {
+      if (a && b) return `${a} ${b}`;
+      return a || b || "";
+    }
+  }
+
   const result: string[] = [];
 
   function process(val: ClassValue) {

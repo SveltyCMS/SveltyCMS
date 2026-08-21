@@ -3,18 +3,14 @@
  * @description Server-side logic for Config page authentication and authorization.
  *
  * SECURITY ARCHITECTURE (Layer 2 of 3):
- * This provides fine-grained permission checking for UI elements.
- * Works with:
- * - Layer 1: hooks.server.ts (API/route protection)
- * - Layer 2: This file (page-level authorization)
- * - Layer 3: PermissionGuard.svelte (UI visibility control)
+ * This provides fine-grained permission checking for UI elements using the
+ * high-performance Uint32Array bitset RBAC engine.
  */
 
 // Auth
 import {
   permissions as allPermissions,
-  hasPermissionByAction,
-  permissionConfigs,
+  hasPermissionWithRoles,
 } from "@src/databases/auth/permissions";
 import { error } from "@sveltejs/kit";
 import { cacheService } from "@src/databases/cache/cache-service";
@@ -22,6 +18,43 @@ import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { pluginRegistry } from "@src/plugins/registry";
 import type { PageServerLoad } from "./$types";
+
+/**
+ * Direct mapping of config tile context IDs to canonical system permission IDs.
+ * Evaluated with zero runtime allocation via Uint32Array bitsets.
+ */
+const CONFIG_TILE_PERMISSIONS: Record<string, string> = {
+  "config:settings": "manage:system",
+  "config:appearance": "manage:theme",
+  "config:users": "manage:user",
+  "config:roles": "manage:user",
+  "config:collectionbuilder": "config:collectionbuilder",
+  "config:collectionManagement": "manage:collection",
+  "config:graphql": "access:api",
+  "config:media": "media:write",
+  "config:webhooks": "manage:system",
+  "config:redirects": "manage:system",
+  "config:trash": "manage:system",
+  "config:dashboard": "access:admin",
+  "config:imageeditor": "media:write",
+  "config:widgetManagement": "manage:system",
+  "config:themeManagement": "manage:theme",
+  "config:accessManagement": "manage:user",
+  "config:emailPreviews": "manage:system",
+  "config:adminArea": "access:admin",
+};
+
+// Pre-computed admin permission map (all true, zero runtime allocation)
+const ADMIN_CONFIG_PERMISSIONS: Record<
+  string,
+  { hasPermission: boolean; isRateLimited?: boolean }
+> = {};
+for (const contextId in CONFIG_TILE_PERMISSIONS) {
+  ADMIN_CONFIG_PERMISSIONS[contextId] = {
+    hasPermission: true,
+    isRateLimited: false,
+  };
+}
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
@@ -58,23 +91,11 @@ export const load: PageServerLoad = async ({ locals }) => {
       // Plugin check is non-critical — if it fails, hide plugin tiles
     }
 
-    // Fine-grained permission checking for each config item
-    const permissions: Record<string, { hasPermission: boolean; isRateLimited?: boolean }> = {};
-
-    // Admin bypass — skip cache, return all true immediately
+    // Admin bypass — return pre-computed static permissions immediately
     if (isAdmin) {
-      for (const key in permissionConfigs) {
-        if (!Object.hasOwn(permissionConfigs, key)) continue;
-        permissions[permissionConfigs[key].contextId] = {
-          hasPermission: true,
-          isRateLimited: false,
-        };
-      }
-
       return {
         user: serializableUser,
-        permissions,
-        permissionConfigs,
+        permissions: ADMIN_CONFIG_PERMISSIONS,
         allPermissions,
         isAdmin,
         pluginStates,
@@ -82,31 +103,26 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
 
     // Non-admin: cache permission set per user for 5 minutes
+    const permissions: Record<string, { hasPermission: boolean; isRateLimited?: boolean }> = {};
     const permCacheKey = `config:permissions:${user._id}`;
     const cached = await cacheService.get<typeof permissions>(permCacheKey);
     if (cached) {
       return {
         user: serializableUser,
         permissions: cached,
-        permissionConfigs,
         allPermissions,
         isAdmin,
         pluginStates,
       };
     }
 
-    for (const key in permissionConfigs) {
-      if (!Object.hasOwn(permissionConfigs, key)) continue;
-      const config = permissionConfigs[key];
-      const permissionCheck = await hasPermissionByAction(
-        user,
-        config.action,
-        config.type,
-        config.contextId,
-        locals.roles || [],
-      );
-      permissions[config.contextId] = {
-        hasPermission: permissionCheck,
+    // Fast bitset checking for non-admin users
+    const roles = locals.roles || [];
+    for (const contextId in CONFIG_TILE_PERMISSIONS) {
+      const permId = CONFIG_TILE_PERMISSIONS[contextId];
+      const hasPermission = hasPermissionWithRoles(user, permId, roles);
+      permissions[contextId] = {
+        hasPermission,
         isRateLimited: false,
       };
     }
@@ -116,7 +132,6 @@ export const load: PageServerLoad = async ({ locals }) => {
     return {
       user: serializableUser,
       permissions,
-      permissionConfigs,
       allPermissions,
       isAdmin,
       pluginStates,

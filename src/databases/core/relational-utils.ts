@@ -318,10 +318,12 @@ function flattenDataColumn(
     }
     // Row-store hybrid: columns are authoritative — data fills only gaps.
     const src = value as Record<string, unknown>;
-    for (const k in value) {
-      if (!Object.hasOwn(value, k)) continue;
-      if (skipMerge.has(k)) continue;
-      result[k] = src[k];
+    const keys = Object.keys(src);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (!skipMerge.has(k)) {
+        result[k] = src[k];
+      }
     }
   }
 }
@@ -498,14 +500,14 @@ export function convertDatesToISO(
     // With schema: copy non-date, non-json keys (cached skipKeys Set — zero per-row allocation)
     const skipKeys = _tableSkipKeys.get(table!) || new Set([...dateCols, ...(jsonCols || [])]);
     for (const k in row) {
-      if (!Object.prototype.hasOwnProperty.call(row, k)) continue;
+      if (!Object.hasOwn(row, k)) continue;
       if (skipKeys.has(k) || result[k] !== undefined) continue;
       result[k] = row[k];
     }
   } else {
     // No schema: fallback to full iteration (backward compatible)
     for (const k in row) {
-      if (!Object.prototype.hasOwnProperty.call(row, k)) continue;
+      if (!Object.hasOwn(row, k)) continue;
       if (result[k] !== undefined) continue;
       let v = row[k];
       if (
@@ -542,6 +544,12 @@ export const convertArrayDatesToISO = (
   },
 ) => {
   if (!rows || rows.length === 0) return [];
+  if (options?.inPlace) {
+    for (let i = 0; i < rows.length; i++) {
+      rows[i] = convertDatesToISO(rows[i], options);
+    }
+    return rows;
+  }
   return rows.map((r) => convertDatesToISO(r, options));
 };
 
@@ -624,18 +632,21 @@ export const convertUserToISO = convertDatesToISO;
 export const convertSessionToISO = convertDatesToISO;
 
 export const parseJsonField = <T = any>(v: any, fallback?: T): T => {
-  if (typeof v === "string" && (v.startsWith("{") || v.startsWith("[") || v.startsWith('"'))) {
-    try {
-      let parsed: unknown = v;
-      for (let i = 0; i < 3; i++) {
-        const next = JSON.parse(parsed as string);
-        if (next === parsed) break;
-        parsed = next;
-        if (typeof parsed !== "string") break;
+  if (typeof v === "string" && v.length > 0) {
+    const c = v.charCodeAt(0);
+    if (c === 123 || c === 91 || c === 34) {
+      try {
+        let parsed: unknown = v;
+        for (let i = 0; i < 3; i++) {
+          const next = JSON.parse(parsed as string);
+          if (next === parsed) break;
+          parsed = next;
+          if (typeof parsed !== "string") break;
+        }
+        return parsed as T;
+      } catch {
+        return (fallback !== undefined ? fallback : v) as T;
       }
-      return parsed as T;
-    } catch {
-      return (fallback !== undefined ? fallback : v) as T;
     }
   }
   return (v !== undefined && v !== null ? v : fallback !== undefined ? fallback : v) as T;
@@ -781,13 +792,18 @@ export function buildRawTenantFilter(
  * - mysql / sqlite → `?`
  * - postgres → `$N` starting at `paramIndex` (default 1)
  */
+const EMPTY_TENANT_CLAUSE: { sql: string; params: string[] } = Object.freeze({
+  sql: "",
+  params: [],
+});
+
 export function buildRawTenantClause(
   options?: BaseQueryOptions,
   dialect: "mysql" | "postgres" | "sqlite" = "sqlite",
   opts: { parameterized?: boolean; paramIndex?: number } = {},
 ): { sql: string; params: string[] } {
   if (options?.bypassTenantCheck || !options?.tenantId || options?.tenantId === "global") {
-    return { sql: "", params: [] };
+    return EMPTY_TENANT_CLAUSE;
   }
   const parameterized = opts.parameterized !== false;
   const col = dialect === "mysql" ? "`tenantId`" : `"tenantId"`;

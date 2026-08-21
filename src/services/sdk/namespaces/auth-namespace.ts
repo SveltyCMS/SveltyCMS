@@ -321,6 +321,15 @@ export class AuthNamespace {
           400,
         );
       }
+      // 🛡️ Turbo-auth + session caches snapshot per-session user data — clear
+      // the user's entries so profile edits (username/email/avatar) show
+      // immediately after reload instead of after the session/TTL windows.
+      try {
+        const { invalidateUserSessionCaches } = await import("@src/hooks/handle-authentication");
+        invalidateUserSessionCaches(String(userId));
+      } catch {
+        // Non-critical — caches expire naturally after TTL
+      }
       // Adapter returns DatabaseResult; Auth facade may return bare User
       return (result as { data?: unknown }).data !== undefined
         ? (result as { data: unknown }).data

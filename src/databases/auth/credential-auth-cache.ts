@@ -79,12 +79,12 @@ export async function setWebsiteTokenAuthCache(
   tokenId: string,
   tenantId?: DatabaseId | string | null,
 ): Promise<void> {
-  await cacheService.setWithCategory(
+  await cacheService.set(
     websiteTokenCacheKey(tokenHash),
     entry,
-    CacheCategory.SESSION,
-    tenantId as DatabaseId,
     CREDENTIAL_AUTH_CACHE_TTL_S,
+    tenantId as DatabaseId,
+    CacheCategory.SESSION,
     websiteTokenAuthTags(tokenId),
   );
 }
@@ -95,12 +95,12 @@ export async function setApiKeyAuthCache(
   apiKeyId: string,
   tenantId?: DatabaseId | string | null,
 ): Promise<void> {
-  await cacheService.setWithCategory(
+  await cacheService.set(
     apiKeyCacheKey(keyHash),
     entry,
-    CacheCategory.SESSION,
-    tenantId as DatabaseId,
     CREDENTIAL_AUTH_CACHE_TTL_S,
+    tenantId as DatabaseId,
+    CacheCategory.SESSION,
     apiKeyAuthTags(apiKeyId),
   );
 }

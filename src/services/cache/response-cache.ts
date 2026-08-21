@@ -6,13 +6,12 @@
  * fallback with user-scoped isolation and tenant-scoped invalidation.
  *
  * ### Features:
- * - SHA-256 query hashing (no 32-bit collision space)
+ * - FNV-1a 64-bit query hashing (zero-allocation, no 32-bit collision space)
  * - bounded L1 (FIFO at MAX_L1_ENTRIES) with per-entry TTL
  * - tenant-scoped L1/L2 invalidation
  * - pre-computed compression variants for TURBO-HIT serving
  */
 
-import crypto from "node:crypto";
 import { cacheService } from "@src/databases/cache/cache-service";
 
 export interface CachedResponseEntry {
@@ -30,22 +29,58 @@ const textEncoder = typeof TextEncoder !== "undefined" ? new TextEncoder() : nul
 const MAX_L1_ENTRIES = 2000;
 
 /**
- * Deterministic Content-Based ETag calculation (SHA-256 slice).
+ * Exact FNV-1a 64-bit hash over UTF-16 code units, rendered as 16 lowercase
+ * hex chars. Emulated with two 32-bit lanes (offset basis 0xcbf29ce484222325,
+ * prime 0x100000001b3 = 0x100 * 2^32 + 0x1b3) so the multiply step stays
+ * within the safe-integer range — no BigInt, no allocations per character.
+ *
+ * Non-security cache discriminator only (HTTP ETags / GraphQL cache keys) —
+ * never applied to secrets, tokens, or passwords.
  */
-export function generateContentEtag(body: string): string {
-  const hash = crypto.createHash("sha256").update(body).digest("hex").slice(0, 16);
-  return `"${hash}"`;
+function fnv1a64Hex(input: string): string {
+  const FNV_PRIME_LO = 0x1b3; // low 32 bits of the FNV-1a 64-bit prime
+  const FNV_PRIME_HI = 0x100; // high 32 bits of the FNV-1a 64-bit prime
+  const TWO_32 = 0x100000000; // 2^32 (exact float divisor)
+  let hi = 0xcbf29ce4; // offset basis high lane
+  let lo = 0x84222325; // offset basis low lane
+
+  for (let i = 0; i < input.length; i++) {
+    const code = input.charCodeAt(i);
+    // Fold the code unit two bytes at a time (low, then high).
+    lo = (lo ^ (code & 0xff)) >>> 0;
+    const m1 = lo * FNV_PRIME_LO; // < 2^41, exact
+    const lo1 = m1 >>> 0; // low 32 bits
+    const carry1 = (m1 - lo1) / TWO_32;
+    hi = (hi * FNV_PRIME_LO + lo * FNV_PRIME_HI + carry1) >>> 0;
+    lo = lo1;
+
+    lo = (lo ^ (code >>> 8)) >>> 0;
+    const m2 = lo * FNV_PRIME_LO;
+    const lo2 = m2 >>> 0;
+    const carry2 = (m2 - lo2) / TWO_32;
+    hi = (hi * FNV_PRIME_LO + lo * FNV_PRIME_HI + carry2) >>> 0;
+    lo = lo2;
+  }
+
+  return hi.toString(16).padStart(8, "0") + lo.toString(16).padStart(8, "0");
 }
 
 /**
- * Collision-resistant cache-key hash (SHA-256, 64 bits).
- * Replaces the former 32-bit DJB2 variant: with ~4.29e9 keys the birthday
- * bound was reached after ~77k unique queries, silently mixing distinct
- * GraphQL query results under one key. SHA-256 slice is also free of the
- * chosen-prefix weakness that rules out md5 per the security policy.
+ * Deterministic Content-Based ETag calculation (FNV-1a 64-bit, quoted 16 hex).
+ */
+export function generateContentEtag(body: string): string {
+  return `"${fnv1a64Hex(body)}"`;
+}
+
+/**
+ * Fast cache-key hash (FNV-1a 64-bit, 16 lowercase hex chars).
+ *
+ * Replaces the former SHA-256 slice: the 64-bit output keeps the same
+ * collision space as before while being allocation-free on hot GraphQL
+ * cache-key paths. Feeds response-cache keys only — never secrets or tokens.
  */
 export function hashStr(s: string): string {
-  return crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
+  return fnv1a64Hex(s);
 }
 
 /**

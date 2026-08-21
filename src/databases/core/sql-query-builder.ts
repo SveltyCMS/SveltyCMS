@@ -159,7 +159,9 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       );
     }
 
-    for (const [key, value] of Object.entries(conditions)) {
+    for (const key in conditions) {
+      if (!Object.hasOwn(conditions, key)) continue;
+      const value = (conditions as any)[key];
       if (value !== null && typeof value === "object" && !(value instanceof Date)) {
         // MongoDB-style operator objects ({ $gt, $in, … }) and arrays are not
         // plain equality values. The old pg builder translated them via

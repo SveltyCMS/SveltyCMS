@@ -274,7 +274,7 @@ export abstract class BaseAdapter {
     const startTime = performance.now();
     try {
       this.metrics.queryCount++;
-      const data = await traceSpan(`db:${code}`, async () => await fn());
+      const data = await traceSpan(`db:${code}`, fn);
       const latency = performance.now() - startTime;
       this.metrics.lastLatency = latency;
 

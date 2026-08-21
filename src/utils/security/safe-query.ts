@@ -81,13 +81,14 @@ export function assertTenantContext(
   options?: TenantScopedOptions | null,
   operation = "query",
 ): void {
+  // Single-tenant / global hot path: no-op before any option inspection (cached 5s flag).
+  if (!isMultiTenantMode()) return;
   // System scope (branded) or legacy bypass / ultra-fast path
   if (hasTenantBypass(options)) return;
   if (hasUsableTenantId(options?.tenantId)) {
     // Having tenantId present is always safe to proceed (single-tenant stamping ok).
     return;
   }
-  if (!isMultiTenantMode()) return;
 
   logger.error(`[TenantContext] Security Violation on ${operation}: MULTI_TENANT without tenantId`);
   throw new AppError(

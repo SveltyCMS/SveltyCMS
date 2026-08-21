@@ -13,12 +13,14 @@
  *   four DB adapters (SQL identifier safety remains in the adapter layer)
  */
 
+const _nameCache = new Map<string, string>();
+
 /**
  * Derives the physical table/model name for a collection id.
  * Example: "blog-posts" → "collection_blogposts".
  */
 export function collectionTableName(collectionId: string): string {
-  return `collection_${collectionId.replace(/-/g, "")}`;
+  return normalizeCollectionTableName(collectionId);
 }
 
 /**
@@ -31,6 +33,12 @@ export function collectionTableName(collectionId: string): string {
  *          "collection_blogposts" → "collection_blogposts".
  */
 export function normalizeCollectionTableName(input: string): string {
-  const id = input.startsWith("collection_") ? input.slice("collection_".length) : input;
-  return `collection_${id.replace(/-/g, "")}`;
+  const cached = _nameCache.get(input);
+  if (cached !== undefined) return cached;
+  const id = input.startsWith("collection_") ? input.slice(11) : input;
+  const normalized = `collection_${id.replace(/-/g, "")}`;
+  if (_nameCache.size < 512) {
+    _nameCache.set(input, normalized);
+  }
+  return normalized;
 }

@@ -100,17 +100,18 @@ export const load: PageServerLoad = async ({ locals }) => {
   // Collections that are frequently accessed get boosted to the top.
   const tenant = locals.tenantId || "global";
   const hotCollections = getHotCollections(tenant, 20);
-  const hotIds = new Set(hotCollections.map((c) => c.id));
 
-  // Sort: widgets matching hot collections first, then by original order
-  // Sort: widgets matching hot collections first, then by original order
-  const sortedWidgets = [..._widgets].sort((a, b) => {
-    const aHot = hotIds.has(a.folder) || hotIds.has(a.componentName);
-    const bHot = hotIds.has(b.folder) || hotIds.has(b.componentName);
-    if (aHot && !bHot) return -1;
-    if (!aHot && bHot) return 1;
-    return 0;
-  });
+  let sortedWidgets = _widgets;
+  if (hotCollections.length > 0) {
+    const hotIds = new Set(hotCollections.map((c) => c.id));
+    sortedWidgets = [..._widgets].sort((a, b) => {
+      const aHot = hotIds.has(a.folder) || hotIds.has(a.componentName);
+      const bHot = hotIds.has(b.folder) || hotIds.has(b.componentName);
+      if (aHot && !bHot) return -1;
+      if (!aHot && bHot) return 1;
+      return 0;
+    });
+  }
 
   return {
     pageData: {

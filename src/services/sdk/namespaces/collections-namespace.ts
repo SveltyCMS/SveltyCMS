@@ -647,7 +647,7 @@ export class CollectionsNamespace {
 
     const collectionModel = await getModelResilient(this._dbAdapter, schema);
 
-    return modifyStream(streamResult.data as any as AsyncIterable<EntryData>, {
+    return modifyStream(streamResult.data as unknown as AsyncIterable<EntryData>, {
       collection: collectionModel,
       fields: schema.fields as FieldInstance[],
       user: user || ({ _id: "system", role: "admin" } as any),

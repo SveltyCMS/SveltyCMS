@@ -7,6 +7,7 @@ import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter, ISODateString, DatabaseId } from "@src/databases/db-interface";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { logger } from "@utils/logger";
+import type { PublicationFilter } from "@src/utils/security/publication-policy";
 
 // GraphQL types
 type GraphQLValue = string | number | boolean | Date | object | GraphQLValue[];
@@ -72,6 +73,8 @@ export function userTypeDefs() {
 interface GraphQLContext {
   tenantId?: string | null;
   user?: User;
+  /** Publication visibility of the request (resolved in +server.ts context). */
+  publicationFilter?: PublicationFilter;
 }
 
 // Resolvers with pagination support and validation

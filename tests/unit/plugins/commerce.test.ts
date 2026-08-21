@@ -194,6 +194,53 @@ describe("variant matrix and digital cart", () => {
   });
 });
 
+describe("cart row hardening", () => {
+  it("skips malformed cart items instead of crashing money()", async () => {
+    const store = memoryStore("tenant-a");
+    await store.create("carts", {
+      sessionId: "s1",
+      customer: null,
+      items: [
+        { productId: "p1", title: "Good", qty: 2, unitAmount: 500, currency: "EUR" },
+        { productId: "p2", title: "Broken" },
+        "garbage",
+      ],
+      appliedCoupon: null,
+    });
+    const cart = await getOrCreateCart(store, { sessionId: "s1", currency: "EUR" });
+    expect(cart.items).toHaveLength(1);
+    expect(cart.items[0].qty).toBe(2);
+    expect(cart.subtotal).toBe(10);
+  });
+
+  it("coerces string quantities into integers", async () => {
+    const store = memoryStore("tenant-a");
+    await store.create("carts", {
+      sessionId: "s1",
+      customer: null,
+      items: [{ productId: "p1", title: "X", qty: "2", unitAmount: 500, currency: "EUR" }],
+      appliedCoupon: null,
+    });
+    const cart = await getOrCreateCart(store, { sessionId: "s1", currency: "EUR" });
+    expect(cart.items).toHaveLength(1);
+    expect(cart.items[0].qty).toBe(2);
+    expect(cart.subtotal).toBe(10);
+  });
+
+  it("sums lines in the view currency even when a line carries a stale currency", async () => {
+    const store = memoryStore("tenant-a");
+    await store.create("carts", {
+      sessionId: "s1",
+      customer: null,
+      items: [{ productId: "p1", title: "X", qty: 1, unitAmount: 900, currency: "USD" }],
+      appliedCoupon: null,
+    });
+    const cart = await getOrCreateCart(store, { sessionId: "s1", currency: "EUR" });
+    expect(cart.currency).toBe("EUR");
+    expect(cart.subtotal).toBe(9);
+  });
+});
+
 describe("F1 — Stripe PaymentIntent ignores client amount", () => {
   it("documents that /api/commerce/pay requires orderId, not amount", async () => {
     const src = await import("node:fs").then((fs) =>

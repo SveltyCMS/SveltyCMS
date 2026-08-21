@@ -117,6 +117,18 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   locals.tenantId = turboCtx.tenantId;
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
 
+  // 🧪 TEST-MODE TENANT PARITY: honor the per-request tenant header (same as
+  // handleAuthentication) so turbo cache keys never cross tenants in
+  // tenant-isolation tests. Without this, x-test-tenant-id requests share the
+  // session tenant's cache namespace and can serve another tenant's response.
+  const requestTenant =
+    request.headers.get("x-test-tenant-id") || request.headers.get("x-tenant-id");
+  const cacheTenant =
+    requestTenant && /^[a-zA-Z0-9_-]+$/.test(requestTenant)
+      ? (requestTenant as string)
+      : (turboCtx.tenantId as string);
+  if (cacheTenant) locals.tenantId = cacheTenant as DatabaseId;
+
   const userId = turboCtx.user?._id || turboCtx.user?.id || null;
   let pathKey: string;
   if (url.pathname === "/api/graphql") {
@@ -131,7 +143,7 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     pathKey = buildUserResponseCacheKey(url.pathname, url.search, userId);
   }
 
-  const resEntry = responseCache.get(pathKey, turboCtx.tenantId as string);
+  const resEntry = responseCache.get(pathKey, cacheTenant);
 
   if (!resEntry || !resEntry.body) return resolve(event);
 
@@ -161,11 +173,13 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   }
 
   const rawBody = resEntry.body;
-  let bodyToSend: BodyInit | Uint8Array | null = rawBody;
+  let bodyToSend: BodyInit | Uint8Array | null = resEntry.buffer ?? rawBody;
 
   const acceptEncoding = request.headers.get("Accept-Encoding") || "";
   const algo = negotiateEncoding(acceptEncoding, hasNativeCompression());
-  const payloadSize = Buffer.byteLength(rawBody, "utf-8");
+  const payloadSize = resEntry.buffer
+    ? resEntry.buffer.byteLength
+    : Buffer.byteLength(rawBody, "utf-8");
 
   if (algo && payloadSize > 1024) {
     // 🚀 Serve the pre-computed variant stashed by handle-api-requests
@@ -185,7 +199,7 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
           setCompressionHeaders(responseHeaders, algo, payloadSize, compressed.length);
         }
       } catch {
-        bodyToSend = rawBody;
+        bodyToSend = resEntry.buffer ?? rawBody;
       }
     }
   }

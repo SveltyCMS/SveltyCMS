@@ -71,6 +71,44 @@ const OPTIMIZE_DEPS_INCLUDE = [
   "drizzle-orm",
 ];
 
+const OPTIMIZE_DEPS_EXCLUDE = [...SERVER_EXTERNALS, "@src/databases/cache/cache-service"];
+
+const SERVER_STUB_PACKAGES = new Set([
+  "argon2",
+  "redis",
+  "mongoose",
+  "mongodb",
+  "postgres",
+  "mysql2",
+  "bun:sqlite",
+  "node-os-utils",
+]);
+
+const SERVER_STUB_FILES = [
+  "/src/databases/db.ts",
+  "/src/databases/database-resilience.ts",
+  "/src/databases/cache/cache-service.ts",
+  "/src/databases/cache/cache-warming-service.ts",
+  "/src/databases/cache/cache-metrics.ts",
+  "/src/databases/config-state.ts",
+  "/src/databases/theme-manager.ts",
+  "/src/databases/core/db-adapter-wrapper.ts",
+  "/src/databases/db-utils.ts",
+  "/src/databases/schemas.ts",
+  "/src/databases/auth/index.ts",
+  "/src/databases/auth/session-manager.ts",
+  "/src/databases/auth/two-factor-auth.ts",
+  "/src/databases/auth/permissions.ts",
+  "/src/content/engine.server.ts",
+  "/src/content/loader.server.ts",
+  "/src/components/emails/",
+  "/src/services/security/audit-service.ts",
+  "/src/databases/sqlite/adapter-core.ts",
+];
+
+const SERVER_STUB_REGEX =
+  /\.(mongodb|mariadb|postgresql|sqlite|redis|argon2|mongoose|mysql2|pg|aws-sdk|googleapis)/i;
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function openUrl(url: string) {
   const plat = platform();
@@ -82,6 +120,18 @@ function openUrl(url: string) {
 }
 
 const CWD = process.cwd();
+
+const RESOLVED_ALIASES: Record<string, string> = Object.fromEntries(
+  Object.entries(pathAliases).map(([key, target]) => [key, path.resolve(CWD, target)]),
+);
+
+const TRUSTED_ORIGINS: string[] = [
+  "http://127.0.0.1:4173",
+  "http://localhost:4173",
+  ...Array.from({ length: 600 }, (_, i) => `http://127.0.0.1:${4173 + i}`),
+  ...Array.from({ length: 600 }, (_, i) => `http://localhost:${4173 + i}`),
+];
+
 const paths = {
   configDir: path.resolve(CWD, "config"),
   privateConfig: path.resolve(CWD, "config/private.ts"),
@@ -214,42 +264,6 @@ function privateConfigFallbackPlugin(): Plugin {
 
 /** Prevents server-only modules from leaking into client bundle */
 function stubServerModulesPlugin(): Plugin {
-  // Match DB drivers / infra — NOT SvelteKit route modules (+page.server.ts, +layout.server.ts,
-  // proxy+*.server.ts under .svelte-kit/types). A broad `\.server\.` regex previously risked
-  // stubbing Kit routes when resolve ran without options.ssr (Vite 8 env edge cases / direct fetches).
-  const rx =
-    /\.(mongodb|mariadb|postgresql|sqlite|redis|argon2|mongoose|mysql2|pg|aws-sdk|googleapis)/i;
-  const pkgs = new Set([
-    "argon2",
-    "redis",
-    "mongoose",
-    "mongodb",
-    "postgres",
-    "mysql2",
-    "bun:sqlite",
-    "node-os-utils",
-  ]);
-  const files = new Set([
-    "/src/databases/db.ts",
-    "/src/databases/database-resilience.ts",
-    "/src/databases/cache/cache-service.ts",
-    "/src/databases/cache/cache-warming-service.ts",
-    "/src/databases/cache/cache-metrics.ts",
-    "/src/databases/config-state.ts",
-    "/src/databases/theme-manager.ts",
-    "/src/databases/core/db-adapter-wrapper.ts",
-    "/src/databases/db-utils.ts",
-    "/src/databases/schemas.ts",
-    "/src/databases/auth/index.ts",
-    "/src/databases/auth/session-manager.ts",
-    "/src/databases/auth/two-factor-auth.ts",
-    "/src/databases/auth/permissions.ts",
-    "/src/content/engine.server.ts",
-    "/src/content/loader.server.ts",
-    "/src/components/emails/",
-    "/src/services/security/audit-service.ts",
-    "/src/databases/sqlite/adapter-core.ts",
-  ]);
   return {
     name: "stub-server-modules",
     enforce: "pre",
@@ -271,10 +285,12 @@ function stubServerModulesPlugin(): Plugin {
       // silently stubbed in client builds.
       const isAppServerModule =
         /\.server\.(ts|js|svelte)(?=\?|$)/.test(nid) && nid.includes("/src/");
-      if (pkgs.has(id) || rx.test(nid)) return "\0virtual:server-stub";
-      if (isAppServerModule && !nid.includes("/routes/")) return "\0virtual:server-stub";
-      if (files.has(nid) || [...files].some((f) => nid.endsWith(f) || nid.includes(f)))
+      if (SERVER_STUB_PACKAGES.has(id) || SERVER_STUB_REGEX.test(nid))
         return "\0virtual:server-stub";
+      if (isAppServerModule && !nid.includes("/routes/")) return "\0virtual:server-stub";
+      for (let i = 0; i < SERVER_STUB_FILES.length; i++) {
+        if (nid.includes(SERVER_STUB_FILES[i])) return "\0virtual:server-stub";
+      }
       return null;
     },
     load(id) {
@@ -315,6 +331,7 @@ function databaseAdapterStripperPlugin(): Plugin {
     sqlite: ["mongodb", "mariadb", "postgresql"],
   };
   const toStrip = map[activeDbType] || [];
+  const toStripPatterns = toStrip.map((db) => `/databases/${db}/`);
 
   return {
     name: "database-adapter-stripper",
@@ -324,7 +341,9 @@ function databaseAdapterStripperPlugin(): Plugin {
       if (options?.ssr) return null;
       const resolved = await this.resolve(id, undefined, { ...options, skipSelf: true });
       const nid = (resolved?.id || id).replace(/\\/g, "/");
-      if (toStrip.some((db) => nid.includes(`/databases/${db}/`))) return "\0virtual:db-stub";
+      for (let i = 0; i < toStripPatterns.length; i++) {
+        if (nid.includes(toStripPatterns[i])) return "\0virtual:db-stub";
+      }
       return null;
     },
     load(id) {
@@ -1028,12 +1047,7 @@ export default defineConfig(() => {
         experimental: { remoteFunctions: true },
         // Bench/integration matrices bind 4173 + random offset; trust loopback port range.
         csrf: {
-          trustedOrigins: [
-            "http://127.0.0.1:4173",
-            "http://localhost:4173",
-            ...Array.from({ length: 600 }, (_, i) => `http://127.0.0.1:${4173 + i}`),
-            ...Array.from({ length: 600 }, (_, i) => `http://localhost:${4173 + i}`),
-          ],
+          trustedOrigins: TRUSTED_ORIGINS,
         },
       }),
       // ── Optional: dev-only inspector inject/patch (Vite 8 client path) ──
@@ -1052,9 +1066,7 @@ export default defineConfig(() => {
     // resolve.alias (types are wired via `paths` in tsconfig.json). Vite needs
     // ABSOLUTE targets — relative entries would duplicate modules.
     resolve: {
-      alias: Object.fromEntries(
-        Object.entries(pathAliases).map(([key, target]) => [key, path.resolve(CWD, target)]),
-      ),
+      alias: RESOLVED_ALIASES,
     },
     server: {
       fs: { allow: ["static", "."], deny: ["**/tests/**"] },
@@ -1096,14 +1108,16 @@ export default defineConfig(() => {
           // being called by the root layout (src/routes/+layout.svelte), which
           // binds the catalog into the entry shell as a runtime dependency.
           manualChunks(id: string) {
-            if (id.includes("/src/plugins/index.ts")) return "plugin-shell";
+            if (id.includes("/src/plugins/index.ts") || id.includes("\\src\\plugins\\index.ts")) {
+              return "plugin-shell";
+            }
             return undefined;
           },
         },
       },
     },
     optimizeDeps: {
-      exclude: [...SERVER_EXTERNALS, "@src/databases/cache/cache-service"],
+      exclude: OPTIMIZE_DEPS_EXCLUDE,
       include: OPTIMIZE_DEPS_INCLUDE,
       entries: ["!tests/**/*", "!**/*.server.ts", "!**/*.server.js"],
     },

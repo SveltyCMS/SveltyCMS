@@ -17,6 +17,11 @@
 
 import { logger } from "@utils/logger";
 import type { NavigationNode } from "@src/content";
+import { contentSystem, contentStore } from "@src/content/index.server";
+import {
+  recordCollectionAccess,
+  recordEntryAccess,
+} from "@src/services/intelligence/behavioral-learner";
 import type { Locale } from "@src/paraglide/runtime";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { loadSettingsCache } from "@src/services/core/settings-service";
@@ -97,13 +102,12 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     defaultContentLanguage;
 
   // Content System Hydration with error handling for preview mode
-  const { contentSystem, contentStore } = await import("@src/content/index.server");
   let navigationStructure: NavigationNode[] = [];
   let contentVersion = 0;
   let firstCollectionRedirectUrl = "";
 
   try {
-    // Ensurecontent-manageris initialized before use to guarantee sidebar population.
+    // Ensure content-manager is initialized before use to guarantee sidebar population.
     // This is critical for the first load after setup.
     await contentSystem.initialize(locals.tenantId);
 
@@ -126,8 +130,6 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
 
   // 🧠 Behavioral learning: track access patterns (fire-and-forget)
   try {
-    const { recordCollectionAccess, recordEntryAccess } =
-      await import("@src/services/intelligence/behavioral-learner");
     const pathParts = url.pathname.split("/").filter(Boolean);
     if (pathParts.length >= 2) {
       const collectionId = pathParts[1];

@@ -37,16 +37,16 @@ const PERMISSIONS_POLICY = [
  * downstream layer already added the same token.
  */
 function addVaryHeader(headers: Headers, value: string): void {
-  const current = headers.get("Vary") || "";
-  const tokens = current
-    .split(",")
-    .map((token) => token.trim())
-    .filter(Boolean);
-  const target = value.toLowerCase();
-  if (!tokens.some((token) => token.toLowerCase() === target)) {
-    tokens.push(value);
-    headers.set("Vary", tokens.join(", "));
+  const current = headers.get("Vary");
+  if (!current) {
+    headers.set("Vary", value);
+    return;
   }
+  const target = value.toLowerCase();
+  if (current.toLowerCase().includes(target)) {
+    return;
+  }
+  headers.set("Vary", `${current}, ${value}`);
 }
 
 export function applyAllSecurityHeaders(
@@ -55,7 +55,8 @@ export function applyAllSecurityHeaders(
   origin: string | null,
   pathname: string,
 ) {
-  const isPageRoute = !pathname.startsWith("/api/");
+  const isApi = pathname.startsWith("/api/");
+  const isPageRoute = !isApi;
   const svelteKitCsp = isPageRoute ? headers.get("Content-Security-Policy") : null;
 
   applySecurityHeaders(headers, isHttps && !dev);
@@ -65,8 +66,8 @@ export function applyAllSecurityHeaders(
   headers.set("X-Permitted-Cross-Domain-Policies", "none");
   headers.set("Permissions-Policy", PERMISSIONS_POLICY);
 
-  // Cross-Origin Isolation: use credentialless for media routes to avoid third-party asset breakage
-  if (pathname.startsWith("/api/")) {
+  if (isApi) {
+    // Cross-Origin Isolation: use credentialless for media routes to avoid third-party asset breakage
     headers.set("Cross-Origin-Opener-Policy", "same-origin");
     if (pathname.startsWith("/api/media/") || pathname.includes("/mediagallery")) {
       headers.set("Cross-Origin-Embedder-Policy", "credentialless");
@@ -74,9 +75,7 @@ export function applyAllSecurityHeaders(
       headers.set("Cross-Origin-Embedder-Policy", "require-corp");
     }
     headers.set("Cross-Origin-Resource-Policy", "same-origin");
-  }
 
-  if (pathname.startsWith("/api/")) {
     const corsHeaders = getCorsHeaders(origin, true);
     if (corsHeaders) {
       for (const key in corsHeaders) {
