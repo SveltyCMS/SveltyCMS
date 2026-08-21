@@ -229,10 +229,11 @@ test.describe("P0 — Token management with seed", () => {
     const tokenDialog = page.getByRole("dialog").filter({ hasText: /token/i }).first();
     await expect(tokenDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    // Change expiry if select exists
+    // Change expiry if select exists — index 0 is the component's disabled
+    // placeholder option, so select a concrete value instead.
     const expires = tokenDialog.locator("#expires-select");
     if (await expires.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await expires.selectOption({ index: 0 });
+      await expires.selectOption("2 days");
     }
 
     await tokenDialog.getByRole("button", { name: /save/i }).click();

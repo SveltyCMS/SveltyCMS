@@ -90,6 +90,19 @@ export class RelationalSystemModule implements ISystemAdapter {
   // ============================================================
   // PREFERENCES
   // ============================================================
+  /**
+   * "global" is the system-wide tenant marker (settings service default for
+   * single-tenant / null-tenant rows). Normalize it to null so scope queries
+   * hit rows stored with tenantId NULL — otherwise "global" filters miss
+   * every system setting in the DB.
+   */
+  private normalizeSystemTenant(tenantId?: string | null): string | null {
+    if (tenantId === undefined || tenantId === null || tenantId === "" || tenantId === "global") {
+      return null;
+    }
+    return String(tenantId);
+  }
+
   public readonly preferences = {
     get: async <T>(
       key: string,
@@ -106,8 +119,8 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         const conditions: any[] = [eq(this.schema.systemPreferences.key, key)];
         if (scope === "system") {
-          if (tenantId)
-            conditions.push(eq(this.schema.systemPreferences.tenantId, tenantId as string));
+          const tid = this.normalizeSystemTenant(tenantId);
+          if (tid) conditions.push(eq(this.schema.systemPreferences.tenantId, tid));
           else conditions.push(isNull(this.schema.systemPreferences.tenantId));
         } else if (userId) {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
@@ -140,8 +153,8 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (!keys || keys.length === 0) return {};
         const conditions: any[] = [inArray(this.schema.systemPreferences.key, keys)];
         if (scope === "system") {
-          if (tenantId)
-            conditions.push(eq(this.schema.systemPreferences.tenantId, tenantId as string));
+          const tid = this.normalizeSystemTenant(tenantId);
+          if (tid) conditions.push(eq(this.schema.systemPreferences.tenantId, tid));
           else conditions.push(isNull(this.schema.systemPreferences.tenantId));
         } else if (userId) {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
@@ -175,8 +188,8 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         const conditions: any[] = [eq(this.schema.systemPreferences.visibility, category)];
         if (scope === "system") {
-          if (tenantId)
-            conditions.push(eq(this.schema.systemPreferences.tenantId, tenantId as string));
+          const tid = this.normalizeSystemTenant(tenantId);
+          if (tid) conditions.push(eq(this.schema.systemPreferences.tenantId, tid));
           else conditions.push(isNull(this.schema.systemPreferences.tenantId));
         } else if (userId) {
           conditions.push(eq(this.schema.systemPreferences.userId, userId.toString()));
@@ -212,7 +225,7 @@ export class RelationalSystemModule implements ISystemAdapter {
 
       return this.adapter.wrap(async () => {
         const now = new Date();
-        const tid = scope === "system" ? (tenantId as string) || null : null;
+        const tid = scope === "system" ? this.normalizeSystemTenant(tenantId) : null;
         const uid = scope === "user" ? (userId as string) || null : null;
 
         // 🚀 HARDENING: Use primitives for all values to avoid driver binding errors

@@ -44,6 +44,13 @@ async function getCachedPluginState(pluginId: string, tenantId: string) {
     const enabled = state
       ? state.enabled
       : (pluginRegistry.get(pluginId)?.metadata?.enabled ?? false);
+
+    if (_stateCache.size >= 1024) {
+      const cutoff = Date.now() - STATE_CACHE_TTL;
+      for (const [k, v] of _stateCache) {
+        if (v.ts < cutoff) _stateCache.delete(k);
+      }
+    }
     _stateCache.set(key, { enabled, ts: Date.now() });
     return enabled;
   } catch {

@@ -546,19 +546,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       if (options.hints?.mongo?.writeConcern) {
         updateOptions.w = options.hints.mongo.writeConcern;
       }
-      const result = await this.model.updateMany(
-        secureQuery,
-        {
-          $set: (() => {
-            const { _id: _, ...d } = {
-              ...data,
-              updatedAt: nowISODateString(),
-            } as any;
-            return d;
-          })(),
-        },
-        updateOptions,
-      );
+      const { _id, ...d } = {
+        ...data,
+        updatedAt: nowISODateString(),
+      } as any;
+      const result = await this.model.updateMany(secureQuery, { $set: d }, updateOptions);
       return { success: true, data: { modifiedCount: result.modifiedCount } };
     } catch (error) {
       return {

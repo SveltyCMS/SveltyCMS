@@ -749,8 +749,8 @@ export class AutomationNamespace extends BaseNamespace {
   async getFlow(id: string, options: LocalApiOptions = {}) {
     return automationService.getFlow(id, options.tenantId as string);
   }
-  async getLogs(flowId: string, options: any = {}) {
-    return automationService.getLogs(flowId, options);
+  async getLogs(flowId: string, options: LocalApiOptions = {}) {
+    return automationService.getLogs(flowId, options.tenantId as string);
   }
   async executeFlow(id: string, triggerData: any = {}, options: LocalApiOptions = {}) {
     const { tenantId } = options;

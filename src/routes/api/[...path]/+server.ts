@@ -625,37 +625,36 @@ export const _handler = async (event: RequestEvent) => {
   const contentType = response.headers.get("content-type") || "";
   const isStreaming = contentType.includes("text/event-stream");
 
-  // ⚡ WEAK ETag FAST-PATH: Handler set apiDataHash on locals.
-  // Still warms responseCache L1 from stashed apiBody so handleTurboGet can HIT next request.
+  // ⚡ CONTENT-BASED ETag: Computed from the actual response body.
+  // Warms responseCache L1 from stashed apiBody so handleTurboGet can HIT next request.
   if (request.method === "GET" && response.status === 200 && !isStreaming) {
-    const apiDataHash = (event.locals as any).apiDataHash;
-    if (apiDataHash) {
-      const weakEtag = `W/"${apiDataHash}"`;
+    const stashedBody = (locals as any).apiBody as string | undefined;
+    if (stashedBody) {
+      const contentEtag = generateContentEtag(stashedBody);
       const ifNoneMatch = request.headers.get("if-none-match");
-      const stashedBody = (locals as any).apiBody as string | undefined;
       const userIdStr = getUserCacheId(user);
       const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
 
-      if (stashedBody && user) {
+      if (user) {
         // Sync L1 turbo cache — zero microtask delay for next authenticated GET
-        responseCache.set(turboKey, { body: stashedBody, etag: weakEtag }, 300_000, tenantId);
+        responseCache.set(turboKey, { body: stashedBody, etag: contentEtag }, 300_000, tenantId);
       }
 
-      if (ifNoneMatch === weakEtag || ifNoneMatch === "*") {
+      if (ifNoneMatch === contentEtag || ifNoneMatch === "*") {
         return new Response(null, {
           status: 304,
           headers: {
-            ETag: weakEtag,
+            ETag: contentEtag,
             "Cache-Control": "private, must-revalidate",
             "X-API-Version": "1",
-            "X-Cache": "WEAK-304",
+            "X-Cache": "CONTENT-304",
           },
         });
       }
 
-      response.headers.set("ETag", weakEtag);
+      response.headers.set("ETag", contentEtag);
       response.headers.set("X-API-Version", "1");
-      response.headers.set("X-Cache", "WEAK-ETAG");
+      response.headers.set("X-Cache", "CONTENT-ETAG");
       return response;
     }
   }

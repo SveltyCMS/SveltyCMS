@@ -64,6 +64,24 @@ async function refreshUser(
       return dbUser;
     }
 
+    // 🛡️ Stale-session self-heal: the session can reference a user id that no
+    // longer resolves (wizard reset / re-seed recreates the account under a new
+    // id). Resolve by email — the same strategy as the update-user-attributes
+    // handler — so the UI never renders a stale cached snapshot.
+    if (sessionUser.email) {
+      const byEmail = await auth?.getUserByEmail(
+        { email: sessionUser.email, tenantId: tenantId as DatabaseId },
+        { tenantId: tenantId as DatabaseId, bypassTenantCheck: true },
+      );
+      if (byEmail) {
+        logger.warn("User id not found in database, resolved by email (stale session self-heal)", {
+          userId: sessionUser._id,
+          email: sessionUser.email,
+        });
+        return byEmail;
+      }
+    }
+
     logger.warn("User not found in database, using session data", {
       userId: sessionUser._id,
     });

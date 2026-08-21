@@ -281,6 +281,12 @@ export async function handleCommerceRoutes(
           raise(400, "intentId and orderId are required.", "CONFIRM_REQUIRED");
         const order = await store.findOne("orders", { _id: orderId });
         if (!order) raise(404, "Order not found.", "ORDER_NOT_FOUND");
+        if (order.stripePaymentIntentId && order.stripePaymentIntentId !== intentId) {
+          raise(409, "PaymentIntent does not belong to this order.", "INTENT_MISMATCH");
+        }
+        if (!order.stripePaymentIntentId) {
+          raise(409, "No PaymentIntent was created for this order.", "INTENT_MISSING");
+        }
         const { stripePaymentGateway } = await import("@src/plugins/stripe/server/payment-gateway");
         const intent = await stripePaymentGateway.retrieveIntent(intentId, String(scoped));
         if (intent.amount !== Number(order.totalCents)) {
@@ -360,8 +366,10 @@ export async function handleCommerceRoutes(
           if (!isAdmin) raise(403, "Only store staff can mark shipped.", "FORBIDDEN");
           const body = await readJson(event);
           const shipped = await transitionOrder(store, orderId, "shipped");
-          if (body.trackingUrl) {
-            await store.update("orders", orderId, { trackingUrl: String(body.trackingUrl) });
+          const trackingUrl = body.trackingUrl ? String(body.trackingUrl).trim() : "";
+          const safeTrackingUrl = /^https?:\/\//i.test(trackingUrl) ? trackingUrl : "";
+          if (safeTrackingUrl) {
+            await store.update("orders", orderId, { trackingUrl: safeTrackingUrl });
           }
           await sendOrderShipped({
             orderNumber: String(shipped.orderNumber),
@@ -369,7 +377,7 @@ export async function handleCommerceRoutes(
             total: String(shipped.total ?? ""),
             status: "shipped",
             items: formatOrderItems((shipped.items as CartView["items"]) || []),
-            trackingUrl: String(body.trackingUrl || shipped.trackingUrl || ""),
+            trackingUrl: safeTrackingUrl || String(shipped.trackingUrl || ""),
           });
           return successResponse(event, shipped);
         }
@@ -403,11 +411,12 @@ export async function handleCommerceRoutes(
           if (!order || !owns(order)) raise(404, "Order not found.", "ORDER_NOT_FOUND");
           return successResponse(event, { ...order, canCancel: canCancelOrder(order) });
         }
-        const list = await store.findMany(
-          "orders",
-          customerId && !isAdmin ? { customer: customerId } : {},
-          { limit: 50 },
-        );
+        if (!isAdmin && !customerId) {
+          raise(401, "Authentication required to read orders.", "UNAUTHORIZED");
+        }
+        const list = await store.findMany("orders", isAdmin ? {} : { customer: customerId }, {
+          limit: 50,
+        });
         return successResponse(event, list);
       }
 
@@ -421,12 +430,15 @@ export async function handleCommerceRoutes(
           await deleteAddress(store, customerId, id);
           return successResponse(event, { deleted: true });
         }
-        const body = await readJson(event);
-        const saved = await saveAddress(store, customerId, body as never, id);
-        return successResponse(event, saved);
+        if (event.request.method === "POST") {
+          const body = await readJson(event);
+          const saved = await saveAddress(store, customerId, body as never);
+          return successResponse(event, saved);
+        }
+        raise(405, "Method not allowed.", "METHOD_NOT_ALLOWED");
       }
 
-      case "downloads": {
+      case "download": {
         const token = event.url.searchParams.get("token") || "";
         const claims = verifyDownloadToken(token);
         if (claims.tenantId !== String(scoped))
@@ -450,6 +462,10 @@ export async function handleCommerceRoutes(
         });
         const productId = body.productId ? String(body.productId) : "";
         if (productId && event.request.method === "POST" && segments[2] === "apply") {
+          const isAdminUser = Boolean((user as { isAdmin?: boolean })?.isAdmin);
+          if (!isAdminUser) {
+            raise(403, "Only administrators can apply variant matrices directly.", "FORBIDDEN");
+          }
           const product = await store.findOne("products", { _id: productId });
           if (!product) raise(404, "Product not found.", "PRODUCT_NOT_FOUND");
           await store.update("products", productId, { variants: generated });

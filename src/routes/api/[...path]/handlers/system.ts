@@ -944,7 +944,8 @@ export async function handleAutomationRoutes(
     if (!id || id === "list")
       return successResponse(event, await service.getFlow(undefined as any, effectiveTenantId));
 
-    if (segments[2] === "logs") return successResponse(event, await service.getLogs(id));
+    if (segments[2] === "logs")
+      return successResponse(event, await service.getLogs(id, effectiveTenantId));
 
     const flow = await service.getFlow(id, effectiveTenantId);
     if (!flow) throw new AppError("Automation flow not found", 404);
@@ -1350,7 +1351,9 @@ export async function handleExportRoutes(
     if (type === "users") {
       const result = await cms.auth.listUsers({ tenantId });
       if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
-      return successResponse(event, result.data);
+      const items = Array.isArray(result.data) ? result.data : [];
+      const { streamingArrayResponse } = await import("./streaming");
+      return streamingArrayResponse(items, items.length);
     }
     return successResponse(event, { success: true, message: "Export started" });
   }

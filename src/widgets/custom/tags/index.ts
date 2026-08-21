@@ -74,13 +74,21 @@ const TagsWidget = createWidget<TagsProps>({
   },
 
   aggregations: {
-    filters: async ({ field, filter }: any) => [
-      {
-        $match: {
-          [field.db_fieldName]: { $in: [new RegExp(filter, "i")] },
+    filters: async ({ field, filter }: any) => {
+      let re: RegExp;
+      try {
+        re = new RegExp(typeof filter === "string" ? filter : "", "i");
+      } catch {
+        re = new RegExp("", "i");
+      }
+      return [
+        {
+          $match: {
+            [field.db_fieldName]: { $in: [re] },
+          },
         },
-      },
-    ],
+      ];
+    },
     sorts: async ({ field, sortDirection }: any) => ({
       [field.db_fieldName]: sortDirection,
     }),

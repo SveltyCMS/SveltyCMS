@@ -17,7 +17,7 @@
  */
 
 import type { PermissionConfig } from "@src/databases/auth/permissions";
-import type { Role } from "@src/databases/auth/types";
+import type { Role, User } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/databases/db-interface";
 // System Logger
 import { getUntypedSetting } from "@src/services/core/settings-service";
@@ -27,7 +27,7 @@ import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async (event) => {
   try {
-    const user = getAuthenticatedUser(event.locals);
+    const sessionUser = getAuthenticatedUser(event.locals);
     const roles: Role[] = event.locals.roles || [];
     const isFirstUser: boolean = event.locals.isFirstUser;
     const hasManageUsersPermission: boolean = event.locals.hasManageUsersPermission;
@@ -35,13 +35,21 @@ export const load: PageServerLoad = async (event) => {
     // Use isAdmin from authorization hook (handles multi-tenant fallback correctly)
     const isAdmin = event.locals.isAdmin === true;
 
+    // 🛡️ Stale-session self-heal: the session snapshot can reference a user id
+    // that no longer resolves (wizard reset / re-seed recreates the account
+    // under a new id). Refresh from the DB — resolving by email when the id
+    // misses — so the profile page never renders a stale cached snapshot.
+    const user = await refreshUserFromDatabase(sessionUser, event.locals.tenantId as DatabaseId);
+    const activeUser = user;
+
     // Resolve display permissions: prefer hook-populated locals, then user record, then role
     const rolePermissions =
-      roles.find((r) => r._id?.toString() === user.role || r.name === user.role)?.permissions ?? [];
+      roles.find((r) => r._id?.toString() === activeUser.role || r.name === activeUser.role)
+        ?.permissions ?? [];
     let displayPermissions: string[] = Array.isArray(event.locals.permissions)
       ? (event.locals.permissions as string[])
-      : Array.isArray(user.permissions) && user.permissions.length > 0
-        ? user.permissions
+      : Array.isArray(activeUser.permissions) && activeUser.permissions.length > 0
+        ? activeUser.permissions
         : rolePermissions;
     // Admins always see a non-empty grant list for transparency in the Security card
     if (isAdmin && displayPermissions.length === 0) {
@@ -49,9 +57,19 @@ export const load: PageServerLoad = async (event) => {
     }
 
     // Prepare user object for return, ensuring _id is a string and including admin status
+    const rawId = (activeUser as any)?._id;
+    const userIdStr =
+      typeof rawId === "string"
+        ? rawId
+        : rawId && typeof rawId.toString === "function"
+          ? rawId.toString()
+          : rawId
+            ? String(rawId)
+            : "";
+
     const safeUser = {
-      ...user,
-      _id: user._id.toString(),
+      ...activeUser,
+      _id: userIdStr,
       password: "[REDACTED]", // Ensure password is not sent to client
       isAdmin, // Add the properly calculated admin status
       permissions: displayPermissions,
@@ -84,10 +102,10 @@ export const load: PageServerLoad = async (event) => {
       user: safeUser,
       roles: roles.map((role) => ({
         ...role,
-        _id: role._id.toString(),
+        _id: role?._id != null ? role._id.toString() : "",
       })),
       isFirstUser,
-      is2FAEnabledGlobal: Boolean(getUntypedSetting("USE_2FA")),
+      is2FAEnabledGlobal: Boolean(await getUntypedSetting("USE_2FA")),
       manageUsersPermissionConfig,
       adminData,
       // Total system users — the Multibutton gates the destructive delete
@@ -142,4 +160,35 @@ async function getTotalUserCount(event: Parameters<PageServerLoad>[0]): Promise<
   } catch {
     return 0;
   }
+}
+
+/**
+ * Refresh the session user snapshot from the database, resolving by email when
+ * the session's user id no longer exists (stale session after wizard reset /
+ * re-seed recreates the account under a new id). Returns the session user when
+ * both lookups miss — the profile page then renders what the session knows.
+ */
+async function refreshUserFromDatabase(sessionUser: User, tenantId?: DatabaseId): Promise<User> {
+  try {
+    const { auth } = await import("@src/databases/db");
+    const dbUser = await auth?.getUserById(sessionUser._id as DatabaseId, {
+      tenantId,
+      bypassTenantCheck: true,
+    });
+    if (dbUser && dbUser._id) return dbUser;
+
+    if (sessionUser.email) {
+      const byEmail = await auth?.getUserByEmail(
+        { email: sessionUser.email, tenantId },
+        { tenantId, bypassTenantCheck: true },
+      );
+      if (byEmail && byEmail._id) return byEmail;
+    }
+  } catch (err: any) {
+    logger.warn("Failed to refresh user data in /user load, using session data", {
+      error: err.message,
+      userId: sessionUser._id,
+    });
+  }
+  return sessionUser;
 }

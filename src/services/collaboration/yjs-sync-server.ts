@@ -41,6 +41,7 @@ type DocEntry = {
   awareness: awarenessProtocol.Awareness;
   /** Set of connected WebSocket clients for this document (for broadcasting) */
   clients: Set<WebSocket>;
+  idleTimer?: any;
 };
 
 // ---------------------------------------------------------------------------
@@ -49,6 +50,7 @@ type DocEntry = {
 
 const messageSync = 0;
 const messageAwareness = 1;
+const DOC_IDLE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // ---------------------------------------------------------------------------
 // In-memory document store
@@ -59,19 +61,25 @@ const docs = new Map<string, DocEntry>();
 function getOrCreateDoc(docId: string, tenantId?: string): DocEntry {
   const key = tenantId ? `${tenantId}:${docId}` : docId;
   let entry = docs.get(key);
-  if (!entry) {
-    const doc = new Y.Doc();
-    doc.on("update", (_update: Uint8Array, _origin: unknown) => {
-      // Server-originated updates should not be rebroadcast — the
-      // per-client message handler already broadcasts incoming updates.
-    });
-
-    const awareness = new awarenessProtocol.Awareness(doc);
-    awareness.setLocalState(null);
-
-    entry = { doc, awareness, clients: new Set() };
-    docs.set(key, entry);
+  if (entry) {
+    if (entry.idleTimer) {
+      clearTimeout(entry.idleTimer);
+      entry.idleTimer = undefined;
+    }
+    return entry;
   }
+
+  const doc = new Y.Doc();
+  doc.on("update", (_update: Uint8Array, _origin: unknown) => {
+    // Server-originated updates should not be rebroadcast — the
+    // per-client message handler already broadcasts incoming updates.
+  });
+
+  const awareness = new awarenessProtocol.Awareness(doc);
+  awareness.setLocalState(null);
+
+  entry = { doc, awareness, clients: new Set() };
+  docs.set(key, entry);
   return entry;
 }
 
@@ -177,13 +185,13 @@ export function startYjsSyncServer(options: YjsSyncServerOptions): () => void {
   });
 
   wss.on("connection", (ws: WebSocket, request: IncomingMessage, auth: WsAuthResult) => {
-    // Parse docId from query string. Tenant is AUTHORITATIVE from the resolved
-    // session — the client-supplied tenantId can never override it (the
-    // previously unauthenticated endpoint trusted `tenantId` query params).
+    // Parse and validate docId from query string. Tenant is strictly AUTHORITATIVE from the resolved
+    // session — client-supplied tenantId query params are rejected.
     const url = new URL(request.url || "/", `http://${request.headers.host}`);
-    const docId = url.searchParams.get("docId") || "default";
-    const requestedTenant = url.searchParams.get("tenantId") || undefined;
-    const tenantId = auth.tenantId || requestedTenant || undefined;
+    const rawDocId = url.searchParams.get("docId") || "default";
+    const docId = /^[a-zA-Z0-9_-]{1,128}$/.test(rawDocId) ? rawDocId : "default";
+    const tenantId = auth.tenantId || undefined;
+    const docKey = tenantId ? `${tenantId}:${docId}` : docId;
 
     logger.info(
       `[YjsSync] Client connected: docId=${docId}, tenantId=${tenantId || "global"}, userId=${auth.userId}`,
@@ -207,6 +215,20 @@ export function startYjsSyncServer(options: YjsSyncServerOptions): () => void {
 
     ws.on("close", () => {
       entry.clients.delete(ws);
+      if (entry.clients.size === 0) {
+        if (entry.idleTimer) clearTimeout(entry.idleTimer);
+        const timer = setTimeout(() => {
+          const current = docs.get(docKey);
+          if (current && current.clients.size === 0) {
+            current.awareness.destroy();
+            current.doc.destroy();
+            docs.delete(docKey);
+            logger.debug(`[YjsSync] Idle document cleaned up: key=${docKey}`);
+          }
+        }, DOC_IDLE_TTL);
+        if (typeof timer.unref === "function") timer.unref();
+        entry.idleTimer = timer;
+      }
       logger.debug(`[YjsSync] Client disconnected: docId=${docId}`);
     });
 

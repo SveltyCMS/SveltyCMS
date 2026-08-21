@@ -14,6 +14,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 import { LRUCache } from "lru-cache";
 import { CacheCategory, type CacheStats } from "./types";
 import { cacheMetrics } from "./cache-metrics";
@@ -94,9 +95,7 @@ export class CacheService {
       },
     });
 
-    this.nodeId = globalThis.crypto
-      ? globalThis.crypto.randomUUID()
-      : Math.random().toString(36).substring(2);
+    this.nodeId = generateUUID();
   }
 
   // ── Metrics & Logging ───────────────────────────────────────────────────

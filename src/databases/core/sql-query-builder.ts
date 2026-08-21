@@ -257,9 +257,10 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   }
 
   search(query: string, fields?: (keyof T)[]): this {
-    const pattern = "%" + query + "%";
+    const escaped = query.replace(/[\\%_]/g, (c) => `\\${c}`);
+    const pattern = "%" + escaped + "%";
     const likeCondition = (column: Column | SQL): SQL =>
-      sql`${column} ${sql.raw(this.dialect.likeOperator)} ${pattern}`;
+      sql`${column} ${sql.raw(this.dialect.likeOperator)} ${pattern} ESCAPE '\\'`;
 
     const resolveField = (f: string): SQL | null => {
       const column = this.table[f];

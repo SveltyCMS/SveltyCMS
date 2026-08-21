@@ -34,14 +34,29 @@ export function cn(...inputs: ClassValue[]): string {
       return a || b || "";
     }
   }
+  // 🚀 Fast-path: 3 simple arguments
+  if (len === 3) {
+    const a = inputs[0];
+    const b = inputs[1];
+    const c = inputs[2];
+    if (typeof a === "string" && typeof b === "string" && typeof c === "string") {
+      let res = "";
+      if (a) res += a;
+      if (b) res += res ? ` ${b}` : b;
+      if (c) res += res ? ` ${c}` : c;
+      return res;
+    }
+  }
 
   const result: string[] = [];
 
   function process(val: ClassValue) {
     if (!val) return;
 
-    if (typeof val === "string" || typeof val === "number") {
-      result.push(val.toString());
+    if (typeof val === "string") {
+      result.push(val);
+    } else if (typeof val === "number") {
+      result.push(String(val));
     } else if (Array.isArray(val)) {
       for (let i = 0; i < val.length; i++) {
         process(val[i]);

@@ -10,38 +10,36 @@
  * Standardized cookie parsing utilities for SveltyCMS (WebSocket auth bridge).
  */
 
-import { str } from "./string.ts";
-
 /**
  * 🛡️ Hardened: Parses cookie header with protection against prototype pollution
  * and malicious key collision.
  */
 export function parseCookies(cookieHeader: string | null | undefined): Record<string, string> {
-  if (str.isEmpty(cookieHeader) || typeof cookieHeader !== "string") return Object.create(null);
+  if (!cookieHeader || typeof cookieHeader !== "string") return Object.create(null);
 
-  const cookies = Object.create(null);
-  const pairs = cookieHeader.split(";");
+  const cookies: Record<string, string> = Object.create(null);
+  let start = 0;
+  const len = cookieHeader.length;
 
-  for (let i = 0; i < pairs.length; i++) {
-    const pair = pairs[i].trim();
-    if (!pair) continue;
+  while (start < len) {
+    let end = cookieHeader.indexOf(";", start);
+    if (end === -1) end = len;
 
-    const splitIndex = pair.indexOf("=");
-    if (splitIndex === -1) continue;
+    const splitIndex = cookieHeader.indexOf("=", start);
+    if (splitIndex !== -1 && splitIndex < end) {
+      const key = cookieHeader.slice(start, splitIndex).trim();
+      const value = cookieHeader.slice(splitIndex + 1, end).trim();
 
-    const key = pair.slice(0, splitIndex).trim();
-    const value = pair.slice(splitIndex + 1).trim();
-
-    // 🛡️ Ignore internal prototype keys to prevent pollution
-    if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
-
-    if (key && value) {
-      try {
-        cookies[key] = decodeURIComponent(value);
-      } catch {
-        cookies[key] = value;
+      // 🛡️ Ignore internal prototype keys to prevent pollution
+      if (key && value && key !== "__proto__" && key !== "constructor" && key !== "prototype") {
+        try {
+          cookies[key] = decodeURIComponent(value);
+        } catch {
+          cookies[key] = value;
+        }
       }
     }
+    start = end + 1;
   }
 
   return cookies;

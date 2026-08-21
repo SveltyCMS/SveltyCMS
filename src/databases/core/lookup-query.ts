@@ -31,7 +31,7 @@ export function parseIdLookup(query: unknown): IdLookupResult | null {
 
   for (const key in query as Record<string, unknown>) {
     count++;
-    if (count > 2) return null;
+    if (count > 3) return null;
     if (key === "_id" || key === "id") {
       const val = (query as Record<string, unknown>)[key];
       // Reject operator objects ($in, $eq, …) — those need full translation
@@ -47,6 +47,12 @@ export function parseIdLookup(query: unknown): IdLookupResult | null {
       } else {
         tenantId = String(tid);
       }
+    } else if (key === "isDeleted") {
+      const del = (query as Record<string, unknown>).isDeleted;
+      if (del === false || del === 0 || del === undefined) {
+        continue;
+      }
+      return null;
     } else {
       return null;
     }

@@ -28,15 +28,19 @@ export function expandVariantMatrix(
     .filter((a) => a.name && a.values.length);
   if (!attrs.length) return [];
 
+  const MAX_VARIANTS = 500;
   let combos: Record<string, string>[] = [{}];
   for (const attr of attrs) {
     const next: Record<string, string>[] = [];
     for (const combo of combos) {
       for (const value of attr.values) {
+        if (next.length >= MAX_VARIANTS) break;
         next.push({ ...combo, [attr.name]: value });
       }
+      if (next.length >= MAX_VARIANTS) break;
     }
     combos = next;
+    if (combos.length >= MAX_VARIANTS) break;
   }
 
   const prefix = (opts?.skuPrefix || "SKU").toUpperCase().replace(/[^A-Z0-9]+/g, "-");

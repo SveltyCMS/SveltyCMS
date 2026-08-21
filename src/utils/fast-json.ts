@@ -17,9 +17,16 @@
  */
 export function fastEscapeString(str: string): string {
   if (typeof str !== "string") return String(str ?? "");
-  // Fast path: if no special characters exist, return unchanged
-  // oxlint-disable-next-line no-control-regex
-  if (!/[\\"\u0000-\u001f]/.test(str)) {
+  const len = str.length;
+  let needsEscape = false;
+  for (let i = 0; i < len; i++) {
+    const code = str.charCodeAt(i);
+    if (code === 34 || code === 92 || code < 32) {
+      needsEscape = true;
+      break;
+    }
+  }
+  if (!needsEscape) {
     return str;
   }
   return JSON.stringify(str).slice(1, -1);

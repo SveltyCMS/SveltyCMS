@@ -697,7 +697,28 @@ async function handleCollectionStatusUpdate(
 }
 
 function extraStatusFields(body: Record<string, unknown>): Record<string, unknown> {
-  const skip = new Set(["action", "entryIds", "ids", "entries", "status", "data", "tenantId"]);
+  const skip = new Set([
+    "action",
+    "entryIds",
+    "ids",
+    "entries",
+    "status",
+    "data",
+    "tenantId",
+    "role",
+    "isAdmin",
+    "permissions",
+    "password",
+    "secret",
+    "token",
+    "hash",
+    "_id",
+    "_collection",
+    "createdAt",
+    "createdBy",
+    "updatedAt",
+    "updatedBy",
+  ]);
   const extra: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(body)) {
     if (!skip.has(key)) extra[key] = value;

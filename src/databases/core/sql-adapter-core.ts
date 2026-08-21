@@ -405,6 +405,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   private _crudWrapper: ICrudAdapter | null = null;
+  protected _lastTableRef: { table: any; cols: Record<string, Column> | null } = {
+    table: null,
+    cols: null,
+  };
 
   public get crud(): ICrudAdapter {
     return this._crudWrapper ?? (this as any);
@@ -423,22 +427,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   public getColumn(table: any, name: string, forcePhysical = false): any {
-    const self = this as any;
-    const lastRef = {
-      get table() {
-        return self._lastTable;
-      },
-      set table(val: any) {
-        self._lastTable = val;
-      },
-      get cols() {
-        return self._lastCols;
-      },
-      set cols(val: any) {
-        self._lastCols = val;
-      },
-    };
-    return helpers.getColumnHelper(table, name, this._tableColumnsCache, lastRef, forcePhysical);
+    return helpers.getColumnHelper(
+      table,
+      name,
+      this._tableColumnsCache,
+      this._lastTableRef,
+      forcePhysical,
+    );
   }
 
   /**
@@ -460,6 +455,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         f === "status" ||
         f === "createdAt" ||
         f === "updatedAt" ||
+        f === "createdBy" ||
+        f === "updatedBy" ||
+        f === "publishedAt" ||
         f === "isDeleted"
       )
         continue;
@@ -469,23 +467,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   public getPhysicalSelection(table: any): any {
-    const self = this as any;
-    const lastRef = {
-      get table() {
-        return self._lastTable;
-      },
-      set table(val: any) {
-        self._lastTable = val;
-      },
-      get cols() {
-        return self._lastCols;
-      },
-      set cols(val: any) {
-        self._lastCols = val;
-      },
-    };
     return helpers.getPhysicalSelection(table, this._selectionCache, (t, n, f) =>
-      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
+      helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, f),
     );
   }
 
@@ -508,50 +491,20 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       }
     }
 
-    const self = this as any;
-    const lastRef = {
-      get table() {
-        return self._lastTable;
-      },
-      set table(val: any) {
-        self._lastTable = val;
-      },
-      get cols() {
-        return self._lastCols;
-      },
-      set cols(val: any) {
-        self._lastCols = val;
-      },
-    };
     return helpers.getPhysicalSelection(
       table,
       this._selectionCache,
-      (t, n, f) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, f),
+      (t, n, f) => helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, f),
       this.shouldExcludeData(table, options),
     );
   }
 
   public mapQuery(table: any, query: any, options: any = {}): any {
-    const self = this as any;
-    const lastRef = {
-      get table() {
-        return self._lastTable;
-      },
-      set table(val: any) {
-        self._lastTable = val;
-      },
-      get cols() {
-        return self._lastCols;
-      },
-      set cols(val: any) {
-        self._lastCols = val;
-      },
-    };
     return helpers.mapQuery(
       table,
       query,
       options,
-      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
+      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false),
       (f) => this.getJsonField(f),
       (v) => this.coerceJsonValue(v),
     );
@@ -568,26 +521,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   }
 
   public applyOrderBy(builder: any, table: any, options: any): any {
-    const self = this as any;
-    const lastRef = {
-      get table() {
-        return self._lastTable;
-      },
-      set table(val: any) {
-        self._lastTable = val;
-      },
-      get cols() {
-        return self._lastCols;
-      },
-      set cols(val: any) {
-        self._lastCols = val;
-      },
-    };
     return helpers.applyOrderBy(
       builder,
       table,
       options,
-      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false),
+      (t, n) => helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false),
       (f) => this.getJsonField(f),
     );
   }
@@ -601,23 +539,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     if (id) {
       values._id = id;
     }
-    const self = this as any;
-    const lastRef = {
-      get table() {
-        return self._lastTable;
-      },
-      set table(val: any) {
-        self._lastTable = val;
-      },
-      get cols() {
-        return self._lastCols;
-      },
-      set cols(val: any) {
-        self._lastCols = val;
-      },
-    };
     const getCol = (t: any, n: string) =>
-      helpers.getColumnHelper(t, n, this._tableColumnsCache, lastRef, false);
+      helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false);
 
     let schemaCols: Record<string, any> | undefined = this._tableColumnsCache.get(table);
     if (!schemaCols) {

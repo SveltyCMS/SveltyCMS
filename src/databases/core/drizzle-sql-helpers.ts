@@ -36,6 +36,15 @@ import type { FindOptions, QueryCondition } from "../db-interface";
 import * as utils from "./relational-utils";
 
 /**
+ * Universal Drizzle write executor across SQLite (.run()), LibSQL (.run()), and PostgreSQL/MariaDB (thenable).
+ */
+export async function executeWrite<T extends { run?: () => Promise<unknown> }>(
+  builder: T,
+): Promise<{ changes?: number; rowsAffected?: number; count?: number }> {
+  return (typeof builder.run === "function" ? await builder.run() : await (builder as any)) as any;
+}
+
+/**
  * Widgets whose data shape is a flat scalar
  * (string/number/boolean) are safe to store as physical columns instead of the
  * JSON `data` blob. Object/array-shaped widgets (group, repeater, seo, tags,

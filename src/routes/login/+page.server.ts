@@ -28,6 +28,7 @@ import { resolveLoginBranding } from "@utils/theme-merge";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
 import { sendMail } from "@utils/email.server";
+import { safeRedirect } from "@src/utils/security/safe-redirect";
 
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
 import pkg from "../../../package.json";
@@ -242,7 +243,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     // If already authenticated, redirect to the intended destination or default
     if (locals.user) {
-      const returnTo = url.searchParams.get("redirect") || "/config/collectionbuilder";
+      const returnTo = safeRedirect(url.searchParams.get("redirect"), "/config/collectionbuilder");
       throw redirect(302, returnTo);
     }
 
@@ -444,7 +445,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       firstCollectionPath: "/config/collectionbuilder",
       pkgVersion,
       loginBranding,
-      redirectTo: url.searchParams.get("redirect") || "",
+      redirectTo: safeRedirect(url.searchParams.get("redirect"), ""),
       // Returning user: handle-authentication sets locals.returningUser when a session cookie was
       // present but invalid/expired (then deletes the dead cookie). Fall back to raw cookie presence
       // for any path that bypasses that branch. A valid session is already redirected away by hooks,

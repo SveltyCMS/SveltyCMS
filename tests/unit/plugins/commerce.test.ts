@@ -21,7 +21,7 @@ import {
 import type { CommerceStore } from "../../../src/plugins/commerce/store";
 import { AppError } from "@utils/error-handling";
 
-const mockedMulti = vi.mocked(isMultiTenantEnabled);
+const mockedMulti = isMultiTenantEnabled as any;
 
 function memoryStore(tenantId: string): CommerceStore & { rows: Map<string, any[]> } {
   const rows = new Map<string, any[]>([
@@ -249,5 +249,65 @@ describe("F1 — Stripe PaymentIntent ignores client amount", () => {
     expect(src).toContain("body.amount != null");
     expect(src).toContain("order.totalCents");
     expect(src).not.toMatch(/createIntent\(\{[\s\S]*amount:\s*body\.amount/);
+  });
+
+  it("documents that /api/commerce/confirm binds intentId to order", async () => {
+    const src = await import("node:fs").then((fs) =>
+      fs.readFileSync("src/routes/api/[...path]/handlers/commerce.ts", "utf8"),
+    );
+    expect(src).toContain("order.stripePaymentIntentId !== intentId");
+  });
+});
+
+describe("Cart Expiration & Self-Healing", () => {
+  it("resets expired cart items when retrieved after expiration date", async () => {
+    const store = memoryStore("tenant-a");
+    const pastDate = new Date(Date.now() - 100000).toISOString();
+    await store.create("carts", {
+      sessionId: "expired-session",
+      customer: null,
+      items: [{ productId: "p1", title: "Item 1", qty: 2, unitAmount: 500, currency: "EUR" }],
+      subtotal: 10,
+      appliedCoupon: "PROMO10",
+      expiresAt: pastDate,
+    });
+
+    const cart = await getOrCreateCart(store, { sessionId: "expired-session", currency: "EUR" });
+    expect(cart.items).toHaveLength(0);
+    expect(cart.subtotal).toBe(0);
+    expect(cart.appliedCoupon).toBeNull();
+    expect(new Date(cart.expiresAt).getTime()).toBeGreaterThan(Date.now());
+  });
+});
+
+describe("Variant Matrix Generation & DoS Protection", () => {
+  it("caps Cartesian product generation at 500 variants to prevent CPU/memory exhaustion", async () => {
+    const { expandVariantMatrix } = await import("../../../src/plugins/commerce/variants");
+    const attributes = [
+      { name: "Size", values: ["S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL", "7XL"] },
+      {
+        name: "Color",
+        values: [
+          "Red",
+          "Green",
+          "Blue",
+          "Yellow",
+          "Black",
+          "White",
+          "Purple",
+          "Orange",
+          "Pink",
+          "Cyan",
+        ],
+      },
+      {
+        name: "Material",
+        values: ["Cotton", "Polyester", "Wool", "Silk", "Linen", "Nylon", "Rayon", "Spandex"],
+      },
+    ];
+    // 10 * 10 * 8 = 800 combinations
+    const result = expandVariantMatrix(attributes);
+    expect(result.length).toBeLessThanOrEqual(500);
+    expect(result.length).toBe(500);
   });
 });

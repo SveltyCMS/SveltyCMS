@@ -43,27 +43,28 @@ export function escapeRegex(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const RTL_LANGUAGES = new Set([
+  "ar",
+  "he",
+  "fa",
+  "ur",
+  "dv",
+  "ha",
+  "khw",
+  "ks",
+  "ku",
+  "ps",
+  "syr",
+  "ug",
+  "yi",
+]);
+
 /**
  * Returns the text direction (ltr/rtl) for a given language code.
  * Uses Set for O(1) lookup.
  */
 export function getTextDirection(lang: string): "ltr" | "rtl" {
-  const rtlLanguages = new Set([
-    "ar",
-    "he",
-    "fa",
-    "ur",
-    "dv",
-    "ha",
-    "khw",
-    "ks",
-    "ku",
-    "ps",
-    "syr",
-    "ug",
-    "yi",
-  ]);
-  return rtlLanguages.has(lang) ? "rtl" : "ltr";
+  return RTL_LANGUAGES.has(lang) ? "rtl" : "ltr";
 }
 
 /**

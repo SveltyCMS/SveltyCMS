@@ -26,14 +26,37 @@ import { normalizeCollectionTableName } from "./collection-name";
 export { isoDateStringToDate, nowISODateString };
 
 export const generateId = () => uuidv4().replace(/-/g, "") as DatabaseId;
-const VALID_ID_32 = /^[0-9a-f]{32}$/i;
-const VALID_ID_36 = /^[0-9a-f-]{36}$/i;
 
-export const validateId = (id: string) => {
+function isHex32(str: string): boolean {
+  for (let i = 0; i < 32; i++) {
+    const c = str.charCodeAt(i);
+    if (!((c >= 48 && c <= 57) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102))) return false;
+  }
+  return true;
+}
+
+function isUuid36(str: string): boolean {
+  if (
+    str.charCodeAt(8) !== 45 ||
+    str.charCodeAt(13) !== 45 ||
+    str.charCodeAt(18) !== 45 ||
+    str.charCodeAt(23) !== 45
+  ) {
+    return false;
+  }
+  for (let i = 0; i < 36; i++) {
+    if (i === 8 || i === 13 || i === 18 || i === 23) continue;
+    const c = str.charCodeAt(i);
+    if (!((c >= 48 && c <= 57) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102))) return false;
+  }
+  return true;
+}
+
+export const validateId = (id: string): boolean => {
   if (typeof id !== "string") return false;
   const len = id.length;
-  if (len === 32) return VALID_ID_32.test(id);
-  if (len === 36) return VALID_ID_36.test(id);
+  if (len === 32) return isHex32(id);
+  if (len === 36) return isUuid36(id);
   return false;
 };
 
@@ -354,11 +377,12 @@ function isEpochMs(v: unknown): v is number {
  * separator, hour-only offset) — valid for the DB but NOT ISO 8601. Normalize
  * to ISODateString at the adapter boundary (single representation contract).
  */
+const PG_TS_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?[+-]\d{2}(:\d{2})?$/;
+
 function isPgTimestampString(v: unknown): v is string {
-  return (
-    typeof v === "string" &&
-    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?[+-]\d{2}(:\d{2})?$/.test(v)
-  );
+  if (typeof v !== "string" || v.length < 19 || v.length > 35) return false;
+  if (v[4] !== "-" || v[7] !== "-" || v[10] !== " ") return false;
+  return PG_TS_RE.test(v);
 }
 
 function pgTimestampToIso(v: string): string {
@@ -382,6 +406,12 @@ export function convertDatesToISO(
 ): any {
   if (!row) return row;
   if (Array.isArray(row)) {
+    if (options?.inPlace) {
+      for (let i = 0; i < row.length; i++) {
+        row[i] = convertDatesToISO(row[i], options);
+      }
+      return row;
+    }
     return row.map((r) => convertDatesToISO(r, options));
   }
 
@@ -555,10 +585,16 @@ export const convertArrayDatesToISO = (
 
 export function convertISOToDates(
   data: any,
-  options?: { mariaDoubleParseJson?: boolean; table?: string },
+  options?: { mariaDoubleParseJson?: boolean; table?: string; inPlace?: boolean },
 ): any {
   if (!data) return data;
   if (Array.isArray(data)) {
+    if (options?.inPlace) {
+      for (let i = 0; i < data.length; i++) {
+        data[i] = convertISOToDates(data[i], options);
+      }
+      return data;
+    }
     return data.map((d) => convertISOToDates(d, options));
   }
 
@@ -817,4 +853,25 @@ export function buildRawTenantClause(
   // Legacy literal path — quote-escape only (avoid for new code)
   const id = String(options.tenantId).replace(/'/g, "''");
   return { sql: ` AND ${col} = '${id}'`, params: [] };
+}
+
+/**
+ * Checks if all updates in a batch share identical data payload keys and values,
+ * enabling single-query optimizations (e.g. UPDATE ... WHERE _id IN (...)).
+ */
+export function sameBatchPayload<T>(
+  updates: Array<{ data?: Partial<T> | Record<string, unknown> }>,
+): boolean {
+  if (updates.length <= 1) return true;
+  const first = updates[0]?.data as Record<string, unknown> | undefined;
+  if (!first) return true;
+  const keys = Object.keys(first);
+  for (let i = 1; i < updates.length; i++) {
+    const next = updates[i]?.data as Record<string, unknown> | undefined;
+    if (!next || Object.keys(next).length !== keys.length) return false;
+    for (const key of keys) {
+      if (next[key] !== first[key]) return false;
+    }
+  }
+  return true;
 }

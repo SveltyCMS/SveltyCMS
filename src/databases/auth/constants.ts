@@ -59,14 +59,6 @@ export function getSessionCookieName(isSecure: boolean): string {
   return isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 }
 
-export interface CookieReader {
-  get(name: string, ...args: any[]): string | undefined;
-}
-
-export interface CookieDeleter {
-  delete(name: string, opts: { path: string; [key: string]: any }): void;
-}
-
 export const HOST_SESSION_COOKIE_NAME = `__Host-${SESSION_COOKIE_NAME}`;
 export const SECURE_SESSION_COOKIE_NAME = `__Secure-${SESSION_COOKIE_NAME}`;
 
@@ -76,82 +68,12 @@ export const SESSION_COOKIE_VARIANTS = Object.freeze([
   { name: SESSION_COOKIE_NAME, isSecure: false },
 ]);
 
-/**
- * Reads the session cookie according to environment security requirements.
- *
- * - Secure connections: ONLY accept __Host- prefixed cookie (prevents subdomain cookie tossing)
- * - Insecure connections: ONLY accept unprefixed cookie (never fall back to __Host-)
- * - Unspecified: checks in standard precedence (__Host- -> raw -> __Secure-)
- *
- * @param cookies - The event's Cookies object
- * @param isSecure - Whether the connection is secure (optional)
- * @returns The session ID string, or undefined if not found
- */
-export function readSessionCookie(
-  cookies?: CookieReader | { get?: (name: string, ...args: any[]) => string | undefined } | null,
-  isSecure?: boolean,
-): string | undefined {
-  if (!cookies || typeof cookies.get !== "function") return undefined;
-  if (isSecure === true) {
-    // Prefer __Host-; fall back for transitional deploys
-    return (
-      cookies.get(HOST_SESSION_COOKIE_NAME) ||
-      cookies.get(SESSION_COOKIE_NAME) ||
-      cookies.get(SECURE_SESSION_COOKIE_NAME)
-    );
-  }
-  if (isSecure === false) {
-    // Loopback/http: prefer plain name; accept accidental secure leftovers
-    return (
-      cookies.get(SESSION_COOKIE_NAME) ||
-      cookies.get(HOST_SESSION_COOKIE_NAME) ||
-      cookies.get(SECURE_SESSION_COOKIE_NAME)
-    );
-  }
-  return (
-    cookies.get(HOST_SESSION_COOKIE_NAME) ||
-    cookies.get(SESSION_COOKIE_NAME) ||
-    cookies.get(SECURE_SESSION_COOKIE_NAME)
-  );
-}
-
-/**
- * Deletes all session cookie variants (__Host-, __Secure-, and plain) to ensure
- * clean session termination without leaving stale prefixed cookies.
- */
-export function clearAllSessionCookies(
-  cookies?: CookieDeleter | { delete?: (name: string, opts: any) => void } | null,
-  cookiePathOrOptions:
-    | string
-    | {
-        path?: string;
-        isSecure?: boolean;
-        httpOnly?: boolean;
-        sameSite?: "strict" | "lax" | "none";
-      } = "/",
-): void {
-  if (!cookies || typeof cookies.delete !== "function") return;
-  const isString = typeof cookiePathOrOptions === "string";
-  const cookiePath = isString ? cookiePathOrOptions : (cookiePathOrOptions?.path ?? "/");
-  const isSecureOpt = !isString ? cookiePathOrOptions?.isSecure : undefined;
-  const sameSiteOpt = !isString ? cookiePathOrOptions?.sameSite : undefined;
-  const httpOnlyOpt =
-    !isString && cookiePathOrOptions?.httpOnly !== undefined ? cookiePathOrOptions.httpOnly : true;
-
-  for (const { name, isSecure: variantSecure } of SESSION_COOKIE_VARIANTS) {
-    try {
-      const effectiveSecure = isSecureOpt !== undefined ? isSecureOpt : variantSecure;
-      const effectiveSameSite =
-        sameSiteOpt !== undefined ? sameSiteOpt : effectiveSecure ? "strict" : "lax";
-      cookies.delete(name, {
-        path: cookiePath,
-        httpOnly: httpOnlyOpt,
-        secure: effectiveSecure,
-        sameSite: effectiveSameSite,
-      });
-    } catch {}
-  }
-}
+export {
+  readSessionCookie,
+  clearAllSessionCookies,
+  type CookieReader,
+  type CookieDeleter,
+} from "@src/utils/security/session-cookie";
 
 /**
  * Generates a cryptographically secure random alphanumeric token with zero bias.

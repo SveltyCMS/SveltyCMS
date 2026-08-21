@@ -4,7 +4,6 @@
  */
 
 import crypto from "node:crypto";
-import { generateSecureToken } from "@src/utils/native-utils";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 
 /** Memoized derived HMAC secret (JWT_SECRET_KEY is a static infrastructure key). */
@@ -40,9 +39,7 @@ export function generateApiKey(): {
   prefix: string;
   hash: string;
 } {
-  const randomHex = generateSecureToken(48);
-  const randomBytes = Buffer.from(randomHex, "hex");
-  const base64UrlToken = randomBytes.toString("base64url");
+  const base64UrlToken = crypto.randomBytes(48).toString("base64url");
   const key = `sck_${base64UrlToken}`;
 
   return {

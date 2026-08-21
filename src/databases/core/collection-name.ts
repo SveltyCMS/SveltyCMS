@@ -42,3 +42,14 @@ export function normalizeCollectionTableName(input: string): string {
   }
   return normalized;
 }
+
+/**
+ * Validates that the physical SQL table name does not exceed the PostgreSQL 63-character limit.
+ */
+export function validatePhysicalTableName(collectionId: string): string | null {
+  const physical = normalizeCollectionTableName(collectionId);
+  if (physical.length > 63) {
+    return `Collection identifier too long: derived table name '${physical}' exceeds 63 characters (PostgreSQL identifier limit).`;
+  }
+  return null;
+}

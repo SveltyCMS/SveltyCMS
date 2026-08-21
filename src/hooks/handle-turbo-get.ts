@@ -117,12 +117,16 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   locals.tenantId = turboCtx.tenantId;
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
 
-  // 🧪 TEST-MODE TENANT PARITY: honor the per-request tenant header (same as
-  // handleAuthentication) so turbo cache keys never cross tenants in
-  // tenant-isolation tests. Without this, x-test-tenant-id requests share the
-  // session tenant's cache namespace and can serve another tenant's response.
-  const requestTenant =
-    request.headers.get("x-test-tenant-id") || request.headers.get("x-tenant-id");
+  // 🧪 TEST-MODE TENANT PARITY: honor the per-request tenant header in test mode only
+  // (same as handleAuthentication) so turbo cache keys never cross tenants in
+  // tenant-isolation tests. Without this test-gate, untrusted headers could cross tenants in prod.
+  const isTestMode =
+    process.env.TEST_MODE === "true" ||
+    process.env.PLAYWRIGHT_TEST === "true" ||
+    process.env.NODE_ENV === "test";
+  const requestTenant = isTestMode
+    ? (request.headers.get("x-test-tenant-id") ?? request.headers.get("x-tenant-id"))
+    : null;
   const cacheTenant =
     requestTenant && /^[a-zA-Z0-9_-]+$/.test(requestTenant)
       ? (requestTenant as string)

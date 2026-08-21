@@ -831,9 +831,27 @@ export class CollectionsNamespace {
     updates: Array<{ id: string; data: any }>,
     options: LocalApiOptions = {},
   ) {
-    const { user, tenantId } = options;
-    if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+    const { user, tenantId, system } = options;
+    if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.getSchema(collectionId, tenantId);
+
+    if (!system && !user?.isAdmin && schema.fields && schema.fields.length > 0) {
+      const { assertWriteAllowed } =
+        await import("@src/services/security/field-permission-service");
+      for (const u of updates) {
+        await assertWriteAllowed(
+          schema.fields as FieldInstance[],
+          (u.data ?? {}) as Record<string, unknown>,
+          user,
+          {
+            collectionName: schema.name,
+            entryId: u.id,
+            tenantId: tenantId ?? undefined,
+          },
+        );
+      }
+    }
+
     const now = nowISODateString();
 
     const formattedUpdates = updates.map((u) => {

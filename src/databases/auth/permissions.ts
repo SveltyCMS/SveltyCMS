@@ -10,6 +10,7 @@
 import { logger } from "@utils/logger";
 import { corePermissions } from "./core-permissions";
 import { permissionCache } from "@utils/security/permission-cache";
+import { isAdmin } from "./constants";
 // Auth
 import type { Permission, Role, User } from "./types";
 
@@ -93,6 +94,16 @@ export function getRoleBitset(role: Role): Uint32Array {
   return bitset;
 }
 
+export function invalidateRoleBitset(role: Role): void {
+  delete (role as any).__bitset;
+}
+
+export function setRolePermissions(role: Role, permissions: string[]): Role {
+  role.permissions = permissions;
+  delete (role as any).__bitset;
+  return role;
+}
+
 const DEFAULT_ROLE_NAMES: Record<string, string> = {
   admin: "Administrator",
   developer: "Developer",
@@ -106,7 +117,7 @@ function getRoleIdsArray(roles: Role[]): string[] {
   if (roles.length === 0) return [];
   let cached = _roleIdsArrayCache.get(roles);
   if (!cached) {
-    cached = roles.map((r) => String(r._id));
+    cached = roles.map((r) => (typeof r._id === "string" ? r._id : String(r._id)));
     _roleIdsArrayCache.set(roles, cached);
   }
   return cached;
@@ -120,12 +131,12 @@ export function hasPermissionWithRoles(
   roles: Role[] = [],
 ): boolean {
   // ADMIN FAST-PATH: If the user object is already marked as admin, grant immediately.
-  if (user.isAdmin) {
+  if (isAdmin(user)) {
     return true;
   }
 
   const safeRoles = roles || [];
-  const userId = user._id ? String(user._id) : null;
+  const userId = user._id ? (typeof user._id === "string" ? user._id : String(user._id)) : null;
   let roleIds: string[] | undefined;
 
   if (userId) {

@@ -95,10 +95,40 @@ export async function getOrCreateCart(
   const { sessionId, customerId, currency } = input;
   if (customerId) {
     const owned = await store.findOne("carts", { customer: customerId });
-    if (owned) return toView(owned, currency);
+    if (owned) {
+      if (owned.expiresAt && new Date(String(owned.expiresAt)).getTime() < Date.now()) {
+        const freshExp = expiresAt();
+        await store.update("carts", String(owned._id), {
+          items: [],
+          subtotal: 0,
+          appliedCoupon: null,
+          expiresAt: freshExp,
+        });
+        owned.items = [];
+        owned.subtotal = 0;
+        owned.appliedCoupon = null;
+        owned.expiresAt = freshExp;
+      }
+      return toView(owned, currency);
+    }
   }
   const guest = await store.findOne("carts", { sessionId });
-  if (guest) return toView(guest, currency);
+  if (guest) {
+    if (guest.expiresAt && new Date(String(guest.expiresAt)).getTime() < Date.now()) {
+      const freshExp = expiresAt();
+      await store.update("carts", String(guest._id), {
+        items: [],
+        subtotal: 0,
+        appliedCoupon: null,
+        expiresAt: freshExp,
+      });
+      guest.items = [];
+      guest.subtotal = 0;
+      guest.appliedCoupon = null;
+      guest.expiresAt = freshExp;
+    }
+    return toView(guest, currency);
+  }
 
   const created = await store.create("carts", {
     sessionId,

@@ -175,8 +175,10 @@ export async function handleConfigRoutes(
       }
     }
 
-    // Store plan for later apply verification
+    // Store plan for later apply verification with auto-cleanup timer
     planStore.set(plan.planId, { plan, createdAt: Date.now() });
+    const timer = setTimeout(() => planStore.delete(plan.planId), PLAN_STORE_TTL);
+    if (typeof timer.unref === "function") timer.unref();
 
     // Emit webhook event (best-effort, non-blocking)
     try {
