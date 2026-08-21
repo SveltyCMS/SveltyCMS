@@ -24,16 +24,9 @@ interface Props {
 	item: TreeViewItem & { hasChildren?: boolean };
 	/** When true, this category is the one selected for "add collection" (visual highlight). */
 	isSelectedCategory?: boolean;
-	// Keyboard reordering props
-	keyboardReorderMode?: boolean;
 	onDelete?: (item: TreeViewItem) => void;
 	onDuplicate?: (item: TreeViewItem) => void;
 	onEditCategory: (item: TreeViewItem) => void;
-	onEnterReorderMode?: () => void;
-	onExitReorderMode?: () => void;
-	onMoveDown?: () => void;
-	onMoveToParent?: () => void;
-	onMoveUp?: () => void;
 	/** Called when category row is clicked (toggle selection for add-collection target). */
 	onSelectCategory?: () => void;
 	// Roving tabindex for keyboard navigation
@@ -50,12 +43,6 @@ let {
 	onDelete,
 	onDuplicate,
 	onSelectCategory,
-	keyboardReorderMode = false,
-	onMoveUp,
-	onMoveDown,
-	onMoveToParent,
-	onEnterReorderMode,
-	onExitReorderMode,
 	tabindex = -1,
 }: Props = $props();
 
@@ -66,27 +53,22 @@ const icon = $derived(
 );
 const isCategory = $derived(item.nodeType === "category");
 
-// Enhanced styling with better visual hierarchy; selected category = primary highlight (one at a time)
+// Visual hierarchy only. No transitions or transforms: the row must stay
+// geometrically still so drag targeting is predictable.
+const base =
+	"group w-full min-h-[48px] p-2 sm:p-3 rounded flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0 overflow-hidden border-2";
+
 const containerClass = $derived(
-	keyboardReorderMode
-		? "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-primary-500/20 to-primary-600/10 border-2 border-primary-500 ring-2 ring-primary-500/50 flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-out min-w-0 overflow-hidden"
-		: isCategory && isSelectedCategory
-			? "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-primary-500/20 dark:bg-primary-600/25 border-2 border-primary-500 ring-2 ring-primary-500/50 flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-out min-w-0 overflow-hidden"
-			: isCategory
-				? "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-tertiary-500/10 to-tertiary-600/5 border-2 border-s-4 border-s-tertiary-500 border-tertiary-500/30 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-tertiary-500 hover:shadow-lg hover:from-tertiary-500/20 hover:to-tertiary-600/10 transition-all duration-300 ease-out min-w-0 overflow-hidden"
-				: "group w-full min-h-[48px] p-2 sm:p-3 rounded bg-gradient-to-r from-surface-100 to-surface-50 dark:from-surface-700 dark:to-surface-800 border-2 border-s-4 border-s-primary-500 border-surface-500/40 flex items-center gap-2 sm:gap-3 cursor-pointer hover:border-surface-500 hover:shadow-lg hover:translate-x-1 transition-all duration-300 ease-out min-w-0 overflow-hidden",
+	isCategory && isSelectedCategory
+		? `${base} bg-primary-500/20 dark:bg-primary-600/25 border-primary-500`
+		: isCategory
+			? `${base} bg-tertiary-500/10 border-s-4 border-s-tertiary-500 border-tertiary-500/30 hover:border-tertiary-500`
+			: `${base} bg-surface-100 dark:bg-surface-700 border-s-4 border-s-primary-500 border-surface-500/40 hover:border-surface-500`,
 );
 
-const iconClass = $derived(
-	isCategory
-		? "text-tertiary-500 group-hover:text-tertiary-600 transition-colors duration-200"
-		: "text-error-500 group-hover:text-error-600 transition-colors duration-200",
-);
+const iconClass = $derived(isCategory ? "text-tertiary-500" : "text-error-500");
 
-function handleClick(e: MouseEvent) {
-	if ((e.target as HTMLElement).closest("button, .drag-handle")) {
-		return;
-	}
+function activate() {
 	// Category row click = toggle selection (highlight); expand/collapse via chevron only
 	if (isCategory && onSelectCategory) {
 		onSelectCategory();
@@ -95,33 +77,20 @@ function handleClick(e: MouseEvent) {
 	toggle?.();
 }
 
-function handleKeyDown(e: KeyboardEvent) {
-	if (!keyboardReorderMode) {
+function handleClick(e: MouseEvent) {
+	if ((e.target as HTMLElement).closest("button, a[href], .drag-handle")) {
 		return;
 	}
+	activate();
+}
 
-	switch (e.key) {
-		case "ArrowUp":
-			e.preventDefault();
-			onMoveUp?.();
-			break;
-		case "ArrowDown":
-			e.preventDefault();
-			onMoveDown?.();
-			break;
-		case "ArrowLeft":
-			e.preventDefault();
-			onMoveToParent?.();
-			break;
-		case "Escape":
-			e.preventDefault();
-			onExitReorderMode?.();
-			break;
-		case "Enter":
-			e.preventDefault();
-			onExitReorderMode?.();
-			break;
-	}
+// Enter/Space activate the row the same way a click does. Navigation and
+// reordering keys are owned by the tree container, so they must bubble.
+function handleKeyDown(e: KeyboardEvent) {
+	if (e.key !== "Enter" && e.key !== " ") return;
+	if ((e.target as HTMLElement).closest("button, a[href]")) return;
+	e.preventDefault();
+	activate();
 }
 </script>
 
@@ -131,11 +100,9 @@ function handleKeyDown(e: KeyboardEvent) {
 	onkeydown={handleKeyDown}
 	role="button"
 	{tabindex}
-	aria-label={keyboardReorderMode
-		? `${name}, reorder mode active. Arrow up/down to move, arrow start to move to parent, Enter or Escape to exit.`
-		: isCategory
-			? `${name}, category. Click to ${isSelectedCategory ? 'deselect' : 'select'} as target for new collection.`
-			: `${name}, collection. Press Enter to ${isOpen ? 'collapse' : 'expand'}.`}
+	aria-label={isCategory
+		? `${name}, category. Press Enter to ${isSelectedCategory ? 'deselect' : 'select'} as target for new collection. Alt plus arrow keys to move.`
+		: `${name}, collection. Alt plus arrow keys to move.`}
 >
 	<!-- Expand/Collapse Toggle -->
 	{#if item.hasChildren || isCategory}
@@ -147,7 +114,7 @@ function handleKeyDown(e: KeyboardEvent) {
 			}}
 			aria-label={isOpen ? `Collapse ${name}` : `Expand ${name}`}
 		 class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80">
-			<iconify-icon icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'} width="20" class="transition-transform duration-200" aria-hidden="true"
+			<iconify-icon icon={isOpen ? 'bi:chevron-down' : 'bi:chevron-right'} width="20" aria-hidden="true"
 			></iconify-icon>
 		</Button>
 	{:else}
@@ -242,22 +209,17 @@ function handleKeyDown(e: KeyboardEvent) {
 			</Button>
 		</SystemTooltip>
 
-		<!-- Drag Handle with Keyboard Support -->
-		<SystemTooltip title={keyboardReorderMode ? 'Exit reorder mode (Esc)' : 'Drag to reorder'}>
-			<Button variant="ghost"
-				type="button"
-				onclick={(e: MouseEvent) => {
-					e.stopPropagation();
-					if (keyboardReorderMode) {
-						onExitReorderMode?.();
-					} else {
-						onEnterReorderMode?.();
-					}
-				}}
-				aria-label={keyboardReorderMode ? 'Exit reorder mode' : 'Enter keyboard reorder mode for ' + name}
-				class="drag-handle flex min-h-8 min-w-8 cursor-grab items-center justify-center p-0! opacity-60 transition-opacity hover:opacity-100 active:cursor-grabbing {keyboardReorderMode ? 'text-primary-500' : ''}">
-				<iconify-icon icon={keyboardReorderMode ? 'mdi:check' : 'mdi:drag-vertical'} width={22} aria-hidden="true"></iconify-icon>
-			</Button>
+		<!-- Drag affordance. Deliberately NOT a button: it has no click behaviour,
+		     so a click here can never toggle a mode or move the row. Dragging is
+		     handled by the draggable action on the row wrapper. Keyboard users
+		     reorder with Alt+Arrow keys on the tree. -->
+		<SystemTooltip title="Drag to reorder, or Alt+Arrow keys">
+			<span
+				class="drag-handle flex min-h-8 min-w-8 cursor-grab items-center justify-center opacity-60 active:cursor-grabbing"
+				aria-hidden="true"
+			>
+				<iconify-icon icon="mdi:drag-vertical" width={22}></iconify-icon>
+			</span>
 		</SystemTooltip>
 	</div>
 </div>
