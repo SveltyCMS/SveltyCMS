@@ -36,6 +36,15 @@ import type { FindOptions, QueryCondition } from "../db-interface";
 import * as utils from "./relational-utils";
 
 /**
+ * Universal Drizzle write executor across SQLite (.run()), LibSQL (.run()), and PostgreSQL/MariaDB (thenable).
+ */
+export async function executeWrite<T extends { run?: () => Promise<unknown> }>(
+  builder: T,
+): Promise<{ changes?: number; rowsAffected?: number; count?: number }> {
+  return (typeof builder.run === "function" ? await builder.run() : await (builder as any)) as any;
+}
+
+/**
  * Widgets whose data shape is a flat scalar
  * (string/number/boolean) are safe to store as physical columns instead of the
  * JSON `data` blob. Object/array-shaped widgets (group, repeater, seo, tags,
@@ -641,16 +650,27 @@ export const FIXED_COLUMNS = new Set([
   "collectionDef",
 ]);
 
+const _isSysCache = new Map<string, boolean>();
+const _resolveSysNameCache = new Map<string, string>();
+
 export function isSystemTable(collection: string): boolean {
   if (typeof collection !== "string") return false;
+  const cached = _isSysCache.get(collection);
+  if (cached !== undefined) return cached;
   const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-  return SYSTEM_COLLECTIONS.has(cleanName) || SYSTEM_COLLECTIONS.has(collection);
+  const res = SYSTEM_COLLECTIONS.has(cleanName) || SYSTEM_COLLECTIONS.has(collection);
+  if (_isSysCache.size < 512) _isSysCache.set(collection, res);
+  return res;
 }
 
 export function resolveSystemTableName(collection: string): string {
   if (typeof collection !== "string") return "";
+  const cached = _resolveSysNameCache.get(collection);
+  if (cached !== undefined) return cached;
   const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-  return SYSTEM_NAME_MAP.get(cleanName) || SYSTEM_NAME_MAP.get(collection) || collection;
+  const res = SYSTEM_NAME_MAP.get(cleanName) || SYSTEM_NAME_MAP.get(collection) || collection;
+  if (_resolveSysNameCache.size < 512) _resolveSysNameCache.set(collection, res);
+  return res;
 }
 
 export function getColumnHelper(

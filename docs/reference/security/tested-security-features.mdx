@@ -55,7 +55,28 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **UI**: Added "Access Denied" feedback logic in `admin-area.svelte` to handle 403 status codes.
 
-### 4. April 2026 Security Assessment & Hardening
+### 4. August 2026 Lean-Code Security Assessment & Audit Remediation
+
+**Assessment Outcome**: Maintained **A++ Security Grade** with self-healing isolation.
+
+#### Hardened Defenses & Fixes:
+
+1. **Multi-Tenant Test Gate (`T1`)**: Gated `x-tenant-id` and `x-test-tenant-id` header resolution strictly to `isTestMode`, closing header-based tenant switching in production.
+2. **Permission Retention Elimination (`T2`)**: Added `invalidateRoleBitset` and `setRolePermissions` to instantly purge cached role bitsets on role edits.
+3. **Cryptographic Content-ETag (`T15`)**: Replaced timestamp weak ETags with content hashes (`generateContentEtag`), preventing false 304s on content updates and deletions.
+4. **Open Redirect Defense (`T25`)**: Centralized `safeRedirect()` engine blocking protocol-relative URLs (`//evil.com`) and unvalidated domains.
+5. **Multi-Variant Session Cookie Purge (`T6`)**: Consolidated multi-variant cookie revocation (`__Host-`, `__Secure-`, plain) in `session-cookie.ts`.
+6. **SQL `LIKE` Wildcard Escaping (`T24`)**: Added `escapeLike` helper escaping `%`, `_`, and `\` with explicit `ESCAPE '\\'`.
+7. **Commerce Security Hardening (`T27`, `T28`, `T29`, `T33`, `T34`)**:
+   - Gated `variants/apply` to admin callers.
+   - Bound PaymentIntent ID directly to verified order records.
+   - Fail-closed order listing by customer identity.
+   - Capped variant matrix generation to 500 combinations to prevent Cartesian DoS attacks.
+   - Protocol-validated `trackingUrl` (only `https?://` allowed).
+
+**Tests**: `tests/unit/security/safe-redirect.test.ts`, `tests/unit/plugins/commerce.test.ts`, `tests/unit/databases/escape-like.test.ts`, `tests/unit/auth/session-cookies.test.ts`.
+
+### 5. April 2026 Security Assessment & Hardening
 
 **Assessment Outcome**: Achieved **A++ Security Grade**.
 

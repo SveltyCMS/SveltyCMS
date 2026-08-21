@@ -454,13 +454,21 @@ export class RelationalAuthModule implements IAuthAdapter {
         if (conditions.length > 0) q = q.where(and(...conditions));
 
         if (options?.sort) {
-          const sortEntries = Array.isArray(options.sort)
-            ? options.sort
-            : Object.entries(options.sort);
-          for (const [field, direction] of sortEntries) {
-            const order = direction === "desc" ? desc : asc;
-            const column = (this.schema.authUsers as any)[field];
-            if (column) q = q.orderBy(order(column));
+          if (Array.isArray(options.sort)) {
+            for (const [field, direction] of options.sort) {
+              // Accept legacy numeric -1 alongside the "desc" string.
+              const order = direction === "desc" || Number(direction) === -1 ? desc : asc;
+              const column = (this.schema.authUsers as any)[field];
+              if (column) q = q.orderBy(order(column));
+            }
+          } else if (typeof options.sort === "object" && options.sort !== null) {
+            for (const field in options.sort) {
+              if (!Object.hasOwn(options.sort, field)) continue;
+              const direction = (options.sort as any)[field];
+              const order = direction === "desc" || direction === -1 ? desc : asc;
+              const column = (this.schema.authUsers as any)[field];
+              if (column) q = q.orderBy(order(column));
+            }
           }
         }
 

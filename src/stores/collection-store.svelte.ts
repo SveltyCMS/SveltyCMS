@@ -48,13 +48,13 @@ export const statusMap = {
  * Consolidates all collection-related reactivity into a single class.
  */
 class CollectionState {
-  // Record of all collections indexed by UUID
-  all = $state<Record<string, Schema>>({});
+  // Record of all collections indexed by UUID (static schema tree - $state.raw eliminates proxy overhead)
+  all = $state.raw<Record<string, Schema>>({});
 
-  // Active collection being viewed or edited
-  active = $state<Schema | null>(null);
+  // Active collection being viewed or edited (immutable replacement)
+  active = $state.raw<Schema | null>(null);
 
-  // Data value of the currently active entry (e.g. form data)
+  // Data value of the currently active entry (e.g. form data — fine-grained reactive)
   activeValue = $state<Record<string, unknown>>({});
 
   // Operational mode (view, edit, etc.)
@@ -68,7 +68,7 @@ class CollectionState {
   unassigned = $state<Schema>({} as Schema);
   modifyEntry = $state<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
   targetWidget = $state<Widget>({ permissions: {} });
-  contentStructure = $state<ContentNode[]>([]);
+  contentStructure = $state.raw<ContentNode[]>([]);
   selectedEntries = $state<string[]>([]);
 
   // --- Derived Properties ---
@@ -133,7 +133,7 @@ class CollectionState {
       }
     }
     if (schema._id) {
-      this.all[String(schema._id)] = schema;
+      this.all = { ...this.all, [String(schema._id)]: schema };
     }
   }
 

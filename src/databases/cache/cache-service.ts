@@ -1,15 +1,27 @@
 /**
  * @file src/databases/cache/cache-service.ts
  * @description High-performance hybrid L1/L2 caching service for SveltyCMS.
+ *
+ * Coordinates L1 (in-memory LRU) and L2 (Redis) caching layers with stampede protection,
+ * negative Bloom caching, micro-batch write pipelines, and edge invalidation synchronization.
+ *
+ * ### Features:
+ * - Sub-microsecond L1 LRU hits
+ * - 2-Level namespace buckets for O(1) prefix invalidation
+ * - Single-flight query coalescing and distributed NX/PX stampede locking
+ * - Micro-batch Redis write pipelines
+ * - Tenant-partitioned tag indexes
  */
 
 import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 import { LRUCache } from "lru-cache";
 import { CacheCategory, type CacheStats } from "./types";
-import { BloomFilter } from "@utils/bloom-filter";
 import { cacheMetrics } from "./cache-metrics";
+import { CacheLockManager } from "./cache-locks";
+import { NegativeCacheManager } from "./negative-cache";
+import { RedisWriteBatcher, serializeL2Value, deserializeL2Value } from "./redis-pipeline";
 
-// --- EXPORTED CONSTANTS (API Compatibility) ---
 export const API_CACHE_TTL_S = 300;
 export const SESSION_CACHE_TTL_MS = 86400000;
 export const USER_PERM_CACHE_TTL_MS = 3600000;
@@ -18,9 +30,6 @@ export const USER_COUNT_CACHE_TTL_MS = 3600000;
 export const USER_COUNT_CACHE_TTL_S = 3600;
 
 // 🚀 ADAPTIVE TTL: Per-category TTL profiles for L1 cache.
-// Categories with low change frequency (schemas, settings) get long TTLs.
-// Categories with high change frequency (content, api) get short TTLs.
-// This replaces the flat 5-minute default, improving L1 hit rate by 15-25%.
 export const CATEGORY_TTL_SECONDS: Record<string, number> = {
   schema: 3600, // 1 hour  — rarely changes between deploys
   setting: 1800, // 30 min  — config changes are deliberate
@@ -44,20 +53,19 @@ export class CacheService {
   private subscriber: any = null;
   private nodeId: string;
   private readonly INVALIDATION_CHANNEL = "svelty:cache:invalidation";
+
+  // Reverse Tag Indexing
   private tagMap: Map<string, Set<string>> = new Map();
-  private keyToTags: Map<string, Set<string>> = new Map(); // Reverse mapping for O(tags) cleanup
-  private prefixMap: Map<string, Set<string>> = new Map(); // Buckets for O(1) pattern clearing
+  private keyToTags: Map<string, Set<string>> = new Map();
 
-  // Single-flight request coalescing
-  private pendingRequests = new Map<string, Promise<any>>();
+  // 🚀 Lean 2-Level Namespace Bucket (replaces 8-level prefixMap)
+  private prefixMap: Map<string, Set<string>> = new Map();
+  private _isBulkClearing = false;
 
-  // 🚀 DISTRIBUTED CACHE STAMPEDE PROTECTION: Lock registry for inter-node coordination
-  private lockedKeys = new Map<string, Promise<boolean>>();
-
-  // 🚀 HYBRID NEGATIVE CACHE (Memory Optimized)
-  private negativeBloom: BloomFilter;
-  private negativeInvalidated: Set<string>; // Tiny set for immediate overrides
-  private negativeRotationTimer: any;
+  // Subsystem Managers
+  private locks = new CacheLockManager();
+  private negative = new NegativeCacheManager();
+  private batcher = new RedisWriteBatcher();
 
   private stats: CacheStats = {
     hits: 0,
@@ -73,20 +81,9 @@ export class CacheService {
   private bootstrapping = false;
   private latencyBuffer: number[] = [];
   private readonly MAX_LATENCY_SAMPLES = 100;
-
-  // 🚀 REDIS WRITE BATCHING: Micro-batch buffer for Redis writes.
-  // Instead of N×2 round-trips per set(), batches up to 15ms of writes
-  // into a single Redis pipeline. Improves write throughput 2-4×.
-  private writeBuffer: Array<{
-    key: string;
-    val: string;
-    ttl: number;
-    tags: string[];
-    tagPrefix: string;
-  }> = [];
-  private writeFlushTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly WRITE_BATCH_MS = 15;
-  private readonly WRITE_BATCH_MAX = 50;
+  private _metrics: any = null;
+  private _cdnResolved = false;
+  private _cdnActive = false;
 
   constructor() {
     this.l1 = new LRUCache<string, any>({
@@ -98,33 +95,11 @@ export class CacheService {
       },
     });
 
-    // Initialize Hybrid Negative Cache
-    this.negativeBloom = new BloomFilter(100000, 0.01);
-    this.negativeInvalidated = new Set<string>();
-    this.startNegativeCacheRotation();
-
-    this.nodeId = globalThis.crypto ? globalThis.crypto.randomUUID() : Math.random().toString(36);
+    this.nodeId = generateUUID();
   }
 
-  private startNegativeCacheRotation() {
-    if (this.negativeRotationTimer) clearInterval(this.negativeRotationTimer);
-    // Rotate the bloom filter every 5 minutes to prevent stale data accumulation
-    this.negativeRotationTimer = setInterval(
-      () => {
-        this.negativeBloom = new BloomFilter(100000, 0.01);
-        this.negativeInvalidated.clear();
-      },
-      1000 * 60 * 5,
-    );
+  // ── Metrics & Logging ───────────────────────────────────────────────────
 
-    // Allow the process to exit even if the timer is running (Crucial for test runners)
-    if (typeof this.negativeRotationTimer.unref === "function") {
-      this.negativeRotationTimer.unref();
-    }
-  }
-
-  // Lazy Metrics Service
-  private _metrics: any = null;
   private async getMetrics() {
     if (this._metrics) return this._metrics;
     try {
@@ -136,12 +111,20 @@ export class CacheService {
     return this._metrics;
   }
 
-  // Fast Metrics (Sync if available)
   private recordMetricSync(name: string, value: number) {
     if (this._metrics && typeof this._metrics.recordMetric === "function") {
       this._metrics.recordMetric(name, value);
     }
   }
+
+  private recordLatency(ms: number) {
+    this.latencyBuffer.push(ms);
+    if (this.latencyBuffer.length > this.MAX_LATENCY_SAMPLES) {
+      this.latencyBuffer.shift();
+    }
+  }
+
+  // ── Tag & Prefix Management ─────────────────────────────────────────────
 
   private cleanupTagsForKey(key: string) {
     if (this._isBulkClearing) return;
@@ -158,27 +141,15 @@ export class CacheService {
     }
   }
 
-  /**
-   * Normalize tenant id for L1 tag index keys (matches buildKey/"default").
-   */
   private normalizeTenantId(tenantId?: string | null): string {
     if (tenantId === undefined || tenantId === null || tenantId === "") return "default";
     return String(tenantId);
   }
 
-  /**
-   * Tenant-scoped L1 tag index key: `${tenantId}:${tag}`.
-   * Mirrors L2 Redis sets `tag:{tenantId}:{tag}` so clearByTags never
-   * cross-invalidates another tenant's L1 entries that share a tag name.
-   */
   private scopeTag(tag: string, tenantId?: string | null): string {
     return `${this.normalizeTenantId(tenantId)}:${tag}`;
   }
 
-  /**
-   * Register full cache keys under tenant-scoped tag indexes.
-   * keyToTags stores scoped names so dispose/cleanupTagsForKey stays O(tags).
-   */
   private registerTagsForKey(fullKey: string, tags: string[], tenantId?: string | null): void {
     if (!tags.length) return;
     const tagSet = this.keyToTags.get(fullKey) || new Set<string>();
@@ -191,6 +162,81 @@ export class CacheService {
     this.keyToTags.set(fullKey, tagSet);
   }
 
+  /**
+   * Extracts the 2-level namespace bucket for O(1) pattern clearing.
+   * e.g. "tenant:default:collection:posts:1" -> "tenant:default:collection"
+   */
+  private getNamespaceBucketKey(key: string): string {
+    const firstColon = key.indexOf(":");
+    if (firstColon === -1) return key;
+    const secondColon = key.indexOf(":", firstColon + 1);
+    if (secondColon === -1) return key;
+    const thirdColon = key.indexOf(":", secondColon + 1);
+    return thirdColon === -1 ? key : key.slice(0, thirdColon);
+  }
+
+  private addToPrefixMap(key: string) {
+    const bucketKey = this.getNamespaceBucketKey(key);
+    let bucket = this.prefixMap.get(bucketKey);
+    if (!bucket) {
+      bucket = new Set();
+      this.prefixMap.set(bucketKey, bucket);
+    }
+    bucket.add(key);
+  }
+
+  private removeFromPrefixMap(key: string) {
+    if (this._isBulkClearing) return;
+    const bucketKey = this.getNamespaceBucketKey(key);
+    const bucket = this.prefixMap.get(bucketKey);
+    if (bucket) {
+      bucket.delete(key);
+      if (bucket.size === 0) this.prefixMap.delete(bucketKey);
+    }
+  }
+
+  // ── L2 Redis Lifecycle & Edge Sync ──────────────────────────────────────
+
+  private isL2Ready(): boolean {
+    return Boolean(this.l2 && this.l2.isOpen);
+  }
+
+  /**
+   * Raw L2 Redis client (WAF rate limiters + security counters).
+   * Returns null when Redis is not configured/connected.
+   */
+  getRedisClient() {
+    return this.l2;
+  }
+
+  /**
+   * Global per-tenant cache version — bumped by incrementGlobalVersion so
+   * monitoring/health surfaces can detect cache-wide invalidations.
+   */
+  async getGlobalVersion(tenantId: string | null = "global"): Promise<number> {
+    const key = `cms:${tenantId || "global"}:version`;
+    const cached = await this.get<number>(key, tenantId);
+    return cached || 1;
+  }
+
+  async incrementGlobalVersion(tenantId: string | null = "global"): Promise<number> {
+    const key = `cms:${tenantId || "global"}:version`;
+    const current = await this.getGlobalVersion(tenantId);
+    const next = current + 1;
+    await this.set(key, next, 0, tenantId); // 0 = default TTL
+    await this.publishInvalidation(key, tenantId);
+    return next;
+  }
+
+  async initialize(config?: any) {
+    if (config === true || !config) {
+      const { loadPrivateConfig } = await import("@src/databases/db");
+      config = await loadPrivateConfig();
+    }
+    this.getMetrics().catch(() => {});
+    return this.initializeL2(config);
+  }
+
   async reconfigure(config?: any) {
     if (config?.USE_REDIS) {
       await this.initializeL2(config);
@@ -200,27 +246,9 @@ export class CacheService {
     return true;
   }
 
-  async initialize(config?: any) {
-    if (config === true || !config) {
-      const { loadPrivateConfig } = await import("@src/databases/db");
-      config = await loadPrivateConfig();
-    }
-    // Pre-warm metrics for sync recording
-    this.getMetrics().catch(() => {
-      logger.debug("Cache metrics pre-warm failed during initialization");
-    });
-    return this.initializeL2(config);
-  }
-
   async initializeL2(config: any) {
-    // 🛡️ Benchmark sandbox: never connect to live Redis
     const { isBenchmarkRedisDisabled } = await import("@utils/benchmark-runtime");
-    if (isBenchmarkRedisDisabled()) {
-      await this.cleanup();
-      return;
-    }
-
-    if (!config?.USE_REDIS) {
+    if (isBenchmarkRedisDisabled() || !config?.USE_REDIS) {
       await this.cleanup();
       return;
     }
@@ -239,29 +267,21 @@ export class CacheService {
         disableOfflineQueue: true,
       };
 
-      if (this.l2)
-        await this.l2.destroy().catch(() => {
-          logger.debug("L2 cache destroy failed during initialization");
-        });
+      if (this.l2) await this.l2.destroy().catch(() => {});
       this.l2 = createClient(redisOptions);
       this.l2.on("error", (err: any) => logger.error("Redis L2 Error:", err.message));
       await this.l2
         .connect()
-        .catch((err: any) => logger.error("❌ L2 Cache Initial Connection Failed", err.message));
+        .catch((err: any) => logger.error("❌ L2 Cache Connection Failed", err.message));
 
-      if (this.subscriber)
-        await this.subscriber.destroy().catch(() => {
-          logger.debug("Subscriber destroy failed during initialization");
-        });
+      if (this.subscriber) await this.subscriber.destroy().catch(() => {});
       this.subscriber = createClient(redisOptions);
       this.subscriber.on("error", (err: any) =>
         logger.error("Redis Subscriber Error:", err.message),
       );
       await this.subscriber
         .connect()
-        .catch((err: any) =>
-          logger.error("❌ Redis Subscriber Initial Connection Failed", err.message),
-        );
+        .catch((err: any) => logger.error("❌ Redis Subscriber Failed", err.message));
 
       await this.subscribeToInvalidations();
       logger.info("📡 L2 Cache (Redis) & Edge-Sync subscriber initialized");
@@ -271,12 +291,6 @@ export class CacheService {
     }
   }
 
-  /**
-   * Test seam: attach pre-built L2 + subscriber clients (no network I/O).
-   * Lets the L2 contract suite drive the full distributed path (get/set/del,
-   * write batching, locks, tag sets, pattern scan, pub/sub) against an
-   * in-memory fake or a real Redis instance without touching config files.
-   */
   async connectL2ForTest(l2Client: any, subscriberClient?: any): Promise<void> {
     await this.cleanup();
     this.l2 = l2Client;
@@ -286,22 +300,13 @@ export class CacheService {
 
   private async subscribeToInvalidations() {
     if (!this.subscriber || !this.subscriber.isOpen) return;
-
     try {
       await this.subscriber.subscribe(this.INVALIDATION_CHANNEL, (message: string) => {
         try {
           const { pattern, tags, tenantId, nodeId } = JSON.parse(message);
           if (nodeId === this.nodeId) return;
-
-          // Apply BOTH channels: tags purge the L1 tag index; the pattern
-          // purges untagged entries (exact keys from delete()) and patterns
-          // from clearByPattern() — they are independent and non-overlapping.
-          if (tags && tags.length > 0) {
-            this.clearLocalL1ByTags(tags, tenantId);
-          }
-          if (pattern) {
-            this.clearLocalL1ByPattern(pattern, tenantId);
-          }
+          if (tags && tags.length > 0) this.clearLocalL1ByTags(tags, tenantId);
+          if (pattern) this.clearLocalL1ByPattern(pattern, tenantId);
         } catch (err) {
           logger.error("[CacheSync] Failed to process invalidation message:", err);
         }
@@ -320,7 +325,6 @@ export class CacheService {
       this.triggerCdnPurge(pattern, tags);
       return;
     }
-
     try {
       const message = JSON.stringify({
         pattern,
@@ -335,9 +339,6 @@ export class CacheService {
       logger.error("[CacheSync] Failed to publish invalidation:", err);
     }
   }
-
-  private _cdnResolved = false;
-  private _cdnActive = false;
 
   private async triggerCdnPurge(pattern: string | null, tags?: string[]) {
     if (this._cdnResolved && !this._cdnActive) return;
@@ -360,234 +361,38 @@ export class CacheService {
     }
   }
 
-  private isL2Ready(): boolean {
-    return this.l2 && this.l2.isOpen;
-  }
+  // ── Core Read Operations ────────────────────────────────────────────────
 
-  /**
-   * Attempts to acquire a distributed cache miss lock using the L2 adapter (Redis).
-   * This prevents a cache stampede by serializing access to expensive fetch operations.
-   * @param key The full cache key to lock.
-   * @param ttlMs Lock time-to-live in milliseconds.
-   * @returns The owner ID if lock acquired, or null if lock is already held or L2 unavailable.
-   */
-  private async acquireLock(key: string, ttlMs: number): Promise<string | null> {
-    if (!this.isL2Ready()) return null;
-
-    const lockKey = `lock:${key}`;
-    const ownerId = globalThis.crypto
-      ? globalThis.crypto.randomUUID()
-      : Math.random().toString(36).substring(2);
-
-    try {
-      // SET lockKey ownerId NX PX ttlMs
-      const result = await this.l2.set(lockKey, ownerId, {
-        NX: true,
-        PX: ttlMs,
-      });
-      if (result !== "OK") return null;
-
-      this.lockedKeys.set(lockKey, Promise.resolve(true));
-      return ownerId;
-    } catch (err) {
-      logger.error(`[CacheService] Failed to acquire lock for ${key}`, err);
-      return null;
-    }
-  }
-
-  /**
-   * Releases a cache miss lock that was previously acquired.
-   * Safe to call even if lock wasn't acquired — simply no-ops.
-   * @param key The full cache key to unlock.
-   * @param ownerId The owner ID returned by `acquireLock`.
-   */
-  private async releaseLock(key: string, ownerId: string): Promise<void> {
-    if (!ownerId || !this.isL2Ready()) return;
-
-    const lockKey = `lock:${key}`;
-
-    try {
-      // Only delete if the current value matches our owner ID (prevents premature release)
-      const currentOwner = await this.l2.get(lockKey);
-      if (currentOwner === ownerId) {
-        await this.l2.del(lockKey);
-      }
-    } catch (err) {
-      logger.error(`[CacheService] Failed to release lock for ${key}`, err);
-    } finally {
-      this.lockedKeys.delete(lockKey);
-    }
-  }
-
-  /**
-   * Polls the L1 cache until the winning process has populated the value,
-   * or until the maximum wait time expires.
-   * @param key The full cache key to wait for.
-   * @param maxWaitMs Maximum time to wait in milliseconds.
-   */
-  private async waitForCache(key: string, maxWaitMs: number): Promise<void> {
-    const start = Date.now();
-    while (Date.now() - start < maxWaitMs) {
-      if (this.l1.has(key)) break;
-
-      // 🚀 L2 polling: Check if the winning process has populated L2 (Redis)
-      if (this.isL2Ready()) {
-        try {
-          const l2Value = await this.l2.get(key);
-          if (l2Value) {
-            let parsed: any;
-            if (typeof l2Value === "string" && l2Value.startsWith("__RAW_STRING__:")) {
-              parsed = l2Value.substring(15);
-            } else {
-              parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
-            }
-            this.l1.set(key, parsed);
-            break;
-          }
-        } catch {
-          // Ignore L2 query errors during polling
-        }
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
-  }
-
-  setBootstrapping(_val: boolean) {
-    this.bootstrapping = _val;
-    if (process.env.NODE_ENV === "development") logger.debug(`CacheService bootstrapping: ${_val}`);
+  setBootstrapping(val: boolean) {
+    this.bootstrapping = val;
   }
 
   isBootstrapping(): boolean {
     return this.bootstrapping;
   }
 
-  async get<T>(
-    key: string,
-    tenantId?: string | null,
-    _category?: CacheCategory,
-  ): Promise<T | null | undefined> {
+  public generateKey(key: string, tenantId?: string | null): string {
+    return this.buildKey(key, tenantId);
+  }
+
+  private buildKey(key: string, tenantId?: string | null): string {
+    if (!tenantId || tenantId === "default") {
+      return `tenant:default:${key}`;
+    }
+    return `tenant:${tenantId}:${key}`;
+  }
+
+  public isNegativeHit(key: string, tenantId?: string | null): boolean {
     const fullKey = this.generateKey(key, tenantId);
-
-    // 🚀 FAST PATH: Check L1 memory cache (Sync)
-    const l1Value = this.l1.get(fullKey);
-    if (l1Value !== undefined) {
-      this.stats.hits++;
-      this.stats.l1Hits++;
-      this.recordMetricSync("cache:hit:l1", 1);
-      cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
-      return l1Value as T;
-    }
-
-    // 0. Check Negative Cache (Bloom)
-    if (!this.negativeInvalidated.has(fullKey) && this.negativeBloom.has(fullKey)) {
-      this.stats.hits++;
-      cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
-      return null;
-    }
-
-    // Single-flight: coalesce concurrent misses
-    if (this.pendingRequests.has(fullKey)) {
-      return this.pendingRequests.get(fullKey);
-    }
-
-    const promise = (async () => {
-      let lockOwner: string | null = null;
-
-      try {
-        // 🚀 L2 PATH: If L1 miss, query Redis
-        if (this.isL2Ready()) {
-          try {
-            const start = performance.now();
-            const l2Value = await this.l2.get(fullKey);
-            if (l2Value) {
-              let parsed: any;
-              if (typeof l2Value === "string" && l2Value.startsWith("__RAW_STRING__:")) {
-                parsed = l2Value.substring(15);
-              } else {
-                parsed = typeof l2Value === "string" ? JSON.parse(l2Value) : l2Value;
-              }
-
-              const responseTime = performance.now() - start;
-              this.recordLatency(responseTime);
-              this.l1.set(fullKey, parsed);
-              this.stats.hits++;
-              this.stats.l2Hits++;
-              this.recordMetricSync("cache:hit:l2", 1);
-              cacheMetrics.recordHit(
-                fullKey,
-                _category || CacheCategory.GENERAL,
-                tenantId,
-                responseTime,
-              );
-              return parsed as T;
-            }
-          } catch (err) {
-            logger.error(`L2 Cache Get Failure: ${fullKey}`, err);
-          }
-        }
-
-        this.stats.misses++;
-        this.recordMetricSync("cache:miss", 1);
-        cacheMetrics.recordMiss(fullKey, _category || CacheCategory.GENERAL, tenantId);
-
-        // 🚀 DISTRIBUTED STAMPEDE PROTECTION
-        // Attempt to acquire a lock to prevent thundering herd on the same key.
-        // If lock is NOT acquired, wait briefly for the winning process to populate the cache.
-        if (this.isL2Ready()) {
-          lockOwner = await this.acquireLock(fullKey, 500); // 500ms TTL
-          if (!lockOwner) {
-            // Another request is already fetching this key. Wait for it.
-            await this.waitForCache(fullKey, 1000); // Wait up to 1s
-
-            // Re-check L1 after waiting
-            const recheckVal = this.l1.get(fullKey);
-            if (recheckVal !== undefined) {
-              return recheckVal as T;
-            }
-          }
-          // If we acquired the lock, the caller is responsible for populating the cache.
-          // The lock will be released:
-          //   a) When the caller calls set() which triggers releaseMissLock below, OR
-          //   b) Automatically after TTL expires (500ms fallback)
-        }
-
-        return undefined;
-      } finally {
-        // 🛡️ CRITICAL: If we acquired a lock but returned undefined (miss),
-        // the external caller will populate the cache via set(). We defer
-        // lock release to there. But if THIS request doesn't call set(),
-        // the lock will naturally expire after TTL.
-        // Mark the lock as pending release via the promise's completion.
-        if (lockOwner) {
-          this.pendingRequests.set(`lockrelease:${fullKey}`, Promise.resolve(lockOwner));
-        }
-      }
-    })();
-
-    this.pendingRequests.set(fullKey, promise);
-    promise.finally(() => this.pendingRequests.delete(fullKey));
-    return promise;
+    return this.negative.isNegativeHit(fullKey);
   }
 
-  /**
-   * Single-flight query coalescing: Coalesces concurrent database lookups for the exact same key.
-   */
-  async coalesceQuery<T>(key: string, queryFn: () => Promise<T>): Promise<T> {
-    if (this.pendingRequests.has(key)) {
-      return this.pendingRequests.get(key) as Promise<T>;
-    }
-    const promise = queryFn().finally(() => {
-      this.pendingRequests.delete(key);
-    });
-    this.pendingRequests.set(key, promise);
-    return promise;
+  public recordMiss(key: string, tenantId?: string | null) {
+    const fullKey = this.generateKey(key, tenantId);
+    this.negative.recordMiss(fullKey);
+    this.locks.releaseLock(this.l2, fullKey).catch(() => {});
   }
 
-  /**
-   * High-performance synchronous L1 cache lookup.
-   * Bypasses async micro-task overhead for "hot" items.
-   */
   getSync<T>(key: string, tenantId?: string | null): T | null {
     const fullKey = this.generateKey(key, tenantId);
     const l1Value = this.l1.get(fullKey, { updateAgeOnGet: false });
@@ -599,6 +404,80 @@ export class CacheService {
     return null;
   }
 
+  async get<T>(
+    key: string,
+    tenantId?: string | null,
+    _category?: CacheCategory,
+  ): Promise<T | null | undefined> {
+    const fullKey = this.generateKey(key, tenantId);
+
+    // 1. Fast Path: L1 Cache Hit (Sync)
+    const l1Value = this.l1.get(fullKey);
+    if (l1Value !== undefined) {
+      this.stats.hits++;
+      this.stats.l1Hits++;
+      this.recordMetricSync("cache:hit:l1", 1);
+      cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
+      return l1Value as T;
+    }
+
+    // 2. Negative Cache Hit
+    if (this.negative.isNegativeHit(fullKey)) {
+      this.stats.hits++;
+      cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
+      return null;
+    }
+
+    // 3. Single-flight Coalescing
+    return this.locks.coalesce(fullKey, async () => {
+      let lockOwner: string | null = null;
+      if (this.isL2Ready()) {
+        try {
+          const start = performance.now();
+          const l2Value = await this.l2.get(fullKey);
+          if (l2Value) {
+            const parsed = deserializeL2Value(l2Value);
+            const responseTime = performance.now() - start;
+            this.recordLatency(responseTime);
+            this.l1.set(fullKey, parsed);
+            this.stats.hits++;
+            this.stats.l2Hits++;
+            this.recordMetricSync("cache:hit:l2", 1);
+            cacheMetrics.recordHit(
+              fullKey,
+              _category || CacheCategory.GENERAL,
+              tenantId,
+              responseTime,
+            );
+            return parsed as T;
+          }
+        } catch (err) {
+          logger.error(`L2 Cache Get Failure: ${fullKey}`, err);
+        }
+      }
+
+      this.stats.misses++;
+      this.recordMetricSync("cache:miss", 1);
+      cacheMetrics.recordMiss(fullKey, _category || CacheCategory.GENERAL, tenantId);
+
+      // 4. Distributed Stampede Lock Coordination
+      if (this.isL2Ready()) {
+        lockOwner = await this.locks.acquireLock(this.l2, fullKey, 500);
+        if (!lockOwner) {
+          await this.locks.waitForCache(this.l1, this.l2, fullKey, 1000, deserializeL2Value);
+          const recheckVal = this.l1.get(fullKey);
+          if (recheckVal !== undefined) return recheckVal as T;
+        }
+      }
+
+      return undefined;
+    });
+  }
+
+  async coalesceQuery<T>(key: string, queryFn: () => Promise<T>): Promise<T> {
+    return this.locks.coalesce(key, queryFn);
+  }
+
   async getMany<T>(keys: string[], tenantId?: string | null): Promise<(T | null)[]> {
     if (keys.length === 0) return [];
     const fullKeys = keys.map((k) => this.generateKey(k, tenantId));
@@ -606,9 +485,6 @@ export class CacheService {
     const missingIndices: number[] = [];
     const missingKeys: string[] = [];
 
-    const start = performance.now();
-
-    // 1. Try L1 First
     for (let i = 0; i < fullKeys.length; i++) {
       const l1Value = this.l1.get(fullKeys[i]);
       if (l1Value !== undefined) {
@@ -621,283 +497,32 @@ export class CacheService {
       }
     }
 
-    if (missingKeys.length === 0) {
-      this.recordLatency(performance.now() - start);
-      return results;
-    }
+    if (missingKeys.length === 0 || !this.isL2Ready()) return results;
 
-    // 2. Try L2 (Redis MGET)
-    if (this.isL2Ready()) {
-      const pendingKey = `mget:${missingKeys.join(",")}`;
-      if (this.pendingRequests.has(pendingKey)) {
-        const resolvedResults = await this.pendingRequests.get(pendingKey);
-        for (let i = 0; i < missingIndices.length; i++) {
-          results[missingIndices[i]] = resolvedResults[i];
+    const start = performance.now();
+    try {
+      const l2Values = await this.l2.mGet(missingKeys);
+      for (let i = 0; i < l2Values.length; i++) {
+        const val = l2Values[i];
+        if (val) {
+          const parsed = deserializeL2Value(val);
+          results[missingIndices[i]] = parsed as T;
+          this.l1.set(missingKeys[i], parsed);
+          this.stats.hits++;
+          this.stats.l2Hits++;
+        } else {
+          this.stats.misses++;
         }
-        this.recordLatency(performance.now() - start);
-        return results;
       }
-
-      const promise = (async () => {
-        try {
-          const resolvedResults = Array(missingKeys.length).fill(null);
-          const l2Values = await this.l2.mGet(missingKeys);
-          for (let i = 0; i < l2Values.length; i++) {
-            const val = l2Values[i];
-            if (val) {
-              let parsed: any;
-              if (typeof val === "string" && val.startsWith("__RAW_STRING__:")) {
-                parsed = val.substring(15);
-              } else {
-                parsed = JSON.parse(val);
-              }
-              resolvedResults[i] = parsed;
-              const originalIndex = missingIndices[i];
-              results[originalIndex] = parsed as T;
-              this.l1.set(missingKeys[i], parsed);
-              this.stats.hits++;
-              this.stats.l2Hits++;
-            } else {
-              this.stats.misses++;
-            }
-          }
-          return resolvedResults;
-        } catch (err) {
-          logger.error("L2 Cache MGet Failure", err);
-          return Array(missingKeys.length).fill(null);
-        }
-      })();
-
-      this.pendingRequests.set(pendingKey, promise);
-      promise.finally(() => this.pendingRequests.delete(pendingKey));
-      await promise;
-    } else {
-      this.stats.misses += missingKeys.length;
+      this.recordLatency(performance.now() - start);
+    } catch (err) {
+      logger.error("[CacheService] L2 mGet Failure:", err);
     }
 
-    this.recordLatency(performance.now() - start);
     return results;
   }
 
-  /**
-   * Stale-While-Revalidate (SWR) cache strategy.
-   *
-   * 1. L1 HIT & fresh (age <= ttlMs) → return value immediately
-   * 2. L1 HIT but stale (ttlMs < age <= staleMs) → return stale value + background refresh
-   * 3. MISS → call factory, cache result, return it
-   *
-   * Uses existing `pendingRequests` for single-flight coalescing and `lockedKeys`
-   * for distributed stampede protection on cache misses.
-   *
-   * @param key - Cache key
-   * @param factory - Async function to compute the value on miss
-   * @param ttlMs - Time-to-live in milliseconds for freshness
-   * @param staleMs - Maximum staleness window in milliseconds (must be >= ttlMs)
-   * @param tenantId - Optional tenant identifier
-   * @param category - Cache category for metrics
-   * @param tags - Cache invalidation tags
-   */
-  async getOrSetSWR<T>(
-    key: string,
-    factory: () => Promise<T>,
-    ttlMs: number,
-    staleMs: number,
-    tenantId?: string | null,
-    category?: CacheCategory,
-    tags?: string[],
-  ): Promise<T | null> {
-    const fullKey = this.generateKey(key, tenantId);
-    const now = Date.now();
-
-    // 1. FAST PATH: Check L1 memory cache
-    const l1Raw = this.l1.get(fullKey);
-    if (l1Raw !== undefined) {
-      // SWR entries are stored as { value, storedAt }
-      if (l1Raw && typeof l1Raw === "object" && "storedAt" in l1Raw && "value" in l1Raw) {
-        const entry = l1Raw as { value: T; storedAt: number };
-        const age = now - entry.storedAt;
-
-        if (age <= ttlMs) {
-          // FRESH: return immediately
-          this.stats.hits++;
-          this.stats.l1Hits++;
-          this.recordMetricSync("cache:hit:l1", 1);
-          cacheMetrics.recordHit(fullKey, category || CacheCategory.GENERAL, tenantId, 0);
-          return entry.value;
-        }
-
-        if (age <= staleMs) {
-          // STALE: return stale value AND trigger background refresh
-          this.stats.hits++;
-          this.stats.l1Hits++;
-          this.recordMetricSync("cache:hit:l1", 1);
-          cacheMetrics.recordHit(fullKey, category || CacheCategory.GENERAL, tenantId, 0);
-
-          // Background refresh via setTimeout(0) to avoid blocking the current request
-          setTimeout(() => {
-            this.refreshSWREntry(fullKey, factory, ttlMs, category, tenantId, tags).catch(
-              (_err) => {
-                // Silently ignore background refresh failures — stale value was already served
-              },
-            );
-          }, 0);
-
-          return entry.value;
-        }
-      } else {
-        // Legacy raw value (not an SWR entry) — treat as fresh hit
-        this.stats.hits++;
-        this.stats.l1Hits++;
-        this.recordMetricSync("cache:hit:l1", 1);
-        cacheMetrics.recordHit(fullKey, category || CacheCategory.GENERAL, tenantId, 0);
-        return l1Raw as T;
-      }
-    }
-
-    // 2. Check negative cache
-    if (!this.negativeInvalidated.has(fullKey) && this.negativeBloom.has(fullKey)) {
-      this.stats.hits++;
-      cacheMetrics.recordHit(fullKey, category || CacheCategory.GENERAL, tenantId, 0);
-      return null;
-    }
-
-    // 3. Single-flight coalescing for concurrent misses
-    if (this.pendingRequests.has(fullKey)) {
-      return this.pendingRequests.get(fullKey);
-    }
-
-    // 4. MISS: Compute via factory with stampede protection
-    const promise = (async () => {
-      let lockOwner: string | null = null;
-
-      try {
-        // Stampede protection: acquire distributed lock
-        if (this.isL2Ready()) {
-          lockOwner = await this.acquireLock(fullKey, 500);
-          if (!lockOwner) {
-            await this.waitForCache(fullKey, 1000);
-          }
-        }
-
-        // Re-check L1 after acquiring lock (another request may have populated it)
-        const recheckRaw = this.l1.get(fullKey);
-        if (recheckRaw !== undefined) {
-          if (
-            recheckRaw &&
-            typeof recheckRaw === "object" &&
-            "storedAt" in recheckRaw &&
-            "value" in recheckRaw
-          ) {
-            return (recheckRaw as { value: T; storedAt: number }).value;
-          }
-          return recheckRaw as T;
-        }
-
-        this.stats.misses++;
-        this.recordMetricSync("cache:miss", 1);
-        cacheMetrics.recordMiss(fullKey, category || CacheCategory.GENERAL, tenantId);
-
-        // Call the factory
-        const value = await factory();
-
-        if (value === null || value === undefined) {
-          this.recordMiss(key, tenantId);
-          return null;
-        }
-
-        // Store as SWR entry: { value, storedAt }
-        const swrEntry = { value, storedAt: Date.now() };
-        const ttlSeconds = Math.max(1, Math.ceil(staleMs / 1000));
-        this.l1.set(fullKey, swrEntry, { ttl: staleMs });
-        if (this.negativeBloom.has(fullKey)) {
-          this.negativeInvalidated.add(fullKey);
-        }
-        this.addToPrefixMap(fullKey);
-        cacheMetrics.recordSet(fullKey, category || CacheCategory.GENERAL, ttlSeconds, tenantId);
-
-        if (tags && tags.length > 0) {
-          this.registerTagsForKey(fullKey, tags, tenantId);
-        }
-
-        if (this.isL2Ready()) {
-          try {
-            const valStr = JSON.stringify(swrEntry);
-            await this.l2.set(fullKey, valStr, { EX: ttlSeconds });
-            // Tenant-scoped L2 tag sets (same as set()/flushWriteBuffer)
-            if (tags && tags.length > 0 && typeof this.l2.multi === "function") {
-              const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
-              const multi = this.l2.multi();
-              for (const tag of tags) multi.sAdd(`tag:${tagPrefix}${tag}`, fullKey);
-              await multi.exec();
-            }
-          } catch (err) {
-            logger.error(`L2 Cache SWR Set Failure: ${fullKey}`, err);
-          }
-        }
-
-        return value;
-      } finally {
-        if (lockOwner) {
-          this.pendingRequests.set(`lockrelease:${fullKey}`, Promise.resolve(lockOwner));
-        }
-      }
-    })();
-
-    this.pendingRequests.set(fullKey, promise);
-    promise.finally(() => this.pendingRequests.delete(fullKey));
-    return promise;
-  }
-
-  /**
-   * Background refresh for stale SWR entries.
-   * Called via setTimeout(0) to avoid blocking the current request.
-   */
-  private async refreshSWREntry<T>(
-    fullKey: string,
-    factory: () => Promise<T>,
-    ttlMs: number,
-    _category?: CacheCategory,
-    _tenantId?: string | null,
-    _tags?: string[],
-  ): Promise<void> {
-    try {
-      // Use a dedicated pending key to avoid collision with the main request path
-      const refreshKey = `swr:refresh:${fullKey}`;
-      if (this.pendingRequests.has(refreshKey)) {
-        return; // Another refresh is already in progress
-      }
-
-      const refreshPromise = (async () => {
-        const value = await factory();
-        if (value !== null && value !== undefined) {
-          const swrEntry = { value, storedAt: Date.now() };
-          const ttlSeconds = Math.max(1, Math.ceil(ttlMs / 1000));
-          // Use the original staleMs for L1 TTL so subsequent reads can serve stale
-          this.l1.set(fullKey, swrEntry, { ttl: ttlMs * 2 });
-          if (this.negativeBloom.has(fullKey)) {
-            this.negativeInvalidated.add(fullKey);
-          }
-
-          if (this.isL2Ready()) {
-            try {
-              await this.l2.set(fullKey, JSON.stringify(swrEntry), {
-                EX: ttlSeconds,
-              });
-            } catch (err) {
-              logger.error(`L2 Cache SWR Refresh Failure: ${fullKey}`, err);
-            }
-          }
-        }
-      })();
-
-      this.pendingRequests.set(refreshKey, refreshPromise);
-      await refreshPromise;
-    } catch {
-      // Silently ignore background refresh failures
-    } finally {
-      this.pendingRequests.delete(`swr:refresh:${fullKey}`);
-    }
-  }
+  // ── Core Write Operations ───────────────────────────────────────────────
 
   async set(
     key: string,
@@ -907,18 +532,12 @@ export class CacheService {
     _category = CacheCategory.GENERAL,
     tags: string[] = [],
   ): Promise<void> {
-    // Align with get()/buildKey: undefined|null|"" → "default" so set+get without
-    // an explicit tenantId always round-trip on the same full key.
     const fullKey = this.generateKey(key, tenantId);
-    // 🚀 ADAPTIVE TTL: Use per-category TTL profile when no explicit TTL given.
-    // Explicit ttl=0 means "use the category default". Explicit ttl>0 always wins.
     const effectiveTTL =
       ttl > 0 ? ttl : (CATEGORY_TTL_SECONDS[_category] ?? CATEGORY_TTL_SECONDS.general ?? 300);
 
     this.l1.set(fullKey, value, { ttl: effectiveTTL * 1000 });
-    if (this.negativeBloom.has(fullKey)) {
-      this.negativeInvalidated.add(fullKey); // Override bloom filter only if needed
-    }
+    this.negative.invalidate(fullKey);
     this.addToPrefixMap(fullKey);
     cacheMetrics.recordSet(fullKey, _category, effectiveTTL, tenantId);
 
@@ -926,315 +545,172 @@ export class CacheService {
       this.registerTagsForKey(fullKey, tags, tenantId);
     }
 
-    // 🚀 REDIS WRITE BATCHING: Buffer writes for pipeline execution.
-    // Single-set round-trips are replaced with batched pipelines.
     if (this.isL2Ready()) {
       try {
-        const valStr =
-          typeof value === "string" ? `__RAW_STRING__:${value}` : JSON.stringify(value);
-        // 🛡️ TENANT-SCOPED TAGS: Prefix tags with tenantId for isolation.
-        // tag:{name} → tag:{tenantId}:{name} prevents cross-tenant invalidation.
-        // Align with L1 scopeTag / buildKey ("default" for null/empty).
+        const valStr = serializeL2Value(value);
         const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
-        this.writeBuffer.push({ key: fullKey, val: valStr, ttl: effectiveTTL, tags, tagPrefix });
-        if (this.writeBuffer.length >= this.WRITE_BATCH_MAX) {
-          await this.flushWriteBuffer();
-        } else {
-          this.scheduleWriteFlush();
-        }
+        await this.batcher.bufferWrite(this.l2, {
+          key: fullKey,
+          val: valStr,
+          ttl: effectiveTTL,
+          tags,
+          tagPrefix,
+        });
       } catch (err) {
         logger.error(`L2 Cache Set Failure: ${fullKey}`, err);
       }
     }
 
-    // 🚀 STAMPEDE LOCK RELEASE: If a miss-lock was acquired for this key,
-    // release it immediately since the cache is now populated
-    const lockReleaseKey = `lockrelease:${fullKey}`;
-    const pendingLock = this.pendingRequests.get(lockReleaseKey);
-    if (pendingLock) {
-      this.pendingRequests.delete(lockReleaseKey);
-      pendingLock.then((ownerId) => {
-        if (ownerId)
-          this.releaseLock(fullKey, ownerId).catch(() => {
-            logger.debug("Lock release failed after cache population");
-          });
-      });
-    }
+    this.locks.releaseLock(this.l2, fullKey).catch(() => {});
   }
 
-  async setWithCategory(
+  setSync(
     key: string,
     value: any,
-    category: CacheCategory,
+    ttl = 0,
     tenantId?: string | null,
-    ttl?: number,
-    tags?: string[],
+    _category = CacheCategory.GENERAL,
+    tags: string[] = [],
+  ): void {
+    const fullKey = this.generateKey(key, tenantId);
+    const effectiveTTL =
+      ttl > 0 ? ttl : (CATEGORY_TTL_SECONDS[_category] ?? CATEGORY_TTL_SECONDS.general ?? 300);
+
+    this.l1.set(fullKey, value, { ttl: effectiveTTL * 1000 });
+    this.negative.invalidate(fullKey);
+    this.addToPrefixMap(fullKey);
+    if (tags.length > 0) {
+      this.registerTagsForKey(fullKey, tags, tenantId);
+    }
+  }
+
+  async setMany(
+    entries: { key: string; value: any; ttl?: number; tags?: string[] }[],
+    tenantId?: string | null,
+    category = CacheCategory.GENERAL,
   ): Promise<void> {
-    return this.set(key, value, ttl, tenantId, category, tags);
-  }
-
-  // ── Redis Write Batching ────────────────────────────────────────────────
-
-  /** Schedules a deferred flush of the Redis write buffer. */
-  private scheduleWriteFlush(): void {
-    if (this.writeFlushTimer) return;
-    this.writeFlushTimer = setTimeout(() => this.flushWriteBuffer(), this.WRITE_BATCH_MS);
-    if (typeof this.writeFlushTimer.unref === "function") {
-      this.writeFlushTimer.unref();
+    for (const entry of entries) {
+      await this.set(entry.key, entry.value, entry.ttl, tenantId, category, entry.tags);
     }
   }
 
-  /** Flushes all buffered writes to Redis in a single pipeline. */
-  private async flushWriteBuffer(): Promise<void> {
-    const batch = this.writeBuffer.splice(0);
-    this.writeFlushTimer = null;
-    if (batch.length === 0 || !this.isL2Ready()) return;
+  // ── SWR (Stale-While-Revalidate) ─────────────────────────────────────────
 
-    try {
-      if (typeof this.l2.multi === "function") {
-        const multi = this.l2.multi();
-        for (const { key, val, ttl, tags, tagPrefix } of batch) {
-          multi.set(key, val, { EX: ttl });
-          for (const tag of tags) {
-            multi.sAdd(`tag:${tagPrefix}${tag}`, key);
-          }
-        }
-        await multi.exec();
+  async getOrSet<T>(
+    key: string,
+    fetchFn: () => Promise<T>,
+    ttl?: number,
+    tenantId?: string | null,
+    category?: CacheCategory,
+    tags: string[] = [],
+  ): Promise<T> {
+    const cached = await this.get<T>(key, tenantId, category);
+    if (cached !== undefined && cached !== null) return cached;
+
+    return this.locks.coalesce(`fetch:${this.generateKey(key, tenantId)}`, async () => {
+      const data = await fetchFn();
+      if (data !== undefined && data !== null) {
+        await this.set(key, data, ttl, tenantId, category, tags);
       } else {
-        // Fallback: individual writes for clients without multi()
-        for (const { key, val, ttl, tags, tagPrefix } of batch) {
-          await this.l2.set(key, val, { EX: ttl });
-          for (const tag of tags) {
-            await this.l2.sAdd(`tag:${tagPrefix}${tag}`, key);
-          }
+        this.recordMiss(key, tenantId);
+      }
+      return data;
+    });
+  }
+
+  async getOrSetSWR<T>(
+    key: string,
+    fetchFn: () => Promise<T>,
+    ttl = 60_000,
+    staleTtl = 300_000,
+    tenantId?: string | null,
+    _category = CacheCategory.GENERAL,
+    tags: string[] = [],
+  ): Promise<T> {
+    const fullKey = this.generateKey(key, tenantId);
+    let cachedEntry = this.l1.get(fullKey);
+
+    // L2 Read-through for SWR
+    if (!cachedEntry && this.isL2Ready()) {
+      try {
+        const l2Val = await this.l2.get(fullKey);
+        if (l2Val) {
+          cachedEntry = typeof l2Val === "string" ? JSON.parse(l2Val) : l2Val;
+          this.l1.set(fullKey, cachedEntry, { ttl: staleTtl * 2 });
         }
+      } catch {}
+    }
+
+    if (cachedEntry && typeof cachedEntry === "object" && "storedAt" in cachedEntry) {
+      const age = Date.now() - cachedEntry.storedAt;
+      if (age < ttl) {
+        this.stats.hits++;
+        this.stats.l1Hits++;
+        return cachedEntry.value as T;
       }
-    } catch (err) {
-      logger.error("L2 Cache Batch Write Failure", err);
-      // Re-queue failed batch items individually as best-effort
-      for (const item of batch) {
-        try {
-          await this.l2.set(item.key, item.val, { EX: item.ttl });
-        } catch {
-          // Individual retry failed — data will be fetched from DB on next miss
+      if (age < staleTtl) {
+        this.stats.hits++;
+        this.stats.l1Hits++;
+        // Background SWR refresh
+        this.locks.coalesce(`swr:refresh:${fullKey}`, async () => {
+          try {
+            const fresh = await fetchFn();
+            if (fresh !== undefined && fresh !== null) {
+              const entry = { value: fresh, storedAt: Date.now() };
+              this.l1.set(fullKey, entry, { ttl: staleTtl * 2 });
+              if (this.isL2Ready()) {
+                await this.l2.set(fullKey, JSON.stringify(entry), {
+                  EX: Math.max(1, Math.ceil(staleTtl / 1000)),
+                });
+              }
+            }
+          } catch {}
+        });
+        return cachedEntry.value as T;
+      }
+    }
+
+    return this.locks.coalesce(`swr:miss:${fullKey}`, async () => {
+      const data = await fetchFn();
+      if (data !== undefined && data !== null) {
+        const entry = { value: data, storedAt: Date.now() };
+        this.l1.set(fullKey, entry, { ttl: staleTtl * 2 });
+        this.addToPrefixMap(fullKey);
+        if (tags.length > 0) this.registerTagsForKey(fullKey, tags, tenantId);
+        if (this.isL2Ready()) {
+          await this.l2.set(fullKey, JSON.stringify(entry), {
+            EX: Math.max(1, Math.ceil(staleTtl / 1000)),
+          });
         }
+      } else {
+        this.recordMiss(key, tenantId);
       }
-    }
+      return data;
+    });
   }
 
-  /**
-   * ✨ ARCHITECTURAL PLACEHOLDER: Registers patterns for predictive pre-warming.
-   * Part of the "Agency OS" predictive caching roadmap.
-   */
-  registerPrefetchPattern(_trigger: string, _dependencies: string[]) {
-    // Logic for predictive pre-warming will be fully implemented in v1.2
-    if (process.env.NODE_ENV === "development") {
-      logger.debug(`[PredictiveCache] Registered prefetch trigger: ${_trigger}`);
-    }
-  }
+  // ── Deletion & Invalidation ─────────────────────────────────────────────
 
-  async getGlobalVersion(tenantId: string | null = "global"): Promise<number> {
-    const key = `cms:${tenantId || "global"}:version`;
-    const cached = await this.get<number>(key, tenantId);
-    return cached || 1;
-  }
+  async delete(key: string, tenantId?: string | null): Promise<boolean> {
+    const fullKey = this.generateKey(key, tenantId);
+    this.l1.delete(fullKey);
+    this.cleanupTagsForKey(fullKey);
+    this.removeFromPrefixMap(fullKey);
+    this.negative.invalidate(fullKey);
+    this.stats.deletes++;
 
-  async incrementGlobalVersion(tenantId: string | null = "global"): Promise<number> {
-    const key = `cms:${tenantId || "global"}:version`;
-    const current = await this.getGlobalVersion(tenantId);
-    const next = current + 1;
-    await this.set(key, next, 0, tenantId); // 0 = default TTL
-    await this.publishInvalidation(key, tenantId);
-    return next;
-  }
-
-  async delete(key: string | string[], tenantId?: string | null): Promise<void> {
-    const keys = Array.isArray(key) ? key : [key];
-    for (const k of keys) {
-      const fullKey = this.generateKey(k, tenantId);
-      this.l1.delete(fullKey);
-      if (this.negativeBloom.has(fullKey)) {
-        this.negativeInvalidated.add(fullKey); // Override bloom filter
-      }
-      cacheMetrics.recordDelete(fullKey, CacheCategory.GENERAL, tenantId);
-      if (this.isL2Ready()) {
-        try {
-          await this.l2.del(fullKey);
-        } catch (err) {
-          logger.error(`L2 Cache Delete Failure: ${fullKey}`, err);
-        }
-      }
-    }
-    // Propagate to other nodes: publish the LOGICAL key as a pattern so the
-    // remote L1 is purged even for UNTAGGED entries (settings, sessions,
-    // counts) — tags alone only reach entries in the L1 tag index. The
-    // subscriber re-prefixes with its tenantId (generateKey), so the full key
-    // must NOT be sent. Keys also ride as tags for tag-index cleanup.
-    if (keys.length === 1) {
-      await this.publishInvalidation(keys[0], tenantId, keys);
-    } else {
-      for (const k of keys) {
-        await this.publishInvalidation(k, tenantId, [k]);
-      }
-    }
-  }
-
-  async clearByTags(tags: string[], tenantId: string | null = "*"): Promise<void> {
-    this.clearLocalL1ByTags(tags, tenantId);
-    for (const tag of tags) {
-      cacheMetrics.recordClear(`tag:${tenantId ?? "*"}:${tag}`, CacheCategory.GENERAL, tenantId);
-    }
     if (this.isL2Ready()) {
       try {
-        // 🛡️ TENANT-SCOPED TAGS: tag keys include tenantId prefix (set()/SWR).
-        // tenantId="*" / null / "" → clear every tenant's tag set via SCAN.
-        // Specific tenantId → only that tenant's tag:{tid}:{tag} set.
-        const isWildcard =
-          tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
-        if (isWildcard) {
-          for (const tag of tags) {
-            // Match tag:{anyTenant}:{tag} (and legacy tag:{tag} if present)
-            const patterns = [`tag:*:${tag}`, `tag:${tag}`];
-            for (const match of patterns) {
-              let cursor = "0";
-              do {
-                const reply = await this.l2.scan(cursor, { MATCH: match, COUNT: 200 });
-                cursor = reply.cursor;
-                const found: string[] = reply.keys ?? [];
-                for (const tagKey of found) {
-                  const members = await this.l2.sMembers(tagKey);
-                  if (members?.length > 0) await this.l2.del(members);
-                  await this.l2.del(tagKey);
-                }
-              } while (cursor !== "0");
-            }
-          }
-        } else {
-          const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
-          if (typeof this.l2.multi === "function") {
-            const multi = this.l2.multi();
-            for (const tag of tags) {
-              const tagKey = `tag:${tagPrefix}${tag}`;
-              const keys = await this.l2.sMembers(tagKey);
-              if (keys?.length > 0) multi.del(keys);
-              multi.del(tagKey);
-            }
-            await multi.exec();
-          } else {
-            for (const tag of tags) {
-              const tagKey = `tag:${tagPrefix}${tag}`;
-              const keys = await this.l2.sMembers(tagKey);
-              if (keys?.length > 0) await this.l2.del(keys);
-              await this.l2.del(tagKey);
-            }
-          }
-        }
-        await this.publishInvalidation(null, tenantId, tags);
+        await this.l2.del(fullKey);
+        await this.publishInvalidation(key, tenantId, [key]);
       } catch (err) {
-        logger.error(`L2 Cache ClearByTags Failure: ${tags.join(",")}`, err);
+        logger.error(`L2 Cache Delete Failure: ${fullKey}`, err);
       }
     }
-  }
-
-  async clearByPattern(pattern: string, tenantId: string | null = "*") {
-    this.clearLocalL1ByPattern(pattern, tenantId);
-    cacheMetrics.recordClear(pattern, CacheCategory.GENERAL, tenantId);
-    if (this.isL2Ready()) {
-      try {
-        // Wildcard tenant → SCAN every tenant namespace; else scope to one tenant.
-        // Strip trailing globs from the logical pattern, then append a single `*`.
-        const isWildcardTenant =
-          tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
-        const patternCore = pattern.replace(/[*?]+$/, "");
-        const fullPattern = isWildcardTenant
-          ? `tenant:*:${patternCore}*`
-          : `${this.generateKey(patternCore, tenantId)}*`;
-        let cursor = "0";
-        do {
-          const reply = await this.l2.scan(cursor, {
-            MATCH: fullPattern,
-            COUNT: 500,
-          });
-          cursor = reply.cursor;
-          if (reply.keys.length > 0) await this.l2.del(reply.keys);
-        } while (cursor !== "0");
-        await this.publishInvalidation(pattern, tenantId);
-      } catch (err) {
-        logger.error(`L2 Cache ClearByPattern Failure: ${pattern}`, err);
-      }
-    }
-  }
-
-  async invalidateAll(tenantId: string | null = "*") {
-    this.l1.clear();
-    this.tagMap.clear();
-    this.keyToTags.clear();
-    if (this.isL2Ready()) {
-      await this.l2.flushAll();
-      await this.publishInvalidation("*", tenantId);
-    }
-  }
-
-  async invalidateByCategory(category: CacheCategory, tenantId: string | null = "*") {
-    await this.clearByPattern(`*:${category}:`, tenantId);
-  }
-
-  async invalidateCollection(collection: string, tenantId: string | null = "*") {
-    await this.clearByPattern(`collection:${collection}:`, tenantId);
-  }
-
-  /**
-   * Generates a consistent cache key, memoized for performance.
-   */
-  public generateKey(key: string, tenantId?: string | null): string {
-    return this.buildKey(key, tenantId);
-  }
-
-  /**
-   * Records a confirmed cache miss (Negative Cache).
-   * Prevents repeated DB hits for non-existent items.
-   */
-  /**
-   * Returns true when a key is in the Bloom negative cache (known miss).
-   * Respects negativeInvalidated overrides from recent set/delete operations.
-   */
-  public isNegativeHit(key: string, tenantId?: string | null): boolean {
-    const fullKey = this.generateKey(key, tenantId);
-    if (this.negativeInvalidated.has(fullKey)) return false;
-    return this.negativeBloom.has(fullKey);
-  }
-
-  public recordMiss(key: string, tenantId?: string | null) {
-    const fullKey = this.generateKey(key, tenantId);
-    this.negativeBloom.add(fullKey);
-
-    // 🚀 STAMPEDE LOCK RELEASE: If a miss-lock was acquired for this key,
-    // release it immediately since the cache miss is now confirmed/recorded.
-    const lockReleaseKey = `lockrelease:${fullKey}`;
-    const pendingLock = this.pendingRequests.get(lockReleaseKey);
-    if (pendingLock) {
-      this.pendingRequests.delete(lockReleaseKey);
-      pendingLock.then((ownerId) => {
-        if (ownerId)
-          this.releaseLock(fullKey, ownerId).catch(() => {
-            logger.debug("Lock release failed after cache miss recording");
-          });
-      });
-    }
-  }
-
-  private buildKey(key: string, tenantId: string | null = "default"): string {
-    // Always namespace by tenant. Callers that pass distinct tenantIds must never
-    // collide in L1/L2 even when MULTI_TENANT is false at boot (defense-in-depth).
-    // Omitted/null/empty tenantId → stable `tenant:default:…` keys (matches get()/set()).
-    const tid =
-      tenantId === undefined || tenantId === null || tenantId === "" ? "default" : String(tenantId);
-    return `tenant:${tid}:${key}`;
+    return true;
   }
 
   private clearLocalL1ByTags(tags: string[], tenantId: string | null) {
-    // Tenant-partitioned L1 tag clear (mirrors L2 tag:{tenantId}:{tag}).
-    // Phase 2c: batch clear with deferred tag cleanup (same as clearLocalL1ByPattern).
     this._isBulkClearing = true;
     const deletedKeys: string[] = [];
     const isWildcard =
@@ -1246,7 +722,6 @@ export class CacheService {
       const candidates: string[] = [];
       if (tid) {
         candidates.push(this.scopeTag(tag, tid));
-        // Legacy unscoped index (pre-partition entries) — filter by key prefix
         if (this.tagMap.has(tag)) candidates.push(tag);
       } else {
         const suffix = `:${tag}`;
@@ -1277,79 +752,72 @@ export class CacheService {
     this._isBulkClearing = false;
     for (let i = 0; i < deletedKeys.length; i++) {
       this.cleanupTagsForKey(deletedKeys[i]);
+      this.removeFromPrefixMap(deletedKeys[i]);
     }
   }
 
-  private addToPrefixMap(key: string) {
-    const segments = key.split(":");
-    let currentPrefix = "";
-    // Store ALL prefix levels for pattern matching (not just 3)
-    // Also store single-segment fallback for flat keys (e.g., "bench-key-0")
-    for (let i = 0; i < segments.length; i++) {
-      currentPrefix += (i > 0 ? ":" : "") + segments[i];
-      if (!this.prefixMap.has(currentPrefix)) {
-        this.prefixMap.set(currentPrefix, new Set());
-      }
-      this.prefixMap.get(currentPrefix)!.add(key);
-    }
-    // Fallback: also index by first 8 chars for flat keys without colons
-    if (segments.length === 1 && key.length > 8) {
-      const shortPrefix = key.substring(0, 8);
-      if (!this.prefixMap.has(shortPrefix)) {
-        this.prefixMap.set(shortPrefix, new Set());
-      }
-      this.prefixMap.get(shortPrefix)!.add(key);
-    }
-  }
+  async clearByTags(tags: string[], tenantId: string | null = "*") {
+    if (!tags || tags.length === 0) return;
+    this.clearLocalL1ByTags(tags, tenantId);
+    cacheMetrics.recordClear(tags.join(","), CacheCategory.GENERAL, tenantId);
 
-  private _isBulkClearing = false;
-
-  private removeFromPrefixMap(key: string) {
-    if (this._isBulkClearing) return;
-
-    // Remove all prefix levels (same levels added by addToPrefixMap)
-    const segments = key.split(":");
-
-    // Colon-separated prefixes
-    let currentPrefix = "";
-    for (let i = 0; i < segments.length; i++) {
-      currentPrefix += (i > 0 ? ":" : "") + segments[i];
-      const bucket = this.prefixMap.get(currentPrefix);
-      if (bucket) {
-        bucket.delete(key);
-        if (bucket.size === 0) this.prefixMap.delete(currentPrefix);
-      }
-    }
-
-    // Flat key fallback (first 8 chars, added by addToPrefixMap for keys without colons)
-    if (segments.length === 1 && key.length > 8) {
-      const shortPrefix = key.substring(0, 8);
-      const bucket = this.prefixMap.get(shortPrefix);
-      if (bucket) {
-        bucket.delete(key);
-        if (bucket.size === 0) this.prefixMap.delete(shortPrefix);
+    if (this.isL2Ready()) {
+      try {
+        const isWildcardTenant =
+          tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
+        if (isWildcardTenant) {
+          for (const tag of tags) {
+            const match = `tag:*:${tag}`;
+            let cursor = "0";
+            do {
+              const reply = await this.l2.scan(cursor, { MATCH: match, COUNT: 200 });
+              cursor = reply.cursor;
+              const found: string[] = reply.keys ?? [];
+              for (const tagKey of found) {
+                const members = await this.l2.sMembers(tagKey);
+                if (members?.length > 0) await this.l2.del(members);
+                await this.l2.del(tagKey);
+              }
+            } while (cursor !== "0");
+          }
+        } else {
+          const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
+          if (typeof this.l2.multi === "function") {
+            const multi = this.l2.multi();
+            for (const tag of tags) {
+              const tagKey = `tag:${tagPrefix}${tag}`;
+              const keys = await this.l2.sMembers(tagKey);
+              if (keys?.length > 0) multi.del(keys);
+              multi.del(tagKey);
+            }
+            await multi.exec();
+          } else {
+            for (const tag of tags) {
+              const tagKey = `tag:${tagPrefix}${tag}`;
+              const keys = await this.l2.sMembers(tagKey);
+              if (keys?.length > 0) await this.l2.del(keys);
+              await this.l2.del(tagKey);
+            }
+          }
+        }
+        await this.publishInvalidation(null, tenantId, tags);
+      } catch (err) {
+        logger.error(`L2 Cache ClearByTags Failure: ${tags.join(",")}`, err);
       }
     }
   }
 
   private clearLocalL1ByPattern(pattern: string, tenantId: string | null) {
-    // Strip trailing globs so we can prefix-match stored keys.
-    const lastChar = pattern[pattern.length - 1];
-    const patternPrefix =
-      lastChar === "*" || lastChar === "?" ? pattern.replace(/[*?]+$/, "") : pattern;
-
-    // Wildcard tenant (`*` / null / undefined / ""): match the logical key under
-    // any `tenant:<id>:` namespace. generateKey("*", …) would produce a literal
-    // `tenant:*:…` prefix that never matches real keys (tenant:default:…).
     const isWildcardTenant =
       tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
 
-    if (isWildcardTenant) {
-      this._isBulkClearing = true;
-      const deletedKeys: string[] = [];
-      try {
+    this._isBulkClearing = true;
+    const deletedKeys: string[] = [];
+
+    try {
+      if (isWildcardTenant) {
+        const patternPrefix = pattern.replace(/[*?]+$/, "");
         for (const key of this.l1.keys()) {
-          // full key shape: tenant:<tid>:<logicalKey>
           const sep = key.indexOf(":", "tenant:".length);
           if (sep === -1) continue;
           const logicalKey = key.slice(sep + 1);
@@ -1358,190 +826,147 @@ export class CacheService {
             deletedKeys.push(key);
           }
         }
-      } finally {
-        this._isBulkClearing = false;
-      }
-      for (let i = 0; i < deletedKeys.length; i++) {
-        this.cleanupTagsForKey(deletedKeys[i]);
-        this.removeFromPrefixMap(deletedKeys[i]);
-      }
-      return;
-    }
+      } else {
+        const fullPattern = this.generateKey(pattern, tenantId);
+        const patternPrefix = fullPattern.replace(/[*?]+$/, "");
+        const bucketKey = this.getNamespaceBucketKey(fullPattern);
+        const bucket = this.prefixMap.get(bucketKey);
 
-    const fullPattern = this.generateKey(pattern, tenantId);
-
-    // 🚀 PREFIX MAP FAST PATH: Find the deepest matching bucket and scan only its keys.
-    // Instead of O(N) scan over all 500k L1 keys, we narrow to the bucket that
-    // contains all matching keys. For pattern "api:userId:bench", we look up
-    // bucket "api:userId" and scan only those keys (typically <1000).
-    const segments = fullPattern.split(":");
-    let bestBucket: Set<string> | undefined;
-
-    // Walk from longest prefix to shortest to find the best bucket
-    for (let i = segments.length - 1; i >= 0; i--) {
-      const prefix = segments.slice(0, i + 1).join(":");
-      const bucket = this.prefixMap.get(prefix);
-      if (bucket && bucket.size > 0) {
-        bestBucket = bucket;
-        break;
-      }
-    }
-
-    // 🚀 FALLBACK: For flat keys without colons, try first-8-char prefix lookup
-    if (!bestBucket && segments.length === 1 && fullPattern.length > 8) {
-      bestBucket = this.prefixMap.get(fullPattern.substring(0, 8));
-    }
-
-    if (bestBucket) {
-      // O(bucket) scan instead of O(all) - PERF FIX for throughput drops under bulk/clear (migration, cache invalidation, edge sync)
-      // Use direct Set iterator + immediate delete (safe for this use, avoids Array.from copy cost which was showing in high-cardinality clears)
-      // Reduces CPU during concurrent clears, helping "L1 fastest path" and lock contention symptoms in reports.
-      this._isBulkClearing = true;
-      // Collect deleted keys for post-clear batch tag cleanup (Phase 2c).
-      // During bulk clears, per-key cleanupTagsForKey is skipped (see guard),
-      // avoiding O(deleted) × O(tags-per-key) Map/Set operations inline.
-      const deletedKeys: string[] = [];
-      try {
-        // Fast-path: skip regex for common non-glob patterns (most cache keys)
-        const fullLastChar = fullPattern[fullPattern.length - 1];
-        const matchPrefix =
-          fullLastChar === "*" || fullLastChar === "?"
-            ? fullPattern.replace(/[*?]+$/, "")
-            : fullPattern;
-        for (const key of bestBucket) {
-          if (key.startsWith(matchPrefix)) {
-            this.l1.delete(key);
-            deletedKeys.push(key);
+        if (bucket) {
+          for (const key of bucket) {
+            if (key.startsWith(patternPrefix)) {
+              this.l1.delete(key);
+              deletedKeys.push(key);
+            }
+          }
+        } else {
+          for (const key of this.l1.keys()) {
+            if (key.startsWith(patternPrefix)) {
+              this.l1.delete(key);
+              deletedKeys.push(key);
+            }
           }
         }
-      } finally {
-        this._isBulkClearing = false;
       }
-      // Batch tag cleanup — runs after lock release, amortized over all deleted keys
-      for (let i = 0; i < deletedKeys.length; i++) {
-        this.cleanupTagsForKey(deletedKeys[i]);
-      }
-      // Clean up empty buckets (only check touched prefixes)
-      for (let i = segments.length - 1; i >= 0; i--) {
-        const prefix = segments.slice(0, i + 1).join(":");
-        const bucket = this.prefixMap.get(prefix);
-        if (bucket && bucket.size === 0) this.prefixMap.delete(prefix);
-      }
-      return;
+    } finally {
+      this._isBulkClearing = false;
     }
 
-    // FALLBACK: Only used when no prefix bucket exists (should be rare)
-    const fullLastChar = fullPattern[fullPattern.length - 1];
-    const fallbackPrefix =
-      fullLastChar === "*" || fullLastChar === "?"
-        ? fullPattern.replace(/[*?]+$/, "")
-        : fullPattern;
-    // Use iterator to avoid full Array.from when possible
-    for (const key of this.l1.keys()) {
-      if (key.startsWith(fallbackPrefix)) {
-        this.l1.delete(key);
-        this.removeFromPrefixMap(key);
+    for (let i = 0; i < deletedKeys.length; i++) {
+      this.cleanupTagsForKey(deletedKeys[i]);
+      this.removeFromPrefixMap(deletedKeys[i]);
+    }
+  }
+
+  async clearByPattern(pattern: string, tenantId: string | null = "*") {
+    this.clearLocalL1ByPattern(pattern, tenantId);
+    cacheMetrics.recordClear(pattern, CacheCategory.GENERAL, tenantId);
+
+    if (this.isL2Ready()) {
+      try {
+        const isWildcardTenant =
+          tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
+        const patternCore = pattern.replace(/[*?]+$/, "");
+        const fullPattern = isWildcardTenant
+          ? `tenant:*:${patternCore}*`
+          : `${this.generateKey(patternCore, tenantId)}*`;
+
+        let cursor = "0";
+        do {
+          const reply = await this.l2.scan(cursor, {
+            MATCH: fullPattern,
+            COUNT: 500,
+          });
+          cursor = reply.cursor;
+          if (reply.keys.length > 0) await this.l2.del(reply.keys);
+        } while (cursor !== "0");
+
+        await this.publishInvalidation(pattern, tenantId);
+      } catch (err) {
+        logger.error(`L2 Cache ClearByPattern Failure: ${pattern}`, err);
       }
     }
   }
 
-  private recordLatency(ms: number) {
-    this.latencyBuffer.push(ms);
-    if (this.latencyBuffer.length > this.MAX_LATENCY_SAMPLES) this.latencyBuffer.shift();
-  }
-
-  async cleanup() {
-    // 🚀 Flush any pending Redis writes before shutdown
-    if (this.writeFlushTimer) {
-      clearTimeout(this.writeFlushTimer);
-      this.writeFlushTimer = null;
-    }
-    await this.flushWriteBuffer().catch(() => {});
-
-    if (this.negativeRotationTimer) {
-      clearInterval(this.negativeRotationTimer);
-      this.negativeRotationTimer = null;
-    }
-    if (this.l2) {
-      if (typeof this.l2.disconnect === "function")
-        await this.l2.disconnect().catch(() => {
-          logger.debug("L2 cache disconnect failed during cleanup");
-        });
-      else if (typeof this.l2.destroy === "function")
-        await this.l2.destroy().catch(() => {
-          logger.debug("L2 cache destroy failed during cleanup");
-        });
-    }
-    if (this.subscriber) {
-      if (typeof this.subscriber.disconnect === "function")
-        await this.subscriber.disconnect().catch(() => {
-          logger.debug("Subscriber disconnect failed during cleanup");
-        });
-      else if (typeof this.subscriber.destroy === "function")
-        await this.subscriber.destroy().catch(() => {
-          logger.debug("Subscriber destroy failed during cleanup");
-        });
-    }
-    this.l2 = null;
-    this.subscriber = null;
+  async invalidateAll(tenantId: string | null = "*") {
     this.l1.clear();
     this.tagMap.clear();
     this.keyToTags.clear();
+    this.prefixMap.clear();
+    this.negative.clear();
+    this.locks.clear();
+
+    if (this.isL2Ready()) {
+      await this.l2.flushAll();
+      await this.publishInvalidation("*", tenantId);
+    }
   }
 
-  getRedisClient() {
-    return this.l2;
+  async invalidateByCategory(category: CacheCategory, tenantId: string | null = "*") {
+    await this.clearByPattern(`*:${category}:`, tenantId);
   }
 
-  getStats() {
-    const avgLatency =
-      this.latencyBuffer.length > 0
-        ? this.latencyBuffer.reduce((a, b) => a + b, 0) / this.latencyBuffer.length
-        : 0;
-    const metricsSnapshot = cacheMetrics.getSnapshot();
+  async invalidateCollection(collection: string, tenantId: string | null = "*") {
+    await this.clearByPattern(`collection:${collection}:`, tenantId);
+  }
+
+  // ── Observability & Stats ───────────────────────────────────────────────
+
+  getStats(): CacheStats {
     return {
       ...this.stats,
-      hits: metricsSnapshot.hits,
-      misses: metricsSnapshot.misses,
-      avgLatency,
       l1Size: this.l1.size,
-      tagCount: this.tagMap.size,
-      byCategory: metricsSnapshot.byCategory,
-      byTenant: metricsSnapshot.byTenant,
+      size: this.l1.size,
     };
   }
 
-  /**
-   * 🚀 ETAG SUPPORT: Generates a weak ETag from a cached value.
-   *
-   * Enables HTTP 304 Not Modified responses for unchanged content.
-   * The ETag is a fast hash of the JSON-serialized value — no crypto overhead.
-   *
-   * ### Usage in route handlers:
-   * ```typescript
-   * const cached = await cacheService.get(key, tenantId);
-   * if (cached) {
-   *   const etag = cacheService.computeETag(cached);
-   *   if (request.headers.get("if-none-match") === etag) {
-   *     return new Response(null, { status: 304 });
-   *   }
-   *   return new Response(JSON.stringify(cached), {
-   *     headers: { "ETag": etag, "Content-Type": "application/json" },
-   *   });
-   * }
-   * ```
-   */
-  computeETag(value: any): string {
-    if (value === null || value === undefined) return "";
-    const raw = typeof value === "string" ? value : JSON.stringify(value);
-    // Fast 32-bit FNV-1a hash — sufficient for cache validation, not crypto
-    let hash = 0x811c9dc5;
-    for (let i = 0; i < raw.length; i++) {
-      hash ^= raw.charCodeAt(i);
-      hash = Math.imul(hash, 0x01000193);
+  getLatencyStats(): { avg: number; p95: number; p99: number; samples: number } {
+    if (this.latencyBuffer.length === 0) {
+      return { avg: 0, p95: 0, p99: 0, samples: 0 };
     }
-    return `W/"${(hash >>> 0).toString(16)}"`;
+    const sorted = [...this.latencyBuffer].sort((a, b) => a - b);
+    const sum = sorted.reduce((acc, v) => acc + v, 0);
+    const avg = sum / sorted.length;
+    const p95Idx = Math.min(Math.floor(sorted.length * 0.95), sorted.length - 1);
+    const p99Idx = Math.min(Math.floor(sorted.length * 0.99), sorted.length - 1);
+    return {
+      avg: Math.round(avg * 1000) / 1000,
+      p95: Math.round(sorted[p95Idx] * 1000) / 1000,
+      p99: Math.round(sorted[p99Idx] * 1000) / 1000,
+      samples: sorted.length,
+    };
+  }
+
+  async cleanup(): Promise<void> {
+    await this.batcher.flush(this.l2);
+    this.batcher.clear();
+    this.negative.stop();
+    this.locks.clear();
+
+    if (this.subscriber) {
+      try {
+        await this.subscriber.unsubscribe();
+        await this.subscriber.destroy();
+      } catch {}
+      this.subscriber = null;
+    }
+
+    if (this.l2) {
+      try {
+        await this.l2.destroy();
+      } catch {}
+      this.l2 = null;
+    }
+  }
+
+  async destroy(): Promise<void> {
+    await this.cleanup();
+    this.l1.clear();
+    this.tagMap.clear();
+    this.keyToTags.clear();
+    this.prefixMap.clear();
   }
 }
 
 export const cacheService = new CacheService();
+export default cacheService;

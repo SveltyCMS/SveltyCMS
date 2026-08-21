@@ -181,34 +181,34 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "config-sync": { handler: "config", fn: "handleConfigRoutes" },
 };
 
+// 🚀 Pre-compiled Map for O(1) instant namespace lookup
+const NAMESPACE_MAP = new Map<string, { handler: string; fn: string }>(
+  Object.entries(NAMESPACE_CONFIG),
+);
+
 // Fail-closed mapping of namespaces/methods to core SveltyCMS permission IDs
+const isReadMethod = (m: string) => m === "GET" || m === "OPTIONS";
+
 const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)> = {
   collections: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "collections:read" : "collections:write",
+    isReadMethod(method) ? "collections:read" : "collections:write",
   "virtual-collections": (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
-  content: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
+    isReadMethod(method) ? "collection:read" : "collection:write",
+  content: (method: string) => (isReadMethod(method) ? "collection:read" : "collection:write"),
   "content-structure": (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
+    isReadMethod(method) ? "collection:read" : "collection:write",
   search: "collection:read",
   events: "collection:read",
-  graphql: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "collection:read" : "collection:write",
+  graphql: (method: string) => (isReadMethod(method) ? "collection:read" : "collection:write"),
   media: (method: string) => {
-    if (method === "OPTIONS") return "media:read";
-    if (method === "GET") return "media:read";
+    if (method === "OPTIONS" || method === "GET") return "media:read";
     if (method === "DELETE") return "media:delete";
     return "media:write";
   },
-  widgets: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
-  system: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
-  settings: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
-  "system-settings": (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  widgets: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
+  system: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
+  settings: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
+  "system-settings": (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
   importer: "config:importexport",
   "import-data": "config:importexport",
   import: "config:importexport",
@@ -216,35 +216,25 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   ai: "system:settings",
   "ai-builder": "system:settings",
   automations: "config:automations",
-  workflows: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "config:automations" : "config:automations",
-  theme: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  workflows: "config:automations",
+  theme: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
   "system-preferences": (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "systemPreferences:read" : "systemPreferences:write",
-  token: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
-  "website-tokens": (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+    isReadMethod(method) ? "systemPreferences:read" : "systemPreferences:write",
+  token: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
+  "website-tokens": (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
   webhooks: "config:webhooks",
   "system-webhooks": "config:webhooks",
   "system-virtual-folder": "system:settings",
   systemVirtualFolder: "system:settings",
-  version: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
-  "version-check": (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  version: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
+  "version-check": (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
   permission: "system:admin",
-  "system-jobs": (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "system-jobs": (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
   dashboard: "dashboard:read",
-  "openapi.json": (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
-  database: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "openapi.json": (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
+  database: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
   logs: "system:admin",
-  "api-keys": (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "system:read" : "system:settings",
+  "api-keys": (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
 
   // Data Operations permissions
   config: (method: string) => (method === "POST" ? "config:write" : "config:read"),
@@ -253,8 +243,7 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   migrations: (method: string) => (method === "POST" ? "migration:apply" : "migration:read"),
   importers: (method: string) => (method === "POST" ? "content:import" : "content:read"),
   backups: (method: string) => {
-    if (method === "OPTIONS") return "backup:read";
-    if (method === "GET") return "backup:read";
+    if (method === "OPTIONS" || method === "GET") return "backup:read";
     if (method === "POST") return "backup:create";
     return "backup:read";
   },
@@ -263,15 +252,12 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   "config-sync": (method: string) => (method === "POST" ? "config:write" : "config:read"),
 
   // Plugin Settings (encrypted per-tenant settings, gated behind plugin:settings:manage)
-  "plugin-settings": (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "plugin:settings:manage" : "plugin:settings:manage",
+  "plugin-settings": "plugin:settings:manage",
 
   // GDPR — authenticated self-service (handler enforces self-or-admin)
-  gdpr: (method: string) => (["GET", "OPTIONS"].includes(method) ? "user:read" : "user:write"),
-  commerce: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "collections:read" : "collections:write",
-  stripe: (method: string) =>
-    ["GET", "OPTIONS"].includes(method) ? "collections:read" : "collections:write",
+  gdpr: (method: string) => (isReadMethod(method) ? "user:read" : "user:write"),
+  commerce: (method: string) => (isReadMethod(method) ? "collections:read" : "collections:write"),
+  stripe: (method: string) => (isReadMethod(method) ? "collections:read" : "collections:write"),
 };
 
 /**
@@ -556,8 +542,8 @@ export const _handler = async (event: RequestEvent) => {
       // Per-request cache HIT is debug-only (default info/prod error stay quiet)
       // Cache tuple { body, etag } — pre-computed, zero hash overhead
       if (typeof cached === "object" && cached !== null && "body" in cached && "etag" in cached) {
-        const entry = cached as { body: string; etag: string };
-        return new Response(entry.body, {
+        const entry = cached as { body: string; etag: string; buffer?: Uint8Array };
+        return new Response((entry.buffer ?? entry.body) as BodyInit, {
           headers: { ..._jsonHeaders, "X-Cache": "HIT-L1", ETag: entry.etag },
         });
       }
@@ -573,7 +559,8 @@ export const _handler = async (event: RequestEvent) => {
     }
   }
 
-  if (!NAMESPACE_CONFIG[namespace]) {
+  const config = NAMESPACE_MAP.get(namespace);
+  if (!config) {
     if (pluginMatch) {
       const { pluginRegistry } = await import("@src/plugins/registry");
       const tenantKey = String(tenantId || "default");
@@ -608,7 +595,6 @@ export const _handler = async (event: RequestEvent) => {
   // Once cached, subsequent handler imports resolve from module cache instantly.
   ensureHotPreload();
 
-  const config = NAMESPACE_CONFIG[namespace];
   let handlerModule = LOADED_HANDLERS[config.handler];
   if (!handlerModule) {
     handlerModule = await HANDLERS[config.handler]();
@@ -639,37 +625,36 @@ export const _handler = async (event: RequestEvent) => {
   const contentType = response.headers.get("content-type") || "";
   const isStreaming = contentType.includes("text/event-stream");
 
-  // ⚡ WEAK ETag FAST-PATH: Handler set apiDataHash on locals.
-  // Still warms responseCache L1 from stashed apiBody so handleTurboGet can HIT next request.
+  // ⚡ CONTENT-BASED ETag: Computed from the actual response body.
+  // Warms responseCache L1 from stashed apiBody so handleTurboGet can HIT next request.
   if (request.method === "GET" && response.status === 200 && !isStreaming) {
-    const apiDataHash = (event.locals as any).apiDataHash;
-    if (apiDataHash) {
-      const weakEtag = `W/"${apiDataHash}"`;
+    const stashedBody = (locals as any).apiBody as string | undefined;
+    if (stashedBody) {
+      const contentEtag = generateContentEtag(stashedBody);
       const ifNoneMatch = request.headers.get("if-none-match");
-      const stashedBody = (locals as any).apiBody as string | undefined;
       const userIdStr = getUserCacheId(user);
       const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
 
-      if (stashedBody && user) {
+      if (user) {
         // Sync L1 turbo cache — zero microtask delay for next authenticated GET
-        responseCache.set(turboKey, { body: stashedBody, etag: weakEtag }, 300_000, tenantId);
+        responseCache.set(turboKey, { body: stashedBody, etag: contentEtag }, 300_000, tenantId);
       }
 
-      if (ifNoneMatch === weakEtag || ifNoneMatch === "*") {
+      if (ifNoneMatch === contentEtag || ifNoneMatch === "*") {
         return new Response(null, {
           status: 304,
           headers: {
-            ETag: weakEtag,
+            ETag: contentEtag,
             "Cache-Control": "private, must-revalidate",
             "X-API-Version": "1",
-            "X-Cache": "WEAK-304",
+            "X-Cache": "CONTENT-304",
           },
         });
       }
 
-      response.headers.set("ETag", weakEtag);
+      response.headers.set("ETag", contentEtag);
       response.headers.set("X-API-Version", "1");
-      response.headers.set("X-Cache", "WEAK-ETAG");
+      response.headers.set("X-Cache", "CONTENT-ETAG");
       return response;
     }
   }

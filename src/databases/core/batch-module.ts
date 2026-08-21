@@ -22,22 +22,9 @@ import type {
   ISqlAdapter,
 } from "../db-interface";
 import * as utils from "./relational-utils";
+import { executeWrite } from "./drizzle-sql-helpers";
 
 import { DatabaseModule } from "../core/base-adapter";
-
-function sameBatchPayload<T>(updates: Array<{ data: Partial<T> }>): boolean {
-  const first = updates[0]?.data as Record<string, unknown> | undefined;
-  if (!first) return true;
-  const keys = Object.keys(first);
-  for (let i = 1; i < updates.length; i++) {
-    const next = updates[i].data as Record<string, unknown>;
-    if (Object.keys(next).length !== keys.length) return false;
-    for (const key of keys) {
-      if (next[key] !== first[key]) return false;
-    }
-  }
-  return true;
-}
 
 export class BatchModule extends DatabaseModule<ISqlAdapter> {
   constructor(core: ISqlAdapter) {
@@ -79,8 +66,12 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
       const groups = new Map<string, BatchOperation<T>[]>();
       for (const op of operations) {
         const key = `${op.operation}:${op.collection}`;
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key)!.push(op);
+        let group = groups.get(key);
+        if (!group) {
+          group = [];
+          groups.set(key, group);
+        }
+        group.push(op);
       }
 
       for (const [, ops] of groups) {
@@ -215,7 +206,7 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
       const now = isoDateStringToDate(nowISODateString());
 
       // Homogeneous payload → one UPDATE ... WHERE _id IN (...) instead of N statements.
-      if (updates.length === 1 || sameBatchPayload(updates)) {
+      if (updates.length === 1 || utils.sameBatchPayload(updates)) {
         const ids = updates.map((u) => u.id as string);
         const query = this.db
           .update(table as any)
@@ -226,11 +217,9 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
             }) as unknown as Record<string, unknown>,
           )
           .where(inArray((table as any)._id, ids));
-        const result = (
-          typeof (query as any).run === "function" ? await (query as any).run() : await query
-        ) as any;
+        const result = await executeWrite(query);
         return {
-          modifiedCount: result?.changes ?? result?.rowsAffected ?? result?.count ?? ids.length,
+          modifiedCount: result?.changes ?? result?.rowsAffected ?? result?.count ?? -1,
         };
       }
 

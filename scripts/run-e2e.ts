@@ -147,7 +147,14 @@ async function startDevServer(): Promise<ChildProcess> {
         // 503s). Match the e2e-prep CI env exactly.
         DB_TYPE: "sqlite",
         DB_HOST: "127.0.0.1",
-        DB_NAME: "sveltycms_test",
+        // MUST match the setup wizard's DB_NAME default (setup-wizard.spec.ts
+        // fills `#db-name` with env.DB_NAME || "e2e_auth_test") — when the
+        // runner env and the wizard-written private.test.ts disagree, the
+        // adapter re-init flips the base connection between two files
+        // (sveltycms_test.sqlite empty vs e2e_auth_test.sqlite seeded),
+        // producing intermittent empty reads (roles=0 → permissions matrix
+        // broken, stale sessions, etc.).
+        DB_NAME: "e2e_auth_test",
         DB_USER: "",
         DB_PASSWORD: "",
         JWT_SECRET_KEY: "Integration-Test-JWT-Secret-Key-2026",
@@ -193,7 +200,8 @@ async function startPreviewServer(): Promise<ChildProcess> {
     PLAYWRIGHT_TEST_BASE_URL: BASE_URL,
     DB_TYPE: "sqlite",
     DB_HOST: "127.0.0.1",
-    DB_NAME: "sveltycms_test",
+    // MUST match the wizard's DB_NAME default (see startDevServer comment).
+    DB_NAME: "e2e_auth_test",
     DB_USER: "",
     DB_PASSWORD: "",
   } as Record<string, string>;

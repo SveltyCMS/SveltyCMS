@@ -105,6 +105,9 @@ function fieldById(collection: Schema | null | undefined, id: string): FieldInst
   return null;
 }
 
+const SYSTEM_FILTERABLE_FIELDS = new Set(["status", "createdAt", "updatedAt", "_id"]);
+const SYSTEM_SEARCHABLE_FIELDS = new Set(["_id", "status", "createdBy", "updatedBy"]);
+
 /**
  * Filter definitions the user is allowed to use (schema + safe widgets + FLAC read).
  * System fields (status, timestamps) are allowed when includeSystemFields is true.
@@ -122,10 +125,7 @@ export function resolveFilterableFields(
 
   return defs.filter((def) => {
     // System columns are not FieldInstances — allowed for list filtering
-    if (
-      def.widgetName === "system" ||
-      ["status", "createdAt", "updatedAt", "_id"].includes(def.id)
-    ) {
+    if (def.widgetName === "system" || SYSTEM_FILTERABLE_FIELDS.has(def.id)) {
       return true;
     }
     const field = fieldById(collection, def.id);
@@ -145,7 +145,7 @@ export function resolveSearchableFields(
   if (!user || !collection?.fields?.length) return all;
 
   return all.filter((name) => {
-    if (["_id", "status", "createdBy", "updatedBy"].includes(name)) return true;
+    if (SYSTEM_SEARCHABLE_FIELDS.has(name)) return true;
     const field = fieldById(collection, name);
     if (!field) return true;
     return canAccessField(field, user, "read");
@@ -332,27 +332,54 @@ export function compileSecureFilters(
         continue;
       }
       if (Array.isArray(o.in) && o.in.length > 0) {
-        inLists.push({ field: key, values: o.in as Array<string | number | boolean> });
-        continue;
+        const validatedIn: Array<string | number | boolean> = [];
+        for (const item of o.in) {
+          const comp = compileValueForType(def.type, key, String(item));
+          if (comp.ok && comp.equality !== undefined) {
+            validatedIn.push(comp.equality);
+          } else if (comp.ok && comp.text !== undefined) {
+            validatedIn.push(comp.text);
+          }
+        }
+        if (validatedIn.length > 0) {
+          inLists.push({ field: key, values: validatedIn });
+          continue;
+        }
       }
       if (o.eq !== undefined && o.eq !== null && String(o.eq) !== "") {
-        equality[key] = o.eq as string | number | boolean;
-        continue;
+        const comp = compileValueForType(def.type, key, String(o.eq));
+        if (comp.ok && comp.equality !== undefined) {
+          equality[key] = comp.equality;
+          continue;
+        } else if (comp.ok && comp.text !== undefined) {
+          equality[key] = comp.text;
+          continue;
+        }
       }
       if (o.gte != null || o.lte != null) {
-        const min = o.gte != null ? o.gte : openLowerBound((o.lte as string | number) ?? 0);
-        const max = o.lte != null ? o.lte : openUpperBound((o.gte as string | number) ?? 0);
-        // Date day bounds if both are YYYY-MM-DD
-        let rangeMin = min as string | number;
-        let rangeMax = max as string | number;
-        if (typeof min === "string" && dayBoundsFromDateInput(min)) {
-          rangeMin = dayBoundsFromDateInput(min)!.min;
+        const minRaw = o.gte != null ? o.gte : openLowerBound((o.lte as string | number) ?? 0);
+        const maxRaw = o.lte != null ? o.lte : openUpperBound((o.gte as string | number) ?? 0);
+
+        if (def.type === "numberRange") {
+          const minNum = parseNumber(String(minRaw));
+          const maxNum = parseNumber(String(maxRaw));
+          if (minNum !== null && maxNum !== null) {
+            ranges.push({ field: key, min: minNum, max: maxNum });
+            continue;
+          }
+        } else {
+          // Date day bounds if both are YYYY-MM-DD
+          let rangeMin = minRaw as string | number;
+          let rangeMax = maxRaw as string | number;
+          if (typeof minRaw === "string" && dayBoundsFromDateInput(minRaw)) {
+            rangeMin = dayBoundsFromDateInput(minRaw)!.min;
+          }
+          if (typeof maxRaw === "string" && dayBoundsFromDateInput(maxRaw)) {
+            rangeMax = dayBoundsFromDateInput(maxRaw)!.max;
+          }
+          ranges.push({ field: key, min: rangeMin, max: rangeMax });
+          continue;
         }
-        if (typeof max === "string" && dayBoundsFromDateInput(max)) {
-          rangeMax = dayBoundsFromDateInput(max)!.max;
-        }
-        ranges.push({ field: key, min: rangeMin, max: rangeMax });
-        continue;
       }
     }
 

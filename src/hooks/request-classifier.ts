@@ -56,6 +56,8 @@ export const CACHEABLE_PREFIXES = [
   "/api/user",
 ];
 
+const CACHEABLE_SEGMENTS_SET = new Set(CACHEABLE_PREFIXES.map((p) => p.slice(5)));
+
 const ADMIN_APP_PREFIXES = [
   "/admin",
   "/dashboard",
@@ -71,6 +73,8 @@ const ADMIN_APP_PREFIXES = [
   "/workflows",
   "/roles",
 ];
+
+const ADMIN_APP_SEGMENTS_SET = new Set(ADMIN_APP_PREFIXES.map((p) => p.slice(1)));
 
 /**
  * Exact cookie-name boundary match against a `Cookie` header value.
@@ -156,9 +160,10 @@ export function classifyRequest(url: URL, method: string, headers: Headers): Req
         hasExactCookie(cookie, `__Host-${SESSION_COOKIE_NAME}`) ||
         hasExactCookie(cookie, `__Secure-${SESSION_COOKIE_NAME}`);
 
-      const isCacheable = CACHEABLE_PREFIXES.some(
-        (prefix) => path === prefix || path.startsWith(prefix + "/"),
-      );
+      const subPath = path.slice(5);
+      const firstSlash = subPath.indexOf("/");
+      const segment = firstSlash === -1 ? subPath : subPath.slice(0, firstSlash);
+      const isCacheable = CACHEABLE_SEGMENTS_SET.has(segment);
 
       // OPTIONS preflights are never turbo-classified, but also never writes.
       if (hasSessionToken && isCacheable && upperMethod !== "OPTIONS") {
@@ -176,11 +181,13 @@ export function classifyRequest(url: URL, method: string, headers: Headers): Req
 
   // 6. PUBLIC_SITE vs APP_SSR (handles optional /en/ /de/ locale prefix)
   const normalizedPath = path.replace(LOCALE_PREFIX_REGEX, "/");
-  const isAdminRoute =
-    normalizedPath === "/" ||
-    ADMIN_APP_PREFIXES.some(
-      (prefix) => normalizedPath === prefix || normalizedPath.startsWith(prefix + "/"),
-    );
+  let isAdminRoute = normalizedPath === "/";
+  if (!isAdminRoute) {
+    const adminSub = normalizedPath.startsWith("/") ? normalizedPath.slice(1) : normalizedPath;
+    const adminSlash = adminSub.indexOf("/");
+    const adminSeg = adminSlash === -1 ? adminSub : adminSub.slice(0, adminSlash);
+    isAdminRoute = ADMIN_APP_SEGMENTS_SET.has(adminSeg);
+  }
 
   if (isAdminRoute) {
     return RequestLane.APP_SSR;

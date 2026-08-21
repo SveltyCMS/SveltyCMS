@@ -73,9 +73,11 @@ export const defaultRoles: Role[] = [
     isAdmin: false,
     permissions: [
       "collections:read",
+      "collections:read_drafts",
       "collections:update",
       "collections:create",
       "content:editor",
+      "content:read_drafts",
       "content:images",
       "system:dashboard",
       "api:systemInfo",

@@ -14,9 +14,29 @@ import type { IDBAdapter } from "../db-interface";
 
 export class PostgresFtsAdapter implements IFtsAdapter {
   private adapter: IDBAdapter;
+  private _tsvectorCache = new Map<string, string>();
 
   constructor(adapter: IDBAdapter) {
     this.adapter = adapter;
+  }
+
+  private _getTsVectorExpr(
+    columns: Array<{ name: string; weight?: "A" | "B" | "C" | "D" }>,
+    language: string,
+  ): string {
+    const key = `${language}:${columns.map((c) => `${c.name}:${c.weight || "D"}`).join(",")}`;
+    let expr = this._tsvectorCache.get(key);
+    if (!expr) {
+      const weightParts = columns
+        .filter((col) => col.weight)
+        .map(
+          (col) =>
+            `setweight(to_tsvector('${language}', coalesce("${col.name}", '')), '${col.weight}')`,
+        );
+      expr = weightParts.join(" || ");
+      this._tsvectorCache.set(key, expr);
+    }
+    return expr;
   }
 
   async search(
@@ -65,13 +85,7 @@ export class PostgresFtsAdapter implements IFtsAdapter {
     language: string,
     options?: { tenantId?: string | null; filters?: Record<string, unknown> },
   ): Promise<DatabaseResult<{ items: any[]; total: number }>> {
-    const weightParts = columns
-      .filter((col) => col.weight)
-      .map(
-        (col) =>
-          `setweight(to_tsvector('${language}', coalesce("${col.name}", '')), '${col.weight}')`,
-      );
-    const tsvectorExpr = weightParts.join(" || ");
+    const tsvectorExpr = this._getTsVectorExpr(columns, language);
 
     const tsqueryTerms = query
       .split(/\s+/)
@@ -181,7 +195,9 @@ export class PostgresFtsAdapter implements IFtsAdapter {
     }
 
     if (options?.filters) {
-      for (const [key, value] of Object.entries(options.filters)) {
+      for (const key in options.filters) {
+        if (!Object.hasOwn(options.filters, key)) continue;
+        const value = options.filters[key];
         if (value !== undefined && value !== null) {
           const strVal = String(value).replace(/'/g, "''");
           conditions.push(`"${key}" = '${strVal}'`);

@@ -29,6 +29,8 @@ export const SESSION_USER_SENSITIVE_FIELDS = [
 
 export type SensitiveUserField = (typeof SESSION_USER_SENSITIVE_FIELDS)[number];
 
+const SENSITIVE_SET = new Set<string>(SESSION_USER_SENSITIVE_FIELDS);
+
 /**
  * Returns a shallow copy of the user with all credential material removed.
  * When the user carries no sensitive fields the ORIGINAL reference is returned
@@ -37,17 +39,21 @@ export type SensitiveUserField = (typeof SESSION_USER_SENSITIVE_FIELDS)[number];
 export function toSafeSessionUser<T extends object>(user: T): T {
   if (!user || typeof user !== "object") return user;
   let needsCopy = false;
+  const userRec = user as Record<string, unknown>;
   for (const field of SESSION_USER_SENSITIVE_FIELDS) {
-    if ((user as Record<string, unknown>)[field] !== undefined) {
+    if (userRec[field] !== undefined) {
       needsCopy = true;
       break;
     }
   }
   if (!needsCopy) return user;
 
-  const safe = { ...user } as Record<string, unknown>;
-  for (const field of SESSION_USER_SENSITIVE_FIELDS) {
-    delete safe[field];
+  // Build clean object without delete operator to preserve V8 fast-mode hidden class
+  const safe: Record<string, unknown> = {};
+  for (const key in userRec) {
+    if (Object.hasOwn(userRec, key) && !SENSITIVE_SET.has(key)) {
+      safe[key] = userRec[key];
+    }
   }
   return safe as T;
 }

@@ -65,11 +65,7 @@ export async function withCache<T>(
       const result = await queryFn();
 
       // Update cache with fresh data
-      if (ttl !== undefined) {
-        await cacheService.set(cacheKey, result, ttl, tenantId, category);
-      } else {
-        await cacheService.setWithCategory(cacheKey, result, category, tenantId);
-      }
+      await cacheService.set(cacheKey, result, ttl ?? 0, tenantId, category);
 
       if (!isBootstrapping) {
         cacheMetrics.recordSet(cacheKey, category, ttl || 0, tenantId);
@@ -109,11 +105,7 @@ export async function withCache<T>(
     }
 
     // Store in cache
-    if (ttl !== undefined) {
-      await cacheService.set(cacheKey, result, ttl, tenantId, category);
-    } else {
-      await cacheService.setWithCategory(cacheKey, result, category, tenantId);
-    }
+    await cacheService.set(cacheKey, result, ttl ?? 0, tenantId, category);
 
     if (!isBootstrapping) {
       cacheMetrics.recordSet(cacheKey, category, ttl || 0, tenantId);

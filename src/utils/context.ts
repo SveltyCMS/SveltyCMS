@@ -85,7 +85,7 @@ export function runWithTrace<R>(traceId: string, enabled: boolean, callback: () 
 /** 🛡️ Hardened: Memory-capped trace buffer */
 const MAX_SPANS_PER_TRACE = 1000;
 
-export async function traceSpan<T>(name: string, fn: () => Promise<T>): Promise<T> {
+export function traceSpan<T>(name: string, fn: () => Promise<T>): Promise<T> {
   const store = sveltyContext.getStore();
   const trace = store?.trace;
 
@@ -94,15 +94,13 @@ export async function traceSpan<T>(name: string, fn: () => Promise<T>): Promise<
   }
 
   const start = performance.now();
-  try {
-    return await fn();
-  } finally {
+  return fn().finally(() => {
     trace.spans.push({
       name,
       start,
       duration: parseFloat((performance.now() - start).toFixed(3)),
     });
-  }
+  });
 }
 
 export function traceSpanSync<T>(name: string, fn: () => T): T {

@@ -43,7 +43,18 @@ describe("lookup-query (shared SQL + Mongo)", () => {
     expect(isIdLookupQuery(null)).toBe(false);
   });
 
-  it("rejects more than two keys", () => {
-    expect(isIdLookupQuery({ _id: "a", tenantId: "t", extra: 1 })).toBe(false);
+  it("accepts _id + isDeleted: false or 0", () => {
+    expect(isIdLookupQuery({ _id: "abc", isDeleted: false })).toBe(true);
+    expect(isIdLookupQuery({ _id: "abc", tenantId: "global", isDeleted: false })).toBe(true);
+    expect(isIdLookupQuery({ _id: "abc", isDeleted: 0 })).toBe(true);
+    expect(extractLookupId({ _id: "abc", isDeleted: false })).toBe("abc");
+  });
+
+  it("rejects isDeleted: true (needs full query translation for trash recovery)", () => {
+    expect(isIdLookupQuery({ _id: "abc", isDeleted: true })).toBe(false);
+  });
+
+  it("rejects more than three keys", () => {
+    expect(isIdLookupQuery({ _id: "a", tenantId: "t", isDeleted: false, extra: 1 })).toBe(false);
   });
 });

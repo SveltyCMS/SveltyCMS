@@ -45,7 +45,25 @@ export interface CartView {
 
 function asLines(raw: unknown): CartLine[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((row) => row && typeof row === "object") as CartLine[];
+  const lines: CartLine[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const rec = row as Record<string, unknown>;
+    const qty = Math.floor(Number(rec.qty));
+    const unitAmount = Number(rec.unitAmount);
+    if (!Number.isFinite(qty) || qty < 1 || !Number.isFinite(unitAmount)) continue;
+    lines.push({
+      productId: String(rec.productId ?? ""),
+      variantSku: rec.variantSku ? String(rec.variantSku) : undefined,
+      title: String(rec.title ?? ""),
+      sku: String(rec.sku ?? ""),
+      qty,
+      unitAmount,
+      currency: typeof rec.currency === "string" ? rec.currency : "",
+      downloadable: Boolean(rec.downloadable),
+    });
+  }
+  return lines;
 }
 
 function expiresAt(): string {
@@ -55,7 +73,7 @@ function expiresAt(): string {
 function toView(row: CommerceRow, currency: string): CartView {
   const items = asLines(row.items);
   const subtotal = items.reduce(
-    (sum, line) => add(sum, money(line.unitAmount * line.qty, line.currency || currency)),
+    (sum, line) => add(sum, money(line.unitAmount * line.qty, currency)),
     money(0, currency),
   );
   return {
@@ -77,10 +95,40 @@ export async function getOrCreateCart(
   const { sessionId, customerId, currency } = input;
   if (customerId) {
     const owned = await store.findOne("carts", { customer: customerId });
-    if (owned) return toView(owned, currency);
+    if (owned) {
+      if (owned.expiresAt && new Date(String(owned.expiresAt)).getTime() < Date.now()) {
+        const freshExp = expiresAt();
+        await store.update("carts", String(owned._id), {
+          items: [],
+          subtotal: 0,
+          appliedCoupon: null,
+          expiresAt: freshExp,
+        });
+        owned.items = [];
+        owned.subtotal = 0;
+        owned.appliedCoupon = null;
+        owned.expiresAt = freshExp;
+      }
+      return toView(owned, currency);
+    }
   }
   const guest = await store.findOne("carts", { sessionId });
-  if (guest) return toView(guest, currency);
+  if (guest) {
+    if (guest.expiresAt && new Date(String(guest.expiresAt)).getTime() < Date.now()) {
+      const freshExp = expiresAt();
+      await store.update("carts", String(guest._id), {
+        items: [],
+        subtotal: 0,
+        appliedCoupon: null,
+        expiresAt: freshExp,
+      });
+      guest.items = [];
+      guest.subtotal = 0;
+      guest.appliedCoupon = null;
+      guest.expiresAt = freshExp;
+    }
+    return toView(guest, currency);
+  }
 
   const created = await store.create("carts", {
     sessionId,
@@ -148,7 +196,7 @@ function mergeLines(base: CartLine[], extra: CartLine[]): CartLine[] {
 
 function lineSubtotal(items: CartLine[], currency: string) {
   return items.reduce(
-    (sum, line) => add(sum, money(line.unitAmount * line.qty, line.currency || currency)),
+    (sum, line) => add(sum, money(line.unitAmount * line.qty, currency)),
     money(0, currency),
   );
 }

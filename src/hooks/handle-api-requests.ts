@@ -466,7 +466,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
         // 🐛 L1 TURBO INVALIDATION: handleTurboGet serves GETs from the sync
         // responseCache BEFORE this handler runs — clearing only cacheService
         // (L2) would leave up to 5 minutes of stale L1 reads after mutations.
-        responseCache.invalidateCollection(apiEndpoint, tenantIdString);
+        await responseCache.invalidateCollection(apiEndpoint, tenantIdString);
         // 🚀 Debounce L2 pattern evictions to a 10ms batch flusher so write bursts
         // do not spawn concurrent pattern scans or steal PG connections.
         schedulePatternClear(`${pattern}*`, currentTenantId);

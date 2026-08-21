@@ -117,9 +117,17 @@ export function hashQueryPayload(payload: unknown): string {
  * "safe only" should intersect with createSmartFilter definitions.
  */
 export function getAllowedFilterFieldIds(collection: Schema | null | undefined): Set<string> {
+  if (!collection) return new Set<string>(SYSTEM_FILTER_FIELDS);
+  if ((collection as any)._allowedFilterFieldIds instanceof Set) {
+    return (collection as any)._allowedFilterFieldIds as Set<string>;
+  }
+
   const allowed = new Set<string>(SYSTEM_FILTER_FIELDS);
 
-  if (!collection?.fields?.length) return allowed;
+  if (!collection.fields?.length) {
+    (collection as any)._allowedFilterFieldIds = allowed;
+    return allowed;
+  }
 
   for (const raw of collection.fields) {
     const field = raw as Partial<FieldInstance> & { label?: string; db_fieldName?: string };
@@ -141,6 +149,7 @@ export function getAllowedFilterFieldIds(collection: Schema | null | undefined):
     }
   }
 
+  (collection as any)._allowedFilterFieldIds = allowed;
   return allowed;
 }
 

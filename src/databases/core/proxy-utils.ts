@@ -59,6 +59,11 @@ export function createSelfHealingProxy<T extends object>(
           return () => instance;
         }
 
+        // If an explicit override was set directly on the proxy target (e.g. unit test mocks), return it
+        if (typeof prop === "string" && prop in _) {
+          return _[prop];
+        }
+
         // Recurse into namespace sub-proxies
         if (typeof prop === "string" && namespaceSet.has(prop)) {
           return createProxy(prop);

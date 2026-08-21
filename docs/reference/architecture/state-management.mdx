@@ -113,15 +113,14 @@ The **Route Resource State Machine** (`src/services/core/route-resource-state-ma
 
 ---
 
-## 7. SvelteKit 2 Remote Functions & Offline Resilience Engine
+## 7. SvelteKit Remote Functions & Offline Resilience Engine
 
 The **Offline Draft Sync Engine** (`src/utils/offline-draft-sync.ts`):
 
-1. **SvelteKit 2 Remote Functions (`remote-functions#form`)**: Wraps Remote Function calls (`wrapRemoteFunction`) with optimistic Svelte 5 `$state` updates.
-2. **IndexedDB / LocalStorage Queueing**: When network drops or roaming occurs, typed RPC payloads are stored locally in an offline draft queue.
-3. **Background Sync & Timestamp Stenciling**: Upon reconnection, pending calls are automatically flushed in order with version stenciling for conflict resolution.
-
-| **Cleanup on Failure** | Logs full stack trace, increments `metricsService` counters for alerting |
+1. **SvelteKit Remote Functions & Progressive Enhancement**: Wraps Remote Function calls (`wrapRemoteFunction`) with optimistic Svelte 5 `$state` updates and graceful fallback on cellular drops.
+2. **Persistent Local Storage Drafts**: Automatically saves in-progress form inputs via `saveLocalDraft(collection, entryId, data, tenantId)` so edits survive page reloads or device restarts.
+3. **Replay Handler Registry & Background Sync**: Registers RPC handlers (`registerHandler`) and automatically replays pending mutations upon reconnection (`window.addEventListener("online")`) in FIFO order with exponential retry management (`MAX_SYNC_RETRIES = 3`).
+4. **Draft Cleanup & Conflict Protection**: Clears local storage drafts (`clearLocalDraft`) only upon verified database transaction commit, preventing data loss on flaky edge connections.
 
 ---
 

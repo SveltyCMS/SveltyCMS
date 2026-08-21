@@ -91,9 +91,13 @@ export function analyzeQueryCost(
         const name = node.name.value;
 
         // Determine if this is a top-level query/mutation field
-        const depth = ancestors.filter(
-          (a) => (a as ASTNode).kind === "Field" || (a as ASTNode).kind === "OperationDefinition",
-        ).length;
+        let depth = 0;
+        for (let i = 0; i < ancestors.length; i++) {
+          const aKind = (ancestors[i] as ASTNode)?.kind;
+          if (aKind === "Field" || aKind === "OperationDefinition") {
+            depth++;
+          }
+        }
 
         if (depth <= 2) {
           fields.push(name);

@@ -259,9 +259,10 @@ export const contentNavigation = {
     const descendants: ContentNode[] = [];
     const queue: string[] = [nodeId];
     const visited = new Set<string>();
+    let head = 0;
 
-    while (queue.length > 0) {
-      const currentId = queue.shift()!;
+    while (head < queue.length) {
+      const currentId = queue[head++];
       if (visited.has(currentId)) continue;
       visited.add(currentId);
 

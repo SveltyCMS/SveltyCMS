@@ -136,6 +136,8 @@ export const privateConfigSchema = object({
   PASSWORD_MIN_LENGTH: optional(coercedNumber),
   PREVIEW_SECRET: optional(string()),
   RATE_LIMIT_SECRET: optional(string()),
+  USE_2FA: optional(coercedBoolean),
+  TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: optional(coercedNumber),
   SESSION_DEVICE_POLICY: optional(
     union([literal("single-per-device"), literal("single-per-user"), literal("allow-multiple")]),
     "single-per-device",

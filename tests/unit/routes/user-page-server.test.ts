@@ -66,7 +66,7 @@ function makeEvent(
 
 describe("user +page.server load", () => {
   beforeEach(() => {
-    vi.mocked(getUntypedSetting).mockResolvedValue(false as never);
+    (getUntypedSetting as any).mockReturnValue(false);
   });
 
   it("redacts password and exposes permissions from locals", async () => {
@@ -119,14 +119,14 @@ describe("user +page.server load", () => {
   });
 
   it("exposes is2FAEnabledGlobal from settings", async () => {
-    vi.mocked(getUntypedSetting).mockResolvedValue(true as never);
+    (getUntypedSetting as any).mockReturnValue(true);
     const data: any = await load(makeEvent());
     expect(data.is2FAEnabledGlobal).toBe(true);
   });
 
   it("returns safe error payload when load throws non-redirect", async () => {
     const { getAuthenticatedUser } = await import("@utils/page-guards.server");
-    vi.mocked(getAuthenticatedUser).mockImplementationOnce(() => {
+    (getAuthenticatedUser as any).mockImplementationOnce(() => {
       throw new Error("boom");
     });
     const data: any = await load(makeEvent());

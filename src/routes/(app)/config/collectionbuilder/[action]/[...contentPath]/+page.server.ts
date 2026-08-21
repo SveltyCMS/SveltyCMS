@@ -20,6 +20,7 @@ import { contentSystem } from "@src/content/index.server";
 import type { Schema } from "@src/content/types";
 // Auth
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
+import { validatePhysicalTableName } from "@src/databases/core/collection-name";
 import { MigrationEngine } from "@src/services/core/migration-engine";
 // Widgets
 import { widgets } from "@src/stores/widget-store.svelte.ts";
@@ -203,8 +204,9 @@ export const actions: Actions = {
       if (!contentName) {
         return fail(400, { error: "Collection name is required" });
       }
-      if (contentName.length > 64) {
-        return fail(400, { error: "Collection name must be 64 characters or fewer" });
+      const tableError = validatePhysicalTableName(contentName);
+      if (tableError) {
+        return fail(400, { error: tableError });
       }
       // Defense-in-depth beyond path.basename(): reject traversal / separator
       // characters outright instead of silently basenaming them.

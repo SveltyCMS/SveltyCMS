@@ -6,10 +6,13 @@
 import { dbAdapter } from "@src/databases/db";
 import { logger } from "@utils/logger";
 import type { User } from "@src/databases/auth/types";
+import type { PublicationFilter } from "@src/utils/security/publication-policy";
 
 interface GraphQLContext {
   tenantId?: string | null;
   user?: User;
+  /** Publication visibility of the request (resolved in +server.ts context). */
+  publicationFilter?: PublicationFilter;
 }
 
 export const seoTypeDefs = `

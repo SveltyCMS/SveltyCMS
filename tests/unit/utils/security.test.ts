@@ -20,6 +20,7 @@ import {
   deriveKey,
   ENCRYPTION_CONFIG as encryptionConfig,
 } from "@src/utils/security";
+import { timingSafeStringEqual } from "@src/utils/native-utils";
 import { describe, it, expect } from "vitest";
 
 // Argon2 hashing is CPU-intensive and can be slow in CI environments.
@@ -332,4 +333,13 @@ describe("Crypto Utils - Security Properties", () => {
     // This is a basic check - true timing resistance is harder to test
     expect(Math.abs(duration1 - duration2)).toBeLessThan(1000);
   }, 60000);
+
+  it("timingSafeStringEqual correctly checks equality in constant time", () => {
+    expect(timingSafeStringEqual("token123", "token123")).toBe(true);
+    expect(timingSafeStringEqual("token123", "token124")).toBe(false);
+    expect(timingSafeStringEqual("token123", "token1234")).toBe(false);
+    expect(timingSafeStringEqual("", "")).toBe(true);
+    expect(timingSafeStringEqual("a", "")).toBe(false);
+    expect(timingSafeStringEqual(null as any, "abc")).toBe(false);
+  });
 });

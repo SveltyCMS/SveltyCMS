@@ -31,6 +31,7 @@ import {
   reinforceTransition,
   applyExtinction,
 } from "@src/services/intelligence/behavioral-learner";
+import { cacheService } from "@src/databases/cache/cache-service";
 import { pluginRegistry } from "@src/plugins/registry";
 import type { LayoutServerLoad } from "./$types";
 
@@ -61,6 +62,24 @@ async function refreshUser(
         avatar: dbUser.avatar,
       });
       return dbUser;
+    }
+
+    // 🛡️ Stale-session self-heal: the session can reference a user id that no
+    // longer resolves (wizard reset / re-seed recreates the account under a new
+    // id). Resolve by email — the same strategy as the update-user-attributes
+    // handler — so the UI never renders a stale cached snapshot.
+    if (sessionUser.email) {
+      const byEmail = await auth?.getUserByEmail(
+        { email: sessionUser.email, tenantId: tenantId as DatabaseId },
+        { tenantId: tenantId as DatabaseId, bypassTenantCheck: true },
+      );
+      if (byEmail) {
+        logger.warn("User id not found in database, resolved by email (stale session self-heal)", {
+          userId: sessionUser._id,
+          email: sessionUser.email,
+        });
+        return byEmail;
+      }
     }
 
     logger.warn("User not found in database, using session data", {
@@ -147,7 +166,6 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
     const [freshUser, totalUsers, aiEnabled] = await Promise.all([
       refreshUser(sessionUser, tenantId),
       (async () => {
-        const { cacheService } = await import("@src/databases/cache/cache-service");
         const cached = cacheService.getSync<number>(userCountKey, tenantId);
         if (cached !== null) return cached;
         try {
@@ -159,7 +177,6 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
         }
       })(),
       (async () => {
-        const { cacheService } = await import("@src/databases/cache/cache-service");
         const cached = cacheService.getSync<boolean>(aiSettingKey);
         if (cached !== null) return cached;
         try {
@@ -183,29 +200,15 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       }
     } catch {}
 
-    let safeTheme = DEFAULT_THEME;
-    try {
-      safeTheme = theme ? structuredClone(theme) : DEFAULT_THEME;
-    } catch {
-      safeTheme = DEFAULT_THEME;
-    }
+    const safeTheme = theme ?? DEFAULT_THEME;
 
-    // Ensure user payload is JSON-serializable (ObjectId/Buffer previously 500'd shells)
-    let safeUser: any = null;
-    try {
-      safeUser = freshUser ? structuredClone(freshUser) : null;
-    } catch {
-      if (freshUser) {
-        safeUser = {
-          _id: String((freshUser as any)._id ?? ""),
-          email: (freshUser as any).email,
-          role: (freshUser as any).role,
-          username: (freshUser as any).username,
-          avatar:
-            typeof (freshUser as any).avatar === "string" ? (freshUser as any).avatar : undefined,
-        };
-      }
-    }
+    // Ensure user payload has string _id
+    const safeUser = freshUser
+      ? {
+          ...freshUser,
+          _id: freshUser._id ? String(freshUser._id) : "",
+        }
+      : null;
 
     return {
       theme: safeTheme,
@@ -216,14 +219,11 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
         .then(async () => {
           try {
             const nodes = await contentSystem.getContentStructure(tenantId);
-            return (nodes ?? []).map((node: any) => {
-              const sanitized = structuredClone(node);
-              return {
-                ...sanitized,
-                _id: node._id?.toString?.() ?? String(node._id),
-                ...(node.parentId ? { parentId: node.parentId.toString() } : {}),
-              };
-            });
+            return (nodes ?? []).map((node: any) => ({
+              ...node,
+              _id: node._id?.toString?.() ?? String(node._id),
+              ...(node.parentId ? { parentId: node.parentId.toString() } : {}),
+            }));
           } catch {
             return [];
           }
@@ -244,15 +244,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       predictedNextPath,
       streamed: {}, // SvelteKit streaming marker
       pluginStates,
-      firstCollection: contentPromise
-        .then(([, first]) => {
-          try {
-            return first ? structuredClone(first) : null;
-          } catch {
-            return null;
-          }
-        })
-        .catch(() => null),
+      firstCollection: contentPromise.then(([, first]) => first ?? null).catch(() => null),
     };
   } catch (err: any) {
     // NEVER hard-500 the entire admin shell — media/dashboard/config pages all depend on this layout.

@@ -6,6 +6,7 @@
 import { contentSystem } from "@src/content/index.server";
 import { getSchemaPath } from "@src/content/first-collection";
 import type { User } from "@src/databases/auth/types";
+import type { PublicationFilter } from "@src/utils/security/publication-policy";
 import { logger } from "@utils/logger";
 
 interface GraphQLContext {
@@ -13,7 +14,7 @@ interface GraphQLContext {
   tenantId?: string | null;
   user?: User;
   cms?: any;
-  publicationFilter?: string;
+  publicationFilter?: PublicationFilter;
 }
 
 export const systemTypeDefs = `

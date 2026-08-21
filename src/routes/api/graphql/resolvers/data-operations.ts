@@ -17,6 +17,7 @@
 
 import { GraphQLScalarType, Kind } from "graphql";
 import type { IDBAdapter } from "@databases/db-interface";
+import type { PublicationFilter } from "@src/utils/security/publication-policy";
 
 // ---------------------------------------------------------------------------
 // JSON Scalar
@@ -271,6 +272,8 @@ export const dataOperationsMutationFields = `
 interface GraphQLContext {
   user?: { isAdmin?: boolean; _id?: string; role?: string };
   tenantId?: string | null;
+  /** Publication visibility of the request (resolved in +server.ts context). */
+  publicationFilter?: PublicationFilter;
 }
 
 // ---------------------------------------------------------------------------

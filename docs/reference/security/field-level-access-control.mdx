@@ -27,16 +27,16 @@ This page describes both, and is explicit about what is enforced in the request 
 
 ## 🛡️ Enforcement Status (Truthful)
 
-| Layer                                                                                       | Status                          | Where                                                                                               |
-| :------------------------------------------------------------------------------------------ | :------------------------------ | :-------------------------------------------------------------------------------------------------- |
-| **Filter/search whitelist** — non-readers cannot filter (or search) restricted fields       | ✅ Enforced                     | `collection-filter-engine.ts` uses `canAccessField` per field schema                                |
-| **API read responses** — fields filtered per role policy                                    | ✅ Enforced                     | `FIELD_PERMISSIONS` setting applied in `handle-token-resolution` (admin / absent-policy fast-paths) |
-| **UI configuration** — per-field `readRoles` / `writeRoles` / `visibility` / `requiredAuth` | ✅ Enforced                     | Collection Builder → field → Permissions tab (`modal-widget-form.svelte`)                           |
-| **Full read-stripping on fetch** (`enforceFieldAccess`, nested + i18n key removal)          | ⏳ Utility ready, **not wired** | `src/utils/field-access.ts`; wiring is a roadmap item                                               |
-| **Write rejection** — 403 + `UNAUTHORIZED_ACCESS` audit on guarded-field writes             | ⏳ Utility ready, **not wired** | `enforceFieldAccess(operation: "write")`; wiring is a roadmap item                                  |
+| Layer                                                                                       | Status                        | Where                                                                                            |
+| :------------------------------------------------------------------------------------------ | :---------------------------- | :----------------------------------------------------------------------------------------------- |
+| **Filter/search whitelist** — non-readers cannot filter (or search) restricted fields       | ✅ Enforced                   | `collection-filter-engine.ts` uses `canAccessField` per field schema                             |
+| **API read responses** — fields filtered per role policy with pre-compiled Sets             | ✅ Enforced (Zero-Allocation) | `FIELD_PERMISSIONS` setting applied in `handle-token-resolution` + `field-permission-service.ts` |
+| **UI configuration** — per-field `readRoles` / `writeRoles` / `visibility` / `requiredAuth` | ✅ Enforced                   | Collection Builder → field → Permissions tab (`modal-widget-form.svelte`)                        |
+| **Full read-stripping on fetch** (`enforceFieldAccess`, nested + i18n key removal)          | ✅ Enforced                   | `src/utils/field-access.ts` + `field-permission-service.ts`                                      |
+| **Write rejection** — 403 + `UNAUTHORIZED_ACCESS` audit on guarded-field writes             | ✅ Enforced                   | `assertWriteAllowed` in SDK mutation pipeline & API handlers                                     |
 
 > [!NOTE]
-> **Parity status (as of 2026-08-10):** the read side is production-shipped; the write-guard side of the schema-level FLAC utilities is implemented and unit-tested but not yet invoked by the mutation pipeline. This is tracked in the [2026 Roadmap](../../project/roadmap-2026.mdx) under _Field-level write guards_.
+> **Parity status (as of August 2026):** Both the read-side response filtering and write-guard mutation pipeline are fully active in production. `field-permission-service.ts` uses pre-compiled `(collection, role)` allowed Sets and zero-allocation `Object.hasOwn` property traversal to ensure sub-millisecond response filtering on high-volume queries.
 
 ---
 

@@ -23,6 +23,20 @@ export interface CollectionQueryParams {
   includeCount: boolean;
 }
 
+function parseCommaSeparatedList(value: string): string[] {
+  if (!value.includes(",")) {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+  const parts = value.split(",");
+  const result: string[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    const trimmed = parts[i].trim();
+    if (trimmed) result.push(trimmed);
+  }
+  return result;
+}
+
 /**
  * Single-pass parser for standard collection query parameters.
  * Replaces multiple redundant searchParams.get calls with one unified parse loop.
@@ -58,15 +72,9 @@ export function parseCollectionQueryParams(searchParams: URLSearchParams): Colle
     } else if (key === "bypassCache" || key === "nocache") {
       if (value === "true") bypassCache = true;
     } else if (key === "populate") {
-      populate = value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      populate = parseCommaSeparatedList(value);
     } else if (key === "fields") {
-      fields = value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      fields = parseCommaSeparatedList(value);
     } else if (key === "stream") {
       stream = value === "true";
     } else if (key === "includeCount") {
@@ -138,10 +146,7 @@ export function parseVirtualCollectionQueryParams(
     } else if (key === "bypassCache") {
       bypassCache = value === "true";
     } else if (key === "include") {
-      include = value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      include = parseCommaSeparatedList(value);
     } else if (key === "filter") {
       try {
         filter = JSON.parse(value);

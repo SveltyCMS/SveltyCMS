@@ -274,7 +274,7 @@ export abstract class BaseAdapter {
     const startTime = performance.now();
     try {
       this.metrics.queryCount++;
-      const data = await traceSpan(`db:${code}`, async () => await fn());
+      const data = await traceSpan(`db:${code}`, fn);
       const latency = performance.now() - startTime;
       this.metrics.lastLatency = latency;
 
@@ -431,18 +431,23 @@ export abstract class BaseAdapter {
   ): Promise<DatabaseResult<Record<string, unknown[]>>> {
     return this.wrap(async () => {
       const results: Record<string, unknown[]> = {};
-      const fetched = await Promise.all(
-        collectionNames.map(async (name) => {
-          const res = await this.getCollectionData(name, {
-            limit: options?.limit,
-            fields: options?.fields,
-          });
-          return { name, data: res.success ? res.data.data : null };
-        }),
-      );
-      for (const item of fetched) {
-        if (item.data) {
-          results[item.name] = item.data;
+      const CHUNK_SIZE = 8;
+
+      for (let i = 0; i < collectionNames.length; i += CHUNK_SIZE) {
+        const batch = collectionNames.slice(i, i + CHUNK_SIZE);
+        const fetched = await Promise.all(
+          batch.map(async (name) => {
+            const res = await this.getCollectionData(name, {
+              limit: options?.limit,
+              fields: options?.fields,
+            });
+            return { name, data: res.success ? res.data.data : null };
+          }),
+        );
+        for (const item of fetched) {
+          if (item.data) {
+            results[item.name] = item.data;
+          }
         }
       }
       return results;

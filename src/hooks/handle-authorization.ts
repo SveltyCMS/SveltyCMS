@@ -210,6 +210,19 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
   if ((locals as any).__turboAuth === true) {
     locals.isAdmin = isAdmin(user) || (user as any)?.isAdmin;
+    // 🛡️ The turbo fast path skips full role hydration — but page loaders
+    // (access-management, media, dashboard) read locals.roles to render
+    // role/permission matrices. A warm turbo context populated during an early
+    // request can carry EMPTY roles (e.g. right after a wizard reset), and the
+    // 60s TTL would keep serving empty matrices. Hydrate on miss.
+    if (!Array.isArray(locals.roles) || locals.roles.length === 0) {
+      try {
+        const roles = await getCachedRoles(event.locals.tenantId as DatabaseId);
+        if (roles.length > 0) event.locals.roles = roles;
+      } catch {
+        /* keep existing locals.roles */
+      }
+    }
     return resolve(event);
   }
 

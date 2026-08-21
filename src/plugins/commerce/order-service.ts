@@ -101,6 +101,13 @@ export async function placeOrder(
 
   const orderId = String(created._id ?? "");
   const low = await decrementStock(store, cart.items, orderId);
+  if (cart.appliedCoupon) {
+    const coupon = await store.findOne("coupons", { code: cart.appliedCoupon });
+    if (coupon && coupon._id) {
+      const currentUsed = Number(coupon.usedCount ?? coupon.usageCount ?? 0);
+      await store.update("coupons", String(coupon._id), { usedCount: currentUsed + 1 });
+    }
+  }
   await store.update("carts", cart.id, { items: [], subtotal: 0, appliedCoupon: null });
   return {
     ...created,
@@ -129,6 +136,15 @@ export async function cancelOrder(
   const updated = await transitionOrder(store, orderId, "cancelled");
   const items = Array.isArray(order.items) ? (order.items as CartView["items"]) : [];
   await restoreStock(store, items, orderId);
+  if (order.couponCode) {
+    const coupon = await store.findOne("coupons", { code: order.couponCode });
+    if (coupon && coupon._id) {
+      const currentUsed = Number(coupon.usedCount ?? coupon.usageCount ?? 0);
+      if (currentUsed > 0) {
+        await store.update("coupons", String(coupon._id), { usedCount: currentUsed - 1 });
+      }
+    }
+  }
   return updated;
 }
 

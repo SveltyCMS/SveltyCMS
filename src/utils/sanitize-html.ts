@@ -33,6 +33,12 @@ const STRIP_TAGS = [
 ];
 
 const TAG_PATTERN = STRIP_TAGS.join("|");
+const RE_PAIRED_TAGS = new RegExp(`<(${TAG_PATTERN})\\b[^>]*>([\\s\\S]*?)<\\/\\1>`, "gi");
+const RE_SELF_CLOSING_TAGS = new RegExp(`<(${TAG_PATTERN})\\b[^>]*\\/>`, "gi");
+const RE_OPENING_TAGS = new RegExp(`<(${TAG_PATTERN})\\b[^>]*>`, "gi");
+const RE_CLOSING_TAGS = new RegExp(`<\\/(${TAG_PATTERN})>`, "gi");
+const RE_EVENT_HANDLERS = /\s+on[a-z]+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi;
+const RE_PROTOCOLS = /(href|src|action)\s*=\s*(['"])(javascript|data):/gi;
 
 /**
  * Strips dangerous HTML tags and event handlers from a string.
@@ -40,25 +46,22 @@ const TAG_PATTERN = STRIP_TAGS.join("|");
  */
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
+  if (!html.includes("<") && !html.includes("on") && !html.includes("javascript:")) {
+    return html;
+  }
 
-  // 1. Remove dangerous tags and their content via single-pass regexes
-  let cleaned = html.replace(
-    new RegExp(`<(${TAG_PATTERN})\\b[^>]*>([\\s\\S]*?)<\\/\\1>`, "gi"),
-    "",
-  );
-  cleaned = cleaned.replace(new RegExp(`<(${TAG_PATTERN})\\b[^>]*\\/>`, "gi"), "");
-  cleaned = cleaned.replace(new RegExp(`<(${TAG_PATTERN})\\b[^>]*>`, "gi"), "");
+  // 1. Remove dangerous tags and their content via pre-compiled single-pass regexes
+  let cleaned = html.replace(RE_PAIRED_TAGS, "");
+  cleaned = cleaned.replace(RE_SELF_CLOSING_TAGS, "");
+  cleaned = cleaned.replace(RE_OPENING_TAGS, "");
   // Orphan closing tags
-  cleaned = cleaned.replace(new RegExp(`<\\/(${TAG_PATTERN})>`, "gi"), "");
+  cleaned = cleaned.replace(RE_CLOSING_TAGS, "");
 
   // 2. Strip event handlers — single combined non-backtracking pattern
-  cleaned = cleaned.replace(/\s+on[a-z]+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, "");
+  cleaned = cleaned.replace(RE_EVENT_HANDLERS, "");
 
   // 3. Block malicious protocols — replacer function preserves attribute structure
-  cleaned = cleaned.replace(
-    /(href|src|action)\s*=\s*(['"])(javascript|data):/gi,
-    (_match, attr, quote) => `${attr}=${quote}#blocked`,
-  );
+  cleaned = cleaned.replace(RE_PROTOCOLS, (_match, attr, quote) => `${attr}=${quote}#blocked`);
 
   return cleaned;
 }

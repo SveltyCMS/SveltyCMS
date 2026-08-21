@@ -902,97 +902,79 @@ export abstract class AdapterCore extends SqlAdapterCore {
    * the prepared values exactly like the base no-returning path. Falls back
    * to the base path on any error or inside an outer transaction.
    */
-  override async insertMany<T extends BaseEntity>(
+  protected override async rawInsertManyReturning<T extends import("../db-interface").BaseEntity>(
+    table: any,
     collection: string,
-    data: EntityCreate<T>[],
-    options: BaseQueryOptions = {},
-  ): Promise<DatabaseResult<T[]>> {
-    if (!data || data.length === 0) return { success: true, data: [] };
-    const skipReturning = (options as any)?.skipReturning === true;
+    batchValues: Record<string, any>[],
+    options: BaseQueryOptions,
+  ): Promise<T[] | null> {
     const inOuterTxn = Boolean(options?.transaction);
     const txnConn = this.getTxnConn(options);
-    if (!inOuterTxn || txnConn) {
+    if (inOuterTxn && !txnConn) return null;
+
+    try {
+      const len = batchValues.length;
+      if (len === 0) return [];
       const rawExec = this.getRawExec(options);
-      try {
-        const table = this.getTable(collection);
-        if (!table) throw new Error(`Table not found: ${collection}`);
-        const now = new Date();
-        const len = data.length;
-        const batchValues: Record<string, any>[] = Array.from({ length: len });
-        for (let i = 0; i < len; i++) {
-          const item = data[i];
-          const id = (item as any)._id || generateUUID();
-          const prepared = this.prepareValues(table, item, id, now, options);
-          // Old tables predate the DDL timestamp defaults — write createdAt
-          // explicitly so it is never NULL; exact row shape for the response.
-          if (prepared.createdAt === undefined) prepared.createdAt = now;
-          batchValues[i] = this.synthesizeInsertRow(table, prepared, { intBooleans: true });
-        }
-        // Union of column keys across rows — rows may omit optional physical
-        // columns (status/slug/…) and the DB default fills them.
-        const cols = new Set<string>();
-        for (let i = 0; i < len; i++) {
-          for (const k in batchValues[i]) cols.add(k);
-        }
-        if (cols.size > 0) {
-          const maxParams = 65000;
-          const chunkSize = Math.max(1, Math.floor(maxParams / cols.size));
-          const colList = Array.from(cols)
-            .map((c) => {
-              // Drizzle def property names may differ from physical column
-              // names (e.g. plugin_storage: collectionName → `collection`).
-              const phys = this.getColumn(table, c);
-              return utils.assertSafeSqlIdentifier(phys?.name ?? c, "column");
-            })
-            .map((c) => `\`${c}\``)
-            .join(", ");
-          for (let start = 0; start < len; start += chunkSize) {
-            const chunk = batchValues.slice(start, start + chunkSize);
-            const params: any[] = [];
-            const valuesSql: string[] = [];
-            for (let r = 0; r < chunk.length; r++) {
-              const row = chunk[r];
-              const rowPlaceholders: string[] = [];
-              for (const c of cols) {
-                const v = row[c];
-                // Missing/undefined values bind as literal DEFAULT — mysql2
-                // throws on undefined bind params.
-                if (v === undefined) {
-                  rowPlaceholders.push("DEFAULT");
-                  continue;
-                }
-                params.push(
-                  v !== null && typeof v === "object" && !(v instanceof Date)
-                    ? JSON.stringify(v)
-                    : v,
-                );
-                rowPlaceholders.push("?");
-              }
-              valuesSql.push(`(${rowPlaceholders.join(", ")})`);
-            }
-            const sqlText = `INSERT INTO \`${getTableName(table)}\` (${colList}) VALUES ${valuesSql.join(", ")}`;
-            await rawExec(sqlText, params);
-          }
-          // Synthesize the rows from prepared values (identical to the base
-          // no-returning path) — no multi-row RETURNING read-back tax. Seed/
-          // system-bulk callers (skipReturning) get the values untouched.
-          if (skipReturning) {
-            return { success: true as const, data: batchValues as unknown as T[] };
-          }
-          return {
-            success: true as const,
-            data: utils.convertArrayDatesToISO(batchValues, {
-              ...this.convertDatesOptions,
-              mariaDoubleParseJson: true,
-              table: collection,
-            }) as T[],
-          };
-        }
-      } catch {
-        /* fall through */
+      const tableName = getTableName(table);
+      const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+
+      const synthesizedRows: Record<string, any>[] = Array.from({ length: len });
+      for (let i = 0; i < len; i++) {
+        synthesizedRows[i] = this.synthesizeInsertRow(table, batchValues[i], { intBooleans: true });
       }
+
+      const cols = new Set<string>();
+      for (let i = 0; i < len; i++) {
+        for (const k in synthesizedRows[i]) cols.add(k);
+      }
+      if (cols.size === 0) return [];
+
+      const maxParams = 65000;
+      const chunkSize = Math.max(1, Math.floor(maxParams / cols.size));
+      const colList = Array.from(cols)
+        .map((c) => {
+          const phys = this.getColumn(table, c);
+          return `\`${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}\``;
+        })
+        .join(", ");
+
+      for (let start = 0; start < len; start += chunkSize) {
+        const chunk = synthesizedRows.slice(start, start + chunkSize);
+        const params: any[] = [];
+        const valuesSql: string[] = [];
+        for (let r = 0; r < chunk.length; r++) {
+          const row = chunk[r];
+          const rowPlaceholders: string[] = [];
+          for (const c of cols) {
+            const v = row[c];
+            if (v === undefined) {
+              rowPlaceholders.push("DEFAULT");
+              continue;
+            }
+            params.push(
+              v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v,
+            );
+            rowPlaceholders.push("?");
+          }
+          valuesSql.push(`(${rowPlaceholders.join(", ")})`);
+        }
+        const sqlText = `INSERT INTO \`${safeTableName}\` (${colList}) VALUES ${valuesSql.join(", ")}`;
+        await rawExec(sqlText, params);
+      }
+
+      const skipReturning = (options as any)?.skipReturning === true;
+      if (skipReturning) {
+        return synthesizedRows as unknown as T[];
+      }
+      return utils.convertArrayDatesToISO(synthesizedRows, {
+        ...this.convertDatesOptions,
+        mariaDoubleParseJson: true,
+        table: collection,
+      }) as T[];
+    } catch {
+      return null;
     }
-    return super.insertMany(collection, data, options);
   }
 
   /**

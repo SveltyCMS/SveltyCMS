@@ -7,6 +7,7 @@
 
 import { contentSystem } from "@src/content/index.server";
 import { isSystemReady } from "@src/stores/system/state.svelte";
+import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { error, isHttpError, isRedirect, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
@@ -21,9 +22,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const { language } = params;
   const { tenantId } = locals;
 
-  const availableLanguages = (
-    await import("@src/services/core/settings-service")
-  ).getPublicSettingSync("AVAILABLE_CONTENT_LANGUAGES") || ["en"];
+  const availableLanguages = getPublicSettingSync("AVAILABLE_CONTENT_LANGUAGES") || ["en"];
   if (!availableLanguages.includes(language)) {
     throw error(404, "Not Found");
   }

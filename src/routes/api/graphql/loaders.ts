@@ -35,27 +35,38 @@ export function createLoaders(
       const collectionName = `collection_${collectionId}`;
       loader = new BatchLoader(async (ids) => {
         try {
-          const query: Record<string, unknown> = { _id: { $in: ids } };
-          applyPublicationToQuery(query, publicationFilter);
+          const entryMap = new Map<string, any>();
+          const BATCH_SIZE = 1000;
 
-          const result = await dbAdapter.crud.findMany(collectionName, query, {
-            tenantId: tenantId as DatabaseId,
-            limit: Math.max(ids.length, 1000),
-          });
+          for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+            const batchIds = ids.length <= BATCH_SIZE ? ids : ids.slice(i, i + BATCH_SIZE);
+            const query: Record<string, unknown> = { _id: { $in: batchIds } };
+            applyPublicationToQuery(query, publicationFilter);
 
-          if (!result.success || !result.data) {
-            if (!result.success) {
+            const result = await dbAdapter.crud.findMany(collectionName, query, {
+              tenantId: tenantId as DatabaseId,
+              limit: Math.max(batchIds.length, 1000),
+            });
+
+            if (result.success && Array.isArray(result.data)) {
+              for (const entry of result.data) {
+                if (entry?._id) {
+                  const key = typeof entry._id === "string" ? entry._id : String(entry._id);
+                  entryMap.set(key, entry);
+                }
+              }
+            } else if (!result.success) {
               logger.error(
                 `[GraphQL loaders] collectionLoader for "${collectionId}" failed: ${result.message || "Unknown error"}`,
                 result.error,
               );
             }
-            return ids.map(() => null);
           }
 
-          const data = result.data;
-          const entryMap = new Map(data.map((entry: any) => [entry._id.toString(), entry]));
-          return ids.map((id) => entryMap.get(id.toString()) || null);
+          return ids.map((id) => {
+            const key = typeof id === "string" ? id : String(id);
+            return entryMap.get(key) || null;
+          });
         } catch (err: any) {
           logger.error(
             `[GraphQL loaders] collectionLoader for "${collectionId}" encountered an exception:`,
@@ -75,25 +86,39 @@ export function createLoaders(
       if (!userLoaderInstance) {
         userLoaderInstance = new BatchLoader<string | DatabaseId, User | null>(async (ids) => {
           try {
-            const result = await dbAdapter.crud.findByIds<User>("users", ids as DatabaseId[], {
-              tenantId: tenantId as DatabaseId,
-              limit: Math.max(ids.length, 1000),
-            });
+            const userMap = new Map<string, User>();
+            const BATCH_SIZE = 1000;
 
-            if (!result.success || !result.data) {
-              if (!result.success) {
+            for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+              const batchIds = ids.length <= BATCH_SIZE ? ids : ids.slice(i, i + BATCH_SIZE);
+              const result = await dbAdapter.crud.findByIds<User>(
+                "users",
+                batchIds as DatabaseId[],
+                {
+                  tenantId: tenantId as DatabaseId,
+                  limit: Math.max(batchIds.length, 1000),
+                },
+              );
+
+              if (result.success && Array.isArray(result.data)) {
+                for (const user of result.data) {
+                  if (user?._id) {
+                    const key = typeof user._id === "string" ? user._id : String(user._id);
+                    userMap.set(key, user);
+                  }
+                }
+              } else if (!result.success) {
                 logger.error(
                   `[GraphQL loaders] userLoader failed: ${result.message || "Unknown error"}`,
                   result.error,
                 );
               }
-              return ids.map(() => null);
             }
 
-            const userMap = new Map<string, User>(
-              result.data.map((user: User) => [user._id.toString(), user]),
-            );
-            return ids.map((id) => userMap.get(id.toString()) || null);
+            return ids.map((id) => {
+              const key = typeof id === "string" ? id : String(id);
+              return userMap.get(key) || null;
+            });
           } catch (err: any) {
             logger.error(`[GraphQL loaders] userLoader encountered an exception:`, err);
             return ids.map(() => null);
@@ -109,29 +134,39 @@ export function createLoaders(
         mediaLoaderInstance = new BatchLoader<string | DatabaseId, MediaItem | null>(
           async (ids) => {
             try {
-              const result = await dbAdapter.crud.findByIds<MediaItem>(
-                "media",
-                ids as DatabaseId[],
-                {
-                  tenantId: tenantId as DatabaseId,
-                  limit: Math.max(ids.length, 1000),
-                },
-              );
+              const mediaMap = new Map<string, MediaItem>();
+              const BATCH_SIZE = 1000;
 
-              if (!result.success || !result.data) {
-                if (!result.success) {
+              for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+                const batchIds = ids.length <= BATCH_SIZE ? ids : ids.slice(i, i + BATCH_SIZE);
+                const result = await dbAdapter.crud.findByIds<MediaItem>(
+                  "media",
+                  batchIds as DatabaseId[],
+                  {
+                    tenantId: tenantId as DatabaseId,
+                    limit: Math.max(batchIds.length, 1000),
+                  },
+                );
+
+                if (result.success && Array.isArray(result.data)) {
+                  for (const item of result.data) {
+                    if (item?._id) {
+                      const key = typeof item._id === "string" ? item._id : String(item._id);
+                      mediaMap.set(key, item);
+                    }
+                  }
+                } else if (!result.success) {
                   logger.error(
                     `[GraphQL loaders] mediaLoader failed: ${result.message || "Unknown error"}`,
                     result.error,
                   );
                 }
-                return ids.map(() => null);
               }
 
-              const mediaMap = new Map<string, MediaItem>(
-                result.data.map((item: MediaItem) => [item._id.toString(), item]),
-              );
-              return ids.map((id) => mediaMap.get(id.toString()) || null);
+              return ids.map((id) => {
+                const key = typeof id === "string" ? id : String(id);
+                return mediaMap.get(key) || null;
+              });
             } catch (err: any) {
               logger.error(`[GraphQL loaders] mediaLoader encountered an exception:`, err);
               return ids.map(() => null);

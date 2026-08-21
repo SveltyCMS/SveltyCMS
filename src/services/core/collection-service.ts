@@ -43,6 +43,8 @@ import { isMultiTenantEnabled } from "@utils/tenant";
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 
+const clientSchemaMemo = new WeakMap<object, Schema>();
+
 // Helper to get dbAdapter safely via dynamic import to avoid circular dep issues
 const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter as IDBAdapter;
 
@@ -457,12 +459,10 @@ export class CollectionService {
     }
 
     // Memoized client-sanitized schema (avoids JSON serialization on hot edit page loads)
-    let collectionSchemaForClient = (collection as any)._clientSchema;
+    let collectionSchemaForClient = clientSchemaMemo.get(collection);
     if (!collectionSchemaForClient) {
-      collectionSchemaForClient = JSON.parse(JSON.stringify(collection));
-      try {
-        (collection as any)._clientSchema = collectionSchemaForClient;
-      } catch {}
+      collectionSchemaForClient = JSON.parse(JSON.stringify(collection)) as Schema;
+      clientSchemaMemo.set(collection, collectionSchemaForClient);
     }
 
     return {

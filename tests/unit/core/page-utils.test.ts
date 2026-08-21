@@ -93,10 +93,19 @@ describe("resolvePageSort / keyset cursor", () => {
     expect(resolvePageSort(sort).direction).toBe("desc");
   });
 
-  it("round-trips encode/decode", () => {
+  it("round-trips encode/decode for complex cursors", () => {
     const payload = { id: "abc123", f: "updatedAt", v: "2026-01-01", d: "desc" as const };
     const enc = encodePageCursor(payload);
     expect(decodePageCursor(enc)).toEqual(payload);
+  });
+
+  it("round-trips fast compact cursors for pure id queries", () => {
+    const descPayload = { id: "id-999", d: "desc" as const };
+    const ascPayload = { id: "id-999", d: "asc" as const };
+    const encDesc = encodePageCursor(descPayload);
+    const encAsc = encodePageCursor(ascPayload);
+    expect(decodePageCursor(encDesc)).toEqual(descPayload);
+    expect(decodePageCursor(encAsc)).toEqual(ascPayload);
   });
 
   it("accepts legacy plain-id cursors", () => {

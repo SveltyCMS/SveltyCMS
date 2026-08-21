@@ -30,9 +30,11 @@ export function generateUUID(): string {
   }).join("");
 }
 
+const HEX_TABLE = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
+
 /**
  * Generates a high-entropy secure token.
- * 🚀 Performance: Uses for-loop string concat to avoid intermediate array allocation.
+ * 🚀 Performance: Uses precomputed lookup table and for-loop string concat.
  */
 export function generateSecureToken(bytes = 32): string {
   const array = new Uint8Array(bytes);
@@ -40,9 +42,28 @@ export function generateSecureToken(bytes = 32): string {
 
   let hex = "";
   for (let i = 0; i < bytes; i++) {
-    hex += array[i].toString(16).padStart(2, "0");
+    hex += HEX_TABLE[array[i]];
   }
   return hex;
+}
+
+/**
+ * Constant-time string comparison to prevent timing side-channel attacks.
+ * Operates in strict O(max(lenA, lenB)) time with constant-time bitwise accumulation,
+ * preventing early-exit timing leaks even when string lengths differ.
+ */
+export function timingSafeStringEqual(a: string, b: string): boolean {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  const lenA = a.length;
+  const lenB = b.length;
+  let diff = lenA ^ lenB;
+  const maxLen = Math.max(lenA, lenB);
+  for (let i = 0; i < maxLen; i++) {
+    const codeA = i < lenA ? a.charCodeAt(i) : 0;
+    const codeB = i < lenB ? b.charCodeAt(i) : 0;
+    diff |= codeA ^ codeB;
+  }
+  return diff === 0;
 }
 
 /**

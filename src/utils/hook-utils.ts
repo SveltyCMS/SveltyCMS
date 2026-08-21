@@ -17,8 +17,10 @@ import { json } from "@sveltejs/kit";
 import { BASE_HEADERS } from "./security/constants";
 import { isSetupComplete } from "./setup-check-fast";
 
-// 🚀 Pre-cache to avoid Object.entries allocation on every request
-const BASE_HEADERS_ENTRIES = Object.entries(BASE_HEADERS);
+// 🚀 Pre-cache to avoid Object.entries allocation and per-iteration filtering on every request
+const STATIC_BASE_HEADER_PAIRS = Object.entries(BASE_HEADERS).filter(
+  ([k]) => k !== "Content-Security-Policy",
+);
 
 // 🚀 Cache static environment flag at module load.
 // SINGLE source of truth for middleware test-mode detection (was duplicated with
@@ -336,9 +338,9 @@ export function isPublicRoute(pathname: string, testMode = false): boolean {
 // ─── Response generation ──────────────────────────────────────────────────
 
 export function applySecurityHeaders(headers: Headers, isHttps: boolean) {
-  for (const [key, value] of BASE_HEADERS_ENTRIES) {
-    if (key === "Content-Security-Policy") continue;
-    headers.set(key, value);
+  for (let i = 0; i < STATIC_BASE_HEADER_PAIRS.length; i++) {
+    const pair = STATIC_BASE_HEADER_PAIRS[i];
+    headers.set(pair[0], pair[1]);
   }
 
   if (isHttps) {

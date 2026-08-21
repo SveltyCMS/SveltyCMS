@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-08-10"
+updated: "2026-08-21"
 tags:
   - "testing"
   - "status"
@@ -22,7 +22,7 @@ tags:
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
 > This page is the **only** test-status dashboard — route maps, inventories, and deep strategy live in the linked docs below (no separate archive).
 
-**Dashboard updated:** 2026-08-10 — **Hooks hardening** (field-level write guards, WS session resolution dedup, 18-hook READY pipeline, SSE + Yjs real-time stack with session-validated `/ws`, svelte-check 0 errors / 0 warnings) ; full unit suite **368 files / 3285 tests** green. Prior hot areas (lane router, findPage/count, session/RBAC) still in force. Local SQLite integration last measured **617 pass / 0 fail**.
+**Dashboard updated:** 2026-08-21 — **Multi-DB batching/caching engine + turbo-cache tenant isolation** (zero-allocation tenant clauses, memoized table-name/route classification, 4-DB parity on fast multi-row inserts; fixed mid-glob L1 cache invalidation and test-tenant header honoring in turbo GET/auth fast paths — webhooks, automations, token, tenant-isolation integrations all green). Full unit suite **393 files / 3530 tests** green. Prior hot areas (hooks hardening, lane router, findPage/count, session/RBAC) still in force. Local SQLite integration last measured **617 pass / 0 fail**.
 
 ---
 
@@ -44,7 +44,7 @@ tags:
 
 | Layer                       | Confidence    | What it proves                                                                                                        | How to run                                                              |
 | --------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| **Unit** (Vitest)           | **A++**       | 368 files / **3285 tests** — auth, lanes/turbo cache, CacheService, page gates, widgets, security, field write guards | `bun run test:unit` · coverage: `test:unit:coverage`                    |
+| **Unit** (Vitest)           | **A++**       | 393 files / **3530 tests** — auth, lanes/turbo cache, CacheService, page gates, widgets, security, field write guards | `bun run test:unit` · coverage: `test:unit:coverage`                    |
 | **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth + full `risk:audit` (security-risk, secrets, slop, OSV) on pre-commit                   | `bun run test:security` · `bun run risk:audit`                          |
 | **Integration** (black-box) | **A++**       | ~65 files / **~617 tests** SQLite local; multi-adapter matrix in CI; lane headers + session page-load canaries        | `bun run test:integration` (SQLite) · `bun run test:matrix` (all 4 DBs) |
 | **E2E** (Playwright)        | **A++**       | ~44 specs — browser goldens / P0 journeys; hooks-lane smoke; CI-parity preview :4173                                  | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`                 |
@@ -54,7 +54,7 @@ tags:
 
 | Tier               | Command               | Time     | Coverage (approx., drifts — trust CI)                                   |
 | ------------------ | --------------------- | -------- | ----------------------------------------------------------------------- |
-| **Pre-commit**     | git commit / hooks    | ~40–60s  | Unit (3285) + `risk:audit` + format/lint + SBOM when lock changes       |
+| **Pre-commit**     | git commit / hooks    | ~40–60s  | Unit (3530) + `risk:audit` + format/lint + SBOM when lock changes       |
 | **Pre-push**       | `bun run gate`        | ~5–8min  | Build 4 adapters + backdoor/bundle gates + tenant + SQLite integ (~617) |
 | **Pre-CI** (local) | `bun run test:matrix` | ~8–15min | All 4 DBs via Docker profiles                                           |
 | **CI**             | GitHub Actions        | ~30min   | Whitebox + build + db-tests matrix + E2E + benchmarks                   |
@@ -81,6 +81,17 @@ Details: [git-workflow.mdx](./git-workflow.mdx)
 ---
 
 ## 3. Hot areas (recent)
+
+### Multi-DB batching/caching engine + turbo-cache tenant isolation (2026-08-21)
+
+|                 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**      | **Shipped** — zero-allocation tenant clauses, memoized table-name/route classification, 4-DB parity on multi-row batch inserts; fixed **mid-glob L1 cache invalidation** and **test-tenant header honoring** in turbo GET + turbo-auth fast paths; 4 previously-red integration files now green (webhooks, automations, token, tenant-isolation)                                                                                                                                                 |
+| **Product**     | `EMPTY_TENANT_CLAUSE` + ASCII-first JSON sniff in `relational-utils`; bounded memoization in `collection-name` / `drizzle-sql-helpers` / `route-resource-state-machine`; O(1) pointer-based BFS in `content-utils`; `rawInsertManyReturning` multi-row batches on MariaDB/PG/SQLite; `clearLocalL1ByPattern` glob support (`res:*webhooks*` now purges); `handleTurboGet` + `handleAuthentication` fast paths prefer `x-test-tenant-id` over cached session tenant (no cross-tenant turbo leaks) |
+| **Unit**        | `tests/unit/core/count-cache.test.ts` (arg-count contract assertions) · `tests/unit/plugins/commerce.test.ts` (cart row hardening: NaN/currency-mismatch 500s) · GraphQL resolver context types now declare `publicationFilter` (4 files) · `collections-namespace` cast hygiene                                                                                                                                                                                                                 |
+| **Integration** | `tests/integration/api/webhooks.test.ts` · `api/automations.test.ts` · `api/token.test.ts` · `databases/tenant-isolation.test.ts` — **39/39 pass** (previously 4 failing across all DB adapters)                                                                                                                                                                                                                                                                                                 |
+| **Docs**        | [cache-system](../reference/architecture/cache-system.mdx) · [performance-architecture](../reference/database/performance-architecture.mdx) · [multi-tenancy](../reference/architecture/multi-tenancy.mdx)                                                                                                                                                                                                                                                                                       |
+| **Open**        | Full multi-DB integration matrix + E2E shards still CI-only (SQLite local green); Redis L2 multi-node still not part of the local gate                                                                                                                                                                                                                                                                                                                                                           |
 
 ### Hooks hardening — field write guards, session dedup, real-time (2026-08-10)
 
@@ -355,6 +366,9 @@ bun run test:unit
 bun run test:unit -- tests/unit/core/request-classifier-and-response-cache.test.ts tests/unit/hooks/handle-turbo-get-lane.test.ts
 # After build: lane HTTP headers
 bun run scripts/run-integration.ts --no-build tests/integration/api/request-lane-headers.test.ts
+
+# Turbo-cache tenant isolation + cache glob invalidation (2026-08-21)
+bun run scripts/run-integration.ts --no-build tests/integration/api/webhooks.test.ts tests/integration/api/automations.test.ts tests/integration/api/token.test.ts tests/integration/databases/tenant-isolation.test.ts
 
 # Field write guards + field permissions (2026-08-10)
 bun run test:unit -- tests/unit/services/field-write-guard.test.ts tests/unit/services/field-permission-service.test.ts

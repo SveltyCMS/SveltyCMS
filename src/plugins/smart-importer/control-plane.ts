@@ -136,6 +136,22 @@ export function applyImportFilters(
   if (filter.fieldConditions) {
     for (const cond of filter.fieldConditions) {
       const before = entries.length;
+      let compiledRegex: RegExp | null = null;
+      if (cond.operator === "regex") {
+        try {
+          compiledRegex = new RegExp(cond.value || "", "i");
+        } catch {
+          reasons[`condition_${cond.field}_invalid_regex`] = 1;
+          continue;
+        }
+      }
+      const lowerVal =
+        cond.operator === "contains" || cond.operator === "startsWith"
+          ? (cond.value || "").toLowerCase()
+          : "";
+      const parsedNum =
+        cond.operator === "gt" || cond.operator === "lt" ? parseFloat(cond.value || "0") : 0;
+
       entries = entries.filter((e) => {
         const rawVal = e.rawCustomFields[cond.field];
         const val = rawVal !== undefined ? String(rawVal) : "";
@@ -144,17 +160,17 @@ export function applyImportFilters(
           case "equals":
             return val === (cond.value || "");
           case "contains":
-            return val.toLowerCase().includes((cond.value || "").toLowerCase());
+            return val.toLowerCase().includes(lowerVal);
           case "startsWith":
-            return val.toLowerCase().startsWith((cond.value || "").toLowerCase());
+            return val.toLowerCase().startsWith(lowerVal);
           case "regex":
-            return new RegExp(cond.value || "", "i").test(val);
+            return compiledRegex ? compiledRegex.test(val) : false;
           case "exists":
             return rawVal !== undefined && rawVal !== null && val !== "";
           case "gt":
-            return parseFloat(val) > parseFloat(cond.value || "0");
+            return parseFloat(val) > parsedNum;
           case "lt":
-            return parseFloat(val) < parseFloat(cond.value || "0");
+            return parseFloat(val) < parsedNum;
           default:
             return true;
         }
