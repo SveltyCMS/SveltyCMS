@@ -42,35 +42,34 @@ export class DBPluginRegistry {
 
     logger.info(`[DB Registry] Booting ${queue.length} services...`);
 
-    // 🚀 PERFORMANCE: Reduced settling delay from 50ms to 5ms.
-    // This is just to ensure any Proxy-based registration is finalized.
-    await new Promise((r) => setTimeout(r, 5));
-    logger.info(`[DB Registry] bootAll settling delay finished`);
+    // Zero settling delay — proxy registrations are synchronous.
 
     while (queue.length > 0) {
-      // Find all plugins whose dependencies are met
-      const readyToBoot = queue.filter((plugin) => {
-        const deps = plugin.dependencies || [];
-        return deps.every((d) => this.initialized.has(d));
-      });
+      const readyToBoot: DBInitPlugin[] = [];
+      const blocked: DBInitPlugin[] = [];
+      for (let i = 0; i < queue.length; i++) {
+        const plugin = queue[i];
+        const deps = plugin.dependencies;
+        if (!deps || deps.every((d) => this.initialized.has(d))) {
+          readyToBoot.push(plugin);
+        } else {
+          blocked.push(plugin);
+        }
+      }
 
       if (readyToBoot.length === 0) {
-        const remaining = queue.map((p) => p.id).join(", ");
+        const remaining = blocked.map((p) => p.id).join(", ");
         throw new Error(
           `[DB Registry] Circular dependency or missing services detected: ${remaining}`,
         );
       }
 
-      // 🚀 PERFORMANCE: Parallelize initialization of all ready plugins
       await Promise.all(
         readyToBoot.map(async (plugin) => {
           try {
-            logger.info(`[DB Registry] Initializing service: ${plugin.id}...`);
+            logger.debug(`[DB Registry] Initializing service: ${plugin.id}...`);
             await plugin.initialize(adapter);
             this.initialized.add(plugin.id);
-            // Remove from queue
-            const index = queue.findIndex((p) => p.id === plugin.id);
-            if (index !== -1) queue.splice(index, 1);
             logger.debug(`[DB Registry] Initialized: ${plugin.id}`);
           } catch (error) {
             console.error(`[DB Registry] Failed to initialize ${plugin.id}:`, error);
@@ -80,11 +79,11 @@ export class DBPluginRegistry {
               );
             }
             this.initialized.add(plugin.id);
-            const index = queue.findIndex((p) => p.id === plugin.id);
-            if (index !== -1) queue.splice(index, 1);
           }
         }),
       );
+      queue.length = 0;
+      for (let i = 0; i < blocked.length; i++) queue.push(blocked[i]);
     }
 
     logger.info("[DB Registry] System services online.");

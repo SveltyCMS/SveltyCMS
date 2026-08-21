@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:database-settings"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-22"
+updated: "2026-08-21"
 tags:
   - "database"
   - "infrastructure"
@@ -118,8 +118,8 @@ What `core` provides:
 - **Query IR translation**: Inlined into the two `mapQuery()` implementations (drizzle-sql-helpers and mongodb/adapter-core) for a slimmed abstraction layer. Types remain in `db-interface.ts`. The parser normalizes Mongo-style operators for cross-engine use in filter building.
 - **Base Adapter**: `base-adapter.ts` — `BaseAdapter` abstract class with `wrap()` (metrics + error handling), hook system, cache invalidation, ring-buffer result pooling (256-slot), and `getCollectionData`.
 
-- **SQL Adapter Core**: `sql-adapter-core.ts` — `SqlAdapterCore` abstract class extending `BaseAdapter`, implementing `ISqlAdapter`. Absorbs ~1,300 lines of duplicated CRUD, delegation, module-getter, and `prepareValues` logic shared by all three SQL engines. Each adapter (PostgreSQL, MariaDB, SQLite) now extends this class and implements only dialect-specific hooks (`getTable`, `getJsonField`, `isMissingTableError`, etc.).
-- **Plugin Registry**: `plugin-registry.ts` — topological dependency-aware parallel service boot.
+- **SQL Adapter Core**: `sql-adapter-core.ts` — `SqlAdapterCore` abstract class extending `BaseAdapter`, implementing `ISqlAdapter`. Absorbs ~1,300 lines of duplicated CRUD, delegation, module-getter, and `prepareValues` logic shared by all three SQL engines. Each adapter (PostgreSQL, MariaDB, SQLite) now extends this class and implements only dialect-specific hooks (`getTable`, `getJsonField`, `isMissingTableError`, etc.). `prepareUpdateValues()` stamps `isUpdate` so `createdAt` is insert-only and empty `data={}` blobs are omitted on partial UPDATE.
+- **Plugin Registry**: `plugin-registry.ts` — topological dependency-aware parallel service boot with **zero settling delay** (no `setTimeout`); one pass into ready/blocked lists per wave.
 - **Schema Proxy**: `schema-proxy.ts` — guarded `db.posts.findOne()` sugar for collection-name-based access.
 
 ---

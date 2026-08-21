@@ -60,8 +60,9 @@ function instrumentNamespace<T extends object>(name: string, instance: T): T {
     const original = (instance as any)[key];
     if (key === "constructor" || typeof original !== "function" || skipSet?.has(key)) continue;
     if (original.constructor.name !== "AsyncFunction") continue;
-    (instance as any)[key] = async function (this: any, ...args: any[]) {
-      return await traceSpan(`sdk:${name}:${key}`, async () => original.apply(this, args));
+    // Keep the original Promise — an extra `async` wrapper is a microtask per SDK call.
+    (instance as any)[key] = function (this: any, ...args: any[]) {
+      return traceSpan(`sdk:${name}:${key}`, () => original.apply(this, args));
     };
   }
   return instance;

@@ -58,12 +58,12 @@ export interface PrepareWritePayloadOptions {
  *     (FIELD_VALIDATION_ERROR AppError, 400) — direct gate when no hooks
  * (e) assertWriteAllowed for non-admin/non-system writes on schemas with fields
  */
-export async function prepareWritePayload(
+export function prepareWritePayload(
   data: any,
   schema: Schema,
   hot: SchemaHotFlags,
   opts: PrepareWritePayloadOptions,
-): Promise<any> {
+): any {
   const { user, system, operation, tenantId, entryId } = opts;
 
   const prepFlags: CollectionFieldPrepFlags = {
@@ -85,36 +85,48 @@ export async function prepareWritePayload(
     entryData.updatedAt = nowISODateString();
   }
 
-  const hookCtx = {
-    schema,
-    operation,
-    tenantId: tenantId as string | undefined,
-    userId: user?._id as string | undefined,
-  };
-
   const fieldValidationError = (messages: string[]) =>
     new AppError(messages.join("; "), 400, "FIELD_VALIDATION_ERROR");
 
+  const needsWriteGuard = !system && !user?.isAdmin && !!schema.fields && schema.fields.length > 0;
+
   if (hot._hasHooks && schema.hooks) {
+    const hookCtx = {
+      schema,
+      operation,
+      tenantId: tenantId as string | undefined,
+      userId: user?._id as string | undefined,
+    };
     const validate = hot._hasNumberFields
       ? (doc: Record<string, unknown>) => validateNumericFields(doc, schema as PrepFieldSchema)
       : undefined;
-    entryData = await applySchemaHookPipeline(schema.hooks, entryData, hookCtx, validate, {
+    return applySchemaHookPipeline(schema.hooks, entryData, hookCtx, validate, {
       createError: fieldValidationError,
+    }).then(async (prepared) => {
+      if (needsWriteGuard) {
+        await assertWriteAllowed(schema.fields as FieldInstance[], prepared, user, {
+          collectionName: schema.name,
+          ...(entryId !== undefined ? { entryId } : {}),
+          tenantId: tenantId ?? undefined,
+        });
+      }
+      return prepared;
     });
-  } else if (hot._hasNumberFields) {
+  }
+
+  if (hot._hasNumberFields) {
     const rangeErrors = validateNumericFields(entryData, schema as PrepFieldSchema);
     if (rangeErrors.length > 0) {
       throw fieldValidationError(rangeErrors);
     }
   }
 
-  if (!system && !user?.isAdmin && schema.fields && schema.fields.length > 0) {
-    await assertWriteAllowed(schema.fields as FieldInstance[], entryData, user, {
+  if (needsWriteGuard) {
+    return assertWriteAllowed(schema.fields as FieldInstance[], entryData, user, {
       collectionName: schema.name,
       ...(entryId !== undefined ? { entryId } : {}),
       tenantId: tenantId ?? undefined,
-    });
+    }).then(() => entryData);
   }
 
   return entryData;

@@ -64,10 +64,9 @@ export function invalidateCache(
   }
 
   // 2. Tick-debounced L2 pattern clears.
-  const tenantTag = (tenantId as string) || "default";
-  const schemaId = schema._id as string | undefined;
   const tenantKey = (tenantId as string) || "default";
-  const requestKey = `${tenantTag}:${schemaId ?? "*"}`;
+  const schemaId = schema._id as string | undefined;
+  const requestKey = `${tenantKey}:${schemaId ?? "*"}`;
 
   if (_pendingInvalidationTasks.has(requestKey)) {
     _pendingInvalidationDirty.add(requestKey);
@@ -79,24 +78,21 @@ export function invalidateCache(
     try {
       const responseCache = await getResponseCacheLazy();
       if (schemaId) {
-        responseCache.invalidateCollection(schemaId, tenantKey).catch(() => {});
+        void responseCache.invalidateCollection(schemaId, tenantKey).catch(() => {});
       } else {
-        responseCache.invalidateAll(tenantKey).catch(() => {});
+        void responseCache.invalidateAll(tenantKey).catch(() => {});
       }
 
-      const patterns = [`cms:content_structure:${tenantTag}`];
       if (schemaId) {
-        patterns.push(
-          `collection:${schemaId}:`,
-          `cms:content_structure:${tenantTag}:${schemaId}`,
-          `/api/collections/${schemaId.toLowerCase()}*`,
-          `/api/collections/${schemaId}*`,
-        );
+        void cacheService.clearByPattern(`collection:${schemaId}:`, tenantKey).catch(() => {});
+        void cacheService
+          .clearByPattern(`/api/collections/${schemaId}*`, tenantKey)
+          .catch(() => {});
+        const lower = schemaId.toLowerCase();
+        if (lower !== schemaId) {
+          void cacheService.clearByPattern(`/api/collections/${lower}*`, tenantKey).catch(() => {});
+        }
       }
-
-      await Promise.all(
-        patterns.map((pattern) => cacheService.clearByPattern(pattern, tenantKey).catch(() => {})),
-      );
     } catch {
     } finally {
       _pendingInvalidationTasks.delete(requestKey);
@@ -171,7 +167,15 @@ export function schedulePostWrite(
         } catch {}
 
         const hookName = action === "create" || action === "update" ? "afterSave" : "afterDelete";
-        await triggerLifecycleHook(dbAdapter, hookName, collectionId, data ?? id, options, schema);
+        const after = triggerLifecycleHook(
+          dbAdapter,
+          hookName,
+          collectionId,
+          data ?? id,
+          options,
+          schema,
+        );
+        if (after && typeof after.then === "function") await after;
       } catch {
         /* post-write side effects must never surface to the caller */
       }
@@ -190,7 +194,22 @@ const _tenantSettingsCache = new LRUCache<string, { settings: any }>({
  * afterDelete post-write). Plugin hooks never throw to callers — failures
  * are logged and the hook chain continues.
  */
-export async function triggerLifecycleHook(
+export function triggerLifecycleHook(
+  dbAdapter: IDBAdapter,
+  hookName: keyof PluginLifecycleHooks,
+  collectionId: string,
+  data: any,
+  options: LocalApiOptions,
+  schema: Schema,
+): any {
+  // beforeSave runs on the critical path — bail sync when no plugin implements it
+  if (!pluginRegistry.hasAnyHook(hookName)) {
+    return data;
+  }
+  return triggerLifecycleHookAsync(dbAdapter, hookName, collectionId, data, options, schema);
+}
+
+async function triggerLifecycleHookAsync(
   dbAdapter: IDBAdapter,
   hookName: keyof PluginLifecycleHooks,
   collectionId: string,
@@ -198,10 +217,6 @@ export async function triggerLifecycleHook(
   options: LocalApiOptions,
   schema: Schema,
 ): Promise<any> {
-  // beforeSave runs on the critical path — bail fast when no plugin implements it
-  if (!pluginRegistry.hasAnyHook(hookName)) {
-    return data;
-  }
   const plugins = pluginRegistry.getAll();
   if (plugins.length === 0) {
     return data;
@@ -281,59 +296,62 @@ let _outboxFlushScheduled = false;
 /**
  * Schedule outbox event into a coalesced batch to avoid event-loop microtask saturation.
  */
+let _outboxRef: {
+  isOutboxDisabled: () => boolean;
+  outboxService: { enqueueBuffered: (...args: any[]) => unknown };
+} | null = null;
+
+function enqueueOne(entry: PendingOutboxItem): void {
+  const eventType =
+    entry.action === "create"
+      ? "entry:create"
+      : entry.action === "update"
+        ? "entry:update"
+        : entry.action === "delete"
+          ? "entry:delete"
+          : `entry:${entry.action}`;
+  _outboxRef!.outboxService.enqueueBuffered(
+    eventType,
+    "entry",
+    entry.id,
+    {
+      collection: entry.schema.name || (entry.schema._id as string),
+      collectionId: entry.schema._id,
+      id: entry.id,
+      action: entry.action,
+      data: entry.data,
+      userId: entry.user?._id,
+    },
+    String(entry.tenantId ?? "default"),
+  );
+}
+
 function scheduleOutboxEvent(item: PendingOutboxItem): void {
   if (process.env.DISABLE_OUTBOX === "true") return;
-  _pendingOutboxBatch.push(item);
-  if (!_outboxFlushScheduled) {
-    _outboxFlushScheduled = true;
-    queueMicrotask(async () => {
-      const batch = _pendingOutboxBatch;
-      _pendingOutboxBatch = [];
-      _outboxFlushScheduled = false;
-
-      if (batch.length === 0 || process.env.DISABLE_OUTBOX === "true") return;
-
-      try {
-        const { isOutboxDisabled, outboxService } = await getOutboxLazy();
-        if (isOutboxDisabled()) return;
-
-        // Bounded parallel emission in chunks of 8 to prevent event-loop / connection saturation
-        const CHUNK_SIZE = 8;
-        for (let i = 0; i < batch.length; i += CHUNK_SIZE) {
-          const chunk = batch.slice(i, i + CHUNK_SIZE);
-          await Promise.all(
-            chunk.map((entry) => {
-              const eventType =
-                entry.action === "create"
-                  ? "entry:create"
-                  : entry.action === "update"
-                    ? "entry:update"
-                    : entry.action === "delete"
-                      ? "entry:delete"
-                      : `entry:${entry.action}`;
-
-              return outboxService
-                .emit(
-                  eventType,
-                  "entry",
-                  entry.id,
-                  {
-                    collection: entry.schema.name || (entry.schema._id as string),
-                    collectionId: entry.schema._id,
-                    id: entry.id,
-                    action: entry.action,
-                    data: entry.data,
-                    userId: entry.user?._id,
-                  },
-                  String(entry.tenantId ?? "default"),
-                )
-                .catch(() => {});
-            }),
-          );
-        }
-      } catch {}
-    });
+  if (_outboxRef) {
+    if (_outboxRef.isOutboxDisabled()) return;
+    enqueueOne(item);
+    return;
   }
+  _pendingOutboxBatch.push(item);
+  if (_outboxFlushScheduled) return;
+  _outboxFlushScheduled = true;
+  queueMicrotask(() => {
+    const batch = _pendingOutboxBatch;
+    _pendingOutboxBatch = [];
+    _outboxFlushScheduled = false;
+    void enqueueOutboxBatch(batch);
+  });
+}
+
+async function enqueueOutboxBatch(batch: PendingOutboxItem[]): Promise<void> {
+  if (batch.length === 0 || process.env.DISABLE_OUTBOX === "true") return;
+  try {
+    const mod = await getOutboxLazy();
+    _outboxRef = { isOutboxDisabled: mod.isOutboxDisabled, outboxService: mod.outboxService };
+    if (mod.isOutboxDisabled()) return;
+    for (let i = 0; i < batch.length; i++) enqueueOne(batch[i]);
+  } catch {}
 }
 
 /**

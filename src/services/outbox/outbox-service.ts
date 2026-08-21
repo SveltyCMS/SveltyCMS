@@ -112,9 +112,12 @@ export function isOutboxDisabled(): boolean {
   return process.env.DISABLE_OUTBOX === "true";
 }
 
-/** Max events to hold before a forced bulk flush (write-path coalescing). */
-const OUTBOX_BUFFER_MAX = 64;
-/** Flush window for non-transactional emits — batches second-write cost off the hot path. */
+/**
+ * Hard cap: force a macrotask flush (never inline on the write tick) so a
+ * tight create loop is not serialized behind outbox insertMany on SQLite.
+ */
+const OUTBOX_BUFFER_HARD_MAX = 512;
+/** Trailing idle window — reset on every emit so a write burst becomes one insertMany. */
 const OUTBOX_BUFFER_FLUSH_MS = 25;
 
 class OutboxServiceImpl {
@@ -125,6 +128,7 @@ class OutboxServiceImpl {
   /** Non-transactional emit buffer — one insertMany instead of N mutex inserts. */
   private emitBuffer: OutboxEvent[] = [];
   private emitFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private emitFlushImmediate: ReturnType<typeof setImmediate> | null = null;
   private emitFlushInFlight: Promise<void> | null = null;
 
   /**
@@ -151,41 +155,17 @@ class OutboxServiceImpl {
       };
     }
 
-    const now = nowISODateString();
-
     // Buffered (non-transactional) fast path FIRST — no DB access. The event id
     // is generated at emit time: it is part of the emit contract (callers and
     // the testing API read event._id) and must equal the id stored at flush.
-    // ~1µs crypto.randomUUID — the flush still batches the DB write.
     if (!options?.transaction) {
-      const event: OutboxEvent = {
-        _id: generateUUID(),
-        tenantId: tenantId || "default",
-        eventType,
-        aggregateType,
-        aggregateId: String(aggregateId),
-        payload,
-        status: "pending",
-        createdAt: now,
-        attempts: 0,
-        updatedAt: now,
+      return {
+        success: true,
+        data: this.enqueueBuffered(eventType, aggregateType, aggregateId, payload, tenantId),
       };
-      this.emitBuffer.push(event);
-      if (this.emitBuffer.length >= OUTBOX_BUFFER_MAX) {
-        void this.flushEmitBuffer();
-      } else if (!this.emitFlushTimer) {
-        this.emitFlushTimer = setTimeout(() => {
-          this.emitFlushTimer = null;
-          void this.flushEmitBuffer();
-        }, OUTBOX_BUFFER_FLUSH_MS);
-        // Don't keep the process alive solely for outbox flush
-        if (typeof this.emitFlushTimer === "object" && "unref" in this.emitFlushTimer) {
-          (this.emitFlushTimer as NodeJS.Timeout).unref?.();
-        }
-      }
-      return { success: true, data: event };
     }
 
+    const now = nowISODateString();
     const db = getDb();
     if (!db) {
       logger.warn("[Outbox] Database not available; event will not be persisted");
@@ -228,6 +208,68 @@ class OutboxServiceImpl {
     }
   }
 
+  /**
+   * Sync buffer push — no Promise, no DB. Persistence is trailing-debounced
+   * so content INSERTs are not serialized behind outbox insertMany.
+   */
+  public enqueueBuffered(
+    eventType: string,
+    aggregateType: string,
+    aggregateId: string,
+    payload: unknown,
+    tenantId: string,
+  ): OutboxEvent {
+    const now = nowISODateString();
+    const event: OutboxEvent = {
+      _id: generateUUID(),
+      tenantId: tenantId || "default",
+      eventType,
+      aggregateType,
+      aggregateId: String(aggregateId),
+      payload,
+      status: "pending",
+      createdAt: now,
+      attempts: 0,
+      updatedAt: now,
+    };
+    this.emitBuffer.push(event);
+    this.scheduleBufferedFlush();
+    return event;
+  }
+
+  /** Trailing 25ms debounce; hard-max uses setImmediate (never same-tick insertMany). */
+  private scheduleBufferedFlush(): void {
+    if (this.emitBuffer.length >= OUTBOX_BUFFER_HARD_MAX) {
+      if (this.emitFlushTimer) {
+        clearTimeout(this.emitFlushTimer);
+        this.emitFlushTimer = null;
+      }
+      if (this.emitFlushImmediate) return;
+      const arm =
+        typeof setImmediate === "function" ? setImmediate : (fn: () => void) => setTimeout(fn, 0);
+      this.emitFlushImmediate = arm(() => {
+        this.emitFlushImmediate = null;
+        void this.flushEmitBuffer();
+      });
+      if (
+        this.emitFlushImmediate &&
+        typeof this.emitFlushImmediate === "object" &&
+        "unref" in this.emitFlushImmediate
+      ) {
+        (this.emitFlushImmediate as NodeJS.Immediate).unref?.();
+      }
+      return;
+    }
+    if (this.emitFlushTimer) clearTimeout(this.emitFlushTimer);
+    this.emitFlushTimer = setTimeout(() => {
+      this.emitFlushTimer = null;
+      void this.flushEmitBuffer();
+    }, OUTBOX_BUFFER_FLUSH_MS);
+    if (typeof this.emitFlushTimer === "object" && "unref" in this.emitFlushTimer) {
+      (this.emitFlushTimer as NodeJS.Timeout).unref?.();
+    }
+  }
+
   /** Bulk-flush buffered non-transactional outbox events. */
   private async flushEmitBuffer(): Promise<void> {
     if (this.emitFlushInFlight) {
@@ -241,6 +283,14 @@ class OutboxServiceImpl {
     if (this.emitFlushTimer) {
       clearTimeout(this.emitFlushTimer);
       this.emitFlushTimer = null;
+    }
+    if (this.emitFlushImmediate) {
+      if (typeof clearImmediate === "function") {
+        clearImmediate(this.emitFlushImmediate as NodeJS.Immediate);
+      } else {
+        clearTimeout(this.emitFlushImmediate as ReturnType<typeof setTimeout>);
+      }
+      this.emitFlushImmediate = null;
     }
 
     this.emitFlushInFlight = (async () => {
@@ -270,7 +320,7 @@ class OutboxServiceImpl {
       } catch (error: any) {
         logger.error(`[Outbox] Bulk flush failed (${batch.length} events):`, error);
         // Best-effort re-queue (cap to avoid unbounded growth under sustained failure)
-        if (this.emitBuffer.length < OUTBOX_BUFFER_MAX * 4) {
+        if (this.emitBuffer.length < OUTBOX_BUFFER_HARD_MAX * 4) {
           this.emitBuffer.unshift(...batch);
         }
       } finally {

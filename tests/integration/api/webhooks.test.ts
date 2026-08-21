@@ -192,7 +192,10 @@ describe("Webhooks API (Testing 2026 reference — headless HTTP)", () => {
       expect(listRes.status).toBe(200);
       const listBody = await listRes.json();
       const list = unwrapList(listBody);
-      expect(list.some((w: any) => w.id === id || w.name === name)).toBe(true);
+      expect(
+        list.some((w: any) => w.id === id || w.name === name),
+        `listBody=${JSON.stringify(listBody)} | createdBody=${JSON.stringify(createdBody)} | id=${id}`,
+      ).toBe(true);
 
       const delRes = await safeFetch(`${API_BASE_URL}/api/webhooks/${id}`, {
         method: "DELETE",

@@ -6,6 +6,7 @@
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 import { dbAdapter } from "@src/databases/db";
+import { isBenchmarkExternalServicesDisabled } from "@utils/benchmark-runtime";
 import { jobQueue } from "./jobs/job-queue-service";
 import { webhookDeliveryHandler } from "./jobs/webhook-jobs";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
@@ -52,9 +53,9 @@ export type WebhookEvent =
   | "content.sync.started"
   | "content.sync.completed";
 
-export class WebhookService {
-  private static instance: WebhookService | null = null;
+const WEBHOOK_SERVICE_KEY = "__WEBHOOK_SERVICE_INSTANCE__";
 
+export class WebhookService {
   // In-memory cache: tenantId → { data, timestamp }
   private readonly webhooksCache = new Map<string, { data: Webhook[]; timestamp: number }>();
 
@@ -63,46 +64,40 @@ export class WebhookService {
   private constructor() {}
 
   public static getInstance(): WebhookService {
-    if (!WebhookService.instance) {
-      WebhookService.instance = new WebhookService();
+    let inst = (globalThis as any)[WEBHOOK_SERVICE_KEY];
+    if (!inst) {
+      inst = new WebhookService();
+      (globalThis as any)[WEBHOOK_SERVICE_KEY] = inst;
     }
-    return WebhookService.instance;
+    return inst;
   }
 
   /**
    * Trigger an event for a specific tenant (non-blocking)
    */
   public async trigger(event: WebhookEvent, payload: unknown, tenantId: string): Promise<void> {
-    const { isBenchmarkExternalServicesDisabled } = await import("@utils/benchmark-runtime");
     if (isBenchmarkExternalServicesDisabled()) {
       logger.debug(`[Webhook] Skipped trigger ${event} (benchmark mode)`);
       return;
     }
-
-    if (tenantId === undefined || tenantId === "") {
-      if (process.env.TEST_MODE !== "true") {
-        logger.warn(`Webhook trigger called without tenantId for event: ${event}`);
-      } else {
-        logger.debug(`Webhook trigger called without tenantId for event: ${event}`);
-      }
-      return;
-    }
+    const tid = tenantId || "global";
 
     // Fire and forget – don't block the caller
-    this._dispatch(event, payload, tenantId).catch((err) => {
-      logger.error(`Error dispatching webhook event ${event} for tenant ${tenantId}:`, err);
+    this._dispatch(event, payload, tid).catch((err) => {
+      logger.error(`Error dispatching webhook event ${event} for tenant ${tid}:`, err);
     });
   }
 
   /**
    * Send a test event to a specific webhook (used by admin UI)
    */
-  public async testWebhook(id: string, userEmail: string, tenantId: string): Promise<void> {
-    const webhooks = await this.getWebhooks(tenantId);
+  public async testWebhook(id: string, userEmail: string, tenantId?: string): Promise<void> {
+    const tid = tenantId || "global";
+    const webhooks = await this.getWebhooks(tid);
     const webhook = webhooks.find((w) => w.id === id);
 
     if (!webhook) {
-      throw new Error(`Webhook with id "${id}" not found for tenant ${tenantId}`);
+      throw new Error(`Webhook with id "${id}" not found for tenant ${tid}`);
     }
 
     await this._dispatchTo(webhook, "entry:create", {
@@ -115,8 +110,9 @@ export class WebhookService {
   /**
    * Internal dispatch – finds matching webhooks and queues them
    */
-  private async _dispatch(event: WebhookEvent, payload: unknown, tenantId: string): Promise<void> {
-    const webhooks = await this.getWebhooks(tenantId);
+  private async _dispatch(event: WebhookEvent, payload: unknown, tenantId?: string): Promise<void> {
+    const tid = tenantId || "global";
+    const webhooks = await this.getWebhooks(tid);
 
     const matchingHooks = webhooks.filter(
       (wh) => wh.active && (wh.events.includes(event) || wh.events.includes("*" as WebhookEvent)),
@@ -126,10 +122,10 @@ export class WebhookService {
       return;
     }
 
-    logger.debug(`Queueing ${event} for ${matchingHooks.length} webhooks (tenant: ${tenantId})`);
+    logger.debug(`Queueing ${event} for ${matchingHooks.length} webhooks (tenant: ${tid})`);
 
     for (const webhook of matchingHooks) {
-      await jobQueue.dispatch("webhook-delivery", { webhook, event, payload }, tenantId);
+      await jobQueue.dispatch("webhook-delivery", { webhook, event, payload }, tid);
     }
   }
 
@@ -147,10 +143,10 @@ export class WebhookService {
   /**
    * Get webhooks for a tenant with caching
    */
-  public async getWebhooks(tenantId: string): Promise<Webhook[]> {
-    if (tenantId === undefined || tenantId === "") return [];
+  public async getWebhooks(tenantId?: string): Promise<Webhook[]> {
+    const tid = tenantId || "global";
 
-    const cached = this.webhooksCache.get(tenantId);
+    const cached = this.webhooksCache.get(tid);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
       return cached.data;
     }
@@ -158,28 +154,28 @@ export class WebhookService {
     try {
       const db = dbAdapter;
       if (!db?.system?.preferences) {
-        logger.warn(`Database adapter not available for webhooks (tenant: ${tenantId})`);
+        logger.warn(`Database adapter not available for webhooks (tenant: ${tid})`);
         return [];
       }
 
       const result = await db.system.preferences.get<Webhook[]>("webhooks_config", {
         scope: "system",
-        tenantId: tenantId as any,
+        tenantId: tid as any,
       });
 
       const webhooks = result.success && Array.isArray(result.data) ? result.data : [];
 
       // Enforce tenantId (defense in depth)
-      const sanitized = webhooks.map((w) => ({ ...w, tenantId }));
+      const sanitized = webhooks.map((w) => ({ ...w, tenantId: tid }));
 
-      this.webhooksCache.set(tenantId, {
+      this.webhooksCache.set(tid, {
         data: sanitized,
         timestamp: Date.now(),
       });
 
       return sanitized;
     } catch (err) {
-      logger.error(`Failed to load webhooks for tenant ${tenantId}:`, err);
+      logger.error(`Failed to load webhooks for tenant ${tid}:`, err);
       return [];
     }
   }
@@ -187,17 +183,15 @@ export class WebhookService {
   /**
    * Save or update a webhook for a tenant
    */
-  public async saveWebhook(partial: Partial<Webhook>, tenantId: string): Promise<Webhook> {
-    if (tenantId === undefined || tenantId === "") {
-      throw new Error("tenantId is required to save webhook");
-    }
+  public async saveWebhook(partial: Partial<Webhook>, tenantId?: string): Promise<Webhook> {
+    const tid = tenantId || "global";
 
     const db = dbAdapter;
     if (!db?.system?.preferences) {
       throw new Error("Database adapter not available");
     }
 
-    const current = await this.getWebhooks(tenantId);
+    const current = await this.getWebhooks(tid);
 
     const newWebhook: Webhook = {
       id: partial.id || generateUUID(),
@@ -205,7 +199,7 @@ export class WebhookService {
       url: partial.url || "",
       events: partial.events || [],
       active: partial.active ?? true,
-      tenantId,
+      tenantId: tid,
       secret: partial.secret,
       headers: partial.headers,
       failureCount: partial.failureCount ?? 0,
@@ -223,11 +217,11 @@ export class WebhookService {
 
     await db.system.preferences.set("webhooks_config", updated, {
       scope: "system",
-      tenantId: tenantId as any,
+      tenantId: tid as any,
     });
 
     // Update cache immediately
-    this.webhooksCache.set(tenantId, { data: updated, timestamp: Date.now() });
+    this.webhooksCache.set(tid, { data: updated, timestamp: Date.now() });
 
     return newWebhook;
   }
@@ -235,23 +229,23 @@ export class WebhookService {
   /**
    * Delete a webhook by ID for a tenant
    */
-  public async deleteWebhook(id: string, tenantId: string): Promise<void> {
-    if (tenantId === undefined || tenantId === "") return;
+  public async deleteWebhook(id: string, tenantId?: string): Promise<void> {
+    const tid = tenantId || "global";
 
     const db = dbAdapter;
     if (!db?.system?.preferences) return;
 
-    const current = await this.getWebhooks(tenantId);
+    const current = await this.getWebhooks(tid);
     const updated = current.filter((w) => w.id !== id);
 
     if (updated.length !== current.length) {
       await db.system.preferences.set("webhooks_config", updated, {
         scope: "system",
-        tenantId: tenantId as any,
+        tenantId: tid as any,
       });
 
       // Update cache
-      this.webhooksCache.set(tenantId, {
+      this.webhooksCache.set(tid, {
         data: updated,
         timestamp: Date.now(),
       });

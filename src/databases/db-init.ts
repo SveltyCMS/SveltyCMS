@@ -235,8 +235,6 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     logger.warn("[DB Init] Theme file sync failed (non-fatal):", err);
   }
 
-  // 🚀 PERFORMANCE: Reduced sync delay from 50ms to 5ms
-  await new Promise((r) => setTimeout(r, 5));
   const services: any[] = [
     "database",
     "auth",

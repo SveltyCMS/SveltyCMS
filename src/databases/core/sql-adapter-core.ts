@@ -32,7 +32,6 @@ import type {
   ISqlAdapter,
 } from "../db-interface";
 import * as helpers from "./drizzle-sql-helpers";
-import { extractLookupId, extractLookupTenantId, isIdLookupQuery } from "./lookup-query";
 import { generateUUID } from "@utils/native-utils";
 import {
   count as drizzleCount,
@@ -62,7 +61,7 @@ import {
   shouldUseEstimateCount,
   withIdTiebreaker,
 } from "./page-utils";
-import { parseIdLookup } from "./lookup-query";
+import { applyLookupStatus, parseIdLookup } from "./lookup-query";
 
 // ============================================================================
 // Abstract SqlAdapterCore — shared base for all SQL adapters
@@ -534,11 +533,21 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // prepareValues (shared logic, dialect hooks for JSON serialization)
   // --------------------------------------------------------------------------
 
+  /** Stamp update flags without mutating the caller's options object. */
+  protected prepareUpdateValues(table: any, data: any, id: any, now: Date, options: any): any {
+    if (options?.isUpdate === true) return this.prepareValues(table, data, id, now, options);
+    const updateOpts = options
+      ? { ...options, isUpdate: true, operation: "update" }
+      : { isUpdate: true, operation: "update" };
+    return this.prepareValues(table, data, id, now, updateOpts);
+  }
+
   public prepareValues(table: any, data: any, id: any, now: Date, options: any): any {
     const values: any = {};
     if (id) {
       values._id = id;
     }
+    const isUpdate = options?.isUpdate === true || options?.operation === "update";
     const getCol = (t: any, n: string) =>
       helpers.getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false);
 
@@ -558,6 +567,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     for (const k in data) {
       if (!Object.hasOwn(data, k)) continue;
       if (k === "_id" || k === "id") continue;
+      // createdAt is insert-only — never copy a caller-supplied value into SET.
+      if (isUpdate && k === "createdAt") continue;
 
       const isPhysical = schemaCols?.[k] || getCol(table, k);
 
@@ -627,13 +638,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       values.tenantId = options.tenantId;
     }
 
-    // createdAt/updatedAt defaults: always fill when the column exists and the
-    // caller didn't provide a value. The old `!id` guard on createdAt skipped
-    // it for explicit-_id inserts — SQLite's DDL has no timestamp default, so
-    // those rows stored NULL (epoch/ISO contract break; Maria patched around
-    // it post-prepareValues, SQLite never did). updatedAt already ran without
-    // the guard — createdAt now matches.
+    // createdAt: only fill on INSERT when the caller didn't provide a value.
+    // On UPDATE, never set or overwrite createdAt.
     if (
+      !isUpdate &&
       (schemaCols?.["createdAt"] || getCol(table, "createdAt")) &&
       values.createdAt === undefined
     ) {
@@ -664,21 +672,24 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
     if (getCol(table, "data")) {
       const dynamicData: any = {};
+      let hasDynamicKeys = false;
       for (const k in data) {
         if (!Object.hasOwn(data, k)) continue;
         if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
           continue;
         // 🚀 ROW-STORE HYBRID: fields backed by a physical column live in the
         // column — the `data` blob keeps only dynamic (non-column) fields.
-        // Old rows keep their legacy blob fields; the read merge skips
-        // column-backed keys, so columns stay authoritative.
         if (schemaCols?.[k] || getCol(table, k)) continue;
         dynamicData[k] = data[k];
+        hasDynamicKeys = true;
       }
-      if (this.shouldJsonSerializeInPrepare) {
-        values.data = JSON.stringify(dynamicData) || "{}";
-      } else {
-        values.data = dynamicData;
+      // On partial updates, only write the `data` column if the caller provided dynamic keys or explicit `data`
+      if (!isUpdate || hasDynamicKeys || "data" in data) {
+        if (this.shouldJsonSerializeInPrepare) {
+          values.data = JSON.stringify(dynamicData) || "{}";
+        } else {
+          values.data = dynamicData;
+        }
       }
     }
 
@@ -716,7 +727,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       };
     }
 
-    // 🚀 ALL-SQL ULTRA PATH: pure {_id} / {_id,tenantId} → findById
+    // 🚀 ALL-SQL ULTRA PATH: {_id} / {_id,tenantId} / + scalar status → findById
     // (SQLite raw SELECT, Postgres/MariaDB eq+limit — skips mapQuery translation)
     if (!options.includeDeleted && !options.bypassSafeQuery && this.hooks.length === 0) {
       const lookup = parseIdLookup(query);
@@ -725,7 +736,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           lookup.tenantId !== undefined && !options.tenantId
             ? { ...options, tenantId: lookup.tenantId as any }
             : options;
-        return this.findById<T>(collection, lookup.id as DatabaseId, fastOpts);
+        const byId = await this.findById<T>(collection, lookup.id as DatabaseId, fastOpts);
+        if (!byId.success || !lookup.status) return byId;
+        const matched = applyLookupStatus(byId.data, lookup);
+        return matched === byId.data ? byId : { ...byId, data: matched };
       }
     }
 
@@ -735,7 +749,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           ? await this.runHooks("before", "find", collection, query, options)
           : query;
 
-      // After hooks, re-check for id-only lookup
+      // After hooks, re-check for id lookup (optional scalar status)
       if (!options.includeDeleted) {
         const lookup = parseIdLookup(q);
         if (lookup) {
@@ -745,7 +759,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
               : options;
           const byId = await this.findById<T>(collection, lookup.id as DatabaseId, fastOpts);
           if (!byId.success) throw new Error(byId.message || "findById failed");
-          const data = byId.data;
+          const data = applyLookupStatus(byId.data, lookup);
           return this.hooks.length > 0
             ? await this.runHooks("after", "find", collection, data, options)
             : data;
@@ -805,30 +819,22 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           ? await this.runHooks("before", "find", collection, query, options)
           : query;
 
-      // 🚀 ULTRA PATH: pure {_id} / {_id,tenantId} → findById (raw prepared
-      // SELECT). The list path with a single-id filter used to pay the full
-      // dynamic-SQL/Drizzle-AST build (~10× findOne) even though a PK lookup
-      // can never return more than one row. Runs after before-hooks so hook
-      // semantics match findOne (hooks may rewrite the query).
-      if (
-        isIdLookupQuery(q) &&
-        !options.includeDeleted &&
-        !options.bypassSafeQuery &&
-        !options.sort &&
-        !options.offset
-      ) {
-        const lookupId = extractLookupId(q)!;
-        const qTenant = extractLookupTenantId(q);
-        const fastOpts =
-          qTenant !== undefined && !options.tenantId
-            ? { ...options, tenantId: qTenant as any }
-            : options;
-        const one = await this.findById<T>(collection, lookupId as DatabaseId, fastOpts);
-        if (!one.success) throw new Error(one.message || "findById failed");
-        const data = one.data ? ([one.data] as T[]) : ([] as T[]);
-        return this.hooks.length > 0
-          ? await this.runHooks("after", "find", collection, data, options)
-          : data;
+      // 🚀 ULTRA PATH: {_id} (+ tenantId / scalar status) → findById
+      if (!options.includeDeleted && !options.bypassSafeQuery && !options.sort && !options.offset) {
+        const lookup = parseIdLookup(q);
+        if (lookup) {
+          const fastOpts =
+            lookup.tenantId !== undefined && !options.tenantId
+              ? { ...options, tenantId: lookup.tenantId as any }
+              : options;
+          const one = await this.findById<T>(collection, lookup.id as DatabaseId, fastOpts);
+          if (!one.success) throw new Error(one.message || "findById failed");
+          const row = applyLookupStatus(one.data, lookup);
+          const data = row ? ([row] as T[]) : ([] as T[]);
+          return this.hooks.length > 0
+            ? await this.runHooks("after", "find", collection, data, options)
+            : data;
+        }
       }
 
       const table = this.getTable(collection);
@@ -1505,7 +1511,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const table = this.getTable(collection);
         if (!table) throw new Error(`Collection table not found: ${collection}`);
         const now = new Date();
-        const values = this.prepareValues(table, d, id, now, options);
+        const values = this.prepareUpdateValues(table, d, id, now, options);
 
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
@@ -1622,7 +1628,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const table = this.getTable(collection);
         if (!table) throw new Error(`Collection table not found: ${collection}`);
 
-        const values = this.prepareValues(table, data, null, new Date(), options);
+        const values = this.prepareUpdateValues(table, data, null, new Date(), options);
         const whereCondition = this.mapQuery(table, query, options);
 
         // Atomic single UPDATE instead of N+1 sequential loop.

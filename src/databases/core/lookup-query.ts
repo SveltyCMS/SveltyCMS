@@ -8,19 +8,22 @@
  *
  * ### Features:
  * - zero-allocation field walk (no Object.keys)
- * - accepts `_id` or `id` with optional `tenantId` only
+ * - accepts `_id` or `id` with optional `tenantId`, scalar `status`, and `isDeleted: false`
  * - extract helpers for tenant + id without extra object spreads on miss
  */
 
 export interface IdLookupResult {
   id: string;
   tenantId?: string | null;
+  /** Scalar equality only (`status: "publish"`). Operator objects need full translation. */
+  status?: string;
 }
 
 /**
  * Single-pass primary key lookup parser.
- * Returns `{ id, tenantId }` if the query is `{ _id }` / `{ id }` with optional `tenantId`,
- * or `null` if the query contains other filters/operators needing full translation.
+ * Returns `{ id, tenantId?, status? }` for `{ _id }` / `{ id }` plus optional
+ * `tenantId`, scalar `status`, and `isDeleted: false`.
+ * Returns `null` if the query contains other filters/operators.
  */
 export function parseIdLookup(query: unknown): IdLookupResult | null {
   if (!query || typeof query !== "object" || Array.isArray(query)) return null;
@@ -28,10 +31,11 @@ export function parseIdLookup(query: unknown): IdLookupResult | null {
   let count = 0;
   let id: string | null = null;
   let tenantId: string | null | undefined = undefined;
+  let status: string | undefined;
 
   for (const key in query as Record<string, unknown>) {
     count++;
-    if (count > 3) return null;
+    if (count > 4) return null;
     if (key === "_id" || key === "id") {
       const val = (query as Record<string, unknown>)[key];
       // Reject operator objects ($in, $eq, …) — those need full translation
@@ -47,6 +51,10 @@ export function parseIdLookup(query: unknown): IdLookupResult | null {
       } else {
         tenantId = String(tid);
       }
+    } else if (key === "status") {
+      const st = (query as Record<string, unknown>).status;
+      if (typeof st !== "string" || st.length === 0) return null;
+      status = st;
     } else if (key === "isDeleted") {
       const del = (query as Record<string, unknown>).isDeleted;
       if (del === false || del === 0 || del === undefined) {
@@ -59,15 +67,36 @@ export function parseIdLookup(query: unknown): IdLookupResult | null {
   }
 
   if (id === null || count === 0) return null;
-  return tenantId !== undefined ? { id, tenantId } : { id };
+  const out: IdLookupResult = { id };
+  if (tenantId !== undefined) out.tenantId = tenantId;
+  if (status !== undefined) out.status = status;
+  return out;
 }
 
 /**
- * True when `query` is a pure primary-key lookup:
- * `{ _id }` / `{ id }` optionally with `tenantId` — nothing else.
+ * After a PK fetch, drop the row when a scalar status predicate does not match.
+ * Used so `{ _id, status: "publish" }` stays on the findById ultra path without
+ * leaking drafts to publication-clamped callers.
+ */
+export function applyLookupStatus<T>(row: T | null | undefined, lookup: IdLookupResult): T | null {
+  if (row == null) return null;
+  if (lookup.status !== undefined && (row as { status?: unknown }).status !== lookup.status) {
+    return null;
+  }
+  return row;
+}
+
+/**
+ * True when `query` is a primary-key lookup (optional tenantId / scalar status /
+ * isDeleted: false).
  */
 export function isIdLookupQuery(query: unknown): boolean {
   return parseIdLookup(query) !== null;
+}
+
+/** Scalar status predicate on an id-lookup query, if any. */
+export function extractLookupStatus(query: unknown): string | undefined {
+  return parseIdLookup(query)?.status;
 }
 
 /**

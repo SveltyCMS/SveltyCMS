@@ -41,6 +41,7 @@ import { copyDataWithFreshRowIds } from "@src/utils/data/copy-data-with-fresh-id
 import { resolvePopulatedRelations } from "./populate-resolver";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import { decodePageCursor, mergeKeysetFilter } from "@src/databases/core/page-utils";
+import { parseIdLookup } from "@src/databases/core/lookup-query";
 import { nowISODateString } from "@src/utils/date";
 import { collectionTableName } from "@src/databases/core/collection-name";
 
@@ -60,7 +61,7 @@ import {
 import {
   clearSchemaCache,
   ensureSchemaHotFlags,
-  getCachedSchema,
+  peekReadySchema,
   getModelResilient,
   resolveSchema,
   schemaCacheEntries,
@@ -87,6 +88,10 @@ import {
 } from "./collections/post-write";
 
 type ContentSystem = typeof serverContentSystem;
+
+function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
+  return !!value && typeof (value as { then?: unknown }).then === "function";
+}
 
 /** Searchable field names — hoisted so the per-item filter loop shares one array. */
 const SEARCHABLE_FIELDS = ["title", "content", "description", "name"];
@@ -241,6 +246,13 @@ export class CollectionsNamespace {
   public async getSchema(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
     return resolveSchema(this._dbAdapter, collectionId, tenantId, () =>
       this._resolveContentSystem(),
+    );
+  }
+
+  /** Warm schemas skip the async getSchema microtask. */
+  private async schemaOf(collectionId: string, tenantId?: DatabaseId | null): Promise<Schema> {
+    return (
+      peekReadySchema(tenantId, collectionId) ?? (await this.getSchema(collectionId, tenantId))
     );
   }
 
@@ -467,7 +479,7 @@ export class CollectionsNamespace {
   async find(collectionId: string, options: any = {}) {
     const { tenantId, filter = {}, limit = 50, offset = 0, bypassCache = false } = options;
     const ttl = options.ttl ? Number(options.ttl) : undefined;
-    const schema = await this.getSchema(collectionId, tenantId);
+    const schema = await this.schemaOf(collectionId, tenantId);
     const normalizedFilter = normalizeRelationshipFilter(filter);
     const decodedCursor = decodePageCursor(options.cursor);
     const baseQuery: any = decodedCursor
@@ -480,6 +492,43 @@ export class CollectionsNamespace {
       { user: options.user, system: options.system },
       options.publicationFilter,
     );
+
+    // Id lookup (optional tenant + scalar status from publication clamp):
+    // one findOne on the adapter ultra path, `{ data: T[] }` envelope.
+    if (!decodedCursor && !offset && !options.fields && !options.populate) {
+      const lookup = parseIdLookup(query);
+      if (lookup) {
+        const one = await this._dbAdapter.crud.findOne(
+          this.getCollectionName(schema._id as string),
+          query,
+          { tenantId: tenantId as DatabaseId },
+        );
+        const row =
+          one?.success && one.data ? (Array.isArray(one.data) ? one.data[0] : one.data) : null;
+        if (row) {
+          const hot = ensureSchemaHotFlags(schema);
+          if (hot._hasActiveWidgets) {
+            const payload = [row];
+            await applyWidgetPipeline(schema, payload, {
+              dbAdapter: this._dbAdapter,
+              user: options.user || { _id: "system", role: "admin" },
+              type: "GET",
+              tenantId,
+              collectionName: schema.name,
+              skipValidation: options.skipValidation,
+              action: "find",
+            });
+          }
+          (row as any)._collection = (schema as any)._collectionMeta || {
+            id: schema._id,
+            name: schema.name,
+            label: schema.label,
+          };
+          (schema as any)._collectionMeta = (row as any)._collection;
+        }
+        return { success: true, data: row ? [row] : [] };
+      }
+    }
 
     const sort =
       options.sort ||
@@ -619,7 +668,7 @@ export class CollectionsNamespace {
     const { tenantId, user } = options;
     // Shared getSchema path — findStreaming previously bypassed the schema cache
     // via cs.getCollectionById, causing duplicate resolution per stream.
-    const schema = await this.getSchema(collectionId, tenantId);
+    const schema = await this.schemaOf(collectionId, tenantId);
 
     const { query } = buildTenantQuery(
       normalizeRelationshipFilter({ ...options.filter }),
@@ -670,7 +719,7 @@ export class CollectionsNamespace {
     } = {},
   ) {
     const { tenantId, filter = {} } = options;
-    const schema = await this.getSchema(collectionId, tenantId);
+    const schema = await this.schemaOf(collectionId, tenantId);
     const normalizedFilter = normalizeRelationshipFilter(filter);
 
     const { query } = buildTenantQuery(
@@ -739,7 +788,7 @@ export class CollectionsNamespace {
   async bulkCreate(collectionId: string, data: any[], options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = await this.getSchema(collectionId, tenantId);
+    const schema = await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
@@ -833,7 +882,7 @@ export class CollectionsNamespace {
   ) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = await this.getSchema(collectionId, tenantId);
+    const schema = await this.schemaOf(collectionId, tenantId);
 
     if (!system && !user?.isAdmin && schema.fields && schema.fields.length > 0) {
       const { assertWriteAllowed } =
@@ -895,7 +944,7 @@ export class CollectionsNamespace {
   async bulkDelete(collectionId: string, ids: string[], options: LocalApiOptions = {}) {
     const { user, tenantId } = options;
     if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = await this.getSchema(collectionId, tenantId);
+    const schema = await this.schemaOf(collectionId, tenantId);
     if (schema?.disableBulkDelete) {
       throw new AppError(
         `Bulk delete is disabled for collection "${schema.name || collectionId}"`,
@@ -926,7 +975,7 @@ export class CollectionsNamespace {
   async findByIds(collectionId: string, ids: string[], options: LocalApiOptions = {}) {
     if (!ids.length) return { success: true, data: [] };
     const { tenantId } = options;
-    const schema = await this.getSchema(collectionId, tenantId);
+    const schema = await this.schemaOf(collectionId, tenantId);
     const result = await this._dbAdapter.crud.findByIds(
       this.getCollectionName(schema._id as string),
       ids as DatabaseId[],
@@ -943,9 +992,8 @@ export class CollectionsNamespace {
     // Canonical lowercase schema cache key — the legacy `${tenant}:${collectionId}`
     // (no lowercase) always missed getSchema's lowercased key, guaranteeing a
     // duplicate entry + wasted resolution on every findById.
-    const schemaKey = schemaCacheKey(tenantId, collectionId);
     const schema =
-      getCachedSchema(schemaKey) ||
+      peekReadySchema(tenantId, collectionId) ||
       (await this.getSchema(collectionId, tenantId).catch((err) => {
         if (disableErrors && err.status === 404) return null;
         throw err;
@@ -1073,22 +1121,23 @@ export class CollectionsNamespace {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = PROFILE_WRITE_ENABLED
-      ? await profileSpan("ns:getSchema", () => this.getSchema(collectionId, tenantId))
-      : await this.getSchema(collectionId, tenantId);
+      ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
+      : await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
 
     // 🛡️ ACTIVE SANITIZATION + hooks + write guard in one shared pass
     const m1 = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
-    let entryData = await prepareWritePayload(data, schema, hot, {
+    let entryData = prepareWritePayload(data, schema, hot, {
       user,
       system,
       operation: "create",
       tenantId,
     });
+    if (isThenable(entryData)) entryData = await entryData;
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
-    let finalData = await triggerLifecycleHook(
+    let finalData = triggerLifecycleHook(
       this._dbAdapter,
       "beforeSave",
       collectionId,
@@ -1096,6 +1145,7 @@ export class CollectionsNamespace {
       options,
       schema,
     );
+    if (isThenable(finalData)) finalData = await finalData;
 
     const m2 = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
     // Widget pipeline only when widgets declare modifyRequest
@@ -1157,22 +1207,23 @@ export class CollectionsNamespace {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = PROFILE_WRITE_ENABLED
-      ? await profileSpan("ns:getSchema", () => this.getSchema(collectionId, tenantId))
-      : await this.getSchema(collectionId, tenantId);
+      ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
+      : await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
 
     const m1u = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
-    let updateData = await prepareWritePayload(data, schema, hot, {
+    let updateData = prepareWritePayload(data, schema, hot, {
       user,
       system,
       operation: "update",
       tenantId,
       entryId,
     });
+    if (isThenable(updateData)) updateData = await updateData;
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
-    let finalData = await triggerLifecycleHook(
+    let finalData = triggerLifecycleHook(
       this._dbAdapter,
       "beforeSave",
       collectionId,
@@ -1180,6 +1231,7 @@ export class CollectionsNamespace {
       options,
       schema,
     );
+    if (isThenable(finalData)) finalData = await finalData;
 
     const m2u = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
     if (hot._hasActiveWidgets) {
@@ -1239,7 +1291,7 @@ export class CollectionsNamespace {
   async delete(collectionId: string, entryId: string, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = await this.getSchema(collectionId, tenantId);
+    const schema = await this.schemaOf(collectionId, tenantId);
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 

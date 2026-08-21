@@ -595,10 +595,15 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
     const startTime = Date.now();
     try {
       const query = this.buildQuery();
-      const updateData = {
+      // createdAt is insert-only — never rewrite it through $set on updateMany.
+      const {
+        _id: _idOut,
+        createdAt: _createdAt,
+        ...updateData
+      } = {
         ...data,
         updatedAt: new Date().toISOString(),
-      };
+      } as any;
       const result = await this.model.updateMany(
         query,
         { $set: updateData },

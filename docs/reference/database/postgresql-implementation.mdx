@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:elephant"
 author: "SveltyCMS Team"
 created: "2026-02-04"
-updated: "2026-07-15"
+updated: "2026-08-21"
 tags:
   - "database"
   - "postgresql"
@@ -144,6 +144,8 @@ The PostgreSQL schema mirrors the CMS data model but is optimized for relational
 - **Raw `findById`**: Tagged-template prepared SELECT (stable SQL text → postgres.js statement cache) — FIND ONE ~1.3–1.5k RPS.
 - **Raw `INSERT` fast path (no-read-back)**: One-statement insert via a flat `unsafe(text, values, { prepare: true })` template (postgres.js 3.x removed `sql.join` — the earlier implementation silently fell back to Drizzle on every insert, ~225 RPS). Quotes identifiers (unquoted camelCase folds to lowercase) and binds dates/objects as strings (describe-phase Bind quirk). The returned row is **synthesized** from the prepared values + Drizzle column defaults (`status 'draft'`, `isDeleted false`, timestamps, NULLs) instead of `RETURNING *` — exact parity for CMS tables (no triggers/generated columns; the Drizzle def mirrors the DDL) and it removes the row materialization + jsonb parse from the write round trip. Measured: 217 → **~290–310 RPS** on a loaded host (+21% same-run); raw SQL alone ~413 (92% of the 450 RPS 1c ceiling).
 - **Raw multi-VALUES `insertMany`**: one prepared statement per chunk (union column set; `undefined` values bind as literal `DEFAULT` to keep the prepared bind count exact) — BULK INSERT (100) **87 → 233 RPS (+168%)** vs the old Drizzle `.returning()` path.
+- **Targeted column UPDATE**: `rawUpdateReturning` builds `SET` only for prepared keys. Shared `prepareUpdateValues()` never writes `createdAt` and omits an empty `data={}` blob on partial updates.
+- **Prepared JSON/array binds**: `bindPgParam()` serializes objects and arrays as JSON text; JSON/jsonb columns use `$n::jsonb` so postgres.js does not emit PG array literals `{…}` (those force a describe-phase recompile).
 
 ## Development Guide
 

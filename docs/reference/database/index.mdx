@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-08-04"
+updated: "2026-08-21"
 tags:
   - "database"
   - "architecture"
@@ -99,19 +99,21 @@ Details and measured gains: [Performance Architecture](./performance-architectur
 
 ## ⚡ 2027 Allocation-Floor Optimizations
 
-| Optimization                        | SQLite | PostgreSQL   | MariaDB      | MongoDB     |
-| ----------------------------------- | ------ | ------------ | ------------ | ----------- |
-| Schema-aware row conversion         | ✅     | ✅           | ✅           | N/A         |
-| Ring-buffer result pool (64 slots)  | ✅     | ✅           | ✅           | ✅          |
-| Conditions array pool (32 slots)    | ✅     | ✅           | ✅           | N/A         |
-| Fused mapQuery (no IR objects)      | ✅     | ✅           | ✅           | ✅          |
-| for...in (zero Object.entries)      | ✅     | ✅           | ✅           | ✅          |
-| Pre-allocated meta object           | ✅     | ✅           | ✅           | ✅          |
-| MariaDB double-parse isolated       | N/A    | ✅ Benefit   | ✅           | N/A         |
-| Prepared-statement cache            | ✅     | N/A (driver) | N/A (driver) | N/A         |
-| Projection (`fields` → skip `data`) | ✅     | ✅           | ✅           | ✅ (driver) |
+| Optimization                               | SQLite | PostgreSQL   | MariaDB      | MongoDB          |
+| ------------------------------------------ | ------ | ------------ | ------------ | ---------------- |
+| Schema-aware row conversion                | ✅     | ✅           | ✅           | N/A              |
+| Ring-buffer result pool (64 slots)         | ✅     | ✅           | ✅           | ✅               |
+| Conditions array pool (32 slots)           | ✅     | ✅           | ✅           | N/A              |
+| Fused mapQuery (no IR objects)             | ✅     | ✅           | ✅           | ✅               |
+| for...in (zero Object.entries)             | ✅     | ✅           | ✅           | ✅               |
+| Pre-allocated meta object                  | ✅     | ✅           | ✅           | ✅               |
+| MariaDB double-parse isolated              | N/A    | ✅ Benefit   | ✅           | N/A              |
+| Prepared-statement cache                   | ✅     | N/A (driver) | N/A (driver) | N/A              |
+| Projection (`fields` → skip `data`)        | ✅     | ✅           | ✅           | ✅ (driver)      |
+| Targeted column UPDATE (omit empty `data`) | ✅     | ✅           | ✅           | ✅ (`$set` only) |
+| `createdAt` insert-only on UPDATE          | ✅     | ✅           | ✅           | ✅               |
 
-> **SQL family**: ~5-8 fewer allocations per filtered query. **MongoDB**: ~2-3 fewer (result pool + fused mapQuery). **All 4**: benefit from shared BaseAdapter optimizations.
+> **SQL family**: ~5-8 fewer allocations per filtered query. **MongoDB**: ~2-3 fewer (result pool + fused mapQuery). **All 4**: benefit from shared BaseAdapter optimizations plus the core widget/session/cache pipeline. See [Performance Architecture](./performance-architecture.mdx#core--adapter-communication-all-4-engines).
 
 ## 📈 Performance Benchmarks (SQLite, Latest)
 
@@ -133,9 +135,9 @@ Full cross-database benchmarks: [Performance Benchmarks](/docs/project/benchmark
 | Enterprise / K8s       | **PostgreSQL** + PgBouncer + Redis | Horizontal scale, cross-node invalidation |
 | Global / multi-region  | **PostgreSQL** + replicas + CDN    | Read replicas, geo-distribution           |
 
-MongoDB for unstructured/high-volume. MariaDB for MySQL-compatible setups (planned). SQLite, PostgreSQL, and MongoDB are production-ready.
+MongoDB for unstructured/high-volume document stores. MariaDB for MySQL-compatible production setups. All four engines are production-ready.
 
 ---
 
-**Last Updated**: 2026-06-22 (website-token credential hardening, safeQuery soft-delete fix, parallel SQL list+count)
+**Last Updated**: 2026-08-21 (targeted writes + `createdAt` immutability on all 4 engines, core widget/session/cache pipeline)
 **Maintained by**: SveltyCMS Team

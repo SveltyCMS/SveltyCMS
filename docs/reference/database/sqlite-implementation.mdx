@@ -6,7 +6,7 @@ order: 7
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2026-02-09"
-updated: "2026-08-09"
+updated: "2026-08-21"
 tags:
   - "database"
   - "sqlite"
@@ -80,6 +80,7 @@ Key SQLite highlights:
 - **Mongo-only fast-path**: `bypassSafeQuery` applies to selected MongoDB internal lookups, not SQL website-token operations.
 - **Zero-Allocation Dates**: Optimized `relational-utils` with dirty-bit check.
 - **Atomic Versioning**: Native `getVersion` and `incrementVersion` support.
+- **Targeted partial UPDATE**: shared `prepareUpdateValues()` omits empty `data` columns and never writes `createdAt` on UPDATE — `SET` is modified fields + `updatedAt` only. Raw `UPDATE…RETURNING` stays one prepared statement.
 
 ## 📂 Storage & File Management
 

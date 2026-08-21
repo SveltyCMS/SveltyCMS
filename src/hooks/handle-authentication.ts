@@ -415,6 +415,33 @@ async function getUserFromSession(
 
   const work = (async (): Promise<SessionResolution> => {
     try {
+      if (typeof dbAdapter.auth?.validateSession === "function") {
+        const valRes = await dbAdapter.auth.validateSession(sessionId as any);
+        const user = (valRes as any)?.success !== undefined ? (valRes as any).data : valRes;
+        if (user && user._id) {
+          if (user.blocked) {
+            addNegativeSessionHit(sessionId);
+            return { status: "invalid" };
+          }
+          const safeUser = toSafeSessionUser(user);
+          const sessionData: SessionCacheEntry = { user: safeUser, timestamp: now };
+          setSessionInCache(sessionId, sessionData);
+          const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
+          await cacheService
+            .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
+            .catch(() => {});
+          return { status: "ok", user: safeUser };
+        } else if (user === null || (valRes as any)?.success === true) {
+          addNegativeSessionHit(sessionId);
+          return { status: "invalid" };
+        }
+        // Adapter has validateSession but the lookup failed (transient). Do
+        // not fall through to getSessionTokenData + getUserById — that is two
+        // extra round-trips on a path that already joined session→user.
+        lastRefreshAttempt.delete(sessionId);
+        return { status: "transient" };
+      }
+
       const sessionResult = await dbAdapter.auth.getSessionTokenData(sessionId as any);
 
       if (!sessionResult?.success) {
@@ -756,6 +783,19 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
   const isSystemUser = (locals as any).user?._id === "system";
   if (isSystemUser) return resolve(event);
+
+  // 🚀 REUSE UPSTREAM VALIDATED USER: If handleTurboPipeline or test bypass already validated this user
+  if (locals.user && (locals.user as any)._id) {
+    if (!locals.permissions) {
+      locals.permissions = locals.user.permissions || [];
+    }
+    if (!(locals as any).roles) {
+      (locals as any).roles = [(locals.user as any).role || "user"];
+    }
+    locals.dbAdapter = dbAdapter;
+    (locals as any).dbAdapterUnscoped = dbAdapter;
+    return await resolve(event);
+  }
 
   try {
     // Raw adapter first; re-bound after tenant resolution (forTenant inject).

@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2026-05-24"
-updated: "2026-07-20"
+updated: "2026-08-21"
 tags:
   - "security"
   - "authentication"
@@ -128,9 +128,9 @@ The policy is enterprise-configurable via **System Settings → Security → Ses
 Session validation is a **4-layer pipeline** (fastest first):
 
 1. **Turbo auth context** (in-memory, 60s absolute TTL) — GET/HEAD/OPTIONS fast path; skips all validation below; never slides on access (anti timing-attack).
-2. **Session cache** (in-memory LRU, 10k entries) — validated sessions with a 24h trust window.
+2. **Session cache** (in-memory LRU, 10k entries) — validated sessions with a 24h trust window. Warm hits are **0 DB round-trips**.
 3. **Distributed cache** (Redis `session:{tenant}:{id}`) + in-memory/Redis session store — cross-node fallback.
-4. **Database** (`getSessionTokenData` + `getUserById`) — cold path, **single-flight coalesced** (concurrent cold requests await one validation instead of racing).
+4. **Database** — cold path, **single-flight coalesced** (concurrent cold requests await one validation instead of racing). All four adapters implement `auth.validateSession` as a **single JOIN** (`auth_sessions` ⋈ `auth_users`). On success the user is reused; on definitive miss the session is invalid; on transient failure the cookie is kept. The two-step `getSessionTokenData` + `getUserById` path is only used when `validateSession` is absent (unit-test mocks). Production adapters never fall through to those extra round-trips.
 
 Lifecycle semantics:
 

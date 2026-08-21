@@ -1014,7 +1014,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const tableName = getTableName(table);
 
       const now = new Date();
-      const values = this.prepareValues(table, d, id, now, options);
+      const values = this.prepareUpdateValues(table, d, id, now, options);
       // Drop the PK from SET (never write _id back)
       delete values[idColName];
       delete values["id"];
