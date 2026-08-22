@@ -14,6 +14,10 @@
   "[jsonc]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
+  // Tailwind v4 at-rules (@source, @theme, @utility, @apply, @custom-variant)
+  // are unknown to the stock CSS language server — suppress the noise.
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.validate.enable": true,

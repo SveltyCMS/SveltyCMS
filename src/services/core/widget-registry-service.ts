@@ -21,7 +21,10 @@ class WidgetRegistryService {
   private initializationPromise: Promise<void> | null = null;
   private initStartTime = 0;
 
-  private constructor() {}
+  private constructor() {
+    this._registerPreScannedWidgets();
+    this.isInitialized = true;
+  }
 
   public static getInstance(): WidgetRegistryService {
     if (!WidgetRegistryService.instance) {

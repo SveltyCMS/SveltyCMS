@@ -128,7 +128,7 @@ class OutboxServiceImpl {
   /** Non-transactional emit buffer — one insertMany instead of N mutex inserts. */
   private emitBuffer: OutboxEvent[] = [];
   private emitFlushTimer: ReturnType<typeof setTimeout> | null = null;
-  private emitFlushImmediate: ReturnType<typeof setImmediate> | null = null;
+  private emitFlushImmediate: NodeJS.Immediate | NodeJS.Timeout | null = null;
   private emitFlushInFlight: Promise<void> | null = null;
 
   /**
@@ -245,8 +245,8 @@ class OutboxServiceImpl {
         this.emitFlushTimer = null;
       }
       if (this.emitFlushImmediate) return;
-      const arm =
-        typeof setImmediate === "function" ? setImmediate : (fn: () => void) => setTimeout(fn, 0);
+      const arm = (fn: () => void): NodeJS.Immediate | NodeJS.Timeout =>
+        typeof setImmediate === "function" ? setImmediate(fn) : setTimeout(fn, 0);
       this.emitFlushImmediate = arm(() => {
         this.emitFlushImmediate = null;
         void this.flushEmitBuffer();
@@ -288,7 +288,7 @@ class OutboxServiceImpl {
       if (typeof clearImmediate === "function") {
         clearImmediate(this.emitFlushImmediate as NodeJS.Immediate);
       } else {
-        clearTimeout(this.emitFlushImmediate as ReturnType<typeof setTimeout>);
+        clearTimeout(this.emitFlushImmediate as NodeJS.Timeout);
       }
       this.emitFlushImmediate = null;
     }

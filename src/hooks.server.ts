@@ -305,6 +305,41 @@ if (!building) {
           );
         }
 
+        // 🚀 PRE-WARM LAZY WRITE-PATH MODULES (cold-start): the first collection
+        // create/update used to pay a dynamic-import stall for workflow,
+        // response-cache, pub-sub, outbox, token-engine, history, the session
+        // store, tenant-adapter, field-permissions, and modify-request. Import
+        // them once at READY so the first write hits warm module singletons.
+        {
+          const lazy = await import("@src/services/sdk/namespaces/collections/lazy-services");
+          await Promise.allSettled([
+            lazy.getWorkflowServiceLazy(),
+            lazy.getResponseCacheLazy(),
+            lazy.getPubSubLazy(),
+            lazy.getOutboxLazy(),
+            lazy.getTokenEngineLazy(),
+            lazy.getHistoryServiceLazy(),
+            lazy.getDbModuleLazy(),
+            import("@src/services/security/field-permission-service"),
+            import("@src/content/index.server"),
+            import("@utils/modify-request"),
+            import("@src/databases/tenant-adapter"),
+            import("@src/databases/auth/session-manager").then((m) => m.getDefaultSessionStore()),
+          ]);
+          logger.debug("[System] Lazy write-path modules pre-warmed");
+        }
+
+        // 🚀 Pre-build both cached middleware pipelines so the first request
+        // skips the sequence() assembly (and any remaining ensureFullMiddleware
+        // await). Safe: getPipeline guards fullMiddlewareInitialized internally.
+        try {
+          await getPipeline(RequestLane.API_READ);
+          await getPipeline(RequestLane.APP_SSR);
+          logger.debug("[System] Middleware pipelines pre-built");
+        } catch (err) {
+          logger.warn("[System] Pipeline pre-build failed (non-fatal):", err);
+        }
+
         // Cleanup: Unsubscribe once services are initialized
         // ✨ FIXED: Defer unsubscribe to next tick to avoid ReferenceError if subscribe is synchronous
         Promise.resolve().then(() => {

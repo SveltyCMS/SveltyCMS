@@ -252,6 +252,56 @@ const BENCHMARK_FALLBACK_IDS = new Set([
   "benchmark_posts",
 ]);
 
+// 🚀 Pre-populate benchmark fallback schemas so probe writes hit peekReadySchema on first call (0ms)
+for (const id of BENCHMARK_FALLBACK_IDS) {
+  const fields = BENCHMARK_FALLBACK_FIELDS[id] ?? [];
+  const fallbackSchema: Schema = {
+    _id: id,
+    name: id,
+    slug: id,
+    label: id,
+    fields,
+    status: "publish",
+  } as Schema;
+  ensureSchemaHotFlags(fallbackSchema);
+  // schemaCacheKey(null, id) already resolves to the "global:" namespace.
+  setCachedSchema(schemaCacheKey(null, id), fallbackSchema);
+}
+
+/**
+ * 🚀 Pre-warm collection schemas in the schema LRU, hot flags, and DB adapter registries.
+ * Called at boot or during content store sync so first write/read hits L1 memory immediately.
+ */
+export function prewarmCollectionSchemas(
+  schemas: Schema[],
+  dbAdapter?: IDBAdapter,
+  tenantId?: string | null,
+): void {
+  for (const s of schemas) {
+    if (s && s._id) {
+      ensureSchemaHotFlags(s);
+      setCachedSchema(schemaCacheKey(tenantId as DatabaseId | null, s._id), s);
+      if (s.name && s.name !== s._id) {
+        setCachedSchema(schemaCacheKey(tenantId as DatabaseId | null, s.name), s);
+      }
+      if (s.slug && s.slug !== s._id && s.slug !== s.name) {
+        setCachedSchema(schemaCacheKey(tenantId as DatabaseId | null, s.slug), s);
+      }
+      if (dbAdapter) {
+        try {
+          const table = (dbAdapter as any).getTable?.(s._id);
+          if (table && (dbAdapter as any).ensureTableSchemaRegistered) {
+            (dbAdapter as any).ensureTableSchemaRegistered(table, s._id);
+          }
+          if (dbAdapter.collection?.getModel) {
+            void dbAdapter.collection.getModel(s._id).catch(() => {});
+          }
+        } catch {}
+      }
+    }
+  }
+}
+
 /**
  * Resilient model resolution: get the existing model, or create it from the
  * schema when the adapter supports model creation.

@@ -349,6 +349,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   protected _selectionCache = new Map<string, any>();
   protected _lastTable: any = null;
   protected _lastCols: Record<string, Column> | null = null;
+  /**
+   * 🚀 FAST-PATH: normalized collection names that have already been
+   * provisioned (CREATE TABLE + ALTER + INDEX) in this process. Populated by
+   * createModel and, for SQLite, by _warmTableRegistry at boot.
+   * Checked at the top of every adapter's createModel() to skip repeated DDL.
+   */
+  protected _provisionedTables = new Set<string>();
 
   // --------------------------------------------------------------------------
   // Lazy Domain Modules

@@ -87,8 +87,6 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
   // SQLite-specific: cache whether RETURNING works for INSERT ... VALUES
   private _insertManyReturningSupported: boolean | null = null;
-  /** Tables that have been fully provisioned with physical columns via createModel */
-  protected _provisionedTables = new Set<string>();
 
   /** Clients whose prepare() is wrapped with a per-SQL statement cache. */
   protected _preparedStatementClients = new Set<any>();
@@ -1347,10 +1345,16 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   // Create Model (Table Provisioning)
   // --------------------------------------------------------------------------
 
-  public async createModel(schemaData: any): Promise<void> {
+  public async createModel(schemaData: any, force = false): Promise<void> {
     const tableName = schemaData._id || schemaData.id;
     if (!tableName) throw new Error("Schema must have an _id");
     const normalizedName = tableName.replace(/-/g, "");
+
+    // 🚀 FAST PATH: table already provisioned in this process — skip all DDL.
+    // _provisionedTables is populated by _warmTableRegistry() at boot and by
+    // the full DDL path below. A `force` flag overrides for schema migrations.
+    if (!force && this._provisionedTables.has(normalizedName)) return;
+
     const table = this.getTable(normalizedName);
     const physicalName = getTableName(table as any);
 

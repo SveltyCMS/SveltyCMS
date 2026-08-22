@@ -186,6 +186,21 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
       const { contentSystem } = await import("@src/content/index.server");
       await contentSystem.initialize(null, { skipReconciliation: true }, adapter);
       updateServiceHealth("contentSystem", "healthy", "Content system online");
+
+      // 🚀 Pre-warm SDK schema LRU + adapter table registry immediately after content loads.
+      // This ensures the first collection create/update hits in-memory cache (zero DDL cost).
+      try {
+        const { contentStore } = await import("@src/stores/content-registry.svelte");
+        const { prewarmCollectionSchemas } =
+          await import("@src/services/sdk/namespaces/collections/schema-store");
+        const schemas = contentStore.getAllCollections(null);
+        if (schemas.length > 0) {
+          prewarmCollectionSchemas(schemas, adapter, null);
+          logger.info(`[DB Init] Pre-warmed ${schemas.length} collection schemas into SDK LRU`);
+        }
+      } catch (err) {
+        logger.warn("[DB Init] Schema pre-warm failed (non-fatal):", err);
+      }
     },
   });
 

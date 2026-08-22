@@ -572,7 +572,13 @@ search filtering, and RTL support.
         aria-selected={isSelected}
         aria-level={depth + 1}
         aria-setsize={-1}
-        onclick={() => toggleNode(node)}
+        onclick={(e) => {
+          // Clicking a nested treeitem bubbles up through ancestor treeitems —
+          // without stopping propagation the root node's handler re-runs after
+          // the child's and can navigate/expand the wrong node.
+          e.stopPropagation();
+          toggleNode(node);
+        }}
         onkeydown={(e: KeyboardEvent) => handleKeyDown(e, node)}
         onmouseenter={() => handleHover?.(node)}
         draggable={allowDragDrop && node.id !== 'root'}

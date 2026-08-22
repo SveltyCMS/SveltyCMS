@@ -203,10 +203,25 @@ export class CacheWarmingService {
   }
 
   /**
-   * Compatibility wrapper for initialization hook
+   * Compatibility wrapper for initialization hook.
+   * Also schedules a periodic 4-minute L1 re-warm so the cacheService L1
+   * never goes cold during quiet production periods (the `collection:` TTL is
+   * 5 min — running slightly earlier prevents the empty-L1 miss cycle).
    */
   async initialize(db: any) {
-    return this.warmCriticalPaths(db);
+    const result = await this.warmCriticalPaths(db);
+
+    // 🚀 PERIODIC RE-WARM: keep L1 hot for quiet servers.
+    // unref() so this timer never prevents clean process exit.
+    const REWARM_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
+    const timer = setInterval(() => {
+      this.warmCriticalPaths(db).catch((err) =>
+        logger.trace("[CacheWarming] Periodic re-warm failed (non-fatal):", err),
+      );
+    }, REWARM_INTERVAL_MS);
+    if (typeof (timer as any).unref === "function") (timer as any).unref();
+
+    return result;
   }
 
   /**
