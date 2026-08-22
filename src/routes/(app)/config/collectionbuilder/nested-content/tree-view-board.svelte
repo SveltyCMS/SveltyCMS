@@ -10,15 +10,21 @@
 - `onEditCategory` / `onDeleteNode` / `onDuplicateNode` - Row action callbacks
 
 ### Drag & drop model
-Three operations, resolved from exactly one signal each:
+Two operations, resolved from exactly one signal each — rows are the ONLY drop
+targets, so nothing appears or resizes when a drag starts:
 
 1. **Sort** — drop on the top/bottom half of a row inserts before/after it, as a
    sibling *at that row's level*. This is also how you move an item OUT of a
    category: drop it on the half of any row that lives at the level you want.
-2. **Nest** — hover a category row and hold. After `DWELL_MS` the category is
-   highlighted and spring-opens; releasing then drops INSIDE it (appended last).
-3. **Append** — drop on the tail zone under the tree (root) or on the empty-body
-   zone of an open, childless category.
+2. **Nest** — sorting is the default everywhere; nesting has to be earned. The
+   pointer must be in the MIDDLE band of a category row (the outer `SORT_EDGE`
+   of its height always means "sort beside") AND come to rest there for
+   `DWELL_MS`; any travel past `DWELL_MOVE_TOLERANCE` restarts the countdown.
+   Only then does the category highlight amber and spring open, and a release
+   drops INSIDE it, appended last. Both conditions exist so that crossing a
+   category on the way to a position above or below it — or pausing at its edge
+   to aim — stays plain same-level sorting. This also covers empty categories,
+   so no placeholder drop zone is needed.
 
 Why this shape: sveltednd derives `dropPosition` from the droppable node's own
 bounding rect (`clientY < top + height/2`). So each droppable must wrap the row
@@ -83,8 +89,23 @@ let {
 	onSelectCategory,
 }: Props = $props();
 
-/** How long a category must be hovered before it becomes an "drop inside" target. */
+/** How long a category must be hovered before it becomes a "drop inside" target. */
 const DWELL_MS = 500;
+
+/**
+ * Fraction of a category row's height reserved at each edge for sorting.
+ * Only the middle band can start a nest, so reordering past a category never
+ * turns into a drop inside it.
+ */
+const SORT_EDGE = 0.3;
+
+/**
+ * Pointer travel (px) that counts as "still moving". Movement beyond this
+ * restarts the dwell countdown, so activation requires the pointer to come to
+ * REST over a category — merely crossing one on the way somewhere else can
+ * never open it, however slowly you pass.
+ */
+const DWELL_MOVE_TOLERANCE = 6;
 
 // --- Core state ---
 let searchText = $state("");
@@ -112,6 +133,20 @@ let sourceNodesById = new Map<string, ContentNode>();
 /** Category currently dwelled on; dropping now nests inside it. */
 let dwellTargetId = $state<string | null>(null);
 let dwellTimer: ReturnType<typeof setTimeout> | null = null;
+/** Row the dwell timer is currently counting for, so re-entry doesn't restart it. */
+let dwellArmedFor: string | null = null;
+/** Pointer position the countdown was anchored at, to measure travel against. */
+let dwellAnchorX = 0;
+let dwellAnchorY = 0;
+
+/**
+ * Row being dragged, set one frame AFTER dragstart. Chrome snapshots the source
+ * element for its drag image at the end of the dragstart handler, so dimming it
+ * synchronously (as a `.dragging` class does) bakes the transparency into that
+ * snapshot and the cursor carries a washed-out, near-empty rectangle. Deferring
+ * by a frame lets the snapshot capture the row at full opacity.
+ */
+let dragSourceId = $state<string | null>(null);
 
 /**
  * Where the insertion line is drawn. Derived from dndState rather than the
@@ -429,15 +464,27 @@ function cancelDwell() {
 	}
 }
 
-/** Arm the spring-open timer when a valid category row is entered. */
-function handleRowDragEnter(item: TreeNode, state: DragDropState<unknown>) {
+/** Stop counting toward a nest on `item`, and drop the highlight if it is showing. */
+function disarmDwell(item: TreeNode) {
+	if (dwellArmedFor !== item.id) return;
 	cancelDwell();
-	dwellTargetId = null;
+	dwellArmedFor = null;
+	if (dwellTargetId === item.id) dwellTargetId = null;
+}
 
-	if (item.nodeType !== "category") return;
-	const draggedId = draggedIdOf(state);
-	if (!draggedId || isSelfOrDescendant(draggedId, item.id)) return;
+/** (Re)start the countdown toward nesting into `item`, anchored at the pointer. */
+function restartDwell(item: TreeNode, x: number, y: number) {
+	cancelDwell();
+	dwellAnchorX = x;
+	dwellAnchorY = y;
 
+	const draggedId = draggedIdOf(dndState);
+	if (!draggedId || isSelfOrDescendant(draggedId, item.id)) {
+		dwellArmedFor = null;
+		return;
+	}
+
+	dwellArmedFor = item.id;
 	dwellTimer = setTimeout(() => {
 		dwellTimer = null;
 		dwellTargetId = item.id;
@@ -446,14 +493,65 @@ function handleRowDragEnter(item: TreeNode, state: DragDropState<unknown>) {
 	}, DWELL_MS);
 }
 
+/**
+ * Decide whether the pointer is asking to nest into this category or to sort
+ * beside it. Sorting is the default; nesting must be earned.
+ *
+ * Two independent conditions must both hold before a category activates:
+ *
+ * 1. The pointer is in the row's middle band — the outer `SORT_EDGE` of its
+ *    height always means "sort beside", so reordering past a category (e.g.
+ *    dropping a collection below a trailing category to make it last) can never
+ *    become a drop inside it.
+ * 2. The pointer has come to REST there for `DWELL_MS`. Any travel beyond
+ *    `DWELL_MOVE_TOLERANCE` restarts the countdown, so sweeping across a
+ *    category on the way to a position above or below it never opens it.
+ *
+ * The native `dragover` event is used because it carries `clientX/Y` (sveltednd's
+ * own callback only passes its state object) and, unlike `pointermove`, it does
+ * keep firing throughout an HTML5 drag — including while the pointer is still,
+ * which is what lets the countdown complete.
+ */
+function handleRowDragOver(item: TreeNode, event: DragEvent) {
+	if (item.nodeType !== "category") {
+		disarmDwell(item);
+		return;
+	}
+
+	const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+	if (rect.height === 0) return;
+
+	const offset = (event.clientY - rect.top) / rect.height;
+	if (offset <= SORT_EDGE || offset >= 1 - SORT_EDGE) {
+		disarmDwell(item);
+		return;
+	}
+
+	// Already active: hold it steady so a small tremor doesn't flip back to sorting.
+	if (dwellTargetId === item.id) return;
+
+	const travelled = Math.hypot(event.clientX - dwellAnchorX, event.clientY - dwellAnchorY);
+	if (dwellArmedFor === item.id && travelled <= DWELL_MOVE_TOLERANCE) return; // resting — let it run
+
+	restartDwell(item, event.clientX, event.clientY);
+}
+
 function handleRowDragLeave(item: TreeNode) {
-	cancelDwell();
-	if (dwellTargetId === item.id) dwellTargetId = null;
+	disarmDwell(item);
 }
 
 function endDrag() {
 	cancelDwell();
+	dwellArmedFor = null;
 	dwellTargetId = null;
+	dragSourceId = null;
+}
+
+/** Defer the source dimming past Chrome's drag-image snapshot (see `dragSourceId`). */
+function handleDragStart(item: TreeNode) {
+	requestAnimationFrame(() => {
+		if (dndState.isDragging) dragSourceId = item.id;
+	});
 }
 
 /**
@@ -534,22 +632,6 @@ function handleRowDrop(item: TreeNode, state: DragDropState<unknown>) {
 	if (targetIndex === -1) return;
 
 	moveNode(draggedId, parentId, position === "after" ? targetIndex + 1 : targetIndex);
-}
-
-/** Drop on the body of an open, childless category. */
-function handleEmptyCategoryDrop(item: TreeNode, state: DragDropState<unknown>) {
-	const draggedId = draggedIdOf(state);
-	endDrag();
-	if (!draggedId) return;
-	moveNode(draggedId, item.id, 0);
-}
-
-/** Drop on the tail strip under the tree — always means "append to top level". */
-function handleRootTailDrop(state: DragDropState<unknown>) {
-	const draggedId = draggedIdOf(state);
-	endDrag();
-	if (!draggedId) return;
-	moveNode(draggedId, null, treeRoots.length);
 }
 
 // ---------------------------------------------------------------------------
@@ -866,18 +948,6 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 				{@render treeNode(item, 0)}
 			{/each}
 		</div>
-
-		<!-- Tail strip: the always-available "move to top level" target. -->
-		<div
-			class="root-tail"
-			class:active={dndState.isDragging}
-			use:droppable={{
-				container: "root-tail",
-				callbacks: { onDrop: handleRootTailDrop, onDragEnd: endDrag },
-				attributes: { dragOverClass: "tail-over" },
-			}}
-			aria-hidden="true"
-		></div>
 	{/if}
 </div>
 
@@ -895,9 +965,10 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 		     this element's own midpoint, so it must never contain the subtree. -->
 		<div
 			class="tree-row"
-			class:nest-target={dwellTargetId === item.id}
+			class:nest-target={dndState.isDragging && dwellTargetId === item.id}
 			class:line-before={lineFor(item.id) === "before"}
 			class:line-after={lineFor(item.id) === "after"}
+			class:drag-source={dndState.isDragging && dragSourceId === item.id}
 			use:draggable={{
 				container: "tree",
 				dragData: { itemId: item.id },
@@ -906,13 +977,13 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 				// Touch devices drag from the grip only, so a swipe on the row still
 				// scrolls the list. Pointer devices can drag the row anywhere.
 				handle: screen.isDesktop ? undefined : ".drag-handle",
-				callbacks: { onDragEnd: endDrag },
+				callbacks: { onDragStart: () => handleDragStart(item), onDragEnd: endDrag },
 			}}
+			ondragover={(e: DragEvent) => handleRowDragOver(item, e)}
 			use:droppable={{
 				container: `node:${item.id}`,
 				direction: "vertical",
 				callbacks: {
-					onDragEnter: (s) => handleRowDragEnter(item, s),
 					onDragLeave: () => handleRowDragLeave(item),
 					onDrop: (s) => handleRowDrop(item, s),
 					onDragEnd: endDrag,
@@ -935,7 +1006,7 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 			/>
 		</div>
 
-		{#if item.nodeType === "category" && expandedNodes.has(item.id)}
+		{#if item.nodeType === "category" && expandedNodes.has(item.id) && item.children.length > 0}
 			<div
 				class="tree-children"
 				style="margin-inline-start: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem"
@@ -945,23 +1016,6 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 				{#each item.children as child (child.id)}
 					{@render treeNode(child, level + 1)}
 				{/each}
-
-				{#if item.children.length === 0}
-					<div
-						class="empty-body"
-						class:active={dndState.isDragging}
-						use:droppable={{
-							container: `empty:${item.id}`,
-							callbacks: {
-								onDrop: (s) => handleEmptyCategoryDrop(item, s),
-								onDragEnd: endDrag,
-							},
-							attributes: { dragOverClass: "empty-over" },
-						}}
-					>
-						<span class="empty-label">Empty</span>
-					</div>
-				{/if}
 			</div>
 		{/if}
 	</div>
@@ -1004,14 +1058,18 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 	}
 
 	/* Insertion line. Drawn on the row itself so it sits exactly on the boundary
-	   the drop will use — no placeholder element, no reflow, no layout shift. */
+	   the drop will use — no placeholder element, no reflow, no layout shift.
+	   `display: block` is explicit because the library stamps its own
+	   `drop-before` class onto this very element, and the suppression rule above
+	   would otherwise hide our line along with theirs. */
 	.tree-row.line-before::before,
 	.tree-row.line-after::after {
 		content: '';
+		display: block !important;
 		position: absolute;
 		inset-inline: 0;
 		height: 2px;
-		background: rgb(var(--color-primary-500));
+		background: var(--color-primary-500);
 		pointer-events: none;
 		z-index: 2;
 	}
@@ -1024,64 +1082,38 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 		bottom: -3px;
 	}
 
-	/* Dwelled category: "release here to put it inside". Static, no animation. */
+	/* Dwelled category: "release here to put it inside". Warning/amber on purpose
+	   — a category's own border is tertiary blue, so a blue highlight read as
+	   ordinary chrome rather than an active drop target. Static, no animation. */
 	.tree-row.nest-target {
-		outline: 2px solid rgb(var(--color-tertiary-500));
-		outline-offset: 1px;
-		border-radius: 0.25rem;
+		border-radius: 0.375rem;
+		outline: 2px solid var(--color-warning-500);
+		outline-offset: -1px;
+	}
+
+	/* Tint the row so the state reads at a glance. The theme exposes colours as
+	   oklch(), not RGB triplets, so alpha needs color-mix — a
+	   `rgb(var(--token) / 0.3)` here is invalid and silently paints nothing. */
+	.tree-row.nest-target :global(> *) {
+		background: color-mix(in oklch, var(--color-warning-500) 30%, transparent) !important;
+		border-color: var(--color-warning-500) !important;
 	}
 
 	.tree-children {
 		position: relative;
 		padding-inline-start: 0.5rem;
-		border-inline-start: 2px solid rgb(var(--color-surface-300) / 0.6);
+		border-inline-start: 2px solid color-mix(in oklch, var(--color-surface-300) 60%, transparent);
 	}
 
-	/* Empty open category: a real, clickable-size drop target so a childless
-	   category is reachable without relying on the dwell timer. */
-	.empty-body {
-		display: none;
-		align-items: center;
-		min-height: 2.25rem;
-		padding-inline: 0.5rem;
-		margin-bottom: 0.5rem;
-		border: 1px dashed rgb(var(--color-surface-400) / 0.7);
-		border-radius: 0.25rem;
-	}
-
-	.empty-body.active {
-		display: flex;
-	}
-
-	.empty-body:global(.empty-over) {
-		border-color: rgb(var(--color-tertiary-500));
-		border-style: solid;
-	}
-
-	.empty-label {
-		font-size: 0.75rem;
-		opacity: 0.6;
-	}
-
-	/* Tail strip below the tree — the reliable "move out to top level" target. */
-	.root-tail {
-		height: 0;
-	}
-
-	.root-tail.active {
-		height: 2.5rem;
-		margin-top: 0.25rem;
-		border: 1px dashed rgb(var(--color-surface-400) / 0.7);
-		border-radius: 0.25rem;
-	}
-
-	.root-tail:global(.tail-over) {
-		border-color: rgb(var(--color-primary-500));
-		border-style: solid;
-	}
-
-	/* Dragged source row: dimmed only. No transform, no ghost, no transition. */
+	/* Dragged source row: dimmed only. No transform, no ghost, no transition.
+	   Driven by `drag-source` (applied a frame late) rather than the library's
+	   `.dragging`, which lands during dragstart and would be baked into Chrome's
+	   drag-image snapshot — that is what made the cursor carry an empty outline. */
 	.collection-builder-tree :global(.dragging) {
+		opacity: 1;
+	}
+
+	.tree-row.drag-source {
 		opacity: 0.4;
 	}
 
