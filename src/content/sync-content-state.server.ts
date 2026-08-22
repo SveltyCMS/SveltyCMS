@@ -606,6 +606,19 @@ async function applyGuiStructureSave(
   const { order, structureNodes } = buildOrganizationalManifestFromNodes(updated);
   await setOrganizationalManifest(order, structureNodes, tenantId ?? null);
 
+  // 🐛 L1 TURBO INVALIDATION: GETs on /api/content-structure are served from the
+  // sync responseCache before the API hook runs, and that hook only invalidates on
+  // *API* mutations. A GUI save arrives as a SvelteKit remote command, so nothing
+  // cleared the cached structure — the SSE refresh below then handed every client
+  // the pre-save order, which overwrote the just-saved one in the UI.
+  try {
+    const { responseCache } = await import("@src/services/cache/response-cache");
+    await responseCache.invalidateCollection("content-structure", tenantId ?? null);
+    await responseCache.invalidateCollection("content", tenantId ?? null);
+  } catch (err) {
+    logger.warn(`[ContentSync] Response cache invalidation skipped: ${String(err)}`);
+  }
+
   // Broadcast SSE event so other tabs/clients learn about the GUI change
   const { notifyContentUpdate } = await import("./engine.server");
   await notifyContentUpdate(tenantId);

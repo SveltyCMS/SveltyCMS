@@ -767,10 +767,16 @@ export const contentService = {
       const schemaId = String(
         schema._id || existing?._id || schema.slug || schema.name || "unknown",
       );
+      // Order precedence: the DB row is the authority — it is what every save /
+      // reorder writes. The manifest is a RESTORE fallback (fresh install, cache
+      // clear, DB row missing). Letting the manifest win meant a reconcile that
+      // runs after a save (compile → watcher → fullReload) re-imposed the file's
+      // older order on the store AND wrote it back to the DB, so the UI rolled
+      // back to the pre-save order a moment after saving.
       const manifestSort =
+        existing?.order ??
         manifestOrder[schemaId] ??
         manifestOrder[schemaId.toLowerCase()] ??
-        existing?.order ??
         schema.order ??
         999;
       const hasChanged =
@@ -1062,7 +1068,12 @@ export const contentService = {
 
   async reorderNodes(items: any[], tenantId?: string | null): Promise<void> {
     const db = await (await import("@src/databases/db")).getDb();
-    await db!.content.nodes.reorderStructure(items);
+    const result = await db!.content.nodes.reorderStructure(items);
+    // Never swallow a failed reorder: callers read the structure straight back and
+    // return it to the client, so a silent failure ships a stale order as "saved".
+    if (result && result.success === false) {
+      throw new Error(result.message || "Failed to persist content structure reorder");
+    }
     if (tenantId) logger.debug("Reordering nodes for tenant", { tenantId });
   },
 

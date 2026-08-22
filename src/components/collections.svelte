@@ -104,11 +104,19 @@ Provides an organized interface for navigating hierarchical content structures.
 	let flatNodeMap = new Map<string, ExtendedContentNode>();
 	let lastStructureOrderSignature = $state('');
 
-	// Seed orderOverrides from persisted manifest order (survives restarts)
+	// Seed orderOverrides from persisted manifest order (survives restarts).
+	// Seed ONCE and never clobber an id we already track: `page.data` changes on
+	// every `invalidate("app:content")` (e.g. right after a save), and the manifest
+	// can lag the DB — re-seeding it would stamp the pre-reorder order back over the
+	// live one. The structure effect below keeps overrides aligned with DB truth.
+	let hasSeededPersistedOrder = false;
 	$effect(() => {
 		const persisted = page.data.collectionOrder as Record<string, number> | undefined;
+		if (hasSeededPersistedOrder) return;
 		if (persisted && typeof persisted === 'object') {
+			hasSeededPersistedOrder = true;
 			for (const [id, order] of Object.entries(persisted)) {
+				if (orderOverrides.has(id)) continue;
 				orderOverrides.set(id, order);
 			}
 		}
@@ -550,8 +558,11 @@ Provides an organized interface for navigating hierarchical content structures.
 	}
 
 	let _structureTimer: ReturnType<typeof setTimeout> | undefined;
+	/** Monotonic ticket: a late response from an older reorder must never overwrite a newer one. */
+	let _structureRequestId = 0;
 	function persistStructure(nodes: ExtendedContentNode[]) {
 		clearTimeout(_structureTimer);
+		const requestId = ++_structureRequestId;
 		_structureTimer = setTimeout(async () => {
 			const items = nodes.map((n) => ({
 				id: String(n._id),
@@ -574,6 +585,8 @@ Provides an organized interface for navigating hierarchical content structures.
 				}
 				const body = await res.json().catch(() => ({}));
 				const updated = body?.data?.contentStructure ?? body?.contentStructure;
+				// Stale-response guard: a newer reorder was issued while this was in flight.
+				if (requestId !== _structureRequestId) return;
 				if (Array.isArray(updated)) {
 					setContentStructure(updated);
 				}

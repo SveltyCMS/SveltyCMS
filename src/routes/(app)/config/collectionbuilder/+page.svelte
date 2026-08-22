@@ -143,31 +143,49 @@ afterNavigate(() => {
 
 import { untrack } from "svelte";
 
-$effect(() => {
-    if (
-        !allowSyncFromData ||
-        !data.contentStructure ||
-        Object.keys(nodesToSave).length > 0
-    )
-        return;
-    if (skipNextSyncFromData) {
-        skipNextSyncFromData = false;
-        return;
-    }
+/**
+ * Hash of the last server snapshot this component consumed.
+ * `data.contentStructure` only changes when THIS page's load re-runs (navigation);
+ * `invalidate("app:content")` refreshes layout data only. Without this guard the
+ * load-time snapshot gets re-applied on top of newer local/sidebar reorders and
+ * rolls the tree back to the order it had when the page was opened.
+ */
+let lastServerStructureHash = "";
 
+$effect(() => {
+    // Only dependency: the server snapshot. Local state (currentConfig / nodesToSave)
+    // is read untracked so a local reorder can never re-trigger this sync.
     const structure = data.contentStructure as unknown as ContentNode[];
 
-    // Prevent unnecessary state updates if data hasn't actually changed (shallow check)
-    const currentHash = JSON.stringify(structure);
-    const existingHash = JSON.stringify(currentConfig);
-    if (currentHash === existingHash) return;
-
-    allowSyncFromData = false;
-    currentConfig = structure;
-
-    // Keep sidebar in sync: it reads from contentStructure store, so update it when we load fresh data from DB
-    // Use untrack to ensure this doesn't create a circular dependency if setContentStructure triggers a re-render
     untrack(() => {
+        if (!structure) return;
+
+        const serverHash = JSON.stringify(structure);
+
+        if (skipNextSyncFromData) {
+            // We just applied the save response — swallow its echo, but remember it.
+            skipNextSyncFromData = false;
+            lastServerStructureHash = serverHash;
+            return;
+        }
+
+        // Nothing new from the server → local state is the newer one. Never roll it back.
+        if (serverHash === lastServerStructureHash) return;
+
+        if (!allowSyncFromData || Object.keys(nodesToSave).length > 0) {
+            // Unsaved local changes win; mark the snapshot consumed so it can
+            // never be resurrected later on top of them.
+            lastServerStructureHash = serverHash;
+            return;
+        }
+
+        lastServerStructureHash = serverHash;
+        if (serverHash === JSON.stringify(currentConfig)) return;
+
+        allowSyncFromData = false;
+        currentConfig = structure;
+
+        // Keep sidebar in sync: it reads from contentStructure store, so update it when we load fresh data from DB
         setContentStructure(structure);
     });
 });

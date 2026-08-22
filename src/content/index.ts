@@ -145,6 +145,12 @@ export const contentSystem = {
       return;
     }
     try {
+      const store = await import("@src/stores/collection-store.svelte");
+      // Snapshot the structure revision BEFORE the request: a save/reorder that
+      // lands while this is in flight makes the response an older snapshot, and
+      // applying it would roll the UI back over the newer state.
+      const revisionAtRequest = store.getStructureRevision();
+
       const res = await fetch("/api/content-structure?action=getStructure", {
         credentials: "include",
       });
@@ -152,12 +158,14 @@ export const contentSystem = {
       const json = await res.json();
       const nodes = json?.data?.contentNodes;
       if (Array.isArray(nodes)) {
+        if (store.getStructureRevision() !== revisionAtRequest) {
+          logger.debug("[contentSystem] Refresh response is stale — newer structure applied");
+          return;
+        }
         contentStore.sync(nodes);
         // Also sync the sidebar's collection store so the Collections tree
         // reflects SSE-driven updates without requiring a page navigation
-        import("@src/stores/collection-store.svelte").then(({ setContentStructure }) => {
-          setContentStructure(nodes);
-        });
+        store.setContentStructure(nodes);
       }
     } catch (err) {
       logger.warn("[contentSystem] Client refresh failed:", err);

@@ -218,7 +218,16 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       contentStructure: contentPromise
         .then(async () => {
           try {
-            const nodes = await contentSystem.getContentStructure(tenantId);
+            // Persisted structure is the single source of truth for order/hierarchy.
+            // The in-memory snapshot can lag a just-completed save (or be re-derived
+            // by a background reconcile), and this value is pushed straight into the
+            // sidebar/builder store on every `invalidate("app:content")` — serving
+            // memory here rolled the UI back to the pre-save order right after saving.
+            const persisted = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+            const nodes =
+              Array.isArray(persisted) && persisted.length > 0
+                ? persisted
+                : await contentSystem.getContentStructure(tenantId);
             return (nodes ?? []).map((node: any) => ({
               ...node,
               _id: node._id?.toString?.() ?? String(node._id),
