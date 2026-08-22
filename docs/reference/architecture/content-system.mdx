@@ -6,7 +6,7 @@ order: 1
 icon: "mdi:file-tree"
 author: "SveltyCMS Team"
 created: "2026-03-15"
-updated: "2026-08-07"
+updated: "2026-08-21"
 tags:
   - "architecture"
   - "performance"
@@ -301,6 +301,8 @@ Lightweight numeric string hash in `loader.server.ts` (`generateSchemaHash`). Re
 **Entry vs structure:** Entry create/update/delete **must not** bump `contentStore.contentVersion`. Structure version drives nav cache keys and SSE full refreshes — only schema/tree sync paths update it.
 
 **Schema hot flags** (cached on first `getSchema`): `_hasActiveWidgets`, `_hasNumberFields`, `_hasSanitizableFields`, `_hasHooks` — so create/update/find skip field walks and `modifyRequest` when the schema does not need them.
+
+When widgets _are_ active, `modify-request.ts` caches the resolved `{ field, widget, name }` list on `fields._activeWidgets` and reuses one data accessor + one request context across entries (no per-field object spread). Document writes in `post-write.ts` do **not** purge `cms:content_structure` keys — schema LRU stays warm.
 
 **Registry indexes:** `contentStore` keeps path → id and lowercased alias → schema id maps for O(1) `getNodeByPath` / `getCollection` after warm-up.
 

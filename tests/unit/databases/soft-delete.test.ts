@@ -243,4 +243,39 @@ describe("Soft Delete Engine", () => {
       expect(result.error?.code).toBe("COLLISION");
     });
   });
+
+  describe("Update createdAt immutability", () => {
+    it("strips createdAt from $set on update (insert path still owns it)", async () => {
+      mockModel.findOneAndUpdate.mockReturnValue({
+        exec: vi.fn().mockResolvedValue({ _id: "1", title: "n" }),
+      });
+
+      await crud.update("1", {
+        title: "n",
+        createdAt: "2020-01-01T00:00:00.000Z",
+      });
+
+      expect(mockModel.findOneAndUpdate).toHaveBeenCalled();
+      const setArg = mockModel.findOneAndUpdate.mock.calls[0][1].$set;
+      expect(setArg).not.toHaveProperty("createdAt");
+      expect(setArg.title).toBe("n");
+      expect(setArg.updatedAt).toBeTruthy();
+    });
+
+    it("strips createdAt from $set on updateMany", async () => {
+      mockModel.updateMany.mockResolvedValue({ modifiedCount: 2 });
+
+      await crud.updateMany(
+        { status: "draft" },
+        {
+          status: "publish",
+          createdAt: "2020-01-01T00:00:00.000Z",
+        },
+      );
+
+      const setArg = mockModel.updateMany.mock.calls[0][1].$set;
+      expect(setArg).not.toHaveProperty("createdAt");
+      expect(setArg.status).toBe("publish");
+    });
+  });
 });

@@ -290,4 +290,8 @@ class ResponseCacheService {
   }
 }
 
-export const responseCache = new ResponseCacheService();
+const RESPONSE_CACHE_KEY = "__RESPONSE_CACHE_INSTANCE__";
+
+export const responseCache: ResponseCacheService =
+  (globalThis as any)[RESPONSE_CACHE_KEY] ||
+  ((globalThis as any)[RESPONSE_CACHE_KEY] = new ResponseCacheService());

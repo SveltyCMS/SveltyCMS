@@ -52,6 +52,7 @@ export function setRequestCache(
 
 /** Scoped LRU eviction for a specific collection keyspace. */
 export function evictRequestCache(collectionId?: string, tenantId?: string): void {
+  if (_requestCache.size === 0 && _requestCacheKeys.size === 0) return;
   if (!collectionId) {
     _requestCache.clear();
     _requestCacheKeys.clear();

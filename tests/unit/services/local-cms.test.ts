@@ -82,6 +82,40 @@ describe("LocalCMS - Server-Side SDK Bridge", () => {
     );
   });
 
+  it("find with a pure {_id} filter uses findOne, not findMany", async () => {
+    mockAdapter.crud.findOne = vi.fn().mockResolvedValue({
+      success: true,
+      data: { _id: "e1", title: "Hello" },
+    });
+
+    const contentMock = {
+      getCollectionById: vi.fn((id) => ({
+        _id: id,
+        name: "Posts",
+        fields: [{ db_fieldName: "title", type: "string", widget: { Name: "Input" } }],
+      })),
+      getCollections: vi.fn(() => []),
+    };
+
+    const sdk = new LocalCMS(mockAdapter, contentMock);
+    const result = await sdk.collections.find("posts", {
+      tenantId: "global" as unknown as DatabaseId,
+      filter: { _id: "e1" },
+      bypassCache: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(Array.isArray(result.data)).toBe(true);
+    expect(result.data[0]?._id).toBe("e1");
+    expect(mockAdapter.crud.findOne).toHaveBeenCalled();
+    expect(mockAdapter.crud.findMany).not.toHaveBeenCalled();
+    expect(mockAdapter.crud.findOne).toHaveBeenCalledWith(
+      "collection_posts",
+      expect.objectContaining({ _id: "e1", status: "publish" }),
+      expect.anything(),
+    );
+  });
+
   it("findById uses findOne for a single id (not findMany $in)", async () => {
     mockAdapter.crud.findOne = vi.fn().mockResolvedValue({
       success: true,

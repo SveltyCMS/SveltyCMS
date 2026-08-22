@@ -158,6 +158,20 @@ describe("outboxService.emit", () => {
     expect(insertMock.mock.calls[0][2]).toMatchObject({ transaction: tx });
   });
 
+  it("does not flush inline at 64 events — trailing debounce only", async () => {
+    insertManyMock.mockResolvedValue({ success: true, data: [] });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    insertManyMock.mockClear();
+    for (let i = 0; i < 80; i++) {
+      await outboxService.emit("entry:create", "entry", `doc-${i}`, {}, "tenant-burst");
+    }
+    expect(insertManyMock).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(insertManyMock).toHaveBeenCalled();
+    const rows = insertManyMock.mock.calls[0][1] as unknown[];
+    expect(rows.length).toBeGreaterThanOrEqual(80);
+  });
+
   it("skips when DISABLE_OUTBOX is set", async () => {
     process.env.DISABLE_OUTBOX = "true";
     const result = await outboxService.emit("entry:create", "entry", "x", {}, "t");

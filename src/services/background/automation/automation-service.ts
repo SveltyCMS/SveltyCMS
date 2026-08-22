@@ -14,6 +14,7 @@
 
 import { logger } from "@utils/logger";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
+import { isBenchmarkExternalServicesDisabled } from "@utils/benchmark-runtime";
 import { eventBus } from "./event-bus";
 import type {
   AgenticTaskOperationConfig,
@@ -65,12 +66,10 @@ export class AutomationService {
   // ── Flow CRUD ──────────────────────────────────────────────
 
   /** Get all automation flows for a tenant */
-  public async getFlows(tenantId: string): Promise<AutomationFlow[]> {
-    if (tenantId === undefined || tenantId === "") {
-      return [];
-    }
+  public async getFlows(tenantId?: string): Promise<AutomationFlow[]> {
+    const tid = tenantId || "global";
 
-    const cached = this.flowsCache.get(tenantId);
+    const cached = this.flowsCache.get(tid);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
       return cached.data;
     }
@@ -83,43 +82,42 @@ export class AutomationService {
 
       const result = await db.system.preferences.get<AutomationFlow[]>("automations_config", {
         scope: "system",
-        tenantId: tenantId as any,
+        tenantId: tid as any,
       });
       const flows = result.success && Array.isArray(result.data) ? result.data : [];
 
       // Enforce tenantId consistency
-      const sanitizedFlows = flows.map((f) => ({ ...f, tenantId }));
+      const sanitizedFlows = flows.map((f) => ({ ...f, tenantId: tid }));
 
-      this.flowsCache.set(tenantId, {
+      this.flowsCache.set(tid, {
         data: sanitizedFlows,
         timestamp: Date.now(),
       });
       return sanitizedFlows;
     } catch (e) {
-      logger.error(`Failed to load automation flows for tenant ${tenantId}:`, e);
+      logger.error(`Failed to load automation flows for tenant ${tid}:`, e);
       return [];
     }
   }
 
-  public async getFlow(id: string, tenantId: string): Promise<any> {
+  public async getFlow(id: string, tenantId?: string): Promise<any> {
+    const tid = tenantId || "global";
     if (!id || id === "list") {
-      return this.getFlows(tenantId);
+      return this.getFlows(tid);
     }
-    const flows = await this.getFlows(tenantId);
+    const flows = await this.getFlows(tid);
     return flows.find((f) => f.id === id) ?? null;
   }
 
-  public async saveFlow(flow: Partial<AutomationFlow>, tenantId: string): Promise<AutomationFlow> {
-    if (tenantId === undefined || tenantId === "") {
-      throw new Error("tenantId is required");
-    }
+  public async saveFlow(flow: Partial<AutomationFlow>, tenantId?: string): Promise<AutomationFlow> {
+    const tid = tenantId || "global";
 
     const db = await getDbAdapter();
     if (!db || !db.system) {
       throw new Error("Database or system not available");
     }
 
-    const current = await this.getFlows(tenantId);
+    const current = await this.getFlows(tid);
     const now = new Date().toISOString();
 
     const savedFlow: AutomationFlow = {
@@ -134,7 +132,7 @@ export class AutomationService {
       failureCount: flow.failureCount ?? 0,
       createdAt: flow.createdAt || now,
       updatedAt: now,
-      tenantId, // Ensure correct tenantId is set
+      tenantId: tid, // Ensure correct tenantId is set
     };
 
     let updated: AutomationFlow[];
@@ -146,11 +144,11 @@ export class AutomationService {
 
     await db.system.preferences.set("automations_config", updated, {
       scope: "system",
-      tenantId: tenantId as any,
+      tenantId: tid as any,
     });
 
     // Update cache immediately
-    this.flowsCache.set(tenantId, { data: updated, timestamp: Date.now() });
+    this.flowsCache.set(tid, { data: updated, timestamp: Date.now() });
 
     // Prune cache if it grows too large (e.g. > 500 tenants) to prevent heap pressure
     if (this.flowsCache.size > 500) {
@@ -162,32 +160,31 @@ export class AutomationService {
   }
 
   /** Delete a flow by ID for a tenant */
-  public async deleteFlow(id: string, tenantId: string): Promise<void> {
-    if (tenantId === undefined || tenantId === "") {
-      return;
-    }
+  public async deleteFlow(id: string, tenantId?: string): Promise<void> {
+    const tid = tenantId || "global";
 
     const db = await getDbAdapter();
     if (!db || !db.system) {
       return;
     }
 
-    const current = await this.getFlows(tenantId);
+    const current = await this.getFlows(tid);
     const initialLength = current.length;
     const updated = current.filter((f) => f.id !== id);
 
     if (updated.length !== initialLength) {
       await db.system.preferences.set("automations_config", updated, {
         scope: "system",
-        tenantId: tenantId as any,
+        tenantId: tid as any,
       });
-      this.flowsCache.set(tenantId, { data: updated, timestamp: Date.now() });
+      this.flowsCache.set(tid, { data: updated, timestamp: Date.now() });
     }
   }
 
   /** Duplicate a flow for a tenant */
-  public async duplicateFlow(id: string, tenantId: string): Promise<AutomationFlow> {
-    const flow = await this.getFlow(id, tenantId);
+  public async duplicateFlow(id: string, tenantId?: string): Promise<AutomationFlow> {
+    const tid = tenantId || "global";
+    const flow = await this.getFlow(id, tid);
     if (!flow) {
       throw new Error("Flow not found");
     }
@@ -201,7 +198,7 @@ export class AutomationService {
         triggerCount: 0,
         failureCount: 0,
       },
-      tenantId,
+      tid,
     );
   }
 
@@ -382,7 +379,6 @@ export class AutomationService {
     config: WebhookOperationConfig,
     payload: AutomationEventPayload,
   ): Promise<void> {
-    const { isBenchmarkExternalServicesDisabled } = await import("@utils/benchmark-runtime");
     if (isBenchmarkExternalServicesDisabled()) {
       logger.debug(`[Automation] Skipped webhook to ${config.url} (benchmark mode)`);
       return;
@@ -432,7 +428,6 @@ export class AutomationService {
     config: EmailOperationConfig,
     _payload: AutomationEventPayload,
   ): Promise<void> {
-    const { isBenchmarkExternalServicesDisabled } = await import("@utils/benchmark-runtime");
     if (isBenchmarkExternalServicesDisabled()) {
       logger.debug(`[Automation] Skipped email to ${config.to} (benchmark mode)`);
       return;
@@ -727,4 +722,8 @@ export class AutomationService {
   }
 }
 
-export const automationService = new AutomationService();
+const AUTOMATION_SERVICE_KEY = "__AUTOMATION_SERVICE_INSTANCE__";
+
+export const automationService: AutomationService =
+  (globalThis as any)[AUTOMATION_SERVICE_KEY] ||
+  ((globalThis as any)[AUTOMATION_SERVICE_KEY] = new AutomationService());

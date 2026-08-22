@@ -44,6 +44,13 @@ describe("benchmark-runtime external service guards", () => {
     expect(rt.isBenchmarkRedisDisabled()).toBe(false);
   });
 
+  it("does not skip outbound I/O in production unless BENCHMARK is set", async () => {
+    process.env.NODE_ENV = "production";
+    const rt = await load();
+    expect(rt.isBenchmarkRuntime()).toBe(false);
+    expect(rt.isBenchmarkExternalServicesDisabled()).toBe(false);
+  });
+
   it("legacy benchmark tokens are inert — BENCHMARK is the single canonical flag", async () => {
     process.env.BENCHMARK_MODE = "1";
     process.env.BENCHMARK_STABLE = "true";

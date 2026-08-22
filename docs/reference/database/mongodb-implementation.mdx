@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:leaf"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-08-04"
+updated: "2026-08-21"
 tags:
   - database
   - mongodb
@@ -1182,10 +1182,12 @@ const user = await User.findOne({ email: "user@example.com" }).lean();
 
 #### Implementation {#implementation-4}
 
-All CRUD methods in `crudMethods.ts` use `.lean()`:
+Hot writes (`update` / `updateMany` / `upsert`) use atomic `{ $set }` with `lean: true`, `runValidators: false`, and `cloneUpdate: false` — Valibot already ran in core. `createdAt` is stripped from `$set` (insert / `$setOnInsert` still sets it).
+
+All CRUD methods in `crud-methods.ts` use `.lean()`:
 
 ```
-// File: src/databases/mongodb/crudMethods.ts
+// File: src/databases/mongodb/crud-methods.ts
 
 async findOne(query: FilterQuery<T>): Promise<T | null> {
   const result = await this.model

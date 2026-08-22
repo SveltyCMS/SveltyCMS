@@ -18,7 +18,13 @@ const getEnvFlag = (key: string): boolean => {
   return val === "true" || val === "1";
 };
 
-/** True when outbound external services must not be contacted (benchmark matrix / soak). */
+/**
+ * True when outbound external services must not be contacted (benchmark matrix / soak).
+ *
+ * This does **not** skip persistence, Valibot, RBAC, RETURNING/`$set`, or L1
+ * invalidation. Production (`NODE_ENV=production` without `BENCHMARK`) always
+ * returns false. Callers: webhook dispatch, SMTP, AI translation — network I/O only.
+ */
 export function isBenchmarkExternalServicesDisabled(): boolean {
   return getEnvFlag("BENCHMARK");
 }

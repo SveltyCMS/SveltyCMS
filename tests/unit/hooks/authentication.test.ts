@@ -189,6 +189,44 @@ describe("handleAuthentication Middleware", () => {
       expect(event2.cookies.delete).toHaveBeenCalled();
     });
 
+    it("uses validateSession when present and skips the two-step fallback", async () => {
+      (dbAdapter as any).auth = {
+        validateSession: vi.fn().mockResolvedValue({
+          success: true,
+          data: { _id: "user1", email: "test@test.com", role: "admin", tenantId: "t1" },
+        }),
+        getSessionTokenData: vi.fn(),
+        getUserById: vi.fn(),
+      };
+      const event = createMockEvent("/dashboard", "joined-session");
+      await handleAuthentication({
+        event,
+        resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+      });
+      expect((dbAdapter as any).auth.validateSession).toHaveBeenCalledTimes(1);
+      expect((dbAdapter as any).auth.getSessionTokenData).not.toHaveBeenCalled();
+      expect((dbAdapter as any).auth.getUserById).not.toHaveBeenCalled();
+      expect(event.locals.user).not.toBeNull();
+      expect(event.locals.user?._id).toBe("user1");
+    });
+
+    it("does not fall through to two-step lookup when validateSession fails transiently", async () => {
+      (dbAdapter as any).auth = {
+        validateSession: vi.fn().mockResolvedValue({ success: false }),
+        getSessionTokenData: vi.fn(),
+        getUserById: vi.fn(),
+      };
+      const event = createMockEvent("/dashboard", "transient-join");
+      await handleAuthentication({
+        event,
+        resolve: vi.fn(() => Promise.resolve(new Response("OK"))),
+      });
+      expect((dbAdapter as any).auth.getSessionTokenData).not.toHaveBeenCalled();
+      expect((dbAdapter as any).auth.getUserById).not.toHaveBeenCalled();
+      expect(event.cookies.delete).not.toHaveBeenCalled();
+      expect(event.locals.user).toBeNull();
+    });
+
     it("coalesces concurrent cold session validations (single-flight)", async () => {
       // Gate the DB lookup so both requests are in flight before it resolves
       let resolveDb: ((v: unknown) => void) | undefined;

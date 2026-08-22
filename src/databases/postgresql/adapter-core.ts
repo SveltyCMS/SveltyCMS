@@ -36,6 +36,14 @@ import { registerTableSchema } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 
+/** Bind a JS value for postgres.js prepared params. Objects/arrays become JSON text so the driver does not emit PG array literals. */
+function bindPgParam(v: unknown, asJson: boolean): unknown {
+  if (v instanceof Date) return v.toISOString();
+  if (asJson) return v === null || v === undefined ? null : JSON.stringify(v);
+  if (v !== null && typeof v === "object") return JSON.stringify(v);
+  return v;
+}
+
 export abstract class PostgresAdapterCore extends SqlAdapterCore {
   public type = "postgresql";
   public capabilities: DatabaseCapabilities = {
@@ -176,15 +184,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const tpl = this._getInsertTemplate(table, tableName, synthesized);
       const boundValues: any[] = [];
       for (let i = 0; i < tpl.synthCols.length; i++) {
-        const c = tpl.synthCols[i];
-        const v = synthesized[c];
-        if (v instanceof Date) {
-          boundValues.push((v as Date).toISOString());
-        } else if (v !== null && typeof v === "object" && !Array.isArray(v)) {
-          boundValues.push(JSON.stringify(v));
-        } else {
-          boundValues.push(v);
-        }
+        boundValues.push(bindPgParam(synthesized[tpl.synthCols[i]], tpl.isJsonMap[i]));
       }
 
       await exec.unsafe(tpl.sqlText, boundValues, { prepare: true });
@@ -235,14 +235,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const rowPlaceholders: string[] = [];
         for (let c = 0; c < numCols; c++) {
           const colName = tpl.synthCols[c];
-          const v = row[colName];
-          if (v instanceof Date) {
-            boundValues.push((v as Date).toISOString());
-          } else if (v !== null && typeof v === "object" && !Array.isArray(v)) {
-            boundValues.push(JSON.stringify(v));
-          } else {
-            boundValues.push(v);
-          }
+          boundValues.push(bindPgParam(row[colName], tpl.isJsonMap[c]));
           const paramIdx = boundValues.length;
           rowPlaceholders.push(tpl.isJsonMap[c] ? `$${paramIdx}::jsonb` : `$${paramIdx}`);
         }
@@ -298,24 +291,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const phys = this.getColumn(table, col);
         const physName = phys?.name ?? col;
         const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
-        const v = values[col];
-        if (v instanceof Date) {
-          boundValues.push((v as Date).toISOString());
-          setPairs.push(`"${safeCol}" = $${boundValues.length}`);
-        } else if (v === null || v === undefined) {
-          boundValues.push(null);
-          setPairs.push(`"${safeCol}" = $${boundValues.length}`);
-        } else if (typeof v === "object") {
-          boundValues.push(JSON.stringify(v));
-          setPairs.push(
-            physName === "data" || (phys as any)?.dataType === "json"
-              ? `"${safeCol}" = $${boundValues.length}::jsonb`
-              : `"${safeCol}" = $${boundValues.length}`,
-          );
-        } else {
-          boundValues.push(v);
-          setPairs.push(`"${safeCol}" = $${boundValues.length}`);
-        }
+        const isJson = physName === "data" || (phys as any)?.dataType === "json";
+        boundValues.push(bindPgParam(values[col], isJson));
+        setPairs.push(
+          isJson
+            ? `"${safeCol}" = $${boundValues.length}::jsonb`
+            : `"${safeCol}" = $${boundValues.length}`,
+        );
       }
 
       boundValues.push(String(id));

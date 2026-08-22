@@ -6,7 +6,7 @@ order: 30
 icon: "mdi:state-machine"
 author: "SveltyCMS Team"
 created: "2025-11-26"
-updated: "2026-06-10"
+updated: "2026-08-21"
 tags:
   - "architecture"
   - "state-machine"
@@ -61,6 +61,7 @@ Instead of a monolithic boot, the system targets "Minimum Viable Services" based
 | **FULL**  | Cache Pre-Warming, Widget Reconciliation, Background Jobs, Behavioral Engine | State → `WARMED` | Dashboard    |
 
 > **Thundering Herd Prevention**: Only the first request triggers initialization. Subsequent requests wait on the shared `dbInitPromise` — preventing connection storms.  
+> **Zero settling delay**: `plugin-registry.ts` and `db-init.ts` have no `setTimeout` between CORE and WARMED. Proxy registrations are synchronous; ready plugins boot in parallel as soon as dependencies are met.  
 > **Logical vs. Technical**: [Lazy Holders](../database/core-infrastructure.mdx#lazy-holder-architecture) enforce physical code isolation, preventing server-only modules from leaking into client bundles.
 
 ---

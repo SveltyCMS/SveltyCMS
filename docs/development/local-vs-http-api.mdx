@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:lightning-bolt"
 author: "SveltyCMS Team"
 created: "2026-03-29"
-updated: "2026-08-20"
+updated: "2026-08-21"
 tags:
   - "architecture"
   - "performance"
@@ -158,14 +158,14 @@ const raw = await cms.db.crud.findMany("posts", {}, { tenantId });
 monolith into a thin orchestrator (~1,240 lines) with each concern living exactly once in its own
 module under `src/services/sdk/namespaces/collections/`:
 
-| Module              | Responsibility                                                                             |
-| ------------------- | ------------------------------------------------------------------------------------------ |
-| `schema-store.ts`   | Schema LRU cache (lowercased keys), hot-path flags, model cache (WeakMap, never on schema) |
-| `read-pipeline.ts`  | Tenant+publication query building, find cache keys (FNV-1a), L1→L2 read-through cache      |
-| `write-pipeline.ts` | Single-pass field prep → hooks → numeric gate → `assertWriteAllowed`; widget pipeline      |
-| `post-write.ts`     | Post-write side effects: outbox batch, debounced invalidation, workflow/pub-sub/hooks      |
-| `request-cache.ts`  | L1 request cache (bounded LRU) + scoped keyspace index for eviction                        |
-| `lazy-services.ts`  | Memoized dynamic imports (workflow, response-cache, pub-sub, outbox, token engine, …)      |
+| Module              | Responsibility                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `schema-store.ts`   | Schema LRU cache (lowercased keys), hot-path flags, model cache (WeakMap, never on schema)                                                                    |
+| `read-pipeline.ts`  | Tenant+publication query building, find cache keys (FNV-1a), L1→L2 read-through cache                                                                         |
+| `write-pipeline.ts` | Single-pass field prep → hooks → numeric gate → `assertWriteAllowed`; widget pipeline                                                                         |
+| `post-write.ts`     | Post-write side effects: outbox batch, tick-debounced invalidation (collection + API patterns only — **not** `cms:content_structure`), workflow/pub-sub/hooks |
+| `request-cache.ts`  | L1 request cache (bounded LRU) + scoped keyspace index for eviction                                                                                           |
+| `lazy-services.ts`  | Memoized dynamic imports (workflow, response-cache, pub-sub, outbox, token engine, …)                                                                         |
 
 Key hot-path changes:
 
@@ -179,6 +179,8 @@ Key hot-path changes:
   is the single source for `collection_<id>` derivation (namespace + API handlers).
 - **Per-item dynamic import removed** from `list()` (token engine now a memoized singleton);
   `findById` schema-cache key casing fixed; `findStreaming` now shares the schema cache.
+- **Widget pipeline** — `modifyRequest` caches active widgets on the fields array; DateTime uses a static `toISOString` import (no per-field dynamic import).
+- **Cross-chunk singletons** — `responseCache`, webhook, and automation services bind to `globalThis` so Rolldown chunks share one instance.
 
 ### Security invariants (unchanged)
 

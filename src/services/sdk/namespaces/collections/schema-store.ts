@@ -48,6 +48,21 @@ export function getCachedSchema(key: string): Schema | undefined {
   return _schemaCache.get(key);
 }
 
+/**
+ * Sync hot-path schema: LRU hit with fields, already hot-flagged.
+ * Avoids `await getSchema()` (always a microtask) on warm create/find/update.
+ */
+export function peekReadySchema(
+  tenantId: DatabaseId | null | undefined,
+  collectionId: string,
+): (Schema & SchemaHotFlags) | undefined {
+  const cached = _schemaCache.get(schemaCacheKey(tenantId, collectionId));
+  if (cached && cached.fields && cached.fields.length > 0) {
+    return ensureSchemaHotFlags(cached);
+  }
+  return undefined;
+}
+
 export function setCachedSchema(key: string, schema: Schema): void {
   _schemaCache.set(key, schema);
 }

@@ -135,6 +135,7 @@ async function run() {
   console.log("\n   ═══ PHASE 2: DETACHED (WritePolicy sideEffects: none) ═══");
 
   t0 = performance.now();
+  ok = 0;
   for (let i = 0; i < N; i++) {
     const r = await cms.collections
       .create("SdkVsDirect", doc(), detachedWriteOpts)

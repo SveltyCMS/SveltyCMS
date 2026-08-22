@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-08-10"
+updated: "2026-08-21"
 tags:
   - "evaluation"
   - "technical"
@@ -916,6 +916,11 @@ Product-layer APIs are now equal on SQLite, PostgreSQL, MariaDB, and MongoDB:
 - **Enterprise compliance mode (`AUDIT_CHAIN_SYNC=true`)** — optional synchronous SHA-256 audit chaining inside write transactions for ISO 27001 / SOC2-style compliance.
 - **System Settings UI toggle** — admins toggle `AUDIT_CHAIN_SYNC` / `DISABLE_AUDIT_LOGS` live under Cache & Performance.
 - **Benchmark matrix automation** — the harness supports both env overrides for comparative matrix runs.
+- **Targeted writes on all 4 engines** — SQL `prepareUpdateValues()` omits empty `data={}` and never writes `createdAt` on UPDATE; Mongo `$set` strips `createdAt` (`runValidators: false` because Valibot already ran). PostgreSQL binds objects/arrays as JSON (`$n::jsonb`).
+- **Widget pipeline** — `fields._activeWidgets` + reused accessor; DateTime `toISOString` is a static import.
+- **Session cold path** — `auth.validateSession` is a single session⋈user JOIN; warm sessions are 0 DB round-trips.
+- **Zero boot settling delay** — `plugin-registry` / `db-init` no longer `setTimeout` between CORE and WARMED.
+- **`BENCHMARK` is outbound-only** — it skips webhooks/SMTP/AI network calls so the matrix does not contact third parties. Persistence, RBAC, Valibot, and RETURNING/`$set` run the production path. `skipSideEffects` is an explicit SDK option (reported separately), not an env toggle.
 
 #### Measured impact (self-measured, 2026-08-10, Intel i7-13700H, SQLite, standalone harness)
 

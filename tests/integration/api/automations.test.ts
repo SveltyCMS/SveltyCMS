@@ -125,6 +125,7 @@ describe("Automations API (headless HTTP)", () => {
         found ||
           JSON.stringify(listBody).includes(String(id)) ||
           JSON.stringify(listBody).includes(name),
+        `listBody=${JSON.stringify(listBody)} | createdBody=${JSON.stringify(createdBody)} | id=${id}`,
       ).toBe(true);
 
       const { status: delStatus } = await authJson("DELETE", `/api/automations/${id}`, adminCookie);

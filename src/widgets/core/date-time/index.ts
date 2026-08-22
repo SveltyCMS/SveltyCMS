@@ -20,6 +20,7 @@
 import { logger } from "@utils/logger";
 import { createWidget } from "@src/widgets/widget-factory";
 import { widget_date_description } from "@src/paraglide/messages";
+import { toISOString } from "@src/utils/date";
 import { isoTimestamp, pipe, string, nullable, type InferInput as ValibotInput } from "valibot";
 import type { DateTimeProps } from "./types";
 // Type for aggregation field parameter
@@ -55,7 +56,6 @@ const DateTimeWidget = createWidget<DateTimeProps>({
   modifyRequest: async ({ data }: any) => {
     const val = data.get();
     if (val !== undefined && val !== null && val !== "") {
-      const { toISOString } = await import("@src/utils/date");
       const normalized = toISOString(val);
       if (normalized && normalized !== val) {
         data.update(normalized);
@@ -154,7 +154,6 @@ export default DateTimeWidget;
 
     const val = data.get();
     if (val !== undefined && val !== null && val !== "") {
-      const { toISOString } = await import("@src/utils/date");
       const normalized = toISOString(val);
       if (process.env.BENCHMARK_DEBUG === "true") {
         logger.debug(`[DEBUG] DateTimeWidget Static Normalized: from ${val} to ${normalized}`);

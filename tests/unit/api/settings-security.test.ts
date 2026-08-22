@@ -83,7 +83,7 @@ describe("Settings API Security Unit Tests", () => {
   });
 
   it("returns 403 for editor trying to access GET settings", async () => {
-    vi.mocked(settingsService.getPrivateSettingSync).mockReturnValueOnce(false);
+    (settingsService.getPrivateSettingSync as any).mockReturnValueOnce?.(false);
 
     const event = {
       locals: {

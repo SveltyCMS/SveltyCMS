@@ -30,7 +30,7 @@ import {
   shouldUseEstimateCount,
   withIdTiebreaker,
 } from "../core/page-utils";
-import { parseIdLookup } from "../core/lookup-query";
+import { applyLookupStatus, parseIdLookup } from "../core/lookup-query";
 
 export class MongoCrudMethods<T extends BaseEntity> {
   public readonly model: Model<T>;
@@ -94,7 +94,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
             if (!result || (result as any).isDeleted === true) {
               return { success: true, data: null, meta };
             }
-            return { success: true, data: this.mapDates(result) as T, meta };
+            const mapped = applyLookupStatus(this.mapDates(result) as T, lookup);
+            return { success: true, data: mapped, meta };
           }
         }
       }
@@ -213,7 +214,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
             if (!result || (result as any).isDeleted === true) {
               return { success: true, data: [], meta };
             }
-            return { success: true, data: [this.mapDates(result) as T], meta };
+            const mapped = applyLookupStatus(this.mapDates(result) as T, lookup);
+            return { success: true, data: mapped ? [mapped] : [], meta };
           }
         }
       }
@@ -450,7 +452,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
       // atomic claim semantics: no row matched ⇒ no-op, callers treat it as "not claimed".
       if (!options.tenantId && !options.bypassTenantCheck) {
         const now = nowISODateString();
-        const { _id: _, ...updateData } = { ...data, updatedAt: now } as any;
+        const { _id: _, createdAt: __, ...updateData } = { ...data, updatedAt: now } as any;
         const result = await this.model
           .findOneAndUpdate(
             { _id: id, ...options.filter },
@@ -488,7 +490,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
 
       const now = nowISODateString();
-      const { _id: _, ...updateData } = {
+      const {
+        _id: _,
+        createdAt: __,
+        ...updateData
+      } = {
         ...data,
         updatedAt: now,
       } as any;
@@ -546,7 +552,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
       if (options.hints?.mongo?.writeConcern) {
         updateOptions.w = options.hints.mongo.writeConcern;
       }
-      const { _id, ...d } = {
+      const {
+        _id,
+        createdAt: __,
+        ...d
+      } = {
         ...data,
         updatedAt: nowISODateString(),
       } as any;
@@ -577,8 +587,16 @@ export class MongoCrudMethods<T extends BaseEntity> {
       );
       const now = nowISODateString();
 
-      // Strip _id and tenantId from the $set payload
-      const { _id: _, tenantId: __, ...updateData } = { ...(data as any), updatedAt: now };
+      // Strip _id, tenantId, and createdAt from the $set payload (createdAt is insert-only)
+      const {
+        _id: _,
+        tenantId: __,
+        createdAt: ___,
+        ...updateData
+      } = {
+        ...(data as any),
+        updatedAt: now,
+      };
 
       // Step 1: Try atomic update first (no upsert flag, no $setOnInsert)
       // This avoids Mongoose 9's pre-validation that rejects _id in $setOnInsert
@@ -1106,7 +1124,16 @@ export class MongoCrudMethods<T extends BaseEntity> {
 
           update: {
             $set: (() => {
-              const { _id: _, tenantId: __, ...d } = { ...(item.data as any), updatedAt: now };
+              // createdAt is insert-only — $setOnInsert below still stamps it.
+              const {
+                _id: _,
+                tenantId: __,
+                createdAt: ___,
+                ...d
+              } = {
+                ...(item.data as any),
+                updatedAt: now,
+              };
               return d;
             })(),
             $setOnInsert: {
@@ -1162,7 +1189,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
             }),
           ),
           update: {
-            $set: { ...(update.data as any), updatedAt: now },
+            $set: (() => {
+              // Never write _id / createdAt back through $set on a bulk update.
+              const {
+                _id: _,
+                createdAt: __,
+                ...d
+              } = {
+                ...(update.data as any),
+                updatedAt: now,
+              };
+              return d;
+            })(),
           },
         },
       }));

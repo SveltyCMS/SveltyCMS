@@ -463,12 +463,15 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           ? `/api/local/${apiEndpoint}`
           : `/api/${apiEndpoint}`;
         const pattern = `api:${tenantIdString || "global"}:${String(locals.user!._id)}:${apiPathPrefix}`;
-        // 🐛 L1 TURBO INVALIDATION: handleTurboGet serves GETs from the sync
-        // responseCache BEFORE this handler runs — clearing only cacheService
-        // (L2) would leave up to 5 minutes of stale L1 reads after mutations.
-        await responseCache.invalidateCollection(apiEndpoint, tenantIdString);
-        // 🚀 Debounce L2 pattern evictions to a 10ms batch flusher so write bursts
-        // do not spawn concurrent pattern scans or steal PG connections.
+        // L1 turbo invalidation is synchronous (Map walk) until the first
+        // await inside invalidateCollection. Void the promise so L2 pattern
+        // scans never sit on the mutation response path; the next GET in this
+        // process already sees an empty L1.
+        void responseCache.invalidateCollection(apiEndpoint, tenantIdString).catch(() => {});
+        void cacheService.delete(pattern, currentTenantId).catch(() => {});
+        void cacheService.delete(`${pattern}/`, currentTenantId).catch(() => {});
+        // Debounce remaining L2 pattern evictions so write bursts do not
+        // spawn concurrent pattern scans or steal PG connections.
         schedulePatternClear(`${pattern}*`, currentTenantId);
         schedulePatternClear(`${apiPathPrefix}*`, currentTenantId);
       } catch (e) {

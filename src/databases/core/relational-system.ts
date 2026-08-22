@@ -96,11 +96,16 @@ export class RelationalSystemModule implements ISystemAdapter {
    * hit rows stored with tenantId NULL — otherwise "global" filters miss
    * every system setting in the DB.
    */
-  private normalizeSystemTenant(tenantId?: string | null): string | null {
-    if (tenantId === undefined || tenantId === null || tenantId === "" || tenantId === "global") {
+  private normalizeSystemTenant(rawTenant?: string | null): string | null {
+    if (
+      rawTenant === undefined ||
+      rawTenant === null ||
+      rawTenant === "" ||
+      rawTenant === "global"
+    ) {
       return null;
     }
-    return String(tenantId);
+    return String(rawTenant);
   }
 
   public readonly preferences = {

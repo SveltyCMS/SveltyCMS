@@ -73,7 +73,8 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
     // Homogeneous payload (status/archive) → one updateMany, not N updateOne ops.
     if (model && sameBatchPayload(updates)) {
       const ids = updates.map((upd) => upd.id);
-      const result = await model.updateMany({ _id: { $in: ids } }, { $set: updates[0].data });
+      const { _id: _idOut, createdAt: _createdAt, ...set } = { ...updates[0].data };
+      const result = await model.updateMany({ _id: { $in: ids } }, { $set: set });
       return {
         success: true as const,
         data: { modifiedCount: result.modifiedCount ?? -1 },
@@ -82,12 +83,16 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
 
     // Heterogeneous payloads: one bulkWrite round-trip (~10-50x vs Promise.all).
     if (model && updates.length > 1) {
-      const bulkOps = updates.map((upd) => ({
-        updateOne: {
-          filter: { _id: upd.id },
-          update: { $set: upd.data },
-        },
-      }));
+      const bulkOps = updates.map((upd) => {
+        // createdAt is insert-only — never rewrite it through $set.
+        const { _id: _idOut, createdAt: _createdAt, ...set } = { ...upd.data };
+        return {
+          updateOne: {
+            filter: { _id: upd.id },
+            update: { $set: set },
+          },
+        };
+      });
       const result = await model.bulkWrite(bulkOps, { ordered: true });
       return {
         success: true as const,

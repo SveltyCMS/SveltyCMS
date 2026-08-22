@@ -25,7 +25,9 @@ SveltyCMS implements a **dual-layer caching system**: L1 is an in-memory LRU cac
 
 ### HTTP response cache (turbo GET + GraphQL + Zero-Copy Buffers)
 
-Separate from `cacheService` entity keys: **`responseCache`** (`src/services/cache/response-cache.ts`) stores user-scoped pre-stringified API/GraphQL bodies + ETags for the **Request Lane Router** (`HYPER_TURBO` / handler-level GraphQL HIT). Keys are `u:{userId}:…` with deep-sorted variables; mutations invalidate `res:*` / GraphQL patterns.
+Separate from `cacheService` entity keys: **`responseCache`** (`src/services/cache/response-cache.ts`) stores user-scoped pre-stringified API/GraphQL bodies + ETags for the **Request Lane Router** (`HYPER_TURBO` / handler-level GraphQL HIT). Keys are `u:{userId}:…` with deep-sorted variables; mutations invalidate `res:*` / GraphQL patterns. The service is a **`globalThis` singleton** so invalidations apply across Rolldown chunks / worker threads.
+
+On HTTP mutations (`handle-api-requests.ts`), the L1 Map walk is **synchronous** (the next GET in-process cannot see a stale turbo body). L2 `cacheService.delete` / `clearByPattern` is fire-and-forget plus a 10ms batched flusher — those scans never sit on the mutation `200`. SDK document writes (`post-write.ts`) clear collection + API patterns only; they do not evict `cms:content_structure` schema models.
 
 - **Zero-Copy Binary Byte Buffers**: Pre-encodes and stores `Uint8Array` binary byte buffers directly in L1 RAM. `handleTurboGet` and the API dispatcher return `new Response(resEntry.buffer)` directly, completely bypassing V8 UTF-16 → UTF-8 string re-serialization and dropping cached p99 latency to **`<0.08ms`**.
 - **O(1) ByteLength Resolution**: Uses `resEntry.buffer.byteLength` directly to avoid scanning multi-kilobyte JavaScript strings with `Buffer.byteLength(rawBody, "utf-8")`.

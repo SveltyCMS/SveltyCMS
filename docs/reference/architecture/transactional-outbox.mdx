@@ -2,7 +2,7 @@
 path: "docs/reference/architecture/transactional-outbox.mdx"
 title: "Transactional Outbox"
 description: "Atomic event emission with content mutations — polling, backoff, webhook fan-out."
-updated: "2026-08-09"
+updated: "2026-08-21"
 ---
 
 # Transactional Outbox
@@ -14,7 +14,7 @@ SveltyCMS uses the **transactional outbox** pattern so domain events (webhooks, 
 1. **Write path** (collection create/update/delete) uses `persistWithOutbox`:
    - The entity write is a **single atomic statement** (`INSERT`/`UPDATE`/`DELETE` — no BEGIN/COMMIT wrapper needed).
    - The outbox emit is scheduled as a `queueMicrotask` **off the response path** — never awaited by the caller. (The old "one DB transaction for entity write + emit" wrapper was removed: single-statement writes are natively atomic, and coalesced buffering avoids serializing content writes 1:1 with outbox rows.)
-2. **Buffered (non-transactional) emits** — `emit()` outside a transaction pushes into an in-memory buffer and bulk-flushes via one `insertMany` after `OUTBOX_BUFFER_FLUSH_MS` (25ms) or at 64 events. The event `_id` (UUID) is stamped at **emit time** — it is part of the emit contract and equal to the stored id.
+2. **Buffered (non-transactional) emits** — `emit()` / `enqueueBuffered()` outside a transaction push into an in-memory buffer. Persistence is a **trailing 25ms debounce** (reset on every emit) so a write burst becomes **one** `insertMany` after the burst, not interleaved with content INSERTs. A hard cap of 512 events forces a `setImmediate` flush — never a same-tick DB write. The event `_id` (UUID) is stamped at **emit time**.
 3. Event types: `entry:create` | `entry:update` | `entry:delete`.
 4. `afterMutation` invalidates cache and publishes `entryUpdated`; on the main create/update/delete path it passes `skipOutbox: true` (the outbox event was already emitted by `persistWithOutbox`). Callers that bypass `persistWithOutbox` fall back to the `afterMutation` emit.
 5. Background `outboxService.startPolling()` (hooks cold-start) runs `processBatch()` — which first flushes the emit buffer so milliseconds-old buffered events are included in the tick.
