@@ -37,12 +37,34 @@ export class MongoCollectionMethods {
       `schema:collection:${id}`,
       async () => {
         const entry = this.models.get(id);
-        if (!entry) {
-          throw new Error(
-            `Collection model with id ${id} not found. Available: ${Array.from(this.models.keys()).join(", ")}`,
-          );
+        if (entry) return entry.wrapped;
+
+        // 🚀 SELF-HEALING: if the Mongoose model was registered in a prior
+        // createModel call this process but is missing from this.models (e.g.
+        // hot-reload cleared the map), reconstruct the wrapped model without
+        // re-running DDL.
+        const modelName = normalizeCollectionTableName(id);
+        const existingModel = (this.connection.models as any)[modelName];
+        if (existingModel) {
+          const wrappedModel: CollectionModel = {
+            findOne: async <R = unknown>(query: Record<string, unknown>) => {
+              const result = await (existingModel as any)
+                .findOne(query as any)
+                .lean()
+                .exec();
+              return result as R | null;
+            },
+            aggregate: async <R = unknown>(pipeline: Record<string, unknown>[]) => {
+              return (await (existingModel as any).aggregate(pipeline as any).exec()) as R[];
+            },
+          };
+          this.models.set(id, { model: existingModel, wrapped: wrappedModel });
+          return wrappedModel;
         }
-        return entry.wrapped;
+
+        throw new Error(
+          `Collection model with id ${id} not found. Available: ${Array.from(this.models.keys()).join(", ")}`,
+        );
       },
       { category: CacheCategory.SCHEMA },
     );

@@ -1198,11 +1198,15 @@ export abstract class AdapterCore extends SqlAdapterCore {
   // Create Model (Table Provisioning)
   // --------------------------------------------------------------------------
 
-  public async createModel(schemaData: any): Promise<void> {
+  public async createModel(schemaData: any, force = false): Promise<void> {
     const tableName = schemaData._id || schemaData.id;
     if (!tableName) throw new Error("Schema must have an _id");
 
     const normalizedName = tableName.replace(/-/g, "");
+
+    // 🚀 FAST PATH: skip all DDL for already-provisioned tables.
+    if (!force && this._provisionedTables.has(normalizedName)) return;
+
     const table = this.getTable(normalizedName);
     const physicalName = getTableName(table as any);
 
@@ -1384,6 +1388,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
         this.tableRegistry.delete(normalizedName);
         this.tableRegistry.delete(normalizeCollectionTableName(normalizedName));
         this.tableRegistry.delete(`collection_${tableName}`);
+        // 🚀 Mark as provisioned so subsequent calls take the fast-path
+        this._provisionedTables.add(normalizedName);
+        this._provisionedTables.add(physicalName);
       },
       "CREATE_MODEL_FAILED",
       undefined,

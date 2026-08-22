@@ -36,6 +36,34 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
       return model;
     }
 
+    // 🚀 SELF-HEALING: the table may already be registered in the adapter's
+    // tableRegistry (pre-warmed at boot, or a hot-reload cleared only the model
+    // map). Reconstruct the wrapped model without re-running DDL on the request
+    // thread — getTable succeeds only when the table def is already cached.
+    try {
+      const table = (this.adapter as any).getTable?.(id);
+      if (table) {
+        const wrappedModel: CollectionModel = {
+          findOne: async <R = unknown>(query: Record<string, unknown>) => {
+            const res = await this.crud.findOne<any>(
+              id,
+              query as import("../db-interface").QueryFilter<Record<string, unknown>>,
+              { skipMeta: true },
+            );
+            return res.success ? (res.data as R) : null;
+          },
+          aggregate: async <R = unknown>(pipeline: Record<string, unknown>[]) => {
+            const res = await this.crud.aggregate<R>(id, pipeline);
+            return res.success ? res.data : [];
+          },
+        };
+        this.modelRegistry.set(id, wrappedModel);
+        return wrappedModel;
+      }
+    } catch {
+      /* fall through to the error below */
+    }
+
     throw new Error(`Collection model not found: ${id}`);
   }
 

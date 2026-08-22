@@ -166,6 +166,9 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
       this.dynamicTables.clear();
       this.modelRegistry.clear();
       this._insertTemplateCache.clear();
+      // Collection tables were physically dropped — forget the cold-start
+      // fast-path flags so createModel re-runs DDL on the next access.
+      this._provisionedTables.clear();
 
       logger.info("[PostgreSQL Adapter] Fast single-shot database clear completed");
     }, "CLEAR_DATABASE_FAILED");

@@ -132,6 +132,9 @@ export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {
         // 🚀 HARDENING: Mark as not provisioned so system tables are re-created
         this._provisioned = false;
         this._provisionPromise = null;
+        // Collection tables were physically dropped — forget the cold-start
+        // fast-path flags so createModel re-runs DDL on the next access.
+        this._provisionedTables.clear();
 
         logger.info("[SQLite Adapter] Database tables cleared/dropped (resilient clear)");
       }, "CLEAR_DATABASE_FAILED"),

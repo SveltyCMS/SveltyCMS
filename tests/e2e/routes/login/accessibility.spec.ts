@@ -32,6 +32,28 @@ test.describe("Universal Accessibility Audits", () => {
     }
     await page.getByTestId("signin-email").waitFor({ state: "visible" });
 
+    // The sign-in form is wrapped in transition:fade — auditing mid-animation
+    // reports phantom color-contrast violations (opacity < 1 blends the text
+    // color with the background). Wait until the animation settles (opacity 1)
+    // before running Axe.
+    await page.waitForFunction(
+      () => {
+        let el = document.querySelector('[data-testid="signin-email"]');
+        if (!el) return false;
+        // opacity is not inherited, so multiply ancestor opacities to get the
+        // effective (visually composited) value
+        let effective = 1;
+        while (el && el !== document.documentElement) {
+          const o = Number.parseFloat(getComputedStyle(el).opacity);
+          if (!Number.isNaN(o)) effective *= o;
+          el = el.parentElement;
+        }
+        return effective >= 0.999;
+      },
+      undefined,
+      { timeout: 10_000 },
+    );
+
     // Run Axe audit
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])

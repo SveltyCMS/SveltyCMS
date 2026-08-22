@@ -1223,11 +1223,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   // Create Model (Table Provisioning)
   // --------------------------------------------------------------------------
 
-  public async createModel(schemaData: any): Promise<void> {
+  public async createModel(schemaData: any, force = false): Promise<void> {
     const tableName = schemaData._id || schemaData.id;
     if (!tableName) throw new Error("Schema must have an _id");
 
     const normalizedName = tableName.replace(/-/g, "");
+
+    // 🚀 FAST PATH: skip all DDL for already-provisioned tables.
+    if (!force && this._provisionedTables.has(normalizedName)) return;
+
     const table = this.getTable(normalizedName);
     const physicalName = getTableName(table as any);
 
@@ -1311,43 +1315,59 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
         registerTableSchema(normalizedName, ["_id", "data", ...columns.map((c: any) => c.name)]);
 
+        // 🚀 COLUMN-DIFF: read information_schema.columns once — the previous
+        // loop ran a full-table backfill UPDATE per column even when the column
+        // already existed (e.g. a 25k-row table provisioned by a prior process
+        // paid 9+ table scans on every cold start).
+        let existingCols = new Set<string>();
+        try {
+          const plainName = String(physicalName).split(".").pop() ?? String(physicalName);
+          const cols = await this.raw.execute(
+            `SELECT column_name FROM information_schema.columns WHERE table_name = '${plainName}'`,
+          );
+          if (Array.isArray(cols)) {
+            existingCols = new Set(cols.map((c: any) => String(c.column_name)));
+          }
+        } catch {
+          /* table may not exist yet — ALTER path still runs */
+        }
+
         for (const col of columns) {
           try {
             // 🛡️ col.name can be admin-typed field LABEL text — allow-list it
             // before it reaches ALTER/CREATE INDEX identifiers (the backfill
             // loop below already asserts).
             const colName = utils.assertSafeSqlIdentifier(col.name, "column");
+            if (existingCols.has(colName)) continue;
             await this.raw.execute(
-              `ALTER TABLE "${physicalName}" ADD COLUMN IF NOT EXISTS "${colName}" ${col.type}`,
+              `ALTER TABLE "${physicalName}" ADD COLUMN "${colName}" ${col.type}`,
             );
-          } catch {
-            /* safe */
-          }
-        }
+            existingCols.add(colName);
 
-        // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in the
-        // `data` blob — copy them into the materialized columns so filters and
-        // sorts match old rows too (idempotent: only NULL columns are filled;
-        // `data` is JSONB so `->>` extracts a raw text value; numeric/boolean
-        // columns cast explicitly).
-        for (const col of columns) {
-          try {
-            const safeColName = utils.assertSafeSqlIdentifier(col.name, "column");
-            if (col.type === "INTEGER") {
-              await this.raw.execute(
-                `UPDATE "${physicalName}" SET "${safeColName}" = ("data"->>'${safeColName}')::integer WHERE "${safeColName}" IS NULL AND "data" IS NOT NULL`,
-              );
-            } else if (col.type === "BOOLEAN") {
-              await this.raw.execute(
-                `UPDATE "${physicalName}" SET "${safeColName}" = ("data"->>'${safeColName}')::boolean WHERE "${safeColName}" IS NULL AND "data" IS NOT NULL`,
-              );
-            } else {
-              await this.raw.execute(
-                `UPDATE "${physicalName}" SET "${safeColName}" = "data"->>'${safeColName}' WHERE "${safeColName}" IS NULL AND "data" IS NOT NULL`,
-              );
+            // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in
+            // the `data` blob — copy them into the new column so filters and
+            // sorts match old rows too (idempotent: only NULL columns are
+            // filled; `data` is JSONB so `->>` extracts a raw text value;
+            // numeric/boolean columns cast explicitly).
+            try {
+              if (col.type === "INTEGER") {
+                await this.raw.execute(
+                  `UPDATE "${physicalName}" SET "${colName}" = ("data"->>'${colName}')::integer WHERE "${colName}" IS NULL AND "data" IS NOT NULL`,
+                );
+              } else if (col.type === "BOOLEAN") {
+                await this.raw.execute(
+                  `UPDATE "${physicalName}" SET "${colName}" = ("data"->>'${colName}')::boolean WHERE "${colName}" IS NULL AND "data" IS NOT NULL`,
+                );
+              } else {
+                await this.raw.execute(
+                  `UPDATE "${physicalName}" SET "${colName}" = "data"->>'${colName}' WHERE "${colName}" IS NULL AND "data" IS NOT NULL`,
+                );
+              }
+            } catch {
+              /* backfill is best-effort (column may not exist on legacy tables) */
             }
           } catch {
-            /* backfill is best-effort (column may not exist on legacy tables) */
+            /* safe */
           }
         }
 
@@ -1415,6 +1435,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         this.tableRegistry.delete(normalizedName);
         this.tableRegistry.delete(normalizeCollectionTableName(normalizedName));
         this.tableRegistry.delete(`collection_${tableName}`);
+        // 🚀 Mark as provisioned so subsequent calls take the fast-path
+        this._provisionedTables.add(normalizedName);
+        this._provisionedTables.add(physicalName);
       },
       "CREATE_MODEL_FAILED",
       undefined,

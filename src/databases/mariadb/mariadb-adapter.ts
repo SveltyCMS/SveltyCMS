@@ -179,6 +179,9 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
       this.modelRegistry.clear();
       this._tableColumnsCache.clear();
       this._selectionCache.clear();
+      // Collection tables were physically dropped — forget the cold-start
+      // fast-path flags so createModel re-runs DDL on the next access.
+      this._provisionedTables.clear();
 
       logger.info("[MariaDB Adapter] Database tables cleared/dropped (resilient clear)");
     }, "CLEAR_DATABASE_FAILED");

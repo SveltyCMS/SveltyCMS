@@ -268,7 +268,7 @@ function handlePaste(e: ClipboardEvent) {
 					"peer-not-placeholder-shown:-translate-y-2 peer-not-placeholder-shown:scale-75",
 					bgTransparent
 						? "text-white/80 peer-focus:text-white peer-not-placeholder-shown:text-white"
-						: "text-surface-500 peer-focus:text-tertiary-500 peer-not-placeholder-shown:text-tertiary-500",
+						: "text-surface-700 peer-focus:text-tertiary-600 peer-not-placeholder-shown:text-tertiary-600",
 					invalid && "text-error-500!",
 					labelClass
 				)}

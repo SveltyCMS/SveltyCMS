@@ -603,7 +603,7 @@ export const contentService = {
     const schemas = await scanCompiledCollections(targetDir);
 
     if (skipReconciliation) {
-      await this.fastSyncStore(schemas, tenantId);
+      await this.fastSyncStore(schemas, tenantId, dbAdapter);
       return;
     }
 
@@ -659,7 +659,7 @@ export const contentService = {
     await notifyContentUpdate(tenantId);
   },
 
-  async fastSyncStore(schemas: Schema[], tenantId?: string | null) {
+  async fastSyncStore(schemas: Schema[], tenantId?: string | null, dbAdapter?: IDBAdapter) {
     const nodes = schemas.map((s) => ({
       ...s,
       nodeType: "collection",
@@ -670,6 +670,10 @@ export const contentService = {
       tenantId: tenantId || "global",
     })) as any;
     contentStore.sync(nodes);
+    // 🚀 Pre-warm SDK schema LRU + adapter table registry so first write hits in-memory cache
+    const { prewarmCollectionSchemas } =
+      await import("@src/services/sdk/namespaces/collections/schema-store");
+    prewarmCollectionSchemas(schemas, dbAdapter, tenantId);
   },
 
   /**
@@ -863,6 +867,19 @@ export const contentService = {
 
     contentStore.clear(tenantId as string);
     contentStore.sync(operations);
+    // 🚀 Keep SDK schema LRU in sync with reconciled schemas
+    const collectionNodes = operations.filter(
+      (op) => op.nodeType === "collection" && op.collectionDef,
+    );
+    if (collectionNodes.length > 0) {
+      const { prewarmCollectionSchemas } =
+        await import("@src/services/sdk/namespaces/collections/schema-store");
+      prewarmCollectionSchemas(
+        collectionNodes.map((op) => op.collectionDef as Schema),
+        dbAdapter,
+        tenantId,
+      );
+    }
 
     if (operations.length > 0) {
       const validUpdates = operations

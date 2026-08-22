@@ -7,6 +7,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { invalidateCache } from "@src/services/sdk/namespaces/collections/post-write";
 
+vi.mock("@src/databases/cache/cache-service", () => ({
+  cacheService: {
+    clearByPattern: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 describe("collections post-write invalidation", () => {
   beforeEach(() => {
     vi.mocked(cacheService.clearByPattern).mockClear();
@@ -19,7 +25,7 @@ describe("collections post-write invalidation", () => {
   }
 
   it("does not purge cms:content_structure on entry mutations", async () => {
-    invalidateCache({ _id: "Posts" } as any, "tenant-a");
+    invalidateCache({ _id: "Posts" } as any, "tenant-a" as any);
     await flushInvalidation();
 
     const patterns = vi.mocked(cacheService.clearByPattern).mock.calls.map((c) => String(c[0]));
@@ -29,7 +35,7 @@ describe("collections post-write invalidation", () => {
   });
 
   it("adds a lowercase API pattern only when the schema id is mixed-case", async () => {
-    invalidateCache({ _id: "posts" } as any, "tenant-a");
+    invalidateCache({ _id: "posts" } as any, "tenant-a" as any);
     await flushInvalidation();
 
     const patterns = vi.mocked(cacheService.clearByPattern).mock.calls.map((c) => String(c[0]));
