@@ -51,6 +51,11 @@ test.describe("Hooks / lane router smoke (admin session)", () => {
     test.skip(!existsSync(ADMIN_AUTH), "admin storageState missing — run auth-setup project first");
 
     await page.goto("/config", { waitUntil: "domcontentloaded", timeout: 45_000 });
+    // Same stale-storageState resilience as the dashboard test above:
+    // session rejected → re-auth so the smoke test stays green.
+    if (page.url().includes("/login")) {
+      await loginAsAdmin(page, "/config");
+    }
     await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
     await expect(page.getByRole("heading", { name: /system error/i })).toHaveCount(0);
   });

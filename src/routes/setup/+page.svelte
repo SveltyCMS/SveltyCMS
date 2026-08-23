@@ -187,7 +187,10 @@
 		await tick();
 		const stepContent = document.getElementById('step-content');
 		if (stepContent) {
-			stepContent.focus();
+			// preventScroll: step transitions must not trigger a smooth-scroll
+			// chase (async Redis detection / expandable CDN settings can change
+			// the step height right after focus → visible layout reflow).
+			stepContent.focus({ preventScroll: true });
 		}
 	}
 
@@ -334,7 +337,11 @@
 			</div>
 
 			<!-- Scrollable step content; pb reserves space for absolute footer (nav row + optional seeding bar) -->
-			<div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-smooth p-2 pb-24" id="step-content" tabindex="-1">
+			<div
+				class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-smooth p-2 pb-32 [overflow-anchor:none] [scroll-padding-bottom:8rem]"
+				id="step-content"
+				tabindex="-1"
+			>
 				<div class="mx-auto max-w-8xl">
 					<div class="mb-4">
 						<SetupCardHeader

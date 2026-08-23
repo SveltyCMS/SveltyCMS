@@ -159,27 +159,27 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
       const res = await apiUpdateUserThemePrefs({ ...themePrefs });
       if (!res.success) throw new Error(res.message || "Save failed");
 
+      // Toast immediately after the successful PUT — never race the reactive
+      // side effects below (store apply, layout re-render, invalidate).
+      toast.success("Preferences applied across the admin panel.");
+
       if (browser) localStorage.setItem(LOCAL_PREFS_KEY, JSON.stringify(themePrefs));
       userThemePrefs.apply(themePrefs);
       if (!layoutLocked && themePrefs.layoutState) {
         applyLayoutPrefsToUiState(themePrefs.layoutState, ui.state);
       }
-      await invalidate("app:user-prefs");
-      // Keep this page's server data in sync for reload-less validation/tests.
-      data.user = {
-        ...(data as any).user,
-        preferences: {
-          ...(data as any).user?.preferences,
-          theme: { ...themePrefs },
-        },
-      };
-      toast.success("Preferences applied across the admin panel.");
+      // Server data re-sync — fire-and-forget (never awaited) so it can't
+      // delay or clobber the toast. The layout reads live prefs from the
+      // `userThemePrefs` store, which `apply()` above already updated.
+      invalidate("app:user-prefs");
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
   }
 
   async function clearMyOverrides() {
     try {
       await apiUpdateUserThemePrefs({});
+      // Toast immediately — same rationale as in saveMyOverrides.
+      toast.success("Overrides cleared — using active theme defaults.");
       myDensity = "";
       myVariant = "";
       myReducedMotion = false;
@@ -189,8 +189,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
       }
       if (browser) localStorage.removeItem(LOCAL_PREFS_KEY);
       userThemePrefs.apply({ reducedMotion: false, highContrast: false, layoutState: {} });
-      await invalidate("app:user-prefs");
-      toast.success("Overrides cleared — using active theme defaults.");
+      invalidate("app:user-prefs");
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : String(e)); }
   }
 

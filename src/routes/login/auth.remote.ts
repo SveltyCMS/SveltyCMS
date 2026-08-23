@@ -575,7 +575,9 @@ async function signUpInternal(event: RequestEvent, input: any) {
 
   const mt = isMultiTenantEnabled();
   const dm = getPrivateSettingSync("DEMO");
-  const open = !!(mt && dm);
+  // Open signup follows the DEMO setting alone — a demo instance (even a
+  // single-tenant one) must not require a registration token.
+  const open = !!dm;
   let role = "user",
     invited = false,
     tid: string | undefined;
