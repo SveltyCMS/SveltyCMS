@@ -77,7 +77,7 @@ import { setContentContext } from "@src/content";
 // =============================================
 
 interface LayoutData {
-	contentStructure: Promise<ContentNode[]>;
+	contentStructure: ContentNode[];
 	settings: Record<string, any>;
 	user: User | null;
 	tenantId?: string | null;
@@ -373,13 +373,12 @@ $effect(() => {
 	document.documentElement.lang = lang;
 });
 
-// 🔥 SYNC: Connect streamed content structure to global stores for sidebar/navigation reactivity
+// 🔥 SYNC: Connect content structure to global stores for sidebar/navigation reactivity
+// (contentStructure is now plain data — the layout server resolves it before returning)
 $effect(() => {
-	data.contentStructure.then((nodes) => {
-		untrack(() => {
-			import("@src/stores/collection-store.svelte").then(({ setContentStructure }) => {
-				setContentStructure(nodes);
-			});
+	untrack(() => {
+		import("@src/stores/collection-store.svelte").then(({ setContentStructure }) => {
+			setContentStructure(data.contentStructure);
 		});
 	});
 });

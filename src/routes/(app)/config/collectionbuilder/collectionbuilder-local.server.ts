@@ -62,6 +62,10 @@ export async function executeGuiStructureSave(
   const syncResult = await cms.contentStructure.saveGuiStructure(operations, {
     tenantId: tenantId as DatabaseId | null,
   });
+  // First collection may have moved/deleted — drop the memoized redirect path.
+  const { invalidateFirstCollectionPathCache } =
+    await import("@utils/server/collection-utils.server");
+  invalidateFirstCollectionPathCache();
   const updated = syncResult.contentStructure ?? [];
   return { success: true, contentStructure: serializeStructureNodes(updated) };
 }

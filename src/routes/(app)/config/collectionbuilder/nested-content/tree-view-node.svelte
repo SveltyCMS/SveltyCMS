@@ -106,7 +106,7 @@ function handleKeyDown(e: KeyboardEvent) {
 >
 	<!-- Expand/Collapse Toggle -->
 	{#if item.hasChildren || isCategory}
-		<Button variant="ghost"
+		<Button variant="transparent"
 			type="button"
 			onclick={(e: MouseEvent) => {
 				e.stopPropagation();
@@ -127,11 +127,11 @@ function handleKeyDown(e: KeyboardEvent) {
 	<!-- Name & Badge: flexible width for responsiveness -->
 	<div class="flex flex-1 flex-col gap-1 min-w-0">
 		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
-			<span class="font-bold text-sm sm:text-base leading-none truncate max-w-37.5 sm:max-w-95" title={name}>{name}</span>
+			<span class="font-bold text-xs sm:text-base leading-none truncate max-w-37.5 sm:max-w-95" title={name}>{name}</span>
 			{#if isCategory}
-				<Badge variant="primary" size="sm" rounded={false} class="border-0 bg-tertiary-600 text-white shadow-sm">Category</Badge>
+				<Badge variant="primary" size="sm" rounded={false} class="bg-tertiary-600 text-white shadow-sm">Category</Badge>
 			{:else}
-				<Badge variant="error" size="sm" rounded={false} class="border-0 bg-error-600 text-white shadow-sm">Collection</Badge>
+				<Badge variant="error" size="sm" rounded={false} class="bg-error-600 text-white shadow-sm">Collection</Badge>
 			{/if}
 
 			<!-- Slug - Hidden on mobile to save space -->
@@ -156,7 +156,7 @@ function handleKeyDown(e: KeyboardEvent) {
 	<div class="ms-auto flex shrink-0 items-center gap-0.5">
 		<SystemTooltip title="Edit">
 			{#if isCategory}
-				<Button variant="ghost"
+				<Button variant="transparent"
 					type="button"
 					onclick={(e: MouseEvent) => {
 						e.stopPropagation();
@@ -168,7 +168,7 @@ function handleKeyDown(e: KeyboardEvent) {
 				</Button>
 			{:else}
 				<Button
-					variant="ghost"
+					variant="transparent"
 					size="sm"
 					href={`/config/collectionbuilder/edit/${item.id}`}
 					data-sveltekit-preload-data="hover"
@@ -183,7 +183,7 @@ function handleKeyDown(e: KeyboardEvent) {
 
 		<!-- Duplicate -->
 		<SystemTooltip title="Duplicate">
-			<Button variant="ghost"
+			<Button variant="transparent"
 				type="button"
 				onclick={(e: MouseEvent) => {
 					e.stopPropagation();
@@ -197,7 +197,7 @@ function handleKeyDown(e: KeyboardEvent) {
 
 		<!-- Delete -->
 		<SystemTooltip title="Delete">
-			<Button variant="ghost"
+			<Button variant="transparent"
 				type="button"
 				onclick={(e: MouseEvent) => {
 					e.stopPropagation();

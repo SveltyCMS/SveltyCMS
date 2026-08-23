@@ -93,9 +93,9 @@ const showGoogleOAuth = $derived(pageData?.showGoogleOAuth ?? false);
 const showGithubOAuth = $derived(pageData?.showGithubOAuth ?? false);
 const hasExistingOAuthUsers = $derived(pageData?.hasExistingOAuthUsers ?? false);
 
-// isOpenSignup: true only when multiTenant AND demoMode are both active.
+// isOpenSignup: true whenever demoMode is active (multiTenant OR single-tenant).
 // This is the only scenario where a registration token is not required.
-// Requires +page.server.ts load to return: isOpenSignup: !!(multiTenant && demoMode)
+// Requires +page.server.ts load to return: isOpenSignup: !!demoMode
 const isOpenSignup = $derived(Boolean(pageData?.isOpenSignup));
 
 const isInteractiveCard = $derived(active === undefined);
@@ -446,8 +446,7 @@ $effect(() => {
 					<PasswordStrength password={signUpForm.data.password} confirmPassword={signUpForm.data.confirm_password} />
 
 					<!-- Registration Token
-						 Hidden only in open-signup mode (multiTenant + demoMode).
-						 Single-tenant demo mode still requires a token and will render this field. -->
+						 Hidden in open-signup mode (demoMode). Only rendered when a token is required. -->
 					{#if !isInviteFlow && !isOpenSignup}
 						<div class="flex items-center gap-2">
 							<FloatingInput

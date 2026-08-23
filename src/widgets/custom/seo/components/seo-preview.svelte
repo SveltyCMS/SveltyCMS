@@ -142,7 +142,7 @@
 	</div>
 
 	<!-- Preview Card -->
-	<div class="card bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm p-4 transition-all duration-200 {SeoPreviewToggle ? 'max-w-[375px] mx-auto' : 'w-full'}">
+	<div class="card bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm p-4 transition-all duration-200 {SeoPreviewToggle ? 'max-w-93.75 mx-auto' : 'w-full'}">
 		<!-- URL Line -->
 		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-50">
 			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-200 dark:bg-surface-700">
@@ -161,7 +161,7 @@
 					{#each heatmapDataTitle as { word, color }, i (i)}
 						<span class="relative inline-block me-1">
 							<span
-								class="absolute start-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"
+								class="absolute inset-s-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"
 								style="background-color: {color}; width: 120%; height: 120%; z-index: 0;"
 							></span>
 							<span class="relative z-10">{word}</span>
@@ -180,7 +180,7 @@
 					{#each heatmapDataDesc as { word, color }, i (i)}
 						<span class="relative inline-block me-1">
 							<span
-								class="absolute start-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"
+								class="absolute inset-s-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"
 								style="background-color: {color}; width: 140%; height: 140%; z-index: 0;"
 							></span>
 							<span class="relative z-10">{word}</span>

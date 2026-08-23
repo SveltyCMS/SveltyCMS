@@ -98,7 +98,6 @@ FIXES:
 	}
 
 	/**
-	 * FIXED: Multi-field translation detection
 	 * Handles complex widgets like SEO with nested language objects
 	 */
 	function isFieldTranslated(value: unknown): boolean {
@@ -214,7 +213,6 @@ FIXES:
 	}
 
 	/**
-	 * FIXED: Multi-field progress tracking
 	 * Properly handles complex widgets with nested language data
 	 */
 	function updateTranslationProgressFromFields(
@@ -323,7 +321,6 @@ FIXES:
 	}
 
 	// Dropdown positioning handled by UI Menu
-
 	function handleLanguageChange(selectedLanguage: Locale): void {
 		logger.debug('[TranslationStatus] Language change:', contentLanguage.value, '→', selectedLanguage);
 		contentLanguage.set(selectedLanguage);
@@ -426,7 +423,7 @@ FIXES:
 <div class="translation-status-container relative mt-1 inline-block text-start">
 	<Dropdown position="bottom-start" class={showProgress && !isViewMode ? 'w-72' : 'w-56'}>
 		{#snippet trigger()}
-			<Button variant="outline"
+			<Button variant="ghost"
 				aria-label="Toggle language menu"
 			 class="rounded-full flex w-full items-center gap-1 p-1.5 transition-all hover:scale-105">
 				<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
@@ -445,11 +442,11 @@ FIXES:
 
 			<Button
 				variant="ghost"
-				class="w-full text-start px-3 py-2 flex items-center gap-3 rounded transition-colors {isActive ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 font-bold' : 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-600 dark:text-surface-400'}"
+				class="w-full text-start p-2 flex items-center gap-2 rounded transition-colors {isActive ? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 font-bold' : 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-600 dark:text-surface-400'}"
 				onclick={() => handleLanguageChange(lang as Locale)}
 			 aria-label="Switch language to {getLanguageName(lang)}">
 				<div class="flex w-full items-center justify-between gap-2">
-					<span class="font-medium transition-colors duration-200 {isActive ? 'text-primary-600 dark:text-primary-400' : ''}">
+					<span class="font-medium transition-colors duration-200 {isActive ? 'text-tertiary-500 dark:text-primary-500' : ''}">
 						<span class="md:hidden">{lang.toUpperCase()}</span>
 						<span class="hidden md:inline">{getLanguageName(lang)}</span>
 					</span>

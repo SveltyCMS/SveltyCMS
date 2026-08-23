@@ -184,7 +184,7 @@ Part of the Three Pillars Architecture for widget system.
 
 	<!-- Error Message -->
 	{#if error}
-		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 start-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+		<p id={`${field.db_fieldName}-error`} class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
 			{error}
 		</p>
 	{/if}

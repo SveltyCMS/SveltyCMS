@@ -121,13 +121,13 @@ table.setRows(localRows);
 
 ## What was unified
 
-| Before                                            | After                                                |
-| ------------------------------------------------- | ---------------------------------------------------- |
-| `system/table/table-pagination` full copy         | Thin wrapper → `ui/table/pagination` `variant="cms"` |
-| Duplicate virtualization in entry-list + ui/table | `createSmartTable.virtual`                           |
-| Index-based selection in entry-list               | **Id-based** selection (safe with virtual rows)      |
-| Weak `TableController` class ×2                   | `createSmartTable` + legacy re-export                |
-| Filters only in entry-list                        | Platform filter engine reusable by any server table  |
+| Before                                            | After                                                                 |
+| ------------------------------------------------- | --------------------------------------------------------------------- |
+| `system/table/table-pagination` full copy         | Direct `ui/table/pagination` `variant="cms"` (compat wrapper deleted) |
+| Duplicate virtualization in entry-list + ui/table | `createSmartTable.virtual`                                            |
+| Index-based selection in entry-list               | **Id-based** selection (safe with virtual rows)                       |
+| Weak `TableController` class ×2                   | `createSmartTable` + legacy re-export                                 |
+| Filters only in entry-list                        | Platform filter engine reusable by any server table                   |
 
 ## Security (CMS tables)
 
@@ -179,8 +179,8 @@ import {
 import { createSmartTable } from "@components/ui/smart-table";
 import Pagination from "@components/ui/table/pagination.svelte";
 
-// CMS-stable aliases (still valid)
-import TablePagination from "@components/system/table/table-pagination.svelte"; // → ui pagination cms
+// cms variant:
+<Pagination variant="cms" … />
 ```
 
 ## Performance

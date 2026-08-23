@@ -7,6 +7,7 @@ Sidebar navigation for System Settings
 
 <script lang="ts">
 	// Components
+	import GroupIcon from '@src/components/group-icon.svelte';
 	import Input from '@components/ui/input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { SettingGroup } from '@src/routes/(app)/config/system-settings/settings-groups';
@@ -81,7 +82,7 @@ Sidebar navigation for System Settings
 						: 'hover:bg-surface-200 dark:hover:bg-surface-700'}"
 				>
 					<div class="flex items-center {isFullSidebar ? 'gap-3' : 'gap-2'} overflow-hidden">
-						<span class="text-xl shrink-0">{group.icon}</span>
+						<GroupIcon icon={group.icon} class="text-xl" />
 						<span class="text-sm font-medium truncate w-full text-start {isFullSidebar ? '' : 'hidden sm:block'}">{group.name}</span>
 					</div>
 

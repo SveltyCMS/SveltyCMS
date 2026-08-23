@@ -118,6 +118,7 @@ Rules:
 - **Light text on dark status surfaces** (`text-{hue}-50`/`-100` on `bg-{hue}-900/*`) stays paired — error toasts, dark modal tinting.
 - **Decorative brand hues** (`indigo`, `purple`, `pink`, `violet`, `teal`, `cyan`) are allowed for seasonal effects, preset swatches, FloatingNav spokes and non-theme data viz — never for status semantics.
 - `{hue}-900` / `-950` solid fills and `{hue}-900/10` remain valid dark-surface accents; `{hue}-400` solid is allowed for small status dots on dark surfaces.
+- **`src/app.css` preset recipes are owner-tuned**: the `preset-tonal-*` / `preset-outlined-*` / `preset-ghost-*` / `preset-soft-surface` utilities intentionally use `text-{hue}-700` and `dark:text-{hue}-200`/`-300` emphasis steps for contrast on washes. `src/app.css` is exempted in `consolidate-shades.mjs` (EXCLUDED) so the guard never rewrites it — component code must still follow the contract.
 
 Canonical recipes live in `src/app.css` (`preset-tonal-*`, `preset-outlined-*`, `preset-ghost-*`) and `src/components/ui/status-badge.svelte`. The `--admin-*` token layer in `src/utilities.css` stays the single source for chrome surfaces.
 

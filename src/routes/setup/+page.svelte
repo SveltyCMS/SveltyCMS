@@ -187,7 +187,10 @@
 		await tick();
 		const stepContent = document.getElementById('step-content');
 		if (stepContent) {
-			stepContent.focus();
+			// preventScroll: step transitions must not trigger a smooth-scroll
+			// chase (async Redis detection / expandable CDN settings can change
+			// the step height right after focus → visible layout reflow).
+			stepContent.focus({ preventScroll: true });
 		}
 	}
 
@@ -261,7 +264,7 @@
 
 <svelte:head><title>SveltyCMS Setup</title></svelte:head>
 
-<div class="flex h-dvh min-h-0 flex-col overflow-hidden bg-(--admin-bg-page) transition-colors">
+<div class="flex h-dvh min-h-0 flex-col overflow-clip bg-(--admin-bg-page) transition-colors">
 	<!-- Top Navigation Bar -->
 	<header class="z-30 shrink-0 border-b border-(--admin-border-default) bg-(--admin-bg-card)">
 		<div class="px-4 py-0">
@@ -274,9 +277,9 @@
 		</div>
 	</header>
 
-	<div class="flex min-h-0 flex-1 overflow-hidden">
+	<div class="flex min-h-0 flex-1 overflow-clip">
 		<!-- Left Sidebar: shared Stepper + legend (desktop) -->
-		<aside class="hidden h-full w-64 shrink-0 flex-col overflow-hidden border-e border-(--admin-border-default) bg-(--admin-bg-sidebar) lg:flex xl:w-72">
+		<aside class="hidden h-full w-64 shrink-0 flex-col overflow-hidden border-e border-(--admin-border-default) bg-(--admin-bg-card) lg:flex xl:w-72">
 			<div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden p-4">
 				<div class="min-h-0 flex-1 overflow-x-hidden pe-1">
 					<Stepper
@@ -317,8 +320,11 @@
 			</div>
 		</aside>
 
-		<!-- Main: absolute footer so Redis / multi-tenant expand cannot reflow navigation -->
-		<main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-500/10 dark:bg-surface-800">
+		<!-- Main: in-flow footer (shrink-0) below the single scroll container —
+			 Redis / multi-tenant expand scrolls inside step-content and cannot reflow
+			 the navigation. overflow-clip (not hidden) so browser focus-scrolling
+			 can never drag the footer. -->
+		<main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-clip bg-surface-500/10 dark:bg-surface-900">
 			<!-- Mobile Stepper (shared UI Stepper) -->
 			<div class="z-10 shrink-0 border-b border-(--admin-border-default) bg-(--admin-bg-card) p-4 lg:hidden">
 				<Stepper
@@ -333,8 +339,14 @@
 				/>
 			</div>
 
-			<!-- Scrollable step content; pb reserves space for absolute footer (nav row + optional seeding bar) -->
-			<div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-smooth p-2 pb-24" id="step-content" tabindex="-1">
+			<!-- Scrollable step content; the footer is a normal flex sibling below,
+				 so content growth (Redis / demo-mode expand) scrolls here internally
+				 and can never shift or cover the navigation -->
+			<div
+				class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-smooth p-2 pb-6 [overflow-anchor:none]"
+				id="step-content"
+				tabindex="-1"
+			>
 				<div class="mx-auto max-w-8xl">
 					<div class="mb-4">
 						<SetupCardHeader
@@ -406,9 +418,11 @@
 								aria-atomic="true"
 							>
 								<div
-									class="flex items-center gap-2 px-4 py-3 {wizard.successMessage ? 'bg-primary-500/10' : ''} {wizard.errorMessage ? 'bg-error-500/10' : ''}"
-									class:text-success-600={!!wizard.successMessage}
-									class:text-error-600={!!wizard.errorMessage}
+									class="flex items-center gap-2 px-4 py-3 {wizard.successMessage
+										? 'bg-success-500/10 text-primary-600 dark:text-primary-400'
+										: ''} {wizard.errorMessage
+										? 'bg-error-500/10 text-error-600 dark:text-error-400'
+										: ''}"
 								>
 									<svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										{#if wizard.successMessage}
@@ -428,17 +442,17 @@
 										<Button variant="outline"
 											type="button"
 											onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
-										 size="sm" class="flex items-center gap-1">
+										 size="sm" class="text-black dark:text-white flex items-center gap-1">
 											<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
 											<span class="hidden sm:inline">{wizard.showDbDetails ? setup_db_test_details_hide() : setup_db_test_details_show()}</span>
 										</Button>
-										<Button variant="ghost"
-											type="button"
-											aria-label="Close message"
-											onclick={setupStore.clearDbTestError}
-											rounded
-										 size="sm" class="p-0! min-w-0 h-7 w-7 hover:bg-black/5 dark:hover:bg-white/5">
-											<iconify-icon icon="mdi:close" class="h-4 w-4"></iconify-icon>
+										<Button variant="outline"
+												type="button"
+												aria-label="Close message"
+												onclick={setupStore.clearDbTestError}
+												rounded
+											 size="sm" class="p-0! min-w-0 h-7 w-7">
+											<iconify-icon icon="mdi:close" size="16" class="dark:text-white"></iconify-icon>
 										</Button>
 									</div>
 								</div>
@@ -499,9 +513,14 @@
 					</div>
 				</div>
 
-				<!-- Fixed Navigation Footer — absolute so expand/collapse (Redis, multi-tenant) cannot shift it -->
+				<!-- Navigation Footer — in-flow flex child (shrink-0). The step content
+					 above is the only scroll container, so expand/collapse (Redis,
+					 multi-tenant) can never reflow or reposition the navigation.
+					 An absolute footer here was dragged by <main>'s focus-scroll
+					 (overflow:hidden still scrolls programmatically) — that was the
+					 “navigation jumps in height” bug. -->
 			<footer
-				class="absolute inset-x-0 bottom-0 z-20 border-t border-(--admin-border-default)/50 bg-(--admin-bg-card) shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
+				class="z-20 shrink-0 border-t border-(--admin-border-default)/50 bg-(--admin-bg-card) shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
 			>
 				<div class="mx-auto max-w-6xl">
 					<SetupNavigation

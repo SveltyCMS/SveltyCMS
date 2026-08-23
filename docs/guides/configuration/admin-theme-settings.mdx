@@ -152,7 +152,7 @@ When **Sticky Action Bar** is enabled, any page can make its action buttons stic
 </StickyActions>
 ```
 
-The buttons render **both** in their original position AND in the sticky bar at the bottom of the screen — no duplication in your code. The bar uses `role="toolbar"`, `aria-label="Page actions"`, and `aria-live="polite"` for screen reader compatibility.
+The buttons render in the sticky bar at the bottom of the screen when the feature is on (and fall back to their original in-place position when it is off) — so the actions never appear twice on screen. The bar uses `role="toolbar"`, `aria-label="Page actions"`, and `aria-live="polite"` for screen reader compatibility.
 
 > [!TIP]
 > The sticky bar height adapts to density — 44px in compact, 56px in cozy, 64px in spacious. Toggle the feature per-theme in **Design System → Features**.

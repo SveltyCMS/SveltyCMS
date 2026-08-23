@@ -81,7 +81,7 @@ onMount(() => {
         },
         "Save collection structure",
     );
-    
+
     registerHotkey(
         "mod+n",
         () => {
@@ -479,8 +479,8 @@ function handleClearCategorySelection(): void {
 }
 
 let newCollectionHref = $derived(
-    selectedCategoryId 
-        ? `/config/collectionbuilder/new?parentId=${encodeURIComponent(selectedCategoryId)}` 
+    selectedCategoryId
+        ? `/config/collectionbuilder/new?parentId=${encodeURIComponent(selectedCategoryId)}`
         : `/config/collectionbuilder/new`
 );
 
@@ -789,11 +789,11 @@ function modalLoadPreset(): void {
         {/if}
     </div>
 
-    <p class="mb-4 text-center text-sm text-surface-600 dark:text-surface-400" role="note">
+    <p class="text-center" role="note">
         Templates apply immediately. Category changes are saved instantly. Drag items onto a <strong>category</strong> (middle of the row) to nest; use the top/bottom edge to reorder as siblings. Layout changes require <strong>Save</strong> to persist.
     </p>
 
-    <div class="max-h-[calc(100vh-120px)] overflow-auto p-4" data-testid="collection-builder-board">
+    <div class="max-h-[calc(100vh-120px)] overflow-auto" data-testid="collection-builder-board">
         <div class="mx-auto w-full max-w-screen-2xl">
             {#if Object.keys(nodesToSave).length > 0}
                 <div

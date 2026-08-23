@@ -89,12 +89,21 @@ test.describe.serial("Design System — My Overrides", () => {
     const select = leftSidebarSelect(page);
     await expect(select).toBeVisible({ timeout: 15_000 });
     await select.scrollIntoViewIfNeeded();
-    await select.selectOption("hidden");
-    await expect(select).toHaveValue("hidden");
+    // Previous test in this serial describe already persisted "hidden".
+    // Select the OPPOSITE value so a change event always fires (a no-op
+    // selectOption leaves the saved state untouched and no save toast appears).
+    // Robust standalone (retry) and after the serial run.
+    const current = await select.inputValue();
+    const target = current === "hidden" ? "full" : "hidden";
+    await select.selectOption(target);
+    await expect(select).toHaveValue(target);
 
     const saveBtn = page.getByTestId("appearance-save-overrides");
     await saveBtn.scrollIntoViewIfNeeded();
-    await saveBtn.click({ force: true });
+    // NO force: the button stays disabled until Svelte processes the
+    // selectOption change (bind:value → derived hasChanges). A force click
+    // fires before that update lands and the save request never goes out.
+    await saveBtn.click();
     await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 15_000 });
 
     const clearBtn = page.getByTestId("appearance-clear-overrides");

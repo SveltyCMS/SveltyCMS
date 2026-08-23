@@ -987,7 +987,7 @@ bulk actions, and predictive preloading.
 	<!-- Header Bar -->
 	<div class="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
 		<!-- Left: Sidebar Toggle, Title, Category Breadcrumb, Count -->
-		<div class="flex items-center gap-3 min-w-0">
+		<div class="flex flex-1 items-center gap-3 min-w-0">
 			{#if ui.state.leftSidebar === 'hidden'}
 				<Button variant="outline"
 					type="button"
@@ -1000,7 +1000,7 @@ bulk actions, and predictive preloading.
 
 			<div class="flex flex-col min-w-0">
 				{#if categoryName}
-					<span class="text-[11px] font-medium tracking-wide uppercase text-surface-400 dark:text-surface-400 truncate">{categoryName}</span>
+					<span class="text-[11px] font-medium uppercase truncate">{categoryName}</span>
 				{/if}
 				<div class="flex items-center gap-2">
 					<iconify-icon icon={collectionIcon} width="22" class="text-primary-500 shrink-0"></iconify-icon>
@@ -1017,9 +1017,29 @@ bulk actions, and predictive preloading.
 				</div>
 			</div>
 		</div>
+		<!-- Table Controls: inline from sm+ (mobile uses the expand block below) -->
+		<div class="hidden sm:flex flex-wrap items-center justify-center gap-2 min-w-0">
+			<TableFilter
+				bind:globalSearchValue
+				bind:filterShow
+				bind:columnShow
+				bind:density={entryListPaginationSettings.density}
+			/>
+			<SmartTableSavedViewsMenu
+				scope={viewsScope}
+				getSnapshot={getSavedViewSnapshot}
+				onApply={applySavedView}
+			/>
+		</div>
+
+		<!-- Language & Metrics Badge: inline from sm+ -->
+		<div class="hidden sm:flex items-center gap-2 shrink-0">
+			<SmartTableMetricsBadge summary={listMetrics} />
+			<TranslationStatus />
+		</div>
 
 		<!-- Right: Action Buttons (Create / MultiButton) -->
-		<div class="flex items-center gap-2 shrink-0">
+		<div class="flex flex-1 items-center justify-end gap-2">
 			<!-- Mobile Filter Toggle -->
 			<Button variant="outline"
 				type="button"
@@ -1047,30 +1067,6 @@ bulk actions, and predictive preloading.
 		</div>
 	</div>
 
-	<!-- Control Toolbar Card -->
-	<div class="mb-3 p-2 rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/80 dark:bg-surface-900/60 backdrop-blur-sm flex flex-wrap items-center justify-between gap-2 shadow-xs">
-		<!-- Search & Filter Controls -->
-		<div class="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-			<TableFilter
-				bind:globalSearchValue
-				bind:filterShow
-				bind:columnShow
-				bind:density={entryListPaginationSettings.density}
-			/>
-			<SmartTableSavedViewsMenu
-				scope={viewsScope}
-				getSnapshot={getSavedViewSnapshot}
-				onApply={applySavedView}
-			/>
-		</div>
-
-		<!-- Language & Metrics Badge -->
-		<div class="flex items-center gap-2 shrink-0">
-			<SmartTableMetricsBadge summary={listMetrics} />
-			<TranslationStatus />
-		</div>
-	</div>
-
 	<!-- Mobile Expanded Filters -->
 	{#if expand}
 		<div class="mb-3 flex flex-wrap items-center justify-center gap-2 sm:hidden p-2 rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800">
@@ -1081,6 +1077,7 @@ bulk actions, and predictive preloading.
 				onApply={applySavedView}
 			/>
 			<SmartTableMetricsBadge summary={listMetrics} />
+			<TranslationStatus />
 		</div>
 	{/if}
 
@@ -1172,7 +1169,7 @@ bulk actions, and predictive preloading.
 		<div
 			bind:this={scrollContainerEl}
 			onscroll={onVirtualScroll}
-			class="{SMART_TABLE_SCROLL} max-h-[calc(100vh-14rem)] overflow-x-auto rounded-xl border border-surface-500/30 dark:border-surface-500/40 shadow-xs"
+			class="{SMART_TABLE_SCROLL} max-h-none overflow-x-auto border border-surface-500/30 dark:border-surface-500/40 shadow-xs"
 		>
 			<table class="{SMART_TABLE} min-w-max">
 				<!-- Table Header -->
@@ -1202,7 +1199,7 @@ bulk actions, and predictive preloading.
 							{@const colKey = ((header as TableHeader).name || header.id) as string}
 							{@const isActiveSort = (header as TableHeader).name === entryListPaginationSettings.sorting.sortedBy}
 							<th
-								class="relative min-w-[7rem] overflow-hidden text-center text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400 {cellPaddingClass}"
+								class="relative min-w-20 overflow-hidden text-center font-semibold uppercase text-surface-600 dark:text-surface-400 {cellPaddingClass}"
 								style={smartTable.getColumnWidthStyle(colKey)}
 								aria-sort={isActiveSort
 									? entryListPaginationSettings.sorting.isSorted === 1
@@ -1216,7 +1213,7 @@ bulk actions, and predictive preloading.
 									type="button"
 									class="inline-flex max-w-full min-w-0 items-center justify-center gap-1 rounded px-1 py-1 font-semibold text-xs tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {isActiveSort
 										? 'text-primary-600 dark:text-primary-400 font-bold'
-										: 'text-surface-600 dark:text-surface-400 hover:text-primary-500'}"
+										: 'text-tertiary-500 dark:text-primary-500 hover:text-surface-500'}"
 									onclick={() => onSortChange((header as TableHeader).name || '')}
 									aria-label="Sort by {(header as TableHeader).label}"
 								>

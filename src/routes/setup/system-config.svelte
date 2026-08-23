@@ -534,7 +534,7 @@ Features:
 							</SystemTooltip>
 						</div>
 
-						<div class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-500/30 dark:border-white/5 p-2">
+						<div class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-500/30 dark:border-white/20 p-2">
 							{#each systemSettings.systemLanguages as lang (lang)}
 								<Badge
 									variant="tertiary"
@@ -642,7 +642,7 @@ Features:
 						<div
 							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border p-2 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
-								: 'border-surface-500/30 dark:border-white/5 '}"
+								: 'border-surface-500/30 dark:border-white/20 '}"
 						>
 							{#each systemSettings.contentLanguages as lang (lang)}
 								<Badge

@@ -99,7 +99,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 				onmouseleave={() => (hoveredPreset = null)}
 				onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectPreset(preset.id); } }}
 				class="relative flex flex-col rounded-lg border-2 p-4 text-start transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:hover:shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)] {isSelected
-					? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/[0.06] dark:bg-primary-500/[0.08] ring-2 ring-tertiary-500/20 dark:ring-primary-500/20 shadow-md'
+					? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/6 dark:bg-primary-500/8 ring-2 ring-tertiary-500/20 dark:ring-primary-500/20 shadow-md'
 					: hoveredPreset === preset.id
 						? 'border-surface-500 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-700/60'
 						: 'border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 hover:border-tertiary-500 dark:hover:border-primary-400'}"

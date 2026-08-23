@@ -47,6 +47,13 @@ const EXCLUDED = new Set([
   "image-editor-modal.svelte",
   "dropdown.svelte",
   "drop-down.svelte",
+  // src/app.css holds the canonical preset recipe utilities (preset-tonal-*,
+  // preset-outlined-*, preset-ghost-*, preset-soft-surface). Their emphasis
+  // steps (text-{hue}-700 / dark:text-{hue}-200/300) are intentionally tuned
+  // for contrast on washes and are exempted from auto-consolidation by owner
+  // decision — the guard must report other files only and never rewrite this
+  // recipe file back to the default steps.
+  "app.css",
 ]);
 
 const HUE_MAP = {

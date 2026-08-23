@@ -360,8 +360,8 @@ Route-driven sidebar content (no dual collapsible section headers):
 			<!-- 2. Route-context navigation: collections tree OR media folders (never both) -->
 			{#if isMediaGalleryRoute}
 				<!-- Media gallery: virtual folder tree (scrollable) + sticky bottom collections button -->
-				<div class="flex flex-col flex-1 min-h-0" data-testid="sidebar-media-context">
-					<div class="w-full ps-0 pe-1 text-start flex-1 overflow-y-auto space-y-2" role="region" aria-label="Media folders">
+				<div class="flex flex-col" data-testid="sidebar-media-context">
+					<div class="w-full ps-0 pe-1 text-start space-y-2" role="region" aria-label="Media folders">
 						<MediaFolders />
 					</div>
 
@@ -388,8 +388,8 @@ Route-driven sidebar content (no dual collapsible section headers):
 				</div>
 			{:else if showCollectionsHere}
 				<!-- Default: collection tree only — flex column layout for sticky bottom media link -->
-				<div class="flex flex-col flex-1 min-h-0">
-					<div class="w-full ps-0 pe-1 text-start flex-1 overflow-y-auto" data-testid="sidebar-collections-context" role="region" aria-label="Collections">
+				<div class="flex flex-col">
+					<div class="w-full ps-0 pe-1 text-start" data-testid="sidebar-collections-context" role="region" aria-label="Collections">
 						<Collections />
 					</div>
 
@@ -489,7 +489,7 @@ Route-driven sidebar content (no dual collapsible section headers):
  				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
  					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
  					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} buttonClass="hover:bg-[var(--admin-border-subtle)] text-surface-900 dark:text-white" iconSize={28} />
+						<ThemeToggle showTooltip={false} variant="transparent" buttonClass="text-surface-900 dark:text-white" iconSize={28} />
  					</div>
  				</SystemTooltip>
  			</div>
@@ -559,7 +559,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
 					<Button
-						variant="ghost"
+						variant="transparent"
 						onclick={signOut}
 						type="button"
 						aria-label="Sign Out"

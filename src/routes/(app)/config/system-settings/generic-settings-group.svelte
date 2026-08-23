@@ -25,6 +25,7 @@ import type { SvelteSet } from "svelte/reactivity";
 import Alert from "@components/ui/alert.svelte";
 import Badge from "@components/ui/badge.svelte";
 import Checkbox from "@components/ui/checkbox.svelte";
+import GroupIcon from "@src/components/group-icon.svelte";
 import Input from "@components/ui/input.svelte";
 import Select from "@components/ui/select.svelte";
 import StickyActions from "@components/ui/sticky-actions.svelte";
@@ -689,7 +690,9 @@ onMount(() => {
 	<!-- Header -->
 	<div class="mb-6">
 		<h2 class="mb-2 text-xl font-bold md:text-2xl">
-			<span class=" me-2">{group.icon}</span>
+			<span class="me-2">
+				<GroupIcon icon={group.icon} />
+			</span>
 			{group.name}
 		</h2>
 		<p class="text-sm text-surface-600 dark:text-surface-400">{group.description}</p>
@@ -729,6 +732,7 @@ onMount(() => {
 		{/if}
 
 		<form
+			id="settings-group-form"
 			onsubmit={(e) => {
 				e.preventDefault();
 				saveSettings();
@@ -1454,6 +1458,7 @@ onMount(() => {
 
 						<Button variant="tertiary"
 							type="submit"
+							form="settings-group-form"
 							disabled={saving || !hasUnsavedChanges || !group.fields?.length}
 							data-testid="settings-group-save"
 						 class="dark: items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-semibold w-full sm:w-auto">

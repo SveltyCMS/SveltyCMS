@@ -12,7 +12,7 @@
 
 <script lang="ts">
 import TableFilter from "@src/components/system/table/table-filter.svelte";
-import TablePagination from "@src/components/system/table/table-pagination.svelte";
+import Pagination from "@components/ui/table/pagination.svelte";
 import {
 	createSmartTable,
 	pinCellClass,
@@ -748,7 +748,8 @@ $effect(() => {
 			</div>
 			{#if tokens.length > 0}
 			<div class={SMART_TABLE_PAGINATION_BAR}>
-				<TablePagination
+				<Pagination
+					variant="cms"
 					currentPage={currentPage}
 					rowsPerPage={rowsPerPage}
 					{pagesCount}

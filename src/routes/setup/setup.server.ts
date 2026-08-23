@@ -592,8 +592,14 @@ export async function completeSetup(
     process.env.NODE_ENV === "test";
   if (!isTest) {
     try {
-      const { getCachedFirstCollectionPath } =
+      const { getCachedFirstCollectionPath, invalidateFirstCollectionPathCache } =
         await import("@utils/server/collection-utils.server");
+      // The wizard may have run before in this process and left a 5-minute
+      // memo of the OLD first collection. Drop it so the redirect reflects the
+      // collections seeded in THIS run — a stale path sends a fresh install to
+      // a route that no longer exists (observed: re-running setup with a
+      // different/blank preset redirected to the previous install's collection).
+      invalidateFirstCollectionPathCache();
       const path = await getCachedFirstCollectionPath("en" as any, effectiveTenantId);
       if (path) redirectPath = path;
     } catch {

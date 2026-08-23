@@ -20,12 +20,16 @@ Relies on the centralized `themeStore` for state and logic.
 		iconSize?: number;
 		showTooltip?: boolean;
 		tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
+		variant?: 'outline' | 'ghost' | 'transparent';
 	}
 
 	const {
 		showTooltip = true,
 		tooltipPlacement = 'bottom',
-		buttonClass = 'preset-outlined-surface-500 rounded-full dark:text-white',
+		variant = 'outline',
+		buttonClass = variant === 'ghost' || variant === 'transparent'
+			? 'text-black dark:text-white'
+			: 'preset-outlined-surface-500 rounded-full dark:text-white',
 		iconSize = 22,
 	}: Props = $props();
 
@@ -54,7 +58,12 @@ Relies on the centralized `themeStore` for state and logic.
 </script>
 
 {#snippet toggleButton()}
-	<Button variant="outline" onclick={cycleTheme} aria-label="Toggle theme" class={`${buttonClass} p-0! min-w-0`}>
+	<Button
+		variant={variant}
+		onclick={cycleTheme}
+		aria-label="Toggle theme"
+		class={`${buttonClass} p-0! min-w-0`}
+	>
 		<iconify-icon {icon} width={iconSize} aria-hidden="true"></iconify-icon>
 	</Button>
 {/snippet}

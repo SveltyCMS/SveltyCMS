@@ -42,18 +42,41 @@ export const load: PageServerLoad = async ({ locals }) => {
     requireCollectionBuilderPermission(locals);
 
     if (!contentSystem.isInitialized) {
-      await contentSystem.initialize(tenantId, true);
+      try {
+        await contentSystem.initialize(tenantId, true);
+      } catch (err) {
+        // Never hard-500 the builder when the content engine is still warming
+        // after setup (observed: fresh installs got “collections can't be
+        // found” 500s). Log and fall through to the empty-state self-heal.
+        logger.warn(
+          "[CollectionBuilder] Content engine init failed — rendering empty structure:",
+          err,
+        );
+      }
     }
 
-    let contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+    let contentStructure = await contentSystem
+      .getContentStructureFromDatabase("flat", tenantId)
+      .catch((err) => {
+        logger.warn("[CollectionBuilder] Structure read failed — treating as empty:", err);
+        return [] as never[];
+      });
 
     // Self-heal empty DB after a skipReconciliation setup — one full refresh only.
     if ((!contentStructure || contentStructure.length === 0) && contentSystem.isInitialized) {
       logger.warn(
         "[CollectionBuilder] No content nodes found despite system being initialized. Triggering refresh...",
       );
-      await contentSystem.refresh(tenantId, false, false);
-      contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+      try {
+        await contentSystem.refresh(tenantId, false, false);
+        contentStructure = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+      } catch (err) {
+        logger.warn(
+          "[CollectionBuilder] Self-heal refresh failed — rendering empty structure:",
+          err,
+        );
+        contentStructure = [];
+      }
     }
 
     if (!Array.isArray(contentStructure)) {
@@ -121,6 +144,9 @@ export const actions: Actions = {
 
       await contentSystem.upsertContentNodes(operations, locals.tenantId);
       await contentSystem.refresh(locals.tenantId);
+      const { invalidateFirstCollectionPathCache } =
+        await import("@utils/server/collection-utils.server");
+      invalidateFirstCollectionPathCache();
 
       return { success: true };
     } catch (err) {
@@ -156,7 +182,11 @@ export const actions: Actions = {
 
     try {
       const { installPresetCollections } = await import("./collectionbuilder.server");
-      return await installPresetCollections(locals.tenantId ?? null, presetId);
+      const result = await installPresetCollections(locals.tenantId ?? null, presetId);
+      const { invalidateFirstCollectionPathCache } =
+        await import("@utils/server/collection-utils.server");
+      invalidateFirstCollectionPathCache();
+      return result;
     } catch (err) {
       logger.error("Failed to install preset:", err);
       return fail(500, { message: "Failed to install preset" });

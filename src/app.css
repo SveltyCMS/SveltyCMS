@@ -44,14 +44,15 @@
   --color-primary-200: oklch(87.85% 0.17 129.95deg);
   --color-primary-300: oklch(84.14% 0.2 132.96deg);
   --color-primary-400: oklch(80.36% 0.22 135.49deg);
-  /* WCAG AA: white-on-primary must reach >=4.5:1, so the 500-950 steps are
-     lightened down from the previous bright #5fd316 (1.94:1) brand green. */
-  --color-primary-500: oklch(54% 0.19 140deg);
-  --color-primary-600: oklch(50% 0.18 140deg);
-  --color-primary-700: oklch(44% 0.16 141deg);
-  --color-primary-800: oklch(38% 0.14 141deg);
-  --color-primary-900: oklch(32% 0.12 142deg);
-  --color-primary-950: oklch(27% 0.1 142deg);
+  /* Brand primary (green). 500-950 keep the bright brand-green lineage by
+     owner decision (reverted from the AA-darkened ramp) — white text on
+     primary is a known contrast trade-off (~1.94:1), accepted for branding. */
+  --color-primary-500: oklch(76.87% 0.23 137.58deg);
+  --color-primary-600: oklch(69.97% 0.21 138.5deg);
+  --color-primary-700: oklch(62.66% 0.19 139.5deg);
+  --color-primary-800: oklch(55.46% 0.18 140.59deg);
+  --color-primary-900: oklch(47.8% 0.16 141.65deg);
+  --color-primary-950: oklch(40.2% 0.14 142.5deg);
 
   /* Secondary | Neutral Gray */
   --color-secondary-50: oklch(94.91% 0 none);
@@ -274,97 +275,97 @@
 
 /* --- tonal: 10% wash of the colour, used for passive/informational surfaces --- */
 @utility preset-tonal-primary {
-  @apply bg-primary-500/10 text-primary-600 dark:bg-primary-500/20 dark:text-primary-400;
+  @apply bg-primary-500/10 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200;
 }
 @utility preset-tonal-primary-500 {
-  @apply bg-primary-500/10 text-primary-600 dark:bg-primary-500/20 dark:text-primary-400;
+  @apply bg-primary-500/10 text-primary-700 dark:bg-primary-500/20 dark:text-primary-200;
 }
 @utility preset-tonal-secondary {
-  @apply bg-secondary-500/10 text-secondary-600 dark:bg-secondary-500/20 dark:text-secondary-400;
+  @apply bg-secondary-500/10 text-secondary-700 dark:bg-secondary-500/20 dark:text-secondary-200;
 }
 @utility preset-tonal-secondary-500 {
-  @apply bg-secondary-500/10 text-secondary-600 dark:bg-secondary-500/20 dark:text-secondary-400;
+  @apply bg-secondary-500/10 text-secondary-700 dark:bg-secondary-500/20 dark:text-secondary-200;
 }
 @utility preset-tonal-tertiary {
-  @apply bg-tertiary-500/10 text-tertiary-600 dark:bg-tertiary-500/20 dark:text-tertiary-400;
+  @apply bg-tertiary-500/10 text-tertiary-700 dark:bg-tertiary-500/20 dark:text-tertiary-200;
 }
 @utility preset-tonal-tertiary-500 {
-  @apply bg-tertiary-500/10 text-tertiary-600 dark:bg-tertiary-500/20 dark:text-tertiary-400;
+  @apply bg-tertiary-500/10 text-tertiary-700 dark:bg-tertiary-500/20 dark:text-tertiary-200;
 }
 @utility preset-tonal-success {
-  @apply bg-success-500/10 text-success-600 dark:bg-success-500/20 dark:text-success-400;
+  @apply bg-success-500/10 text-success-700 dark:bg-success-500/20 dark:text-success-200;
 }
 @utility preset-tonal-success-500 {
-  @apply bg-success-500/10 text-success-600 dark:bg-success-500/20 dark:text-success-400;
+  @apply bg-success-500/10 text-success-700 dark:bg-success-500/20 dark:text-success-200;
 }
 @utility preset-tonal-warning {
-  @apply bg-warning-500/10 text-warning-600 dark:bg-warning-500/20 dark:text-warning-400;
+  @apply bg-warning-500/10 text-warning-700 dark:bg-warning-500/20 dark:text-warning-200;
 }
 @utility preset-tonal-warning-500 {
-  @apply bg-warning-500/10 text-warning-600 dark:bg-warning-500/20 dark:text-warning-400;
+  @apply bg-warning-500/10 text-warning-700 dark:bg-warning-500/20 dark:text-warning-200;
 }
 @utility preset-tonal-error {
-  @apply bg-error-500/10 text-error-600 dark:bg-error-500/20 dark:text-error-400;
+  @apply bg-error-500/10 text-error-700 dark:bg-error-500/20 dark:text-error-200;
 }
 @utility preset-tonal-error-500 {
-  @apply bg-error-500/10 text-error-600 dark:bg-error-500/20 dark:text-error-400;
+  @apply bg-error-500/10 text-error-700 dark:bg-error-500/20 dark:text-error-200;
 }
 @utility preset-tonal-surface {
-  @apply bg-surface-500/10 text-surface-600 dark:bg-surface-500/20 dark:text-surface-400;
+  @apply bg-surface-500/10 text-surface-700 dark:bg-surface-500/20 dark:text-surface-200;
 }
 @utility preset-tonal-surface-500 {
-  @apply bg-surface-500/10 text-surface-600 dark:bg-surface-500/20 dark:text-surface-400;
+  @apply bg-surface-500/10 text-surface-700 dark:bg-surface-500/20 dark:text-surface-200;
 }
 
 /* --- outlined: 1px ring, transparent fill, used for secondary actions --- */
 @utility preset-outlined-primary-500 {
-  @apply border border-primary-500 text-primary-500 bg-transparent dark:border-primary-400 dark:text-primary-400;
+  @apply border border-primary-500 text-primary-500 bg-transparent dark:border-primary-400 dark:text-primary-300;
 }
 @utility preset-outlined-secondary-500 {
-  @apply border border-secondary-500 text-secondary-500 bg-transparent dark:border-secondary-400 dark:text-secondary-400;
+  @apply border border-secondary-500 text-secondary-500 bg-transparent dark:border-secondary-400 dark:text-secondary-300;
 }
 @utility preset-outlined-tertiary-500 {
-  @apply border border-tertiary-500 text-tertiary-500 bg-transparent dark:border-tertiary-400 dark:text-tertiary-400;
+  @apply border border-tertiary-500 text-tertiary-500 bg-transparent dark:border-tertiary-400 dark:text-tertiary-300;
 }
 @utility preset-outlined-success-500 {
-  @apply border border-success-500 text-success-500 bg-transparent dark:border-success-400 dark:text-success-400;
+  @apply border border-success-500 text-success-500 bg-transparent dark:border-success-400 dark:text-success-300;
 }
 @utility preset-outlined-warning-500 {
-  @apply border border-warning-500 text-warning-500 bg-transparent dark:border-warning-400 dark:text-warning-400;
+  @apply border border-warning-500 text-warning-500 bg-transparent dark:border-warning-400 dark:text-warning-300;
 }
 @utility preset-outlined-error-500 {
-  @apply border border-error-500 text-error-500 bg-transparent dark:border-error-400 dark:text-error-400;
+  @apply border border-error-500 text-error-500 bg-transparent dark:border-error-400 dark:text-error-300;
 }
 @utility preset-outlined-surface-500 {
-  @apply border border-surface-500 text-surface-500 bg-transparent dark:border-surface-400 dark:text-surface-400;
+  @apply border border-surface-500 text-surface-500 bg-transparent dark:border-surface-400 dark:text-surface-300;
 }
 
 /* --- ghost: no chrome until hover, used for icon buttons and toolbars --- */
 @utility preset-ghost-primary-500 {
-  @apply bg-transparent text-primary-500 hover:bg-primary-500/10 dark:text-primary-400 dark:hover:bg-primary-500/20;
+  @apply bg-transparent text-primary-500 hover:bg-primary-500/10 dark:text-primary-300 dark:hover:bg-primary-500/20;
 }
 @utility preset-ghost-secondary-500 {
-  @apply bg-transparent text-secondary-500 hover:bg-secondary-500/10 dark:text-secondary-400 dark:hover:bg-secondary-500/20;
+  @apply bg-transparent text-secondary-500 hover:bg-secondary-500/10 dark:text-secondary-300 dark:hover:bg-secondary-500/20;
 }
 @utility preset-ghost-tertiary-500 {
-  @apply bg-transparent text-tertiary-500 hover:bg-tertiary-500/10 dark:text-tertiary-400 dark:hover:bg-tertiary-500/20;
+  @apply bg-transparent text-tertiary-500 hover:bg-tertiary-500/10 dark:text-tertiary-300 dark:hover:bg-tertiary-500/20;
 }
 @utility preset-ghost-success-500 {
-  @apply bg-transparent text-success-500 hover:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20;
+  @apply bg-transparent text-success-500 hover:bg-success-500/10 dark:text-success-300 dark:hover:bg-success-500/20;
 }
 @utility preset-ghost-warning-500 {
-  @apply bg-transparent text-warning-500 hover:bg-warning-500/10 dark:text-warning-400 dark:hover:bg-warning-500/20;
+  @apply bg-transparent text-warning-500 hover:bg-warning-500/10 dark:text-warning-300 dark:hover:bg-warning-500/20;
 }
 @utility preset-ghost-error-500 {
-  @apply bg-transparent text-error-500 hover:bg-error-500/10 dark:text-error-400 dark:hover:bg-error-500/20;
+  @apply bg-transparent text-error-500 hover:bg-error-500/10 dark:text-error-300 dark:hover:bg-error-500/20;
 }
 @utility preset-ghost-surface-500 {
-  @apply bg-transparent text-surface-500 hover:bg-surface-500/10 dark:text-surface-400 dark:hover:bg-surface-500/20;
+  @apply bg-transparent text-surface-500 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-500/20;
 }
 
 /* --- legacy alias kept for existing markup --- */
 @utility preset-soft-surface {
-  @apply bg-surface-200/30 text-surface-600 dark:bg-surface-700/30 dark:text-surface-400;
+  @apply bg-surface-200/30 text-surface-700 dark:bg-surface-700/30 dark:text-surface-200;
 }
 
 /* ========================================================================
