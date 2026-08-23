@@ -12,6 +12,7 @@
  * - AST-based cost calculation
  * - Configurable max budget
  * - Descriptive over-budget error messages
+ * - Shared parse cache + single-field matcher for the Yoga bypass
  */
 
 import { parse, visit, type ASTNode, type DocumentNode, type FieldNode } from "graphql";
@@ -23,6 +24,41 @@ export const DEFAULT_MAX_COST = 1000;
 const MAX_CACHE_SIZE = 500;
 let currentCache = new Map<string, CostAnalysisResult>();
 let oldCache = new Map<string, CostAnalysisResult>();
+const MAX_AST_CACHE = 1000;
+const astCache = new Map<string, DocumentNode>();
+
+/** Shared parse cache (comments stripped). Same DocumentNode → graphql-jit compile hits. */
+export function getOrParseDocument(rawQuery: string): DocumentNode {
+  const key = normalizeQueryString(rawQuery);
+  let cached = astCache.get(key);
+  if (cached) return cached;
+  cached = parse(rawQuery);
+  if (astCache.size >= MAX_AST_CACHE) {
+    const oldestKey = astCache.keys().next().value;
+    if (oldestKey !== undefined) astCache.delete(oldestKey);
+  }
+  astCache.set(key, cached);
+  return cached;
+}
+
+/**
+ * Detect a single-root-field query (optional `query Name`) for the Yoga bypass.
+ * Comments/whitespace are normalized first. Returns null for mutations / multi-field ops.
+ */
+export function matchSingleFieldQuery(
+  rawQuery: string,
+): { field: string; selections: string[] } | null {
+  const normalized = normalizeQueryString(rawQuery);
+  const match =
+    /^(?:query(?:\s+[A-Za-z_][A-Za-z0-9_]*)?)?\s*\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:\{\s*([^}]*)\s*\})?\s*\}\s*$/.exec(
+      normalized,
+    );
+  if (!match) return null;
+  const field = match[1];
+  const inner = (match[2] ?? "").trim();
+  const selections = inner ? inner.split(/\s+/).filter(Boolean) : [];
+  return { field, selections };
+}
 
 export interface CostAnalysisResult {
   /** Total computed cost of the query */
@@ -72,10 +108,10 @@ export function analyzeQueryCost(
     return cached;
   }
 
-  let document: ReturnType<typeof parse>;
+  let document: DocumentNode;
 
   try {
-    document = parse(queryString);
+    document = getOrParseDocument(queryString);
   } catch {
     // If parsing fails, return a safe result — the GraphQL engine will
     // provide its own validation error downstream.

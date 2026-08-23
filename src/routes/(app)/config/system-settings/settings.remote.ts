@@ -1,17 +1,31 @@
 /**
  * @file src/routes/(app)/config/system-settings/settings.remote.ts
- * @description Settings Remote Functions — callable from client components.
- *
- * All exports are SvelteKit query() wrappers that provide full type inference.
- * Wraps the REST API with typed functions.
+ * @description Settings remote functions — LocalCMS, no HTTP hop.
  *
  * ### Features:
- * - CSRF headers on mutating PUT/DELETE (via settings-utils.remoteJsonHeaders)
- * - event.fetch for relative URL resolution on the server
+ * - same privilege gate as `/api/settings` (admin for mutations)
+ * - group keys stored as one preferences document
  */
 
 import { query, getRequestEvent } from "$app/server";
-import { remoteJsonHeaders } from "./settings-utils";
+import { getRequestLocalCMS, remoteErrorMessage } from "@utils/server/request-cms.server";
+import { settingsGroups } from "./settings-groups";
+import { AppError } from "@utils/error-handling";
+
+function requireUser() {
+  const event = getRequestEvent();
+  if (!event.locals.user) throw new AppError("Unauthorized", 401);
+  return event;
+}
+
+function requireAdmin() {
+  const event = requireUser();
+  const user = event.locals.user;
+  if (!event.locals.isAdmin && user?.role !== "admin" && !user?.isAdmin) {
+    throw new AppError("Admin access required for settings management", 403, "FORBIDDEN");
+  }
+  return event;
+}
 
 export const loadSettingsGroup = query(
   "unchecked",
@@ -26,15 +40,33 @@ export const loadSettingsGroup = query(
     values?: Record<string, unknown>;
     error?: string;
   }> => {
-    // Use the request event's fetch: remote functions run on the server, where the global
-    // fetch rejects relative URLs. event.fetch resolves them against the current request.
-    const event = getRequestEvent();
-    const url = bypassCache ? `/api/settings/${groupId}?refresh=true` : `/api/settings/${groupId}`;
-    const r = await event.fetch(url);
-    const d = await r.json();
-    return d.success
-      ? { success: true, values: d.values || {} }
-      : { success: false, error: d.message };
+    try {
+      requireUser();
+      const { cms, tenantId } = await getRequestLocalCMS();
+      const group = settingsGroups.find((g) => g.id === groupId);
+      if (!group && groupId && groupId !== "all" && groupId !== "general") {
+        return { success: false, error: `Settings group ${groupId} not found` };
+      }
+
+      let settings: unknown;
+      if (groupId && groupId !== "all" && groupId !== "general") {
+        if (bypassCache) {
+          await cms.system.settings.invalidateCache({ tenantId: tenantId as never });
+        }
+        const pref = await cms.db.system.preferences.get(groupId, {
+          scope: "system",
+          tenantId: tenantId as never,
+        });
+        settings = pref.success ? pref.data : {};
+      } else {
+        settings = await cms.system.settings.get(groupId || "all", {
+          tenantId: tenantId as never,
+        });
+      }
+      return { success: true, values: (settings as Record<string, unknown>) || {} };
+    } catch (err) {
+      return { success: false, error: remoteErrorMessage(err, "Failed to load settings") };
+    }
   },
 );
 
@@ -52,31 +84,53 @@ export const saveSettingsGroup = query(
     message?: string;
     error?: string;
   }> => {
-    const event = getRequestEvent();
-    const r = await event.fetch(`/api/settings/${groupId}`, {
-      method: "PUT",
-      headers: remoteJsonHeaders(event.cookies),
-      body: JSON.stringify(values),
-    });
-    const d = await r.json();
-    return d.success
-      ? { success: true, message: "Saved", values: d.values }
-      : { success: false, error: d.message };
+    try {
+      requireAdmin();
+      const { cms, tenantId } = await getRequestLocalCMS();
+      if (groupId && groupId !== "all" && groupId !== "general") {
+        const group = settingsGroups.find((g) => g.id === groupId);
+        if (group) {
+          const allowedKeys = new Set(group.fields.map((f) => f.key));
+          for (const key of Object.keys(values)) {
+            if (!allowedKeys.has(key)) {
+              return { success: false, error: `Invalid setting key ${key} for group ${groupId}` };
+            }
+          }
+        }
+      }
+      const result = await cms.system.settings.set(groupId || "all", values, {
+        tenantId: tenantId as never,
+      });
+      void result; // settings.set persists silently; the saved snapshot is `values`.
+      try {
+        const { invalidateFieldPermissionCache } =
+          await import("@src/services/security/field-permission-service");
+        invalidateFieldPermissionCache();
+      } catch {
+        /* best effort */
+      }
+      return {
+        success: true,
+        message: "Saved",
+        values,
+      };
+    } catch (err) {
+      return { success: false, error: remoteErrorMessage(err, "Failed to save settings") };
+    }
   },
 );
 
 export const resetSettingsGroup = query(
   "unchecked",
   async (groupId: string): Promise<{ success: boolean; message?: string; error?: string }> => {
-    const event = getRequestEvent();
-    const r = await event.fetch(`/api/settings/${groupId}`, {
-      method: "DELETE",
-      headers: remoteJsonHeaders(event.cookies),
-    });
-    const d = await r.json();
-    return d.success
-      ? { success: true, message: "Reset to defaults" }
-      : { success: false, error: d.message };
+    try {
+      requireAdmin();
+      const { cms, tenantId } = await getRequestLocalCMS();
+      await cms.system.settings.set(groupId, {}, { tenantId: tenantId as never });
+      return { success: true, message: "Reset to defaults" };
+    } catch (err) {
+      return { success: false, error: remoteErrorMessage(err, "Failed to reset settings") };
+    }
   },
 );
 
@@ -87,11 +141,13 @@ export const loadAllSettings = query(
     values?: Record<string, unknown>;
     error?: string;
   }> => {
-    const { fetch } = getRequestEvent();
-    const r = await fetch("/api/settings/all");
-    const d = await r.json();
-    return d.success
-      ? { success: true, values: d.groups || d.values }
-      : { success: false, error: d.message };
+    try {
+      requireUser();
+      const { cms, tenantId } = await getRequestLocalCMS();
+      const values = await cms.system.settings.getAll({ tenantId: tenantId as never });
+      return { success: true, values: values as Record<string, unknown> };
+    } catch (err) {
+      return { success: false, error: remoteErrorMessage(err, "Failed to load settings") };
+    }
   },
 );

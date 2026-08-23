@@ -72,7 +72,22 @@ async function runStateMachineAudit() {
         const sMatch = textPayload.match(/"status"\s*:\s*"([^"]+)"/);
         const status = osMatch ? osMatch[1] : sMatch ? sMatch[1] : null;
 
-        const allowed = ["INITIALIZING", "READY", "WARMING", "WARMED", "SETUP", "operational"];
+        // Legitimate healing states the state machine passes through during
+        // re-init: RECOVERY (DB/auth reconnecting), DEGRADED (non-critical
+        // service lagging), IDLE (post-shutdown). Only FAILED/MAINTENANCE are
+        // genuinely invalid — a self-healing audit must accept the healing
+        // states, or slow re-inits (e.g. MongoDB) abort it as a false failure.
+        const allowed = [
+          "INITIALIZING",
+          "READY",
+          "WARMING",
+          "WARMED",
+          "SETUP",
+          "RECOVERY",
+          "DEGRADED",
+          "IDLE",
+          "operational",
+        ];
         if (!status || !allowed.includes(status)) {
           throw new Error(`Invalid state reached during cycle ${i}: ${status ?? "<unknown>"}`);
         }

@@ -12,11 +12,11 @@
  */
 
 import { existsSync } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
+import { getHardwareProfile } from "@utils/hardware-profile";
 import { logger } from "@utils/logger";
 import { assertCompiledSchema } from "./schema-contract";
 import type { Schema } from "./types";
@@ -195,7 +195,7 @@ class ModuleWorkerPool {
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private disabled = false;
 
-  constructor(poolSize: number = Math.max(2, Math.ceil(os.cpus().length / 2))) {
+  constructor(poolSize: number = getHardwareProfile().workerPoolSize) {
     this.poolSize = Math.max(1, poolSize);
     // Workers spawn lazily on first task. Eager spawning at construction is
     // wrong during builds: the worker chunk is only copied into the output

@@ -22,6 +22,7 @@ import {
   validateWidgetNaming,
   type WidgetTier,
 } from "@src/widgets/widget-naming";
+import { validateWidgetImport } from "@src/widgets/widget-compatibility";
 import { logger } from "@utils/logger";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
 
@@ -201,6 +202,25 @@ class WidgetState {
                 continue;
               }
 
+              const compat = validateWidgetImport(
+                {
+                  Name: naming.name,
+                  version: (fn as { version?: string }).version,
+                  sveltycms: (fn as { sveltycms?: string }).sveltycms,
+                  validationSchema: (fn as { validationSchema?: unknown }).validationSchema ?? true,
+                },
+                { tier },
+              );
+              for (const w of compat.warnings) {
+                logger.warn(`[WidgetStore] ${tier} "${folder}": ${w}`);
+              }
+              if (!compat.ok) {
+                logger.error(
+                  `[WidgetStore] Refusing ${tier} widget at ${path}: ${compat.errors.join("; ")}`,
+                );
+                continue;
+              }
+
               const widgetName = naming.name;
               if (typeof process !== "undefined" && process.env.BENCHMARK_DEBUG === "true") {
                 logger.debug(
@@ -246,7 +266,7 @@ class WidgetState {
           }
         } else if (typeof window !== "undefined") {
           // Fallback to API if adapter not passed (client-side)
-          const res = await fetch(`/api/widgets/active${this.isLoaded ? "" : "?refresh=true"}`, {
+          const res = await fetch("/api/widgets/active", {
             headers: { "X-Tenant-ID": tenantId },
           });
           if (res.ok) {

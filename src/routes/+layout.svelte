@@ -200,6 +200,16 @@ if (browser) {
 	globalLoadingStore.startLoading(loadingOperations.initialization);
 }
 
+/**
+ * Last `navigationStructure` array this effect pushed into the content store.
+ * The ROOT layout load has no `depends("app:content")`, so its snapshot is frozen
+ * until the next full navigation — while `page.data` becomes a new object on every
+ * `invalidate("app:content")` (e.g. after a Collection Builder save). Re-applying
+ * the frozen snapshot on those runs rolled the sidebar and the builder board back
+ * to the pre-save order. Apply it only when the load actually produced a new one.
+ */
+let lastAppliedNavigationStructure: unknown = null;
+
 $effect(() => {
 	if (browser && page.data) {
 		untrack(() => {
@@ -207,9 +217,12 @@ $effect(() => {
 				initPublicEnv(page.data.settings);
 			}
 			if (page.data.navigationStructure) {
-				setContentStructure(page.data.navigationStructure);
-				// Initialize the modern content system with hydration data
-				initializeContent(page.data as any);
+				if (page.data.navigationStructure !== lastAppliedNavigationStructure) {
+					lastAppliedNavigationStructure = page.data.navigationStructure;
+					setContentStructure(page.data.navigationStructure);
+					// Initialize the modern content system with hydration data
+					initializeContent(page.data as any);
+				}
 				// Mark initialization as finished successfully here
 				globalLoadingStore.stopLoading(loadingOperations.initialization);
 			} else if (page.data.user === null) {
@@ -456,7 +469,7 @@ onMount(() => {
 <div class="relative z-0">
 <svelte:boundary>
 	    {#snippet failed(error: any, reset: any)}
-		{console.error("[Boundary] Unhandled render error:", error)}
+		{logger.error("[Boundary] Unhandled render error:", error)}
 		<div class="flex h-screen w-full flex-col items-center justify-center space-y-6 bg-surface-500/10 text-center dark:bg-surface-900">
 			<div class="space-y-2">
 				<h1 class="text-4xl font-bold text-error-500">System Error</h1>

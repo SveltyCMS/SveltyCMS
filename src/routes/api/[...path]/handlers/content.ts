@@ -159,7 +159,17 @@ async function handleGetContentStructure(
     throw new AppError(`Invalid GET action: ${action}`, 400);
   }
 
-  const nodes = await cms.collections.getStructure(tenantId);
+  // Read the PERSISTED structure, not the in-memory snapshot. Clients call this
+  // to re-sync after a content update (SSE), and the in-memory store can lag or
+  // be re-derived by a background reconcile — serving it here handed the client a
+  // pre-save order that then overwrote the freshly saved one in the UI.
+  // This is the same read the Collection Builder page load performs.
+  const { contentService } = await import("@src/content/engine.server");
+  const persisted = await contentService.getContentStructureFromDatabase("flat", tenantId);
+  const nodes =
+    Array.isArray(persisted) && persisted.length > 0
+      ? persisted
+      : await cms.collections.getStructure(tenantId);
   // Weak ETag: use content version as lightweight token
   (event.locals as any).apiDataHash = `structure:${(cms as any).version || "0.0.8"}`;
 

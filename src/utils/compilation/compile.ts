@@ -28,7 +28,10 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import * as ts from "typescript";
-import os from "node:os";
+// RELATIVE import (not `@utils/...`): vite.config.ts dynamically imports this
+// module, and Vite's config loader (esbuild) cannot resolve path aliases — a
+// bare `@utils/hardware-profile` here breaks `svelte-kit sync` for the project.
+import { getHardwareProfile } from "../hardware-profile.ts";
 import { isValidTenantId } from "../tenant.ts";
 import { getCollectionsPath, getCompiledCollectionsPath } from "../tenant.server.ts";
 import { isBenchmarkArtifact, isBenchmarkRuntime } from "../benchmark-runtime.ts";
@@ -249,8 +252,8 @@ export async function compile(options: CompileOptions = {}): Promise<Compilation
     resolvedFrom = "flat";
   }
 
-  // Adaptive concurrency: 75% of cores, floor 4
-  const concurrencyLimit = options.concurrency || Math.max(4, Math.floor(os.cpus().length * 0.75));
+  // Adaptive concurrency: from the shared hardware profile (75% of cores, floor 4)
+  const concurrencyLimit = options.concurrency || getHardwareProfile().compileConcurrency;
 
   const result: CompilationResult = {
     processed: 0,

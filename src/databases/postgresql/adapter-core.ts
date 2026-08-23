@@ -17,6 +17,7 @@
  */
 
 import { logger } from "@src/utils/logger";
+import { getHardwareProfile } from "@utils/hardware-profile";
 import { SqlAdapterCore } from "../core/sql-adapter-core";
 import type {
   BaseQueryOptions,
@@ -782,7 +783,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       if (typeof finalConnection === "string") {
         options = {
-          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 100,
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || getHardwareProfile().dbPoolSize,
           connect_timeout: 30,
           onclose,
         };
@@ -815,7 +816,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onnotice: () => {},
           onclose,
           transform: { undefined: null },
-          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 100,
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || getHardwareProfile().dbPoolSize,
           connect_timeout: 10,
           prepare: effectivePrepare,
           idle_timeout: 300,
@@ -839,7 +840,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           user: c.user || c.DB_USER || "postgres",
           password: c.password || c.DB_PASSWORD || "",
           database: c.database || c.DB_NAME,
-          max: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS || 100),
+          max:
+            Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) ||
+            getHardwareProfile().dbPoolSize,
           connect_timeout: Number(c.connect_timeout || 10),
           ssl: c.ssl || false,
           onnotice: () => {},

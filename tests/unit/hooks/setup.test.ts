@@ -132,7 +132,11 @@ describe("handleSetup Middleware", () => {
           const data = await response.json();
           expect(data.status).toBeDefined();
         } else {
-          expect(response).toStrictEqual(mockResponse);
+          // The turbo pipeline rebuilds pass-through responses (withMutableHeaders)
+          // to inject security/cache headers for static assets — assert the
+          // preserved payload, not the original Response identity.
+          expect(response.status).toBe(200);
+          expect(await response.text()).toBe("test body");
         }
       });
     }

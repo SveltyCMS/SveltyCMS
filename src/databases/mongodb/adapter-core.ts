@@ -11,6 +11,7 @@ if (import.meta.env?.SSR && typeof (globalThis as any).require === "undefined") 
 import mongoose from "mongoose";
 import { sanitizeMongoQuery } from "@src/utils/security/mongo-sanitize";
 import { logger } from "@utils/logger";
+import { getHardwareProfile } from "@utils/hardware-profile";
 import { BaseAdapter } from "../core/base-adapter";
 import type { DatabaseCapabilities, DatabaseResult, ConnectionPoolOptions } from "../db-interface";
 
@@ -117,8 +118,11 @@ export abstract class MongoAdapterCore extends BaseAdapter {
         autoIndex: false,
         autoCreate: false,
         bufferCommands: false,
-        maxPoolSize: poolOptions.maxConnections || 100,
-        minPoolSize: poolOptions.minConnections || 10,
+        // 🧠 HARDWARE-ADAPTIVE: pool scales with the detected machine (weak VPS →
+        // few connections, big box → the historical 100-ceiling). minPoolSize
+        // pre-spawns sockets, so it stays modest on small hosts.
+        maxPoolSize: poolOptions.maxConnections || getHardwareProfile().dbPoolSize,
+        minPoolSize: poolOptions.minConnections || getHardwareProfile().mongoMinPool,
         serverSelectionTimeoutMS: poolOptions.connectionTimeout || 30000,
         socketTimeoutMS: 45000,
         family: 4,

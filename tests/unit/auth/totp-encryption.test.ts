@@ -4,7 +4,8 @@
  *              and backward compatibility with legacy plaintext secrets.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // Set encryption key before importing totp module
 const ENCRYPTION_KEY = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4";
@@ -114,16 +115,62 @@ describe("TOTP Secret Encryption", () => {
     it("should store plaintext when no encryption key is configured", async () => {
       delete process.env.ENCRYPTION_KEY;
       delete process.env.SECRET_ENCRYPTION_KEY;
+      vi.resetModules();
 
-      // Need fresh import to re-read env
-      const { encryptTotpSecret } = await import("@src/databases/auth/totp");
+      const { encryptTotpSecret, resetTotpEncryptionKeyCache } =
+        await import("@src/databases/auth/totp");
+      resetTotpEncryptionKeyCache();
       const secret = "JBSWY3DPEHPK3PXP";
 
       const result = await encryptTotpSecret(secret);
       // Without a key, returns the secret as-is (graceful degradation)
-      expect(typeof result).toBe("string");
-      expect(result.length).toBeGreaterThan(0);
+      expect(result).toBe(secret);
     });
+  });
+});
+
+describe("TOTP passphrase HKDF dual-read", () => {
+  const passphrase = "totp-passphrase-must-be-32chars!!";
+  const secret = "JBSWY3DPEHPK3PXP";
+
+  afterEach(() => {
+    process.env = { ...OLD_ENV };
+    vi.resetModules();
+  });
+
+  it("round-trips a TOTP secret under a passphrase ENCRYPTION_KEY", async () => {
+    process.env.ENCRYPTION_KEY = passphrase;
+    delete process.env.SECRET_ENCRYPTION_KEY;
+    vi.resetModules();
+    const { encryptTotpSecret, decryptTotpSecret, resetTotpEncryptionKeyCache } =
+      await import("@src/databases/auth/totp");
+    resetTotpEncryptionKeyCache();
+
+    const encrypted = await encryptTotpSecret(secret);
+    expect(encrypted).not.toBe(secret);
+    expect(await decryptTotpSecret(encrypted)).toBe(secret);
+  });
+
+  it("decrypts SHA-256(raw) envelopes written before HKDF", async () => {
+    process.env.ENCRYPTION_KEY = passphrase;
+    delete process.env.SECRET_ENCRYPTION_KEY;
+    vi.resetModules();
+    const { decryptTotpSecret, resetTotpEncryptionKeyCache } =
+      await import("@src/databases/auth/totp");
+    resetTotpEncryptionKeyCache();
+
+    const legacyKey = createHash("sha256").update(passphrase, "utf8").digest();
+    const iv = randomBytes(16);
+    const cipher = createCipheriv("aes-256-gcm", legacyKey, iv);
+    const ciphertext = Buffer.concat([cipher.update(secret, "utf8"), cipher.final()]);
+    const envelope = Buffer.concat([
+      Buffer.from([1]),
+      iv,
+      cipher.getAuthTag(),
+      ciphertext,
+    ]).toString("base64");
+
+    expect(await decryptTotpSecret(envelope)).toBe(secret);
   });
 });
 

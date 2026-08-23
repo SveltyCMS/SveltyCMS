@@ -205,10 +205,15 @@ export async function handleDashboardRoutes(
         return rawResponse(event, analyticsData);
       }
 
-      case "health":
-        const healthUrl = new URL("/health", event.url.origin);
-        const healthRes = await event.fetch(healthUrl.toString());
-        return rawResponse(event, await healthRes.json());
+      case "health": {
+        const isUp = await cms.db.isConnected();
+        return rawResponse(event, {
+          status: isUp ? "healthy" : "degraded",
+          database: isUp ? "connected" : "disconnected",
+          uptime: process.uptime(),
+          timestamp: Date.now(),
+        });
+      }
 
       case "metrics":
       case "unified": {

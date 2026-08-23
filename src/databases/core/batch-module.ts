@@ -7,7 +7,7 @@
  * - Bulk insert
  * - Bulk update
  * - Bulk delete
- * - Bulk upsert
+ * - Bulk upsert (coalesced upsertMany — one ON CONFLICT / bulkWrite)
  */
 
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
@@ -94,6 +94,28 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
               }
             } else if (!bulkRes.success) {
               errors.push((bulkRes as any).error!);
+            }
+            continue;
+          }
+          if (operation === "upsert" && ops.length > 1) {
+            const items = ops.map((op) => ({
+              query: op.query as import("../db-interface").QueryFilter<T & BaseEntity>,
+              data: op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
+            }));
+            const bulkRes = await this.crud.upsertMany(collection, items);
+            if (bulkRes.success && Array.isArray(bulkRes.data)) {
+              for (const item of bulkRes.data) {
+                results.push({ success: true, data: item } as DatabaseResult<T>);
+                totalProcessed++;
+              }
+            } else if (bulkRes.success && bulkRes.data && !Array.isArray(bulkRes.data)) {
+              // Mongo returns counts; treat the group as processed.
+              for (const op of ops) {
+                results.push({ success: true, data: op.data as T } as DatabaseResult<T>);
+                totalProcessed++;
+              }
+            } else if (!bulkRes.success) {
+              errors.push((bulkRes as { error?: DatabaseError }).error!);
             }
             continue;
           }

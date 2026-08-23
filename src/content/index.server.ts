@@ -259,8 +259,16 @@ export const contentSystem = {
   async reorderContentNodes(items: any[], tenantId?: string | null): Promise<any[]> {
     const svc = await getServerContentService();
     await svc.reorderNodes(items, tenantId);
+    const updated = await svc.getContentStructureFromDatabase("flat", tenantId);
+    contentStore.batchUpsert(updated);
+
+    const { buildOrganizationalManifestFromNodes, setOrganizationalManifest } =
+      await import("@utils/collection-order.server");
+    const { order, structureNodes } = buildOrganizationalManifestFromNodes(updated);
+    await setOrganizationalManifest(order, structureNodes, tenantId ?? null);
+
     contentStore.updateVersion();
-    return contentStore.getNodesForTenant(tenantId);
+    return updated;
   },
 
   async upsertContentNodes(

@@ -13,9 +13,10 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
-  import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
   import MediaGridActionTooltip from "./media-grid-action-tooltip.svelte";
   import type { MediaBase, MediaImage } from "@utils/media/media-models";
+  import { mediaDisplayUrl } from "@utils/media/media-utils";
+  import { motionDuration } from "@utils/admin-transitions";
   import {
     MEDIA_DRAG_CONTAINER,
     resolveMediaDragIds,
@@ -73,6 +74,9 @@
 
   const visibleFiles = $derived(filteredFiles.slice(0, visibleCount));
   const hasMore = $derived(visibleCount < filteredFiles.length);
+  const previewSize = $derived(
+    gridSize === "large" ? "md" : gridSize === "medium" ? "sm" : "thumbnail",
+  );
 
   $effect(() => {
     void filteredFiles;
@@ -253,7 +257,7 @@
           container: MEDIA_DRAG_CONTAINER,
           dragData: {
             ids: resolveMediaDragIds(fileId, selectedFiles),
-            preview: { filename: file.filename, url: file.type === 'image' ? file.url : undefined, type: file.type },
+            preview: { filename: file.filename, url: file.type === 'image' ? mediaDisplayUrl(file, previewSize) : undefined, type: file.type },
           },
           interactive: ['[data-no-drag]'],
           attributes: { draggingClass: 'opacity-50' },
@@ -262,7 +266,7 @@
         title="Drag to a folder in the sidebar to move"
         data-testid="media-item"
         data-media-id={fileId}
-        in:fade={{ duration: 180 }}
+        in:fade={{ duration: motionDuration(120) }}
         ontouchstart={(e) => { e.stopPropagation(); touchActiveId = fileId; }}
       >
         {#if isSelected}
@@ -273,7 +277,7 @@
           <div
             class="absolute inset-s-1.5 top-1.5 z-20 sm:inset-s-2 sm:top-2"
             data-no-drag
-            in:scale={{ duration: 180 }}
+            in:scale={{ duration: motionDuration(120) }}
             role="presentation"
             onclick={(e) => e.stopPropagation()}
             onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); }}
@@ -318,13 +322,14 @@
                 {/if}
 
                 <img
-                  src={file.url}
+                  src={mediaDisplayUrl(file, previewSize)}
                   alt=""
                   class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02] pointer-events-none"
                   style:object-position={file.metadata?.focalPoint
                     ? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
                     : "center"}
                   loading="lazy"
+                  decoding="async"
                   draggable="false"
                   crossorigin="anonymous"
                   onerror={() => failedImages.add(fileId)}
@@ -501,12 +506,16 @@
   {/if}
 </div>
 
-<TagEditorModal
-  bind:show={showTagModal}
-  bind:file={taggingFile}
-  onUpdate={onUpdateImage}
-  hideGenerate={true}
-/>
+{#if showTagModal}
+  {#await import("@src/components/media/tag-editor/tag-editor-modal.svelte") then mod}
+    <mod.default
+      bind:show={showTagModal}
+      bind:file={taggingFile}
+      onUpdate={onUpdateImage}
+      hideGenerate={true}
+    />
+  {/await}
+{/if}
 
 <style>
   .media-checkerboard {

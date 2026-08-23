@@ -26,8 +26,8 @@ import {
 	SMART_TABLE_THEAD,
 } from "@components/ui/smart-table";
 import SmartTableShell from "@components/ui/smart-table/smart-table-shell.svelte";
-import TagEditorModal from "@src/components/media/tag-editor/tag-editor-modal.svelte";
 import MediaTableRowMenu from "./media-table-row-menu.svelte";
+import { mediaDisplayUrl } from "@utils/media/media-utils";
 import type { MediaBase, MediaImage } from "@utils/media/media-models";
 import { draggable } from "@thisux/sveltednd";
 import {
@@ -267,7 +267,7 @@ function onUpdateRowsPerPage(rows: number) {
 							container: MEDIA_DRAG_CONTAINER,
 							dragData: {
 								ids: resolveMediaDragIds(fileId, selectedFiles),
-								preview: { filename: file.filename, url: file.type === 'image' ? file.url : undefined, type: file.type },
+								preview: { filename: file.filename, url: file.type === 'image' ? mediaDisplayUrl(file, "thumbnail") : undefined, type: file.type },
 							},
 							interactive: ['[data-no-drag]'],
 							attributes: { draggingClass: 'opacity-50' },
@@ -291,7 +291,7 @@ function onUpdateRowsPerPage(rows: number) {
 						<div class="shrink-0" role="cell">
 							<div class="media-thumb-checkerboard flex h-10 w-10 items-center justify-center overflow-hidden rounded">
 								{#if file.type === 'image' && !failedImages.has(fileId)}
-									<img src={file.url} alt="" class="pointer-events-none h-full w-full object-cover" loading="lazy" draggable="false" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
+									<img src={mediaDisplayUrl(file, "thumbnail")} alt="" class="pointer-events-none h-full w-full object-cover" loading="lazy" decoding="async" draggable="false" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
 								{:else if file.type === 'image'}
 									<iconify-icon icon="mdi:image-off-outline" width="18" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 								{:else}
@@ -389,7 +389,7 @@ function onUpdateRowsPerPage(rows: number) {
 								container: MEDIA_DRAG_CONTAINER,
 								dragData: {
 									ids: resolveMediaDragIds(fileId, selectedFiles),
-									preview: { filename: file.filename, url: file.type === 'image' ? file.url : undefined, type: file.type },
+									preview: { filename: file.filename, url: file.type === 'image' ? mediaDisplayUrl(file, "thumbnail") : undefined, type: file.type },
 								},
 								interactive: ['[data-no-drag]'],
 								attributes: { draggingClass: 'opacity-50' },
@@ -416,7 +416,7 @@ function onUpdateRowsPerPage(rows: number) {
 							<td class="media-table-preview {SMART_TABLE_TD} w-16 shrink-0">
 								<div class="media-thumb-checkerboard flex h-10 w-11 items-center justify-center overflow-hidden rounded sm:h-11 sm:w-12">
 									{#if file.type === 'image' && !failedImages.has(fileId)}
-										<img src={file.url} alt="" class="pointer-events-none h-full w-full object-cover" loading="lazy" draggable="false" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
+										<img src={mediaDisplayUrl(file, "thumbnail")} alt="" class="pointer-events-none h-full w-full object-cover" loading="lazy" decoding="async" draggable="false" crossorigin="anonymous" onerror={() => failedImages.add(fileId)} />
 									{:else if file.type === 'image'}
 										<iconify-icon icon="mdi:image-off-outline" width="20" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 									{:else}
@@ -450,7 +450,11 @@ function onUpdateRowsPerPage(rows: number) {
 	</SmartTableShell>
 </div>
 
-<TagEditorModal bind:show={showTagModal} bind:file={taggingFile} onUpdate={onUpdateImage} hideGenerate={true} />
+{#if showTagModal}
+	{#await import("@src/components/media/tag-editor/tag-editor-modal.svelte") then mod}
+		<mod.default bind:show={showTagModal} bind:file={taggingFile} onUpdate={onUpdateImage} hideGenerate={true} />
+	{/await}
+{/if}
 
 <style>
   .media-table {

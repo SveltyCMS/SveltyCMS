@@ -159,11 +159,16 @@ export function assertCompiledSchema(moduleData: unknown, filePath: string): Sch
     }
 
     const widget = (field as { widget?: unknown }).widget;
+    const fieldRec = field as { type?: string; widget?: { Name?: string; name?: string } };
     if (widget != null && typeof widget === "object") {
       const w = widget as { Name?: string; name?: string };
-      if (!w.Name && !w.name) {
+      if (!w.Name && w.name) w.Name = w.name;
+      if (!w.Name && typeof fieldRec.type === "string" && fieldRec.type) {
+        w.Name = fieldRec.type;
+      }
+      if (!w.Name) {
         errors.push(
-          `Field[${i}] widget object missing Name/name in "${schema.name}" (soft — allowed)`,
+          `Field[${i}] widget object missing Name in "${schema.name}" — collection import should set widget.Name (or field.type)`,
         );
       }
     }

@@ -943,13 +943,13 @@ Plugin settings (API keys, webhook secrets, SMTP credentials) need to be encrypt
 
 ### Key Differences from `encryptData`
 
-| Feature         | `encryptData` (Password-based)    | `encryptSecret` (Static-key)              |
-| :-------------- | :-------------------------------- | :---------------------------------------- |
-| Key source      | User-provided password + Argon2id | `SECRET_ENCRYPTION_KEY` env var           |
-| Key derivation  | Argon2id (64 MB, 3 iterations)    | Direct hex/base64 key (or SHA-256 derive) |
-| Use case        | User data export/import           | Automated plugin settings                 |
-| Interactive     | Yes (user enters password)        | No (fully automated)                      |
-| Envelope format | `salt:iv:authTag:ciphertext`      | `version:iv:authTag:ciphertext`           |
+| Feature         | `encryptData` (Password-based)    | `encryptSecret` (Static-key)                               |
+| :-------------- | :-------------------------------- | :--------------------------------------------------------- |
+| Key source      | User-provided password + Argon2id | `SECRET_ENCRYPTION_KEY` env var                            |
+| Key derivation  | Argon2id (64 MB, 3 iterations)    | Direct hex/base64 key (or HKDF-SHA-256; SHA-256 dual-read) |
+| Use case        | User data export/import           | Automated plugin settings                                  |
+| Interactive     | Yes (user enters password)        | No (fully automated)                                       |
+| Envelope format | `salt:iv:authTag:ciphertext`      | `version:iv:authTag:ciphertext`                            |
 
 ### API Reference {#plugin-settings-api-reference}
 
@@ -1008,5 +1008,7 @@ See [Plugin Settings Crypto](/src/plugins/settings-crypto.ts) and [Plugin Settin
 
 ---
 
-_Last Updated: July 2026_
+Passphrase-shaped `SECRET_ENCRYPTION_KEY` values (not 64-char hex / strict base64) are derived with **HKDF-SHA-256** (`info = sveltycms-plugin-settings`). Decrypt tries that key first, then the pre-2026-08 SHA-256(raw) digest so existing rows keep working. Derivation is cached for the process — not per request. Prefer a 64-char hex key in production.
+
+_Last Updated: August 2026_
 _Security Audit: Annual review recommended_

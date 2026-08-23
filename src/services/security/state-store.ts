@@ -9,10 +9,39 @@ import type { SecurityIncident } from "./types";
 
 const PREFIX = "svelty:sec:";
 
+let _l2At = 0;
+let _l2Open = false;
+
+function l2IsOpen(): boolean {
+  const now = Date.now();
+  if (now - _l2At < 250) return _l2Open;
+  const l2 = cacheService.getRedisClient();
+  _l2Open = Boolean(l2 && l2.isOpen);
+  _l2At = now;
+  return _l2Open;
+}
+
 export class PersistentSecurityStore {
-  /** Checks if an IP is blocked. */
+  /**
+   * Checks if an IP is blocked.
+   * L1 is the source of truth when Redis is down (set() always writes L1).
+   * With Redis up, L1 miss still reads L2 so multi-instance blocks propagate.
+   */
   async isBlocked(ip: string): Promise<boolean> {
-    return !!(await cacheService.get<string>(`${PREFIX}block:${ip}`));
+    const key = `${PREFIX}block:${ip}`;
+    if (cacheService.getSync<string>(key)) return true;
+    if (!l2IsOpen()) return false;
+    return !!(await cacheService.get<string>(key));
+  }
+
+  /** Synchronous L1 block check — no microtask. Redis misses still use `isBlocked()`. */
+  isBlockedSync(ip: string): boolean {
+    return !!cacheService.getSync<string>(`${PREFIX}block:${ip}`);
+  }
+
+  /** True when L2 Redis is up and L1 miss must be confirmed against it. */
+  needsDistributedLookup(): boolean {
+    return l2IsOpen();
   }
 
   /** Blocks an IP address with TTL (seconds). */
@@ -38,23 +67,37 @@ export class PersistentSecurityStore {
     }
   }
 
+  private parseThrottle(
+    raw: string | null | undefined,
+    ip: string,
+  ): { throttled: boolean; factor: number; until: number } | null {
+    if (!raw) return null;
+    try {
+      const data = JSON.parse(raw) as { factor?: number; until?: number };
+      if (!data.until || data.until <= Date.now()) {
+        void cacheService.delete(`${PREFIX}throttle:${ip}`).catch(() => {});
+        return null;
+      }
+      return { throttled: true, factor: data.factor ?? 1, until: data.until };
+    } catch {
+      return null;
+    }
+  }
+
   /** Gets throttle factor for an IP. */
   async getThrottle(
     ip: string,
   ): Promise<{ throttled: boolean; factor: number; until: number } | null> {
-    const raw = await cacheService.get<string>(`${PREFIX}throttle:${ip}`);
-    if (!raw) return null;
+    const key = `${PREFIX}throttle:${ip}`;
+    const l1 = cacheService.getSync<string>(key);
+    if (l1) return this.parseThrottle(l1, ip);
+    if (!l2IsOpen()) return null;
+    return this.parseThrottle(await cacheService.get<string>(key), ip);
+  }
 
-    try {
-      const data = JSON.parse(raw);
-      if (data.until <= Date.now()) {
-        await cacheService.delete(`${PREFIX}throttle:${ip}`);
-        return null;
-      }
-      return { throttled: true, factor: data.factor, until: data.until };
-    } catch {
-      return null;
-    }
+  /** Synchronous L1 throttle check — no microtask. */
+  getThrottleSync(ip: string): { throttled: boolean; factor: number; until: number } | null {
+    return this.parseThrottle(cacheService.getSync<string>(`${PREFIX}throttle:${ip}`), ip);
   }
 
   /** Adds an incident to the store. */

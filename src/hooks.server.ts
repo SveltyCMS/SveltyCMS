@@ -20,7 +20,6 @@ import "@utils/logger.server";
 import { building } from "$app/env";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
-import os from "node:os";
 import { runWithContext, runWithTrace, getTrace, traceSpan } from "@utils/context";
 import { createRequire } from "node:module";
 
@@ -57,6 +56,14 @@ import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-registry";
 import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
+import { initHardwareProfile, describeHardware } from "@utils/hardware-profile";
+
+// 🧠 ONE HARDWARE DETECTION AT PROCESS START: detects the host once and publishes
+// the shared profile to the global registry — every module, chunk and worker
+// import (DB pools, sharp, module loader, compression, dashboard) reads the same
+// object and tunes itself for THIS machine.
+initHardwareProfile();
+logger.info(`[Boot] Hardware profile: ${describeHardware()}`);
 
 // 🔐 /ws COLLABORATION AUTH: the standalone yjs-sync-server bundle cannot import
 // app internals, so it consults this registry (globalThis bridge) at upgrade
@@ -226,18 +233,25 @@ if (!building) {
       const readyStates = ["READY", "WARMING", "WARMED", "DEGRADED"];
       if (readyStates.includes(state) && !isServicesInitialized) {
         isServicesInitialized = true;
-        // ✨ Hardware Optimization (Enterprise)
-        const cores = os.cpus().length;
-        process.env.UV_THREADPOOL_SIZE = String(cores);
+        // ✨ Hardware-Adaptive Tuning — the profile was detected ONCE at process
+        // start (module scope above) and published to the shared global registry.
+        // Here we only APPLY the knobs that must be set on the ready state.
+        const hw = getHardwareProfile();
+        process.env.UV_THREADPOOL_SIZE = String(hw.threadPoolSize);
         import("sharp")
           .then((sharp) => {
-            const physicalCores = Math.max(4, Math.floor(cores * 0.33));
-            sharp.default.concurrency(physicalCores);
+            // Measured: variant pipelines are generated in parallel, so the
+            // machine saturates at low libvips concurrency (4≈24 threads on a
+            // 24-core host). The profile caps concurrency per tier to leave CPU
+            // headroom for the event loop, DB pool and other requests.
+            sharp.default.concurrency(hw.sharpConcurrency);
             logger.debug(
-              `[System] Hardware optimized: ThreadPool=${cores} | SharpConcurrency=${physicalCores}`,
+              `[System] Hardware optimized: ThreadPool=${hw.threadPoolSize} | SharpConcurrency=${hw.sharpConcurrency}`,
             );
           })
           .catch(() => {});
+
+        logger.info(`[System] ${describeHardware(hw)}`);
 
         // ✨ Parallel Service Initialization (Optimized for Cold Start)
         // 🧠 PRE-WARM heavy modules used lazily inside request hooks so the first

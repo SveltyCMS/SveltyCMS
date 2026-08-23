@@ -111,7 +111,7 @@ export interface CloudStorageConfig {
  * isolation cannot be overridden by a stale DB setting (`mediaFolder`).
  * Applies to both local sandbox and ci-fresh wizard profiles.
  */
-function resolveConfiguredMediaFolder(): string {
+export function resolveConfiguredMediaFolder(): string {
   const envFolder = process.env.MEDIA_FOLDER?.trim();
   const harness =
     process.env.BENCHMARK_LOCAL_SANDBOX === "1" ||

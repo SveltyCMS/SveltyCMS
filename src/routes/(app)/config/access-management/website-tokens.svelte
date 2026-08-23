@@ -29,7 +29,8 @@ import {
 	type TableDensity,
 } from "@components/ui/smart-table";
 import SmartTableEmpty from "@components/ui/smart-table/smart-table-empty.svelte";
-import type { Permission, User } from "@src/databases/auth/types";
+import type { Permission } from "@src/databases/auth/types";
+import type { TokenUserRef } from "./website-tokens-api";
 import type { DatabaseId, WebsiteToken } from "@src/content/types";
 import {
 	globalLoadingStore,
@@ -68,7 +69,7 @@ interface TableHeader {
 
 let { permissions = [] }: { permissions: Permission[] } = $props();
 
-let users: User[] = $state([]);
+let users: TokenUserRef[] = $state([]);
 
 const userMap = $derived(
 	new Map(users.map((u) => [u._id, u.username || u.email])),

@@ -110,12 +110,21 @@ class CollectionState {
 
   private lastStructureHash = "";
 
+  /**
+   * Monotonic counter bumped on every applied structure change. Lets an async
+   * consumer (e.g. the SSE-driven content refresh) detect that newer state landed
+   * while its request was in flight and drop its now-stale snapshot instead of
+   * overwriting the newer one. Plain number — a comparison token, not UI state.
+   */
+  structureRevision = 0;
+
   setContentStructure(newContentStructure: ContentNode[]) {
     // Prevent redundant syncs that trigger reactivity loops
     const currentHash = structureFingerprint(newContentStructure);
     if (currentHash === this.lastStructureHash) return;
     this.lastStructureHash = currentHash;
 
+    this.structureRevision++;
     this.contentStructure = newContentStructure;
   }
 
@@ -262,6 +271,8 @@ export const setCollectionValue = (v: Record<string, unknown>) => collections.se
 export const setModifyEntry = (v: (status?: keyof typeof statusMap) => Promise<void>) =>
   collections.setModifyEntry(v);
 export const setContentStructure = (v: ContentNode[]) => collections.setContentStructure(v);
+/** Current structure revision — see `CollectionState.structureRevision`. */
+export const getStructureRevision = () => collections.structureRevision;
 export const setTargetWidget = (v: Widget) => collections.setTargetWidget(v);
 
 // Legacy derived/utility functions

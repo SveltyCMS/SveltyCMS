@@ -11,6 +11,7 @@ import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { isIsolatedTestDbName } from "@utils/test-db-safety";
 import { isCiRunner, isAutomatedTestHarness } from "@utils/private-config-policy";
+import { getHardwareProfile } from "@utils/hardware-profile";
 import { safeParse, type InferOutput } from "valibot";
 import path from "node:path";
 
@@ -368,6 +369,11 @@ export function getDatabaseConfig() {
   const user = env.DB_USER;
   const password = env.DB_PASSWORD;
 
+  // 🧠 HARDWARE-ADAPTIVE POOL: explicit DB_POOL_SIZE env always wins; otherwise the
+  // default scales with the detected machine (weak VPS → small pool, big box → the
+  // historical 100-ceiling). SQLite stays at 1 (single-writer file semantics).
+  const hwPoolSize = dbType === "sqlite" ? 1 : getHardwareProfile().dbPoolSize;
+
   dbConfigCache = {
     type: dbType,
     host,
@@ -375,7 +381,7 @@ export function getDatabaseConfig() {
     name,
     user,
     password,
-    poolSize: env.DB_POOL_SIZE || (dbType === "postgresql" ? 20 : dbType === "sqlite" ? 1 : 100),
+    poolSize: env.DB_POOL_SIZE || hwPoolSize,
     retryAttempts: env.DB_RETRY_ATTEMPTS || 5,
     retryDelay: env.DB_RETRY_DELAY || 2000,
   };

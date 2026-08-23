@@ -179,11 +179,13 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   const rawBody = resEntry.body;
   let bodyToSend: BodyInit | Uint8Array | null = resEntry.buffer ?? rawBody;
 
-  const acceptEncoding = request.headers.get("Accept-Encoding") || "";
-  const algo = negotiateEncoding(acceptEncoding, hasNativeCompression());
   const payloadSize = resEntry.buffer
     ? resEntry.buffer.byteLength
     : Buffer.byteLength(rawBody, "utf-8");
+  const acceptEncoding = request.headers.get("Accept-Encoding") || "";
+  const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
+    contentLength: payloadSize,
+  });
 
   if (algo && payloadSize > 1024) {
     // 🚀 Serve the pre-computed variant stashed by handle-api-requests

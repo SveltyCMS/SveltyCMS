@@ -25,7 +25,6 @@ functionality for image editing and basic file information display.
 	import Button from '@components/ui/button.svelte';
 	type Any = any;
 
-	import ImageEditorModal from '@src/components/image-editor/image-editor-modal.svelte';
 	import { IMAGE_EDITOR_MODAL_CLASSES, IMAGE_EDITOR_MODAL_SIZE } from '@src/components/image-editor/image-editor-modal.ts';
 	// Components
 	import FileUpload from '@components/ui/file-upload.svelte';
@@ -131,8 +130,11 @@ functionality for image editing and basic file information display.
 		}, 300);
 	}
 
-	function openImageEditor() {
+	async function openImageEditor() {
 		if (!value) return;
+		const { default: ImageEditorModal } = await import(
+			'@src/components/image-editor/image-editor-modal.svelte'
+		);
 		modalState.trigger(ImageEditorModal as any, {
 			image: value,
 			watermarkPreset,

@@ -16,6 +16,8 @@
  * - Streaming (zero-copy for large payloads — no OOM on 100K+ record API responses)
  * - Intelligent content-type filtering (text/*, json, xml, javascript, svg; SSE excluded)
  *   and minimum-size thresholds
+ * - Size-aware negotiation: gzip for known-tiny (<4 KiB), skip zstd below 32 KiB
+ * - Refuse expanded output (compressed >= original → serve uncompressed)
  * - Case-insensitive Vary merging that preserves upstream values (e.g. Vary: Origin)
  * - Graceful fallback chain: zstd → Brotli → Gzip → Deflate → uncompressed
  * - Edge-safe lazy dynamic imports for `node:zlib` / `fs` / `path` / `stream`
@@ -28,12 +30,18 @@
 import { logger } from "@utils/logger";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { getRequestFlags } from "@utils/hook-utils";
+import { getHardwareProfile } from "@utils/hardware-profile";
 
 const MIN_COMPRESSION_SIZE = 1024; // 1KB
 const SIZE_TINY = 4 * 1024; // < 4KB
 const SIZE_SMALL = 32 * 1024; // < 32KB
 const SIZE_MEDIUM = 256 * 1024; // < 256KB
 const SYNC_MAX_SIZE = 64 * 1024; // 64KB
+
+// 🧠 HARDWARE-AWARE: weak hosts cap compression quality so the CPU stays on the
+// request path — the ratio loss on small payloads is negligible, the CPU saved
+// on a 1-core VPS is not.
+const HW_PROFILE = getHardwareProfile();
 
 /**
  * Predicate for compressible content types (case-insensitive).
@@ -147,46 +155,6 @@ function hasNativeZstd(): boolean {
 }
 
 /**
- * Pick the best compression algorithm for a given payload size.
- * - Tiny payloads: gzip (fast, universal)
- * - Small / unknown: brotli (good ratio, still fast)
- * - Medium+: brotli higher quality; zstd preferred when available
- */
-function pickBestAlgorithm(
-  acceptEncoding: string,
-  contentLength: number,
-): CompressionAlgorithm | null {
-  const hasBr = zlib !== null && stream !== null && acceptEncoding.includes("br");
-  const hasGzip = acceptEncoding.includes("gzip");
-  const hasDeflate = acceptEncoding.includes("deflate");
-  const zstdOk = hasNativeZstd() && acceptEncoding.includes("zstd");
-
-  if (zstdOk) return "zstd";
-
-  // If content length is unknown (0), default to balanced fallback
-  const isUnknownSize = contentLength === 0;
-
-  if (!isUnknownSize && contentLength < SIZE_TINY) {
-    if (hasGzip) return "gzip";
-    if (hasDeflate) return "deflate";
-    if (hasBr) return "br";
-    return null;
-  }
-
-  if (isUnknownSize || contentLength < SIZE_SMALL) {
-    if (hasBr) return "br";
-    if (hasGzip) return "gzip";
-    if (hasDeflate) return "deflate";
-    return null;
-  }
-
-  if (hasBr) return "br";
-  if (hasGzip) return "gzip";
-  if (hasDeflate) return "deflate";
-  return null;
-}
-
-/**
  * Adaptive compression quality based on payload size.
  */
 function compressionLevel(
@@ -208,30 +176,55 @@ function compressionLevel(
           ? 6
           : 8;
     return {
-      params: { [zlib!.constants.BROTLI_PARAM_QUALITY]: quality },
+      params: {
+        [zlib!.constants.BROTLI_PARAM_QUALITY]: Math.min(quality, HW_PROFILE.brotliQuality),
+      },
     };
   }
   // gzip / deflate level: 1-9, lower = faster
   const level =
     contentLength > 0 && contentLength < SIZE_SMALL ? 4 : contentLength < SIZE_MEDIUM ? 6 : 9;
-  return { level };
+  return { level: Math.min(level, HW_PROFILE.gzipLevel) };
 }
 
 /**
- * Negotiate the best compression algorithm based on Accept-Encoding.
- * Priority: zstd (when available) → Brotli → Gzip → Deflate
- * Exported for use by turbo fast-path and other layers.
+ * Negotiate the best compression algorithm based on Accept-Encoding and size.
+ *
+ * - Known tiny (<4 KiB): gzip/deflate first — zstd/brotli setup dominates the
+ *   payload; gzip is cheaper and nearly as small.
+ * - Known small (<32 KiB): brotli, then gzip. Skip zstd unless nothing else matches.
+ * - Medium+ or unknown size: zstd (CMS dictionary) → brotli → gzip → deflate.
+ *
+ * Exported for turbo fast-path and API cache hits.
  */
 export function negotiateEncoding(
   acceptEncoding: string,
   hasZlib: boolean,
-  opts?: { zstdAvailable?: boolean },
+  opts?: { zstdAvailable?: boolean; contentLength?: number },
 ): CompressionAlgorithm | null {
-  const zstdOk = opts?.zstdAvailable ?? hasNativeZstd();
-  if (zstdOk && acceptEncoding.includes("zstd")) return "zstd";
-  if (hasZlib && acceptEncoding.includes("br")) return "br";
-  if (acceptEncoding.includes("gzip")) return "gzip";
-  if (acceptEncoding.includes("deflate")) return "deflate";
+  const ae = acceptEncoding.toLowerCase();
+  const zstdOk = (opts?.zstdAvailable ?? hasNativeZstd()) && ae.includes("zstd");
+  const hasBr = hasZlib && ae.includes("br");
+  const hasGzip = ae.includes("gzip");
+  const hasDeflate = ae.includes("deflate");
+  const len = opts?.contentLength ?? 0;
+  const knownTiny = len > 0 && len < SIZE_TINY;
+  const knownSmall = len > 0 && len < SIZE_SMALL;
+
+  if (knownTiny) {
+    if (hasGzip) return "gzip";
+    if (hasDeflate) return "deflate";
+    if (hasBr) return "br";
+    if (zstdOk) return "zstd";
+    return null;
+  }
+
+  if (!knownSmall && zstdOk) return "zstd";
+
+  if (hasBr) return "br";
+  if (hasGzip) return "gzip";
+  if (hasDeflate) return "deflate";
+  if (zstdOk) return "zstd";
   return null;
 }
 
@@ -327,19 +320,22 @@ export function compressSync(
   const len = contentLength ?? input.byteLength;
   const opts = compressionLevel(algorithm, len);
   try {
+    let out: Buffer | Uint8Array | null = null;
     if (algorithm === "zstd") {
       const zstdSync = (zlib as { zstdCompressSync?: (b: Buffer, o: unknown) => Buffer })
         .zstdCompressSync;
       if (typeof zstdSync !== "function") return null;
-      return zstdSync(input, opts);
+      out = zstdSync(input, opts);
+    } else if (algorithm === "br") {
+      out = zlib.brotliCompressSync(input, opts as import("node:zlib").BrotliOptions);
+    } else if (algorithm === "gzip") {
+      out = zlib.gzipSync(input, opts as import("node:zlib").ZlibOptions);
+    } else {
+      out = zlib.deflateSync(input, opts as import("node:zlib").ZlibOptions);
     }
-    if (algorithm === "br") {
-      return zlib.brotliCompressSync(input, opts as import("node:zlib").BrotliOptions);
-    }
-    if (algorithm === "gzip") {
-      return zlib.gzipSync(input, opts as import("node:zlib").ZlibOptions);
-    }
-    return zlib.deflateSync(input, opts as import("node:zlib").ZlibOptions);
+    // Expanded (or equal) output is a net loss — serve uncompressed.
+    if (!out || out.byteLength >= input.byteLength) return null;
+    return out;
   } catch {
     return null;
   }
@@ -366,7 +362,9 @@ export async function compressZstd(data: string | Uint8Array | Buffer): Promise<
           : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
       const zstdSync = (zlib as { zstdCompressSync: (b: Buffer, o: unknown) => Buffer })
         .zstdCompressSync;
-      return zstdSync(input, zstdCompressOptions());
+      const out = zstdSync(input, zstdCompressOptions());
+      if (!out || out.byteLength >= input.byteLength) return null;
+      return out;
     } catch {
       /* fall through to optional binding */
     }
@@ -385,7 +383,9 @@ export async function compressZstd(data: string | Uint8Array | Buffer): Promise<
         : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
     // API: compress(buffer, level) — dictionary not supported by this binding
     const compressed = await mod.compress(input, 3);
-    return Buffer.from(compressed);
+    const out = Buffer.from(compressed);
+    if (out.byteLength >= input.byteLength) return null;
+    return out;
   } catch {
     return null;
   }
@@ -478,14 +478,11 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
   const acceptEncoding = event.request.headers.get("Accept-Encoding") || "";
   const hasZlib = zlib !== null && stream !== null;
 
-  let algorithm = pickBestAlgorithm(acceptEncoding, contentLength);
+  let algorithm = negotiateEncoding(acceptEncoding, hasZlib, {
+    zstdAvailable: hasNativeZstd(),
+    contentLength,
+  });
   if (!algorithm) return response;
-
-  // zstd without native support: negotiate down
-  if (algorithm === "zstd" && !hasNativeZstd()) {
-    algorithm = negotiateEncoding(acceptEncoding, hasZlib);
-    if (!algorithm) return response;
-  }
 
   try {
     let compressedBody: BodyInit;

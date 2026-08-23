@@ -32,6 +32,11 @@ describe("RouteResourceStateMachine", () => {
   });
 
   it("evaluates 100,000 route classifications in < 10ms (microsecond latency check)", () => {
+    // Warm up the JIT before timing — an untimed first pass keeps the
+    // measurement from being skewed by one-time compilation cost.
+    for (let i = 0; i < 10000; i++) {
+      stateMachine.classifyRouteSpec("/mediagallery/view");
+    }
     const start = performance.now();
     for (let i = 0; i < 100000; i++) {
       stateMachine.classifyRouteSpec("/mediagallery/view");

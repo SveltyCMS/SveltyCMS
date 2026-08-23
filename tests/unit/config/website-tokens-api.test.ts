@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   createWebsiteToken,
   deleteWebsiteTokenById,
+  listUsersForTokens,
   listWebsiteTokens,
   unwrapWebsiteTokensList,
   bulkDeleteWebsiteTokens,
@@ -74,6 +75,29 @@ describe("website-tokens-api", () => {
         headers: expect.objectContaining({ "X-CSRF-Token": "token-csrf" }),
       }),
     );
+  });
+
+  it("listUsersForTokens keeps only id/email/username", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: [
+          {
+            _id: "u1",
+            email: "a@b.co",
+            username: "ada",
+            password: "hash",
+            totpSecret: "secret",
+          },
+        ],
+      }),
+    });
+    const users = await listUsersForTokens();
+    expect(users).toEqual([{ _id: "u1", email: "a@b.co", username: "ada" }]);
+    expect(users[0]).not.toHaveProperty("password");
+    expect(users[0]).not.toHaveProperty("totpSecret");
   });
 
   it("bulkDeleteWebsiteTokens deletes each id", async () => {

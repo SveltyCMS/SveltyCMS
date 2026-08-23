@@ -143,12 +143,14 @@ Uses the same shared TreeView as collections:
 		});
 	});
 
-	// Sync selection from URL (browser back/forward)
+	// Sync selection from URL (browser back/forward).
+	// Only the *ancestor* chain is force-expanded — expanding the selected node
+	// itself here would immediately undo the collapse toggle the user just made
+	// in TreeView (clicking a folder both selects it and toggles it).
 	$effect(() => {
 		activeFolderId = page.url.searchParams.get('folderId') || 'root';
 		if (activeFolderId !== 'root') {
 			expandAncestorChain(activeFolderId);
-			setFolderExpanded(activeFolderId, true);
 		}
 		setFolderExpanded('root', true);
 	});
@@ -260,8 +262,10 @@ Uses the same shared TreeView as collections:
 		if (resolved === 'root') {
 			setFolderExpanded('root', true);
 		} else {
+			// Ancestors only — TreeView already toggled this node's own expanded
+			// state on the same click; forcing it open here would make collapse
+			// impossible.
 			expandAncestorChain(resolved);
-			setFolderExpanded(resolved, true);
 		}
 		if (isMobile) {
 			ui.toggle('leftSidebar', 'hidden');

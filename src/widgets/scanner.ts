@@ -126,6 +126,30 @@ export const allWidgetModules = {
   ...marketplaceModules,
 };
 
+/** `${folder}:${input|display}` → glob loader. Built once, O(1) thereafter. */
+let componentIndex: Map<string, () => Promise<{ default: unknown }>> | null = null;
+
+function getComponentIndex(): Map<string, () => Promise<{ default: unknown }>> {
+  if (componentIndex) return componentIndex;
+  componentIndex = new Map();
+  for (const path in widgetComponents) {
+    const folder = folderFromWidgetPath(path);
+    if (!folder) continue;
+    const lower = path.replace(/\\/g, "/").toLowerCase();
+    const suffix = lower.endsWith("/display.svelte")
+      ? "display"
+      : lower.endsWith("/input.svelte")
+        ? "input"
+        : null;
+    if (!suffix) continue;
+    const key = `${folder.toLowerCase()}:${suffix}`;
+    if (!componentIndex.has(key)) {
+      componentIndex.set(key, widgetComponents[path] as () => Promise<{ default: unknown }>);
+    }
+  }
+  return componentIndex;
+}
+
 /**
  * Resolves a component loader for a widget by factory Name.
  * Paths: `./{core|custom|marketplace}/{kebab(Name)}/{input|display}.svelte`
@@ -137,20 +161,13 @@ export function getComponentLoader(
   if (!widgetName) return null;
 
   const folder = widgetNameToFolder(widgetName);
-  const searchPatterns: string[] = [];
-  for (const root of WIDGET_COMPONENT_ROOTS) {
-    searchPatterns.push(`./${root}/${folder}/${type}.svelte`);
-  }
+  const indexed = getComponentIndex().get(`${folder}:${type}`);
+  if (indexed) return indexed as () => Promise<{ default: any }>;
 
-  for (const pattern of searchPatterns) {
+  for (const root of WIDGET_COMPONENT_ROOTS) {
+    const pattern = `./${root}/${folder}/${type}.svelte`;
     if (widgetComponents[pattern]) {
       return widgetComponents[pattern] as () => Promise<{ default: any }>;
-    }
-  }
-
-  for (const path in widgetComponents) {
-    if (path.toLowerCase().includes(`/${folder}/${type}.svelte`)) {
-      return widgetComponents[path] as () => Promise<{ default: any }>;
     }
   }
 

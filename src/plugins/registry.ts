@@ -400,6 +400,14 @@ export class PluginRegistry implements IPluginService {
     return await this.settingsService.getPluginState(pluginId, tenantId);
   }
 
+  /** One findMany for every plugin state in a tenant (layout / feature gates). */
+  async getAllPluginStates(tenantId: string) {
+    if (!this.settingsService) {
+      return [];
+    }
+    return this.settingsService.getAllPluginStates(tenantId);
+  }
+
   // Toggle a plugin's enabled state
   async togglePlugin(
     pluginId: string,

@@ -10,6 +10,7 @@
  * - Token-aware payload resolution via replaceTokens()
  * - Execution logging with per-operation results
  * - Non-blocking async execution
+ * - Event→flow index so mutations do not scan every flow
  */
 
 import { logger } from "@utils/logger";
@@ -40,6 +41,8 @@ export class AutomationService {
   // Per-tenant cache of flows
   private flowsCache: Map<string, { data: AutomationFlow[]; timestamp: number }> = new Map();
   private readonly CACHE_TTL = 60 * 1000; // 1 minute
+  /** `${tenantId}` → event → active event-triggered flows. Rebuilt whenever the flows cache refreshes. */
+  private eventIndex = new Map<string, Map<string, AutomationFlow[]>>();
   private initialized = false;
 
   /** Recent execution logs (in-memory ring buffer, max 100) */
@@ -71,6 +74,7 @@ export class AutomationService {
 
     const cached = this.flowsCache.get(tid);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      if (!this.eventIndex.has(tid)) this.rebuildEventIndex(tid, cached.data);
       return cached.data;
     }
 
@@ -93,6 +97,7 @@ export class AutomationService {
         data: sanitizedFlows,
         timestamp: Date.now(),
       });
+      this.rebuildEventIndex(tid, sanitizedFlows);
       return sanitizedFlows;
     } catch (e) {
       logger.error(`Failed to load automation flows for tenant ${tid}:`, e);
@@ -100,6 +105,26 @@ export class AutomationService {
     }
   }
 
+  /**
+   * Rebuild the per-event flow index for a tenant from the (already cached)
+   * flow list. Event dispatch then resolves candidate flows with a single Map
+   * lookup instead of scanning every flow on every content mutation.
+   */
+  private rebuildEventIndex(tid: string, flows: AutomationFlow[]): void {
+    const byEvent = new Map<string, AutomationFlow[]>();
+    for (const flow of flows) {
+      if (!flow.active || flow.trigger?.type !== "event") continue;
+      const events = flow.trigger.events ?? [];
+      for (let i = 0; i < events.length; i++) {
+        const list = byEvent.get(events[i]!);
+        if (list) list.push(flow);
+        else byEvent.set(events[i]!, [flow]);
+      }
+    }
+    this.eventIndex.set(tid, byEvent);
+  }
+
+  /** Get a flow by id, or the full list for `id === "list"`. */
   public async getFlow(id: string, tenantId?: string): Promise<any> {
     const tid = tenantId || "global";
     if (!id || id === "list") {
@@ -149,11 +174,15 @@ export class AutomationService {
 
     // Update cache immediately
     this.flowsCache.set(tid, { data: updated, timestamp: Date.now() });
+    this.rebuildEventIndex(tid, updated);
 
     // Prune cache if it grows too large (e.g. > 500 tenants) to prevent heap pressure
     if (this.flowsCache.size > 500) {
       const oldestKey = this.flowsCache.keys().next().value;
-      if (oldestKey) this.flowsCache.delete(oldestKey);
+      if (oldestKey) {
+        this.flowsCache.delete(oldestKey);
+        this.eventIndex.delete(oldestKey);
+      }
     }
 
     return savedFlow;
@@ -178,6 +207,7 @@ export class AutomationService {
         tenantId: tid as any,
       });
       this.flowsCache.set(tid, { data: updated, timestamp: Date.now() });
+      this.rebuildEventIndex(tid, updated);
     }
   }
 
@@ -216,18 +246,16 @@ export class AutomationService {
       return;
     }
 
-    const flows = await this.getFlows(payload.tenantId);
-    const matchingFlows = flows.filter((flow) => {
-      if (!flow.active) {
-        return false;
-      }
-      if (flow.trigger.type !== "event") {
-        return false;
-      }
-      if (!flow.trigger.events?.includes(payload.event)) {
-        return false;
-      }
+    const tid = payload.tenantId;
+    // getFlows is cached (60s) and guarantees the event index is built.
+    await this.getFlows(tid);
 
+    const candidates = this.eventIndex.get(tid)?.get(payload.event) ?? [];
+    if (candidates.length === 0) {
+      return;
+    }
+
+    const matchingFlows = candidates.filter((flow) => {
       // Collection filter: if specified, entry must match
       if (
         flow.trigger.collections &&
@@ -716,8 +744,10 @@ export class AutomationService {
   public invalidateCache(tenantId?: string): void {
     if (tenantId) {
       this.flowsCache.delete(tenantId);
+      this.eventIndex.delete(tenantId);
     } else {
       this.flowsCache.clear();
+      this.eventIndex.clear();
     }
   }
 }

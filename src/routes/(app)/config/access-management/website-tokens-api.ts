@@ -14,12 +14,18 @@ export interface WebsiteTokensListResult {
   totalItems: number;
 }
 
-export async function listUsersForTokens(): Promise<User[]> {
+export type TokenUserRef = Pick<User, "_id" | "email"> & { username?: string };
+
+export async function listUsersForTokens(): Promise<TokenUserRef[]> {
   const result = await fetchApi<User[]>("/api/user");
   if (!result.success) return [];
   const raw = (result as { data?: unknown }).data ?? result;
-  if (Array.isArray(raw)) return raw as User[];
-  return [];
+  if (!Array.isArray(raw)) return [];
+  return raw.map((user) => ({
+    _id: user._id,
+    email: user.email,
+    username: user.username,
+  }));
 }
 
 export async function listWebsiteTokens(

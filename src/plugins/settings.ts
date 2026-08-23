@@ -279,7 +279,14 @@ export class PluginSettingsService {
         } as any,
         { bypassTenantCheck: true },
       );
-      return result.success && result.data ? result.data : [];
+      const rows = result.success && result.data ? result.data : [];
+      const exp = Date.now() + this.CACHE_TTL_MS;
+      for (const state of rows) {
+        if (state.pluginId) {
+          this._stateCache.set(`${tenantId}:${state.pluginId}`, { data: state as any, exp });
+        }
+      }
+      return rows;
     } catch (error) {
       logger.error(`Failed to get all plugin states for tenant ${tenantId}`, {
         error,
@@ -296,6 +303,15 @@ export class PluginSettingsService {
     userId?: string,
   ): Promise<boolean> {
     this.invalidateStateCache(pluginId, tenantId);
+    try {
+      // Server-only layout-cache invalidation via the globalThis bridge — this
+      // file is browser-reachable (plugins admin via src/plugins/index.ts), so a
+      // direct import of layout-caches.server would trip SvelteKit's server-only
+      // import guard. layout-caches.server registers the callback at boot.
+      (globalThis as any).__sveltycms_layout_invalidators?.pluginStates?.(tenantId);
+    } catch {
+      /* cache helper is server-only */
+    }
     try {
       const existing = await this.getPluginState(pluginId, tenantId);
 

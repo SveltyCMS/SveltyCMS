@@ -118,6 +118,12 @@ export interface SqlQueryBuilderCore {
     options?: { suppressErrorLog?: boolean },
   ): DatabaseResult<T>;
   notImplemented<T>(method: string): DatabaseResult<T>;
+  /**
+   * Register date/JSON column maps so queryBuilder reads hit the in-place
+   * conversion path (same maps `findMany` registers). Optional — adapters
+   * that omit it still convert, just via the generic key walk.
+   */
+  registerReadSchema?(collection: string): void;
 }
 
 export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
@@ -145,8 +151,19 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   }
 
   /** Options passed to date normalization on every read path. */
-  private get dateConversionOptions(): { mariaDoubleParseJson?: boolean } | undefined {
-    return this.dialect.mariaDoubleParseJson ? { mariaDoubleParseJson: true } : undefined;
+  private get dateConversionOptions(): {
+    table: string;
+    inPlace: true;
+    mariaDoubleParseJson?: boolean;
+  } {
+    return this.dialect.mariaDoubleParseJson
+      ? { table: this.collection, inPlace: true, mariaDoubleParseJson: true }
+      : { table: this.collection, inPlace: true };
+  }
+
+  /** Schema maps must be registered before in-place conversion can skip the generic key walk. */
+  private prepareReadConversion(): void {
+    this.core.registerReadSchema?.(this.collection);
   }
 
   where(conditions: Partial<T> | ((item: T) => boolean)): this {
@@ -438,16 +455,33 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   }
 
   async exists(): Promise<DatabaseResult<boolean>> {
-    const res = await this.count();
-    if (res.success) {
-      return { ...res, data: res.data > 0 };
+    const startTime = Date.now();
+    try {
+      const idCol = this.table["_id"] || this.table["id"];
+      if (!idCol) {
+        const res = await this.count();
+        if (res.success) return { ...res, data: res.data > 0 };
+        return res as unknown as DatabaseResult<boolean>;
+      }
+      let q = this.db.select({ id: idCol }).from(this.table).$dynamic();
+      if (this.conditions.length > 0) {
+        q = q.where(and(...this.conditions));
+      }
+      const rows = await q.limit(1);
+      return {
+        success: true,
+        data: Array.isArray(rows) ? rows.length > 0 : Boolean(rows),
+        meta: { executionTime: Date.now() - startTime },
+      };
+    } catch (error) {
+      return this.core.handleError(error, "QUERY_BUILDER_EXISTS_FAILED");
     }
-    return res as unknown as DatabaseResult<boolean>;
   }
 
   async execute(): Promise<DatabaseResult<T[]>> {
     const startTime = Date.now();
     try {
+      this.prepareReadConversion();
       const q = this.buildQuery();
       const results = await q;
       return {
@@ -469,13 +503,15 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
     }
     const startTime = Date.now();
     try {
+      this.prepareReadConversion();
       const q = this.buildQuery();
       const stream = await (q as any).stream();
       const convert = utils.convertDatesToISO;
+      const opts = this.dateConversionOptions;
 
       async function* generator() {
         for await (const row of stream) {
-          yield convert(row) as T;
+          yield convert(row, opts) as T;
         }
       }
 
@@ -492,6 +528,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   async findOne(): Promise<DatabaseResult<T | null>> {
     const startTime = Date.now();
     try {
+      this.prepareReadConversion();
       const q = this.buildQuery().limit(1);
       const [result] = await q;
       return {

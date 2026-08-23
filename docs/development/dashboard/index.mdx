@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:view-dashboard"
 author: "SveltyCMS Team"
 created: "2026-08-04"
-updated: "2026-08-04"
+updated: "2026-08-23"
 tags:
   - "dashboard"
   - "widgets"
@@ -51,19 +51,20 @@ src/routes/(app)/dashboard/widgets/
 ```
 
 - **Folder** — kebab-case package id (`system-health`, `logs`, `last5-content`).
-- **Component** — keeps its descriptive filename; the filename (minus `.svelte`) is the **registry key** saved in user layouts, so renaming the folder never breaks saved dashboards.
+- **Component** — always `index.svelte`. The **folder id** is the registry key saved in user layouts, so renaming the implementation file never breaks saved dashboards.
 - **`widget.json`** — machine-readable metadata for the marketplace, the in-app catalog, and telemetry.
 - **`<component>.mdx`** — human-readable marketplace description: features, licensing, data source, and metadata. Required for every package.
 
 ## 🔍 How Discovery Works
 
-| Layer                    | Mechanism                                                             |
-| :----------------------- | :-------------------------------------------------------------------- |
-| **Client registry**      | `+page.svelte` — `import.meta.glob("./widgets/*/*.svelte")`           |
-| **Server widget picker** | `+page.server.ts` — eager glob, pre-computed at module load           |
-| **Manifest registry**    | `manifest-registry.ts` — `import.meta.glob("./*/widget.json")`        |
-| **Telemetry**            | Reports installed package ids via the manifest registry               |
-| **Marketplace catalog**  | Local packages appear in `GET /api/marketplace` (offline-first merge) |
+| Layer                    | Mechanism                                                                                             |
+| :----------------------- | :---------------------------------------------------------------------------------------------------- |
+| **Client registry**      | `+page.svelte` — optional widgets; picker from page data; Svelte chunk only when added / visible      |
+| **Server widget picker** | `+page.server.ts` — `widget.json` via `getInstalledDashboardWidgets()` (no Svelte eval)               |
+| **Saved layout**         | Hydrated in `load()` from `system.preferences`; client skips `/api/system-preferences` on first paint |
+| **Manifest registry**    | `manifest-registry.ts` — `import.meta.glob("./*/widget.json")`                                        |
+| **Telemetry**            | Reports installed package ids via the manifest registry                                               |
+| **Marketplace catalog**  | Local packages appear in `GET /api/marketplace` (offline-first merge)                                 |
 
 Drop a new folder into `widgets/`, restart the dev server, and the widget appears in the picker — the same flow a marketplace install uses.
 
@@ -72,6 +73,7 @@ Drop a new folder into `widgets/`, restart the dev server, and the widget appear
 ## 🧪 Testing Policy
 
 - **Shell tests** (`tests/unit/routes/dashboard-page-server.test.ts`) assert the registry **shape**, never a fixed widget list — the catalog is install-specific.
+- **Runtime helpers** (`tests/unit/dashboard/dashboard-runtime.test.ts`) cover picker mapping, CMS-range filtering, layout unwrap, and hidden-tab poll gating.
 - **Widget defaults** are unit-tested in `tests/unit/dashboard/widget-defaults.test.ts`.
 - **Per-widget tests** live in the widget's own folder (`widgets/<folder>/tests/`) — optional but encouraged for marketplace submissions.
 

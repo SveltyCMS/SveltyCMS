@@ -56,7 +56,7 @@ The matrix maintains a specialized retention policy to balance historical contex
 - **Time-Series History**: All runs (standalone or matrix) log to `history.jsonl`, allowing for per-module regression analysis.
 - **Trend Indicators**: Every report includes a **Traffic Light Trend** (🔴/🟢/⚪) and inline terminal delta percentages (e.g., `+5.2%`).
 - **Master Leaderboard**: Cross-engine comparison providing a side-by-side "Database Showdown."
-- **Percentile Tracking**: Standardized on **p50 (Median)**, **p95 (User Experience)**, and **p99 (Tail Risk)**.
+- **Percentile Tracking**: Standardized on **p50 (Median)**, **p95 (User Experience)**, and **p99 (Tail Risk)**. Percentiles and min/max are computed on **raw** samples — GC spikes and OS jitter stay visible in the tail instead of being trimmed away. The **mean** is IQR-trimmed (robust central tendency), and small-sample confidence intervals use the t-distribution (z = 1.96 only for n ≥ 30).
 
 ## 🔬 SRE Truth Audit: The Gold Standard
 

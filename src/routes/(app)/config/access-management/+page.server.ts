@@ -1,16 +1,64 @@
 /**
  * @file src/routes/(app)/config/access-management/+page.server.ts
  * @description Server-side logic for Access Management page using simplified auth system.
+ *
+ * Features:
+ * - Admin-only fail-closed gate (hook flag or isAdmin(user))
+ * - Permissions catalog from in-memory registry (no DB)
+ * - Roles reused from handleAuthorization locals (already loaded)
+ * - Client payload stripped to RBAC fields (no bitset / adapter internals)
  */
 
-// Auth - getAllPermissions is lightweight, no heavy queries needed
 import { getAllPermissions } from "@src/databases/auth/permissions";
 import { isAdmin } from "@src/databases/auth/constants";
+import type { Permission, Role } from "@src/databases/auth/types";
 import { error } from "@sveltejs/kit";
-// System Logger - Ensure logger is optimized for performance in production (e.g., disabled debug logs)
+import { rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
+
+function slimRole(
+  role: Role,
+): Pick<
+  Role,
+  | "_id"
+  | "name"
+  | "description"
+  | "permissions"
+  | "isAdmin"
+  | "groupName"
+  | "color"
+  | "icon"
+  | "isNative"
+  | "tenantId"
+> {
+  return {
+    _id: role._id,
+    name: role.name,
+    description: role.description,
+    permissions: Array.isArray(role.permissions) ? role.permissions : [],
+    isAdmin: role.isAdmin === true,
+    groupName: role.groupName,
+    color: role.color,
+    icon: role.icon,
+    isNative: role.isNative,
+    tenantId: role.tenantId,
+  };
+}
+
+function slimPermission(
+  permission: Permission,
+): Pick<Permission, "_id" | "name" | "action" | "type" | "contextId" | "description"> {
+  return {
+    _id: permission._id,
+    name: permission.name,
+    action: permission.action,
+    type: permission.type,
+    contextId: permission.contextId,
+    description: permission.description,
+  };
+}
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
@@ -18,40 +66,28 @@ export const load: PageServerLoad = async ({ locals }) => {
     const { roles: tenantRoles = [], tenantId } = locals;
     const localsIsAdmin = !!(locals.isAdmin || isAdmin(user));
 
-    // Check if user is admin — prefer hook flag, fall back to role string
     if (!localsIsAdmin) {
-      // For non-admins, check specific permission
-      // You can add more granular permission checks here if needed
-      const message = `User ${user._id} does not have permission to access access management`;
-      logger.warn(message, { tenantId });
-      throw error(403, message);
+      logger.warn(`User ${user._id} does not have permission to access access management`, {
+        tenantId,
+      });
+      throw error(403, "Insufficient permissions to access access management");
     }
 
-    // Fetch permissions (lightweight operation)
-    logger.debug("Fetching permissions...", { tenantId });
-    const permissions = getAllPermissions();
+    const permissions = getAllPermissions().map(slimPermission);
 
-    logger.debug(`Roles available: ${tenantRoles.length}`, { tenantId });
-    logger.debug(`Permissions fetched: ${permissions.length}`, { tenantId });
-
-    // Return minimal user data and reuse roles from locals (already cached by handleAuthorization)
     return {
       user: {
         _id: user._id.toString(),
         email: user.email,
         role: user.role,
       },
-      roles: tenantRoles, // Already cached and loaded by handleAuthorization hook
+      roles: tenantRoles.map(slimRole),
       permissions,
     };
-  } catch (err: any) {
-    // Differentiate between intentional redirects/errors and unexpected server errors
-    if (err && typeof err === "object" && "status" in err) {
-      // This is likely a redirect or an error we've already thrown (e.g., 403, 302)
-      throw err;
-    }
-    const message = `Error in load function for Access Management: ${err.message}`;
+  } catch (err: unknown) {
+    rethrow(err);
+    const message = `Error in load function for Access Management: ${err instanceof Error ? err.message : String(err)}`;
     logger.error(message, { tenantId: locals.tenantId });
-    throw error(500, message); // Generic 500 for unhandled server errors
+    throw error(500, message);
   }
 };

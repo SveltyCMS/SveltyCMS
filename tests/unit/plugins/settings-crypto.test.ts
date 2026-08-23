@@ -13,6 +13,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import {
   isMasked,
   getMaskedValue,
@@ -157,6 +158,53 @@ describe("Plugin Settings Crypto — decryptSecretFields", () => {
     const stored = { name: "test", value: 42 };
     const result = await decryptSecretFields(stored, []);
     expect(result).toEqual(stored);
+  });
+});
+
+describe("Plugin Settings Crypto — HKDF passphrase dual-read", () => {
+  const passphrase = "plugin-passphrase-must-be-32ch!!";
+
+  it("round-trips a passphrase-derived envelope", async () => {
+    const prev = process.env.SECRET_ENCRYPTION_KEY;
+    process.env.SECRET_ENCRYPTION_KEY = passphrase;
+    vi.resetModules();
+    const fresh = await import("@src/plugins/settings-crypto");
+    try {
+      const envelope = await fresh.encryptSecret("sk_live_hkdf");
+      expect(envelope).toBeTruthy();
+      const plain = await fresh.decryptSecret(envelope!);
+      expect(plain).toBe("sk_live_hkdf");
+    } finally {
+      if (prev === undefined) delete process.env.SECRET_ENCRYPTION_KEY;
+      else process.env.SECRET_ENCRYPTION_KEY = prev;
+      vi.resetModules();
+    }
+  });
+
+  it("decrypts envelopes written with SHA-256(raw) before HKDF", async () => {
+    const prev = process.env.SECRET_ENCRYPTION_KEY;
+    process.env.SECRET_ENCRYPTION_KEY = passphrase;
+    vi.resetModules();
+    const fresh = await import("@src/plugins/settings-crypto");
+    try {
+      const legacyKey = createHash("sha256").update(passphrase, "utf8").digest();
+      const iv = randomBytes(16);
+      const cipher = createCipheriv("aes-256-gcm", legacyKey, iv);
+      const ciphertext = Buffer.concat([cipher.update("legacy-secret", "utf8"), cipher.final()]);
+      const envelope = Buffer.concat([
+        Buffer.from([1]),
+        iv,
+        cipher.getAuthTag(),
+        ciphertext,
+      ]).toString("base64");
+
+      const plain = await fresh.decryptSecret(envelope);
+      expect(plain).toBe("legacy-secret");
+    } finally {
+      if (prev === undefined) delete process.env.SECRET_ENCRYPTION_KEY;
+      else process.env.SECRET_ENCRYPTION_KEY = prev;
+      vi.resetModules();
+    }
   });
 });
 

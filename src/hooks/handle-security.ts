@@ -21,26 +21,9 @@ import { logger } from "@utils/logger";
 import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getClientIp, IS_TEST_MODE } from "@utils/hook-utils";
+import { isAiOrScannerBot, isHoneypotPath } from "@src/services/security/threat-scan";
 import { wafGuard } from "./wasm-waf-guard";
 import { PROFILE_WRITE_ENABLED } from "@utils/write-profiler";
-
-const AI_BOT_RE =
-  /gptbot|chatgpt-user|anthropic-ai|claude-web|claudebot|cohere-ai|perplexitybot|google-extended|omgili|omgilibot|ccbot|commoncrawl|bytespider|petalbot|facebookbot|zgrab|masscan|nmap|sqlmap|nikto|acunetix|burpsuite|gobuster|dirbuster|wfuzz|feroxbuster|rustscan|nessus|scrapy|python-requests\/2|curl\/|wget\/|axios\/|node-fetch|l9explore|l9tcpid|libwww-perl|go-http-client/i;
-
-const HONEYPOT_ROUTES: readonly string[] = [
-  "/wp-admin",
-  "/wp-login.php",
-  "/wp-content",
-  "/wp-includes",
-  "/wp-json",
-  "/xmlrpc.php",
-  "/.env",
-  "/.git/config",
-  "/.git/HEAD",
-  "/adminer.php",
-  "/phpinfo.php",
-  "/actuator/health",
-];
 
 // ESM-safe dynamic import for graphql
 let graphqlModuleCache: any = null;
@@ -285,15 +268,9 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     }
 
     const userAgent = request.headers.get("user-agent") || "";
-    const isKnownBot = AI_BOT_RE.test(userAgent);
+    const isKnownBot = isAiOrScannerBot(userAgent);
     const pathLower = url.pathname.toLowerCase();
-    let hitHoneypot = false;
-    for (let i = 0; i < HONEYPOT_ROUTES.length; i++) {
-      if (pathLower.startsWith(HONEYPOT_ROUTES[i])) {
-        hitHoneypot = true;
-        break;
-      }
-    }
+    const hitHoneypot = isHoneypotPath(pathLower);
 
     if (hitHoneypot || (isKnownBot && !isLocal)) {
       metricsService.incrementSecurityViolations(tenantId);

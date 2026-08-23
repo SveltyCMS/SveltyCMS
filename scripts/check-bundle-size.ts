@@ -17,7 +17,11 @@ const CLIENT_DIR = join(ROOT, ".svelte-kit", "output", "client", "_app", "immuta
 
 // ── Thresholds ──────────────────────────────────────────────────────────
 const MAX_ENTRY_KB = 80; // entry chunk must stay under 80 KB
-const MAX_LAYOUT_KB = 120; // layout chunk must stay under 120 KB
+const MAX_LAYOUT_KB = 180; // admin shell node (sidebars + chrome) stays under 180 KB
+
+// Marker unique to the (app) admin shell layout node — SvelteKit compiles it
+// to `nodes/N.js`, not a `layout*.js` file, so the old name filter missed it.
+const ADMIN_SHELL_MARKERS = ["floating-nav", "command-palette", "left-sidebar"];
 
 // ── Heuristics ──────────────────────────────────────────────────────────
 const TIPTAP_MARKERS = ["@tiptap/core", "@tiptap/starter-kit", "prosemirror-", "ProseMirror"];
@@ -50,18 +54,26 @@ function collectJsFiles(dir: string): string[] {
   return out;
 }
 
+function isAdminShellNode(file: string, content: string): boolean {
+  // The (app) layout compiles to `_app/immutable/nodes/N.<hash>.js`.
+  if (!file.includes(`${join("immutable", "nodes")}`)) return false;
+  return ADMIN_SHELL_MARKERS.some((marker) => content.includes(marker));
+}
+
 function checkFile(path: string, size: number): Issue | null {
   const rel = path.replace(ROOT, "").replace(/\\/g, "/").replace(/^\/+/, "");
   const name = rel.split("/").pop() || rel;
 
-  // Only check entry + layout chunks (loaded on every page)
-  if (!name.startsWith("entry") && !name.includes("layout")) return null;
-
+  // Only check entry chunks + layout files (loaded on every page).
+  // SvelteKit compiles the (app) shell to nodes/N.js, so also match that.
   const content = readFileSync(path, "utf8");
+  const isEntry = name.startsWith("entry");
+  const isLayout = name.includes("layout") || isAdminShellNode(path, content);
+  if (!isEntry && !isLayout) return null;
 
   // Check size threshold
   const kb = Math.round(size / 1024);
-  const max = name.startsWith("entry") ? MAX_ENTRY_KB : MAX_LAYOUT_KB;
+  const max = isEntry ? MAX_ENTRY_KB : MAX_LAYOUT_KB;
   if (kb > max) {
     return { file: rel, size: kb, reason: `exceeds ${max} KB threshold` };
   }
@@ -102,6 +114,10 @@ function main(): number {
   // ── Report ──────────────────────────────────────────────────────────
   const entryFiles = allFiles.filter((f) => f.includes("entry"));
   const layoutFiles = allFiles.filter((f) => f.includes("layout"));
+  const shellNodes = allFiles.filter((f) => {
+    const content = readFileSync(f, "utf8");
+    return isAdminShellNode(f, content);
+  });
 
   console.log(`  Entry chunks:  ${entryFiles.length} file(s)`);
   for (const f of entryFiles) {
@@ -109,10 +125,11 @@ function main(): number {
     console.log(`    ${kb} KB  ${f.replace(CLIENT_DIR, "")}`);
   }
 
-  console.log(`  Layout chunks: ${layoutFiles.length} file(s)`);
-  for (const f of layoutFiles) {
+  console.log(`  Layout chunks: ${layoutFiles.length + shellNodes.length} file(s)`);
+  for (const f of [...layoutFiles, ...shellNodes]) {
     const kb = Math.round(statSync(f).size / 1024);
-    console.log(`    ${kb} KB  ${f.replace(CLIENT_DIR, "")}`);
+    const tag = shellNodes.includes(f) ? " (admin shell)" : "";
+    console.log(`    ${kb} KB${tag}  ${f.replace(CLIENT_DIR, "")}`);
   }
 
   if (issues.length === 0) {

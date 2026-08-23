@@ -39,7 +39,45 @@ const REQUIRED_MANIFEST_FIELDS = [
   "license",
   "component",
   "defaultSize",
+  "sveltycms",
 ];
+
+const cmsVersion = JSON.parse(readFileSync("package.json", "utf-8")).version || "0.0.0";
+
+function parseSemver(value) {
+  const m = String(value)
+    .trim()
+    .match(/^(\d+)\.(\d+)\.(\d+)/);
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+
+function cmp(a, b) {
+  if (a[0] !== b[0]) return a[0] - b[0];
+  if (a[1] !== b[1]) return a[1] - b[1];
+  return a[2] - b[2];
+}
+
+function satisfiesCmsRange(version, range) {
+  const v = parseSemver(version);
+  if (!v) return false;
+  const r = String(range).trim();
+  if (!r || r === "*" || r === "x") return true;
+  const op = r.match(/^(>=|>|<=|<|\^|~)\s*(.+)$/);
+  if (!op) {
+    const exact = parseSemver(r);
+    return exact ? cmp(v, exact) === 0 : false;
+  }
+  const target = parseSemver(op[2]);
+  if (!target) return false;
+  if (op[1] === ">=") return cmp(v, target) >= 0;
+  if (op[1] === ">") return cmp(v, target) > 0;
+  if (op[1] === "<=") return cmp(v, target) <= 0;
+  if (op[1] === "<") return cmp(v, target) < 0;
+  if (op[1] === "~") return v[0] === target[0] && v[1] === target[1] && cmp(v, target) >= 0;
+  if (target[0] > 0) return v[0] === target[0] && cmp(v, target) >= 0;
+  if (target[1] > 0) return v[0] === 0 && v[1] === target[1] && cmp(v, target) >= 0;
+  return v[0] === 0 && v[1] === 0 && v[2] === target[2];
+}
 
 const VALID_LICENSES = ["free", "freemium", "paid"];
 const VALID_TYPES = ["dashboard-widget"];
@@ -123,6 +161,13 @@ for (const entry of entries) {
     if (manifest.category && !VALID_CATEGORIES.includes(manifest.category)) {
       failOnce(`${folder}/widget.json invalid category "${manifest.category}"`);
     }
+    if (
+      manifest.requiresPlugin != null &&
+      (typeof manifest.requiresPlugin !== "string" ||
+        !/^[a-z][a-z0-9-]*$/.test(manifest.requiresPlugin))
+    ) {
+      failOnce(`${folder}/widget.json requiresPlugin must be a kebab-case plugin id when present`);
+    }
     if (manifest.defaultSize && typeof manifest.defaultSize.w !== "number") {
       failOnce(`${folder}/widget.json defaultSize.w must be a number`);
     }
@@ -143,6 +188,13 @@ for (const entry of entries) {
       !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(manifest.version)
     ) {
       failOnce(`${folder}/widget.json version must be semver (e.g. 1.0.0)`);
+    }
+    if (typeof manifest.sveltycms !== "string" || !manifest.sveltycms.trim()) {
+      failOnce(`${folder}/widget.json missing sveltycms (CMS version range, e.g. ">=0.0.8")`);
+    } else if (!satisfiesCmsRange(cmsVersion, manifest.sveltycms)) {
+      failOnce(
+        `${folder}/widget.json sveltycms "${manifest.sveltycms}" is incompatible with CMS ${cmsVersion}`,
+      );
     }
   }
 

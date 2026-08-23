@@ -323,8 +323,50 @@ function percentile(sorted: number[], p: number): number {
 }
 
 /**
+ * Two-sided 95% t critical values for small samples (df = n - 1).
+ * z = 1.96 is only valid for large n; below ~30 the CI must widen.
+ */
+const T95_TABLE: Record<number, number> = {
+  1: 12.706,
+  2: 4.303,
+  3: 3.182,
+  4: 2.776,
+  5: 2.571,
+  6: 2.447,
+  7: 2.365,
+  8: 2.306,
+  9: 2.262,
+  10: 2.228,
+  11: 2.201,
+  12: 2.179,
+  13: 2.16,
+  14: 2.145,
+  15: 2.131,
+  16: 2.12,
+  17: 2.11,
+  18: 2.101,
+  19: 2.093,
+  20: 2.086,
+  21: 2.08,
+  22: 2.074,
+  23: 2.069,
+  24: 2.064,
+  25: 2.06,
+  26: 2.056,
+  27: 2.052,
+  28: 2.048,
+  29: 2.045,
+};
+
+function criticalValue95(n: number): number {
+  if (n >= 30) return 1.96;
+  return T95_TABLE[Math.max(1, n - 1)] ?? 1.96;
+}
+
+/**
  * 🚀 ENTERPRISE STATISTICS: Robust outlier removal using Interquartile Range (IQR).
  * Eliminates noise from GC spikes or background OS jitter.
+ * NOTE: applied to the MEAN only — tail percentiles are always read from raw data.
  */
 function trimOutliersIQR(times: number[]): number[] {
   if (times.length < 10) return times; // Too small to trim reliably
@@ -346,7 +388,13 @@ export function computeStatistics(
   config: any,
   failTimes: number[] = [],
 ): BenchmarkResult {
-  // Apply outlier trimming if requested
+  // RAW sample — percentiles and min/max MUST come from here so tail latency
+  // (GC spikes, jitter) stays visible in p95/p99/max instead of being trimmed
+  // away before the percentile is even computed.
+  const rawSorted = [...times].sort((a, b) => a - b);
+
+  // Robust central tendency — IQR-trim only the MEAN (noise resistance), never
+  // the tail metrics.
   const processedTimes =
     config.trimOutliers === "iqr" || config.trimOutliers === true ? trimOutliersIQR(times) : times;
 
@@ -358,20 +406,21 @@ export function computeStatistics(
   const stdDev = Math.sqrt(variance);
   const cv = avg > 0 ? (stdDev / avg) * 100 : 0;
 
-  // 🚀 Confidence Interval (95%)
+  // 🚀 Confidence Interval (95%) — t-distribution for small samples,
+  // z = 1.96 for large n.
   const n = sorted.length;
-  const z = 1.96; // 95% critical value
-  const marginOfError = n > 0 ? z * (stdDev / Math.sqrt(n)) : 0;
+  const critical = criticalValue95(n);
+  const marginOfError = n > 0 ? critical * (stdDev / Math.sqrt(n)) : 0;
 
   const result: BenchmarkResult = {
     name: config.name,
     db: getDbType(),
     avgMs: Number(avg.toFixed(3)),
-    p50Ms: Number(percentile(sorted, 50).toFixed(3)),
-    p95Ms: Number(percentile(sorted, 95).toFixed(3)),
-    p99Ms: Number(percentile(sorted, 99).toFixed(3)),
-    minMs: Number((sorted[0] || 0).toFixed(3)),
-    maxMs: Number((sorted[sorted.length - 1] || 0).toFixed(3)),
+    p50Ms: Number(percentile(rawSorted, 50).toFixed(3)),
+    p95Ms: Number(percentile(rawSorted, 95).toFixed(3)),
+    p99Ms: Number(percentile(rawSorted, 99).toFixed(3)),
+    minMs: Number((rawSorted[0] || 0).toFixed(3)),
+    maxMs: Number((rawSorted[rawSorted.length - 1] || 0).toFixed(3)),
     rps: Number(rps.toFixed(1)),
     iterations: times.length, // Report original iteration count
     runs: config.runs || 1,
@@ -662,9 +711,11 @@ export async function runBenchmark(config: any) {
     if (!eluAvailable) return;
     lagSampleCounter++;
     if (lagSampleCounter % 50 !== 0) return;
-    const t0 = Date.now();
+    // performance.now() is monotonic + sub-ms — Date.now() would miss
+    // sub-millisecond lag and jump on wall-clock corrections.
+    const t0 = performance.now();
     await new Promise<void>((r) => setImmediate(r));
-    const lag = Date.now() - t0;
+    const lag = performance.now() - t0;
     if (lag > maxEventLoopLagMs) maxEventLoopLagMs = lag;
   };
 
@@ -725,16 +776,13 @@ export async function runBenchmark(config: any) {
   }
   const benchWallDurationMs = performance.now() - benchWallStart;
   const validResults = results.filter((r) => !isNaN(r));
-  const sum = validResults.reduce((a, b) => a + b, 0);
   const totalCompleted = validResults.length + failResults.length;
-  const rps =
-    concurrency > 1
-      ? benchWallDurationMs > 0
-        ? totalCompleted / (benchWallDurationMs / 1000)
-        : 0
-      : sum > 0
-        ? totalCompleted / (sum / 1000)
-        : 0;
+  // RPS always uses WALL-CLOCK duration — identical basis for concurrency=1 and
+  // concurrency>N so throughput numbers are directly comparable. The measured
+  // span (performance.now around onIteration) intentionally excludes think-time
+  // and event-loop sampling; wall clock includes them, which is the honest
+  // "requests per real second" figure.
+  const rps = benchWallDurationMs > 0 ? totalCompleted / (benchWallDurationMs / 1000) : 0;
   const stats = computeStatistics(
     validResults,
     rps,
@@ -820,10 +868,11 @@ export async function runStochasticLoadTest(config: {
   let totalReqs = 0;
   let failures = 0;
   for (const stage of stages) {
-    const startTime = Date.now();
+    // Monotonic clock — Date.now() would allow wall-clock jumps to stretch/shorten a stage.
+    const startTime = performance.now();
     const deadline = startTime + stage.duration * 1000;
     const interval = 1000 / stage.target;
-    while (Date.now() < deadline) {
+    while (performance.now() < deadline) {
       const t0 = performance.now();
       try {
         await onIteration(totalReqs++);
@@ -1192,6 +1241,68 @@ export async function seedBenchmarkState(): Promise<void> {
         { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
         { db_fieldName: "content", label: "Content", widget: { Name: "RichText" }, type: "string" },
         { db_fieldName: "count", label: "Count", widget: { Name: "Input" }, type: "number" },
+      ],
+    },
+    // 🛡️ INDEX PRESSURE: bench_index_pressure powers the 100k-row sort/filter
+    // audit (tests/benchmarks/index-pressure.test.ts). It must be provisioned
+    // here — the schema-store fallback (BENCHMARK_FALLBACK_IDS) makes the
+    // schema GET return 200, but without createModel the physical table is
+    // never created and the bulk seed fails with SQLITE_ERROR on insert.
+    // Fields mirror the demo preset in src/routes/setup/seed.ts.
+    {
+      _id: "bench_index_pressure",
+      name: "bench_index_pressure",
+      fields: [
+        {
+          db_fieldName: "title",
+          label: "Title",
+          widget: { Name: "Input" },
+          type: "string",
+          indexed: true,
+          required: true,
+        },
+        { db_fieldName: "slug", label: "Slug", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "content", label: "Content", widget: { Name: "RichText" }, type: "string" },
+        {
+          db_fieldName: "score",
+          label: "Score",
+          widget: { Name: "Number" },
+          type: "number",
+          indexed: true,
+        },
+        {
+          db_fieldName: "category",
+          label: "Category",
+          widget: { Name: "Select" },
+          type: "string",
+          indexed: true,
+        },
+        { db_fieldName: "author", label: "Author", widget: { Name: "Relation" }, type: "string" },
+        { db_fieldName: "tags", label: "Tags", widget: { Name: "Input" }, type: "string" },
+        {
+          db_fieldName: "metadata",
+          label: "Metadata",
+          widget: { Name: "Group" },
+          type: "object",
+        },
+      ],
+    },
+    // 🛡️ MIGRATION SCALE: bench_migration_large powers the 10k-row bulk
+    // ingestion audit (tests/benchmarks/migration-scale.test.ts). Same
+    // provisioning requirement as bench_index_pressure — without createModel
+    // the physical table is never created and the bulk seed 500s.
+    {
+      _id: "bench_migration_large",
+      name: "bench_migration_large",
+      fields: [
+        {
+          db_fieldName: "title",
+          label: "Title",
+          widget: { Name: "Input" },
+          type: "string",
+          required: true,
+        },
+        { db_fieldName: "data", label: "Data", widget: { Name: "JSON" }, type: "string" },
       ],
     },
   ];

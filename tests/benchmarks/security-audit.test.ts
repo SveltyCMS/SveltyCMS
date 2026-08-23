@@ -78,6 +78,25 @@ async function runSecurityAudit() {
     });
     results.push({ ...wafResult, shortLabel: "WAF", layer: "Security" });
 
+    // Isolate scanner cost from Request.clone() + async analyzeRequest.
+    // Those two frames dominate "WAF Deep Analysis" (~0.002 ms) and hide
+    // whether the matcher got faster. This row is the actual inspect() work.
+    const { inspectRequest } = await import("@src/services/security/threat-scan");
+    const inspectResult = await runBenchmark({
+      name: "WAF Inspect (clean URL)",
+      iterations: 2000,
+      warmupIterations: 400,
+      runs: 3,
+      concurrency: 1,
+      trimOutliers: "iqr",
+      measureMemory: true,
+      silent: true,
+      onIteration: () => {
+        inspectRequest("/api/collections/posts", "limit=10", {});
+      },
+    });
+    results.push({ ...inspectResult, shortLabel: "WAFInspect", layer: "Security" });
+
     // 2. Audit Logging
     console.log("   → Measuring Audit Log persistence...");
 
@@ -254,6 +273,7 @@ async function runSecurityAudit() {
 
     printSummaryTable([
       { key: "WAF Analysis", val: wafResult.avgMs, unit: "ms" },
+      { key: "WAF Inspect (clean URL)", val: inspectResult.avgMs, unit: "ms" },
       {
         key: auditEnabled ? "Audit Logging" : "Audit Dispatch (no-op)",
         val: auditResult.avgMs,

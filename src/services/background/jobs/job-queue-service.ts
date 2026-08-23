@@ -29,7 +29,7 @@ const HANDLER_IMPORTS: Record<string, () => Promise<JobHandler>> = {
   "session-cleanup": () => Promise.resolve(sessionCleanupHandler),
 };
 
-import os from "node:os";
+import { getHardwareProfile } from "@utils/hardware-profile";
 
 export type JobHandler = (payload: any, job: Job) => Promise<void>;
 
@@ -42,8 +42,9 @@ class JobQueueService {
   private lastScheduleCheck = 0;
   private lastCleanupCheck = 0;
 
-  // Adaptive concurrency: 50% of cores, min 5, max 50
-  private readonly CONCURRENT_MAX = Math.min(50, Math.max(5, Math.floor(os.cpus().length * 0.5)));
+  // 🧠 HARDWARE-ADAPTIVE concurrency: 50% of detected cores, min 5, max 50 —
+  // from the shared boot-time profile so the whole CMS agrees on one number.
+  private readonly CONCURRENT_MAX = getHardwareProfile().jobConcurrency;
 
   constructor() {
     // Register core handlers

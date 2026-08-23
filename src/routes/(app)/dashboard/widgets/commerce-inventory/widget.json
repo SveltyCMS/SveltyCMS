@@ -13,5 +13,7 @@
     "w": 1,
     "h": 2
   },
-  "category": "content"
+  "category": "content",
+  "sveltycms": ">=0.0.8",
+  "requiresPlugin": "commerce"
 }

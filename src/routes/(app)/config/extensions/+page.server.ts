@@ -11,6 +11,7 @@ import { pluginRegistry } from "@src/plugins";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { error, isHttpError } from "@sveltejs/kit";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { getLayoutPluginStates } from "@utils/server/layout-caches.server";
 import { logger } from "@utils/logger";
 import type { PageServerLoad } from "./$types";
 
@@ -25,32 +26,25 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     const tenantId = locals.tenantId || "default";
     const allPlugins = pluginRegistry.getAll();
+    const enabledById = await getLayoutPluginStates(tenantId);
 
-    const plugins = await Promise.all(
-      allPlugins.map(async (p) => {
-        let missingConfig = false;
-        const configUrl = "/config/system-settings";
+    const plugins = allPlugins.map((p) => {
+      const missingConfig =
+        p.metadata.id === "pagespeed" &&
+        !getPrivateSettingSync("GOOGLE_PAGESPEED_API_KEY" as never);
 
-        const state = await pluginRegistry.getPluginState(p.metadata.id, tenantId);
-        const enabled = state ? state.enabled : p.metadata.enabled;
-
-        if (p.metadata.id === "pagespeed") {
-          missingConfig = !getPrivateSettingSync("GOOGLE_PAGESPEED_API_KEY" as never);
-        }
-
-        return {
-          name: p.metadata.id,
-          displayName: p.metadata.name,
-          version: p.metadata.version,
-          description: p.metadata.description,
-          author: p.metadata.author,
-          icon: p.metadata.icon,
-          enabled,
-          missingConfig,
-          configUrl,
-        };
-      }),
-    );
+      return {
+        name: p.metadata.id,
+        displayName: p.metadata.name,
+        version: p.metadata.version,
+        description: p.metadata.description,
+        author: p.metadata.author,
+        icon: p.metadata.icon,
+        enabled: enabledById[p.metadata.id] ?? p.metadata.enabled,
+        missingConfig,
+        configUrl: "/config/system-settings",
+      };
+    });
 
     return {
       plugins,

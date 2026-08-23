@@ -904,7 +904,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       // 🛡️ Guard: wrap session validation in try-catch so malformed/invalid session
       // cookies don't crash the server (integration tests inject poisoned values).
       try {
-        logger.debug(`[Auth] SESSION: ${sessionId.slice(0, 12)}... path=${event.url.pathname}`);
+        if (logger.isEnabled("debug")) {
+          logger.debug(`[Auth] SESSION: ${sessionId.slice(0, 12)}... path=${event.url.pathname}`);
+        }
         metricsService.incrementAuthValidations();
         if (!auth) {
           logger.warn(`[Auth] Auth service NOT initialized! (sessionId: ${sessionId})`);
@@ -1032,7 +1034,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         clearAllSessionCookies(event);
       }
     } else {
-      logger.debug(`[Auth] NO cookie found. path=${event.url.pathname} cookieName=${cookieName}`);
+      if (logger.isEnabled("debug")) {
+        logger.debug(`[Auth] NO cookie found. path=${event.url.pathname} cookieName=${cookieName}`);
+      }
     }
 
     // 3. API Token Authentication (Bearer) - Hardened for 2026 Retro-compatibility
@@ -1081,7 +1085,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               const apiKey = res.data;
 
               // 1. Expiry Check
-              if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
+              if (apiKey.expiresAt && new Date(apiKey.expiresAt).getTime() < Date.now()) {
                 logger.warn(`[Auth] API Key expired: ${apiKey.name}`);
                 metricsService.incrementAuthFailures();
               } else if (apiKey.revoked) {
@@ -1162,7 +1166,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               const token = res.data;
 
               // 1. Expiry Check
-              if (token.expiresAt && new Date(token.expiresAt) < new Date()) {
+              if (token.expiresAt && new Date(token.expiresAt).getTime() < Date.now()) {
                 logger.warn(`[Auth] API Token expired: ${token.name}`);
                 metricsService.incrementAuthFailures();
               } else {

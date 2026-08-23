@@ -15,6 +15,7 @@ import {
   validateWidgetNaming,
   type WidgetTier,
 } from "@src/widgets/widget-naming";
+import { validateWidgetImport } from "@src/widgets/widget-compatibility";
 import { logger } from "@utils/logger";
 import type { WidgetFactory, WidgetModule, WidgetType } from "@widgets/types";
 
@@ -64,6 +65,25 @@ function processWidgetModule(
     if (!naming.ok) {
       logger.error(
         `[Widget Proxy] Refusing ${type} widget at ${path}: ${naming.errors.join("; ")}`,
+      );
+      return null;
+    }
+
+    const compat = validateWidgetImport(
+      {
+        Name: naming.name,
+        version: factory.version,
+        sveltycms: factory.sveltycms,
+        validationSchema: (factory as { validationSchema?: unknown }).validationSchema ?? true,
+      },
+      { tier: type as WidgetTier },
+    );
+    for (const w of compat.warnings) {
+      logger.warn(`[Widget Proxy] ${type} "${folder}": ${w}`);
+    }
+    if (!compat.ok) {
+      logger.error(
+        `[Widget Proxy] Refusing ${type} widget at ${path}: ${compat.errors.join("; ")}`,
       );
       return null;
     }

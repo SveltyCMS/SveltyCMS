@@ -21,6 +21,7 @@ import type {
   RecordOperationOptions,
   StorageRecord,
 } from "./types";
+import { deepClone } from "@utils/native-utils";
 
 /** Internal collection/table name used to persist plugin records. */
 export const PLUGIN_STORAGE_COLLECTION = "plugin_storage";
@@ -108,10 +109,7 @@ export class PluginStorageAdapterImpl implements PluginStorageAdapter {
 
     // Prefer direct insert of a plain object; adapters JSON-encode TEXT columns.
     // Pass a clone so callers cannot mutate the stored payload via reference.
-    const payloadClone =
-      data != null && typeof data === "object"
-        ? (JSON.parse(JSON.stringify(data)) as T)
-        : (data as T);
+    const payloadClone = data != null && typeof data === "object" ? deepClone(data) : (data as T);
 
     const insertPayload: any = { ...record, data: payloadClone as Record<string, unknown> };
     const result = await this.dbAdapter.crud.insert(PLUGIN_STORAGE_COLLECTION, insertPayload, {

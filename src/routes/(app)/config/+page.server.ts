@@ -16,7 +16,6 @@ import { error } from "@sveltejs/kit";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
-import { pluginRegistry } from "@src/plugins/registry";
 import type { PageServerLoad } from "./$types";
 
 /**
@@ -56,7 +55,7 @@ for (const contextId in CONFIG_TILE_PERMISSIONS) {
   };
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
   try {
     const user = getAuthenticatedUser(locals);
 
@@ -78,15 +77,11 @@ export const load: PageServerLoad = async ({ locals }) => {
       permissions: user.permissions,
     };
 
-    // Plugin enablement for config_grid slots (keyed by plugin id)
-    const pluginStates: Record<string, boolean> = {};
+    // Layout already loaded plugin enablement (one findMany + 15s L1).
+    let pluginStates: Record<string, boolean> = {};
     try {
-      const tenantId = (locals as any)?.tenantId || "default";
-      for (const plugin of pluginRegistry.getAll()) {
-        if (!plugin.ui?.slots?.some((s) => s.zone === "config_grid")) continue;
-        const state = await pluginRegistry.getPluginState(plugin.metadata.id, tenantId);
-        pluginStates[plugin.metadata.id] = state?.enabled ?? plugin.metadata.enabled;
-      }
+      const parentData = await parent();
+      pluginStates = (parentData?.pluginStates ?? {}) as Record<string, boolean>;
     } catch {
       // Plugin check is non-critical — if it fails, hide plugin tiles
     }

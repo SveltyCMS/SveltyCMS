@@ -30,6 +30,7 @@ import {
 } from "@utils/security/publication-policy";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
+import { deepClone } from "@utils/native-utils";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { isMultiTenantEnabled } from "@utils/tenant";
@@ -626,9 +627,7 @@ export class CollectionsNamespace {
     if (!bypassCache && cacheKey && result.success && result.data) {
       try {
         const cachePayload =
-          options.populate && Array.isArray(result.data)
-            ? structuredClone(result.data)
-            : result.data;
+          options.populate && Array.isArray(result.data) ? deepClone(result.data) : result.data;
         await cacheService.set(
           cacheKey,
           cachePayload,

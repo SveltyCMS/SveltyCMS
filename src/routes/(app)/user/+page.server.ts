@@ -17,12 +17,13 @@
  */
 
 import type { PermissionConfig } from "@src/databases/auth/permissions";
-import type { Role, User } from "@src/databases/auth/types";
+import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/databases/db-interface";
 // System Logger
 import { getUntypedSetting } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { getFreshLayoutUser } from "@utils/server/layout-caches.server";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async (event) => {
@@ -39,7 +40,8 @@ export const load: PageServerLoad = async (event) => {
     // that no longer resolves (wizard reset / re-seed recreates the account
     // under a new id). Refresh from the DB — resolving by email when the id
     // misses — so the profile page never renders a stale cached snapshot.
-    const user = await refreshUserFromDatabase(sessionUser, event.locals.tenantId as DatabaseId);
+    const user =
+      (await getFreshLayoutUser(sessionUser, event.locals.tenantId as DatabaseId)) ?? sessionUser;
     const activeUser = user;
 
     // Resolve display permissions: prefer hook-populated locals, then user record, then role
@@ -160,35 +162,4 @@ async function getTotalUserCount(event: Parameters<PageServerLoad>[0]): Promise<
   } catch {
     return 0;
   }
-}
-
-/**
- * Refresh the session user snapshot from the database, resolving by email when
- * the session's user id no longer exists (stale session after wizard reset /
- * re-seed recreates the account under a new id). Returns the session user when
- * both lookups miss — the profile page then renders what the session knows.
- */
-async function refreshUserFromDatabase(sessionUser: User, tenantId?: DatabaseId): Promise<User> {
-  try {
-    const { auth } = await import("@src/databases/db");
-    const dbUser = await auth?.getUserById(sessionUser._id as DatabaseId, {
-      tenantId,
-      bypassTenantCheck: true,
-    });
-    if (dbUser && dbUser._id) return dbUser;
-
-    if (sessionUser.email) {
-      const byEmail = await auth?.getUserByEmail(
-        { email: sessionUser.email, tenantId },
-        { tenantId, bypassTenantCheck: true },
-      );
-      if (byEmail && byEmail._id) return byEmail;
-    }
-  } catch (err: any) {
-    logger.warn("Failed to refresh user data in /user load, using session data", {
-      error: err.message,
-      userId: sessionUser._id,
-    });
-  }
-  return sessionUser;
 }

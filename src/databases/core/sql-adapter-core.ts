@@ -10,6 +10,7 @@
  *
  * ### Features:
  * - shared CRUD operations with template method hooks
+ * - PK upsert / upsertMany as one INSERT ON CONFLICT / ON DUPLICATE KEY
  * - shared delegation helpers (getColumn, getPhysicalSelection, mapQuery, applyOrderBy)
  * - shared prepareValues with dialect-specific JSON serialization
  * - shared domain module lazy-loading (auth, content, media, system, batch, collection)
@@ -33,6 +34,7 @@ import type {
 } from "../db-interface";
 import * as helpers from "./drizzle-sql-helpers";
 import { generateUUID } from "@utils/native-utils";
+import { hasIsoDateTimePrefix } from "@src/utils/date";
 import {
   count as drizzleCount,
   getTableColumns,
@@ -61,7 +63,7 @@ import {
   shouldUseEstimateCount,
   withIdTiebreaker,
 } from "./page-utils";
-import { applyLookupStatus, parseIdLookup } from "./lookup-query";
+import { applyLookupStatus, extractPkConflictId, parseIdLookup } from "./lookup-query";
 
 // ============================================================================
 // Abstract SqlAdapterCore — shared base for all SQL adapters
@@ -137,6 +139,18 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   /** Options bag passed to convertDatesToISO / convertArrayDatesToISO. */
   protected get convertDatesOptions(): Record<string, any> {
     return { inPlace: true };
+  }
+
+  /**
+   * Public hook for queryBuilder reads — same maps `findMany` registers so
+   * list conversion hits the in-place schema path instead of a generic key walk.
+   */
+  public registerReadSchema(collection: string): void {
+    if (this._registeredSchemas.has(collection)) return;
+    const table = this.getTable(collection);
+    if (!table) return;
+    this.ensureTableSchemaRegistered(table, collection);
+    this._registeredSchemas.add(collection);
   }
 
   /**
@@ -610,11 +624,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           if (isDateColumn) {
             if (typeof val === "number" && val > 0) {
               val = new Date(val);
-            } else if (
-              typeof val === "string" &&
-              val.length > 5 &&
-              /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)
-            ) {
+            } else if (typeof val === "string" && hasIsoDateTimePrefix(val)) {
               const ts = Date.parse(val);
               if (!isNaN(ts)) {
                 val = new Date(ts);
@@ -1827,14 +1837,21 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     data: EntityCreate<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
-    const existing = await this.findOne(collection, query, options);
-    if (existing.success && existing.data) {
-      const existingId = (existing.data as any)._id || (existing.data as any).id;
-      if (existingId) {
-        return this.update(collection, existingId, data as any, options);
-      }
+    const conflictId = extractPkConflictId(query);
+    if (!conflictId) {
+      return this.upsertByFind(collection, query, data, options);
     }
-    return this.insert(collection, data, options);
+    return this.wrap(
+      async () => {
+        const rows = await this.executeUpsertById(collection, [{ id: conflictId, data }], options, {
+          returning: true,
+        });
+        return rows[0];
+      },
+      "UPSERT_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async upsertMany<T extends BaseEntity>(
@@ -1842,12 +1859,147 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     items: Array<{ query: QueryFilter<T>; data: EntityCreate<T> }>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T[]>> {
-    const results: T[] = [];
-    for (const item of items) {
-      const res = await this.upsert(collection, item.query, item.data, options);
-      if (res.success && res.data) results.push(res.data as T);
+    if (!items.length) return { success: true, data: [] };
+    return this.wrap(
+      async () => {
+        const byId: Array<{ id: string; data: EntityCreate<T> }> = [];
+        const rest: Array<{ query: QueryFilter<T>; data: EntityCreate<T> }> = [];
+        for (const item of items) {
+          const id = extractPkConflictId(item.query);
+          if (id) byId.push({ id, data: item.data });
+          else rest.push(item);
+        }
+        const out: T[] = [];
+        if (byId.length > 0) {
+          const rows = await this.executeUpsertById(collection, byId, options, {
+            returning: (options as { skipReturning?: boolean }).skipReturning !== true,
+          });
+          out.push(...rows);
+        }
+        for (const item of rest) {
+          const res = await this.upsertByFind(collection, item.query, item.data, options);
+          if (res.success && res.data) out.push(res.data as T);
+        }
+        return out;
+      },
+      "UPSERT_MANY_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
+  }
+
+  /** findOne then insert/update — used when the conflict target is not `_id`. */
+  private async upsertByFind<T extends BaseEntity>(
+    collection: string,
+    query: QueryFilter<T>,
+    data: EntityCreate<T>,
+    options: BaseQueryOptions,
+  ): Promise<DatabaseResult<T>> {
+    const existing = await this.findOne(collection, query, options);
+    if (existing.success && existing.data) {
+      const existingId =
+        (existing.data as { _id?: DatabaseId; id?: DatabaseId })._id ||
+        (existing.data as { id?: DatabaseId }).id;
+      if (existingId) {
+        return this.update(collection, existingId, data as EntityUpdate<T>, options);
+      }
     }
-    return { success: true, data: results };
+    return this.insert(collection, data, options);
+  }
+
+  /**
+   * One INSERT … ON CONFLICT (_id) / ON DUPLICATE KEY per chunk.
+   * SQLite/PostgreSQL use `excluded.*`; MariaDB uses `VALUES()`.
+   */
+  private async executeUpsertById<T extends BaseEntity>(
+    collection: string,
+    rows: Array<{ id: string; data: EntityCreate<T> }>,
+    options: BaseQueryOptions,
+    opts: { returning: boolean },
+  ): Promise<T[]> {
+    const table = this.getTable(collection);
+    if (!table) throw new Error(`Collection table not found: ${collection}`);
+    if (!this._registeredSchemas.has(collection)) {
+      this.ensureTableSchemaRegistered(table, collection);
+      this._registeredSchemas.add(collection);
+    }
+    const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+    if (!idCol) throw new Error("ID column not found");
+
+    const now = new Date();
+    const len = rows.length;
+    const batchValues: Record<string, unknown>[] = Array.from({ length: len });
+    for (let i = 0; i < len; i++) {
+      batchValues[i] = this.prepareValues(table, rows[i].data, rows[i].id, now, options);
+    }
+
+    const mysql = this.type === "mariadb" || this.type === "mysql";
+    const skipReturning =
+      !opts.returning || (options as { skipReturning?: boolean }).skipReturning === true;
+    const wantReturning = !skipReturning && this.insertReturnsRows && !mysql;
+
+    const cols = new Set<string>();
+    for (let i = 0; i < len; i++) {
+      for (const k in batchValues[i]) cols.add(k);
+    }
+    const setObj: Record<string, unknown> = {};
+    for (const k of cols) {
+      if (k === "_id" || k === "id" || k === "createdAt") continue;
+      const phys = utils.assertSafeSqlIdentifier(this.getColumn(table, k)?.name ?? k, "column");
+      setObj[k] = mysql
+        ? sql`VALUES(${sql.identifier(phys)})`
+        : sql`excluded.${sql.identifier(phys)}`;
+    }
+    if (Object.keys(setObj).length === 0) {
+      const idName = idCol.name || "_id";
+      setObj[idName] = sql`${idCol}`;
+    }
+
+    const maxParams = mysql || this.type === "postgresql" ? 65_000 : 900;
+    const chunkSize = Math.max(1, Math.floor(maxParams / Math.max(cols.size, 1)));
+
+    const run = async (): Promise<T[]> => {
+      const db = this.getDrizzleInstance(options);
+      const out: T[] = [];
+      for (let start = 0; start < len; start += chunkSize) {
+        const chunk = batchValues.slice(start, start + chunkSize);
+        const insert = db.insert(table).values(chunk);
+        const upserted = mysql
+          ? insert.onDuplicateKeyUpdate({ set: setObj })
+          : insert.onConflictDoUpdate({ target: idCol, set: setObj });
+        if (wantReturning) {
+          const results = await (upserted as { returning: () => Promise<unknown[]> }).returning();
+          out.push(
+            ...(utils.convertArrayDatesToISO(results as Record<string, unknown>[], {
+              ...this.convertDatesOptions,
+              table: collection,
+            }) as T[]),
+          );
+        } else {
+          await helpers.executeWrite(upserted);
+          out.push(
+            ...(utils.convertArrayDatesToISO(chunk as Record<string, unknown>[], {
+              ...this.convertDatesOptions,
+              table: collection,
+            }) as T[]),
+          );
+        }
+      }
+      return out;
+    };
+
+    try {
+      return await run();
+    } catch (err: unknown) {
+      const provision = this as {
+        createModel?: (schema: { _id: string; name: string; fields: [] }) => Promise<unknown>;
+      };
+      if (this.isMissingTableError(err) && typeof provision.createModel === "function") {
+        await provision.createModel({ _id: collection, name: collection, fields: [] });
+        return await run();
+      }
+      throw err;
+    }
   }
 
   // --------------------------------------------------------------------------

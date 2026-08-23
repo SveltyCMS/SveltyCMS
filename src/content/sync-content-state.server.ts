@@ -33,6 +33,7 @@ import {
 } from "@utils/collection-order.server";
 import { getCollectionsPath, getCompiledCollectionsPath } from "@utils/tenant.server";
 import { contentStore } from "@stores/content-registry.svelte";
+import { deepClone } from "@utils/native-utils";
 import { shouldRequireLayoutInvalidate } from "./content-hmr";
 
 export type SyncContentReason =
@@ -288,7 +289,7 @@ function collectChangedNodesForHmr(
     }
 
     if (existingNode?.collectionDef) {
-      nodes.push(structuredCloneSafe(existingNode));
+      nodes.push(deepClone(existingNode));
       continue;
     }
 
@@ -308,19 +309,11 @@ function collectChangedNodesForHmr(
           existingNode?.createdAt || (new Date().toISOString() as ContentNode["createdAt"]),
         updatedAt: new Date().toISOString() as ContentNode["updatedAt"],
       };
-      nodes.push(structuredCloneSafe(node));
+      nodes.push(deepClone(node));
     }
   }
 
   return { nodes, hasNewCollections };
-}
-
-function structuredCloneSafe<T>(value: T): T {
-  try {
-    return structuredClone(value);
-  } catch {
-    return JSON.parse(JSON.stringify(value)) as T;
-  }
 }
 
 function attachHmrNodes(
@@ -495,7 +488,7 @@ export async function ensureCompiledCollectionsFresh(
     userCollections,
     compiledCollections,
     tenantId,
-    concurrency: Math.max(4, Math.floor((await import("node:os")).cpus().length * 0.75)),
+    // concurrency defaults to the shared hardware profile (75% of cores)
   });
 }
 
@@ -605,6 +598,19 @@ async function applyGuiStructureSave(
 
   const { order, structureNodes } = buildOrganizationalManifestFromNodes(updated);
   await setOrganizationalManifest(order, structureNodes, tenantId ?? null);
+
+  // 🐛 L1 TURBO INVALIDATION: GETs on /api/content-structure are served from the
+  // sync responseCache before the API hook runs, and that hook only invalidates on
+  // *API* mutations. A GUI save arrives as a SvelteKit remote command, so nothing
+  // cleared the cached structure — the SSE refresh below then handed every client
+  // the pre-save order, which overwrote the just-saved one in the UI.
+  try {
+    const { responseCache } = await import("@src/services/cache/response-cache");
+    await responseCache.invalidateCollection("content-structure", tenantId ?? null);
+    await responseCache.invalidateCollection("content", tenantId ?? null);
+  } catch (err) {
+    logger.warn(`[ContentSync] Response cache invalidation skipped: ${String(err)}`);
+  }
 
   // Broadcast SSE event so other tabs/clients learn about the GUI change
   const { notifyContentUpdate } = await import("./engine.server");

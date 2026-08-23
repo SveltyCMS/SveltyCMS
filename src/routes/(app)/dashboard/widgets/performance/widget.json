@@ -12,5 +12,6 @@
     "w": 1,
     "h": 2
   },
-  "category": "monitoring"
+  "category": "monitoring",
+  "sveltycms": ">=0.0.8"
 }

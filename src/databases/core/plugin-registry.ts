@@ -72,7 +72,7 @@ export class DBPluginRegistry {
             this.initialized.add(plugin.id);
             logger.debug(`[DB Registry] Initialized: ${plugin.id}`);
           } catch (error) {
-            console.error(`[DB Registry] Failed to initialize ${plugin.id}:`, error);
+            logger.error(`[DB Registry] Failed to initialize ${plugin.id}:`, error);
             if (plugin.critical) {
               throw new Error(
                 `CRITICAL BOOT FAILURE: Service '${plugin.id}' failed to initialize: ${error instanceof Error ? error.message : String(error)}`,

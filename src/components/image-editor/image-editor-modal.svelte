@@ -262,7 +262,7 @@ import { logger } from "@utils/logger";
                         </div>
                         <button
                             onclick={() => (error = null)}
-                            class="text-error-500 hover:text-error-600 dark:text-error-200 hover:dark:text-error-50"
+                            class="text-error-500 hover:text-error-600 dark:text-error-200 dark:hover:text-error-50"
                             aria-label="Dismiss error"
                         >
                             <iconify-icon icon="mdi:close" width="20" aria-hidden="true"></iconify-icon>
