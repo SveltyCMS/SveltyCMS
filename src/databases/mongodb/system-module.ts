@@ -14,6 +14,7 @@ import mongoose, { type Model, Schema } from "mongoose";
 import type { MongoAdapterCore } from "./adapter-core";
 import { MongoCrudMethods } from "./crud-methods";
 import { createDatabaseError } from "./mongodb-utils";
+import { mediaSchema } from "./media";
 
 export interface SystemSetting {
   _id: string;
@@ -632,7 +633,6 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
       await import("./system-virtual-folder");
     const { MongoWidgetMethods } = await import("./widget");
     const { MongoWebsiteTokenMethods, websiteTokenSchema } = await import("./website-token");
-    const { mediaSchema } = await import("./media");
 
     const SystemSettingModelLocal = (this.adapter as any)._getOrCreateModel(
       "SystemSetting",
