@@ -22,6 +22,12 @@ import type { IDBAdapter } from "@src/databases/db-interface";
 import { generateCategoryNodesFromPaths } from "./content-utils";
 import { compareCollectionSchemas } from "./first-collection";
 import { cacheService } from "@src/databases/cache/cache-service";
+import {
+  explicitOrder,
+  getCollectionOrder,
+  getStructureNodes,
+  resolveCollectionOrder,
+} from "@utils/collection-order.server";
 import { eventBus, SystemEvents } from "@utils/event-bus";
 import { generateSchemaHash, isSafeCollectionPath, loadSchema } from "./loader.server";
 import { getCollectionsPath } from "@utils/tenant.server";
@@ -608,8 +614,6 @@ export const contentService = {
     }
 
     // 1. Fetch DB nodes, filesystem categories, and GUI manifest overrides
-    const { getCollectionOrder, getStructureNodes } =
-      await import("@utils/collection-order.server");
     const [dbResult, categoryNodes, manifestOrder, manifestStructure] = await Promise.all([
       dbAdapter.content.nodes.getStructure("flat", {
         tenantId: tenantId as any,
@@ -771,12 +775,15 @@ export const contentService = {
       const schemaId = String(
         schema._id || existing?._id || schema.slug || schema.name || "unknown",
       );
-      const manifestSort =
-        manifestOrder[schemaId] ??
-        manifestOrder[schemaId.toLowerCase()] ??
-        existing?.order ??
-        schema.order ??
-        999;
+      const manifestVal = explicitOrder(
+        manifestOrder[schemaId] ?? manifestOrder[schemaId.toLowerCase()],
+      );
+      const manifestSort = resolveCollectionOrder({
+        schemaOrder: schema.order,
+        existingOrder: existing?.order,
+        lastDeclaredOrder: (existing?.collectionDef as Schema | undefined)?.order,
+        manifestOrder: manifestVal,
+      });
       const hasChanged =
         !existing ||
         existing.source !== "filesystem" ||
@@ -964,7 +971,11 @@ export const contentService = {
       nodeType: "collection",
       collectionDef: schema,
       tenantId: tenantId as any,
-      order: existing?.order ?? schema.order ?? 999,
+      order: resolveCollectionOrder({
+        schemaOrder: schema.order,
+        existingOrder: existing?.order,
+        lastDeclaredOrder: (existing?.collectionDef as Schema | undefined)?.order,
+      }),
       translations: schema.translations || [],
       source: "filesystem",
       createdAt: existing?.createdAt || now,

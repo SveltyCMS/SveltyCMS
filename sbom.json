@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:7b729c24-1e05-45af-9ac5-a6a90e024e19",
+  "serialNumber": "urn:uuid:2ddec5e5-aa76-4551-8239-0c55fc9b2285",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-23T06:04:34.888Z",
+    "timestamp": "2026-08-23T07:08:35.253Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -10065,19 +10065,6 @@
         {
           "alg": "SHA-512",
           "content": "sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "deepmerge-ts",
-      "version": "8.0.1",
-      "purl": "pkg:npm/deepmerge-ts@8.0.1",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-szCXE7YLCvLKR9bFPJcvsezOShdalctSvrgN/LM/QGUEPZQajwjmsMObZ6/DuANT5lxzM/wtO8Feubwdkz8myA=="
         }
       ]
     },
