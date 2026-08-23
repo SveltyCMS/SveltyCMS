@@ -688,7 +688,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 	{#if isUploading}
 		<div class="shrink-0 px-2 pb-1 sm:px-3">
 			<div
-				class="flex items-center gap-3 rounded border border-surface-300 bg-surface-50 p-2 text-xs dark:border-surface-700 dark:bg-surface-800"
+				class="flex items-center gap-3 rounded border border-surface-500/30 bg-surface-500/10 p-2 text-xs dark:border-surface-500/40 dark:bg-surface-800"
 				role="progressbar"
 				aria-label="Upload progress"
 				aria-valuenow={uploadProgress}
@@ -707,7 +707,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						{uploadFileLabel}
 					</span>
 				{/if}
-				<span class="shrink-0 font-medium tabular-nums text-surface-600 dark:text-surface-300">{uploadProgress}%</span>
+				<span class="shrink-0 font-medium tabular-nums text-surface-600 dark:text-surface-400">{uploadProgress}%</span>
 				<Button
 					variant="outline"
 					size="sm"
@@ -731,8 +731,8 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					aria-live="polite"
 					data-testid="media-bulk-bar"
 				>
-					<p class="text-xs text-surface-600 dark:text-surface-300">
-						<span class="font-medium text-surface-800 dark:text-surface-100" data-testid="media-bulk-count">{assetStats.selected} selected</span>
+					<p class="text-xs text-surface-600 dark:text-surface-400">
+						<span class="font-medium text-surface-600 dark:text-surface-100" data-testid="media-bulk-count">{assetStats.selected} selected</span>
 						<span class="hidden text-surface-500 sm:inline dark:text-surface-400"> · Del to remove · Esc to clear</span>
 					</p>
 					<Button
@@ -766,7 +766,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 		-->
 		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-breadcrumbs">
 			<nav
-				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-200 py-1.5 text-base text-surface-500 sm:gap-2.5 sm:py-2.5 dark:border-surface-800 dark:text-surface-400"
+				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1.5 text-base text-surface-500 sm:gap-2.5 sm:py-2.5 dark:border-surface-500/40 dark:text-surface-400"
 				aria-label="Folder path — drop media on a parent to move (same as sidebar folders)"
 			>
 				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
@@ -794,7 +794,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						<!-- Current folder: not a link, but still a droppable so the drag is
 							 told "already here" with the same error ring the sidebar uses. -->
 						<span
-							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 font-medium text-surface-800 sm:max-w-[16rem] sm:px-1.5 sm:py-1 dark:text-surface-100"
+							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 font-medium text-surface-600 sm:max-w-[16rem] sm:px-1.5 sm:py-1 dark:text-surface-100"
 							aria-current="page"
 							data-media-drop-target={dropKey}
 							data-testid={`media-breadcrumb-${dropKey}`}
@@ -816,7 +816,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
 							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 text-sm font-medium transition-colors sm:max-w-[16rem] sm:px-1.5 sm:py-1 sm:text-base
 								{selectedFiles.size > 0
-									? 'bg-surface-100 text-surface-800 hover:bg-primary-500/15 hover:text-primary-600 dark:bg-surface-800 dark:text-surface-100 dark:hover:text-primary-400'
+									? 'bg-surface-500/10 text-surface-800 hover:bg-primary-500/10 hover:text-primary-600 dark:bg-surface-800 dark:text-surface-100 dark:hover:text-primary-400'
 									: 'hover:text-primary-500'}"
 							data-preload="hover"
 							data-media-drop-target={dropKey}
@@ -873,7 +873,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							bind:value={globalSearchValue}
 							type="search"
 							placeholder="Search media... (Mod+F)"
-							class="w-full ps-9 pe-10 dark:border-surface-700/60 focus-visible:ring-1"
+							class="w-full ps-9 pe-10 dark:border-surface-500/40 focus-visible:ring-1"
 							aria-label="Search media assets"
 						/>
 						<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
@@ -927,16 +927,16 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 							/>
 						</div>
 						<div class="flex items-center gap-2">
-							<div class="flex overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+							<div class="flex overflow-hidden rounded border border-surface-500/30 dark:border-surface-600" role="group" aria-label="View mode">
 								<Button type="button" variant={view === 'grid' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'grid')} aria-label="Grid view" aria-pressed={view === 'grid'} class="h-10! w-10! px-0!">
 									<iconify-icon icon="mdi:grid-large" width="16"></iconify-icon>
 								</Button>
-								<Button type="button" variant={view === 'table' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'table')} aria-label="Table view" aria-pressed={view === 'table'} class="h-10! w-10! px-0! border-s border-surface-300 dark:border-surface-600">
+								<Button type="button" variant={view === 'table' ? 'primary' : 'ghost'} size="md" onclick={() => (view = 'table')} aria-label="Table view" aria-pressed={view === 'table'} class="h-10! w-10! px-0! border-s border-surface-500/30 dark:border-surface-600">
 									<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
 								</Button>
 							</div>
 							{#if view === 'grid'}
-								<div class="flex overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
+								<div class="flex overflow-hidden rounded border border-surface-500/30 dark:border-surface-600" role="group" aria-label="Grid size">
 									{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i (size)}
 										<Button
 											type="button"
@@ -945,7 +945,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 											onclick={() => (gridSize = size)}
 											aria-label="{size} grid"
 											aria-pressed={gridSize === size}
-											class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-s border-surface-300 dark:border-surface-600' : ''}"
+											class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-s border-surface-500/30 dark:border-surface-600' : ''}"
 										>
 											{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
 										</Button>
@@ -977,7 +977,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						bind:value={globalSearchValue}
 						type="search"
 						placeholder="Search media... (Mod+F)"
-						class="w-full ps-9 pe-10 dark:border-surface-700/60 focus-visible:ring-1"
+						class="w-full ps-9 pe-10 dark:border-surface-500/40 focus-visible:ring-1"
 						aria-label="Search media assets"
 					/>
 					<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
@@ -1022,7 +1022,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					Native <button> toggles (not Button component): guarantees aria-label,
 					aria-pressed, data-testid and onclick stay on the DOM node for E2E/a11y.
 				-->
-				<div class="flex shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="View mode">
+				<div class="flex shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-600" role="group" aria-label="View mode">
 					<button
 						type="button"
 						onclick={() => (view = 'grid')}
@@ -1038,7 +1038,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					<button
 						type="button"
 						onclick={() => (view = 'table')}
-						class="relative inline-flex h-10 w-10 min-w-0 items-center justify-center border-s border-surface-300 p-0 text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:border-surface-600 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view === 'table'
+						class="relative inline-flex h-10 w-10 min-w-0 items-center justify-center border-s border-surface-500/30 p-0 text-sm font-bold tracking-tight transition-all duration-200 hover:bg-surface-200/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 dark:border-surface-600 dark:hover:bg-surface-800/50 dark:focus-visible:ring-surface-300 {view === 'table'
 							? 'bg-primary-500 text-white'
 							: 'text-surface-500 dark:text-surface-400'}"
 						aria-label="Table view"
@@ -1050,7 +1050,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				</div>
 
 				{#if view === 'grid'}
-					<div class="flex shrink-0 overflow-hidden rounded border border-surface-300 dark:border-surface-600" role="group" aria-label="Grid size">
+					<div class="flex shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-600" role="group" aria-label="Grid size">
 						{#each (['tiny', 'small', 'medium', 'large'] as const) as size, i (size)}
 							<Button
 								type="button"
@@ -1059,7 +1059,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 								onclick={() => (gridSize = size)}
 								aria-label="{size} grid"
 								aria-pressed={gridSize === size}
-								class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-s border-surface-300 dark:border-surface-600' : ''}"
+								class="h-10! w-8! px-0! text-xs! {i > 0 ? 'border-s border-surface-500/30 dark:border-surface-600' : ''}"
 							>
 								{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
 							</Button>

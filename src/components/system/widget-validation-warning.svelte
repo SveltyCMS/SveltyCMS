@@ -54,14 +54,14 @@ Provides clear information about the issue and actionable steps to resolve it.
 
 {#if !dismissed && fieldsWithIssues.length > 0}
 	<div
-		class="rounded border border-warning-400 bg-warning-50 p-4 shadow-sm dark:border-warning-500/30 dark:bg-warning-500/10"
+		class="rounded border border-warning-500 bg-warning-500/10 p-4 shadow-sm dark:border-warning-500/30 dark:bg-warning-500/10"
 		role="alert"
 		aria-live="polite"
 	>
 		<!-- Header -->
 		<div class="mb-3 flex items-center gap-3">
 			<iconify-icon icon="mdi:alert-circle" width="24" class="shrink-0 text-warning-600 dark:text-warning-400"></iconify-icon>
-			<h4 class="flex-1 text-lg font-semibold text-warning-700 dark:text-warning-400">
+			<h4 class="flex-1 text-lg font-semibold text-warning-600 dark:text-warning-400">
 				Inactive Widgets Detected in "{collectionName}"
 			</h4>
 			{#if onDismiss}
@@ -73,19 +73,19 @@ Provides clear information about the issue and actionable steps to resolve it.
 
 		<!-- Content -->
 		<div class="ms-9 space-y-3">
-			<p class="font-medium text-warning-700 dark:text-warning-400">
+			<p class="font-medium text-warning-600 dark:text-warning-400">
 				The following fields cannot be rendered because their widgets are inactive:
 			</p>
 
 			<ul class="space-y-1">
 				{#each fieldsWithIssues as field (field.fieldName)}
-					<li class="border-b border-warning-200 py-1 text-warning-700 dark:border-warning-500/20 dark:text-warning-400 last:border-b-0">
-						<strong>{field.fieldName}</strong>: Widget <code class="rounded bg-warning-200 px-1 py-0.5 font-mono text-xs dark:bg-warning-500/20">{field.widget}</code> is inactive
+					<li class="border-b border-warning-500/30 py-1 text-warning-600 dark:border-warning-500/20 dark:text-warning-400 last:border-b-0">
+						<strong>{field.fieldName}</strong>: Widget <code class="rounded bg-warning-500/10 px-1 py-0.5 font-mono text-xs dark:bg-warning-500/20">{field.widget}</code> is inactive
 					</li>
 				{/each}
 			</ul>
 
-			<p class="rounded border-s-4 border-warning-400 bg-warning-100 p-3 text-sm text-warning-700 dark:border-warning-500 dark:bg-warning-500/10 dark:text-warning-400">
+			<p class="rounded border-s-4 border-warning-500 bg-warning-500/10 p-3 text-sm text-warning-600 dark:border-warning-500 dark:bg-warning-500/10 dark:text-warning-400">
 				Content for these fields will not display properly until the widgets are activated.
 				<strong>Editing entries may result in data loss for these fields.</strong>
 			</p>

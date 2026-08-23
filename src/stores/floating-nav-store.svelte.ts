@@ -85,21 +85,21 @@ export const SYSTEM_ENDPOINTS: readonly SystemEndpointDef[] = [
     tooltip: "Dashboard",
     path: "/dashboard",
     icon: "mdi:view-dashboard",
-    color: "bg-blue-500",
+    color: "bg-tertiary-500",
   },
   {
     id: "user",
     tooltip: "User Profile",
     path: "/user",
     icon: "radix-icons:avatar",
-    color: "bg-orange-500",
+    color: "bg-warning-500",
   },
   {
     id: "collectionbuilder",
     tooltip: "Collection Builder",
     path: "/config/collectionbuilder",
     icon: "fluent-mdl2:build-definition",
-    color: "bg-green-500",
+    color: "bg-success-500",
     adminOnly: true,
   },
   {
@@ -163,28 +163,29 @@ export const PREFS_VERSION = 1 as const;
 export const LEGACY_PINS_KEY = "floatingNav_pins";
 export const LEGACY_FAVORITES_KEY = "floatingNav_favorites";
 /** Default radial spoke bg when PageTitle does not pass `navColor`. */
-export const DEFAULT_FAVORITE_COLOR = "bg-amber-500";
+export const DEFAULT_FAVORITE_COLOR = "bg-warning-500";
 
 /**
  * Allowed Tailwind bg utilities for custom favorite spokes.
  * MUST stay literals in source: Tailwind v4's JIT only emits classes it scans,
  * so a runtime-only class string would render an uncolored spoke. Pick from this
  * list (typed as `NavFavoriteColor`) instead of inventing new class strings.
+ * Hue entries use theme ramps (primary/tertiary/success/error/warning/surface)
+ * so spoke colors follow the active theme; indigo/purple/pink remain decorative
+ * (no theme equivalent).
  */
 export const NAV_FAVORITE_COLORS = [
-  "bg-amber-500",
-  "bg-teal-500",
-  "bg-blue-500",
+  "bg-warning-500",
+  "bg-primary-500",
+  "bg-tertiary-500",
+  "bg-success-500",
+  "bg-error-500",
+  "bg-surface-500",
+  "bg-surface-400",
+  "bg-primary-700",
   "bg-indigo-500",
   "bg-purple-500",
   "bg-pink-500",
-  "bg-red-500",
-  "bg-orange-500",
-  "bg-green-500",
-  "bg-slate-500",
-  "bg-surface-400",
-  "bg-primary-700",
-  "bg-tertiary-500",
 ] as const;
 
 export type NavFavoriteColor = (typeof NAV_FAVORITE_COLORS)[number];

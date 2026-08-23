@@ -68,7 +68,7 @@ async function runBatch() {
 <div class="pointer-events-none fixed inset-x-0 bottom-0 z-50 p-4">
 	<div transition:slide={{ axis: 'y', duration: 300 }}>
 	<AdminCard
-		class="pointer-events-auto mx-auto max-w-4xl border border-tertiary-500 bg-surface-100 p-6 shadow-2xl dark:border-primary-500/30 dark:bg-surface-800"
+		class="pointer-events-auto mx-auto max-w-4xl border border-tertiary-500 bg-surface-500/10 p-6 shadow-2xl dark:border-primary-500/30 dark:bg-surface-800"
 	>
 		<div class="mb-6 flex items-center justify-between">
 			<div class="flex items-center gap-3">
@@ -112,7 +112,7 @@ async function runBatch() {
 			</div>
 
 			<!-- Step 2: Params -->
-			<div class="space-y-3 border-x border-surface-200 px-6 dark:border-surface-700">
+			<div class="space-y-3 border-x border-surface-500/30 px-6 dark:border-surface-500/40">
 				<span class="label text-[10px] font-bold uppercase tracking-widest opacity-60">2. Configure</span>
 				{#if operation === 'filter'}
 					<Select

@@ -152,14 +152,14 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 		{#each items as item, index (item.id)}
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
-				class="rounded-lg border border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-800"
+				class="rounded-lg border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-800"
 				animate:flip={{ duration: 300 }}
 				use:draggable={{ container: 'repeater', dragData: item, keyboard: true }}
 				role="listitem"
 				tabindex="0"
 			>
 				<!-- Header / Handle -->
-				<header class="flex items-center justify-between border-b border-surface-200 p-2 dark:border-surface-700">
+				<header class="flex items-center justify-between border-b border-surface-500/30 p-2 dark:border-surface-500/40">
 					<div class="flex items-center gap-2">
 						<!-- Drag Handle -->
 						<Button

@@ -26,10 +26,10 @@
 <button
   type="button"
   onclick={openWorkspace}
-  class="group flex h-24 w-full flex-col items-center justify-center gap-2 rounded border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out
-         hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-50 hover:shadow-xl
+  class="group flex h-24 w-full flex-col items-center justify-center gap-2 rounded border border-surface-500/30 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out
+         hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-500/10 hover:shadow-xl
          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 focus-visible:ring-offset-2
-         dark:bg-surface-800 dark:border-surface-700 dark:hover:border-tertiary-500 dark:hover:bg-surface-700
+         dark:bg-surface-800 dark:border-surface-500/40 dark:hover:border-tertiary-500 dark:hover:bg-surface-700
          lg:h-32
          {enabled ? '' : 'pointer-events-none opacity-60 grayscale'}"
   aria-label="Open Unified Data Hub — connect and govern external data sources"

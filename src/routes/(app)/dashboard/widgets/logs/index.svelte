@@ -86,17 +86,17 @@ interface LogEntry {
 
 	function levelCls(level: string): string {
 		const m: Record<string, string> = {
-			fatal: 'text-purple-500', error: 'text-red-500', warn: 'text-amber-500',
-			info: 'text-emerald-500', debug: 'text-blue-500',
+			fatal: 'text-purple-500', error: 'text-error-500', warn: 'text-warning-500',
+			info: 'text-success-500', debug: 'text-tertiary-500',
 		};
 		return m[level?.toLowerCase()] || 'text-surface-500';
 	}
 
 	function levelBg(level: string): string {
 		const m: Record<string, string> = {
-			fatal: 'bg-purple-100 dark:bg-purple-900/30', error: 'bg-red-100 dark:bg-red-900/30',
-			warn: 'bg-amber-100 dark:bg-amber-900/30', info: 'bg-emerald-100 dark:bg-emerald-900/30',
-			debug: 'bg-blue-100 dark:bg-blue-900/30',
+			fatal: 'bg-purple-100 dark:bg-purple-900/30', error: 'bg-error-500/10 dark:bg-error-900/20',
+			warn: 'bg-warning-500/10 dark:bg-warning-900/20', info: 'bg-success-500/10 dark:bg-success-900/20',
+			debug: 'bg-tertiary-500/10 dark:bg-tertiary-900/20',
 		};
 		return m[level?.toLowerCase()] || '';
 	}
@@ -166,7 +166,7 @@ interface LogEntry {
 						type="text"
 						bind:value={searchTerm}
 						placeholder="Search..."
-						class="w-full rounded border border-surface-200 bg-surface-50 py-1.5 ps-8 pe-3 text-xs text-surface-700 placeholder-surface-400 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
+						class="w-full rounded border border-surface-500/30 bg-surface-500/10 py-1.5 ps-8 pe-3 text-xs text-surface-700 placeholder-surface-400 focus:border-primary-500 focus:outline-none dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200"
 					/>
 					<iconify-icon icon="mdi:magnify" width="14" class="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-surface-400"  ></iconify-icon>
 				</div>
@@ -175,13 +175,13 @@ interface LogEntry {
 					<input aria-label="Date from"
 						type="date"
 						bind:value={startDate}
-						class="rounded border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
+						class="rounded border border-surface-500/30 bg-surface-500/10 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-500 focus:outline-none dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200"
 					/>
 					<span class="text-xs text-surface-400">–</span>
 					<input aria-label="Date to"
 						type="date"
 						bind:value={endDate}
-						class="rounded border border-surface-200 bg-surface-50 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-400 focus:outline-none dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200"
+						class="rounded border border-surface-500/30 bg-surface-500/10 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-500 focus:outline-none dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200"
 					/>
 				{/if}
 			</div>
@@ -191,12 +191,12 @@ interface LogEntry {
 
 			<!-- Premium upgrade banner for date range filtering -->
 			{#if !isLicensed && !isCompact}
-			<div class="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 flex items-center justify-between">
-				<span class="text-xs text-amber-700 dark:text-amber-300">
-					<iconify-icon icon="mdi:crown" class="inline me-1 text-amber-500"></iconify-icon>
+			<div class="mt-2 rounded-lg bg-warning-500/10 dark:bg-warning-900/20 border border-warning-500/20 dark:border-warning-500/40 px-3 py-2 flex items-center justify-between">
+				<span class="text-xs text-warning-600 dark:text-warning-400">
+					<iconify-icon icon="mdi:crown" class="inline me-1 text-warning-500"></iconify-icon>
 					Date range filtering and export are premium features.
 				</span>
-				<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-amber-700 dark:text-amber-300 hover:text-amber-800 underline shrink-0 ms-3">Upgrade €6.99 →</a>
+				<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-warning-600 dark:text-warning-400 hover:text-warning-600 underline shrink-0 ms-3">Upgrade €6.99 →</a>
 			</div>
 		{/if}
 
@@ -224,7 +224,7 @@ interface LogEntry {
 							title="{log.level.toUpperCase()}: {log.message}"
 						>
 							<iconify-icon icon={levelIcon(log.level)} class="text-xs {levelCls(log.level)}" ></iconify-icon>
-							<span class="max-w-20 truncate text-[10px] font-medium text-surface-700 dark:text-surface-300">
+							<span class="max-w-20 truncate text-[10px] font-medium text-surface-600 dark:text-surface-400">
 								{log.message}
 							</span>
 						</button>
@@ -239,7 +239,7 @@ interface LogEntry {
 					{const isOpen = expandedId === logId}
 					<button
 						onclick={() => toggleExpand(logId)}
-						class="w-full text-start group flex gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
+						class="w-full text-start group flex gap-3 rounded-2xl bg-surface-500/10 px-3 py-2.5 transition-colors hover:bg-surface-500/10 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
 					>
 						<iconify-icon
 							icon={levelIcon(log.level)}
@@ -254,11 +254,11 @@ interface LogEntry {
 									{log.level}
 								</span>
 							</div>
-							<p class="mt-1 text-sm leading-snug text-surface-700 dark:text-surface-200 {isOpen ? '' : 'line-clamp-2'}">
+							<p class="mt-1 text-sm leading-snug text-surface-600 dark:text-surface-400 {isOpen ? '' : 'line-clamp-2'}">
 								{log.message}
 							</p>
 							{#if isOpen && log.args && log.args.length > 0}
-								<pre class="mt-2 overflow-x-auto rounded bg-surface-100 p-2 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-300">{JSON.stringify(log.args, null, 2)}</pre>
+								<pre class="mt-2 overflow-x-auto rounded bg-surface-500/10 p-2 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-300">{JSON.stringify(log.args, null, 2)}</pre>
 							{/if}
 						</div>
 						<iconify-icon

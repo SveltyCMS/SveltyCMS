@@ -274,12 +274,12 @@
     />
   {:else if !shouldRender}
     <div
-      class="flex flex-1 flex-col items-center justify-center gap-4 rounded border border-dashed border-surface-400 bg-surface-100/50 dark:bg-surface-900/50"
+      class="flex flex-1 flex-col items-center justify-center gap-4 rounded border border-dashed border-surface-500 bg-surface-500/10 dark:bg-surface-900/50"
     >
       <iconify-icon icon="mdi:eye-outline" width="48" class="text-surface-400"
       ></iconify-icon>
       <div class="text-center">
-        <p class="text-lg font-bold text-surface-700 dark:text-surface-200">
+        <p class="text-lg font-bold text-surface-600 dark:text-surface-400">
           Live Preview Ready
         </p>
         <p class="text-sm text-surface-500">
@@ -369,7 +369,7 @@
     </div>
 
     <div
-      class="relative flex-1 overflow-hidden rounded border border-surface-300 bg-surface-100 dark:bg-surface-900"
+      class="relative flex-1 overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 dark:bg-surface-900"
     >
       <div
         class="h-full w-full bg-white transition-all duration-300"
@@ -401,7 +401,7 @@
         {:else}
           <div class="flex h-full flex-col items-center justify-center gap-3">
             <div
-              class="h-8 w-8 animate-spin rounded-full border-4 border-surface-300 border-t-primary-500"
+              class="h-8 w-8 animate-spin rounded-full border-4 border-surface-500/30 border-t-primary-500"
             ></div>
             <p class="text-sm text-surface-500">Generating secure preview session...</p>
           </div>
@@ -414,7 +414,7 @@
     >
       <span>
         Status:
-        <span class={isConnected ? "text-green-500" : "text-amber-500"}>
+        <span class={isConnected ? "text-success-500" : "text-warning-500"}>
           {isConnected ? "Synced" : "Handshaking"}
         </span>
       </span>

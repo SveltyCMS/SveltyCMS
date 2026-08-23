@@ -302,7 +302,7 @@ import { logger } from "@utils/logger";
 
 {#if activeInput.current}
 	<div
-		class="token-window card fixed z-9999 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-4 shadow-xl"
+		class="token-window fixed z-9999 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900 p-4 shadow-xl text-(--admin-text-body)"
 		style="bottom: 2rem; right: {rightPosition};"
 		transition:fade={{ duration: 150 }}
 	>
@@ -389,7 +389,7 @@ import { logger } from "@utils/logger";
 				<!-- Token Info -->
 				<div class="card preset-tonal-primary border border-tertiary-500 dark:border-primary-500/30 p-4">
 					<div class="mb-2 flex items-center justify-between">
-						<div class="text-lg font-bold text-primary-700 dark:text-primary-500">{selectedToken.name}</div>
+						<div class="text-lg font-bold text-primary-600 dark:text-primary-500">{selectedToken.name}</div>
 						<Badge variant="primary">{selectedToken.type}</Badge>
 					</div>
 					<code class="code mb-2 block">{selectedToken.token}</code>
@@ -442,7 +442,7 @@ import { logger } from "@utils/logger";
 					<div class="mb-2 text-xs font-bold uppercase opacity-50">Add Modifier</div>
 					<div class="flex flex-wrap gap-2">
 						{#each availableModifiers as m (m.name)}
-							<Button variant="surface" onclick={() => addModifier(m)} aria-label="Add {m.label} modifier" class="chip hover:bg-surface-100 dark:hover:bg-surface-700">
+							<Button variant="surface" onclick={() => addModifier(m)} aria-label="Add {m.label} modifier" class="chip hover:bg-surface-500/10 dark:hover:bg-surface-700">
 								<iconify-icon icon="mdi:plus"></iconify-icon>
 								{m.label}
 							</Button>

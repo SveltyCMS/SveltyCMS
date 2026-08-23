@@ -88,7 +88,7 @@
 	<p id="a11y-dialog-desc" class="sr-only">Information about keyboard shortcuts, screen reader support, and accessibility features in SveltyCMS</p>
 
 	<!-- Header -->
-	<div class="flex items-center justify-between border-b border-surface-200 pb-4 dark:border-surface-700">
+	<div class="flex items-center justify-between border-b border-surface-500/30 pb-4 dark:border-surface-500/40">
 		<div>
 			<h3 class="h3 flex items-center gap-2 font-bold">
 				<iconify-icon icon="mdi:accessibility" width="24" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
@@ -104,7 +104,7 @@
 	<!-- Introduction -->
 	<section aria-labelledby="intro-heading" class="space-y-3">
 		<h4 id="intro-heading" class="h4 font-semibold dark:text-white">About Accessibility in SveltyCMS</h4>
-		<p class="text-surface-600 dark:text-surface-300">
+		<p class="text-surface-600 dark:text-surface-400">
 			SveltyCMS is designed to meet <strong>WCAG 2.2 Level AA</strong> for the user interface and
 			<strong>ATAG 2.0 Level AA</strong>
 			as an authoring tool. This ensures both the CMS interface and the content it produces are accessible to all users.
@@ -118,10 +118,10 @@
 			Keyboard Shortcuts
 		</h4>
 
-		<div class="overflow-hidden rounded border border-surface-200 dark:border-surface-700">
+		<div class="overflow-hidden rounded border border-surface-500/30 dark:border-surface-500/40">
 			<table class="w-full text-sm" aria-describedby="keyboard-table-desc">
 				<caption id="keyboard-table-desc" class="sr-only"> Keyboard shortcuts available in SveltyCMS </caption>
-				<thead class="bg-surface-100 dark:bg-surface-800">
+				<thead class="bg-surface-500/10 dark:bg-surface-800">
 					<tr>
 						<th scope="col" class="px-4 py-3 text-start font-semibold dark:text-white">Key / Combination</th>
 						<th scope="col" class="px-4 py-3 text-start font-semibold dark:text-white">Action</th>
@@ -129,13 +129,13 @@
 				</thead>
 				<tbody class="divide-y divide-surface-200 dark:divide-surface-700">
 					{#each shortcuts as { key, desc }, i (i)}
-						<tr class="hover:bg-surface-50 dark:hover:bg-surface-800/50">
+						<tr class="hover:bg-surface-500/10 dark:hover:bg-surface-800/50">
 							<td class="px-4 py-3">
 								<kbd class="inline-flex items-center rounded bg-surface-200 px-2 py-1 font-mono text-xs dark:bg-surface-700 dark:text-white">
 									{key}
 								</kbd>
 							</td>
-							<td class="px-4 py-3 text-surface-600 dark:text-surface-300">{desc}</td>
+							<td class="px-4 py-3 text-surface-600 dark:text-surface-400">{desc}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -157,9 +157,9 @@
 		</h4>
 
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-			<div class="rounded border border-primary-200 bg-primary-50 p-4 dark:border-primary-800 dark:bg-primary-900/20">
-				<h5 class="mb-2 font-semibold text-primary-800 dark:text-primary-200">Part A: Accessible Interface</h5>
-				<ul class="space-y-1 text-sm text-primary-700 dark:text-primary-300">
+			<div class="rounded border border-primary-500/30 bg-primary-500/10 p-4 dark:border-primary-500/40 dark:bg-primary-900/20">
+				<h5 class="mb-2 font-semibold text-primary-600 dark:text-primary-400">Part A: Accessible Interface</h5>
+				<ul class="space-y-1 text-sm text-primary-600 dark:text-primary-400">
 					<li class="flex items-start gap-2">
 						<iconify-icon icon="mdi:check-circle" class="mt-0.5" width="16"></iconify-icon>
 						<span>Full keyboard navigation</span>
@@ -175,9 +175,9 @@
 				</ul>
 			</div>
 
-			<div class="rounded border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
-				<h5 class="mb-2 font-semibold text-emerald-800 dark:text-emerald-200">Part B: Accessible Content</h5>
-				<ul class="space-y-1 text-sm text-emerald-700 dark:text-emerald-300">
+			<div class="rounded border border-success-500/20 bg-success-500/10 p-4 dark:border-success-500/40 dark:bg-success-900/20">
+				<h5 class="mb-2 font-semibold text-success-600 dark:text-success-400">Part B: Accessible Content</h5>
+				<ul class="space-y-1 text-sm text-success-600 dark:text-success-400">
 					<li class="flex items-start gap-2">
 						<iconify-icon icon="mdi:check-circle" class="mt-0.5" width="16"></iconify-icon>
 						<span>Alt text enforcement for images</span>
@@ -196,10 +196,10 @@
 	</section>
 
 	<!-- Accessibility Statement Link -->
-	<div class="border-t border-surface-200 pt-4 dark:border-surface-700">
+	<div class="border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
 		<a
 			href="/accessibility-statement"
-			class="text-sm text-tertiary-600 dark:text-primary-600 hover:text-primary-800 dark:hover:text-primary-300 underline-offset-4 hover:underline"
+			class="text-sm text-tertiary-600 dark:text-primary-600 hover:text-primary-600 dark:hover:text-primary-400 underline-offset-4 hover:underline"
 			onclick={() => {
 				// Let default navigation happen, but close dialog if needed
 				if (close) close();

@@ -239,9 +239,9 @@ Part of the Three Pillars Architecture for widget system.
 
 <div class="relative mb-4 w-full">
 	<SystemTooltip title={error || fetchError || ''} wFull={true}>
-		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
+		<div class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
 			<!-- Platform Icon -->
-			<div class="flex items-center px-3 border-e border-surface-400/30">
+			<div class="flex items-center px-3 border-e border-surface-500">
 				<iconify-icon icon={PLATFORM_ICONS[currentPlatform]} width="20"></iconify-icon>
 			</div>
 
@@ -288,7 +288,7 @@ Part of the Three Pillars Architecture for widget system.
 	{/if}
 
 	{#if fetchedMetadata && !isLoading && !fetchError}
-		<div class="mt-4 flex flex-col gap-4 rounded border border-surface-200 p-4 sm:flex-row sm:items-start dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30">
+		<div class="mt-4 flex flex-col gap-4 rounded border border-surface-500/30 p-4 sm:flex-row sm:items-start dark:border-surface-500/40 bg-surface-500/50 dark:bg-surface-800/30">
 			<div class="relative group shrink-0">
 				<img src={fetchedMetadata.thumbnailUrl} alt={fetchedMetadata.title} class="h-auto w-full max-w-40 rounded shadow-sm object-cover aspect-video" />
 				<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">

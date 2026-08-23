@@ -30,7 +30,7 @@
 <div class={SMART_TABLE_STATE_BODY} role="status" aria-live="polite">
 	<iconify-icon {icon} width="48" class="text-surface-400 opacity-40 dark:text-surface-500" aria-hidden="true"></iconify-icon>
 	<div class="space-y-1">
-		<h3 class="text-base font-semibold text-surface-800 dark:text-surface-100">{title}</h3>
+		<h3 class="text-base font-semibold text-surface-600 dark:text-surface-100">{title}</h3>
 		{#if description}
 			<p class="max-w-sm text-sm text-surface-500 dark:text-surface-400">{description}</p>
 		{/if}

@@ -150,7 +150,7 @@
 
 {#if standalone || modalState.active}
 	<div class="modal-media-library flex min-h-[78vh] w-full min-w-0 flex-1 self-stretch flex-col bg-white p-3 shadow-xl dark:bg-surface-800 sm:p-4 lg:min-h-[82vh]">
-		<header class="flex-none border-b border-surface-200 pb-3 mb-4 dark:border-surface-600">
+		<header class="flex-none border-b border-surface-500/30 pb-3 mb-4 dark:border-surface-600">
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<h2 class="text-lg font-bold text-tertiary-500 dark:text-primary-500 sm:text-xl">Media Library</h2>
 				<div class="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
@@ -212,7 +212,7 @@
 									type="button"
 									class="group relative flex min-h-75] flex-col overflow-hidden rounded-2xl border bg-white text-start shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-surface-900 sm:min-h-85 {isSelected
 										? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-primary-500/20'
-										: 'border-surface-200 dark:border-surface-800'}"
+										: 'border-surface-500/30 dark:border-surface-500/40'}"
 									onclick={() => {
 										if (selectedFiles.has(fileId)) {
 											selectedFiles.delete(fileId);
@@ -223,7 +223,7 @@
 									aria-pressed={isSelected}
 									aria-label={`Select ${file.filename}`}
 								>
-									<div class="relative h-50 w-full overflow-hidden bg-surface-100 dark:bg-surface-800 sm:h-60">
+									<div class="relative h-50 w-full overflow-hidden bg-surface-500/10 dark:bg-surface-800 sm:h-60">
 										{#if getPreviewUrl(file)}
 											<img
 												src={getPreviewUrl(file)}
@@ -255,7 +255,7 @@
 										{/if}
 									</div>
 
-									<div class="relative flex flex-1 flex-col gap-1 border-t border-surface-100 bg-white p-3 dark:border-surface-800 dark:bg-surface-900">
+									<div class="relative flex flex-1 flex-col gap-1 border-t border-surface-100 bg-white p-3 dark:border-surface-500/40 dark:bg-surface-900">
 										<div class="truncate text-xs font-semibold text-surface-900 dark:text-surface-100" title={file.filename}>{file.filename}</div>
 										<div class="flex items-center gap-2 text-[10px] text-surface-500 dark:text-surface-400">
 											<span class="font-mono">{(file as any).size ? `${Math.round((file as any).size / 1024)} KB` : '0 KB'}</span>
@@ -278,7 +278,7 @@
 			{/if}
 		</main>
 
-		<footer class="mt-4 flex flex-col gap-2 border-t border-surface-200 pt-4 dark:border-surface-600 sm:flex-row sm:justify-end">
+		<footer class="mt-4 flex flex-col gap-2 border-t border-surface-500/30 pt-4 dark:border-surface-600 sm:flex-row sm:justify-end">
 			<Button variant="outline" type="button" onclick={handleClose} class="w-full sm:w-auto">Cancel</Button>
 			{#if activeTab === 'library' && selectedFiles.size > 0}
 				<Button variant="tertiary" type="button" onclick={handleConfirm} class="w-full sm:w-auto">

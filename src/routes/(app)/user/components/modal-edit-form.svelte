@@ -265,7 +265,7 @@ import { logger } from "@utils/logger";
 		<!-- Password Change Section -->
 		{#if canChangePassword}
 			{#if !isOwnProfile && user?.isAdmin}
-				<div class="mb-4 rounded bg-warning-50 p-3 text-sm text-warning-800 dark:bg-warning-900/20 dark:text-warning-200">
+				<div class="mb-4 rounded bg-warning-500/10 p-3 text-sm text-warning-600 dark:bg-warning-900/20 dark:text-warning-400">
 					<div class="flex">
 						<iconify-icon icon="mdi:information" width={16} class="me-2 mt-0.5 shrink-0"></iconify-icon>
 						<div>

@@ -60,11 +60,11 @@ export const widgetMeta = {
 	function getHealthColor(health: string): string {
 		switch (health) {
 			case 'healthy':
-				return 'text-success-600 bg-success-50';
+				return 'text-success-600 bg-success-500/10';
 			case 'degraded':
-				return 'text-warning-600 bg-warning-50';
+				return 'text-warning-600 bg-warning-500/10';
 			case 'critical':
-				return 'text-error-600 bg-error-50';
+				return 'text-error-600 bg-error-500/10';
 			default:
 				return 'text-gray-600 bg-gray-50';
 		}
@@ -129,8 +129,8 @@ export const widgetMeta = {
 			</div>
 		{:else if error}
 			<!-- Error State -->
-			<div class="rounded border border-error-200 bg-error-50 p-4 dark:border-error-800 dark:bg-error-900/20">
-				<p class="text-sm text-error-800 dark:text-error-200">{error}</p>
+			<div class="rounded border border-error-500/30 bg-error-500/10 p-4 dark:border-error-500/40 dark:bg-error-900/20">
+				<p class="text-sm text-error-600 dark:text-error-400">{error}</p>
 			</div>
 		{:else if diagnostics}
 			<!-- Health Status Badge -->
@@ -144,25 +144,25 @@ export const widgetMeta = {
 			<!-- Statistics Grid -->
 			<div class="mb-6 grid grid-cols-2 gap-4">
 				<!-- Total Connections -->
-				<div class="rounded bg-surface-100 p-3 dark:bg-surface-700/50">
+				<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700/50">
 					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Total</div>
 					<div class="text-2xl font-bold text-surface-900 dark:text-white">{diagnostics.totalConnections}</div>
 				</div>
 
 				<!-- Active Connections -->
-				<div class="rounded bg-surface-100 p-3 dark:bg-surface-700/50">
+				<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700/50">
 					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Active</div>
 					<div class="text-2xl font-bold text-surface-900 dark:text-white">{diagnostics.activeConnections}</div>
 				</div>
 
 				<!-- Idle Connections -->
-				<div class="rounded bg-surface-100 p-3 dark:bg-surface-700/50">
+				<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700/50">
 					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Idle</div>
 					<div class="text-2xl font-bold text-surface-900 dark:text-white">{diagnostics.idleConnections}</div>
 				</div>
 
 				<!-- Waiting Requests -->
-				<div class="rounded bg-surface-100 p-3 dark:bg-surface-700/50">
+				<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700/50">
 					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">Waiting</div>
 					<div class="text-2xl font-bold {diagnostics.waitingRequests > 0 ? 'text-warning-600' : 'text-surface-900 dark:text-white'}">
 						{diagnostics.waitingRequests}
@@ -173,7 +173,7 @@ export const widgetMeta = {
 			<!-- Utilization Bar -->
 			<div class="mb-6">
 				<div class="mb-2 flex items-center justify-between">
-					<span class="text-sm font-medium text-surface-700 dark:text-surface-300">Pool Utilization</span>
+					<span class="text-sm font-medium text-surface-600 dark:text-surface-400">Pool Utilization</span>
 					<span class="text-sm font-semibold {getUtilizationColor(diagnostics.poolUtilization)}"> {diagnostics.poolUtilization.toFixed(1)}% </span>
 				</div>
 				<div class="h-3 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
@@ -186,8 +186,8 @@ export const widgetMeta = {
 
 			<!-- Recommendations -->
 			{#if diagnostics.recommendations && diagnostics.recommendations.length > 0}
-				<div class="border-t border-surface-200 pt-4 dark:text-surface-50">
-					<h4 class="mb-2 text-sm font-semibold text-surface-700 dark:text-surface-300">Recommendations</h4>
+				<div class="border-t border-surface-500/30 pt-4 dark:text-surface-50">
+					<h4 class="mb-2 text-sm font-semibold text-surface-600 dark:text-surface-400">Recommendations</h4>
 					<ul class="space-y-2">
 						{#each diagnostics.recommendations as recommendation (recommendation)}
 							<li class="flex items-start gap-2 text-sm text-surface-600 dark:text-surface-50">
@@ -215,12 +215,12 @@ export const widgetMeta = {
 
 				<!-- Premium upgrade banner for historical tracking & query analysis -->
 				{#if !isLicensed}
-				<div class="mt-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 flex items-center justify-between">
-					<span class="text-xs text-amber-700 dark:text-amber-300">
-						<iconify-icon icon="mdi:crown" class="inline me-1 text-amber-500"></iconify-icon>
+				<div class="mt-4 rounded-lg bg-warning-500/10 dark:bg-warning-900/20 border border-warning-500/20 dark:border-warning-500/40 px-3 py-2 flex items-center justify-between">
+					<span class="text-xs text-warning-600 dark:text-warning-400">
+						<iconify-icon icon="mdi:crown" class="inline me-1 text-warning-500"></iconify-icon>
 						Historical tracking and query analysis are premium features.
 					</span>
-					<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-amber-700 dark:text-amber-300 hover:text-amber-800 underline shrink-0 ms-3">Upgrade €9.99 →</a>
+					<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-warning-600 dark:text-warning-400 hover:text-warning-600 underline shrink-0 ms-3">Upgrade €9.99 →</a>
 				</div>
 			{/if}
 		{/if}

@@ -86,7 +86,7 @@ and first/last navigation used by the admin CMS.
 	<!-- Mobile -->
 	<div class="flex w-full items-center gap-2 md:hidden">
 		<nav
-			class="inline-flex h-9 shrink-0 items-stretch overflow-hidden rounded-lg border border-surface-200 bg-surface-50 dark:border-surface-800 dark:bg-surface-900"
+			class="inline-flex h-9 shrink-0 items-stretch overflow-hidden rounded-lg border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900"
 			aria-label="Table pagination"
 		>
 			<Button
@@ -101,7 +101,7 @@ and first/last navigation used by the admin CMS.
 				<iconify-icon icon="mdi:chevron-left" width="20" aria-hidden="true"></iconify-icon>
 			</Button>
 			<span
-				class="flex min-w-12 items-center justify-center border-x border-surface-200 px-2 font-mono text-xs font-semibold tabular-nums text-surface-800 dark:border-surface-800 dark:text-surface-100"
+				class="flex min-w-12 items-center justify-center border-x border-surface-500/30 px-2 font-mono text-xs font-semibold tabular-nums text-surface-600 dark:border-surface-500/40 dark:text-surface-100"
 				aria-hidden="true"
 			>
 				{currentPage}/{computedPagesCount}
@@ -125,7 +125,7 @@ and first/last navigation used by the admin CMS.
 			aria-live="polite"
 		>
 			{#if totalItems > 0}
-				<span class="tabular-nums text-surface-700 dark:text-surface-200">{startItem}–{endItem}</span>
+				<span class="tabular-nums text-surface-600 dark:text-surface-400">{startItem}–{endItem}</span>
 				<span class="text-surface-400 dark:text-surface-500"> / {totalItems}</span>
 			{:else}
 				0 / 0
@@ -137,7 +137,7 @@ and first/last navigation used by the admin CMS.
 			<select aria-label="Items per page"
 				bind:value={rowsPerPage}
 				onchange={(e) => updateRows(parseInt((e.target as HTMLSelectElement).value, 10))}
-				class="h-full cursor-pointer appearance-none rounded-lg border border-surface-200 bg-surface-50 pe-7 ps-3 font-mono text-[11px] font-semibold uppercase tracking-wide text-surface-700 dark:border-surface-800 dark:bg-surface-900 dark:text-surface-200"
+				class="h-full cursor-pointer appearance-none rounded-lg border border-surface-500/30 bg-surface-500/10 pe-7 ps-3 font-mono text-[11px] font-semibold uppercase tracking-wide text-surface-600 dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-400"
 			>
 				{#each rowsPerPageOptions as pageSize (pageSize)}
 					<option value={pageSize}>{pageSize} {entrylist_rows()}</option>
@@ -181,7 +181,7 @@ and first/last navigation used by the admin CMS.
 	</div>
 
 	<nav class="hidden items-center md:flex" aria-label="Table pagination">
-		<div class="inline-flex items-center overflow-hidden rounded-md border border-surface-300 dark:border-surface-600">
+		<div class="inline-flex items-center overflow-hidden rounded-md border border-surface-500/30 dark:border-surface-600">
 			<SystemTooltip title="First Page">
 				<Button
 					variant="ghost"
@@ -189,7 +189,7 @@ and first/last navigation used by the admin CMS.
 					disabled={isFirstPage}
 					type="button"
 					aria-label="Go to first page"
-					class="{navBtn} border-e border-surface-300 dark:border-surface-600"
+					class="{navBtn} border-e border-surface-500/30 dark:border-surface-600"
 				>
 					<iconify-icon icon="material-symbols:first-page" width="20" aria-hidden="true"></iconify-icon>
 				</Button>
@@ -201,7 +201,7 @@ and first/last navigation used by the admin CMS.
 					disabled={isFirstPage}
 					type="button"
 					aria-label="Go to previous page"
-					class="{navBtn} border-e border-surface-300 dark:border-surface-600"
+					class="{navBtn} border-e border-surface-500/30 dark:border-surface-600"
 				>
 					<iconify-icon icon="material-symbols:chevron-left" width="20" aria-hidden="true"></iconify-icon>
 				</Button>
@@ -210,10 +210,10 @@ and first/last navigation used by the admin CMS.
 				<select aria-label="Rows per page"
 					bind:value={rowsPerPage}
 					onchange={(e) => updateRows(parseInt((e.target as HTMLSelectElement).value, 10))}
-					class="h-8 cursor-pointer appearance-none border-e border-surface-300 bg-transparent px-3 text-center text-xs font-semibold text-tertiary-500 hover:bg-surface-200 dark:border-surface-600 dark:text-primary-500 dark:hover:bg-surface-700 md:text-sm"
+					class="h-8 cursor-pointer appearance-none border-e border-surface-500/30 bg-transparent px-3 text-center text-xs font-semibold text-tertiary-500 hover:bg-surface-200 dark:border-surface-600 dark:text-primary-500 dark:hover:bg-surface-700 md:text-sm"
 				>
 					{#each rowsPerPageOptions as pageSize (pageSize)}
-						<option class="bg-surface-100 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
+						<option class="bg-surface-500/10 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
 							{pageSize}
 							{entrylist_rows()}
 						</option>
@@ -227,7 +227,7 @@ and first/last navigation used by the admin CMS.
 					disabled={isLastPage}
 					type="button"
 					aria-label="Go to next page"
-					class="{navBtn} border-e border-surface-300 dark:border-surface-600"
+					class="{navBtn} border-e border-surface-500/30 dark:border-surface-600"
 				>
 					<iconify-icon icon="material-symbols:chevron-right" width="20" aria-hidden="true"></iconify-icon>
 				</Button>
@@ -262,7 +262,7 @@ and first/last navigation used by the admin CMS.
 {:else}
 	<!-- Simple design-system footer -->
 	<div
-		class="flex flex-col items-center justify-between gap-4 border-t border-surface-200 bg-surface-50/30 p-4 text-sm text-surface-600 sm:flex-row dark:border-surface-800 dark:bg-surface-950/20 dark:text-surface-400"
+		class="flex flex-col items-center justify-between gap-4 border-t border-surface-500/30 bg-surface-500/30 p-4 text-sm text-surface-600 sm:flex-row dark:border-surface-500/40 dark:bg-surface-900/20 dark:text-surface-400"
 	>
 		<div class="flex items-center gap-4">
 			<span class="whitespace-nowrap">
@@ -278,7 +278,7 @@ and first/last navigation used by the admin CMS.
 				<select aria-label="Rows per page"
 					bind:value={rowsPerPage}
 					onchange={() => updateRows(rowsPerPage)}
-					class="rounded border-none bg-surface-100 px-2 py-1 text-xs font-bold focus:ring-1 focus:ring-primary-500 dark:bg-surface-800"
+					class="rounded border-none bg-surface-500/10 px-2 py-1 text-xs font-bold focus:ring-1 focus:ring-primary-500 dark:bg-surface-800"
 				>
 					{#each rowsPerPageOptions as option (option)}
 						<option value={option}>{option}</option>

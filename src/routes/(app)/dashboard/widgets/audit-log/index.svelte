@@ -73,20 +73,20 @@ export const widgetMeta = {
 	}
 
 	function actionColor(action: string, result: string | undefined = undefined): string {
-		if (result === 'failure') return 'text-red-500 dark:text-red-400';
+		if (result === 'failure') return 'text-error-500 dark:text-error-400';
 		const a = (action || '').toLowerCase();
-		if (a.includes('delete') || a.includes('remove')) return 'text-orange-500 dark:text-orange-400';
-		if (a.includes('block') || a.includes('ban')) return 'text-amber-500 dark:text-amber-400';
-		if (a.includes('create')) return 'text-emerald-500 dark:text-emerald-400';
-		if (a.includes('update') || a.includes('edit')) return 'text-blue-500 dark:text-blue-400';
+		if (a.includes('delete') || a.includes('remove')) return 'text-warning-500 dark:text-warning-400';
+		if (a.includes('block') || a.includes('ban')) return 'text-warning-500 dark:text-warning-400';
+		if (a.includes('create')) return 'text-success-500 dark:text-success-400';
+		if (a.includes('update') || a.includes('edit')) return 'text-tertiary-500 dark:text-tertiary-400';
 		if (a.includes('login') || a.includes('auth')) return 'text-purple-500 dark:text-purple-400';
 		return 'text-surface-500';
 	}
 
 	function resultBadgeClass(result: string): string {
 		return result === 'success'
-			? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-			: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+			? 'bg-success-500/10 text-success-600 dark:bg-success-900/20 dark:text-success-400'
+			: 'bg-error-500/10 text-error-600 dark:bg-error-900/20 dark:text-error-400';
 	}
 
 	let licenseStatus = $state<{ active?: boolean; hasLicense?: boolean; daysRemaining?: number | null } | null>(null);
@@ -135,11 +135,11 @@ export const widgetMeta = {
 					{#each logs.slice(0, 8) as log (log._id || log.timestamp)}
 						<a
 							href="/config/monitor"
-							class="flex shrink-0 items-center gap-1 rounded-full bg-surface-100 px-2 py-1 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+							class="flex shrink-0 items-center gap-1 rounded-full bg-surface-500/10 px-2 py-1 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
 							title="{log.action} — {actorName(log.actorEmail || log.userEmail)} · {formatTime(log.timestamp)}"
 						>
 							<iconify-icon icon={actionIcon(log.action)} class="text-sm {actionColor(log.action, log.result)}" ></iconify-icon>
-							<span class="max-w-15 truncate text-[11px] font-medium text-surface-700 dark:text-surface-300">
+							<span class="max-w-15 truncate text-[11px] font-medium text-surface-600 dark:text-surface-400">
 								{log.action || log.eventType}
 							</span>
 						</a>
@@ -154,7 +154,7 @@ export const widgetMeta = {
 						<a
 							href="/config/monitor"
 							aria-label={log.action || log.eventType || 'System Event'}
-							class="group flex gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
+							class="group flex gap-3 rounded-2xl bg-surface-500/10 px-3 py-2.5 transition-colors hover:bg-surface-500/10 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
 						>
 							<!-- Icon -->
 							<div class="shrink-0 mt-0.5">
@@ -201,12 +201,12 @@ export const widgetMeta = {
 
 			<!-- Premium upgrade banner -->
 			{#if !isLicensed && !isCompact}
-			<div class="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 flex items-center justify-between">
-				<span class="text-xs text-amber-700 dark:text-amber-300">
-					<iconify-icon icon="mdi:crown" class="inline me-1 text-amber-500"></iconify-icon>
+			<div class="mt-2 rounded-lg bg-warning-500/10 dark:bg-warning-900/20 border border-warning-500/20 dark:border-warning-500/40 px-3 py-2 flex items-center justify-between">
+				<span class="text-xs text-warning-600 dark:text-warning-400">
+					<iconify-icon icon="mdi:crown" class="inline me-1 text-warning-500"></iconify-icon>
 					Full audit history, export, and compliance reports are premium features.
 				</span>
-				<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-amber-700 dark:text-amber-300 hover:text-amber-800 underline shrink-0 ms-3">Upgrade €24.99 →</a>
+				<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-warning-600 dark:text-warning-400 hover:text-warning-600 underline shrink-0 ms-3">Upgrade €24.99 →</a>
 			</div>
 		{/if}
 	{/snippet}

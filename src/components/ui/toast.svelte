@@ -124,7 +124,7 @@ const icons = {
 
             <button
                 onclick={() => onClose(t.id)}
-                class="shrink-0 opacity-60 hover:opacity-100 transition-opacity p-1 -mr-2 -mt-2 active:scale-90"
+                class="shrink-0 opacity-60 hover:opacity-100 transition-opacity p-1 -me-2 -mt-2 active:scale-90"
                 aria-label="Dismiss notification"
             >
                 <iconify-icon icon="mingcute:close-line" class="text-xl"></iconify-icon>

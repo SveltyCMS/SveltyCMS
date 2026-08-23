@@ -7,7 +7,7 @@ Provides hierarchical menu management with drag-and-drop reordering and modal ed
 Part of the Three Pillars Architecture for enterp				</div>
 
 				{#if item.children.length > 0 && item._expanded !== false}
-					<div class="ms-8 space-y-2 border-s-2 border-surface-200 ps-4">
+					<div class="ms-8 space-y-2 border-s-2 border-surface-500/30 ps-4">
 						{#each item.children as child (child._id)}
 							<MegaMenuInput bind:value={item.children} {field} {error} />
 						{/each}
@@ -211,7 +211,7 @@ Interactive menu builder with add/edit/reorder capabilities
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between border-b border-surface-200 pb-3 dark:text-surface-50">
+	<div class="flex items-center justify-between border-b border-surface-500/30 pb-3 dark:text-surface-50">
 		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure</h3>
 		<Button variant="tertiary" type="button" onclick={addItem} class="dark:">
 			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
@@ -229,7 +229,7 @@ Interactive menu builder with add/edit/reorder capabilities
 		{#if value && value.length > 0}
 			{#each value as item, index (item._id)}
 				<div
-					class="rounded border border-surface-200 bg-surface-50/50 transition-all duration-200 dark:text-surface-50 dark:bg-surface-800/50"
+					class="rounded border border-surface-500/30 bg-surface-500/50 transition-all duration-200 dark:text-surface-50 dark:bg-surface-800/50"
 					class:scale-95={draggedItem?._id === item._id}
 					class:opacity-50={draggedItem?._id === item._id}
 					class:!border-primary-400={dragOverIndex === index}
@@ -248,7 +248,7 @@ Interactive menu builder with add/edit/reorder capabilities
 							{#if (field as any).defaults?.enableDragDrop !== false}
 								<button
 									type="button"
-									class="cursor-move p-1 text-surface-400 transition-colors hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-300 bg-transparent border-none"
+									class="cursor-move p-1 text-surface-400 transition-colors hover:text-surface-600 dark:text-surface-500 dark:hover:text-surface-400 bg-transparent border-none"
 									aria-label="Drag to reorder. Use Arrow Keys to move."
 									title="Drag to reorder. Use Arrow Keys to move."
 									onkeydown={(e) => handleKeyDown(e, index)}
@@ -303,7 +303,7 @@ Interactive menu builder with add/edit/reorder capabilities
 					</div>
 
 					{#if item.children?.length > 0 && item._expanded !== false}
-						<div class="ms-8 border-s-2 border-surface-200 ps-4 dark:text-surface-50">
+						<div class="ms-8 border-s-2 border-surface-500/30 ps-4 dark:text-surface-50">
 							<MegaMenuInput bind:value={item.children} {field} {error} />
 						</div>
 					{/if}
@@ -319,7 +319,7 @@ Interactive menu builder with add/edit/reorder capabilities
 
 	{#if error}
 		<div
-			class="flex items-center gap-2 rounded border border-red-200 bg-red-50 p-3 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
+			class="flex items-center gap-2 rounded border border-error-500/30 bg-error-500/10 p-3 text-error-600 dark:border-error-500/40 dark:bg-error-900/20 dark:text-error-400"
 			role="alert"
 			aria-live="polite"
 		>

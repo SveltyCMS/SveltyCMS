@@ -150,7 +150,7 @@ Part of the Three Pillars Architecture for widget system.
 
 <div class="relative mb-4 min-h-10 w-full">
 	<SystemTooltip title={error || ''} wFull={true}>
-		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
+		<div class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
 			<Input
 				bind:inputRef
 				type="date"

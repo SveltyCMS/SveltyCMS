@@ -544,18 +544,18 @@ import { logger } from "@utils/logger";
 <div
 	class="my-2 relative overflow-hidden rounded border {error
 		? 'border-error-500 bg-error-500-10'
-		: 'border-surface-200 dark:text-surface-50'} bg-white dark:bg-surface-900"
+		: 'border-surface-500/30 dark:text-surface-50'} bg-white dark:bg-surface-900"
 >
 	<!-- Toolbar -->
 	<div
-		class="border-b border-surface-200 dark:border-surface-800 bg-surface-50/95 dark:bg-surface-800/95 backdrop-blur-sm px-2 transition-all duration-300 {isScrolled
+		class="border-b border-surface-500/30 dark:border-surface-500/40 bg-surface-500/95 dark:bg-surface-800/95 backdrop-blur-sm px-2 transition-all duration-300 {isScrolled
 			? 'fixed inset-x-0 top-0 z-50 shadow-lg'
 			: ''}"
 	>
 		<div class="w-full flex max-w-none flex-wrap items-center gap-2 py-1">
 			{#each toolbarGroups as group, groupIdx (groupIdx)}
 				{#if !group.condition || group.condition()}
-					<div class="btn-group border border-surface-200 dark:border-surface-700 overflow-hidden">
+					<div class="btn-group border border-surface-500/30 dark:border-surface-500/40 overflow-hidden">
 						{#each group.buttons as btn (btn.label)}
 							{#if btn.type === 'dropdown'}
 								<div class="relative">
@@ -564,7 +564,7 @@ import { logger } from "@utils/logger";
 											type="button"
 											onclick={(e: MouseEvent) => toggleDropdown(btn.label, e)}
 											aria-label={btn.label}
-										 class="{editorStateVersion && activeDropdown === btn.label ? 'text-tertiary-500 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'preset-tonal'} flex items-center gap-2">
+										 class="{editorStateVersion && activeDropdown === btn.label ? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20' : 'preset-tonal'} flex items-center gap-2">
 											{#if btn.icon}
 												<iconify-icon icon="mdi:{btn.icon}" width="20"></iconify-icon>
 											{/if}
@@ -576,11 +576,11 @@ import { logger } from "@utils/logger";
 									</SystemTooltip>
 									{#if activeDropdown === btn.label}
 										<div
-											class="absolute top-full inset-s-0 mt-1 min-w-45 rounded border border-surface-200 bg-white p-1 shadow-xl dark:border-surface-700 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
+											class="absolute top-full inset-s-0 mt-1 min-w-45 rounded border border-surface-500/30 bg-white p-1 shadow-xl dark:border-surface-500/40 dark:bg-surface-800 dark:text-white z-60 ring-1 ring-black/5"
 										>
 											{#if btn.label === 'Table'}
 												<div class="p-2 w-48">
-													<div class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-300 text-center">
+													<div class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-400 text-center">
 														{hoverRows || 1}
 														x {hoverCols || 1}
 													</div>
@@ -597,8 +597,8 @@ import { logger } from "@utils/logger";
 															{#each new Array(5) as _, c (c)}
 																<button
 																	class="w-8 h-8 rounded-sm border transition-colors {r < hoverRows && c < hoverCols
-																		? 'bg-blue-100 border-blue-500 dark:bg-blue-600 dark:border-blue-400'
-																		: 'bg-surface-50 border-surface-200 dark:bg-surface-700 dark:border-surface-600'}"
+																		? 'bg-tertiary-500/10 border-tertiary-500 dark:bg-tertiary-600 dark:border-tertiary-400'
+																		: 'bg-surface-500/10 border-surface-500/30 dark:bg-surface-700 dark:border-surface-600'}"
 																	aria-label="{r + 1} by {c + 1} table"
 																	onmouseover={() => {
 																		hoverRows = r + 1;
@@ -625,7 +625,7 @@ import { logger } from "@utils/logger";
 											{:else if btn.label === 'Color'}
 												<div class="p-2 w-48">
 													<button
-														class="mb-2 flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition text-surface-700 dark:text-white"
+														class="mb-2 flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-500/10 dark:hover:bg-surface-700/50 transition text-surface-600 dark:text-white"
 														onclick={() => {
 															editor?.chain().focus().unsetColor().run();
 															closeDropdowns();
@@ -638,7 +638,7 @@ import { logger } from "@utils/logger";
 													<div class="mb-2 grid grid-cols-5 gap-1">
 														{#each ['#000000', '#4b5563', '#9ca3af', '#ffffff', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'] as color (color)}
 															<button
-																class="w-8 h-8 rounded-full border border-surface-200 dark:border-surface-600 transition-transform hover:scale-110 focus:scale-110 focus:outline-none"
+																class="w-8 h-8 rounded-full border border-surface-500/30 dark:border-surface-600 transition-transform hover:scale-110 focus:scale-110 focus:outline-none"
 																style="background-color: {color};"
 																onclick={(e) => {
 																	e.stopPropagation();
@@ -651,10 +651,10 @@ import { logger } from "@utils/logger";
 														{/each}
 													</div>
 
-													<div class="relative pt-2 border-t border-surface-200 dark:border-surface-700">
+													<div class="relative pt-2 border-t border-surface-500/30 dark:border-surface-500/40">
 														<div class="relative w-full h-8 group overflow-hidden rounded cursor-pointer">
 															<div
-																class="absolute inset-0 flex items-center justify-center bg-linear-to-r from-red-500 via-green-500 to-blue-500 opacity-90 group-hover:opacity-100 transition-opacity"
+																class="absolute inset-0 flex items-center justify-center bg-linear-to-r from-error-500 via-success-500 to-tertiary-500 opacity-90 group-hover:opacity-100 transition-opacity"
 															>
 																<iconify-icon icon="mdi:palette" class="text-white drop-shadow-md" width="18"></iconify-icon>
 															</div>
@@ -707,9 +707,9 @@ import { logger } from "@utils/logger";
 											{:else if btn.items}
 												{#each btn.items as item (item.label)}
 													<button
-														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-100 dark:hover:bg-surface-700/50 transition {item.active()
-															? 'text-tertiary-500 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20'
-															: 'text-surface-700 dark:text-white'}"
+														class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-start text-sm hover:bg-surface-500/10 dark:hover:bg-surface-700/50 transition {item.active()
+															? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20'
+															: 'text-surface-600 dark:text-white'}"
 														aria-label={item.label}
 														onclick={(e) => {
 															e.stopPropagation();
@@ -730,7 +730,7 @@ import { logger } from "@utils/logger";
 										type="button"
 										aria-label={btn.label}
 										onclick={btn.cmd}
-									 class="p-0! min-w-0 {editorStateVersion && btn.active?.() ? 'text-tertiary-500 dark:text-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'preset-tonal'}">
+									 class="p-0! min-w-0 {editorStateVersion && btn.active?.() ? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20' : 'preset-tonal'}">
 										<iconify-icon icon="mdi:{btn.icon}" width="24"></iconify-icon>
 									</Button>
 								</SystemTooltip>
@@ -779,7 +779,7 @@ import { logger } from "@utils/logger";
 
 	{#if showSource}
 		<textarea aria-label="Image alt text"
-			class="w-full min-h-96 p-4 font-mono text-sm bg-surface-50 dark:bg-surface-900 text-surface-900 dark:text-gray-200 border-none resize-y outline-none"
+			class="w-full min-h-96 p-4 font-mono text-sm bg-surface-500/10 dark:bg-surface-900 text-surface-900 dark:text-gray-200 border-none resize-y outline-none"
 			value={editor?.getHTML() || ''}
 			oninput={(e) => {
 				const content = (e.target as HTMLTextAreaElement).value;
@@ -863,7 +863,7 @@ import { logger } from "@utils/logger";
 
 	<!-- Error -->
 	{#if error}
-		<div class="border-t border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20 px-8 py-4 text-sm text-red-700 dark:text-red-300">
+		<div class="border-t border-error-500/30 bg-error-500/10 dark:border-error-500/40 dark:bg-error-900/20 px-8 py-4 text-sm text-error-600 dark:text-error-400">
 			{error}
 		</div>
 	{/if}
@@ -890,11 +890,11 @@ import { logger } from "@utils/logger";
 				}
 			}}
 		>
-			<div class="w-full max-w-lg rounded-2xl border border-surface-300 dark:text-surface-50 bg-white dark:bg-surface-900 p-6 shadow-2xl">
+			<div class="w-full max-w-lg rounded-2xl border border-surface-500/30 dark:text-surface-50 bg-white dark:bg-surface-900 p-6 shadow-2xl">
 				<h3 class="mb-5 text-xl font-semibold text-surface-900 dark:text-white">Command Menu</h3>
 				<div class="space-y-2">
 					<button
-						class="flex w-full items-center gap-4 rounded px-5 py-4 hover:bg-surface-100 dark:hover:bg-surface-700 transition"
+						class="flex w-full items-center gap-4 rounded px-5 py-4 hover:bg-surface-500/10 dark:hover:bg-surface-700 transition"
 						onclick={() => {
 							editor?.chain().focus().setHardBreak().run();
 							showSlashMenu = false;
@@ -908,7 +908,7 @@ import { logger } from "@utils/logger";
 					</button>
 					{#if field.aiEnabled}
 						<button
-							class="flex w-full items-center gap-4 rounded px-5 py-4 hover:bg-surface-100 dark:hover:bg-surface-700 transition"
+							class="flex w-full items-center gap-4 rounded px-5 py-4 hover:bg-surface-500/10 dark:hover:bg-surface-700 transition"
 							onclick={() => {
 								editor?.chain().focus().insertContent('/ai ');
 								showSlashMenu = false;

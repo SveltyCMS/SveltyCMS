@@ -95,12 +95,12 @@ floating/anchor bugs when multiple icons stack in a column.
 
 	const panelClass = $derived(
 		theme === 'light'
-			? 'min-w-[10.5rem] rounded-md border border-surface-200 bg-white px-3 py-2.5 text-surface-800 shadow-lg'
+			? 'min-w-[10.5rem] rounded-md border border-surface-500/30 bg-white px-3 py-2.5 text-surface-600 shadow-lg'
 			: 'rounded bg-surface-900 px-3 py-1.5 text-[11px] font-medium text-white shadow-2xl dark:bg-white dark:text-surface-900',
 	);
 
 	const arrowClass = $derived(
-		theme === 'light' ? 'border-s-white' : 'border-s-surface-900 dark:border-s-white',
+		theme === 'light' ? 'border-s-white' : 'border-s-surface-500/40 dark:border-s-white',
 	);
 </script>
 

@@ -87,7 +87,7 @@
 </script>
 
 {#if value}
-	<div class="logic-group rounded border border-surface-300 bg-surface-50 p-5 dark:border-surface-700 dark:bg-surface-900/70">
+	<div class="logic-group rounded border border-surface-500/30 bg-surface-500/10 p-5 dark:border-surface-500/40 dark:bg-surface-900/70">
 		<!-- Header -->
 		<div class="mb-5 flex items-center justify-between">
 			<div class="flex items-center gap-3">
@@ -127,7 +127,7 @@
 				<div transition:slide={{ duration: 180 }}>
 					{#if isGroup(item)}
 						<!-- Recursive Sub-Group -->
-						<div class="ms-8 border-s-2 border-primary-400/30 ps-5 pt-1">
+						<div class="ms-8 border-s-2 border-primary-500 ps-5 pt-1">
 							<LogicBuilder bind:value={value.rules[i] as LogicGroup} {fields} />
 						</div>
 					{:else}
@@ -176,7 +176,7 @@
 
 			{#if value.rules.length === 0}
 				<div
-					class="py-10 text-center text-sm opacity-50 italic border-2 border-dashed border-surface-300 dark:border-surface-700 rounded"
+					class="py-10 text-center text-sm opacity-50 italic border-2 border-dashed border-surface-500/30 dark:border-surface-500/40 rounded"
 				>
 					No conditions yet.<br />
 					Add a rule or sub-group to start building logic.

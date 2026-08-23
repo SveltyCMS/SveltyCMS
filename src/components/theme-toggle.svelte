@@ -6,7 +6,7 @@ Relies on the centralized `themeStore` for state and logic.
 
 ### Features
 - Three-way theme cycle with icon feedback
-- Defaults to `preset-outlined-surface-500 btn-icon rounded-full dark:text-white`
+- Defaults to `preset-outlined-surface-500 rounded-full dark:text-white`
 - Optional tooltip with placement control
 - Svelte 5 runes — derived icon + tooltip text
 -->
@@ -25,7 +25,7 @@ Relies on the centralized `themeStore` for state and logic.
 	const {
 		showTooltip = true,
 		tooltipPlacement = 'bottom',
-		buttonClass = 'preset-outlined-surface-500 btn-icon rounded-full dark:text-white',
+		buttonClass = 'preset-outlined-surface-500 rounded-full dark:text-white',
 		iconSize = 22,
 	}: Props = $props();
 

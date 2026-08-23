@@ -280,7 +280,7 @@
 	}
 </script>
 
-<div class="min-h-30 rounded border-2 border-dashed border-surface-300 p-4 dark:border-surface-600" class:!border-error-500={error}>
+<div class="min-h-30 rounded border-2 border-dashed border-surface-500/30 p-4 dark:border-surface-600" class:!border-error-500={error}>
 	{#if selectedFiles.length > 0}
 		<div class="mb-4 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4"
 			use:droppable={{
@@ -295,7 +295,7 @@
 			{#each selectedFiles as file (file._id)}
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
-					class="relative overflow-hidden rounded border border-surface-200 dark:text-surface-50"
+					class="relative overflow-hidden rounded border border-surface-500/30 dark:text-surface-50"
 					animate:flip
 					use:draggable={{ container: 'media-grid', dragData: file, keyboard: true }}
 					role="listitem"
@@ -310,7 +310,7 @@
 						{#if file.type?.startsWith('image/') || (file.thumbnailUrl && !file.thumbnailUrl.endsWith('.pdf'))}
 							<img src={file.thumbnailUrl} alt={file.name} class="h-30 w-full object-cover" />
 						{:else}
-							<div class="flex h-30 w-full items-center justify-center bg-surface-100 dark:bg-surface-800">
+							<div class="flex h-30 w-full items-center justify-center bg-surface-500/10 dark:bg-surface-800">
 								<iconify-icon icon={getFileIcon(file)} width="48"></iconify-icon>
 							</div>
 						{/if}
@@ -356,7 +356,7 @@
 	<button
 		type="button"
 		onclick={openMediaLibrary}
-		class="w-full cursor-pointer rounded border-none bg-surface-100 p-3 text-start transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
+		class="w-full cursor-pointer rounded border-none bg-surface-500/10 p-3 text-start transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
 	>
 		<span class="block text-center font-medium">
 			{selectedFiles.length > 0 ? field.placeholder || 'Change Media' : field.placeholder || '+ Add Media'}
@@ -371,7 +371,7 @@
 	{#if showMediaLibrary}
 		<Portal>
 			<div class="fixed inset-0 z-99999 bg-black/70 p-4 backdrop-blur-sm">
-				<div class="flex h-full w-full overflow-hidden rounded-2xl border border-surface-500 bg-surface-100 shadow-2xl dark:bg-surface-900">
+				<div class="flex h-full w-full overflow-hidden rounded-2xl border border-surface-500 bg-surface-500/10 shadow-2xl dark:bg-surface-900">
 					<MediaLibraryModal
 						standalone={true}
 						allowedTypes={(field.allowedTypes as string[] | undefined) ?? []}

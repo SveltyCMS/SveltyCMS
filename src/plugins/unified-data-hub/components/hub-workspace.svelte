@@ -253,7 +253,7 @@
   <div class="grid gap-4 lg:grid-cols-2">
     <AdminCard title="Connectors">
       <form
-        class="mb-4 space-y-3 border-b border-surface-100 pb-4 dark:border-surface-700"
+        class="mb-4 space-y-3 border-b border-surface-100 pb-4 dark:border-surface-500/40"
         data-testid="udh-add-connector-form"
         onsubmit={(e) => {
           e.preventDefault();
@@ -332,7 +332,7 @@
         <ul class="space-y-2 text-sm">
           {#each connectors as c (c._id)}
             <li
-              class="flex flex-wrap items-center justify-between gap-2 border-b border-surface-100 pb-2 dark:border-surface-700"
+              class="flex flex-wrap items-center justify-between gap-2 border-b border-surface-100 pb-2 dark:border-surface-500/40"
             >
               <span class="font-medium">{c.name}</span>
               <span class="flex items-center gap-2 text-surface-500">
@@ -356,7 +356,7 @@
 
     <AdminCard title="Virtual Collections">
       <form
-        class="mb-4 space-y-3 border-b border-surface-100 pb-4 dark:border-surface-700"
+        class="mb-4 space-y-3 border-b border-surface-100 pb-4 dark:border-surface-500/40"
         data-testid="udh-add-collection-form"
         onsubmit={(e) => {
           e.preventDefault();
@@ -413,7 +413,7 @@
       {:else}
         <ul class="space-y-2 text-sm">
           {#each collections as vc (vc._id)}
-            <li class="flex justify-between gap-2 border-b border-surface-100 pb-2 dark:border-surface-700">
+            <li class="flex justify-between gap-2 border-b border-surface-100 pb-2 dark:border-surface-500/40">
               <span class="font-medium">{vc.name}</span>
               <span class="text-surface-500">{vc.slug}</span>
             </li>

@@ -127,14 +127,14 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-required={required}
 				data-testid={data_testid}
 				class={cn(
-					'peer block w-full appearance-none rounded border bg-surface-50 dark:bg-surface-900 transition-all',
+					'peer block w-full appearance-none rounded border bg-surface-500/10 dark:bg-surface-900 transition-all',
 					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,
 					'pt-5 pb-1.5 px-3',
 					invalid
 						? 'border-error-500 focus:ring-error-500/20 focus:border-error-500'
-						: 'border-surface-200 dark:border-surface-700',
+						: 'border-surface-500/30 dark:border-surface-500/40',
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}
 			>
@@ -175,7 +175,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 	{:else}
 		<!-- Default label-above variant -->
 		{#if label}
-			<label for={generatedId} class="text-sm font-semibold text-surface-700 dark:text-surface-300">
+			<label for={generatedId} class="text-sm font-semibold text-surface-600 dark:text-surface-400">
 				{label}
 				{#if required}
 					<span class="text-error-500 ms-0.5" aria-hidden="true">*</span>
@@ -195,7 +195,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-required={required}
 				data-testid={data_testid}
 				class={cn(
-					'block w-full appearance-none rounded border bg-surface-50 dark:bg-surface-900 transition-all',
+					'block w-full appearance-none rounded border bg-surface-500/10 dark:bg-surface-900 transition-all',
 					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,
@@ -203,7 +203,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 					'pe-10',
 					invalid
 						? 'border-error-500 focus:ring-error-500/20 focus:border-error-500'
-						: 'border-surface-200 dark:border-surface-700',
+						: 'border-surface-500/30 dark:border-surface-500/40',
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}
 			>

@@ -40,7 +40,7 @@ Designed as a visual schema inspector for developers to understand what data str
 		<div class="col-span-full flex items-center justify-between border p-2 rounded dark:border-slate-700">
 			<label class="font-semibold text-[0.9rem] text-black/80">${label}</label>
 			<input aria-label="${db_fieldName}" type="${type}" placeholder="${db_fieldName}" disabled class="w-64 bg-gray-100 dark:bg-slate-700 p-1 rounded" />
-			<span class="text-sm text-red-500">(${required} ${type})</span>
+			<span class="text-sm text-error-500">(${required} ${type})</span>
 		</div>`;
 
 	/** @type {(props: { label: string; db_fieldName: string }) => string} */

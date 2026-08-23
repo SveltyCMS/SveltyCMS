@@ -48,9 +48,9 @@ menu item at a specific level. Uses the standard widget loading system.
 </script>
 
 <div
-	class="card p-4 w-modal shadow-xl space-y-6 max-h-[90vh] overflow-y-auto bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-700"
+	class="card p-4 w-modal shadow-xl space-y-6 max-h-[90vh] overflow-y-auto bg-surface-500/10 dark:bg-surface-900 border border-surface-500/30 dark:border-surface-500/40"
 >
-	<header class="flex items-center justify-between border-b border-surface-200 pb-3 dark:border-surface-700">
+	<header class="flex items-center justify-between border-b border-surface-500/30 pb-3 dark:border-surface-500/40">
 		<div class="flex flex-col">
 			<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-100">
 				{meta.isNew ? 'Add' : 'Edit'} Menu Item
@@ -81,7 +81,7 @@ menu item at a specific level. Uses the standard widget loading system.
 							{/await}
 						{:else}
 							<div
-								class="p-4 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded text-error-700 dark:text-error-500 flex items-center gap-3"
+								class="p-4 bg-error-500/10 dark:bg-error-900/20 border border-error-500/30 dark:border-error-500/40 rounded text-error-600 dark:text-error-500 flex items-center gap-3"
 							>
 								<iconify-icon icon="mdi:alert-circle" width="24"></iconify-icon>
 								<div>
@@ -95,16 +95,16 @@ menu item at a specific level. Uses the standard widget loading system.
 			</div>
 		{:else}
 			<div
-				class="p-12 text-center bg-surface-100/50 rounded dark:bg-surface-800/50 border-2 border-dashed border-surface-200 dark:border-surface-700"
+				class="p-12 text-center bg-surface-500/10 rounded dark:bg-surface-800/50 border-2 border-dashed border-surface-500/30 dark:border-surface-500/40"
 			>
 				<iconify-icon icon="mdi:form-select" width="48" class="mx-auto block text-surface-300 dark:text-surface-600"></iconify-icon>
-				<p class="mt-4 text-surface-600 dark:text-surface-300 font-medium">No fields configured for this level.</p>
+				<p class="mt-4 text-surface-600 dark:text-surface-400 font-medium">No fields configured for this level.</p>
 				<p class="text-xs text-surface-500 mt-1">Configure fields in the collection schema to see them here.</p>
 			</div>
 		{/if}
 	</div>
 
-	<footer class="flex justify-end gap-3 border-t border-surface-200 pt-5 dark:border-surface-700">
+	<footer class="flex justify-end gap-3 border-t border-surface-500/30 pt-5 dark:border-surface-500/40">
 		<Button variant="outline" type="button" onclick={onCancel}> Discard </Button>
 		<Button variant="tertiary" type="button" onclick={onSave} class="dark:">
 			<iconify-icon icon="mdi:check" width="20" class="me-2"></iconify-icon>

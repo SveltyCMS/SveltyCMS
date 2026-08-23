@@ -83,7 +83,7 @@ onMount(loadTrash);
 	<div data-testid="trash-page" class="contents">
 		{#if isLoading}
 			<AdminCard
-				class="flex h-64 items-center justify-center border border-surface-200 bg-white p-6 dark:border-surface-800 dark:bg-surface-900/40"
+				class="flex h-64 items-center justify-center border border-surface-500/30 bg-white p-6 dark:border-surface-500/40 dark:bg-surface-900/20"
 				data-testid="trash-loading"
 			>
 				<Loader variant="text" lines={2} lastLineWidth="40%" ariaLabel="Loading trash" />
@@ -91,7 +91,7 @@ onMount(loadTrash);
 		{:else if trashedItems.length === 0}
 			<div in:fly={{ y: 20, delay: 100 }}>
 				<AdminCard
-					class="p-12 text-center border-dashed border-2 border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs"
+					class="p-12 text-center border-dashed border-2 border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
 					data-testid="trash-empty"
 				>
 					<iconify-icon icon="mdi:trash-can-outline" width="64" class="mx-auto mb-4 opacity-20"></iconify-icon>
@@ -102,14 +102,14 @@ onMount(loadTrash);
 		{:else}
 			<div in:fly={{ y: 20, delay: 100 }}>
 				<AdminCard
-					class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs"
+					class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
 					data-testid="trash-table"
 				>
 					<div class="overflow-x-auto w-full">
 						<table class="w-full text-sm border-collapse">
 							<thead>
 								<tr
-									class="border-b border-surface-200 dark:border-surface-800 text-start text-xs uppercase tracking-wider text-surface-400"
+									class="border-b border-surface-500/30 dark:border-surface-500/40 text-start text-xs uppercase tracking-wider text-surface-400"
 								>
 									<th class="pb-3 font-semibold">Content</th>
 									<th class="pb-3 font-semibold">Collection</th>
@@ -121,7 +121,7 @@ onMount(loadTrash);
 							<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
 								{#each trashedItems as item (item._id)}
 									<tr
-										class="text-surface-700 dark:text-surface-200 hover:bg-surface-50/40 dark:hover:bg-surface-900/30"
+										class="text-surface-600 dark:text-surface-400 hover:bg-surface-500/40 dark:hover:bg-surface-900/20"
 										data-testid={`trash-row-${item._id}`}
 									>
 										<td class="py-3">

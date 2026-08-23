@@ -336,7 +336,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 			/>
 
 		<!-- View mode toggle -->
-		<div class="flex gap-1 rounded border border-surface-300 p-1 dark:border-surface-600" role="group" aria-label="View mode">
+		<div class="flex gap-1 rounded border border-surface-500/30 p-1 dark:border-surface-600" role="group" aria-label="View mode">
 			<Button variant="tertiary"
 				onclick={() => (currentViewMode.value = 'grid')}
 				aria-label="Grid view"
@@ -378,7 +378,7 @@ Advanced media gallery with search, thumbnails, grid/list views, and selection.
 	<!-- Selection toolbar (multiple mode) -->
 	{#if multiple && selectedCount > 0}
 		<div
-			class="flex items-center justify-between rounded border-s-4 border-tertiary-500 dark:border-primary-500 bg-primary-50 p-3 dark:bg-primary-900/20"
+			class="flex items-center justify-between rounded border-s-4 border-tertiary-500 dark:border-primary-500 bg-primary-500/10 p-3 dark:bg-primary-900/20"
 			transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
 			<span class="text-sm font-medium"> {selectedCount} file{selectedCount !== 1 ? 's' : ''} selected </span>

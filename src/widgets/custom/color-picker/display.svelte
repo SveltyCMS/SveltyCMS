@@ -33,7 +33,7 @@ Renders: color swatch or hex value
 {#if value && isValidHex(value)}
 	<div class="color-display flex items-center gap-2" title={colorValue}>
 		<div 
-			class="h-5 w-5 rounded-full border border-surface-200 dark:border-surface-700 shadow-sm" 
+			class="h-5 w-5 rounded-full border border-surface-500/30 dark:border-surface-500/40 shadow-sm" 
 			style="background-color: {colorValue}"
 		></div>
 		<span class="font-mono text-xs text-surface-600 dark:text-surface-400 uppercase tracking-tight">

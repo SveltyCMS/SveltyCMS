@@ -535,7 +535,7 @@ Advanced icon picker with search, pagination, and favorites.
 							if (showDropdown) handleFocus();
 						}
 					}}
-					class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded bg-surface-100 p-2 text-start transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput
+					class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded bg-surface-500/10 p-2 text-start transition-opacity hover:opacity-90 sm:gap-3 dark:bg-surface-800 {!hideSearchInput
 						? 'pointer-events-none'
 						: ''}"
 					aria-expanded={hideSearchInput ? showDropdown : undefined}
@@ -590,7 +590,7 @@ Advanced icon picker with search, pagination, and favorites.
 				showDropdown = true;
 				handleFocus();
 			}}
-			class="flex w-full items-center justify-center gap-2 border-2 border-dashed border-surface-300 p-4 text-surface-500 hover:border-tertiary-500 hover:text-tertiary-500 dark:border-surface-600 dark:text-surface-400 dark:hover:border-tertiary-500"
+			class="flex w-full items-center justify-center gap-2 border-2 border-dashed border-surface-500/30 p-4 text-surface-500 hover:border-tertiary-500 hover:text-tertiary-500 dark:border-surface-600 dark:text-surface-400 dark:hover:border-tertiary-500"
 			aria-expanded={showDropdown}
 			aria-controls="icon-dropdown"
 			aria-label="Choose icon"
@@ -638,7 +638,7 @@ Advanced icon picker with search, pagination, and favorites.
 	{#if searchError}
 		<div
 			id="search-error"
-			class="mt-2 rounded border-s-4 border-error-500 bg-error-50 p-3 text-sm text-error-700 dark:bg-error-900/20 dark:text-error-300"
+			class="mt-2 rounded border-s-4 border-error-500 bg-error-500/10 p-3 text-sm text-error-600 dark:bg-error-900/20 dark:text-error-400"
 			role="alert"
 			in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
@@ -653,14 +653,14 @@ Advanced icon picker with search, pagination, and favorites.
 	{#if showDropdown}
 		<div
 			id="icon-dropdown"
-			class="mt-2 overflow-hidden rounded border border-surface-200 bg-surface-50 shadow-2xl dark:text-surface-50 dark:bg-surface-800"
+			class="mt-2 overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-2xl dark:text-surface-50 dark:bg-surface-800"
 			role="region"
 			aria-label="Icon picker dropdown"
 			in:scale={{ duration: prefersReducedMotion ? 0 : 200, easing: quintOut, start: 0.95, opacity: 0 }}
 			out:scale={{ duration: prefersReducedMotion ? 0 : 150, easing: quintOut, start: 0.95, opacity: 0 }}
 		>
 			<!-- Tabs -->
-			<div class="flex border-b border-surface-200 dark:text-surface-50" role="tablist">
+			<div class="flex border-b border-surface-500/30 dark:text-surface-50" role="tablist">
 				<Button
 						variant="ghost"
 						type="button"
@@ -708,7 +708,7 @@ Advanced icon picker with search, pagination, and favorites.
 
 			<!-- Library selector (only for search tab) -->
 			{#if activeTab === 'search'}
-				<div class="border-b border-surface-200 p-4 dark:text-surface-50" transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}>
+				<div class="border-b border-surface-500/30 p-4 dark:text-surface-50" transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}>
 					<Select
 						bind:value={selectedLibrary}
 						onchange={() => {

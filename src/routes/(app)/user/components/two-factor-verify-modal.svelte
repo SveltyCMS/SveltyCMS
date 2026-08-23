@@ -138,7 +138,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 		<h4 class="h4 mb-2">{title || twofa_verify_title()}</h4>
 
-		<p class="text-surface-600 dark:text-surface-300">
+		<p class="text-surface-600 dark:text-surface-400">
 			{description || (useBackupCode ? twofa_backup_verify_description() : twofa_verify_description())}
 		</p>
 	</div>

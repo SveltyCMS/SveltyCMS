@@ -65,7 +65,7 @@ Displays a preview of the shared link for different platforms.
 					type="button"
 					onclick={() => (activePlatform = platform.id)}
 					aria-label={platform.label}
-				 class="p-0! min-w-0 transition-all {activePlatform === platform.id ? ' ring-2 ring-surface-900 dark:ring-white scale-110' : ' hover:bg-surface-100 dark:hover:bg-surface-700'}">
+				 class="p-0! min-w-0 transition-all {activePlatform === platform.id ? ' ring-2 ring-surface-900 dark:ring-white scale-110' : ' hover:bg-surface-500/10 dark:hover:bg-surface-700'}">
 					<iconify-icon icon={platform.icon} width="24" class="text-xl {activePlatform === platform.id ? 'text-white' : platform.color}"
 					></iconify-icon>
 				</Button>
@@ -74,7 +74,7 @@ Displays a preview of the shared link for different platforms.
 	</div>
 
 	<!-- Preview Card Area -->
-	<div class="bg-surface-50 dark:bg-surface-900 rounded p-4 md:p-8 flex justify-center border border-surface-200 dark:text-surface-50">
+	<div class="bg-surface-500/10 dark:bg-surface-900 rounded p-4 md:p-8 flex justify-center border border-surface-500/30 dark:text-surface-50">
 		<!-- Dynamic Preview Styling based on Platform -->
 		<div class="w-full max-w-125 bg-white text-black overflow-hidden shadow-lg rounded transition-all duration-300">
 			<!-- Image Area -->
@@ -104,21 +104,21 @@ Displays a preview of the shared link for different platforms.
 	</div>
 
 	<!-- Tips/Warnings based on active platform -->
-	<div class="mt-4 text-sm text-surface-600 dark:text-surface-200">
+	<div class="mt-4 text-sm text-surface-600 dark:text-surface-400">
 		{#if displayTitle.length > 95 && activePlatform === 'facebook'}
-			<div class="flex items-center gap-2 text-warning-600 dark:text-warning-300">
+			<div class="flex items-center gap-2 text-warning-600 dark:text-warning-400">
 				<iconify-icon icon="mdi:alert"></iconify-icon>
 				<span>Title is slightly long for Facebook (recommended &lt; 95 chars).</span>
 			</div>
 		{/if}
 		{#if displayTitle.length > 70 && activePlatform === 'twitter'}
-			<div class="flex items-center gap-2 text-warning-600 dark:text-warning-300">
+			<div class="flex items-center gap-2 text-warning-600 dark:text-warning-400">
 				<iconify-icon icon="mdi:alert"></iconify-icon>
 				<span>Title is too long for X cards (recommended &lt; 70 chars).</span>
 			</div>
 		{/if}
 		{#if !displayImage}
-			<div class="flex items-center gap-2 text-warning-600 dark:text-warning-300 mt-1">
+			<div class="flex items-center gap-2 text-warning-600 dark:text-warning-400 mt-1">
 				<iconify-icon icon="mdi:image-search" width={24}></iconify-icon>
 				<span>No Og Image selected. The platform will try to scrape one from your page body.</span>
 			</div>

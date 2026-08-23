@@ -281,7 +281,7 @@
 				<Collections />
 			</div>
 			{#if showSidebar}
-				<hr class="my-2 border-surface-200 dark:border-surface-700" />
+				<hr class="my-2 border-surface-500/30 dark:border-surface-500/40" />
 			{/if}
 		{/if}
 
@@ -340,22 +340,22 @@
 			<Slot name="entry_edit_sidebar" props={{ collection, currentEntry }} />
 
 			<main class="mt-6 flex w-full flex-col gap-4 text-start">
-				<div class="border-b border-surface-300 pb-2 dark:border-surface-600">
+				<div class="border-b border-surface-500/30 pb-2 dark:border-surface-600">
 					<h3 class="text-center text-sm font-bold uppercase tracking-wide text-tertiary-500 dark:text-primary-500">{siedabar_publish_options()}</h3>
 				</div>
 
 				<div class="space-y-2">
 						{#if scheduleTimestamp}
-							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">{sidebar_will_publish_on()}</p>
+							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">{sidebar_will_publish_on()}</p>
 							<p class="text-xs font-semibold text-tertiary-500 dark:text-primary-500">
 								{new Date(scheduleTimestamp).toLocaleString(getLocale())}
 							</p>
 						{/if}
 						<Button variant="outline"
 							onclick={openSchedule}
-						 class="w-full justify-start gap-2 text-start text-surface-800 dark:text-surface-100">
+						 class="w-full justify-start gap-2 text-start text-surface-600 dark:text-surface-100">
 							<iconify-icon icon="bi:clock" width="16"></iconify-icon>
-							<span class="text-sm font-medium text-surface-800 dark:text-surface-100">
+							<span class="text-sm font-medium text-surface-600 dark:text-surface-100">
 								{scheduleTimestamp ? 'Change schedule...' : 'Schedule publication...'}
 							</span>
 						</Button>
@@ -374,17 +374,17 @@
 
 				<div class="space-y-3">
 					<div class="space-y-1">
-						<p class="text-sm font-medium text-surface-600 dark:text-surface-300">{sidebar_createdby()}</p>
-						<div class="rounded-lg border border-surface-200 bg-surface-100 px-3 py-2 text-center dark:border-surface-700 dark:bg-surface-800">
-							<span class="text-sm font-semibold text-surface-800 dark:text-surface-100"> {getDisplayName(currentEntry?.createdBy as string)} </span>
+						<p class="text-sm font-medium text-surface-600 dark:text-surface-400">{sidebar_createdby()}</p>
+						<div class="rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800">
+							<span class="text-sm font-semibold text-surface-600 dark:text-surface-100"> {getDisplayName(currentEntry?.createdBy as string)} </span>
 						</div>
 					</div>
 
 					{#if currentEntry?.updatedBy}
 						<div class="space-y-1">
-							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
-							<div class="rounded-lg border border-surface-200 bg-surface-100 px-3 py-2 text-center dark:border-surface-700 dark:bg-surface-800">
-								<span class="text-sm font-semibold text-surface-800 dark:text-surface-100">
+							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">Last updated by</p>
+							<div class="rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800">
+								<span class="text-sm font-semibold text-surface-600 dark:text-surface-100">
 									{getDisplayName(currentEntry?.updatedBy as string)}
 								</span>
 							</div>
@@ -393,7 +393,7 @@
 				</div>
 			</main>
 
-			<footer class="mt-6 border-t border-surface-300 pt-4 dark:border-surface-600">
+			<footer class="mt-6 border-t border-surface-500/30 pt-4 dark:border-surface-600">
 				<div class="space-y-2 text-xs">
 					<div class="flex items-center justify-between">
 						<span class="font-medium capitalize">Created:</span>

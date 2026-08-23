@@ -67,9 +67,9 @@
 		</Button>
 	</div>
 
-	<div class="relative rounded overflow-hidden border {parseError ? 'border-error-500' : 'border-surface-400 dark:border-surface-600'}">
+	<div class="relative rounded overflow-hidden border {parseError ? 'border-error-500' : 'border-surface-500 dark:border-surface-600'}">
 		<!-- Line numbers sidebar (Visual only) -->
-		<div class="absolute inset-s-0 top-0 bottom-0 w-8 bg-surface-100 dark:bg-surface-800 border-e border-surface-200 dark:border-surface-700 flex flex-col items-center py-3 text-[10px] text-surface-400 select-none pointer-events-none">
+		<div class="absolute inset-s-0 top-0 bottom-0 w-8 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 flex flex-col items-center py-3 text-[10px] text-surface-400 select-none pointer-events-none">
 			{#each Array(20) as _, i (i)}
 				<span>{i + 1}</span>
 			{/each}
@@ -78,7 +78,7 @@
 		<Textarea
 			aria-label={field.label || fieldName || 'JSON editor'}
 			class="w-full space-y-0"
-			textareaClass="w-full resize-y border-0 bg-surface-50 ps-10 pe-4 py-3 font-mono text-sm leading-relaxed shadow-none focus-visible:ring-0 dark:bg-surface-900 [tab-size:2]"
+			textareaClass="w-full resize-y border-0 bg-surface-500/10 ps-10 pe-4 py-3 font-mono text-sm leading-relaxed shadow-none focus-visible:ring-0 dark:bg-surface-900 [tab-size:2]"
 			style="height: {field.height || '300px'};"
 			value={jsonString}
 			oninput={handleInput}

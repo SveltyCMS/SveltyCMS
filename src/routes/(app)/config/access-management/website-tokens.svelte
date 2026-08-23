@@ -460,7 +460,7 @@ $effect(() => {
 		Manage API tokens for external websites to access your content.
 	</p>
 
-	<AdminCard class="mb-4 border border-surface-200 dark:border-surface-800">
+	<AdminCard class="mb-4 border border-surface-500/30 dark:border-surface-500/40">
 		<div class="p-4 space-y-4">
 			<h4 class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500" data-testid="website-tokens-generate">Generate New Website Token</h4>
 
@@ -504,7 +504,7 @@ $effect(() => {
 					</div>
 				</div>
 				<AdminCard
-					class="max-h-60 overflow-y-auto p-4 border border-surface-200 dark:border-surface-800 bg-surface-50/30 dark:bg-surface-900/20"
+					class="max-h-60 overflow-y-auto p-4 border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/30 dark:bg-surface-900/20"
 					role="group"
 					aria-labelledby="permissions-title"
 				>
@@ -539,7 +539,7 @@ $effect(() => {
 		</div>
 	</AdminCard>
 
-	<AdminCard class="border border-surface-200 dark:border-surface-800">
+	<AdminCard class="border border-surface-500/30 dark:border-surface-500/40">
 		<div class="p-4">
 			<div class={SMART_TABLE_TOOLBAR}>
 				<div class="flex items-center gap-4">
@@ -568,7 +568,7 @@ $effect(() => {
 
 			{#if columnShow}
 				<div class={SMART_TABLE_COLUMN_MANAGER}>
-					<div class="text-sm text-surface-700 dark:text-surface-200">Drag and drop to reorder columns</div>
+					<div class="text-sm text-surface-600 dark:text-surface-400">Drag and drop to reorder columns</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
 						<Checkbox bind:checked={selectAllColumns} onchange={handleCheckboxChange} label="All" />
 
@@ -622,7 +622,7 @@ $effect(() => {
 				<table class={SMART_TABLE}>
 					<thead class={SMART_TABLE_THEAD}>
 						{#if filterShow}
-							<tr class="border-b border-surface-200 dark:border-surface-800">
+							<tr class="border-b border-surface-500/30 dark:border-surface-500/40">
 								<th class={SMART_TABLE_TH}></th>
 								{#each displayTableHeaders.filter((header: TableHeader) => header.visible) as header (header.id)}
 									<th class={SMART_TABLE_TH}>
@@ -636,7 +636,7 @@ $effect(() => {
 								<th class={SMART_TABLE_TH}></th>
 							</tr>
 						{/if}
-						<tr class="border-b border-surface-300 text-xs uppercase tracking-wide dark:border-surface-600">
+						<tr class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600">
 							<th class="{SMART_TABLE_TH} {pinCellClass('start')} w-10">
 								<Checkbox
 									checked={smartTable.allSelected}
@@ -673,7 +673,7 @@ $effect(() => {
 					<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 						{#each tokens as token (token._id)}
 							<tr
-								class="text-surface-700 dark:text-surface-200 {smartTable.isSelected(token._id)
+								class="text-surface-600 dark:text-surface-400 {smartTable.isSelected(token._id)
 									? SMART_TABLE_ROW_SELECTED
 									: SMART_TABLE_ROW_HOVER}"
 							>
@@ -689,7 +689,7 @@ $effect(() => {
 									<td class={SMART_TABLE_TD}>
 										{#if header.key === 'token'}
 											<div class="flex items-center gap-2">
-												<code class="bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded">
+												<code class="bg-surface-500/10 dark:bg-surface-800 px-2 py-1 rounded">
 													{showSecretMap[token._id] ? token.token : `${token.token.slice(0, 4)}••••••••${token.token.slice(-4)}`}
 												</code>
 												<div class="flex gap-1" aria-live="polite">

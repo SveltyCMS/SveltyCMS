@@ -59,8 +59,8 @@ export const widgetMeta = {
 
 	function getStatusColor(status: string) {
 		switch (status?.toLowerCase()) {
-			case 'published': return 'bg-emerald-500';
-			case 'draft': return 'bg-amber-500';
+			case 'published': return 'bg-success-500';
+			case 'draft': return 'bg-warning-500';
 			case 'archived': return 'bg-gray-500';
 			default: return 'bg-zinc-400';
 		}
@@ -96,7 +96,7 @@ export const widgetMeta = {
 							<a
 								href={`/${app.contentLanguage}/${item.collection}?edit=${item.id}`}
 								data-sveltekit-preload-data="hover"
-								class="group flex items-start gap-3 rounded px-3 py-2.5 transition-all hover:bg-gray-50 dark:hover:bg-gray-800/60 active:scale-[0.985] outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 border border-transparent hover:border-gray-100 dark:hover:border-gray-800"
+								class="group flex items-start gap-3 rounded px-3 py-2.5 transition-all hover:bg-gray-50 dark:hover:bg-gray-800/60 active:scale-[0.985] outline-hidden focus-visible:ring-2 focus-visible:ring-tertiary-500 border border-transparent hover:border-gray-100 dark:hover:border-gray-800"
 							>
 								<!-- Status Circle Dot -->
 								<div class="mt-1 shrink-0">
@@ -108,7 +108,7 @@ export const widgetMeta = {
 
 								<!-- Content Metadata -->
 								<div class="min-w-0 flex-1">
-									<div class="font-medium text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+									<div class="font-medium text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors">
 										{item.title}
 									</div>
 									<div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5">

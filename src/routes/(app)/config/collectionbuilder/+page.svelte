@@ -680,7 +680,7 @@ function modalLoadPreset(): void {
     {/snippet}
 
     {#if currentConfig.length > 0}
-        <AdminCard class="p-6 border border-surface-200 dark:border-surface-800 backdrop-blur-md shadow-xs">
+        <AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 backdrop-blur-md shadow-xs">
         <div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
         <Button onclick={() => modalQuickStart()} variant="secondary" rounded={true} size="lg" class="group w-52 justify-center" disabled={isLoading}>
             <iconify-icon icon="mdi:magic-staff" width="24" class="transition-transform group-hover:rotate-12"></iconify-icon>
@@ -721,7 +721,7 @@ function modalLoadPreset(): void {
                 type="button"
                 onclick={handleClearCategorySelection}
                 variant="ghost"
-                class="flex items-center gap-1 text-surface-700 dark:text-surface-200"
+                class="flex items-center gap-1 text-surface-600 dark:text-surface-400"
                 disabled={isLoading}
                 aria-label="Clear category selection"
             >
@@ -731,7 +731,7 @@ function modalLoadPreset(): void {
         {/if}
     </div>
 
-    <p class="mb-4 text-center text-sm text-surface-600 dark:text-surface-300" role="note">
+    <p class="mb-4 text-center text-sm text-surface-600 dark:text-surface-400" role="note">
         Templates apply immediately. Category changes are saved instantly. Drag items onto a <strong>category</strong> (middle of the row) to nest; use the top/bottom edge to reorder as siblings. Layout changes require <strong>Save</strong> to persist.
     </p>
 
@@ -739,7 +739,7 @@ function modalLoadPreset(): void {
         <div class="mx-auto w-full max-w-screen-2xl">
             {#if Object.keys(nodesToSave).length > 0}
                 <div
-                    class="sticky top-0 z-50 mb-4 mt-0 rounded border border-warning-500/30 bg-warning-500/15 px-4 py-3 text-center text-sm font-medium text-warning-600 shadow-sm dark:text-warning-400"
+                    class="sticky top-0 z-50 mb-4 mt-0 rounded border border-warning-500/30 bg-warning-500/10 px-4 py-3 text-center text-sm font-medium text-warning-600 shadow-sm dark:text-warning-400"
                     role="status"
                     aria-live="polite"
                 >

@@ -124,7 +124,7 @@ import { logger } from "@utils/logger";
 			</div>
 		{:else if analysisResult}
 			<!-- Metrics Summary -->
-			<div class="grid grid-cols-2 gap-2 p-3 bg-surface-50/5 border-b border-surface-500/10">
+			<div class="grid grid-cols-2 gap-2 p-3 bg-surface-500/10 border-b border-surface-500/10">
 				<div class="card p-2 preset-soft-surface">
 					<div class="text-[10px] uppercase opacity-50 font-bold">Readability</div>
 					<div class="text-sm font-bold">{analysisResult.readability.fleschKincaidScore}</div>
@@ -168,12 +168,12 @@ import { logger } from "@utils/logger";
 										</div>
 									</SystemTooltip>
 									<SystemTooltip title={suggestion.description}>
-										<p class="text-xs opacity-80 line-clamp-2 dark:text-surface-200">
+										<p class="text-xs opacity-80 line-clamp-2 dark:text-surface-400">
 											{suggestion.description}
 										</p>
 									</SystemTooltip>
 									{#if suggestion.fix}
-										<div class="mt-1.5 text-[10px] font-mono bg-surface-100 dark:bg-surface-700 p-1.5 rounded opacity-80">
+										<div class="mt-1.5 text-[10px] font-mono bg-surface-500/10 dark:bg-surface-700 p-1.5 rounded opacity-80">
 											<strong>Fix:</strong>
 											{suggestion.fix}
 										</div>
@@ -183,7 +183,7 @@ import { logger } from "@utils/logger";
 						</div>
 					{/each}
 				{:else}
-					<div class="flex items-center gap-2 rounded border border-success-200 bg-success-50/50 p-3 text-success-700 dark:border-success-900/30 dark:bg-success-950/20 dark:text-success-300">
+					<div class="flex items-center gap-2 rounded border border-success-500/30 bg-success-500/50 p-3 text-success-600 dark:border-success-500/40 dark:bg-success-900/20 dark:text-success-400">
 						<iconify-icon icon="mdi:check-circle" class="text-xl"></iconify-icon>
 						<span class="text-sm">No issues found!</span>
 					</div>

@@ -127,11 +127,11 @@ with interactive focal point adjustment that persists to the server.
 		></button>
 
 		<div
-			class="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-surface-100 shadow-2xl dark:bg-surface-900 mx-4"
+			class="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-surface-500/10 shadow-2xl dark:bg-surface-900 mx-4"
 			transition:scale={{ start: 0.95, duration: 150 }}
 		>
 			<!-- Header -->
-			<header class="flex shrink-0 items-center justify-between border-b border-surface-300 px-5 py-4 dark:border-surface-700">
+			<header class="flex shrink-0 items-center justify-between border-b border-surface-500/30 px-5 py-4 dark:border-surface-500/40">
 				<div class="flex items-center gap-3">
 					<iconify-icon icon="mdi:aspect-ratio" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<div>
@@ -169,7 +169,7 @@ with interactive focal point adjustment that persists to the server.
 			</div>
 
 			<!-- Footer -->
-			<footer class="flex shrink-0 items-center justify-between border-t border-surface-300 px-5 py-3 dark:border-surface-700">
+			<footer class="flex shrink-0 items-center justify-between border-t border-surface-500/30 px-5 py-3 dark:border-surface-500/40">
 				<Button variant="outline" onclick={() => { focalPoint = { x: 50, y: 50 }; }}>
 					<iconify-icon icon="mdi:target" width="16"></iconify-icon>
 					<span>Reset to Center</span>

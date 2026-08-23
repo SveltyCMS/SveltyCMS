@@ -221,7 +221,7 @@
 {#if local}
   <div class="flex flex-col w-full" style="min-width: 640px; max-width: 900px; min-height: 500px;">
     <!-- Header -->
-    <div class="border-b border-surface-200 dark:border-surface-800 px-6 py-4">
+    <div class="border-b border-surface-500/30 dark:border-surface-500/40 px-6 py-4">
       <h2 class="text-lg font-bold text-surface-900 dark:text-white">
         Edit Field: <span class="text-primary-500">{local.label || "Unnamed"}</span>
       </h2>
@@ -253,7 +253,7 @@
           />
 
           <div>
-            <span class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">
+            <span class="block text-sm font-medium text-surface-600 dark:text-surface-400 mb-1.5">
               Icon
             </span>
             <IconifyIconsPicker
@@ -281,14 +281,14 @@
             placeholder="Default value for this field"
           />
 
-          <div class="flex items-center justify-between p-3 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/50">
+          <div class="flex items-center justify-between p-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/50">
             <div>
-              <p class="text-sm font-semibold text-surface-800 dark:text-surface-200">Required</p>
+              <p class="text-sm font-semibold text-surface-600 dark:text-surface-400">Required</p>
               <p class="text-xs text-surface-500 dark:text-surface-400">Must be filled to save content</p>
             </div>
             <input type="checkbox" aria-label="Required field"
               bind:checked={local.required}
-              class="h-5 w-5 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
+              class="h-5 w-5 rounded border-surface-500/30 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
             />
           </div>
 
@@ -334,14 +334,14 @@
         <!-- Tab 3: Permissions (role-based view/edit matrix) -->
         <div class="space-y-5">
           <!-- Visibility toggle -->
-          <div class="rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/30 p-4">
+          <div class="rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/20 p-4">
             <h4 class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-surface-500 dark:text-surface-400">Visibility</h4>
             <button
               type="button"
-              class="flex w-full items-center justify-between rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 px-4 py-3 text-start hover:border-primary-500/50 transition-colors"
+              class="flex w-full items-center justify-between rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 px-4 py-3 text-start hover:border-primary-500/50 transition-colors"
               onclick={() => updatePerms({ visibility: localPerms.visibility === "public" ? "private" : "public" })}
             >
-              <span class="font-semibold text-surface-800 dark:text-surface-200">
+              <span class="font-semibold text-surface-600 dark:text-surface-400">
                 {localPerms.visibility === "public" ? "Public" : "Private"}
               </span>
               <iconify-icon
@@ -358,14 +358,14 @@
           </div>
 
           <!-- Require auth -->
-          <div class="rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/30 p-4">
-            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 p-3">
+          <div class="rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/20 p-4">
+            <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 p-3">
               <input type="checkbox" aria-label="Require authentication"
-                class="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
+                class="h-4 w-4 rounded border-surface-500/30 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
                 checked={localPerms.requiredAuth}
                 onchange={(e) => updatePerms({ requiredAuth: (e.target as HTMLInputElement).checked })}
               />
-              <span class="text-sm font-semibold text-surface-800 dark:text-surface-200">Require authentication</span>
+              <span class="text-sm font-semibold text-surface-600 dark:text-surface-400">Require authentication</span>
             </label>
             <p class="mt-2 text-xs text-surface-500 dark:text-surface-400">
               When enabled, user must be logged in to access this field.
@@ -374,7 +374,7 @@
 
           <!-- Role matrix -->
           {#if rolesProp.length > 0}
-            <div class="rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/30 p-4">
+            <div class="rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900/20 p-4">
               <h4 class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-surface-500 dark:text-surface-400">
                 Role-Based Access — Per-Field Matrix
               </h4>
@@ -392,22 +392,22 @@
 
               <div class="space-y-1">
                 {#each rolesProp as role (role._id)}
-                  <div class="grid grid-cols-[1fr_60px_60px] gap-2 items-center rounded-lg px-3 py-2 hover:bg-surface-100 dark:hover:bg-surface-800/50 transition-colors">
-                    <span class="text-sm text-surface-800 dark:text-surface-200 truncate">
+                  <div class="grid grid-cols-[1fr_60px_60px] gap-2 items-center rounded-lg px-3 py-2 hover:bg-surface-500/10 dark:hover:bg-surface-800/50 transition-colors">
+                    <span class="text-sm text-surface-600 dark:text-surface-400 truncate">
                       {role.name ?? role._id}
                     </span>
                     <div class="flex justify-center">
                       <input type="checkbox" aria-label={`View permission for ${role.name ?? role._id}`}
                         checked={localPerms.readRoles.includes(role._id)}
                         onchange={() => toggleRoleView(role._id)}
-                        class="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
+                        class="h-4 w-4 rounded border-surface-500/30 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
                       />
                     </div>
                     <div class="flex justify-center">
                       <input type="checkbox" aria-label={`Edit permission for ${role.name ?? role._id}`}
                         checked={localPerms.writeRoles.includes(role._id)}
                         onchange={() => toggleRoleEdit(role._id)}
-                        class="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
+                        class="h-4 w-4 rounded border-surface-500/30 text-primary-600 focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
                       />
                     </div>
                   </div>
@@ -415,7 +415,7 @@
               </div>
             </div>
           {:else}
-            <div class="rounded-xl border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/30 dark:bg-surface-900/10 p-6 text-center">
+            <div class="rounded-xl border border-dashed border-surface-500/30 dark:border-surface-500/40 bg-surface-500/30 dark:bg-surface-900/10 p-6 text-center">
               <iconify-icon icon="mdi:shield-account-outline" width="32" class="text-surface-400 opacity-30 mb-2"></iconify-icon>
               <p class="text-sm text-surface-500 dark:text-surface-400">
                 No roles defined. Configure roles in Access Management to restrict by role.
@@ -427,7 +427,7 @@
     </div>
 
     <!-- Footer -->
-    <div class="flex items-center justify-between border-t border-surface-200 dark:border-surface-800 px-6 py-4 bg-surface-50 dark:bg-surface-900/50">
+    <div class="flex items-center justify-between border-t border-surface-500/30 dark:border-surface-500/40 px-6 py-4 bg-surface-500/10 dark:bg-surface-900/50">
       <div class="flex gap-2">
         <Button variant="error" type="button" onclick={handleDelete}>
           <iconify-icon icon="mdi:trash-can-outline" width="18"></iconify-icon>

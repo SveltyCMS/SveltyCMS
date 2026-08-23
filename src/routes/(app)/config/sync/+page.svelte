@@ -169,15 +169,15 @@ onMount(() => {
 	backUrl="/config"
 >
 	<div data-testid="sync-page" class="contents">
-		<AdminCard class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs">
+		<AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs">
 			<div class="preset-tonal-surface mb-4 p-4 rounded-md">
-				<p class="text-surface-600 dark:text-surface-300 text-sm">
+				<p class="text-surface-600 dark:text-surface-400 text-sm">
 					Manage your system configuration using <strong>Schema as Code</strong>. Deploy filesystem changes to the active database, or export the active configuration to <code>config/sync/</code> for version control.
 				</p>
 			</div>
 
 			<div
-				class="flex w-full overflow-x-auto border border-surface-300 rounded-md bg-surface-100/70 dark:text-surface-50 dark:bg-surface-800/70 mb-6"
+				class="flex w-full overflow-x-auto border border-surface-500/30 rounded-md bg-surface-500/10 dark:text-surface-50 dark:bg-surface-800/70 mb-6"
 				role="tablist"
 				aria-label="Sync Options"
 				data-testid="sync-tabs"
@@ -191,7 +191,7 @@ onMount(() => {
 							variant="ghost"
 							class="flex-1 py-3 text-center text-sm font-medium {activeTab === tab
 								? 'bg-tertiary-500! dark:bg-primary-500! text-white! dark:text-surface-900!'
-								: 'text-surface-700! dark:text-surface-200!'}"
+								: 'text-surface-600! dark:text-surface-400!'}"
 							onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
 							role="tab"
 							aria-selected={activeTab === tab}
@@ -223,7 +223,7 @@ onMount(() => {
 					{/if}
 
 					<!-- Action Controls -->
-					<div class="my-6 p-4 rounded-lg border border-surface-200 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-900/20 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+					<div class="my-6 p-4 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/50 dark:bg-surface-900/20 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
 						<!-- Safety Mode Selector -->
 						<div class="flex flex-col gap-1.5 w-full md:w-auto">
 							<label for="safety-mode-select" class="text-xs font-semibold uppercase tracking-wider text-surface-500">
@@ -232,7 +232,7 @@ onMount(() => {
 							<div class="flex items-center gap-2">
 								<select id="safety-mode-select" aria-label="Promotion safety mode"
 									bind:value={selectedMode}
-									class="px-3 py-1.5 text-sm rounded-md border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-800 dark:text-surface-100 focus:ring-2 focus:ring-primary-500 focus:outline-hidden"
+									class="px-3 py-1.5 text-sm rounded-md border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 text-surface-800 dark:text-surface-100 focus:ring-2 focus:ring-primary-500 focus:outline-hidden"
 								>
 									{#each (['merge', 'add', 'mirror', 'replace'] as const) as mode (mode)}
 										<option value={mode}>{modeDescriptions[mode].label}</option>
@@ -306,10 +306,10 @@ onMount(() => {
 								</p>
 							</div>
 
-							<AdminCard class="overflow-x-auto w-full border border-surface-200 dark:border-surface-800">
+							<AdminCard class="overflow-x-auto w-full border border-surface-500/30 dark:border-surface-500/40">
 								<table class="w-full text-sm border-collapse">
 									<thead>
-										<tr class="border-b border-surface-200 dark:border-surface-800 text-start text-xs uppercase tracking-wider text-surface-400">
+										<tr class="border-b border-surface-500/30 dark:border-surface-500/40 text-start text-xs uppercase tracking-wider text-surface-400">
 											<th class="px-4 py-3 font-semibold">Name</th>
 											<th class="px-4 py-3 font-semibold">Type</th>
 											<th class="px-4 py-3 font-semibold">UUID</th>
@@ -319,7 +319,7 @@ onMount(() => {
 									<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
 										{#each Object.entries(status?.changes || {}) as [changeType, items] (changeType)}
 											{#each items as item (item.uuid || item.name)}
-												<tr class="text-surface-700 dark:text-surface-200 hover:bg-surface-50/40 dark:hover:bg-surface-900/30">
+												<tr class="text-surface-600 dark:text-surface-400 hover:bg-surface-500/40 dark:hover:bg-surface-900/20">
 													<td class="px-4 py-3 font-medium">{item.name}</td>
 													<td class="px-4 py-3">
 														<Badge preset="tonal" color="surface" class="capitalize">{item.type}</Badge>
@@ -362,9 +362,9 @@ onMount(() => {
 				{/if}
 
 				{#if activeTab === 'debug'}
-					<div transition:slide|local class="rounded border border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-900/40">
+					<div transition:slide|local class="rounded border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-900/20">
 						<h3 class="mb-3 flex items-center gap-2 font-semibold"><iconify-icon icon="mdi:bug-outline"></iconify-icon> Raw API Response</h3>
-						<pre class="whitespace-pre-wrap text-xs max-h-125 overflow-y-auto p-2 border border-surface-200 dark:border-surface-700 rounded bg-surface-100 dark:bg-surface-800">{JSON.stringify(status, null, 2)}</pre>
+						<pre class="whitespace-pre-wrap text-xs max-h-125 overflow-y-auto p-2 border border-surface-500/30 dark:border-surface-500/40 rounded bg-surface-500/10 dark:bg-surface-800">{JSON.stringify(status, null, 2)}</pre>
 					</div>
 				{/if}
 			</section>

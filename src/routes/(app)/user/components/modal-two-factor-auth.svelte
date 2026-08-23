@@ -289,12 +289,12 @@ This component provides a user interface for managing 2FA settings:
 
 	<form class="modal-form {cForm} flex-1 min-h-0">
 		<!-- Status Section -->
-		<div class="mb-4 flex items-center justify-between rounded bg-surface-100 p-3 dark:bg-surface-700">
+		<div class="mb-4 flex items-center justify-between rounded bg-surface-500/10 p-3 dark:bg-surface-700">
 			<div class="flex items-center gap-3">
 				<div class="rounded bg-tertiary-500 p-2 dark:bg-primary-500/20"><iconify-icon icon="mdi:shield-check" width={24}></iconify-icon></div>
 				<div>
 					<p class="text-sm font-semibold">{twofa_title()}</p>
-					<p class="text-xs text-surface-600 dark:text-surface-300">{twofa_description()}</p>
+					<p class="text-xs text-surface-600 dark:text-surface-400">{twofa_description()}</p>
 				</div>
 			</div>
 			<!-- Status badge - aligned end -->
@@ -308,8 +308,8 @@ This component provides a user interface for managing 2FA settings:
 			{#if isLoading && !setupData}
 				<!-- Loading state -->
 				<div class="flex flex-col items-center justify-center gap-4 py-8">
-									<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500 dark:border-surface-600 dark:border-t-primary-500"></div>
-									<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_setting_up()}</p>
+									<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500 dark:border-surface-600 dark:border-t-primary-500"></div>
+									<p class="text-sm text-surface-600 dark:text-surface-400">{twofa_setting_up()}</p>
 								</div>
 			{:else if loadError && !setupData}
 				<!-- Error state with retry -->
@@ -334,7 +334,7 @@ This component provides a user interface for managing 2FA settings:
 							<Badge preset="tonal" color="primary" size="sm">1</Badge>
 							{twofa_setup_scan_title()}
 						</h4>
-						<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_setup_step_1()}</p>
+						<p class="text-sm text-surface-600 dark:text-surface-400">{twofa_setup_step_1()}</p>
 
 						<!-- QR Code -->
 						<div class="flex justify-center rounded bg-white p-4 dark:bg-white">
@@ -354,8 +354,8 @@ This component provides a user interface for managing 2FA settings:
 							<Badge preset="tonal" color="secondary" size="sm">2</Badge>
 							{twofa_show_secret()}
 						</h4>
-						<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_manual_entry_description()}</p>
-						<div class="rounded bg-surface-100 p-3 dark:bg-surface-700"><code class="break-all text-sm">{setupData.secret}</code></div>
+						<p class="text-sm text-surface-600 dark:text-surface-400">{twofa_manual_entry_description()}</p>
+						<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700"><code class="break-all text-sm">{setupData.secret}</code></div>
 					</div>
 
 					<!-- Step 3: Verify -->
@@ -364,7 +364,7 @@ This component provides a user interface for managing 2FA settings:
 							<Badge preset="tonal" color="tertiary" size="sm">3</Badge>
 							{twofa_verify_setup_title()}
 						</h4>
-						<p class="text-sm text-surface-600 dark:text-surface-300">{twofa_verify_setup_description()}</p>
+						<p class="text-sm text-surface-600 dark:text-surface-400">{twofa_verify_setup_description()}</p>
 
 						<Input
 							label={twofa_code_placeholder()}

@@ -583,7 +583,7 @@ import { tick, untrack } from "svelte";
 
 {#if collaborationService.isCollaborative && collaborationService.activeUsers.length > 0}
   <div
-    class="mb-2 flex flex-wrap items-center gap-2 rounded border border-tertiary-500/30 bg-tertiary-500/5 px-3 py-1.5 text-xs dark:border-primary-500/30 dark:bg-primary-500/5"
+    class="mb-2 flex flex-wrap items-center gap-2 rounded border border-tertiary-500/30 bg-tertiary-500/10 px-3 py-1.5 text-xs dark:border-primary-500/30 dark:bg-primary-500/10"
     role="status"
     aria-live="polite"
   >
@@ -603,12 +603,12 @@ import { tick, untrack } from "svelte";
     <p class="text-surface-500">Initializing widgets...</p>
   </div>
 {:else}
-  <div class="mb-2 flex items-center justify-between w-full px-4 py-2 rounded-t-container bg-surface-100/70 dark:bg-surface-800/70 border border-surface-200 dark:border-surface-700/60 text-sm">
+  <div class="mb-2 flex items-center justify-between w-full px-4 py-2 rounded-t-container bg-surface-500/10 dark:bg-surface-800/70 border border-surface-500/30 dark:border-surface-500/40 text-sm">
     <div class="flex items-center gap-2">
       <iconify-icon icon={collection.value?.icon || "mdi:folder-outline"} width="18" class="text-primary-500"></iconify-icon>
       <span class="font-semibold text-primary-600 dark:text-primary-400">{collection.value?.name || "Collection"}</span>
       <span class="text-surface-400">/</span>
-      <span class="text-surface-600 dark:text-surface-300 font-medium">
+      <span class="text-surface-600 dark:text-surface-400 font-medium">
         {#if (collectionValue as any)?.value?._id}
           Edit <span class="font-mono text-xs opacity-80">({String((collectionValue as any).value._id).slice(0, 8)})</span>
         {:else}
@@ -765,7 +765,7 @@ import { tick, untrack } from "svelte";
                         <!-- Locale badge / switcher -->
                         <Button
                           variant="ghost"
-                          class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium transition-colors hover:bg-tertiary-100 dark:hover:bg-primary-500/20"
+                          class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
                           style="background: var(--color-surface-200, #e5e7eb); color: var(--color-tertiary-500, #6b7280)"
                           onclick={() => cycleFieldLocale(fieldName, currentFieldLocale)}
                           aria-label="Switch locale for {field.label || fieldName}. Current: {currentFieldLocale.toUpperCase()}"
@@ -938,21 +938,21 @@ import { tick, untrack } from "svelte";
                     {const ch = change as any}
                     <div>
                       <strong
-                        class="font-bold text-surface-600 dark:text-surface-300"
+                        class="font-bold text-surface-600 dark:text-surface-400"
                         >{key}:</strong
                       >
                       {#if ch.status === "modified"}
                         <div
                           class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2"
                         >
-                          <span class="text-error-700 dark:text-error-300"
+                          <span class="text-error-600 dark:text-error-400"
                             >- {JSON.stringify(ch.old)}</span
                           >
                         </div>
                         <div
                           class="mt-1 rounded border border-success-500/30 bg-tertiary-500 dark:bg-primary-500/10 p-2"
                         >
-                          <span class="text-success-700 dark:text-success-300"
+                          <span class="text-success-600 dark:text-success-400"
                             >+ {JSON.stringify(ch.new)}</span
                           >
                         </div>
@@ -960,7 +960,7 @@ import { tick, untrack } from "svelte";
                         <div
                           class="mt-1 rounded border border-success-500/30 bg-tertiary-500 dark:bg-primary-500/10 p-2"
                         >
-                          <span class="text-success-700 dark:text-success-300"
+                          <span class="text-success-600 dark:text-success-400"
                             >+ {JSON.stringify(ch.value)}</span
                           >
                         </div>
@@ -968,7 +968,7 @@ import { tick, untrack } from "svelte";
                         <div
                           class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2"
                         >
-                          <span class="text-error-700 dark:text-error-300"
+                          <span class="text-error-600 dark:text-error-400"
                             >- {JSON.stringify(ch.value)}</span
                           >
                         </div>
@@ -1021,7 +1021,7 @@ import { tick, untrack } from "svelte";
         {#await componentLoader(slot)}
           <div class="flex h-40 items-center justify-center">
             <div
-              class="h-10 w-10 animate-spin rounded-full border-4 border-surface-200 border-t-primary-500"
+              class="h-10 w-10 animate-spin rounded-full border-4 border-surface-500/30 border-t-primary-500"
             ></div>
           </div>
         {:then Component}
@@ -1049,7 +1049,7 @@ import { tick, untrack } from "svelte";
         {:catch error}
           <div class="p-4">
             <div
-              class="rounded border border-error-500/50 bg-error-50 p-4 text-error-600 dark:bg-error-900/10 dark:text-error-500"
+              class="rounded border border-error-500/50 bg-error-500/10 p-4 text-error-600 dark:bg-error-900/10 dark:text-error-500"
             >
               <h3 class="mb-2 font-bold">Plugin Error ({slot.id})</h3>
               <p>{error.message}</p>

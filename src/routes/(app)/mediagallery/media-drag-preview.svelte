@@ -219,7 +219,7 @@ Mount once per page that hosts media drag sources.
             />
           {:else}
             <div
-              class="flex h-full w-full items-center justify-center bg-surface-100/80 dark:bg-surface-800/80"
+              class="flex h-full w-full items-center justify-center bg-surface-500/10 dark:bg-surface-800/80"
             >
               <iconify-icon
                 icon={fileIcon(snapPreview?.type)}

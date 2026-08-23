@@ -92,7 +92,7 @@ Renders radio group with options from field.options array
 	>
 		<!-- Legend -->
 		<legend
-			class="mx-auto block w-fit px-2 text-center text-sm font-normal text-surface-700 dark:text-surface-50"
+			class="mx-auto block w-fit px-2 text-center text-sm font-normal text-surface-600 dark:text-surface-50"
 			style="background:none;border:none;"
 		>
 			{field.legend || 'Select one option'}
@@ -101,7 +101,7 @@ Renders radio group with options from field.options array
 		<!-- Radio options -->
 		<div class="flex flex-col gap-y-2">
 			{#each field.options || [] as option (option.value)}
-				<label class="flex cursor-pointer items-center gap-2 text-base text-surface-800 dark:text-surface-50">
+				<label class="flex cursor-pointer items-center gap-2 text-base text-surface-600 dark:text-surface-50">
 					<input aria-label="Radio value"
 						type="radio"
 						name={field.db_fieldName}

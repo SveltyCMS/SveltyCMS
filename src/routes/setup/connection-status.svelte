@@ -106,13 +106,13 @@ Features:
 
 	function getStatusColor(state: ConnectionState): string {
 		if (state === 'testing') {
-			return 'text-blue-600 dark:text-blue-400';
+			return 'text-tertiary-600 dark:text-tertiary-400';
 		}
 		if (state === 'success') {
-			return 'text-emerald-600 dark:text-emerald-400';
+			return 'text-success-600 dark:text-success-400';
 		}
 		if (state === 'error') {
-			return 'text-red-600 dark:text-red-400';
+			return 'text-error-600 dark:text-error-400';
 		}
 		return 'text-surface-400 dark:text-surface-600';
 	}
@@ -204,12 +204,12 @@ Features:
 
 <div
 	class="rounded border transition-colors {state === 'success'
-		? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20'
+		? 'border-success-500/20 bg-success-500/10 dark:border-success-500/40 dark:bg-success-900/20'
 		: state === 'error'
-			? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+			? 'border-error-500/20 bg-error-500/10 dark:border-error-500/40 dark:bg-error-900/20'
 			: state === 'testing'
-				? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
-				: 'border-surface-200 bg-surface-50 dark:text-surface-50 dark:bg-surface-800/50'}"
+				? 'border-tertiary-500/20 bg-tertiary-500/10 dark:border-tertiary-500/40 dark:bg-tertiary-900/20'
+				: 'border-surface-500/30 bg-surface-500/10 dark:text-surface-50 dark:bg-surface-800/50'}"
 	role="region"
 	aria-live="polite"
 	aria-atomic="true"
@@ -230,24 +230,24 @@ Features:
 
 	<!-- Success Details -->
 	{#if state === 'success' && result}
-		<div class="border-t border-emerald-200 bg-white p-4 dark:border-emerald-800 dark:bg-surface-800">
+		<div class="border-t border-success-500/20 bg-white p-4 dark:border-success-500/40 dark:bg-surface-800">
 			<div class="grid gap-3 text-sm">
 				{#if result.atlas}
-					<div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+					<div class="flex items-center gap-2 text-success-600 dark:text-success-400">
 						<span>☁️</span>
 						<span class="font-medium">{setup_connection_mongodb_atlas()}</span>
 					</div>
 				{/if}
 
 				{#if result.authenticated}
-					<div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+					<div class="flex items-center gap-2 text-success-600 dark:text-success-400">
 						<span>🔒</span>
 						<span class="font-medium">{setup_connection_authenticated()}</span>
 					</div>
 				{/if}
 
 				{#if result.stats}
-					<div class="rounded bg-surface-50 p-3 dark:bg-surface-900/50">
+					<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-900/50">
 						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">{setup_connection_stats_title()}</p>
 						<div class="grid gap-1 text-surface-600 dark:text-surface-50">
 							{#if result.stats.collections !== undefined}
@@ -266,7 +266,7 @@ Features:
 				{/if}
 
 				{#if result.collectionsSample && result.collectionsSample.length > 0}
-					<div class="rounded bg-surface-50 p-3 dark:bg-surface-900/50">
+					<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-900/50">
 						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">{setup_connection_sample_collections()}</p>
 						<div class="flex flex-wrap gap-2">
 							{#each result.collectionsSample as collection (collection)}
@@ -283,10 +283,10 @@ Features:
 
 	<!-- Error Details with Troubleshooting -->
 	{#if state === 'error' && result}
-		<div class="border-t border-red-200 bg-white p-4 dark:border-red-800 dark:bg-surface-800">
+		<div class="border-t border-error-500/20 bg-white p-4 dark:border-error-500/40 dark:bg-surface-800">
 			<!-- Technical Error Message -->
 			{#if result.error && result.error !== result.userFriendly}
-				<div class="mb-3 rounded bg-surface-50 p-3 dark:bg-surface-900/50">
+				<div class="mb-3 rounded bg-surface-500/10 p-3 dark:bg-surface-900/50">
 					<p class="mb-1 text-xs font-semibold uppercase text-surface-500 dark:text-surface-50">{setup_connection_technical_details()}</p>
 					<p class="font-mono text-xs text-surface-600 dark:text-surface-50">{result.error}</p>
 				</div>
@@ -294,15 +294,15 @@ Features:
 
 			<!-- Troubleshooting Tips -->
 			{#if result.classification}
-				<div class="rounded border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-					<p class="mb-2 flex items-center gap-2 font-semibold text-amber-900 dark:text-amber-100">
+				<div class="rounded border border-warning-500/20 bg-warning-500/10 p-3 dark:border-warning-500/40 dark:bg-warning-900/20">
+					<p class="mb-2 flex items-center gap-2 font-semibold text-warning-600 dark:text-warning-400">
 						<span>💡</span>
 						<span>{setup_connection_troubleshooting()}</span>
 					</p>
-					<ul class="space-y-1.5 text-sm text-amber-800 dark:text-amber-200">
+					<ul class="space-y-1.5 text-sm text-warning-600 dark:text-warning-400">
 						{#each getTroubleshootingTips(result.classification) as tip (tip)}
 							<li class="flex gap-2">
-								<span class="text-amber-600 dark:text-amber-400">•</span>
+								<span class="text-warning-600 dark:text-warning-400">•</span>
 								<span>{tip}</span>
 							</li>
 						{/each}
@@ -331,10 +331,10 @@ Features:
 
 	<!-- Testing Animation -->
 	{#if state === 'testing'}
-		<div class="border-t border-blue-200 bg-white p-4 dark:border-blue-800 dark:bg-surface-800">
+		<div class="border-t border-tertiary-500/20 bg-white p-4 dark:border-tertiary-500/40 dark:bg-surface-800">
 			<div class="flex items-center gap-3">
 				<div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
-					<div class="h-full w-1/3 animate-[slide_1.5s_ease-in-out_infinite] rounded-full bg-linear-to-r from-blue-500 to-indigo-500"></div>
+					<div class="h-full w-1/3 animate-[slide_1.5s_ease-in-out_infinite] rounded-full bg-linear-to-r from-tertiary-500 to-indigo-500"></div>
 				</div>
 				<span class="text-sm text-surface-600 dark:text-surface-50">{setup_connection_connecting()}</span>
 			</div>

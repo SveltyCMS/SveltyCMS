@@ -636,11 +636,10 @@ for the image editor canvas with reactive rendering.
 >
 	<!-- svelte-canvas component -->
 	<button
-		class="canvas-container block h-full w-full border-0 p-0 text-start cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) bg-none border-none rounded-none shadow-none outline-none focus-visible:outline-none"
+		class="canvas-container block h-full w-full border-0 p-0 text-start cursor-grab active:cursor-grabbing focus:outline-none select-none touch-none bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) bg-none border-none rounded-none shadow-none outline-none focus-visible:outline-none {isDragging ? 'bg-primary-500/10' : ''}"
 	class:border-2={isDragging}
 	class:border-tertiary-500={isDragging} class:dark:border-primary-500={isDragging}
 	class:border-dashed={isDragging}
-	class:bg-primary-50={isDragging}
 	class:dark:bg-primary-900={isDragging}
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
@@ -680,10 +679,10 @@ for the image editor canvas with reactive rendering.
 
 	<!-- Visual Feedback for Container Issues -->
 	{#if mounted && (containerWidth === 0 || containerHeight === 0)}
-		<div class="absolute inset-0 flex items-center justify-center bg-warning-50/90 dark:bg-warning-900/90 z-30 pointer-events-none">
+		<div class="absolute inset-0 flex items-center justify-center bg-warning-500/90 dark:bg-warning-900/90 z-30 pointer-events-none">
 			<div class="text-center p-4">
 				<iconify-icon icon="mdi:alert" width="32" class="text-warning-600 mb-2"></iconify-icon>
-				<p class="text-sm text-warning-700 dark:text-warning-300">Canvas container has no size. Check parent layout.</p>
+				<p class="text-sm text-warning-600 dark:text-warning-400">Canvas container has no size. Check parent layout.</p>
 				<p class="text-xs text-warning-600 dark:text-warning-400 mt-1">Size: {containerWidth}×{containerHeight}</p>
 			</div>
 		</div>
@@ -699,7 +698,7 @@ for the image editor canvas with reactive rendering.
 					<iconify-icon icon="mdi:image-plus" width="48" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 				</div>
 				<div class="empty-text">
-					<h3 class="mb-2 text-lg font-medium text-surface-700 dark:text-surface-300 max-md:text-base">No Image Selected</h3>
+					<h3 class="mb-2 text-lg font-medium text-surface-600 dark:text-surface-400 max-md:text-base">No Image Selected</h3>
 					<p class="text-sm text-surface-500 dark:text-surface-50 max-md:text-xs">Upload an image to start editing</p>
 				</div>
 
@@ -727,13 +726,13 @@ for the image editor canvas with reactive rendering.
 	<!-- Loading overlay -->
 	{#if (hasImage && !mounted) || isLoading}
 		<div
-			class="loading-overlay absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-50/80 backdrop-blur-sm dark:bg-surface-900/80 z-20"
+			class="loading-overlay absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface-500/80 backdrop-blur-sm dark:bg-surface-900/80 z-20"
 			transition:fade={{ duration: 200 }}
 		>
 			<div class="loading-spinner flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg dark:bg-surface-800">
 				<iconify-icon icon="mdi:loading" width="32" class="animate-spin text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			</div>
-			<span class="text-sm text-surface-600 dark:text-surface-300">{loadingMessage}</span>
+			<span class="text-sm text-surface-600 dark:text-surface-400">{loadingMessage}</span>
 
 			<!-- Add progress bar if available -->
 			{#if loadingProgress !== undefined}

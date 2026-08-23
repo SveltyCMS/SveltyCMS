@@ -375,7 +375,7 @@ $effect(() => {
 
 <article
 	bind:this={widgetEl}
-	class="widget-base-container group relative flex h-full flex-col rounded border border-surface-200 bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50 dark:bg-surface-800"
+	class="widget-base-container group relative flex h-full flex-col rounded border border-surface-500/30 bg-white shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50 dark:bg-surface-800"
 	aria-labelledby="widget-title-{widgetId || label}"
 	style="overflow: visible;"
 >
@@ -415,12 +415,12 @@ $effect(() => {
 				</Button>
 				{#if showSizeMenu}
 					<div
-						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-surface-200 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
+						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-surface-500/30 bg-white py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
 						style="z-index: 9999; position: absolute;"
 					>
 						{#each availableSizes as s (s.w + 'x' + s.h)}
 							<Button variant="outline">
-								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {size.w ===
+								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-500/10 dark:hover:bg-surface-700 {size.w ===
 									s.w && size.h === s.h
 									? 'font-bold text-tertiary-500 dark:text-primary-500'
 									: ''}"
@@ -490,7 +490,7 @@ $effect(() => {
 						}
 					}}
 				>
-					<iconify-icon icon="mdi:drag-vertical" width={12} class="text-gray-900 drop-shadow-sm dark:text-surface-300"></iconify-icon>
+					<iconify-icon icon="mdi:drag-vertical" width={12} class="text-gray-900 drop-shadow-sm dark:text-surface-400"></iconify-icon>
 				</div>
 			{/each}
 		</div>

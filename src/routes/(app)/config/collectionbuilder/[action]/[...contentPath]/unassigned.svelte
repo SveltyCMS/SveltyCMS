@@ -75,7 +75,7 @@ let { items = $bindable(), onDrop }: Props = $props();
 		{#each items as item (item.id)}
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
-				class="mx-2 my-1 flex h-10 w-5/12 items-center justify-between overflow-x-auto rounded-sm border border-surface-700 bg-surface-300 text-center text-xs font-bold hover:bg-surface-400 dark:text-white"
+				class="mx-2 my-1 flex h-10 w-5/12 items-center justify-between overflow-x-auto rounded-sm border border-surface-500/40 bg-surface-300 text-center text-xs font-bold hover:bg-surface-400 dark:text-white"
 				animate:flip={{ duration: flipDurationMs }}
 				use:draggable={{ container: 'unassigned', dragData: item, keyboard: true }}
 				use:droppable={{ container: 'unassigned', callbacks: { onDrop: handleDrop }, direction: 'horizontal', attributes: { dragOverClass: 'bg-secondary-200' } }}
@@ -92,7 +92,7 @@ let { items = $bindable(), onDrop }: Props = $props();
 				<a
 					href={`/collection/${item.name}/edit`}
 					aria-label="Edit {item.name}"
-					class="text-black hover:text-primary-500"
+					class="text-surface-900 hover:text-primary-500 dark:text-surface-100"
 					data-sveltekit-preload-data="hover"
 				>
 					<iconify-icon icon="mdi:pen" width={24}></iconify-icon>

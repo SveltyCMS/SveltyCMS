@@ -70,7 +70,7 @@
 			? 'text-error-500'
 			: value.length >= optimalMin && value.length <= optimalMax
 				? 'text-success-500'
-				: 'text-surface-400 dark:text-surface-300'
+				: 'text-surface-400 dark:text-surface-400'
 	);
 </script>
 
@@ -80,7 +80,7 @@
 			<label for={id} class="font-bold text-sm cursor-pointer dark:text-surface-50">{label}</label>
 			{@render icon?.()}
 			<SystemTooltip title={placeholder}>
-				<span class="text-surface-400 dark:text-surface-300 cursor-help">
+				<span class="text-surface-400 dark:text-surface-400 cursor-help">
 					<iconify-icon icon="mdi:information-outline" width={16}></iconify-icon>
 				</span>
 			</SystemTooltip>

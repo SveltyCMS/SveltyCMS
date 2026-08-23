@@ -491,10 +491,10 @@
 >
   <!-- Mobile header: filename + close (sticky, full-bleed background) -->
   <div
-    class="sticky top-0 z-10 -mx-4 flex shrink-0 items-center justify-between gap-3 border-b border-surface-200 bg-surface-100/95 px-4 py-3 backdrop-blur-sm md:hidden dark:border-surface-800 dark:bg-surface-900/95"
+    class="sticky top-0 z-10 -mx-4 flex shrink-0 items-center justify-between gap-3 border-b border-surface-500/30 bg-surface-500/10 px-4 py-3 backdrop-blur-sm md:hidden dark:border-surface-500/40 dark:bg-surface-900/95"
   >
     <div class="min-w-0 flex-1">
-      <h2 class="truncate text-base font-semibold text-surface-800 dark:text-surface-100" title={file.filename}>
+      <h2 class="truncate text-base font-semibold text-surface-600 dark:text-surface-100" title={file.filename}>
         {file.filename}
       </h2>
       <p class="mt-0.5 truncate font-mono text-[10px] text-surface-500 dark:text-surface-400">{file._id}</p>
@@ -506,7 +506,7 @@
 
   <!-- Asset preview -->
   <div
-    class="flex min-h-0 shrink-0 flex-col items-stretch justify-center border-surface-200 bg-surface-50 max-md:-mx-4 max-md:border-b max-md:px-4 max-md:py-4 md:items-center md:rounded-xl md:border md:p-4 lg:min-h-72 lg:w-[min(100%,20rem)] lg:flex-1 dark:border-surface-800 dark:bg-surface-900/40"
+    class="flex min-h-0 shrink-0 flex-col items-stretch justify-center border-surface-500/30 bg-surface-500/10 max-md:-mx-4 max-md:border-b max-md:px-4 max-md:py-4 md:items-center md:rounded-xl md:border md:p-4 lg:min-h-72 lg:w-[min(100%,20rem)] lg:flex-1 dark:border-surface-500/40 dark:bg-surface-900/20"
   >
     {#if file.type === 'image'}
       <div
@@ -531,14 +531,14 @@
       </video>
     {:else if file.type === 'audio'}
       <div class="flex w-full max-w-sm flex-col items-center gap-4 py-4">
-        <div class="rounded-full border border-surface-200 bg-surface-100 p-5 text-primary-500 dark:border-surface-700 dark:bg-surface-800">
+        <div class="rounded-full border border-surface-500/30 bg-surface-500/10 p-5 text-primary-500 dark:border-surface-500/40 dark:bg-surface-800">
           <iconify-icon icon="mdi:music-note" width="40"></iconify-icon>
         </div>
         <audio src={mediaUrl(file)} controls class="w-full"></audio>
       </div>
     {:else}
       <div class="flex flex-col items-center gap-3 py-6">
-        <div class="rounded-xl border border-surface-200 bg-surface-100 p-6 text-surface-500 dark:border-surface-700 dark:bg-surface-800">
+        <div class="rounded-xl border border-surface-500/30 bg-surface-500/10 p-6 text-surface-500 dark:border-surface-500/40 dark:bg-surface-800">
           <iconify-icon icon="mdi:file-document-outline" width="48"></iconify-icon>
         </div>
         <span class="font-mono text-xs uppercase tracking-wide text-surface-500 dark:text-surface-400">{formatMime(file.mimeType)}</span>
@@ -607,9 +607,9 @@
 
   <!-- Details panel -->
   <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-md:pt-3">
-    <div class="mb-3 hidden shrink-0 items-start justify-between gap-3 border-b border-surface-200 pb-3 md:flex dark:border-surface-800">
+    <div class="mb-3 hidden shrink-0 items-start justify-between gap-3 border-b border-surface-500/30 pb-3 md:flex dark:border-surface-500/40">
       <div class="min-w-0 flex-1">
-        <h2 class="truncate text-base font-semibold text-surface-800 sm:text-lg dark:text-surface-100" title={file.filename}>
+        <h2 class="truncate text-base font-semibold text-surface-600 sm:text-lg dark:text-surface-100" title={file.filename}>
           {file.filename}
         </h2>
         <p class="mt-1 truncate font-mono text-[10px] text-surface-500 sm:text-[11px] dark:text-surface-400">{file._id}</p>
@@ -625,7 +625,7 @@
       {#if activeTab === 'info'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
           <!-- Editable Asset Fields -->
-          <div class="rounded-lg border border-surface-200 bg-surface-50 p-3 dark:border-surface-800 dark:bg-surface-900/60">
+          <div class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/60">
             <dl class="space-y-3">
               <!-- Asset Name -->
               <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
@@ -647,7 +647,7 @@
                       {/if}
                     </div>
                   {:else}
-                    <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100" onclick={startEditName} aria-label="Edit asset name">{file.metadata?.name || file.filename || 'Untitled'}</Button>
+                    <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100" onclick={startEditName} aria-label="Edit asset name">{file.metadata?.name || file.filename || 'Untitled'}</Button>
                   {/if}
                 </dd>
               </div>
@@ -673,7 +673,7 @@
                         {/if}
                       </div>
                     {:else}
-                      <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100" onclick={startEditAlt} aria-label="Edit alt text">{file.metadata?.alt || 'Add alt text…'}</Button>
+                      <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100" onclick={startEditAlt} aria-label="Edit alt text">{file.metadata?.alt || 'Add alt text…'}</Button>
                     {/if}
                   </dd>
                 </div>
@@ -699,46 +699,46 @@
                       {/if}
                     </div>
                   {:else}
-                    <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-800 hover:text-primary-500 dark:text-surface-100" onclick={startEditCaption} aria-label="Edit caption">{file.metadata?.caption || 'Add caption…'}</Button>
+                    <Button variant="ghost" class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100" onclick={startEditCaption} aria-label="Edit caption">{file.metadata?.caption || 'Add caption…'}</Button>
                   {/if}
                 </dd>
               </div>
             </dl>
           </div>
 
-          <div class="rounded-lg border border-surface-200 bg-surface-50 p-3 font-mono text-xs dark:border-surface-800 dark:bg-surface-900/60">
+          <div class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs dark:border-surface-500/40 dark:bg-surface-900/60">
             <dl class="space-y-2.5">
               <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
                 <dt class="text-surface-500 dark:text-surface-400">Mime-Type</dt>
-                <dd class="min-w-0 text-end break-all text-surface-800 dark:text-surface-100">{file.mimeType}</dd>
+                <dd class="min-w-0 text-end break-all text-surface-600 dark:text-surface-100">{file.mimeType}</dd>
               </div>
               <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
                 <dt class="text-surface-500 dark:text-surface-400">File Size</dt>
-                <dd class="min-w-0 text-end tabular-nums text-surface-800 dark:text-surface-100">{formatBytes(file.size)}</dd>
+                <dd class="min-w-0 text-end tabular-nums text-surface-600 dark:text-surface-100">{formatBytes(file.size)}</dd>
               </div>
               {#if file.width && file.height}
                 <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
                   <dt class="text-surface-500 dark:text-surface-400">Dimensions</dt>
-                  <dd class="min-w-0 text-end tabular-nums text-surface-800 dark:text-surface-100">{file.width} × {file.height} px</dd>
+                  <dd class="min-w-0 text-end tabular-nums text-surface-600 dark:text-surface-100">{file.width} × {file.height} px</dd>
                 </div>
               {/if}
               <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
                 <dt class="text-surface-500 dark:text-surface-400">Folder</dt>
-                <dd class="min-w-0 text-end break-all text-surface-800 dark:text-surface-100">{file.folder || 'global'}</dd>
+                <dd class="min-w-0 text-end break-all text-surface-600 dark:text-surface-100">{file.folder || 'global'}</dd>
               </div>
               <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
                 <dt class="text-surface-500 dark:text-surface-400">Created</dt>
-                <dd class="min-w-0 text-end text-surface-800 dark:text-surface-100">{new Date(file.createdAt).toLocaleString()}</dd>
+                <dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">{new Date(file.createdAt).toLocaleString()}</dd>
               </div>
               <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
                 <dt class="text-surface-500 dark:text-surface-400">Updated</dt>
-                <dd class="min-w-0 text-end text-surface-800 dark:text-surface-100">{new Date(file.updatedAt).toLocaleString()}</dd>
+                <dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">{new Date(file.updatedAt).toLocaleString()}</dd>
               </div>
             </dl>
           </div>
 
           <div>
-            <h3 class="mb-2 text-sm font-semibold text-surface-800 dark:text-surface-100">Asset Tags</h3>
+            <h3 class="mb-2 text-sm font-semibold text-surface-600 dark:text-surface-100">Asset Tags</h3>
 
             <div class="mb-3 flex flex-wrap gap-1.5">
               {#each file.metadata?.tags || [] as tag (tag)}
@@ -780,10 +780,10 @@
 
       {:else if activeTab === 'versions'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
-          <div class="flex flex-col items-center gap-3 rounded-lg border border-surface-200 bg-surface-50 p-4 text-center dark:border-surface-800 dark:bg-surface-900/60">
+          <div class="flex flex-col items-center gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 text-center dark:border-surface-500/40 dark:bg-surface-900/60">
             <iconify-icon icon="mdi:cloud-upload-outline" width="28" class="text-surface-400"></iconify-icon>
             <div>
-              <h4 class="text-sm font-semibold text-surface-800 dark:text-surface-100">Replace or Update File</h4>
+              <h4 class="text-sm font-semibold text-surface-600 dark:text-surface-100">Replace or Update File</h4>
               <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">Upload a new file. The current name is preserved and the old version is stored in history.</p>
             </div>
 
@@ -812,8 +812,8 @@
           </div>
 
           {#if (file.versions?.length || 0) >= 2}
-            <div class="rounded-lg border border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-900/60">
-              <h3 class="mb-1 text-sm font-semibold text-surface-800 dark:text-surface-100">Compare Versions</h3>
+            <div class="rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-900/60">
+              <h3 class="mb-1 text-sm font-semibold text-surface-600 dark:text-surface-100">Compare Versions</h3>
               <p class="mb-3 text-xs text-surface-500 dark:text-surface-400">Diff two historical versions to inspect content, metadata, and size changes.</p>
 
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -851,7 +851,7 @@
               </Button>
 
               {#if compareResult}
-                <div class="mt-4 rounded-lg border border-surface-200 bg-white p-3 dark:border-surface-700 dark:bg-surface-950/40">
+                <div class="mt-4 rounded-lg border border-surface-500/30 bg-white p-3 dark:border-surface-500/40 dark:bg-surface-900/20">
                   <div class="mb-3 flex flex-wrap gap-2">
                     <Badge variant={compareResult.contentChanged ? "warning" : "success"} size="sm">
                       {compareResult.contentChanged ? "Content changed" : "Content identical"}
@@ -867,8 +867,8 @@
                   {#if compareResult.changes.length > 0}
                     <div class="flex flex-col gap-2">
                       {#each compareResult.changes as change (change.field + change.type)}
-                        <div class="rounded border border-surface-200 px-3 py-2 text-xs dark:border-surface-700">
-                          <p class="font-semibold text-surface-800 dark:text-surface-100">
+                        <div class="rounded border border-surface-500/30 px-3 py-2 text-xs dark:border-surface-500/40">
+                          <p class="font-semibold text-surface-600 dark:text-surface-100">
                             {change.field}
                             <span class="ms-1 font-normal text-surface-500">({change.type})</span>
                           </p>
@@ -881,7 +881,7 @@
                                 <span class="mx-1">→</span>
                               {/if}
                               {#if change.newValue !== undefined}
-                                <span class="text-emerald-600 dark:text-emerald-400">{String(change.newValue)}</span>
+                                <span class="text-success-600 dark:text-success-400">{String(change.newValue)}</span>
                               {/if}
                             </p>
                           {/if}
@@ -897,24 +897,24 @@
           {/if}
 
           <div>
-            <h3 class="mb-2 text-sm font-semibold text-surface-800 dark:text-surface-100">Version History</h3>
+            <h3 class="mb-2 text-sm font-semibold text-surface-600 dark:text-surface-100">Version History</h3>
             <div class="flex flex-col gap-2">
-              <div class="flex flex-col gap-3 rounded-lg border border-primary-500/20 bg-primary-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-col gap-3 rounded-lg border border-primary-500/20 bg-primary-500/10 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="flex min-w-0 items-center gap-3">
                   <Badge variant="primary" size="sm">Active</Badge>
                   <div class="min-w-0">
-                    <p class="truncate text-xs font-semibold text-surface-800 dark:text-surface-100">{file.filename}</p>
+                    <p class="truncate text-xs font-semibold text-surface-600 dark:text-surface-100">{file.filename}</p>
                     <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">Current · {formatBytes(file.size)} · {new Date(file.updatedAt).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
               {#each file.versions || [] as ver (ver.version)}
-                <div class="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-800 dark:bg-surface-900/60">
+                <div class="flex flex-col gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-500/40 dark:bg-surface-900/60">
                   <div class="flex min-w-0 items-center gap-3">
                     <Badge variant="surface" size="sm">v{ver.version}</Badge>
                     <div class="min-w-0">
-                      <p class="truncate text-xs font-semibold text-surface-800 dark:text-surface-100" title={ver.filename}>{ver.filename}</p>
+                      <p class="truncate text-xs font-semibold text-surface-600 dark:text-surface-100" title={ver.filename}>{ver.filename}</p>
                       <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">
                         {formatBytes(ver.size)} · {new Date(ver.createdAt).toLocaleString()}
                         {#if ver.createdBy}
@@ -962,15 +962,15 @@
             </div>
           {:else}
             <div>
-              <h3 class="mb-1 text-sm font-semibold text-surface-800 dark:text-surface-100">Usage Scanner</h3>
+              <h3 class="mb-1 text-sm font-semibold text-surface-600 dark:text-surface-100">Usage Scanner</h3>
               <p class="mb-4 text-xs text-surface-500 dark:text-surface-400">Lists all content entries where this media asset is referenced.</p>
 
               <div class="flex flex-col gap-2">
                 {#each references as ref (ref.entryId)}
-                  <div class="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-800 dark:bg-surface-900/60">
+                  <div class="flex flex-col gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-500/40 dark:bg-surface-900/60">
                     <div class="min-w-0">
                       <span class="text-[10px] font-semibold uppercase tracking-wide text-primary-500">{ref.collection}</span>
-                      <p class="mt-0.5 text-xs font-medium text-surface-800 dark:text-surface-100">Field: <span class="font-mono">{ref.field}</span></p>
+                      <p class="mt-0.5 text-xs font-medium text-surface-600 dark:text-surface-100">Field: <span class="font-mono">{ref.field}</span></p>
                       <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">Entry ID: {ref.entryId}</p>
                     </div>
 
@@ -984,7 +984,7 @@
                     </Button>
                   </div>
                 {:else}
-                  <div class="rounded-lg border border-dashed border-surface-200 p-4 dark:border-surface-800 sm:p-6 sm:text-center">
+                  <div class="rounded-lg border border-dashed border-surface-500/30 p-4 dark:border-surface-500/40 sm:p-6 sm:text-center">
                     <iconify-icon icon="mdi:link-variant-off" width="28" class="mb-2 text-surface-400"></iconify-icon>
                     <p class="text-xs text-surface-500 dark:text-surface-400">This asset is not referenced in any collections.</p>
                   </div>
@@ -996,8 +996,8 @@
 
       {:else if activeTab === 'share'}
         <div in:fade={{ duration: 150 }} class="flex flex-col gap-4">
-          <div class="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-4 dark:border-surface-800 dark:bg-surface-900/60">
-            <h4 class="text-sm font-semibold text-surface-800 dark:text-surface-100">Create Expiring Public Link</h4>
+          <div class="flex flex-col gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-900/60">
+            <h4 class="text-sm font-semibold text-surface-600 dark:text-surface-100">Create Expiring Public Link</h4>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Select
@@ -1042,15 +1042,15 @@
           </div>
 
           <div>
-            <h3 class="mb-2 text-sm font-semibold text-surface-800 dark:text-surface-100">Active Sharing Links</h3>
+            <h3 class="mb-2 text-sm font-semibold text-surface-600 dark:text-surface-100">Active Sharing Links</h3>
             <div class="flex flex-col gap-2">
               {#each file.metadata?.sharedLinks || [] as link (link.url || link)}
                 {const expired = isExpired(link.expiry)}
-                <div class="flex flex-col gap-2 rounded-lg border border-surface-200 bg-surface-50 p-3 dark:border-surface-800 dark:bg-surface-900/60">
+                <div class="flex flex-col gap-2 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/60">
                   <div class="flex flex-wrap items-center justify-between gap-2">
                     <div class="flex items-center gap-2">
                       <span class="h-2 w-2 rounded-full {expired ? 'bg-error-500' : 'bg-success-500'}"></span>
-                      <span class="font-mono text-[10px] uppercase text-surface-600 dark:text-surface-300">{expired ? 'Expired' : 'Active'}</span>
+                      <span class="font-mono text-[10px] uppercase text-surface-600 dark:text-surface-400">{expired ? 'Expired' : 'Active'}</span>
                       {#if link.passwordHash}
                         <iconify-icon icon="mdi:lock" width="14" class="text-warning-500" title="Password protected"></iconify-icon>
                       {/if}

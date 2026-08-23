@@ -485,7 +485,7 @@ Uses the same shared TreeView as collections:
 	{/if}
 
 	{#if isEditMode && isSidebarFull}
-		<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3 text-xs text-warning-700 dark:text-warning-400">
+		<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3 text-xs text-warning-600 dark:text-warning-400">
 			<iconify-icon icon="bi:info-circle" width={24}></iconify-icon>
 			<p>
 				Drag folders to reorder. Drop onto the <strong>middle</strong> of a folder to nest (same as
@@ -544,17 +544,17 @@ Uses the same shared TreeView as collections:
 
 <style>
 	.media-folders-list {
-		scrollbar-color: rgb(var(--color-primary-500) / 0.3) transparent;
+		scrollbar-color: color-mix(in srgb, var(--color-primary-500) 30%, transparent) transparent;
 		scrollbar-width: thin;
 	}
 	.media-folders-list::-webkit-scrollbar {
 		width: 4px;
 	}
 	.media-folders-list::-webkit-scrollbar-thumb {
-		background-color: rgb(var(--color-primary-500) / 0.3);
+		background-color: color-mix(in srgb, var(--color-primary-500) 30%, transparent);
 		border-radius: 2px;
 	}
 	.media-folders-list::-webkit-scrollbar-thumb:hover {
-		background-color: rgb(var(--color-primary-500) / 0.5);
+		background-color: color-mix(in srgb, var(--color-primary-500) 50%, transparent);
 	}
 </style>

@@ -146,7 +146,7 @@ function selectNode(id: string) {
 		</StickyActions>
 	{/snippet}
 
-	<AdminCard class="flex flex-wrap items-center justify-between gap-4 border border-surface-200 bg-white p-4 shadow-sm dark:border-surface-800 dark:bg-surface-900" data-testid="workflow-toolbar">
+	<AdminCard class="flex flex-wrap items-center justify-between gap-4 border border-surface-500/30 bg-white p-4 shadow-sm dark:border-surface-500/40 dark:bg-surface-900" data-testid="workflow-toolbar">
 		<div data-testid="workflow-collection-select">
 			<Select
 				bind:value={selectedCollectionId}
@@ -177,7 +177,7 @@ function selectNode(id: string) {
 
 	<div class="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-4" data-testid="workflow-builder">
 		<!-- Canvas Area -->
-		<div class="relative overflow-hidden rounded-2xl border-2 border-dashed border-surface-200 bg-surface-100 p-12 lg:col-span-3 dark:border-surface-800 dark:bg-surface-900/50" data-testid="workflow-canvas">
+		<div class="relative overflow-hidden rounded-2xl border-2 border-dashed border-surface-500/30 bg-surface-500/10 p-12 lg:col-span-3 dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="workflow-canvas">
 			<div class="flex flex-wrap items-start justify-center gap-12">
 				{#each states as state (state.id)}
 					<div
@@ -185,7 +185,7 @@ function selectNode(id: string) {
 						tabindex="0"
 						data-testid={`workflow-state-${state.id}`}
 						class="relative w-48 rounded border-2 bg-white p-4 shadow-lg transition-all dark:bg-surface-800
-                            {selectedNodeId === state.id ? 'border-primary-500 ring-4 ring-primary-500/10 scale-105' : 'border-surface-200 dark:border-surface-700'}"
+                            {selectedNodeId === state.id ? 'border-primary-500 ring-4 ring-primary-500/10 scale-105' : 'border-surface-500/30 dark:border-surface-500/40'}"
 						onclick={() => selectNode(state.id)}
 						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectNode(state.id); }}
 					>
@@ -205,8 +205,8 @@ function selectNode(id: string) {
 						<div class="mt-4 space-y-1">
 							{#each transitions.filter(t => t.from === state.id) as trans (trans.id)}
 								<button
-                                    class="flex w-full items-center justify-between rounded border bg-surface-50 p-1.5 text-start text-[10px] dark:bg-surface-900
-                                           {selectedTransitionId === trans.id ? 'border-primary-500 ring-1 ring-primary-500/50' : 'border-surface-200/50 hover:border-surface-400'}"
+                                    class="flex w-full items-center justify-between rounded border bg-surface-500/10 p-1.5 text-start text-[10px] dark:bg-surface-900
+                                           {selectedTransitionId === trans.id ? 'border-primary-500 ring-1 ring-primary-500/50' : 'border-surface-500/30 hover:border-surface-500'}"
                                     onclick={(e) => { e.stopPropagation(); selectTransition(trans.id); }}
                                 >
 									<span class="truncate pe-2">➔ {states.find(s => s.id === trans.to)?.label}</span>
@@ -221,7 +221,7 @@ function selectNode(id: string) {
 
 		<!-- Properties Inspector -->
 		<AdminCard
-			class="overflow-y-auto border border-surface-200 bg-white p-6 shadow-sm dark:border-surface-800 dark:bg-surface-900"
+			class="overflow-y-auto border border-surface-500/30 bg-white p-6 shadow-sm dark:border-surface-500/40 dark:bg-surface-900"
 		>
 			<h3 class="mb-6 text-xs font-bold uppercase tracking-widest opacity-40">Properties</h3>
 

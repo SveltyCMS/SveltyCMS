@@ -241,7 +241,7 @@
 
 <div class="relative mb-4 min-h-10 w-full">
 	<SystemTooltip title={validationError || ''} wFull={true}>
-		<div class="flex w-full overflow-hidden rounded border border-surface-400 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
+		<div class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
 			{#if field?.prefix}
 				<div
 					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
@@ -281,7 +281,7 @@
 
 			<!-- suffix and count -->
 			{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
-				<div class="flex items-center bg-surface-100 px-2 dark:bg-surface-800" role="status" aria-live="polite">
+				<div class="flex items-center bg-surface-500/10 px-2 dark:bg-surface-800" role="status" aria-live="polite">
 					{#if field?.count || field?.minLength || field?.maxLength}
 						<Badge variant={badgeVariant} class="me-1" aria-label="Character count">
 							{#if field?.count && field?.minLength && field?.maxLength}
@@ -304,7 +304,7 @@
 						</Badge>
 					{/if}
 					{#if field?.suffix}
-						<span class="text-surface-700 dark:text-surface-200" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
+						<span class="text-surface-600 dark:text-surface-400" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
 					{/if}
 				</div>
 			{/if}

@@ -126,7 +126,7 @@ $effect(() => {
 				/>
 
 				{#if name}
-					<div class="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-3">
+					<div class="rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800 p-3">
 						<span class="text-[10px] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-1 block">
 							Database Name
 						</span>
@@ -156,7 +156,7 @@ $effect(() => {
 						bind:value={description}
 						placeholder={collection_description_placeholder()}
 						title={collectionname_description()}
-						class="w-full rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 resize-none min-h-32"
+						class="w-full rounded border border-surface-500/30 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-900 p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 resize-none min-h-32"
 					></textarea>
 				</div>
 			</div>

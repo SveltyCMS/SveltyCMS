@@ -149,12 +149,12 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 			bind:value={searchQuery}
 			icon="mdi:magnify"
 			placeholder="Type to filter..."
-			textColor="text-surface-700 dark:text-white"
+			textColor="text-surface-600 dark:text-white"
 		/>
 	</div>
 
 	<!-- List -->
-	<div class="list-container relative flex-1 min-h-75 overflow-y-auto rounded border border-surface-500/20 bg-surface-50/50 p-2 dark:bg-surface-900/50">
+	<div class="list-container relative flex-1 min-h-75 overflow-y-auto rounded border border-surface-500/20 bg-surface-500/50 p-2 dark:bg-surface-900/50">
 		{#if loading}
 			<div class="flex h-full items-center justify-center py-12" in:fade>
 				<div class="flex flex-col items-center gap-4">

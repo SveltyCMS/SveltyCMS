@@ -363,7 +363,7 @@ const conditionOperatorOptions = [
 	backUrl="/config/automations"
 >
 {#if isLoading}
-	<AdminCard class="flex items-center justify-center border border-surface-200 py-20 dark:border-surface-800" data-testid="automation-editor-loading">
+	<AdminCard class="flex items-center justify-center border border-surface-500/30 py-20 dark:border-surface-500/40" data-testid="automation-editor-loading">
 		<Loader variant="circle" width="size-12" height="size-12" ariaLabel="Loading automation" />
 	</AdminCard>
 {:else}
@@ -396,7 +396,7 @@ const conditionOperatorOptions = [
 		</div>
 
 		<!-- Step Content -->
-		<AdminCard class="overflow-hidden border border-surface-200 bg-white dark:border-surface-800 dark:bg-surface-900/50">
+		<AdminCard class="overflow-hidden border border-surface-500/30 bg-white dark:border-surface-500/40 dark:bg-surface-900/50">
 			<!-- STEP 1: Trigger -->
 			{#if activeStep === 1}
 				<div class="p-6 space-y-6" transition:fade>
@@ -435,7 +435,7 @@ const conditionOperatorOptions = [
 									{const isSelected = flow.trigger.type === triggerOption.type}
 									<Button
 										variant="surface"
-										class="p-3 text-center border-2 transition-all duration-200 rounded {isSelected ? 'border-tertiary-500 dark:border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-surface-200 dark:border-surface-700'}"
+										class="p-3 text-center border-2 transition-all duration-200 rounded {isSelected ? 'border-tertiary-500 dark:border-primary-500 bg-primary-500/10 dark:bg-primary-500/10' : 'border-surface-500/30 dark:border-surface-500/40'}"
 										onclick={() => setTriggerType(triggerOption.type as 'event' | 'schedule' | 'manual')}
 										aria-label="Select {triggerOption.label} trigger"
 										data-testid={`automation-trigger-${triggerOption.type}`}
@@ -456,10 +456,8 @@ const conditionOperatorOptions = [
 								<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 									{#each AUTOMATION_EVENTS as eventMeta (eventMeta.event)}
 										<div
-											class="flex items-center gap-3 p-3 rounded transition-colors hover:bg-surface-200 dark:hover:bg-surface-700 border"
-											class:border-primary-400={flow.trigger.events?.includes(eventMeta.event)}
-											class:bg-primary-50={flow.trigger.events?.includes(eventMeta.event)}
-											class:dark:bg-primary-950={flow.trigger.events?.includes(eventMeta.event)}
+											class="flex items-center gap-3 p-3 rounded transition-colors hover:bg-surface-200 dark:hover:bg-surface-700 border {flow.trigger.events?.includes(eventMeta.event) ? 'bg-primary-500/10 dark:bg-primary-500/10' : ''}"
+											class:border-primary-500={flow.trigger.events?.includes(eventMeta.event)}
 											class:border-transparent={!flow.trigger.events?.includes(eventMeta.event)}
 										>
 											<Checkbox
@@ -558,7 +556,7 @@ const conditionOperatorOptions = [
 								{const meta = getOperationMeta(op.type)}
 								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 								<div
-									class="card p-4 border border-surface-300 dark:border-surface-600 rounded bg-surface-50 dark:bg-surface-900 relative"
+									class="card p-4 border border-surface-500/30 dark:border-surface-600 rounded bg-surface-500/10 dark:bg-surface-900 relative"
 									transition:slide
 									use:draggable={{ container: 'operations', dragData: op, disabled: activeStep !== 2, keyboard: true }}
 									role="listitem"
@@ -628,9 +626,9 @@ const conditionOperatorOptions = [
 														<Button variant="outline" type="button" title="Insert Token" aria-label="Insert token into body" size="sm" class="p-1 opacity-40 hover:opacity-100">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</Button>
-														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
+														<div class="dropdown-content rounded-xl border border-(--admin-border-default) p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5 text-(--admin-text-body)">
 															{#each availableTokens as token (token.value)}
-																															<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'body', token.value)}>{token.label}</Button>
+																											<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'body', token.value)}>{token.label}</Button>
 															{/each}
 														</div>
 													</div>
@@ -668,9 +666,9 @@ const conditionOperatorOptions = [
 														<Button variant="outline" type="button" title="Insert Token" aria-label="Insert token into recipient" size="sm" class="p-1 opacity-40 hover:opacity-100">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</Button>
-														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
+														<div class="dropdown-content rounded-xl border border-(--admin-border-default) p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5 text-(--admin-text-body)">
 															{#each availableTokens as token (token.value)}
-																															<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'to', token.value)}>{token.label}</Button>
+																											<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'to', token.value)}>{token.label}</Button>
 															{/each}
 														</div>
 													</div>
@@ -689,9 +687,9 @@ const conditionOperatorOptions = [
 														<Button variant="outline" type="button" title="Insert Token" aria-label="Insert token into subject" size="sm" class="p-1 opacity-40 hover:opacity-100">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</Button>
-														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
+														<div class="dropdown-content rounded-xl border border-(--admin-border-default) p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5 text-(--admin-text-body)">
 															{#each availableTokens as token (token.value)}
-																															<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'subject', token.value)} aria-label="Insert token {token.label}">{token.label}</Button>
+																											<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'subject', token.value)} aria-label="Insert token {token.label}">{token.label}</Button>
 															{/each}
 														</div>
 													</div>
@@ -710,9 +708,9 @@ const conditionOperatorOptions = [
 														<Button variant="outline" type="button" title="Insert Token" aria-label="Insert token into email body" size="sm" class="p-1 opacity-40 hover:opacity-100">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</Button>
-														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
+														<div class="dropdown-content rounded-xl border border-(--admin-border-default) p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5 text-(--admin-text-body)">
 															{#each availableTokens as token (token.value)}
-																															<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'body', token.value)} aria-label="Insert body token {token.label}">{token.label}</Button>
+																											<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'body', token.value)} aria-label="Insert body token {token.label}">{token.label}</Button>
 															{/each}
 													</div>
 												</div>
@@ -739,9 +737,9 @@ const conditionOperatorOptions = [
 															<Button variant="outline" type="button" title="Insert Token" aria-label="Insert token into message" size="sm" class="p-1 opacity-40 hover:opacity-100">
 																<iconify-icon icon="mdi:code-braces"></iconify-icon>
 															</Button>
-															<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
+															<div class="dropdown-content rounded-xl border border-(--admin-border-default) p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5 text-(--admin-text-body)">
 																{#each availableTokens as token (token.value)}
-																																	<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'message', token.value)}>{token.label}</Button>
+																												<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'message', token.value)}>{token.label}</Button>
 																{/each}
 															</div>
 														</div>
@@ -780,9 +778,9 @@ const conditionOperatorOptions = [
 														<Button variant="outline" type="button" title="Insert Token" size="sm" class="p-1 opacity-40 hover:opacity-100">
 															<iconify-icon icon="mdi:code-braces"></iconify-icon>
 														</Button>
-														<div class="dropdown-content card p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5">
+														<div class="dropdown-content rounded-xl border border-(--admin-border-default) p-2 shadow-xl bg-surface-200 dark:bg-surface-700 z-50 text-[10px] min-w-37.5 text-(--admin-text-body)">
 															{#each availableTokens as token (token.value)}
-																																<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'value', token.value)} aria-label="Insert value token {token.label}">{token.label}</Button>
+																												<Button variant="ghost" size="sm" class="block w-full text-start p-1 hover:bg-tertiary-500 dark:bg-primary-500 hover:text-white rounded" onclick={() => insertToken(i, 'value', token.value)} aria-label="Insert value token {token.label}">{token.label}</Button>
 															{/each}
 														</div>
 													</div>
@@ -821,13 +819,13 @@ const conditionOperatorOptions = [
 					{/if}
 
 					<!-- Add Operation Buttons -->
-					<div class="border-2 border-dashed border-surface-300 dark:border-surface-600 rounded p-4" data-testid="automation-add-ops">
+					<div class="border-2 border-dashed border-surface-500/30 dark:border-surface-600 rounded p-4" data-testid="automation-add-ops">
 						<p class="text-sm font-medium mb-3 opacity-70">Add Operation</p>
 						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
 							{#each OPERATION_TYPES as opType (opType.type)}
 								<Button
 									variant="surface"
-									class="p-3 text-center border border-surface-300 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded hover:scale-105"
+									class="p-3 text-center border border-surface-500/30 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded hover:scale-105"
 									onclick={() => addOperation(opType.type)}
 									aria-label="Add {opType.label} operation"
 									data-testid={`automation-add-op-${opType.type}`}
@@ -925,16 +923,16 @@ const conditionOperatorOptions = [
 						<!-- Test Results -->
 						{#if testResult}
 							<div
-								class="card p-4 rounded border"
-								class:border-success-400={testResult.status === 'success'}
-								class:bg-success-50={testResult.status === 'success'}
-								class:dark:bg-success-950={testResult.status === 'success'}
-								class:border-error-400={testResult.status === 'failure'}
-								class:bg-error-50={testResult.status === 'failure'}
-								class:dark:bg-error-950={testResult.status === 'failure'}
-								class:border-warning-400={testResult.status === 'skipped'}
-								class:bg-warning-50={testResult.status === 'skipped'}
-								class:dark:bg-warning-950={testResult.status === 'skipped'}
+								class="card p-4 rounded border {testResult.status === 'success'
+									? 'bg-success-500/10 dark:bg-success-500/10'
+									: testResult.status === 'failure'
+										? 'bg-error-500/10 dark:bg-error-500/10'
+										: testResult.status === 'skipped'
+											? 'bg-warning-500/10 dark:bg-warning-500/10'
+											: ''}"
+								class:border-success-500={testResult.status === 'success'}
+								class:border-error-500={testResult.status === 'failure'}
+								class:border-warning-500={testResult.status === 'skipped'}
 								transition:slide
 							>
 								<div class="flex items-center gap-2 mb-3">
@@ -955,7 +953,7 @@ const conditionOperatorOptions = [
 
 								{#each testResult.operationResults as opResult, i (i)}
 									{const opMeta = OPERATION_TYPES.find((t) => t.type === opResult.type)}
-									<div class="py-2 border-t border-surface-200 dark:border-surface-700">
+									<div class="py-2 border-t border-surface-500/30 dark:border-surface-500/40">
 										<div class="flex items-center gap-2 text-sm mb-1">
 											<iconify-icon
 												icon={opResult.status === 'success' ? 'mdi:check' : opResult.status === 'failure' ? 'mdi:close' : 'mdi:skip-next'}
@@ -965,7 +963,7 @@ const conditionOperatorOptions = [
 											></iconify-icon>
 											<iconify-icon icon={opMeta?.icon || 'mdi:cog'} class="opacity-60"></iconify-icon>
 											<span class="font-medium">{opMeta?.label || opResult.type}</span>
-											<span class="text-xs opacity-50 ml-auto">{opResult.duration}ms</span>
+											<span class="text-xs opacity-50 ms-auto">{opResult.duration}ms</span>
 										</div>
 										{#if opResult.error}
 											<div class="text-xs text-error-600 mb-1">{opResult.error}</div>
@@ -1036,7 +1034,7 @@ const conditionOperatorOptions = [
 		</AdminCard>
 
 		<!-- Footer Navigation -->
-		<div class="flex items-center justify-between mt-6 p-4 border-t border-surface-200 dark:border-surface-700" data-testid="automation-footer">
+		<div class="flex items-center justify-between mt-6 p-4 border-t border-surface-500/30 dark:border-surface-500/40" data-testid="automation-footer">
 			<div>
 				{#if activeStep > 1}
 					<Button variant="surface" onclick={() => (activeStep -= 1)} aria-label="Go back" data-testid="automation-back">

@@ -67,7 +67,7 @@ import { logger } from "@utils/logger";
 		<!-- Latitude -->
 		<div class="flex flex-col gap-1.5">
 			<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Latitude</span>
-			<div class="flex w-full overflow-hidden rounded border border-surface-300 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0">
+			<div class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0">
 				<Input
 					type="number"
 					aria-label="Latitude"
@@ -75,9 +75,9 @@ import { logger } from "@utils/logger";
 					bind:value={lat}
 					oninput={updateValue}
 					placeholder="0.000000"
-					inputClass="h-auto w-full rounded-none border-0 bg-surface-50 py-2 shadow-none focus-visible:ring-0 dark:bg-surface-900"
+					inputClass="h-auto w-full rounded-none border-0 bg-surface-500/10 py-2 shadow-none focus-visible:ring-0 dark:bg-surface-900"
 				/>
-				<div class="flex items-center border-s border-surface-300 bg-surface-100 px-3 text-sm text-surface-500 dark:border-surface-600 dark:bg-surface-800">
+				<div class="flex items-center border-s border-surface-500/30 bg-surface-500/10 px-3 text-sm text-surface-500 dark:border-surface-600 dark:bg-surface-800">
 					N/S
 				</div>
 			</div>
@@ -86,7 +86,7 @@ import { logger } from "@utils/logger";
 		<!-- Longitude -->
 		<div class="flex flex-col gap-1.5">
 			<span class="text-xs font-bold uppercase tracking-widest text-surface-400">Longitude</span>
-			<div class="flex w-full overflow-hidden rounded border border-surface-300 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0">
+			<div class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0">
 				<Input
 					type="number"
 					aria-label="Longitude"
@@ -94,9 +94,9 @@ import { logger } from "@utils/logger";
 					bind:value={lng}
 					oninput={updateValue}
 					placeholder="0.000000"
-					inputClass="h-auto w-full rounded-none border-0 bg-surface-50 py-2 shadow-none focus-visible:ring-0 dark:bg-surface-900"
+					inputClass="h-auto w-full rounded-none border-0 bg-surface-500/10 py-2 shadow-none focus-visible:ring-0 dark:bg-surface-900"
 				/>
-				<div class="flex items-center border-s border-surface-300 bg-surface-100 px-3 text-sm text-surface-500 dark:border-surface-600 dark:bg-surface-800">
+				<div class="flex items-center border-s border-surface-500/30 bg-surface-500/10 px-3 text-sm text-surface-500 dark:border-surface-600 dark:bg-surface-800">
 					E/W
 				</div>
 			</div>
@@ -119,7 +119,7 @@ import { logger } from "@utils/logger";
 
 	<!-- Visual Feedback -->
 	{#if value}
-		<div class="p-3 bg-surface-100 dark:bg-surface-800 rounded border border-surface-200 dark:border-surface-700 text-xs font-mono text-center">
+		<div class="p-3 bg-surface-500/10 dark:bg-surface-800 rounded border border-surface-500/30 dark:border-surface-500/40 text-xs font-mono text-center">
 			GeoJSON: {JSON.stringify(value)}
 		</div>
 	{/if}

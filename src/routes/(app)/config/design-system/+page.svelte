@@ -14,7 +14,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 - Palette studio (seed colors → expanded scales → runtime CSS)
 - Live theme preview via Svelte 5 $state (instant re-render)
 - Live Preview playground (native component catalog)
-- Skeleton.dev preset import
+- Theme JSON import (shorthand palette / CSS exports)
 - Custom CSS injection with sanitization
 - Density presets (compact / cozy / spacious)
 - Card variant switching (flat / bordered / elevated)
@@ -565,7 +565,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
           onclick={() => setActiveTab(tab.id)}
           size="sm"
           data-testid={`appearance-tab-${tab.id}`}
-          class={activeTab === tab.id ? 'bg-surface-100 text-tertiary-600 dark:bg-surface-800 dark:text-primary-500' : ''}>
+          class={activeTab === tab.id ? 'bg-surface-500/10 text-tertiary-600 dark:bg-surface-800 dark:text-primary-500' : ''}>
           <iconify-icon icon={tab.icon} width="16"></iconify-icon>
           <span>{tab.label}</span>
         </Button>
@@ -637,7 +637,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                 </Button>
               </div>
               {#if layoutLocked}
-                <p class="text-xs text-amber-600 dark:text-amber-400 mb-3">
+                <p class="text-xs text-warning-600 dark:text-warning-400 mb-3">
                   Layout is locked by your workspace admin — tenant defaults apply.
                 </p>
               {/if}
@@ -687,8 +687,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                     data-testid={`appearance-theme-card-${t.id}`}
                     data-theme-name={t.name}
                     class="p-4 border-2 {t.isActive
-                    ? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-50/30 dark:bg-primary-900/10'
-                    : 'border-surface-200 dark:border-surface-700'} flex items-center gap-3 flex-wrap">
+                    ? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/30 dark:bg-primary-900/10'
+                    : 'border-surface-500/30 dark:border-surface-500/40'} flex items-center gap-3 flex-wrap">
                     <iconify-icon icon={t.isActive ? "mdi:checkbox-marked-circle" : "mdi:theme-light-dark"}
                       class="text-xl {t.isActive ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-400'}"></iconify-icon>
                     <div class="flex-1 min-w-0">
@@ -722,7 +722,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
               <!-- Create new theme -->
               <AdminCard
-                class="mt-6 max-w-2xl border border-surface-200 p-4 dark:border-surface-700"
+                class="mt-6 max-w-2xl border border-surface-500/30 p-4 dark:border-surface-500/40"
                 data-testid="appearance-theme-create"
               >
                 <h4 class="font-bold text-sm mb-3">Create New Theme</h4>
@@ -752,9 +752,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                 <iconify-icon icon="mdi:palette-swatch" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
                 Theme Presets
               </h3>
-              <p class="text-sm text-surface-500 dark:text-surface-400 mb-2">
-                Edit brand colors in the palette studio, apply layout presets, or import Skeleton.dev JSON.
-              </p>
+	              <p class="text-sm text-surface-500 dark:text-surface-400 mb-2">
+	                Edit brand colors in the palette studio, apply layout presets, or import theme JSON.
+	              </p>
               <p class="text-sm mb-4">
                 <button
                   type="button"
@@ -781,7 +781,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                 				<AdminCard
                 					class="cursor-pointer p-4 border-2 {density === 'cozy' && variant === 'bordered'
                 						? 'border-tertiary-500 dark:border-primary-500'
-                						: 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors"
+                						: 'border-surface-500/30 dark:border-surface-500/40'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
                 					onclick={() => { density = 'cozy'; variant = 'bordered'; }}
 					role="button"
 					tabindex={0}
@@ -795,7 +795,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                 				<AdminCard
                 					class="cursor-pointer p-4 border-2 {density === 'compact' && variant === 'flat'
                 						? 'border-tertiary-500 dark:border-primary-500'
-                						: 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors"
+                						: 'border-surface-500/30 dark:border-surface-500/40'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
                 					onclick={() => { density = 'compact'; variant = 'flat'; }}
 					role="button"
 					tabindex={0}
@@ -809,7 +809,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                 				<AdminCard
                 					class="cursor-pointer p-4 border-2 {density === 'spacious' && variant === 'elevated'
                 						? 'border-tertiary-500 dark:border-primary-500'
-                						: 'border-surface-200 dark:border-surface-700'} hover:border-tertiary-400 dark:hover:border-primary-400 transition-colors"
+                						: 'border-surface-500/30 dark:border-surface-500/40'} hover:border-tertiary-500 dark:hover:border-primary-400 transition-colors"
                 					onclick={() => { density = 'spacious'; variant = 'elevated'; }}
 					role="button"
 					tabindex={0}
@@ -842,7 +842,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
               {:else}
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   {#each marketplaceThemes as item (item.id)}
-                    <AdminCard class="p-4 border border-surface-200 dark:border-surface-700">
+                    <AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40">
                       <h5 class="font-bold text-sm">{item.name}</h5>
                       <p class="text-xs text-surface-500 dark:text-surface-400 mt-1 mb-3 line-clamp-2">{item.description}</p>
                       <div class="flex items-center justify-between gap-2">
@@ -860,20 +860,20 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                 </div>
               {/if}
 
-              <h4 class="font-bold text-sm mb-2">Import from Skeleton.dev</h4>
-              <p class="text-xs text-surface-500 dark:text-surface-400 mb-3">
-                Create at <a href="https://themes.skeleton.dev/themes/create" target="_blank" rel="noopener" class="text-tertiary-500 dark:text-primary-500 underline">themes.skeleton.dev</a>, export as JSON, paste below.
-              </p>
-              <div class="space-y-3">
-                <Textarea
-                  bind:value={importPresetJson}
-                  label="Import preset JSON"
-                  textareaClass="min-h-30 font-mono text-xs"
-                  placeholder={'{"name":"My Theme","properties":{...}}'}
-                  rows={6}
-                />
-                <Button variant="tertiary" onclick={importPreset} loading={saving}>Import Preset</Button>
-              </div>
+	              <h4 class="font-bold text-sm mb-2">Import Theme JSON</h4>
+	              <p class="text-xs text-surface-500 dark:text-surface-400 mb-3">
+	                Paste a SveltyCMS theme JSON export (or a shorthand palette block) to apply it.
+	              </p>
+	              <div class="space-y-3">
+	                <Textarea
+	                  bind:value={importPresetJson}
+	                  label="Import theme JSON"
+	                  textareaClass="min-h-30 font-mono text-xs"
+	                  placeholder={'{"name":"My Theme","properties":{...}}'}
+	                  rows={6}
+	                />
+	                <Button variant="tertiary" onclick={importPreset} loading={saving}>Import Theme</Button>
+	              </div>
             </div>
           </div>
 
@@ -893,7 +893,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
               <div class="grid grid-cols-3 gap-4">
                 {#each [{ d: 'compact', label: 'Compact', desc: 'Sidebar: 200px · Dense · Small text' }, { d: 'cozy', label: 'Cozy', desc: 'Sidebar: 240px · Balanced · Default' }, { d: 'spacious', label: 'Spacious', desc: 'Sidebar: 300px · Airy · Writer mode' }] as p (p.d)}
-                  <AdminCard class="p-3 border {density === p.d ? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-tertiary-500/20 dark:ring-primary-500/20' : 'border-surface-200 dark:border-surface-700'}">
+                  <AdminCard class="p-3 border {density === p.d ? 'border-tertiary-500 dark:border-primary-500 ring-2 ring-tertiary-500/20 dark:ring-primary-500/20' : 'border-surface-500/30 dark:border-surface-500/40'}">
                     <div class="text-xs font-bold mb-1">{p.label}</div>
                     <div class="text-[10px] text-surface-500">{p.desc}</div>
                   </AdminCard>
@@ -917,7 +917,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                   <div class="text-sm font-bold mb-2">Flat</div>
                   <div class="text-xs text-surface-500">No borders · No shadows</div>
                 </AdminCard>
-                <AdminCard class="p-6 {variant === 'bordered' ? 'border-tertiary-500 dark:border-primary-500 ring-2' : 'border-surface-200 dark:border-surface-700'}"
+                <AdminCard class="p-6 {variant === 'bordered' ? 'border-tertiary-500 dark:border-primary-500 ring-2' : 'border-surface-500/30 dark:border-surface-500/40'}"
                   style="border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1));">
                   <div class="text-sm font-bold mb-2">Bordered</div>
                   <div class="text-xs text-surface-500">Subtle border · Light shadow</div>
@@ -939,35 +939,35 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
               Theme Features
             </h3>
             <div class="max-w-2xl space-y-4">
-                <AdminCard class="p-4 border border-surface-200 dark:border-surface-700 flex items-center justify-between">
+                <AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between">
                   <div>
                     <div class="font-bold text-sm">Sticky Action Bar</div>
                     <div class="text-xs text-surface-500 dark:text-surface-400">Save/Delete buttons stick on scroll in content forms</div>
                   </div>
                   <Toggle bind:value={stickyActionBar} />
                 </AdminCard>
-                <AdminCard class="p-4 border border-surface-200 dark:border-surface-700 flex items-center justify-between">
+                <AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between">
                   <div>
                     <div class="font-bold text-sm">Collapsible Sidebar</div>
                     <div class="text-xs text-surface-500 dark:text-surface-400">Allow users to collapse the navigation sidebar</div>
                   </div>
                   <Toggle bind:value={collapsibleSidebar} />
                 </AdminCard>
-                <AdminCard class="p-4 border border-surface-200 dark:border-surface-700 flex items-center justify-between">
+                <AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between">
                   <div>
                     <div class="font-bold text-sm">Branded Login</div>
                     <div class="text-xs text-surface-500 dark:text-surface-400">Show tenant logo and custom colors on login page</div>
                   </div>
                   <Toggle bind:value={brandedLogin} />
                 </AdminCard>
-                <AdminCard class="p-4 border border-surface-200 dark:border-surface-700 flex items-center justify-between">
+                <AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between">
                   <div>
                     <div class="font-bold text-sm">High Contrast Mode</div>
                     <div class="text-xs text-surface-500 dark:text-surface-400">Enforce WCAG AAA contrast ratios across admin</div>
                   </div>
                   <Toggle bind:value={highContrastMode} />
                 </AdminCard>
-                <AdminCard class="p-4 border border-surface-200 dark:border-surface-700 flex items-center justify-between">
+                <AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between">
                   <div>
                     <div class="font-bold text-sm">Reduced Motion</div>
                     <div class="text-xs text-surface-500 dark:text-surface-400">Disable all animations and transitions globally</div>
@@ -976,7 +976,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                 </AdminCard>
 
                 <!-- Layout Region: Collections Position -->
-                <AdminCard class="p-4 border border-surface-200 dark:border-surface-700">
+                <AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40">
                   <div class="mb-3">
                     <div class="font-bold text-sm">Collections Position</div>
                     <div class="text-xs text-surface-500 dark:text-surface-400">Which sidebar shows the content collections tree</div>
@@ -985,7 +985,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                 </AdminCard>
 
                 <!-- Lock user overrides -->
-                <AdminCard class="p-4 border border-warning-200 dark:border-warning-800 bg-warning-50/20 dark:bg-warning-900/10">
+                <AdminCard class="p-4 border border-warning-500/30 dark:border-warning-500/40 bg-warning-500/20 dark:bg-warning-900/10">
                   <div class="mb-3">
                     <div class="font-bold text-sm">Lock User Overrides</div>
                     <div class="text-xs text-surface-500 dark:text-surface-400">
@@ -1025,7 +1025,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                 </p>
               </div>
 
-              <AdminCard class="p-4 border border-surface-200 dark:border-surface-700">
+              <AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40">
                 <h4 class="font-bold text-sm mb-3">Export / Import</h4>
                 <div class="flex flex-wrap gap-2">
                   <Button variant="outline" onclick={exportTheme} leadingIcon="mdi:export">Export Theme JSON</Button>
@@ -1033,7 +1033,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
                 <p class="text-xs text-surface-400 mt-2">Export current settings. Import via Presets tab.</p>
               </AdminCard>
 
-              <AdminCard class="p-4 border border-error-200 dark:border-error-800 bg-error-50/30 dark:bg-error-900/10">
+              <AdminCard class="p-4 border border-error-500/30 dark:border-error-500/40 bg-error-500/30 dark:bg-error-900/10">
                 <h4 class="font-bold text-sm text-error-600 dark:text-error-400 mb-2">Danger Zone</h4>
                 <p class="text-xs text-surface-500 dark:text-surface-400 mb-3">Reset to factory defaults.</p>
                 <Button variant="error" onclick={resetToDefaults} leadingIcon="mdi:restore-alert">Reset to Defaults</Button>
@@ -1047,7 +1047,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
   <!-- Save Bar (admin theme edits only) -->
   {#if hasChanges && isAdmin && activeTab !== "overrides" && activeTab !== "preview"}
-    <div class="sticky bottom-0 z-30 -mx-6 -mb-6 px-6 py-4 border-t border-surface-200 dark:border-surface-700 bg-white/90 dark:bg-surface-900/90 backdrop-blur-md flex items-center justify-between">
+    <div class="sticky bottom-0 z-30 -mx-6 -mb-6 px-6 py-4 border-t border-surface-500/30 dark:border-surface-500/40 bg-white/90 dark:bg-surface-900/90 backdrop-blur-md flex items-center justify-between">
       <p class="text-sm text-warning-600 dark:text-warning-400 font-medium">
         <iconify-icon icon="mdi:alert-circle" class="inline me-1" width="16"></iconify-icon>
         Unsaved changes — live preview active

@@ -107,7 +107,7 @@ function getRoleLabel(role: Role): string {
 		<div class="overflow-x-auto">
 			<table class="w-full text-sm">
 				<thead>
-					<tr class="border-b border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900">
+					<tr class="border-b border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900">
 						<th class="text-start px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider">Role</th>
 						<th class="text-center px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-20">View</th>
 						<th class="text-center px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-20">Edit</th>
@@ -119,11 +119,11 @@ function getRoleLabel(role: Role): string {
 					{#each roles as role (role._id || role.name)}
 						{@const roleName = getRoleName(role)}
 						{@const perm = permissions[roleName]}
-						<tr class="border-b border-surface-100 dark:border-surface-800 hover:bg-surface-50 dark:hover:bg-surface-900/50 transition-colors">
+						<tr class="border-b border-surface-100 dark:border-surface-500/40 hover:bg-surface-500/10 dark:hover:bg-surface-900/50 transition-colors">
 							<!-- Role Name -->
 							<td class="px-4 py-3">
 								<div class="flex items-center gap-3">
-									<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-500">
+									<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-500/10 dark:bg-primary-900/20 text-primary-600 dark:text-primary-500">
 										<span class="text-xs font-bold">{getRoleLabel(role).charAt(0)}</span>
 									</div>
 									<div>
@@ -140,7 +140,7 @@ function getRoleLabel(role: Role): string {
 								{#if perm}
 									<button
 										onclick={() => togglePermission(roleName, 'view')}
-										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.view ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-500' : 'bg-surface-100 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
+										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.view ? 'bg-primary-500/10 dark:bg-primary-900/20 text-primary-600 dark:text-primary-500' : 'bg-surface-500/10 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
 										aria-label={`Toggle view for ${getRoleLabel(role)}`}
 										role="checkbox"
 										aria-checked={perm.view}
@@ -155,7 +155,7 @@ function getRoleLabel(role: Role): string {
 								{#if perm}
 									<button
 										onclick={() => togglePermission(roleName, 'edit')}
-										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.edit ? 'bg-warning-100 dark:bg-warning-900/30 text-warning-600 dark:text-warning-400' : 'bg-surface-100 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
+										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.edit ? 'bg-warning-500/10 dark:bg-warning-900/20 text-warning-600 dark:text-warning-400' : 'bg-surface-500/10 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
 										aria-label={`Toggle edit for ${getRoleLabel(role)}`}
 										role="checkbox"
 										aria-checked={perm.edit}
@@ -170,7 +170,7 @@ function getRoleLabel(role: Role): string {
 								{#if perm}
 									<button
 										onclick={() => togglePermission(roleName, 'write')}
-										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.write ? 'bg-success-100 dark:bg-success-900/30 text-success-600 dark:text-success-400' : 'bg-surface-100 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
+										class="inline-flex h-7 w-7 items-center justify-center rounded transition-colors {perm.write ? 'bg-success-500/10 dark:bg-success-900/20 text-success-600 dark:text-success-400' : 'bg-surface-500/10 dark:bg-surface-800 text-surface-300 dark:text-surface-600'}"
 										aria-label={`Toggle write for ${getRoleLabel(role)}`}
 										role="checkbox"
 										aria-checked={perm.write}
@@ -212,10 +212,10 @@ function getRoleLabel(role: Role): string {
 	</Card>
 
 	<!-- Info Footer -->
-	<div class="flex items-start gap-3 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 p-4">
+	<div class="flex items-start gap-3 rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 p-4">
 		<iconify-icon icon="mdi:information-outline" width="20" class="text-primary-500 shrink-0 mt-0.5"></iconify-icon>
 		<div class="text-sm text-surface-500 dark:text-surface-400">
-			<p class="font-semibold text-surface-700 dark:text-surface-300 mb-1">How permissions work</p>
+			<p class="font-semibold text-surface-600 dark:text-surface-400 mb-1">How permissions work</p>
 			<ul class="list-disc list-inside space-y-0.5 text-xs">
 				<li><strong>View</strong>: Can see the collection and its entries</li>
 				<li><strong>Edit</strong>: Can create and update entries</li>

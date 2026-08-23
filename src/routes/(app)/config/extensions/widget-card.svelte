@@ -54,12 +54,12 @@ interface Props {
 const { widget, onToggle, onUninstall, canManage }: Props = $props();
 </script>
 
-<div class="card border border-surface-200 dark:text-surface-50 transition-shadow hover:shadow-lg">
+<div class="card border border-surface-500/30 dark:text-surface-50 transition-shadow hover:shadow-lg">
 	<!-- Widget Header -->
 	<div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
 		<div class="flex min-w-0 flex-1 items-start gap-4">
 			<div
-				class="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-surface-100 text-surface-900 dark:bg-surface-800 dark:text-surface-100"
+				class="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-surface-500/10 text-surface-900 dark:bg-surface-800 dark:text-surface-100"
 			>
 				<iconify-icon icon={widget.icon} width="32" class="text-3xl"></iconify-icon>
 			</div>

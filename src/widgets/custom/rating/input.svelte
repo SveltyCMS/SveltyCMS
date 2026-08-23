@@ -69,7 +69,7 @@ Interactive star rating with hover states and click selection
 </script>
 
 <div
-	class="relative flex flex-col gap-2 rounded border p-3 border-surface-400 dark:border-surface-600 bg-white dark:bg-surface-900 transition-all"
+	class="relative flex flex-col gap-2 rounded border p-3 border-surface-500 dark:border-surface-600 bg-white dark:bg-surface-900 transition-all"
 	class:ring-2={!!error}
 	class:ring-error-500={!!error}
 	class:border-error-500={!!error}

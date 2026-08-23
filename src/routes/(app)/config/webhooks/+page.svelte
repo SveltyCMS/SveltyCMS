@@ -205,7 +205,7 @@ onMount(loadWebhooks);
 
 	<div data-testid="webhooks-page" class="contents">
 		{#if isLoading}
-			<AdminCard class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs">
+			<AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs">
 				<div class="flex flex-col items-center justify-center py-20" data-testid="webhooks-loading">
 					<Loader variant="text" lines={2} lastLineWidth="50%" ariaLabel="Loading webhooks" />
 				</div>
@@ -227,7 +227,7 @@ onMount(loadWebhooks);
 			{#if webhooks.length === 0}
 				<div in:fade>
 					<AdminCard
-						class="p-12 text-center border-2 border-dashed border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs"
+						class="p-12 text-center border-2 border-dashed border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs"
 						data-testid="webhooks-empty"
 					>
 						<iconify-icon icon="mdi:webhook-off" class="text-6xl mb-4 opacity-20"></iconify-icon>
@@ -245,7 +245,7 @@ onMount(loadWebhooks);
 			{:else}
 				<div in:fade>
 					<AdminCard
-						class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs space-y-4"
+						class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs space-y-4"
 						data-testid="webhooks-list"
 					>
 						<div class="grid gap-4">
@@ -273,7 +273,7 @@ onMount(loadWebhooks);
 									</div>
 
 									<div
-										class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-surface-200 dark:border-surface-700"
+										class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-surface-500/30 dark:border-surface-500/40"
 									>
 										<Button
 											variant="surface"
@@ -328,13 +328,13 @@ onMount(loadWebhooks);
 	>
 		<div transition:slide class="w-full max-w-2xl">
 			<AdminCard
-				class="bg-surface-100 dark:bg-surface-800 w-full overflow-hidden shadow-2xl border border-surface-300 dark:border-surface-700"
+				class="bg-surface-500/10 dark:bg-surface-800 w-full overflow-hidden shadow-2xl border border-surface-500/30 dark:border-surface-500/40"
 				role="dialog"
 				aria-modal="true"
 				aria-labelledby="webhook-modal-title"
 				data-testid="webhooks-modal"
 			>
-				<header class="p-4 border-b border-surface-300 dark:border-surface-700 flex justify-between items-center bg-surface-200 dark:bg-surface-900">
+				<header class="p-4 border-b border-surface-500/30 dark:border-surface-500/40 flex justify-between items-center bg-surface-200 dark:bg-surface-900">
 					<h3 id="webhook-modal-title" class="h3 font-bold">
 						{activeWebhook.id ? "Edit Webhook" : "Add New Webhook"}
 					</h3>
@@ -370,7 +370,7 @@ onMount(loadWebhooks);
 
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div class="space-y-1">
-							<span class="text-sm font-semibold text-surface-700 dark:text-surface-300">Secret Key (HMAC-SHA256)</span>
+							<span class="text-sm font-semibold text-surface-600 dark:text-surface-400">Secret Key (HMAC-SHA256)</span>
 							<div class="flex gap-1">
 								<Input
 									type="text"
@@ -420,7 +420,7 @@ onMount(loadWebhooks);
 					</div>
 				</section>
 
-				<footer class="p-4 border-t border-surface-300 dark:border-surface-700 flex justify-end gap-2 bg-surface-50 dark:bg-surface-900">
+				<footer class="p-4 border-t border-surface-500/30 dark:border-surface-500/40 flex justify-end gap-2 bg-surface-500/10 dark:bg-surface-900">
 					<Button variant="ghost" onclick={() => (showModal = false)} aria-label="Cancel editing" data-testid="webhook-cancel">
 						Cancel
 					</Button>

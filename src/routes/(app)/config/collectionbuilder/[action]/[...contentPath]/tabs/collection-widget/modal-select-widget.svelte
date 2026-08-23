@@ -55,7 +55,7 @@ const cHeader =
 
 {#if modalState.active}
 	<div class={cBase}>
-		<header class="flex items-center justify-between border-b border-surface-200 pb-4 dark:text-surface-50">
+		<header class="flex items-center justify-between border-b border-surface-500/30 pb-4 dark:text-surface-50">
 			<h2 class={cHeader}>{modalState.active?.props?.title || 'Select Widget'}</h2>
 			<Button variant="outline" onclick={() => (close ? close() : modalState.close())} aria-label="Close modal" class="p-0! min-w-0">
 				<iconify-icon icon="mdi:close" width="24"></iconify-icon>
@@ -95,7 +95,7 @@ const cHeader =
 									<button
 										type="button"
 										onclick={() => onFormSubmit(item)}
-										class="group relative flex flex-col gap-3 rounded border border-surface-200 bg-surface-50 p-5 text-start transition-all hover:-translate-y-1 hover:border-primary-500 hover:shadow-lg dark:text-surface-50 dark:bg-surface-800 dark:hover:border-primary-500"
+										class="group relative flex flex-col gap-3 rounded border border-surface-500/30 bg-surface-500/10 p-5 text-start transition-all hover:-translate-y-1 hover:border-primary-500 hover:shadow-lg dark:text-surface-50 dark:bg-surface-800 dark:hover:border-primary-500"
 										aria-label={`Select ${item} widget`}
 										data-testid={`select-widget-${String(item).toLowerCase()}`}
 									>

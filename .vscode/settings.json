@@ -15,9 +15,12 @@
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   // Tailwind v4 at-rules (@source, @theme, @utility, @apply, @custom-variant)
-  // are unknown to the stock CSS language server — suppress the noise.
-  "css.lint.unknownAtRules": "ignore",
-  "scss.lint.unknownAtRules": "ignore",
+  // are registered as valid via Custom Data (./css-custom-data.json), so the
+  // CSS language server validates everything else instead of flagging Tailwind
+  // syntax as unknown.
+  "css.customData": ["./css-custom-data.json"],
+  "scss.customData": ["./css-custom-data.json"],
+  "less.customData": ["./css-custom-data.json"],
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.validate.enable": true,
@@ -33,11 +36,5 @@
   "svelte.enable-ts-plugin": true,
   "tailwindCSS.includeLanguages": {
     "svelte": "html"
-  },
-  // Tailwind v4 uses CSS-first at-rules (@theme, @utility, @custom-variant).
-  // VS Code's built-in CSS validator doesn't recognize them.
-  "css.validate": false,
-  "css.lint.unknownAtRules": "ignore",
-  "less.validate": false,
-  "scss.validate": false
+  }
 }

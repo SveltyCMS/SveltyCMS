@@ -45,18 +45,18 @@
   let undoStack = $state<Array<{ nodeIds: string[]; previousActions: Record<string, string> }>>([]);
 
   const typeColors: Record<string, string> = {
-    content_type: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    content_type: 'bg-tertiary-500/10 text-tertiary-600 border-tertiary-500/30',
     field: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
-    taxonomy: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-    view: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-    rule: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+    taxonomy: 'bg-warning-500/10 text-warning-600 border-warning-500/30',
+    view: 'bg-success-500/10 text-success-600 border-success-500/30',
+    rule: 'bg-error-500/10 text-error-600 border-error-500/30',
     ecom_variant: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
   };
 
   function confidenceColor(score: number): string {
-    if (score >= 80) return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-    if (score >= 50) return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-    return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+    if (score >= 80) return 'bg-success-500/10 text-success-600 border-success-500/20';
+    if (score >= 50) return 'bg-warning-500/10 text-warning-600 border-warning-500/20';
+    return 'bg-error-500/10 text-error-600 border-error-500/20';
   }
 
   function confidenceIcon(score: number): string {
@@ -139,25 +139,25 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="transformation-tree space-y-4" onkeydown={handleKeydown}>
   <!-- Toolbar -->
-  <div class="flex flex-wrap items-center gap-2 p-3 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl">
-    <div class="flex items-center gap-1 bg-white dark:bg-surface-950 border border-surface-200 dark:border-surface-800 rounded-lg px-2 py-1 flex-1 min-w-30 sm:min-w-37.5">
+  <div class="flex flex-wrap items-center gap-2 p-3 bg-surface-500/10 dark:bg-surface-900 border border-surface-500/30 dark:border-surface-500/40 rounded-xl">
+    <div class="flex items-center gap-1 bg-white dark:bg-surface-500/10 border border-surface-500/30 dark:border-surface-500/40 rounded-lg px-2 py-1 flex-1 min-w-30 sm:min-w-37.5">
       <iconify-icon icon="mdi:magnify" width="14" class="text-surface-400 shrink-0"></iconify-icon>
-      <input type="text" bind:value={searchQuery} placeholder="Filter fields..." class="bg-transparent border-0 p-0 text-xs text-surface-700 dark:text-surface-300 focus:outline-none w-full" aria-label="Search fields" />
+      <input type="text" bind:value={searchQuery} placeholder="Filter fields..." class="bg-transparent border-0 p-0 text-xs text-surface-600 dark:text-surface-400 focus:outline-none w-full" aria-label="Search fields" />
     </div>
 
-    <select bind:value={confidenceFilter} class="bg-white dark:bg-surface-950 border border-surface-200 dark:border-surface-800 text-xs rounded-lg px-2 py-1 text-surface-600" aria-label="Filter by confidence">
+    <select bind:value={confidenceFilter} class="bg-white dark:bg-surface-500/10 border border-surface-500/30 dark:border-surface-500/40 text-xs rounded-lg px-2 py-1 text-surface-600" aria-label="Filter by confidence">
       <option value="all">All ({stats.total})</option>
       <option value="high">🟢 {stats.high}</option>
       <option value="medium">🟡 {stats.medium}</option>
       <option value="low">🔴 {stats.low}</option>
     </select>
 
-    <button onclick={toggleSelectAll} class="text-[10px] font-bold uppercase px-2 py-1 rounded-lg border border-surface-200 dark:border-surface-700 text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition" aria-label={selectAll ? 'Deselect all' : 'Select all'}>
+    <button onclick={toggleSelectAll} class="text-[10px] font-bold uppercase px-2 py-1 rounded-lg border border-surface-500/30 dark:border-surface-500/40 text-surface-500 hover:bg-surface-500/10 dark:hover:bg-surface-800 transition" aria-label={selectAll ? 'Deselect all' : 'Select all'}>
       {selectAll ? '✕' : '☐'} {filteredNodes.length}
     </button>
 
     <div class="flex items-center gap-1">
-      <select bind:value={bulkAction} class="bg-white dark:bg-surface-950 border border-surface-200 dark:border-surface-800 text-xs rounded-lg px-2 py-1 text-surface-600" aria-label="Bulk action">
+      <select bind:value={bulkAction} class="bg-white dark:bg-surface-500/10 border border-surface-500/30 dark:border-surface-500/40 text-xs rounded-lg px-2 py-1 text-surface-600" aria-label="Bulk action">
         <option value="">Bulk…</option>
         <option value="map">Map</option>
         <option value="ignore">Ignore</option>
@@ -165,7 +165,7 @@
       </select>
       <button onclick={applyBulkAction} disabled={!bulkAction} class="text-[10px] font-bold px-2 py-1 rounded-lg bg-tertiary-500 text-white disabled:opacity-30 transition">Apply</button>
       {#if undoStack.length > 0}
-        <button onclick={undo} class="text-[10px] px-1.5 py-1 rounded-lg border border-surface-200 text-surface-400 hover:text-surface-600 transition" aria-label="Undo last bulk action" title="Undo">↩</button>
+        <button onclick={undo} class="text-[10px] px-1.5 py-1 rounded-lg border border-surface-500/30 text-surface-400 hover:text-surface-600 transition" aria-label="Undo last bulk action" title="Undo">↩</button>
       {/if}
     </div>
   </div>
@@ -180,21 +180,21 @@
   {#if showPreview && selectedNodeId}
     {@const selectedNode = allNodes.find(n => n.id === selectedNodeId)}
     {#if selectedNode}
-      <div class="rounded-xl border border-tertiary-500/30 bg-tertiary-500/5 p-3 space-y-1">
+      <div class="rounded-xl border border-tertiary-500/30 bg-tertiary-500/10 p-3 space-y-1">
         <div class="flex items-center gap-1.5 mb-2">
           <iconify-icon icon="mdi:eye-outline" width="14" class="text-tertiary-500"></iconify-icon>
           <span class="text-[10px] font-bold uppercase text-tertiary-500">{selectedNode.label} → {selectedNode.suggestedTarget}</span>
           <span class="text-[9px] text-surface-400">({selectedNode.action}, {selectedNode.confidence}%)</span>
         </div>
         {#if selectedNode.sampleValue}
-          <div class="text-[10px] text-surface-600 dark:text-surface-400 bg-surface-50 dark:bg-surface-900 rounded-lg p-2 font-mono">{selectedNode.sampleValue}</div>
+          <div class="text-[10px] text-surface-600 dark:text-surface-400 bg-surface-500/10 dark:bg-surface-900 rounded-lg p-2 font-mono">{selectedNode.sampleValue}</div>
         {:else}
           <div class="text-[10px] text-surface-400 italic">No sample data — click Import to see transformed values</div>
         {/if}
       </div>
     {/if}
   {:else if showPreview && Object.keys(previewData).length > 0}
-    <div class="rounded-xl border border-tertiary-500/30 bg-tertiary-500/5 p-3 space-y-1">
+    <div class="rounded-xl border border-tertiary-500/30 bg-tertiary-500/10 p-3 space-y-1">
       <div class="flex items-center gap-1.5 mb-2">
         <iconify-icon icon="mdi:eye-outline" width="14" class="text-tertiary-500"></iconify-icon>
         <span class="text-[10px] font-bold uppercase text-tertiary-500">Preview</span>
@@ -223,13 +223,13 @@
   )}
 
   <div
-    class="relative my-1 ms-4 ps-4 border-s border-surface-200 dark:border-surface-800 transition-colors"
+    class="relative my-1 ms-4 ps-4 border-s border-surface-500/30 dark:border-surface-500/40 transition-colors"
     class:border-tertiary-500={isSelected}
     role="treeitem"
     aria-selected={isSelected}
   >
     <div
-      class="flex flex-col gap-1.5 p-2.5 border rounded-lg transition shadow-xs cursor-pointer {isSelected ? 'bg-tertiary-50 dark:bg-tertiary-500/10 border-tertiary-500' : 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-800'} {node.confidence < 50 && !isSelected ? 'border-warning-500' : ''}"
+      class="flex flex-col gap-1.5 p-2.5 border rounded-lg transition shadow-xs cursor-pointer {isSelected ? 'bg-tertiary-500/10 dark:bg-tertiary-500/10 border-tertiary-500' : 'bg-white dark:bg-surface-900 border-surface-500/30 dark:border-surface-500/40'} {node.confidence < 50 && !isSelected ? 'border-warning-500' : ''}"
       onclick={() => selectNode?.(node)}
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectNode?.(node); } }}
       tabindex="0"
@@ -237,7 +237,7 @@
       aria-label="{node.label} — {node.confidence}% confidence, action: {node.action}"
     >
       <div class="flex items-center gap-2 min-w-0">
-        <input type="checkbox" bind:checked={node.selected!} class="shrink-0 h-3.5 w-3.5 rounded border-surface-300 text-tertiary-500" aria-label="Select {node.label}" onclick={(e) => e.stopPropagation()} />
+        <input type="checkbox" bind:checked={node.selected!} class="shrink-0 h-3.5 w-3.5 rounded border-surface-500/30 text-tertiary-500" aria-label="Select {node.label}" onclick={(e) => e.stopPropagation()} />
 
         {#if node.children && node.children.length > 0}
           <button
@@ -249,12 +249,12 @@
           </button>
         {/if}
 
-        <iconify-icon icon={confidenceIcon(node.confidence)} width="12" class="shrink-0 {node.confidence >= 80 ? 'text-emerald-500' : node.confidence >= 50 ? 'text-amber-500' : 'text-rose-500'}" aria-hidden="true"></iconify-icon>
+        <iconify-icon icon={confidenceIcon(node.confidence)} width="12" class="shrink-0 {node.confidence >= 80 ? 'text-success-500' : node.confidence >= 50 ? 'text-warning-500' : 'text-error-500'}" aria-hidden="true"></iconify-icon>
         <span class="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-full border shrink-0 {typeColors[node.type]}">{node.type.replace('_', ' ')}</span>
-        <span class="font-semibold text-xs text-surface-800 dark:text-surface-100 truncate flex-1">{node.label}</span>
+        <span class="font-semibold text-xs text-surface-600 dark:text-surface-100 truncate flex-1">{node.label}</span>
 
         {#if node.aiSuggestion}
-          <span class="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full border {node.aiSuggestion.level === 'critical' ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' : 'bg-amber-500/10 text-amber-400 border-amber-500/30'}" title={node.aiSuggestion.message}>AI</span>
+          <span class="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full border {node.aiSuggestion.level === 'critical' ? 'bg-error-500/10 text-error-600 border-error-500/30' : 'bg-warning-500/10 text-warning-600 border-warning-500/30'}" title={node.aiSuggestion.message}>AI</span>
         {/if}
 
         {#if node.sampleValue}
@@ -266,8 +266,8 @@
 
       <div role="presentation" class="flex items-center gap-1.5 ms-7" onclick={(e) => e.stopPropagation()}>
         <span class="text-[10px] text-surface-400 shrink-0">→</span>
-        <input type="text" bind:value={node.suggestedTarget} class="bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 rounded-md px-1.5 py-0.5 text-[10px] font-mono text-surface-700 dark:text-surface-300 focus:outline-none focus:border-tertiary-500 w-24" aria-label="Target for {node.label}" />
-        <select aria-label="Action" value={node.action} onchange={(e) => { node.action = (e.target as HTMLSelectElement).value as any; onActionChange?.(node.id, node.action); }} class="bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 text-[10px] rounded-md px-1.5 py-0.5 text-surface-600 focus:outline-none">
+        <input type="text" bind:value={node.suggestedTarget} class="bg-surface-500/10 dark:bg-surface-500/10 border border-surface-500/30 dark:border-surface-500/40 rounded-md px-1.5 py-0.5 text-[10px] font-mono text-surface-600 dark:text-surface-400 focus:outline-none focus:border-tertiary-500 w-24" aria-label="Target for {node.label}" />
+        <select aria-label="Action" value={node.action} onchange={(e) => { node.action = (e.target as HTMLSelectElement).value as any; onActionChange?.(node.id, node.action); }} class="bg-surface-500/10 dark:bg-surface-500/10 border border-surface-500/30 dark:border-surface-500/40 text-[10px] rounded-md px-1.5 py-0.5 text-surface-600 focus:outline-none">
           <option value="map">Map</option>
           <option value="split">Split</option>
           <option value="merge">Merge</option>
@@ -282,7 +282,7 @@
       {#if nodeRecommendations.length > 0}
         <div class="flex flex-wrap gap-1 ms-7">
           {#each nodeRecommendations as rec (rec.title)}
-            <div class="text-[9px] px-1.5 py-0.5 rounded border flex items-center gap-1 {rec.level === 'critical' ? 'bg-rose-500/5 text-rose-500 border-rose-500/20' : 'bg-amber-500/5 text-amber-500 border-amber-500/20'}" title={rec.description}>
+            <div class="text-[9px] px-1.5 py-0.5 rounded border flex items-center gap-1 {rec.level === 'critical' ? 'bg-error-500/10 text-error-500 border-error-500/20' : 'bg-warning-500/10 text-warning-500 border-warning-500/20'}" title={rec.description}>
               <iconify-icon icon={rec.level === 'critical' ? 'mdi:alert-octagon' : 'mdi:lightbulb'} width="10"></iconify-icon>
               {rec.title}
             </div>

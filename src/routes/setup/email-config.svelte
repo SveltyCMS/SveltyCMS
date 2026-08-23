@@ -11,6 +11,7 @@
 -->
 <script lang="ts">
 	import Alert from '@components/ui/alert.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
@@ -648,10 +649,10 @@
 				{#if selectedPort}
 					<div class="mt-1 flex items-center gap-2">
 						{#if effectiveSecure()}
-							<span class="preset-tonal-success badge flex items-center gap-1 text-xs">
+							<Badge variant="success" preset="tonal" size="md" class="flex items-center gap-1">
 								<iconify-icon icon="mdi:lock" class="text-sm"></iconify-icon>
 								{setup_email_port_encrypted()}
-							</span>
+							</Badge>
 						{/if}
 						<span class="text-xs text-surface-600 dark:text-surface-50">{selectedPort.description}</span>
 					</div>
@@ -781,7 +782,7 @@
 				<div class="flex items-start gap-3">
 					<iconify-icon icon="mdi:check-circle" class="text-2xl text-success-500"></iconify-icon>
 					<div class="flex-1">
-						<p class="font-semibold text-success-700 dark:text-success-300">{setup_email_connection_success()}</p>
+						<p class="font-semibold text-success-600 dark:text-success-400">{setup_email_connection_success()}</p>
 					</div>
 					<!-- Toggle button - visible only on mobile -->
 					<Button variant="ghost"

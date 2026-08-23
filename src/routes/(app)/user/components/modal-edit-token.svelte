@@ -259,7 +259,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 <div class="modal-example-form space-y-4 text-black dark:text-white p-4">
 	{#if createdToken}
 		<div class="card p-6 space-y-4 preset-tonal-success border border-success-500/30 shadow-lg">
-			<h3 class="text-xl font-bold text-success-700 dark:text-success-400">Invitation Token Created</h3>
+			<h3 class="text-xl font-bold text-success-600 dark:text-success-400">Invitation Token Created</h3>
 			<p class="text-sm opacity-80">Since email delivery might be disabled or delayed, you can provide this link to the user directly:</p>
 
 			<div class="flex flex-col gap-4">
@@ -319,7 +319,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 									type="button"
 									class="chip {tokenForm.data.role === r._id
 										? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
-										: 'bg-surface-200 dark:bg-surface-100 text-black dark:text-black opacity-60'}"
+										: 'bg-surface-200 dark:bg-surface-500/10 text-black dark:text-black opacity-60'}"
 									onclick={() => (tokenForm.data.role = r._id)}
 								>
 									{#if tokenForm.data.role === r._id}

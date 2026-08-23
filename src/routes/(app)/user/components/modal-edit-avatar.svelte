@@ -362,7 +362,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 							alt="User avatar"
 							initials="AB"
 							size="size-32"
-							class="rounded-full border-4 border-surface-200 dark:border-surface-700 shadow-xl aspect-square"
+							class="rounded-full border-4 border-surface-500/30 dark:border-surface-500/40 shadow-xl aspect-square"
 						/>
 
 						<!-- Hover/Focus overlay cue when not uploading -->

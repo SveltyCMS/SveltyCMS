@@ -238,7 +238,7 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	<div class="flex-1 hidden lg:block"></div>
 
 	<!-- Action Buttons -->
-	<div class="action-buttons flex gap-2 ml-auto">
+	<div class="action-buttons flex gap-2 ms-auto">
 		<Button variant="outline" onclick={onReset} aria-label="Reset blur" size="sm">
 			<iconify-icon icon="mdi:restore" width="18"></iconify-icon>
 			<span class="hidden sm:inline">Reset</span>
@@ -259,13 +259,13 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 <style>
 	.blur-controls {
 		padding: 0.75rem;
-		background: rgb(var(--color-surface-100) / 1);
-		border-top: 1px solid rgb(var(--color-surface-200) / 1);
+		background: var(--color-surface-100);
+		border-top: 1px solid var(--color-surface-200);
 	}
 
 	:global(.dark) .blur-controls {
-		background: rgb(var(--color-surface-800) / 1);
-		border-color: rgb(var(--color-surface-700) / 1);
+		background: var(--color-surface-800);
+		border-color: var(--color-surface-700);
 	}
 
 	.control-group {
@@ -283,23 +283,23 @@ Pintura-style controls for the Blur tool with responsive design and keyboard sup
 	.divider-vertical {
 		width: 1px;
 		height: 1.5rem;
-		background: rgb(var(--color-surface-300) / 1);
+		background: var(--color-surface-300);
 	}
 
 	:global(.dark) .divider-vertical {
-		background: rgb(var(--color-surface-600) / 1);
+		background: var(--color-surface-600);
 	}
 
 	.btn-group-compact {
 		display: flex;
 		gap: 0;
 		overflow: hidden;
-		border: 1px solid rgb(var(--color-surface-300) / 1);
+		border: 1px solid var(--color-surface-300);
 		border-radius: 0.5rem;
 	}
 
 	:global(.dark) .btn-group-compact {
-		border-color: rgb(var(--color-surface-600) / 1);
+		border-color: var(--color-surface-600);
 	}
 
 

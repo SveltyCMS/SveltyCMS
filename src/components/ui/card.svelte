@@ -129,14 +129,14 @@ corner-shape angled corners.
     getPresetClass(),
     shape === 'angle' ? 'corner-angle' : '',
     // Default neutral card when no preset/color
-    !finalPreset && !isCustomColor && 'border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 text-surface-900 dark:text-surface-50 shadow-sm',
+    !finalPreset && !isCustomColor && 'border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 text-surface-900 dark:text-surface-50 shadow-sm',
     className
   ));
 </script>
 
 <div class={classes} style={customStyles} {...rest}>
   {#if header}
-    <div class="flex flex-col space-y-1.5 p-6 border-b border-surface-200/20 dark:border-surface-700/20">
+    <div class="flex flex-col space-y-1.5 p-6 border-b border-surface-500/30 dark:border-surface-500/40">
       {@render header()}
     </div>
   {/if}
@@ -148,7 +148,7 @@ corner-shape angled corners.
   {/if}
 
   {#if footer}
-    <div class="flex items-center p-6 border-t border-surface-200/20 dark:border-surface-700/20">
+    <div class="flex items-center p-6 border-t border-surface-500/30 dark:border-surface-500/40">
       {@render footer()}
     </div>
   {/if}

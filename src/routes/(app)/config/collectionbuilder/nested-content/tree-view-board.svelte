@@ -1175,7 +1175,7 @@ const flipDurationMs = 200;
 				<div
 					class="dnd-zone nested-zone mt-2"
 					class:dropping={dndState.isDragging}
-					style="margin-left: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem; padding-left: 0.5rem; border-left: 2px solid rgb(var(--color-surface-300));"
+					style="margin-left: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem; padding-left: 0.5rem; border-left: 2px solid var(--color-surface-300);"
 					use:droppable={{
 						container: 'children:' + item.id,
 						callbacks: {
@@ -1282,8 +1282,8 @@ const flipDurationMs = 200;
 		min-height: 48px;
 		padding: 0.5rem;
 		margin: 0.5rem 0;
-		background: rgb(var(--color-surface-200) / 0.3);
-		border-color: rgb(var(--color-surface-400));
+		background: color-mix(in srgb, var(--color-surface-200) 30%, transparent);
+		border-color: var(--color-surface-400);
 	}
 
 	.tree-node-wrapper {
@@ -1298,27 +1298,27 @@ const flipDurationMs = 200;
 
 	/* Drop target on zone level */
 	:global(.dnd-zone.drag-over-zone) {
-		background: rgb(var(--color-primary-500) / 0.1) !important;
-		outline: 2px dashed rgb(var(--color-primary-500)) !important;
+		background: color-mix(in srgb, var(--color-primary-500) 10%, transparent) !important;
+		outline: 2px dashed var(--color-primary-500) !important;
 	}
 
 	/* Drop target on individual item (sibling before/after) */
 	:global(.tree-node-wrapper.drag-over-item) {
-		outline: 2px dashed rgb(var(--color-primary-400)) !important;
+		outline: 2px dashed var(--color-primary-400) !important;
 		outline-offset: 2px;
 		border-radius: 0.5rem;
 	}
 
 	/* Hint that category middle accepts nesting */
 	:global(.tree-node-wrapper.drop-inside-hint) {
-		box-shadow: inset 0 0 0 1px rgb(var(--color-tertiary-500) / 0.25);
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-tertiary-500) 25%, transparent);
 		border-radius: 0.5rem;
 	}
 
 	/* Category drop zone feedback */
 	:global(.nested-zone.drag-over-zone) {
-		background: rgb(var(--color-tertiary-500) / 0.1) !important;
-		outline: 2px dashed rgb(var(--color-tertiary-500)) !important;
+		background: color-mix(in srgb, var(--color-tertiary-500) 10%, transparent) !important;
+		outline: 2px dashed var(--color-tertiary-500) !important;
 		min-height: 48px;
 	}
 
@@ -1338,7 +1338,7 @@ const flipDurationMs = 200;
 		left: 0;
 		width: 2px;
 		content: '';
-		background: rgb(var(--color-surface-300));
+		background: var(--color-surface-300);
 	}
 
 	/* Empty drop zone visible during drag */
@@ -1347,8 +1347,8 @@ const flipDurationMs = 200;
 		align-items: center;
 		justify-content: center;
 		min-height: 40px;
-		background: rgb(var(--color-surface-200) / 0.2);
-		border: 2px dashed rgb(var(--color-surface-400));
+		background: color-mix(in srgb, var(--color-surface-200) 20%, transparent);
+		border: 2px dashed var(--color-surface-400);
 		border-radius: 0.5rem;
 	}
 

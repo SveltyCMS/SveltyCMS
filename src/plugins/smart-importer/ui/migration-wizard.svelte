@@ -377,7 +377,7 @@
   showBackButton={true}
   backUrl="/config"
 >
-  <AdminCard class="border border-surface-200 bg-white p-6 shadow-xs dark:border-surface-800 dark:bg-surface-900/40">
+  <AdminCard class="border border-surface-500/30 bg-white p-6 shadow-xs dark:border-surface-500/40 dark:bg-surface-900/20">
     <div class="space-y-6">
 
       <!-- Step Indicators -->
@@ -392,7 +392,7 @@
                 ? 'bg-tertiary-500 text-white dark:bg-primary-500'
                 : step > s
                   ? 'bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-500 cursor-pointer'
-                  : 'bg-surface-100 text-surface-400 dark:bg-surface-800 dark:text-surface-600'}"
+                  : 'bg-surface-500/10 text-surface-400 dark:bg-surface-800 dark:text-surface-600'}"
             aria-label="Step {s}: {label}"
             aria-current={step === s ? 'step' : undefined}
           >
@@ -416,8 +416,8 @@
           <!-- Drop Zone -->
           <div
             class="relative rounded border-2 border-dashed p-10 text-center transition-all duration-200 cursor-pointer {isDragging
-              ? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/5 scale-[1.02]'
-              : 'border-surface-300 dark:border-surface-600 hover:border-surface-400'}"
+              ? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/10 scale-[1.02]'
+              : 'border-surface-500/30 dark:border-surface-600 hover:border-surface-500'}"
             ondragover={handleDragOver}
             ondragleave={handleDragLeave}
             ondrop={handleDrop}
@@ -428,11 +428,11 @@
             onclick={() => document.getElementById('migration-file-input')?.click()}
           >
             <div class="flex flex-col items-center gap-4" in:fade={{ duration: 300 }}>
-              <div class="flex h-16 w-16 items-center justify-center rounded-full bg-surface-100 dark:bg-surface-800">
+              <div class="flex h-16 w-16 items-center justify-center rounded-full bg-surface-500/10 dark:bg-surface-800">
                 <iconify-icon icon="mdi:file-upload-outline" width="32" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
               </div>
               <div>
-                <p class="font-medium text-surface-700 dark:text-surface-200">Drop your CMS export file here</p>
+                <p class="font-medium text-surface-600 dark:text-surface-400">Drop your CMS export file here</p>
                 <p class="mt-1 text-sm text-surface-500">36+ platforms: WXR, JSON, YAML, CSV, NDJSON</p>
               </div>
               <Button variant="secondary" size="sm" rounded={true} aria-label="Browse files">Browse Files</Button>
@@ -441,7 +441,7 @@
           </div>
         {:else}
           <!-- File Detected -->
-          <div class="rounded border border-surface-200 bg-surface-50 p-6 dark:border-surface-700 dark:bg-surface-800/50" in:slide={{ duration: 300 }}>
+          <div class="rounded border border-surface-500/30 bg-surface-500/10 p-6 dark:border-surface-500/40 dark:bg-surface-800/50" in:slide={{ duration: 300 }}>
             <div class="flex items-start justify-between">
               <div class="flex items-center gap-4">
                 <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-tertiary-500/10 dark:bg-primary-500/10">
@@ -468,9 +468,9 @@
 
             <!-- Content Type Selection -->
             {#if availableContentTypes.length > 1}
-              <div class="mt-5 border-t border-surface-200 pt-4 dark:border-surface-700">
+              <div class="mt-5 border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
                 <div class="flex items-center justify-between mb-2">
-                  <h4 class="text-sm font-semibold text-surface-700 dark:text-surface-300">Content Types Found</h4>
+                  <h4 class="text-sm font-semibold text-surface-600 dark:text-surface-400">Content Types Found</h4>
                   <button aria-label="Start migration" onclick={toggleAllContentTypes} class="text-xs text-tertiary-500 hover:underline">
                     {selectAllContentTypes ? 'Deselect All' : 'Select All'}
                   </button>
@@ -482,7 +482,7 @@
                       class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all border
                         {selectedContentTypes.has(ct)
                           ? 'border-tertiary-500 bg-tertiary-500/10 text-tertiary-600 dark:border-primary-500 dark:bg-primary-500/10 dark:text-primary-500'
-                          : 'border-surface-200 bg-surface-50 text-surface-500 dark:border-surface-700 dark:bg-surface-800'}"
+                          : 'border-surface-500/30 bg-surface-500/10 text-surface-500 dark:border-surface-500/40 dark:bg-surface-800'}"
                       aria-pressed={selectedContentTypes.has(ct)}
                       aria-label="Toggle {ct}"
                     >
@@ -530,9 +530,9 @@
           </div>
 
           <!-- Mapping Table -->
-          <div class="max-h-96 overflow-y-auto rounded border border-surface-200 dark:border-surface-700">
+          <div class="max-h-96 overflow-y-auto rounded border border-surface-500/30 dark:border-surface-500/40">
             <table class="w-full text-sm" aria-label="Field mapping table">
-              <thead class="sticky top-0 bg-surface-50 dark:bg-surface-800">
+              <thead class="sticky top-0 bg-surface-500/10 dark:bg-surface-800">
                 <tr>
                   <th class="px-4 py-2 text-start text-xs font-medium text-surface-500 w-[40%]">Source Field</th>
                   <th class="px-2 py-2 text-center text-xs font-medium text-surface-500 w-8">→</th>
@@ -542,15 +542,15 @@
               </thead>
               <tbody class="divide-y divide-surface-100 dark:divide-surface-700">
                 {#each fieldMappings as mapping (mapping.source)}
-                  <tr class="hover:bg-surface-50 dark:hover:bg-surface-800/50">
-                    <td class="px-4 py-2.5 font-mono text-xs text-surface-700 dark:text-surface-300">{mapping.source}</td>
+                  <tr class="hover:bg-surface-500/10 dark:hover:bg-surface-800/50">
+                    <td class="px-4 py-2.5 font-mono text-xs text-surface-600 dark:text-surface-400">{mapping.source}</td>
                     <td class="px-2 py-2.5 text-center text-surface-400">→</td>
                     <td class="px-4 py-2.5">
                       <input aria-label="Source URL"
                         type="text"
                         value={mapping.target}
                         oninput={(e) => updateMapping(mapping.source, (e.target as HTMLInputElement).value)}
-                        class="w-full rounded border border-surface-200 bg-transparent px-2 py-1 font-mono text-xs text-surface-800 focus:border-tertiary-500 focus:outline-none dark:border-surface-600 dark:text-surface-200 dark:focus:border-primary-500"
+                        class="w-full rounded border border-surface-500/30 bg-transparent px-2 py-1 font-mono text-xs text-surface-600 focus:border-tertiary-500 focus:outline-none dark:border-surface-600 dark:text-surface-400 dark:focus:border-primary-500"
                       />
                     </td>
                     <td class="px-4 py-2.5 text-center">
@@ -619,7 +619,7 @@
           <!-- Progress Bar -->
           <div class="space-y-2">
             <div class="flex items-center justify-between text-sm">
-              <span class="text-surface-600 dark:text-surface-300 capitalize">{importPhase || 'Ready'}</span>
+              <span class="text-surface-600 dark:text-surface-400 capitalize">{importPhase || 'Ready'}</span>
               <span class="font-mono text-surface-500">{Math.round(importPercent)}%</span>
             </div>
             <Progress value={importPercent} max={100} aria-label="Import progress" />
@@ -630,7 +630,7 @@
 
           <!-- Log -->
           {#if importLog.length > 0}
-            <div class="max-h-48 overflow-y-auto rounded border border-surface-200 bg-surface-50 p-3 font-mono text-xs dark:border-surface-700 dark:bg-surface-900/50">
+            <div class="max-h-48 overflow-y-auto rounded border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs dark:border-surface-500/40 dark:bg-surface-900/50">
               {#each importLog as entry (entry.time + entry.message)}
                 <div class="flex gap-2 {entry.level === 'error' ? 'text-error-500' : entry.level === 'success' ? 'text-tertiary-500' : 'text-surface-500'}">
                   <span class="shrink-0 text-surface-400">{entry.time}</span>
@@ -677,15 +677,15 @@
               <p class="text-2xl font-bold text-warning-600">{importResult?.failed || 0}</p>
               <p class="text-xs text-surface-500">Failed</p>
             </div>
-            <div class="rounded-lg bg-surface-100 p-4 text-center dark:bg-surface-800">
-              <p class="text-2xl font-bold text-surface-600 dark:text-surface-300">{estimatedCount}</p>
+            <div class="rounded-lg bg-surface-500/10 p-4 text-center dark:bg-surface-800">
+              <p class="text-2xl font-bold text-surface-600 dark:text-surface-400">{estimatedCount}</p>
               <p class="text-xs text-surface-500">Total</p>
             </div>
           </div>
 
           <!-- Transaction Info -->
           {#if transactionToken}
-            <div class="rounded border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-800/50">
+            <div class="rounded border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-800/50">
               <p class="text-xs font-mono text-surface-500">Transaction: {transactionToken}</p>
               <p class="mt-1 text-xs text-surface-500">All entries are in <strong class="text-warning-500">Draft</strong> status. Review before publishing.</p>
             </div>

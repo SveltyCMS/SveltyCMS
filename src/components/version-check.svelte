@@ -88,10 +88,10 @@ latest version available on GitHub with comprehensive status reporting.
 
 	const transparentClasses = $derived.by(() => {
 		if (badgeColor.includes('success')) {
-			return 'bg-tertiary-500 dark:bg-primary-500/20 text-success-700 dark:text-success-300';
+			return 'bg-tertiary-500 dark:bg-primary-500/20 text-success-600 dark:text-success-400';
 		}
 		if (badgeColor.includes('warning')) {
-			return 'bg-warning-500/20 text-warning-700 dark:text-warning-300';
+			return 'bg-warning-500/20 text-warning-600 dark:text-warning-400';
 		}
 		if (badgeColor.includes('error')) {
 			return 'bg-error-500/20 text-black';
@@ -326,7 +326,7 @@ latest version available on GitHub with comprehensive status reporting.
 	<!-- Error toast/message (optional - only shown if critical) -->
 	{#if error && statusSeverity === 'critical' && !compact && !transparent}
 		<div
-			class="mt-2 rounded border-s-4 border-error-500 bg-error-50 p-2 text-xs text-error-700 dark:bg-error-900/20 dark:text-error-300"
+			class="mt-2 rounded border-s-4 border-error-500 bg-error-500/10 p-2 text-xs text-error-600 dark:bg-error-900/20 dark:text-error-400"
 			role="alert"
 		>
 			<strong>Version check failed:</strong>

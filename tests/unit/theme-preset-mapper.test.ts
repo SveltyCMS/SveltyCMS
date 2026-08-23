@@ -6,13 +6,9 @@
 
 import { describe, it, expect } from "vitest";
 import {
-  isSkeletonPreset,
-  isSkeletonCssExport,
   mapPresetToAdminTheme,
-  mapSkeletonPropertiesToCss,
   mapThemePropertiesToCss,
-  parseSkeletonCssBlock,
-  normalizeSkeletonThemePayload,
+  parseCssPropertiesBlock,
   expandShorthandPaletteProperties,
   buildPaletteCssFromSeeds,
   mergePaletteCssIntoCustomCss,
@@ -34,19 +30,9 @@ const sampleProperties = {
 };
 
 describe("theme-preset-mapper", () => {
-  it("detects Skeleton JSON presets", () => {
-    expect(isSkeletonPreset({ name: "Cerberus", properties: {} })).toBe(true);
-    expect(isSkeletonPreset({ name: "Svelty", density: "cozy" })).toBe(false);
-  });
-
-  it("detects Skeleton CSS exports", () => {
-    expect(isSkeletonCssExport("[data-theme='cerberus'] { --color-primary-500: red; }")).toBe(true);
-    expect(isSkeletonCssExport(".header { color: red; }")).toBe(false);
-  });
-
   it("maps properties to scoped admin CSS", () => {
-    const css = mapSkeletonPropertiesToCss(sampleProperties);
-    expect(css).toContain(".admin-theme-container, [data-admin-theme]");
+    const css = mapThemePropertiesToCss(sampleProperties);
+    expect(css).toContain(":root, .admin-theme-container, [data-admin-theme]");
     expect(css).toContain("--color-primary-500: oklch(0.57 0.21 258.29deg);");
     expect(css).toContain("--color-tertiary-500: oklch(0.55 0.2 300deg);");
     expect(css).not.toContain("--color-accent-500");
@@ -55,7 +41,7 @@ describe("theme-preset-mapper", () => {
   });
 
   it("blocks unsafe CSS values", () => {
-    const css = mapSkeletonPropertiesToCss({
+    const css = mapThemePropertiesToCss({
       "--color-primary-500": "url('http://evil.com/x.png')",
       "--color-error-500": "oklch(0.5 0.2 20deg)",
     });
@@ -63,7 +49,7 @@ describe("theme-preset-mapper", () => {
     expect(css).toContain("--color-error-500");
   });
 
-  it("maps Skeleton JSON preset to admin theme fields", () => {
+  it("maps theme preset JSON to admin theme fields", () => {
     const mapped = mapPresetToAdminTheme({
       name: "Midnight",
       properties: sampleProperties,
@@ -73,17 +59,17 @@ describe("theme-preset-mapper", () => {
     expect(mapped.customCss).toContain("--color-primary-500");
   });
 
-  it("parses Skeleton CSS block exports", () => {
+  it("parses CSS property blocks", () => {
     const block = `[data-theme='cerberus'] {
-      --color-primary-500: oklch(0.57 0.21 258.29deg);
-      --radius-base: 0.25rem;
-    }`;
-    const props = parseSkeletonCssBlock(block);
+        --color-primary-500: oklch(0.57 0.21 258.29deg);
+        --radius-base: 0.25rem;
+      }`;
+    const props = parseCssPropertiesBlock(block);
     expect(props["--color-primary-500"]).toBe("oklch(0.57 0.21 258.29deg)");
     expect(props["--radius-base"]).toBe("0.25rem");
   });
 
-  it("maps CSS-only Skeleton exports with name", () => {
+  it("maps CSS-only theme exports with name", () => {
     const mapped = mapPresetToAdminTheme({
       name: "From CSS",
       css: "[data-theme='x'] { --color-primary-500: oklch(0.5 0.2 260deg); }",
@@ -92,11 +78,10 @@ describe("theme-preset-mapper", () => {
     expect(mapped.customCss).toContain("--color-primary-500");
   });
 
-  it("normalizes theme file payloads with properties", () => {
-    const normalized = normalizeSkeletonThemePayload({
+  it("maps theme file payloads with properties", () => {
+    const normalized = mapPresetToAdminTheme({
       name: "Marketplace Theme",
       properties: { "--color-primary-500": "oklch(0.5 0.2 260deg)" },
-      density: "cozy",
     });
     expect(normalized?.name).toBe("Marketplace Theme");
     expect(normalized?.customCss).toContain("--color-primary-500");
@@ -125,7 +110,10 @@ describe("theme-preset-mapper", () => {
     });
     expect(css).toContain("--admin-bg-page: var(--color-surface-50)");
     expect(css).toContain("--admin-bg-card: var(--color-surface-50)");
-    expect(css).toContain("html.dark .admin-theme-container");
+    // Root-level dark scope so the theme repaints the whole document (html),
+    // not just the admin shell subtree — `html.dark` keeps the specificity edge
+    // over the light `:root` block.
+    expect(css).toMatch(/html\.dark,\s*\nhtml\.dark \.admin-theme-container/);
     expect(css).toContain("--admin-bg-card: var(--color-surface-800");
   });
 
@@ -164,7 +152,7 @@ describe("theme-preset-mapper", () => {
     const mapped = mapPresetToAdminTheme(preset);
     expect(mapped.customCss).toContain("--color-primary-500: #0f766e");
     expect(mapped.customCss).toContain("--color-tertiary-500: #1d4ed8");
-    expect(mapped.customCss).toContain(".admin-theme-container, [data-admin-theme]");
+    expect(mapped.customCss).toContain(":root, .admin-theme-container, [data-admin-theme]");
     expect(mapped.customCss).toContain("--admin-bg-card");
   });
 });

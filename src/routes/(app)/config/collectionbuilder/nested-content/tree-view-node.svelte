@@ -162,14 +162,14 @@ function handleKeyDown(e: KeyboardEvent) {
 		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
 			<span class="font-bold text-sm sm:text-base leading-none truncate max-w-37.5 sm:max-w-95" title={name}>{name}</span>
 			{#if isCategory}
-				<Badge variant="primary" size="sm" rounded={false} class="border-0 bg-blue-600 text-white shadow-sm">Category</Badge>
+				<Badge variant="primary" size="sm" rounded={false} class="border-0 bg-tertiary-600 text-white shadow-sm">Category</Badge>
 			{:else}
 				<Badge variant="error" size="sm" rounded={false} class="border-0 bg-error-600 text-white shadow-sm">Collection</Badge>
 			{/if}
 
 			<!-- Slug - Hidden on mobile to save space -->
 			{#if item.slug}
-				<Badge variant="surface" size="sm" rounded={false} class="hidden sm:inline-flex font-mono ml-auto opacity-80 shadow-sm" aria-label="URL slug">
+				<Badge variant="surface" size="sm" rounded={false} class="hidden sm:inline-flex font-mono ms-auto opacity-80 shadow-sm" aria-label="URL slug">
 					{item.slug}
 				</Badge>
 			{/if}
@@ -264,7 +264,7 @@ function handleKeyDown(e: KeyboardEvent) {
 
 <style>
 	div[role='button']:focus-visible {
-		outline: 3px solid rgb(var(--color-primary-500));
+		outline: 3px solid var(--color-primary-500);
 		outline-offset: 2px;
 		border-radius: 0.25rem;
 	}
