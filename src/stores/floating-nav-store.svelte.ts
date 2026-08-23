@@ -338,7 +338,7 @@ export function parsePrefsPayload(
 
 /**
  * Build the ordered list of radial endpoints for the current user.
- * Fixed endpoints (Home, Settings) are always present — never returns empty.
+ * Endpoints (Home, Settings) are always present — never returns empty.
  */
 export function resolveFloatingNavEndpoints(
   prefs: FloatingNavPrefs,

@@ -1029,7 +1029,7 @@ const flipDurationMs = 200;
 </div>
 
 <!-- Toolbar -->
-<div class="mb-4 flex flex-wrap items-center gap-2">
+<div class="mb-2 flex flex-wrap items-center gap-2">
 	<div class="relative flex-1 min-w-50">
 		<FloatingInput
 			bind:value={searchText}
@@ -1080,7 +1080,7 @@ const flipDurationMs = 200;
 	     not be focusable or claim an ARIA role without required children. The
 	     static analyzer cannot see that tabindex is gated on the same condition. -->
 	<div
-		class="collection-builder-tree dnd-tree relative w-full h-auto overflow-y-auto rounded p-2"
+		class="dnd-tree relative h-auto min-h-50 w-full overflow-y-auto rounded p-2 [&.dnd-active]:select-none"
 		class:dnd-active={dndState.isDragging}
 		onkeydown={handleTreeKeyDown}
 		role={treeRoots.length > 0 ? 'tree' : undefined}
@@ -1095,7 +1095,7 @@ const flipDurationMs = 200;
 		</div>
 	{:else}
 		<div
-			class="dnd-zone root-zone"
+			class="root-zone relative min-h-15 border-2 border-dashed border-transparent rounded-lg transition-colors duration-200 [&.drag-over-zone]:bg-primary-500/10! [&.drag-over-zone]:outline-2 [&.drag-over-zone]:outline-dashed [&.drag-over-zone]:outline-primary-500!"
 			class:dropping={dndState.isDragging}
 			use:droppable={{
 				container: 'root',
@@ -1112,7 +1112,7 @@ const flipDurationMs = 200;
 		>
 			{#each treeRoots as item (item.id)}
 				<div
-					class="tree-node-wrapper mb-2"
+					class="relative mb-2 [&.dragging]:opacity-50 [&.dragging]:scale-95 [&.drag-over-item]:outline-2 [&.drag-over-item]:outline-dashed [&.drag-over-item]:outline-primary-400! [&.drag-over-item]:outline-offset-2 [&.drag-over-item]:rounded-lg [&.drop-inside-hint]:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-tertiary-500)_25%,transparent)] [&.drop-inside-hint]:rounded-lg"
 					class:hidden={!isNodeVisible(item, searchText)}
 					class:drop-inside-hint={dndState.isDragging && item.nodeType === 'category'}
 					animate:flip={{ duration: flipDurationMs }}
@@ -1173,7 +1173,7 @@ const flipDurationMs = 200;
 		{#if expandedNodes.has(item.id) || (dndState.isDragging && item.nodeType === 'category')}
 			{#if item.children?.length > 0 || item.nodeType === 'category'}
 				<div
-					class="dnd-zone nested-zone mt-2"
+					class="relative mt-2 min-h-15 border-2 border-dashed border-transparent rounded-lg transition-colors duration-200 before:absolute before:top-0 before:bottom-0 before:left-0 before:w-0.5 before:bg-surface-300 before:content-[''] empty:flex empty:items-center empty:justify-center empty:min-h-0.5 empty:rounded-lg [&.drag-over-zone]:bg-tertiary-500/10! [&.drag-over-zone]:outline-2 [&.drag-over-zone]:outline-dashed [&.drag-over-zone]:outline-tertiary-500! [&.drag-over-zone]:min-h-12"
 					class:dropping={dndState.isDragging}
 					style="margin-left: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem; padding-left: 0.5rem; border-left: 2px solid var(--color-surface-300);"
 					use:droppable={{
@@ -1193,7 +1193,7 @@ const flipDurationMs = 200;
 					{#if item.children?.length > 0}
 						{#each item.children as child (child.id)}
 							<div
-								class="tree-node-wrapper mb-2"
+								class="relative mb-2 [&.dragging]:opacity-50 [&.dragging]:scale-95 [&.drag-over-item]:outline-2 [&.drag-over-item]:outline-dashed [&.drag-over-item]:outline-primary-400! [&.drag-over-item]:outline-offset-2 [&.drag-over-item]:rounded-lg [&.drop-inside-hint]:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-tertiary-500)_25%,transparent)] [&.drop-inside-hint]:rounded-lg"
 								class:hidden={!isNodeVisible(child, searchText)}
 								class:drop-inside-hint={dndState.isDragging && child.nodeType === 'category'}
 								animate:flip={{ duration: flipDurationMs }}
@@ -1223,137 +1223,10 @@ const flipDurationMs = 200;
 						{/each}
 					{:else if dndState.isDragging}
 						<!-- Empty category: explicit drop surface while dragging -->
-						<div class="empty-drop-zone min-h-10" aria-hidden="true"></div>
+						<div class="my-2 flex min-h-12 items-center justify-center rounded-lg border-2 border-dashed border-surface-500 bg-surface-200/30 p-2 transition-all duration-200" aria-hidden="true"></div>
 					{/if}
 				</div>
 			{/if}
 		{/if}
 	</div>
 {/snippet}
-
-<style>
-	/* Filtering Hiding */
-	.hidden {
-		display: none !important;
-	}
-
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		white-space: nowrap;
-		border: 0;
-		clip: rect(0, 0, 0, 0);
-	}
-
-	.collection-builder-tree {
-		min-height: 200px;
-		padding: 0.5rem;
-	}
-
-	.dnd-zone {
-		position: relative;
-		min-height: 60px;
-		border: 2px dashed transparent;
-		border-radius: 0.5rem;
-		transition:
-			background-color 0.2s ease,
-			border-color 0.2s ease;
-	}
-
-	.dnd-zone:empty,
-	.empty-drop-zone {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 2px;
-		padding: 0;
-		margin: 0;
-		background: transparent;
-		border: 2px dashed transparent;
-		border-radius: 0.5rem;
-		transition: all 0.2s ease;
-	}
-
-	.dnd-active .empty-drop-zone {
-		min-height: 48px;
-		padding: 0.5rem;
-		margin: 0.5rem 0;
-		background: color-mix(in srgb, var(--color-surface-200) 30%, transparent);
-		border-color: var(--color-surface-400);
-	}
-
-	.tree-node-wrapper {
-		position: relative;
-	}
-
-	/* Active dragging state — applied by library via draggingClass: 'dragging' */
-	:global(.tree-node-wrapper.dragging) {
-		opacity: 0.5;
-		transform: scale(0.95);
-	}
-
-	/* Drop target on zone level */
-	:global(.dnd-zone.drag-over-zone) {
-		background: color-mix(in srgb, var(--color-primary-500) 10%, transparent) !important;
-		outline: 2px dashed var(--color-primary-500) !important;
-	}
-
-	/* Drop target on individual item (sibling before/after) */
-	:global(.tree-node-wrapper.drag-over-item) {
-		outline: 2px dashed var(--color-primary-400) !important;
-		outline-offset: 2px;
-		border-radius: 0.5rem;
-	}
-
-	/* Hint that category middle accepts nesting */
-	:global(.tree-node-wrapper.drop-inside-hint) {
-		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-tertiary-500) 25%, transparent);
-		border-radius: 0.5rem;
-	}
-
-	/* Category drop zone feedback */
-	:global(.nested-zone.drag-over-zone) {
-		background: color-mix(in srgb, var(--color-tertiary-500) 10%, transparent) !important;
-		outline: 2px dashed var(--color-tertiary-500) !important;
-		min-height: 48px;
-	}
-
-	/* Disable selection during drag */
-	.collection-builder-tree.dnd-active {
-		user-select: none;
-	}
-
-	.nested-zone {
-		position: relative;
-	}
-
-	.nested-zone::before {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		left: 0;
-		width: 2px;
-		content: '';
-		background: var(--color-surface-300);
-	}
-
-	/* Empty drop zone visible during drag */
-	.empty-drop-zone {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 40px;
-		background: color-mix(in srgb, var(--color-surface-200) 20%, transparent);
-		border: 2px dashed var(--color-surface-400);
-		border-radius: 0.5rem;
-	}
-
-	/* Hide empty drop zones when not dragging */
-	.dnd-zone:not(.dropping) .empty-drop-zone {
-		display: none;
-	}
-</style>

@@ -71,10 +71,10 @@
 	const positionClasses: Record<Exclude<ToastPosition, 'responsive'>, string> = {
 		'top-left': 'top-4 start-4 items-start',
 		'top-right': 'top-4 end-4 items-end',
-		'top-center': 'top-4 start-1/2 -translate-x-1/2 items-center',
+		'top-center': 'top-4 inset-s-1/2 -translate-x-1/2 items-center',
 		'bottom-left': 'bottom-4 start-4 items-start',
 		'bottom-right': 'bottom-4 end-4 items-end',
-		'bottom-center': 'bottom-4 start-1/2 -translate-x-1/2 items-center'
+		'bottom-center': 'bottom-4 inset-s-1/2 -translate-x-1/2 items-center'
 	};
 
 	// Animation directions based on position and RTL

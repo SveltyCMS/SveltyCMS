@@ -7,7 +7,7 @@ Polymorphic button/a element with 9 variants, 4 sizes, loading state, icon suppo
 and full ARIA accessibility. Supports progressive corner-shape angled corners.
 
 ### Props
-- `variant` ('primary' | 'secondary' | 'tertiary' | 'surface' | 'success' | 'warning' | 'error' | 'ghost' | 'outline'): Visual style.
+- `variant` ('primary' | 'secondary' | 'tertiary' | 'surface' | 'success' | 'warning' | 'error' | 'ghost' | 'outline' | 'transparent'): Visual style. `transparent` = no chrome at all (inherits text color, ideal for icon buttons on tinted surfaces).
 - `size` ('sm' | 'md' | 'lg' | 'xl'): Size variant.
 - `href` (string): Render as anchor link.
 - `type` ('button' | 'submit' | 'reset'): Button type attribute.
@@ -26,7 +26,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
   import { getThemeContext } from './theme-context.svelte';
 
   interface Props {
-    variant?: 'primary' | 'secondary' | 'tertiary' | 'surface' | 'success' | 'warning' | 'error' | 'ghost' | 'outline';
+    variant?: 'primary' | 'secondary' | 'tertiary' | 'surface' | 'success' | 'warning' | 'error' | 'ghost' | 'outline' | 'transparent';
     size?: 'sm' | 'md' | 'lg' | 'xl';
     href?: string;
     type?: 'button' | 'submit' | 'reset';
@@ -105,7 +105,8 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
       case 'success': return 'preset-filled-success-500 shadow-success-500/20';
       case 'warning': return 'preset-filled-warning-500 shadow-warning-500/20';
       case 'error': return 'preset-filled-error-500 shadow-error-500/20';
-      case 'ghost': return 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-600 dark:text-surface-400';
+      case 'ghost': return 'hover:bg-surface-200/50 dark:bg-white/10 dark:hover:bg-white/20 text-surface-600 dark:text-surface-400';
+      case 'transparent': return 'bg-transparent';
       case 'outline': return 'preset-outlined-surface-500';
       default: return 'preset-filled-surface-500';
     }

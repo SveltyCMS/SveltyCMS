@@ -21,11 +21,11 @@ Displays the current step title and icon, and a reset button.
 		{steps[currentStep]?.label || 'Loading...'}
 	</h2>
 	<SystemTooltip title="Reset data">
-		<Button variant="ghost"
+		<Button variant="outline"
 			onclick={() => onreset()}
 			type="button"
 			aria-label="Reset data"
-		 size="sm" class="flex items-center dark:text-secondary-50 preset-outlined-surface-500 dark:border-surface-600 rounded">
+		 size="sm" class="text-black dark:text-white">
 			<iconify-icon icon="mdi:backup-restore" width={24} class="me-1"></iconify-icon>
 			<span class="">Reset Data</span>
 		</Button>

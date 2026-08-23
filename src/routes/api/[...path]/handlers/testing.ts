@@ -480,7 +480,7 @@ export async function handleTestingRoutes(
         logger.warn(`[TestingHandler] Non-fatal settings seeding error: ${err.message}`);
       }
 
-      // ✨ Fix: Invalidate setup cache so the system recognizes it is now COMPLETE
+      // Invalidate setup cache so the system recognizes it is now COMPLETE
       const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
       invalidateSetupCache(false, true);
 

@@ -77,7 +77,7 @@ import { setContentContext } from "@src/content";
 // =============================================
 
 interface LayoutData {
-	contentStructure: Promise<ContentNode[]>;
+	contentStructure: ContentNode[];
 	settings: Record<string, any>;
 	user: User | null;
 	tenantId?: string | null;

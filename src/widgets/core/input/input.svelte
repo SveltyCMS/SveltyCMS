@@ -322,7 +322,7 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${fieldName}-error`} class="absolute -bottom-4 start-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+		<p id={`${fieldName}-error`} class="absolute -bottom-4 inset-s-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
 			{validationError}
 		</p>
 	{/if}

@@ -17,12 +17,12 @@ All dynamic CMS settings organized into logical groups
 <script lang="ts">
 // Components
 import GDPRSettings from "@src/components/system/gdpr-settings.svelte";
+import GroupIcon from "@src/components/group-icon.svelte";
 import { groupsNeedingConfig } from "@src/stores/settings-config-state.svelte.ts";
 import { setRouteContext } from "@src/stores/ui-store.svelte.ts";
 import { logger } from "@utils/logger";
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
-	import StickyActions from '@components/ui/sticky-actions.svelte';
 import { onMount, untrack } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
 import { goto } from "$app/navigation";
@@ -36,7 +36,6 @@ import { hasEmptyConfigFields } from "./settings-utils";
 import { beforeNavigate } from "$app/navigation";
 import { showConfirm } from "@utils/modal.svelte";
 	import Button from '@components/ui/button.svelte';
-	import Input from '@components/ui/input.svelte';
 
 // Get user admin status from page data (set by +page.server.ts)
 const { data } = $props();
@@ -47,17 +46,6 @@ let availableGroups: SettingGroup[] = $state([]);
 let hasUnsavedChanges = $state(false);
 let saveTrigger = $state<{ fire: () => void; discard?: () => void }>({ fire: () => {} });
 let saving = $state(false);
-let groupSearch = $state("");
-
-const filteredGroups = $derived(
-	availableGroups.filter(
-		(g) =>
-			!groupSearch ||
-			g.name.toLowerCase().includes(groupSearch.toLowerCase()) ||
-			g.id.toLowerCase().includes(groupSearch.toLowerCase()) ||
-			g.description?.toLowerCase().includes(groupSearch.toLowerCase()),
-	),
-);
 
 // Unsaved changes guard (modal confirm instead of window.confirm)
 beforeNavigate(({ cancel, to }) => {
@@ -195,42 +183,8 @@ $effect(() => {
 </script>
 
 <AdminPageShell title="System Settings" icon="mdi:cog-outline" showBackButton={true} backUrl="/config" spaceY="8">
-	{#snippet actions()}
-		<StickyActions>
-			{#if hasUnsavedChanges}
-				<Button
-					variant="ghost"
-					type="button"
-					disabled={saving}
-					onclick={() => saveTrigger.discard?.()}
-					data-testid="system-settings-discard"
-					aria-label="Discard unsaved settings changes"
-				>
-					<iconify-icon icon="mdi:undo" width="18"></iconify-icon>
-					<span>Discard</span>
-				</Button>
-			{/if}
-			<Button
-				variant="tertiary"
-				type="button"
-				disabled={saving || !hasUnsavedChanges}
-				onclick={() => saveTrigger.fire()}
-				data-testid="system-settings-save"
-				aria-label="Save settings changes"
-			>
-				{#if saving}
-					<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
-					<span>Saving...</span>
-				{:else}
-					<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
-					<span>{hasUnsavedChanges ? 'Save Changes' : 'Saved'}</span>
-				{/if}
-			</Button>
-		</StickyActions>
-	{/snippet}
-
 	<div data-testid="system-settings-page" class="contents">
-	<AdminCard class="border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50">
+	<AdminCard class="border border-surface-500/30 bg-white p-4 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50">
 		<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">Configure global system settings</h2>
 
 		<p class="text-surface-600 dark:text-surface-400 text-sm mb-6">
@@ -239,43 +193,6 @@ $effect(() => {
 			logical groups for easy management.
 		</p>
 
-		<!-- In-page group navigator (complements sidebar settings menu) -->
-		<div class="mb-6 space-y-3" data-testid="system-settings-group-nav">
-			<Input
-				type="search"
-				bind:value={groupSearch}
-				placeholder="Search setting groups..."
-				aria-label="Search setting groups"
-				data-testid="system-settings-group-search"
-				class="w-full max-w-md"
-			/>
-			<div class="flex flex-wrap gap-2" role="list" aria-label="Setting groups">
-				{#each filteredGroups as group (group.id)}
-					<div role="listitem">
-						<button
-							type="button"
-							data-testid={`settings-group-${group.id}`}
-							data-group-id={group.id}
-							aria-current={selectedGroupId === group.id ? 'true' : undefined}
-							onclick={() => selectGroup(group.id)}
-							class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors
-								{selectedGroupId === group.id
-									? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400'
-									: 'border-surface-500/30 bg-surface-500/10 text-surface-700 hover:border-primary-500 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200'}
-								{groupsNeedingConfig.has(group.id) ? 'ring-1 ring-error-500/50' : ''}"
-						>
-							<span aria-hidden="true">{group.icon}</span>
-							<span>{group.name}</span>
-							{#if groupsNeedingConfig.has(group.id)}
-								<span class="text-error-500" title="Needs configuration">●</span>
-							{/if}
-						</button>
-					</div>
-				{:else}
-					<p class="text-sm text-surface-500" data-testid="system-settings-group-empty">No groups match your search.</p>
-				{/each}
-			</div>
-		</div>
 
 		{#if repairResult}
 			<div class="mb-6" role="status" aria-live="polite" data-testid="system-settings-repair-status">
@@ -306,7 +223,7 @@ $effect(() => {
 								data-testid={`settings-needs-config-${group.id}`}
 								onclick={() => selectGroup(group.id)}
 							>
-								{group.icon}
+								<GroupIcon icon={group.icon} class="inline" />
 								{group.name}
 							</button>{i < unconfiguredCount - 1 ? ', ' : ''}
 						{/each}

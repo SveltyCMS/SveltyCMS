@@ -38,7 +38,7 @@
   class="group flex h-24 w-full flex-col items-center justify-center gap-2 rounded border border-surface-500/30 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out
          hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-500/10 hover:shadow-xl
          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 focus-visible:ring-offset-2
-         dark:bg-surface-800 dark:border-surface-500/40 dark:hover:border-tertiary-500 dark:hover:bg-surface-700
+         dark:bg-surface-900 dark:hover:border-primary-500 dark:hover:bg-surface-700
          lg:h-32
          {enabled ? '' : 'pointer-events-none opacity-60 grayscale'}"
   aria-label="Open Smart AI-Driven Migration Pro — migrate content from 36+ CMS platforms"
@@ -55,7 +55,7 @@
     </p>
 
     {#if subtitle}
-      <p class="text-[9px] text-surface-400 dark:text-surface-500 line-clamp-1">
+      <p class="text-[9px] text-surface-400  line-clamp-1">
         {subtitle}
       </p>
     {/if}
@@ -65,7 +65,7 @@
         PRO
       </span>
     {:else}
-      <span class="mt-0.5 text-[9px] px-2 py-px rounded-full bg-surface-500/10 text-surface-500 dark:bg-surface-700 dark:text-surface-400 font-medium">
+      <span class="mt-0.5 text-[9px] px-2 py-px rounded-full bg-surface-500/10 text-surface-500 dark:bg-surface-700 dark:text-white font-medium">
         Free
       </span>
     {/if}

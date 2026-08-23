@@ -316,7 +316,7 @@ $effect(() => {
 			}
 			collections.setCollectionValue(newEntry);
 
-			// 🔧 FIX: Perform initial validation for required fields
+			// Perform initial validation for required fields
 			validationStore.clearAllErrors();
 
 			// Initialize change tracking
@@ -488,7 +488,7 @@ beforeNavigate(async ({ cancel, to }) => {
 
 <svelte:head><title>{collectionSchema?.name ?? 'Collection'} - SveltyCMS</title></svelte:head>
 
-<div class="content min-h-0 flex-1">
+<div class="content flex min-h-0 flex-1 flex-col">
 	<!-- Auto-save indicator -->
 	{#if isSavingDraft}
 		<div class="fixed inset-e-4-4 top-20 z-50 flex items-center gap-2 rounded bg-warning-500 px-4 py-2 text-white shadow-lg">

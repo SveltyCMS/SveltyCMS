@@ -100,11 +100,11 @@ let P_WRESET = $state(false);
 let P_WMAGIC = $state(false);
 let isPasskeyLoading = $state(false);
 
-// FIX: let not const — const prevents $state reassignment so the
+// let not const — const prevents $state reassignment so the
 // password-visibility toggle silently broke.
 let showPassword = $state(false);
 
-// FIX: Separate formElement refs per form so wiggle targets the end one.
+//  Separate formElement refs per form so wiggle targets the end one.
 let loginFormElement: HTMLFormElement | null = $state(null);
 let forgotFormElement: HTMLFormElement | null = $state(null);
 let resetFormElement: HTMLFormElement | null = $state(null);
@@ -114,7 +114,7 @@ const isInteractiveCard = $derived(active === undefined);
 const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);
 const pageData = page.data as PageData;
 
-// FIX: Use page.url (reactive) instead of a static window.location.href snapshot.
+// Use page.url (reactive) instead of a static window.location.href snapshot.
 const currentUrl = $derived(browser ? page.url : null);
 
 // Spinner / auth state
@@ -210,7 +210,7 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 			isToken: loginForm.data.isToken,
 			redirect: redirectTo || undefined,
 		})) as any;
-		
+
 		if (result.requires2FA) {
 			requires2FA = true;
 			twoFAUserId = result.userId || "";
@@ -225,7 +225,7 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 			});
 			return;
 		}
-		
+
 		if (result.success && result.redirectPath) {
 			sessionStorage.setItem(
 				"flashMessage",
@@ -239,7 +239,7 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 			await goto(result.redirectPath, { refreshAll: true });
 			return;
 		}
-		
+
 		toast.error({ title: "Sign In Failed", description: result.message || "Invalid email or password" });
 		wiggle(loginFormElement);
 	} catch (error: any) {
@@ -544,7 +544,7 @@ function back2FAToLogin() {
 // URL token effect — populates reset form from query params
 // ---------------------------------------------------------------------------
 
-// FIX: Derived from reactive page.url instead of a stale window.location snapshot.
+// Derived from reactive page.url instead of a stale window.location snapshot.
 $effect(() => {
 	if (!currentUrl) return;
 	const tokenParam = currentUrl.searchParams.get("token") || "";
@@ -665,7 +665,7 @@ $effect(() => {
 
 				<!-- --------------------------------------------------------- -->
 				<!-- Sign In form                                               -->
-				<!-- FIX: Hidden (not just absent) when 2FA panel is active    -->
+				<!-- Hidden (not just absent) when 2FA panel is active    -->
 				<!-- --------------------------------------------------------- -->
 				{#if !P_WFORGOT && !P_WRESET && !P_WMAGIC}
 					<div class:hidden={requires2FA}>
@@ -974,7 +974,7 @@ $effect(() => {
 
 				<!-- --------------------------------------------------------- -->
 				<!-- Reset Password form                                       -->
-				<!-- FIX: Removed duplicate name="token" FloatingInput and     -->
+				<!-- Removed duplicate name="token" FloatingInput and     -->
 				<!-- second duplicate hidden name="email" input.               -->
 				<!-- Token and email are passed as hidden fields only.         -->
 				<!-- --------------------------------------------------------- -->

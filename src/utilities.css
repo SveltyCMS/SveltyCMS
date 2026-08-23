@@ -440,3 +440,24 @@ html.dark [data-admin-theme] {
 .focus-custom:focus-visible {
   --tw-ring-color: var(--focus-ring-color) !important;
 }
+
+/* ========================================================================
+   🎬 POPOVER / DROPDOWN ENTRY ANIMATION
+   ========================================================================
+   Opacity-only entry for floating panels. A floating panel is POSITIONED via
+   `transform: translate3d(...)` (useFloating), so the entry animation must
+   never touch transform — Tailwind's `animate-in` enter keyframes write
+   `transform: translate3d(0,0,0) scale(...)` and would slide the panel from
+   the viewport top-left corner to its floating position. Applied with the
+   `motion-safe:` variant so OS reduced-motion is respected (plus the global
+   `[data-reduced-motion]` kill-switch above).
+   ======================================================================== */
+@utility popover-enter {
+  animation: popover-enter 200ms ease-out;
+}
+
+@keyframes popover-enter {
+  from {
+    opacity: 0;
+  }
+}

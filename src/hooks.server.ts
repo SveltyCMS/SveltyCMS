@@ -341,7 +341,7 @@ if (!building) {
         }
 
         // Cleanup: Unsubscribe once services are initialized
-        // ✨ FIXED: Defer unsubscribe to next tick to avoid ReferenceError if subscribe is synchronous
+        // Defer unsubscribe to next tick to avoid ReferenceError if subscribe is synchronous
         Promise.resolve().then(() => {
           if (typeof unsubscribe === "function") {
             unsubscribe();
@@ -504,7 +504,7 @@ export function getHookTimings(): Record<
   return result;
 }
 
-// 🚀 PERF FIX: Hook timing and tracing add measurable overhead (Map ops, performance.now, traceSpan)
+// 🚀 Hook timing and tracing add measurable overhead (Map ops, performance.now, traceSpan)
 // on every request for every hook. This contributes to the "Middleware/Hooks over budget"
 // (target <2ms full pipeline in exec matrix). Gate to diagnostics/benchmark only.
 // Turbo path remains fast (1.6-2.1ms) because it short-circuits many later hooks.

@@ -21,6 +21,8 @@ import { logger } from "@utils/logger";
 	// Stores
 	import { app } from '@src/stores/store.svelte';
 	import type { Editor } from '@tiptap/core';
+	import { getLocale } from '@src/paraglide/runtime';
+	import { getTextDirection } from '@utils/utils';
 	import { showModal } from '@utils/modal.svelte';
 	// Svelte
 	import { onMount } from 'svelte';
@@ -41,6 +43,12 @@ import { logger } from "@utils/logger";
 	} = $props();
 
 	const lang = $derived(field.translated ? app.contentLanguage : 'default');
+
+	// Editor text direction follows the content language for translated fields
+	// (ar/he/fa/ur…) and the active UI locale for untranslated fields.
+	const editorDir = $derived(
+		lang === 'default' ? getTextDirection(getLocale()) : getTextDirection(lang)
+	);
 
 	$effect(() => {
 		if (!value) {
@@ -459,6 +467,13 @@ import { logger } from "@utils/logger";
 		isScrolled = window.scrollY > 120;
 	}
 
+	// Undo/redo arrows are directional — mirror them in RTL layouts.
+	function mirrorDirIcon(icon: string): string {
+		return icon === 'arrow-u-left-top' || icon === 'arrow-u-right-top'
+			? 'rtl:-scale-x-[-1]'
+			: '';
+	}
+
 	onMount(() => {
 		(async () => {
 			const module = await import('./tiptap');
@@ -526,6 +541,18 @@ import { logger } from "@utils/logger";
 	});
 
 	$effect(() => {
+		// Keep the ProseMirror direction in sync when the content/UI language
+		// changes — tiptap only applies `dir` at creation, so switching from an
+		// LTR to an RTL content language used to keep the old direction.
+		if (editor?.view?.dom) {
+			editor.view.dom.setAttribute('dir', editorDir);
+		}
+		if (element) {
+			element.setAttribute('dir', editorDir);
+		}
+	});
+
+	$effect(() => {
 		let content = '';
 		if (field.translated) {
 			content = (value as Record<string, RichTextData>)?.[lang]?.content || '';
@@ -566,7 +593,7 @@ import { logger } from "@utils/logger";
 											aria-label={btn.label}
 										 class="{editorStateVersion && activeDropdown === btn.label ? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20' : 'preset-tonal'} flex items-center gap-2">
 											{#if btn.icon}
-												<iconify-icon icon="mdi:{btn.icon}" width="20"></iconify-icon>
+												<iconify-icon icon="mdi:{btn.icon}" width="20" class={mirrorDirIcon(btn.icon)}></iconify-icon>
 											{/if}
 											{#if !btn.icon || btn.label !== 'Table'}
 												<span class={btn.icon ? 'hidden sm:inline' : ''}>{btn.label}</span>
@@ -730,8 +757,8 @@ import { logger } from "@utils/logger";
 										type="button"
 										aria-label={btn.label}
 										onclick={btn.cmd}
-									 class="p-0! min-w-0 {editorStateVersion && btn.active?.() ? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20' : 'preset-tonal'}">
-										<iconify-icon icon="mdi:{btn.icon}" width="24"></iconify-icon>
+									class="p-0! min-w-0 {editorStateVersion && btn.active?.() ? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20' : 'preset-tonal'}">
+										<iconify-icon icon="mdi:{btn.icon}" width="24" class={mirrorDirIcon(btn.icon)}></iconify-icon>
 									</Button>
 								</SystemTooltip>
 							{/if}
@@ -747,6 +774,7 @@ import { logger } from "@utils/logger";
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		bind:this={element}
+		dir={editorDir}
 		onclick={() => editor?.chain().focus().run()}
 		class="prose dark:prose-invert max-w-none px-6 py-4 min-h-96 focus:outline-none leading-relaxed cursor-text {showSource ? 'hidden' : ''}"
 	>
@@ -792,7 +820,7 @@ import { logger } from "@utils/logger";
 		:global(.ProseMirror) {
 			height: 100%;
 			min-height: inherit;
-			text-align: left;
+			text-align: start;
 			outline: none;
 		}
 		/* Ensure the editor fills the container and is clickable everywhere */

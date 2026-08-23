@@ -80,8 +80,7 @@
 
 <div class="relative">
 	<Button
-		variant="outline"
-		size="sm"
+		variant="ghost"
 		type="button"
 		aria-expanded={open}
 		aria-haspopup="menu"
@@ -90,7 +89,7 @@
 			open = !open;
 			if (open) refresh();
 		}}
-		class="gap-1"
+		class="rounded-full gap-1.5"
 	>
 		<iconify-icon icon="mdi:bookmark-outline" width={18}></iconify-icon>
 		<span class="hidden sm:inline">Views</span>

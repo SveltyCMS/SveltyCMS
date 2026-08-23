@@ -39,6 +39,17 @@ const cachedFirstCollectionPathsByTenant = new SvelteMap<
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
 /**
+ * Clears the memoized first-collection redirect paths.
+ * Must be called whenever the collection set changes (setup completion/reset,
+ * collectionbuilder mutations) — otherwise a stale 5-minute entry redirects
+ * logins/fresh installs to a collection route that no longer exists.
+ */
+export function invalidateFirstCollectionPathCache(): void {
+  cachedFirstCollectionPaths.clear();
+  cachedFirstCollectionPathsByTenant.clear();
+}
+
+/**
  * A cached function to get the redirect path for the first available collection.
  * The cache is language-aware and helps avoid redundant database lookups.
  * @param language The validated user language.
