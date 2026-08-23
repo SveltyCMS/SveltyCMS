@@ -108,7 +108,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 		>
 			<span
 				class={cn(
-					'pointer-events-none flex items-center justify-center rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 dark:bg-surface-100',
+					'pointer-events-none flex items-center justify-center rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 dark:bg-surface-500/10',
 					sizes[size].thumb
 				)}
 			>

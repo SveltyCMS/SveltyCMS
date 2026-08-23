@@ -105,12 +105,12 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 	// could never follow. The semantic colours keep their explicit ramps.
 	const colorClasses: Record<string, string> = {
 		surface: 'bg-(--admin-bg-overlay) border-(--admin-border-default)',
-		primary: 'bg-primary-50 dark:bg-primary-950 border-primary-200 dark:border-primary-800',
-		secondary: 'bg-secondary-50 dark:bg-secondary-950 border-secondary-200 dark:border-secondary-800',
-		tertiary: 'bg-tertiary-50 dark:bg-tertiary-950 border-tertiary-200 dark:border-tertiary-800',
-		success: 'bg-success-50 dark:bg-success-950 border-success-200 dark:border-surface-700',
-		warning: 'bg-warning-50 dark:bg-warning-950 border-warning-200 dark:border-surface-700',
-		error: 'bg-error-50 dark:bg-error-950 border-error-200 dark:border-surface-700',
+		primary: 'bg-primary-500/10 dark:bg-primary-500/10 border-primary-500/30 dark:border-primary-500/40',
+		secondary: 'bg-secondary-500/10 dark:bg-secondary-500/10 border-secondary-500/30 dark:border-secondary-500/40',
+		tertiary: 'bg-tertiary-500/10 dark:bg-tertiary-500/10 border-tertiary-500/30 dark:border-tertiary-500/40',
+		success: 'bg-success-500/10 dark:bg-success-500/10 border-success-500/30 dark:border-surface-500/40',
+		warning: 'bg-warning-500/10 dark:bg-warning-500/10 border-warning-500/30 dark:border-surface-500/40',
+		error: 'bg-error-500/10 dark:bg-error-500/10 border-error-500/30 dark:border-surface-500/40',
 	};
 </script>
 

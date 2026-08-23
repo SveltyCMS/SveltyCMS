@@ -51,7 +51,7 @@ Multi-line text input with label, error state, and AdminTheme radius integration
 	const theme = getThemeContext();
 
 	const baseStyles =
-		'flex min-h-[80px] w-full border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 px-3 py-2 text-sm ring-offset-background placeholder:text-surface-600 dark:placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 resize-y';
+		'flex min-h-[80px] w-full border border-surface-500/30 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-900 px-3 py-2 text-sm ring-offset-background placeholder:text-surface-600 dark:placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 resize-y';
 
 	const errorStyles = 'border-error-500 focus-visible:ring-error-500';
 

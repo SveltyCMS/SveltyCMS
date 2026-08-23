@@ -95,7 +95,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 
 <!-- Active filter badges (above column inputs) -->
 {#if hasActive}
-	<tr class="border-b border-surface-200/80 dark:border-surface-700">
+	<tr class="border-b border-surface-500/30 dark:border-surface-500/40">
 		<th colspan={headers.length + 1} class="p-2!">
 			<div
 				class="flex flex-wrap items-center gap-2"
@@ -103,7 +103,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 				aria-live="polite"
 				aria-label="{activeFilters.length} active filter{activeFilters.length === 1 ? '' : 's'}"
 			>
-				<span class="text-xs font-medium text-surface-600 dark:text-surface-300">
+				<span class="text-xs font-medium text-surface-600 dark:text-surface-400">
 					{activeFilters.length} active filter{activeFilters.length === 1 ? '' : 's'}:
 				</span>
 				{#each activeFilters as chip (chip.id)}
@@ -136,7 +136,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 	</tr>
 {/if}
 
-<tr class="border-b border-surface-200/80 bg-surface-50 dark:border-surface-700 dark:bg-surface-900">
+<tr class="border-b border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900">
 	<th class="w-10 overflow-hidden p-1 align-middle">
 		{#if showClearInFirstCell && hasActive}
 			<Button
@@ -157,7 +157,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 		{@const type = def?.type ?? 'text'}
 		{@const name = header.name || ''}
 		{@const value = currentValue(header)}
-		<th class="min-w-[7rem] max-w-[16rem] overflow-hidden p-1 align-middle">
+		<th class="min-w-28 max-w-[16rem] overflow-hidden p-1 align-middle">
 			<div class="flex min-w-0 items-center gap-1">
 				{#if type === 'select' || type === 'boolean'}
 					<Select
@@ -176,7 +176,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 						<span class="sr-only">Filter {def?.label ?? header.label} by date</span>
 						<input aria-label="Filter {def?.label ?? header.label}"
 							type="date"
-							class="h-8 w-full min-w-0 rounded border border-surface-200 bg-white px-2 text-xs text-surface-800 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-100"
+							class="h-8 w-full min-w-0 rounded border border-surface-500/30 bg-white px-2 text-xs text-surface-800 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-100"
 							value={value}
 							oninput={(e) => onFilterChange(name, (e.currentTarget as HTMLInputElement).value)}
 						/>
@@ -188,7 +188,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 							type="number"
 							inputmode="decimal"
 							placeholder="Min"
-							class="h-8 w-1/2 min-w-0 rounded border border-surface-200 bg-white px-1.5 text-xs text-surface-800 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-100"
+							class="h-8 w-1/2 min-w-0 rounded border border-surface-500/30 bg-white px-1.5 text-xs text-surface-800 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-100"
 							value={range.min}
 							oninput={(e) => handleNumberPart(header, 'min', (e.currentTarget as HTMLInputElement).value)}
 						/>
@@ -197,7 +197,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 							type="number"
 							inputmode="decimal"
 							placeholder="Max"
-							class="h-8 w-1/2 min-w-0 rounded border border-surface-200 bg-white px-1.5 text-xs text-surface-800 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-100"
+							class="h-8 w-1/2 min-w-0 rounded border border-surface-500/30 bg-white px-1.5 text-xs text-surface-800 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-100"
 							value={range.max}
 							oninput={(e) => handleNumberPart(header, 'max', (e.currentTarget as HTMLInputElement).value)}
 						/>
@@ -208,7 +208,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 						name={name}
 						value={value}
 						placeholder={def?.label ?? header.label}
-						class="h-8 w-full min-w-0 rounded border border-surface-200 bg-white px-2 text-xs text-surface-800 placeholder:text-surface-400 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-100 dark:placeholder:text-surface-500"
+						class="h-8 w-full min-w-0 rounded border border-surface-500/30 bg-white px-2 text-xs text-surface-800 placeholder:text-surface-400 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-100 dark:placeholder:text-surface-500"
 						oninput={(e) => onFilterChange(name, (e.currentTarget as HTMLInputElement).value)}
 					/>
 				{/if}

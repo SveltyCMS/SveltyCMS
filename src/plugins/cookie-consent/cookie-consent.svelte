@@ -86,7 +86,7 @@
     aria-describedby="cookie-description"
   >
     <div
-      class="rounded border border-surface-200 bg-white p-3 shadow-2xl dark:border-surface-700 dark:bg-surface-900"
+      class="rounded border border-surface-500/30 bg-white p-3 shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
     >
       <!-- Header -->
       <div class="flex items-start gap-3">
@@ -111,7 +111,7 @@
       {#if showDetails}
         <div
           transition:slide
-          class="mt-4 space-y-5 border-t border-surface-200 py-5 dark:border-surface-700"
+          class="mt-4 space-y-5 border-t border-surface-500/30 py-5 dark:border-surface-500/40"
         >
           <!-- Necessary (always on) -->
           <div class="flex items-center justify-between">

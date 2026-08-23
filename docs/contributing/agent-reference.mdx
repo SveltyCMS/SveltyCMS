@@ -1,0 +1,85 @@
+---
+path: "docs/contributing/agent-reference.mdx"
+title: "Agent Reference Maps"
+description: "The documentation matrix and key files reference for SveltyCMS — which docs to update per feature type and where the important source lives."
+order: 4
+icon: "mdi:map-marker-path"
+author: "SveltyCMS Team"
+created: "2026-08-23"
+updated: "2026-08-23"
+tags:
+  - "reference"
+  - "documentation"
+  - "matrix"
+---
+
+# Agent Reference Maps
+
+Reference tables for agents working in SveltyCMS. The rules live in `AGENTS.md`; these are the maps — what to update when, and where the important files live.
+
+## Mandatory Documentation Updates
+
+> [!CAUTION]
+> **When implementing ANY new feature, you MUST update documentation.** Incomplete documentation is a blocking issue.
+
+**For ALL new features, always update (in this order):**
+
+1. **`docs/project/roadmap-2026.mdx`** — the **TODO list**. Add planned/in-progress items and mark progress. Items live here until they ship.
+2. **`docs/project/achievements-2026.mdx`** — the **achievements log**. When a roadmap item is completed, move it here as a dated, self-measured achievement entry (engineering truth, not marketing).
+3. **`docs/project/competitive-comparison.mdx`** — **competitive-advantage highlights**. When a shipped capability is a defensible differentiator, add it here as an **EU/DE-compliant** comparison (verifiable sources, date-stamped methodology, no discrediting language — UWG §6, see AGENTS.md §2b).
+4. Create/update the feature-specific MDX in the appropriate `docs/` subdirectory.
+5. Update the `AGENTS.md` roadmap checklist (if feature is listed).
+
+## Documentation Matrix
+
+| Feature Type          | Primary MDX Location                                        | Also Update                                                                      |
+| :-------------------- | :---------------------------------------------------------- | :------------------------------------------------------------------------------- |
+| **Database**          | `docs/reference/database/`                                  | `achievements-2026.mdx`                                                          |
+| **Auth/Security**     | `docs/reference/security/authentication-system.mdx`         | `achievements-2026.mdx`                                                          |
+| **Admin Theme / UI**  | `docs/contributing/style-guide-gui.mdx`                     |                                                                                  |
+| **Content/Preview**   | `docs/reference/architecture/live-preview-architecture.mdx` | Integration docs                                                                 |
+| **Widgets**           | (inline in widget package)                                  | `widget-system-overview.mdx`                                                     |
+| **API**               | `docs/reference/api/`                                       | Relevant service docs                                                            |
+| **Performance**       | `docs/reference/database/performance-architecture.mdx`      | `achievements-2026.mdx`                                                          |
+| **Benchmarks**        | `docs/tests/benchmark-matrix.mdx`                           | `docs/project/benchmarks/index.mdx`                                              |
+| **Testing Scripts**   | `docs/tests/testing-scripts.mdx`                            | `docs/tests/index.mdx`                                                           |
+| **Intelligence / AI** | `docs/reference/architecture/behavioral-learning.mdx`       | `ai-integration.mdx`, `achievements-2026.mdx`                                    |
+| **Preloading**        | `docs/reference/architecture/hover-preloading.mdx`          | `behavioral-learning.mdx`, `cache-system.mdx`                                    |
+| **Marketplace**       | `docs/reference/architecture/marketplace.mdx`               | `ai-integration.mdx`                                                             |
+| **E-commerce**        | `docs/reference/architecture/ecommerce-overview.mdx`        | Plugins / widgets / gated API (core stays light); Stripe MDX; `roadmap-2026.mdx` |
+| **Packages / SDK**    | `docs/development/package-model.mdx`                        | `docs/development/local-vs-http-api.mdx`                                         |
+
+> **Where completed work lands**: roadmap items ship → add a dated entry to `docs/project/achievements-2026.mdx` (achievements log). Capabilities worth marketing as differentiators also go into `docs/project/competitive-comparison.mdx` (EU/DE-compliant — verifiable sources, date-stamped, no discrediting language).
+
+## Key Documentation Files
+
+- `docs/reference/database/` — Database adapters, auth, cache, performance
+- `docs/guides/` — Configuration, content, deployment & legal guides
+- `docs/development/` — Development guides (AI integration, error handling, widgets, plugins, etc.)
+- `docs/reference/` — API reference, architecture, security, database & components
+- `docs/reference/architecture/` — Architecture docs (live preview, behavioral learning, etc.)
+- `docs/project/roadmap-2026.mdx` — TODO list (planned / in-progress work)
+- `docs/project/achievements-2026.mdx` — Completed achievements log
+- `docs/project/competitive-comparison.mdx` — Competitive-advantage highlights (EU/DE compliant)
+
+## Key Files Reference
+
+| Category        | Key Files                                                                                                                                                                                                        |
+| :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **DB & Auth**   | `db.ts`, `dbInterface.ts`, database adapters like mongo, drizzle, etc.                                                                                                                                           |
+| **Security**    | `+server.ts`, `handle-authentication.ts`, `handle-system-state.ts`, `system.ts`, `media.ts`, `setup.ts`                                                                                                          |
+| **Content**     | `sync-content-state.server.ts`, `engine.server.ts`, `loader.server.ts`, `schema-contract.ts`, `config/collections/` → `.compiledCollections/`                                                                    |
+| **Compile/HMR** | `src/utils/compilation/*`, `vite.config.ts` (`sveltyCmsPlugin`), `scripts/generate-content-types.ts`                                                                                                             |
+| **Widgets**     | `widget-factory.ts`, `widget-store.svelte.ts`                                                                                                                                                                    |
+| **API**         | `routes/api/`, `hooks.server.ts`                                                                                                                                                                                 |
+| **Admin Theme** | `admin-page-shell.svelte`, `admin-card.svelte`, `theme-context.svelte.ts`, `theme-merge.ts`                                                                                                                      |
+| **Benchmarks**  | `benchmark-reporting.ts`, `benchmark-history.ts`, `benchmark-analysis.ts`, `benchmark-mdx.ts`, `benchmark-executive.ts`, `scripts/benchmark-matrix/` (16 files — regression-detector, reporting, runner, config) |
+| **Build**       | `vite.config.ts`, `svelte.config.js`, `tailwind.config.js`                                                                                                                                                       |
+
+## Path Aliases
+
+```
+@src → ./src          @components → ./src/components   @databases → ./src/databases
+@config → ./config    @utils → ./src/utils             @stores → ./src/stores
+@widgets → ./src/widgets  @services → ./src/services   $paraglide → ./src/paraglide
+```

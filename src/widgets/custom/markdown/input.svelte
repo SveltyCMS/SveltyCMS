@@ -55,9 +55,9 @@
 	}
 </script>
 
-<div class="flex flex-col border border-surface-400 dark:border-surface-600 rounded overflow-hidden">
+<div class="flex flex-col border border-surface-500 dark:border-surface-600 rounded overflow-hidden">
 	<!-- Toolbar -->
-	<div class="flex items-center justify-between bg-surface-100 dark:bg-surface-800 p-2 border-b border-surface-200 dark:border-surface-700">
+	<div class="flex items-center justify-between bg-surface-500/10 dark:bg-surface-800 p-2 border-b border-surface-500/30 dark:border-surface-500/40">
 		<div class="flex gap-1">
 			<Button type="button" size="sm" variant={previewMode === 'edit' ? 'tertiary' : 'surface'} onclick={() => previewMode = 'edit'}>Edit</Button>
 			<Button type="button" size="sm" variant={previewMode === 'split' ? 'tertiary' : 'surface'} onclick={() => previewMode = 'split'}>Split</Button>
@@ -80,7 +80,7 @@
 		{/if}
 
 		{#if previewMode !== 'edit'}
-			<div class="flex-1 p-4 overflow-y-auto bg-white dark:bg-surface-900 prose dark:prose-invert max-w-none border-s border-surface-200 dark:border-surface-700">
+			<div class="flex-1 p-4 overflow-y-auto bg-white dark:bg-surface-900 prose dark:prose-invert max-w-none border-s border-surface-500/30 dark:border-surface-500/40">
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html parseMD(rawText)}
 			</div>

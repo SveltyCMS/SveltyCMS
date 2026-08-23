@@ -121,7 +121,7 @@ const cancelChanges = () => {
 	</p>
 	<div class="wrapper my-4">
 		<!-- Display current admin role-->
-		<p class="my-4 text-center lg:text-left">
+		<p class="my-4 text-center lg:text-start">
 			Current Admin Role: <span class="ms-2 text-tertiary-500 dark:text-primary-500">{currentAdminName}</span>
 		</p>
 
@@ -136,7 +136,7 @@ const cancelChanges = () => {
 		<!-- Save and Cancel Buttons -->
 		{#if hasChanges}
 			<!-- Display new admin role-->
-			<p class="mt-4 text-center lg:text-left">
+			<p class="mt-4 text-center lg:text-start">
 				Selected Admin Role ID: <span class="ms-2 text-tertiary-500 dark:text-primary-500">{selectedAdminRole}</span>
 			</p>
 			<div class="mt-4 flex justify-between">
@@ -156,7 +156,7 @@ const cancelChanges = () => {
 
 		<!-- Notification Message -->
 		{#if notification}
-			<p class="mt-4 text-green-600">{notification}</p>
+			<p class="mt-4 text-success-600">{notification}</p>
 		{/if}
 	</div>
 {/if}

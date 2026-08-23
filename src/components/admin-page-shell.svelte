@@ -19,7 +19,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 - `spaceY` ('4' | '6' | '8'): Vertical rhythm between sections.
 - `titleCompact` (boolean): Tighter PageTitle row with bottom border.
 - `animate` (boolean): Apply standard page entry fade (respects reduced motion).
-- `navColor` (string): Tailwind bg class for FloatingNav favorite spoke (default `bg-amber-500`).
+- `navColor` (string): Tailwind bg class for FloatingNav favorite spoke (default `bg-warning-500`).
 - `children` (Snippet): Page body content.
 - `actions` (Snippet): Trailing header actions for PageTitle.
 
@@ -49,7 +49,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		titleCompact?: boolean;
 		titleBorderless?: boolean;
 		animate?: boolean;
-		/** Tailwind bg class for FloatingNav favorite spoke — NAV_FAVORITE_COLORS literal (default `bg-amber-500`). */
+		/** Tailwind bg class for FloatingNav favorite spoke — NAV_FAVORITE_COLORS literal (default `bg-warning-500`). */
 		navColor?: NavFavoriteColor;
 		children?: import('svelte').Snippet;
 		actions?: import('svelte').Snippet;

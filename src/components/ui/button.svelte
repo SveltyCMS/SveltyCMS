@@ -105,7 +105,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
       case 'success': return 'preset-filled-success-500 shadow-success-500/20';
       case 'warning': return 'preset-filled-warning-500 shadow-warning-500/20';
       case 'error': return 'preset-filled-error-500 shadow-error-500/20';
-      case 'ghost': return 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-700 dark:text-surface-300';
+      case 'ghost': return 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-600 dark:text-surface-400';
       case 'outline': return 'preset-outlined-surface-500';
       default: return 'preset-filled-surface-500';
     }

@@ -167,7 +167,7 @@ function handleThemeSelect(themeId: string) {
 					{/each}
 				</div>
 			{:else}
-				<div class="text-center sm:text-left">
+				<div class="text-center sm:text-start">
 					<p class="mb-4 text-surface-500 dark:text-surface-50">
 						There are currently no custom themes available. Visit the SveltyCMS marketplace to find new themes.
 					</p>

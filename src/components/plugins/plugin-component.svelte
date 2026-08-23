@@ -46,7 +46,7 @@
 {#if Component}
 	<Component {...restProps} />
 {:else if loading}
-	<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-300 border-t-primary-500"></div>
+	<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-500/30 border-t-primary-500"></div>
 {:else if error}
 	<iconify-icon icon="mdi:alert-circle" class="text-error-500"></iconify-icon>
 {/if}

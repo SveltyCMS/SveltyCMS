@@ -230,10 +230,10 @@ $effect(() => {
 	{/snippet}
 
 	<div data-testid="system-settings-page" class="contents">
-	<AdminCard class="border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
+	<AdminCard class="border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50">
 		<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">Configure global system settings</h2>
 
-		<p class="text-surface-600 dark:text-surface-300 text-sm mb-6">
+		<p class="text-surface-600 dark:text-surface-400 text-sm mb-6">
 			These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with
 			"Restart Required" need a server restart. Settings are organized into <span class="font-bold text-tertiary-500 dark:text-primary-500" data-testid="system-settings-group-count">{availableGroups.length}</span>
 			logical groups for easy management.
@@ -260,8 +260,8 @@ $effect(() => {
 							onclick={() => selectGroup(group.id)}
 							class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors
 								{selectedGroupId === group.id
-									? 'border-primary-500 bg-primary-500/15 text-primary-700 dark:text-primary-300'
-									: 'border-surface-200 bg-surface-50 text-surface-700 hover:border-primary-400 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200'}
+									? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400'
+									: 'border-surface-500/30 bg-surface-500/10 text-surface-700 hover:border-primary-500 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200'}
 								{groupsNeedingConfig.has(group.id) ? 'ring-1 ring-error-500/50' : ''}"
 						>
 							<span aria-hidden="true">{group.icon}</span>
@@ -384,9 +384,9 @@ $effect(() => {
 	</AdminCard>
 
 	<!-- Multi-Tenancy Migration -->
-	<AdminCard class="border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="system-settings-mt-migration">
+	<AdminCard class="border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="system-settings-mt-migration">
 		<h2 class="h2 mb-4 font-bold text-tertiary-600 dark:text-primary-500">Multi-Tenancy Migration</h2>
-		<p class="text-surface-600 dark:text-surface-300 text-sm mb-4">
+		<p class="text-surface-600 dark:text-surface-400 text-sm mb-4">
 			Migrate collections and media files between flat and tenant-namespaced structures.
 			Check the current state, then migrate if needed.
 		</p>
@@ -416,7 +416,7 @@ $effect(() => {
 			<div class="mb-4 text-sm" data-testid="system-settings-structure-info" role="status" aria-live="polite">
 				<p>Mode: <strong>{structureInfo.isMultiTenant ? 'Multi-Tenant' : 'Single-Tenant'}</strong></p>
 				{#if structureInfo.warnings && structureInfo.warnings.length > 0}
-					<div class="mt-2 p-3 rounded bg-warning-500/10 text-warning-700 dark:text-warning-300">
+					<div class="mt-2 p-3 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400">
 						{#each structureInfo.warnings as w, i (i)}
 							<p class="text-xs">\u26a0\ufe0f {w}</p>
 						{/each}

@@ -207,7 +207,7 @@ Features:
 			<!-- Left column: Form fields (3/5 width) -->
 			<div class="flex flex-col gap-4 md:col-span-3">
 				<div class="space-y-4">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-300">
+					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400">
 						Category Details
 					</h3>
 
@@ -254,15 +254,15 @@ Features:
 			<div class="flex flex-col gap-4 md:col-span-2">
 				<!-- Icon Picker -->
 				<div class="space-y-3">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-300">
+					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400">
 						Icon
 					</h3>
 
 					<div class="block">
-						<span class="mb-2 block text-sm font-medium text-surface-700 dark:text-surface-200">
+						<span class="mb-2 block text-sm font-medium text-surface-600 dark:text-surface-400">
 							Choose an icon
 						</span>
-						<div class="min-h-[220px] rounded-lg border border-surface-200 bg-surface-50 p-2 dark:border-surface-700 dark:bg-surface-800/40">
+						<div class="min-h-[220px] rounded-lg border border-surface-500/30 bg-surface-500/10 p-2 dark:border-surface-500/40 dark:bg-surface-800/40">
 							<IconifyIconsPicker
 								bind:iconselected={formData.newCategoryIcon}
 								icon={previewIcon}
@@ -277,11 +277,11 @@ Features:
 
 				<!-- Live Preview -->
 				<div class="space-y-3">
-					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-300">
+					<h3 class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400">
 						Preview
 					</h3>
 					<div
-						class="flex items-center gap-3 rounded-lg border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-800/40"
+						class="flex items-center gap-3 rounded-lg border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-800/40"
 						data-testid="category-preview"
 					>
 						<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-500/10 dark:text-primary-400">
@@ -303,7 +303,7 @@ Features:
 		</div>
 
 		<!-- Footer -->
-		<footer class="flex items-center border-t border-surface-200 pt-4 dark:border-surface-700 {isEditing ? 'justify-between' : 'justify-end'}">
+		<footer class="flex items-center border-t border-surface-500/30 pt-4 dark:border-surface-500/40 {isEditing ? 'justify-between' : 'justify-end'}">
 			{#if isEditing}
 				<Button
 					variant="error"

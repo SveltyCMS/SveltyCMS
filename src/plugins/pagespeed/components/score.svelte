@@ -18,9 +18,9 @@
 	// Determine color based on Lighthouse thresholds
 	const colorClass = $derived.by(() => {
 		if (score < 0) return 'bg-slate-200 text-slate-500'; // N/A
-		if (score >= 90) return 'bg-green-100 text-green-700 border-green-200'; // 90-100: Good
-		if (score >= 50) return 'bg-amber-100 text-amber-700 border-amber-200'; // 50-89: Needs Improvement
-		return 'bg-red-100 text-red-700 border-red-200'; // 0-49: Poor
+		if (score >= 90) return 'bg-success-500/10 text-success-600 border-success-500/30'; // 90-100: Good
+		if (score >= 50) return 'bg-warning-500/10 text-warning-600 border-warning-500/30'; // 50-89: Needs Improvement
+		return 'bg-error-500/10 text-error-600 border-error-500/30'; // 0-49: Poor
 	});
 
 	const formattedDate = $derived(fetchedAt ? new Date(fetchedAt).toLocaleDateString() : 'Never');

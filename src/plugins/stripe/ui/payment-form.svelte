@@ -125,7 +125,7 @@ charges order grandTotal (F1). Display amount is optional UI only.
 	{:else}
 		<div
 			bind:this={cardElement}
-			class="min-h-11 rounded border border-surface-200 bg-surface-50 p-3 transition-all focus-within:border-tertiary-500 focus-within:ring-2 focus-within:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900"
+			class="min-h-11 rounded border border-surface-500/30 bg-surface-500/10 p-3 transition-all focus-within:border-tertiary-500 focus-within:ring-2 focus-within:ring-primary-500/20 dark:border-surface-500/40 dark:bg-surface-900"
 		></div>
 
 		{#if error}

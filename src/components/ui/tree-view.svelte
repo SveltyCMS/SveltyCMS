@@ -561,10 +561,10 @@ search filtering, and RTL support.
     {@const isMedia = variant === 'media'}
     {@const isRoot = depth === 0 && node.id === 'root'}
     {@const showChevron = hasChildren}
-    {@const mediaIconTone = 'text-surface-300 dark:text-surface-300'}
-    {@const mediaRootText = 'text-surface-200 dark:text-surface-200'}
+    {@const mediaIconTone = 'text-surface-300 dark:text-surface-400'}
+    {@const mediaRootText = 'text-surface-200 dark:text-surface-400'}
     {@const mediaFolderText = 'text-surface-400 dark:text-surface-400'}
-    {@const mediaSelectedText = 'text-amber-400 dark:text-amber-300'}
+    {@const mediaSelectedText = 'text-warning-400 dark:text-warning-400'}
     {@const mediaGuideLine = 'bg-surface-600/50 dark:bg-white/10'}
 
     <div class="flex flex-col" data-item-id={node.id}>
@@ -632,7 +632,7 @@ search filtering, and RTL support.
                         densityTokens.padding,
                         densityTokens.touch,
                         isSelected
-                            ? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-300 shadow-xs'
+                            ? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-400 shadow-xs'
                             : 'hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-100',
                         isFocused && 'ring-2 ring-inset ring-primary-500/50 shadow-sm',
                     ),
@@ -650,7 +650,7 @@ search filtering, and RTL support.
             {#if showChevron}
                 {#if node.isLoading}
                     <div class="flex items-center justify-center {densityTokens.dummy}">
-                        <div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-400 border-t-transparent" aria-label="Loading"></div>
+                        <div class="h-3 w-3 animate-spin rounded-full border-2 border-surface-500 border-t-transparent" aria-label="Loading"></div>
                     </div>
                 {:else}
                     <iconify-icon
@@ -701,7 +701,7 @@ search filtering, and RTL support.
                     ? cn(
                         isRoot ? 'text-[15px]' : 'text-sm',
                         isSelected ? mediaSelectedText : isRoot ? mediaRootText : mediaFolderText,
-                        !isSelected && !isRoot && 'hover:text-surface-200 dark:hover:text-surface-200',
+                        !isSelected && !isRoot && 'hover:text-surface-200 dark:hover:text-surface-400',
                     )
                     : cn(
                         densityTokens.font,
@@ -718,7 +718,7 @@ search filtering, and RTL support.
 	                <Badge
 	                    variant="surface"
 	                    size="sm"
-	                    class="ml-auto shrink-0 group-hover/item:hidden"
+	                    class="ms-auto shrink-0 group-hover/item:hidden"
 	                    title={node.badge?.title}
 	                >
 	                    {#if node.badge?.icon}

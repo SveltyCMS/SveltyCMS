@@ -499,7 +499,7 @@ beforeNavigate(async ({ cancel, to }) => {
 
 	{#if !collections.active}
 		<!-- Collection data should be available from SSR, if not show error -->
-		<div class="dark:bg-error-950 flex h-64 flex-col items-center justify-center rounded border border-error-500 bg-error-50 p-8">
+		<div class="dark:bg-error-500/10 flex h-64 flex-col items-center justify-center rounded border border-error-500 bg-error-500/10 p-8">
 			<svg aria-hidden="true" class="mb-4 h-16 w-16 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
 					stroke-linecap="round"

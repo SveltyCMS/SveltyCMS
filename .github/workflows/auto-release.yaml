@@ -1,7 +1,11 @@
 # .github/workflows/auto-release.yaml
-# Primary: triggers automatically when CI passes on main (reads version from package.json).
-# Fallback: manually triggered with version input for emergency releases.
-# Syncs version back to package.json so it always matches the git tag.
+# Primary: CI passes on main → version is read from package.json → tag + GitHub Release + npm publish.
+# Fallback A: pushing a `v*` tag triggers a release from the tag name (matches the AGENTS.md flow).
+# Fallback B: manual dispatch with an explicit version input.
+#
+# The GitHub Release is created independently of npm publish — a missing/invalid
+# NPM_TOKEN or registry failure must never swallow the release (that previously
+# left pushed tags with no GitHub Releases). npm publish is best-effort.
 name: Auto Release
 
 on:
@@ -9,6 +13,9 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [main]
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
@@ -28,7 +35,8 @@ jobs:
     name: Publish
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event_name == 'push' && github.actor != 'github-actions[bot]') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -36,7 +44,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.workflow_run.head_sha || 'main' }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha || 'main' }}
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
 
@@ -51,7 +59,10 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if [ -n "$MANUAL_VERSION" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+            echo "source=git tag" >> $GITHUB_OUTPUT
+          elif [ -n "$MANUAL_VERSION" ]; then
             echo "value=$MANUAL_VERSION" >> $GITHUB_OUTPUT
             echo "source=manual input" >> $GITHUB_OUTPUT
           else
@@ -83,19 +94,34 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.value }}
 
+      # Release first — the admin UI's update check reads GitHub Releases, so this
+      # must happen even when npm publish cannot. softprops generates release notes
+      # from the commit range since the last tag.
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.value }}
+          name: v${{ steps.version.outputs.value }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+
       - name: Verify npm authentication
+        id: npm-auth
+        continue-on-error: true
         run: |
           if [ -z "$NPM_TOKEN" ]; then
-            echo "❌ NPM_TOKEN secret is not set — skipping publish"
+            echo "❌ NPM_TOKEN secret is not set — skipping npm publish (GitHub Release already created)"
             exit 1
           fi
           npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
-          npm whoami || { echo "❌ npm token is invalid or expired"; exit 1; }
+          npm whoami || { echo "❌ npm token is invalid or expired — skipping npm publish"; exit 1; }
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Check if package exists in registry
         id: check-pkg
+        continue-on-error: true
         run: |
           if npm view create-sveltycms version >/dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -106,15 +132,8 @@ jobs:
           fi
 
       - name: Publish to npm
+        if: steps.npm-auth.outcome == 'success'
+        continue-on-error: true
         run: npm publish --access public
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.value }}
-          name: v${{ steps.version.outputs.value }}
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}

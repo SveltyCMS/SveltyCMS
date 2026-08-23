@@ -16,11 +16,7 @@
 import { ThemeManager } from "@src/databases/theme-manager";
 import type { ThemeConfig as AdminThemeSettings } from "@components/ui/theme-context.svelte";
 import { logger } from "@utils/logger";
-import {
-  isSkeletonCssExport,
-  isSkeletonPreset,
-  mapPresetToAdminTheme,
-} from "@utils/theme-preset-mapper";
+import { mapPresetToAdminTheme, type ThemePreset } from "@utils/theme-preset-mapper";
 import { auditPresetJson, type ContrastWarning } from "@utils/theme-contrast";
 import type { DatabaseId } from "@src/content/types";
 import type { Theme } from "@src/databases/db-interface";
@@ -336,18 +332,14 @@ export class AdminThemeService {
 
     const mapped: Partial<StoredAdminTheme> = { presetSource: "imported" };
 
-    const hasSkeletonCss =
-      (typeof preset.css === "string" && isSkeletonCssExport(preset.css)) ||
-      (typeof preset.code === "string" && isSkeletonCssExport(preset.code));
-
-    if (isSkeletonPreset(preset) || hasSkeletonCss) {
-      const skeleton = mapPresetToAdminTheme(preset);
-      mapped.name = skeleton.name;
-      if (skeleton.customCss) mapped.customCss = skeleton.customCss;
-    } else if (preset.id && preset.density) {
+    if (preset.id && preset.density) {
+      // Native SveltyCMS theme JSON — use directly.
       Object.assign(mapped, preset as Partial<StoredAdminTheme>);
     } else {
-      throw new Error("Unrecognized preset format. Expected Skeleton.dev or SveltyCMS theme JSON.");
+      // Shorthand palette / css / code payload → map to admin theme CSS.
+      const presetMapped = mapPresetToAdminTheme(preset as ThemePreset);
+      mapped.name = presetMapped.name;
+      if (presetMapped.customCss) mapped.customCss = presetMapped.customCss;
     }
 
     const contrastWarnings = auditPresetJson(presetJson);

@@ -728,8 +728,8 @@
 		});
 	}
 
-	const cardClass = 'border border-surface-200 dark:border-surface-800 p-5 sm:p-6 shadow-sm';
-	const rowClass = 'flex items-center justify-between gap-3 py-3 border-b border-surface-100 dark:border-surface-800 last:border-0';
+	const cardClass = 'border border-surface-500/30 dark:border-surface-500/40 p-5 sm:p-6 shadow-sm';
+	const rowClass = 'flex items-center justify-between gap-3 py-3 border-b border-surface-100 dark:border-surface-500/40 last:border-0';
 	/** Equal width for Security row actions (Setup / Manage / Refresh) */
 	const securityActionBtn = 'min-w-[5.5rem] justify-center shrink-0';
 	/** Row lead icons: tertiary (light) / primary (dark) */
@@ -768,7 +768,7 @@
 										src={normalizeAvatarUrl(user.avatar)}
 										initials={user.username?.slice(0, 2).toUpperCase() || 'AV'}
 										size="size-28"
-										class="size-full rounded-full border-2 border-surface-200 shadow-md pointer-events-none dark:border-surface-600"
+										class="size-full rounded-full border-2 border-surface-500/30 shadow-md pointer-events-none dark:border-surface-600"
 									/>
 								</button>
 								<!-- Pencil outside circle hit area — positioned shell + SystemTooltip + real button -->
@@ -844,7 +844,7 @@
 
 						<!-- Right: username · email · password (static mask, no reveal) -->
 						<div class="flex min-w-0 flex-col gap-4">
-							<div class="w-full rounded-xl border border-surface-200/90 px-4 py-3 dark:border-surface-700">
+							<div class="w-full rounded-xl border border-surface-500/30 px-4 py-3 dark:border-surface-500/40">
 								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-surface-500">
 									<iconify-icon icon="mdi:account" width={14} class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 									></iconify-icon>
@@ -855,7 +855,7 @@
 								</p>
 							</div>
 
-							<div class="w-full rounded-xl border border-surface-200/90 px-4 py-3 dark:border-surface-700">
+							<div class="w-full rounded-xl border border-surface-500/30 px-4 py-3 dark:border-surface-500/40">
 								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-surface-500">
 									<iconify-icon
 										icon="mdi:email-outline"
@@ -875,7 +875,7 @@
 
 							<!-- Password never shown in plain text — use Change password only -->
 							<div
-								class="w-full rounded-xl border border-surface-200/90 px-4 py-3 dark:border-surface-700"
+								class="w-full rounded-xl border border-surface-500/30 px-4 py-3 dark:border-surface-500/40"
 								data-testid="profile-password-field"
 							>
 								<p class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-surface-500">
@@ -886,7 +886,7 @@
 								<p class="font-mono text-base tracking-widest text-surface-500" aria-hidden="true">••••••••••••</p>
 								<p class="mt-1 text-xs text-surface-500">
 									Passwords are stored hashed and cannot be displayed. Use
-									<strong class="font-medium text-surface-700 dark:text-surface-300">Change password</strong> to set a new one.
+									<strong class="font-medium text-surface-600 dark:text-surface-400">Change password</strong> to set a new one.
 								</p>
 							</div>
 
@@ -916,7 +916,7 @@
 							</div>
 
 							{#if isFirstUser}
-								<div class="border-t border-surface-200 pt-4 dark:border-surface-700">
+								<div class="border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
 									<Button
 										variant="outline"
 										size="sm"
@@ -1030,8 +1030,8 @@
 										{#each sessionGroups as group (group.key)}
 											<li
 												class="rounded-lg border {group.isCurrent
-													? 'border-primary-500/60 bg-primary-500/5 shadow-sm ring-1 ring-primary-500/30 dark:border-primary-500/50 dark:bg-primary-500/10 dark:ring-primary-500/25'
-													: 'border-surface-100 dark:border-surface-800'}"
+													? 'border-primary-500/60 bg-primary-500/10 shadow-sm ring-1 ring-primary-500/30 dark:border-primary-500/50 dark:bg-primary-500/10 dark:ring-primary-500/25'
+													: 'border-surface-100 dark:border-surface-500/40'}"
 												data-testid="session-group"
 												data-current={group.isCurrent ? 'true' : 'false'}
 											>
@@ -1042,13 +1042,13 @@
 														<span
 															class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg {group.isCurrent
 																? 'bg-primary-500 text-white dark:bg-primary-500 dark:text-surface-950'
-																: 'bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/15 dark:text-primary-500'}"
+																: 'bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/10 dark:text-primary-500'}"
 															aria-hidden="true"
 														>
 															<iconify-icon icon={group.icon} width={18}></iconify-icon>
 														</span>
 														<div class="min-w-0">
-															<p class="font-medium text-surface-800 dark:text-surface-200">
+															<p class="font-medium text-surface-600 dark:text-surface-400">
 																{group.title}
 																{#if group.isCurrent}
 																	<Badge
@@ -1112,18 +1112,18 @@
 												<ul
 													class="space-y-1.5 border-t px-3 py-2 {group.isCurrent
 														? 'border-primary-500/25 dark:border-primary-500/30'
-														: 'border-surface-100 dark:border-surface-800'}"
+														: 'border-surface-100 dark:border-surface-500/40'}"
 													aria-label="Sessions on this device"
 													data-testid="session-group-members"
 												>
 													{#each group.members as member, mi (String(member._id ?? member.id ?? mi))}
 														<li
 															class="flex items-center justify-between gap-2 rounded-md px-2.5 py-2 text-[11px] {member.isCurrent
-																? 'border border-primary-500/40 bg-primary-500/10 dark:border-primary-500/50 dark:bg-primary-500/15'
-																: 'border border-transparent bg-surface-50/80 dark:bg-surface-900/40'}"
+																? 'border border-primary-500/40 bg-primary-500/10 dark:border-primary-500/50 dark:bg-primary-500/10'
+																: 'border border-transparent bg-surface-500/80 dark:bg-surface-900/20'}"
 															data-testid={member.isCurrent ? 'session-member-current' : 'session-member'}
 														>
-															<span class="min-w-0 text-surface-600 dark:text-surface-300">
+															<span class="min-w-0 text-surface-600 dark:text-surface-400">
 																{#if member.isCurrent}
 																	<span
 																		class="inline-flex items-center gap-1 font-bold text-primary-600 dark:text-primary-500"
@@ -1133,7 +1133,7 @@
 																		Current · this tab
 																	</span>
 																{:else}
-																	<span class="font-medium text-surface-800 dark:text-surface-200"
+																	<span class="font-medium text-surface-600 dark:text-surface-400"
 																		>Other sign-in</span
 																	>
 																{/if}
@@ -1303,7 +1303,7 @@
 							Workspace &amp; collaboration
 						</h3>
 						<div class="space-y-1">
-							<div class="border-b border-surface-100 py-3 dark:border-surface-800" data-testid="workspace-appearance-section">
+							<div class="border-b border-surface-100 py-3 dark:border-surface-500/40" data-testid="workspace-appearance-section">
 								<div class="mb-2 flex items-center gap-2">
 									<iconify-icon
 										icon="mdi:palette-outline"
@@ -1392,7 +1392,7 @@
 								</div>
 								<div class="space-y-3 ps-1">
 									<div class="flex items-center justify-between gap-3" data-testid="pref-rtc-enabled">
-										<span class="flex min-w-0 items-center gap-1 text-sm text-surface-700 dark:text-surface-300">
+										<span class="flex min-w-0 items-center gap-1 text-sm text-surface-600 dark:text-surface-400">
 											Real-time editing
 											<SystemTooltip title={helpTitle('rtc-enabled')}>
 												<button type="button" tabindex="-1" aria-label="Help: Real-time editing" class={helpBtnClass}>
@@ -1409,7 +1409,7 @@
 										/>
 									</div>
 									<div class="flex items-center justify-between gap-3" data-testid="pref-rtc-sound">
-										<span class="flex min-w-0 items-center gap-1 text-sm text-surface-700 dark:text-surface-300">
+										<span class="flex min-w-0 items-center gap-1 text-sm text-surface-600 dark:text-surface-400">
 											Sound notifications
 											<SystemTooltip title={helpTitle('rtc-sound')}>
 												<button
@@ -1467,7 +1467,7 @@
 									onclick={modalPrivacyData}
 									data-testid="privacy-data-btn"
 									aria-label="Privacy and Data GDPR — open export and erase options"
-									class="flex w-full items-center gap-3 rounded-lg border border-surface-200 p-3 text-start transition-colors hover:bg-surface-100/50 dark:border-surface-700 dark:hover:bg-surface-800/50"
+									class="flex w-full items-center gap-3 rounded-lg border border-surface-500/30 p-3 text-start transition-colors hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-800/50"
 								>
 									<div class="min-w-0 flex-1">
 										<p class="text-sm font-medium text-surface-900 dark:text-surface-100">
@@ -1522,7 +1522,7 @@
 		role="presentation"
 	>
 		<div
-			class="w-full max-w-sm rounded-2xl bg-surface-50 p-6 shadow-xl dark:bg-surface-900"
+			class="w-full max-w-sm rounded-2xl bg-surface-500/10 p-6 shadow-xl dark:bg-surface-900"
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="reauth-title"

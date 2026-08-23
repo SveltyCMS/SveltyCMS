@@ -309,7 +309,7 @@ Advanced permission management interface with bulk actions and presets.
 
 {#if error}
 	<div
-		class="rounded border-s-4 border-error-500 bg-error-50 p-4 text-error-700 dark:bg-error-900/20 dark:text-error-300"
+		class="rounded border-s-4 border-error-500 bg-error-500/10 p-4 text-error-600 dark:bg-error-900/20 dark:text-error-400"
 		role="alert"
 		transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 	>
@@ -373,7 +373,7 @@ Advanced permission management interface with bulk actions and presets.
 		<!-- Bulk Actions Panel -->
 		{#if showBulkActions}
 			<div
-				class="rounded border border-primary-200 bg-primary-50 p-4 dark:border-primary-800 dark:bg-primary-900/20"
+				class="rounded border border-primary-500/30 bg-primary-500/10 p-4 dark:border-primary-500/40 dark:bg-primary-900/20"
 				transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}
 			>
 				<h3 class="mb-3 text-sm font-semibold">Bulk Actions</h3>
@@ -403,7 +403,7 @@ Advanced permission management interface with bulk actions and presets.
 		{/if}
 
 		<!-- Permissions Table -->
-		<div class="overflow-x-auto rounded border border-surface-200 dark:text-surface-50">
+		<div class="overflow-x-auto rounded border border-surface-500/30 dark:text-surface-50">
 			<table class="table w-full" role="grid">
 				<thead>
 					<tr>
@@ -426,7 +426,7 @@ Advanced permission management interface with bulk actions and presets.
 				</thead>
 				<tbody>
 					{#each filteredRoles as role (role._id)}
-						<tr class="border-t border-surface-200 dark:text-surface-50">
+						<tr class="border-t border-surface-500/30 dark:text-surface-50">
 							<!-- Role Info -->
 							<th scope="row" class="px-4 py-3">
 								<div class="flex flex-col gap-1">
@@ -507,7 +507,7 @@ Advanced permission management interface with bulk actions and presets.
 		<!-- No Results -->
 		{#if filteredRoles.length === 0}
 			<div
-				class="flex flex-col items-center gap-3 rounded bg-surface-50 py-12 text-center dark:bg-surface-800"
+				class="flex flex-col items-center gap-3 rounded bg-surface-500/10 py-12 text-center dark:bg-surface-800"
 				transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 			>
 				<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400"></iconify-icon>

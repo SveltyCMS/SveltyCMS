@@ -130,7 +130,7 @@ function onFormSubmit(event: SubmitEvent): void {
 </script>
 
 <AdminCard
-	class="w-modal space-y-4 p-4 shadow-xl border border-surface-200 dark:border-surface-800"
+	class="w-modal space-y-4 p-4 shadow-xl border border-surface-500/30 dark:border-surface-500/40"
 	data-testid="role-modal"
 >
 	<header class="text-center text-2xl font-bold" data-testid="role-modal-title">
@@ -138,7 +138,7 @@ function onFormSubmit(event: SubmitEvent): void {
 	</header>
 
 	<form
-		class="modal-form space-y-4 border border-surface-200 dark:border-surface-700 p-4 rounded overflow-y-auto max-h-[60vh]"
+		class="modal-form space-y-4 border border-surface-500/30 dark:border-surface-500/40 p-4 rounded overflow-y-auto max-h-[60vh]"
 		onsubmit={onFormSubmit}
 		id="roleForm"
 		data-testid="role-form"
@@ -182,9 +182,9 @@ function onFormSubmit(event: SubmitEvent): void {
 				</div>
 			</div>
 
-			<div class="card h-48 overflow-y-auto p-2 border border-surface-200 dark:border-surface-700 bg-surface-50/30 dark:bg-surface-900/20">
+			<div class="card h-48 overflow-y-auto p-2 border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/30 dark:bg-surface-900/20">
 				{#each filteredPermissions as perm (perm._id)}
-					<div class="p-1 hover:bg-surface-50/40 dark:hover:bg-surface-900/30 rounded">
+					<div class="p-1 hover:bg-surface-500/40 dark:hover:bg-surface-900/20 rounded">
 						<Checkbox
 							checked={localSelectedPermissions.includes(perm._id)}
 							onchange={() => togglePermission(perm._id)}

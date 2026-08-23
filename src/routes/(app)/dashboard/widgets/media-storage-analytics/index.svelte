@@ -57,9 +57,9 @@ export const widgetMeta = {
 	const isCompact = $derived(size.h === 1);
 
 	function quotaColor(status: string): string {
-		if (status === 'critical') return 'bg-red-500';
-		if (status === 'warning') return 'bg-amber-500';
-		return 'bg-emerald-500';
+		if (status === 'critical') return 'bg-error-500';
+		if (status === 'warning') return 'bg-warning-500';
+		return 'bg-success-500';
 	}
 
 	function insightIcon(type: string): string {
@@ -106,7 +106,7 @@ export const widgetMeta = {
 				</div>
 				<div class="shrink-0 text-end">
 					<div class="text-xs font-semibold uppercase tracking-wide text-surface-500">Quota</div>
-					<div class="text-sm font-bold tabular-nums {analytics.quota.status === 'critical' ? 'text-red-500' : analytics.quota.status === 'warning' ? 'text-amber-500' : 'text-emerald-500'}">
+					<div class="text-sm font-bold tabular-nums {analytics.quota.status === 'critical' ? 'text-error-500' : analytics.quota.status === 'warning' ? 'text-warning-500' : 'text-success-500'}">
 						{analytics.quota.percentage.toFixed(0)}%
 					</div>
 				</div>
@@ -114,16 +114,16 @@ export const widgetMeta = {
 		{:else}
 			<div class="flex h-full flex-col gap-3">
 				<div class="grid grid-cols-2 gap-3">
-					<div class="rounded-2xl bg-surface-50 px-3 py-2.5 dark:bg-surface-800/60">
+					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
 						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Total Storage</div>
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{analytics.total.formattedSize}
 						</div>
 						<div class="mt-0.5 text-xs text-surface-500">{analytics.total.files.toLocaleString()} files</div>
 					</div>
-					<div class="rounded-2xl bg-surface-50 px-3 py-2.5 dark:bg-surface-800/60">
+					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
 						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Quota Used</div>
-						<div class="mt-1 text-xl font-bold tabular-nums {analytics.quota.status === 'critical' ? 'text-red-500' : analytics.quota.status === 'warning' ? 'text-amber-500' : 'text-emerald-500'}">
+						<div class="mt-1 text-xl font-bold tabular-nums {analytics.quota.status === 'critical' ? 'text-error-500' : analytics.quota.status === 'warning' ? 'text-warning-500' : 'text-success-500'}">
 							{analytics.quota.percentage.toFixed(1)}%
 						</div>
 						<div class="mt-0.5 text-xs text-surface-500">{formatBytes(analytics.quota.available)} free</div>
@@ -145,9 +145,9 @@ export const widgetMeta = {
 						<div class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-surface-500">Top Types</div>
 						<div class="space-y-1.5">
 							{#each analytics.byType.slice(0, 4) as item (item.type)}
-								<div class="flex items-center gap-2 rounded-xl bg-surface-50 px-3 py-2 dark:bg-surface-800/60">
+								<div class="flex items-center gap-2 rounded-xl bg-surface-500/10 px-3 py-2 dark:bg-surface-800/60">
 									<div class="min-w-0 flex-1">
-										<div class="truncate text-sm font-medium capitalize text-surface-800 dark:text-surface-100">{item.type}</div>
+										<div class="truncate text-sm font-medium capitalize text-surface-600 dark:text-surface-100">{item.type}</div>
 										<div class="text-[11px] text-surface-500">{item.count} files · {formatBytes(item.size)}</div>
 									</div>
 									<div class="shrink-0 text-xs font-semibold tabular-nums text-surface-500">{item.pct.toFixed(0)}%</div>
@@ -158,11 +158,11 @@ export const widgetMeta = {
 				{/if}
 
 				{#if analytics.insights[0]}
-					<div class="rounded-xl border border-surface-200 px-3 py-2 text-xs dark:border-surface-700">
+					<div class="rounded-xl border border-surface-500/30 px-3 py-2 text-xs dark:border-surface-500/40">
 						<div class="flex items-start gap-2">
 							<iconify-icon icon={insightIcon(analytics.insights[0].type)} class="mt-0.5 shrink-0 text-surface-500"></iconify-icon>
 							<div class="min-w-0">
-								<div class="font-semibold text-surface-800 dark:text-surface-100">{analytics.insights[0].title}</div>
+								<div class="font-semibold text-surface-600 dark:text-surface-100">{analytics.insights[0].title}</div>
 								<div class="mt-0.5 text-surface-500">{analytics.insights[0].desc}</div>
 							</div>
 						</div>

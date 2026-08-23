@@ -91,11 +91,11 @@
 	<label
 		id="remote-urls-label"
 		for="remote-urls"
-		class="block text-sm font-medium text-surface-700 dark:text-surface-200"
+		class="block text-sm font-medium text-surface-600 dark:text-surface-400"
 	>
 		Remote image/media URLs
 	</label>
-	<textarea id="remote-urls" name="remote-urls" aria-label="Remote media URLs, one per line" data-testid="remote-urls-input" title="Remote media URLs" bind:value={urlsText} placeholder="Paste Remote URLs here, one per line (https://...)" rows="6" class="textarea w-full bg-secondary-50 dark:bg-secondary-800"></textarea>
+	<textarea id="remote-urls" name="remote-urls" aria-label="Remote media URLs, one per line" data-testid="remote-urls-input" title="Remote media URLs" bind:value={urlsText} placeholder="Paste Remote URLs here, one per line (https://...)" rows="6" class="textarea w-full bg-secondary-500/10 dark:bg-secondary-800"></textarea>
 	<p class="text-xs text-surface-500">
 		Each line must be a public http(s) URL. Invalid lines are ignored.
 	</p>

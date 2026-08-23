@@ -43,7 +43,7 @@
 	{:else}
 		<ul class="mt-6 space-y-3" aria-label="Cart lines">
 			{#each cart.items as line (line.productId + (line.variantSku || ''))}
-				<li class="flex items-center justify-between gap-3 rounded border border-surface-200 px-3 py-2 dark:border-surface-700">
+				<li class="flex items-center justify-between gap-3 rounded border border-surface-500/30 px-3 py-2 dark:border-surface-500/40">
 					<div>
 						<div class="font-medium">{line.title}</div>
 						<div class="font-mono text-xs text-surface-500">{line.sku}</div>

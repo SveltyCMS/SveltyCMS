@@ -65,7 +65,7 @@ Displays detailed SEO analysis results in a modal overlay.
 			<div class="flex-1 overflow-y-auto p-4 space-y-4">
 				{#if analysisResult}
 					<!-- Score Overview -->
-					<div class="flex items-center justify-center p-4 bg-surface-100 dark:bg-surface-800 rounded-lg mb-6">
+					<div class="flex items-center justify-center p-4 bg-surface-500/10 dark:bg-surface-800 rounded-lg mb-6">
 						<div class="text-center">
 							<div
 								class="radial-progress text-4xl font-bold {analysisResult.score.overall >= 80
@@ -77,7 +77,7 @@ Displays detailed SEO analysis results in a modal overlay.
 							>
 								{analysisResult.score.overall}%
 							</div>
-							<p class="mt-2 font-bold text-surface-600 dark:text-surface-300">Overall Score</p>
+							<p class="mt-2 font-bold text-surface-600 dark:text-surface-400">Overall Score</p>
 						</div>
 						<div class="ms-8 grid grid-cols-2 gap-4 text-sm">
 							<div class="flex flex-col">
@@ -130,7 +130,7 @@ Displays detailed SEO analysis results in a modal overlay.
 											</div>
 											<p class="text-sm mt-1 opacity-90">{suggestion.description}</p>
 											{#if suggestion.fix}
-												<div class="mt-2 text-xs font-mono bg-surface-100 dark:bg-surface-600/50 p-2 rounded">
+												<div class="mt-2 text-xs font-mono bg-surface-500/10 dark:bg-surface-600/50 p-2 rounded">
 													<strong>Fix:</strong>
 													{suggestion.fix}
 												</div>
@@ -153,7 +153,7 @@ Displays detailed SEO analysis results in a modal overlay.
 					{:else}
 						<div class="card border-s-4 border-success-500 bg-success-500/10 p-4 flex items-center">
 							<iconify-icon icon="mdi:check-circle" class="text-2xl me-2 text-success-500"></iconify-icon>
-							<span class="text-success-800 dark:text-success-200 font-medium">Great job! No specific issues found.</span>
+							<span class="text-success-600 dark:text-success-400 font-medium">Great job! No specific issues found.</span>
 						</div>
 					{/if}
 				{:else}

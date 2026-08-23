@@ -66,18 +66,18 @@ export const widgetMeta = {
 
 	function severityCls(m: SysMessage): string {
 		const lvl = severityLevel(m);
-		if (lvl === 'critical' || lvl === 'error') return 'border-s-red-500 bg-red-50/50 dark:bg-red-950/20';
-		if (lvl === 'high' || lvl === 'warning') return 'border-s-orange-500 bg-orange-50/50 dark:bg-orange-950/20';
-		if (lvl === 'medium' || lvl === 'warn') return 'border-s-amber-500 bg-amber-50/50 dark:bg-amber-950/20';
-		return 'border-s-blue-500 bg-blue-50/50 dark:bg-blue-950/20';
+		if (lvl === 'critical' || lvl === 'error') return 'border-s-error-500 bg-error-500/20 dark:bg-error-900/20';
+		if (lvl === 'high' || lvl === 'warning') return 'border-s-warning-500 bg-warning-500/20 dark:bg-warning-900/20';
+		if (lvl === 'medium' || lvl === 'warn') return 'border-s-warning-500 bg-warning-500/20 dark:bg-warning-900/20';
+		return 'border-s-tertiary-500 bg-tertiary-500/20 dark:bg-tertiary-900/20';
 	}
 
 	function severityDot(m: SysMessage): string {
 		const lvl = severityLevel(m);
-		if (lvl === 'critical' || lvl === 'error') return 'bg-red-500';
-		if (lvl === 'high' || lvl === 'warning') return 'bg-orange-500';
-		if (lvl === 'medium' || lvl === 'warn') return 'bg-amber-500';
-		return 'bg-blue-500';
+		if (lvl === 'critical' || lvl === 'error') return 'bg-error-500';
+		if (lvl === 'high' || lvl === 'warning') return 'bg-warning-500';
+		if (lvl === 'medium' || lvl === 'warn') return 'bg-warning-500';
+		return 'bg-tertiary-500';
 	}
 
 	function severityIcon(m: SysMessage): string {
@@ -146,7 +146,7 @@ export const widgetMeta = {
 					{#each messages.slice(0, 8) as msg (msg.id || msg.timestamp + msg.title)}
 						<div class="flex shrink-0 items-center gap-1 rounded-full border-s-2 {severityCls(msg)} px-2 py-0.5" title="{severityLabel(msg)}: {msgText(msg)}">
 							<div class="h-2 w-2 rounded-full {severityDot(msg)} shrink-0"></div>
-							<span class="max-w-20 truncate text-[10px] font-medium text-surface-700 dark:text-surface-300">
+							<span class="max-w-20 truncate text-[10px] font-medium text-surface-600 dark:text-surface-400">
 								{msg.title}
 							</span>
 						</div>
@@ -179,7 +179,7 @@ export const widgetMeta = {
 								{msg.title}
 							</div>
 
-							<p class="mt-1 text-sm leading-snug text-surface-600 dark:text-surface-300 {isOpen ? '' : 'line-clamp-2'}">
+							<p class="mt-1 text-sm leading-snug text-surface-600 dark:text-surface-400 {isOpen ? '' : 'line-clamp-2'}">
 								{msgText(msg)}
 							</p>
 
@@ -190,7 +190,7 @@ export const widgetMeta = {
 											href={link.url}
 											target="_blank"
 											rel="noopener noreferrer"
-											class="block text-xs text-blue-500 hover:text-blue-600 underline truncate"
+											class="block text-xs text-tertiary-500 hover:text-tertiary-600 underline truncate"
 											onclick={(e: MouseEvent) => e.stopPropagation()}
 										>
 											{link.text}

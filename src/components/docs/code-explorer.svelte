@@ -62,9 +62,9 @@
   };
 </script>
 
-<div class="my-6 overflow-hidden rounded-xl border border-surface-200 bg-surface-950 text-surface-100 shadow-lg dark:border-surface-800">
+<div class="my-6 overflow-hidden rounded-xl border border-surface-500/30 bg-surface-500/10 text-surface-100 shadow-lg dark:border-surface-500/40">
   <!-- Header Bar -->
-  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-surface-800 bg-surface-900/80 px-4 py-2.5">
+  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-surface-500/40 bg-surface-900/80 px-4 py-2.5">
     <div class="flex items-center gap-2">
       <span class="h-3 w-3 rounded-full bg-error-500/80"></span>
       <span class="h-3 w-3 rounded-full bg-warning-500/80"></span>
@@ -74,7 +74,7 @@
 
     <div class="flex items-center gap-2">
       <!-- Language Tabs -->
-      <div class="flex items-center gap-1 rounded-lg bg-surface-950/60 p-1" role="tablist" aria-label="Code language tabs">
+      <div class="flex items-center gap-1 rounded-lg bg-surface-900/60 p-1" role="tablist" aria-label="Code language tabs">
         {#each availableLangs as lang (lang)}
           <button
             type="button"
@@ -92,7 +92,7 @@
       <!-- Copy Button -->
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-lg border border-surface-700 bg-surface-800/80 px-2.5 py-1 text-xs font-medium text-surface-300 transition-colors hover:border-surface-600 hover:bg-surface-700 hover:text-white"
+        class="inline-flex items-center gap-1.5 rounded-lg border border-surface-500/40 bg-surface-800/80 px-2.5 py-1 text-xs font-medium text-surface-300 transition-colors hover:border-surface-600 hover:bg-surface-700 hover:text-white"
         onclick={copyToClipboard}
         aria-label="Copy code to clipboard"
       >

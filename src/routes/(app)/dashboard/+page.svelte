@@ -49,6 +49,7 @@ import { themeStore } from "@src/stores/theme-store.svelte.ts";
 
 // System logger
 import { logger } from "@utils/logger";
+import { adminStagger } from "@utils/admin-transitions";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { generateUUID } from "@utils/native-utils";
 import { retryDynamicImport } from "@src/utils/retry-dynamic-import";
@@ -684,7 +685,7 @@ onMount(() => {
 								{const widgetInfo = widgetComponentRegistry[widgetName]}
 								<Button
 									variant="ghost"
-									class="w-full justify-start gap-2 px-4 py-2 hover:bg-primary-100 dark:hover:bg-primary-900/30"
+									class="w-full justify-start gap-2 px-4 py-2 hover:bg-primary-500/10 dark:hover:bg-primary-900/20"
 									onclick={() => addNewWidget(widgetName)}
 									title={widgetInfo?.description}
 									role="menuitem"
@@ -710,7 +711,7 @@ onMount(() => {
 		<section class="w-full px-1 py-4" data-testid="dashboard-grid-section">
 			<GenerativeDashboard spec={aiDashboardSpec}>
 				{#if aiLoading}
-					<AdminCard class="flex flex-col items-center justify-center border border-surface-200 py-20 dark:border-surface-800">
+					<AdminCard class="flex flex-col items-center justify-center border border-surface-500/30 py-20 dark:border-surface-500/40">
 						<Loader variant="circle" width="size-16" height="size-16" ariaLabel="Generating AI dashboard" />
 						<p class="mt-4 text-lg font-bold text-tertiary-500 dark:text-primary-500">Generating AI Dashboard...</p>
 						<p class="text-sm text-surface-500">Connecting to Knowledge Core (mcp.sveltycms.com)</p>
@@ -728,7 +729,7 @@ onMount(() => {
 							></div>
 						{/if}
 
-						{#each currentPreferences.sort((a: DashboardWidgetConfig, b: DashboardWidgetConfig) => (a.order || 0) - (b.order || 0)) as item (item.id)}
+						{#each currentPreferences.sort((a: DashboardWidgetConfig, b: DashboardWidgetConfig) => (a.order || 0) - (b.order || 0)) as item, i (item.id)}
 							{@const widgetName = item.label || item.component}
 							{@const WidgetComponent = widgetRegistry[item.component]?.component}
 							<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -737,7 +738,7 @@ onMount(() => {
 								role="article"
 								aria-label="{widgetName} widget. Press Ctrl + Arrow keys to reorder."
 								tabindex="0"
-								class="widget-container group relative select-none overflow-hidden rounded border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+								class="widget-container group relative select-none overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
 								data-widget-id={item.id}
 								data-widget-order={item.order ?? 0}
 								data-testid="dashboard-widget"
@@ -746,6 +747,7 @@ onMount(() => {
 								style:touch-action="manipulation"
 								style:min-height="{item.size.h * 180}px"
 								animate:flip={{ duration: 300 }}
+								in:adminStagger={{ index: i, rise: 0 }}
 								onpointerdown={(event) => handleDragStart(event, item, event.currentTarget)}
 								onkeydown={(event) => handleWidgetKeydown(event, item)}
 								use:setupWidgetObserver={[item.id, item.component]}
@@ -791,7 +793,7 @@ onMount(() => {
 						<div class="flex flex-col items-center px-10 py-12">
 							<iconify-icon icon="mdi:view-dashboard" width={80} class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500"></iconify-icon>
 							<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">Your Dashboard is Empty</p>
-							<p class="mb-6 text-base text-surface-600 dark:text-surface-300">
+							<p class="mb-6 text-base text-surface-600 dark:text-surface-400">
 								Add widgets from the toolbar. Available widgets vary per install (core + plugins).
 							</p>
 							<Button variant="outline"
@@ -817,7 +819,7 @@ onMount(() => {
 <!-- Import/Export Modal -->
 {#if showImportExport}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
 				<Button variant="ghost" onclick={() => (showImportExport = false)} aria-label="Close import/export modal" size="sm" class="preset-ghost">
@@ -827,7 +829,7 @@ onMount(() => {
 
 			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6"><ImportExportManager /></div>
 
-			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
+			<div class="flex items-center justify-between border-t bg-surface-500/10 p-6 dark:bg-surface-700">
 				<div class="text-sm text-gray-600 dark:text-gray-400">
 					<iconify-icon icon="mdi:shield-check" width={16} class="me-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server

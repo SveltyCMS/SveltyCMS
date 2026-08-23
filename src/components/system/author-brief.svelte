@@ -28,12 +28,12 @@ Shows authored guidance content, widget documentation, and usage tips.
 
 {#if open && context.fieldName}
   <div
-    class="fixed inset-y-0 inset-e-0 z-50 w-80 border-s border-surface-200 bg-white shadow-xl dark:border-surface-700 dark:bg-surface-900"
+    class="fixed inset-y-0 inset-e-0 z-50 w-80 border-s border-surface-500/30 bg-white shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
     transition:slide={{ duration: 200 }}
     role="complementary"
     aria-label="Field help"
   >
-    <div class="flex items-center justify-between border-b border-surface-200 p-3 dark:border-surface-700">
+    <div class="flex items-center justify-between border-b border-surface-500/30 p-3 dark:border-surface-500/40">
       <h3 class="text-sm font-semibold capitalize text-surface-900 dark:text-surface-100">
         {context.fieldName?.replace(/_/g, " ")}
       </h3>
@@ -42,9 +42,9 @@ Shows authored guidance content, widget documentation, and usage tips.
       </Button>
     </div>
 
-    <div class="overflow-y-auto p-4 text-sm text-surface-700 dark:text-surface-300">
+    <div class="overflow-y-auto p-4 text-sm text-surface-600 dark:text-surface-400">
       {#if isBeginner}
-        <div class="mb-3 rounded bg-tertiary-50 p-2 text-xs text-tertiary-700 dark:bg-tertiary-950 dark:text-tertiary-300">
+        <div class="mb-3 rounded bg-tertiary-500/10 p-2 text-xs text-tertiary-600 dark:bg-tertiary-500/10 dark:text-tertiary-400">
           <iconify-icon icon="mdi:school" width="14" class="me-1 inline"></iconify-icon>
           Beginner mode enabled — simplified guidance shown
         </div>
@@ -57,7 +57,7 @@ Shows authored guidance content, widget documentation, and usage tips.
       {:else if context.widgetType}
         <div class="space-y-3">
           <p class="text-xs text-surface-500">
-            Widget: <code class="rounded bg-surface-100 px-1 dark:bg-surface-800">{context.widgetType}</code>
+            Widget: <code class="rounded bg-surface-500/10 px-1 dark:bg-surface-800">{context.widgetType}</code>
           </p>
           <p class="text-xs text-surface-400 italic">
             No authored guidance for this field yet.
@@ -71,7 +71,7 @@ Shows authored guidance content, widget documentation, and usage tips.
       {/if}
 
       {#if context.schemaId}
-        <div class="mt-4 border-t border-surface-200 pt-3 text-xs text-surface-400 dark:border-surface-700">
+        <div class="mt-4 border-t border-surface-500/30 pt-3 text-xs text-surface-400 dark:border-surface-500/40">
           Schema: <code class="text-surface-500">{context.schemaId}</code>
         </div>
       {/if}

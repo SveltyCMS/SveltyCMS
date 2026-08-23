@@ -470,7 +470,7 @@ onMount(() => {
 <svelte:boundary>
 	    {#snippet failed(error: any, reset: any)}
 		{console.error("[Boundary] Unhandled render error:", error)}
-		<div class="flex h-screen w-full flex-col items-center justify-center space-y-6 bg-surface-50 text-center dark:bg-surface-900">
+		<div class="flex h-screen w-full flex-col items-center justify-center space-y-6 bg-surface-500/10 text-center dark:bg-surface-900">
 			<div class="space-y-2">
 				<h1 class="text-4xl font-bold text-error-500">System Error</h1>
 				<p class="text-surface-600 dark:text-surface-400">
@@ -478,7 +478,7 @@ onMount(() => {
 				</p>
 			</div>
 
-			<div class="max-w-md rounded border border-surface-200 bg-surface-100 p-4 text-start text-sm font-mono dark:border-surface-800 dark:bg-surface-800">
+			<div class="max-w-md rounded border border-surface-500/30 bg-surface-500/10 p-4 text-start text-sm font-mono dark:border-surface-500/40 dark:bg-surface-800">
 				<p class="text-error-600 dark:text-error-500">{error.message}</p>
 			</div>
 
@@ -504,7 +504,7 @@ onMount(() => {
 <!-- Progressive Session Timeout Warning Overlay/Banners -->
 {#if sessionPhase === 'warning'}
 	<div
-		class="fixed bottom-4 inset-e-4 z-50 flex max-w-sm items-center justify-between gap-4 rounded border border-warning-500/30 bg-surface-100/80 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
+		class="fixed bottom-4 inset-e-4 z-50 flex max-w-sm items-center justify-between gap-4 rounded border border-warning-500/30 bg-surface-500/10 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
 		role="status"
 		aria-live="polite"
 	>
@@ -531,7 +531,7 @@ onMount(() => {
 		aria-labelledby="critical-timeout-title"
 		aria-describedby="critical-timeout-desc"
 	>
-		<div class="max-w-md w-full rounded-2xl border border-error-500/40 bg-surface-100 p-6 shadow-2xl dark:bg-surface-900 text-surface-900 dark:text-surface-100">
+		<div class="max-w-md w-full rounded-2xl border border-error-500/40 bg-surface-500/10 p-6 shadow-2xl dark:bg-surface-900 text-surface-900 dark:text-surface-100">
 			<div class="flex flex-col items-center text-center space-y-4">
 				<span class="flex h-16 w-16 items-center justify-center rounded-full bg-error-500/20 text-error-500">
 					<iconify-icon icon="mdi:clock-alert-outline" width="36"></iconify-icon>

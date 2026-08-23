@@ -451,7 +451,7 @@ import { logger } from "@utils/logger";
 	}
 </script>
 
-<div class="address-widget flex flex-col gap-4 rounded border p-4 border-surface-300 dark:border-surface-600 bg-surface-50/30 dark:bg-surface-800/20">
+<div class="address-widget flex flex-col gap-4 rounded border p-4 border-surface-500/30 dark:border-surface-600 bg-surface-500/30 dark:bg-surface-800/20">
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2 font-bold text-surface-900 dark:text-surface-50">
 			<iconify-icon icon="mdi:map-marker-radius" width="20"></iconify-icon>
@@ -486,13 +486,13 @@ import { logger } from "@utils/logger";
 					</div>
 
 					{#if !googleMapsApiKey && showSuggestions && suggestions.length > 0}
-						<div class="absolute z-50 inset-s-0 inset-e-0 mt-1 max-h-60 overflow-y-auto rounded border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 shadow-xl">
+						<div class="absolute z-50 inset-s-0 inset-e-0 mt-1 max-h-60 overflow-y-auto rounded border border-surface-500/30 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-800 shadow-xl">
 							<ul class="list-none p-0 m-0">
 								{#each suggestions as sug (sug.label)}
 									<li>
 										<button
 											type="button"
-											class="w-full text-start px-4 py-2 text-sm hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors flex flex-col gap-0.5 border-b border-surface-200/50 dark:border-surface-700/50"
+											class="w-full text-start px-4 py-2 text-sm hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors flex flex-col gap-0.5 border-b border-surface-500/30 dark:border-surface-500/40"
 											onclick={() => selectSuggestion(sug)}
 										>
 											<span class="font-medium text-surface-900 dark:text-surface-50">{sug.label}</span>
@@ -564,7 +564,7 @@ import { logger } from "@utils/logger";
 			</div>
 
 			{#if showCoordinates && safeValue?.latitude}
-				<div class="flex items-center gap-4 p-2 bg-surface-100 dark:bg-surface-800 rounded text-xs font-mono">
+				<div class="flex items-center gap-4 p-2 bg-surface-500/10 dark:bg-surface-800 rounded text-xs font-mono">
 					<div class="flex items-center gap-1"><span class="text-surface-400">Lat:</span> {safeValue.latitude.toFixed(6)}</div>
 					<div class="flex items-center gap-1"><span class="text-surface-400">Lng:</span> {safeValue.longitude.toFixed(6)}</div>
 				</div>
@@ -584,7 +584,7 @@ import { logger } from "@utils/logger";
 						{googleMapsApiKey ? 'Google Maps' : 'MapLibre Free'}
 					</Badge>
 				</div>
-				<div bind:this={mapElement} class="h-80 lg:h-full min-h-75 w-full rounded border border-surface-300 bg-surface-100 dark:border-surface-700 relative overflow-hidden">
+				<div bind:this={mapElement} class="h-80 lg:h-full min-h-75 w-full rounded border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 relative overflow-hidden">
 				</div>
 			</div>
 		{/if}

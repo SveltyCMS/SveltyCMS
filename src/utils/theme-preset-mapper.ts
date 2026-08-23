@@ -1,6 +1,6 @@
 /**
  * @file src/utils/theme-preset-mapper.ts
- * @description Hardened mapper for CSS preset imports.
+ * @description Hardened mapper for theme CSS presets.
  *
  * ### Hardening (audit 2026-07):
  * - CSS inject prevention: blocks @import, @media, url(), expression(), javascript:
@@ -8,8 +8,8 @@
  * - Property validation: ensures only --prefixed custom properties pass through
  * - Value validation in expand: palette values checked before color-mix generation
  *
- * Maps Skeleton.dev CSS preset exports and other theme formats to StoredAdminTheme.
- * Used by admin-theme-service when importing presets from the marketplace or local files.
+ * Maps theme JSON exports and shorthand palette formats to StoredAdminTheme.
+ * Used by admin-theme-service when importing presets and by the palette studio.
  */
 
 /** 🛡️ Validates CSS values against injection attacks */
@@ -42,7 +42,7 @@ const SHORTHAND_COLOR_TO_PREFIX: Record<string, string> = {
   surface: "--color-surface",
 };
 
-export interface SkeletonPreset {
+export interface ThemePreset {
   name?: string;
   css?: string;
   code?: string;
@@ -58,9 +58,16 @@ export interface SkeletonPreset {
  * Handles property name remapping and blocks unsafe values.
  * When surface palette tokens are present, re-binds semantic `--admin-bg-*`
  * roles so page/card elevation follows the imported palette.
+ *
+ * The override block targets `:root` as well as `.admin-theme-container` /
+ * `[data-admin-theme]` so a theme change repaints the ENTIRE admin surface —
+ * Tailwind utilities (which reference `--color-*`), `--admin-*` semantic
+ * tokens, scrollbars, and any content rendered outside the admin shell —
+ * instead of only the subtree under the shell. The dark block keeps the
+ * `html.dark` specificity edge over the light `:root` block.
  */
 export function mapThemePropertiesToCss(properties: Record<string, string>): string {
-  let css = ".admin-theme-container, [data-admin-theme] {\n";
+  let css = ":root, .admin-theme-container, [data-admin-theme] {\n";
   let hasSurface = false;
   for (let [prop, value] of Object.entries(properties)) {
     // Block unsafe values
@@ -84,7 +91,7 @@ export function mapThemePropertiesToCss(properties: Record<string, string>): str
   }
   css += "}\n";
   if (hasSurface) {
-    css += "html.dark .admin-theme-container,\nhtml.dark [data-admin-theme] {\n";
+    css += "html.dark,\nhtml.dark .admin-theme-container,\nhtml.dark [data-admin-theme] {\n";
     css +=
       "  --admin-bg-page: var(--color-surface-950, var(--color-surface-900, var(--color-surface-500)));\n";
     css +=
@@ -98,9 +105,6 @@ export function mapThemePropertiesToCss(properties: Record<string, string>): str
   }
   return css;
 }
-
-// Alias for backward compatibility during migration
-export const mapSkeletonPropertiesToCss = mapThemePropertiesToCss;
 
 /**
  * Expands shorthand palette properties to full shade scales.
@@ -141,7 +145,7 @@ export function expandShorthandPaletteProperties(
  * Parses a CSS block export into a properties object.
  * 🛡️ Uses regex — handles both minified and pretty-printed CSS.
  */
-export function parseSkeletonCssBlock(block: string): Record<string, string> {
+export function parseCssPropertiesBlock(block: string): Record<string, string> {
   const props: Record<string, string> = {};
   const regex = /(--[\w-]+)\s*:\s*([^;]+);/g;
   let match;
@@ -149,25 +153,6 @@ export function parseSkeletonCssBlock(block: string): Record<string, string> {
     props[match[1].trim()] = match[2].trim();
   }
   return props;
-}
-
-// --- Detection ---
-
-/**
- * Check if a CSS string appears to be a Skeleton.dev CSS export.
- */
-export function isSkeletonCssExport(css: string): boolean {
-  return css.includes("skeleton") || css.includes("sk-theme") || css.includes("[data-theme=");
-}
-
-/**
- * Check if a parsed preset object is a Skeleton.dev preset.
- */
-export function isSkeletonPreset(preset: Record<string, unknown>): boolean {
-  return (
-    typeof preset.name === "string" &&
-    (typeof preset.css === "string" || typeof preset.code === "string" || !!preset.properties)
-  );
 }
 
 // --- Preset to Admin Theme mapping ---
@@ -185,9 +170,10 @@ function propertiesToCss(properties: Record<string, string>): string {
 }
 
 /**
- * Map a Skeleton.dev preset (or similar) to a StoredAdminTheme-compatible partial object.
+ * Map a theme preset payload to a StoredAdminTheme-compatible partial object.
+ * Accepts `css`, `code`, or a shorthand `properties` map.
  */
-export function mapPresetToAdminTheme(preset: SkeletonPreset): {
+export function mapPresetToAdminTheme(preset: ThemePreset): {
   name: string;
   customCss?: string;
   presetSource?: string;
@@ -233,14 +219,14 @@ export function isValidPaletteHex(value: string): boolean {
 
 /**
  * Build scoped admin CSS from shorthand palette seeds (primary, surface, …).
- * Uses the same expansion path as Skeleton / theme JSON import.
+ * Uses the same expansion path as theme JSON import.
  */
 export function buildPaletteCssFromSeeds(seeds: PaletteSeeds): string {
   const properties: Record<string, string> = {};
   for (const [key, raw] of Object.entries(seeds)) {
     if (!raw || !SHORTHAND_COLOR_TO_PREFIX[key]) continue;
     const value = raw.trim();
-    // Studio seeds are hex-only; Skeleton import path still accepts oklch/CSS via propertiesToCss
+    // Studio seeds are hex-only; JSON import path still accepts oklch/CSS via propertiesToCss
     if (!isValidPaletteHex(value)) continue;
     properties[key] = value;
   }
@@ -280,28 +266,3 @@ export const DEFAULT_PALETTE_SEEDS: Required<
   error: "#dc2626",
   surface: "#f8fafc",
 };
-
-/**
- * Normalize a Skeleton.dev theme payload to a StoredAdminTheme-compatible format.
- */
-export function normalizeSkeletonThemePayload(payload: Record<string, unknown>): {
-  name: string;
-  customCss?: string;
-  presetSource?: string;
-} {
-  let customCss: string | undefined;
-
-  if (typeof payload.css === "string" && payload.css) {
-    customCss = payload.css;
-  } else if (typeof payload.code === "string" && payload.code) {
-    customCss = payload.code;
-  } else if (payload.properties && typeof payload.properties === "object") {
-    customCss = propertiesToCss(payload.properties as Record<string, string>);
-  }
-
-  return {
-    name: (payload.name as string) || "Imported Theme",
-    customCss,
-    presetSource: (payload.presetSource as string) || "imported",
-  };
-}

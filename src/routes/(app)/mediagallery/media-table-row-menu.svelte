@@ -38,7 +38,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 	);
 
 	const menuItemClass =
-		'flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-start text-sm text-surface-700 transition-colors hover:bg-surface-100 dark:text-surface-200 dark:hover:bg-surface-800';
+		'flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-start text-sm text-surface-700 transition-colors hover:bg-surface-500/10 dark:text-surface-200 dark:hover:bg-surface-800';
 
 	function updateMenuPosition() {
 		if (!triggerEl) return;
@@ -104,7 +104,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 			aria-label="Actions for {file.filename}"
 			aria-haspopup="menu"
 			aria-expanded={open}
-			class="h-8 w-8 min-w-0 p-0! text-surface-500 hover:bg-surface-100 hover:text-surface-800 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-100"
+			class="h-8 w-8 min-w-0 p-0! text-surface-500 hover:bg-surface-500/10 hover:text-surface-800 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-100"
 			onclick={toggleMenu}
 		>
 			<iconify-icon icon="mdi:dots-vertical" width="18" aria-hidden="true"></iconify-icon>
@@ -118,7 +118,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 				role="menu"
 				tabindex="-1"
 				aria-label="Actions for {file.filename}"
-				class="fixed z-200 w-44 min-w-44 rounded-lg border border-surface-200 bg-surface-100 p-1 shadow-xl dark:border-surface-800 dark:bg-surface-900"
+				class="fixed z-200 w-44 min-w-44 rounded-lg border border-surface-500/30 bg-surface-500/10 p-1 shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
 				style={menuStyle}
 				onclick={(e) => e.stopPropagation()}
 				onkeydown={(e) => e.stopPropagation()}

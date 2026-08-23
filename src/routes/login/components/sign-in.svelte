@@ -622,7 +622,7 @@ $effect(() => {
 			</div>
 			<div
 				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded p-6 backdrop-blur lg:w-4/5 {brandedLogin && brandedVariant === 'elevated'
-					? 'bg-white shadow-xl border border-surface-200'
+					? 'bg-white shadow-xl border border-surface-500/30'
 					: 'bg-white/0'}"
 				class:hide={active !== 0}
 			>
@@ -793,7 +793,7 @@ $effect(() => {
 									<iconify-icon icon="mdi:shield-key" width={24} aria-hidden="true"></iconify-icon>
 								</div>
 								<h3 class="h3 mb-2">{twofa_verify_title()}</h3>
-								<p class="text-sm text-surface-600 dark:text-surface-300">
+								<p class="text-sm text-surface-600 dark:text-surface-400">
 									{useBackupCode ? "Enter your backup recovery code:" : twofa_verify_description()}
 								</p>
 							</div>

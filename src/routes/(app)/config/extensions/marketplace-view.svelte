@@ -176,13 +176,13 @@
 								</Badge>
 							{/if}
 							{#if item.price != null && item.price > 0}
-								<span class="text-xs font-semibold text-surface-600 dark:text-surface-300">
+								<span class="text-xs font-semibold text-surface-600 dark:text-surface-400">
 									€{item.price.toFixed(2)}
 								</span>
 							{/if}
 						</div>
 					</div>
-					<p class="line-clamp-3 flex-1 text-sm text-surface-600 dark:text-surface-300">
+					<p class="line-clamp-3 flex-1 text-sm text-surface-600 dark:text-surface-400">
 						{item.description || 'No description'}
 					</p>
 					<div class="flex flex-wrap items-center gap-2">

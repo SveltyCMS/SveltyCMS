@@ -76,11 +76,11 @@ function handleKeydown(e: KeyboardEvent) {
 >
 	<!-- Modal -->
 	<div
-		class="mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded bg-surface-100 shadow-2xl dark:bg-surface-800"
+		class="mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded bg-surface-500/10 shadow-2xl dark:bg-surface-800"
 		transition:slide={{ duration: 200 }}
 	>
 		<!-- Header -->
-		<div class="flex items-center gap-3 border-b border-surface-300 p-4 dark:border-surface-600">
+		<div class="flex items-center gap-3 border-b border-surface-500/30 p-4 dark:border-surface-600">
 			<div class={hasDataLoss ? 'text-error-500' : 'text-warning-500'}><iconify-icon icon="mdi:alert-circle" width={28}></iconify-icon></div>
 			<div>
 				<h2 id="modal-title" class="text-lg font-bold text-surface-900 dark:text-white">
@@ -105,7 +105,7 @@ function handleKeydown(e: KeyboardEvent) {
 							<li class="flex items-start gap-2 text-sm">
 								<iconify-icon icon={typeIcons[change.type || 'mdi:alert']} width="18" class="mt-0.5 text-error-500"></iconify-icon>
 								<div>
-									<p class="text-surface-800 dark:text-surface-200">{change.message}</p>
+									<p class="text-surface-600 dark:text-surface-400">{change.message}</p>
 									{#if change.suggestion}
 										<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">
 											<iconify-icon icon="mdi:lightbulb-outline" width={24}></iconify-icon>
@@ -131,7 +131,7 @@ function handleKeydown(e: KeyboardEvent) {
 							<li class="flex items-start gap-2 text-sm">
 								<iconify-icon icon={typeIcons[change.type || 'mdi:alert']} width="18" class="mt-0.5 text-warning-500"></iconify-icon>
 								<div>
-									<p class="text-surface-800 dark:text-surface-200">{change.message}</p>
+									<p class="text-surface-600 dark:text-surface-400">{change.message}</p>
 									{#if change.suggestion}
 										<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">
 											<iconify-icon icon="mdi:lightbulb-outline" width={24}></iconify-icon>
@@ -151,7 +151,7 @@ function handleKeydown(e: KeyboardEvent) {
 					<input aria-label="Confirmation text"
 						type="checkbox"
 						bind:checked={confirmed}
-						class="mt-1 h-5 w-5 cursor-pointer rounded border-surface-400 text-error-500 focus:ring-error-500"
+						class="mt-1 h-5 w-5 cursor-pointer rounded border-surface-500 text-error-500 focus:ring-error-500"
 						aria-describedby="confirm-description"
 					/>
 					<div>
@@ -165,11 +165,11 @@ function handleKeydown(e: KeyboardEvent) {
 		</div>
 
 		<!-- Footer -->
-		<div class="flex justify-end gap-3 border-t border-surface-300 p-4 dark:border-surface-600">
+		<div class="flex justify-end gap-3 border-t border-surface-500/30 p-4 dark:border-surface-600">
 			<button
 				type="button"
 				onclick={onCancel}
-				class="rounded border border-surface-300 bg-white px-4 py-2 font-medium text-surface-700 transition-colors hover:bg-surface-100 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-200 dark:hover:bg-surface-600"
+				class="rounded border border-surface-500/30 bg-white px-4 py-2 font-medium text-surface-700 transition-colors hover:bg-surface-500/10 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-200 dark:hover:bg-surface-600"
 			>
 				Cancel
 			</button>

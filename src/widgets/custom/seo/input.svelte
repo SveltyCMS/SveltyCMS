@@ -170,7 +170,7 @@ import { logger } from "@utils/logger";
 <div class="space-y-4 relative">
 	{#if !isCheckingLicense}
 		{#if !licenseStatus.hasLicense && licenseStatus.active && licenseStatus.daysRemaining !== null}
-						<div class="alert bg-warning-500/10 text-warning-700 dark:text-warning-300 flex items-center justify-between p-4 rounded-lg">
+						<div class="alert bg-warning-500/10 text-warning-600 dark:text-warning-400 flex items-center justify-between p-4 rounded-lg">
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
 					<span><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days start to test the Advanced, Social, and Schema SEO features.</span>
@@ -208,8 +208,8 @@ import { logger } from "@utils/logger";
 	<div class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden">
 
 		{#if !isCheckingLicense && !licenseStatus.active}
-						<div class="absolute inset-0 z-10 bg-surface-50 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-lg">
-				<div class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-50 dark:bg-error-900/20">
+						<div class="absolute inset-0 z-10 bg-surface-500/10 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-lg">
+				<div class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-500/10 dark:bg-error-900/20">
 					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"></iconify-icon>
 					<h3 class="h3 font-bold mb-2">Premium SEO Locked</h3>
 					<p class="mb-4">Your 14-day trial has expired. To continue using the Social, Advanced, Schema, and AI features, please purchase a license.</p>
@@ -219,7 +219,7 @@ import { logger } from "@utils/logger";
 		{/if}
 
 		<Tabs bind:value={activeTab} class="w-full">
-			<Tabs.List class="mb-6 border-surface-400/30">
+			<Tabs.List class="mb-6 border-surface-500">
 				<Tabs.Trigger value="basic">Basic</Tabs.Trigger>
 				{#if hasFeature('social')}
 					<Tabs.Trigger value="social" disabled={!isCheckingLicense && !licenseStatus.active}>Social</Tabs.Trigger>
@@ -398,7 +398,7 @@ import { logger } from "@utils/logger";
 								<div class="flex items-center gap-1 text-xs">
 									<iconify-icon icon="bi:translate" width="24"></iconify-icon>
 									<span class="font-medium text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
-									<span class="font-medium text-surface-400 dark:text-surface-300">({translationStats.schemaMarkup || 0}%)</span>
+									<span class="font-medium text-surface-400 dark:text-surface-400">({translationStats.schemaMarkup || 0}%)</span>
 								</div>
 							{/if}
 						</div>
@@ -413,7 +413,7 @@ import { logger } from "@utils/logger";
 								use:tokenTarget={{ name: field.db_fieldName, label: field.label, collection: field.collection }}
 							></textarea>
 						</div>
-						<p class="text-xs text-surface-400 dark:text-surface-300">Paste valid JSON-LD structure here.</p>
+						<p class="text-xs text-surface-400 dark:text-surface-400">Paste valid JSON-LD structure here.</p>
 					</div>
 				</Tabs.Content>
 				{/if}

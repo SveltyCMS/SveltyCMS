@@ -57,7 +57,7 @@
 	{#each slots as slot (slot.id)}
 		<div class={inline ? 'contents' : 'slot-item mb-4 last:mb-0'}>
 			{#await componentLoader(slot)}
-				<div class="h-20 w-full animate-pulse rounded bg-surface-100 dark:bg-surface-800"></div>
+				<div class="h-20 w-full animate-pulse rounded bg-surface-500/10 dark:bg-surface-800"></div>
 			{:then Component}
 				{#if "default" in Component}
 					<Component.default {...props} {...slot.props} />
@@ -65,7 +65,7 @@
 					<Component {...props} {...slot.props} />
 				{/if}
 			{:catch error}
-				<div class="rounded border border-error-500/50 bg-error-50 p-2 text-xs text-error-600 dark:bg-error-900/10 dark:text-error-500">
+				<div class="rounded border border-error-500/50 bg-error-500/10 p-2 text-xs text-error-600 dark:bg-error-900/10 dark:text-error-500">
 					<strong>Slot Error ({slot.id}):</strong>
 					{error.message}
 				</div>

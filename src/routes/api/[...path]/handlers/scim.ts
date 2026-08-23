@@ -27,6 +27,7 @@ import {
   matchesScimFilter,
 } from "@src/utils/scim-utils";
 import { auth as dbAuth } from "@src/databases/db";
+import { SCIM_SCHEMAS } from "@src/types/scim";
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
 
@@ -81,7 +82,6 @@ export async function handleScimRoutes(
 
 /** Returns available SCIM schemas (User, Group). */
 async function handleScimSchemas(_baseUrl: string) {
-  const { SCIM_SCHEMAS } = await import("@src/types/scim");
   return json(
     buildScimListResponse(
       [

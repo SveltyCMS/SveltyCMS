@@ -47,8 +47,8 @@ One-click activation sets the active admin theme. Dismissible via "Skip".
       description: 'Distraction-free writing environment. Spacious layout, elevated cards, clean typography.',
       density: 'spacious',
       variant: 'elevated',
-      accent: 'bg-amber-600',
-      ring: 'ring-amber-500',
+      accent: 'bg-warning-600',
+      ring: 'ring-warning-500',
     },
     {
       id: 'operations',
@@ -57,8 +57,8 @@ One-click activation sets the active admin theme. Dismissible via "Skip".
       description: 'High-density data cockpit. Compact layout, flat cards, maximum information density.',
       density: 'compact',
       variant: 'flat',
-      accent: 'bg-blue-600',
-      ring: 'ring-blue-500',
+      accent: 'bg-tertiary-600',
+      ring: 'ring-tertiary-500',
     },
   ];
 
@@ -99,7 +99,7 @@ One-click activation sets the active admin theme. Dismissible via "Skip".
 
 {#if !dismissed}
   <div transition:fade={{ duration: 200 }}>
-    <AdminCard class="p-6 border-2 border-dashed border-tertiary-500/30 dark:border-primary-500/30 bg-tertiary-500/5 dark:bg-primary-500/5">
+    <AdminCard class="p-6 border-2 border-dashed border-tertiary-500/30 dark:border-primary-500/30 bg-tertiary-500/10 dark:bg-primary-500/10">
       <div class="flex items-center justify-between mb-4">
         <div>
           <h2 class="text-lg font-bold text-surface-900 dark:text-white">Choose Your Workspace</h2>
@@ -113,7 +113,7 @@ One-click activation sets the active admin theme. Dismissible via "Skip".
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 	        {#each presets as preset (preset.id)}
 	          <div
-	            class="group relative flex flex-col items-center gap-3 rounded-lg border-2 border-surface-200 dark:border-surface-700 p-5 text-start transition-all duration-200 hover:border-tertiary-500 dark:hover:border-primary-500 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-surface-900/50"
+	            class="group relative flex flex-col items-center gap-3 rounded-lg border-2 border-surface-500/30 dark:border-surface-500/40 p-5 text-start transition-all duration-200 hover:border-tertiary-500 dark:hover:border-primary-500 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-surface-900/50"
 	          >
 	            <!-- Preset accent dot -->
 	            <div class="h-3 w-3 rounded-full {preset.accent} ring-2 {preset.ring} ring-offset-2 ring-offset-white dark:ring-offset-surface-900"></div>
@@ -123,8 +123,8 @@ One-click activation sets the active admin theme. Dismissible via "Skip".
 	            <div class="text-center">
 	              <div class="font-bold text-surface-900 dark:text-white">{preset.name}</div>
 	              <div class="flex items-center justify-center gap-2 mt-1">
-	                <span class="text-[10px] font-medium uppercase tracking-wider text-surface-400 bg-surface-100 dark:bg-surface-800 px-1.5 py-0.5 rounded">{preset.density}</span>
-	                <span class="text-[10px] font-medium uppercase tracking-wider text-surface-400 bg-surface-100 dark:bg-surface-800 px-1.5 py-0.5 rounded">{preset.variant}</span>
+	                <span class="text-[10px] font-medium uppercase tracking-wider text-surface-400 bg-surface-500/10 dark:bg-surface-800 px-1.5 py-0.5 rounded">{preset.density}</span>
+	                <span class="text-[10px] font-medium uppercase tracking-wider text-surface-400 bg-surface-500/10 dark:bg-surface-800 px-1.5 py-0.5 rounded">{preset.variant}</span>
 	              </div>
 	            </div>
 

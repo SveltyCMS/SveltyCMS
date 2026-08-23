@@ -204,7 +204,7 @@ function handleKeydown(e: KeyboardEvent) {
 <!-- Modal Content Wrapper -->
 <div class="flex h-full w-full flex-col items-center justify-center p-4">
 	<AdminCard
-		class="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden border border-surface-200 bg-surface-100 shadow-xl dark:border-surface-700 dark:bg-surface-800"
+		class="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden border border-surface-500/30 bg-surface-500/10 shadow-xl dark:border-surface-500/40 dark:bg-surface-800"
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={(e) => {
 			if (e.key === 'Enter') e.stopPropagation();
@@ -216,7 +216,7 @@ function handleKeydown(e: KeyboardEvent) {
 		tabindex={0}
 	>
 		<!-- Header -->
-		<div class="flex-none border-b border-surface-300 bg-surface-200/50 p-4 dark:border-surface-600 dark:bg-surface-700/50">
+		<div class="flex-none border-b border-surface-500/30 bg-surface-200/50 p-4 dark:border-surface-600 dark:bg-surface-700/50">
 			<h2 id="advanced-search-title" class="text-center text-2xl font-bold text-tertiary-500 underline dark:text-primary-500">Advanced Search</h2>
 		</div>
 
@@ -286,7 +286,7 @@ function handleKeydown(e: KeyboardEvent) {
 					</Button>
 				</div>
 
-				<hr class="border-surface-300 dark:border-surface-600" />
+				<hr class="border-surface-500/30 dark:border-surface-600" />
 
 				<!-- Basic Search -->
 				<section>
@@ -379,7 +379,7 @@ function handleKeydown(e: KeyboardEvent) {
 		</div>
 
 		<!-- Footer -->
-		<div class="flex-none border-t border-surface-300 bg-surface-200/50 p-4 dark:border-surface-600 dark:bg-surface-700/50">
+		<div class="flex-none border-t border-surface-500/30 bg-surface-200/50 p-4 dark:border-surface-600 dark:bg-surface-700/50">
 			<div class="flex items-center justify-between">
 				<div class="hidden text-sm sm:block">
 					<strong class="text-tertiary-500 dark:text-primary-500">Tip:</strong>
@@ -388,7 +388,7 @@ function handleKeydown(e: KeyboardEvent) {
 					to search
 				</div>
 
-				<div class="ml-auto flex gap-3">
+				<div class="ms-auto flex gap-3">
 					<Button variant="outline" type="button" onclick={resetForm}>Reset</Button>
 					<Button variant="outline" type="button" onclick={onClose}>Cancel</Button>
 					<Button variant="tertiary" type="submit" form="advanced-search-form" class="dark:">

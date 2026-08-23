@@ -39,7 +39,7 @@
 		></iframe>
 	</div>
 {:else}
-	<div class="flex aspect-video w-full items-center justify-center rounded bg-surface-100 dark:bg-surface-800 text-surface-400">
+	<div class="flex aspect-video w-full items-center justify-center rounded bg-surface-500/10 dark:bg-surface-800 text-surface-400">
 		<iconify-icon icon="mdi:video-off" width="48"></iconify-icon>
 		<span class="ms-2">Embed not available for this platform</span>
 	</div>

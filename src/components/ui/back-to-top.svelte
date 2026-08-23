@@ -60,7 +60,7 @@ Appears after scrolling 200px. Fully accessible.
 		       ring-1 ring-zinc-950/5 dark:ring-white/10
 		       backdrop-blur-xl
 		       transition-all duration-300 hover:scale-105 hover:shadow-xl active:scale-95
-		       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+		       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
 		onclick={scrollToTop}
 		aria-label="Scroll back to top"
 		title="Back to top"

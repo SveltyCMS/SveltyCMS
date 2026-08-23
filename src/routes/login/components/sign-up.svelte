@@ -302,7 +302,7 @@ $effect(() => {
 			</div>
 			<div
 				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded p-6 backdrop-blur lg:w-4/5 {brandedLogin && brandedVariant === 'elevated'
-					? 'bg-surface-900/95 shadow-xl border border-surface-700'
+					? 'bg-surface-900/95 shadow-xl border border-surface-500/40'
 					: 'bg-surface-900/0'}"
 				class:hide={active !== 1}
 			>

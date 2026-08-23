@@ -80,9 +80,9 @@ export const widgetMeta = {
 	}
 
 	function getErrorColor(rate: number): string {
-		if (rate > 5) return 'text-red-500';
-		if (rate > 2) return 'text-amber-500';
-		return 'text-emerald-500';
+		if (rate > 5) return 'text-error-500';
+		if (rate > 2) return 'text-warning-500';
+		return 'text-success-500';
 	}
 
 	function formatUptime(seconds: number): string {
@@ -107,11 +107,11 @@ export const widgetMeta = {
 		{onSizeChange}
 		onCloseRequest={onRemove}
 	>
-		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-50 dark:bg-surface-800/50 rounded-lg">
-			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-amber-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-200">Premium Extension</h3>
+		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg">
+			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
+			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">Premium Extension</h3>
 			<p class="text-xs text-surface-500 mt-1 mb-3">Your 14-day trial for this extension has expired. A valid LICENSE_KEY is required.</p>
-			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-500">Upgrade License &rarr;</a>
+			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-600 dark:text-primary-500">Upgrade License &rarr;</a>
 		</div>
 	</BaseWidget>
 {:else}
@@ -133,7 +133,7 @@ export const widgetMeta = {
 		{#if !metrics}
 			<div class="flex h-full items-center justify-center">
 				<div class="flex flex-col items-center gap-3 text-surface-500">
-					<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+					<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"></div>
 					<p class="text-sm">Loading performance metrics...</p>
 				</div>
 			</div>
@@ -158,19 +158,19 @@ export const widgetMeta = {
 				{#if size.h === 1}
 					<!-- Compact single-row layout -->
 					<div class="grid grid-cols-3 gap-2">
-						<div class="rounded bg-surface-100 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
+						<div class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
 							<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Errors</div>
 							<div class="text-xl font-bold tabular-nums {getErrorColor(errorRate)} mt-0.5">
 								{errorRate.toFixed(1)}%
 							</div>
 						</div>
-						<div class="rounded bg-surface-100 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
+						<div class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
 							<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Cache</div>
-							<div class="text-xl font-bold tabular-nums text-blue-500 mt-0.5">
+							<div class="text-xl font-bold tabular-nums text-tertiary-500 mt-0.5">
 								{cacheHitRate.toFixed(1)}%
 							</div>
 						</div>
-						<div class="rounded bg-surface-100 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
+						<div class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800">
 							<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">Sessions</div>
 							<div class="text-xl font-bold tabular-nums text-violet-500 mt-0.5">
 								{metrics.sessions?.active ?? 0}
@@ -180,7 +180,7 @@ export const widgetMeta = {
 				{:else}
 					<!-- Key Health Indicators -->
 					<div class="grid grid-cols-2 gap-3">
-						<div class="rounded-2xl bg-surface-100 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800 flex justify-between items-end">
+						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800 flex justify-between items-end">
 							<div>
 								<div class="text-xs font-semibold text-surface-500 mb-1">Error Rate</div>
 								<div class="text-3xl font-bold tabular-nums {getErrorColor(errorRate)}">
@@ -205,23 +205,23 @@ export const widgetMeta = {
 							{/if}
 						</div>
 
-						<div class="rounded-2xl bg-surface-100 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800">
+						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800">
 							<div class="text-xs font-semibold text-surface-500 mb-1">Cache Hit Rate</div>
-							<div class="text-3xl font-bold tabular-nums text-blue-500">
+							<div class="text-3xl font-bold tabular-nums text-tertiary-500">
 								{cacheHitRate.toFixed(1)}%
 							</div>
 							<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">Efficiency</div>
 						</div>
 
-						<div class="rounded-2xl bg-surface-100 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800">
+						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800">
 							<div class="text-xs font-semibold text-surface-500 mb-1">Auth Success</div>
-							<div class="text-3xl font-bold tabular-nums text-emerald-500">
+							<div class="text-3xl font-bold tabular-nums text-success-500">
 								{authSuccessRate.toFixed(1)}%
 							</div>
 							<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">User auths</div>
 						</div>
 
-						<div class="rounded-2xl bg-surface-100 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800">
+						<div class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800">
 							<div class="text-xs font-semibold text-surface-500 mb-1">Active Sessions</div>
 							<div class="text-3xl font-bold tabular-nums text-violet-500">
 								{metrics.sessions?.active ?? 0}
@@ -235,13 +235,13 @@ export const widgetMeta = {
 						<!-- Requests -->
 						<div class="space-y-2">
 							<h4 class="text-xs font-semibold text-surface-500 uppercase tracking-wider px-1">Requests</h4>
-							<div class="flex justify-between items-center bg-surface-100 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800">
+							<div class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800">
 								<span class="text-surface-600 dark:text-surface-400">Total</span>
 								<span class="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100">{metrics.requests.total.toLocaleString()}</span>
 							</div>
-							<div class="flex justify-between items-center bg-surface-100 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800">
+							<div class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800">
 								<span class="text-surface-600 dark:text-surface-400">Errors</span>
-								<span class="font-mono font-semibold tabular-nums text-red-500">{metrics.requests.errors}</span>
+								<span class="font-mono font-semibold tabular-nums text-error-500">{metrics.requests.errors}</span>
 							</div>
 						</div>
 
@@ -249,7 +249,7 @@ export const widgetMeta = {
 						{#if metrics.system}
 							<div class="space-y-2">
 								<h4 class="text-xs font-semibold text-surface-500 uppercase tracking-wider px-1">System</h4>
-								<div class="rounded bg-surface-100 dark:bg-surface-800 p-4 space-y-3 border border-transparent dark:border-gray-800">
+								<div class="rounded bg-surface-500/10 dark:bg-surface-800 p-4 space-y-3 border border-transparent dark:border-gray-800">
 									<div class="flex justify-between">
 										<span class="text-surface-600 dark:text-surface-400">Memory Used</span>
 										<span class="font-mono text-gray-900 dark:text-gray-100 tabular-nums">

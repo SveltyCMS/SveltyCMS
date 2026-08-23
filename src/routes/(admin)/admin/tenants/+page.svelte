@@ -68,7 +68,7 @@ function formatBytes(bytes: number, decimals = 2) {
 		<Button variant="primary" leadingIcon="mdi:plus" loading={creating} onclick={handleCreate}>Create Tenant</Button>
 	{/snippet}
 
-	<AdminCard class="overflow-hidden border border-surface-200 bg-white p-0 shadow-xs backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/40">
+	<AdminCard class="overflow-hidden border border-surface-500/30 bg-white p-0 shadow-xs backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20">
 		<div class="{SMART_TABLE_SCROLL} w-full">
 			<table class={SMART_TABLE}>
 				<thead class={SMART_TABLE_THEAD}>
@@ -85,7 +85,7 @@ function formatBytes(bytes: number, decimals = 2) {
 				</thead>
 				<tbody>
 					{#each tenants as tenant (tenant._id)}
-						<tr class="border-t border-surface-100 text-surface-700 dark:border-surface-800/60 dark:text-surface-200 {SMART_TABLE_ROW_HOVER}">
+						<tr class="border-t border-surface-100 text-surface-600 dark:border-surface-500/40 dark:text-surface-400 {SMART_TABLE_ROW_HOVER}">
 							<td class="{SMART_TABLE_TD} text-start! px-4! font-medium">{tenant.name}</td>
 							<td class="{SMART_TABLE_TD} text-start! px-4!">
 								{#if tenant.status === 'active'}

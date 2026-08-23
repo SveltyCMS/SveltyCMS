@@ -164,11 +164,11 @@ function onVirtualScroll() {
 </script>
 
 <div class={cn(
-    'w-full flex flex-col rounded-2xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-xl overflow-hidden transition-all duration-300',
+    'w-full flex flex-col rounded-2xl border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900 shadow-xl overflow-hidden transition-all duration-300',
     className
 )}>
     {#if header}
-        <div class="bg-surface-50 dark:bg-surface-950/20 border-b border-surface-200 dark:border-surface-800">
+        <div class="bg-surface-500/10 dark:bg-surface-900/20 border-b border-surface-500/30 dark:border-surface-500/40">
             {@render header()}
         </div>
     {/if}
@@ -187,15 +187,15 @@ function onVirtualScroll() {
             >
                 <table class="w-full text-start border-collapse min-w-full table-fixed">
                     <thead class="sticky top-0 z-10">
-                        <tr class="bg-surface-100/90 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-200 dark:border-surface-800">
+                        <tr class="bg-surface-500/10 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-500/30 dark:border-surface-500/40">
                             {#if selectable}
                                 <th class="w-12 p-4">
-                                    <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 transition-all"
+                                    <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-500/30 dark:border-surface-600 accent-primary-500 transition-all"
                                         checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} />
                                 </th>
                             {/if}
                             {#each columns as col (col.key)}
-                                <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'hover:text-tertiary-500 dark:text-primary-500', col.class)}
+                                <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-600 dark:text-surface-400 select-none transition-colors', densityClass, col.sortable && 'hover:text-tertiary-500 dark:text-primary-500', col.class)}
                                     style={col.width ? `width: ${col.width}` : ''}
                                     aria-sort={sortKey === col.key ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
                                     onclick={() => col.sortable && handleSort(col.key)}>
@@ -228,20 +228,20 @@ function onVirtualScroll() {
                                     }}>
                                     {#if selectable}
                                         <td class="p-4" onclick={(e) => e.stopPropagation()}>
-                                            <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 transition-all hover:scale-110"
+                                            <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-500/30 accent-primary-500 transition-all hover:scale-110"
                                                 checked={selectedIds.has(row._id || row.id)}
                                                 onchange={() => toggleSelectRow(row._id || row.id)} />
                                         </td>
                                     {/if}
                                     {#each columns as col (col.key)}
-                                        <td class={cn('text-surface-700 dark:text-surface-300 font-medium whitespace-nowrap overflow-hidden text-ellipsis', densityClass, col.class)}>
+                                        <td class={cn('text-surface-600 dark:text-surface-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis', densityClass, col.class)}>
                                             {#if cell}{@render cell({ row, column: col })}{:else}{row[col.key] ?? '-'}{/if}
                                         </td>
                                     {/each}
                                 </tr>
                             {/if}
                             {#if expand}
-                                <tr class="bg-surface-50/30 dark:bg-surface-800/20">
+                                <tr class="bg-surface-500/30 dark:bg-surface-800/20">
                                     <td colspan={columns.length + (selectable ? 1 : 0)}>{@render expand({ row })}</td>
                                 </tr>
                             {/if}
@@ -256,15 +256,15 @@ function onVirtualScroll() {
             <!-- Normal (non-virtualized) table -->
             <table class="w-full text-start border-collapse min-w-full table-fixed">
                 <thead class="sticky top-0 z-10">
-                    <tr class="bg-surface-100/90 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-200 dark:border-surface-800">
+                    <tr class="bg-surface-500/10 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-500/30 dark:border-surface-500/40">
                         {#if selectable}
                             <th class="w-12 p-4">
-                                <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-300 dark:border-surface-600 accent-primary-500 transition-all"
+                                <input aria-label="Select all rows" type="checkbox" class="size-4 rounded border-surface-500/30 dark:border-surface-600 accent-primary-500 transition-all"
                                     checked={allSelected} indeterminate={someSelected} onchange={toggleSelectAll} />
                             </th>
                         {/if}
                         {#each columns as col (col.key)}
-                            <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-700 dark:text-surface-200 select-none transition-colors', densityClass, col.sortable && 'hover:text-tertiary-500 dark:text-primary-500', col.class)}
+                            <th class={cn('font-bold uppercase tracking-widest text-[10px] text-surface-600 dark:text-surface-400 select-none transition-colors', densityClass, col.sortable && 'hover:text-tertiary-500 dark:text-primary-500', col.class)}
                                 style={col.width ? `width: ${col.width}` : ''}
                                 aria-sort={sortKey === col.key ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
                                 onclick={() => col.sortable && handleSort(col.key)}>
@@ -311,20 +311,20 @@ function onVirtualScroll() {
                                     }}>
                                     {#if selectable}
                                         <td class="p-4" onclick={(e) => e.stopPropagation()}>
-                                            <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-300 accent-primary-500 transition-all hover:scale-110"
+                                            <input aria-label="Select row" type="checkbox" class="size-4 rounded border-surface-500/30 accent-primary-500 transition-all hover:scale-110"
                                                 checked={selectedIds.has(row._id || row.id)}
                                                 onchange={() => toggleSelectRow(row._id || row.id)} />
                                         </td>
                                     {/if}
                                     {#each columns as col (col.key)}
-                                        <td class={cn('text-surface-700 dark:text-surface-300 font-medium whitespace-nowrap overflow-hidden text-ellipsis', densityClass, col.class)}>
+                                        <td class={cn('text-surface-600 dark:text-surface-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis', densityClass, col.class)}>
                                             {#if cell}{@render cell({ row, column: col })}{:else}{row[col.key] ?? '-'}{/if}
                                         </td>
                                     {/each}
                                 </tr>
                             {/if}
                             {#if expand}
-                                <tr class="bg-surface-50/30 dark:bg-surface-800/20">
+                                <tr class="bg-surface-500/30 dark:bg-surface-800/20">
                                     <td colspan={columns.length + (selectable ? 1 : 0)}>{@render expand({ row })}</td>
                                 </tr>
                             {/if}

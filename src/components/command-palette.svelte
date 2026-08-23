@@ -464,7 +464,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 <!-- Panel -->
 <div
 	bind:this={panelElement}
-	class="command-palette fixed inset-x-0 top-[12%] z-1001 mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-surface-300 bg-surface-50 shadow-2xl dark:border-surface-600 dark:bg-surface-900 sm:inset-x-auto sm:inset-s-1/2 sm:-translate-x-1/2"
+	class="command-palette fixed inset-x-0 top-[12%] z-1001 mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-surface-500/30 bg-surface-500/10 shadow-2xl dark:border-surface-600 dark:bg-surface-900 sm:inset-x-auto sm:inset-s-1/2 sm:-translate-x-1/2"
 	style="border-radius: var(--admin-radius-card, 12px);"
 	role="dialog"
 	aria-modal="true"
@@ -475,7 +475,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 >
 	<!-- Search input row -->
 	<div
-		class="flex items-center gap-2 border-b border-surface-200 px-3 dark:border-surface-700"
+		class="flex items-center gap-2 border-b border-surface-500/30 px-3 dark:border-surface-500/40"
 	>
 		<span class="text-surface-500 dark:text-surface-400" aria-hidden="true">
 			{#if isSearching}
@@ -519,7 +519,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 			class="border-0 shadow-none"
 		/>
 		<kbd
-			class="hidden shrink-0 rounded border border-surface-300 bg-surface-100 px-1.5 py-0.5 text-[10px] font-semibold text-surface-600 sm:inline dark:border-surface-600 dark:bg-surface-800 dark:text-surface-300"
+			class="hidden shrink-0 rounded border border-surface-500/30 bg-surface-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-surface-600 sm:inline dark:border-surface-600 dark:bg-surface-800 dark:text-surface-300"
 		>
 			ESC
 		</kbd>
@@ -528,7 +528,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 	<!-- Context / filter chips -->
 	{#if contextLabel || filterLabel}
 		<div
-			class="flex flex-wrap items-center gap-2 border-b border-surface-200 px-4 py-2 text-xs dark:border-surface-700"
+			class="flex flex-wrap items-center gap-2 border-b border-surface-500/30 px-4 py-2 text-xs dark:border-surface-500/40"
 		>
 			{#if contextLabel}
 				<span
@@ -539,7 +539,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 			{/if}
 			{#if filterLabel}
 				<span
-					class="rounded-full bg-tertiary-500/15 px-2.5 py-0.5 font-medium text-tertiary-700 dark:bg-primary-500/20 dark:text-primary-300"
+					class="rounded-full bg-tertiary-500/10 px-2.5 py-0.5 font-medium text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-400"
 				>
 					{filterLabel}
 				</span>
@@ -589,7 +589,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 										charLimit={80}
 										highlightClass={selected
 											? 'bg-white/30 text-white rounded px-0.5'
-											: 'bg-warning-500/40 text-warning-950 dark:bg-warning-600/50 dark:text-warning-50 rounded px-0.5'}
+											: 'bg-warning-500/20 text-warning-600 dark:bg-warning-500/20 dark:text-warning-400 rounded px-0.5'}
 									/>
 								{:else}
 									<HighlightedText
@@ -598,7 +598,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 										charLimit={80}
 										highlightClass={selected
 											? 'bg-white/30 text-white rounded px-0.5'
-											: 'bg-warning-500/40 text-warning-950 dark:bg-warning-600/50 dark:text-warning-50 rounded px-0.5'}
+											: 'bg-warning-500/20 text-warning-600 dark:bg-warning-500/20 dark:text-warning-400 rounded px-0.5'}
 									/>
 								{/if}
 							</div>
@@ -613,7 +613,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 									charLimit={100}
 									highlightClass={selected
 										? 'bg-white/25 text-white rounded px-0.5'
-										: 'bg-warning-500/30 text-warning-950 dark:bg-warning-600/40 dark:text-warning-50 rounded px-0.5'}
+										: 'bg-warning-500/20 text-warning-600 dark:bg-warning-500/20 dark:text-warning-400 rounded px-0.5'}
 								/>
 							</div>
 						</div>
@@ -684,7 +684,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 					width="40"
 					class="mb-3 text-surface-400 dark:text-surface-500"
 				></iconify-icon>
-				<p class="text-base font-medium text-surface-800 dark:text-surface-100">
+				<p class="text-base font-medium text-surface-600 dark:text-surface-100">
 					{msg('global_search_no_results', 'No results found')}
 				</p>
 				<p class="mt-1 max-w-sm text-sm text-surface-600 dark:text-surface-400">
@@ -703,26 +703,26 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 
 	<!-- Footer -->
 	<div
-		class="flex flex-wrap items-center justify-between gap-2 border-t border-surface-200 bg-surface-100/80 px-4 py-2 text-[11px] font-medium text-surface-600 dark:border-surface-700 dark:bg-surface-950/50 dark:text-surface-400"
+		class="flex flex-wrap items-center justify-between gap-2 border-t border-surface-500/30 bg-surface-500/10 px-4 py-2 text-[11px] font-medium text-surface-600 dark:border-surface-500/40 dark:bg-surface-900/50 dark:text-surface-400"
 	>
 		<div class="flex flex-wrap items-center gap-3">
 			<span class="inline-flex items-center gap-1">
 				<kbd
-					class="rounded border border-surface-300 bg-surface-50 px-1 dark:border-surface-600 dark:bg-surface-800"
+					class="rounded border border-surface-500/30 bg-surface-500/10 px-1 dark:border-surface-600 dark:bg-surface-800"
 					>↑↓</kbd
 				>
 				{msg('global_search_nav_hint', 'Navigate')}
 			</span>
 			<span class="inline-flex items-center gap-1">
 				<kbd
-					class="rounded border border-surface-300 bg-surface-50 px-1 dark:border-surface-600 dark:bg-surface-800"
+					class="rounded border border-surface-500/30 bg-surface-500/10 px-1 dark:border-surface-600 dark:bg-surface-800"
 					>↵</kbd
 				>
 				{msg('global_search_select_hint', 'Select')}
 			</span>
 			<span class="inline-flex items-center gap-1">
 				<kbd
-					class="rounded border border-surface-300 bg-surface-50 px-1 dark:border-surface-600 dark:bg-surface-800"
+					class="rounded border border-surface-500/30 bg-surface-500/10 px-1 dark:border-surface-600 dark:bg-surface-800"
 					>esc</kbd
 				>
 				{msg('global_search_close_hint', 'Close')}
@@ -731,12 +731,12 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		<div class="inline-flex items-center gap-2 text-surface-500 dark:text-surface-400">
 			<span class="inline-flex items-center gap-1">
 				<kbd
-					class="rounded border border-surface-300 bg-surface-50 px-1 dark:border-surface-600 dark:bg-surface-800"
+					class="rounded border border-surface-500/30 bg-surface-500/10 px-1 dark:border-surface-600 dark:bg-surface-800"
 					>{modLabel}+K</kbd
 				>
 				<span class="hidden sm:inline">·</span>
 				<kbd
-					class="rounded border border-surface-300 bg-surface-50 px-1 dark:border-surface-600 dark:bg-surface-800"
+					class="rounded border border-surface-500/30 bg-surface-500/10 px-1 dark:border-surface-600 dark:bg-surface-800"
 					>Alt+G</kbd
 				>
 			</span>

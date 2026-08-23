@@ -83,15 +83,15 @@ export const widgetMeta = {
 	}
 
 	function hitRateClass(rate: number): string {
-		if (rate >= 90) return 'text-emerald-500';
-		if (rate >= 70) return 'text-amber-500';
-		return 'text-red-500';
+		if (rate >= 90) return 'text-success-500';
+		if (rate >= 70) return 'text-warning-500';
+		return 'text-error-500';
 	}
 
 	function barColor(rate: number): string {
-		if (rate >= 90) return 'bg-emerald-500';
-		if (rate >= 70) return 'bg-amber-500';
-		return 'bg-red-500';
+		if (rate >= 90) return 'bg-success-500';
+		if (rate >= 70) return 'bg-warning-500';
+		return 'bg-error-500';
 	}
 </script>
 
@@ -105,11 +105,11 @@ export const widgetMeta = {
 		{onSizeChange}
 		onCloseRequest={onRemove}
 	>
-		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-50 dark:bg-surface-800/50 rounded-lg">
-			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-amber-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-200">Premium Extension</h3>
+		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg">
+			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
+			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">Premium Extension</h3>
 			<p class="text-xs text-surface-500 mt-1 mb-3">Your 14-day trial for this extension has expired. A valid LICENSE_KEY is required.</p>
-			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-500">Upgrade License &rarr;</a>
+			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-600 dark:text-primary-500">Upgrade License &rarr;</a>
 		</div>
 	</BaseWidget>
 {:else}
@@ -159,12 +159,12 @@ export const widgetMeta = {
 				<!-- Inline stats -->
 				<div class="flex items-center gap-3 text-xs">
 					<span class="tabular-nums text-surface-500">
-						<span class="text-emerald-500 font-medium">{fmtNum(o.hits)}</span> hits
+						<span class="text-success-500 font-medium">{fmtNum(o.hits)}</span> hits
 					</span>
 					<span class="tabular-nums text-surface-500">
-						<span class="text-red-500 font-medium">{fmtNum(o.misses)}</span> misses
+						<span class="text-error-500 font-medium">{fmtNum(o.misses)}</span> misses
 					</span>
-					<span class="tabular-nums font-medium text-blue-500">{fmtSize(o.size)}</span>
+					<span class="tabular-nums font-medium text-tertiary-500">{fmtSize(o.size)}</span>
 				</div>
 			</div>
 		{:else}
@@ -172,10 +172,10 @@ export const widgetMeta = {
 			<!-- ===== Rich (h:2+) ===== -->
 			<div class="flex h-full flex-col space-y-3">
 				<!-- Overall Summary -->
-				<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800">
+				<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
 					<div class="flex items-center justify-between mb-2">
 						<span class="text-xs font-semibold uppercase tracking-wider text-surface-400">Overall</span>
-						<span class="text-xs font-medium text-blue-500 tabular-nums">{fmtSize(o.size)}</span>
+						<span class="text-xs font-medium text-tertiary-500 tabular-nums">{fmtSize(o.size)}</span>
 					</div>
 
 					<div class="flex items-baseline justify-between mb-2">
@@ -190,19 +190,19 @@ export const widgetMeta = {
 					</div>
 
 					<div class="grid grid-cols-4 gap-2 text-center text-xs">
-						<div class="rounded bg-surface-100 p-1.5 dark:bg-surface-700/50">
-							<div class="font-mono font-semibold text-emerald-500 tabular-nums">{fmtNum(o.hits)}</div>
+						<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
+							<div class="font-mono font-semibold text-success-500 tabular-nums">{fmtNum(o.hits)}</div>
 							<div class="text-[10px] text-surface-500">Hits</div>
 						</div>
-						<div class="rounded bg-surface-100 p-1.5 dark:bg-surface-700/50">
-							<div class="font-mono font-semibold text-red-500 tabular-nums">{fmtNum(o.misses)}</div>
+						<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
+							<div class="font-mono font-semibold text-error-500 tabular-nums">{fmtNum(o.misses)}</div>
 							<div class="text-[10px] text-surface-500">Misses</div>
 						</div>
-						<div class="rounded bg-surface-100 p-1.5 dark:bg-surface-700/50">
+						<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
 							<div class="font-mono font-semibold tabular-nums">{fmtNum(o.sets ?? 0)}</div>
 							<div class="text-[10px] text-surface-500">Sets</div>
 						</div>
-						<div class="rounded bg-surface-100 p-1.5 dark:bg-surface-700/50">
+						<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
 							<div class="font-mono font-semibold tabular-nums">{fmtNum(o.deletes ?? 0)}</div>
 							<div class="text-[10px] text-surface-500">Evictions</div>
 						</div>
@@ -213,10 +213,10 @@ export const widgetMeta = {
 				{#if cache.byCategory && Object.keys(cache.byCategory).length > 0}
 					<div class="flex-1 space-y-2 overflow-y-auto pe-0.5 custom-scroll">
 						{#each Object.entries(cache.byCategory) as [cat, s] (cat)}
-							<div class="rounded-2xl bg-surface-50 p-3 dark:bg-surface-800">
+							<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
 								<div class="flex items-center justify-between mb-2">
-									<span class="text-xs font-semibold capitalize text-surface-600 dark:text-surface-300">{cat}</span>
-									<span class="text-xs tabular-nums text-blue-500">{fmtSize(s.size)}</span>
+									<span class="text-xs font-semibold capitalize text-surface-600 dark:text-surface-400">{cat}</span>
+									<span class="text-xs tabular-nums text-tertiary-500">{fmtSize(s.size)}</span>
 								</div>
 
 								<div class="flex items-center justify-between mb-2">

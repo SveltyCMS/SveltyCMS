@@ -100,7 +100,7 @@
 	<div class="grid grid-cols-1 gap-4 focus:outline-none">
 		<!-- Export Data -->
 		<div
-			class="card p-5 bg-surface-50 dark:bg-surface-900/40 border border-surface-200 dark:border-surface-700 hover:border-tertiary-500 dark:hover:border-primary-500/50 transition-colors"
+			class="card p-5 bg-surface-500/10 dark:bg-surface-900/20 border border-surface-500/30 dark:border-surface-500/40 hover:border-tertiary-500 dark:hover:border-primary-500/50 transition-colors"
 		>
 			<div class="flex items-start gap-4">
 				<div class="p-3 rounded bg-secondary-500/10 text-secondary-500">
@@ -123,7 +123,7 @@
 		<!-- Anonymize/Delete Account -->
 		{#if (totalUsers ?? 1) > 1 || !isAdmin}
 			<div
-				class="card p-5 bg-surface-50 dark:bg-surface-900/40 border border-surface-200 dark:border-surface-700 hover:border-error-500/50 transition-colors"
+				class="card p-5 bg-surface-500/10 dark:bg-surface-900/20 border border-surface-500/30 dark:border-surface-500/40 hover:border-error-500/50 transition-colors"
 			>
 				<div class="flex items-start gap-4">
 					<div class="p-3 rounded bg-error-500/10 text-error-500">

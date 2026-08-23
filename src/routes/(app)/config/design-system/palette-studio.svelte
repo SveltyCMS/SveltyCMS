@@ -1,7 +1,7 @@
 <!--
 @file src/routes/(app)/config/design-system/palette-studio.svelte
 @component
-**Palette Studio — lightweight Skeleton-like brand color editor**
+**Palette Studio — brand color editor**
 
 Pick core seed colors, expand to shade scales via theme-preset-mapper, live-apply
 into theme customCss (marked block), and preview on native components.
@@ -136,16 +136,8 @@ into theme customCss (marked block), and preview on native components.
 				Palette studio
 			</h3>
 			<p class="text-sm mt-1" style="color: var(--admin-text-muted)">
-				Pick brand seeds (Skeleton-style). Shades expand automatically and apply as runtime CSS — no need to edit
-				<code class="text-xs">app.css</code>. Full visual editor:
-				<a
-					href="https://themes.skeleton.dev/themes/create"
-					target="_blank"
-					rel="noopener"
-					class="text-tertiary-500 dark:text-primary-500 underline"
-				>themes.skeleton.dev</a
-				>
-				→ import JSON below if you prefer.
+				Pick brand seeds. Shades expand automatically and apply as runtime CSS — no need to edit
+				<code class="text-xs">app.css</code>.
 			</p>
 		</div>
 		<div class="flex flex-col items-end gap-2">
@@ -160,7 +152,7 @@ into theme customCss (marked block), and preview on native components.
 				<div class="flex items-center justify-between gap-2 text-sm font-medium" style="color: var(--admin-text-body)">
 					<label for={`palette-color-${row.key}`}>{row.label}</label>
 					<!-- attrs on same line: slop-scanner only reads the opening tag line -->
-					<input id={`palette-color-${row.key}`} type="color" aria-label={`${row.label} color`} title={`${row.label} color`} class="h-9 w-12 cursor-pointer rounded border border-surface-300 dark:border-surface-600 bg-transparent p-0.5" value={seeds[row.key]} oninput={(e) => { seeds[row.key] = (e.currentTarget as HTMLInputElement).value; }} />
+					<input id={`palette-color-${row.key}`} type="color" aria-label={`${row.label} color`} title={`${row.label} color`} class="h-9 w-12 cursor-pointer rounded border border-surface-500/30 dark:border-surface-600 bg-transparent p-0.5" value={seeds[row.key]} oninput={(e) => { seeds[row.key] = (e.currentTarget as HTMLInputElement).value; }} />
 				</div>
 				<Input
 					id={`palette-hex-${row.key}`}
@@ -180,7 +172,7 @@ into theme customCss (marked block), and preview on native components.
 				<div class="space-y-2">
 					<div class="flex items-center justify-between gap-2 text-sm font-medium" style="color: var(--admin-text-body)">
 						<label for={`palette-color-${row.key}`}>{row.label}</label>
-						<input id={`palette-color-${row.key}`} type="color" aria-label={`${row.label} color`} title={`${row.label} color`} class="h-8 w-10 cursor-pointer rounded border border-surface-300 dark:border-surface-600 bg-transparent p-0.5" value={seeds[row.key]} oninput={(e) => { seeds[row.key] = (e.currentTarget as HTMLInputElement).value; }} />
+						<input id={`palette-color-${row.key}`} type="color" aria-label={`${row.label} color`} title={`${row.label} color`} class="h-8 w-10 cursor-pointer rounded border border-surface-500/30 dark:border-surface-600 bg-transparent p-0.5" value={seeds[row.key]} oninput={(e) => { seeds[row.key] = (e.currentTarget as HTMLInputElement).value; }} />
 					</div>
 					<Input
 						id={`palette-hex-${row.key}`}

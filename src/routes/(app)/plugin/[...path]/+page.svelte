@@ -38,7 +38,7 @@ and renders it inside the admin shell with server props.
 			{/if}
 		{:catch error}
 			<div
-				class="rounded border border-error-500/50 bg-error-50 p-4 text-sm text-error-600 dark:bg-error-900/10 dark:text-error-500"
+				class="rounded border border-error-500/50 bg-error-500/10 p-4 text-sm text-error-600 dark:bg-error-900/10 dark:text-error-500"
 				role="alert"
 			>
 				<strong>Plugin page failed to load ({pageDef.id}):</strong> {error.message}

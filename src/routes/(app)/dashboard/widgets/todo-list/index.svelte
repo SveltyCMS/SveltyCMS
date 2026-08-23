@@ -54,8 +54,8 @@
 	}
 </script>
 
-<div class="card p-5 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-2xl shadow-sm space-y-4">
-	<div class="flex items-center justify-between border-b border-surface-100 dark:border-surface-700 pb-3">
+<div class="card p-5 bg-white dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4">
+	<div class="flex items-center justify-between border-b border-surface-100 dark:border-surface-500/40 pb-3">
 		<div class="flex items-center gap-2">
 			<iconify-icon icon="mdi:checkbox-marked-outline" width="20" class="text-primary-500"></iconify-icon>
 			<h3 class="font-bold text-sm text-surface-900 dark:text-white">Admin TODO List</h3>
@@ -67,7 +67,7 @@
 		<Input
 			bind:value={newTodoText}
 			placeholder="Add a new task..."
-			inputClass="w-full px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 text-xs text-surface-900 dark:text-white"
+			inputClass="w-full px-3 py-1.5 rounded-xl border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 text-xs text-surface-900 dark:text-white"
 			aria-label="New task"
 		/>
 		<Button type="submit" variant="primary" size="sm" class="shrink-0">Add</Button>
@@ -75,7 +75,7 @@
 
 	<div class="space-y-1.5 max-h-48 overflow-y-auto pe-1">
 		{#each todos as todo (todo.id)}
-			<div class="flex items-center justify-between p-2 rounded-xl bg-surface-50 dark:bg-surface-900/50 border border-surface-100 dark:border-surface-700/50 group text-xs">
+			<div class="flex items-center justify-between p-2 rounded-xl bg-surface-500/10 dark:bg-surface-900/50 border border-surface-100 dark:border-surface-500/40 group text-xs">
 				<Button
 					type="button"
 					variant="ghost"
@@ -85,7 +85,7 @@
 					aria-label={todo.done ? `Mark "${todo.text}" as open` : `Mark "${todo.text}" as done`}
 				>
 					<iconify-icon icon={todo.done ? 'mdi:check-circle' : 'mdi:checkbox-blank-circle-outline'} width="16" class={todo.done ? 'text-success-500' : 'text-surface-400'}></iconify-icon>
-					<span class={todo.done ? 'line-through text-surface-400' : 'text-surface-700 dark:text-surface-200 font-medium'}>{todo.text}</span>
+					<span class={todo.done ? 'line-through text-surface-400' : 'text-surface-600 dark:text-surface-400 font-medium'}>{todo.text}</span>
 				</Button>
 				<Button
 					type="button"

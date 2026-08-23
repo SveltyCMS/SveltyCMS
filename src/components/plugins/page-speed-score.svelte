@@ -41,12 +41,12 @@ Features:
 			return 'bg-surface-200 dark:bg-surface-700';
 		}
 		if (score >= 90) {
-			return 'bg-success-100 dark:bg-success-900/30';
+			return 'bg-success-500/10 dark:bg-success-900/20';
 		}
 		if (score >= 50) {
-			return 'bg-warning-100 dark:bg-warning-900/30';
+			return 'bg-warning-500/10 dark:bg-warning-900/20';
 		}
-		return 'bg-error-100 dark:bg-error-900/30';
+		return 'bg-error-500/10 dark:bg-error-900/20';
 	});
 
 	const scoreLabel = $derived.by(() => {

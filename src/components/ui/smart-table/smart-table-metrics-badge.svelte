@@ -57,7 +57,7 @@ Visible when `?debug=table` or `forceShow` is true.
 
 {#if show && summary && summary.count > 0}
 	<div
-		class="inline-flex items-center gap-2 rounded-md border border-surface-200 bg-surface-50 px-2 py-1 font-mono text-[10px] text-surface-600 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300"
+		class="inline-flex items-center gap-2 rounded-md border border-surface-500/30 bg-surface-500/10 px-2 py-1 font-mono text-[10px] text-surface-600 dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-400"
 		role="status"
 		aria-label="Table query metrics"
 		title="List query metrics (server samples; add ?debug=table)"

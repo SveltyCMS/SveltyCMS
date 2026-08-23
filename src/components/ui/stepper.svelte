@@ -101,7 +101,7 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 			if (current) return "bg-error-500 text-white shadow-xl";
 			return orientation === "vertical"
 				? "bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600"
-				: "bg-surface-200 text-surface-500 dark:bg-surface-100 dark:text-surface-50";
+				: "bg-surface-200 text-surface-500 dark:bg-surface-500/10 dark:text-surface-50";
 		}
 		if (done) return "bg-success-500 text-white";
 		if (current) return "bg-tertiary-500 dark:bg-primary-500 text-white shadow-lg scale-110";
@@ -170,7 +170,7 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 					{clickable
 						? variant === 'setup' && orientation === 'vertical'
 							? 'hover:bg-slate-50 dark:hover:bg-slate-800/70 cursor-pointer'
-							: 'hover:bg-surface-100 dark:hover:bg-surface-800 cursor-pointer'
+							: 'hover:bg-surface-500/10 dark:hover:bg-surface-800 cursor-pointer'
 						: 'cursor-not-allowed opacity-50'}"
 				onclick={() => clickable && onStepClick(i)}
 				disabled={!clickable}
@@ -224,7 +224,7 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 			{#if showLines && i < steps.length - 1}
 				{#if orientation === 'vertical'}
 					<div
-						class="pointer-events-none absolute -z-0 w-0.5
+						class="pointer-events-none absolute z-0 w-0.5
 							{variant === 'setup'
 							? 'inset-s-[1.65rem] top-14 h-[calc(100%-3.5rem)]'
 							: 'inset-s-7 top-11 h-6'}

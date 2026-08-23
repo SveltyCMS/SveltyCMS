@@ -47,7 +47,7 @@ Renders: "Option Two" (looks up label from field.options)
 
 <div>
 	{#if field.ledgent}
-		<div class="mb-1 text-base font-normal text-surface-700">{field.ledgent}</div>
+		<div class="mb-1 text-base font-normal text-surface-600">{field.ledgent}</div>
 	{/if}
 	<span>{displayLabel}</span>
 </div>

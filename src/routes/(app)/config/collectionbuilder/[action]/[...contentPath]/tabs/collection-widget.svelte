@@ -397,12 +397,12 @@ const remoteFiltered = $derived(
 >
 	<!-- ═══ LEFT: Field canvas ═══ -->
 	<div
-		class="flex min-h-0 min-w-0 flex-1 flex-col border-surface-200 dark:border-surface-700 lg:border-e"
+		class="flex min-h-0 min-w-0 flex-1 flex-col border-surface-500/30 dark:border-surface-500/40 lg:border-e"
 	>
 		<div
-			class="flex shrink-0 flex-wrap items-center gap-3 border-b border-surface-200 bg-surface-50 px-4 py-3 dark:border-surface-700 dark:bg-surface-900 sm:px-6"
+			class="flex shrink-0 flex-wrap items-center gap-3 border-b border-surface-500/30 bg-surface-500/10 px-4 py-3 dark:border-surface-500/40 dark:bg-surface-900 sm:px-6"
 		>
-			<div class="flex items-center gap-2 text-sm font-semibold text-surface-700 dark:text-surface-300">
+			<div class="flex items-center gap-2 text-sm font-semibold text-surface-600 dark:text-surface-400">
 				<iconify-icon icon="mdi:widgets" width="20" class="text-primary-500"></iconify-icon>
 				<span
 					>{items.length}
@@ -431,7 +431,7 @@ const remoteFiltered = $derived(
 					container: "widget-fields",
 					callbacks: { onDrop: handleFieldDrop },
 					direction: "vertical",
-					attributes: { dragOverClass: "ring-2 ring-primary-500/40 bg-primary-500/5" },
+					attributes: { dragOverClass: "ring-2 ring-primary-500/40 bg-primary-500/10" },
 				}}
 				class="mx-auto min-h-50 max-w-4xl space-y-3 rounded-xl p-1"
 				data-testid="widget-fields-list"
@@ -470,7 +470,7 @@ const remoteFiltered = $derived(
 							</div>
 
 							<div
-								class="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-surface-200 bg-surface-100 dark:border-surface-700 dark:bg-surface-900"
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900"
 							>
 								<iconify-icon
 									icon={item.icon ||
@@ -502,7 +502,7 @@ const remoteFiltered = $derived(
 								</div>
 								<div class="flex flex-wrap items-center gap-3">
 									<code
-										class="truncate rounded bg-surface-100 px-1 text-[10px] text-surface-400 dark:bg-surface-900 dark:text-surface-50"
+										class="truncate rounded bg-surface-500/10 px-1 text-[10px] text-surface-400 dark:bg-surface-900 dark:text-surface-50"
 									>
 										{item.db_fieldName || "unnamed_field"}
 									</code>
@@ -565,7 +565,7 @@ const remoteFiltered = $derived(
 
 				{#if items.length === 0}
 					<div
-						class="flex h-56 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-surface-200 bg-surface-50/30 text-surface-400 dark:border-surface-700 dark:bg-surface-900/10 dark:text-surface-50"
+						class="flex h-56 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-surface-500/30 bg-surface-500/30 text-surface-400 dark:border-surface-500/40 dark:bg-surface-900/10 dark:text-surface-50"
 					>
 						<iconify-icon icon="mdi:widgets-outline" width="48" class="mb-3 opacity-20"
 						></iconify-icon>
@@ -581,10 +581,10 @@ const remoteFiltered = $derived(
 
 	<!-- ═══ RIGHT: Palette ═══ -->
 	<aside
-		class="flex w-full shrink-0 flex-col border-t border-surface-200 bg-surface-50/80 dark:border-surface-700 dark:bg-surface-900/50 lg:w-80 lg:border-t-0 xl:w-96"
+		class="flex w-full shrink-0 flex-col border-t border-surface-500/30 bg-surface-500/80 dark:border-surface-500/40 dark:bg-surface-900/50 lg:w-80 lg:border-t-0 xl:w-96"
 		data-testid="widget-palette"
 	>
-		<div class="shrink-0 space-y-3 border-b border-surface-200 p-4 dark:border-surface-700">
+		<div class="shrink-0 space-y-3 border-b border-surface-500/30 p-4 dark:border-surface-500/40">
 			<h3
 				class="flex items-center gap-2 text-sm font-bold tracking-wider text-surface-500 uppercase dark:text-surface-400"
 			>
@@ -624,15 +624,15 @@ const remoteFiltered = $derived(
 									onclick={() => addSidebarWidget(w.key)}
 									data-testid={`quick-add-${w.key.toLowerCase()}`}
 									aria-label={`Add ${w.label} widget`}
-									class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-200 bg-white p-3 text-center transition-all hover:border-primary-500 hover:bg-primary-50 dark:border-surface-700 dark:bg-surface-800 dark:hover:bg-primary-900/20 {tone === 'market' ? 'hover:border-warning-500' : ''}"
+									class="group flex flex-col items-center justify-center gap-2 rounded-lg border border-surface-500/30 bg-white p-3 text-center transition-all hover:border-primary-500 hover:bg-primary-500/10 dark:border-surface-500/40 dark:bg-surface-800 dark:hover:bg-primary-900/20 {tone === 'market' ? 'hover:border-warning-500' : ''}"
 								>
 									<div
-										class="flex h-9 w-9 items-center justify-center rounded bg-surface-100 text-surface-500 transition-colors group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 {tone === 'market' ? 'text-warning-500 group-hover:bg-warning-500' : ''}"
+										class="flex h-9 w-9 items-center justify-center rounded bg-surface-500/10 text-surface-500 transition-colors group-hover:bg-primary-500 group-hover:text-white dark:bg-surface-700 {tone === 'market' ? 'text-warning-500 group-hover:bg-warning-500' : ''}"
 									>
 										<iconify-icon icon={w.icon} width="20"></iconify-icon>
 									</div>
 									<span
-										class="text-[11px] leading-tight font-semibold text-surface-700 dark:text-surface-300"
+										class="text-[11px] leading-tight font-semibold text-surface-600 dark:text-surface-400"
 										>{w.label}</span
 									>
 								</button>
@@ -665,7 +665,7 @@ const remoteFiltered = $derived(
 					<div class="space-y-2">
 						{#each remoteFiltered as w (w.id)}
 							<div
-								class="rounded-lg border border-warning-200/60 bg-white p-3 dark:border-warning-800/40 dark:bg-surface-800"
+								class="rounded-lg border border-warning-500/30 bg-white p-3 dark:border-warning-500/40 dark:bg-surface-800"
 							>
 								<div class="flex items-start gap-2">
 									<div
@@ -700,13 +700,13 @@ const remoteFiltered = $derived(
 			</div>
 		</div>
 
-		<div class="shrink-0 space-y-2 border-t border-surface-200 p-3 dark:border-surface-700">
+		<div class="shrink-0 space-y-2 border-t border-surface-500/30 p-3 dark:border-surface-500/40">
 			<a
 				href={MARKETPLACE_BROWSE}
 				target="_blank"
 				rel="noopener noreferrer"
 				data-testid="browse-marketplace-widgets"
-				class="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-warning-300 bg-warning-50 p-3 text-sm font-semibold text-warning-600 transition-colors hover:bg-warning-100 dark:border-warning-700 dark:bg-warning-900/20 dark:text-warning-400 dark:hover:bg-warning-900/40"
+				class="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-warning-500/30 bg-warning-500/10 p-3 text-sm font-semibold text-warning-600 transition-colors hover:bg-warning-500/10 dark:border-warning-500/40 dark:bg-warning-900/20 dark:text-warning-400 dark:hover:bg-warning-900/20"
 			>
 				<iconify-icon icon="mdi:store-outline" width="18"></iconify-icon>
 				Browse Widget Marketplace
@@ -714,7 +714,7 @@ const remoteFiltered = $derived(
 			</a>
 			<a
 				href="/config/extension"
-				class="flex items-center justify-center gap-2 rounded-lg border border-surface-200 p-2 text-xs font-medium text-surface-600 hover:bg-surface-100 dark:border-surface-700 dark:text-surface-300 dark:hover:bg-surface-800"
+				class="flex items-center justify-center gap-2 rounded-lg border border-surface-500/30 p-2 text-xs font-medium text-surface-600 hover:bg-surface-500/10 dark:border-surface-500/40 dark:text-surface-300 dark:hover:bg-surface-800"
 			>
 				<iconify-icon icon="mdi:puzzle-outline" width="16"></iconify-icon>
 				Installed extensions & widgets

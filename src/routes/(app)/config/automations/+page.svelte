@@ -206,7 +206,7 @@ onMount(loadFlows);
 
 	<div data-testid="automations-page" class="contents">
 	<!-- Search & Bulk Actions -->
-	<AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50">
+	<AdminCard class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50">
 		<div class="flex flex-col md:flex-row items-center gap-4">
 			<div class="relative flex-1 w-full">
 				<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-40"></iconify-icon>
@@ -221,7 +221,7 @@ onMount(loadFlows);
 			</div>
 
 			<div class="flex items-center gap-2 w-full md:w-auto">
-				<div class="flex items-center gap-2 px-3 py-2 mr-auto" data-testid="automations-select-all">
+				<div class="flex items-center gap-2 px-3 py-2 me-auto" data-testid="automations-select-all">
 					<Checkbox
 						checked={allSelected ? true : someSelected ? 'indeterminate' : false}
 						onchange={toggleSelectAll}
@@ -249,14 +249,14 @@ onMount(loadFlows);
 	</AdminCard>
 
 	{#if isLoading}
-		<AdminCard class="border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="automations-loading">
+		<AdminCard class="border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="automations-loading">
 			<div class="flex flex-col items-center justify-center gap-4 py-20 grayscale opacity-50">
 				<Loader variant="circle" width="size-16" height="size-16" ariaLabel="Loading automations" />
 				<p>Loading automations...</p>
 			</div>
 		</AdminCard>
 	{:else if flows.length === 0}
-		<AdminCard class="border-2 border-dashed border-surface-300 bg-white p-12 text-center shadow-sm backdrop-blur-md dark:border-surface-700 dark:bg-surface-900/50" data-testid="automations-empty">
+		<AdminCard class="border-2 border-dashed border-surface-500/30 bg-white p-12 text-center shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="automations-empty">
 			<iconify-icon icon="mdi:robot-off-outline" width="64" height="64" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<h3 class="h3 font-bold">No Automations Yet</h3>
 			<p class="mb-2 opacity-60">Create your first automation to start streamlining workflows.</p>
@@ -267,12 +267,12 @@ onMount(loadFlows);
 			</Button>
 		</AdminCard>
 	{:else}
-		<AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="automations-list">
+		<AdminCard class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="automations-list">
 			<div class="grid gap-4">
 				{#each filteredFlows as flow (flow.id)}
 					<div class:opacity-50={!flow.active} transition:slide data-testid={`automation-card-${flow.id}`} data-automation-name={flow.name}>
 					<AdminCard
-						class="flex items-center gap-4 border border-surface-200 bg-surface-100 p-4 transition-all duration-200 hover:border-tertiary-500 dark:border-primary-600 dark:bg-surface-800"
+						class="flex items-center gap-4 border border-surface-500/30 bg-surface-500/10 p-4 transition-all duration-200 hover:border-tertiary-500 dark:border-primary-600 dark:bg-surface-800"
 					>
 						<!-- Checkbox -->
 						<div class="shrink-0">
@@ -288,8 +288,7 @@ onMount(loadFlows);
 							<!-- Icon & Status -->
 							<div class="flex items-center gap-3 flex-1 min-w-0">
 								<div
-									class="shrink-0 w-10 h-10 rounded flex items-center justify-center"
-									class:bg-primary-100={flow.active}
+									class="shrink-0 w-10 h-10 rounded flex items-center justify-center {flow.active ? 'bg-primary-500/10' : ''}"
 									class:dark:bg-primary-900={flow.active}
 									class:bg-surface-200={!flow.active}
 									class:dark:bg-surface-700={!flow.active}
@@ -335,7 +334,7 @@ onMount(loadFlows);
 
 							<!-- Stats & Actions -->
 							<div
-								class="flex items-center gap-4 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-surface-200 dark:border-surface-700"
+								class="flex items-center gap-4 w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-surface-500/30 dark:border-surface-500/40"
 							>
 								<!-- Stats -->
 								<div class="hidden lg:flex items-center gap-4 text-xs opacity-60 me-4">

@@ -263,7 +263,7 @@ $effect(() => {
 
 <div class={cn('relative w-full space-y-1.5', className)}>
 	{#if label}
-		<label for={id} class="block text-sm font-bold text-surface-700 dark:text-surface-300 ms-1">
+		<label for={id} class="block text-sm font-bold text-surface-600 dark:text-surface-400 ms-1">
 			{label}
 		</label>
 	{/if}
@@ -340,7 +340,7 @@ $effect(() => {
 			bind:this={listElement}
 			id={`${id}-listbox`}
 			role="listbox"
-			class="absolute z-50 w-full mt-0 border border-t-0 rounded-b-xl shadow-2xl bg-white dark:bg-surface-800 border-surface-200 dark:border-surface-700 max-h-60 overflow-y-auto"
+			class="absolute z-50 w-full mt-0 border border-t-0 rounded-b-xl shadow-2xl bg-white dark:bg-surface-800 border-surface-500/30 dark:border-surface-500/40 max-h-60 overflow-y-auto"
 			transition:slide={{ duration: 150 }}
 		>
 			<!-- Loading state -->
@@ -354,7 +354,7 @@ $effect(() => {
 			{:else if groupedOptions && groupBy}
 				{#each groupedOptions as group (group.name)}
 					<div
-						class="px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 bg-surface-50 dark:bg-surface-900/50 border-b border-surface-100 dark:border-surface-800"
+						class="px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 bg-surface-500/10 dark:bg-surface-900/50 border-b border-surface-100 dark:border-surface-500/40"
 						role="presentation"
 					>
 						{group.name}
@@ -371,7 +371,7 @@ $effect(() => {
 							aria-selected={selected}
 							class={cn(
 								"w-full text-start px-4 py-2 flex items-center gap-3 transition-colors",
-								active ? "bg-tertiary-500 dark:bg-primary-500/10" : "hover:bg-surface-100 dark:hover:bg-surface-700/50",
+								active ? "bg-tertiary-500 dark:bg-primary-500/10" : "hover:bg-surface-500/10 dark:hover:bg-surface-700/50",
 								selected && "text-tertiary-500 dark:text-primary-500 font-bold",
 								opt.disabled && "opacity-50 cursor-not-allowed"
 							)}
@@ -406,7 +406,7 @@ $effect(() => {
 						aria-selected={selected}
 						class={cn(
 							"w-full text-start px-4 py-2 flex items-center gap-3 transition-colors",
-							active ? "bg-tertiary-500 dark:bg-primary-500/10" : "hover:bg-surface-100 dark:hover:bg-surface-700/50",
+							active ? "bg-tertiary-500 dark:bg-primary-500/10" : "hover:bg-surface-500/10 dark:hover:bg-surface-700/50",
 							selected && "text-tertiary-500 dark:text-primary-500 font-bold",
 							opt.disabled && "opacity-50 cursor-not-allowed"
 						)}
@@ -439,7 +439,7 @@ $effect(() => {
 
 			<!-- Loading with existing results -->
 			{#if loading && filteredOptions.length > 0}
-				<div class="border-t border-surface-100 dark:border-surface-700 px-4 py-2 flex items-center justify-center text-surface-400">
+				<div class="border-t border-surface-100 dark:border-surface-500/40 px-4 py-2 flex items-center justify-center text-surface-400">
 					<iconify-icon icon="mdi:loading" width="16" class="animate-spin"></iconify-icon>
 				</div>
 			{/if}

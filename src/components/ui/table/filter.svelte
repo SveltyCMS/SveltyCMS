@@ -68,7 +68,7 @@ const densityIcon = $derived.by(() => {
 });
 </script>
 
-<div class="flex items-center justify-between gap-4 p-4 border-b border-surface-200 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-900/50">
+<div class="flex items-center justify-between gap-4 p-4 border-b border-surface-500/30 dark:border-surface-500/40 bg-surface-500/50 dark:bg-surface-900/50">
     <div class="flex-1 flex items-center gap-2 max-w-md">
         {#if showSearch}
             <div class="relative w-full group">
@@ -82,7 +82,7 @@ const densityIcon = $derived.by(() => {
                     bind:value={search}
                     oninput={onfilter}
                     placeholder="Search records..."
-                    class="w-full bg-white border border-surface-200  rounded py-2 ps-10 pe-4 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 outline-none transition-all shadow-xs"
+                    class="w-full bg-white border border-surface-500/30  rounded py-2 ps-10 pe-4 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 outline-none transition-all shadow-xs"
                 />
                 {#if search}
                     <button

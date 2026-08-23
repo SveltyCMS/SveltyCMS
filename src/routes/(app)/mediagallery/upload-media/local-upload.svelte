@@ -358,7 +358,7 @@ async function uploadLocalFiles() {
 		ondrop={handleFileDrop}
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
-		class="mt-2 flex h-50 w-full max-w-full select-none flex-col items-center justify-center gap-4 overflow-x-auto rounded border-2 border-dashed border-surface-600 bg-secondary-50 px-2 sm:flex-row dark:border-surface-500 dark:bg-surface-700"
+		class="mt-2 flex h-50 w-full max-w-full select-none flex-col items-center justify-center gap-4 overflow-x-auto rounded border-2 border-dashed border-surface-600 bg-secondary-500/10 px-2 sm:flex-row dark:border-surface-500 dark:bg-surface-700"
 		role="region"
 		aria-label="File drop zone"
 	>
@@ -410,7 +410,7 @@ async function uploadLocalFiles() {
 				{const previewUrl = objectUrls.get(fileKey)}
 				{const iconName = getFileIcon(file)}
 
-				<div class="group relative overflow-hidden rounded border border-surface-200 shadow-sm transition-all hover:shadow-md dark:border-surface-50">
+				<div class="group relative overflow-hidden rounded border border-surface-500/30 shadow-sm transition-all hover:shadow-md dark:border-surface-50">
 					<!-- Delete button -->
 					<div class="absolute inset-e-1 top-1 z-10 flex cursor-pointer shadow-sm">
 						<SystemTooltip title="Remove file" positioning={{ placement: 'top' }}>
@@ -444,14 +444,14 @@ async function uploadLocalFiles() {
 					<div class="flex grow items-center justify-between p-1 text-white font-bold">
 						<!-- Type -->
 						<SystemTooltip title={file.type} positioning={{ placement: 'top' }}>
-							<div class="bg-tertiary-500 dark:bg-primary-500/50 badge flex items-center gap-1 overflow-hidden">
+							<div class="bg-tertiary-500 dark:bg-primary-500/50 rounded-full px-2.5 py-0.5 font-bold uppercase tracking-wider flex items-center gap-1 overflow-hidden">
 								<iconify-icon icon={iconName} width="12"></iconify-icon>
 								<span class="truncate text-[10px] uppercase">{formatMimeType(file.type)}</span>
 							</div>
 						</SystemTooltip>
 						<!-- Size -->
 						<SystemTooltip title="Size" positioning={{ placement: 'top' }}>
-							<p class="bg-tertiary-500 dark:bg-primary-500/50 badge flex shrink-0 items-center gap-1 text-[10px]">
+							<p class="bg-tertiary-500 dark:bg-primary-500/50 rounded-full px-2.5 py-0.5 font-bold uppercase tracking-wider flex shrink-0 items-center gap-1 text-[10px]">
 								<span class="">{(file.size / 1024).toFixed(2)}</span>
 								KB
 							</p>
@@ -471,7 +471,7 @@ async function uploadLocalFiles() {
 		<input bind:this={input} type="file" class="hidden" multiple onchange={onChange}  aria-label="Input" />
 
 		<!-- Actions Footer -->
-		<div class="flex items-center justify-between border-t border-surface-200 pt-4 dark:border-surface-700">
+		<div class="flex items-center justify-between border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
 			<Button variant="outline" type="button" onclick={handleCancel}>Cancel</Button>
 			<Button variant="tertiary" type="button" onclick={uploadLocalFiles} disabled={isUploading} class="dark:">
 				{#if isUploading}
@@ -488,7 +488,7 @@ async function uploadLocalFiles() {
 
 	<!-- Upload Progress Overlay (Optional, or keep inline in button) -->
 	{#if isUploading}
-		<div class="mt-4 w-full overflow-x-auto rounded border border-surface-400 bg-surface-100 p-4 dark:bg-surface-700">
+		<div class="mt-4 w-full overflow-x-auto rounded border border-surface-500 bg-surface-500/10 p-4 dark:bg-surface-700">
 		<!-- Progress Bar -->
 		<div
 			class="mb-2 h-2 w-full overflow-hidden rounded-full bg-surface-300 dark:bg-surface-600"

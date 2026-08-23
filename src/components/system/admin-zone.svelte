@@ -59,7 +59,7 @@ pathname, collection, isAdmin).
 	{#each entries as entry (entry.id)}
 		<div class={inline ? 'contents' : 'admin-zone-item'}>
 		{#await componentLoader(entry)}
-				<div class="h-16 w-full animate-pulse rounded bg-surface-100 dark:bg-surface-800"></div>
+				<div class="h-16 w-full animate-pulse rounded bg-surface-500/10 dark:bg-surface-800"></div>
 			{:then Component}
 				{#if "default" in Component}
 					<Component.default {...entry.props} {...context} />
@@ -67,7 +67,7 @@ pathname, collection, isAdmin).
 					<Component {...entry.props} {...context} />
 				{/if}
 			{:catch error}
-				<div class="rounded border border-error-500/50 bg-error-50 p-2 text-xs text-error-600 dark:bg-error-900/10 dark:text-error-500">
+				<div class="rounded border border-error-500/50 bg-error-500/10 p-2 text-xs text-error-600 dark:bg-error-900/10 dark:text-error-500">
 					<strong>Zone Error ({entry.id}):</strong> {error.message}
 				</div>
 			{/await}

@@ -53,9 +53,9 @@ Interactive level configuration with add/remove level capabilities
 </script>
 
 <div class="space-y-6">
-	<div class="border-b border-surface-200 pb-4 dark:text-surface-50">
+	<div class="border-b border-surface-500/30 pb-4 dark:text-surface-50">
 		<h3 class="mb-2 text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure Configuration</h3>
-		<p class="text-sm leading-relaxed text-surface-600 dark:text-surface-300">
+		<p class="text-sm leading-relaxed text-surface-600 dark:text-surface-400">
 			Define the fields available at each level of your hierarchical menu. Each level can have different widgets and configurations.
 		</p>
 	</div>
@@ -63,23 +63,23 @@ Interactive level configuration with add/remove level capabilities
 	<div class="levels-container space-y-4">
 		{#each value as levelFields, levelIndex (levelIndex)}
 			<div
-				class="level-card rounded border border-surface-200 bg-surface-50/50 dark:text-surface-50 dark:bg-surface-800/50 {levelIndex === 0
-					? 'border-primary-200! bg-primary-50/30! dark:border-primary-700! dark:bg-primary-900/20!'
+				class="level-card rounded border border-surface-500/30 bg-surface-500/50 dark:text-surface-50 dark:bg-surface-800/50 {levelIndex === 0
+					? 'border-primary-500/30! bg-primary-500/30! dark:border-primary-500/40! dark:bg-primary-900/20!'
 					: ''}"
 			>
 				<div
-					class="level-header flex items-center justify-between border-b border-surface-200 bg-surface-100/50 p-4 dark:text-surface-50 dark:bg-surface-800"
+					class="level-header flex items-center justify-between border-b border-surface-500/30 bg-surface-500/10 p-4 dark:text-surface-50 dark:bg-surface-800"
 				>
 					<div class="level-info flex items-center gap-3">
-						<h4 class="level-title text-base font-medium text-surface-800 dark:text-surface-100">Level {levelIndex + 1}</h4>
+						<h4 class="level-title text-base font-medium text-surface-600 dark:text-surface-100">Level {levelIndex + 1}</h4>
 						{#if levelIndex === 0}
 							<span
-								class="level-badge rounded-full bg-primary-100 px-2 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900 dark:text-primary-200"
+								class="level-badge rounded-full bg-primary-500/10 px-2 py-1 text-xs font-medium text-primary-600 dark:bg-primary-900 dark:text-primary-400"
 								>Root Level</span
 							>
 						{:else}
 							<span
-								class="level-badge rounded-full bg-secondary-100 px-2 py-1 text-xs font-medium text-secondary-700 dark:bg-secondary-900 dark:text-secondary-200"
+								class="level-badge rounded-full bg-secondary-500/10 px-2 py-1 text-xs font-medium text-secondary-600 dark:bg-secondary-900 dark:text-secondary-400"
 								>Nested Level</span
 							>
 						{/if}
@@ -99,7 +99,7 @@ Interactive level configuration with add/remove level capabilities
 
 				<div class="space-y-4 p-4">
 					<div class="space-y-3">
-						<label class="block text-sm font-medium text-surface-700 dark:text-surface-200" for={'widget-builder-' + levelIndex}>
+						<label class="block text-sm font-medium text-surface-600 dark:text-surface-400" for={'widget-builder-' + levelIndex}>
 							Fields for Level {levelIndex + 1}
 							<span class="field-count font-normal text-surface-500 dark:text-surface-50"
 								>({levelFields.length}
@@ -112,10 +112,10 @@ Interactive level configuration with add/remove level capabilities
 
 					{#if levelFields.length === 0}
 						<div
-							class="empty-fields-notice flex flex-col items-center gap-2 rounded border-2 border-dashed border-surface-300 bg-surface-100/50 p-6 text-center dark:border-surface-600 dark:bg-surface-800/50"
+							class="empty-fields-notice flex flex-col items-center gap-2 rounded border-2 border-dashed border-surface-500/30 bg-surface-500/10 p-6 text-center dark:border-surface-600 dark:bg-surface-800/50"
 						>
 							<iconify-icon icon="mdi:information" width="24" class="text-surface-400"></iconify-icon>
-							<span class="text-sm font-medium text-surface-600 dark:text-surface-300">No fields configured for this level yet.</span>
+							<span class="text-sm font-medium text-surface-600 dark:text-surface-400">No fields configured for this level yet.</span>
 							<span class="text-xs text-surface-500 dark:text-surface-50">Use the Widget Builder above to add fields.</span>
 						</div>
 					{/if}
@@ -124,7 +124,7 @@ Interactive level configuration with add/remove level capabilities
 		{/each}
 	</div>
 
-	<div class=" border-t border-surface-200 pt-4 dark:text-surface-50">
+	<div class=" border-t border-surface-500/30 pt-4 dark:text-surface-50">
 		<Button variant="tertiary" type="button" onclick={addLevel} class="dark:">
 			<iconify-icon icon="mdi:plus" width="24"></iconify-icon>
 			Add Menu Level

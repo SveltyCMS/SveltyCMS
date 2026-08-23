@@ -357,7 +357,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 <div class="relative flex items-center" bind:this={dropdownRef}>
 	<div
-		class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 {!isDisabled ? 'active:scale-95' : ''} rounded-l-full rounded-r-md border border-white/20 {isDropdownOpen ? 'ring-2 ring-primary-500/50' : ''}"
+		class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 {!isDisabled ? 'active:scale-95' : ''} rounded-s-full rounded-e-md border border-white/20 {isDropdownOpen ? 'ring-2 ring-primary-500/50' : ''}"
 		role="group"
 	>
 		<!-- Main Action Button -->
@@ -367,7 +367,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			disabled={isDisabled || disabledMap[listboxValue]}
 			aria-label="Execute {actionConfig[listboxValue].label} action"
 			title="Execute {actionConfig[listboxValue].label} action"
-			class="h-10 min-w-30 font-bold transition-all duration-200 {!isDisabled && !disabledMap[listboxValue] ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'} {actionConfig[listboxValue].buttonClass} text-white rounded-l-full rounded-r-none px-6 flex items-center justify-center gap-2 border-e border-white/20"
+			class="h-10 min-w-30 font-bold transition-all duration-200 {!isDisabled && !disabledMap[listboxValue] ? 'active:scale-95' : 'pointer-events-none opacity-50 grayscale'} {actionConfig[listboxValue].buttonClass} text-white rounded-s-full rounded-e-none px-6 flex items-center justify-center gap-2 border-e border-white/20"
 		>
 			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="20"></iconify-icon>
 			<span class="uppercase tracking-wider">{actionConfig[listboxValue].label}</span>
@@ -386,7 +386,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			aria-expanded={isDropdownOpen}
 			aria-label="Toggle bulk actions menu"
 			title="Select action"
-			class="h-10 w-10 transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-r-md {!isDisabled ? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer' : 'opacity-50 pointer-events-none'}"
+			class="h-10 w-10 transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-e-md {!isDisabled ? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer' : 'opacity-50 pointer-events-none'}"
 		>
 			<iconify-icon icon="mdi:chevron-down" width={24}></iconify-icon>
 		</button>

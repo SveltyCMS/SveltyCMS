@@ -126,7 +126,7 @@ aspect-preview plugin and Drupal's focal point preview.
 	>
 		{#each ratios as ratio (ratioKey(ratio))}
 			<div
-				class="flex flex-col overflow-hidden rounded-lg border border-surface-200 bg-surface-50 shadow-sm transition-shadow hover:shadow-md dark:border-surface-700 dark:bg-surface-800"
+				class="flex flex-col overflow-hidden rounded-lg border border-surface-500/30 bg-surface-500/10 shadow-sm transition-shadow hover:shadow-md dark:border-surface-500/40 dark:bg-surface-800"
 				role="listitem"
 			>
 				<!-- Preview container -->
@@ -176,14 +176,14 @@ aspect-preview plugin and Drupal's focal point preview.
 				</div>
 
 				<!-- Ratio label -->
-				<div class="px-2 py-1.5 text-center text-xs font-semibold text-surface-600 dark:text-surface-300">
+				<div class="px-2 py-1.5 text-center text-xs font-semibold text-surface-600 dark:text-surface-400">
 					{ratio.label}
 				</div>
 			</div>
 		{/each}
 	</div>
 {:else}
-	<div class="flex items-center justify-center rounded-lg border-2 border-dashed border-surface-300 p-8 dark:border-surface-600">
+	<div class="flex items-center justify-center rounded-lg border-2 border-dashed border-surface-500/30 p-8 dark:border-surface-600">
 		<p class="text-sm text-surface-500 dark:text-surface-400">No image to preview</p>
 	</div>
 {/if}

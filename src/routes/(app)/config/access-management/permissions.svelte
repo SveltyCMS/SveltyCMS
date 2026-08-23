@@ -272,16 +272,16 @@ const toggleAllForRole = (roleId: string, checked: boolean) => {
 function getActionBadgeClass(action: string) {
 	switch (action.toLowerCase()) {
 		case 'read':
-			return 'bg-blue-500/15 text-blue-600 dark:text-blue-400';
+			return 'bg-tertiary-500/10 text-tertiary-600 dark:text-tertiary-400';
 		case 'create':
 		case 'write':
-			return 'bg-success-500/15 text-tertiary-600 dark:text-primary-600 dark:text-primary-500';
+			return 'bg-success-500/10 text-tertiary-600 dark:text-primary-600 dark:text-primary-500';
 		case 'delete':
-			return 'bg-error-500/15 text-error-600 dark:text-error-500';
+			return 'bg-error-500/10 text-error-600 dark:text-error-500';
 		case 'manage':
-			return 'bg-tertiary-500/15 text-tertiary-600 dark:text-tertiary-400';
+			return 'bg-tertiary-500/10 text-tertiary-600 dark:text-tertiary-400';
 		default:
-			return 'bg-surface-500/15 text-surface-600 dark:text-surface-400';
+			return 'bg-surface-500/10 text-surface-600 dark:text-surface-400';
 	}
 }
 </script>
@@ -301,30 +301,30 @@ function getActionBadgeClass(action: string) {
 			</div>
 			<input type="text" aria-label="Search permissions" placeholder="Search Permissions..."
 				bind:value={searchTerm}
-				class="w-full ps-11 pe-4 py-2.5 rounded border border-surface-200  bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
+				class="w-full ps-11 pe-4 py-2.5 rounded border border-surface-500/30  bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
 				/>
 		</div>
 	</div>
 
 	{#if filteredPermissions.length === 0}
-		<div class="text-center py-8 border border-dashed border-surface-200 dark:border-surface-800 rounded bg-surface-50 dark:bg-surface-900">
+		<div class="text-center py-8 border border-dashed border-surface-500/30 dark:border-surface-500/40 rounded bg-surface-500/10 dark:bg-surface-900">
 			<iconify-icon icon="material-symbols:search-off-rounded" width="32" class="text-surface-400 mb-2"></iconify-icon>
 			<p class="text-surface-500 dark:text-surface-400 text-sm">{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}</p>
 		</div>
 	{:else}
 		<!-- Admin Notice -->
 		{#if adminRole}
-			<div class="mb-4 flex items-center justify-center gap-1.5 text-xs text-surface-500 dark:text-surface-400 bg-surface-50 dark:bg-surface-900/30 border border-surface-200/60 dark:border-surface-800/55 py-2 px-4 rounded w-max mx-auto shadow-xs">
+			<div class="mb-4 flex items-center justify-center gap-1.5 text-xs text-surface-500 dark:text-surface-400 bg-surface-500/10 dark:bg-surface-900/20 border border-surface-500/30 dark:border-surface-500/40 py-2 px-4 rounded w-max mx-auto shadow-xs">
 				<span class="font-extrabold text-error-500">*</span>
 				<span><span class="font-semibold text-tertiary-600 dark:text-primary-600">{adminRole.name}</span> Role has all permissions by default.</span>
 			</div>
 		{/if}
-		<div class="permission overflow-x-auto rounded border border-surface-200 dark:border-surface-800/80 shadow-sm bg-white dark:bg-surface-900">
+		<div class="permission overflow-x-auto rounded border border-surface-500/30 dark:border-surface-500/40 shadow-sm bg-white dark:bg-surface-900">
 			<table class="w-full text-start border-collapse table-auto">
 				<!-- Header -->
-				<thead class="bg-surface-50 dark:bg-surface-950 border-b border-surface-200 dark:border-surface-800/80">
+				<thead class="bg-surface-500/10 dark:bg-surface-500/10 border-b border-surface-500/30 dark:border-surface-500/40">
 					<tr>
-						<th class="px-5 py-4 font-semibold text-surface-700 dark:text-surface-300 w-2/5" aria-sort={sortBy === 'name' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}>
+						<th class="px-5 py-4 font-semibold text-surface-600 dark:text-surface-400 w-2/5" aria-sort={sortBy === 'name' ? (sortOrder === 1 ? 'ascending' : 'descending') : 'none'}>
 							<button
 								class="flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 hover:text-tertiary-500  dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
 								onclick={() => handleSort('name')}
@@ -370,13 +370,13 @@ function getActionBadgeClass(action: string) {
 										<span class="text-xs font-semibold tracking-wider uppercase text-surface-600 dark:text-surface-400">{role.name}</span>
 										<div class="flex items-center gap-1.5 mt-0.5">
 											<input type="checkbox" aria-label={`Select all filtered permissions for ${role.name}`} title={`Select/Deselect all filtered permissions for ${role.name}`}
-												class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all"
+												class="h-4 w-4 rounded-sm border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all"
 												checked={headerState.checked}
 												indeterminate={headerState.indeterminate}
 												onchange={(e) => toggleAllForRole(role._id, e.currentTarget.checked)}
 											/>
 											<button
-												class="flex items-center justify-center p-0.5 rounded-sm border border-surface-200 dark:border-surface-700/60 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
+												class="flex items-center justify-center p-0.5 rounded-sm border border-surface-500/30 dark:border-surface-500/40 hover:bg-surface-500/10 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
 												onclick={() => toggleAllForRole(role._id, true)}
 												title="Assign role to all filtered permissions"
 												aria-label={`Assign ${role.name} to all filtered permissions`}
@@ -395,19 +395,19 @@ function getActionBadgeClass(action: string) {
 					{#each groups as group (group)}
 						{#if filterGroups(filteredPermissions, group).length > 0}
 							<!-- Group Name -->
-							<tr class="bg-surface-50/70 dark:bg-surface-900/40">
+							<tr class="bg-surface-500/70 dark:bg-surface-900/20">
 								<td
 									colspan={nonAdminRolesCount + 2}
-									class="px-5 py-2.5 font-bold text-xs tracking-wider uppercase text-surface-500 dark:text-surface-400 border-y border-surface-200/60 dark:border-surface-800/60"
+									class="px-5 py-2.5 font-bold text-xs tracking-wider uppercase text-surface-500 dark:text-surface-400 border-y border-surface-500/30 dark:border-surface-500/40"
 								>
 									{group}
 								</td>
 							</tr>
 							<!-- Permissions within the Group -->
 							{#each filterGroups(filteredPermissions, group) as permission (permission._id)}
-								<tr class="hover:bg-surface-50/40 dark:hover:bg-surface-850/40 transition-colors">
+								<tr class="hover:bg-surface-500/40 dark:hover:bg-surface-850/40 transition-colors">
 									<!-- Type -->
-									<td class="px-5 py-3 text-sm text-surface-700 dark:text-surface-300 font-medium">{permission.name}</td>
+									<td class="px-5 py-3 text-sm text-surface-600 dark:text-surface-400 font-medium">{permission.name}</td>
 									<!-- Action -->
 									<td class="px-5 py-3 text-center">
 										<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider {getActionBadgeClass(permission.action)}">
@@ -421,7 +421,7 @@ function getActionBadgeClass(action: string) {
 												<input type="checkbox" aria-label={`Toggle ${role.name} for ${permission.name || permission._id}`}
 													checked={role.permissions.some((p) => String(p) === String(permission._id))}
 													onchange={() => toggleRole(permission._id, role._id)}
-													class="h-4 w-4 rounded-sm border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all mx-auto"
+													class="h-4 w-4 rounded-sm border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all mx-auto"
 												/>
 											</td>
 										{/if}

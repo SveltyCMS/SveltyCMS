@@ -90,7 +90,7 @@ const availableTransitions = $derived.by(() => {
 </script>
 
 {#if !loading && workflow}
-    <AdminCard class="p-4 border border-surface-200 dark:border-surface-800 shadow-sm space-y-4">
+    <AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 shadow-sm space-y-4">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <iconify-icon icon="mdi:state-machine" class="text-tertiary-500 dark:text-primary-500 text-xl"></iconify-icon>
@@ -107,7 +107,7 @@ const availableTransitions = $derived.by(() => {
         </div>
 
         {#if !instance}
-             <div class="p-4 rounded bg-surface-50 dark:bg-surface-950 text-center border-2 border-dashed border-surface-200 dark:border-surface-800">
+             <div class="p-4 rounded bg-surface-500/10 dark:bg-surface-500/10 text-center border-2 border-dashed border-surface-500/30 dark:border-surface-500/40">
                 <p class="text-xs italic opacity-40 mb-2">No active workflow instance for this entry.</p>
                 <Button variant="tertiary" onclick={() => triggerTransition(workflow?.states.find(s => s.isInitial)?.id || '')} size="sm" class="dark:">
                                     Start Workflow
@@ -132,12 +132,12 @@ const availableTransitions = $derived.by(() => {
                 </div>
 
                 {#if showComment}
-                    <div class="space-y-3 pt-3 border-t border-surface-200 dark:border-surface-800" transition:slide>
+                    <div class="space-y-3 pt-3 border-t border-surface-500/30 dark:border-surface-500/40" transition:slide>
                         <Textarea
                             bind:value={comment}
                             label="Workflow note"
                             placeholder="Add a comment (optional)..."
-                            class="text-xs bg-surface-50 dark:bg-surface-950 border-none rounded focus:ring-primary-500"
+                            class="text-xs bg-surface-500/10 dark:bg-surface-500/10 border-none rounded focus:ring-primary-500"
                             rows={2}
                         ></Textarea>
                         <div class="flex justify-end gap-2">
@@ -150,7 +150,7 @@ const availableTransitions = $derived.by(() => {
 
             <!-- History Summary -->
             {#if instance && instance.history.length > 0}
-                <div class="pt-2 border-t border-surface-200 dark:border-surface-800">
+                <div class="pt-2 border-t border-surface-500/30 dark:border-surface-500/40">
                     <p class="text-[10px] font-bold opacity-30 uppercase mb-2">Recent History</p>
                     <div class="space-y-2">
                         {#if instance && instance.history}

@@ -23,6 +23,7 @@ import { showConfirm } from "@utils/modal.svelte";
 import { onMount, tick, untrack } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
 import Alert from "@components/ui/alert.svelte";
+import Badge from "@components/ui/badge.svelte";
 import Checkbox from "@components/ui/checkbox.svelte";
 import Input from "@components/ui/input.svelte";
 import Select from "@components/ui/select.svelte";
@@ -691,7 +692,7 @@ onMount(() => {
 			<span class=" me-2">{group.icon}</span>
 			{group.name}
 		</h2>
-		<p class="text-sm text-surface-600 dark:text-surface-300">{group.description}</p>
+		<p class="text-sm text-surface-600 dark:text-surface-400">{group.description}</p>
 	</div>
 
 
@@ -738,7 +739,7 @@ onMount(() => {
 			{#if group.id === 'languages'}
 				<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<!-- Left Column: Default Content Language + Available Content Languages -->
-					<div class="space-y-3 rounded border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+					<div class="space-y-3 rounded border border-slate-300/50 bg-surface-500/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 						{#if defaultLangField}
 							<div>
 								<label for={defaultLangField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -788,14 +789,16 @@ onMount(() => {
 								<div class="relative">
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[availableLangsField.key]
-											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
+											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
+											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[availableLangsField.key] as string[])?.length > 0}
 											{const languages = values[availableLangsField.key] as string[]}
 											{#each languages as langCode (langCode)}
-												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+												<Badge
+													variant="tertiary"
+													size="lg"
+													class="group hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !availableLangsField.readonly}
@@ -808,7 +811,7 @@ onMount(() => {
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
 													{/if}
-												</span>
+												</Badge>
 											{/each}
 										{:else if availableLangsField.placeholder}
 											<span class="text-surface-500 dark:text-surface-50 text-xs">{availableLangsField.placeholder}</span>
@@ -835,7 +838,7 @@ onMount(() => {
 									{#if showLanguagePicker[availableLangsField.key]}
 										<div
 											id="{availableLangsField.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -887,7 +890,7 @@ onMount(() => {
 						{/if}
 					</div>
 					<!-- Right Column: Base Locale + Available Locales -->
-					<div class="space-y-3 rounded border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
+					<div class="space-y-3 rounded border border-slate-300/50 bg-surface-500/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 						{#if baseLocaleField}
 							<div>
 								<label for={baseLocaleField.key} class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -937,14 +940,16 @@ onMount(() => {
 								<div class="relative">
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[localesField.key]
-											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
+											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
+											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[localesField.key] as string[])?.length > 0}
 											{const locales = values[localesField.key] as string[]}
 											{#each locales as langCode (langCode)}
-												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+												<Badge
+													variant="tertiary"
+													size="lg"
+													class="group hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !localesField.readonly}
@@ -965,7 +970,7 @@ onMount(() => {
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
 													{/if}
-												</span>
+												</Badge>
 											{/each}
 										{:else if localesField.placeholder}
 											<span class="text-surface-500 dark:text-surface-50 text-xs">{localesField.placeholder}</span>
@@ -992,7 +997,7 @@ onMount(() => {
 									{#if showLanguagePicker[localesField.key]}
 										<div
 											id="{localesField.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -1187,14 +1192,16 @@ onMount(() => {
 								<div class="relative">
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[field.key]
-											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
+											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
+											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as string[])?.length > 0}
 											{const languages = values[field.key] as string[]}
 											{#each languages as langCode (langCode)}
-												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors"
+												<Badge
+													variant="tertiary"
+													size="lg"
+													class="group hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600"
 												>
 													<span class="text-sm font-medium">{displayLanguage(langCode)} ({langCode})</span>
 													{#if !field.readonly}
@@ -1207,7 +1214,7 @@ onMount(() => {
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
 													{/if}
-												</span>
+												</Badge>
 											{/each}
 										{:else if field.placeholder}
 											<span class="text-surface-500 dark:text-surface-50 text-xs">{field.placeholder}</span>
@@ -1234,7 +1241,7 @@ onMount(() => {
 									{#if showLanguagePicker[field.key]}
 										<div
 											id="{field.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add language"
 											tabindex="-1"
@@ -1280,14 +1287,16 @@ onMount(() => {
 								<div class="relative">
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[field.key]
-											? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
+											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
+											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as LogLevel[])?.length > 0}
 											{const levels = values[field.key] as LogLevel[]}
 											{#each levels as level (level)}
-												<span
-													class="group badge preset-filled-tertiary-500 hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white transition-colors capitalize"
+												<Badge
+													variant="tertiary"
+													size="lg"
+													class="group capitalize hover:preset-filled-tertiary-600 dark:preset-filled-primary-500 dark:hover:preset-filled-primary-600"
 												>
 													<span class="text-sm font-medium">{level}</span>
 													{#if !field.readonly}
@@ -1300,7 +1309,7 @@ onMount(() => {
 															<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 														</button>
 													{/if}
-												</span>
+												</Badge>
 											{/each}
 										{:else if field.placeholder}
 											<span class="text-surface-500 dark:text-surface-50 text-xs">{field.placeholder}</span>
@@ -1324,7 +1333,7 @@ onMount(() => {
 									{#if showLogLevelPicker[field.key]}
 										<div
 											id="{field.key}-loglevel-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-50 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
 											role="dialog"
 											aria-label="Add log level"
 											tabindex="-1"

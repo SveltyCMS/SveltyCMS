@@ -23,7 +23,7 @@
 			placeholder="Hero heading"
 		/>
 		<TextProperty
-			class="mt-4 text-lg text-surface-600 dark:text-surface-300"
+			class="mt-4 text-lg text-surface-600 dark:text-surface-400"
 			path={[...path, 'subheading']}
 			placeholder="Hero subheading"
 		/>

@@ -167,13 +167,13 @@ const imageUrl = $derived(
 		></div>
 
 		<div
-			class="relative flex max-h-[90vh] w-full flex-col rounded bg-surface-100 shadow-xl dark:bg-surface-800 mx-4"
+			class="relative flex max-h-[90vh] w-full flex-col rounded bg-surface-500/10 shadow-xl dark:bg-surface-800 mx-4"
 			class:max-w-lg={!focalPointPluginEnabled}
 			class:max-w-3xl={focalPointPluginEnabled}
 			transition:scale={{ start: 0.95, duration: 150 }}
 		>
 			<!-- Header -->
-			<header class="flex items-center justify-between border-b border-surface-300 p-4 dark:text-surface-50">
+			<header class="flex items-center justify-between border-b border-surface-500/30 p-4 dark:text-surface-50">
 				<h3 id="focal-modal-title" class="text-lg font-semibold flex items-center gap-2">
 					<iconify-icon icon="mdi:crosshairs-gps" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					Set Focal Point
@@ -191,7 +191,7 @@ const imageUrl = $derived(
 
 				<div
 					bind:this={containerRef}
-					class="relative cursor-crosshair select-none rounded overflow-hidden border-2 border-surface-300 dark:border-surface-600"
+					class="relative cursor-crosshair select-none rounded overflow-hidden border-2 border-surface-500/30 dark:border-surface-600"
 					onmousedown={handleMouseDown}
 					onmousemove={handleMouseMove}
 					onmouseup={handleMouseUp}
@@ -230,7 +230,7 @@ const imageUrl = $derived(
 				</div>
 
 				{#if focalPointPluginEnabled}
-					<div class="mt-4 border-t border-surface-200 pt-3 dark:border-surface-600">
+					<div class="mt-4 border-t border-surface-500/30 pt-3 dark:border-surface-600">
 						<h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
 							Crop Previews
 						</h4>
@@ -244,7 +244,7 @@ const imageUrl = $derived(
 			</div>
 
 			<!-- Footer -->
-			<footer class="flex items-center justify-between border-t border-surface-300 p-4 dark:text-surface-50">
+			<footer class="flex items-center justify-between border-t border-surface-500/30 p-4 dark:text-surface-50">
 				<div class="flex items-center gap-4">
 					<!-- Coordinate display -->
 					<div class="text-sm font-mono text-surface-600 dark:text-surface-50 bg-surface-200 dark:bg-surface-700 px-2 py-1 rounded">

@@ -164,8 +164,8 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 					aria-label={preset.title}
 					class="relative flex flex-col flex-none w-[17.5rem] p-4 overflow-hidden text-start cursor-pointer snap-start dark:backdrop-blur-md border rounded shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:-translate-y-1 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] {selected ===
 						preset.id
-							? 'bg-tertiary-500 dark:bg-primary-900! border-tertiary-500 dark:border-primary-700!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.3),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.15)]! -translate-y-1!'
-							: 'bg-white dark:bg-surface-800 border-surface-200 dark:border-surface-700 hover:bg-slate-50/80 dark:hover:bg-surface-700/50 hover:border-tertiary-500 dark:hover:border-primary-500'}"
+							? 'bg-tertiary-500 dark:bg-primary-900! border-tertiary-500 dark:border-primary-500/40!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.3),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.15)]! -translate-y-1!'
+							: 'bg-white dark:bg-surface-800 border-surface-500/30 dark:border-surface-500/40 hover:bg-slate-50/80 dark:hover:bg-surface-700/50 hover:border-tertiary-500 dark:hover:border-primary-500'}"
 					onclick={() => select(preset.id)}
 				>
 					<div class="  mt-2 flex items-center gap-2">

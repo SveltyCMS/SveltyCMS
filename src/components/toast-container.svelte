@@ -96,11 +96,11 @@
 	const styles: Record<ToastType, string> = $derived(
 		richColors
 			? {
-					success: 'bg-emerald-600 text-white border-emerald-400',
-					error: 'bg-red-600 text-white border-red-400',
-					warning: 'bg-amber-500 text-white border-amber-400',
-					info: 'bg-sky-600 text-white border-sky-400',
-					loading: 'bg-slate-600 text-white border-slate-400',
+					success: 'bg-success-600 text-white border-success-500',
+					error: 'bg-error-600 text-white border-error-500',
+					warning: 'bg-warning-500 text-white border-warning-500',
+					info: 'bg-tertiary-600 text-white border-tertiary-500',
+					loading: 'bg-surface-700 text-white border-surface-500',
 			  }
 			: {
 					success: 'bg-primary-500 text-white',

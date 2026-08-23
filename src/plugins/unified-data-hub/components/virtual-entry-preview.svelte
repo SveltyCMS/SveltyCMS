@@ -143,11 +143,11 @@
 
 {#if showPreview}
   <section
-    class="mt-4 border-t border-surface-300 pt-4 dark:border-surface-600"
+    class="mt-4 border-t border-surface-500/30 pt-4 dark:border-surface-600"
     data-testid="virtual-entry-preview"
     aria-label="Virtual data preview"
   >
-    <div class="flex items-center justify-between gap-2 border-b border-surface-300 pb-2 dark:border-surface-600">
+    <div class="flex items-center justify-between gap-2 border-b border-surface-500/30 pb-2 dark:border-surface-600">
       <h3 class="text-sm font-bold uppercase tracking-wide text-tertiary-500 dark:text-primary-500">
         Virtual Preview
       </h3>
@@ -167,7 +167,7 @@
     <div class="mt-3 space-y-4">
       {#each enrichments as enrichment (previewKey(enrichment))}
         {@const state = previews[previewKey(enrichment)]}
-        <article class="rounded border border-surface-200 bg-surface-50 p-3 dark:border-surface-700 dark:bg-surface-900/40">
+        <article class="rounded border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/20">
           <header class="mb-2 flex flex-wrap items-center justify-between gap-2">
             <span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
               {enrichment.label}
@@ -187,7 +187,7 @@
 
           {#if state?.meta?.stitchWarning}
             <p
-              class="mb-2 rounded border border-warning-500/40 bg-warning-50 px-2 py-1 text-xs text-warning-700 dark:bg-warning-900/20 dark:text-warning-400"
+              class="mb-2 rounded border border-warning-500/40 bg-warning-500/10 px-2 py-1 text-xs text-warning-600 dark:bg-warning-900/20 dark:text-warning-400"
               role="status"
               data-testid="stitch-warning"
             >

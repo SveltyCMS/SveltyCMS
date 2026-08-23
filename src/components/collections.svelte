@@ -348,7 +348,7 @@ Provides an organized interface for navigating hierarchical content structures.
 				{
 					icon: isFav ? 'bi:star-fill' : 'bi:star',
 					label: isFav ? 'Remove Favorite' : 'Add Favorite',
-					colorClass: isFav ? 'text-amber-500' : 'text-surface-500',
+					colorClass: isFav ? 'text-warning-500' : 'text-surface-500',
 					onClick: (_: any, e: MouseEvent) => {
 						e.stopPropagation();
 						favorites = isFav ? favorites.filter(id => id !== node._id) : [...favorites, node._id];
@@ -672,8 +672,8 @@ Provides an organized interface for navigating hierarchical content structures.
 				size="sm"
 				onclick={() => showOnlyFavorites = !showOnlyFavorites}
 				class="flex items-center gap-1.5 rounded-full border text-xs font-semibold py-1 px-3 transition-all {showOnlyFavorites
-					? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400'
-					: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-300'}"
+					? 'bg-warning-500/20 border-warning-500 text-warning-600 dark:text-warning-400'
+					: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
 			>
 				<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"></iconify-icon>
 				<span>Favorites</span>
@@ -776,20 +776,20 @@ Provides an organized interface for navigating hierarchical content structures.
 			{#if !isFullSidebar}
 				{#if !widgets.isLoaded}
 					<div class="flex items-center justify-center py-3 text-surface-500">
-						<div class="h-5 w-5 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
+						<div class="h-5 w-5 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500"></div>
 					</div>
 				{/if}
 			{:else}
 				<div class="flex flex-col items-center justify-center gap-3 p-6 text-center text-surface-900 dark:text-white">
 					{#if !widgets.isLoaded}
-						<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
-						<p class="text-xs text-surface-600 dark:text-surface-300">Loading collections…</p>
+						<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500"></div>
+						<p class="text-xs text-surface-600 dark:text-surface-400">Loading collections…</p>
 					{:else if search || showOnlyFavorites || selectedTagFilter}
 						<iconify-icon icon="bi:search" width={28} class="text-surface-400"></iconify-icon>
 						<p class="text-sm text-surface-900 dark:text-white">No collections match your current filters.</p>
 						<Button variant="outline" type="button" size="sm" onclick={clearAllFilters}>Clear filters</Button>
 					{:else}
-						<iconify-icon icon="bi:collection" width={32} class="opacity-60 text-surface-400 dark:text-surface-300"></iconify-icon>
+						<iconify-icon icon="bi:collection" width={32} class="opacity-60 text-surface-400 dark:text-surface-400"></iconify-icon>
 						<p class="text-sm font-semibold text-surface-900 dark:text-white">No collections found.</p>
 						<a
 							href="/config/collectionbuilder"
@@ -803,7 +803,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			{/if}
 		{:else if !widgets.isLoaded}
 			<div class="flex h-24 items-center justify-center">
-				<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-300 border-t-tertiary-500"></div>
+				<div class="h-6 w-6 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500"></div>
 			</div>
 		{:else}
 			<TreeView
@@ -824,7 +824,7 @@ Provides an organized interface for navigating hierarchical content structures.
 {#if showTagModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
 		role="dialog" aria-modal="true" aria-labelledby="tag-modal-title" tabindex="-1" onkeydown={handleModalKeyDown}>
-		<AdminCard class="w-full max-w-md p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl relative">
+		<AdminCard class="w-full max-w-md p-6 bg-surface-500/10 dark:bg-surface-900 border border-surface-500/30 dark:border-surface-500/40 shadow-2xl relative">
 			<Button variant="ghost"
 				type="button"
 				onclick={() => showTagModal = false}
@@ -874,12 +874,12 @@ Provides an organized interface for navigating hierarchical content structures.
 
 <style>
 	.collections-list {
-		scrollbar-color: rgb(var(--color-primary-500)/0.3) transparent;
+		scrollbar-color: color-mix(in srgb, var(--color-primary-500) 30%, transparent) transparent;
 		scrollbar-width: thin;
 	}
 	.collections-list::-webkit-scrollbar { width: 4px; }
 	.collections-list::-webkit-scrollbar-thumb {
-		background-color: rgb(var(--color-primary-500)/0.3);
+		background-color: color-mix(in srgb, var(--color-primary-500) 30%, transparent);
 		border-radius: 2px;
 	}
 </style>

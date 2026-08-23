@@ -44,7 +44,7 @@ Usage:
 	{#each mediaItems as media, index (media._id)}
 		<Button
 			variant="ghost"
-			class="cursor-pointer overflow-hidden rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+			class="cursor-pointer overflow-hidden rounded focus:outline-none focus:ring-2 focus:ring-tertiary-500 focus:ring-opacity-50"
 			onclick={() => handleSelect(media)}
 			onkeydown={(e: KeyboardEvent) => handleKeydown(e, media)}
 			aria-checked={media === selectedMedia}
@@ -55,7 +55,7 @@ Usage:
 				src={media.url}
 				alt={media.filename}
 				class="h-auto w-full border-2 transition-all duration-300 {media === selectedMedia
-					? 'scale-95 border-blue-500'
+					? 'scale-95 border-tertiary-500'
 					: 'border-transparent hover:border-gray-300'}"
 			/>
 		</Button>

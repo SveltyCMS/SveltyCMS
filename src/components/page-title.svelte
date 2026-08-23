@@ -29,7 +29,7 @@
 - `backUrl` {string} - Navigation URL for back button
 - `truncate` {boolean} - Enable title truncation (default: `true`)
 - `onBackClick` {function} - Custom back navigation callback
-- `navColor` {string} - Tailwind bg class for FloatingNav spoke when favorited (default: `bg-amber-500`)
+- `navColor` {string} - Tailwind bg class for FloatingNav spoke when favorited (default: `bg-warning-500`)
 
 #### Accessibility Features:
 - ARIA live region for title changes
@@ -91,7 +91,7 @@
 		onBackClick,
 		compact = false,
 		borderless = false,
-		navColor = 'bg-amber-500',
+		navColor = 'bg-warning-500',
 		children
 	}: Props = $props();
 
@@ -202,8 +202,8 @@
 						aria-pressed={isFavorited}
 						disabled={isFixedNavItem}
 						class="ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 {isFavorited
-							? 'text-amber-500 opacity-100'
-							: 'opacity-60 hover:opacity-100 hover:text-amber-500'} {isFixedNavItem ? 'cursor-default' : ''}"
+							? 'text-warning-500 opacity-100'
+							: 'opacity-60 hover:opacity-100 hover:text-warning-500'} {isFixedNavItem ? 'cursor-default' : ''}"
 						style={isFavorited ? undefined : 'color: var(--admin-text-muted)'}
 					>
 						<iconify-icon icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'} width={compact ? '18' : '20'} aria-hidden="true"></iconify-icon>

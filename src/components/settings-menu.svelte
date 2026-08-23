@@ -109,7 +109,7 @@ Sidebar navigation for System Settings
 
 <style>
 	.settings-list {
-		scrollbar-color: rgb(var(--color-surface-500)) transparent;
+		scrollbar-color: var(--color-surface-500) transparent;
 		scrollbar-width: thin;
 	}
 	.settings-list::-webkit-scrollbar {
@@ -119,7 +119,7 @@ Sidebar navigation for System Settings
 		background: transparent;
 	}
 	.settings-list::-webkit-scrollbar-thumb {
-		background-color: rgb(var(--color-surface-500));
+		background-color: var(--color-surface-500);
 		border-radius: 4px;
 	}
 </style>

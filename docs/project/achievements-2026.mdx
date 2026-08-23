@@ -1,14 +1,15 @@
 ---
-path: "docs/project/technical-evaluation-2026.mdx"
-title: "Technical Evaluation 2026"
-description: "Comparative analysis of architecture, performance, and enterprise readiness."
+path: "docs/project/achievements-2026.mdx"
+title: "2026 Achievements Log"
+description: "The completed-achievements log for SveltyCMS 2026 — dated, self-measured engineering milestones that shipped, moved here from the roadmap when done."
 order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-08-21"
+updated: "2026-08-23"
 tags:
-  - "evaluation"
+  - "achievements"
+  - "log"
   - "technical"
   - "comparison"
   - "database"
@@ -1073,6 +1074,7 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **API Benchmarking Suite**: Native tests (`test:bench:rest`, `test:bench:graphql`) to prove performance superiority.
 - **Advanced Security Isolation**: Implementation of COOP/COEP headers and refined multi-tenant cookie security for cross-origin isolation.
 - **High-Performance GraphQL**: Resolver memoization and JIT execution reducing API latency and redundant database hits.
+- **GraphQL.js 17 + Yoga (August 2026)**: Upgraded to `graphql@17.0.2` with native `graphql-yoga@5.22.0` support and zero-allocation AST visitors.
 
 - **Tenant Management Admin Dashboard (July 2026)**: Full-featured tenant administration UI at `/admin/tenants` with create/suspend/activate operations, real-time quota visualization (users, storage, collections), and plan-level resource enforcement. Gated behind system-admin `isAdmin && !tenantId` guard. Backed by the database-agnostic `ISystemAdapter.tenants` interface with dedicated MongoDB implementation (`MongoTenantMethods`) and shared SQL implementation (`RelationalSystemModule`) across PostgreSQL, MariaDB, and SQLite. Integrated into the sidebar navigation for instant access.
 

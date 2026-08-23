@@ -175,7 +175,7 @@
 
 	<div data-testid="redirects-page" class="contents">
 		<AdminCard
-			class="space-y-4 border border-surface-200 bg-white p-6 shadow-xs backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/40"
+			class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-xs backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20"
 		>
 			<div class="relative">
 				<iconify-icon
@@ -205,7 +205,7 @@
 				<table class="w-full border-collapse text-sm">
 					<thead>
 						<tr
-							class="border-b border-surface-200 text-start text-xs uppercase tracking-wider text-surface-400 dark:border-surface-800"
+							class="border-b border-surface-500/30 text-start text-xs uppercase tracking-wider text-surface-400 dark:border-surface-500/40"
 						>
 							<th class="pb-3 font-semibold">From Path</th>
 							<th class="pb-3 font-semibold">To Path</th>
@@ -217,7 +217,7 @@
 					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
 						{#each filteredRedirects as redirect (redirect._id || redirect.from + redirect.to)}
 							<tr
-								class="text-surface-700 hover:bg-surface-50/40 dark:text-surface-200 dark:hover:bg-surface-900/30"
+								class="text-surface-600 hover:bg-surface-500/40 dark:text-surface-400 dark:hover:bg-surface-900/20"
 								data-testid={`redirect-row-${redirect._id || 'new'}`}
 								data-from={redirect.from}
 							>
@@ -285,7 +285,7 @@
 		data-testid="redirects-modal-backdrop"
 	>
 		<AdminCard
-			class="w-full max-w-lg space-y-4 border border-surface-200 bg-white p-6 shadow-xl backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/40"
+			class="w-full max-w-lg space-y-4 border border-surface-500/30 bg-white p-6 shadow-xl backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20"
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="redirect-modal-title"

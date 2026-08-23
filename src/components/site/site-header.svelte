@@ -13,7 +13,7 @@
   let { siteName, signedIn = false }: Props = $props();
 </script>
 
-<header class="border-b border-surface-200 bg-white/80 backdrop-blur dark:border-surface-700 dark:bg-surface-900/80">
+<header class="border-b border-surface-500/30 bg-white/80 backdrop-blur dark:border-surface-500/40 dark:bg-surface-900/80">
   <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
     <a href="/" aria-label="{siteName} home" class="text-lg font-bold text-surface-900 dark:text-surface-50">
       {siteName}
