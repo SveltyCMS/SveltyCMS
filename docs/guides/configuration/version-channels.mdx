@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:source-branch"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-07-08"
+updated: "2026-08-23"
 tags:
   - "version"
   - "update"
@@ -37,25 +37,27 @@ main:   CI runs (whitebox → build → DB matrix → bench → E2E)
         auto-release triggers:
         1. reads version from package.json
         2. creates git tag (e.g. v0.0.9)
-        3. npm publish
-        4. GitHub Release with auto-generated notes
+        3. GitHub Release with auto-generated notes (independent of npm)
+        4. npm publish (best-effort — never blocks the release)
 
         version matches between package.json and git tag ✅
 ```
 
-The `package.json` version flows naturally from `next` → `main` through merges. When CI passes on `main`, the release happens automatically — no separate tag or manual step needed. A manual trigger is also available at `Actions → Auto Release → Run workflow` for emergency releases.
+The `package.json` version flows naturally from `next` → `main` through merges. When CI passes on `main`, the release happens automatically — no separate tag or manual step needed. A manual trigger is also available at `Actions → Auto Release → Run workflow` for emergency releases, and pushing a `v*` tag directly (`git tag v0.0.9 && git push origin v0.0.9`) triggers the same pipeline from the tag name.
+
+> **npm token caveat**: the GitHub Release (tag + release notes) is created **before** npm publish and never blocked by it. If `NPM_TOKEN` is missing or invalid, the run logs a warning and skips publishing — the release still exists, so the in-app update check (`/api/system/version/check`) keeps working.
 
 ---
 
 ## Version Pipeline Components
 
-| Component                  | Path                                           | Role                                                                                   |
-| -------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------- |
-| **Version Service**        | `src/services/core/version-service.ts`         | Reads local version from `package.json`, checks GitHub Releases API for newer versions |
-| **Version Handler**        | `src/routes/api/[...path]/handlers/version.ts` | REST endpoint `/api/system/version/check` — serves update status to the admin UI       |
-| **VersionCheck Component** | `src/components/version-check.svelte`          | Admin UI badge — displays current version with green/yellow/grey status                |
-| **Version Tests**          | `tests/unit/api/version.test.ts`               | Unit tests for `isNewer` comparison logic and API response shapes                      |
-| **Auto Release**           | `.github/workflows/auto-release.yaml`          | Waits for CI pass on `main`, then tags, publishes, and creates GitHub Release          |
+| Component                  | Path                                           | Role                                                                                      |
+| -------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Version Service**        | `src/services/core/version-service.ts`         | Reads local version from `package.json`, checks GitHub Releases API for newer versions    |
+| **Version Handler**        | `src/routes/api/[...path]/handlers/version.ts` | REST endpoint `/api/system/version/check` — serves update status to the admin UI          |
+| **VersionCheck Component** | `src/components/version-check.svelte`          | Admin UI badge — displays current version with green/yellow/grey status                   |
+| **Version Tests**          | `tests/unit/api/version.test.ts`               | Unit tests for `isNewer` comparison logic and API response shapes                         |
+| **Auto Release**           | `.github/workflows/auto-release.yaml`          | CI pass on `main` (or manual `v*` tag push / dispatch) → tag, GitHub Release, npm publish |
 
 > **Note**: `src/utils/media/version-history.ts` is a separate module for tracking **media file** revisions (create/update/replace diffs) — not related to CMS release versioning.
 
