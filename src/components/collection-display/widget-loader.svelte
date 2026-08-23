@@ -30,7 +30,6 @@ rather than bundling all widgets upfront.
 	import { validationStore } from '@src/stores/store.svelte.ts';
 	import { getFieldName } from '@utils/utils';
 	import { logger } from '@utils/logger';
-	import { onMount } from 'svelte';
 	import { safeParse } from 'valibot';
 
 	interface Props {
@@ -57,7 +56,8 @@ rather than bundling all widgets upfront.
 	let component: any = $state(null);
 	let loading = $state(true);
 	let error = $state<Error | null>(null);
-	let lastSyncedValue = $state.raw<unknown>(undefined);
+	let lastSyncedValue = $state.raw<unknown>(value);
+	let skipFirstSync = true;
 
 	function runWidgetValidation(v: unknown) {
 		const widget = field.widget as { validationSchema?: unknown | ((f: FieldInstance) => unknown) } | undefined;
@@ -83,6 +83,10 @@ rather than bundling all widgets upfront.
 		if (v === lastSyncedValue) return;
 		lastSyncedValue = v;
 		runWidgetValidation(v);
+		if (skipFirstSync) {
+			skipFirstSync = false;
+			return;
+		}
 		onFieldSync?.();
 	});
 
@@ -110,8 +114,11 @@ rather than bundling all widgets upfront.
 		}
 	}
 
-	onMount(() => {
-		loadComponent();
+	$effect(() => {
+		// Identity of `loader` changes every parent render (registry returns a
+		// fresh closure). Reload only when the widget *name* changes.
+		void field.widget?.Name;
+		void loadComponent();
 	});
 </script>
 

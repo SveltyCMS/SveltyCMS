@@ -584,26 +584,37 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassSafeQuery: opts.bypassSafeQuery,
           systemScope: opts.systemScope,
         }),
-      );
+      ) as Record<string, unknown>;
       const now = nowISODateString();
 
       // Strip _id, tenantId, and createdAt from the $set payload (createdAt is insert-only)
       const {
-        _id: _,
-        tenantId: __,
-        createdAt: ___,
+        _id: dataId,
+        tenantId: dataTenant,
+        createdAt: _createdAt,
         ...updateData
       } = {
         ...(data as any),
         updatedAt: now,
       };
 
-      // Step 1: Try atomic update first (no upsert flag, no $setOnInsert)
-      // This avoids Mongoose 9's pre-validation that rejects _id in $setOnInsert
-      // even on the update path.
-      const findOptions: any = {
+      // One round-trip: put _id on the filter (Mongo copies filter keys into
+      // the inserted doc) so $setOnInsert never carries `_id` — Mongoose 9
+      // pre-validation rejects `_id` in $setOnInsert even on the insert path.
+      const filter: Record<string, unknown> = { ...secureQuery };
+      if (filter._id == null) filter._id = dataId || generateId();
+
+      const setOnInsert: Record<string, unknown> = {
+        createdAt: now,
+      };
+      // Path conflict if the same key is in $set and $setOnInsert.
+      if (updateData.isDeleted === undefined) setOnInsert.isDeleted = false;
+      const tenantId = opts.tenantId || dataTenant;
+      if (tenantId && filter.tenantId == null) setOnInsert.tenantId = tenantId;
+
+      const findOptions: Record<string, unknown> = {
+        upsert: true,
         returnDocument: "after",
-        // 🚀 SDK/API layer already validates (Valibot) — skip Mongoose re-validation.
         runValidators: false,
         cloneUpdate: false,
       };
@@ -612,38 +623,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
       }
 
       const updated = await this.model
-        .findOneAndUpdate(secureQuery, { $set: updateData }, findOptions)
+        .findOneAndUpdate(filter, { $set: updateData, $setOnInsert: setOnInsert }, findOptions)
         .lean()
         .exec();
 
-      if (updated) {
-        return { success: true, data: processDates(updated) as T };
+      if (!updated) {
+        return {
+          success: false,
+          message: "Upsert failed",
+          error: { code: "UPSERT_ERROR", message: "Upsert returned no document" },
+        };
       }
-
-      // Step 2: No document matched — insert a new one
-      const insertData = {
-        ...(data as any),
-        _id: (data as any)._id || generateId(),
-        createdAt: now,
-        updatedAt: now,
-      };
-      try {
-        const created = await this.model.create(insertData);
-        return { success: true, data: processDates(created.toObject()) as T };
-      } catch (insertError: any) {
-        // E11000 duplicate key: another request created this document between
-        // our findOneAndUpdate and create calls. Retry the update path.
-        if (insertError?.code === 11000) {
-          const retried = await this.model
-            .findOneAndUpdate(secureQuery, { $set: updateData }, findOptions)
-            .lean()
-            .exec();
-          if (retried) {
-            return { success: true, data: processDates(retried) as T };
-          }
-        }
-        throw insertError;
-      }
+      return { success: true, data: this.mapDates(updated) as T };
     } catch (error) {
       return {
         success: false,

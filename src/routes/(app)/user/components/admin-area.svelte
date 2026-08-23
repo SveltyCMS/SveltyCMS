@@ -718,7 +718,7 @@
 			<div class={SMART_TABLE_COLUMN_MANAGER}>
 				<div class="my-2 flex w-full items-center justify-center gap-1">
 					<label class="me-2">
-						<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange}  aria-label="Input" />
+						<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange} aria-label="Input" />
 						{entrylist_all()}
 					</label>
 
@@ -891,7 +891,7 @@
 																	toast.error('Failed to copy');
 																});
 														}}
-													 class="p-0! min-w-0 preset-ghost hover: hover:dark:">
+													 class="p-0! min-w-0 preset-ghost">
 														<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
 													</Button>
 												</SystemTooltip>
@@ -917,7 +917,7 @@
 																	toast.error('Failed to copy');
 																});
 														}}
-													 class="p-0! min-w-0 preset-ghost hover: hover:dark:">
+													 class="p-0! min-w-0 preset-ghost">
 														<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
 													</Button>
 												</SystemTooltip>

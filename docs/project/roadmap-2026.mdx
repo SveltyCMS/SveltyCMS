@@ -146,4 +146,11 @@ Honest assessment against reference platforms, based on publicly available docum
 | **P1**   | Marketplace install path; OIDC login page + PKCE; published adapters   |
 | **P2**   | Docker/Terraform, managed cloud                                        |
 
+## ✅ Shipped (2026-08-23) — moved to the [Achievements Log](./achievements-2026.mdx)
+
+- **Hardware-adaptive profile** (`@utils/hardware-profile`) — one boot-time detection drives sharp/DB-pool/worker/compile/job concurrency with workload-prioritized CPU allocation and `HARDWARE_CPU_BUDGET` (default 0.75 all-in-one, 1.0 dedicated). Surfaces on the dashboard + setup wizard.
+- **Honest 4-DB benchmark matrix 199/200** — media preset dedup + deferred variant generation (SDK −45%, HTTP −50%), CacheService pattern invalidation 26→4.5 ms, reporter auto-formats generated MDX (DX check stays green), benchmark seeder provisions index-pressure/migration-scale collections, Mongo stress flakes fixed.
+
+**Open follow-ups:** run the Redis matrix variant once (`USE_REDIS=true`). The profile-backed matrix re-run landed **200/200** — see the [Achievements Log](./achievements-2026.mdx) for the pre-profile vs profile measurement.
+
 _Last roadmap sync: 2026-08-23_

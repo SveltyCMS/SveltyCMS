@@ -50,19 +50,34 @@ async function runSeoAudit() {
     // create-redirect action wrote it; the content collection alone is a
     // mirror and does NOT populate the MV). In-process insert + authenticated
     // refresh, then a bounded probe retry (stale negative cache can linger).
+    // 🛡️ FLAKE-PROOF: the source path is unique per run — a stale negative
+    // redirect cache entry (300s TTL) or a leftover MV row from an earlier
+    // run (same server process / same matrix DB) can otherwise shadow the
+    // fresh row and 404 the probe for the whole retry window.
+    const REDIRECT_SOURCE = `/old-path-1-${Date.now()}`;
     try {
       const { getDb, getDbInitPromise } = await import("@src/databases/db");
       await getDbInitPromise(false, "CORE").catch(() => {});
       const db = getDb();
       if (db) {
-        await (db as any).crud.insert("redirectsMV", {
+        // `metadata` is NOT NULL (json_valid CHECK) in the MariaDB/Postgres
+        // redirects_mv DDL — omitting it makes the insert fail silently on
+        // those adapters (probe then 404s). Always send it, and CHECK the
+        // result so a failed seed fails the test instead of 404-ing later.
+        const insertResult = await (db as any).crud.insert("redirectsMV", {
           _id: `redirect_${Date.now()}`,
-          source: "/old-path-1",
+          source: REDIRECT_SOURCE,
           target: "/api/system/health",
           type: 301,
           active: true,
+          metadata: "{}",
           tenantId: targetTenant,
         });
+        if (!insertResult?.success) {
+          throw new Error(`redirectsMV insert rejected: ${insertResult?.message || "unknown"}`);
+        }
+      } else {
+        throw new Error("Database adapter unavailable for redirect MV seeding");
       }
     } catch (e: any) {
       throw new Error(`Redirect MV seeding failed: ${e.message}`);
@@ -84,7 +99,7 @@ async function runSeoAudit() {
     // from an earlier run can shadow the fresh MV row on the first attempt.
     let probe: Response | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
-      probe = await fetch(`${baseUrl}/old-path-1`, {
+      probe = await fetch(`${baseUrl}${REDIRECT_SOURCE}`, {
         redirect: "manual",
         headers: requestHeaders,
       });
@@ -105,7 +120,7 @@ async function runSeoAudit() {
     const seoScenarios = [
       {
         name: "Redirect Lookup (301)",
-        path: "/old-path-1",
+        path: REDIRECT_SOURCE,
         dynamic: false,
         expectedStatus: 301,
         layer: "Middleware",

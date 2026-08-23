@@ -84,6 +84,8 @@ export async function runDatabaseBenchmark() {
       { name: "INSERT", fn: createInsertTest(db) },
       { name: "FIND ONE", fn: createFindOneTest(db) },
       { name: "FIND MANY (limit 50)", fn: createFindManyTest(db) },
+      // Admin collection list uses queryBuilder, not crud.findMany
+      { name: "QUERY BUILDER LIST (50)", fn: createQueryBuilderListTest(db) },
       // 🚀 findPage: limit+1 hasMore without COUNT(*) — product list default
       { name: "FIND PAGE (50 hasMore)", fn: createFindPageTest(db) },
       // Keyset second page (cursor) vs OFFSET deep page
@@ -221,6 +223,19 @@ function createFindManyTest(db: any) {
   return async () => {
     const res = await db.crud.findMany(COLLECTION_ID, queryFilter, MANY_READ_OPTS);
     assertSuccess(res, "findMany");
+  };
+}
+
+/** Same shape as CollectionService.loadCollectionData (admin list). */
+function createQueryBuilderListTest(db: any) {
+  return async () => {
+    const res = await db
+      .queryBuilder(COLLECTION_ID)
+      .where({ tenantId: TEST_TENANT })
+      .sort("createdAt", "desc")
+      .paginate({ page: 1, pageSize: 50 })
+      .execute();
+    assertSuccess(res, "queryBuilderList");
   };
 }
 

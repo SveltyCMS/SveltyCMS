@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:widgets-outline"
 author: "SveltyCMS Team"
 created: "2026-08-04"
-updated: "2026-08-19"
+updated: "2026-08-23"
 tags:
   - "dashboard"
   - "widgets"
@@ -32,7 +32,7 @@ widgets/<kebab-folder>/
 
 - **Marketplace uploads** — the marketplace API accepts package folders directly; `widget.json` is the package manifest and the co-located `<component>.mdx` is the package description used for the marketplace listing.
 - **Clean installs** — `installDashboardWidget()` writes the whole folder via the package `installPath`, no file-by-file merging.
-- **Stable registry keys** — the component filename (not the folder) is the key persisted in `system-preferences`, so upgrading or renaming a package does not reset user layouts.
+- **Stable registry keys** — the **folder id** (`widget.json.id`) is the key persisted in `system-preferences`. The entry filename is always `index.svelte`; renaming the implementation file never resets user layouts.
 
 ## 2. The `widget.json` Manifest
 
@@ -47,46 +47,42 @@ widgets/<kebab-folder>/
   "author": "SveltyCMS",
   "license": "free",
   "price": 0,
-  "component": "system-health-widget",
+  "component": "index",
   "defaultSize": { "w": 2, "h": 2 },
-  "category": "monitoring"
+  "category": "monitoring",
+  "sveltycms": ">=0.0.8"
 }
 ```
 
-| Field         | Type                                              | Description                                          |
-| :------------ | :------------------------------------------------ | :--------------------------------------------------- |
-| `id`          | `string`                                          | Kebab-case folder name (package id).                 |
-| `name`        | `string`                                          | Display name shown in the picker / marketplace.      |
-| `description` | `string`                                          | Short description for cards and listings.            |
-| `icon`        | `string`                                          | Iconify icon id.                                     |
-| `version`     | `string`                                          | Semver package version.                              |
-| `type`        | `"dashboard-widget"`                              | Fixed type discriminator.                            |
-| `author`      | `string`                                          | Publisher name.                                      |
-| `license`     | `"free" \| "freemium" \| "paid"`                  | Monetization model.                                  |
-| `price`       | `number`                                          | EUR price (`0` for free).                            |
-| `component`   | `string`                                          | Component filename without `.svelte` (registry key). |
-| `defaultSize` | `{ w: 1-4, h: 1-4 }`                              | Recommended grid size.                               |
-| `category`    | `"monitoring" \| "logs" \| "content" \| "static"` | Default fetch/cache/refresh behavior group.          |
+| Field            | Type                                              | Description                                          |
+| :--------------- | :------------------------------------------------ | :--------------------------------------------------- |
+| `id`             | `string`                                          | Kebab-case folder name (package id).                 |
+| `name`           | `string`                                          | Display name shown in the picker / marketplace.      |
+| `description`    | `string`                                          | Short description for cards and listings.            |
+| `icon`           | `string`                                          | Iconify icon id.                                     |
+| `version`        | `string`                                          | Semver package version.                              |
+| `type`           | `"dashboard-widget"`                              | Fixed type discriminator.                            |
+| `author`         | `string`                                          | Publisher name.                                      |
+| `license`        | `"free" \| "freemium" \| "paid"`                  | Monetization model.                                  |
+| `price`          | `number`                                          | EUR price (`0` for free).                            |
+| `component`      | `string`                                          | Entry filename without `.svelte` (always `"index"`). |
+| `defaultSize`    | `{ w: 1-4, h: 1-4 }`                              | Recommended grid size.                               |
+| `category`       | `"monitoring" \| "logs" \| "content" \| "static"` | Default fetch/cache/refresh behavior group.          |
+| `requiresPlugin` | `string` (optional)                               | Picker omits the package unless this plugin is on.   |
 
 The manifest **must** agree with the component's `widgetMeta` export (`name`, `icon`, `description`, `defaultSize`). `manifest-registry.ts` reads manifests at build time via `import.meta.glob("./*/widget.json", { eager: true })`.
 
 ## 3. Dual Registration
 
-Widgets are registered in two places, both compile-time:
+Widgets are registered in two places, both compile-time — **Svelte modules are not evaluated to build the picker**:
 
-1. **Client runtime** — `+page.svelte` globs `./widgets/*/*.svelte` to build the lazy-loading registry. The registry is keyed by the **package folder id** (`widget.json.id`); each entry carries the entry filename (`index.svelte`) for the dynamic import:
+1. **Server metadata** — `+page.server.ts` reads `getInstalledDashboardWidgets()` (`widget.json` glob) and maps picker entries via `manifestsToPickerList()`. Packages whose `sveltycms` range the host does not satisfy are omitted. The same load hydrates the saved layout from `system.preferences` so the client skips a `/api/system-preferences` round-trip.
 
-```typescript
-// +page.svelte — path like "./widgets/system-health/index.svelte"
-const segments = path.split("/");
-const folder = segments[segments.length - 2];
-const entryFile = segments[segments.length - 1]?.replace(".svelte", "");
-registry[folder] = { component: module.default, entryFile, folder, ... };
-```
-
-2. **Server metadata** — `+page.server.ts` eagerly globs the same pattern and pre-computes `availableWidgets` (name, icon, description, folder) for the widget picker dropdown.
+2. **Client runtime** — `+page.svelte` builds the picker from `data.availableWidgets` (JSON). Widgets are **optional**: none ship on an empty dashboard. `import.meta.glob("./widgets/*/*.svelte")` is a **lazy chunk map** only — a package is imported when the user adds it or its tile intersects the viewport. Packages with `requiresPlugin` stay out of the picker until that plugin is enabled (Commerce Orders / Inventory → `commerce`, off by default). The registry is keyed by the **package folder id** (`widget.json.id`).
 
 The **folder id is the stable key** — `widget.json.id` matches the folder, layouts persist that id, and the entry filename (`index.svelte`) is an implementation detail that can never break a saved layout. In dev, the Vite plugin (`sveltyCmsPlugin`) watches `src/routes/(app)/dashboard/widgets/**` and triggers a full reload on package add/remove — new widgets appear in the picker without a manual restart (same treatment as `src/widgets`).
+
+Polling widgets pause while `document.hidden` is true and refetch when the tab is visible again if the poll interval has elapsed. Widget fetches use `cache: "no-store"` instead of a `_=Date.now()` query string.
 
 ## 4. Base Widget Contract
 
@@ -110,7 +106,7 @@ The `children` snippet receives `{ data, updateWidgetState, getWidgetState, refr
 
 ## 5. Component Metadata (`widgetMeta`)
 
-Each component exports module-level metadata that the picker and registry read directly:
+Each component still exports module-level metadata (keep it in sync with `widget.json`). The Add Widget picker reads **`widget.json` only** so Svelte modules stay lazy:
 
 ```typescript
 <script lang="ts" module>
@@ -123,7 +119,7 @@ Each component exports module-level metadata that the picker and registry read d
 </script>
 ```
 
-`widgetMeta` drives the UI; `widget.json` drives packaging, catalog, and telemetry. Keep them in sync.
+`widget.json` drives the picker, packaging, catalog, and telemetry. `widgetMeta` remains on the component for local documentation — keep the two in sync.
 
 ## 6. 🔑 Licensing Gates
 

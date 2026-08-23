@@ -10,7 +10,7 @@
  * ### Features:
  * - Full backup creation (database + optional media metadata) with manifest and checksums
  * - Plan-first restore: never apply directly — requires explicit restore plan review
- * - AES-256-GCM encryption for backup artifacts when an encryption key is provided
+ * - AES-256-GCM encryption for backup artifacts (HKDF-SHA-256 key, UTF-8-slice dual-read)
  * - Tenant-scoped isolation with super-admin override for cross-tenant restore
  * - NDJSON streaming exports for large datasets
  * - Background job support via jobQueue for large backup/restore operations
@@ -38,7 +38,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { dbAdapter } from "@src/databases/db";
 import type { IDBAdapter } from "@src/databases/db-interface";
-import { createChecksum } from "@utils/security/crypto";
+import {
+  AES256_HKDF_INFO,
+  AES256_HKDF_SALT,
+  aesGcmDecryptWithKeys,
+  createChecksum,
+  resolveStaticAesKey,
+} from "@utils/security/crypto";
+import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from "node:crypto";
 import { jobQueue } from "@src/services/background/jobs/job-queue-service";
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
@@ -111,57 +118,76 @@ const SENSITIVE_FIELDS = new Set([
 // Encryption helpers
 // ---------------------------------------------------------------------------
 
+const BACKUP_AES_ALGORITHM = "aes-256-gcm";
+const BACKUP_IV_LENGTH = 12; // NIST SP 800-38D recommended GCM nonce
+const BACKUP_AUTH_TAG_LENGTH = 16;
+
 /**
- * Encrypts backup data using AES-256-GCM via Web Crypto API.
- * Returns the encrypted payload as a Buffer (IV + encrypted).
+ * Backup key ring: HKDF-SHA-256 for new artifacts, plus the historical
+ * UTF-8-slice(0,32) key so archives encrypted before this change still restore.
+ * Hex env values also try the decoded-hex key (TOTP/settings share ENCRYPTION_KEY).
  */
-async function encryptBackupData(data: string, encryptionKey: string): Promise<Buffer> {
-  const encoder = new TextEncoder();
-  const keyMaterial = await globalThis.crypto.subtle.importKey(
-    "raw",
-    encoder.encode(encryptionKey).slice(0, 32),
-    { name: "AES-GCM" },
-    false,
-    ["encrypt"],
+function backupAesKeyRing(encryptionKey: string): Buffer[] {
+  const hkdfKey = Buffer.from(
+    hkdfSync("sha256", encryptionKey, AES256_HKDF_SALT, AES256_HKDF_INFO.backupArtifact, 32),
   );
-
-  const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await globalThis.crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    keyMaterial,
-    encoder.encode(data),
+  const keys: Buffer[] = [hkdfKey];
+  const utf8 = Buffer.from(encryptionKey, "utf8");
+  if (utf8.length >= 32) keys.push(utf8.subarray(0, 32));
+  const resolved = resolveStaticAesKey(
+    { hkdfSync, createHash },
+    encryptionKey,
+    AES256_HKDF_INFO.backupArtifact,
   );
+  keys.push(resolved.primary, ...resolved.fallbacks);
+  const unique: Buffer[] = [];
+  for (const key of keys) {
+    if (!unique.some((existing) => existing.equals(key))) unique.push(key);
+  }
+  return unique;
+}
 
-  const result = new Uint8Array(iv.length + new Uint8Array(encrypted).length);
-  result.set(iv);
-  result.set(new Uint8Array(encrypted), iv.length);
-
-  return Buffer.from(result);
+/**
+ * Encrypts backup data using AES-256-GCM.
+ * Layout (unchanged): 12-byte IV || ciphertext || 16-byte auth tag.
+ */
+export async function encryptBackupData(data: string, encryptionKey: string): Promise<Buffer> {
+  const key = backupAesKeyRing(encryptionKey)[0];
+  const iv = randomBytes(BACKUP_IV_LENGTH);
+  const cipher = createCipheriv(BACKUP_AES_ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([cipher.update(data, "utf8"), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return Buffer.concat([iv, encrypted, authTag]);
 }
 
 /**
  * Decrypts backup data encrypted with AES-256-GCM.
+ * Tries HKDF first, then legacy UTF-8-slice / hex keys.
  */
-async function decryptBackupData(encrypted: Buffer, encryptionKey: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const keyMaterial = await globalThis.crypto.subtle.importKey(
-    "raw",
-    encoder.encode(encryptionKey).slice(0, 32),
-    { name: "AES-GCM" },
-    false,
-    ["decrypt"],
+export async function decryptBackupData(encrypted: Buffer, encryptionKey: string): Promise<string> {
+  if (encrypted.length < BACKUP_IV_LENGTH + BACKUP_AUTH_TAG_LENGTH) {
+    throw new Error("Backup payload too short to be AES-256-GCM");
+  }
+  const iv = encrypted.subarray(0, BACKUP_IV_LENGTH);
+  const authTag = encrypted.subarray(encrypted.length - BACKUP_AUTH_TAG_LENGTH);
+  const ciphertext = encrypted.subarray(
+    BACKUP_IV_LENGTH,
+    encrypted.length - BACKUP_AUTH_TAG_LENGTH,
   );
-
-  const iv = new Uint8Array(encrypted.subarray(0, 12));
-  const ciphertext = new Uint8Array(encrypted.subarray(12));
-
-  const decrypted = await globalThis.crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    keyMaterial,
-    ciphertext,
+  const decrypted = aesGcmDecryptWithKeys(
+    { createDecipheriv },
+    {
+      keys: backupAesKeyRing(encryptionKey),
+      iv,
+      authTag,
+      ciphertext,
+      algorithm: BACKUP_AES_ALGORITHM,
+    },
   );
-
-  return new TextDecoder().decode(decrypted);
+  if (!decrypted) {
+    throw new Error("Backup decryption failed — wrong key or tampered archive");
+  }
+  return decrypted.toString("utf8");
 }
 
 // ---------------------------------------------------------------------------

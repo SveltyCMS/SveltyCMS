@@ -1,12 +1,11 @@
 /**
  * @file src/routes/(app)/[language]/[...collection]/collection.remote.ts
- * @description Collection Editor Remote Functions — typed CRUD without URL construction.
- *
- * All exports are SvelteKit query() wrappers per .remote.ts requirements.
- * Create uses POST; updates use PATCH (PUT is accepted as an alias).
+ * @description Collection editor remotes — LocalCMS, no HTTP hop.
  */
 
 import { getRequestEvent, query } from "$app/server";
+import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { getRequestLocalCMS, remoteErrorMessage } from "@utils/server/request-cms.server";
 
 export const saveEntry = query(
   "unchecked",
@@ -25,23 +24,26 @@ export const saveEntry = query(
     data?: Record<string, unknown>;
     error?: string;
   }> => {
-    const event = getRequestEvent();
-    const isNew = !entryId;
-    const endpoint = isNew
-      ? `/api/collections/${collectionId}`
-      : `/api/collections/${collectionId}/${entryId}`;
-    const method = isNew ? "POST" : "PATCH";
-
-    const r = await event.fetch(endpoint, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    const d = await r.json().catch(() => ({}));
-    const saved = (d?.data ?? d) as Record<string, unknown> | undefined;
-    return r.ok
-      ? { success: true, entryId: saved?._id as string | undefined, data: saved }
-      : { success: false, error: d.message || d.error };
+    try {
+      const event = getRequestEvent();
+      const user = getAuthenticatedUser(event.locals);
+      const { cms, tenantId } = await getRequestLocalCMS();
+      const opts = { user, tenantId: tenantId as never };
+      const result = entryId
+        ? await cms.collections.update(collectionId, entryId, data, opts)
+        : await cms.collections.create(collectionId, data, opts);
+      if (!result?.success) {
+        return { success: false, error: result?.message || "Save failed" };
+      }
+      const saved = (result.data ?? result) as Record<string, unknown> | undefined;
+      return {
+        success: true,
+        entryId: (saved?._id as string | undefined) ?? entryId,
+        data: saved,
+      };
+    } catch (err) {
+      return { success: false, error: remoteErrorMessage(err, "Save failed") };
+    }
   },
 );
 
@@ -54,10 +56,20 @@ export const deleteEntry = query(
     collectionId: string;
     entryId: string;
   }): Promise<{ success: boolean; error?: string }> => {
-    const r = await fetch(`/api/collections/${collectionId}/${entryId}`, {
-      method: "DELETE",
-    });
-    const d = await r.json();
-    return r.ok ? { success: true } : { success: false, error: d.message };
+    try {
+      const event = getRequestEvent();
+      const user = getAuthenticatedUser(event.locals);
+      const { cms, tenantId } = await getRequestLocalCMS();
+      const result = await cms.collections.delete(collectionId, entryId, {
+        user,
+        tenantId: tenantId as never,
+      });
+      if (!result?.success) {
+        return { success: false, error: result?.message || "Delete failed" };
+      }
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: remoteErrorMessage(err, "Delete failed") };
+    }
   },
 );

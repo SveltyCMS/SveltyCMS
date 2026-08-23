@@ -57,6 +57,7 @@ bulk actions, and predictive preloading.
 	import TableFilter from '@components/system/table/table-filter.svelte';
 	import TableIcons from '@components/system/table/table-icons.svelte';
 	import PluginComponent from '@src/components/plugins/plugin-component.svelte';
+	import { availablePlugins } from '@src/plugins/index';
 	// Types
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -672,8 +673,6 @@ bulk actions, and predictive preloading.
 	// Collection header icon (widget default if the collection has no custom icon)
 	const collectionIcon = $derived(currentCollection?.icon || 'bi:collection');
 
-	import { availablePlugins } from '@src/plugins/index';
-
 	// ... (helper to map entry data to component props)
 	function mapPluginProps(propMapping: Record<string, string> | undefined, entry: any) {
 		if (!propMapping) {
@@ -723,15 +722,17 @@ bulk actions, and predictive preloading.
 		// Plugin Headers (Dynamic detection)
 		// Iterate over registered plugins and add their columns
 		for (const plugin of availablePlugins) {
+			if (plugin.metadata?.enabled === false) continue;
+			if (
+				plugin.enabledCollections &&
+				plugin.enabledCollections.length > 0 &&
+				currentCollection._id &&
+				!plugin.enabledCollections.includes(String(currentCollection._id))
+			) {
+				continue;
+			}
 			if (plugin.ui?.columns) {
 				for (const col of plugin.ui.columns) {
-					// Only add if relevant? For now add all enabled plugin columns.
-					// Check if any entry actually has data for this plugin to avoid clutter?
-					// Or just always show if plugin is active. Let's show if plugin is active.
-
-					// Optional: Check if plugin is enabled for this collection?
-					// if (plugin.enabledCollections && !plugin.enabledCollections.includes(currentCollection._id)) continue;
-
 					filteredSystemHeaders.unshift({
 						id: `${plugin.metadata.id}-${col.id}`,
 						label: col.label,

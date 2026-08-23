@@ -47,11 +47,14 @@ describe("dashboard +page.server load", () => {
     expect(data.pageData.user.id).toBe("u1");
     expect(data.pageData.isAdmin).toBe(true);
     expect(Array.isArray(data.availableWidgets)).toBe(true);
+    expect(Array.isArray(data.initialPreferences)).toBe(true);
     // Install-specific count — only assert each entry has required shape when present
     for (const w of data.availableWidgets) {
       expect(w).toHaveProperty("componentName");
       expect(w).toHaveProperty("name");
       expect(w).toHaveProperty("icon");
+      expect(w).toHaveProperty("folder");
+      expect(w).toHaveProperty("defaultSize");
     }
   });
 

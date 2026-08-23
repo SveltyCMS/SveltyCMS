@@ -6,7 +6,7 @@ import type {
   BaseEntity,
 } from "../db-interface";
 import { PostgresAdapterCore } from "./adapter-core";
-import * as utils from "../core/relational-utils";
+import { createDatabaseError } from "../core/relational-utils";
 import { SqlQueryBuilder, POSTGRES_DIALECT } from "../core/sql-query-builder";
 import { PostgresFtsAdapter } from "./fts-adapter";
 import { withMigrationLock } from "../migration-lock";
@@ -59,7 +59,7 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
         return {
           success: false,
           message: "Migration failed",
-          error: utils.createDatabaseError("MIGRATION_FAILED", migrationError),
+          error: createDatabaseError("MIGRATION_FAILED", migrationError),
         };
       }
     }

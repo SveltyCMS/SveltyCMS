@@ -33,6 +33,15 @@ describe("access-management +page.server load", () => {
     expect(Array.isArray(data.roles)).toBe(true);
     expect(Array.isArray(data.permissions)).toBe(true);
     expect(data.permissions.length).toBeGreaterThan(0);
+    expect(data.roles[0]).toEqual(
+      expect.objectContaining({
+        _id: "admin",
+        name: "Administrator",
+        permissions: [],
+        isAdmin: false,
+      }),
+    );
+    expect(data.roles[0]).not.toHaveProperty("__bitset");
   });
 
   it("throws 403 for non-admin", async () => {

@@ -17,7 +17,7 @@ tags:
 
 # Benchmark Matrix & Performance Regression System
 
-The SveltyCMS benchmark matrix is a CI-integrated performance validation system that runs 58+ benchmark test modules against 8 database configurations (4 adapters × 2 Redis states), detects regressions via statistical analysis, generates per-adapter MDX reports with trend visualizations, and includes a pre-flight sanitizer that validates benchmark environment integrity before any measurement begins.
+The SveltyCMS benchmark matrix is a CI-integrated performance validation system that runs 62 registered benchmark modules against 8 database configurations (4 adapters × 2 Redis states), detects regressions via statistical analysis, generates per-adapter MDX reports with trend visualizations, and includes a pre-flight sanitizer that validates benchmark environment integrity before any measurement begins.
 
 ## Overview
 
@@ -42,8 +42,8 @@ flowchart TB
         ReportWriter["reporting.ts - MDX Writer"]
         Gen["generate-benchmark-reports.ts - Shells"]
     end
-    subgraph Tests["tests/benchmarks/ (60+ files)"]
-        BMs["58+ Benchmark Modules"]
+    subgraph Tests["tests/benchmarks/ (76 files)"]
+        BMs["62 Registered + 14 Standalone"]
         BMMods["modules/ - Shared Utils"]
         Results["results/ - SQLite + JSONL"]
     end
@@ -70,8 +70,8 @@ flowchart TB
 | Path                        | Role                                        | Files      |
 | :-------------------------- | :------------------------------------------ | :--------- |
 | `scripts/benchmark-matrix/` | Orchestration, runner, reporting, CLI       | 16 modules |
-| `tests/benchmarks/`         | 58+ benchmark test modules                  | 60+ files  |
-| `tests/benchmarks/modules/` | Shared utility modules                      | 10 files   |
+| `tests/benchmarks/`         | 62 registered + 14 standalone test modules  | 76 files   |
+| `tests/benchmarks/modules/` | Shared utility modules                      | 11 files   |
 | `docs/project/benchmarks/`  | 8 auto-generated MDX reports + index        | 9 files    |
 | `tests/benchmarks/results/` | History SQLite, JSONL results, CI summaries | runtime    |
 
@@ -83,7 +83,7 @@ flowchart TB
 | `runner.ts`                     | Per-DB test runner with concurrency control                            |
 | `reporting.ts`                  | `generateFinalReport()`, `writeRankedExecutiveSummary()`, MDX patching |
 | `regression-detector.ts`        | Two-pass statistical engine — slope analysis + root cause              |
-| `benchmark-scripts.ts`          | Canonical register of all 58+ benchmark test modules                   |
+| `benchmark-scripts.ts`          | Canonical register of all 62 benchmark test modules                    |
 | `generate-benchmark-reports.ts` | Generates clean MDX report shells (one LEDGER tag per test)            |
 | `generate-ci-markdown.ts`       | CI summary table for GitHub Actions `$GITHUB_STEP_SUMMARY`             |
 | `cli.ts`                        | CLI argument parsing (`--sql`, `--db`, `--only`, etc.)                 |
@@ -98,14 +98,14 @@ flowchart TB
 
 ### Shared Modules (`tests/benchmarks/modules/`)
 
-| Module                   | Purpose                                                          |
-| :----------------------- | :--------------------------------------------------------------- |
-| `benchmark-analysis.ts`  | Trend analysis, root cause classification, budget checking       |
-| `benchmark-executive.ts` | Executive summary builder — sparklines, quadrant charts, rollups |
-| `benchmark-history.ts`   | SQLite history store — persist/load benchmark runs               |
-| `benchmark-mdx.ts`       | MDX zone patching — markers, ledger assembly, truth tables       |
-| `benchmark-reporting.ts` | `finalizeReport()`, `reportBenchmark()`, run summary tables      |
-| `benchmark-utils.ts`     | Re-exports helpers from `src/utils/benchmark-paths.ts`           |
+| Module                   | Purpose                                                                                                                                                              |
+| :----------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `benchmark-analysis.ts`  | Trend analysis, root cause classification, budget checking                                                                                                           |
+| `benchmark-executive.ts` | Executive summary builder — sparklines, quadrant charts, rollups                                                                                                     |
+| `benchmark-history.ts`   | SQLite history store — persist/load benchmark runs                                                                                                                   |
+| `benchmark-mdx.ts`       | MDX zone patching — markers, ledger assembly, truth tables                                                                                                           |
+| `benchmark-reporting.ts` | `finalizeReport()`, `reportBenchmark()`, run summary tables                                                                                                          |
+| `benchmark-utils.ts`     | Statistics engine + harness: IQR-trimmed mean, RAW-data percentiles (p50/p95/p99/min/max), t-distribution CI for small samples, wall-clock RPS, event-loop telemetry |
 
 ### Report Files (`docs/project/benchmarks/`)
 
@@ -423,7 +423,7 @@ Each per-adapter MDX report (`docs/project/benchmarks/benchmark_*.mdx`) contains
 | :-------------- | :---------------------------------------------------- | :----------------------- |
 | **Executive**   | Pass/fail, dimension health, issues, quadrant chart   | `benchmark-executive.ts` |
 | **Summary**     | Current run latency table, historical archive         | `benchmark-reporting.ts` |
-| **Ledger**      | Full audit of all 58+ benchmark modules (collapsed)   | `benchmark-mdx.ts`       |
+| **Ledger**      | Full audit of all 62 benchmark modules (collapsed)    | `benchmark-mdx.ts`       |
 | **Educational** | Static explanation of benchmark methodology           | Manual edits only        |
 | **Changelog**   | Budget changes, methodology updates, script additions | Manual edits only        |
 | **Metadata**    | Host environment, run timestamps, DB info             | `benchmark-reporting.ts` |
@@ -514,7 +514,13 @@ describe("My New Feature", () => {
 });
 ```
 
-### Step 2: Register in `benchmark-scripts.ts`
+### Step 2: Register in `benchmark-scripts.ts` (perf benchmarks only)
+
+> [!NOTE]
+> Matrix registration is for **performance** benchmarks. Harness/metadata tests
+> that validate the benchmark tooling itself (e.g. `statistics-accuracy.test.ts`,
+> the `modules/*.test.ts` suites) run standalone via `bun test tests/benchmarks/`
+> and do **not** enter the matrix — they never measure a database adapter.
 
 Add an entry to the `BENCHMARK_SCRIPTS` array in `scripts/benchmark-matrix/benchmark-scripts.ts`:
 

@@ -22,7 +22,13 @@ import type {
   MediaQueryOptions,
   ISqlAdapter,
 } from "../db-interface";
-import * as utils from "./relational-utils";
+import {
+  applyTenantFilter,
+  convertArrayDatesToISO,
+  convertDatesToISO,
+  convertISOToDates,
+  generateId,
+} from "./relational-utils";
 import { buildMediaJsonPathSqlConditions, resolveMediaJsonSqlDialect } from "./media-json-path";
 import { assertTenantContext } from "@src/utils/security/safe-query";
 import { isAdmin } from "@src/databases/auth/constants";
@@ -101,7 +107,7 @@ export class RelationalMediaModule implements IMediaAdapter {
               ? [eq(this.schema.mediaItems.folderId, folderId as string)]
               : [isNull(this.schema.mediaItems.folderId)];
 
-            utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
+            applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
             if (options?.user) {
               const isAdminUser = isAdmin(options.user);
@@ -167,7 +173,7 @@ export class RelationalMediaModule implements IMediaAdapter {
             }
 
             return {
-              items: utils.convertArrayDatesToISO(pageRows) as unknown as MediaItem[],
+              items: convertArrayDatesToISO(pageRows) as unknown as MediaItem[],
               total,
               page,
               pageSize: limit,
@@ -200,7 +206,7 @@ export class RelationalMediaModule implements IMediaAdapter {
             : sql`(${filenameCol} LIKE ${qry} ESCAPE ${ESCAPE_CHAR} OR ${originalCol} LIKE ${qry} ESCAPE ${ESCAPE_CHAR})`;
           const conditions = [nameMatch];
 
-          utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
+          applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
           if (options?.user) {
             const isAdminUser = isAdmin(options.user);
@@ -246,7 +252,7 @@ export class RelationalMediaModule implements IMediaAdapter {
           }
 
           return {
-            items: utils.convertArrayDatesToISO(pageRows) as unknown as MediaItem[],
+            items: convertArrayDatesToISO(pageRows) as unknown as MediaItem[],
             total,
             page,
             pageSize: limit,
@@ -263,7 +269,7 @@ export class RelationalMediaModule implements IMediaAdapter {
         return this.adapter.wrap(async () => {
           assertTenantContext(options, "media.files.getMetadata");
           const conditions = [inArray(this.schema.mediaItems._id, fileIds as string[])];
-          utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
+          applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
           const results = await this.db
             .select({
@@ -290,7 +296,7 @@ export class RelationalMediaModule implements IMediaAdapter {
           async () => {
             assertTenantContext(options, "media.files.updateMetadata");
             const conditions = [eq(this.schema.mediaItems._id, fileId as string)];
-            utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
+            applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
             const [existing] = await this.db
               .select({ metadata: this.schema.mediaItems.metadata })
@@ -303,7 +309,7 @@ export class RelationalMediaModule implements IMediaAdapter {
               const [updated] = await this.db
                 .update(this.schema.mediaItems)
                 .set(
-                  utils.convertISOToDates({
+                  convertISOToDates({
                     metadata: newMetadata,
                     updatedAt: nowISODateString(),
                   }) as any,
@@ -311,13 +317,13 @@ export class RelationalMediaModule implements IMediaAdapter {
                 .where(and(...conditions))
                 .returning();
 
-              return utils.convertDatesToISO(updated) as unknown as MediaItem;
+              return convertDatesToISO(updated) as unknown as MediaItem;
             }
 
             await this.db
               .update(this.schema.mediaItems)
               .set(
-                utils.convertISOToDates({
+                convertISOToDates({
                   metadata: newMetadata,
                   updatedAt: nowISODateString(),
                 }) as any,
@@ -330,7 +336,7 @@ export class RelationalMediaModule implements IMediaAdapter {
               .where(and(...conditions))
               .limit(1);
 
-            return utils.convertDatesToISO(updated) as unknown as MediaItem;
+            return convertDatesToISO(updated) as unknown as MediaItem;
           },
           "UPDATE_FILE_METADATA_FAILED",
           undefined,
@@ -347,13 +353,13 @@ export class RelationalMediaModule implements IMediaAdapter {
           async () => {
             assertTenantContext(options, "media.files.move");
             const conditions = [inArray(this.schema.mediaItems._id, fileIds as string[])];
-            utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
+            applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
             if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
               const results = await this.db
                 .update(this.schema.mediaItems)
                 .set(
-                  utils.convertISOToDates({
+                  convertISOToDates({
                     folderId: (targetFolderId || null) as any,
                     updatedAt: nowISODateString(),
                   }) as any,
@@ -366,7 +372,7 @@ export class RelationalMediaModule implements IMediaAdapter {
             const [result] = await this.db
               .update(this.schema.mediaItems)
               .set(
-                utils.convertISOToDates({
+                convertISOToDates({
                   folderId: (targetFolderId || null) as any,
                   updatedAt: nowISODateString(),
                 }) as any,
@@ -388,13 +394,13 @@ export class RelationalMediaModule implements IMediaAdapter {
         return this.adapter.wrap(async () => {
           assertTenantContext(options, "media.files.getByHash");
           const conditions = [eq(this.schema.mediaItems.hash, hash)];
-          utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
+          applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
           const [item] = await this.db
             .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
             .from(this.schema.mediaItems)
             .where(and(...conditions))
             .limit(1);
-          return item ? (utils.convertDatesToISO(item) as unknown as MediaItem) : null;
+          return item ? (convertDatesToISO(item) as unknown as MediaItem) : null;
         }, "GET_FILE_BY_HASH_FAILED");
       },
 
@@ -406,7 +412,7 @@ export class RelationalMediaModule implements IMediaAdapter {
           async () => {
             assertTenantContext(options, "media.files.restore");
             const conditions = [eq(this.schema.mediaItems._id, fileId as string)];
-            utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
+            applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
             await this.db
               .update(this.schema.mediaItems)
@@ -431,7 +437,7 @@ export class RelationalMediaModule implements IMediaAdapter {
           async () => {
             assertTenantContext(options, "media.files.duplicate");
             const conditions = [eq(this.schema.mediaItems._id, fileId as string)];
-            utils.applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
+            applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
             const [existing] = await this.db
               .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
@@ -441,7 +447,7 @@ export class RelationalMediaModule implements IMediaAdapter {
 
             if (!existing) throw new Error("File not found");
 
-            const id = utils.generateId();
+            const id = generateId();
             const now = isoDateStringToDate(nowISODateString());
             const values = {
               ...existing,
@@ -452,7 +458,7 @@ export class RelationalMediaModule implements IMediaAdapter {
             };
 
             await this.db.insert(this.schema.mediaItems).values(values);
-            return utils.convertDatesToISO(values) as unknown as MediaItem;
+            return convertDatesToISO(values) as unknown as MediaItem;
           },
           "DUPLICATE_FILE_FAILED",
           undefined,
@@ -511,12 +517,12 @@ export class RelationalMediaModule implements IMediaAdapter {
         return this.adapter.wrap(async () => {
           assertTenantContext(options, "media.folders.getTree");
           const conditions = [eq(this.schema.systemVirtualFolders.type, "folder")];
-          utils.applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
+          applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
           const results = await this.db
             .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
             .from(this.schema.systemVirtualFolders)
             .where(and(...conditions));
-          return utils.convertArrayDatesToISO(results) as unknown as MediaFolder[];
+          return convertArrayDatesToISO(results) as unknown as MediaFolder[];
         }, "GET_FOLDER_TREE_FAILED");
       },
 
@@ -535,16 +541,12 @@ export class RelationalMediaModule implements IMediaAdapter {
           const folderConditions = folderId
             ? [eq(this.schema.systemVirtualFolders.parentId, folderId as string)]
             : [isNull(this.schema.systemVirtualFolders.parentId)];
-          utils.applyTenantFilter(
-            folderConditions,
-            this.schema.systemVirtualFolders.tenantId,
-            options,
-          );
+          applyTenantFilter(folderConditions, this.schema.systemVirtualFolders.tenantId, options);
 
           const fileConditions = folderId
             ? [eq(this.schema.mediaItems.folderId, folderId as string)]
             : [isNull(this.schema.mediaItems.folderId)];
-          utils.applyTenantFilter(fileConditions, this.schema.mediaItems.tenantId, options);
+          applyTenantFilter(fileConditions, this.schema.mediaItems.tenantId, options);
 
           const folders = await this.db
             .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
@@ -556,8 +558,8 @@ export class RelationalMediaModule implements IMediaAdapter {
             .where(and(...fileConditions));
 
           return {
-            folders: utils.convertArrayDatesToISO(folders) as unknown as MediaFolder[],
-            files: utils.convertArrayDatesToISO(files) as unknown as MediaItem[],
+            folders: convertArrayDatesToISO(folders) as unknown as MediaFolder[],
+            files: convertArrayDatesToISO(files) as unknown as MediaItem[],
             totalCount: folders.length + files.length,
           };
         }, "GET_FOLDER_CONTENTS_FAILED");

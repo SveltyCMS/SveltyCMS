@@ -6,7 +6,7 @@ order: 19
 icon: "mdi:view-dashboard-outline"
 author: "SveltyCMS Team"
 created: "2026-03-24"
-updated: "2026-08-19"
+updated: "2026-08-23"
 tags:
   - "api"
   - "dashboard"
@@ -21,6 +21,8 @@ tags:
 The Dashboard API provides real-time visibility into system performance, health, user activity, and cache efficiency. These endpoints power the dashboard widgets in the admin Studio.
 
 All dashboard routes require an authenticated session and the `dashboard:read` permission (admins bypass via the fast-path). Use kebab-case paths (`system-info`, `last5-content`, `system-messages`, `online-user`).
+
+`/dashboard` itself is lean: picker metadata comes from `widget.json` (no Svelte eval), saved layouts hydrate in `+page.server.ts`, widget Svelte chunks load when they enter the viewport, and `base-widget` polling pauses while the tab is hidden. See [Dashboard Widget Architecture](../../development/dashboard/architecture.mdx).
 
 ---
 

@@ -13,5 +13,6 @@
     "w": 2,
     "h": 3
   },
-  "category": "static"
+  "category": "static",
+  "sveltycms": ">=0.0.8"
 }

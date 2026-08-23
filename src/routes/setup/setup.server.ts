@@ -9,6 +9,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { logger } from "@utils/logger";
+import { describeHardware } from "@utils/hardware-profile";
 import { databaseConfigSchema } from "@src/databases/schemas";
 import { setupAdminSchema, smtpConfigSchema } from "@utils/schemas";
 import { safeParse } from "valibot";
@@ -623,6 +624,10 @@ export async function completeSetup(
       DEMO: system.demoMode,
       USE_REDIS: system.useRedis,
     },
+    // 🧠 HARDWARE-AWARE SETUP: the profile detected at boot tells the wizard how
+    // the host will be tuned (threads, sharp, DB pool, workers) — surfaced so the
+    // operator can see the machine the CMS adapted to and override via env if needed.
+    hardware: describeHardware(),
     redirectPath,
   };
 }

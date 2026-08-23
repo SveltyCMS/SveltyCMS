@@ -88,6 +88,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   // SQLite-specific: cache whether RETURNING works for INSERT ... VALUES
   private _insertManyReturningSupported: boolean | null = null;
 
+  /** tableName → INSERT SQL (no RETURNING — row is synthesized, same as PostgreSQL). */
+  private _insertTemplateCache = new Map<string, { cols: string[]; sqlText: string }>();
+  /** table|cols|returning|tenant → UPDATE SQL. */
+  private _updateSqlCache = new Map<string, string>();
+
   /** Clients whose prepare() is wrapped with a per-SQL statement cache. */
   protected _preparedStatementClients = new Set<any>();
 
@@ -104,6 +109,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
     }
     this._statementCache.clear();
+    this._insertTemplateCache.clear();
+    this._updateSqlCache.clear();
   }
 
   // --------------------------------------------------------------------------
@@ -136,8 +143,26 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     return hasMsg || direct || viaCause;
   }
 
-  protected async executeDynamicSql(db: any, sqlQuery: SQL): Promise<any[]> {
-    return (db as any).values(sqlQuery);
+  protected async executeDynamicSql(
+    db: any,
+    sqlQuery: SQL,
+    _options?: BaseQueryOptions,
+  ): Promise<any[]> {
+    try {
+      const rendered = (
+        sqlQuery as { toQuery?: (opts: unknown) => { sql: string; params: unknown[] } }
+      ).toQuery?.({
+        escapeName: (n: string) => `"${n.replace(/"/g, '""')}"`,
+        escapeParam: () => "?",
+      });
+      if (rendered?.sql && Array.isArray(rendered.params)) {
+        const rows = this.prepareAndExecute(rendered.sql, "all", ...rendered.params);
+        return Array.isArray(rows) ? rows : [];
+      }
+    } catch {
+      /* fall through to Drizzle values() */
+    }
+    return (db as { values: (q: SQL) => Promise<any[]> }).values(sqlQuery);
   }
 
   protected async rawFindById<T>(
@@ -224,20 +249,30 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   ): Promise<T | null> {
     try {
       const tableName = getTableName(table);
-      const cols = Object.keys(values);
-      if (cols.length === 0) return null;
-      const colList = cols.map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`).join(", ");
-      const placeholders = cols.map(() => "?").join(", ");
-      const params = cols.map((c) => values[c]);
-      const rawSql = `INSERT INTO "${tableName}" (${colList}) VALUES (${placeholders}) RETURNING *`;
-      const rows = this.prepareAndExecute(rawSql, "all", ...params);
-      if (Array.isArray(rows) && rows.length > 0) {
-        return utils.convertDatesToISO(rows[0], {
-          ...this.convertDatesOptions,
-          table: collection,
-        }) as T;
+      if (Object.keys(values).length === 0) return null;
+      const synthesized = this.synthesizeInsertRow(table, values);
+      const cols = Object.keys(synthesized);
+      const cacheKey = `${tableName}|${cols.join(",")}`;
+      let tpl = this._insertTemplateCache.get(cacheKey);
+      if (!tpl) {
+        const colList = cols
+          .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+          .join(", ");
+        const placeholders = cols.map(() => "?").join(", ");
+        const sqlText = `INSERT INTO "${utils.assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders})`;
+        tpl = { cols, sqlText };
+        if (this._insertTemplateCache.size >= 256) {
+          const oldest = this._insertTemplateCache.keys().next().value;
+          if (oldest) this._insertTemplateCache.delete(oldest);
+        }
+        this._insertTemplateCache.set(cacheKey, tpl);
       }
-      return null;
+      const params = tpl.cols.map((c) => synthesized[c]);
+      this.prepareAndExecute(tpl.sqlText, "run", ...params);
+      return utils.convertDatesToISO(synthesized, {
+        ...this.convertDatesOptions,
+        table: collection,
+      }) as T;
     } catch {
       return null;
     }
@@ -317,29 +352,38 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
       const tableName = getTableName(table);
       const idColName = idCol?.name || "_id";
-      const setPairs: string[] = [];
-      const params: any[] = [];
-      for (let i = 0; i < columns.length; i++) {
-        const col = columns[i];
-        // Drizzle def property names may differ from physical column names
-        // (e.g. plugin_storage: collectionName → `collection`).
-        const phys = this.getColumn(table, col);
-        const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
-        setPairs.push(`"${safeCol}" = ?`);
-        params.push(values[col]);
-      }
+      const params: unknown[] = [];
+      for (let i = 0; i < columns.length; i++) params.push(values[columns[i]]);
 
       const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
         options,
         "sqlite",
       );
-      const setSql = setPairs.join(", ");
-      const whereSql = `"${idColName}" = ?${tenantSql}`;
-      const skipReturning = (options as any)?.skipReturning === true;
+      const skipReturning = (options as { skipReturning?: boolean })?.skipReturning === true;
+      const cacheKey = `${tableName}|${columns.join(",")}|${skipReturning ? 1 : 0}|${tenantSql}`;
+      let rawSql = this._updateSqlCache.get(cacheKey);
+      if (!rawSql) {
+        const setPairs: string[] = [];
+        for (let i = 0; i < columns.length; i++) {
+          const col = columns[i];
+          const phys = this.getColumn(table, col);
+          const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+          setPairs.push(`"${safeCol}" = ?`);
+        }
+        const whereSql = `"${utils.assertSafeSqlIdentifier(idColName, "column")}" = ?${tenantSql}`;
+        const setSql = setPairs.join(", ");
+        rawSql = skipReturning
+          ? `UPDATE "${utils.assertSafeSqlIdentifier(tableName, "table")}" SET ${setSql} WHERE ${whereSql}`
+          : `UPDATE "${utils.assertSafeSqlIdentifier(tableName, "table")}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
+        if (this._updateSqlCache.size >= 256) {
+          const oldest = this._updateSqlCache.keys().next().value;
+          if (oldest) this._updateSqlCache.delete(oldest);
+        }
+        this._updateSqlCache.set(cacheKey, rawSql);
+      }
 
       if (skipReturning) {
-        const runSql = `UPDATE "${tableName}" SET ${setSql} WHERE ${whereSql}`;
-        this.prepareAndExecute(runSql, "run", ...params, String(id), ...tenantParams);
+        this.prepareAndExecute(rawSql, "run", ...params, String(id), ...tenantParams);
         const reconstructed = {
           ...values,
           [idColName]: id,
@@ -350,7 +394,6 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         }) as unknown as T;
       }
 
-      const rawSql = `UPDATE "${tableName}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
       const rows = this.prepareAndExecute(rawSql, "all", ...params, String(id), ...tenantParams);
       if (Array.isArray(rows) && rows.length > 0) {
         return utils.convertDatesToISO(rows[0], {

@@ -28,6 +28,7 @@ Advanced permission management interface with bulk actions and presets.
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import { deepClone } from '@utils/native-utils';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import type { Role } from '@src/databases/auth/types';
@@ -132,7 +133,7 @@ Advanced permission management interface with bulk actions and presets.
 	// Save to history
 	function saveToHistory() {
 		const newHistory = permissionsHistory.slice(0, historyIndex + 1);
-		newHistory.push(JSON.parse(JSON.stringify(permissionsState)));
+		newHistory.push(deepClone(permissionsState));
 		permissionsHistory = newHistory;
 		historyIndex = newHistory.length - 1;
 	}
@@ -141,7 +142,7 @@ Advanced permission management interface with bulk actions and presets.
 	function undo() {
 		if (historyIndex > 0) {
 			historyIndex--;
-			permissionsState = JSON.parse(JSON.stringify(permissionsHistory[historyIndex]));
+			permissionsState = deepClone(permissionsHistory[historyIndex]);
 			updateParent();
 		}
 	}
@@ -149,7 +150,7 @@ Advanced permission management interface with bulk actions and presets.
 	function redo() {
 		if (historyIndex < permissionsHistory.length - 1) {
 			historyIndex++;
-			permissionsState = JSON.parse(JSON.stringify(permissionsHistory[historyIndex]));
+			permissionsState = deepClone(permissionsHistory[historyIndex]);
 			updateParent();
 		}
 	}

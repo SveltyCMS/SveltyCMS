@@ -44,7 +44,7 @@ Features:
 				aria-valuemax="100"
 			></div>
 		</div>
-		<div class="flex items-center justify-between px-4 pt-2 text-[10px] font-medium uppercase tracking-wider text-slate-500 sm:px-8">
+		<div class="flex items-center justify-between px-4 pt-2 text-[10px] font-medium uppercase tracking-wider text-surface-500 sm:px-8">
 			<span>Database Seeding Progress</span>
 			<span>{seedingProgress}%</span>
 		</div>

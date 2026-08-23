@@ -33,6 +33,7 @@ import {
 } from "@utils/collection-order.server";
 import { getCollectionsPath, getCompiledCollectionsPath } from "@utils/tenant.server";
 import { contentStore } from "@stores/content-registry.svelte";
+import { deepClone } from "@utils/native-utils";
 import { shouldRequireLayoutInvalidate } from "./content-hmr";
 
 export type SyncContentReason =
@@ -288,7 +289,7 @@ function collectChangedNodesForHmr(
     }
 
     if (existingNode?.collectionDef) {
-      nodes.push(structuredCloneSafe(existingNode));
+      nodes.push(deepClone(existingNode));
       continue;
     }
 
@@ -308,19 +309,11 @@ function collectChangedNodesForHmr(
           existingNode?.createdAt || (new Date().toISOString() as ContentNode["createdAt"]),
         updatedAt: new Date().toISOString() as ContentNode["updatedAt"],
       };
-      nodes.push(structuredCloneSafe(node));
+      nodes.push(deepClone(node));
     }
   }
 
   return { nodes, hasNewCollections };
-}
-
-function structuredCloneSafe<T>(value: T): T {
-  try {
-    return structuredClone(value);
-  } catch {
-    return JSON.parse(JSON.stringify(value)) as T;
-  }
 }
 
 function attachHmrNodes(
@@ -495,7 +488,7 @@ export async function ensureCompiledCollectionsFresh(
     userCollections,
     compiledCollections,
     tenantId,
-    concurrency: Math.max(4, Math.floor((await import("node:os")).cpus().length * 0.75)),
+    // concurrency defaults to the shared hardware profile (75% of cores)
   });
 }
 

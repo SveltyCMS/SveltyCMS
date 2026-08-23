@@ -17,7 +17,19 @@
 
 import type { Component } from "svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
-import * as m from "@src/paraglide/messages";
+import {
+  button_cancel,
+  button_confirm,
+  entries_archived,
+  entries_deleted,
+  entries_published,
+  entries_unpublished,
+  entry_archived,
+  entry_cloned_success,
+  entry_deleted_success,
+  entry_saved,
+  entry_scheduled,
+} from "@src/paraglide/messages";
 
 // Dialog Components
 import ConfirmDialog from "@components/system/confirm-dialog.svelte";
@@ -130,8 +142,8 @@ class ModalManager {
         {
           htmlTitle: options.title,
           body: options.body,
-          buttonTextConfirm: options.confirmText || m.button_confirm?.() || "Confirm",
-          buttonTextCancel: options.cancelText || m.button_cancel?.() || "Cancel",
+          buttonTextConfirm: options.confirmText || button_confirm() || "Confirm",
+          buttonTextCancel: options.cancelText || button_cancel() || "Cancel",
           modalClasses: `!bg-${theme.color}-500/10 !border-${theme.color}-500/20`,
           meta: {
             buttonConfirmClasses: `preset-${theme.variant === "filled" ? "filled" : "tonal"}-${theme.color}-500`,
@@ -259,16 +271,28 @@ class ModalManager {
       delete: count > 1 ? "entries_deleted" : "entry_deleted_success",
       archive: count > 1 ? "entries_archived" : "entry_archived",
       publish: count > 1 ? "entries_published" : "entry_saved",
-      unpublish: "entry_unpublished",
+      unpublish: "entries_unpublished",
       schedule: "entry_scheduled",
       clone: "entry_cloned_success",
     };
 
     const key = mapping[action] || "entry_saved";
-    const fn = (m as any)[key];
+    const fn = (
+      {
+        entries_deleted,
+        entry_deleted_success,
+        entries_archived,
+        entry_archived,
+        entries_published,
+        entries_unpublished,
+        entry_saved,
+        entry_scheduled,
+        entry_cloned_success,
+      } as Record<string, unknown>
+    )[key];
     const message =
       typeof fn === "function"
-        ? fn({ count, type: itemType })
+        ? (fn as (inputs: Record<string, unknown>) => string)({ count, type: itemType })
         : `${count > 1 ? count : ""} ${itemType} ${action}ed successfully.`;
 
     toast.success(message);

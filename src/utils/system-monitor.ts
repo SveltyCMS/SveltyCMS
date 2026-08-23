@@ -19,6 +19,7 @@
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import os from "node:os";
 import v8 from "node:v8";
+import { getHardwareProfile } from "@utils/hardware-profile";
 import { logger } from "@utils/logger";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -250,7 +251,10 @@ export function getCpuHistory(): HistoricalPoint[] {
 
 export function getCpuInfo(): { cores: number; model: string } {
   if (!_started) startSystemMonitor();
-  return { cores: _cpuCores, model: _cpuModel };
+  // 🧠 HARDWARE-PROFILE source: sync + memoized, guarantees the dashboard widget
+  // reports the SAME machine the tuning knobs were derived from.
+  const hw = getHardwareProfile();
+  return { cores: hw.cores, model: hw.model };
 }
 
 export function getPressureMultiplier(): number {

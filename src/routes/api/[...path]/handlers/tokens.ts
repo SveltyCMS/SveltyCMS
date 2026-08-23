@@ -131,6 +131,9 @@ export async function handleTokenRoutes(
   if (!locals.user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
 
   const isWebsite = segments[0] === "website-tokens";
+  if (isWebsite && !(locals.isAdmin || isAdmin(locals.user))) {
+    throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
 
   if (request.method === "POST") {
     const body = await request.json().catch(() => ({}));

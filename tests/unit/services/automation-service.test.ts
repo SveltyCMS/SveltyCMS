@@ -141,6 +141,69 @@ describe("AutomationService", () => {
       expect(result.operationResults[0].status).toBe("success");
     });
 
+    it("dispatches only event-indexed flows (skips unmatched events)", async () => {
+      const executeSpy = vi.spyOn(automationService, "executeFlow").mockResolvedValue({
+        status: "success",
+        operationResults: [],
+      } as never);
+      mockDbAdapter.system.preferences.get.mockReturnValue(
+        Promise.resolve({
+          success: true,
+          data: [
+            {
+              id: "create-posts",
+              name: "On create",
+              active: true,
+              trigger: { type: "event", events: ["entry:create"], collections: ["posts"] },
+              operations: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              tenantId: "tenant-1",
+            },
+            {
+              id: "on-delete",
+              name: "On delete",
+              active: true,
+              trigger: { type: "event", events: ["entry:delete"] },
+              operations: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              tenantId: "tenant-1",
+            },
+            {
+              id: "inactive",
+              name: "Off",
+              active: false,
+              trigger: { type: "event", events: ["entry:create"] },
+              operations: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              tenantId: "tenant-1",
+            },
+          ],
+        }),
+      );
+      automationService.invalidateCache("tenant-1");
+      await (
+        automationService as unknown as { handleEvent: (p: unknown) => Promise<void> }
+      ).handleEvent({
+        event: "entry:create",
+        tenantId: "tenant-1",
+        collection: "posts",
+      });
+      expect(executeSpy).toHaveBeenCalledTimes(1);
+      expect(executeSpy.mock.calls[0][0].id).toBe("create-posts");
+
+      executeSpy.mockClear();
+      await (
+        automationService as unknown as { handleEvent: (p: unknown) => Promise<void> }
+      ).handleEvent({
+        event: "media:upload",
+        tenantId: "tenant-1",
+      });
+      expect(executeSpy).not.toHaveBeenCalled();
+    });
+
     it("should stop chain on condition failure", async () => {
       const flow = {
         id: "flow-1",

@@ -82,20 +82,20 @@ export type DatabaseResult<T> =
 
 **Responsibility:** High-performance, standardized data operations.
 
-| Method                                 | Description                                                                     |
-| :------------------------------------- | :------------------------------------------------------------------------------ |
-| `find(collection, criteria, options)`  | Advanced filtering (fused mapQuery — no IR).                                    |
-| `findMany(collection, query, options)` | Multi-row read with limit/offset/fields/sort.                                   |
-| `findPage(collection, query, options)` | **Preferred list API** — `limit+1` → `{ items, hasMore, nextCursor?, total? }`. |
-| `findOne(collection, criteria)`        | Single record retrieval fast-path.                                              |
-| `findByIds(collection, ids, options)`  | Batch PK lookup (relational widgets / loaders).                                 |
-| `count(collection, query, options)`    | Cardinality with `mode: "exact" \| "estimate" \| "auto"`.                       |
-| `exists(collection, query, options)`   | Existence check (`LIMIT 1` / lean projection) — prefer over `count > 0`.        |
-| `insert` / `insertMany`                | Standard and bulk create.                                                       |
-| `update` / `updateMany`                | Scoped updates with multi-tenant safety.                                        |
-| `delete` / `deleteMany`                | Permanent or soft-deletion.                                                     |
-| `upsert` / `upsertMany`                | Atomic update-or-insert.                                                        |
-| `streamMany`                           | Async-iterable scan for export / migration.                                     |
+| Method                                 | Description                                                                                                                                                                           |
+| :------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `find(collection, criteria, options)`  | Advanced filtering (fused mapQuery — no IR).                                                                                                                                          |
+| `findMany(collection, query, options)` | Multi-row read with limit/offset/fields/sort.                                                                                                                                         |
+| `findPage(collection, query, options)` | **Preferred list API** — `limit+1` → `{ items, hasMore, nextCursor?, total? }`.                                                                                                       |
+| `findOne(collection, criteria)`        | Single record retrieval fast-path.                                                                                                                                                    |
+| `findByIds(collection, ids, options)`  | Batch PK lookup (relational widgets / loaders).                                                                                                                                       |
+| `count(collection, query, options)`    | Cardinality with `mode: "exact" \| "estimate" \| "auto"`.                                                                                                                             |
+| `exists(collection, query, options)`   | Existence check (`LIMIT 1` / lean projection) — prefer over `count > 0`.                                                                                                              |
+| `insert` / `insertMany`                | Standard and bulk create.                                                                                                                                                             |
+| `update` / `updateMany`                | Scoped updates with multi-tenant safety.                                                                                                                                              |
+| `delete` / `deleteMany`                | Permanent or soft-deletion.                                                                                                                                                           |
+| `upsert` / `upsertMany`                | Atomic update-or-insert. SQL `_id` filters are one `INSERT … ON CONFLICT` / `ON DUPLICATE KEY` (chunked under bind limits). Mongo is `bulkWrite`. Other filters stay findOne + write. |
+| `streamMany`                           | Async-iterable scan for export / migration.                                                                                                                                           |
 
 ### `findPage` (shared product path)
 

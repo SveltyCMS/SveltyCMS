@@ -14,6 +14,7 @@ import type { FieldInstance } from "@src/content/types";
 import type { SchemaHooks } from "@src/content/schema-hooks";
 import { registerForJsonRender } from "@src/services/json-render/catalog";
 import type { WidgetDefinition, WidgetFactory } from "@widgets/types";
+import { validateWidgetImport } from "@widgets/widget-compatibility";
 import type { BaseIssue, BaseSchema } from "valibot";
 import { LRUCache } from "lru-cache";
 
@@ -119,6 +120,12 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
   /** Semver version of the widget package (e.g. '1.0.0'). Defaults to '1.0.0'. */
   version?: string;
 
+  /**
+   * CMS version range this widget supports (e.g. '>=0.0.8').
+   * Marketplace / custom packages should set this; import is refused on mismatch.
+   */
+  sveltycms?: string;
+
   /** Author or vendor of the widget package. Defaults to 'SveltyCMS'. */
   author?: string;
 
@@ -212,19 +219,27 @@ async function validateWidgetAccessibility(name: string, componentPath: string) 
 export function createWidget<TProps extends WidgetProps = WidgetProps>(
   config: WidgetConfig<TProps>,
 ): WidgetFactory<TProps> {
-  // Enforce factory Name convention (PascalCase / acronyms like SEO)
-  if (typeof config.Name !== "string" || !/^[A-Z][A-Za-z0-9]*$/.test(config.Name)) {
-    throw new Error(
-      `[createWidget] Name "${config.Name}" must be PascalCase (e.g. PhoneNumber, SEO). ` +
-        `Folder must be kebab-case matching widgetNameToFolder(Name). See docs/development/widgets/.`,
-    );
+  const importCheck = validateWidgetImport(
+    {
+      Name: config.Name,
+      version: config.version,
+      sveltycms: config.sveltycms,
+      validationSchema: config.validationSchema,
+    },
+    { tier: "core" },
+  );
+  for (const w of importCheck.warnings) {
+    logger.warn(`[createWidget] ${w}`);
+  }
+  if (!importCheck.ok) {
+    throw new Error(`[createWidget] ${importCheck.errors.join("; ")}`);
   }
 
   if (config.inputComponentPath) {
     validateWidgetAccessibility(config.Name, config.inputComponentPath);
   }
 
-  const version = config.version || "1.0.0";
+  const version = importCheck.version || config.version || "1.0.0";
   const author = config.author || "SveltyCMS";
 
   // 1. Create the immutable widget definition once.
@@ -236,6 +251,7 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(
     Description: config.Description,
     version,
     author,
+    sveltycms: config.sveltycms,
     metadata: {
       type: "core",
       version,
@@ -322,6 +338,7 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(
   widgetFactoryFunction.Icon = config.Icon;
   widgetFactoryFunction.Description = config.Description;
   widgetFactoryFunction.version = version;
+  widgetFactoryFunction.sveltycms = config.sveltycms;
   widgetFactoryFunction.author = author;
   widgetFactoryFunction.GuiSchema = config.GuiSchema;
   widgetFactoryFunction.GraphqlSchema = config.GraphqlSchema;

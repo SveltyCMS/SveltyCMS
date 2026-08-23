@@ -30,7 +30,7 @@ import {
 import { getAllPermissions, hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { User } from "@src/databases/auth/types";
 import { successResponse, rawResponse } from "./base";
-import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
+import { invalidateSessionCache } from "@src/hooks/handle-authentication";
 import { verifyPassword } from "@src/databases/auth";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
@@ -42,7 +42,11 @@ import {
 } from "@utils/security/user-attribute-policy";
 import { logger } from "@utils/logger";
 import { generateSecureToken } from "@utils/native-utils";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  REAUTH_TOKEN_TTL_MS,
+  signReauthToken,
+  verifyReauthToken,
+} from "@utils/server/session-reauth.server";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -227,9 +231,16 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
   });
 
   if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
-  return raw
-    ? rawResponse(event, result.data?.data || result.data)
-    : rawResponse(event, { success: true, ...result.data });
+  const inner = result.data as { data?: unknown; pagination?: unknown } | unknown[] | undefined;
+  const items = Array.isArray(inner)
+    ? inner
+    : Array.isArray((inner as { data?: unknown })?.data)
+      ? (inner as { data: unknown[] }).data
+      : [];
+  const safe = items.map((u) => sanitizeUserForResponse(u));
+  if (raw) return rawResponse(event, safe);
+  const pagination = inner && !Array.isArray(inner) ? inner.pagination : undefined;
+  return rawResponse(event, { success: true, data: safe, pagination });
 }
 
 /**
@@ -733,132 +744,10 @@ export async function handleUpdateUserAttributesRoute(
   cms: LocalCMS,
   tenantId: DatabaseId,
 ) {
-  const caller = event.locals.user;
-  if (!caller?._id) throw new AppError("Unauthorized", 401);
-
-  const body = await event.request.json();
-  const { user_id, newUserData, ...directUpdates } = body;
-  const targetId = !user_id || user_id === "self" ? caller._id : user_id;
-
-  if (!targetId) throw new AppError("User ID is required", 400);
-
-  const isSelf = String(targetId) === String(caller._id);
-  const isAdmin = isAdminCaller(caller);
-  const roles = (event.locals.roles ?? []) as Parameters<typeof hasPermissionWithRoles>[2];
-  const canManageUsers = isAdmin || hasPermissionWithRoles(caller as User, "user:write", roles);
-
-  // Non-privileged users may only edit their own profile
-  if (!isSelf && !canManageUsers) {
-    throw new AppError("Forbidden: cannot update another user", 403);
-  }
-
-  const merged: Record<string, unknown> =
-    newUserData && typeof newUserData === "object"
-      ? { ...directUpdates, ...newUserData }
-      : { ...directUpdates };
-
-  if (hasPrivilegedUserFields(merged) && !isAdmin) {
-    logger.warn(
-      `[Auth] Stripped privileged fields from update-user-attributes (user=${caller._id})`,
-    );
-  }
-
-  // 🛡️ Client-facing policy: non-admin full strip; admin may set role/isAdmin
-  const updates = sanitizeClientUserAttributePatch(merged, { isAdmin });
-
-  if (Object.keys(updates).length === 0) {
-    throw new AppError("At least one user attribute is required", 400);
-  }
-
-  // Never force isNull(tenantId) when multi-tenant is off — session-cached users
-  // after re-seed can miss null-tenant filters. Prefer id-only update.
-  // allowPrivilegeEscalation: adapters also fail-closed unless this is set.
-  const updateOpts: {
-    tenantId?: DatabaseId;
-    bypassTenantCheck?: boolean;
-    allowPrivilegeEscalation?: boolean;
-  } = {
-    bypassTenantCheck: true,
-    ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
-  };
-  if (tenantId) {
-    updateOpts.tenantId = tenantId;
-    updateOpts.bypassTenantCheck = false;
-  }
-
-  let resolvedId = String(targetId);
-  let result = await cms.auth.updateUserAttributes(resolvedId, updates, updateOpts);
-
-  // Session can hold a stale user_id after wizard reset / re-seed while email is current.
-  // Resolve by email and retry once so self-profile updates never 404 spuriously.
-  if (
-    !result.success &&
-    /not found/i.test(String(result.message || "")) &&
-    event.locals.user?.email
-  ) {
-    try {
-      const byEmail = await cms.auth.getUserByEmail(String(event.locals.user.email), {
-        bypassTenantCheck: true,
-      } as any);
-      const emailUser =
-        byEmail?.success && byEmail.data
-          ? byEmail.data
-          : byEmail && typeof byEmail === "object" && "_id" in (byEmail as object)
-            ? (byEmail as unknown as { _id: string })
-            : null;
-      const emailId = emailUser && (emailUser as { _id?: string })._id;
-      if (emailId && String(emailId) !== resolvedId) {
-        resolvedId = String(emailId);
-        result = await cms.auth.updateUserAttributes(resolvedId, updates, {
-          bypassTenantCheck: true,
-          ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
-        } as any);
-      }
-    } catch {
-      /* keep original failure */
-    }
-  }
-
-  if (!result.success) throw new AppError(result.message || "Update failed", 400);
-
-  // 🔄 Refresh session caches so the next page load returns updated user data
-  const currentSessionId =
-    (event.locals.session_id as DatabaseId | undefined) ??
-    readSessionCookie(event.cookies, event.url.protocol === "https:");
-  if (targetId === event.locals.user?._id && currentSessionId && result.data) {
-    primeSessionMemoryCache(currentSessionId, result.data as User);
-    // Also clear the Redis cache key so it's re-read from DB on next cache miss
-    try {
-      const { cacheService } = await import("@src/databases/cache/cache-service");
-      const cacheKey = tenantId
-        ? `session:${tenantId}:${currentSessionId}`
-        : `session:${currentSessionId}`;
-      cacheService.delete(cacheKey, tenantId ?? undefined).catch(() => {});
-    } catch {
-      /* cache service not available — memory-only is fine */
-    }
-  }
-
-  // 🔐 Password change: Invalidate all other sessions across all devices
-  const hasPasswordField = "password" in updates || "password" in (body as any);
-  if (hasPasswordField) {
-    const currentSessionId = event.locals.session_id as DatabaseId | undefined;
-    // 1. Get active sessions before invalidation so we can identify which to clean
-    const sessionsResult = await cms.auth.getActiveSessions(targetId, {
-      tenantId,
-    });
-    const otherSessions = ((sessionsResult as any).data || sessionsResult || []).filter(
-      (s: any) => s._id !== currentSessionId,
-    );
-    // 2. Delete all user sessions from the database (L2) and session store (L0/L1)
-    await cms.auth.invalidateAllUserSessions(targetId, { tenantId });
-    // 3. Purge each invalidated session from the 3-layer cache
-    for (const s of otherSessions) {
-      invalidateSessionCache(s._id, tenantId);
-    }
-  }
-
-  return successResponse(event, result.data);
+  const body = (await event.request.json()) as Record<string, unknown>;
+  const { applyUserAttributeUpdate } = await import("@utils/server/user-attribute-update.server");
+  const data = await applyUserAttributeUpdate(event, cms, tenantId, body);
+  return successResponse(event, data);
 }
 
 /**
@@ -925,51 +814,19 @@ export async function handleUpdateRoles(
   tenantId: DatabaseId,
   user: any,
 ) {
+  // Coarse `api:user` + `user:write` is not enough — editors must not rewrite RBAC.
+  if (!(event.locals.isAdmin === true || isAdmin(user))) {
+    throw new AppError("Admin privileges required", 403, "FORBIDDEN");
+  }
   const roles = await event.request.json();
+  if (!Array.isArray(roles)) {
+    throw new AppError("Roles payload must be an array", 400, "VALIDATION_FAILED");
+  }
   const result = await cms.auth.updateRoles(roles, { user, tenantId });
   return successResponse(event, result);
 }
 
 // ─── Session Management Handlers ─────────────────────────────────────────────
-
-/** Re-auth proof lifetime (5 minutes) — Laravel-style password confirmation. */
-const REAUTH_TOKEN_TTL_MS = 5 * 60 * 1000;
-
-/**
- * Sign a re-auth proof: HMAC-SHA256(userId:sessionId:exp) with the server secret.
- * Stateless — no server-side storage, verifiable by any node.
- */
-function signReauthToken(userId: string, sessionId: string, exp: number): string {
-  const secret = String(getPrivateSettingSync("JWT_SECRET_KEY") || "");
-  const sig = createHmac("sha256", secret)
-    .update(`${userId}:${sessionId}:${exp}`)
-    .digest("base64url");
-  return `${exp}:${sig}`;
-}
-
-/** Verify a re-auth proof and return true when valid, fresh, and bound to this session. */
-function verifyReauthToken(
-  token: string | null | undefined,
-  userId: string,
-  sessionId: string,
-): boolean {
-  if (!token) return false;
-  const parts = token.split(":");
-  if (parts.length !== 2) return false;
-  const exp = Number(parts[0]);
-  if (!Number.isFinite(exp) || exp - Date.now() > REAUTH_TOKEN_TTL_MS || exp < Date.now())
-    return false;
-  const secret = String(getPrivateSettingSync("JWT_SECRET_KEY") || "");
-  if (!secret) return false;
-  const expected = createHmac("sha256", secret)
-    .update(`${userId}:${sessionId}:${exp}`)
-    .digest("base64url");
-  try {
-    return timingSafeEqual(Buffer.from(parts[1]), Buffer.from(expected));
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Password re-authentication for sensitive session management (Laravel-style).

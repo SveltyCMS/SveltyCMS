@@ -89,6 +89,56 @@ export function createCleanTypeName(collection: { _id?: string; name?: string | 
   return `${cleanName}_${idSuffix}`;
 }
 
+export type CollectionInfoRow = {
+  _id: string;
+  name: unknown;
+  slug: unknown;
+  icon: string | null;
+  description: string | null;
+  fieldCount: number;
+};
+
+const _allCollectionsCache = new Map<string, { data: CollectionInfoRow[]; ts: number }>();
+const ALL_COLLECTIONS_CACHE_TTL = 5000;
+
+/** In-memory collection catalog — shared by the Yoga resolver and the Yoga-bypass fast path. */
+export async function resolveAllCollections(
+  tenantId?: string | null,
+): Promise<CollectionInfoRow[]> {
+  const tenantKey = tenantId || "global";
+  const cached = _allCollectionsCache.get(tenantKey);
+  if (cached && Date.now() - cached.ts < ALL_COLLECTIONS_CACHE_TTL) {
+    return cached.data;
+  }
+
+  const { contentSystem } = await import("@src/content/index.server");
+  const all: Schema[] = await contentSystem.getCollections(tenantId);
+  const { isMockScanCollection, isBenchmarkRuntime } =
+    await import("@src/routes/setup/preset-collections.server");
+  const isBenchmark = isBenchmarkRuntime();
+  const result: CollectionInfoRow[] = [];
+  for (const col of all) {
+    const id = String(col._id || "");
+    const name = typeof col.name === "string" ? col.name : "";
+    if (isMockScanCollection(id, name)) continue;
+    const idLower = id.toLowerCase();
+    const isBenchTestCollection =
+      idLower.startsWith("bench_") || idLower.startsWith("test-") || idLower.startsWith("test_");
+    if (!isBenchmark && isBenchTestCollection) continue;
+    result.push({
+      _id: col._id as string,
+      name: col.name,
+      slug: col.slug || col.name,
+      icon: col.icon || null,
+      description: col.description || null,
+      fieldCount: (col.fields || []).length,
+    });
+  }
+
+  _allCollectionsCache.set(tenantKey, { data: result, ts: Date.now() });
+  return result;
+}
+
 interface WidgetSchema {
   graphql: string;
   base?: string;
@@ -373,45 +423,11 @@ export async function registerCollections(tenantId?: string | null) {
 		fieldCount: Int!
 	}`);
   queryFields.push(`allCollections: [CollectionInfo!]!`);
-  const _allCollectionsCache = new Map<string, { data: any[]; ts: number }>();
-  const ALL_COLLECTIONS_CACHE_TTL = 5000; // 5 seconds — schemas rarely change
-
   resolvers.Query["allCollections"] = async (_parent: unknown, _args: unknown, context: any) => {
     if (!context.user) {
       throw new Error("Authentication required");
     }
-
-    const tenantKey = context.tenantId || "global";
-    const cached = _allCollectionsCache.get(tenantKey);
-    if (cached && Date.now() - cached.ts < ALL_COLLECTIONS_CACHE_TTL) {
-      return cached.data;
-    }
-
-    const { contentSystem } = await import("@src/content/index.server");
-    const all: Schema[] = await contentSystem.getCollections(context.tenantId);
-    const { isMockScanCollection, isBenchmarkRuntime } =
-      await import("@src/routes/setup/preset-collections.server");
-    const isBenchmark = isBenchmarkRuntime();
-    const filtered = all.filter((c) => {
-      const id = String(c._id || "");
-      const name = typeof c.name === "string" ? c.name : "";
-      if (isMockScanCollection(id, name)) return false;
-      const idLower = id.toLowerCase();
-      const isBenchTestCollection =
-        idLower.startsWith("bench_") || idLower.startsWith("test-") || idLower.startsWith("test_");
-      return isBenchmark || !isBenchTestCollection;
-    });
-    const result = filtered.map((col) => ({
-      _id: col._id,
-      name: col.name,
-      slug: col.slug || col.name,
-      icon: col.icon || null,
-      description: col.description || null,
-      fieldCount: (col.fields || []).length,
-    }));
-
-    _allCollectionsCache.set(tenantKey, { data: result, ts: Date.now() });
-    return result;
+    return resolveAllCollections(context.tenantId);
   };
 
   if (process.env.BENCHMARK_DEBUG === "true") {

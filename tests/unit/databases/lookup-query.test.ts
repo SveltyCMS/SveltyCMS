@@ -11,6 +11,7 @@ import {
   extractLookupStatus,
   applyLookupStatus,
   parseIdLookup,
+  extractPkConflictId,
 } from "@src/databases/core/lookup-query";
 
 describe("lookup-query (shared SQL + Mongo)", () => {
@@ -27,6 +28,14 @@ describe("lookup-query (shared SQL + Mongo)", () => {
   it("accepts id alias", () => {
     expect(isIdLookupQuery({ id: "x1" })).toBe(true);
     expect(extractLookupId({ id: "x1" })).toBe("x1");
+  });
+
+  it("extractPkConflictId accepts _id / tenantId but rejects status pins", () => {
+    expect(extractPkConflictId({ _id: "abc" })).toBe("abc");
+    expect(extractPkConflictId({ _id: "abc", tenantId: "global" })).toBe("abc");
+    expect(extractPkConflictId({ _id: "abc", isDeleted: false })).toBe("abc");
+    expect(extractPkConflictId({ _id: "abc", status: "draft" })).toBeNull();
+    expect(extractPkConflictId({ title: "no-id" })).toBeNull();
   });
 
   it("accepts scalar status (publication clamp: status=publish)", () => {

@@ -19,7 +19,12 @@ import type {
   BaseQueryOptions,
   ISqlAdapter,
 } from "../db-interface";
-import * as utils from "./relational-utils";
+import {
+  applyTenantFilter,
+  convertArrayDatesToISO,
+  convertDatesToISO,
+  generateId,
+} from "./relational-utils";
 import { assertTenantContext } from "@src/utils/security/safe-query";
 
 export class RelationalContentModule implements IContentAdapter {
@@ -56,7 +61,7 @@ export class RelationalContentModule implements IContentAdapter {
   ) {
     const table = this.schema.contentNodes;
     const now = isoDateStringToDate(nowISODateString());
-    const id = (options.id || (node as any)._id || (node as any).id || utils.generateId()) as
+    const id = (options.id || (node as any)._id || (node as any).id || generateId()) as
       | string
       | undefined;
     const tenantId = options.tenantId !== undefined ? options.tenantId : (node as any).tenantId;
@@ -181,7 +186,7 @@ export class RelationalContentModule implements IContentAdapter {
             .orderBy(desc(this.schema.contentDrafts.version));
 
           return {
-            items: utils.convertArrayDatesToISO(results) as unknown as ContentDraft[],
+            items: convertArrayDatesToISO(results) as unknown as ContentDraft[],
             total: results.length,
             page: options?.page || 1,
             pageSize: limit,
@@ -235,7 +240,7 @@ export class RelationalContentModule implements IContentAdapter {
     ): Promise<DatabaseResult<ContentNode>> => {
       const tenantId = options?.tenantId ?? (node as any).tenantId;
       assertTenantContext({ ...options, tenantId }, "content.nodes.upsertContentStructureNode");
-      // NOTE: tenant filter decisions now centralized via utils.getTenantCondition / applyTenantFilter (relational-utils) for query paths.
+      // NOTE: tenant filter decisions now centralized via getTenantCondition / applyTenantFilter (relational-utils) for query paths.
 
       if (this.adapter.type !== "mongodb" && (this.adapter as any).prepareValues) {
         return this.adapter.wrap(
@@ -246,7 +251,7 @@ export class RelationalContentModule implements IContentAdapter {
 
             await this.executeContentNodeUpsert(this.db, preparedValues);
 
-            return utils.convertDatesToISO(preparedValues) as unknown as ContentNode;
+            return convertDatesToISO(preparedValues) as unknown as ContentNode;
           },
           "UPSERT_STRUCTURE_NODE_FAILED",
           undefined,
@@ -311,7 +316,7 @@ export class RelationalContentModule implements IContentAdapter {
           delete (preparedValues as any).createdAt;
 
           const conditions = [eq(this.schema.contentNodes.path, path)];
-          utils.applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
+          applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
 
           const query = db
             .update(this.schema.contentNodes)
@@ -320,7 +325,7 @@ export class RelationalContentModule implements IContentAdapter {
 
           if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
             const [updated] = await query.returning();
-            if (updated) return utils.convertDatesToISO(updated) as unknown as ContentNode;
+            if (updated) return convertDatesToISO(updated) as unknown as ContentNode;
           }
 
           await query;
@@ -330,7 +335,7 @@ export class RelationalContentModule implements IContentAdapter {
             .where(and(...conditions))
             .limit(1);
 
-          return utils.convertDatesToISO(updated) as unknown as ContentNode;
+          return convertDatesToISO(updated) as unknown as ContentNode;
         },
         "UPDATE_NODE_FAILED",
         undefined,
@@ -409,7 +414,7 @@ export class RelationalContentModule implements IContentAdapter {
 
         // Return the prepared (as before, since we don't fetch back the full row for bulk perf)
         const results = preparedValuesList.map(
-          (pv) => utils.convertDatesToISO(pv) as unknown as ContentNode,
+          (pv) => convertDatesToISO(pv) as unknown as ContentNode,
         );
         return { success: true, data: results };
       };
@@ -434,7 +439,7 @@ export class RelationalContentModule implements IContentAdapter {
         async () => {
           assertTenantContext(options, "content.nodes.delete");
           const conditions = [eq(this.schema.contentNodes.path, path)];
-          utils.applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
+          applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
           await this.db.delete(this.schema.contentNodes).where(and(...conditions));
         },
         "DELETE_NODE_FAILED",
@@ -451,7 +456,7 @@ export class RelationalContentModule implements IContentAdapter {
         async () => {
           assertTenantContext(options, "content.nodes.deleteMany");
           const conditions = [inArray(this.schema.contentNodes.path, paths)];
-          utils.applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
+          applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
           const q = this.db.delete(this.schema.contentNodes).where(and(...conditions));
 
           let count = 0;
@@ -576,7 +581,7 @@ export class RelationalContentModule implements IContentAdapter {
           .orderBy(desc(this.schema.contentRevisions.version));
 
         return {
-          items: utils.convertArrayDatesToISO(results) as unknown as ContentRevision[],
+          items: convertArrayDatesToISO(results) as unknown as ContentRevision[],
           total: results.length,
           page: options?.page || 1,
           pageSize: limit,

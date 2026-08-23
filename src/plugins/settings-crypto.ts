@@ -5,6 +5,7 @@
  * Implements the aphexcms pattern for encrypted plugin settings:
  * - `secret` field type for plugin settings declarations
  * - AES-256-GCM encryption at rest under a static key from `SECRET_ENCRYPTION_KEY`
+ * - Hex/base64 keys used as-is; passphrase keys via HKDF-SHA-256 (SHA-256 dual-read)
  * - AAD (Additional Authenticated Data) binding ciphertext to tenant+plugin context
  * - Versioned envelope format: `v1:iv:authTag:ciphertext` (base64)
  * - Secrets never reach the browser: API serves masked values
@@ -21,6 +22,13 @@
  */
 
 import { logger } from "@utils/logger";
+import {
+  AES256_HKDF_INFO,
+  aesGcmDecryptWithKeys,
+  resolveStaticAesKey,
+  staticAesKeyRing,
+  type ResolvedStaticAesKey,
+} from "@utils/security/crypto";
 
 // ============================================================================
 // Constants
@@ -29,7 +37,6 @@ import { logger } from "@utils/logger";
 const ENV_KEY_NAME = "SECRET_ENCRYPTION_KEY";
 const ENVELOPE_VERSION = 1;
 const ALGORITHM = "aes-256-gcm";
-const KEY_LENGTH = 32; // 256 bits
 const IV_LENGTH = 16; // 128 bits
 const AUTH_TAG_LENGTH = 16; // 128 bits
 
@@ -53,78 +60,46 @@ export interface EncryptionContext {
 // Key Management
 // ============================================================================
 
-let cachedKey: Buffer | null = null;
-let keyLoadAttempted = false;
+let cachedKeys: ResolvedStaticAesKey | null | undefined;
 
 /**
- * Load the encryption key from the environment.
- * The key should be a hex-encoded 256-bit key.
- * Falls back to deriving a key from the raw env value if it's not hex.
+ * Test-only: drop the memoized key ring so the next call re-reads
+ * `SECRET_ENCRYPTION_KEY` (e.g. when a test swaps the secret mid-suite).
  */
-function loadEncryptionKey(): Buffer | null {
-  if (cachedKey) return cachedKey;
-  if (keyLoadAttempted) return null;
+export function resetSettingsCryptoKeyCache(): void {
+  cachedKeys = undefined;
+}
 
-  keyLoadAttempted = true;
+/**
+ * Load the encryption key ring from the environment.
+ * Hex / strict-base64 → raw 32-byte AES key. Passphrase → HKDF-SHA-256
+ * (cached for the process; SHA-256 dual-read for envelopes written before HKDF).
+ */
+async function getEncryptionKeys(): Promise<ResolvedStaticAesKey | null> {
+  if (cachedKeys !== undefined) return cachedKeys;
 
   try {
     const raw = typeof process !== "undefined" ? process.env[ENV_KEY_NAME] : undefined;
     if (!raw || raw.length === 0) {
       logger.debug("[SettingsCrypto] No SECRET_ENCRYPTION_KEY set — secret encryption disabled");
+      cachedKeys = null;
       return null;
     }
 
-    // Accept hex-encoded keys (64 hex chars = 32 bytes)
-    if (/^[0-9a-fA-F]{64}$/.test(raw)) {
-      cachedKey = Buffer.from(raw, "hex");
-      logger.debug("[SettingsCrypto] Loaded hex-encoded encryption key");
-      return cachedKey;
+    const crypto = await import("node:crypto");
+    cachedKeys = resolveStaticAesKey(crypto, raw, AES256_HKDF_INFO.pluginSettings);
+    if (cachedKeys.fallbacks.length > 0) {
+      logger.warn(
+        "[SettingsCrypto] SECRET_ENCRYPTION_KEY is not hex/base64 — deriving key via HKDF-SHA-256. " +
+          "For production, generate a key: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+      );
+    } else {
+      logger.debug("[SettingsCrypto] Loaded static encryption key");
     }
-
-    // Accept base64-encoded keys
-    if (raw.length >= 44) {
-      try {
-        const decoded = Buffer.from(raw, "base64");
-        if (decoded.length >= KEY_LENGTH) {
-          cachedKey = decoded.subarray(0, KEY_LENGTH);
-          logger.debug("[SettingsCrypto] Loaded base64-encoded encryption key");
-          return cachedKey;
-        }
-      } catch {
-        // Fall through to raw string derivation
-      }
-    }
-
-    // Derive key from raw string using SHA-256
-    logger.warn(
-      "[SettingsCrypto] SECRET_ENCRYPTION_KEY is not hex/base64 — deriving key via SHA-256. " +
-        "For production, generate a key: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
-    );
-    // We'll do the derivation lazily in encrypt/decrypt to avoid bundling crypto at module load
-    return null;
+    return cachedKeys;
   } catch (err) {
     logger.error("[SettingsCrypto] Failed to load encryption key", { error: String(err) });
-    return null;
-  }
-}
-
-/**
- * Get or derive the encryption key.
- * Returns null if no key is configured.
- */
-async function getEncryptionKey(): Promise<Buffer | null> {
-  const key = loadEncryptionKey();
-  if (key) return key;
-
-  // Try deriving from raw env value
-  const raw = typeof process !== "undefined" ? process.env[ENV_KEY_NAME] : undefined;
-  if (!raw || raw.length === 0) return null;
-
-  try {
-    const crypto = await import("node:crypto");
-    cachedKey = crypto.createHash("sha256").update(raw, "utf8").digest();
-    return cachedKey;
-  } catch {
+    cachedKeys = null;
     return null;
   }
 }
@@ -152,8 +127,8 @@ export async function encryptSecret(
   plaintext: string,
   context?: EncryptionContext,
 ): Promise<string | null> {
-  const key = await getEncryptionKey();
-  if (!key) {
+  const keys = await getEncryptionKeys();
+  if (!keys) {
     throw new Error(
       `[SettingsCrypto] Cannot encrypt secret: ${ENV_KEY_NAME} is not set. ` +
         "Generate one: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
@@ -164,7 +139,7 @@ export async function encryptSecret(
     const crypto = await import("node:crypto");
     const iv = crypto.randomBytes(IV_LENGTH);
 
-    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+    const cipher = crypto.createCipheriv(ALGORITHM, keys.primary, iv);
 
     // Bind ciphertext to tenant+plugin context (AAD)
     if (context) {
@@ -200,8 +175,8 @@ export async function decryptSecret(
   envelope: string,
   context?: EncryptionContext,
 ): Promise<string | null> {
-  const key = await getEncryptionKey();
-  if (!key) {
+  const keys = await getEncryptionKeys();
+  if (!keys) {
     logger.warn("[SettingsCrypto] Cannot decrypt secret: no encryption key configured");
     return null;
   }
@@ -224,16 +199,21 @@ export async function decryptSecret(
     const authTag = combined.subarray(offset, (offset += AUTH_TAG_LENGTH));
     const ciphertext = combined.subarray(offset);
 
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-    decipher.setAuthTag(authTag);
-
-    // Verify context authenticity via AAD
-    if (context) {
-      const aad = Buffer.from(`${context.tenantId}:${context.pluginId}`, "utf8");
-      decipher.setAAD(aad);
+    const aad = context
+      ? Buffer.from(`${context.tenantId}:${context.pluginId}`, "utf8")
+      : undefined;
+    const decrypted = aesGcmDecryptWithKeys(crypto, {
+      keys: staticAesKeyRing(keys),
+      iv,
+      authTag,
+      ciphertext,
+      aad,
+      algorithm: ALGORITHM,
+    });
+    if (!decrypted) {
+      logger.error("[SettingsCrypto] Context verification or decryption failed");
+      return null;
     }
-
-    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     return decrypted.toString("utf8");
   } catch (err) {
     logger.error("[SettingsCrypto] Context verification or decryption failed", {
@@ -267,8 +247,8 @@ export function getMaskedValue(): string {
  * Check if secret encryption is available.
  */
 export async function isEncryptionAvailable(): Promise<boolean> {
-  const key = await getEncryptionKey();
-  return key !== null;
+  const keys = await getEncryptionKeys();
+  return keys !== null;
 }
 
 /**

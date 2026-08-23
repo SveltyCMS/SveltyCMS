@@ -13,7 +13,7 @@ import fs from "node:fs";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import { generateUUID } from "@utils/native-utils";
+import { generateUUID, deepClone } from "@utils/native-utils";
 import {
   isAutomatedTestHarness,
   resolvePrivateConfigFileName,
@@ -314,7 +314,7 @@ export async function handleTestingRoutes(
 
         // 4. Seed default theme and refresh ThemeManager
         const { DEFAULT_THEME, ThemeManager } = await import("@src/databases/theme-manager");
-        const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
+        const safeTheme = deepClone(DEFAULT_THEME);
         await initializedAdapter.system.themes.ensure(safeTheme);
         const themeManager = ThemeManager.getInstance();
         if (themeManager.isInitialized()) {
@@ -454,7 +454,7 @@ export async function handleTestingRoutes(
       const { DEFAULT_THEME } = await import("@src/databases/theme-manager");
 
       // 🚀 HARDENING: Ensure all DEFAULT_THEME properties are strings or null (no undefined)
-      const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
+      const safeTheme = deepClone(DEFAULT_THEME);
       await initializedAdapter.system.themes.ensure(safeTheme);
 
       const { ThemeManager } = await import("@src/databases/theme-manager");

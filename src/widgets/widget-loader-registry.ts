@@ -5,7 +5,7 @@
  * Responsibilities:
  * - Delegate path resolution to `widgets/scanner` (Vite glob + Bun fallback).
  * - Deduplicate async imports so N fields sharing a widget type load once.
- * - Prefetch visible-tab widgets during idle time on entry open.
+ * - Prefetch unique widget types as soon as the entry form knows its fields.
  *
  * ### Features:
  * - per-widget Promise cache
@@ -15,7 +15,6 @@
 
 import type { WidgetRegistry } from "@src/stores/widget-store.svelte";
 import { getComponentLoader, widgetComponents } from "./scanner";
-import { WIDGET_COMPONENT_ROOTS, widgetNameToFolder } from "./widget-naming";
 
 type SvelteModule = { default: unknown };
 type LoaderFn = () => Promise<SvelteModule>;
@@ -38,23 +37,10 @@ function loaderFromStorePath(
     (fn as { inputComponentPath?: string } | undefined)?.inputComponentPath ||
     (fn as { __inputComponentPath?: string } | undefined)?.__inputComponentPath;
 
-  const folder = widgetNameToFolder(widgetName);
-  const pathsToTry = [storePath].filter(Boolean) as string[];
-  for (const root of WIDGET_COMPONENT_ROOTS) {
-    pathsToTry.push(`./${root}/${folder}/${suffix}.svelte`);
+  if (storePath && widgetComponents[storePath]) {
+    return widgetComponents[storePath] as LoaderFn;
   }
-
-  for (const pattern of pathsToTry) {
-    if (pattern && widgetComponents[pattern]) {
-      return widgetComponents[pattern] as LoaderFn;
-    }
-    for (const path in widgetComponents) {
-      if (path.endsWith(pattern) || path.toLowerCase().includes(`/${folder}/${suffix}.svelte`)) {
-        return widgetComponents[path] as LoaderFn;
-      }
-    }
-  }
-  return null;
+  return getComponentLoader(widgetName, suffix);
 }
 
 /** Resolve uncached input loader for a widget name. */
@@ -63,9 +49,7 @@ export function resolveWidgetInputLoader(
   registry: WidgetRegistry,
 ): LoaderFn | null {
   if (!widgetName) return null;
-  return (
-    loaderFromStorePath(widgetName, registry, "input") || getComponentLoader(widgetName, "input")
-  );
+  return loaderFromStorePath(widgetName, registry, "input");
 }
 
 /** Resolve uncached display loader for a widget name. */
@@ -74,10 +58,7 @@ export function resolveWidgetDisplayLoader(
   registry: WidgetRegistry,
 ): LoaderFn | null {
   if (!widgetName) return null;
-  return (
-    loaderFromStorePath(widgetName, registry, "display") ||
-    getComponentLoader(widgetName, "display")
-  );
+  return loaderFromStorePath(widgetName, registry, "display");
 }
 
 function cachedLoader(

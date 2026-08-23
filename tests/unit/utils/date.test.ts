@@ -13,6 +13,7 @@ import {
   dateToISODateString,
   formatDisplayDate,
   formatRelativeDate,
+  hasIsoDateTimePrefix,
   isISODateString,
   isoDateStringToDate,
   nowISODateString,
@@ -26,6 +27,13 @@ describe("Date Utils - Type Guards", () => {
     expect(isISODateString("invalid")).toBe(false);
     expect(isISODateString(123)).toBe(false);
     expect(isISODateString(null)).toBe(false);
+  });
+
+  it("detects YYYY-MM-DDTHH:mm:ss prefixes without regex", () => {
+    expect(hasIsoDateTimePrefix("2025-01-20T12:00:00.000Z")).toBe(true);
+    expect(hasIsoDateTimePrefix("2025-01-20")).toBe(false);
+    expect(hasIsoDateTimePrefix("not-a-date")).toBe(false);
+    expect(hasIsoDateTimePrefix("2025/01/20T12:00:00")).toBe(false);
   });
 
   it("should convert Date to ISO date string", () => {

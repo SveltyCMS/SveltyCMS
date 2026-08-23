@@ -6,7 +6,7 @@ order: 17
 icon: "mdi:image-multiple"
 author: "SveltyCMS Team"
 created: "2026-07-18"
-updated: "2026-07-18"
+updated: "2026-08-23"
 tags:
   - "testing"
   - "e2e"
@@ -25,6 +25,8 @@ tags:
 | Modals | advanced search, focal, transcode, image editor                        |
 
 Media content is environment-specific; tests seed via upload.
+
+Gallery first paint: tiles use `mediaDisplayUrl()` (not the original); SSR rows are `toGalleryListItem()` allowlists (no `advancedMetadata` / embeddings); published-in-use ids come from `getPublishedReferencedIds()` (one index rebuild); Sharp/`MediaService` is imported only from upload/delete actions; image editor / details / table / advanced-search / tag-editor / drag-preview / folder-prompt shells load on demand.
 
 ---
 

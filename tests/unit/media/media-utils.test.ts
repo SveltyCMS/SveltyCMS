@@ -13,6 +13,7 @@ import {
   validateBuffer,
   resolveMediaRelPath,
   buildOriginalRelPath,
+  mediaDisplayUrl,
 } from "../../../src/utils/media/media-utils";
 
 describe("media-utils — MIME lookup", () => {
@@ -88,6 +89,43 @@ describe("media-utils — path resolution", () => {
       filename: "photo.jpg",
     });
     expect(result).toBe("global/abc123/original/photo-abc123.jpg");
+  });
+});
+
+describe("media-utils — gallery display URL", () => {
+  it("prefers a named thumbnail over the original", () => {
+    expect(
+      mediaDisplayUrl(
+        {
+          url: "/files/global/original/hero.jpg",
+          thumbnails: {
+            thumbnail: { url: "/files/global/thumbnail/hero.jpg" },
+            sm: { url: "/files/global/sm/hero.jpg" },
+          },
+        },
+        "sm",
+      ),
+    ).toBe("/files/global/sm/hero.jpg");
+  });
+
+  it("falls back thumbnail → sm → md → original", () => {
+    expect(
+      mediaDisplayUrl({
+        url: "/files/original.jpg",
+        thumbnails: { md: { url: "/files/md.jpg" } },
+      }),
+    ).toBe("/files/md.jpg");
+    expect(mediaDisplayUrl({ url: "/files/original.jpg" })).toBe("/files/original.jpg");
+    expect(mediaDisplayUrl({})).toBe("");
+  });
+
+  it("uses the server-normalized thumbnail field", () => {
+    expect(
+      mediaDisplayUrl({
+        url: "/files/original.jpg",
+        thumbnail: { url: "/files/thumb.jpg" },
+      }),
+    ).toBe("/files/thumb.jpg");
   });
 });
 

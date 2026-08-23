@@ -6,6 +6,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 -->
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { Preset } from './presets';
@@ -106,9 +107,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 			<iconify-icon icon="mdi:package-variant-closed" width="22" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<h3 class="text-[1.05rem] font-semibold text-dark dark:text-white">Project Blueprint</h3>
 			<SystemTooltip title="Select a starting template for your CMS. This will pre-configure collections, roles, and settings.">
-				<button type="button" class="text-slate-400 hover:text-tertiary-500" aria-label="Help: Project Blueprint">
-					<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
-				</button>
+				<HelpIcon ariaLabel="Help: Project Blueprint" />
 			</SystemTooltip>
 		</div>
 
@@ -157,20 +156,21 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 		>
 			<!-- ── Preset cards ── -->
 			{#each presets as preset (preset.id)}
-				<button
+				<Button
 					type="button"
+					variant="transparent"
 					role="option"
 					aria-selected={selected === preset.id}
 					aria-label={preset.title}
-					class="relative flex flex-col flex-none w-70 p-4 overflow-hidden text-start cursor-pointer snap-start dark:backdrop-blur-md border rounded shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250 hover:-translate-y-1 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] {selected ===
+					class="relative flex flex-col flex-none w-70 p-4! h-auto! items-stretch! justify-start! font-normal! overflow-hidden text-start cursor-pointer snap-start dark:backdrop-blur-md border rounded shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250! hover:-translate-y-1 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] {selected ===
 						preset.id
-							? 'bg-tertiary-500 dark:bg-primary-900! border-tertiary-500 dark:border-primary-500/40!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.3),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.15)]! -translate-y-1!'
-							: 'bg-white dark:bg-surface-800 border-surface-500/30 dark:border-surface-500/40 hover:bg-slate-50/80 dark:hover:bg-surface-700/50 hover:border-tertiary-500 dark:hover:border-primary-500'}"
+							? 'bg-tertiary-500! dark:bg-primary-900! border-tertiary-500 dark:border-primary-500/40!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.3),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.15)]! -translate-y-1!'
+							: 'bg-white! dark:bg-surface-800! border-surface-500/30 dark:border-surface-500/40 hover:bg-surface-500/80 dark:hover:bg-surface-700/50 hover:border-tertiary-500 dark:hover:border-primary-500'}"
 					onclick={() => select(preset.id)}
 				>
 					<div class="  mt-2 flex items-center gap-2">
 						<iconify-icon icon={preset.icon} width="22" class={selected === preset.id ? 'text-white dark:text-white' : 'text-tertiary-500 dark:text-primary-500'}></iconify-icon>
-						<span class="flex-1 font-bold text-[0.88rem] leading-[1.2] {selected === preset.id ? 'text-white dark:text-white' : 'text-black dark:text-white'}">{preset.title}</span>
+						<span class="flex-1 font-bold text-[0.88rem] leading-[1.2] {selected === preset.id ? 'text-white dark:text-white' : 'text-surface-900 dark:text-surface-50'}">{preset.title}</span>
 
 						{#if preset.recommended}
 							<Badge
@@ -218,7 +218,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 					{#if selected === preset.id}
 						<iconify-icon icon="mdi:check-circle" width="24" class="absolute inset-e-1 bottom-2 text-white dark:text-white"></iconify-icon>
 					{/if}
-				</button>
+				</Button>
 			{/each}
 		</div>
 		<div
@@ -231,21 +231,22 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 	<!-- Dot indicators -->
 	<div class="flex gap-1.5 justify-center py-0.5" aria-hidden="true">
 		{#each presets as preset, i (preset.id)}
-			<button
+			<Button
 				type="button"
-				class="w-1.5 h-1.5 p-0 cursor-pointer border-none rounded-full transition-all duration-250 bg-black/15 dark:bg-white/20 {visibleIndex === i
-					? 'w-4.5! rounded-[3px]! bg-tertiary-500 dark:bg-primary-500! '
+				variant="transparent"
+				class="w-1.5 h-1.5! p-0! min-w-0! cursor-pointer border-none rounded-full! transition-all duration-250! bg-black/15! dark:bg-white/20! {visibleIndex === i
+					? 'w-4.5! rounded-[3px]! bg-tertiary-500! dark:bg-primary-500! '
 					: ''}"
 				aria-label={`Select preset ${preset.name || i + 1}`}
 				onclick={() => {
 					select(preset.id);
 					scrollEl?.scrollTo({ left: i * 288, behavior: 'smooth' });
 				}}
-			></button>
+			></Button>
 		{/each}
 	</div>
 
-	<p class="mb-1 text-[0.71rem] italic text-center text-black dark:text-white">
+	<p class="mb-1 text-[0.71rem] italic text-center text-surface-900 dark:text-surface-50">
 		{#if selected === 'blank'}
 			"Blank Project" selected — start with a clean slate. No collections will be added automatically.
 		{:else if selected === 'website'}

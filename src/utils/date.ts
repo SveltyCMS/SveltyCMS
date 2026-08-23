@@ -43,6 +43,25 @@ function parseTwoDigits(value: string, offset: number): number {
 }
 
 /**
+ * True when `value` starts with `YYYY-MM-DDTHH:mm:ss` (char-code scan, no regex).
+ * Same predicate as the previous `/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/` check
+ * used on SQL write paths — does not validate calendar correctness.
+ */
+export function hasIsoDateTimePrefix(value: string): boolean {
+  if (value.length < 19) return false;
+  for (let i = 0; i < 4; i++) {
+    const c = value.charCodeAt(i);
+    if (c < 48 || c > 57) return false;
+  }
+  if (value.charCodeAt(4) !== 45) return false;
+  if (!hasTwoDigits(value, 5) || value.charCodeAt(7) !== 45) return false;
+  if (!hasTwoDigits(value, 8) || value.charCodeAt(10) !== 84 /* T */) return false;
+  if (!hasTwoDigits(value, 11) || value.charCodeAt(13) !== 58) return false;
+  if (!hasTwoDigits(value, 14) || value.charCodeAt(16) !== 58) return false;
+  return hasTwoDigits(value, 17);
+}
+
+/**
  * Type guard for ISODateString.
  *
  * Zero-allocation validator: pure `charCodeAt` + integer arithmetic (no `Date`,

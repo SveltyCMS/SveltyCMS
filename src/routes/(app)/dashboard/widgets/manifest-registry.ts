@@ -28,6 +28,8 @@ export interface DashboardWidgetManifest {
   icon: string;
   /** Semver package version. */
   version: string;
+  /** CMS version range this package supports (e.g. ">=0.0.8"). */
+  sveltycms: string;
   /** Always "dashboard-widget" for dashboard packages. */
   type: "dashboard-widget";
   /** Package author (displayed in marketplace listings). */
@@ -42,6 +44,8 @@ export interface DashboardWidgetManifest {
   defaultSize: { w: number; h: number };
   /** Widget category — powers default fetch/cache/refresh behavior. */
   category?: DashboardWidgetCategory;
+  /** When set, the picker omits this package unless that plugin is enabled. */
+  requiresPlugin?: string;
 }
 
 // Compile-time discovery — Vite resolves this at build time.
@@ -50,19 +54,30 @@ const widgetManifestModules = import.meta.glob<{ default: DashboardWidgetManifes
   { eager: true },
 );
 
+let cachedWidgets: DashboardWidgetManifest[] | undefined;
+let cachedById: Map<string, DashboardWidgetManifest> | undefined;
+
+function ensureWidgetCache(): void {
+  if (cachedWidgets) return;
+  cachedWidgets = Object.values(widgetManifestModules)
+    .map((mod) => mod.default)
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  cachedById = new Map(cachedWidgets.map((widget) => [widget.id, widget]));
+}
+
 /**
  * Returns all installed dashboard widget packages, sorted by display name.
  */
 export function getInstalledDashboardWidgets(): DashboardWidgetManifest[] {
-  return Object.values(widgetManifestModules)
-    .map((mod) => mod.default)
-    .filter(Boolean)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  ensureWidgetCache();
+  return cachedWidgets ?? [];
 }
 
 /**
  * Returns the manifest for a single package (by folder id), or undefined.
  */
 export function getDashboardWidgetManifest(id: string): DashboardWidgetManifest | undefined {
-  return getInstalledDashboardWidgets().find((m) => m.id === id);
+  ensureWidgetCache();
+  return cachedById?.get(id);
 }

@@ -14,6 +14,7 @@
  */
 
 import { logger } from "@src/utils/logger";
+import { getHardwareProfile } from "@utils/hardware-profile";
 import { SqlAdapterCore } from "../core/sql-adapter-core";
 import type {
   BaseEntity,
@@ -37,6 +38,7 @@ import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
+import { extractPkConflictId } from "../core/lookup-query";
 
 export abstract class AdapterCore extends SqlAdapterCore {
   public type = "mariadb";
@@ -80,6 +82,24 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
   /** mysql2's execute/query return [rows, fields] — rows are the first element. */
   protected async executeDynamicSql(db: any, sqlQuery: SQL): Promise<any[]> {
+    try {
+      const rendered = (
+        sqlQuery as { toQuery?: (opts: unknown) => { sql: string; params: unknown[] } }
+      ).toQuery?.({
+        escapeName: (n: string) => `\`${n.replace(/`/g, "``")}\``,
+        escapeParam: () => "?",
+      });
+      if (rendered?.sql && Array.isArray(rendered.params)) {
+        const rawExec = this.getRawExec({});
+        const rows = await rawExec(rendered.sql, rendered.params);
+        if (Array.isArray(rows) && rows.length >= 1 && Array.isArray(rows[0])) {
+          return rows[0];
+        }
+        return Array.isArray(rows) ? rows : [];
+      }
+    } catch {
+      /* fall through */
+    }
     const execResult = await db.execute(sqlQuery);
     if (Array.isArray(execResult) && execResult.length >= 1 && Array.isArray(execResult[0])) {
       return execResult[0];
@@ -286,7 +306,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
       if (typeof finalConnection === "string") {
         poolConfig = {
           uri: finalConnection,
-          connectionLimit: Number(process.env.DATABASE_MAX_CONNECTIONS) || 20,
+          connectionLimit:
+            Number(process.env.DATABASE_MAX_CONNECTIONS) || getHardwareProfile().dbPoolSize,
           connectTimeout: 30000,
           maxIdle: 10,
           idleTimeout: 60000,
@@ -300,7 +321,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
           user: c.user || c.DB_USER || "root",
           password: c.password || c.DB_PASSWORD || "",
           database: c.database || c.DB_NAME,
-          connectionLimit: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS || 20),
+          connectionLimit:
+            Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) ||
+            getHardwareProfile().dbPoolSize,
           connectTimeout: 30000,
           waitForConnections: true,
           maxIdle: 10,
@@ -619,7 +642,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const idColName = idCol.name || "_id";
 
       // Only when the conflict filter is a pure _id lookup (common sync/import path)
-      const lookupId = this.extractIdFromQuery(query);
+      const lookupId = extractPkConflictId(query);
       if (!lookupId) return super.upsert(collection, query, data, options);
 
       const tableName = getTableName(table);
@@ -681,20 +704,6 @@ export abstract class AdapterCore extends SqlAdapterCore {
       );
       return super.upsert(collection, query, data, options);
     }
-  }
-
-  /** Extract a plain _id value from a query filter, or null if not a pure _id lookup. */
-  private extractIdFromQuery(query: QueryFilter<any>): string | null {
-    if (!query || typeof query !== "object") return null;
-    const keys = Object.keys(query);
-    if (keys.length > 2) return null;
-    const idVal = (query as any)._id ?? (query as any).id;
-    if (idVal === undefined || idVal === null) return null;
-    if (typeof idVal === "object" && !(idVal instanceof Date) && !Array.isArray(idVal)) return null;
-    const remaining = keys.filter((k) => k !== "_id" && k !== "id");
-    if (remaining.length === 0) return String(idVal);
-    if (remaining.length === 1 && remaining[0] === "tenantId") return String(idVal);
-    return null;
   }
 
   /**

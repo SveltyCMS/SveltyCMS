@@ -7,6 +7,7 @@
  * - Uses Unified Dispatcher for GraphQL API endpoint.
  * - Uses PubSub for GraphQL API endpoint.
  * - Uses Loaders for GraphQL API endpoint.
+ * - Yoga-bypass fast path for contentSystemHealth / allCollections (in-memory)
  *
  * # Security
  * - Enforces query depth (max 8).
@@ -18,7 +19,7 @@
 import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
-import { GraphQLError, NoSchemaIntrospectionCustomRule, parse, type DocumentNode } from "graphql";
+import { GraphQLError, NoSchemaIntrospectionCustomRule, type DocumentNode } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
 import {
   responseCache,
@@ -29,10 +30,19 @@ import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-pr
 import { metricsService } from "@src/services/observability/metrics-service";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
-import { registerCollections, collectionsResolvers } from "./resolvers/collections";
+import {
+  registerCollections,
+  collectionsResolvers,
+  resolveAllCollections,
+} from "./resolvers/collections";
 import { isDbConnected, getDbInitPromise, getDb } from "@src/databases/db";
 import { contentSystem, contentStore } from "@src/content/index.server";
-import { analyzeQueryCost, formatCostError, normalizeQueryString } from "./cost-analyzer";
+import {
+  analyzeQueryCost,
+  formatCostError,
+  getOrParseDocument,
+  matchSingleFieldQuery,
+} from "./cost-analyzer";
 import { resolvePublicationFilter } from "@utils/security/publication-policy";
 
 // GraphQL validation plugin: enforces query depth (max 8), alias count (max 15),
@@ -46,23 +56,64 @@ const isProduction = () => process.env.NODE_ENV === "production";
 const depthLimitRule = createDepthLimitRule(MAX_QUERY_DEPTH);
 const maxAliasesRule = createMaxAliasesRule(MAX_ALIASES);
 
-// ─── Query AST & Document Validation Cache ──────────────────────────────────
-const MAX_AST_CACHE = 1000;
-const astCache = new Map<string, DocumentNode>();
 const validatedDocuments = new WeakMap<DocumentNode, number>();
 
-function getOrParseDocument(rawQuery: string): DocumentNode {
-  const key = normalizeQueryString(rawQuery);
-  let cached = astCache.get(key);
-  if (cached) return cached;
-
-  cached = parse(rawQuery);
-  if (astCache.size >= MAX_AST_CACHE) {
-    const oldestKey = astCache.keys().next().value;
-    if (oldestKey !== undefined) astCache.delete(oldestKey);
+function projectGraphqlFields(
+  row: Record<string, unknown>,
+  selections: string[],
+): Record<string, unknown> {
+  if (selections.length === 0) return row;
+  const out: Record<string, unknown> = {};
+  for (const field of selections) {
+    if (field in row) out[field] = row[field];
   }
-  astCache.set(key, cached);
-  return cached;
+  return out;
+}
+
+/**
+ * Skip Yoga/JIT for the two hottest in-memory queries (health + collection
+ * catalog). Auth already ran; cost/depth are trivial for a single root field.
+ */
+const FAST_JSON_TTL_MS = 2000;
+const fastJsonCache = new Map<string, { body: string; ts: number }>();
+
+async function tryGraphqlFastPath(
+  query: string,
+  ctx: { user: unknown; tenantId?: string | null },
+): Promise<string | null> {
+  if (!ctx.user || !query) return null;
+  const matched = matchSingleFieldQuery(query);
+  if (!matched) return null;
+  if (matched.field !== "contentSystemHealth" && matched.field !== "allCollections") {
+    return null;
+  }
+  const jsonKey = `${matched.field}|${String(ctx.tenantId ?? "global")}|${matched.selections.join(",")}`;
+  const cachedJson = fastJsonCache.get(jsonKey);
+  if (cachedJson && Date.now() - cachedJson.ts < FAST_JSON_TTL_MS) {
+    return cachedJson.body;
+  }
+
+  let payload: Record<string, unknown>;
+  if (matched.field === "contentSystemHealth") {
+    const health = contentSystem.getHealthStatus() as unknown as Record<string, unknown>;
+    payload = { data: { contentSystemHealth: projectGraphqlFields(health, matched.selections) } };
+  } else {
+    const rows = await resolveAllCollections(ctx.tenantId);
+    const data =
+      matched.selections.length === 0
+        ? rows
+        : rows.map((row) =>
+            projectGraphqlFields(row as unknown as Record<string, unknown>, matched.selections),
+          );
+    payload = { data: { allCollections: data } };
+  }
+  const body = JSON.stringify(payload);
+  if (fastJsonCache.size >= 64) {
+    const oldest = fastJsonCache.keys().next().value;
+    if (oldest) fastJsonCache.delete(oldest);
+  }
+  fastJsonCache.set(jsonKey, { body, ts: Date.now() });
+  return body;
 }
 
 const securityValidationPlugin = {
@@ -540,6 +591,33 @@ async function handleRequest(event: RequestEvent) {
     } else {
       await contentStore.waitForReload();
     }
+  }
+
+  const fast = await tryGraphqlFastPath(query, {
+    user: locals.user,
+    tenantId: locals.tenantId,
+  });
+  if (fast) {
+    const tenant = locals.tenantId as string;
+    if (cacheKey) {
+      // ETag + L1 write off the response path (same as the Yoga miss path).
+      queueMicrotask(() => {
+        responseCache.set(
+          cacheKey,
+          { body: fast, etag: generateContentEtag(fast) },
+          60_000,
+          tenant,
+        );
+      });
+      metricsService.recordGraphqlResponseMiss(tenant);
+    }
+    return new Response(fast, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Cache": "MISS",
+      },
+    });
   }
 
   let adapter = locals.dbAdapter;

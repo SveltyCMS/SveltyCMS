@@ -165,6 +165,9 @@ export class CacheService {
   /**
    * Extracts the 2-level namespace bucket for O(1) pattern clearing.
    * e.g. "tenant:default:collection:posts:1" -> "tenant:default:collection"
+   * Flat keys (no third colon, e.g. "tenant:global:theme:x") bucket under the
+   * tenant namespace — otherwise each becomes its own bucket and every
+   * clearByPattern misses, falling back to a full L1 scan.
    */
   private getNamespaceBucketKey(key: string): string {
     const firstColon = key.indexOf(":");
@@ -172,7 +175,8 @@ export class CacheService {
     const secondColon = key.indexOf(":", firstColon + 1);
     if (secondColon === -1) return key;
     const thirdColon = key.indexOf(":", secondColon + 1);
-    return thirdColon === -1 ? key : key.slice(0, thirdColon);
+    if (thirdColon === -1) return key.slice(0, secondColon);
+    return key.slice(0, thirdColon);
   }
 
   private addToPrefixMap(key: string) {

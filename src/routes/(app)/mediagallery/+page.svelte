@@ -17,20 +17,15 @@ import { refreshAll } from "$app/navigation";
 import { page } from "$app/state";
 import type { PageData } from "./$types";
 import MediaGrid from "./media-grid.svelte";
-import MediaTable from "./media-table.svelte";
-import MediaDragPreview from "./media-drag-preview.svelte";
-import AdvancedSearchModal from "./advanced-search-modal.svelte";
 import Portal from "@components/ui/portal.svelte";
 import type { SearchCriteria } from "@utils/media/advanced-search";
 import { mediaUrl } from "@utils/media/media-utils";
-import ImageEditorModal from "@src/components/image-editor/image-editor-modal.svelte";
 import { IMAGE_EDITOR_MODAL_CLASSES, IMAGE_EDITOR_MODAL_SIZE } from "@src/components/image-editor/image-editor-modal.ts";
-import ModalPrompt from "@components/modal-prompt.svelte";
-import MediaDetailsModal from "@src/components/media/media-details-modal.svelte";
 import AdminPageShell from "@components/admin-page-shell.svelte";
 import Slot from "@components/system/slot.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
+import { motionDuration } from "@utils/admin-transitions";
 import {
 	type MediaBase,
 	type MediaImage,
@@ -371,13 +366,16 @@ onMount(() => {
 });
 
 async function handleEditImage(file: any) {
-	// Prefer SSR-normalized relative url (same source as grid thumbnails)
+	// Editor needs the original; gallery tiles use thumbnails via mediaDisplayUrl.
 	const fullUrl = file.url || mediaUrl(file);
 	if (!fullUrl) {
 		toast.error("Invalid image URL");
 		return;
 	}
 
+	const { default: ImageEditorModal } = await import(
+		"@src/components/image-editor/image-editor-modal.svelte"
+	);
 	modalState.trigger(ImageEditorModal as any, {
 		image: { ...file, url: fullUrl },
 		onsave: handleEditorSave,
@@ -542,6 +540,7 @@ async function handleUpload(e: Event) {
 }
 
 async function handleCreateFolder() {
+	const { default: ModalPrompt } = await import("@components/modal-prompt.svelte");
 	modalState.trigger(
 		ModalPrompt as any,
 		{
@@ -584,6 +583,9 @@ async function handleCreateFolder() {
 }
 
 async function handleOpenFileDetails(file: any) {
+	const { default: MediaDetailsModal } = await import(
+		"@src/components/media/media-details-modal.svelte"
+	);
 	modalState.trigger(MediaDetailsModal as any, {
 		file,
 		size: 'xl',
@@ -907,7 +909,7 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 				</div>
 
 				{#if mobileFiltersExpanded}
-					<div transition:slide={{ duration: 200 }} class="flex flex-col gap-1.5 pb-1">
+					<div transition:slide={{ duration: motionDuration(200) }} class="flex flex-col gap-1.5 pb-1">
 						<div class="flex gap-2">
 							{#if view === 'grid'}
 								<label for="media-type-filter-m" class="sr-only">Filter by media type</label>
@@ -1102,38 +1104,48 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 					onUpdateImage={handleUpdateImage}
 				/>
 			{:else}
-				<MediaTable
-					filteredFiles={filteredFiles}
-					{isSelectionMode}
-					bind:selectedFiles={selectedFiles}
-					publishedMediaIds={publishedMediaIds}
-					onEditImage={handleEditImage}
-					onOpenFileDetails={handleOpenFileDetails}
-					ondeleteImage={handleDeleteImage}
-					onUpdateImage={handleUpdateImage}
-				/>
+				{#await import("./media-table.svelte")}
+					<div class="flex flex-1 items-center justify-center py-16 text-sm text-surface-500">Loading table…</div>
+				{:then mod}
+					<mod.default
+						filteredFiles={filteredFiles}
+						{isSelectionMode}
+						bind:selectedFiles={selectedFiles}
+						publishedMediaIds={publishedMediaIds}
+						onEditImage={handleEditImage}
+						onOpenFileDetails={handleOpenFileDetails}
+						ondeleteImage={handleDeleteImage}
+						onUpdateImage={handleUpdateImage}
+					/>
+				{/await}
 			{/if}
 		</div>
 	</div>
 
 	<Slot name="media_gallery" />
 
-	<MediaDragPreview />
+	{#if isMediaDragActive}
+		{#await import("./media-drag-preview.svelte") then mod}
+			<mod.default />
+		{/await}
+	{/if}
 
 	{#if showAdvancedSearch}
 		<Portal>
 			<div class="fixed inset-0 z-100 bg-surface-900/50 backdrop-blur-sm transition-all" aria-hidden="true"></div>
 			<div class="fixed inset-0 z-101 flex items-center justify-center p-4">
-				<AdvancedSearchModal
-					files={files}
-					onSearch={(criteria) => {
-						searchCriteria = criteria;
-						showAdvancedSearch = false;
-					}}
-					onClose={() => {
-						showAdvancedSearch = false;
-					}}
-				/>
+				{#await import("./advanced-search-modal.svelte") then mod}
+					<mod.default
+						files={files}
+						onSearch={(criteria) => {
+							searchCriteria = criteria;
+							showAdvancedSearch = false;
+						}}
+						onClose={() => {
+							showAdvancedSearch = false;
+						}}
+					/>
+				{/await}
 			</div>
 		</Portal>
 	{/if}

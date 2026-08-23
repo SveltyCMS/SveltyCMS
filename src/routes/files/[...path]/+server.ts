@@ -11,6 +11,7 @@ import path from "node:path";
 import { lookup } from "mime-types";
 
 import { getPublicSettingSync } from "@src/services/core/settings-service";
+import { resolveConfiguredMediaFolder } from "@src/utils/media/storage-adapters";
 import { apiHandler } from "@utils/api-handler";
 import { MEDIA_RESOURCE_HEADERS } from "@utils/security/constants";
 import { AppError } from "@utils/error-handling";
@@ -59,7 +60,12 @@ let _mediaBase: string | null = null;
 let _mediaFolder: string | null = null;
 function getMediaPaths() {
   if (!_mediaBase) {
-    const mf = (getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder")
+    // Same resolution as the write path (storage-adapters): under any
+    // benchmark/test harness, process.env.MEDIA_FOLDER (the sandbox) wins
+    // over a stale DB setting — otherwise uploads land in the sandbox but
+    // /files serves from ./mediaFolder → 404. Sync + memoized: zero cost on
+    // the file-serving hot path.
+    const mf = (resolveConfiguredMediaFolder() || "mediaFolder")
       .replace(/^\.\//, "")
       .replace(/^\/+|\/+$/g, "");
     _mediaFolder = mf;

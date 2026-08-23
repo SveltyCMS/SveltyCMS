@@ -11,9 +11,19 @@
  * - Verify TOTP codes with time drift tolerance
  * - Generate and verify backup codes
  * - Validate TOTP secret format
+ * - AES-256-GCM at rest: hex/base64 keys as-is, passphrase via HKDF-SHA-256 (SHA-256 dual-read)
  *
  * Note: This implementation avoids external dependencies to keep the bundle size minimal.
  */
+
+import {
+  AES256_HKDF_INFO,
+  aesGcmDecryptWithKeys,
+  hmacSha256VerifyWithKeys,
+  resolveStaticAesKey,
+  staticAesKeyRing,
+  type ResolvedStaticAesKey,
+} from "@utils/security/crypto";
 
 // Server-side only: Dynamic import to prevent bundling in client code
 let crypto: typeof import("node:crypto");
@@ -54,14 +64,19 @@ const TOTP_ENVELOPE_VERSION = 1;
 const TOTP_AES_ALGORITHM = "aes-256-gcm";
 const TOTP_IV_LENGTH = 16; // 128-bit nonce for GCM
 const TOTP_AUTH_TAG_LENGTH = 16; // 128 bits
-const TOTP_KEY_LENGTH = 32; // 256 bits
+let _totpKeys: ResolvedStaticAesKey | null | undefined;
 
-let _totpEncryptionKey: Buffer | null | undefined;
+/**
+ * Test-only: drop the memoized TOTP key ring so the next call re-reads env.
+ */
+export function resetTotpEncryptionKeyCache(): void {
+  _totpKeys = undefined;
+}
 
-/** Load the TOTP encryption key from environment (ENCRYPTION_KEY or SECRET_ENCRYPTION_KEY). */
-async function getTotpEncryptionKey(): Promise<Buffer | null> {
-  if (_totpEncryptionKey !== undefined) return _totpEncryptionKey;
-  _totpEncryptionKey = null;
+/** Load the TOTP encryption key ring from ENCRYPTION_KEY or SECRET_ENCRYPTION_KEY. */
+async function getTotpKeys(): Promise<ResolvedStaticAesKey | null> {
+  if (_totpKeys !== undefined) return _totpKeys;
+  _totpKeys = null;
 
   try {
     const raw =
@@ -69,27 +84,9 @@ async function getTotpEncryptionKey(): Promise<Buffer | null> {
       (typeof process !== "undefined" ? process.env.SECRET_ENCRYPTION_KEY : undefined);
     if (!raw || raw.length < 32) return null;
 
-    // Hex-encoded 64-char key
-    if (/^[0-9a-fA-F]{64}$/.test(raw)) {
-      _totpEncryptionKey = Buffer.from(raw, "hex");
-      return _totpEncryptionKey;
-    }
-    // Base64-encoded (>=44 chars)
-    if (raw.length >= 44) {
-      try {
-        const decoded = Buffer.from(raw, "base64");
-        if (decoded.length >= TOTP_KEY_LENGTH) {
-          _totpEncryptionKey = decoded.subarray(0, TOTP_KEY_LENGTH);
-          return _totpEncryptionKey;
-        }
-      } catch {
-        /* fall through */
-      }
-    }
-    // Derive from raw string via SHA-256
     const cryptoModule = await getCrypto();
-    _totpEncryptionKey = cryptoModule.createHash("sha256").update(raw, "utf8").digest();
-    return _totpEncryptionKey;
+    _totpKeys = resolveStaticAesKey(cryptoModule, raw, AES256_HKDF_INFO.totpSecret);
+    return _totpKeys;
   } catch {
     return null;
   }
@@ -102,12 +99,12 @@ async function getTotpEncryptionKey(): Promise<Buffer | null> {
  * Returns the encrypted envelope string, or the raw secret if encryption is unavailable.
  */
 export async function encryptTotpSecret(secret: string): Promise<string> {
-  const key = await getTotpEncryptionKey();
-  if (!key) return secret; // No encryption key — store as plaintext (graceful degradation)
+  const keys = await getTotpKeys();
+  if (!keys) return secret; // No encryption key — store as plaintext (graceful degradation)
 
   const cryptoModule = await getCrypto();
   const iv = cryptoModule.randomBytes(TOTP_IV_LENGTH);
-  const cipher = cryptoModule.createCipheriv(TOTP_AES_ALGORITHM, key, iv);
+  const cipher = cryptoModule.createCipheriv(TOTP_AES_ALGORITHM, keys.primary, iv);
 
   const encrypted = Buffer.concat([cipher.update(secret, "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
@@ -134,8 +131,8 @@ export async function decryptTotpSecret(stored: string): Promise<string | null> 
     return stored;
   }
 
-  const key = await getTotpEncryptionKey();
-  if (!key) return null;
+  const keys = await getTotpKeys();
+  if (!keys) return null;
 
   try {
     const cryptoModule = await getCrypto();
@@ -150,11 +147,14 @@ export async function decryptTotpSecret(stored: string): Promise<string | null> 
     const authTag = combined.subarray(offset, (offset += TOTP_AUTH_TAG_LENGTH));
     const ciphertext = combined.subarray(offset);
 
-    const decipher = cryptoModule.createDecipheriv(TOTP_AES_ALGORITHM, key, iv);
-    decipher.setAuthTag(authTag);
-
-    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-    return decrypted.toString("utf8");
+    const decrypted = aesGcmDecryptWithKeys(cryptoModule, {
+      keys: staticAesKeyRing(keys),
+      iv,
+      authTag,
+      ciphertext,
+      algorithm: TOTP_AES_ALGORITHM,
+    });
+    return decrypted ? decrypted.toString("utf8") : null;
   } catch {
     // Fail-closed for tampered envelopes: if input has envelope version byte or minimum envelope length, return null
     return null;
@@ -175,13 +175,16 @@ export async function generateTrustedDeviceToken(
   userId: string,
   deviceFingerprint: string,
 ): Promise<string | null> {
-  const key = await getTotpEncryptionKey();
-  if (!key) return null;
+  const keys = await getTotpKeys();
+  if (!keys) return null;
 
   const cryptoModule = await getCrypto();
   const expiresAt = Date.now() + TRUSTED_DEVICE_TTL_MS;
   const payload = `${userId}:${deviceFingerprint}:${expiresAt}`;
-  const signature = cryptoModule.createHmac("sha256", key).update(payload).digest("base64url");
+  const signature = cryptoModule
+    .createHmac("sha256", keys.primary)
+    .update(payload)
+    .digest("base64url");
   return `${payload}:${signature}`;
 }
 
@@ -189,8 +192,8 @@ export async function generateTrustedDeviceToken(
  * Verify a trusted-device token. Returns the userId if valid, null otherwise.
  */
 export async function verifyTrustedDeviceToken(token: string): Promise<string | null> {
-  const key = await getTotpEncryptionKey();
-  if (!key) return null;
+  const keys = await getTotpKeys();
+  if (!keys) return null;
 
   try {
     const parts = token.split(":");
@@ -204,11 +207,12 @@ export async function verifyTrustedDeviceToken(token: string): Promise<string | 
     if (Date.now() > expiresAt) return null; // Expired
 
     const cryptoModule = await getCrypto();
-    const expectedSig = cryptoModule.createHmac("sha256", key).update(payload).digest("base64url");
-
     if (
-      signature.length === expectedSig.length &&
-      cryptoModule.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))
+      hmacSha256VerifyWithKeys(cryptoModule, {
+        keys: staticAesKeyRing(keys),
+        payload,
+        signatureB64url: signature,
+      })
     ) {
       return parts[0]; // userId
     }
@@ -417,14 +421,38 @@ export async function generateBackupCodes(count = 10): Promise<string[]> {
 }
 
 export async function hashBackupCode(code: string): Promise<string> {
-  const cryptoModule = await getCrypto();
-  return cryptoModule.createHash("sha256").update(code.toLowerCase()).digest("hex");
+  const [cryptoModule, secret] = await Promise.all([getCrypto(), getBackupCodeHmacSecret()]);
+  return cryptoModule.createHmac("sha256", secret).update(code.toLowerCase()).digest("hex");
 }
 
 export async function verifyBackupCode(code: string, hashedCode: string): Promise<boolean> {
   const cryptoModule = await getCrypto();
-  const hash = cryptoModule.createHash("sha256").update(code.toLowerCase()).digest("hex");
-  return cryptoModule.timingSafeEqual(Buffer.from(hash), Buffer.from(hashedCode));
+  const secret = await getBackupCodeHmacSecret();
+  // v2: HMAC-SHA-256 with the server secret (resistant to offline brute-force).
+  const hmac = cryptoModule.createHmac("sha256", secret).update(code.toLowerCase()).digest("hex");
+  if (
+    hmac.length === hashedCode.length &&
+    cryptoModule.timingSafeEqual(Buffer.from(hmac), Buffer.from(hashedCode))
+  ) {
+    return true;
+  }
+  // Legacy: plain SHA-256 for codes stored before the HMAC migration.
+  const legacy = cryptoModule.createHash("sha256").update(code.toLowerCase()).digest("hex");
+  return (
+    legacy.length === hashedCode.length &&
+    cryptoModule.timingSafeEqual(Buffer.from(legacy), Buffer.from(hashedCode))
+  );
+}
+
+/** Memoized HMAC secret for backup-code hashing — domain-salted from JWT_SECRET_KEY. */
+let cachedBackupCodeHmacSecret: string | null = null;
+async function getBackupCodeHmacSecret(): Promise<string> {
+  if (cachedBackupCodeHmacSecret) return cachedBackupCodeHmacSecret;
+  const { getPrivateSettingSync } = await import("@src/services/core/settings-service");
+  const jwtSecret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
+  if (!jwtSecret) throw new Error("HMAC secret unavailable — JWT_SECRET_KEY not configured");
+  cachedBackupCodeHmacSecret = `backupcode-hmac:${jwtSecret}`;
+  return cachedBackupCodeHmacSecret;
 }
 
 export function isValidTOTPSecret(secret: string): boolean {

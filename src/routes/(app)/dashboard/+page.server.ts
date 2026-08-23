@@ -4,70 +4,56 @@
  *
  * Features:
  * - User authentication and authorization
- * - Compile-time widget discovery via import.meta.glob (zero runtime FS scan)
- * - Marketplace-portable widget packages (widgets/<folder>/<component>.svelte + widget.json)
+ * - Widget picker metadata from widget.json (no Svelte module eval)
+ * - Marketplace-portable widget packages (widgets/<folder>/index.svelte + widget.json)
+ * - Saved layout hydrated via LocalCMS/db so the client skips /api/system-preferences
  * - Server-side UUID v4 generation for new widgets
  */
 
 import { error, json } from "@sveltejs/kit";
 import { isAdmin } from "@src/databases/auth/constants";
+import type { DashboardWidgetConfig } from "@src/content/types";
+import type { DatabaseId } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { generateUUID as uuidv4 } from "@utils/native-utils";
 import { getHotCollections } from "@src/services/intelligence/behavioral-learner";
+import { rethrow } from "@utils/error-handling";
 import type { Actions, PageServerLoad } from "./$types";
+import { getInstalledDashboardWidgets } from "./widgets/manifest-registry";
+import {
+  filterPickerByPlugins,
+  manifestsToPickerList,
+  normalizeDashboardLayout,
+  sortWidgetsByHotCollections,
+} from "./widget-runtime";
 
-interface WidgetInfo {
-  componentName: string;
-  description?: string;
-  folder: string;
-  icon: string;
-  name: string;
+const LAYOUT_KEY = "dashboard.layout.default";
+
+async function loadUserDashboardLayout(
+  userId: string,
+  tenantId: DatabaseId | null | undefined,
+): Promise<DashboardWidgetConfig[] | null> {
+  try {
+    const { getDb } = await import("@src/databases/db");
+    const db = getDb();
+    if (!db?.system?.preferences) return null;
+    const result = await db.system.preferences.get(LAYOUT_KEY, {
+      scope: "user",
+      userId: userId as DatabaseId,
+      tenantId,
+    });
+    if (!result.success) return null;
+    if (result.data == null) return [];
+    return normalizeDashboardLayout(result.data);
+  } catch (err) {
+    rethrow(err);
+    logger.debug("Dashboard layout not available from DB; client will fetch", err);
+    return null;
+  }
 }
 
-// Compile-time widget discovery — Vite resolves this at build time.
-// Each widget lives in its own package folder: widgets/<folder>/<component>.svelte.
-// Zero runtime FS scan, zero dynamic imports, zero blocking I/O.
-const _widgetModules = import.meta.glob<{
-  widgetMeta?: { name: string; icon: string; description?: string };
-}>("./widgets/*/*.svelte", { eager: true });
-
-// Pre-compute widget list once at module load
-const _widgets: WidgetInfo[] = Object.entries(_widgetModules)
-  .map(([path, mod]) => {
-    // path like "./widgets/system-health/system-health-widget.svelte"
-    const segments = path.split("/");
-    const folder = segments[segments.length - 2] ?? "";
-    const componentName = segments[segments.length - 1]!.replace(".svelte", "");
-    if (mod.widgetMeta) {
-      return {
-        componentName,
-        folder,
-        name: mod.widgetMeta.name,
-        icon: mod.widgetMeta.icon,
-        description: mod.widgetMeta.description,
-      };
-    }
-    // Fallback: derive name from filename
-    const name = componentName
-      .replace(/-widget$/, "")
-      .split("-")
-      .filter(Boolean)
-      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-      .join(" ");
-    return {
-      componentName,
-      folder,
-      name,
-      icon: "mdi:widgets",
-      description: "Dashboard widget",
-    };
-  })
-  .sort((a, b) => a.name.localeCompare(b.name));
-
-logger.trace(`Discovered ${_widgets.length} dashboard widgets (compile-time)`);
-
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
   const user = getAuthenticatedUser(locals);
   // Prefer hook flag; only treat role as admin when locals.isAdmin is undefined
   const isAdminUser = locals.isAdmin === true || isAdmin(user);
@@ -95,30 +81,38 @@ export const load: PageServerLoad = async ({ locals }) => {
   logger.trace(`User authenticated successfully for dashboard: ${user._id}`);
 
   const { _id, ...rest } = user;
-
-  // Behavioral learning: sort available widgets by usage frequency.
-  // Collections that are frequently accessed get boosted to the top.
+  const userId = _id.toString();
   const tenant = locals.tenantId || "global";
   const hotCollections = getHotCollections(tenant, 20);
+  const hotIds = new Set(hotCollections.map((c) => c.id));
 
-  let sortedWidgets = _widgets;
-  if (hotCollections.length > 0) {
-    const hotIds = new Set(hotCollections.map((c) => c.id));
-    sortedWidgets = [..._widgets].sort((a, b) => {
-      const aHot = hotIds.has(a.folder) || hotIds.has(a.componentName);
-      const bHot = hotIds.has(b.folder) || hotIds.has(b.componentName);
-      if (aHot && !bHot) return -1;
-      if (!aHot && bHot) return 1;
-      return 0;
-    });
+  let pluginStates: Record<string, boolean> = {};
+  try {
+    const parentData = await parent?.();
+    pluginStates = (parentData?.pluginStates ?? {}) as Record<string, boolean>;
+  } catch (err) {
+    rethrow(err);
+    logger.debug(
+      "Dashboard parent pluginStates unavailable; plugin-gated widgets stay hidden",
+      err,
+    );
   }
+
+  const picker = filterPickerByPlugins(
+    sortWidgetsByHotCollections(manifestsToPickerList(getInstalledDashboardWidgets()), hotIds),
+    pluginStates,
+  );
+  logger.trace(`Discovered ${picker.length} optional dashboard widgets (widget.json)`);
+
+  const initialPreferences = await loadUserDashboardLayout(userId, locals.tenantId);
 
   return {
     pageData: {
-      user: { id: _id.toString(), ...rest },
+      user: { id: userId, ...rest },
       isAdmin: isAdminUser,
     },
-    availableWidgets: sortedWidgets,
+    availableWidgets: picker,
+    initialPreferences,
     hotCollections,
   };
 };

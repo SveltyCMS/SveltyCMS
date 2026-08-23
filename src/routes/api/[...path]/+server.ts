@@ -305,6 +305,10 @@ export function _checkEndpointPermission(
     ) {
       return true;
     }
+    // Role-matrix writes are admin-only (handler also fail-closes).
+    if (action === "update-roles") {
+      return false;
+    }
     // If updating user attributes or saving avatar on self:
     if (
       (action === "update-user-attributes" ||

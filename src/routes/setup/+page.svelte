@@ -293,7 +293,7 @@
 					/>
 				</div>
 				<div class="mt-auto shrink-0 border-t border-surface-500/30 pt-6 dark:border-surface-500/40">
-					<h4 class="mb-4 w-full text-center text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">
+					<h4 class="mb-4 w-full text-center text-sm font-semibold tracking-tight text-surface-600 dark:text-surface-400">
 						Legend
 					</h4>
 					<div class="flex items-end justify-between gap-4">
@@ -306,11 +306,11 @@
 											? ' bg-tertiary-500 dark:bg-primary-500 text-white'
 											: item.key === 'current'
 												? 'bg-error-500 text-white shadow-sm'
-												: 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'}"
+												: 'bg-surface-200 text-surface-600 ring-1 ring-surface-300 dark:bg-surface-700 dark:text-surface-300 dark:ring-surface-600'}"
 									>
 										<span class="text-[0.65rem]">{item.content}</span>
 									</div>
-									<span class="text-slate-600 dark:text-slate-400">{item.label}</span>
+									<span class="text-surface-600 dark:text-surface-400">{item.label}</span>
 								</li>
 							{/each}
 						</ul>
@@ -442,7 +442,7 @@
 										<Button variant="outline"
 											type="button"
 											onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
-										 size="sm" class="text-black dark:text-white flex items-center gap-1">
+										 size="sm" class="text-surface-900 dark:text-surface-50 flex items-center gap-1">
 											<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
 											<span class="hidden sm:inline">{wizard.showDbDetails ? setup_db_test_details_hide() : setup_db_test_details_show()}</span>
 										</Button>
@@ -460,30 +460,30 @@
 									<div class="border-t border-surface-500/30 bg-secondary-500/50 text-xs dark:border-surface-500/40 dark:bg-surface-900/50">
 										<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-4 sm:grid-cols-3 lg:grid-cols-6">
 											<div class="flex flex-col">
-												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{setup_db_test_latency()}:</span>
+												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{setup_db_test_latency()}:</span>
 												<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span>
 											</div>
 											<div class="flex flex-col">
-												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{setup_db_test_engine()}:</span>
+												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{setup_db_test_engine()}:</span>
 												<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.dbConfig.type}</span>
 											</div>
 											<div class="flex flex-col">
-												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_host()}:</span>
+												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_host()}:</span>
 												<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.host}>{wizard.dbConfig.host}</span>
 											</div>
 											{#if !isFullUri}
 												<div class="flex flex-col">
-													<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_port()}:</span>
+													<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_port()}:</span>
 													<span class="text-tertiary-500 dark:text-primary-500 font-bold">{wizard.dbConfig.port}</span>
 												</div>
 											{/if}
 											<div class="flex flex-col">
-												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_database()}:</span>
+												<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_database()}:</span>
 												<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.name}>{wizard.dbConfig.name}</span>
 											</div>
 											{#if wizard.dbConfig.user}
 												<div class="flex flex-col">
-													<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{label_user?.() || setup_db_test_user()}:</span>
+													<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider">{label_user?.() || setup_db_test_user()}:</span>
 													<span class="text-tertiary-500 dark:text-primary-500 font-bold truncate" title={wizard.dbConfig.user}>{wizard.dbConfig.user}</span>
 												</div>
 											{/if}
@@ -496,7 +496,7 @@
 												</div>
 												<div class="space-y-2">
 													{#each wizard.lastDbTestResult.hint.split('\n') as step (step)}
-														<div class="flex gap-2 text-slate-700 dark:text-slate-300">
+														<div class="flex gap-2 text-surface-600 dark:text-surface-400">
 															<span class="shrink-0 text-warning-500">•</span>
 															<span>{step.replace(/^\d+\.\s*/, '')}</span>
 														</div>

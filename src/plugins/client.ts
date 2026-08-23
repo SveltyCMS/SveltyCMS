@@ -22,6 +22,11 @@ const loadedComponents = new Map<string, any>();
  * @param componentName - Name of the component provided by the plugin
  * @returns The component or null if not found
  */
+/** Sync L1 peek — list cells skip the loading spinner when the module is warm. */
+export function peekPluginComponent(pluginId: string, componentName: string): unknown | null {
+  return loadedComponents.get(`${pluginId}:${componentName}`) ?? null;
+}
+
 export async function getPluginComponent(
   pluginId: string,
   componentName: string,

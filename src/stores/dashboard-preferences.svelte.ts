@@ -1,6 +1,9 @@
 /**
  * @file src/stores/dashboard-preferences.svelte.ts
  * @description Dashboard widget layout preferences with server persistence (Svelte 5 runes)
+ *
+ * Features:
+ * - hydrate() from +page.server layout (skips extra /api/system-preferences GET)
  */
 
 import type { DashboardWidgetConfig, Layout } from "@src/content/types";
@@ -59,8 +62,21 @@ class PreferencesStore {
   preferences = $state<DashboardWidgetConfig[]>([]);
   loading = $state(true);
   error = $state<string | null>(null);
+  /** True after server layout hydration — skip the extra /api/system-preferences GET. */
+  hydratedFromServer = $state(false);
+
+  hydrate(preferences: DashboardWidgetConfig[]) {
+    this.preferences = preferences.map((w) => ({
+      ...w,
+      size: w.size?.w && w.size?.h ? w.size : { w: 1, h: 1 },
+    }));
+    this.loading = false;
+    this.error = null;
+    this.hydratedFromServer = true;
+  }
 
   async load() {
+    if (this.hydratedFromServer) return;
     this.loading = true;
     this.error = null;
 

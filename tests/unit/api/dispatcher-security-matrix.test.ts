@@ -131,6 +131,27 @@ describe("Dispatcher security matrix (real +server)", () => {
       ]);
     });
 
+    it("returns 403 for editor POST /user/update-roles (RBAC matrix is admin-only)", async () => {
+      await runRbacMatrix([
+        {
+          name: "update-roles denied",
+          method: "POST",
+          path: "user/update-roles",
+          user: editor,
+          roles: [
+            {
+              _id: "editor",
+              name: "Editor",
+              isAdmin: false,
+              permissions: ["user:write", "user:read"],
+            },
+          ],
+          expectedStatus: 403,
+          bypass: false,
+        },
+      ]);
+    });
+
     it("returns 401 when unauthenticated on protected route (bypass off)", async () => {
       await expectApi(
         "GET",

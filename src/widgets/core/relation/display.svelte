@@ -28,6 +28,7 @@ Renders: "Article Title" (fetched from related entry's display field)
 <script lang="ts">
 import { logger } from "@utils/logger";
 	import type { FieldType } from './';
+	import { fetchRelatedEntries, isHydratedRelation } from './fetch-related';
 
 	const { field, value }: { field: FieldType; value: string | string[] | null | undefined } = $props();
 
@@ -39,17 +40,29 @@ import { logger } from "@utils/logger";
 
 	// Stub function for fetching entry display - implement with your API
 	// Fetches the entry's display field value from the API.
-	async function fetchEntryDisplay(_id: string): Promise<string | null> {
-		if (!field.collection || !field.displayField) return null;
+	function labelFromEntry(entry: Record<string, unknown>): string | null {
+		const raw = entry[field.displayField as string];
+		if (raw === null || raw === undefined || raw === '') return null;
+		return String(raw);
+	}
+
+	async function fetchEntryDisplays(ids: string[]): Promise<string[]> {
+		if (!field.collection || !field.displayField) return [];
 		try {
-			const res = await fetch(`/api/collections/${field.collection}/${_id}?fields=${field.displayField}`);
-			if (!res.ok) return null;
-			const result = await res.json();
-			const entry = (result.data || result) as Record<string, any>;
-			return entry[field.displayField as string] || null;
+			const rows = await fetchRelatedEntries(String(field.collection), ids, [
+				field.displayField as string,
+			]);
+			const byId = new Map(rows.map((row) => [String(row._id ?? ''), row]));
+			const labels: string[] = [];
+			for (const id of ids) {
+				const row = byId.get(id);
+				const label = row ? labelFromEntry(row) : null;
+				if (label) labels.push(label);
+			}
+			return labels;
 		} catch (e) {
 			logger.error('[RelationDisplay] Failed to fetch entry display:', e);
-			return null;
+			return [];
 		}
 	}
 
@@ -76,19 +89,34 @@ import { logger } from "@utils/logger";
 	$effect(() => {
 		if (!isVisible || hasFetched) return;
 
-		const ids = Array.isArray(value) ? value : value ? [value] : [];
-		if (ids.length > 0) {
-			// API Call: GET /api/entries/{field.collection}?ids={ids.join(',')}&fields={field.displayField}
-			// Optimized fetch for multiple entries
-			Promise.all(ids.map((id) => fetchEntryDisplay(id))).then((texts) => {
-				const validTexts = texts.filter((t) => t !== null) as string[];
-				displayText = validTexts.join(', ') || '–';
-				hasFetched = true;
-			});
-		} else {
+		const raw = Array.isArray(value) ? value : value ? [value] : [];
+		if (raw.length === 0) {
 			displayText = '–';
 			hasFetched = true;
+			return;
 		}
+
+		const labels: string[] = [];
+		const pendingIds: string[] = [];
+		for (const item of raw) {
+			if (isHydratedRelation(item)) {
+				const label = labelFromEntry(item);
+				if (label) labels.push(label);
+				continue;
+			}
+			if (typeof item === 'string' && item) pendingIds.push(item);
+		}
+
+		if (pendingIds.length === 0) {
+			displayText = labels.join(', ') || '–';
+			hasFetched = true;
+			return;
+		}
+
+		fetchEntryDisplays(pendingIds).then((fetched) => {
+			displayText = [...labels, ...fetched].join(', ') || '–';
+			hasFetched = true;
+		});
 	});
 </script>
 

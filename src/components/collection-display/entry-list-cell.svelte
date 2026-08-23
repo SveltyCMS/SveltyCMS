@@ -10,7 +10,6 @@ Falls back to Sanitize/string rendering for system fields and legacy values.
 	import Sanitize from '@src/utils/sanitize.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import { getCachedWidgetDisplayLoader } from '@widgets/widget-loader-registry';
-	import { onMount } from 'svelte';
 
 	interface Props {
 		widgetName?: string;
@@ -27,6 +26,8 @@ Falls back to Sanitize/string rendering for system fields and legacy values.
 
 	const displayValue = $derived.by(() => {
 		if (value === null || value === undefined) return '-';
+		// Relation cells need the raw id (or SSR-hydrated { _id, displayField }).
+		if (widgetName === 'Relation' || widgetName === 'RelationList') return value;
 		if (typeof value === 'object' && !Array.isArray(value)) {
 			const record = value as Record<string, unknown>;
 			const langVal = record[contentLanguage];
@@ -37,19 +38,29 @@ Falls back to Sanitize/string rendering for system fields and legacy values.
 		return value;
 	});
 
-	onMount(async () => {
-		if (!widgetName) return;
-		const loader = getCachedWidgetDisplayLoader(widgetName, widgets.widgetFunctions);
+	$effect(() => {
+		const name = widgetName;
+		const ready = widgets.isLoaded;
+		if (!name) return;
+		if (!ready) return;
+
+		let cancelled = false;
+		loadFailed = false;
+		const loader = getCachedWidgetDisplayLoader(name, widgets.widgetFunctions);
 		if (!loader) {
 			loadFailed = true;
 			return;
 		}
-		try {
-			const mod = await loader();
-			DisplayComponent = mod.default;
-		} catch {
-			loadFailed = true;
-		}
+		loader()
+			.then((mod) => {
+				if (!cancelled) DisplayComponent = mod.default;
+			})
+			.catch(() => {
+				if (!cancelled) loadFailed = true;
+			});
+		return () => {
+			cancelled = true;
+		};
 	});
 </script>
 
