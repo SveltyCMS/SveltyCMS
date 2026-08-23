@@ -146,7 +146,7 @@
 <div class="audit-history flex flex-col gap-3">
 	<!-- Header with verify button -->
 	<div class="flex items-center justify-between">
-		<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-300">
+		<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">
 			Audit History
 		</h3>
 		<Button
@@ -155,7 +155,7 @@
 			disabled={isVerifying}
 			class="rounded px-2 py-1 text-xs font-medium transition-colors {isVerifying
 				? 'cursor-wait bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'
-				: 'bg-tertiary-100 text-tertiary-700 hover:bg-tertiary-200 dark:bg-tertiary-900/30 dark:text-tertiary-400 dark:hover:bg-tertiary-900/50'}"
+				: 'bg-tertiary-500/10 text-tertiary-600 hover:bg-tertiary-200 dark:bg-tertiary-900/20 dark:text-tertiary-400 dark:hover:bg-tertiary-900/50'}"
 			aria-label="Verify audit chain integrity"
 		>
 			{#if isVerifying}
@@ -171,8 +171,8 @@
 	{#if verifyResult}
 		<div
 			class="rounded border p-2 text-xs {verifyResult.valid
-				? 'border-success-300 bg-success-50 text-success-700 dark:border-success-700 dark:bg-success-900/20 dark:text-success-400'
-				: 'border-error-300 bg-error-50 text-error-700 dark:border-error-700 dark:bg-error-900/20 dark:text-error-400'}"
+				? 'border-success-500/30 bg-success-500/10 text-success-600 dark:border-success-500/40 dark:bg-success-900/20 dark:text-success-400'
+				: 'border-error-500/30 bg-error-500/10 text-error-600 dark:border-error-500/40 dark:bg-error-900/20 dark:text-error-400'}"
 			role="status"
 			aria-live="polite"
 			aria-atomic="true"
@@ -208,7 +208,7 @@
 		</div>
 	{:else if error}
 		<div
-			class="rounded border border-error-300 bg-error-50 p-2 text-xs text-error-600 dark:border-error-700 dark:bg-error-900/20 dark:text-error-400"
+			class="rounded border border-error-500/30 bg-error-500/10 p-2 text-xs text-error-600 dark:border-error-500/40 dark:bg-error-900/20 dark:text-error-400"
 		>
 			{error}
 		</div>
@@ -234,8 +234,8 @@
 					<div class="flex shrink-0 flex-col items-center" style="width: 16px;">
 						<div
 							class="{hasChain
-								? 'h-2.5 w-2.5 rounded-full border border-tertiary-400 bg-tertiary-200 dark:border-tertiary-600 dark:bg-tertiary-800'
-								: 'h-2.5 w-2.5 rounded-full border border-surface-300 bg-surface-100 dark:border-surface-600 dark:bg-surface-800'}"
+								? 'h-2.5 w-2.5 rounded-full border border-tertiary-500 bg-tertiary-200 dark:border-tertiary-600 dark:bg-tertiary-800'
+								: 'h-2.5 w-2.5 rounded-full border border-surface-500/30 bg-surface-500/10 dark:border-surface-600 dark:bg-surface-800'}"
 							title="{hasChain
 								? `Chain: ${chainHash!.slice(0, 16)}...`
 								: 'No chain data'}"

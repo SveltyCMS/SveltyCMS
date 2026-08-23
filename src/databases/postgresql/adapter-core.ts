@@ -569,7 +569,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       // connection (consistent snapshot, no pool bypass).
       const exec = this.getTxnSql(options) ?? this.sql!;
       const selectFragment = exec.unsafe(selectCols);
-      // 🐛 FIX: identifiers must be quoted — PostgreSQL folds unquoted
+      // 🐛 identifiers must be quoted — PostgreSQL folds unquoted
       // identifiers to lowercase, so mixed-case collection tables
       // (e.g. collection_BenchmarkStable) errored with 42P01 and silently
       // fell back to the slower Drizzle path on EVERY read.

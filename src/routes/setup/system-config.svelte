@@ -423,7 +423,7 @@ Features:
 							{#snippet trigger()}
 								<Button
 									variant="outline"
-									class="w-full h-10 justify-between border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-300 font-normal hover:border-surface-300 dark:hover:border-surface-600 px-3 py-2"
+									class="w-full h-10 justify-between border-(--admin-border-default) bg-(--admin-bg-input) text-(--admin-text-body) font-normal px-3 py-2"
 								>
 									<span class="truncate text-sm">{systemSettings.timezone || 'Select timezone...'}</span>
 									<iconify-icon icon="mdi:chevron-down" width="16" class="ms-auto shrink-0 text-surface-400"></iconify-icon>
@@ -489,8 +489,8 @@ Features:
 					/>
 
 					{#if systemSettings.mediaStorageType !== 'local'}
-						<div class="rounded border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-700/50 dark:bg-amber-900/20" role="status">
-							<p class="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
+						<div class="rounded border border-warning-500/50 bg-warning-500/50 p-3 dark:border-warning-500/40 dark:bg-warning-900/20" role="status">
+							<p class="flex items-center gap-1 text-xs text-warning-600 dark:text-warning-400">
 								<iconify-icon icon="mdi:information-outline" width="16" aria-hidden="true"></iconify-icon>
 								<strong>{setup_note_cloud_credentials?.() || 'Note:'}</strong>
 							</p>
@@ -501,10 +501,10 @@ Features:
 		</section>
 
 		<!-- Languages -->
-		<section class="space-y-5 border-t border-surface-200 dark:border-white/10 pt-2">
+		<section class="space-y-5 border-t border-surface-500/30 dark:border-white/10 pt-2">
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<!-- Default System Language -->
-				<div class="space-y-2 rounded border border-surface-200 dark:border-white/5 p-4">
+				<div class="space-y-2 rounded border border-surface-500/30 dark:border-white/5 p-4">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="text-black dark:text-white">{setup_label_default_system_language?.() || 'Default System Language'}</span>
@@ -534,23 +534,25 @@ Features:
 							</SystemTooltip>
 						</div>
 
-						<div class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-200 dark:border-white/5 p-2">
+						<div class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border border-surface-500/30 dark:border-white/20 p-2">
 							{#each systemSettings.systemLanguages as lang (lang)}
-								<span
-									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
+								<Badge
+									variant="tertiary"
+									size="lg"
+									class="group dark:preset-filled-primary-500"
 								>
 									<span class="text-xs font-medium">{displayLang(lang)}</span>
 									{#if systemSettings.systemLanguages.length > 1}
 										<button
 											type="button"
-											class="flex items-center justify-center -mr-1.5 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+											class="flex items-center justify-center -me-1.5 p-0.5 rounded-full hover:bg-white/20 transition-colors"
 											onclick={() => removeSystemLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
 											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</button>
 									{/if}
-								</span>
+								</Badge>
 							{/each}
 							{#if systemAvailable.length}
 								<Button variant="surface"
@@ -570,7 +572,7 @@ Features:
 							{#if showSystemPicker}
 								<div
 									id="system-lang-picker"
-									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 p-2 shadow-xl"
+									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-surface-500/30 dark:border-white/10 bg-white dark:bg-surface-800 p-2 shadow-xl"
 									role="dialog"
 									aria-label="Add system language"
 									tabindex="-1"
@@ -607,7 +609,7 @@ Features:
 					</div>
 				</div>
 				<!-- Default Content Language -->
-				<div class="space-y-2 rounded border border-surface-200 dark:border-white/5 p-4">
+				<div class="space-y-2 rounded border border-surface-500/30 dark:border-white/5 p-4">
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
 						></iconify-icon>
@@ -639,25 +641,27 @@ Features:
 
 						<div
 							class="relative flex min-h-10.5 flex-wrap items-center gap-2 rounded border p-2 {displayErrors.contentLanguages
-								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
-								: 'border-surface-200 dark:border-white/5 '}"
+								? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
+								: 'border-surface-500/30 dark:border-white/20 '}"
 						>
 							{#each systemSettings.contentLanguages as lang (lang)}
-								<span
-									class="group badge preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
+								<Badge
+									variant="tertiary"
+									size="lg"
+									class="group dark:preset-filled-primary-500"
 								>
 									<span class="text-xs font-medium">{displayLang(lang)}</span>
 									{#if lang !== systemSettings.defaultContentLanguage || systemSettings.contentLanguages.length > 1}
 										<button
 											type="button"
-											class="flex items-center justify-center -mr-1.5 p-0.5 rounded-full hover:bg-white/20 transition-colors"
-											onclick={() => removeContentLang(lang)}
+											class="flex items-center justify-center -me-1.5 p-0.5 rounded-full hover:bg-white/20 transition-colors"
+												onclick={() => removeContentLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
 											<iconify-icon icon="mdi:close" width="14"></iconify-icon>
 										</button>
 									{/if}
-								</span>
+								</Badge>
 							{/each}
 							<Button variant="surface"
 								type="button"
@@ -720,7 +724,7 @@ Features:
 		</section>
 
 		<!-- System Infrastructure / Mode -->
-		<section id="infrastructure-section" class="mt-4 border-t border-surface-200 dark:border-white/10 pt-4">
+		<section id="infrastructure-section" class="mt-4 border-t border-surface-500/30 dark:border-white/10 pt-4">
 			<h4 class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-primary-500 mb-4">
 				<iconify-icon icon="mdi:server-network" width="18"></iconify-icon>
 				{setup_system_infrastructure_mode?.() || 'System Infrastructure / Mode'}
@@ -754,7 +758,7 @@ Features:
 						}}
 					/>
 					<span
-						class="text-xs font-bold {systemSettings.demoMode && !systemSettings.multiTenant ? 'text-amber-600 dark:text-amber-400' : 'invisible'}"
+						class="text-xs font-bold {systemSettings.demoMode && !systemSettings.multiTenant ? 'text-warning-600 dark:text-warning-400' : 'invisible'}"
 						aria-hidden={!(systemSettings.demoMode && !systemSettings.multiTenant)}
 					>
 						({setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
@@ -765,8 +769,8 @@ Features:
 
 
 		<!-- Redis Caching — expand/collapse stays inside step-content scroll; footer is absolute in +page -->
-		<section id="redis-section" class="mt-4 border-t border-surface-200 pt-4 dark:border-white/10">
-			<div class="rounded-lg border border-surface-200 bg-surface-50/50 p-4 dark:border-surface-700 dark:bg-surface-900/40">
+		<section id="redis-section" class="mt-4 border-t border-surface-500/30 pt-4 dark:border-white/10">
+			<div class="rounded-lg border border-surface-500/30 bg-surface-500/50 p-4 dark:border-surface-500/40 dark:bg-surface-900/20">
 				<div class="flex items-center justify-between gap-4">
 					<Checkbox
 						bind:checked={systemSettings.useRedis}
@@ -781,7 +785,7 @@ Features:
 								Connected
 							</span>
 						{:else}
-							<span class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+							<span class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-warning-500/10 px-2.5 py-1 text-xs font-semibold text-warning-600 dark:text-warning-400">
 								<iconify-icon icon="mdi:clock-outline" width="14"></iconify-icon>
 								Pending Test
 							</span>
@@ -790,7 +794,7 @@ Features:
 				</div>
 
 				{#if systemSettings.useRedis}
-					<div class="mt-4 space-y-4 border-t border-surface-200/60 pt-4 dark:border-surface-700/60">
+					<div class="mt-4 space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
 						<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 							<Input
 								id="redis-host"
@@ -852,10 +856,10 @@ Features:
 		</section>
 
 		<!-- Enterprise Scaling & performance -->
-		<div class="mt-4 border-t border-surface-200 dark:border-white/10 pt-4">
+		<div class="mt-4 border-t border-surface-500/30 dark:border-white/10 pt-4">
 			<button
 				type="button"
-				class="flex w-full items-center justify-between rounded-lg border border-surface-200 dark:border-surface-700/60 bg-surface-50/50 dark:bg-surface-900/30 p-3 text-sm font-semibold text-slate-700 dark:text-primary-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-all"
+				class="flex w-full items-center justify-between rounded-lg border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/50 dark:bg-surface-900/20 p-3 text-sm font-semibold text-slate-700 dark:text-primary-400 hover:bg-surface-500/10 dark:hover:bg-surface-800 transition-all"
 				onclick={() => (showScaling = !showScaling)}
 				aria-label={showScaling ? 'Collapse enterprise scaling' : 'Expand enterprise scaling'}
 			>
@@ -870,7 +874,7 @@ Features:
 			</button>
 
 			{#if showScaling}
-				<div class="mt-4 space-y-4 rounded border border-surface-200 dark:border-white/10 p-4 transition-all duration-300">
+				<div class="mt-4 space-y-4 rounded border border-surface-500/30 dark:border-white/10 p-4 transition-all duration-300">
 					<p class="text-xs text-slate-500 dark:text-white/40">
 						Configure native CDN purging to synchronize global edge nodes instantly upon content updates.
 					</p>
@@ -902,7 +906,7 @@ Features:
 							placeholder="Select purge strategy..."
 							size="sm"
 						/>
-						<p class="text-[10px] text-amber-500 italic mt-1">
+						<p class="text-[10px] text-warning-500 italic mt-1">
 							* Surgical purging requires a Cloudflare Enterprise plan or specific Cache Tag support.
 						</p>
 					</div>

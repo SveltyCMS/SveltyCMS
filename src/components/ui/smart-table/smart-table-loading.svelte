@@ -37,7 +37,7 @@
 		</thead>
 		<tbody>
 			{#each rowKeys as r (r)}
-				<tr class="animate-pulse border-b border-surface-200/50 dark:border-surface-800">
+				<tr class="animate-pulse border-b border-surface-500/30 dark:border-surface-500/40">
 					{#each colKeys as c (c)}
 						<td class={SMART_TABLE_TD}>
 							<div class="mx-auto h-4 w-full max-w-28 rounded bg-surface-200 dark:bg-surface-700"></div>

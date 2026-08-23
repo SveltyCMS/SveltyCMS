@@ -318,7 +318,7 @@ Self-measured suites under `tests/benchmarks/` with per-DB MDX reports. **Not** 
 | `findPage` vs dual `findMany`+`count`        | ~1.6–5.7× on that path (2026-08-04 matrix) |
 | L1 count cache hit                           | ~0.024–0.029 ms (all four engines)         |
 
-Methodology and EU-safe competitive framing: [benchmarks](./docs/project/benchmarks/index.mdx) · [performance architecture](./docs/reference/database/performance-architecture.mdx) · [technical evaluation](./docs/project/technical-evaluation-2026.mdx).
+Methodology and EU-safe competitive framing: [benchmarks](./docs/project/benchmarks/index.mdx) · [performance architecture](./docs/reference/database/performance-architecture.mdx) · [achievements log](./docs/project/achievements-2026.mdx).
 
 ### How to run
 

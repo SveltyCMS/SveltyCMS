@@ -383,7 +383,7 @@ export const actions: Actions = {
       }
 
       // Move files to trash before deleting from database
-      // FIX: Explicitly delete from ALL size folders to ensure complete cleanup
+      // Explicitly delete from ALL size folders to ensure complete cleanup
       try {
         const sanitizePath = (p: string) => {
           if (!p) {

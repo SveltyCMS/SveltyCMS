@@ -35,7 +35,7 @@ let { onAddCollection, newCollectionHref, onAddCategory, onLoadPreset, onQuickSt
         class="relative mb-4 flex h-36 w-36 items-center justify-center rounded-full bg-linear-to-br from-primary-500/10 to-tertiary-500/10 dark:from-primary-500/5 dark:to-tertiary-500/5"
         in:scale={{ duration: 600, delay: 200, start: 0.8 }}
     >
-        <div class="absolute inset-0 animate-pulse rounded-full bg-primary-500/5 blur-2xl"></div>
+        <div class="absolute inset-0 animate-pulse rounded-full bg-primary-500/10 blur-2xl"></div>
 
         <div
             class="relative flex h-24 w-24 items-center justify-center rounded-2xl border border-white/20 bg-white/40 shadow-xl backdrop-blur-md dark:bg-surface-800/40"
@@ -43,7 +43,7 @@ let { onAddCollection, newCollectionHref, onAddCategory, onLoadPreset, onQuickSt
             <iconify-icon icon="fluent-mdl2:build-definition" width="48" class="text-primary-600 dark:text-primary-500"></iconify-icon>
 
             <div
-                class="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary-500 text-white shadow-lg shadow-primary-500/40"
+                				class="absolute -inset-e-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary-500 text-white shadow-lg shadow-primary-500/40"
             >
                 <iconify-icon icon="mdi:plus" width="20"></iconify-icon>
             </div>
@@ -93,7 +93,7 @@ let { onAddCollection, newCollectionHref, onAddCategory, onLoadPreset, onQuickSt
         </div>
 
         <!-- Optional Actions Section -->
-        <div class="mt-4 flex w-full flex-col items-center gap-3 border-t border-surface-200 pt-4 dark:border-surface-700">
+        <div class="mt-4 flex w-full flex-col items-center gap-3 border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
             <p class="text-[10px] font-semibold uppercase tracking-wide ">Optional</p>
             <div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
                 <Button
@@ -125,7 +125,7 @@ let { onAddCollection, newCollectionHref, onAddCategory, onLoadPreset, onQuickSt
             </div>
         </div>
 
-        <p class="mt-4 max-w-md text-xs text-surface-600 dark:text-surface-300" role="note">
+        <p class="mt-4 max-w-md text-xs text-surface-600 dark:text-surface-400" role="note">
             Templates apply immediately. Categories and layout changes require <strong>Save</strong>.
         </p>
 

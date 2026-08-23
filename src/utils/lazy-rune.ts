@@ -2,10 +2,9 @@
  * @file src/utils/lazy-rune.ts
  * @description Helper for lazy initialization of Svelte 5 runes to support Bun unit testing.
  *
- * ### Hardening (audit 2026-07):
- * - Fixed Svelte 5 compiler errors: uses compliant `let x = $state(val)` pattern inside try/catch
- * - Fixed read-only state bug: adds .set(val) and .update(fn) for test environment mutations
- * - Fixed stale $derived mock: evaluates fn() fresh on every call (no permanent caching)
+ * - Svelte 5 compiler errors: uses compliant `let x = $state(val)` pattern inside try/catch
+ * - read-only state bug: adds .set(val) and .update(fn) for test environment mutations
+ * - stale $derived mock: evaluates fn() fresh on every call (no permanent caching)
  * - Removed module-level IS_SVELTE_CONTEXT check (fails in Svelte 5)
  *
  * IMPORTANT: $state() and $derived() are Svelte 5 compiler transforms — they only work

@@ -36,8 +36,8 @@
 	backUrl="/config"
 >
 	<div data-testid="extensions-page" class="contents">
-		<AdminCard class="p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs">
-			<div class="mb-8 flex items-center justify-between border-b border-surface-200 dark:border-surface-50">
+		<AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs">
+			<div class="mb-8 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-50">
 				<div class="flex gap-2" role="tablist" aria-label="Extension categories" data-testid="extensions-tabs">
 					{#each tabs as tab (tab.id)}
 						<Button
@@ -61,13 +61,13 @@
 
 				<button
 					type="button"
-					class="hidden items-center gap-2 rounded bg-surface-100 px-4 py-2 text-sm font-medium transition-colors hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 sm:flex"
+					class="hidden items-center gap-2 rounded bg-surface-500/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 sm:flex"
 					data-testid="extensions-marketplace"
 					onclick={() => (activeTab = 'marketplace')}
 				>
 					<iconify-icon icon="mdi:store" width={24} class="text-lg"></iconify-icon>
 					<span>Marketplace</span>
-					<span class="rounded bg-tertiary-100 px-1.5 py-0.5 text-[10px] uppercase text-tertiary-500 dark:bg-primary-900/30 dark:text-primary-500">
+					<span class="rounded bg-tertiary-500/10 px-1.5 py-0.5 text-[10px] uppercase 'text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500">
 						In-app
 					</span>
 				</button>

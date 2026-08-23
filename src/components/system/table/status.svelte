@@ -35,7 +35,7 @@ Values form StatusTypes
 	const badgeConfig = $derived.by(() => {
 		switch (value) {
 			case StatusTypes.publish:
-				return { variant: 'success' as const, icon: 'bi:hand-thumbs-up-fill', label: entrylist_multibutton_publish() };
+				return { variant: 'primary' as const, icon: 'bi:hand-thumbs-up-fill', label: entrylist_multibutton_publish() };
 			case StatusTypes.unpublish:
 				return { variant: 'warning' as const, icon: 'bi:pause-circle', label: entrylist_multibutton_unpublish() };
 			case StatusTypes.schedule:

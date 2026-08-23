@@ -152,7 +152,7 @@ When **Sticky Action Bar** is enabled, any page can make its action buttons stic
 </StickyActions>
 ```
 
-The buttons render **both** in their original position AND in the sticky bar at the bottom of the screen — no duplication in your code. The bar uses `role="toolbar"`, `aria-label="Page actions"`, and `aria-live="polite"` for screen reader compatibility.
+The buttons render in the sticky bar at the bottom of the screen when the feature is on (and fall back to their original in-place position when it is off) — so the actions never appear twice on screen. The bar uses `role="toolbar"`, `aria-label="Page actions"`, and `aria-live="polite"` for screen reader compatibility.
 
 > [!TIP]
 > The sticky bar height adapts to density — 44px in compact, 56px in cozy, 64px in spacious. Toggle the feature per-theme in **Design System → Features**.
@@ -192,12 +192,10 @@ A lightweight brand editor (Skeleton-inspired) lives on the **Palette & Import**
 
 Seeds expand via `color-mix` into full scales and rebind `--admin-bg-*` (same path as theme JSON import). Manual **Advanced → Custom CSS** outside the `sveltycms-palette-start/end` markers is preserved. Click **Save Theme** to persist.
 
-For a full visual generator (typography, edges, etc.), use [Skeleton Theme Create](https://themes.skeleton.dev/themes/create) and import the JSON below.
-
 ### Export / Import
 
 - **Export Theme JSON**: Downloads the current theme (density, variant, features, custom CSS) as a portable JSON file.
-- **Import**: Paste SveltyCMS theme JSON or [Skeleton.dev](https://themes.skeleton.dev/themes/create) theme exports in the **Palette & Import** tab.
+- **Import**: Paste SveltyCMS theme JSON or a shorthand palette block in the **Palette & Import** tab.
 
 #### Default install (Corporate workspace)
 
@@ -209,9 +207,9 @@ Fresh installs seed the active theme from `/src/themes/default.json`:
 
 Users land on a polished default — no need to discover Design System first. Customize from **Config → Design System** when ready.
 
-#### Skeleton.dev color import
+#### Theme JSON import
 
-Skeleton's theme generator exports JSON with a `properties` map (`--color-primary-500`, `--color-surface-950`, etc.). SveltyCMS also accepts a **shorthand palette** format in `/src/themes/*.json` for quick branding:
+Theme JSON exports carry a `properties` map (`--color-primary-500`, `--color-surface-950`, etc.). SveltyCMS also accepts a **shorthand palette** format in `/src/themes/*.json` for quick branding:
 
 ```
 "properties": {
@@ -223,24 +221,24 @@ Skeleton's theme generator exports JSON with a `properties` map (`--color-primar
 
 Shorthand keys expand to full 50–950 shade scales via CSS `color-mix()` — light `surface` values anchor at `--color-surface-50`; other palettes anchor at `-500`.
 
-On import or boot sync, SveltyCMS maps those tokens to **runtime admin CSS** scoped under `.admin-theme-container` and `[data-admin-theme]` — so utilities like `bg-primary-500` and `text-tertiary-500` update immediately across the admin panel.
+On import or boot sync, SveltyCMS maps those tokens to **runtime admin CSS** scoped to `:root` (plus `.admin-theme-container` / `[data-admin-theme]`) — so every utility (`bg-primary-500`, `text-tertiary-500`), every `--admin-*` semantic role, and even portalled overlays update immediately, across the whole admin panel. Dark-mode overrides are emitted under `html.dark` so they keep the specificity edge over the light `:root` block.
 
-| Skeleton palette | SveltyCMS palette | Notes                                     |
-| :--------------- | :---------------- | :---------------------------------------- |
-| `primary`        | `primary`         | Direct match                              |
-| `secondary`      | `secondary`       | Direct match                              |
-| `tertiary`       | `tertiary`        | Direct match                              |
-| `accent`         | `tertiary`        | Mapped when Skeleton uses `accent` naming |
-| `success`        | `success`         | Direct match                              |
-| `warning`        | `warning`         | Direct match                              |
-| `error`          | `error`           | Direct match                              |
-| `surface`        | `surface`         | Direct match                              |
+| Palette key | SveltyCMS palette | Notes                            |
+| :---------- | :---------------- | :------------------------------- |
+| `primary`   | `primary`         | Direct match                     |
+| `secondary` | `secondary`       | Direct match                     |
+| `tertiary`  | `tertiary`        | Direct match                     |
+| `accent`    | `tertiary`        | Legacy alias for `accent` naming |
+| `success`   | `success`         | Direct match                     |
+| `warning`   | `warning`         | Direct match                     |
+| `error`     | `error`           | Direct match                     |
+| `surface`   | `surface`         | Direct match                     |
 
-Skeleton `--radius-base` and `--radius-container` also bridge to `--admin-radius-*` tokens. You do **not** need to edit `src/app.css` — compile-time defaults stay intact; imported colors apply at runtime via the theme's `customCss` field (visible and editable in **Advanced → Custom CSS**).
+`--radius-base` and `--radius-container` also bridge to `--admin-radius-*` tokens. You do **not** need to edit `src/app.css` — compile-time defaults stay intact; imported colors apply at runtime via the theme's `customCss` field (visible and editable in **Advanced → Custom CSS**).
 
-Skeleton CSS exports (`[data-theme='...'] { ... }`) pasted as JSON with a `css` or `code` field are supported when a `name` is provided.
+CSS exports (`[data-theme='...'] { ... }`) pasted as JSON with a `css` or `code` field are supported when a `name` is provided.
 
-**Contrast warnings:** On Skeleton or shorthand palette import, SveltyCMS runs an advisory WCAG AA audit (body text, button labels, accent on surface). Failures appear as toast warnings — imports are not blocked.
+**Contrast warnings:** On import, SveltyCMS runs an advisory WCAG AA audit (body text, button labels, accent on surface). Failures appear as toast warnings — imports are not blocked.
 
 ### My Overrides (per-user preferences)
 
@@ -533,6 +531,22 @@ sequenceDiagram
     SP->>API: POST /api/theme/admin-theme
     API->>DB: Persist to Theme record
 ```
+
+### 4. Motion & Transition System
+
+All shared motion lives in `src/utils/admin-transitions.ts` and is **reduced-motion safe** (every transition drops to 0ms when `prefers-reduced-motion: reduce` or the theme's `reducedMotion` feature is on — see the [Accessibility Guide](../contributing/accessibility.mdx)).
+
+| Transition     | When to use                                                                                                   |
+| :------------- | :------------------------------------------------------------------------------------------------------------ |
+| `adminPage`    | Page entry (240ms fade + 8px rise) — applied **once** by `(app)/+layout.svelte`, keyed on `page.url.pathname` |
+| `adminFade`    | Modal / section reveals (200ms fade)                                                                          |
+| `adminStagger` | Card grids / list rows — pass `index` for a cascade                                                           |
+| `adminSlide`   | Drawers / sidebars — signed `distance` for direction                                                          |
+
+Motion **timing tokens** live in `src/utilities.css` (`--admin-motion-fast: 150ms`, `--admin-motion-base: 200ms`, `--admin-motion-slow: 300ms`, `--admin-ease-out`, `--admin-ease-in-out`) and density radii come from `--admin-radius-*`. Use the shared utilities — never per-page `in:fly`/`in:scale` one-offs — so every route (dashboard, collection builder, system settings, setup wizard) moves identically.
+
+> [!NOTE]
+> **Neutral aliases:** `gray`, `slate`, `neutral`, `zinc`, `stone` are aliased to the `surface` ramp in `@theme` (`--color-gray-500: var(--color-surface-500)`), so neutral utilities follow the active theme. Alpha on palette tokens is applied with `color-mix(in srgb, var(--color-primary-500) 30%, transparent)` — never `rgb(var(--color-*) / 0.3)`, which is invalid once tokens resolve to `oklch()`/hex.
 
 ### Theme Loading on Startup
 

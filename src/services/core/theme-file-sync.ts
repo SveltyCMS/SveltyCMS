@@ -15,7 +15,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { logger } from "@utils/logger";
 import type { StoredAdminTheme } from "./admin-theme-service";
-import { normalizeSkeletonThemePayload } from "@utils/theme-preset-mapper";
+import { mapPresetToAdminTheme, type ThemePreset } from "@utils/theme-preset-mapper";
 
 export const THEMES_DIR = join(process.cwd(), "src", "themes");
 
@@ -37,13 +37,9 @@ export function parseThemeFileContent(raw: string, sourceFile?: string): ThemeFi
     throw new Error(`Theme file ${sourceFile ?? "unknown"} missing "name" field`);
   }
 
-  const skeleton = normalizeSkeletonThemePayload(themeJson);
-  if (skeleton) {
-    const { properties: _properties, css: _css, code: _code, ...rest } = themeJson;
-    return { ...rest, ...skeleton } as ThemeFilePayload;
-  }
-
-  return themeJson as ThemeFilePayload;
+  const mapped = mapPresetToAdminTheme(themeJson as ThemePreset);
+  const { properties: _properties, css: _css, code: _code, ...rest } = themeJson;
+  return { ...rest, ...mapped } as ThemeFilePayload;
 }
 
 /** Import or update a single theme object in the database */

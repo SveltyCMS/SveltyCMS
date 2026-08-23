@@ -66,13 +66,13 @@ import { logger } from "@utils/logger";
 	{:else}
 		{#each data.plugins as plugin (plugin.name)}
 			<div
-				class="flex flex-col rounded border border-surface-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-surface-700 dark:bg-surface-800"
+				class="flex flex-col rounded border border-surface-500/30 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-surface-500/40 dark:bg-surface-800"
 				data-testid={`plugin-card-${plugin.name}`}
 				data-plugin-id={plugin.name}
 			>
 				<div class="mb-3 flex items-start justify-between">
 					<div class="flex items-center gap-3">
-						<div class="flex h-12 w-12 items-center justify-center rounded bg-surface-50 dark:bg-surface-900/50">
+						<div class="flex h-12 w-12 items-center justify-center rounded bg-surface-500/10 dark:bg-surface-900/50">
 							<iconify-icon icon={plugin.icon || 'mdi:puzzle'} width="32" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						</div>
 						<div>
@@ -114,7 +114,7 @@ import { logger } from "@utils/logger";
 				</div>
 				<p class="mb-4 line-clamp-2 grow text-sm text-surface-500 dark:text-surface-50">{plugin.description}</p>
 
-				<div class="mt-auto flex items-center justify-end gap-2 border-t border-surface-100 pt-3 dark:border-surface-700">
+				<div class="mt-auto flex items-center justify-end gap-2 border-t border-surface-100 pt-3 dark:border-surface-500/40">
 					<Button
 						variant="surface"
 						onclick={() => handleConfigure(plugin)}

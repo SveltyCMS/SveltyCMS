@@ -101,7 +101,7 @@ export const widgetMeta = {
 
 	function fileColor(f: MediaFile): string {
 		if (isImage(f)) return 'text-purple-500 dark:text-purple-400';
-		if (isVideo(f)) return 'text-rose-500 dark:text-rose-400';
+		if (isVideo(f)) return 'text-error-500 dark:text-error-400';
 		return 'text-surface-500 dark:text-surface-400';
 	}
 </script>
@@ -134,7 +134,7 @@ export const widgetMeta = {
 					{#each files.slice(0, 8) as f (f.id)}
 						<a
 							href="/mediagallery"
-							class="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-100 px-2 py-1 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+							class="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-500/10 px-2 py-1 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
 							title="{fileName(f)} · {fmtSize(f.size)}"
 						>
 							{#if thumbnailUrl(f)}
@@ -142,7 +142,7 @@ export const widgetMeta = {
 							{:else}
 								<iconify-icon icon={fileIcon(f)} class="text-sm {fileColor(f)}" ></iconify-icon>
 							{/if}
-							<span class="max-w-15 truncate text-[11px] font-medium text-surface-700 dark:text-surface-300">
+							<span class="max-w-15 truncate text-[11px] font-medium text-surface-600 dark:text-surface-400">
 								{fileName(f)}
 							</span>
 						</a>
@@ -157,7 +157,7 @@ export const widgetMeta = {
 							href="/mediagallery"
 							data-sveltekit-preload-data="hover"
 							aria-label={fileName(f)}
-							class="group flex items-center gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
+							class="group flex items-center gap-3 rounded-2xl bg-surface-500/10 px-3 py-2.5 transition-colors hover:bg-surface-500/10 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
 						>
 							<!-- Thumbnail / Icon -->
 							<div class="relative shrink-0">
@@ -174,7 +174,7 @@ export const widgetMeta = {
 										</div>
 									{/if}
 								{:else}
-									<div class="flex h-10 w-10 items-center justify-center rounded bg-surface-100 dark:bg-surface-700">
+									<div class="flex h-10 w-10 items-center justify-center rounded bg-surface-500/10 dark:bg-surface-700">
 										<iconify-icon icon={fileIcon(f)} class="text-xl {fileColor(f)}"  ></iconify-icon>
 									</div>
 								{/if}

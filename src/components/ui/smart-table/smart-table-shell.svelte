@@ -20,7 +20,7 @@ empty/loading, and pagination stay consistent.
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import TablePagination from '@components/system/table/table-pagination.svelte';
+	import Pagination from '@components/ui/table/pagination.svelte';
 	import { cn } from '@utils/cn';
 	import {
 		SMART_TABLE_PAGINATION_BAR,
@@ -98,12 +98,13 @@ empty/loading, and pagination stay consistent.
 
 	{#if showFooter}
 		<div class={SMART_TABLE_PAGINATION_BAR}>
-			<TablePagination
+			<Pagination
 				{currentPage}
 				{rowsPerPage}
 				{pagesCount}
 				{totalItems}
 				{rowsPerPageOptions}
+				variant="cms"
 				{onUpdatePage}
 				{onUpdateRowsPerPage}
 			/>

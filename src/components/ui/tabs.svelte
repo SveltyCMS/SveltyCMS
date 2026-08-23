@@ -74,7 +74,7 @@
   <div
     role="tablist"
     aria-label={ariaLabel}
-    class="flex gap-1 {variant === 'pills' ? 'p-1 bg-surface-100 dark:bg-surface-800 rounded-xl' : variant === 'underline' ? 'border-b border-surface-200 dark:border-surface-800' : ''} overflow-x-auto"
+    class="flex gap-1 {variant === 'pills' ? 'p-1 bg-surface-500/10 dark:bg-surface-800 rounded-xl' : ''} overflow-x-auto overflow-y-clip"
   >
     {#each tabs as tab, i (tab.id)}
       <Button
@@ -87,10 +87,10 @@
         onkeydown={(e: KeyboardEvent) => handleKeyDown(e, i)}
         data-testid="tab-{tab.id}"
         class="flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-medium transition-all duration-200 {variant === 'pills'
-          ? 'rounded-lg ' + (activeTab === tab.id ? 'bg-white dark:bg-surface-700 shadow-sm text-surface-900 dark:text-surface-100' : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300')
+          ? 'rounded-lg! ' + (activeTab === tab.id ? 'bg-white dark:bg-surface-700 shadow-sm text-surface-900 dark:text-surface-100' : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300')
           : variant === 'underline'
-            ? 'border-b-2 -mb-px ' + (activeTab === tab.id ? 'border-primary-500 text-primary-600 dark:text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 hover:border-surface-300')
-            : 'rounded-lg ' + (activeTab === tab.id ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300')
+            ? 'rounded-none! border-b-2 ' + (activeTab === tab.id ? 'border-primary-500 text-primary-600 dark:text-primary-500' : 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400 hover:border-surface-500/30')
+            : 'rounded-lg! ' + (activeTab === tab.id ? 'bg-primary-500/10 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400' : 'text-surface-500 hover:text-surface-600 dark:hover:text-surface-400')
         }"
       >
         {#if tab.icon}

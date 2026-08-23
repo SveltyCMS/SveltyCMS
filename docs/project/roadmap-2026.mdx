@@ -1,12 +1,12 @@
 ---
 path: "docs/project/roadmap-2026.mdx"
 title: "Project Roadmap 2026"
-description: "SveltyCMS 2026 roadmap — upcoming milestones and in-progress work. Completed items are documented in the technical evaluation."
+description: "SveltyCMS 2026 roadmap — upcoming milestones and in-progress work. Completed items move to the achievements log."
 order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-08-21"
+updated: "2026-08-23"
 tags:
   - "roadmap"
   - "todo"
@@ -16,15 +16,15 @@ tags:
 # SveltyCMS: 2026 Roadmap
 
 > [!NOTE]
-> **EU Compliance**: Based on publicly available documentation as of June 2026. Performance measurements where cited: self-measured via `BENCHMARK_RECORD=1 bun test tests/benchmarks/`. See [Technical Evaluation](./technical-evaluation-2026.mdx) (truth-first) and [Performance Architecture](../reference/database/performance-architecture.mdx).
+> **EU Compliance**: Based on publicly available documentation as of June 2026. Performance measurements where cited: self-measured via `BENCHMARK_RECORD=1 bun test tests/benchmarks/`. See [Achievements Log](./achievements-2026.mdx) (truth-first) and [Performance Architecture](../reference/database/performance-architecture.mdx).
 
-This document is the **living roadmap** — in-progress and planned work. Completed achievements: [Technical Evaluation](./technical-evaluation-2026.mdx).
+This document is the **living roadmap** — in-progress and planned work. Completed achievements: [Achievements Log](./achievements-2026.mdx).
 
 ---
 
 ## 📊 CMS Tables & List Platform (Smart Table)
 
-**Shipped foundation** (July 2026): headless controller, schema-aware server filters, QueryBuilder IR, SWR/cache hash, shared UX primitives — plus the July 2026 2FA hardening set (AES-256-GCM TOTP secrets at rest, resumable enrollment, trusted-devices cookie, configurable TOTP window, `afterAuthenticate` plugin hook). Both are documented in the [Technical Evaluation](./technical-evaluation-2026.mdx). Collections stay **server-secure**.
+**Shipped foundation** (July 2026): headless controller, schema-aware server filters, QueryBuilder IR, SWR/cache hash, shared UX primitives — plus the July 2026 2FA hardening set (AES-256-GCM TOTP secrets at rest, resumable enrollment, trusted-devices cookie, configurable TOTP window, `afterAuthenticate` plugin hook). Both are documented in the [Achievements Log](./achievements-2026.mdx). Collections stay **server-secure**.
 
 ### Next (high leverage — foundations ready)
 
@@ -76,7 +76,6 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 - **Cross-Source Merge Execution (v3.1 → stable)**
 - **Visual Studio Query Builder**
 - **GraphQL Supergraph / Federation**
-- **GraphQL.js 17 + Yoga** — **Shipped (August 2026)**: upgraded to `graphql@17.0.2` with native `graphql-yoga@5.22.0` support and zero-allocation AST visitors
 - **Svelty Managed Cloud**, Docker/Terraform enterprise pack
 - **AI-Verified Zero-Downtime Deployments**
 - **SvelteKit 3.0**, **TypeScript 7** — running `@sveltejs/kit@3.0.0-next.25` + `typescript@6.0.3`; TS7 adoption pending SvelteKit upstream `write_tsconfig` modernisation ([language-tools#3063](https://github.com/sveltejs/language-tools/issues/3063))
@@ -87,7 +86,7 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 
 ## 🧩 Gap Register & Non-Goals (August 2026)
 
-Honest assessment against reference platforms, based on publicly available documentation as of 2026-08-04. Closure paths link to the roadmap items above; shipped items are tracked in the [Technical Evaluation](./technical-evaluation-2026.mdx).
+Honest assessment against reference platforms, based on publicly available documentation as of 2026-08-04. Closure paths link to the roadmap items above; shipped items are tracked in the [Achievements Log](./achievements-2026.mdx).
 
 | Capability                               | Reference platforms (public docs)                                                      | Our current state                                                                                                                                               | Gap & closure path                                                                                                                                                              |
 | :--------------------------------------- | :------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -147,4 +146,4 @@ Honest assessment against reference platforms, based on publicly available docum
 | **P1**   | Marketplace install path; OIDC login page + PKCE; published adapters   |
 | **P2**   | Docker/Terraform, managed cloud                                        |
 
-_Last roadmap sync: 2026-08-21_
+_Last roadmap sync: 2026-08-23_

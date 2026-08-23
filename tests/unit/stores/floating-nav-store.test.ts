@@ -202,7 +202,7 @@ describe("floating-nav-store helpers", () => {
       });
       expect(prefs.favorites).toHaveLength(1);
       expect(prefs.favorites[0].path).toBe("/collections/articles");
-      expect(prefs.favorites[0].color).toBe("bg-amber-500"); // default when color omitted
+      expect(prefs.favorites[0].color).toBe("bg-warning-500"); // default when color omitted
       expect(isPathActiveInPrefs(prefs, "/collections/articles")).toBe(true);
 
       prefs = togglePathInPrefs(prefs, "/collections/articles/", { name: "Articles" });
@@ -214,13 +214,13 @@ describe("floating-nav-store helpers", () => {
       const prefs = togglePathInPrefs(createDefaultPrefs(), "/collections/posts", {
         name: "Posts",
         icon: "mdi:post",
-        color: "bg-teal-500",
+        color: "bg-primary-500",
       });
       expect(prefs.favorites[0]).toMatchObject({
         path: "/collections/posts",
         tooltip: "Posts",
         icon: "mdi:post",
-        color: "bg-teal-500",
+        color: "bg-primary-500",
       });
     });
 

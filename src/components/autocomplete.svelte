@@ -453,7 +453,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 	<!-- Dropdown -->
 	{#if showDropdown && !disabled}
 		<div
-			class="absolute z-50 mt-2 w-full overflow-hidden rounded border border-surface-200 bg-white shadow-xl dark:text-surface-50 dark:bg-surface-800"
+			class="absolute z-50 mt-2 w-full overflow-hidden rounded border border-surface-500/30 bg-white shadow-xl dark:text-surface-50 dark:bg-surface-800"
 			transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}
 		>
 			<!-- Loading state -->
@@ -467,7 +467,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 				<ul bind:this={listElement} id="autocomplete-list" class="max-h-60 overflow-y-auto" role="listbox" aria-label="Available options">
 					{#if !keyword.trim() && recentSelections.length > 0}
 						<!-- Recent selections header -->
-						<li class="border-b border-surface-200 px-4 py-2 text-xs font-semibold text-surface-600 dark:text-surface-50">Recent Selections</li>
+						<li class="border-b border-surface-500/30 px-4 py-2 text-xs font-semibold text-surface-600 dark:text-surface-50">Recent Selections</li>
 					{/if}
 
 					{#each displayOptions as option, index (option)}

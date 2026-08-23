@@ -71,7 +71,7 @@
 		})
 	);
 
-	// ✅ FIX: Removed unused getIsValid() function.
+	// Removed unused getIsValid() function.
 
 	// Update local validation errors
 	$effect(() => {
@@ -237,14 +237,14 @@
 						<div class="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
 							<div class="h-full transition-all duration-500 {score >= 1 ? 'bg-error-500' : ''}" style="width: 20%" aria-hidden="true"></div>
 							<div class="h-full transition-all duration-500 {score >= 2 ? 'bg-warning-500' : ''}" style="width: 20%" aria-hidden="true"></div>
-							<div class="h-full transition-all duration-500 {score >= 3 ? 'bg-yellow-500' : ''}" style="width: 20%" aria-hidden="true"></div>
+							<div class="h-full transition-all duration-500 {score >= 3 ? 'bg-warning-500' : ''}" style="width: 20%" aria-hidden="true"></div>
 							<div class="h-full transition-all duration-500 {score >= 4 ? 'bg-tertiary-500 dark:bg-primary-500' : ''}" style="width: 20%" aria-hidden="true"></div>
-							<div class="h-full transition-all duration-500 {score >= 5 ? 'bg-emerald-500' : ''}" style="width: 20%" aria-hidden="true"></div>
+							<div class="h-full transition-all duration-500 {score >= 5 ? 'bg-success-500' : ''}" style="width: 20%" aria-hidden="true"></div>
 						</div>
 						<div class="flex justify-between text-[10px] font-bold uppercase tracking-wider">
 							<span class={score >= 1 ? 'text-error-500' : 'text-slate-400'}>Weak</span>
-							<span class={score >= 3 ? 'text-yellow-500' : 'text-slate-400'}>Moderate</span>
-							<span class={score >= 5 ? 'text-emerald-500' : 'text-slate-400'}>Strong</span>
+							<span class={score >= 3 ? 'text-warning-500' : 'text-slate-400'}>Moderate</span>
+							<span class={score >= 5 ? 'text-success-500' : 'text-slate-400'}>Strong</span>
 						</div>
 					</div>
 				{/if}
@@ -307,7 +307,7 @@
 				>
 					<span
 						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.length
-							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
+							? 'border-primary-500/30 bg-primary-500/10 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.length}
@@ -324,7 +324,7 @@
 				>
 					<span
 						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.letter
-							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
+							? 'border-primary-500/30 bg-primary-500/10 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.letter}
@@ -341,7 +341,7 @@
 				>
 					<span
 						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.number
-							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
+							? 'border-primary-500/30 bg-primary-500/10 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.number}
@@ -358,7 +358,7 @@
 				>
 					<span
 						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.special
-							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
+							? 'border-primary-500/30 bg-primary-500/10 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.special}
@@ -375,7 +375,7 @@
 				>
 					<span
 						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.match
-							? 'border-primary-300 bg-primary-100 text-tertiary-500 dark:text-primary-500'
+							? 'border-primary-500/30 bg-primary-500/10 text-tertiary-500 dark:text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500'}"
 					>
 						{#if passwordRequirements.match}

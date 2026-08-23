@@ -84,15 +84,15 @@
 	function statusClass(status: string): string {
 		switch (status) {
 			case 'processing':
-				return 'bg-emerald-500';
+				return 'bg-success-500';
 			case 'shipped':
 			case 'delivered':
-				return 'bg-sky-500';
+				return 'bg-tertiary-500';
 			case 'cancelled':
 			case 'refunded':
-				return 'bg-rose-500';
+				return 'bg-error-500';
 			default:
-				return 'bg-amber-500';
+				return 'bg-warning-500';
 		}
 	}
 
@@ -129,22 +129,22 @@
 			{:else if !payload.available}
 				<div class="flex h-full flex-col items-center justify-center px-3 text-center">
 					<iconify-icon icon="mdi:cart-off" class="mb-2 text-3xl text-surface-400"></iconify-icon>
-					<p class="text-xs font-semibold text-surface-600 dark:text-surface-300">No orders collection</p>
+					<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">No orders collection</p>
 					<p class="mt-1 text-[11px] text-surface-500">Enable the ecommerce Setup Wizard preset to see orders here.</p>
 				</div>
 			{:else if isCompact}
 				<div class="flex h-full items-center gap-3 overflow-hidden px-1">
-					<span class="text-lg font-bold tabular-nums text-surface-800 dark:text-surface-100">{payload.total}</span>
+					<span class="text-lg font-bold tabular-nums text-surface-600 dark:text-surface-100">{payload.total}</span>
 					<span class="text-xs text-surface-500">recent orders</span>
 				</div>
 			{:else}
 				<div class="flex h-full min-h-0 flex-col gap-2">
 					{#if trialDays !== null}
-						<p class="text-[10px] text-amber-600 dark:text-amber-400">Trial · {trialDays} day{trialDays === 1 ? '' : 's'} remaining</p>
+						<p class="text-[10px] text-warning-600 dark:text-warning-400">Trial · {trialDays} day{trialDays === 1 ? '' : 's'} remaining</p>
 					{/if}
 					<div class="flex flex-wrap gap-1.5">
 						{#each Object.entries(payload.byStatus) as [status, count] (status)}
-							<span class="inline-flex items-center gap-1 rounded-full bg-surface-100 px-2 py-0.5 text-[10px] font-medium text-surface-700 dark:bg-surface-800 dark:text-surface-200">
+							<span class="inline-flex items-center gap-1 rounded-full bg-surface-500/10 px-2 py-0.5 text-[10px] font-medium text-surface-700 dark:bg-surface-800 dark:text-surface-200">
 								<span class="h-1.5 w-1.5 rounded-full {statusClass(status)}"></span>
 								{status} {count}
 							</span>
@@ -152,9 +152,9 @@
 					</div>
 					<ul class="min-h-0 flex-1 space-y-1 overflow-y-auto" aria-label="Recent orders">
 						{#each payload.recent as order (order.id)}
-							<li class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs hover:bg-surface-50 dark:hover:bg-surface-800/60">
+							<li class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs hover:bg-surface-500/10 dark:hover:bg-surface-800/60">
 								<div class="min-w-0">
-									<div class="truncate font-medium text-surface-800 dark:text-surface-100">{order.orderNumber}</div>
+									<div class="truncate font-medium text-surface-600 dark:text-surface-100">{order.orderNumber}</div>
 									<div class="truncate text-[10px] text-surface-500">{order.customerEmail || 'guest'} · {order.createdAt ? formatRelativeDate(order.createdAt) : '—'}</div>
 								</div>
 								<div class="shrink-0 text-end">

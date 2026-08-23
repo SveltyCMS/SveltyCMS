@@ -80,8 +80,7 @@
 
 <div class="relative">
 	<Button
-		variant="outline"
-		size="sm"
+		variant="ghost"
 		type="button"
 		aria-expanded={open}
 		aria-haspopup="menu"
@@ -90,26 +89,26 @@
 			open = !open;
 			if (open) refresh();
 		}}
-		class="gap-1"
+		class="rounded-full gap-1.5"
 	>
 		<iconify-icon icon="mdi:bookmark-outline" width={18}></iconify-icon>
 		<span class="hidden sm:inline">Views</span>
 		{#if views.length > 0}
-			<span class="rounded-full bg-tertiary-500/15 px-1.5 text-[10px] font-bold dark:bg-primary-500/20">{views.length}</span>
+			<span class="rounded-full bg-tertiary-500/10 px-1.5 text-[10px] font-bold dark:bg-primary-500/20">{views.length}</span>
 		{/if}
 	</Button>
 
 	{#if open}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
-			class="absolute inset-e-0 z-50 mt-1 w-64 rounded-lg border border-surface-200 bg-white p-2 shadow-lg dark:border-surface-700 dark:bg-surface-900"
+			class="absolute inset-e-0 z-50 mt-1 w-64 rounded-lg border border-surface-500/30 bg-white p-2 shadow-lg dark:border-surface-500/40 dark:bg-surface-900"
 			role="menu"
 			aria-label="Saved views"
 		>
 			<div class="mb-2 flex gap-1">
 				<input aria-label="New view name"
 					type="text"
-					class="input input-sm flex-1 rounded border border-surface-200 bg-surface-50 px-2 py-1 text-xs dark:border-surface-700 dark:bg-surface-800"
+					class="input input-sm flex-1 rounded border border-surface-500/30 bg-surface-500/10 px-2 py-1 text-xs dark:border-surface-500/40 dark:bg-surface-800"
 					placeholder="View name…"
 					bind:value={saveName}
 					onkeydown={(e) => {
@@ -129,7 +128,7 @@
 						<li>
 							<button
 								type="button"
-								class="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-start text-xs hover:bg-surface-100 dark:hover:bg-surface-800"
+								class="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-start text-xs hover:bg-surface-500/10 dark:hover:bg-surface-800"
 								role="menuitem"
 								onclick={() => handleApply(view)}
 							>
@@ -152,7 +151,7 @@
 
 			<button
 				type="button"
-				class="mt-1 w-full rounded px-2 py-1 text-center text-[10px] text-surface-400 hover:bg-surface-50 dark:hover:bg-surface-800"
+				class="mt-1 w-full rounded px-2 py-1 text-center text-[10px] text-surface-400 hover:bg-surface-500/10 dark:hover:bg-surface-800"
 				onclick={() => (open = false)}
 			>
 				Close

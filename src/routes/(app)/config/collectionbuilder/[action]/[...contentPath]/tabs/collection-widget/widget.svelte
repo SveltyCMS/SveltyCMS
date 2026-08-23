@@ -264,7 +264,7 @@ async function handleCollectionSave() {
 					tabindex="0"
 					aria-label="Field: {field.label}. Press Space to grab, arrows to move."
 				>
-					<div class="preset-ghost-tertiary-500 badge h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">{field.id}</div>
+					<div class="preset-ghost-tertiary-500 inline-flex items-center justify-center font-bold uppercase tracking-wider text-[10px] h-10 w-10 rounded-full dark:preset-ghost-primary-500" role="cell">{field.id}</div>
 
 					<div role="cell" class="flex justify-center"><iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon></div>
 					<div class="font-bold dark:text-primary-500" role="cell">{field.label}</div>
@@ -272,7 +272,7 @@ async function handleCollectionSave() {
 					<div class=" " role="cell">{field.widget?.key}</div>
 
 					<div role="cell" class="flex justify-end">
-						<Button variant="ghost" type="button" onclick={() => modalWidgetForm(field)} aria-label={button_edit()} class="p-0! min-w-0 ml-auto">
+						<Button variant="ghost" type="button" onclick={() => modalWidgetForm(field)} aria-label={button_edit()} class="p-0! min-w-0 ms-auto">
 							<iconify-icon icon="ic:baseline-edit" width={24}></iconify-icon>
 						</Button>
 					</div>

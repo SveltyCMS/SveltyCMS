@@ -141,7 +141,7 @@ async function runEnrichment() {
 			/>
 		{/if}
 
-		<div class="absolute bottom-2 end-2 flex items-center gap-1 text-[10px] text-surface-400 select-none pointer-events-none">
+		<div class="absolute bottom-2 inset-e-2 flex items-center gap-1 text-[10px] text-surface-400 select-none pointer-events-none">
 			<Icon icon="mdi:robot" />
 			{field.action.toUpperCase()}
 		</div>

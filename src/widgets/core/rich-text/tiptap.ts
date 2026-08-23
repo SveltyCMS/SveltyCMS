@@ -84,7 +84,9 @@ export function createEditor(
       TableCell,
       TextAlign.configure({
         types: ["heading", "paragraph", "image"],
-        defaultAlignment: "left",
+        // RTL scripts start from the right edge — mirror the default alignment
+        // so a fresh paragraph/heading in Arabic/Hebrew doesn't snap left.
+        defaultAlignment: getTextDirection(language) === "rtl" ? "right" : "left",
       }),
       Youtube.configure({
         modestBranding: true,

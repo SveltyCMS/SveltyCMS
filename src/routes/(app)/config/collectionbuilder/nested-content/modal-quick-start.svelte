@@ -81,7 +81,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 
 <div class="modal-quick-start space-y-5" role="dialog" aria-describedby="quick-start-desc">
 	<!-- Description -->
-	<p id="quick-start-desc" class="text-sm text-surface-600 dark:text-surface-300">
+	<p id="quick-start-desc" class="text-sm text-surface-600 dark:text-surface-400">
 		Choose a pre-built template to instantly create collections for your {availablePresets.length} available templates
 	</p>
 
@@ -99,10 +99,10 @@ Selecting a template auto-creates the collections using the installTemplateColle
 				onmouseleave={() => (hoveredPreset = null)}
 				onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectPreset(preset.id); } }}
 				class="relative flex flex-col rounded-lg border-2 p-4 text-start transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:hover:shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)] {isSelected
-					? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/[0.06] dark:bg-primary-500/[0.08] ring-2 ring-tertiary-500/20 dark:ring-primary-500/20 shadow-md'
+					? 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/6 dark:bg-primary-500/8 ring-2 ring-tertiary-500/20 dark:ring-primary-500/20 shadow-md'
 					: hoveredPreset === preset.id
-						? 'border-surface-400 dark:border-surface-600 bg-surface-50 dark:bg-surface-700/60'
-						: 'border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 hover:border-tertiary-400 dark:hover:border-primary-400'}"
+						? 'border-surface-500 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-700/60'
+						: 'border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-800 hover:border-tertiary-500 dark:hover:border-primary-400'}"
 				disabled={isSubmitting}
 				in:scale={{ duration: 250, delay: 80 * availablePresets.indexOf(preset) }}
 			>
@@ -128,20 +128,20 @@ Selecting a template auto-creates the collections using the installTemplateColle
 				</div>
 
 				<!-- Description -->
-				<p class="mb-3 text-xs leading-relaxed text-surface-600 dark:text-surface-300">{preset.description}</p>
+				<p class="mb-3 text-xs leading-relaxed text-surface-600 dark:text-surface-400">{preset.description}</p>
 
 				<!-- Collections Preview -->
-				<div class="mt-auto space-y-1.5 border-t border-surface-100 pt-3 dark:border-surface-700">
+				<div class="mt-auto space-y-1.5 border-t border-surface-100 pt-3 dark:border-surface-500/40">
 					<span class="text-xs font-medium text-surface-500 dark:text-surface-400">Creates {collections.length} collection{collections.length !== 1 ? 's' : ''}:</span>
 					<div class="flex flex-wrap gap-1">
 						{#each collections.slice(0, 4) as col (col.name)}
-							<span class="inline-flex items-center gap-1 rounded-full bg-surface-100 px-2 py-0.5 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-200">
+							<span class="inline-flex items-center gap-1 rounded-full bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-200">
 								<iconify-icon icon={col.icon} width="12" class="text-tertiary-500 dark:text-primary-400" aria-hidden="true"></iconify-icon>
 								{col.label}
 							</span>
 						{/each}
 						{#if collections.length > 4}
-							<span class="inline-flex items-center rounded-full bg-surface-100 px-2 py-0.5 text-xs text-surface-500 dark:bg-surface-700 dark:text-surface-400">+{collections.length - 4} more</span>
+							<span class="inline-flex items-center rounded-full bg-surface-500/10 px-2 py-0.5 text-xs text-surface-500 dark:bg-surface-700 dark:text-surface-400">+{collections.length - 4} more</span>
 						{/if}
 					</div>
 				</div>
@@ -150,7 +150,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 	</div>
 
 	<!-- Footer Actions -->
-	<footer class="flex items-center justify-end gap-3 border-t border-surface-200 pt-4 dark:border-surface-700">
+	<footer class="flex items-center justify-end gap-3 border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
 		<Button variant="ghost"
 			type="button"
 			onclick={() => close?.(null)}

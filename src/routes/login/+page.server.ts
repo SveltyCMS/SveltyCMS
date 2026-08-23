@@ -17,7 +17,6 @@ import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { RateLimiter } from "sveltekit-rate-limiter/server";
 import type { PageServerLoad } from "./$types";
 import type { ISODateString, DatabaseId } from "@src/content/types";
-import { isMultiTenantEnabled } from "@utils/tenant";
 import {
   getPrivateSettingSync,
   getPublicSetting,
@@ -164,7 +163,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
   // Default values — updated after DB init once settings cache is loaded
   let demoMode = false;
-  let multiTenant = false;
   let isOpenSignup = false;
 
   const errorDefaults = {
@@ -206,8 +204,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     // Re-read multi-tenancy and demo mode from settings cache (now guaranteed loaded)
     demoMode = !!getPrivateSettingSync("DEMO");
-    multiTenant = isMultiTenantEnabled();
-    isOpenSignup = multiTenant && demoMode;
+    // Open signup follows the DEMO setting alone — a demo instance (even a
+    // single-tenant one) must not require a registration token.
+    isOpenSignup = demoMode;
 
     const dbHealth = await checkDatabaseHealth();
     if (!dbHealth.healthy) {

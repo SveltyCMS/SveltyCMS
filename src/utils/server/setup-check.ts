@@ -194,6 +194,15 @@ export function invalidateSetupCache(
     (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = forceStatus;
   }
 
+  // The first-collection redirect memo survives resets and would otherwise
+  // send the next login/setup to a collection that no longer exists. Lazy
+  // import: this module must stay side-effect free for vite.config.ts.
+  try {
+    import("../../utils/server/collection-utils.server").then(
+      ({ invalidateFirstCollectionPathCache }) => invalidateFirstCollectionPathCache(),
+    );
+  } catch {}
+
   if (clearPrivateEnv) {
     import("../../databases/db").then(async (db) => {
       if (typeof db.clearPrivateConfigCache === "function") {

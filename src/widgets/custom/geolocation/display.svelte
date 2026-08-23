@@ -16,7 +16,7 @@
 	let { value = null }: Props = $props();
 </script>
 
-<div class="flex items-center gap-2 text-sm text-surface-600 dark:text-surface-300">
+<div class="flex items-center gap-2 text-sm text-surface-600 dark:text-surface-400">
 	<iconify-icon icon="mdi:map-marker" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 	{#if value && value.coordinates}
 		<span class="font-mono">

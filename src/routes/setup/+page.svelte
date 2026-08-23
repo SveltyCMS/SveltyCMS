@@ -45,6 +45,7 @@
 	import { modalState } from '@utils/modal.svelte';
 	// Utils
 	import { showConfirm } from '@utils/modal.svelte';
+	import { adminPage } from '@utils/admin-transitions';
 	// Using iconify-icon web component
 	import { onMount, tick } from 'svelte';
 	import AdminConfig from './admin-config.svelte';
@@ -186,7 +187,10 @@
 		await tick();
 		const stepContent = document.getElementById('step-content');
 		if (stepContent) {
-			stepContent.focus();
+			// preventScroll: step transitions must not trigger a smooth-scroll
+			// chase (async Redis detection / expandable CDN settings can change
+			// the step height right after focus → visible layout reflow).
+			stepContent.focus({ preventScroll: true });
 		}
 	}
 
@@ -260,9 +264,9 @@
 
 <svelte:head><title>SveltyCMS Setup</title></svelte:head>
 
-<div class="flex h-dvh min-h-0 flex-col overflow-hidden bg-surface-50 transition-colors dark:bg-surface-900">
+<div class="flex h-dvh min-h-0 flex-col overflow-clip bg-(--admin-bg-page) transition-colors">
 	<!-- Top Navigation Bar -->
-	<header class="z-30 shrink-0 border-b border-surface-200 bg-white dark:border-surface-700 dark:bg-surface-800">
+	<header class="z-30 shrink-0 border-b border-(--admin-border-default) bg-(--admin-bg-card)">
 		<div class="px-4 py-0">
 			<SetupHeader
 				siteName={wizard.systemSettings.siteName}
@@ -273,9 +277,9 @@
 		</div>
 	</header>
 
-	<div class="flex min-h-0 flex-1 overflow-hidden">
+	<div class="flex min-h-0 flex-1 overflow-clip">
 		<!-- Left Sidebar: shared Stepper + legend (desktop) -->
-		<aside class="hidden h-full w-64 shrink-0 flex-col overflow-hidden border-e border-surface-200 bg-white dark:border-surface-700 dark:bg-surface-800 lg:flex xl:w-72">
+		<aside class="hidden h-full w-64 shrink-0 flex-col overflow-hidden border-e border-(--admin-border-default) bg-(--admin-bg-card) lg:flex xl:w-72">
 			<div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden p-4">
 				<div class="min-h-0 flex-1 overflow-x-hidden pe-1">
 					<Stepper
@@ -288,7 +292,7 @@
 						onStepClick={selectSetupStep}
 					/>
 				</div>
-				<div class="mt-auto shrink-0 border-t border-surface-200 pt-6 dark:border-surface-700">
+				<div class="mt-auto shrink-0 border-t border-surface-500/30 pt-6 dark:border-surface-500/40">
 					<h4 class="mb-4 w-full text-center text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">
 						Legend
 					</h4>
@@ -316,10 +320,13 @@
 			</div>
 		</aside>
 
-		<!-- Main: absolute footer so Redis / multi-tenant expand cannot reflow navigation -->
-		<main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface-100 dark:bg-surface-800">
+		<!-- Main: in-flow footer (shrink-0) below the single scroll container —
+			 Redis / multi-tenant expand scrolls inside step-content and cannot reflow
+			 the navigation. overflow-clip (not hidden) so browser focus-scrolling
+			 can never drag the footer. -->
+		<main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-clip bg-surface-500/10 dark:bg-surface-900">
 			<!-- Mobile Stepper (shared UI Stepper) -->
-			<div class="z-10 shrink-0 border-b border-surface-200 bg-white p-4 dark:border-surface-700 dark:bg-surface-800 lg:hidden">
+			<div class="z-10 shrink-0 border-b border-(--admin-border-default) bg-(--admin-bg-card) p-4 lg:hidden">
 				<Stepper
 					{steps}
 					currentStep={wizard.currentStep}
@@ -332,8 +339,14 @@
 				/>
 			</div>
 
-			<!-- Scrollable step content; pb reserves space for absolute footer (nav row + optional seeding bar) -->
-			<div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-smooth p-2 pb-24" id="step-content" tabindex="-1">
+			<!-- Scrollable step content; the footer is a normal flex sibling below,
+				 so content growth (Redis / demo-mode expand) scrolls here internally
+				 and can never shift or cover the navigation -->
+			<div
+				class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto scroll-smooth p-2 pb-6 [overflow-anchor:none]"
+				id="step-content"
+				tabindex="-1"
+			>
 				<div class="mx-auto max-w-8xl">
 					<div class="mb-4">
 						<SetupCardHeader
@@ -349,7 +362,11 @@
 						/>
 					</div>
 
-					<div class="rounded border border-surface-200 bg-white p-6 shadow-sm dark:border-surface-700 dark:bg-surface-800">
+				{#key wizard.currentStep}
+					<div
+						class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-6 shadow-sm"
+						in:adminPage={{ duration: 200, rise: 6 }}
+					>
 						{#if wizard.currentStep === 0}
 							<DatabaseConfig
 								bind:dbConfig={wizard.dbConfig}
@@ -395,17 +412,17 @@
 						{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult && !setupStore.dbConfigChangedSinceTest}
 							<div
 								class="mt-6 flex flex-col rounded border-s-4 p-0 text-sm overflow-hidden"
-								class:border-primary-400={!!wizard.successMessage}
-								class:border-error-400={!!wizard.errorMessage}
+								class:border-primary-500={!!wizard.successMessage}
+								class:border-error-500={!!wizard.errorMessage}
 								aria-live="polite"
 								aria-atomic="true"
 							>
 								<div
-									class="flex items-center gap-2 px-4 py-3"
-									class:bg-primary-50={!!wizard.successMessage}
-									class:text-emerald-800={!!wizard.successMessage}
-									class:bg-red-50={!!wizard.errorMessage}
-									class:text-red-700={!!wizard.errorMessage}
+									class="flex items-center gap-2 px-4 py-3 {wizard.successMessage
+										? 'bg-success-500/10 text-primary-600 dark:text-primary-400'
+										: ''} {wizard.errorMessage
+										? 'bg-error-500/10 text-error-600 dark:text-error-400'
+										: ''}"
 								>
 									<svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										{#if wizard.successMessage}
@@ -425,22 +442,22 @@
 										<Button variant="outline"
 											type="button"
 											onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
-										 size="sm" class="flex items-center gap-1">
+										 size="sm" class="text-black dark:text-white flex items-center gap-1">
 											<iconify-icon icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
 											<span class="hidden sm:inline">{wizard.showDbDetails ? setup_db_test_details_hide() : setup_db_test_details_show()}</span>
 										</Button>
-										<Button variant="ghost"
-											type="button"
-											aria-label="Close message"
-											onclick={setupStore.clearDbTestError}
-											rounded
-										 size="sm" class="p-0! min-w-0 h-7 w-7 hover:bg-black/5 dark:hover:bg-white/5">
-											<iconify-icon icon="mdi:close" class="h-4 w-4"></iconify-icon>
+										<Button variant="outline"
+												type="button"
+												aria-label="Close message"
+												onclick={setupStore.clearDbTestError}
+												rounded
+											 size="sm" class="p-0! min-w-0 h-7 w-7">
+											<iconify-icon icon="mdi:close" size="16" class="dark:text-white"></iconify-icon>
 										</Button>
 									</div>
 								</div>
 								{#if wizard.showDbDetails && wizard.lastDbTestResult}
-									<div class="border-t border-surface-200 bg-secondary-50/50 text-xs dark:border-surface-700 dark:bg-surface-900/50">
+									<div class="border-t border-surface-500/30 bg-secondary-500/50 text-xs dark:border-surface-500/40 dark:bg-surface-900/50">
 										<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-4 sm:grid-cols-3 lg:grid-cols-6">
 											<div class="flex flex-col">
 												<span class="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">{setup_db_test_latency()}:</span>
@@ -472,15 +489,15 @@
 											{/if}
 										</div>
 										{#if !wizard.lastDbTestResult.success && wizard.lastDbTestResult.hint}
-											<div class="border-t border-surface-200 p-4 dark:border-surface-700 bg-amber-50/30 dark:bg-amber-900/10">
-												<div class="flex items-center gap-2 font-bold text-amber-700 dark:text-amber-400 mb-2">
+											<div class="border-t border-surface-500/30 p-4 dark:border-surface-500/40 bg-warning-500/30 dark:bg-warning-900/10">
+												<div class="flex items-center gap-2 font-bold text-warning-600 dark:text-warning-400 mb-2">
 													<iconify-icon icon="mdi:lightbulb-outline" class="text-lg"></iconify-icon>
 													<span class="uppercase tracking-widest text-[10px]">Troubleshooting Suggestions</span>
 												</div>
 												<div class="space-y-2">
 													{#each wizard.lastDbTestResult.hint.split('\n') as step (step)}
 														<div class="flex gap-2 text-slate-700 dark:text-slate-300">
-															<span class="shrink-0 text-amber-500">•</span>
+															<span class="shrink-0 text-warning-500">•</span>
 															<span>{step.replace(/^\d+\.\s*/, '')}</span>
 														</div>
 													{/each}
@@ -491,13 +508,19 @@
 								{/if}
 							</div>
 						{/if}
+						</div>
+					{/key}
 					</div>
 				</div>
-			</div>
 
-			<!-- Fixed Navigation Footer — absolute so expand/collapse (Redis, multi-tenant) cannot shift it -->
+				<!-- Navigation Footer — in-flow flex child (shrink-0). The step content
+					 above is the only scroll container, so expand/collapse (Redis,
+					 multi-tenant) can never reflow or reposition the navigation.
+					 An absolute footer here was dragged by <main>'s focus-scroll
+					 (overflow:hidden still scrolls programmatically) — that was the
+					 “navigation jumps in height” bug. -->
 			<footer
-				class="absolute inset-x-0 bottom-0 z-20 border-t border-surface-200/50 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] dark:border-surface-700/50 dark:bg-surface-800"
+				class="z-20 shrink-0 border-t border-(--admin-border-default)/50 bg-(--admin-bg-card) shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
 			>
 				<div class="mx-auto max-w-6xl">
 					<SetupNavigation

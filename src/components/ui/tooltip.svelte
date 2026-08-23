@@ -113,7 +113,11 @@ reveal after position calculation prevents layout flash.
 	 */
 	let arrowX = $state<number | null>(null);
 	let arrowY = $state<number | null>(null);
-	let arrowSide = $state<string>('bottom');
+	// Border-box vs padding-box inset: absolutely positioned children are
+	// anchored to the padding box, so a border (SystemTooltip uses 1px) would
+	// otherwise pull the arrow center 1px inside the visible edge. Read the
+	// live border width so the arrow can straddle the border exactly 50/50.
+	let edgeInset = $state(0);
 
 	$effect(() => {
 		if (!open || !referenceEl || !floatingEl) {
@@ -139,31 +143,63 @@ reveal after position calculation prevents layout flash.
 		const floatRect = floatingEl.getBoundingClientRect();
 		const [side] = (floating.placement || 'top').split('-');
 
+		// All tooltips use a uniform border width, so the top width is the
+		// inset on every side (0 for the raw Tooltip, 1px for SystemTooltip).
+		edgeInset = parseFloat(getComputedStyle(floatingEl).borderTopWidth) || 0;
+
 		// Center of the reference element
 		const targetX = refRect.left + refRect.width / 2;
 		const targetY = refRect.top + refRect.height / 2;
 
 		// Arrow position relative to tooltip's target top-left
+		// size-3.5 (14px) rotated 45° → half-diagonal ≈ 9.9px; keep the whole
+		// diamond inside the tooltip along the alignment axis (clamp ≥ 10).
 		let ax: number, ay: number;
 		if (side === 'top' || side === 'bottom') {
+			// Horizontal centre clamped; vertical is the tooltip EDGE itself
+			// (bottom edge for top-placement, top edge for bottom-placement) —
+			// the edge must stay exact or the arrow hides inside the body.
 			ax = targetX - floating.x;
 			ay = side === 'top' ? floatRect.height : 0;
+			ax = Math.max(10, Math.min(Math.round(ax), floatRect.width - 10));
 		} else {
+			// Vertical centre clamped; horizontal is the tooltip EDGE
+			// (right edge for left-placement, left edge for right-placement).
 			ax = side === 'left' ? floatRect.width : 0;
 			ay = targetY - floating.y;
+			ay = Math.max(10, Math.min(Math.round(ay), floatRect.height - 10));
 		}
-
-		ax = Math.max(9, Math.min(Math.round(ax), floatRect.width - 9));
-		ay = Math.max(9, Math.min(Math.round(ay), floatRect.height - 9));
 
 		arrowX = ax;
 		arrowY = ay;
-		arrowSide = floating.staticSide;
 	});
 
+	/**
+	 * Position the rotated arrow so its CENTER sits exactly on the tooltip's
+	 * border-box edge (arrowX/arrowY are padding-box edge coordinates, plus the
+	 * border inset). The 45° diamond then pokes out exactly half its diagonal
+	 * while its base stays inside — a classic 50/50 callout arrow on all four
+	 * sides. The old `left/top + {side}: -3px` combo collided on horizontal
+	 * placements (left/right), leaving the arrow fully outside for left/right.
+	 */
 	const arrowStyle = $derived.by(() => {
-		if (arrowY == null && arrowX == null) return '';
-		return `left: ${arrowX}px; top: ${arrowY}px; ${arrowSide}: -3px;`;
+		if (arrowX == null || arrowY == null) return '';
+		const half = 7 + edgeInset; // size-3.5 → 14px square → 7 + border
+		return `left: ${arrowX - half}px; top: ${arrowY - half}px;`;
+	});
+
+	// Only one tooltip may be open at a time: when the pointer moves onto any
+	// element outside this trigger, close — otherwise focus/click-opened
+	// tooltips linger next to neighbouring controls (setup header showed two
+	// tooltips when moving from the theme toggle to the language/a11y buttons).
+	$effect(() => {
+		if (!open) return;
+		const handler = (e: MouseEvent) => {
+			const target = e.target as Node | null;
+			if (referenceEl && target && !referenceEl.contains(target)) hide();
+		};
+		document.addEventListener('mouseover', handler, { capture: true });
+		return () => document.removeEventListener('mouseover', handler, { capture: true });
 	});
 
 	function show() {
@@ -220,9 +256,7 @@ reveal after position calculation prevents layout flash.
 
 			<div
 				bind:this={arrowEl}
-				class={cn(
-					'pointer-events-none absolute size-3 bg-(--admin-bg-tooltip) rotate-45',
-				)}
+				class={cn('pointer-events-none absolute size-3.5 bg-inherit rotate-45')}
 				style={arrowStyle}
 			></div>
 		</div>

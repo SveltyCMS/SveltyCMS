@@ -13,7 +13,7 @@ Displays the current step title and icon, and a reset button.
 	const icons = $derived(['mdi:database', 'mdi:account', 'mdi:cog', 'mdi:email', 'mdi:check-circle']);
 </script>
 
-<div class="flex shrink-0 justify-between bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 p-2 rounded ">
+<div class="flex shrink-0 justify-between bg-white dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 p-2 rounded ">
 	<h2 class="flex justify-center items-center text-lg font-semibold tracking-tight sm:text-xl text-black dark:text-white">
 		{#if icons[currentStep]}
 			<iconify-icon icon={icons[currentStep]} class="me-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
@@ -21,11 +21,11 @@ Displays the current step title and icon, and a reset button.
 		{steps[currentStep]?.label || 'Loading...'}
 	</h2>
 	<SystemTooltip title="Reset data">
-		<Button variant="ghost"
+		<Button variant="outline"
 			onclick={() => onreset()}
 			type="button"
 			aria-label="Reset data"
-		 size="sm" class="flex items-center dark:text-secondary-50 preset-outlined-surface-500 dark:border-surface-600 rounded">
+		 size="sm" class="text-black dark:text-white">
 			<iconify-icon icon="mdi:backup-restore" width={24} class="me-1"></iconify-icon>
 			<span class="">Reset Data</span>
 		</Button>

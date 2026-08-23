@@ -28,7 +28,13 @@
    🎨 DESIGN TOKENS
    ======================================================================== */
 @theme {
-  --font-sans: system-ui, sans-serif;
+  /* Modern system-first stack — Segoe UI Variable (Win11), SF Pro (macOS),
+     then generic fallbacks. --font-display drives headings for a designed
+     rhythm without shipping font assets. */
+  --font-sans:
+    "Segoe UI Variable Text", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-display: "Segoe UI Variable Display", var(--font-sans);
   --radius-base: 0.25rem;
   --radius-container: 0.75rem;
 
@@ -38,14 +44,15 @@
   --color-primary-200: oklch(87.85% 0.17 129.95deg);
   --color-primary-300: oklch(84.14% 0.2 132.96deg);
   --color-primary-400: oklch(80.36% 0.22 135.49deg);
-  /* WCAG AA: white-on-primary must reach >=4.5:1, so the 500-950 steps are
-     lightened down from the previous bright #5fd316 (1.94:1) brand green. */
-  --color-primary-500: oklch(54% 0.19 140deg);
-  --color-primary-600: oklch(50% 0.18 140deg);
-  --color-primary-700: oklch(44% 0.16 141deg);
-  --color-primary-800: oklch(38% 0.14 141deg);
-  --color-primary-900: oklch(32% 0.12 142deg);
-  --color-primary-950: oklch(27% 0.1 142deg);
+  /* Brand primary (green). 500-950 keep the bright brand-green lineage by
+     owner decision (reverted from the AA-darkened ramp) — white text on
+     primary is a known contrast trade-off (~1.94:1), accepted for branding. */
+  --color-primary-500: oklch(76.87% 0.23 137.58deg);
+  --color-primary-600: oklch(69.97% 0.21 138.5deg);
+  --color-primary-700: oklch(62.66% 0.19 139.5deg);
+  --color-primary-800: oklch(55.46% 0.18 140.59deg);
+  --color-primary-900: oklch(47.8% 0.16 141.65deg);
+  --color-primary-950: oklch(40.2% 0.14 142.5deg);
 
   /* Secondary | Neutral Gray */
   --color-secondary-50: oklch(94.91% 0 none);
@@ -124,6 +131,75 @@
   --color-surface-800: oklch(25% 0 196deg);
   --color-surface-900: oklch(19% 0 196deg);
   --color-surface-950: oklch(16% 0 none);
+
+  /* Default Tailwind neutral ramps aliased to the surface ramp.
+	   Hundreds of components were written against the gray, slate, zinc,
+	   neutral, and stone utilities before the surface ramp existed. Without
+	   these aliases they reference Tailwind's static default palette and are
+	   invisible to the runtime theme picker, which only overrides the
+	   --color-* tokens it manages. Aliasing the neutrals to var() references
+	   makes every one of those utilities follow the active theme's surface
+	   ramp at runtime (Tailwind emits them as plain var() indirection,
+	   verified v4.3). */
+  --color-gray-50: var(--color-surface-50);
+  --color-gray-100: var(--color-surface-100);
+  --color-gray-200: var(--color-surface-200);
+  --color-gray-300: var(--color-surface-300);
+  --color-gray-400: var(--color-surface-400);
+  --color-gray-500: var(--color-surface-500);
+  --color-gray-600: var(--color-surface-600);
+  --color-gray-700: var(--color-surface-700);
+  --color-gray-800: var(--color-surface-800);
+  --color-gray-900: var(--color-surface-900);
+  --color-gray-950: var(--color-surface-950);
+
+  --color-slate-50: var(--color-surface-50);
+  --color-slate-100: var(--color-surface-100);
+  --color-slate-200: var(--color-surface-200);
+  --color-slate-300: var(--color-surface-300);
+  --color-slate-400: var(--color-surface-400);
+  --color-slate-500: var(--color-surface-500);
+  --color-slate-600: var(--color-surface-600);
+  --color-slate-700: var(--color-surface-700);
+  --color-slate-800: var(--color-surface-800);
+  --color-slate-900: var(--color-surface-900);
+  --color-slate-950: var(--color-surface-950);
+
+  --color-neutral-50: var(--color-surface-50);
+  --color-neutral-100: var(--color-surface-100);
+  --color-neutral-200: var(--color-surface-200);
+  --color-neutral-300: var(--color-surface-300);
+  --color-neutral-400: var(--color-surface-400);
+  --color-neutral-500: var(--color-surface-500);
+  --color-neutral-600: var(--color-surface-600);
+  --color-neutral-700: var(--color-surface-700);
+  --color-neutral-800: var(--color-surface-800);
+  --color-neutral-900: var(--color-surface-900);
+  --color-neutral-950: var(--color-surface-950);
+
+  --color-zinc-50: var(--color-surface-50);
+  --color-zinc-100: var(--color-surface-100);
+  --color-zinc-200: var(--color-surface-200);
+  --color-zinc-300: var(--color-surface-300);
+  --color-zinc-400: var(--color-surface-400);
+  --color-zinc-500: var(--color-surface-500);
+  --color-zinc-600: var(--color-surface-600);
+  --color-zinc-700: var(--color-surface-700);
+  --color-zinc-800: var(--color-surface-800);
+  --color-zinc-900: var(--color-surface-900);
+  --color-zinc-950: var(--color-surface-950);
+
+  --color-stone-50: var(--color-surface-50);
+  --color-stone-100: var(--color-surface-100);
+  --color-stone-200: var(--color-surface-200);
+  --color-stone-300: var(--color-surface-300);
+  --color-stone-400: var(--color-surface-400);
+  --color-stone-500: var(--color-surface-500);
+  --color-stone-600: var(--color-surface-600);
+  --color-stone-700: var(--color-surface-700);
+  --color-stone-800: var(--color-surface-800);
+  --color-stone-900: var(--color-surface-900);
+  --color-stone-950: var(--color-surface-950);
 }
 
 /* ========================================================================
@@ -293,26 +369,19 @@
 }
 
 /* ========================================================================
-   🧱 COMPONENT CLASSES
+   🧱 COMPONENT RECIPES
    ========================================================================
-   THEME ALIGNMENT NOTE
-   --------------------
-   Every class in this layer reads its geometry and its surface colours from
-   the --admin-* token layer (defaults in src/utilities.css :root, overridden
-   per theme/density by the app layout). That is what makes a card on /setup,
-   a card on /login and a card on /dashboard look like the same product: they
-   resolve the same variables instead of each hardcoding surface-50 / rounded.
+   Shared token-based recipes used by the native UI components (Modal → card,
+   Badge → badge). Every value reads the --admin-* token layer (defaults in
+   src/utilities.css :root, overridden per theme/density by the app layout and
+   the runtime customCss) so a card or badge looks the same on /setup, /login
+   and /dashboard and repaints with the active theme.
 
    The fallback in every var() is the previous hardcoded value, so an
    unthemed route still renders exactly as it did before.
-
-   Spacing is scaled by --admin-density (0.85 compact / 1 cozy / 1.25
-   spacious) so the density switch actually changes density, not just radii.
    ======================================================================== */
 @layer components {
   .card {
-    /* Semantic admin surfaces — elevation via --admin-shadow-* (theme variant),
-       not forced hover shadows that break flat themes. */
     border-radius: var(--admin-radius-card, 0.75rem);
     border-width: var(--admin-border-width, 1px);
     border-style: solid;
@@ -326,184 +395,13 @@
     @apply inline-flex items-center font-bold uppercase tracking-wider rounded-full
            px-2.5 py-0.5 text-[10px] transition-colors duration-200;
   }
-
-  .btn {
-    @apply inline-flex items-center justify-center font-bold tracking-tight
-             transition-colors duration-200 gap-2;
-    @apply active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
-    border-radius: var(--admin-radius-button, 0.25rem);
-    padding-inline: calc(1rem * var(--admin-density, 1));
-    padding-block: calc(0.5rem * var(--admin-density, 1));
-  }
-  .btn-sm {
-    @apply h-8 text-xs;
-    padding-inline: calc(0.75rem * var(--admin-density, 1));
-    padding-block: 0;
-  }
-
-  .btn-icon {
-    @apply inline-flex items-center justify-center rounded-full transition-colors
-             duration-200 border-none bg-transparent;
-    padding: calc(0.5rem * var(--admin-density, 1));
-  }
-  .btn-icon-sm {
-    padding: calc(0.25rem * var(--admin-density, 1));
-  }
-
-  /* ----------------------------------------------------------------
-     Form controls — .input / .select / .textarea share one look.
-     .select and .textarea previously had NO rule at all, so a <select>
-     next to an <input> on the same form rendered as a raw browser
-     control. They are defined here off the same tokens.
-     ---------------------------------------------------------------- */
-  .input,
-  .select,
-  .textarea {
-    @apply w-full text-sm transition-all duration-300 backdrop-blur-sm;
-    @apply shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)];
-    border-radius: var(--admin-radius-input, 0.375rem);
-    border-width: var(--admin-border-width, 1px);
-    border-style: solid;
-    border-color: var(--admin-border-default, var(--color-surface-300));
-    background-color: var(
-      --admin-bg-input,
-      color-mix(in oklch, var(--color-surface-50) 50%, transparent)
-    );
-    color: var(--admin-text-body, var(--color-surface-900));
-    padding-inline: calc(1rem * var(--admin-density, 1));
-    padding-block: calc(0.625rem * var(--admin-density, 1));
-
-    @apply hover:border-tertiary-500/50;
-    @apply focus:outline-none focus:ring-4 focus:ring-tertiary-500/20 focus:border-tertiary-500;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-100 disabled:hover:border-surface-300;
-
-    @apply dark:shadow-[inset_0_1px_2px_rgba(255,255,255,0.02)];
-    @apply dark:hover:border-primary-500/50;
-    @apply dark:focus:ring-primary-500/20 dark:focus:border-primary-500;
-    @apply dark:disabled:bg-surface-800 dark:disabled:hover:border-surface-700;
-  }
-  /* Hover/focus lift the field out of the page tint — same behaviour as before,
-     but sourced from tokens so a theme can restyle it in one place. */
-  .input:hover,
-  .select:hover,
-  .textarea:hover {
-    background-color: var(--admin-bg-input-hover, #fff);
-  }
-  .input:focus,
-  .select:focus,
-  .textarea:focus {
-    background-color: var(--admin-bg-input-focus, #fff);
-  }
-  .input:disabled,
-  .select:disabled,
-  .textarea:disabled {
-    background-color: var(--admin-bg-input-disabled, var(--color-surface-100));
-  }
-
-  /* Native select needs its own arrow back once we remove the UA appearance,
-     otherwise it reads as a plain text input and users miss that it opens. */
-  .select {
-    appearance: none;
-    background-image:
-      linear-gradient(45deg, transparent 50%, currentColor 50%),
-      linear-gradient(135deg, currentColor 50%, transparent 50%);
-    background-position:
-      calc(100% - 18px) calc(50% + 2px),
-      calc(100% - 13px) calc(50% + 2px);
-    background-size:
-      5px 5px,
-      5px 5px;
-    background-repeat: no-repeat;
-    padding-inline-end: calc(2.25rem * var(--admin-density, 1));
-  }
-  [dir="rtl"] .select {
-    background-position:
-      18px calc(50% + 2px),
-      23px calc(50% + 2px);
-  }
-
-  .textarea {
-    @apply min-h-24 resize-y leading-relaxed;
-    backdrop-filter: none;
-  }
-
-  /* ----------------------------------------------------------------
-     .chip — small selectable/removable token. Had no rule; every chip
-     in the app was relying on whatever preset happened to sit next to
-     it, which is why chip rows looked different page to page.
-     ---------------------------------------------------------------- */
-  .chip {
-    @apply inline-flex items-center justify-center gap-1.5 whitespace-nowrap
-           text-xs font-medium transition-colors duration-200;
-    border-radius: 9999px;
-    padding-inline: calc(0.75rem * var(--admin-density, 1));
-    padding-block: calc(0.25rem * var(--admin-density, 1));
-    background-color: var(
-      --admin-bg-chip,
-      color-mix(in oklch, var(--color-surface-500) 12%, transparent)
-    );
-    color: var(--admin-text-body, var(--color-surface-900));
-    border: var(--admin-border-width, 1px) solid transparent;
-  }
-  .chip:is(button, a, [role="button"]):hover {
-    background-color: color-mix(in oklch, var(--color-surface-500) 22%, transparent);
-  }
-
-  /* ----------------------------------------------------------------
-     .alert — block-level status message. Had no rule, so the padding
-     and radius came from whatever utilities each call site remembered
-     to add, and several call sites added none.
-     ---------------------------------------------------------------- */
-  .alert {
-    @apply flex items-start gap-3 text-sm;
-    border-radius: var(--admin-radius-card, 0.75rem);
-    border-width: var(--admin-border-width, 1px);
-    border-style: solid;
-    border-color: var(--admin-border-default, var(--color-surface-200));
-    background-color: var(--admin-bg-card, var(--color-surface-50));
-    color: var(--admin-text-body, var(--color-surface-900));
-    padding: calc(1rem * var(--admin-density, 1));
-  }
-  .alert-message {
-    @apply flex min-w-0 flex-1 flex-col gap-1;
-  }
-
-  /* ----------------------------------------------------------------
-     .table — data tables. Had no rule, so permission matrices and
-     media lists rendered as unstyled HTML tables with collapsed
-     borders and no padding.
-     ---------------------------------------------------------------- */
-  .table {
-    @apply w-full border-collapse text-start text-sm;
-    color: var(--admin-text-body, var(--color-surface-900));
-  }
-  .table thead th {
-    @apply text-start text-xs font-semibold uppercase tracking-wider;
-    color: var(--admin-text-muted, var(--color-surface-500));
-    border-bottom: var(--admin-border-width, 1px) solid
-      var(--admin-border-default, var(--color-surface-200));
-    padding-inline: calc(0.75rem * var(--admin-density, 1));
-    padding-block: calc(0.625rem * var(--admin-density, 1));
-  }
-  .table tbody td {
-    border-bottom: var(--admin-border-width, 1px) solid
-      var(--admin-border-subtle, var(--color-surface-100));
-    padding-inline: calc(0.75rem * var(--admin-density, 1));
-    padding-block: calc(0.625rem * var(--admin-density, 1));
-  }
-  .table tbody tr:last-child td {
-    border-bottom: 0;
-  }
-  .table tbody tr:hover {
-    background-color: color-mix(in oklch, var(--color-surface-500) 8%, transparent);
-  }
 }
 
 /* ========================================================================
    🎯 BASE
    ======================================================================== */
 @layer base {
-  /* The page background comes from the token, not from a hardcoded ramp step.
+  /* Page background comes from the token, not from a hardcoded ramp step.
      admin-page-shell.svelte already painted itself with --admin-bg-page, so the
      routes OUTSIDE the app shell (/setup, /login, /admin, marketing pages) used
      to sit on a slightly different grey than the CMS itself. Same token here
@@ -512,6 +410,18 @@
   html {
     background-color: var(--admin-bg-page, var(--color-surface-50));
     color: var(--admin-text-body, var(--color-surface-900));
+  }
+
+  /* Typography rhythm — display font, tight tracking, balanced wrapping. */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display, var(--font-sans));
+    letter-spacing: -0.02em;
+    text-wrap: balance;
   }
 }
 

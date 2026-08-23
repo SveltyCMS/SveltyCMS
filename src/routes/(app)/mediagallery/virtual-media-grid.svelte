@@ -113,7 +113,7 @@ onMount(() => {
 					tabindex="0"
 					class="group relative flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition-all duration-200 dark:bg-surface-900
                         hover:z-10 hover:-translate-y-1 hover:shadow-lg focus:ring-4 focus:ring-primary-500 text-start cursor-pointer
-                        {isSelected ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-200 dark:border-surface-800'}"
+                        {isSelected ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-surface-500/30 dark:border-surface-500/40'}"
 					style:height="{itemHeight - 32}px"
 					onclick={() => isSelectionMode ? toggleSelection(file) : onOpenFileDetails(file)}
 					onkeydown={(e) => {
@@ -144,7 +144,7 @@ onMount(() => {
 					{/if}
 
 					<!-- Main Preview -->
-					<div class="relative flex-1 bg-surface-100 dark:bg-surface-800 overflow-hidden">
+					<div class="relative flex-1 bg-surface-500/10 dark:bg-surface-800 overflow-hidden">
 						{#if file.type === 'image'}
 							<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" crossorigin="anonymous" />
 						{:else}
@@ -165,7 +165,7 @@ onMount(() => {
 					</div>
 
 					<!-- Footer -->
-					<div class="p-2 border-t border-surface-100 dark:border-surface-800">
+					<div class="p-2 border-t border-surface-100 dark:border-surface-500/40">
 						<div class="truncate text-[10px] font-bold uppercase tracking-tighter opacity-60 mb-0.5">{file.filename}</div>
 						<div class="text-[9px] font-mono opacity-40">{formatBytes((file as MediaImage).size)}</div>
 					</div>

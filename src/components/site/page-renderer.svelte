@@ -82,7 +82,7 @@
       {#if page.heroSubheading}
         <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
         <p
-          class="mt-4 text-lg text-surface-600 dark:text-surface-300"
+          class="mt-4 text-lg text-surface-600 dark:text-surface-400"
           data-svelty-field="heroSubheading"
           onclick={(e) => {
             e.stopPropagation();
@@ -147,10 +147,10 @@
           </h2>
         {/if}
         {#if block.subheading}
-          <p class="mt-2 text-surface-600 dark:text-surface-300">{block.subheading}</p>
+          <p class="mt-2 text-surface-600 dark:text-surface-400">{block.subheading}</p>
         {/if}
         {#if block.body}
-          <p class="mt-4 text-surface-700 dark:text-surface-200">{block.body}</p>
+          <p class="mt-4 text-surface-600 dark:text-surface-400">{block.body}</p>
         {/if}
       {:else if block.type === "richtext"}
         <div class="prose dark:prose-invert">{@html sanitizedBlockHtml(block.body)}</div>

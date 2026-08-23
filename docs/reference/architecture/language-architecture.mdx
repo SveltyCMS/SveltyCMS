@@ -1207,11 +1207,11 @@ graph TD
 
 <!-- Widget UI typically doesn't need translation -->
 <!-- Field labels come from field.label configured in collection -->
-<input value={safeValue} oninput={(e) => handleInput(e.currentTarget.value)} placeholder={field.placeholder} class="input" />
+<input value={safeValue} oninput={(e) => handleInput(e.currentTarget.value)} placeholder={field.placeholder} class="w-full rounded border border-surface-300 px-3 py-2" />
 
 <!-- Character counter (no translation needed) -->
 {#if field.count}
-	<span class="badge">{count}/{field.maxLength}</span>
+	<Badge size="sm">{count}/{field.maxLength}</Badge>
 {/if}
 ```
 

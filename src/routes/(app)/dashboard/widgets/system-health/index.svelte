@@ -68,10 +68,10 @@ export const widgetMeta = {
 
 	const overallColor = $derived.by(() => {
 		switch (health?.overallStatus) {
-			case 'READY': return 'text-emerald-600 dark:text-emerald-400';
-			case 'DEGRADED': return 'text-amber-600 dark:text-amber-400';
-			case 'FAILED': return 'text-red-600 dark:text-red-400';
-			case 'INITIALIZING': return 'text-blue-600 dark:text-blue-400';
+			case 'READY': return 'text-success-600 dark:text-success-400';
+			case 'DEGRADED': return 'text-warning-600 dark:text-warning-400';
+			case 'FAILED': return 'text-error-600 dark:text-error-400';
+			case 'INITIALIZING': return 'text-tertiary-600 dark:text-tertiary-400';
 			default: return 'text-surface-500';
 		}
 	});
@@ -157,7 +157,7 @@ export const widgetMeta = {
 		{#if !healthData}
 			<div class="flex h-full items-center justify-center">
 				<div class="flex flex-col items-center gap-3 text-surface-500">
-					<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+					<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"></div>
 					<p class="text-sm">Checking system health...</p>
 				</div>
 			</div>
@@ -177,13 +177,13 @@ export const widgetMeta = {
 							</div>
 						</div>
 
-						<div class="flex items-center gap-2 font-medium text-surface-600 dark:text-surface-300">
+						<div class="flex items-center gap-2 font-medium text-surface-600 dark:text-surface-400">
 							{#each Object.entries(healthData.components).slice(0, 3) as [name, service] (name)}
 								<div class="flex items-center gap-1" title={`${formatServiceName(name)}: ${service.status}`}>
 									<span class="relative flex h-1.5 w-1.5">
 										<span class="relative inline-flex rounded-full h-1.5 w-1.5
-											{service.status === 'healthy' ? 'bg-emerald-500' :
-											 service.status === 'unhealthy' ? 'bg-red-500' : 'bg-amber-500'}"></span>
+											{service.status === 'healthy' ? 'bg-success-500' :
+											 service.status === 'unhealthy' ? 'bg-error-500' : 'bg-warning-500'}"></span>
 									</span>
 									<span class="text-[10px] opacity-80">{formatServiceName(name).substring(0, 2)}</span>
 								</div>
@@ -214,7 +214,7 @@ export const widgetMeta = {
 
 							<button
 								onclick={reinitializeSystem}
-								class="rounded border border-amber-500/30 px-3 py-1.5 text-xs font-semibold text-amber-600 hover:bg-amber-500/10 dark:text-amber-400 transition-all duration-150 flex items-center gap-1.5"
+								class="rounded border border-warning-500/30 px-3 py-1.5 text-xs font-semibold text-warning-600 hover:bg-warning-500/10 dark:text-warning-400 transition-all duration-150 flex items-center gap-1.5"
 							>
 								<iconify-icon icon="mdi:refresh" width={16}></iconify-icon>
 								Reinitialize
@@ -226,7 +226,7 @@ export const widgetMeta = {
 							{#each Object.entries(healthData.components) as [name, service] (name)}
 								{const latency = service.performance?.latency}
 								{const history = latencyHistory[name] || []}
-								<div class="rounded-2xl bg-surface-50 dark:bg-surface-800/40 p-3 border border-surface-200/50 dark:border-surface-700/50 flex items-center justify-between gap-3">
+								<div class="rounded-2xl bg-surface-500/10 dark:bg-surface-800/40 p-3 border border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between gap-3">
 									<div class="flex-1 min-w-0">
 										<div class="flex items-center gap-1.5">
 											{#if name === 'database' && service.status === 'healthy'}
@@ -235,7 +235,7 @@ export const widgetMeta = {
 													<span class="relative inline-flex rounded-full h-2 w-2 bg-success-500"></span>
 												</span>
 											{/if}
-											<span class="text-sm font-semibold truncate text-surface-800 dark:text-surface-100">{formatServiceName(name)}</span>
+											<span class="text-sm font-semibold truncate text-surface-600 dark:text-surface-100">{formatServiceName(name)}</span>
 										</div>
 										<div class="text-xs text-surface-500 dark:text-surface-400 line-clamp-1 mt-0.5" title={service.message}>
 											{service.message}

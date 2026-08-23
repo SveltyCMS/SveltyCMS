@@ -149,7 +149,7 @@ beforeNavigate(({ cancel }) => {
 		</div>
 	{/snippet}
 
-	<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs" data-testid="access-mgmt-page">
+	<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs" data-testid="access-mgmt-page">
 		<div class="mb-4">
 			<p class="text-tertiary-500 dark:text-primary-500 text-sm">
 				Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role

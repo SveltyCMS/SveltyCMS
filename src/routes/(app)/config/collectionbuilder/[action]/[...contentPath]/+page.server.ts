@@ -17,6 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 // Collections
 import { contentSystem } from "@src/content/index.server";
+import { syncContentState } from "@src/content/sync-content-state.server";
 import type { Schema } from "@src/content/types";
 // Auth
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
@@ -314,7 +315,6 @@ export const actions: Actions = {
 
       // Unified coordinator: compile (target file) + refresh + models + GUI lock
       // so the Vite watcher does not double-compile the same write.
-      const { syncContentState } = await import("@src/content/sync-content-state.server");
       const relativeSource = path.basename(collectionPath);
       const syncResult = await syncContentState({
         reason: "collection-save",
@@ -363,7 +363,6 @@ export const actions: Actions = {
       if (fs.existsSync(targetFile)) {
         fs.unlinkSync(targetFile);
       }
-      const { syncContentState } = await import("@src/content/sync-content-state.server");
       await syncContentState({
         reason: "collection-save",
         tenantId,

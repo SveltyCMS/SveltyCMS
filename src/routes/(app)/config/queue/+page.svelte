@@ -129,7 +129,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 	<div data-testid="queue-page" class="contents">
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" in:fly={{ y: 20, delay: 100 }} data-testid="queue-stats">
 		<a aria-label="View all jobs" href={getFilterUrl()} class="block no-underline text-inherit" data-testid="queue-stat-total" data-preload="hover">
-			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
+			<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
 						<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
@@ -143,7 +143,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 		</a>
 
 		<a aria-label="View pending jobs" href={getFilterUrl('pending')} class="block no-underline text-inherit" data-testid="queue-stat-pending" data-preload="hover">
-			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors">
+			<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-surface">
 						<iconify-icon icon="mdi:clock-outline" class="text-2xl"></iconify-icon>
@@ -157,7 +157,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 		</a>
 
 		<a aria-label="View running jobs" href={getFilterUrl('running')} class="block no-underline text-inherit" data-testid="queue-stat-running" data-preload="hover">
-			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
+			<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-primary">
 						<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
@@ -171,7 +171,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 		</a>
 
 		<a aria-label="View completed jobs" href={getFilterUrl('completed')} class="block no-underline text-inherit" data-testid="queue-stat-completed" data-preload="hover">
-			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors">
+			<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-success">
 						<iconify-icon icon="mdi:check-circle-outline" class="text-2xl"></iconify-icon>
@@ -185,7 +185,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 		</a>
 
 		<a aria-label="View failed jobs" href={getFilterUrl('failed')} class="block no-underline text-inherit" data-testid="queue-stat-failed" data-preload="hover">
-			<AdminCard class="p-4 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors">
+			<AdminCard class="p-4 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors">
 				<div class="flex items-center gap-3">
 					<div class="p-2 rounded preset-tonal-error">
 						<iconify-icon icon="mdi:alert-circle-outline" class="text-2xl"></iconify-icon>
@@ -226,13 +226,13 @@ function getFilterUrl(status: string | undefined = undefined) {
 
 	<div in:fade>
 	<AdminCard
-		class="p-0 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/40 backdrop-blur-md shadow-xs overflow-hidden"
+		class="p-0 border border-surface-500/30 dark:border-surface-500/40 bg-white dark:bg-surface-900/20 backdrop-blur-md shadow-xs overflow-hidden"
 		data-testid="queue-jobs-table"
 	>
 		<div class="overflow-x-auto w-full">
 			<table class="w-full text-sm border-collapse whitespace-nowrap">
 				<thead>
-					<tr class="border-b border-surface-200 dark:border-surface-800 text-start text-xs uppercase tracking-wider text-surface-400">
+					<tr class="border-b border-surface-500/30 dark:border-surface-500/40 text-start text-xs uppercase tracking-wider text-surface-400">
 						<th class="px-4 py-3 font-semibold">Job ID</th>
 						<th class="px-4 py-3 font-semibold">Task Type</th>
 						<th class="px-4 py-3 font-semibold">Status</th>
@@ -244,7 +244,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 				</thead>
 				<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
 					{#each data.jobs as job (job._id)}
-						<tr class="text-surface-700 dark:text-surface-200 hover:bg-surface-50/40 dark:hover:bg-surface-900/30">
+						<tr class="text-surface-600 dark:text-surface-400 hover:bg-surface-500/40 dark:hover:bg-surface-900/20">
 							<td class="px-4 py-3">
 								<span class="font-mono text-xs opacity-60" title={job._id}>{job._id.slice(0, 8)}...</span>
 							</td>
@@ -327,7 +327,7 @@ function getFilterUrl(status: string | undefined = undefined) {
 		</div>
 
 		{#if data.totalCount > data.pagination.limit}
-			<div class="p-4 bg-surface-50 dark:bg-surface-900 border-t border-surface-200 dark:border-surface-700 flex items-center justify-between">
+			<div class="p-4 bg-surface-500/10 dark:bg-surface-900 border-t border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between">
 				<p class="text-xs opacity-60">
 					Showing {data.pagination.offset + 1} to {Math.min(data.pagination.offset + data.pagination.limit, data.totalCount)} of {data.totalCount} jobs
 				</p>

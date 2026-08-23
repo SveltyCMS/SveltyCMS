@@ -48,14 +48,14 @@ function onKeydown(e: KeyboardEvent) {
 <svelte:window onkeydown={onKeydown} />
 
 <div
-    class="flex flex-col h-[80vh] w-full max-w-5xl bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-200 dark:border-surface-800 overflow-hidden"
+    class="flex flex-col h-[80vh] w-full max-w-5xl bg-white dark:bg-surface-900 rounded-2xl shadow-2xl border border-surface-500/30 dark:border-surface-500/40 overflow-hidden"
     in:fade
     role="dialog"
     aria-modal="true"
     aria-labelledby="diff-modal-title"
 >
     <!-- Header -->
-    <div class="p-6 border-b border-surface-200 dark:border-surface-800 flex items-center justify-between bg-surface-50/50 dark:bg-surface-950/20">
+    <div class="p-6 border-b border-surface-500/30 dark:border-surface-500/40 flex items-center justify-between bg-surface-500/50 dark:bg-surface-900/20">
         <div>
             <h2 id="diff-modal-title" class="text-xl font-bold flex items-center gap-2">
                 <iconify-icon icon="mdi:compare" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -97,9 +97,9 @@ function onKeydown(e: KeyboardEvent) {
         {:else}
             <div class="grid grid-cols-1 gap-4">
                 {#each filteredDiffs as diff (diff.fieldName)}
-                    <div class="group border border-surface-200  rounded overflow-hidden transition-all hover:border-tertiary-500 dark:border-primary-500/50" in:slide>
+                    <div class="group border border-surface-500/30  rounded overflow-hidden transition-all hover:border-tertiary-500 dark:border-primary-500/50" in:slide>
                         <!-- Field Header -->
-                        <div class="px-4 py-2 bg-surface-50 dark:bg-surface-950 flex items-center justify-between border-b border-surface-200 dark:border-surface-800">
+                        <div class="px-4 py-2 bg-surface-500/10 dark:bg-surface-500/10 flex items-center justify-between border-b border-surface-500/30 dark:border-surface-500/40">
                             <div class="flex flex-col">
                                 <span class="text-xs font-bold opacity-40 uppercase tracking-tighter">{diff.fieldName}</span>
                                 <span class="font-mono text-sm font-bold text-tertiary-600 dark:text-primary-600 ">{diff.label}</span>
@@ -118,7 +118,7 @@ function onKeydown(e: KeyboardEvent) {
                         <!-- Diff Content -->
                         <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-surface-200 dark:divide-surface-800">
                             <!-- Left: Old Value -->
-                            <div class="p-4 bg-surface-50/30 dark:bg-surface-900/30">
+                            <div class="p-4 bg-surface-500/30 dark:bg-surface-900/20">
                                 <p class="text-[10px] uppercase font-bold opacity-30 mb-2">{oldLabel}</p>
                                 <pre class="text-xs font-mono whitespace-pre-wrap break-all
                                     {diff.type === 'removed' || diff.type === 'modified' ? 'text-error-600 dark:text-error-500' : 'opacity-40'}">
@@ -141,7 +141,7 @@ function onKeydown(e: KeyboardEvent) {
     </div>
 
     <!-- Footer -->
-    <div class="p-4 bg-surface-100 dark:bg-surface-950 border-t border-surface-200 dark:border-surface-800 flex justify-between items-center">
+    <div class="p-4 bg-surface-500/10 dark:bg-surface-500/10 border-t border-surface-500/30 dark:border-surface-500/40 flex justify-between items-center">
         <div class="flex gap-4 text-[10px] font-bold opacity-50 uppercase">
             <span class="flex items-center gap-1"><div class="h-2 w-2 rounded-full bg-success-500"></div> Added</span>
             <span class="flex items-center gap-1"><div class="h-2 w-2 rounded-full bg-error-500"></div> Removed</span>

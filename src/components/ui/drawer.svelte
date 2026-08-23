@@ -96,9 +96,9 @@ configurable position, and full focus management via `useDialog`.
 
 	const colorClasses: Record<string, string> = {
 		surface: 'bg-(--admin-bg-overlay) border-(--admin-border-default)',
-		primary: 'bg-primary-50 dark:bg-primary-950 border-primary-200 dark:border-primary-800',
-		secondary: 'bg-secondary-50 dark:bg-secondary-950 border-secondary-200 dark:border-secondary-800',
-		tertiary: 'bg-tertiary-50 dark:bg-tertiary-950 border-tertiary-200 dark:border-tertiary-800',
+		primary: 'bg-primary-500/10 dark:bg-primary-500/10 border-primary-500/30 dark:border-primary-500/40',
+		secondary: 'bg-secondary-500/10 dark:bg-secondary-500/10 border-secondary-500/30 dark:border-secondary-500/40',
+		tertiary: 'bg-tertiary-500/10 dark:bg-tertiary-500/10 border-tertiary-500/30 dark:border-tertiary-500/40',
 	};
 </script>
 
@@ -140,7 +140,7 @@ configurable position, and full focus management via `useDialog`.
 					<button
 						type="button"
 						onclick={() => (open = false)}
-						class="p-2 rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+						class="p-2 rounded-full hover:bg-surface-500/10 dark:hover:bg-surface-800 transition-colors"
 						aria-label="Close drawer"
 					>
 						<iconify-icon icon="mingcute:close-line" class="text-xl"></iconify-icon>

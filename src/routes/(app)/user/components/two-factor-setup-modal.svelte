@@ -182,8 +182,8 @@ This modal displays the QR code for setting up 2FA and handles verification.
 				</div>
 
 				<!-- Manual Entry Section (Always Visible) -->
-				<div class="rounded bg-surface-100 p-4 dark:bg-surface-700">
-					<p class="mb-3 text-sm font-medium text-surface-700 dark:text-surface-300">{twofa_manual_entry_description()}</p>
+				<div class="rounded bg-surface-500/10 p-4 dark:bg-surface-700">
+					<p class="mb-3 text-sm font-medium text-surface-600 dark:text-surface-400">{twofa_manual_entry_description()}</p>
 					<div class="flex items-center gap-2">
 						<code class="flex-1 rounded bg-surface-200 p-3 font-mono text-sm dark:bg-surface-600"> {formatSecret(secret)} </code>
 						<Button variant="surface"
@@ -229,7 +229,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 			<div class="text-center">
 				<div class="mb-4"><iconify-icon icon="mdi:check-circle" width="64" class="mx-auto text-success-500"></iconify-icon></div>
 
-				<p class="mb-6 text-surface-600 dark:text-surface-300">{twofa_setup_complete_description()}</p>
+				<p class="mb-6 text-surface-600 dark:text-surface-400">{twofa_setup_complete_description()}</p>
 			</div>
 
 			<!-- Backup Codes (Always Visible) -->

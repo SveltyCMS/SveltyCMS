@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:palette"
 author: "SveltyCMS Team"
 created: "2025-11-04"
-updated: "2026-07-30"
+updated: "2026-08-23"
 tags:
   - "gui"
   - "styling"
@@ -54,18 +54,111 @@ Use **role tokens** from `src/utilities.css` instead of paired light/dark surfac
 
 Shadows and border **width** follow **card variant** (`flat` | `bordered` | `elevated`) via `AdminTheme.cardShadow` / `cardBorder`. Do **not** hardcode `hover:shadow-lg` on every card — that breaks **flat** themes.
 
-Skeleton/shorthand palette import maps `surface` into full shade scales and rebinds `--admin-bg-*` in generated `customCss` (`theme-preset-mapper.ts`).
+Theme/shorthand palette import maps `surface` into full shade scales and rebinds `--admin-bg-*` in generated `customCss` (`theme-preset-mapper.ts`). The generated CSS is scoped to `:root, .admin-theme-container, [data-admin-theme]` so a theme change repaints **every** element — utilities, `--admin-*` roles, scrollbars, and portalled overlays — with no per-component JS.
+
+## Motion & Transitions
+
+All shared motion lives in `src/utils/admin-transitions.ts` and is **reduced-motion safe** (drops to 0ms when `prefers-reduced-motion: reduce` or the theme's `reducedMotion` feature is enabled).
+
+| Transition     | When to use                                                                                                      |
+| :------------- | :--------------------------------------------------------------------------------------------------------------- |
+| `adminPage`    | Page entry (240ms fade + subtle rise) — applied **once** by `(app)/+layout.svelte`, keyed on `page.url.pathname` |
+| `adminFade`    | Modal / section reveals (200ms fade)                                                                             |
+| `adminStagger` | Card grids / list rows — pass `index` for a cascade                                                              |
+| `adminSlide`   | Drawers / sidebars — signed `distance` for direction                                                             |
+
+**View Transitions:** on browsers that support `document.startViewTransition`, `(app)/+layout.svelte` wraps SPA navigations in a native cross-fade via SvelteKit's `onNavigate`. `adminPage` remains the fallback (and the only path under reduced motion) — the two never double-animate.
+
+Try the **Motion & transitions** section on Design System → Live Preview (`/config/design-system?tab=preview`) for interactive demos of every transition and the `--admin-motion-*` timing tokens.
+
+```svelte
+<AdminCard in:adminStagger={{ index: i }}>…</AdminCard>
+```
+
+Rules:
+
+- **Do not** add per-page `in:fly` / `in:scale` one-offs — the layout owns the single page transition so every route (dashboard → user → system settings) moves identically.
+- Hover / active micro-interactions: 150–200ms `transition-all` with `ease-out`.
+- Animate only `transform` + `opacity` (never `width`, `height`, `top`, `gap`) for jank-free motion.
+- Query-parameter navigation (`?edit`, `?create`, filters) must **not** replay the page transition — that is why the layout keys on `pathname` only.
+
+## Color conventions
+
+- **Neutral aliases:** `gray`, `slate`, `neutral`, `zinc`, `stone` are aliased to the **surface ramp** in `@theme` (`--color-gray-500: var(--color-surface-500)`), so every neutral utility follows the active theme. Do not reintroduce independent neutral ramps.
+- **Alpha on tokens:** use `color-mix(in srgb, var(--color-primary-500) 30%, transparent)`. **Never** write `rgb(var(--color-primary-500) / 0.3)` — tokens resolve to `oklch()`/hex at runtime, which is invalid inside `rgb()` and the declaration is silently dropped (this left scrollbars and drag outlines unstyled in 8 files before the fix).
+- **Hardcoded `bg-white` / `text-black`** on themeable surfaces breaks dark mode — use `surface` tokens or paired `dark:` variants. Legitimate exceptions: image overlays, QR cards (scanning needs a white canvas), always-dark error pages.
+
+## Status-shade contract
+
+**One hue, one job.** Every semantic ramp (`error`, `success`, `warning`, `tertiary`, `primary`, `secondary`, `surface`) uses the _same shade step for the same role_. Reaching for adjacent shades is what produced "too many different reds" across the admin. The drift guard `scripts/consolidate-shades.mjs --check` runs inside `bun run check` and exits 1 on any violation; run the same script without `--check` to auto-repair (idempotent, re-run after any big UI sweep).
+
+| Role                                            | Light                | Dark           |
+| :---------------------------------------------- | :------------------- | :------------- |
+| Solid fill / icon chip                          | `{hue}-500`          | `{hue}-500`    |
+| Accent text                                     | `{hue}-500`          | `{hue}-400`    |
+| Emphasis text (headings, bold counts on washes) | `{hue}-600`          | `{hue}-400`    |
+| Subtle wash (panel / chip / alert background)   | `{hue}-500/10`       | `{hue}-900/20` |
+| Active / toggle wash                            | `{hue}-500/20`       | `{hue}-500/20` |
+| Soft border (status alert outline)              | `{hue}-500/30`       | `{hue}-500/40` |
+| Accent border                                   | `{hue}-500`          | `{hue}-400`    |
+| Focus ring                                      | `{hue}-500/20`–`/40` | same           |
+
+### Forbidden drift (the consolidation removes these)
+
+- ❌ `bg-{hue}-50` / `bg-{hue}-100` — use `bg-{hue}-500/10`
+- ❌ `bg-{hue}-500/5` / `/15` — use `/10`
+- ❌ `text-{hue}-700` / `-800` in light mode — use `-600`
+- ❌ `dark:text-{hue}-200` / `-300` — use `-400`
+- ❌ `border-{hue}-200` / `-300` — use `-500/30`; `border-{hue}-700` / `-800` — use `-500/40`
+- ❌ Legacy Tailwind hues in admin chrome: `red`→`error`, `rose`→`error`, `blue`→`tertiary`, `green`/`emerald`→`success`, `amber`/`orange`/`yellow`→`warning`
+
+### Deliberate exceptions
+
+- **Filled `warning` surfaces use dark text** (`{hue}-900`/`-950`), not white — white-on-amber fails WCAG AA (restart-required banner, highlighted search terms).
+- **Light text on dark status surfaces** (`text-{hue}-50`/`-100` on `bg-{hue}-900/*`) stays paired — error toasts, dark modal tinting.
+- **Decorative brand hues** (`indigo`, `purple`, `pink`, `violet`, `teal`, `cyan`) are allowed for seasonal effects, preset swatches, FloatingNav spokes and non-theme data viz — never for status semantics.
+- `{hue}-900` / `-950` solid fills and `{hue}-900/10` remain valid dark-surface accents; `{hue}-400` solid is allowed for small status dots on dark surfaces.
+- **`src/app.css` preset recipes are owner-tuned**: the `preset-tonal-*` / `preset-outlined-*` / `preset-ghost-*` / `preset-soft-surface` utilities intentionally use `text-{hue}-700` and `dark:text-{hue}-200`/`-300` emphasis steps for contrast on washes. `src/app.css` is exempted in `consolidate-shades.mjs` (EXCLUDED) so the guard never rewrites it — component code must still follow the contract.
+
+Canonical recipes live in `src/app.css` (`preset-tonal-*`, `preset-outlined-*`, `preset-ghost-*`) and `src/components/ui/status-badge.svelte`. The `--admin-*` token layer in `src/utilities.css` stays the single source for chrome surfaces.
+
+## Responsive behavior
+
+Every `(app)` route must work at **mobile (<768px)**, **tablet (768–1023px)**, and **desktop (≥1024px)**:
+
+- CSS layout: Tailwind `sm:` / `md:` / `lg:` variants.
+- JS logic: the `screen` store (`screen.isMobile` / `isTablet` / `isDesktop`).
+- Wide tables / panels go in an `overflow-x-auto` wrapper.
+- Never rely on `hover:` alone for primary actions (touch devices), and keep touch targets ≥ 40px.
+
+## RTL / LTR
+
+SveltyCMS is fully localized (Paraglide) and must render correctly in both directions. Use **logical properties** so one class set works for LTR and RTL:
+
+- Margins/padding: `ms-` / `me-` / `ps-` / `pe-` (never `ml-` / `mr-` / `pl-` / `pr-`).
+- Positioning: `start-` / `end-` / `inset-s-` / `inset-e-` (never `left-` / `right-`).
+- Alignment: `text-start` / `text-end` (never `text-left` / `text-right`).
+- Corners/borders: `rounded-s-` / `rounded-e-` / `border-s-` / `border-e-` (never `rounded-l-` / `rounded-r-` / `border-l-` / `border-r-`).
+- Transforms (`-translate-x-*`) are physical — for directional icons (chevrons), mirror them with `rtl:-scale-x-[-1]`.
+
+Exception: image editors / canvas overlays use physical coordinates (`left-1/2`, `-translate-x-1/2`) because the canvas itself is never mirrored.
+
+## Light & dark mode
+
+- Semantic `--admin-*` roles flip automatically via `html.dark` — prefer them over paired `dark:` surface classes on chrome.
+- `dark:` variants are allowed for one-off overrides (gradients, accent chips), not for page chrome.
+- Status colors come from theme ramps (`error`, `warning`, `success`) — do not hardcode Tailwind's `red-*` / `amber-*` / `emerald-*` for state.
 
 ## Design System workspace
 
 **Canonical route:** `/config/design-system`
 
-| Tab              | Purpose                                                          |
-| :--------------- | :--------------------------------------------------------------- |
-| `?tab=overrides` | Per-user density, card style, a11y, layout — linked from `/user` |
-| `?tab=preview`   | Live component catalog + token readout                           |
-| `?tab=presets`   | **Palette studio** (seed colors → runtime CSS) + Skeleton import |
-| `?tab=themes` …  | Admin workspace themes, layout density, features, advanced       |
+| Tab              | Purpose                                                            |
+| :--------------- | :----------------------------------------------------------------- |
+| `?tab=overrides` | Per-user density, card style, a11y, layout — linked from `/user`   |
+| `?tab=preview`   | Live component catalog + token readout                             |
+| `?tab=presets`   | **Palette studio** (seed colors → runtime CSS) + Theme JSON import |
+| `?tab=themes` …  | Admin workspace themes, layout density, features, advanced         |
 
 Palette studio writes a marked `customCss` block via `buildPaletteCssFromSeeds` / `mergePaletteCssIntoCustomCss` — do not invent a second token system.
 
@@ -76,9 +169,14 @@ See [Design System & Admin Theme Settings](../guides/configuration/admin-theme-s
 - Interactive controls need accessible names
 - Prefer logical Tailwind properties (`ps-`, `pe-`) for RTL
 - Respect theme **Reduced Motion** and **High Contrast**
+- Keyboard focus is visible in both modes (`focus-visible` rings use theme tokens, never `outline: none`)
 
 ## What not to do
 
 - ❌ Parallel global token systems that collide with `surface-*` palettes
 - ❌ Hand-rolled page shells instead of `AdminPageShell`
 - ❌ Soft-skipping E2E because lists are empty — seed fixtures instead
+- ❌ `rgb(var(--color-*) / a)` on palette tokens — silently invalid; use `color-mix()`
+- ❌ Per-page transition one-offs — use `adminPage` / `adminStagger` from `@utils/admin-transitions`
+- ❌ Hardcoded `bg-white` / `text-black` / Tailwind `gray-*`-as-semantics on themeable surfaces
+- ❌ Shade drift (see [Status-shade contract](#status-shade-contract)): `bg-{hue}-50` washes, `text-{hue}-700` emphasis, `border-{hue}-200` soft borders, legacy `red`/`blue`/`green` classes

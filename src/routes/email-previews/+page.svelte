@@ -49,7 +49,7 @@ const emailList = $derived({
 			<EmailPreviewComponent {emailList} />
 		{:catch error}
 			<!-- Error State -->
-			<div class="rounded border border-red-200 bg-red-50 p-4 text-red-500">
+			<div class="rounded border border-error-500/20 bg-error-500/10 p-4 text-error-500">
 				<p class="font-bold">Failed to load email previewer</p>
 				<pre class="mt-2 text-xs">{error.message}</pre>
 			</div>

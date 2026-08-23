@@ -111,7 +111,7 @@ export const contentNavigation = {
       return [];
     }
 
-    // Fix: Filter by tenant BEFORE building the tree for better performance
+    // Filter by tenant BEFORE building the tree for better performance
     const allNodes = contentStore.getAllNodes();
     const filteredNodes = tenantId
       ? allNodes.filter((node) => node.tenantId === tenantId)
@@ -119,7 +119,7 @@ export const contentNavigation = {
 
     const nodesMap = new Map<string, ContentNode>();
     for (const node of filteredNodes) {
-      // Fix: getContentStructure key/lookup type mismatch between _id and parentId
+      // getContentStructure key/lookup type mismatch between _id and parentId
       nodesMap.set(node._id.toString(), {
         ...node,
         children: [] as ContentNode[],
@@ -244,7 +244,7 @@ export const contentNavigation = {
           hasChildren: hasChildren && !shouldLoadChildren,
         });
       }
-      // Fix: sortContentNodes inlined inconsistently in progressive version — now uses shared sort
+      //  sortContentNodes inlined inconsistently in progressive version — now uses shared sort
       return children.sort(sortContentNodes);
     };
 
@@ -282,7 +282,7 @@ export const contentNavigation = {
     for (const segment of segments) {
       currentPath += `/${segment}`;
       const node = contentStore.getNodeByPath(currentPath);
-      // Fix: getBreadcrumb silently drops unresolved path segments — now adds them with segment name if node missing
+      //  getBreadcrumb silently drops unresolved path segments — now adds them with segment name if node missing
       breadcrumb.push({
         name: node ? node.name : segment.charAt(0).toUpperCase() + segment.slice(1),
         path: currentPath,
@@ -334,7 +334,7 @@ export const contentMetrics = {
       version: contentStore.contentVersion,
     };
   },
-  // Fix: getDiagnostics is a strict subset of getHealthStatus — removed it (deprecated placeholder)
+  // getDiagnostics is a strict subset of getHealthStatus — removed it (deprecated placeholder)
 };
 
 // ─────────────────────────────────────────────────────────────

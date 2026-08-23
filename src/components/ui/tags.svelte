@@ -100,7 +100,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 <div class="flex flex-col gap-1.5 w-full">
 	{#if label}
-		<label for={id} class="block text-sm font-bold text-surface-700 dark:text-surface-300 ms-1">
+		<label for={id} class="block text-sm font-bold text-surface-600 dark:text-surface-400 ms-1">
 			{label}
 		</label>
 	{/if}
@@ -108,7 +108,7 @@ function handleKeydown(e: KeyboardEvent) {
 	<div
 		class={cn(
 			'flex flex-wrap items-center gap-2 p-2 border rounded transition-all duration-200 focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-tertiary-500 dark:border-primary-500/50',
-			'bg-surface-50 dark:bg-surface-900 border-surface-200 dark:border-surface-700 font-sans',
+			'bg-surface-500/10 dark:bg-surface-900 border-surface-500/30 dark:border-surface-500/40 font-sans',
 			disabled && 'opacity-50 cursor-not-allowed grayscale',
 			className
 		)}

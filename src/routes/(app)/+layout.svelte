@@ -49,6 +49,7 @@ import { setAdminZoneCapabilityChecker } from "@src/plugins/admin-zone-registry.
 import PluginWorkspaceOverlay from "@components/system/plugin-workspace-overlay.svelte";
 import { setThemeContext } from "@src/components/ui/theme-context.svelte";
 // Utils
+import { adminPage, adminSlide } from "@utils/admin-transitions";
 import { getTextDirection } from "@utils/utils";
 import { mergeAdminThemeWithUserPrefs } from "@utils/theme-merge";
 import {
@@ -60,12 +61,13 @@ import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
 import { floatingNavStore } from "@src/stores/floating-nav-store.svelte";
 	import { onMount, untrack } from "svelte";
+	import { fade } from "svelte/transition";
 	import { browser } from "$app/env";
 	import { initBounceDetector } from "@utils/bounce-detector";
 	import { initPredictivePreload } from "@utils/predictive-preload";
 	import { registerHotkey } from "@src/utils/hotkeys";
 // SvelteKit Navigation
-import { afterNavigate, beforeNavigate, invalidate } from "$app/navigation";
+import { afterNavigate, beforeNavigate, invalidate, onNavigate } from "$app/navigation";
 import { page } from "$app/state";
 
 import { setContentContext } from "@src/content";
@@ -75,7 +77,7 @@ import { setContentContext } from "@src/content";
 // =============================================
 
 interface LayoutData {
-	contentStructure: Promise<ContentNode[]>;
+	contentStructure: ContentNode[];
 	settings: Record<string, any>;
 	user: User | null;
 	tenantId?: string | null;
@@ -295,6 +297,39 @@ $effect(() => {
 // Component State
 let loadError = $state<Error | null>(null);
 
+// ── View Transitions (2026 browser-native page cross-fade) ──────────────
+// SvelteKit's onNavigate lets us wrap navigations in document.startViewTransition
+// so route changes cross-fade natively (compositor-driven, zero JS per frame).
+// Falls back to the CSS/Svelte adminPage transition when unsupported or when
+// prefers-reduced-motion is set. The keyed adminPage wrapper below disables its
+// own fade while a View Transition will run, so the two never double-animate.
+let viewTransitionsEnabled = $state(false);
+
+onMount(() => {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const update = () => {
+    viewTransitionsEnabled = "startViewTransition" in document && !media.matches;
+  };
+  update();
+  media.addEventListener("change", update);
+  return () => media.removeEventListener("change", update);
+});
+
+onNavigate((navigation) => {
+  if (!viewTransitionsEnabled) return;
+  return new Promise((resolve) => {
+    try {
+      document.startViewTransition(async () => {
+        resolve();
+        await navigation.complete;
+      });
+    } catch {
+      // Interrupted/aborted navigation — continue without the transition.
+      resolve();
+    }
+  });
+});
+
 // =============================================
 // DERIVED STATE
 // =============================================
@@ -338,13 +373,12 @@ $effect(() => {
 	document.documentElement.lang = lang;
 });
 
-// 🔥 SYNC: Connect streamed content structure to global stores for sidebar/navigation reactivity
+// 🔥 SYNC: Connect content structure to global stores for sidebar/navigation reactivity
+// (contentStructure is now plain data — the layout server resolves it before returning)
 $effect(() => {
-	data.contentStructure.then((nodes) => {
-		untrack(() => {
-			import("@src/stores/collection-store.svelte").then(({ setContentStructure }) => {
-				setContentStructure(nodes);
-			});
+	untrack(() => {
+		import("@src/stores/collection-store.svelte").then(({ setContentStructure }) => {
+			setContentStructure(data.contentStructure);
 		});
 	});
 });
@@ -449,9 +483,9 @@ afterNavigate(() => {
 </svelte:head>
 
 {#if loadError}
-	<div class="flex h-screen w-screen items-center justify-center bg-error-50 dark:bg-error-900">
+	<div class="flex h-screen w-screen items-center justify-center bg-error-500/10 dark:bg-error-900">
 		<div class="text-center">
-			<h1 class="text-2xl font-bold text-error-600 dark:text-error-300">Application Error</h1>
+			<h1 class="text-2xl font-bold text-error-600 dark:text-error-400">Application Error</h1>
 			<p class="mt-2 text-error-500 dark:text-error-500">{loadError.message}</p>
 		</div>
 	</div>
@@ -491,7 +525,7 @@ afterNavigate(() => {
 				<!-- Desktop / tablet: inline sidebar (inside flex flow) -->
 				{#if !screen.isMobile && ui.state.leftSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh border-e bg-surface-50 px-2! text-center transition-[width] duration-300 ease-in-out dark:border-surface-700 dark:bg-surface-900 overflow-visible {ui.state.leftSidebar === 'full' ? '' : 'w-fit'}"
+						class="max-h-dvh border-e bg-surface-500/10 px-2! text-center transition-[width] duration-300 ease-in-out dark:border-surface-500/40 dark:bg-surface-900 overflow-visible {ui.state.leftSidebar === 'full' ? '' : 'w-fit'}"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : ''}"
 						aria-label="Left sidebar navigation"
 					>
@@ -504,11 +538,22 @@ afterNavigate(() => {
 						<header class="sticky top-0 z-20 w-full"><HeaderEdit /></header>
 					{/if}
 
-					{@render children?.()}
+				<!-- Standardized page-entry motion for every admin route. Keyed on
+				     pathname so only real navigations replay the transition (query
+				     params like ?edit / ?create stay put). adminPage respects
+				     prefers-reduced-motion and the theme's reducedMotion flag. -->
+				{#key page.url.pathname}
+					<div
+						in:adminPage={{ duration: viewTransitionsEnabled ? 0 : 240, rise: 8 }}
+						class="relative flex w-full min-w-0 flex-1 flex-col"
+					>
+						{@render children?.()}
+					</div>
+				{/key}
 
 					<!-- Sticky action bar (only rendered when content exists) -->
 					{#if theme.features.stickyActionBar && ui.stickyActionContent}
-						<div class="sticky bottom-0 z-20 w-full border-t border-surface-200 dark:border-surface-700 bg-white/95 dark:bg-surface-900/95 backdrop-blur-md"
+						<div class="sticky bottom-0 z-20 w-full border-t border-surface-500/30 dark:border-surface-500/40 bg-white/95 dark:bg-surface-900/95 backdrop-blur-md"
 							style="min-height: var(--admin-sticky-bar-height, 56px);"
 							role="toolbar"
 							aria-label="Page actions"
@@ -521,7 +566,7 @@ afterNavigate(() => {
 					{/if}
 
 					{#if ui.state.pagefooter !== 'hidden'}
-						<footer class="mt-auto w-full bg-surface-50 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
+						<footer class="mt-auto w-full bg-surface-500/10 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
 							<PageFooter />
 						</footer>
 					{/if}
@@ -544,16 +589,18 @@ afterNavigate(() => {
 					<!-- Backdrop -->
 					<button
 						type="button"
-						class="fixed inset-0 z-40 bg-surface-900/40 backdrop-blur-xs dark:bg-black/50"
+						class="fixed inset-0 z-40 bg-surface-900/20 backdrop-blur-xs dark:bg-black/50"
 						aria-label="Close left sidebar"
+						transition:fade={{ duration: 150 }}
 						onclick={() => ui.toggle('leftSidebar', 'hidden')}
 					></button>
 					<!-- Drawer -->
 					<div
-						class="fixed inset-s-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(100vw,var(--admin-sidebar-width,240px))] flex-col overflow-visible border-e border-surface-200 bg-surface-50 px-2! text-center shadow-lg dark:border-surface-700 dark:bg-surface-900"
+						class="fixed inset-s-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(100vw,var(--admin-sidebar-width,240px))] flex-col overflow-visible border-e border-surface-500/30 bg-surface-500/10 px-2! text-center shadow-lg dark:border-surface-500/40 dark:bg-surface-900"
 						role="dialog"
 						aria-modal="true"
 						aria-label="Left sidebar navigation"
+						transition:adminSlide={{ distance: -240 }}
 					>
 						<LeftSidebar />
 					</div>
@@ -566,16 +613,18 @@ afterNavigate(() => {
 					<!-- Backdrop -->
 					<button
 						type="button"
-						class="fixed inset-0 z-40 bg-surface-900/40 backdrop-blur-xs dark:bg-black/50"
+						class="fixed inset-0 z-40 bg-surface-900/20 backdrop-blur-xs dark:bg-black/50"
 						aria-label="Close right sidebar"
+						transition:fade={{ duration: 150 }}
 						onclick={() => ui.toggle('rightSidebar', 'hidden')}
 					></button>
 					<!-- Drawer -->
 					<div
-						class="fixed inset-e-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(100vw,var(--admin-sidebar-width,240px))] flex-col overflow-visible border-s border-surface-200 bg-surface-50 px-2! shadow-lg dark:border-surface-700 dark:bg-surface-900"
+						class="fixed inset-e-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(100vw,var(--admin-sidebar-width,240px))] flex-col overflow-visible border-s border-surface-500/30 bg-surface-500/10 px-2! shadow-lg dark:border-surface-500/40 dark:bg-surface-900"
 						role="dialog"
 						aria-modal="true"
 						aria-label="Right sidebar"
+						transition:adminSlide={{ distance: 240 }}
 					>
 						<RightSidebar />
 					</div>

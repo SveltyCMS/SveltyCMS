@@ -152,13 +152,13 @@
 {#if showWelcome && !dismissedWelcome}
 	<!-- Welcome Container -->
 	<div
-		class="welcome-container mx-auto max-w-4xl border border-surface-200 bg-surface-50 p-6 shadow-lg dark:border-surface-800 dark:bg-surface-800"
+		class="welcome-container mx-auto max-w-4xl border border-surface-500/30 bg-surface-500/10 p-6 shadow-lg dark:border-surface-500/40 dark:bg-surface-800"
 		style="border-radius: var(--admin-radius-card, 0.75rem);"
 	>
 		<!-- Header -->
 		<div class="mb-8 text-center">
-			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-				<iconify-icon icon="mdi:rocket-launch" width={40} class="text-blue-600 dark:text-blue-400" aria-hidden="true"></iconify-icon>
+			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-tertiary-500/10 dark:bg-tertiary-900">
+				<iconify-icon icon="mdi:rocket-launch" width={40} class="text-tertiary-600 dark:text-tertiary-400" aria-hidden="true"></iconify-icon>
 			</div>
 			<h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">Congratulations, {user?.username || 'Admin'}!</h2>
 			<p class="text-gray-600 dark:text-gray-400">Your SveltyCMS installation is ready. Let's get you started with the essential features.</p>
@@ -171,9 +171,9 @@
 					<Button aria-label="Go to step {index + 1}: {step.title}"
 						variant="ghost"
 						class="h-3 w-3 rounded-full transition-colors duration-200 {index === currentStep
-							? 'bg-blue-600'
+							? 'bg-tertiary-600'
 							: step.completed
-								? 'bg-green-500'
+								? 'bg-success-500'
 								: 'bg-gray-300 dark:bg-gray-600'}"
 						onclick={() => (currentStep = index)}
 					></Button>
@@ -203,12 +203,12 @@
 
 				<!-- Special content for data management step -->
 				{#if step.id === 'data-management'}
-					<div class="mb-6 rounded bg-blue-50 p-4 dark:bg-blue-900/20">
+					<div class="mb-6 rounded bg-tertiary-500/10 p-4 dark:bg-tertiary-900/20">
 						<div class="flex items-start gap-3">
-							<iconify-icon icon="mdi:information" width={20} class="mt-0.5 text-blue-600 dark:text-blue-400"></iconify-icon>
+							<iconify-icon icon="mdi:information" width={20} class="mt-0.5 text-tertiary-600 dark:text-tertiary-400"></iconify-icon>
 							<div class="text-sm">
-								<p class="mb-1 font-medium text-blue-900 dark:text-blue-100">Data Management Tips</p>
-								<ul class="space-y-1 text-blue-700 dark:text-blue-300">
+								<p class="mb-1 font-medium text-tertiary-600 dark:text-tertiary-400">Data Management Tips</p>
+								<ul class="space-y-1 text-tertiary-600 dark:text-tertiary-400">
 									<li>• Regular backups protect your content from data loss</li>
 									<li>• Export collections before major system changes</li>
 									<li>• Import/export supports both JSON and CSV formats</li>
@@ -224,31 +224,31 @@
 		<!-- Quick Stats -->
 		<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
 			<div
-				class="rounded border border-surface-200 bg-gray-50 p-4 text-center dark:border-surface-800 dark:bg-gray-800"
+				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
-				<div class="text-2xl font-bold text-green-600">✓</div>
+				<div class="text-2xl font-bold text-success-600">✓</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Setup Complete</div>
 			</div>
 			<div
-				class="rounded border border-surface-200 bg-gray-50 p-4 text-center dark:border-surface-800 dark:bg-gray-800"
+				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
-				<div class="text-2xl font-bold text-blue-600">0</div>
+				<div class="text-2xl font-bold text-tertiary-600">0</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Collections</div>
 			</div>
 			<div
-				class="rounded border border-surface-200 bg-gray-50 p-4 text-center dark:border-surface-800 dark:bg-gray-800"
+				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
 				<div class="text-2xl font-bold text-purple-600">1</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Admin User</div>
 			</div>
 			<div
-				class="rounded border border-surface-200 bg-gray-50 p-4 text-center dark:border-surface-800 dark:bg-gray-800"
+				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
-				<div class="text-2xl font-bold text-orange-600">∞</div>
+				<div class="text-2xl font-bold text-warning-600">∞</div>
 				<div class="text-sm text-gray-600 dark:text-gray-400">Possibilities</div>
 			</div>
 		</div>
@@ -285,7 +285,7 @@
 {#if showImportExport}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
 		<div
-			class="max-h-[90vh] w-full max-w-6xl overflow-hidden border border-surface-200 bg-surface-50 shadow-xl dark:border-surface-800 dark:bg-surface-800"
+			class="max-h-[90vh] w-full max-w-6xl overflow-hidden border border-surface-500/30 bg-surface-500/10 shadow-xl dark:border-surface-500/40 dark:bg-surface-800"
 			style="border-radius: var(--admin-radius-card, 0.75rem);"
 		>
 			<div class="flex items-center justify-between border-b p-6">
@@ -297,7 +297,7 @@
 
 			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6"><ImportExportManager /></div>
 
-			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
+			<div class="flex items-center justify-between border-t bg-surface-500/10 p-6 dark:bg-surface-700">
 				<div class="text-sm text-gray-600 dark:text-gray-400">
 					<iconify-icon icon="mdi:shield-check" width={16} class="me-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server

@@ -69,15 +69,28 @@ correct cursor provides consistent affordances:
 
 Every interactive element must show a visible focus indicator when focused
 via keyboard (`:focus-visible`). The project standard is a 2px ring with
-2px offset:
+2px offset, driven by the `--admin-focus-ring` token so the accent follows
+the active theme and keeps ≥3:1 contrast in both modes:
+
+```css
+/* Global default (src/utilities.css) — token-based, both modes */
+:focus-visible:not(input, textarea, select) {
+  outline: 2px solid var(--admin-focus-ring, var(--color-tertiary-500));
+  outline-offset: 2px;
+}
+```
+
+The token resolves to `tertiary-500` on light surfaces and `primary-400`
+on dark surfaces (where `primary-500` is too dark for 3:1). Components
+may add their own ring via Tailwind utilities as long as they stay on the
+theme ramps:
 
 ```css
 /* Applied via Tailwind in component classes */
 focus-visible:outline-none
 focus-visible:ring-2
 focus-visible:ring-offset-2
-focus-visible:ring-surface-500
-dark:focus-visible:ring-surface-300
+focus-visible:ring-primary-500
 ```
 
 ### Requirements

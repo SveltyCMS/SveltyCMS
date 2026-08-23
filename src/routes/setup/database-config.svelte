@@ -301,13 +301,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 	<!-- MongoDB Atlas Helper Message -->
 	{#if dbConfig.type === 'mongodb+srv'}
-		<div class="mb-6 rounded border border-blue-200 bg-blue-50 dark:border-blue-500/30 dark:bg-blue-500/10">
+		<div class="mb-6 rounded border border-tertiary-500/20 bg-tertiary-500/10 dark:border-tertiary-500/30 dark:bg-tertiary-500/10">
 			<button
 				type="button"
 				onclick={() => (showAtlasHelper = !showAtlasHelper)}
 				aria-expanded={showAtlasHelper}
 				aria-controls="atlas-helper-content"
-				class="flex w-full items-center justify-between p-4 text-start text-blue-900 dark:text-blue-200"
+				class="flex w-full items-center justify-between p-4 text-start text-tertiary-600 dark:text-tertiary-400"
 			>
 				<div class="flex items-center gap-3">
 					<iconify-icon icon="mdi:information" width="20" class="shrink-0" aria-hidden="true"></iconify-icon>
@@ -317,7 +317,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</button>
 
 			{#if showAtlasHelper}
-				<div id="atlas-helper-content" class="border-t border-tertiary-200 p-4 pt-3 text-tertiary-900 dark:border-tertiary-500/30 dark:text-tertiary-200">
+				<div id="atlas-helper-content" class="border-t border-tertiary-500/30 p-4 pt-3 text-tertiary-600 dark:border-tertiary-500/40 dark:text-tertiary-400">
 					<p class="text-sm">To connect to MongoDB Atlas, paste your connection string into the <strong>Host</strong> field:</p>
 					<ul class="mt-2 space-y-1 text-sm">
 						<li class="flex items-start gap-2">
@@ -342,7 +342,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	{/if}
 
 	{#if dbConfig.type === 'mysql'}
-		<div class="mb-6 rounded border border-tertiary-200 bg-tertiary-50 p-4 text-tertiary-900 dark:border-tertiary-500/30 dark:bg-blue-500/10 dark:text-tertiary-200">
+		<div class="mb-6 rounded border border-tertiary-500/30 bg-tertiary-500/10 p-4 text-tertiary-600 dark:border-tertiary-500/40 dark:bg-tertiary-500/10 dark:text-tertiary-400">
 			<p class="font-semibold">{setup_db_coming_soon()}</p>
 			<p class="mt-1">{setup_db_postgres_mysql_note()}</p>
 			<p class="mt-2">{setup_db_postgres_mysql_timeline()}</p>
@@ -430,7 +430,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				/>
 				{#if showConnectionStringHelper}
 					<div
-						class="mt-2 rounded border border-green-200 bg-green-50 p-3 text-sm text-emerald-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
+						class="mt-2 rounded border border-success-500/20 bg-success-500/10 p-3 text-sm text-success-600 dark:border-success-500/30 dark:bg-success-500/10 dark:text-success-400"
 						role="status"
 					>
 						<div class="flex items-center gap-2">
@@ -602,7 +602,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</button>
 
 			{#if showAdvanced}
-				<div class="mt-4 space-y-4 rounded border border-surface-200 dark:border-white/10 p-4 transition-all duration-300">
+				<div class="mt-4 space-y-4 rounded border border-surface-500/30 dark:border-white/10 p-4 transition-all duration-300">
 					<div class="flex flex-col gap-2">
 						<label for="replica-urls" class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
 							<iconify-icon icon="mdi:database-import" width="16"></iconify-icon>

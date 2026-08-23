@@ -16,6 +16,7 @@ import { logger } from "@src/utils/logger";
 import { AppError } from "@utils/error-handling";
 import { fileExists, getFile, saveFile, saveResizedImages } from "./media-storage.server";
 import { processImageWithPresets, type ImageVariant } from "@src/services/media/image-processor";
+import { deleteAllVariants } from "@src/services/media/image-variant-storage";
 import type {
   IDBAdapter,
   DatabaseError,
@@ -435,7 +436,6 @@ export class MediaService {
       try {
         const { getFile } = await import("./media-storage.server");
         const fileBuffer = await getFile(relPath);
-        const { processImageWithPresets } = await import("@src/services/media/image-processor");
         const variants = await processImageWithPresets(
           fileBuffer,
           hash,
@@ -974,7 +974,6 @@ export class MediaService {
       );
       if (existing.success && existing.data?.hash) {
         // Clean up responsive image variants asynchronously
-        const { deleteAllVariants } = await import("@src/services/media/image-variant-storage");
         deleteAllVariants(existing.data.hash, tenantId?.toString()).catch((err) => {
           logger.warn("[Media] Variant cleanup failed during delete", {
             fileId,
@@ -1619,7 +1618,6 @@ export class MediaService {
       let versionVariants: ImageVariant[] = [];
       if (buffer && file.type.startsWith("image/") && !isSvgFile(file.type, file.name)) {
         try {
-          const { processImageWithPresets } = await import("@src/services/media/image-processor");
           versionVariants = await processImageWithPresets(
             buffer,
             hash,

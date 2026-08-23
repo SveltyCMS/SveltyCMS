@@ -406,7 +406,7 @@ $effect(() => {
 
 	<!-- Wizard progress — shared UI Stepper (same component as Setup) -->
 	<div
-		class="shrink-0 border-b border-surface-200 bg-surface-50/80 px-3 py-3 dark:border-surface-800 dark:bg-surface-900/50 sm:px-4"
+		class="shrink-0 border-b border-surface-500/30 bg-surface-500/80 px-3 py-3 dark:border-surface-500/40 dark:bg-surface-900/50 sm:px-4"
 		data-testid="collection-wizard-progress"
 		role="status"
 		aria-live="polite"
@@ -436,7 +436,7 @@ $effect(() => {
 
 	<!-- Tab Navigation -->
 	<div
-		class="z-20 shrink-0 border-b border-surface-200 bg-white px-4 pt-2 dark:border-surface-800 dark:bg-surface-900 shadow-sm"
+		class="z-20 shrink-0 border-b border-surface-500/30 bg-white px-4 pt-2 dark:border-surface-500/40 dark:bg-surface-900 shadow-sm"
 		data-testid="collection-editor-tabs"
 	>
 		<Tabs
@@ -459,7 +459,7 @@ $effect(() => {
 				{#if activeTab === 'define'}
 					<div class="animate-in fade-in slide-in-from-bottom-4 duration-500" role="tabpanel" id="tabpanel-define" aria-labelledby="tab-define">
 						<CollectionForm data={collection.value} syncKey={editorSyncKey} />
-						<div class="mt-8 flex justify-end gap-2 border-t border-surface-200 pt-6 dark:border-surface-700">
+						<div class="mt-8 flex justify-end gap-2 border-t border-surface-500/30 pt-6 dark:border-surface-500/40">
 							<Button
 								variant="primary"
 								onclick={goNext}
@@ -479,7 +479,7 @@ $effect(() => {
 				{:else if activeTab === 'permissions'}
 					<div class="animate-in fade-in slide-in-from-right-4 duration-500" role="tabpanel" id="tabpanel-permissions" aria-labelledby="tab-permissions">
 						<CollectionPermissions roles={data.roles as any || []} />
-						<div class="mt-8 flex flex-wrap justify-between gap-2 border-t border-surface-200 pt-6 dark:border-surface-700">
+						<div class="mt-8 flex flex-wrap justify-between gap-2 border-t border-surface-500/30 pt-6 dark:border-surface-500/40">
 							<Button variant="outline" onclick={goBack} class="flex items-center gap-1">
 								<iconify-icon icon="mdi:arrow-left" width="18"></iconify-icon>
 								Back

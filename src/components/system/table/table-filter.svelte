@@ -1,9 +1,9 @@
-<!-- 
+<!--
 @file src/components/system/table/table-filter.svelte
 @component
 **Optimized table filter component for search, filter, and column controls in a CMS.**
 
-This component provides a lightweight, flexible interface for table filtering.  
+This component provides a lightweight, flexible interface for table filtering.
 It includes search, filter toggles, column visibility, and density controls, optimized for performance and reusability.
 
 @example
@@ -143,7 +143,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 			onkeydown={(e) => e.key === 'Enter' && closeOpenStates()}
 			inputClass="h-full border-none bg-transparent dark:text-surface-50 dark:bg-surface-800"
 		/>
-		<Button variant="surface"
+		<Button variant="ghost"
 			onclick={() => {
 				globalSearchValue = '';
 				searchShow = false;
@@ -161,7 +161,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	</div>
 {:else}
 	<SystemTooltip title={table_search_toggle()}>
-		<Button variant="outline"
+		<Button variant="ghost"
 			type="button"
 			onclick={() => {
 				searchShow = !searchShow;
@@ -175,7 +175,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 
 	<!-- Filter -->
 	<SystemTooltip title={table_filter_toggle()}>
-		<Button variant="outline"
+		<Button variant="ghost"
 			type="button"
 			onclick={() => {
 				filterShow = !filterShow;
@@ -189,7 +189,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 
 	<!-- Column Order & Visibility -->
 	<SystemTooltip title={table_column_toggle()}>
-		<Button variant="outline"
+		<Button variant="ghost"
 			type="button"
 			onclick={() => {
 				columnShow = !columnShow;
@@ -203,7 +203,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 
 	<!-- Spacing/Density -->
 	<SystemTooltip title={table_density_label({ density: getDensityDisplayName() })}>
-		<Button variant="outline"
+		<Button variant="ghost"
 			type="button"
 			onclick={() => {
 				cycleDensity();

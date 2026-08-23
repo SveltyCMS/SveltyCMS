@@ -360,12 +360,12 @@ Route-driven sidebar content (no dual collapsible section headers):
 			<!-- 2. Route-context navigation: collections tree OR media folders (never both) -->
 			{#if isMediaGalleryRoute}
 				<!-- Media gallery: virtual folder tree (scrollable) + sticky bottom collections button -->
-				<div class="flex flex-col flex-1 min-h-0" data-testid="sidebar-media-context">
-					<div class="w-full ps-0 pe-1 text-start flex-1 overflow-y-auto space-y-2" role="region" aria-label="Media folders">
+				<div class="flex flex-col" data-testid="sidebar-media-context">
+					<div class="w-full ps-0 pe-1 text-start space-y-2" role="region" aria-label="Media folders">
 						<MediaFolders />
 					</div>
 
-					<div class="pt-2 sticky bottom-0 z-10 bg-surface-50 dark:bg-surface-900">
+					<div class="pt-2 sticky bottom-0 z-10 bg-surface-500/10 dark:bg-surface-900">
 						<div class="mx-1 mb-2 border-0 border-t" style="border-color: var(--admin-border-default)"></div>
 
 						<SystemTooltip
@@ -388,12 +388,12 @@ Route-driven sidebar content (no dual collapsible section headers):
 				</div>
 			{:else if showCollectionsHere}
 				<!-- Default: collection tree only — flex column layout for sticky bottom media link -->
-				<div class="flex flex-col flex-1 min-h-0">
-					<div class="w-full ps-0 pe-1 text-start flex-1 overflow-y-auto" data-testid="sidebar-collections-context" role="region" aria-label="Collections">
+				<div class="flex flex-col">
+					<div class="w-full ps-0 pe-1 text-start" data-testid="sidebar-collections-context" role="region" aria-label="Collections">
 						<Collections />
 					</div>
 
-					<div class="pt-2 sticky bottom-0 z-10 bg-surface-50 dark:bg-surface-900">
+					<div class="pt-2 sticky bottom-0 z-10 bg-surface-500/10 dark:bg-surface-900">
 						<div class="mx-1 mb-2 border-0 border-t" style="border-color: var(--admin-border-default)"></div>
 
 						<SystemTooltip
@@ -489,7 +489,7 @@ Route-driven sidebar content (no dual collapsible section headers):
  				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
  					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
  					<div class="flex items-center justify-center">
-						<ThemeToggle showTooltip={false} buttonClass="btn-icon hover:bg-[var(--admin-border-subtle)] text-surface-900 dark:text-white" iconSize={28} />
+						<ThemeToggle showTooltip={false} variant="transparent" buttonClass="text-surface-900 dark:text-white" iconSize={28} />
  					</div>
  				</SystemTooltip>
  			</div>
@@ -512,12 +512,12 @@ Route-driven sidebar content (no dual collapsible section headers):
  							{/snippet}
 
  							<!-- Header to inform user about System Language context -->
- 							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-200 dark:border-surface-50 mb-1">
+ 							<div class="px-3 py-2 text-xs font-bold text-tertiary-500 dark:text-primary-500 uppercase tracking-wider text-center border-b border-surface-500/30 dark:border-surface-50 mb-1">
  								{applayout_systemlanguage()}
  							</div>
 
  							{#if showLanguageDropdown}
- 								<div class="px-2 pb-2 mb-1 border-b border-surface-200 dark:border-surface-50">
+ 								<div class="px-2 pb-2 mb-1 border-b border-surface-500/30 dark:border-surface-50">
 									<Input aria-label="Search"
 										type="text"
 										bind:value={searchQuery}
@@ -530,10 +530,10 @@ Route-driven sidebar content (no dual collapsible section headers):
  									{#each filteredLanguages as lang (lang)}
 										<Button
 											variant="ghost"
-											class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
+											class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-400"
 											onclick={() => handleLanguageSelection(lang)}
 										>
-											<span class="text-sm font-medium text-surface-900 dark:text-surface-200">{getLanguageName(lang)}</span>
+											<span class="text-sm font-medium text-surface-900 dark:text-surface-400">{getLanguageName(lang)}</span>
 											<span class="text-xs font-normal text-tertiary-500 dark:text-primary-500 ms-2">{lang.toUpperCase()}</span>
 										</Button>
 									{/each}
@@ -542,7 +542,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 								{#each availableLanguages.filter((l) => l !== languageTag) as lang (lang)}
 									<Button
 										variant="ghost"
-										class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-200"
+										class="w-full text-start px-3 py-2 flex items-center justify-between rounded-sm cursor-pointer hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-900 dark:text-surface-400"
 										onclick={() => handleLanguageSelection(lang)}
 									>
 										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
@@ -559,7 +559,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 			<div class="{isSidebarFull ? 'order-4' : 'order-3'} flex items-center justify-center">
 				<SystemTooltip title={applayout_signout()} positioning={{ placement: 'right' }}>
 					<Button
-						variant="ghost"
+						variant="transparent"
 						onclick={signOut}
 						type="button"
 						aria-label="Sign Out"
@@ -637,7 +637,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 
 	/* Scrollbar styling */
 	.overflow-y-auto {
-		scrollbar-color: rgb(var(--color-surface-500)) transparent;
+		scrollbar-color: var(--color-surface-500) transparent;
 		scrollbar-width: thin;
 	}
 
@@ -650,7 +650,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 	}
 
 	.overflow-y-auto::-webkit-scrollbar-thumb {
-		background-color: rgb(var(--color-surface-500));
+		background-color: var(--color-surface-500);
 		border-radius: 3px;
 	}
 </style>

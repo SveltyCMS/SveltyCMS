@@ -360,7 +360,7 @@
 	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
 		<div class="rounded border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="preset-filled-tertiary-500 btn-icon me-3"><iconify-icon icon="mdi:database-export" width={24}></iconify-icon></div>
+				<div class="preset-filled-tertiary-500 inline-flex items-center justify-center rounded-full me-3"><iconify-icon icon="mdi:database-export" width={24}></iconify-icon></div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Export All Data</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">Export all collections to file</p>
@@ -372,7 +372,7 @@
 
 		<div class="rounded border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 btn-icon me-3"><iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon></div>
+				<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center justify-center rounded-full me-3"><iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon></div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Collections</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">
@@ -428,7 +428,7 @@
 		aria-modal="true"
 		aria-labelledby="export-modal-title"
 	>
-		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 id="export-modal-title" class="text-lg font-semibold">Export Collections</h3>
 				<Button variant="outline" onclick={() => (showExportModal = false)} aria-label="Close export modal" class="p-0! min-w-0">
@@ -475,7 +475,7 @@
 				</div>
 			</div>
 
-			<div class="flex justify-end gap-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
+			<div class="flex justify-end gap-3 border-t bg-surface-500/10 p-6 dark:bg-surface-700">
 				<Button variant="outline" onclick={() => (showExportModal = false)} aria-label="Cancel export">Cancel</Button>
 				<Button variant="tertiary" aria-label="Export selected collections"
 					onclick={exportSelectedCollections}
@@ -495,7 +495,7 @@
 		aria-modal="true"
 		aria-labelledby="import-modal-title"
 	>
-		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 id="import-modal-title" class="text-lg font-semibold">Import Collections</h3>
 				<Button variant="outline" onclick={() => (showImportModal = false)} aria-label="Close import modal" class="p-0! min-w-0">
@@ -505,7 +505,7 @@
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
 				<div>
 					<label for="import-file" class="mb-2 block text-sm font-medium">Select File</label>
-					<input id="import-file" type="file" bind:files={importFiles} accept=".json,.csv" class="block w-full text-sm text-gray-500 file:mr-4 file:rounded file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100" />
+					<input id="import-file" type="file" bind:files={importFiles} accept=".json,.csv" class="block w-full text-sm text-gray-500 file:mr-4 file:rounded file:border-0 file:bg-tertiary-500/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-tertiary-600 hover:file:bg-tertiary-500/10" />
 					<p class="mt-1 text-xs text-gray-500">Supported formats: JSON, CSV</p>
 				</div>
 
@@ -524,7 +524,7 @@
 				</div>
 			</div>
 
-			<div class="flex justify-end gap-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
+			<div class="flex justify-end gap-3 border-t bg-surface-500/10 p-6 dark:bg-surface-700">
 				<Button variant="outline" onclick={() => (showImportModal = false)} aria-label="Cancel import">Cancel</Button>
 				<Button variant="tertiary" onclick={handleImport} disabled={loading || !importFiles} aria-label="Import data from file" class="dark:">Import Data</Button>
 			</div>
@@ -534,7 +534,7 @@
 
 {#if showResultsModal && importResult}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded bg-surface-50 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Results</h3>
 				<Button variant="outline" onclick={() => (showResultsModal = false)} aria-label="Close results" size="sm">
@@ -579,7 +579,7 @@
 									{#if result.errors.length > 0}
 										<div class="text-sm">
 											<details>
-												<summary class="cursor-pointer text-red-600">{result.errors.length} errors</summary>
+												<summary class="cursor-pointer text-error-600">{result.errors.length} errors</summary>
 												<div class="mt-2 space-y-1">
 													{#each result.errors.slice(0, 5) as error (error.index)}
 														<div class="text-xs text-gray-600">Line {error.index + 1}: {error.error}</div>
@@ -598,7 +598,7 @@
 				</div>
 			</div>
 
-			<div class="flex justify-end border-t bg-surface-100 p-6 dark:bg-surface-700">
+			<div class="flex justify-end border-t bg-surface-500/10 p-6 dark:bg-surface-700">
 				<Button variant="primary" onclick={() => (showResultsModal = false)} aria-label="Close import results">Close</Button>
 			</div>
 		</div>

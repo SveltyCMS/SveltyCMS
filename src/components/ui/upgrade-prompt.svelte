@@ -41,7 +41,7 @@
   <Alert variant="warning" title={title}>
     <p class="text-sm">{message}</p>
     {#if price}
-      <p class="mt-2 text-sm font-medium text-surface-700 dark:text-surface-200">{price}</p>
+      <p class="mt-2 text-sm font-medium text-surface-600 dark:text-surface-400">{price}</p>
     {/if}
     <div class="mt-4">
       <Button

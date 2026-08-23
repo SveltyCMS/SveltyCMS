@@ -105,6 +105,29 @@ function createLayoutError(err: unknown, fallbackMessage: string): LayoutError {
   };
 }
 
+/**
+ * Recursively strip values SvelteKit cannot serialize from load data.
+ * Widget factories leak `validationSchema` (and other function-valued
+ * properties) into the content structure; functions can never reach the
+ * client over JSON anyway, so dropping them here is behavior-neutral.
+ */
+function stripNonSerializable(value: unknown): unknown {
+  if (typeof value === "function") return undefined;
+  if (Array.isArray(value)) {
+    const cleaned = value.map(stripNonSerializable);
+    return cleaned.filter((item) => item !== undefined);
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      const cleaned = stripNonSerializable(item);
+      if (cleaned !== undefined) out[key] = cleaned;
+    }
+    return out;
+  }
+  return value;
+}
+
 export const load: LayoutServerLoad = async ({ locals, depends, url, request }) => {
   const { theme, user: sessionUser, cspNonce, tenantId } = locals;
 
@@ -158,6 +181,29 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
         contentSystem.collections.getSmartFirst(tenantId),
       ]);
     });
+
+    // SvelteKit 3 requires serializable load returns — raw Promises in the
+    // return serialize to HTTP 500 ("Failed to serialize promise") whenever
+    // they are still pending under load (production build). Resolve here and
+    // hand down plain data.
+    const [, firstCollection] = await contentPromise;
+    let safeContentStructure: unknown[] = [];
+    try {
+      const nodes = await contentSystem.getContentStructure(tenantId);
+      const stringIdNodes = ((nodes ?? []) as Array<Record<string, unknown>>).map((node) => ({
+        ...node,
+        _id:
+          (node._id as { toString?: () => string } | null | undefined)?.toString?.() ??
+          String(node._id),
+        ...(node.parentId ? { parentId: String(node.parentId) } : {}),
+      }));
+      // Deep-clean before returning: widget factories leak function values
+      // (validationSchema) into the structure, and SvelteKit 3 rejects any
+      // function in a load return (HTTP 500 "Cannot stringify a function").
+      safeContentStructure = stripNonSerializable(stringIdNodes) as unknown[];
+    } catch {
+      /* non-fatal — sidebar renders empty */
+    }
 
     // Parallelize critical layout queries with short-lived 30s L1 cache
     const userCountKey = `layout:userCount:${tenantId || "global"}`;
@@ -214,30 +260,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       theme: safeTheme,
       tenantId,
       isAdmin: !!locals.isAdmin,
-      // Streamed data (Promises) — always resolve; never reject into error boundary
-      contentStructure: contentPromise
-        .then(async () => {
-          try {
-            // Persisted structure is the single source of truth for order/hierarchy.
-            // The in-memory snapshot can lag a just-completed save (or be re-derived
-            // by a background reconcile), and this value is pushed straight into the
-            // sidebar/builder store on every `invalidate("app:content")` — serving
-            // memory here rolled the UI back to the pre-save order right after saving.
-            const persisted = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
-            const nodes =
-              Array.isArray(persisted) && persisted.length > 0
-                ? persisted
-                : await contentSystem.getContentStructure(tenantId);
-            return (nodes ?? []).map((node: any) => ({
-              ...node,
-              _id: node._id?.toString?.() ?? String(node._id),
-              ...(node.parentId ? { parentId: node.parentId.toString() } : {}),
-            }));
-          } catch {
-            return [];
-          }
-        })
-        .catch(() => []),
+      contentStructure: safeContentStructure,
 
       user: safeUser,
       totalUsers,
@@ -253,7 +276,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       predictedNextPath,
       streamed: {}, // SvelteKit streaming marker
       pluginStates,
-      firstCollection: contentPromise.then(([, first]) => first ?? null).catch(() => null),
+      firstCollection,
     };
   } catch (err: any) {
     // NEVER hard-500 the entire admin shell — media/dashboard/config pages all depend on this layout.
@@ -280,7 +303,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       theme: DEFAULT_THEME,
       tenantId,
       isAdmin: !!locals.isAdmin,
-      contentStructure: Promise.resolve([]),
+      contentStructure: [],
       user: fallbackUser,
       totalUsers: 1,
       aiEnabled: false,
@@ -290,7 +313,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       predictedNextPath: null,
       streamed: {},
       pluginStates: {} as Record<string, boolean>,
-      firstCollection: Promise.resolve(null),
+      firstCollection: null,
       layoutError: createLayoutError(err, "Failed to load application data"),
     };
   }

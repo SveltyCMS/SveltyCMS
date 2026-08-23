@@ -71,7 +71,7 @@ aspect ratio preview with draggable focal point.
 	}
 </script>
 
-<div class="rounded-xl border border-surface-200 bg-surface-50 p-5 shadow-sm dark:border-surface-700 dark:bg-surface-800">
+<div class="rounded-xl border border-surface-500/30 bg-surface-500/10 p-5 shadow-sm dark:border-surface-500/40 dark:bg-surface-800">
 	<!-- Header -->
 	<div class="mb-4 flex items-center gap-3">
 		<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-500/10">
@@ -91,7 +91,7 @@ aspect ratio preview with draggable focal point.
 			value={searchQuery}
 			oninput={handleSearchInput}
 			aria-label="Search media for focal point preview"
-			class="w-full rounded-lg border border-surface-300 bg-surface-100 py-2 ps-3 pe-3 text-sm text-surface-900 placeholder:text-surface-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-50"
+			class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 py-2 ps-3 pe-3 text-sm text-surface-900 placeholder:text-surface-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-50"
 		/>
 	</div>
 
@@ -106,7 +106,7 @@ aspect ratio preview with draggable focal point.
 				<button
 					type="button"
 					onclick={() => openPreview(item)}
-					class="group relative overflow-hidden rounded-lg border border-surface-200 bg-surface-100 transition-all hover:border-primary-400 hover:shadow-md dark:border-surface-600 dark:bg-surface-700 dark:hover:border-primary-500"
+					class="group relative overflow-hidden rounded-lg border border-surface-500/30 bg-surface-500/10 transition-all hover:border-primary-500 hover:shadow-md dark:border-surface-600 dark:bg-surface-700 dark:hover:border-primary-500"
 					aria-label={`Preview aspect ratios for ${item.filename}`}
 				>
 					<div class="aspect-square overflow-hidden">
@@ -117,7 +117,7 @@ aspect ratio preview with draggable focal point.
 							loading="lazy"
 						/>
 					</div>
-					<div class="truncate px-1.5 py-1 text-[10px] font-medium text-surface-700 dark:text-surface-300">
+					<div class="truncate px-1.5 py-1 text-[10px] font-medium text-surface-600 dark:text-surface-400">
 						{item.filename}
 					</div>
 				</button>
@@ -130,7 +130,7 @@ aspect ratio preview with draggable focal point.
 	{/if}
 
 	<!-- Plugin version footer -->
-	<div class="mt-4 border-t border-surface-200 pt-3 dark:border-surface-700">
+	<div class="mt-4 border-t border-surface-500/30 pt-3 dark:border-surface-500/40">
 		<p class="text-[10px] text-surface-400">Focal Point Plugin v1.0.0 — Part of SveltyCMS Media Suite</p>
 	</div>
 </div>

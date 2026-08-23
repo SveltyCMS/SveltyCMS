@@ -11,7 +11,7 @@
   let { siteName }: Props = $props();
 </script>
 
-<footer class="mt-auto border-t border-surface-200 bg-surface-50 dark:border-surface-700 dark:bg-surface-900">
+<footer class="mt-auto border-t border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900">
   <div class="mx-auto max-w-6xl px-4 py-8 text-center text-sm text-surface-500 sm:px-6">
     <p>
       {siteName} — powered by

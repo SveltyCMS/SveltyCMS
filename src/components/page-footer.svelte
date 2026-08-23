@@ -46,7 +46,7 @@
 	});
 </script>
 
-<div class="grid grid-cols-2 items-center gap-x-2 border-t border-surface-400 py-2 text-[12px] leading-tight">
+<div class="grid grid-cols-2 items-center gap-x-2 border-t border-surface-500 py-2 text-[12px] leading-tight">
 	<!-- Labels -->
 	{#each Object.keys(dates) as key (key)}
 		<div class="font-bold">

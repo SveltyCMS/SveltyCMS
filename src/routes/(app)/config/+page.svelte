@@ -6,13 +6,14 @@
 
 <script lang="ts">
 import AdminPageShell from "@components/admin-page-shell.svelte";
+import AdminCard from "@components/admin-card.svelte";
 import Slot from "@components/system/slot.svelte";
 import AdminZone from "@src/components/system/admin-zone.svelte";
 import PermissionGuard from "@src/components/permission-guard.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { ui } from "@src/stores/ui-store.svelte.ts";
 import { onMount } from "svelte";
-import { fade, fly } from "svelte/transition";
+import { fly } from "svelte/transition";
 import { page } from "$app/state";
 
 let { data } = $props();
@@ -291,7 +292,7 @@ const configItems = [
 </script>
 
 <AdminPageShell title="System Configuration" showBackButton={true} backUrl="/" icon="material-symbols:build-circle">
-<div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto p-2" in:fade={{ duration: 300 }}>
+    <AdminCard class="border border-surface-500/30 bg-white p-4 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50">
 	<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500" in:fly={{ y: -10, duration: 300 }}>Manage your system configuration</h2>
 
 	<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -303,7 +304,7 @@ const configItems = [
 				<PermissionGuard {...({ config: item.permission } as any)}>
 					<a
 						href={item.href}
-						class="flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-50 hover:shadow-xl  dark:bg-surface-800 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
+						class="flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-500/30 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-500/10 hover:shadow-xl  dark:bg-surface-900 dark:hover:border-primary-500  dark:hover:bg-surface-700 lg:h-32"
 						aria-label={item.label}
 						target={item.target}
 						rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
@@ -326,7 +327,7 @@ const configItems = [
 				<div in:fly={{ y: 20, delay: idx * 50, duration: 300 }}>
 				<a
 					href={item.href}
-					class="group flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-200 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-50 hover:shadow-xl  dark:bg-surface-800 dark:hover:border-tertiary-500 dark:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
+					class="group flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-500/30 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-500/10 hover:shadow-xl  dark:bg-surface-800 dark:hover:border-primary-500  dark:hover:bg-surface-700 lg:h-32"
 					aria-label={item.label}
 					target={item.target}
 					rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
@@ -338,7 +339,7 @@ const configItems = [
 						class={`text-3xl lg:text-4xl ${item.iconColor || ''} transition-transform duration-300 group-hover:scale-110`}
 					></iconify-icon>
 					<p
-						class="w-full truncate text-xs font-medium uppercase tracking-wide text-surface-600 group-hover:text-tertiary-600 dark:text-primary-600 dark:group-hover:text-tertiary-500  lg:text-sm"
+						class="w-full truncate text-xs font-medium uppercase tracking-wide text-surface-600 group-hover:text-tertiary-600 dark:text-primary-600 dark:group-hover:text-primary-500  lg:text-sm"
 					>
 						{item.label}
 					</p>
@@ -373,5 +374,5 @@ const configItems = [
 		<Slot name="config" props={{ pluginStates: data?.pluginStates ?? {} }} />
 		<AdminZone zone="config" context={{ pluginStates: data?.pluginStates ?? {} }} />
 	</div>
-</div>
+</AdminCard>
 </AdminPageShell>

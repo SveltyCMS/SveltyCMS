@@ -7,8 +7,6 @@
  * - Decreases network transfer time
  * - Improves cache efficiency
  * - Faster serialization/deserialization
- *
- * ### Bug fixes (audit 2026-07):
  * - Essential fields no longer consume the maxListFields budget (dup-skip guard)
  * - filterEntryFields supports dot-notation for nested NoSQL fields
  * - createProjection fallen back to { _id: 1 } on empty input (prevents full-doc leak)

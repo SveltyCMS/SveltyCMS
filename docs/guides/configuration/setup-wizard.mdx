@@ -809,7 +809,7 @@ Each input field follows this pattern:
 	id="db-host"
 	bind:value={dbConfig.host}
 	type="text"
-	class="input w-full rounded {displayErrors.host ? 'border-error-500' : 'border-slate-200'}"
+	class="w-full rounded border border-surface-300 px-3 py-2 {displayErrors.host ? 'border-error-500' : ''}"
 	aria-invalid={!!displayErrors.host}
 	aria-describedby={displayErrors.host ? 'db-host-error' : undefined}
 />
@@ -1133,11 +1133,13 @@ const hasUnsavedChanges = $derived(() => {
 **Implementation**:
 
 ```
-<button onclick={testDatabaseConnection} disabled={isLoading} class="btn {isLoading ? 'cursor-not-allowed opacity-60' : ''}">
+<Button onclick={testDatabaseConnection} disabled={isLoading} loading={isLoading}>
 	{#if isLoading}
-		<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-white"></div>
 		Testing Connection...
 	{:else}
+		Test Database Connection
+	{/if}
+</Button>
 		Test Connection
 	{/if}
 </button>

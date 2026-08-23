@@ -67,7 +67,7 @@ function formatUptime(seconds: number): string {
     <!-- Stats Grid -->
     <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4" data-testid="monitor-stats">
         <!-- Security Card -->
-        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="monitor-card-security">
+        <AdminCard class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="monitor-card-security">
             <div class="flex items-center justify-between">
                 <div class="rounded bg-tertiary-500 p-2 dark:bg-primary-500/10">
                     <iconify-icon icon="mdi:shield-lock" class="text-2xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -78,14 +78,14 @@ function formatUptime(seconds: number): string {
                 <h3 class="text-sm font-bold uppercase tracking-widest opacity-40">Security</h3>
                 <p class="text-3xl font-black">{data.security?.incidentCount || 0} <span class="text-base font-normal opacity-50">Incidents</span></p>
             </div>
-            <div class="flex justify-between border-t border-surface-200 pt-2 text-xs dark:border-surface-800">
+            <div class="flex justify-between border-t border-surface-500/30 pt-2 text-xs dark:border-surface-500/40">
                 <span>Blocked: <b class="text-error-500">{data.security?.blockedIpsCount || 0}</b></span>
                 <span class="opacity-50">24h</span>
             </div>
         </AdminCard>
 
         <!-- System State Card -->
-        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="monitor-card-system">
+        <AdminCard class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="monitor-card-system">
             <div class="flex items-center justify-between">
                 <div class="rounded bg-tertiary-500/10 p-2">
                     <iconify-icon icon="mdi:server-network" class="text-2xl text-tertiary-500"></iconify-icon>
@@ -96,14 +96,14 @@ function formatUptime(seconds: number): string {
                 <h3 class="text-sm font-bold uppercase tracking-widest opacity-40">System</h3>
                 <p class="text-3xl font-black" data-testid="monitor-uptime">{formatUptime(system?.uptime ?? 0)} <span class="text-base font-normal opacity-50">Uptime</span></p>
             </div>
-            <div class="flex justify-between border-t border-surface-200 pt-2 text-xs dark:border-surface-800">
+            <div class="flex justify-between border-t border-surface-500/30 pt-2 text-xs dark:border-surface-500/40">
                 <span>Services: <b>{systemState?.services?.length ?? 0}</b></span>
                 <span class="opacity-50">Avg: {system?.requests?.avgResponseTime != null ? `${Math.round(system.requests.avgResponseTime)}ms` : 'N/A'}</span>
             </div>
         </AdminCard>
 
         <!-- API Traffic Card -->
-        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="monitor-card-requests">
+        <AdminCard class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="monitor-card-requests">
             <div class="flex items-center justify-between">
                 <div class="rounded bg-tertiary-500/10 p-2">
                     <iconify-icon icon="mdi:chart-line" class="text-2xl text-tertiary-500"></iconify-icon>
@@ -114,14 +114,14 @@ function formatUptime(seconds: number): string {
                 <h3 class="text-sm font-bold uppercase tracking-widest opacity-40">Requests</h3>
                 <p class="text-3xl font-black">{system?.requests?.total ?? 0} <span class="text-base font-normal opacity-50">Total</span></p>
             </div>
-            <div class="flex justify-between border-t border-surface-200 pt-2 text-xs dark:border-surface-800">
+            <div class="flex justify-between border-t border-surface-500/30 pt-2 text-xs dark:border-surface-500/40">
                 <span>Errors: <b class="text-error-500">{system?.requests?.errors ?? 0}</b></span>
                 <span class="opacity-50">{system?.requests?.errorRate != null ? `${system.requests.errorRate.toFixed(1)}%` : 'N/A'}</span>
             </div>
         </AdminCard>
 
         <!-- Quick Actions Card -->
-        <AdminCard class="space-y-4 border border-surface-200 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-800 dark:bg-surface-900/50" data-testid="monitor-card-actions">
+        <AdminCard class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50" data-testid="monitor-card-actions">
             <div class="flex items-center justify-between">
                 <div class="rounded bg-tertiary-500/10 p-2">
                     <iconify-icon icon="mdi:lightning-bolt" class="text-2xl text-tertiary-500"></iconify-icon>
@@ -132,7 +132,7 @@ function formatUptime(seconds: number): string {
                 <h3 class="text-sm font-bold uppercase tracking-widest opacity-40">Quick Links</h3>
                 <p class="text-sm opacity-60">Jump to common admin tools</p>
             </div>
-            <div class="space-y-2 border-t border-surface-200 pt-2 dark:border-surface-800">
+            <div class="space-y-2 border-t border-surface-500/30 pt-2 dark:border-surface-500/40">
                 <Button variant="tertiary" size="sm" href="/config/system-settings" class="w-full justify-between" data-sveltekit-preload-data="hover" data-preload="hover" data-testid="monitor-link-settings">
                     <span>System Settings</span>
                     <iconify-icon icon="mdi:arrow-right"></iconify-icon>
@@ -146,13 +146,13 @@ function formatUptime(seconds: number): string {
     </div>
 
     <!-- Service Health Table -->
-    <AdminCard class="border border-surface-200 bg-white p-6 shadow-sm dark:border-surface-800 dark:bg-surface-900" data-testid="monitor-service-health">
+    <AdminCard class="border border-surface-500/30 bg-white p-6 shadow-sm dark:border-surface-500/40 dark:bg-surface-900" data-testid="monitor-service-health">
         <h2 class="mb-4 text-lg font-bold">Service Health</h2>
         {#if systemState?.services?.length > 0}
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="border-b border-surface-200 text-start dark:border-surface-700">
+                        <tr class="border-b border-surface-500/30 text-start dark:border-surface-500/40">
                             <th class="pb-2 text-xs font-bold uppercase opacity-50">Service</th>
                             <th class="pb-2 text-xs font-bold uppercase opacity-50">Status</th>
                             <th class="hidden pb-2 text-xs font-bold uppercase opacity-50 sm:table-cell">Init Time</th>
@@ -162,7 +162,7 @@ function formatUptime(seconds: number): string {
                     </thead>
                     <tbody>
                         {#each systemState.services as svc (svc.name)}
-                            <tr class="border-b border-surface-100 dark:border-surface-800">
+                            <tr class="border-b border-surface-100 dark:border-surface-500/40">
                                 <td class="py-2 font-medium">{svc.name}</td>
                                 <td class="py-2">
                                     <Badge
@@ -189,7 +189,7 @@ function formatUptime(seconds: number): string {
 
     <!-- Security Feed & Webhooks Sidebar -->
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <AdminCard class="border border-surface-200 bg-white p-6 shadow-sm lg:col-span-2 dark:border-surface-800 dark:bg-surface-900">
+        <AdminCard class="border border-surface-500/30 bg-white p-6 shadow-sm lg:col-span-2 dark:border-surface-500/40 dark:bg-surface-900">
              <div class="mb-6 flex items-center justify-between">
                 <h2 class="text-lg font-bold">Security Incident Feed</h2>
                 <Button variant="ghost" size="sm">View All Logs</Button>
@@ -198,7 +198,7 @@ function formatUptime(seconds: number): string {
                 {#if data.security?.recentIncidents?.length > 0}
                     {#each data.security.recentIncidents as incident (incident._id)}
                         {const inc = incident as any}
-                        <div class="flex items-center gap-4 rounded border-s-4 border-error-500 bg-surface-50 p-3 dark:bg-surface-800">
+                        <div class="flex items-center gap-4 rounded border-s-4 border-error-500 bg-surface-500/10 p-3 dark:bg-surface-800">
                             <iconify-icon icon="mdi:alert-decagram" class="text-xl text-error-500"></iconify-icon>
                             <div class="flex-1">
                                 <p class="text-sm font-bold">{inc.type}</p>
@@ -217,14 +217,14 @@ function formatUptime(seconds: number): string {
         </AdminCard>
 
         <div class="space-y-6">
-            <AdminCard class="border border-surface-200 bg-white p-6 shadow-sm dark:border-surface-800 dark:bg-surface-900">
+            <AdminCard class="border border-surface-500/30 bg-white p-6 shadow-sm dark:border-surface-500/40 dark:bg-surface-900">
                 <h2 class="mb-4 text-lg font-bold">Webhook Status</h2>
                 <div class="space-y-4">
                     <div class="flex items-center justify-between text-sm">
                         <span class="opacity-50">Active Hooks</span>
                         <span class="font-bold">{webhooks?.active || 0}</span>
                     </div>
-                    <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-100 dark:bg-surface-800">
+                    <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-500/10 dark:bg-surface-800">
                         <div class="h-full bg-success-500" style="width: {webhooks?.total > 0 ? 100 : 0}%"></div>
                     </div>
                     <div class="flex items-center justify-between text-sm">
@@ -237,7 +237,7 @@ function formatUptime(seconds: number): string {
     </div>
 
     <!-- Cryptographic Audit Logs -->
-    <AdminCard class="border border-surface-200 bg-white p-6 shadow-sm dark:border-surface-800 dark:bg-surface-900">
+    <AdminCard class="border border-surface-500/30 bg-white p-6 shadow-sm dark:border-surface-500/40 dark:bg-surface-900">
         <div class="mb-6 flex items-center justify-between">
             <div>
                 <h2 class="text-lg font-bold">Cryptographic Audit Trail</h2>
@@ -250,7 +250,7 @@ function formatUptime(seconds: number): string {
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-start border-collapse table-auto">
                     <thead>
-                        <tr class="border-b border-surface-200 text-start dark:border-surface-700 opacity-50 text-xs font-bold uppercase">
+                        <tr class="border-b border-surface-500/30 text-start dark:border-surface-500/40 opacity-50 text-xs font-bold uppercase">
                             <th class="pb-2 text-start">Timestamp</th>
                             <th class="pb-2 text-start">User / Actor</th>
                             <th class="pb-2 text-start">Event Type</th>
@@ -261,11 +261,11 @@ function formatUptime(seconds: number): string {
                     </thead>
                     <tbody>
                         {#each data.auditLogs as log (log._id)}
-                            <tr class="border-b border-surface-100 dark:border-surface-800 text-xs hover:bg-surface-50 dark:hover:bg-surface-850">
+                            <tr class="border-b border-surface-100 dark:border-surface-500/40 text-xs hover:bg-surface-500/10 dark:hover:bg-surface-850">
                                 <td class="py-2.5 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
                                 <td class="py-2.5 whitespace-nowrap font-medium">{log.actorEmail || 'system'}</td>
                                 <td class="py-2.5 whitespace-nowrap">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-tertiary-500/15 text-tertiary-600 dark:text-primary-500">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-tertiary-500/10 text-tertiary-600 dark:text-primary-500">
                                         {log.eventType}
                                     </span>
                                 </td>

@@ -46,7 +46,7 @@ Provides actionable information for developers and administrators.
 </script>
 
 <div
-	class="missing-widget rounded border-2 border-warning-400 bg-warning-50 p-4 dark:border-warning-600 dark:bg-warning-950"
+	class="missing-widget rounded border-2 border-warning-500 bg-warning-500/10 p-4 dark:border-warning-600 dark:bg-warning-500/10"
 	role="alert"
 	aria-live="polite"
 >
@@ -62,10 +62,10 @@ Provides actionable information for developers and administrators.
 		</svg>
 
 		<div class="flex-1">
-			<h3 class="text-lg font-semibold text-warning-800 dark:text-warning-200">Missing Widget</h3>
+			<h3 class="text-lg font-semibold text-warning-600 dark:text-warning-400">Missing Widget</h3>
 
 			<!-- Main error message -->
-			<p class="mt-1 text-sm text-warning-700 dark:text-warning-300">
+			<p class="mt-1 text-sm text-warning-600 dark:text-warning-400">
 				The widget <strong>"{widgetName}"</strong> is not available for the field <strong>"{fieldLabel}"</strong>.
 			</p>
 		</div>
@@ -73,27 +73,27 @@ Provides actionable information for developers and administrators.
 
 	<!-- Debug Information (Development Only) -->
 	{#if showDebugInfo && isDevelopment}
-		<div class="mt-3 space-y-2 rounded border border-warning-300 bg-warning-100 p-3 text-xs font-mono dark:border-warning-700 dark:bg-warning-900">
+		<div class="mt-3 space-y-2 rounded border border-warning-500/30 bg-warning-500/10 p-3 text-xs font-mono dark:border-warning-500/40 dark:bg-warning-900">
 			<div class="flex gap-2">
-				<span class="font-semibold text-warning-800 dark:text-warning-200">Widget:</span>
-				<span class="text-warning-700 dark:text-warning-300">{widgetName}</span>
+				<span class="font-semibold text-warning-600 dark:text-warning-400">Widget:</span>
+				<span class="text-warning-600 dark:text-warning-400">{widgetName}</span>
 			</div>
 			<div class="flex gap-2">
-				<span class="font-semibold text-warning-800 dark:text-warning-200">Field:</span>
-				<span class="text-warning-700 dark:text-warning-300">{fieldName}</span>
+				<span class="font-semibold text-warning-600 dark:text-warning-400">Field:</span>
+				<span class="text-warning-600 dark:text-warning-400">{fieldName}</span>
 			</div>
 			<div class="flex gap-2">
-				<span class="font-semibold text-warning-800 dark:text-warning-200">Label:</span>
-				<span class="text-warning-700 dark:text-warning-300">{fieldLabel}</span>
+				<span class="font-semibold text-warning-600 dark:text-warning-400">Label:</span>
+				<span class="text-warning-600 dark:text-warning-400">{fieldLabel}</span>
 			</div>
 		</div>
 	{/if}
 
 	<!-- Suggested Actions -->
 	<div class="mt-4 space-y-2">
-		<p class="text-sm font-semibold text-warning-800 dark:text-warning-200">Possible Solutions:</p>
+		<p class="text-sm font-semibold text-warning-600 dark:text-warning-400">Possible Solutions:</p>
 
-		<ul class="ms-4 space-y-1 text-sm text-warning-700 dark:text-warning-300">
+		<ul class="ms-4 space-y-1 text-sm text-warning-600 dark:text-warning-400">
 			<li class="flex items-start gap-2">
 				<span class="mt-0.5">•</span>
 				<span
@@ -121,7 +121,7 @@ Provides actionable information for developers and administrators.
 	<!-- Production Warning -->
 	{#if !isDevelopment}
 		<div
-			class="mt-4 rounded border border-error-300 bg-error-50 p-2 text-xs text-error-700 dark:border-error-700 dark:bg-error-950 dark:text-error-300"
+			class="mt-4 rounded border border-error-500/30 bg-error-500/10 p-2 text-xs text-error-600 dark:border-error-500/40 dark:bg-error-500/10 dark:text-error-400"
 		>
 			<strong>Note:</strong>
 			This field will not be editable until the widget is available.

@@ -199,12 +199,12 @@ function handlePaste(e: ClipboardEvent) {
 				bgTransparent
 					? 'border-white/50 text-white focus:border-white focus:outline-2 focus:outline-white bg-transparent focus:bg-transparent'
 					: cn(
-							'border-surface-300 focus:border-tertiary-600 focus:outline-2 focus:outline-tertiary-600 dark:border-surface-400 dark:focus:border-tertiary-500 dark:focus:outline-tertiary-500',
+							'border-surface-500/30 focus:border-tertiary-600 focus:outline-2 focus:outline-tertiary-600 dark:border-surface-400 dark:focus:border-tertiary-500 dark:focus:outline-tertiary-500',
 							textColor === 'black'
 								? 'bg-white  focus:bg-white focus:text-black text-surface-900'
 								: textColor === 'white'
 									? 'bg-[#242728] text-white focus:bg-[#242728] focus:text-white'
-									: 'bg-surface-50 text-surface-900 focus:bg-surface-50 focus:text-surface-900 dark:bg-[#242728] dark:text-white dark:focus:bg-[#242728] dark:focus:text-white',
+									: 'bg-surface-500/10 text-surface-900 focus:bg-surface-500/10 focus:text-surface-900 dark:bg-[#242728] dark:text-white dark:focus:bg-[#242728] dark:focus:text-white',
 							colorClass,
 					  ),
 				invalid && 'border-error-500! dark:border-error-500!',
@@ -268,7 +268,7 @@ function handlePaste(e: ClipboardEvent) {
 					"peer-not-placeholder-shown:-translate-y-2 peer-not-placeholder-shown:scale-75",
 					bgTransparent
 						? "text-white/80 peer-focus:text-white peer-not-placeholder-shown:text-white"
-						: "text-surface-700 peer-focus:text-tertiary-600 peer-not-placeholder-shown:text-tertiary-600",
+						: "text-surface-600 peer-focus:text-tertiary-600 peer-not-placeholder-shown:text-tertiary-600",
 					invalid && "text-error-500!",
 					labelClass
 				)}

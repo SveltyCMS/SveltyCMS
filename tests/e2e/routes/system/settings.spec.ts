@@ -1,7 +1,8 @@
 /**
  * @file tests/e2e/routes/system/settings.spec.ts
- * @description System Settings shell + group navigation + save/export/discard/import controls.
+ * @description System Settings shell + group panels + save/export/discard/import controls.
  * Groups are catalog-driven; tests assert structure, not every field value.
+ * Navigation between groups happens via the sidebar SettingsMenu.
  */
 
 import { expect, test, type Page } from "@playwright/test";
@@ -49,50 +50,30 @@ test.use({ storageState: { cookies: [], origins: [] } });
 test.describe("System Settings shell", () => {
   test.setTimeout(120_000);
 
-  test("admin can open settings with group navigator", async ({ page }) => {
+  test("admin can open settings shell", async ({ page }) => {
     await goSettings(page, "cache");
 
-    await expect(page.getByTestId("system-settings-group-nav")).toBeVisible({
+    await expect(page.getByTestId("system-settings-group-count")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
-    await expect(page.getByTestId("system-settings-group-search")).toBeVisible();
-    await expect(page.getByTestId("system-settings-group-count")).toBeVisible();
 
     const countText = await page.getByTestId("system-settings-group-count").textContent();
     expect(Number(countText)).toBeGreaterThan(0);
 
-    await expect(page.getByTestId("settings-group-cache")).toBeVisible();
     await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
     await expect(page.getByTestId("system-settings-repair-cache")).toBeVisible();
   });
 
-  test("group search filters chips", async ({ page }) => {
-    await goSettings(page, "cache");
-
-    const search = page.getByTestId("system-settings-group-search");
-    await search.fill("zzzz-no-group-xyz");
-    await expect(page.getByTestId("system-settings-group-empty")).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
-
-    await search.fill("security");
-    await expect(page.getByTestId("settings-group-security")).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect(page.getByTestId("settings-group-cache")).toHaveCount(0);
-  });
-
   test("switching groups updates URL and panel", async ({ page }) => {
     await goSettings(page, "cache");
 
-    await page.getByTestId("settings-group-email").click();
+    await page.locator('a[href="/config/system-settings?group=email"]').first().click();
     await expect(page).toHaveURL(/group=email/, { timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("settings-panel-email")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
-    await expect(page.getByTestId("settings-group-email")).toHaveAttribute("aria-current", "true");
   });
 
   test("unknown group shows missing state with recovery", async ({ page }) => {
@@ -111,14 +92,9 @@ test.describe("System Settings shell", () => {
       timeout: ACTION_TIMEOUT,
     });
 
-    const shellSave = page.getByTestId("system-settings-save");
-    await expect(shellSave).toBeDisabled({ timeout: ACTION_TIMEOUT });
-
-    const cachePanel = page.getByTestId("settings-panel-cache");
-    const groupSave = cachePanel.getByTestId("settings-group-save");
-    if (await groupSave.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await expect(groupSave).toBeDisabled();
-    }
+    // Save/discard render in the layout's sticky action bar (page level)
+    const groupSave = page.getByTestId("settings-group-save");
+    await expect(groupSave).toBeDisabled({ timeout: ACTION_TIMEOUT });
 
     // At least one catalog field should render with stable testid
     const schemaField = page.getByTestId("settings-field-CACHE_TTL_SCHEMA");
@@ -142,25 +118,17 @@ test.describe("System Settings shell", () => {
     const nextValue = current === "120" ? "121" : "120";
     await input.fill(nextValue);
 
-    // Scope group-level save/discard to the cache panel to avoid strict-mode
-    // violations when the global toolbar also renders the same testids.
-    const groupSave = cachePanel.getByTestId("settings-group-save");
-    const groupDiscard = cachePanel.getByTestId("settings-group-discard");
+    // Scope group-level save/discard: buttons render in the sticky action bar
+    const groupSave = page.getByTestId("settings-group-save");
+    const groupDiscard = page.getByTestId("settings-group-discard");
 
     await expect(groupSave).toBeEnabled({
       timeout: ACTION_TIMEOUT,
     });
-    await expect(page.getByTestId("system-settings-save")).toBeEnabled({
-      timeout: ACTION_TIMEOUT,
-    });
     await expect(groupDiscard).toBeEnabled();
-    await expect(page.getByTestId("system-settings-discard")).toBeVisible();
 
     await groupDiscard.click();
     await expect(groupSave).toBeDisabled({
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect(page.getByTestId("system-settings-save")).toBeDisabled({
       timeout: ACTION_TIMEOUT,
     });
   });
@@ -187,8 +155,7 @@ test.describe("System Settings shell", () => {
     await input.fill(target);
     // Trigger native events to ensure Svelte bindings propagate through Input wrapper
     await input.blur();
-    const cachePanel = page.getByTestId("settings-panel-cache");
-    const groupSave = cachePanel.getByTestId("settings-group-save");
+    const groupSave = page.getByTestId("settings-group-save");
     // Expect auto-waits for the reactivity-driven enabled state
     await expect(groupSave).toBeEnabled({
       timeout: ACTION_TIMEOUT,
@@ -226,15 +193,14 @@ test.describe("System Settings shell", () => {
       timeout: ACTION_TIMEOUT,
     });
 
-    // Scope to panel to avoid strict-mode with page toolbar export button
-    const panel = page.getByTestId("settings-panel-security");
-    await expect(panel.getByTestId("settings-group-export")).toBeVisible({
+    // Buttons render in the layout's sticky action bar (page level)
+    await expect(page.getByTestId("settings-group-export")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
-    await expect(panel.getByTestId("settings-group-import")).toBeVisible();
-    await expect(panel.getByTestId("settings-group-import-input")).toBeAttached();
-    await expect(panel.getByTestId("settings-group-reset")).toBeVisible();
-    await expect(panel.getByTestId("settings-group-discard")).toBeVisible();
+    await expect(page.getByTestId("settings-group-import")).toBeVisible();
+    await expect(page.getByTestId("settings-group-import-input")).toBeAttached();
+    await expect(page.getByTestId("settings-group-reset")).toBeVisible();
+    await expect(page.getByTestId("settings-group-discard")).toBeVisible();
   });
 
   test("multi-tenancy migration card check structure", async ({ page }) => {

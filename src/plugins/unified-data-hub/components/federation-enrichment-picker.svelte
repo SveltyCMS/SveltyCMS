@@ -150,7 +150,7 @@
     <div class="space-y-3">
       {#each enrichments as enrichment, index (`${enrichment.nativeField}-${enrichment.virtualSlug}-${index}`)}
         <div
-          class="rounded-lg border border-surface-200 p-3 dark:border-surface-700"
+          class="rounded-lg border border-surface-500/30 p-3 dark:border-surface-500/40"
           data-testid="federation-enrichment-row"
         >
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">

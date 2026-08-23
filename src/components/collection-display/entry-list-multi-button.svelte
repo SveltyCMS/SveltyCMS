@@ -468,7 +468,7 @@
 			onclick={() => (showDeleted = !showDeleted)}
 			aria-label={showDeleted ? entrylist_multibutton_viewing_archived() : entrylist_multibutton_viewing_active()}
 			aria-pressed={showDeleted}
-			class="h-10 w-10 p-0 flex items-center justify-center rounded-xl border transition-all active:scale-95 {!showDeleted ? 'border-surface-300/60 dark:border-surface-700/60 bg-surface-100/80 dark:bg-surface-800/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700' : 'border-error-500/80 bg-error-500/15 text-error-600 dark:text-error-400 ring-2 ring-error-500/30'}">
+			class="h-10 w-10 p-0 flex items-center justify-center rounded-xl border transition-all active:scale-95 {!showDeleted ? 'border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-800/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700' : 'border-error-500/80 bg-error-500/10 text-error-600 dark:text-error-400 ring-2 ring-error-500/30'}">
 			<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="20"></iconify-icon>
 		</Button>
 	</SystemTooltip>
@@ -505,7 +505,7 @@
 					data-testid="entry-list-action-{currentAction}"
 					onclick={handleMainButtonClick}
 					disabled={isProcessing}
-					class="h-10 px-4 rounded-l-xl rounded-r-none font-semibold text-sm transition-all duration-200
+					class="h-10 px-4 rounded-s-xl rounded-e-none font-semibold text-sm transition-all duration-200
 						active:scale-95
 						{currentConfig.gradient} {currentConfig.textColor}
 						flex items-center gap-2 border-e border-white/20
@@ -536,7 +536,7 @@
 					variant="ghost"
 					onclick={toggleDropdown}
 					disabled={isProcessing}
-					class="h-10 w-9 rounded-r-xl rounded-l-none border-s border-white/20 transition-all duration-200 text-white flex items-center justify-center
+					class="h-10 w-9 rounded-e-xl rounded-s-none border-s border-white/20 transition-all duration-200 text-white flex items-center justify-center
 						{currentConfig.gradient} hover:brightness-110 active:scale-95 cursor-pointer"
 					aria-haspopup="menu"
 					aria-expanded={isDropdownOpen}

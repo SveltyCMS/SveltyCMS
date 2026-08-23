@@ -108,12 +108,12 @@
 			{:else if !payload.available}
 				<div class="flex h-full flex-col items-center justify-center px-3 text-center">
 					<iconify-icon icon="mdi:package-variant-closed-remove" class="mb-2 text-3xl text-surface-400"></iconify-icon>
-					<p class="text-xs font-semibold text-surface-600 dark:text-surface-300">No products collection</p>
+					<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">No products collection</p>
 					<p class="mt-1 text-[11px] text-surface-500">Enable the ecommerce Setup Wizard preset to track stock.</p>
 				</div>
 			{:else if isCompact}
 				<div class="flex h-full items-center gap-2 overflow-hidden px-1 text-xs">
-					<span class="font-bold tabular-nums text-rose-500">{payload.outOfStock}</span>
+					<span class="font-bold tabular-nums text-error-500">{payload.outOfStock}</span>
 					<span class="text-surface-500">out of stock</span>
 					<span class="text-surface-300">·</span>
 					<span class="font-bold tabular-nums">{payload.lowStock.length}</span>
@@ -122,20 +122,20 @@
 			{:else}
 				<div class="flex h-full min-h-0 flex-col gap-2">
 					{#if trialDays !== null}
-						<p class="text-[10px] text-amber-600 dark:text-amber-400">Trial · {trialDays} day{trialDays === 1 ? '' : 's'} remaining</p>
+						<p class="text-[10px] text-warning-600 dark:text-warning-400">Trial · {trialDays} day{trialDays === 1 ? '' : 's'} remaining</p>
 					{/if}
-					<div class="flex gap-3 text-[11px] text-surface-600 dark:text-surface-300">
+					<div class="flex gap-3 text-[11px] text-surface-600 dark:text-surface-400">
 						<span><strong class="tabular-nums">{payload.tracked}</strong> tracked</span>
-						<span><strong class="tabular-nums text-rose-500">{payload.outOfStock}</strong> out</span>
+						<span><strong class="tabular-nums text-error-500">{payload.outOfStock}</strong> out</span>
 					</div>
 					<ul class="min-h-0 flex-1 space-y-1 overflow-y-auto" aria-label="Low stock products">
 						{#each payload.lowStock as row (row.id)}
-							<li class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs hover:bg-surface-50 dark:hover:bg-surface-800/60">
+							<li class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs hover:bg-surface-500/10 dark:hover:bg-surface-800/60">
 								<div class="min-w-0">
-									<div class="truncate font-medium text-surface-800 dark:text-surface-100">{row.title}</div>
+									<div class="truncate font-medium text-surface-600 dark:text-surface-100">{row.title}</div>
 									<div class="truncate font-mono text-[10px] text-surface-500">{row.sku || 'no sku'}</div>
 								</div>
-								<div class="shrink-0 text-end tabular-nums {row.qty <= 0 ? 'text-rose-500' : 'text-amber-600'}">
+								<div class="shrink-0 text-end tabular-nums {row.qty <= 0 ? 'text-error-500' : 'text-warning-600'}">
 									{row.qty} / {row.threshold}
 								</div>
 							</li>

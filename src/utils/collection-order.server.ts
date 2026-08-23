@@ -20,6 +20,42 @@ import { getCompiledCollectionsPath } from "./tenant.server";
 
 const MANIFEST_FILENAME = ".compilation-manifest.json";
 
+/**
+ * Treat the 999 "no order set" sentinel as undefined so a real declared
+ * `order` (schema or manifest) always outranks a sentinel that was persisted
+ * once. Without this, a sentinel written on first boot can wedge a
+ * collection's order forever.
+ */
+export function explicitOrder(v?: number): number | undefined {
+  return v === undefined || v === 999 ? undefined : v;
+}
+
+/**
+ * Resolve the authoritative `order` for a collection node.
+ *
+ * Sources, in priority:
+ * 1. The freshly compiled `schema.order` — but only when the collection file
+ *    changed since the node was last reconciled (`lastDeclaredOrder` is the
+ *    `collectionDef.order` snapshot written into the DB at that time).
+ * 2. The GUI drag order (`manifestOrder`) — survives boots unless the file
+ *    changed, which is the explicit user intent to re-declare order.
+ * 3. The existing DB value (which may itself carry a previous GUI drag).
+ * 4. The 999 sentinel as last resort (no order declared anywhere).
+ */
+export function resolveCollectionOrder(params: {
+  schemaOrder?: number;
+  existingOrder?: number;
+  lastDeclaredOrder?: number;
+  manifestOrder?: number;
+}): number {
+  const { schemaOrder, existingOrder, lastDeclaredOrder, manifestOrder } = params;
+  const fileChanged = explicitOrder(schemaOrder) !== explicitOrder(lastDeclaredOrder);
+  if (fileChanged) {
+    return schemaOrder ?? explicitOrder(manifestOrder) ?? explicitOrder(existingOrder) ?? 999;
+  }
+  return explicitOrder(manifestOrder) ?? explicitOrder(existingOrder) ?? schemaOrder ?? 999;
+}
+
 export interface StructureNodeSnapshot {
   _id: string;
   name: string;
@@ -132,14 +168,19 @@ export function buildOrganizationalManifestFromNodes(
     if (!id || !node.path || !node.name || !node.nodeType) continue;
 
     if (node.nodeType === "collection") {
-      order[id] = node.order ?? 0;
-      const collectionId = node.collectionDef?._id?.toString();
-      if (collectionId) {
-        order[collectionId] = node.order ?? 0;
-        order[collectionId.toLowerCase()] = node.order ?? 0;
+      const declared = explicitOrder(node.order);
+      // Never persist the 999 sentinel back into the manifest: it is not a
+      // position and would outrank a real declared order on later boots.
+      if (declared !== undefined) {
+        order[id] = declared;
+        const collectionId = node.collectionDef?._id?.toString();
+        if (collectionId) {
+          order[collectionId] = declared;
+          order[collectionId.toLowerCase()] = declared;
+        }
+        const collectionSlug = node.collectionDef?.slug?.toString();
+        if (collectionSlug) order[collectionSlug.toLowerCase()] = declared;
       }
-      const collectionSlug = node.collectionDef?.slug?.toString();
-      if (collectionSlug) order[collectionSlug.toLowerCase()] = node.order ?? 0;
     }
 
     if (node.nodeType === "category" || node.source === "builder") {
@@ -149,7 +190,7 @@ export function buildOrganizationalManifestFromNodes(
         nodeType: node.nodeType as StructureNodeSnapshot["nodeType"],
         path: node.path,
         parentId: node.parentId?.toString(),
-        order: node.order ?? 0,
+        order: explicitOrder(node.order) ?? 999,
         icon: node.icon,
         source: node.source ?? (node.nodeType === "category" ? "builder" : undefined),
       });

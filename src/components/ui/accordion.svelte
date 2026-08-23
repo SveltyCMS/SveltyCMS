@@ -39,6 +39,6 @@ setContext('accordion', {
 });
 </script>
 
-<div class={cn('divide-y divide-surface-200 dark:divide-surface-800 border-y border-surface-200 dark:border-surface-800', className)}>
+<div class={cn('divide-y divide-surface-200 dark:divide-surface-800 border-y border-surface-500/30 dark:border-surface-500/40', className)}>
 	{@render children()}
 </div>

@@ -316,7 +316,7 @@ $effect(() => {
 			}
 			collections.setCollectionValue(newEntry);
 
-			// 🔧 FIX: Perform initial validation for required fields
+			// Perform initial validation for required fields
 			validationStore.clearAllErrors();
 
 			// Initialize change tracking
@@ -488,7 +488,7 @@ beforeNavigate(async ({ cancel, to }) => {
 
 <svelte:head><title>{collectionSchema?.name ?? 'Collection'} - SveltyCMS</title></svelte:head>
 
-<div class="content min-h-0 flex-1">
+<div class="content flex min-h-0 flex-1 flex-col">
 	<!-- Auto-save indicator -->
 	{#if isSavingDraft}
 		<div class="fixed inset-e-4-4 top-20 z-50 flex items-center gap-2 rounded bg-warning-500 px-4 py-2 text-white shadow-lg">
@@ -499,7 +499,7 @@ beforeNavigate(async ({ cancel, to }) => {
 
 	{#if !collections.active}
 		<!-- Collection data should be available from SSR, if not show error -->
-		<div class="dark:bg-error-950 flex h-64 flex-col items-center justify-center rounded border border-error-500 bg-error-50 p-8">
+		<div class="dark:bg-error-500/10 flex h-64 flex-col items-center justify-center rounded border border-error-500 bg-error-500/10 p-8">
 			<svg aria-hidden="true" class="mb-4 h-16 w-16 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
 					stroke-linecap="round"

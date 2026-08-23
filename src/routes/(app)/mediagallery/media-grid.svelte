@@ -332,7 +332,7 @@
                 />
               </div>
             {:else}
-              <div class="flex h-full w-full items-center justify-center bg-surface-100/80 dark:bg-surface-800/80">
+              <div class="flex h-full w-full items-center justify-center bg-surface-500/10 dark:bg-surface-800/80">
                 <iconify-icon
                   icon={file.type === "image" ? "mdi:image-off-outline" : getFileIcon(file)}
                   width={36}
@@ -367,42 +367,42 @@
                 <span class="font-serif text-sm font-semibold italic leading-none text-primary-500">i</span>
               {/snippet}
               {#snippet content()}
-                <div class="flex flex-col text-[11px] text-surface-800 dark:text-surface-200 min-w-60">
-                  <div class="border-b border-surface-300 dark:border-surface-700 pb-2 mb-0 text-center text-[13px]">
+                <div class="flex flex-col text-[11px] text-surface-600 dark:text-surface-400 min-w-60">
+                  <div class="border-b border-surface-500/30 dark:border-surface-500/40 pb-2 mb-0 text-center text-[13px]">
                     File NAME : {file.filename}
                   </div>
                   <table class="w-full text-start border-collapse mt-2">
                     <thead>
-                      <tr class="border-b border-surface-300 dark:border-surface-700 text-primary-600 dark:text-primary-500">
-                        <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-start">Size</th>
-                        <th class="font-bold py-1 px-2 border-e border-surface-300 dark:border-surface-700 text-center">Pixel</th>
+                      <tr class="border-b border-surface-500/30 dark:border-surface-500/40 text-primary-600 dark:text-primary-500">
+                        <th class="font-bold py-1 px-2 border-e border-surface-500/30 dark:border-surface-500/40 text-start">Size</th>
+                        <th class="font-bold py-1 px-2 border-e border-surface-500/30 dark:border-surface-500/40 text-center">Pixel</th>
                         <th class="font-bold py-1 px-2 text-end" colspan="2">Size</th>
                       </tr>
                     </thead>
-                    <tbody class="text-surface-700 dark:text-surface-300">
-                      <tr class="border-b border-surface-300 dark:border-surface-700">
-                        <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-surface-300 dark:border-surface-700 text-start">original</td>
-                        <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">{getDimensionsLabel(file) || '-'}</td>
+                    <tbody class="text-surface-600 dark:text-surface-400">
+                      <tr class="border-b border-surface-500/30 dark:border-surface-500/40">
+                        <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-surface-500/30 dark:border-surface-500/40 text-start">original</td>
+                        <td class="py-1 px-2 text-center border-e border-surface-500/30 dark:border-surface-500/40">{getDimensionsLabel(file) || '-'}</td>
                         <td class="py-1 px-2 text-end tabular-nums" colspan="2">{formatBytes((file as MediaImage).size)}</td>
                       </tr>
                       {#if file.thumbnails}
                         {@const hasWebp = hasWebpVariants(file.thumbnails)}
                         {@const primaryLabel = primaryFormatLabel(file.thumbnails)}
-                        <tr class="border-b border-surface-300 dark:border-surface-700">
-                          <td class="py-1 px-2 font-bold text-surface-500 dark:text-surface-400 border-e border-surface-300 dark:border-surface-700 text-start" colspan="4">
+                        <tr class="border-b border-surface-500/30 dark:border-surface-500/40">
+                          <td class="py-1 px-2 font-bold text-surface-500 dark:text-surface-400 border-e border-surface-500/30 dark:border-surface-500/40 text-start" colspan="4">
                             Resized variants — {primaryLabel}{#if hasWebp} + WebP{/if}
                           </td>
                         </tr>
                         {#each deriveSizeKeys(file.thumbnails) as sizeKey (sizeKey)}
                           {@const webpKey = getWebpKey(file.thumbnails, sizeKey)}
                           {@const thumb = file.thumbnails[sizeKey]!}
-                          <tr class="border-b border-surface-300 dark:border-surface-700 last:border-0">
-                            <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-surface-300 dark:border-surface-700 text-start">{sizeKey}</td>
-                            <td class="py-1 px-2 text-center border-e border-surface-300 dark:border-surface-700">
+                          <tr class="border-b border-surface-500/30 dark:border-surface-500/40 last:border-0">
+                            <td class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-surface-500/30 dark:border-surface-500/40 text-start">{sizeKey}</td>
+                            <td class="py-1 px-2 text-center border-e border-surface-500/30 dark:border-surface-500/40">
                               {thumb.width}x{thumb.height}
                             </td>
                             {#if hasWebp}
-                              <td class="py-1 px-2 text-end tabular-nums border-e border-surface-300 dark:border-surface-700">
+                              <td class="py-1 px-2 text-end tabular-nums border-e border-surface-500/30 dark:border-surface-500/40">
                                 {(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
                               </td>
                               <td class="py-1 px-2 text-end tabular-nums">
@@ -477,7 +477,7 @@
           </div>
         </div>
 
-        <div class="mt-1.5 flex items-baseline justify-between gap-2 border-b border-surface-200 px-1.5 pb-2 pt-0.5 sm:px-2 dark:border-surface-800">
+        <div class="mt-1.5 flex items-baseline justify-between gap-2 border-b border-surface-500/30 px-1.5 pb-2 pt-0.5 sm:px-2 dark:border-surface-500/40">
           <span class="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-surface-500 sm:text-[11px] dark:text-surface-400">
             {formatMimeType((file as MediaImage).mimeType)}
           </span>

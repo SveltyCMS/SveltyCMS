@@ -103,7 +103,7 @@ function serveCachedEntry(cached: any, request: Request): Response {
   const preComp = algo ? cached.compressed?.[algo] : null;
   if (preComp) {
     const responseHeaders = new Headers(cached.headers || {});
-    // 🐛 FIX: cached.headers carries the ORIGINAL (uncompressed) Content-Length.
+    // 🐛 cached.headers carries the ORIGINAL (uncompressed) Content-Length.
     // Serving the compressed variant with it makes clients wait for bytes that
     // never arrive → "socket closed unexpectedly" on every compressed cache hit.
     responseHeaders.delete("content-length");

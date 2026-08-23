@@ -86,7 +86,7 @@ export const widgetMeta = {
 					<!-- Compact single-row layout -->
 					<div class="flex items-center justify-between text-xs px-1">
 						<div class="flex items-center space-x-1.5">
-							<div class="h-2 w-2 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-yellow-500' : 'bg-emerald-500'}"></div>
+							<div class="h-2 w-2 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-warning-500' : 'bg-success-500'}"></div>
 							<span class="font-bold tabular-nums">{cpu.current.toFixed(1)}%</span>
 						</div>
 						<span class="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">avg: {cpu.average.toFixed(1)}%</span>
@@ -96,8 +96,8 @@ export const widgetMeta = {
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<div class="relative">
-								<div class="h-3 w-3 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-yellow-500' : 'bg-emerald-500'}"></div>
-								<div class="absolute inset-0 h-3 w-3 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-yellow-500' : 'bg-emerald-500'} animate-ping opacity-75"></div>
+								<div class="h-3 w-3 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-warning-500' : 'bg-success-500'}"></div>
+								<div class="absolute inset-0 h-3 w-3 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-warning-500' : 'bg-success-500'} animate-ping opacity-75"></div>
 							</div>
 							<span class="text-xl font-semibold tabular-nums">{cpu.current.toFixed(1)}%</span>
 							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">now</span>
@@ -112,9 +112,9 @@ export const widgetMeta = {
 					<div class="relative h-2 overflow-hidden rounded-full {theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}">
 						<div
 							class="h-full rounded-full transition-all duration-700 ease-out"
-							class:bg-red-500={cpu.level === 'high'}
-							class:bg-yellow-500={cpu.level === 'medium'}
-							class:bg-blue-500={cpu.level === 'low'}
+							class:bg-error-500={cpu.level === 'high'}
+							class:bg-warning-500={cpu.level === 'medium'}
+							class:bg-tertiary-500={cpu.level === 'low'}
 							style="width: {Math.max(4, cpu.current)}%"
 						></div>
 					</div>
@@ -205,7 +205,7 @@ export const widgetMeta = {
 			<!-- Loading State -->
 			<div class="flex h-full items-center justify-center">
 				<div class="flex flex-col items-center gap-3">
-					<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+					<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"></div>
 					<p class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Fetching CPU metrics...</p>
 				</div>
 			</div>

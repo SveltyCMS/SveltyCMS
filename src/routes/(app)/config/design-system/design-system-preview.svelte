@@ -27,6 +27,7 @@ so preview stays in sync with Layout & Visual Style tabs.
 	import Textarea from "@components/ui/textarea.svelte";
 	import Toggle from "@components/ui/toggle.svelte";
 	import ThemeToggle from "@components/theme-toggle.svelte";
+	import { adminFade, adminPage, adminSlide, adminStagger } from "@utils/admin-transitions";
 	import { getThemeContext } from "@components/ui/theme-context.svelte";
 	import type { AdminTheme } from "@components/ui/theme-context.svelte";
 
@@ -81,6 +82,10 @@ so preview stays in sync with Layout & Visual Style tabs.
 	let sampleSelect = $state("draft");
 	let sampleToggle = $state(true);
 	let sampleTextarea = $state("Helper text and labels adapt to density.");
+
+	// Motion showcase — increment the key to replay every demo transition.
+	let motionDemoKey = $state(0);
+	const replayMotion = () => motionDemoKey++;
 
 	const structuralTokens = $derived(
 		liveTheme
@@ -251,6 +256,78 @@ so preview stays in sync with Layout & Visual Style tabs.
 				<p class="mt-1 text-xs" style="color: var(--admin-text-muted)">Border + subtle fill.</p>
 			</AdminCard>
 		</div>
+	</AdminCard>
+
+	<!-- Motion & transitions -->
+	<AdminCard class="p-5">
+		<h2 class="mb-1 text-base font-bold" style="color: var(--admin-text-body)">Motion & transitions</h2>
+		<p class="mb-4 text-sm" style="color: var(--admin-text-muted)">
+			Shared transitions from <code class="text-xs">@utils/admin-transitions</code> — all drop to 0ms under
+			<code class="text-xs">prefers-reduced-motion</code>. Page entry uses <code class="text-xs">adminPage</code> on
+			every route, grids use <code class="text-xs">adminStagger</code>, drawers use <code class="text-xs">adminSlide</code>.
+		</p>
+		<div class="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px]" style="color: var(--admin-text-muted)">
+			<span><code class="text-xs">--admin-motion-fast</code> 150ms</span>
+			<span><code class="text-xs">--admin-motion-base</code> 200ms</span>
+			<span><code class="text-xs">--admin-motion-slow</code> 300ms</span>
+			<span><code class="text-xs">--admin-ease-out</code> cubic-bezier(0.16, 1, 0.3, 1)</span>
+		</div>
+
+		<div class="mb-3">
+			<Button variant="tertiary" size="sm" onclick={replayMotion} leadingIcon="mdi:replay">Replay all</Button>
+		</div>
+
+		{#key motionDemoKey}
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+				<div>
+					<div class="mb-2 text-xs font-semibold uppercase tracking-wider" style="color: var(--admin-text-muted)">adminPage — page entry</div>
+					<div
+						in:adminPage={{ duration: 240, rise: 8 }}
+						class="rounded-md border px-4 py-3 text-sm"
+						style="border-color: var(--admin-border-default); background: var(--admin-bg-card); color: var(--admin-text-body)"
+					>
+						240ms fade + 8px rise — used by every admin route.
+					</div>
+				</div>
+
+				<div>
+					<div class="mb-2 text-xs font-semibold uppercase tracking-wider" style="color: var(--admin-text-muted)">adminFade — reveals</div>
+					<div
+						in:adminFade={{ duration: 200 }}
+						class="rounded-md border px-4 py-3 text-sm"
+						style="border-color: var(--admin-border-default); background: var(--admin-bg-card); color: var(--admin-text-body)"
+					>
+						200ms fade — modals and section reveals.
+					</div>
+				</div>
+
+				<div>
+					<div class="mb-2 text-xs font-semibold uppercase tracking-wider" style="color: var(--admin-text-muted)">adminSlide — drawers</div>
+					<div
+						in:adminSlide={{ duration: 240, distance: 48 }}
+						class="rounded-md border px-4 py-3 text-sm"
+						style="border-color: var(--admin-border-default); background: var(--admin-bg-card); color: var(--admin-text-body)"
+					>
+						Slides in from the right — mobile sidebars and slide-overs.
+					</div>
+				</div>
+
+				<div>
+					<div class="mb-2 text-xs font-semibold uppercase tracking-wider" style="color: var(--admin-text-muted)">adminStagger — grids</div>
+					<div class="flex flex-col gap-2">
+						{#each ['first', 'second', 'third', 'fourth'] as item, i (item)}
+							<div
+								in:adminStagger={{ index: i }}
+								class="rounded-md border px-4 py-2 text-xs"
+								style="border-color: var(--admin-border-default); background: var(--admin-bg-card); color: var(--admin-text-body)"
+							>
+								{item}
+							</div>
+						{/each}
+					</div>
+				</div>
+			</div>
+		{/key}
 	</AdminCard>
 
 	<!-- Structural tokens -->

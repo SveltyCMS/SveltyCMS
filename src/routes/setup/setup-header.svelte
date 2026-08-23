@@ -74,7 +74,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 									<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"></iconify-icon>
 								</Button>
 							{/snippet}
-							<div class="border-b border-surface-200 dark:border-surface-600 bg-surface-100/90 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">
+							<div class="border-b border-surface-500/30 dark:border-surface-600 bg-surface-500/10 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">
 								{applayout_systemlanguage()}
 							</div>
 							<div class="custom-scrollbar max-h-64 overflow-y-auto">
@@ -92,7 +92,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 						</Dropdown>
 					</SystemTooltip>
 				</div>
-				<ThemeToggle showTooltip={true} tooltipPlacement="bottom" iconSize={20} />
+				<ThemeToggle showTooltip={true} tooltipPlacement="bottom" iconSize={20} variant="ghost" />
 			</div>
 		</div>
 
@@ -110,12 +110,12 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 				<SystemTooltip title={applayout_systemlanguage?.() || 'Change system language'}>
 					<Dropdown position="bottom-end" closeOnSelect={false} class="p-0! w-64">
 						{#snippet trigger()}
-							<Button variant="ghost" type="button" class="h-10 rounded px-3 gap-1 dark:text-white">
+							<Button variant="outline" type="button" class="h-10 rounded px-3 gap-1 dark:text-white">
 								<span class="text-sm font-bold">{getLanguageName(currentLanguageTag)}</span>
 								<iconify-icon icon="mdi:chevron-down" class="ms-1 h-4 w-4 transition-transform"></iconify-icon>
 							</Button>
 						{/snippet}
-						<div class="border-b border-surface-200 dark:border-surface-600 bg-surface-100/90 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">
+						<div class="border-b border-surface-500/30 dark:border-surface-600 bg-surface-500/10 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2">
 							{applayout_systemlanguage()}
 						</div>
 						<div class="custom-scrollbar max-h-64 overflow-y-auto">
@@ -135,7 +135,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 			</div>
 
 			<SystemTooltip title="Accessibility Help">
-				<Button variant="ghost" type="button" onclick={() => modalState.trigger(AccessibilityHelp)} aria-label="Accessibility Help" class="h-10 w-10 rounded text-black dark:text-white">
+				<Button variant="outline" type="button" onclick={() => modalState.trigger(AccessibilityHelp)} aria-label="Accessibility Help" class="h-10 w-10 rounded text-black dark:text-white">
 					<iconify-icon icon="mdi:accessibility" width="20"></iconify-icon>
 				</Button>
 			</SystemTooltip>

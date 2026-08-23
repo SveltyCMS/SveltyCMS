@@ -264,7 +264,7 @@ Features:
 		{#snippet header()}
 			<div class="flex min-w-0 flex-1 items-center gap-3 pe-1">
 				<div
-					class="media-checkerboard flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-surface-200 md:h-12 md:w-12 dark:border-surface-700"
+					class="media-checkerboard flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-surface-500/30 md:h-12 md:w-12 dark:border-surface-500/40"
 				>
 					<img src={getImageUrl(activeFile)} alt="" class="h-full w-full object-cover" crossorigin="anonymous" />
 				</div>
@@ -295,10 +295,10 @@ Features:
 				data-testid="tag-editor-body"
 			>
 				<!-- AI / Pending -->
-				<section class="flex flex-col gap-2.5 border-b border-surface-200 pb-3 md:gap-3 md:pb-4 dark:border-surface-800">
+				<section class="flex flex-col gap-2.5 border-b border-surface-500/30 pb-3 md:gap-3 md:pb-4 dark:border-surface-500/40">
 					<div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between md:gap-3">
 						<div class="min-w-0">
-							<h3 class="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-surface-800 dark:text-surface-100">
+							<h3 class="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-surface-600 dark:text-surface-100">
 								<iconify-icon icon="mdi:robot-outline" width="16" class="shrink-0 text-primary-500"></iconify-icon>
 								<span>AI / Pending</span>
 								{#if pendingCount > 0}
@@ -337,7 +337,7 @@ Features:
 										type="text"
 										bind:value={editingTag.value}
 										class="h-7 w-28"
-										inputClass="rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"
+										inputClass="rounded-md border border-surface-500/30 bg-surface-500/10 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-50"
 										onkeydown={(e) => {
 											if (e.key === 'Enter') editTag(tag, editingTag!.value, 'ai');
 											if (e.key === 'Escape') editingTag = null;
@@ -405,7 +405,7 @@ Features:
 				<section class="flex flex-col gap-2.5 pt-3 md:gap-3 md:pt-4">
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0">
-							<h3 class="flex items-center gap-1.5 text-sm font-semibold text-surface-800 dark:text-surface-100">
+							<h3 class="flex items-center gap-1.5 text-sm font-semibold text-surface-600 dark:text-surface-100">
 								<span>Saved Tags</span>
 								{#if savedCount > 0}
 									<Badge variant="surface" preset="tonal" size="sm">{savedCount}</Badge>
@@ -426,7 +426,7 @@ Features:
 										type="text"
 										bind:value={editingTag.value}
 										class="h-7 w-28"
-										inputClass="rounded-md border border-surface-300 bg-surface-50 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-50"
+										inputClass="rounded-md border border-surface-500/30 bg-surface-500/10 px-2 text-xs text-surface-900 outline-none focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-500/20 dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-50"
 										onkeydown={(e) => {
 											if (e.key === 'Enter') editTag(tag, editingTag!.value, 'user');
 											if (e.key === 'Escape') editingTag = null;

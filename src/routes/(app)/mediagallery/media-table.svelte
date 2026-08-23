@@ -258,7 +258,7 @@ function onUpdateRowsPerPage(rows: number) {
 					{@const isSelected = selectedFiles.has(fileId)}
 
 					<div
-						class="flex cursor-grab items-center gap-3 border-b border-s-2 border-s-transparent border-surface-200 px-2 py-3 active:cursor-grabbing dark:border-surface-800/80
+						class="flex cursor-grab items-center gap-3 border-b border-s-2 border-s-transparent border-surface-500/30 px-2 py-3 active:cursor-grabbing dark:border-surface-500/40
 							{isSelected ? `border-s-primary-500 ${SMART_TABLE_ROW_SELECTED}` : SMART_TABLE_ROW_HOVER}"
 						role="row"
 						tabindex="0"
@@ -379,7 +379,7 @@ function onUpdateRowsPerPage(rows: number) {
 						{@const isSelected = selectedFiles.has(fileId)}
 
 						<tr
-							class="group cursor-grab border-b border-surface-200 align-middle active:cursor-grabbing dark:border-surface-800/80
+							class="group cursor-grab border-b border-surface-500/30 align-middle active:cursor-grabbing dark:border-surface-500/40
 								{isSelected ? SMART_TABLE_ROW_SELECTED : SMART_TABLE_ROW_HOVER}"
 							onclick={() => handleRowClick(file)}
 							onkeydown={(e) => handleKeyDown(e, file)}

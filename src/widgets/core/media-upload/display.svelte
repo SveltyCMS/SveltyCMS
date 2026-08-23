@@ -68,7 +68,7 @@ import { logger } from "@utils/logger";
 					src={file.thumbnailUrl}
 					alt={file.name}
 					title={file.name}
-					class="h-8 w-8 rounded border border-surface-200 object-cover dark:text-surface-50"
+					class="h-8 w-8 rounded border border-surface-500/30 object-cover dark:text-surface-50"
 				/>
 				{#if (file as any).aiTags?.length}
 					<div

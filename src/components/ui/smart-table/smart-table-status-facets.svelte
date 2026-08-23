@@ -24,7 +24,7 @@
 	} = $props();
 
 	const CHIP_ORDER = [
-		{ key: StatusTypes.publish, label: 'Published', variant: 'success' as const },
+		{ key: StatusTypes.publish, label: 'Published', variant: 'primary' as const },
 		{ key: StatusTypes.draft, label: 'Draft', variant: 'surface' as const },
 		{ key: StatusTypes.unpublish, label: 'Unpublished', variant: 'warning' as const },
 		{ key: StatusTypes.schedule, label: 'Scheduled', variant: 'secondary' as const },
@@ -45,8 +45,8 @@
 			type="button"
 			class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors
 				{!active
-				? 'bg-tertiary-500 text-white dark:bg-primary-500'
-				: 'bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-surface-800 dark:text-surface-300'}"
+				? 'bg-tertiary-500 text-white dark:bg-surface-500'
+				: 'bg-surface-500/10 text-surface-600 hover:bg-surface-200 dark:bg-surface-800 dark:text-surface-300'}"
 			aria-pressed={!active}
 			onclick={() => onSelect('')}
 		>

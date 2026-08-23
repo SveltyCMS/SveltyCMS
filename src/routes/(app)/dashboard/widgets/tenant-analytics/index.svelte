@@ -76,9 +76,9 @@ export const widgetMeta = {
 	});
 
 	function quotaColorClass(pct: number): string {
-		if (pct >= 90) return 'bg-red-500';
-		if (pct >= 70) return 'bg-amber-500';
-		return 'bg-emerald-500';
+		if (pct >= 90) return 'bg-error-500';
+		if (pct >= 70) return 'bg-warning-500';
+		return 'bg-success-500';
 	}
 
 	let data: TenantAnalytics | null = $state(null);
@@ -136,19 +136,19 @@ export const widgetMeta = {
 			<div class="flex h-full flex-col gap-3">
 				<!-- Top stat cards -->
 				<div class="grid grid-cols-3 gap-2">
-					<div class="rounded-2xl bg-surface-50 px-3 py-2.5 dark:bg-surface-800/60">
+					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
 						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Users</div>
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{statValue(analytics.users.total)}
 						</div>
 					</div>
-					<div class="rounded-2xl bg-surface-50 px-3 py-2.5 dark:bg-surface-800/60">
+					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
 						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Collections</div>
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{statValue(analytics.collections)}
 						</div>
 					</div>
-					<div class="rounded-2xl bg-surface-50 px-3 py-2.5 dark:bg-surface-800/60">
+					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
 						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Entries</div>
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{statValue(analytics.contentEntries)}
@@ -159,7 +159,7 @@ export const widgetMeta = {
 				<!-- Storage + Activity row -->
 				<div class="grid grid-cols-2 gap-2 flex-1">
 					<!-- Storage Card -->
-					<div class="rounded-2xl bg-surface-50 px-3 py-2.5 dark:bg-surface-800/60 flex flex-col justify-between">
+					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60 flex flex-col justify-between">
 						<div>
 							<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Storage</div>
 							<div class="mt-1 text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100">
@@ -180,7 +180,7 @@ export const widgetMeta = {
 					</div>
 
 					<!-- Activity Card -->
-					<div class="rounded-2xl bg-surface-50 px-3 py-2.5 dark:bg-surface-800/60 flex flex-col justify-between">
+					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60 flex flex-col justify-between">
 						<div>
 							<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Activity</div>
 							<div class="mt-2 flex items-baseline gap-1">
@@ -198,7 +198,7 @@ export const widgetMeta = {
 				</div>
 
 				<!-- Summary row -->
-				<div class="flex items-center gap-2 rounded-xl border border-surface-200 px-3 py-2 text-xs dark:border-surface-700">
+				<div class="flex items-center gap-2 rounded-xl border border-surface-500/30 px-3 py-2 text-xs dark:border-surface-500/40">
 					<iconify-icon icon="mdi:information-outline" class="shrink-0 text-surface-400"></iconify-icon>
 					<span class="text-surface-600 dark:text-surface-400">
 						All metrics are scoped to your organization.

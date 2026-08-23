@@ -96,9 +96,9 @@ export const widgetMeta = {
 	function getRoleColor(role: string): string {
 		switch (role) {
 			case 'admin': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300';
-			case 'editor': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+			case 'editor': return 'bg-tertiary-500/10 text-tertiary-600 dark:bg-tertiary-900/20 dark:text-tertiary-400';
 			case 'viewer': return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
-			default: return 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-400';
+			default: return 'bg-surface-500/10 text-surface-600 dark:bg-surface-700 dark:text-surface-400';
 		}
 	}
 
@@ -121,11 +121,11 @@ export const widgetMeta = {
 		{onSizeChange}
 		onCloseRequest={onRemove}
 	>
-		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-50 dark:bg-surface-800/50 rounded-lg">
-			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-amber-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-800 dark:text-surface-200">Premium Extension</h3>
+		<div class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg">
+			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
+			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">Premium Extension</h3>
 			<p class="text-xs text-surface-500 mt-1 mb-3">Your 14-day trial for this extension has expired. A valid LICENSE_KEY is required.</p>
-			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-500">Upgrade License &rarr;</a>
+			<a href="https://marketplace.sveltycms.com" target="_blank" class="text-xs font-medium text-primary-600 hover:text-primary-600 dark:text-primary-500">Upgrade License &rarr;</a>
 		</div>
 	</BaseWidget>
 {:else}
@@ -166,7 +166,7 @@ export const widgetMeta = {
 			<div class="flex h-full items-center gap-3 overflow-hidden">
 				<!-- Count badge -->
 				<div class="flex shrink-0 items-center gap-1.5">
-					<span class="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+					<span class="text-lg font-bold tabular-nums text-success-600 dark:text-success-400">
 						{totalOnline}
 					</span>
 					<span class="text-xs text-surface-500 dark:text-surface-400">online</span>
@@ -179,7 +179,7 @@ export const widgetMeta = {
 				<div class="flex flex-1 items-center gap-2 overflow-x-auto scrollbar-none">
 					{#each onlineUsers as user (user.id)}
 						<div
-							class="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-100 px-2 py-1 dark:bg-surface-800"
+							class="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-500/10 px-2 py-1 dark:bg-surface-800"
 							title="{user.name} — {getRoleLabel(user.role)} · {formatOnlineTime(user.onlineMinutes)} online"
 						>
 							<div class="relative shrink-0">
@@ -188,9 +188,9 @@ export const widgetMeta = {
 									alt={user.name}
 									class="h-6 w-6 rounded-full object-cover"
 								/>
-								<div class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface-100 bg-emerald-500 dark:border-surface-800"></div>
+								<div class="absolute -bottom-0.5 -inset-e-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface-100 bg-success-500 dark:border-surface-500/40"></div>
 							</div>
-							<span class="max-w-20 truncate text-xs font-medium text-surface-700 dark:text-surface-300">
+							<span class="max-w-20 truncate text-xs font-medium text-surface-600 dark:text-surface-400">
 								{user.name}
 							</span>
 						</div>
@@ -204,14 +204,14 @@ export const widgetMeta = {
 				<!-- Header -->
 				<div class="flex items-center justify-between pb-3">
 					<div class="flex items-baseline gap-1.5">
-						<span class="text-2xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+						<span class="text-2xl font-semibold tabular-nums text-success-600 dark:text-success-400">
 							{totalOnline}
 						</span>
 						<span class="text-sm text-surface-500 dark:text-surface-400">online now</span>
 					</div>
 
 					{#if totalOnline > 1}
-						<div class="rounded-full bg-surface-100 px-2.5 py-0.5 text-xs text-surface-600 dark:bg-surface-800 dark:text-surface-400">
+						<div class="rounded-full bg-surface-500/10 px-2.5 py-0.5 text-xs text-surface-600 dark:bg-surface-800 dark:text-surface-400">
 							{totalOnline} active
 						</div>
 					{/if}
@@ -224,7 +224,7 @@ export const widgetMeta = {
 							type="text"
 							bind:value={searchTerm}
 							placeholder="Filter users..."
-							class="w-full rounded border border-surface-200 bg-surface-50 py-1.5 pe-9 ps-3 text-sm text-surface-800 placeholder-surface-400 transition-colors focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200 dark:placeholder-surface-500"
+							class="w-full rounded border border-surface-500/30 bg-surface-500/10 py-1.5 pe-9 ps-3 text-sm text-surface-800 placeholder-surface-400 transition-colors focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200 dark:placeholder-surface-500"
 						/>
 						<iconify-icon
 							icon="mdi:magnify"
@@ -238,7 +238,7 @@ export const widgetMeta = {
 				<div class="flex-1 overflow-y-auto space-y-1 pe-0.5 custom-scroll" role="list" aria-label="Online users">
 					{#each filteredUsers as user (user.id)}
 						<div
-							class="group flex items-center gap-3 rounded-2xl bg-surface-50 px-3 py-2.5 transition-colors hover:bg-surface-100 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
+							class="group flex items-center gap-3 rounded-2xl bg-surface-500/10 px-3 py-2.5 transition-colors hover:bg-surface-500/10 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
 							role="listitem"
 						>
 							<!-- Avatar with presence dot -->
@@ -249,7 +249,7 @@ export const widgetMeta = {
 									class="h-9 w-9 rounded-full object-cover ring-2 ring-white dark:ring-surface-800"
 									loading="lazy"
 								/>
-								<div class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-surface-800"></div>
+								<div class="absolute -bottom-0.5 -inset-e-0.5 h-3 w-3 rounded-full border-2 border-white bg-success-500 dark:border-surface-500/40"></div>
 							</div>
 
 							<!-- Name and role -->

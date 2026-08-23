@@ -1,68 +1,58 @@
 <!--
 @file src/routes/(app)/config/collectionbuilder/nested-content/tree-view-board.svelte
 @component
-**Nested collection tree with file-manager style drag & drop (@thisux/sveltednd)**
+**Enhanced Board for nested collections using @thisux/sveltednd (migrated from svelte-dnd-action)**
 
 ### Props
-- `contentNodes` {ContentNode[]} - Flat list of collections and categories
-- `structureKey` {number} - Incremented by parent after a save so we rebuild from server order
-- `onNodeUpdate` {Function} - Receives the full flat node list after every move
-- `onEditCategory` / `onDeleteNode` / `onDuplicateNode` - Row action callbacks
+- `contentNodes` {ContentNode[]} - Array of content nodes representing collections and categories
+- `onNodeUpdate` {Function} - Callback function to handle updates to the content node
+- `onEditCategory` {Function} - Callback function to handle editing of categories
+- `onDeleteNode` {Function} - Callback function to handle node deletion
+- `onDuplicateNode` {Function} - Callback function to handle node duplication
 
-### Drag & drop model
-Two operations, resolved from exactly one signal each — rows are the ONLY drop
-targets, so nothing appears or resizes when a drag starts:
-
-1. **Sort** — drop on the top/bottom half of a row inserts before/after it, as a
-   sibling *at that row's level*. This is also how you move an item OUT of a
-   category: drop it on the half of any row that lives at the level you want.
-2. **Nest** — sorting is the default everywhere; nesting has to be earned. The
-   pointer must be in the MIDDLE band of a category row (the outer `SORT_EDGE`
-   of its height always means "sort beside") AND come to rest there for
-   `DWELL_MS`; any travel past `DWELL_MOVE_TOLERANCE` restarts the countdown.
-   Only then does the category highlight amber and spring open, and a release
-   drops INSIDE it, appended last. Both conditions exist so that crossing a
-   category on the way to a position above or below it — or pausing at its edge
-   to aim — stays plain same-level sorting. This also covers empty categories,
-   so no placeholder drop zone is needed.
-
-Why this shape: sveltednd derives `dropPosition` from the droppable node's own
-bounding rect (`clientY < top + height/2`). So each droppable must wrap the row
-header ONLY — never the subtree — or the midpoint is the middle of the whole
-expanded branch. Children therefore render as a *sibling* of the row, which also
-means no droppable is ever nested inside another droppable and a single gesture
-can only ever fire one `onDrop`.
-
-"Inside" is not a position sveltednd reports, so it is derived from dwell time on
-`onDragEnter` rather than from cursor geometry. That needs no pointer coordinates,
-which matters because `pointermove` does not fire during an HTML5 drag.
+### Features:
+- Drag and drop via @thisux/sveltednd (replaces former `svelte-dnd-action` / `dndzone`)
+- Free nesting: drop on category **middle** = inside; top/bottom edge = sibling before/after
+- Nested category drop zones auto-expand while dragging
+- Preserves full ContentNode payloads (collectionDef, etc.) so sidebar stays coherent
+- Cycle detection (prevents dropping parent into own child)
+- Race condition prevention with hash synchronization
+- Search/Filter functionality with auto-expand
+- Expand/Collapse all
+- Full keyboard navigation (Arrow keys, Home/End, typeahead, * for siblings)
+- Roving tabindex for accessibility
+- Smart focus management after deletions
+- Memory leak prevention with cleanup effects
+- Enhanced visual feedback for drag & drop
 -->
 <script lang="ts">
 import type { ContentNode, DatabaseId } from "@databases/db-interface";
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
+import { sortContentNodes } from "@src/content";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { tick } from "svelte";
-import { draggable, droppable, dndState } from "@thisux/sveltednd";
-import type { DragDropState } from "@thisux/sveltednd";
-import { SvelteSet } from "svelte/reactivity";
+import { onMount, tick } from "svelte";
+import { flip } from "svelte/animate";
+import { draggable, droppable, dndState } from '@thisux/sveltednd';
+import type { DragDropState } from '@thisux/sveltednd';
+import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { screen } from "@src/stores/screen-size-store.svelte.ts";
 // Components
 import TreeViewNode from "./tree-view-node.svelte";
-import Button from "@components/ui/button.svelte";
-import FloatingInput from "@components/ui/floating-input.svelte";
+	import Button from '@components/ui/button.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
 
-export interface TreeViewItem extends Record<string, any> {
-	_id?: any;
-	icon?: string;
-	id: string;
-	name: string;
-	nodeType: "category" | "collection" | "folder";
-	order?: number;
-	parent: string | null;
-	path: string;
-}
-
-type TreeNode = TreeViewItem & { children: TreeNode[] };
+	export interface TreeViewItem extends Record<string, any> {
+		_id?: any;
+		icon?: string;
+		id: string;
+		isDraggable?: boolean;
+		isDropAllowed?: boolean;
+		name: string;
+		nodeType: "category" | "collection" | "folder";
+		order?: number;
+		parent: string | null;
+		path: string;
+	}
 
 interface Props {
 	contentNodes: ContentNode[];
@@ -89,563 +79,300 @@ let {
 	onSelectCategory,
 }: Props = $props();
 
-/** How long a category must be hovered before it becomes a "drop inside" target. */
-const DWELL_MS = 500;
-
-/**
- * Fraction of a category row's height reserved at each edge for sorting.
- * Only the middle band can start a nest, so reordering past a category never
- * turns into a drop inside it.
- */
-const SORT_EDGE = 0.3;
-
-/**
- * Pointer travel (px) that counts as "still moving". Movement beyond this
- * restarts the dwell countdown, so activation requires the pointer to come to
- * REST over a category — merely crossing one on the way somewhere else can
- * never open it, however slowly you pass.
- */
-const DWELL_MOVE_TOLERANCE = 6;
-
-// --- Core state ---
+// Search and UI State
 let searchText = $state("");
-let treeRoots = $state<TreeNode[]>([]);
-let expandedNodes = $state(new SvelteSet<string>());
+let treeRoots = $state<EnhancedTreeViewItem[]>([]);
 let initialized = $state(false);
-
-/**
- * Hash of the tree we last handed to `onNodeUpdate`. While this is set we ignore
- * incoming `contentNodes` that don't match it, so an in-flight save can't be
- * clobbered by the pre-save props still sitting in the parent.
- */
-let pendingPushHash = $state("");
-let lastRenderedHash = $state("");
+// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+let expandedNodes = $state(new SvelteSet<string>());
+// isDragging is now tracked via dndState.isDragging from @thisux/sveltednd
+	let lastContentNodesHash = $state("");
+/** Hash of the nodes we last sent in saveTreeData; skip rebuilding until contentNodes matches this (avoids revert on same-level or next move). */
+let lastPushedHash = $state("");
+/** Last structureKey we saw; when it changes, clear hash guards to force rebuild from server order. */
 let lastStructureKey = $state(0);
+let rebuildTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
- * Full ContentNode payloads keyed by id. The tree only carries display/DnD
- * fields; save and the sidebar need collectionDef / source / translations.
- * Plain Map on purpose — it is written during rebuild, never read reactively.
+ * Full ContentNode snapshots keyed by id — tree UI only keeps display/DnD fields,
+ * but sidebar + save need collectionDef / source / translations, etc.
  */
-let sourceNodesById = new Map<string, ContentNode>();
+let sourceNodesById = new SvelteMap<string, ContentNode>();
 
-// --- Drag state ---
-/** Category currently dwelled on; dropping now nests inside it. */
-let dwellTargetId = $state<string | null>(null);
-let dwellTimer: ReturnType<typeof setTimeout> | null = null;
-/** Row the dwell timer is currently counting for, so re-entry doesn't restart it. */
-let dwellArmedFor: string | null = null;
-/** Pointer position the countdown was anchored at, to measure travel against. */
-let dwellAnchorX = 0;
-let dwellAnchorY = 0;
+/** Last pointer for before/after/inside thirds on category rows (sveltednd only exposes before|after). */
+let lastPointerY = 0;
+let lastPointerX = 0;
 
-/**
- * Row being dragged, set one frame AFTER dragstart. Chrome snapshots the source
- * element for its drag image at the end of the dragstart handler, so dimming it
- * synchronously (as a `.dragging` class does) bakes the transparency into that
- * snapshot and the cursor carries a washed-out, near-empty rectangle. Deferring
- * by a frame lets the snapshot capture the row at full opacity.
- */
-let dragSourceId = $state<string | null>(null);
-
-/**
- * Where the insertion line is drawn. Derived from dndState rather than the
- * library's own indicator: for `after` it moves the line onto
- * `node.nextElementSibling`, which in a tree is the target's children block,
- * so the line would render inside the branch instead of below it.
- */
-function lineFor(id: string): "before" | "after" | null {
-	if (!dndState.isDragging) return null;
-	if (dndState.targetContainer !== `node:${id}`) return null;
-	if (dwellTargetId === id) return null; // nesting, not sorting
-	return dndState.dropPosition ?? null;
-}
-
-// --- Accessibility state ---
-let announcement = $state("");
-let announcementId = $state(0);
-let rovingTabIndex = $state<string | null>(null);
-let typeaheadBuffer = "";
-let typeaheadTimeout: ReturnType<typeof setTimeout> | null = null;
-
-$effect(() => () => {
-	if (dwellTimer) clearTimeout(dwellTimer);
-	if (typeaheadTimeout) clearTimeout(typeaheadTimeout);
+onMount(() => {
+	const onMove = (e: PointerEvent) => {
+		lastPointerX = e.clientX;
+		lastPointerY = e.clientY;
+	};
+	window.addEventListener("pointermove", onMove, { passive: true });
+	return () => window.removeEventListener("pointermove", onMove);
 });
 
-// ---------------------------------------------------------------------------
-// Tree construction
-// ---------------------------------------------------------------------------
+// Accessibility State
+let announcement = $state("");
+let announcementId = $state(0);
+let keyboardReorderMode = $state<string | null>(null);
+let rovingTabIndex = $state<string | null>(null); // ID of node with tabindex="0"
 
-function hashNodes(nodes: Array<{ _id?: unknown; parentId?: unknown; order?: number }>): string {
-	return (
-		nodes
-			.map((n) => `${String(n._id)}:${n.parentId == null ? "" : String(n.parentId)}:${n.order ?? 0}`)
-			.sort()
-			.join("|") + `#${nodes.length}`
-	);
-}
+// Typeahead State
+let typeaheadBuffer = $state("");
+let typeaheadTimeout: ReturnType<typeof setTimeout> | null = null;
 
-/** Build the nested tree from the flat server list. Pure — no reactive allocations. */
-function buildTree(flat: ContentNode[]): TreeNode[] {
-	const byId = new Map<string, TreeNode>();
-
-	for (const n of flat) {
-		const id = String(n._id);
-		byId.set(id, {
-			id,
-			_id: n._id,
-			name: n.name,
-			nodeType: (n.nodeType || (n as any).type || "collection") as TreeViewItem["nodeType"],
-			parent: n.parentId != null ? String(n.parentId) : null,
-			order: n.order ?? 0,
-			path: n.path ?? "",
-			icon: n.icon,
-			slug: n.slug,
-			description: n.description,
-			children: [],
-		});
-	}
-
-	const roots: TreeNode[] = [];
-	for (const n of flat) {
-		const node = byId.get(String(n._id))!;
-		const parent = node.parent ? byId.get(node.parent) : null;
-		if (parent) parent.children.push(node);
-		else roots.push(node);
-	}
-
-	// `order` is authoritative; name only breaks exact ties so the result is stable.
-	const byOrder = (a: TreeNode, b: TreeNode) =>
-		(a.order ?? 0) - (b.order ?? 0) || (a.name ?? "").localeCompare(b.name ?? "");
-	const sortDeep = (list: TreeNode[]) => {
-		list.sort(byOrder);
-		for (const child of list) sortDeep(child.children);
+// Enhanced Item Type
+	type EnhancedTreeViewItem = TreeViewItem & {
+		children: EnhancedTreeViewItem[];
+		level: number;
 	};
-	sortDeep(roots);
+
+// Cleanup effect to prevent memory leaks
+$effect(() => {
+	return () => {
+		if (rebuildTimeout) {
+			clearTimeout(rebuildTimeout);
+		}
+		if (typeaheadTimeout) {
+			clearTimeout(typeaheadTimeout);
+		}
+	};
+});
+
+	// Initialize Tree from Props - with race condition protection
+	$effect(() => {
+		if (dndState.isDragging || !contentNodes.length) {
+			return;
+		}
+
+	// When parent signals fresh server data (e.g. after save), clear hash guards so we rebuild from server order
+	if (structureKey !== lastStructureKey) {
+		lastStructureKey = structureKey;
+		lastContentNodesHash = "";
+		lastPushedHash = "";
+	}
+
+	const currentHash =
+		contentNodes
+			.map((n) => `${n._id}:${n.parentId}:${n.order}`)
+			.sort()
+			.join("|") + contentNodes.length;
+
+	// Never rebuild from stale contentNodes when we've pushed an update that parent hasn't reflected yet
+	if (lastPushedHash && currentHash !== lastPushedHash) {
+		return;
+	}
+	// Parent synced (contentNodes matches what we sent); clear guard so server-driven updates can rebuild later
+	if (lastPushedHash && currentHash === lastPushedHash) {
+		lastPushedHash = "";
+	}
+
+	if (currentHash !== lastContentNodesHash) {
+		if (rebuildTimeout) {
+			clearTimeout(rebuildTimeout);
+		}
+
+		rebuildTimeout = setTimeout(() => {
+			lastContentNodesHash = currentHash;
+			lastPushedHash = "";
+
+			// Sort by parent then order so UI always reflects DB order (do not rely on array order)
+			const sortedNodes = [...contentNodes].sort((a, b) => {
+				const parentA = a.parentId != null ? String(a.parentId) : "";
+				const parentB = b.parentId != null ? String(b.parentId) : "";
+				if (parentA !== parentB) return parentA.localeCompare(parentB);
+				const orderDiff = (a.order ?? 0) - (b.order ?? 0);
+				if (orderDiff !== 0) return orderDiff;
+				return (a.name ?? "").localeCompare(b.name ?? "");
+			});
+
+			// Keep full node payloads for merge on save / sidebar sync
+			const nextSource = new SvelteMap<string, ContentNode>();
+			for (const n of sortedNodes) {
+				nextSource.set(String(n._id), n);
+			}
+			sourceNodesById = nextSource;
+
+			const flatItems: TreeViewItem[] = sortedNodes.map((n) => ({
+				id: String(n._id),
+				_id: n._id,
+				name: n.name,
+				nodeType: n.nodeType || (n as any).type || "collection",
+				parent: n.parentId ? String(n.parentId) : null,
+				order: n.order ?? 0,
+				path: "", // Set below from id (path = id for root, parentPath.id for nested)
+				icon: n.icon,
+				slug: n.slug,
+				description: n.description,
+				isDraggable: true,
+				isDropAllowed: true,
+			}));
+			const flatItemsWithPaths = recalculatePaths(flatItems);
+			treeRoots = buildTree(flatItemsWithPaths);
+
+			if (!initialized) {
+				initialized = true;
+				expandAll();
+			}
+
+			// Set initial roving tabindex to first node
+			if (!rovingTabIndex && treeRoots.length > 0) {
+				rovingTabIndex = treeRoots[0].id;
+			}
+
+			rebuildTimeout = null;
+		}, 50);
+	}
+});
+
+// Auto-expand on search
+$effect(() => {
+	if (searchText.trim()) {
+		collectIdsToExpand(treeRoots, searchText.toLowerCase(), expandedNodes);
+	}
+});
+
+// --- Tree Building Helpers ---
+
+function buildTree(flatItems: TreeViewItem[]): EnhancedTreeViewItem[] {
+	const itemMap = new SvelteMap<string, EnhancedTreeViewItem>();
+	flatItems.forEach((item) => {
+		itemMap.set(item.id, { ...item, children: [], level: 0 });
+	});
+
+	const roots: EnhancedTreeViewItem[] = [];
+
+	flatItems.forEach((item) => {
+		const enhanced = itemMap.get(item.id)!;
+		if (item.parent && itemMap.has(item.parent)) {
+			const parent = itemMap.get(item.parent)!;
+			parent.children.push(enhanced);
+			enhanced.level = parent.level + 1;
+		} else {
+			roots.push(enhanced);
+		}
+	});
+
+	roots.sort(sortContentNodes);
+	itemMap.forEach((node) => node.children.sort(sortContentNodes));
 
 	return roots;
 }
 
-// Rebuild from props. Never while dragging, and never over an unacknowledged push.
-$effect(() => {
-	const incoming = contentNodes;
-	if (dndState.isDragging || !incoming.length) return;
+function flattenTree(
+	nodes: EnhancedTreeViewItem[],
+	parentId: string | null = null,
+): TreeViewItem[] {
+	let flat: TreeViewItem[] = [];
 
-	if (structureKey !== lastStructureKey) {
-		lastStructureKey = structureKey;
-		pendingPushHash = "";
-		lastRenderedHash = "";
-	}
+	nodes.forEach((node, index) => {
+			const {
+			children,
+			level: _level,
+			...rest
+		} = node;
+		const newItem: TreeViewItem = { ...rest, parent: parentId, order: index };
+		flat.push(newItem);
 
-	const hash = hashNodes(incoming);
-
-	if (pendingPushHash) {
-		// Parent has caught up with our optimistic tree — resume accepting props.
-		if (hash === pendingPushHash) pendingPushHash = "";
-		return;
-	}
-	if (hash === lastRenderedHash) return;
-
-	lastRenderedHash = hash;
-	sourceNodesById = new Map(incoming.map((n) => [String(n._id), n]));
-	treeRoots = buildTree(incoming);
-
-	if (!initialized) {
-		initialized = true;
-		expandAll();
-	}
-	if (!rovingTabIndex && treeRoots.length > 0) rovingTabIndex = treeRoots[0].id;
-});
-
-// Auto-expand branches containing a search match.
-$effect(() => {
-	const term = searchText.trim().toLowerCase();
-	if (!term) return;
-	collectIdsToExpand(treeRoots, term, expandedNodes);
-});
-
-// ---------------------------------------------------------------------------
-// Tree queries (pure)
-// ---------------------------------------------------------------------------
-
-function findNode(nodes: TreeNode[], id: string): TreeNode | null {
-	for (const node of nodes) {
-		if (node.id === id) return node;
-		const found = findNode(node.children, id);
-		if (found) return found;
-	}
-	return null;
-}
-
-function getParent(nodes: TreeNode[], childId: string): TreeNode | null {
-	for (const node of nodes) {
-		if (node.children.some((c) => c.id === childId)) return node;
-		const found = getParent(node.children, childId);
-		if (found) return found;
-	}
-	return null;
-}
-
-/** True when `candidateId` is `ancestorId` itself or sits anywhere beneath it. */
-function isSelfOrDescendant(ancestorId: string, candidateId: string): boolean {
-	if (ancestorId === candidateId) return true;
-	const ancestor = findNode(treeRoots, ancestorId);
-	if (!ancestor) return false;
-	const walk = (list: TreeNode[]): boolean =>
-		list.some((n) => n.id === candidateId || walk(n.children));
-	return walk(ancestor.children);
-}
-
-function getVisibleNodes(nodes: TreeNode[]): TreeNode[] {
-	const visible: TreeNode[] = [];
-	const walk = (list: TreeNode[]) => {
-		for (const item of list) {
-			visible.push(item);
-			if (expandedNodes.has(item.id) && item.children.length) walk(item.children);
+		if (children && children.length > 0) {
+			flat = flat.concat(flattenTree(children, node.id));
 		}
-	};
-	walk(nodes);
+	});
+
+	return flat;
+}
+
+function findNode(
+	nodes: EnhancedTreeViewItem[],
+	id: string,
+): EnhancedTreeViewItem | null {
+	for (const node of nodes) {
+		if (node.id === id) {
+			return node;
+		}
+		if (node.children) {
+			const found = findNode(node.children, id);
+			if (found) {
+				return found;
+			}
+		}
+	}
+	return null;
+}
+
+function getParent(
+	rootNodes: EnhancedTreeViewItem[],
+	childId: string,
+): EnhancedTreeViewItem | null {
+	for (const node of rootNodes) {
+		if (node.children.some((c) => c.id === childId)) {
+			return node;
+		}
+		const found = getParent(node.children, childId);
+		if (found) {
+			return found;
+		}
+	}
+	return null;
+}
+
+function getVisibleNodes(
+	nodes: EnhancedTreeViewItem[],
+): EnhancedTreeViewItem[] {
+	const visible: EnhancedTreeViewItem[] = [];
+
+	function traverse(items: EnhancedTreeViewItem[]) {
+		for (const item of items) {
+			visible.push(item);
+			if (expandedNodes.has(item.id) && item.children?.length) {
+				traverse(item.children);
+			}
+		}
+	}
+
+	traverse(nodes);
 	return visible;
 }
 
-function collectIdsToExpand(nodes: TreeNode[], search: string, ids: Set<string>): boolean {
+function collectIdsToExpand(
+	nodes: EnhancedTreeViewItem[],
+	search: string,
+	ids: Set<string>,
+): boolean {
 	let hasMatch = false;
 	for (const node of nodes) {
 		const matches = node.name.toLowerCase().includes(search);
-		const childMatch = collectIdsToExpand(node.children, search, ids);
-		if (childMatch || (matches && node.children.length > 0)) {
+		const childHasMatch = collectIdsToExpand(node.children, search, ids);
+		if (childHasMatch || (matches && node.children.length > 0)) {
 			ids.add(node.id);
 			hasMatch = true;
 		}
-		if (matches) hasMatch = true;
+		if (matches) {
+			hasMatch = true;
+		}
 	}
 	return hasMatch;
 }
 
-function isNodeVisible(node: TreeNode, search: string): boolean {
-	if (!search) return true;
+// Filtering Helper - simplified since we auto-expand matches
+function isNodeVisible(node: EnhancedTreeViewItem, search: string): boolean {
+	if (!search) {
+		return true;
+	}
 	return node.name.toLowerCase().includes(search.toLowerCase());
 }
 
-// ---------------------------------------------------------------------------
-// Tree mutation (immutable — every changed branch is rebuilt, siblings reused)
-// ---------------------------------------------------------------------------
-
-/** Remove `id` from the tree, returning the detached node (with its subtree) and the new roots. */
-function detach(nodes: TreeNode[], id: string): { roots: TreeNode[]; removed: TreeNode | null } {
-	let removed: TreeNode | null = null;
-
-	const strip = (list: TreeNode[]): TreeNode[] => {
-		const out: TreeNode[] = [];
-		for (const node of list) {
-			if (node.id === id) {
-				removed = node;
-				continue;
-			}
-			const children = node.children.length ? strip(node.children) : node.children;
-			out.push(children === node.children ? node : { ...node, children });
-		}
-		return out;
-	};
-
-	const roots = strip(nodes);
-	return { roots, removed };
-}
-
-/** Insert `node` into `parentId`'s child list (or roots when null) at `index`. */
-function attach(
-	nodes: TreeNode[],
-	parentId: string | null,
-	index: number,
-	node: TreeNode,
-): TreeNode[] {
-	if (parentId === null) {
-		const out = [...nodes];
-		out.splice(Math.min(Math.max(index, 0), out.length), 0, node);
-		return out;
-	}
-
-	const walk = (list: TreeNode[]): TreeNode[] =>
-		list.map((current) => {
-			if (current.id === parentId) {
-				const children = [...current.children];
-				children.splice(Math.min(Math.max(index, 0), children.length), 0, node);
-				return { ...current, children };
-			}
-			if (!current.children.length) return current;
-			const children = walk(current.children);
-			return children === current.children ? current : { ...current, children };
-		});
-
-	return walk(nodes);
-}
-
-/**
- * Re-derive `parent` and `order` for the whole tree from its current shape.
- *
- * `path` is deliberately left untouched: it is the stable key the database
- * matches structure rows on (`bulkUpdate` looks rows up by path). Rewriting it
- * into a parent-chain made every move address a row that does not exist, so the
- * save silently persisted nothing. Hierarchy lives in `parent` + `order`.
- */
-function normalize(nodes: TreeNode[], parentId: string | null): TreeNode[] {
-	return nodes.map((node, index) => ({
-		...node,
-		parent: parentId,
-		order: index,
-		children: normalize(node.children, node.id),
-	}));
-}
-
-function flatten(nodes: TreeNode[]): TreeViewItem[] {
-	const out: TreeViewItem[] = [];
-	const walk = (list: TreeNode[]) => {
-		for (const node of list) {
-			const { children, ...rest } = node;
-			out.push(rest);
-			walk(children);
-		}
-	};
-	walk(nodes);
-	return out;
-}
-
-/** Merge tree position fields back onto the full server payloads. */
-function toContentNodes(items: TreeViewItem[]): ContentNode[] {
-	return items.map((item) => {
-		const id = String(item._id || item.id);
-		const original = sourceNodesById.get(id);
-		const merged = {
-			...original,
-			_id: (item._id || item.id) as DatabaseId,
-			name: item.name ?? original?.name,
-			icon: item.icon ?? original?.icon,
-			nodeType: item.nodeType ?? original?.nodeType,
-			slug: item.slug ?? original?.slug,
-			description: item.description ?? original?.description,
-			path: item.path,
-			order: item.order ?? 0,
-			// null (not undefined) so the server actually clears the parent for root items.
-			parentId: item.parent != null ? (item.parent as DatabaseId) : null,
-		} as ContentNode;
-		sourceNodesById.set(id, merged);
-		return merged;
-	});
-}
-
-/** Normalize, render, and push the tree to the parent. Single write path. */
-function commit(nextRoots: TreeNode[]) {
-	const normalized = normalize(nextRoots, null);
-	treeRoots = normalized;
-
-	const nodes = toContentNodes(flatten(normalized));
-	const hash = hashNodes(nodes);
-	pendingPushHash = hash;
-	lastRenderedHash = hash;
-
-	onNodeUpdate(nodes);
-}
-
-// ---------------------------------------------------------------------------
-// Drag & drop
-// ---------------------------------------------------------------------------
-
-/** sveltednd types callbacks as `DragDropState<unknown>`; our payload is always `{ itemId }`. */
-function draggedIdOf(state: DragDropState<unknown>): string | null {
-	const payload = state.draggedItem as { itemId?: string } | null | undefined;
-	return payload?.itemId ?? null;
-}
-
-function cancelDwell() {
-	if (dwellTimer) {
-		clearTimeout(dwellTimer);
-		dwellTimer = null;
-	}
-}
-
-/** Stop counting toward a nest on `item`, and drop the highlight if it is showing. */
-function disarmDwell(item: TreeNode) {
-	if (dwellArmedFor !== item.id) return;
-	cancelDwell();
-	dwellArmedFor = null;
-	if (dwellTargetId === item.id) dwellTargetId = null;
-}
-
-/** (Re)start the countdown toward nesting into `item`, anchored at the pointer. */
-function restartDwell(item: TreeNode, x: number, y: number) {
-	cancelDwell();
-	dwellAnchorX = x;
-	dwellAnchorY = y;
-
-	const draggedId = draggedIdOf(dndState);
-	if (!draggedId || isSelfOrDescendant(draggedId, item.id)) {
-		dwellArmedFor = null;
-		return;
-	}
-
-	dwellArmedFor = item.id;
-	dwellTimer = setTimeout(() => {
-		dwellTimer = null;
-		dwellTargetId = item.id;
-		// Spring open so the user can keep drilling into nested categories.
-		expandedNodes.add(item.id);
-	}, DWELL_MS);
-}
-
-/**
- * Decide whether the pointer is asking to nest into this category or to sort
- * beside it. Sorting is the default; nesting must be earned.
- *
- * Two independent conditions must both hold before a category activates:
- *
- * 1. The pointer is in the row's middle band — the outer `SORT_EDGE` of its
- *    height always means "sort beside", so reordering past a category (e.g.
- *    dropping a collection below a trailing category to make it last) can never
- *    become a drop inside it.
- * 2. The pointer has come to REST there for `DWELL_MS`. Any travel beyond
- *    `DWELL_MOVE_TOLERANCE` restarts the countdown, so sweeping across a
- *    category on the way to a position above or below it never opens it.
- *
- * The native `dragover` event is used because it carries `clientX/Y` (sveltednd's
- * own callback only passes its state object) and, unlike `pointermove`, it does
- * keep firing throughout an HTML5 drag — including while the pointer is still,
- * which is what lets the countdown complete.
- */
-function handleRowDragOver(item: TreeNode, event: DragEvent) {
-	if (item.nodeType !== "category") {
-		disarmDwell(item);
-		return;
-	}
-
-	const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-	if (rect.height === 0) return;
-
-	const offset = (event.clientY - rect.top) / rect.height;
-	if (offset <= SORT_EDGE || offset >= 1 - SORT_EDGE) {
-		disarmDwell(item);
-		return;
-	}
-
-	// Already active: hold it steady so a small tremor doesn't flip back to sorting.
-	if (dwellTargetId === item.id) return;
-
-	const travelled = Math.hypot(event.clientX - dwellAnchorX, event.clientY - dwellAnchorY);
-	if (dwellArmedFor === item.id && travelled <= DWELL_MOVE_TOLERANCE) return; // resting — let it run
-
-	restartDwell(item, event.clientX, event.clientY);
-}
-
-function handleRowDragLeave(item: TreeNode) {
-	disarmDwell(item);
-}
-
-function endDrag() {
-	cancelDwell();
-	dwellArmedFor = null;
-	dwellTargetId = null;
-	dragSourceId = null;
-}
-
-/** Defer the source dimming past Chrome's drag-image snapshot (see `dragSourceId`). */
-function handleDragStart(item: TreeNode) {
-	requestAnimationFrame(() => {
-		if (dndState.isDragging) dragSourceId = item.id;
-	});
-}
-
-/**
- * Reject the move and tell the user why. Returns true when the move is invalid.
- * `parentId === null` means root, which is always a legal destination.
- */
-function rejectMove(node: TreeNode, parentId: string | null): boolean {
-	if (parentId !== null && isSelfOrDescendant(node.id, parentId)) {
-		const message = `Cannot move "${node.name}" into itself or one of its sub-categories.`;
-		toast.warning(message);
-		announce(message);
-		return true;
-	}
-
-	const siblings = parentId ? (findNode(treeRoots, parentId)?.children ?? []) : treeRoots;
-	const name = (node.name ?? "").trim().toLowerCase();
-	if (
-		name &&
-		siblings.some((s) => s.id !== node.id && (s.name ?? "").trim().toLowerCase() === name)
-	) {
-		const message = `"${node.name}" already exists in the target category.`;
-		toast.warning(message);
-		announce(message);
-		return true;
-	}
-
-	return false;
-}
-
-/** Move `draggedId` under `parentId` at `index`. Index is pre-removal. */
-function moveNode(draggedId: string, parentId: string | null, index: number) {
-	const node = findNode(treeRoots, draggedId);
-	if (!node) return;
-	if (rejectMove(node, parentId)) return;
-
-	const currentParent = getParent(treeRoots, draggedId);
-	const currentParentId = currentParent?.id ?? null;
-	const siblings = currentParent ? currentParent.children : treeRoots;
-	const currentIndex = siblings.findIndex((n) => n.id === draggedId);
-
-	// Removing the node first shifts every later slot in the same list down by one.
-	let targetIndex = index;
-	if (currentParentId === parentId && currentIndex !== -1 && currentIndex < index) {
-		targetIndex -= 1;
-	}
-	if (currentParentId === parentId && currentIndex === targetIndex) return; // no-op
-
-	const { roots, removed } = detach(treeRoots, draggedId);
-	if (!removed) return;
-
-	commit(attach(roots, parentId, targetIndex, removed));
-
-	const destination = parentId ? findNode(treeRoots, parentId)?.name : "top level";
-	announce(`Moved ${node.name} to ${destination ?? "top level"}`);
-}
-
-/** Drop on a row: nest when that row is the dwelled category, otherwise sort beside it. */
-function handleRowDrop(item: TreeNode, state: DragDropState<unknown>) {
-	const draggedId = draggedIdOf(state);
-	const position = state.dropPosition;
-	const nestInto = dwellTargetId === item.id;
-	endDrag();
-
-	if (!draggedId || draggedId === item.id) return;
-
-	if (nestInto && item.nodeType === "category") {
-		const target = findNode(treeRoots, item.id);
-		moveNode(draggedId, item.id, target?.children.length ?? 0);
-		expandedNodes.add(item.id);
-		return;
-	}
-
-	// Sort as a sibling of the hovered row, at that row's level.
-	const parent = getParent(treeRoots, item.id);
-	const parentId = parent?.id ?? null;
-	const siblings = parent ? parent.children : treeRoots;
-	const targetIndex = siblings.findIndex((n) => n.id === item.id);
-	if (targetIndex === -1) return;
-
-	moveNode(draggedId, parentId, position === "after" ? targetIndex + 1 : targetIndex);
-}
-
-// ---------------------------------------------------------------------------
-// UI actions
-// ---------------------------------------------------------------------------
+// --- UI Actions ---
 
 function expandAll() {
-	const walk = (nodes: TreeNode[]) => {
-		for (const n of nodes) {
+	const recurse = (nodes: EnhancedTreeViewItem[]) => {
+		nodes.forEach((n) => {
 			expandedNodes.add(n.id);
-			walk(n.children);
-		}
+			recurse(n.children);
+		});
 	};
-	walk(treeRoots);
+	recurse(treeRoots);
 	announce("Expanded all categories");
 }
 
@@ -672,180 +399,611 @@ function toggleNode(id: string) {
 function announce(message: string) {
 	announcement = message;
 	announcementId++;
+	setTimeout(() => {
+		if (announcement === message) {
+			announcement = "";
+		}
+	}, 1000);
 }
 
-// ---------------------------------------------------------------------------
-// Keyboard navigation & reordering
-// ---------------------------------------------------------------------------
+// --- Drag & Drop Handler ---
 
-function focusNode(id: string) {
-	rovingTabIndex = id;
-	tick().then(() => {
-		const el = document.querySelector(`[data-item-id="${CSS.escape(id)}"] [role="button"]`);
-		if (el instanceof HTMLElement) {
-			el.focus();
-			el.scrollIntoView({ block: "nearest" });
+/**
+ * sveltednd only reports before|after. For tree nesting we add "inside" on category
+ * rows using the same 28%/44%/28% thirds as the shared TreeView (left sidebar).
+ */
+function resolveTreeDropIntent(
+	targetItemId: string | null,
+	dropPosition: "before" | "after" | null,
+): "before" | "after" | "inside" {
+	if (!targetItemId) return dropPosition ?? "after";
+	const targetNode = findNode(treeRoots, targetItemId);
+	if (!targetNode || targetNode.nodeType !== "category") {
+		return dropPosition ?? "after";
+	}
+
+	const wrapper = document.querySelector(
+		`[data-item-id="${CSS.escape(targetItemId)}"]`,
+	) as HTMLElement | null;
+	if (!wrapper) return dropPosition ?? "after";
+
+	// Prefer the category header row, not the whole subtree (nested zone height)
+	const header =
+		(wrapper.querySelector(
+			':scope > .tree-node-outer > [role="button"]',
+		) as HTMLElement | null) ??
+		(wrapper.querySelector('[role="button"]') as HTMLElement | null) ??
+		wrapper;
+	const rect = header.getBoundingClientRect();
+	const y = lastPointerY - rect.top;
+	const h = Math.max(rect.height, 1);
+	if (y < h * 0.28) return "before";
+	if (y > h * 0.72) return "after";
+	return "inside";
+}
+
+/** Auto-expand categories while dragging so nested drop zones appear. */
+function handleCategoryDragOver(state: DragDropState<{ itemId: string }>) {
+	const el = state.targetElement;
+	if (!(el instanceof Element)) return;
+	const itemEl = el.closest("[data-item-id]") as HTMLElement | null;
+	const id = itemEl?.dataset?.itemId;
+	if (!id) return;
+	const node = findNode(treeRoots, id);
+	if (node?.nodeType === "category" && !expandedNodes.has(id)) {
+		expandedNodes.add(id);
+	}
+}
+
+function handleTreeDrop(state: DragDropState<{ itemId: string }>) {
+	const dragged = state.draggedItem;
+	if (!dragged) return;
+
+	const draggedId = dragged.itemId;
+	const targetContainer = state.targetContainer || state.sourceContainer;
+	const dropPosition = state.dropPosition;
+
+	// Prefer the *deepest* data-item-id under the pointer (not an ancestor wrapper)
+	const under =
+		typeof document !== "undefined" && lastPointerX && lastPointerY
+			? document.elementFromPoint(lastPointerX, lastPointerY)
+			: null;
+	const targetItemEl =
+		(under instanceof Element
+			? (under.closest("[data-item-id]") as HTMLElement | null)
+			: null) ??
+		(state.targetElement?.closest("[data-item-id]") as HTMLElement | null);
+	const targetItemId = targetItemEl?.dataset?.itemId ?? null;
+
+	// Default parent from container name (nested zones = children:<parentId>)
+	let targetParentId: string | null =
+		targetContainer === "root" ? null : targetContainer.replace("children:", "");
+
+	const intent = resolveTreeDropIntent(targetItemId, dropPosition);
+
+	// Drop on category middle → nest inside that category (free sub-region drag)
+	if (intent === "inside" && targetItemId) {
+		targetParentId = targetItemId;
+		expandedNodes.add(targetItemId);
+	}
+
+	// CYCLE DETECTION
+	const draggedNode = findNode(treeRoots, draggedId);
+	if (!draggedNode) return;
+	if (
+		targetParentId &&
+		(targetParentId === draggedId ||
+			isAncestorOf(draggedId, targetParentId, treeRoots))
+	) {
+		announce(
+			`Cannot move "${draggedNode?.name || "item"}" into its own sub-category`,
+		);
+		toast.warning("Cannot drop a category into itself or its descendants.");
+		return;
+	}
+
+	// Only categories accept children — never nest under a collection
+	if (targetParentId) {
+		const parentNode = findNode(treeRoots, targetParentId);
+		if (parentNode && parentNode.nodeType !== "category") {
+			// Treat as sibling of that collection under the same parent
+			targetParentId = parentNode.parent ?? null;
 		}
+	}
+
+	// DUPLICATE NAME DETECTION
+	const siblingList = targetParentId
+		? findNode(treeRoots, targetParentId)?.children || []
+		: treeRoots;
+	const nameNorm = (n: string) => n.trim().toLowerCase();
+	const draggedName = nameNorm(draggedNode.name || "");
+	if (
+		draggedName &&
+		siblingList.some(
+			(n) => n.id !== draggedId && nameNorm(n.name || "") === draggedName,
+		)
+	) {
+		announce("A collection with this name already exists in the target category.");
+		toast.warning(
+			"A collection with this name already exists in the target category.",
+		);
+		return;
+	}
+
+	// Get full node data before removal
+	const fullNode = {
+		...draggedNode,
+		children: [...(draggedNode.children || [])],
+	};
+
+	// Remove from source
+	removeFromTree(treeRoots, draggedId);
+
+	// Resolve target list after removal
+	const targetList = targetParentId
+		? findNode(treeRoots, targetParentId)?.children || []
+		: treeRoots;
+
+	let targetIndex: number;
+	if (intent === "inside") {
+		// Nest: append to end of category (stable, predictable)
+		targetIndex = targetList.length;
+	} else if (targetItemId) {
+		// Sibling reorder relative to target — skip when target is the nest parent
+		const foundIndex = targetList.findIndex((n) => n.id === targetItemId);
+		if (foundIndex >= 0) {
+			targetIndex = intent === "after" ? foundIndex + 1 : foundIndex;
+		} else {
+			targetIndex = targetList.length;
+		}
+	} else {
+		targetIndex = targetList.length;
+	}
+	targetIndex = Math.min(Math.max(0, targetIndex), targetList.length);
+
+	targetList.splice(targetIndex, 0, fullNode);
+
+	// Trigger reactivity and recalculate
+	treeRoots = [...treeRoots];
+	const flatAfterMove = flattenTree(treeRoots);
+	const withPaths = recalculatePaths(flatAfterMove);
+	const treeWithPaths = buildTree(withPaths);
+	treeRoots = $state.snapshot(treeWithPaths) as EnhancedTreeViewItem[];
+
+	// Optimistic local persistence + parent/sidebar sync
+	saveTreeData();
+	announce(
+		intent === "inside"
+			? `Moved ${draggedNode.name} into category`
+			: `Moved ${draggedNode.name}`,
+	);
+}
+
+// Helper: Remove node from tree
+function removeFromTree(nodes: EnhancedTreeViewItem[], id: string): boolean {
+	const idx = nodes.findIndex(n => n.id === id);
+	if (idx >= 0) { nodes.splice(idx, 1); return true; }
+	for (const n of nodes) {
+		if (n.children && removeFromTree(n.children, id)) return true;
+	}
+	return false;
+}
+
+// Helper: Check if potentialAncestor is actually an ancestor of nodeId
+function isAncestorOf(
+	potentialAncestorId: string,
+	nodeId: string,
+	nodes: EnhancedTreeViewItem[],
+): boolean {
+	const targetNode = findNode(nodes, nodeId);
+	if (!targetNode) {
+		return false;
+	}
+
+	// Walk up from targetNode to see if we hit potentialAncestorId
+	let current: EnhancedTreeViewItem | null = targetNode;
+	const visited = new SvelteSet<string>();
+
+	while (current) {
+		if (current.id === potentialAncestorId) {
+			return true;
+		}
+		if (visited.has(current.id)) {
+			break; // Cycle protection
+		}
+		visited.add(current.id);
+		current = getParent(nodes, current.id);
+	}
+
+	return false;
+}
+
+
+function saveTreeData() {
+	const flatItems = flattenTree(treeRoots);
+	const withPaths = recalculatePaths(flatItems);
+	const nodes = toFlatContentNodes(withPaths);
+
+	const pushedHash =
+		nodes
+			.map((n) => `${n._id}:${n.parentId}:${n.order}`)
+			.sort()
+			.join("|") + nodes.length;
+
+	// Set hash and guard so we don't rebuild from stale contentNodes until parent syncs
+	lastContentNodesHash = pushedHash;
+	lastPushedHash = pushedHash;
+
+	onNodeUpdate(nodes);
+}
+
+function recalculatePaths(items: TreeViewItem[]): TreeViewItem[] {
+	const itemMap = new SvelteMap<string, TreeViewItem>();
+	for (const item of items) {
+		itemMap.set(item.id, { ...item });
+	}
+
+	const childrenByParent = new SvelteMap<string, TreeViewItem[]>();
+	for (const item of items) {
+		const parentKey = item.parent || "__root__";
+		if (!childrenByParent.has(parentKey)) {
+			childrenByParent.set(parentKey, []);
+		}
+		childrenByParent.get(parentKey)!.push(itemMap.get(item.id)!);
+	}
+
+	// DO NOT SORT HERE. The items are already in the correct order from flattenTree which respects UI order.
+	// Sorting by sortContentNodes (which uses node.order) will use stale order values and break DnD.
+
+	function assignPaths(parentId: string | null, parentPath: string): void {
+		const key = parentId || "__root__";
+		const children = childrenByParent.get(key);
+		if (!children) return;
+
+		children.forEach((child, index) => {
+			const newPath = parentPath ? `${parentPath}.${child.id}` : child.id;
+			const item = itemMap.get(child.id);
+			if (item) {
+				item.path = newPath;
+				item.order = index;
+				item.parent = parentId;
+			}
+			assignPaths(child.id, newPath);
+		});
+	}
+
+	assignPaths(null, "");
+	return Array.from(itemMap.values());
+}
+
+function toFlatContentNodes(flatItems: TreeViewItem[]): ContentNode[] {
+	return flatItems.map((item) => {
+		const id = String(item._id || item.id);
+		const original = sourceNodesById.get(id);
+		// Merge DnD position fields onto the full original payload so sidebar / save keep collectionDef etc.
+		const merged = {
+			...original,
+			...item,
+			_id: (item._id || item.id) as DatabaseId,
+			// Send null for root so server persists it (undefined is omitted by JSON and DB keeps old parent).
+			parentId: item.parent != null ? (item.parent as DatabaseId) : null,
+			name: item.name ?? original?.name,
+			icon: item.icon ?? original?.icon,
+			nodeType: item.nodeType ?? original?.nodeType,
+			path: item.path,
+			order: item.order ?? 0,
+			slug: item.slug ?? original?.slug,
+			description: item.description ?? original?.description,
+		} as unknown as ContentNode & {
+			id?: unknown;
+			parent?: unknown;
+			text?: unknown;
+			children?: unknown;
+			level?: unknown;
+			isDraggable?: unknown;
+			isDropAllowed?: unknown;
+		};
+		// Strip tree-only fields
+		delete (merged as any).id;
+		delete (merged as any).parent;
+		delete (merged as any).text;
+		delete (merged as any).children;
+		delete (merged as any).level;
+		delete (merged as any).isDraggable;
+		delete (merged as any).isDropAllowed;
+		// Keep source map fresh for subsequent moves before parent rebuilds
+		sourceNodesById.set(id, merged as ContentNode);
+		return merged as ContentNode;
 	});
 }
 
-/** Alt+Arrow reorders. Plain arrows only navigate, so focus can never mutate data. */
+// --- Keyboard Navigation ---
+
 function handleTreeKeyDown(e: KeyboardEvent) {
-	const visible = getVisibleNodes(treeRoots);
-	if (!visible.length) return;
-
-	const activeItem = document.activeElement?.closest("[data-item-id]");
-	const currentId = activeItem instanceof HTMLElement ? activeItem.dataset.itemId : undefined;
-	const currentIndex = Math.max(
-		0,
-		visible.findIndex((n) => n.id === currentId),
-	);
-	const current = visible[currentIndex];
-	if (!current) return;
-
-	if (e.altKey) {
-		switch (e.key) {
-			case "ArrowUp":
-				e.preventDefault();
-				reorderWithinParent(current.id, -1);
-				return;
-			case "ArrowDown":
-				e.preventDefault();
-				reorderWithinParent(current.id, 1);
-				return;
-			case "ArrowLeft":
-				e.preventDefault();
-				moveToGrandparent(current.id);
-				return;
-			case "ArrowRight":
-				e.preventDefault();
-				nestIntoPreviousSibling(current.id);
-				return;
-		}
+	// Let keyboard reorder mode handle its own keys
+	if (keyboardReorderMode) {
+		return;
 	}
 
-	let next: TreeNode | null = null;
+	const visibleNodes = getVisibleNodes(treeRoots);
+	if (visibleNodes.length === 0) {
+		return;
+	}
+
+	const activeElement = document.activeElement?.closest(
+		"[data-item-id]",
+	) as HTMLElement | null;
+	const currentId = activeElement?.dataset.itemId;
+	let currentIndex = visibleNodes.findIndex((n) => n.id === currentId);
+
+	// If no focus yet, assume first
+	if (currentIndex === -1) {
+		currentIndex = 0;
+	}
+	const currentNode = visibleNodes[currentIndex];
+
+	let nextNode: EnhancedTreeViewItem | null = null;
+	let handled = true;
 
 	switch (e.key) {
-		case "ArrowUp":
+		case "ArrowUp": {
 			e.preventDefault();
-			next = visible[currentIndex - 1] ?? null;
+			if (currentIndex > 0) {
+				nextNode = visibleNodes[currentIndex - 1];
+			}
 			break;
-		case "ArrowDown":
+		}
+
+		case "ArrowDown": {
 			e.preventDefault();
-			next = visible[currentIndex + 1] ?? null;
+			if (currentIndex < visibleNodes.length - 1) {
+				nextNode = visibleNodes[currentIndex + 1];
+			}
 			break;
-		case "ArrowLeft":
+		}
+
+		case "ArrowLeft": {
 			e.preventDefault();
-			if (expandedNodes.has(current.id) && current.children.length) toggleNode(current.id);
-			else next = getParent(treeRoots, current.id);
+			if (expandedNodes.has(currentNode.id) && currentNode.children?.length) {
+				toggleNode(currentNode.id);
+			} else {
+				const parent = getParent(treeRoots, currentNode.id);
+				if (parent) {
+					nextNode = parent;
+				}
+			}
 			break;
-		case "ArrowRight":
+		}
+
+		case "ArrowRight": {
 			e.preventDefault();
-			if (!expandedNodes.has(current.id) && current.children.length) toggleNode(current.id);
-			else next = current.children[0] ?? null;
+			if (!expandedNodes.has(currentNode.id) && currentNode.children?.length) {
+				toggleNode(currentNode.id);
+			} else if (currentNode.children?.length) {
+				nextNode = currentNode.children[0];
+			}
 			break;
-		case "Home":
+		}
+
+		case "Home": {
 			e.preventDefault();
-			next = visible[0] ?? null;
+			nextNode = visibleNodes[0] ?? null;
 			break;
-		case "End":
+		}
+
+		case "End": {
 			e.preventDefault();
-			next = visible.at(-1) ?? null;
+			nextNode = visibleNodes.at(-1) ?? null;
 			break;
+		}
+
 		case "*": {
 			e.preventDefault();
-			const parent = getParent(treeRoots, current.id);
-			for (const s of parent ? parent.children : treeRoots) {
-				if (s.children.length) expandedNodes.add(s.id);
-			}
+			const parent = getParent(treeRoots, currentNode.id);
+			const siblings = parent ? parent.children : treeRoots;
+			siblings.forEach((s) => {
+				if (s.children?.length) {
+					expandedNodes.add(s.id);
+				}
+			});
 			announce("Expanded all siblings");
 			break;
 		}
-		default:
-			if (e.key.length === 1 && /\S/.test(e.key)) {
-				e.preventDefault();
-				handleTypeahead(e.key, visible, currentIndex);
+
+		default: {
+			// Typeahead search
+			if (e.key.length === 1 && e.key.match(/\S/)) {
+				handled = true;
+				handleTypeahead(e.key, visibleNodes, currentIndex);
+			} else {
+				handled = false;
 			}
-			return;
+		}
 	}
 
-	if (next) focusNode(next.id);
+	if (nextNode) {
+		focusNode(nextNode.id);
+	}
+
+	if (handled) {
+		e.preventDefault();
+	}
 }
 
-function handleTypeahead(char: string, visible: TreeNode[], currentIndex: number) {
+function handleTypeahead(
+	char: string,
+	visibleNodes: EnhancedTreeViewItem[],
+	currentIndex: number,
+) {
 	typeaheadBuffer += char.toLowerCase();
-	if (typeaheadTimeout) clearTimeout(typeaheadTimeout);
+
+	if (typeaheadTimeout) {
+		clearTimeout(typeaheadTimeout);
+	}
 	typeaheadTimeout = setTimeout(() => {
 		typeaheadBuffer = "";
 	}, 500);
 
-	const rotated = [...visible.slice(currentIndex + 1), ...visible.slice(0, currentIndex + 1)];
-	const match = rotated.find((n) => n.name.toLowerCase().startsWith(typeaheadBuffer));
+	// Search from current position + 1, then wrap around
+	const searchNodes = [
+		...visibleNodes.slice(currentIndex + 1),
+		...visibleNodes.slice(0, currentIndex + 1),
+	];
+
+	const match = searchNodes.find((n) =>
+		n.name.toLowerCase().startsWith(typeaheadBuffer),
+	);
+
 	if (match) {
 		focusNode(match.id);
 		announce(`Jumped to ${match.name}`);
 	}
 }
 
-function reorderWithinParent(itemId: string, delta: number) {
-	const parent = getParent(treeRoots, itemId);
-	const siblings = parent ? parent.children : treeRoots;
-	const index = siblings.findIndex((n) => n.id === itemId);
-	const next = index + delta;
-	if (index === -1 || next < 0 || next >= siblings.length) return;
+function focusNode(id: string) {
+	rovingTabIndex = id;
+	tick().then(() => {
+		const element = document.querySelector(`[data-item-id="${id}"] button`);
+		if (element) {
+			(element as HTMLElement).focus();
+			(element as HTMLElement).scrollIntoView({
+				behavior: "smooth",
+				block: "nearest",
+			});
+		}
+	});
+}
 
-	// moveNode indexes pre-removal, so moving down needs the slot past the neighbour.
-	moveNode(itemId, parent?.id ?? null, delta > 0 ? next + 1 : next);
+// --- Keyboard Reordering ---
+
+async function moveItem(itemId: string, direction: "up" | "down") {
+	const parent = getParent(treeRoots, itemId);
+	const list = parent ? parent.children : treeRoots;
+	const index = list.findIndex((i) => i.id === itemId);
+
+	if (index === -1) {
+		return;
+	}
+
+	const newIndex = direction === "up" ? index - 1 : index + 1;
+	if (newIndex < 0 || newIndex >= list.length) {
+		return;
+	}
+
+	const item = list[index];
+	list.splice(index, 1);
+	list.splice(newIndex, 0, item);
+
+	if (parent) {
+		parent.children = [...parent.children];
+		treeRoots = [...treeRoots];
+	} else {
+		treeRoots = [...treeRoots];
+	}
+
+	saveTreeData();
+	announce(`Moved ${item.name} ${direction}`);
+	await tick();
 	focusNode(itemId);
 }
 
-function moveToGrandparent(itemId: string) {
+async function moveItemUp(itemId: string) {
+	await moveItem(itemId, "up");
+}
+
+async function moveItemDown(itemId: string) {
+	await moveItem(itemId, "down");
+}
+
+async function moveItemToParent(itemId: string) {
 	const parent = getParent(treeRoots, itemId);
-	if (!parent) return;
+	if (!parent) {
+		return;
+	}
+
+	const item = parent.children.find((i) => i.id === itemId);
+	if (!item) {
+		return;
+	}
+
 	const grandparent = getParent(treeRoots, parent.id);
 	const targetList = grandparent ? grandparent.children : treeRoots;
-	moveNode(itemId, grandparent?.id ?? null, targetList.findIndex((n) => n.id === parent.id) + 1);
+	const nameNorm = (n: string) => (n ?? "").trim().toLowerCase();
+	const itemNameNorm = nameNorm(item.name ?? "");
+	if (
+		itemNameNorm &&
+		targetList.some(
+			(sibling) =>
+				sibling.id !== item.id && nameNorm(sibling.name ?? "") === itemNameNorm,
+		)
+	) {
+		toast.warning(
+			"A collection with this name already exists in the target category.",
+		);
+		announce(
+			"A collection with this name already exists in the target category.",
+		);
+		return;
+	}
+
+	parent.children = parent.children.filter((i) => i.id !== itemId);
+
+	const parentIndex = targetList.findIndex((i) => i.id === parent.id);
+	targetList.splice(parentIndex + 1, 0, item);
+
+	if (grandparent) {
+		grandparent.children = [...grandparent.children];
+		treeRoots = [...treeRoots];
+	} else {
+		treeRoots = [...treeRoots];
+	}
+
+	saveTreeData();
+	announce(`Moved ${item.name} to higher level`);
+	await tick();
 	focusNode(itemId);
 }
 
-function nestIntoPreviousSibling(itemId: string) {
-	const parent = getParent(treeRoots, itemId);
-	const siblings = parent ? parent.children : treeRoots;
-	const index = siblings.findIndex((n) => n.id === itemId);
-	const previous = siblings[index - 1];
-	if (!previous || previous.nodeType !== "category") return;
-
-	moveNode(itemId, previous.id, previous.children.length);
-	expandedNodes.add(previous.id);
-	focusNode(itemId);
-}
-
-// ---------------------------------------------------------------------------
-// Row actions
-// ---------------------------------------------------------------------------
+// --- Smart Delete with Focus Management ---
 
 function handleDeleteNode(node: Partial<ContentNode>) {
-	if (!node._id) return;
+	if (!node._id) {
+		return;
+	}
 
-	const visible = getVisibleNodes(treeRoots);
-	const index = visible.findIndex((n) => n.id === String(node._id));
-	const nextFocus =
-		visible.length > 1
-			? (visible[index < visible.length - 1 ? index + 1 : Math.max(0, index - 1)]?.id ?? null)
-			: (treeRoots[0]?.id ?? null);
+	// Calculate next focus target before deletion
+	const visibleNodes = getVisibleNodes(treeRoots);
+	const currentIndex = visibleNodes.findIndex((n) => n.id === String(node._id));
+	let nextFocusId: string | null = null;
 
+	if (visibleNodes.length > 1) {
+		// Prefer next sibling, then previous, then parent
+		const nextIndex =
+			currentIndex < visibleNodes.length - 1
+				? currentIndex + 1
+				: Math.max(0, currentIndex - 1);
+		nextFocusId = visibleNodes[nextIndex]?.id || null;
+	} else if (treeRoots.length > 0) {
+		// If this was the last visible node, focus first root
+		nextFocusId = treeRoots[0]?.id;
+	}
+
+	// Execute delete
 	onDeleteNode?.(node);
 
-	if (nextFocus) {
+	// Restore focus after DOM update
+	if (nextFocusId) {
 		tick().then(() => {
-			focusNode(nextFocus);
+			rovingTabIndex = nextFocusId;
+			focusNode(nextFocusId!);
 			announce(`Deleted ${node.name}. Focus moved to next item.`);
 		});
 	} else {
 		announce(`Deleted ${node.name}. No items remaining.`);
 	}
 }
+
+// --- Helper ---
 
 function toPartialContentNode(item: TreeViewItem): Partial<ContentNode> {
 	return {
@@ -860,17 +1018,18 @@ function toPartialContentNode(item: TreeViewItem): Partial<ContentNode> {
 	};
 }
 
-/** Elements inside a row that must keep working as plain clicks. */
-const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
+const flipDurationMs = 200;
 </script>
 
-<!-- Accessibility: live region for screen reader announcements -->
+<!-- Accessibility: Live region for screen reader announcements -->
 <div aria-live="polite" aria-atomic="true" class="sr-only">
-	{#key announcementId}{announcement}{/key}
+	{#key announcementId}
+		{announcement}
+	{/key}
 </div>
 
 <!-- Toolbar -->
-<div class="mb-4 flex flex-wrap items-center gap-2">
+<div class="mb-2 flex flex-wrap items-center gap-2">
 	<div class="relative flex-1 min-w-50">
 		<FloatingInput
 			bind:value={searchText}
@@ -880,38 +1039,32 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 			inputClass="w-full h-12 pe-8 rounded shadow-sm"
 		/>
 		{#if searchText}
-			<Button
-				variant="surface"
+			<Button variant="surface"
 				type="button"
 				onclick={clearSearch}
 				aria-label="Clear search"
-				class="p-0! min-w-0 absolute inset-e-2 top-1/2 -translate-y-1/2 z-10"
-			>
+			 class="p-0! min-w-0 absolute inset-e-2 top-1/2 -translate-y-1/2 z-10">
 				<iconify-icon icon="mdi:close" width={16}></iconify-icon>
 			</Button>
 		{/if}
 	</div>
 	<div class="flex gap-2">
 		<SystemTooltip title="Expand all categories">
-			<Button
-				variant="surface"
+			<Button variant="surface"
 				type="button"
 				onclick={expandAll}
 				aria-label="Expand all categories"
-				class="shadow-sm"
-			>
+			 class="hover: transition-all shadow-sm">
 				<iconify-icon icon="mdi:unfold-more-horizontal" width={24} aria-hidden="true"></iconify-icon>
 				<span class="ms-1 uppercase text-xs font-bold">Expand All</span>
 			</Button>
 		</SystemTooltip>
 		<SystemTooltip title="Collapse all categories">
-			<Button
-				variant="surface"
+			<Button variant="surface"
 				type="button"
 				onclick={collapseAll}
 				aria-label="Collapse all categories"
-				class="shadow-sm"
-			>
+			 class="hover: transition-all shadow-sm">
 				<iconify-icon icon="mdi:unfold-less-horizontal" width={24} aria-hidden="true"></iconify-icon>
 				<span class="ms-1 uppercase text-xs font-bold">Collapse All</span>
 			</Button>
@@ -919,218 +1072,161 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 	</div>
 </div>
 
-<!-- Tree. role="tree" only once treeitems exist — an empty tree is not a valid
-     ARIA tree, and a non-interactive role must not be focusable. -->
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div
-	class="collection-builder-tree relative w-full h-auto overflow-y-auto rounded p-2"
-	class:is-dragging={dndState.isDragging}
-	onkeydown={handleTreeKeyDown}
-	role={treeRoots.length > 0 ? "tree" : undefined}
-	tabindex={treeRoots.length > 0 ? 0 : undefined}
-	aria-label="Collection hierarchy. Arrow keys navigate, Alt+arrows reorder, letters jump to items."
->
+	<!-- Tree View: only claim role="tree" when treeitems exist; empty state
+		     is not a valid ARIA tree (missing required treeitem children).
+		     tabindex must follow role — a noninteractive div cannot be focusable. -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -- role is only 'tree'
+	     (a focusable interactive role) when treeitems exist; an empty tree must
+	     not be focusable or claim an ARIA role without required children. The
+	     static analyzer cannot see that tabindex is gated on the same condition. -->
+	<div
+		class="dnd-tree relative h-auto min-h-50 w-full overflow-y-auto rounded p-2 [&.dnd-active]:select-none"
+		class:dnd-active={dndState.isDragging}
+		onkeydown={handleTreeKeyDown}
+		role={treeRoots.length > 0 ? 'tree' : undefined}
+		tabindex={treeRoots.length > 0 ? 0 : undefined}
+		aria-label="Collection hierarchy. Use arrow keys to navigate, Space to expand/collapse, Home/End for first/last item, letters to jump to items."
+	>
 	{#if treeRoots.length === 0}
 		<div class="text-center p-8 text-surface-500">
-			<iconify-icon
-				icon={searchText ? "mdi:magnify-close" : "mdi:folder-outline"}
-				width="48"
-				class="opacity-50 mb-2"
-				aria-hidden="true"
+			<iconify-icon icon={searchText ? 'mdi:magnify-close' : 'mdi:folder-outline'} width="48" class="opacity-50 mb-2" aria-hidden="true"
 			></iconify-icon>
-			<p>
-				{searchText ? `No results found for "${searchText}"` : "No categories or collections yet"}
-			</p>
+			<p>{searchText ? `No results found for "${searchText}"` : 'No categories or collections yet'}</p>
 		</div>
 	{:else}
-		<div role="group">
+		<div
+			class="root-zone relative min-h-15 border-2 border-dashed border-transparent rounded-lg transition-colors duration-200 [&.drag-over-zone]:bg-primary-500/10! [&.drag-over-zone]:outline-2 [&.drag-over-zone]:outline-dashed [&.drag-over-zone]:outline-primary-500!"
+			class:dropping={dndState.isDragging}
+			use:droppable={{
+				container: 'root',
+				callbacks: {
+					onDrop: handleTreeDrop,
+					onDragOver: handleCategoryDragOver,
+				},
+				direction: 'vertical',
+				attributes: {
+					dragOverClass: 'drag-over-zone'
+				}
+			}}
+			role="group"
+		>
 			{#each treeRoots as item (item.id)}
-				{@render treeNode(item, 0)}
+				<div
+					class="relative mb-2 [&.dragging]:opacity-50 [&.dragging]:scale-95 [&.drag-over-item]:outline-2 [&.drag-over-item]:outline-dashed [&.drag-over-item]:outline-primary-400! [&.drag-over-item]:outline-offset-2 [&.drag-over-item]:rounded-lg [&.drop-inside-hint]:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-tertiary-500)_25%,transparent)] [&.drop-inside-hint]:rounded-lg"
+					class:hidden={!isNodeVisible(item, searchText)}
+					class:drop-inside-hint={dndState.isDragging && item.nodeType === 'category'}
+					animate:flip={{ duration: flipDurationMs }}
+					role="treeitem"
+					aria-expanded={expandedNodes.has(item.id)}
+					aria-selected="false"
+					data-item-id={item.id}
+					data-node-type={item.nodeType}
+					use:draggable={{
+						container: 'root',
+						dragData: { itemId: item.id },
+						disabled: !!searchText,
+						keyboard: true,
+					}}
+					use:droppable={{
+						container: 'root',
+						callbacks: {
+							onDrop: handleTreeDrop,
+							onDragOver: handleCategoryDragOver,
+						},
+						direction: 'vertical',
+						attributes: { dragOverClass: 'drag-over-item' },
+					}}
+				>
+					{@render treeNode(item, 0)}
+				</div>
 			{/each}
 		</div>
 	{/if}
 </div>
 
-{#snippet treeNode(item: TreeNode, level: number)}
-	<div
-		class="tree-item"
-		class:hidden={!isNodeVisible(item, searchText)}
-		data-item-id={item.id}
-		data-node-type={item.nodeType}
-		role="treeitem"
-		aria-expanded={item.nodeType === "category" ? expandedNodes.has(item.id) : undefined}
-		aria-selected="false"
-	>
-		<!-- The droppable wraps the ROW ONLY. sveltednd derives before/after from
-		     this element's own midpoint, so it must never contain the subtree. -->
-		<div
-			class="tree-row"
-			class:nest-target={dndState.isDragging && dwellTargetId === item.id}
-			class:line-before={lineFor(item.id) === "before"}
-			class:line-after={lineFor(item.id) === "after"}
-			class:drag-source={dndState.isDragging && dragSourceId === item.id}
-			use:draggable={{
-				container: "tree",
-				dragData: { itemId: item.id },
-				disabled: !!searchText,
-				interactive: INTERACTIVE,
-				// Touch devices drag from the grip only, so a swipe on the row still
-				// scrolls the list. Pointer devices can drag the row anywhere.
-				handle: screen.isDesktop ? undefined : ".drag-handle",
-				callbacks: { onDragStart: () => handleDragStart(item), onDragEnd: endDrag },
+{#snippet treeNode(item: EnhancedTreeViewItem, level: number)}
+	<div class="tree-node-outer">
+		<TreeViewNode
+			item={{ ...item, hasChildren: item.children?.length > 0 }}
+			isOpen={expandedNodes.has(item.id)}
+			isSelectedCategory={item.nodeType === 'category' && item.id === selectedCategoryId}
+			toggle={() => toggleNode(item.id)}
+			onEditCategory={() => onEditCategory(toPartialContentNode(item))}
+			onDelete={() => handleDeleteNode(toPartialContentNode(item))}
+			onDuplicate={() => onDuplicateNode?.(toPartialContentNode(item))}
+			onSelectCategory={item.nodeType === 'category' && onSelectCategory ? () => onSelectCategory(item) : undefined}
+			keyboardReorderMode={keyboardReorderMode === item.id}
+			onMoveUp={() => moveItemUp(item.id)}
+			onMoveDown={() => moveItemDown(item.id)}
+			onMoveToParent={() => moveItemToParent(item.id)}
+			onEnterReorderMode={() => {
+				keyboardReorderMode = item.id;
+				announce(`Keyboard reorder mode active for ${item.name}. Use arrow keys to move, Escape to cancel, Enter to confirm.`);
 			}}
-			ondragover={(e: DragEvent) => handleRowDragOver(item, e)}
-			use:droppable={{
-				container: `node:${item.id}`,
-				direction: "vertical",
-				callbacks: {
-					onDragLeave: () => handleRowDragLeave(item),
-					onDrop: (s) => handleRowDrop(item, s),
-					onDragEnd: endDrag,
-				},
-				attributes: { dragOverClass: "row-over" },
+			onExitReorderMode={() => {
+				keyboardReorderMode = null;
+				announce(`Exited reorder mode for ${item.name}`);
 			}}
-		>
-			<TreeViewNode
-				item={{ ...item, hasChildren: item.children.length > 0 }}
-				isOpen={expandedNodes.has(item.id)}
-				isSelectedCategory={item.nodeType === "category" && item.id === selectedCategoryId}
-				toggle={() => toggleNode(item.id)}
-				onEditCategory={() => onEditCategory(toPartialContentNode(item))}
-				onDelete={() => handleDeleteNode(toPartialContentNode(item))}
-				onDuplicate={() => onDuplicateNode?.(toPartialContentNode(item))}
-				onSelectCategory={item.nodeType === "category" && onSelectCategory
-					? () => onSelectCategory(item)
-					: undefined}
-				tabindex={rovingTabIndex === item.id ? 0 : -1}
-			/>
-		</div>
+			tabindex={rovingTabIndex === item.id ? 0 : -1}
+		/>
 
-		{#if item.nodeType === "category" && expandedNodes.has(item.id) && item.children.length > 0}
-			<div
-				class="tree-children"
-				style="margin-inline-start: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem"
-				role="group"
-				aria-label={`Contents of ${item.name}`}
-			>
-				{#each item.children as child (child.id)}
-					{@render treeNode(child, level + 1)}
-				{/each}
-			</div>
+		{#if expandedNodes.has(item.id) || (dndState.isDragging && item.nodeType === 'category')}
+			{#if item.children?.length > 0 || item.nodeType === 'category'}
+				<div
+					class="relative mt-2 min-h-15 border-2 border-dashed border-transparent rounded-lg transition-colors duration-200 before:absolute before:top-0 before:bottom-0 before:left-0 before:w-0.5 before:bg-surface-300 before:content-[''] empty:flex empty:items-center empty:justify-center empty:min-h-0.5 empty:rounded-lg [&.drag-over-zone]:bg-tertiary-500/10! [&.drag-over-zone]:outline-2 [&.drag-over-zone]:outline-dashed [&.drag-over-zone]:outline-tertiary-500! [&.drag-over-zone]:min-h-12"
+					class:dropping={dndState.isDragging}
+					style="margin-left: {screen.isDesktop ? Math.min(level + 1, 6) * 0.75 : 0.4}rem; padding-left: 0.5rem; border-left: 2px solid var(--color-surface-300);"
+					use:droppable={{
+						container: 'children:' + item.id,
+						callbacks: {
+							onDrop: handleTreeDrop,
+							onDragOver: handleCategoryDragOver,
+						},
+						direction: 'vertical',
+						attributes: {
+							dragOverClass: 'drag-over-zone'
+						}
+					}}
+					role="group"
+					aria-label={`Contents of ${item.name}`}
+				>
+					{#if item.children?.length > 0}
+						{#each item.children as child (child.id)}
+							<div
+								class="relative mb-2 [&.dragging]:opacity-50 [&.dragging]:scale-95 [&.drag-over-item]:outline-2 [&.drag-over-item]:outline-dashed [&.drag-over-item]:outline-primary-400! [&.drag-over-item]:outline-offset-2 [&.drag-over-item]:rounded-lg [&.drop-inside-hint]:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-tertiary-500)_25%,transparent)] [&.drop-inside-hint]:rounded-lg"
+								class:hidden={!isNodeVisible(child, searchText)}
+								class:drop-inside-hint={dndState.isDragging && child.nodeType === 'category'}
+								animate:flip={{ duration: flipDurationMs }}
+								role="treeitem"
+								aria-expanded={expandedNodes.has(child.id)}
+								aria-selected="false"
+								data-item-id={child.id}
+								data-node-type={child.nodeType}
+								use:draggable={{
+									container: 'children:' + item.id,
+									dragData: { itemId: child.id },
+									disabled: !!searchText,
+									keyboard: true,
+								}}
+								use:droppable={{
+									container: 'children:' + item.id,
+									callbacks: {
+										onDrop: handleTreeDrop,
+										onDragOver: handleCategoryDragOver,
+									},
+									direction: 'vertical',
+									attributes: { dragOverClass: 'drag-over-item' },
+								}}
+							>
+								{@render treeNode(child, level + 1)}
+							</div>
+						{/each}
+					{:else if dndState.isDragging}
+						<!-- Empty category: explicit drop surface while dragging -->
+						<div class="my-2 flex min-h-12 items-center justify-center rounded-lg border-2 border-dashed border-surface-500 bg-surface-200/30 p-2 transition-all duration-200" aria-hidden="true"></div>
+					{/if}
+				</div>
+			{/if}
 		{/if}
 	</div>
 {/snippet}
-
-<style>
-	.hidden {
-		display: none !important;
-	}
-
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border-width: 0;
-	}
-
-	.tree-item {
-		position: relative;
-	}
-
-	.tree-row {
-		position: relative;
-		margin-bottom: 0.5rem;
-	}
-
-	/* sveltednd ships global .drop-before/.drop-after lines and, for "after",
-	   moves them onto the next DOM sibling — which here is the children block.
-	   Suppress them and draw the line ourselves from dndState instead. */
-	.collection-builder-tree :global(.drop-before)::before,
-	.collection-builder-tree :global(.drop-after)::after,
-	.collection-builder-tree :global(.drop-left)::before,
-	.collection-builder-tree :global(.drop-right)::after {
-		display: none !important;
-	}
-
-	/* Insertion line. Drawn on the row itself so it sits exactly on the boundary
-	   the drop will use — no placeholder element, no reflow, no layout shift.
-	   `display: block` is explicit because the library stamps its own
-	   `drop-before` class onto this very element, and the suppression rule above
-	   would otherwise hide our line along with theirs. */
-	.tree-row.line-before::before,
-	.tree-row.line-after::after {
-		content: '';
-		display: block !important;
-		position: absolute;
-		inset-inline: 0;
-		height: 2px;
-		background: var(--color-primary-500);
-		pointer-events: none;
-		z-index: 2;
-	}
-
-	.tree-row.line-before::before {
-		top: -3px;
-	}
-
-	.tree-row.line-after::after {
-		bottom: -3px;
-	}
-
-	/* Dwelled category: "release here to put it inside". Warning/amber on purpose
-	   — a category's own border is tertiary blue, so a blue highlight read as
-	   ordinary chrome rather than an active drop target. Static, no animation. */
-	.tree-row.nest-target {
-		border-radius: 0.375rem;
-		outline: 2px solid var(--color-warning-500);
-		outline-offset: -1px;
-	}
-
-	/* Tint the row so the state reads at a glance. The theme exposes colours as
-	   oklch(), not RGB triplets, so alpha needs color-mix — a
-	   `rgb(var(--token) / 0.3)` here is invalid and silently paints nothing. */
-	.tree-row.nest-target :global(> *) {
-		background: color-mix(in oklch, var(--color-warning-500) 30%, transparent) !important;
-		border-color: var(--color-warning-500) !important;
-	}
-
-	.tree-children {
-		position: relative;
-		padding-inline-start: 0.5rem;
-		border-inline-start: 2px solid color-mix(in oklch, var(--color-surface-300) 60%, transparent);
-	}
-
-	/* Dragged source row: dimmed only. No transform, no ghost, no transition.
-	   Driven by `drag-source` (applied a frame late) rather than the library's
-	   `.dragging`, which lands during dragstart and would be baked into Chrome's
-	   drag-image snapshot — that is what made the cursor carry an empty outline. */
-	.collection-builder-tree :global(.dragging) {
-		opacity: 1;
-	}
-
-	.tree-row.drag-source {
-		opacity: 0.4;
-	}
-
-	.collection-builder-tree.is-dragging {
-		user-select: none;
-	}
-
-	/* The draggable action sets `touch-action: none` inline on every row, which
-	   would make the list unscrollable on touch. Give the row back vertical
-	   panning and keep the drag opt-out on the grip only. */
-	@media (hover: none) {
-		.tree-row {
-			touch-action: pan-y !important;
-		}
-
-		.tree-row :global(.drag-handle) {
-			touch-action: none;
-		}
-	}
-</style>

@@ -65,6 +65,8 @@ export {
   type OrganizationalDriftReport,
 } from "./sync-content-state.server";
 
+import { syncContentState } from "./sync-content-state.server";
+
 // Lazy-loaded services (avoid loading on import)
 let contentService: any = null;
 let apiSpecService: any = null;
@@ -124,7 +126,6 @@ export async function ensureContentInitialized(
         }
         if (!db) throw new Error("Database not ready for content initialization");
 
-        const { syncContentState } = await import("./sync-content-state.server");
         await syncContentState({
           reason: "boot",
           tenantId,

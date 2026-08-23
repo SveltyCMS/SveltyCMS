@@ -235,29 +235,29 @@ async function uninstallWidget(widgetName: string) {
 <div class="wrapper h-full max-h-screen space-y-6 overflow-y-auto p-4 pb-16">
 	{#if isLoading}
 		<div class="flex items-center justify-center p-8">
-			<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+			<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-600 border-t-transparent"></div>
 			<span class="ms-3 text-lg">Loading widgets...</span>
 		</div>
 	{:else if error}
-		<div class="rounded border border-red-200 bg-red-50 p-4 dark:bg-red-900/20">
+		<div class="rounded border border-error-500/20 bg-error-500/10 p-4 dark:bg-error-900/20">
 			<div class="flex items-start gap-3">
-				<iconify-icon icon="mdi:alert-circle" width="24" class="mt-1 text-xl text-red-600"></iconify-icon>
+				<iconify-icon icon="mdi:alert-circle" width="24" class="mt-1 text-xl text-error-600"></iconify-icon>
 				<div>
-					<h3 class="font-semibold text-red-800 dark:text-red-300">Error Loading Widgets</h3>
-					<p class="text-red-700 dark:text-red-400">{error}</p>
-					<button onclick={() => loadWidgets()} class="mt-2 rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700">Retry</button>
+					<h3 class="font-semibold text-error-600 dark:text-error-400">Error Loading Widgets</h3>
+					<p class="text-error-600 dark:text-error-400">{error}</p>
+					<button onclick={() => loadWidgets()} class="mt-2 rounded bg-error-500 px-3 py-1 text-sm text-white hover:bg-error-600">Retry</button>
 				</div>
 			</div>
 		</div>
 	{:else}
 		<!-- Permission Notice -->
 		{#if !canManageWidgets}
-			<div class="rounded border border-amber-200 bg-amber-50 p-4 dark:bg-amber-900/20">
+			<div class="rounded border border-warning-500/20 bg-warning-500/10 p-4 dark:bg-warning-900/20">
 				<div class="flex items-start gap-3">
-					<iconify-icon icon="mdi:information" width="24" class="mt-1 text-xl text-amber-600"></iconify-icon>
+					<iconify-icon icon="mdi:information" width="24" class="mt-1 text-xl text-warning-600"></iconify-icon>
 					<div>
-						<h3 class="font-semibold text-amber-800 dark:text-amber-300">Limited Access</h3>
-						<p class="text-amber-700 dark:text-amber-400">
+						<h3 class="font-semibold text-warning-600 dark:text-warning-400">Limited Access</h3>
+						<p class="text-warning-600 dark:text-warning-400">
 							You have read-only access to widget management. Contact your administrator to request widget management permissions.
 						</p>
 					</div>
@@ -270,7 +270,7 @@ async function uninstallWidget(widgetName: string) {
 			<button
 				onclick={() => (activeTab = 'installed')}
 				class="border-b-2 px-6 py-3 font-medium transition-colors {activeTab === 'installed'
-					? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+					? 'border-tertiary-600 text-tertiary-600 dark:border-tertiary-400 dark:text-tertiary-400'
 					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
 				role="tab"
 				aria-selected={activeTab === 'installed'}
@@ -285,7 +285,7 @@ async function uninstallWidget(widgetName: string) {
 			<button
 				onclick={() => (activeTab = 'marketplace')}
 				class="border-b-2 px-6 py-3 font-medium transition-colors {activeTab === 'marketplace'
-					? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+					? 'border-tertiary-600 text-tertiary-600 dark:border-tertiary-400 dark:text-tertiary-400'
 					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
 				role="tab"
 				aria-selected={activeTab === 'marketplace'}
@@ -295,7 +295,7 @@ async function uninstallWidget(widgetName: string) {
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:store" width="24" class="text-xl"></iconify-icon>
 					<span>Marketplace</span>
-					<span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+					<span class="rounded-full bg-tertiary-500/10 px-2 py-0.5 text-xs font-medium text-tertiary-600 dark:bg-tertiary-900/20 dark:text-tertiary-400">
 						Coming Soon
 					</span>
 				</div>
@@ -306,24 +306,24 @@ async function uninstallWidget(widgetName: string) {
 			<!-- Summary Cards with Colored Backgrounds and Tooltips -->
 			<div class="grid grid-cols-2 gap-4 md:grid-cols-4" data-testid="widget-stats">
 				<!-- Total Widgets -->
-				<div class="relative rounded bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
+				<div class="relative rounded bg-tertiary-500/10 p-4 shadow-sm transition-all hover:bg-tertiary-500/10 dark:bg-tertiary-900/20 dark:hover:bg-tertiary-900/20">
 					<Button variant="ghost"
 						aria-label="Information about total widgets"
 						title="All registered widgets in the system (core + custom)"
-					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-blue-600 dark:text-blue-400">
+					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-600 dark:text-tertiary-400">
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</Button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:widgets" width="24" class="text-2xl text-blue-600 dark:text-blue-400"></iconify-icon>
+						<iconify-icon icon="mdi:widgets" width="24" class="text-2xl text-tertiary-600 dark:text-tertiary-400"></iconify-icon>
 						<div>
-							<h3 class="font-semibold text-blue-800 dark:text-blue-300">Total</h3>
-							<p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.total}</p>
+							<h3 class="font-semibold text-tertiary-600 dark:text-tertiary-400">Total</h3>
+							<p class="text-2xl font-bold text-tertiary-600 dark:text-tertiary-400">{stats.total}</p>
 						</div>
 					</div>
 				</div>
 
 				<!-- Active Widgets -->
-				<div class="relative rounded bg-green-50 p-4 shadow-sm transition-all hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30">
+				<div class="relative rounded bg-success-500/10 p-4 shadow-sm transition-all hover:bg-success-500/10 dark:bg-success-900/20 dark:hover:bg-success-900/20">
 					<Button variant="ghost"
 						aria-label="Information about active widgets"
 						title="Widgets currently enabled and available for use in collections"
@@ -340,37 +340,37 @@ async function uninstallWidget(widgetName: string) {
 				</div>
 
 				<!-- Core Widgets -->
-				<div class="relative rounded bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
+				<div class="relative rounded bg-tertiary-500/10 p-4 shadow-sm transition-all hover:bg-tertiary-500/10 dark:bg-tertiary-900/20 dark:hover:bg-tertiary-900/20">
 					<Button variant="ghost"
 						aria-label="Information about core widgets"
 						title="Essential system widgets that are always active and cannot be disabled"
-					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-blue-600 dark:text-blue-400">
+					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-tertiary-600 dark:text-tertiary-400">
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</Button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:puzzle" width="24" class="text-2xl text-blue-600 dark:text-blue-400"></iconify-icon>
+						<iconify-icon icon="mdi:puzzle" width="24" class="text-2xl text-tertiary-600 dark:text-tertiary-400"></iconify-icon>
 						<div>
-							<h3 class="font-semibold text-blue-800 dark:text-blue-300">Core</h3>
-							<p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.core}</p>
+							<h3 class="font-semibold text-tertiary-600 dark:text-tertiary-400">Core</h3>
+							<p class="text-2xl font-bold text-tertiary-600 dark:text-tertiary-400">{stats.core}</p>
 						</div>
 					</div>
 				</div>
 
 				<!-- Custom Widgets -->
 				<div
-					class="relative rounded bg-yellow-50 p-4 shadow-sm transition-all hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30"
+					class="relative rounded bg-warning-500/10 p-4 shadow-sm transition-all hover:bg-warning-500/10 dark:bg-warning-900/20 dark:hover:bg-warning-900/20"
 				>
 					<Button variant="ghost"
 						aria-label="Information about custom widgets"
 						title="Optional widgets that can be toggled on/off as needed"
-					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-yellow-600 dark:text-yellow-400">
+					 class="p-0! min-w-0 absolute inset-e-2 top-2 text-warning-600 dark:text-warning-400">
 						<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 					</Button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:puzzle-plus" width="24" class="text-2xl text-yellow-600 dark:text-yellow-400"></iconify-icon>
+						<iconify-icon icon="mdi:puzzle-plus" width="24" class="text-2xl text-warning-600 dark:text-warning-400"></iconify-icon>
 						<div>
-							<h3 class="font-semibold text-yellow-800 dark:text-yellow-300">Custom</h3>
-							<p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.custom}</p>
+							<h3 class="font-semibold text-warning-600 dark:text-warning-400">Custom</h3>
+							<p class="text-2xl font-bold text-warning-600 dark:text-warning-400">{stats.custom}</p>
 						</div>
 					</div>
 				</div>
@@ -414,7 +414,7 @@ async function uninstallWidget(widgetName: string) {
 							<span>{filter.label}</span>
 							<span
 								class="rounded-full px-2 py-0.5 text-xs font-semibold {activeFilter === filter.value
-									? 'bg-blue-500 text-white'
+									? 'bg-tertiary-500 text-white'
 									: 'bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-300'}"
 							>
 								{filter.count}
@@ -446,7 +446,7 @@ async function uninstallWidget(widgetName: string) {
 									searchQuery = '';
 									activeFilter = 'all';
 								}}
-								class="mt-6 inline-flex items-center gap-2 rounded bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+								class="mt-6 inline-flex items-center gap-2 rounded bg-tertiary-600 px-6 py-3 text-sm font-medium text-white hover:bg-tertiary-700 focus:outline-none focus:ring-2 focus:ring-tertiary-500 focus:ring-offset-2"
 								aria-label="Clear all filters and search"
 							>
 								<iconify-icon icon="mdi:filter-off" width="24" class="text-lg"></iconify-icon>

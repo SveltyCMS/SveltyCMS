@@ -153,7 +153,7 @@ focus restoration.
 			bind:this={floatingEl}
 			class={cn(
 				'z-200 card p-4 shadow-xl border border-(--admin-border-default) bg-(--admin-bg-overlay) backdrop-blur-md fixed',
-				'transition-[opacity,transform] duration-200 animate-in fade-in zoom-in-95',
+				'motion-safe:popover-enter',
 				className
 			)}
 			style={floating.positionStyle}

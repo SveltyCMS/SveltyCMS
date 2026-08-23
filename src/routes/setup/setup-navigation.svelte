@@ -34,7 +34,7 @@ Features:
 
 <div class="flex flex-col dark:text-white">
 	{#if isSeeding}
-		<div class="bg-surface-100 h-1.5 w-full overflow-hidden dark:bg-surface-700">
+		<div class="bg-surface-500/10 h-1.5 w-full overflow-hidden dark:bg-surface-700">
 			<div
 				class="bg-tertiary-500 h-full transition-all duration-500 ease-out dark:bg-primary-500"
 				style="width: {seedingProgress}%"

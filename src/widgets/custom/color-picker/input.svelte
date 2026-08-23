@@ -77,12 +77,12 @@ Renders a color input with label, helper, and validation
 
 <div class="color-picker-widget flex flex-col gap-1">
 	<div
-		class="flex items-center gap-2 rounded border p-1 transition-all bg-white dark:bg-surface-900 border-surface-400 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
+		class="flex items-center gap-2 rounded border p-1 transition-all bg-white dark:bg-surface-900 border-surface-500 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
 		class:!border-error-500={!!error}
 		class:ring-2={!!error}
 		class:ring-error-500={!!error}
 	>
-		<div class="relative h-10 w-10 shrink-0 overflow-hidden rounded border border-surface-200 dark:border-surface-700">
+		<div class="relative h-10 w-10 shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-500/40">
 			<input aria-label="Color picker"
 				type="color"
 				value={colorValue}

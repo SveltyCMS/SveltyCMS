@@ -83,8 +83,8 @@ import { logger } from "@utils/logger";
 		class={cn(
 			'flex items-start gap-3 w-full rounded border-2 p-4 text-start transition-all',
 			checked
-				? 'border-tertiary-500 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/10 shadow-sm'
-				: 'border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 hover:border-surface-300 dark:hover:border-surface-600',
+				? 'border-tertiary-500 dark:border-primary-500 bg-primary-500/10 dark:bg-primary-500/10 shadow-sm'
+				: 'border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 hover:border-surface-500/30 dark:hover:border-surface-600',
 			ctx?.invalid && 'border-error-500!',
 			isDisabled && 'opacity-50 cursor-not-allowed',
 			!isDisabled && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2',
@@ -98,7 +98,7 @@ import { logger } from "@utils/logger";
 				'shrink-0 inline-flex items-center justify-center rounded-full border-2 transition-all',
 				sizeTokens.circle,
 				sizeTokens.touch,
-				checked ? 'border-tertiary-500 dark:border-primary-500' : 'border-surface-300 dark:border-surface-600',
+				checked ? 'border-tertiary-500 dark:border-primary-500' : 'border-surface-500/30 dark:border-surface-600',
 			)}
 			aria-hidden="true"
 		>
@@ -127,8 +127,8 @@ import { logger } from "@utils/logger";
 			sizeTokens.text,
 			sizeTokens.touch,
 			checked
-				? 'border-tertiary-500 dark:border-primary-500 bg-primary-50 dark:bg-primary-500/20 text-primary-700 dark:text-primary-300'
-				: 'border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 text-surface-700 dark:text-surface-300 hover:border-surface-300 dark:hover:border-surface-600',
+				? 'border-tertiary-500 dark:border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400'
+				: 'border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 text-surface-600 dark:text-surface-400 hover:border-surface-500/30 dark:hover:border-surface-600',
 			isDisabled && 'opacity-50 cursor-not-allowed',
 			!isDisabled && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
 			className
@@ -158,7 +158,7 @@ import { logger } from "@utils/logger";
 				sizeTokens.circle,
 				sizeTokens.touch,
 				'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-surface-900',
-				checked ? 'border-tertiary-500 dark:border-primary-500' : 'border-surface-300 dark:border-surface-600 hover:border-primary-400',
+				checked ? 'border-tertiary-500 dark:border-primary-500' : 'border-surface-500/30 dark:border-surface-600 hover:border-primary-500',
 				ctx?.invalid && 'border-error-500!',
 				isDisabled && 'cursor-not-allowed'
 			)}
