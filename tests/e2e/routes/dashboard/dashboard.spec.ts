@@ -143,27 +143,36 @@ async function ensureNWidgets(page: Page, count: number): Promise<number> {
 
 /**
  * Pointer drag using product contract: drag handle = top HEADER_HEIGHT of widget.
- * Moves first widget toward the second widget center.
+ * Moves the first widget past the others (drop on the LAST widget's center).
+ *
+ * The product maps insertion slots to the first widget's center (slot 0), the
+ * midpoints between neighbours, and the LAST widget's center (slot N). Dropping
+ * only ~40px into a side-by-side neighbour (left edge + 75% height) lands closest
+ * to the "between" slot (currentIndex + 1), which the product treats as a no-op
+ * (the widget is already adjacent to that slot) — so the drag never reorders on
+ * desktop grids. Dropping on the last widget's center unambiguously targets
+ * slot N for any widget count/layout.
  */
 async function pointerDragReorderFirstPastSecond(page: Page): Promise<void> {
   const widgets = page.locator("[data-widget-id]");
   await expect(widgets).toHaveCount(await widgets.count()); // stabilize
+  const widgetCount = await widgets.count();
   const first = widgets.nth(0);
-  const second = widgets.nth(1);
+  const last = widgets.nth(widgetCount - 1);
   await first.scrollIntoViewIfNeeded();
-  await second.scrollIntoViewIfNeeded();
+  await last.scrollIntoViewIfNeeded();
 
   const box1 = await first.boundingBox();
-  const box2 = await second.boundingBox();
+  const box2 = await last.boundingBox();
   if (!box1 || !box2) {
     throw new Error("Could not measure widget bounding boxes for drag");
   }
 
   const startX = box1.x + Math.min(40, box1.width / 2);
   const startY = box1.y + DRAG_HEADER_Y;
-  const endX = box2.x + Math.min(40, box2.width / 2);
-  // Drop past the vertical midpoint of the second widget to trigger insertion
-  const endY = box2.y + box2.height * 0.75;
+  // Center of the last widget = the product's slot-N insertion target (dist 0).
+  const endX = box2.x + box2.width / 2;
+  const endY = box2.y + box2.height / 2;
 
   await page.mouse.move(startX, startY);
   await page.mouse.down();
