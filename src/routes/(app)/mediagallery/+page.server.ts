@@ -158,7 +158,20 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       logger.debug("No media items found");
     }
 
-    const processedMedia = allMediaResults
+    // Optional server-side JSON path filter — must run on the RAW adapter rows,
+    // NOT the mapped gallery items: toGalleryListItem → slimMetadata strips
+    // arbitrary metadata fields (camera, iso, … are not in META_KEEP), so a
+    // second pass over the slimmed shape would drop every row even when the DB
+    // query already matched it via json_extract (media-jsonpath regression).
+    let filteredSource = allMediaResults;
+    if (jsonPath) {
+      filteredSource = allMediaResults.filter((item) => matchesJsonPathFilter(item, jsonPath));
+      logger.debug(
+        `JSON path filter "${jsonPath}" reduced media ${allMediaResults.length} → ${filteredSource.length}`,
+      );
+    }
+
+    const processedMedia = filteredSource
       .map((item) => {
         if (!item) return null;
         const mediaItem = item as unknown as MediaItem;
@@ -177,16 +190,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
-    // Optional server-side JSON path filter (reduces payload when linked via ?jsonPath=)
-    let filteredMedia = processedMedia;
-    if (jsonPath) {
-      filteredMedia = processedMedia.filter((item) => matchesJsonPathFilter(item, jsonPath));
-      logger.debug(
-        `JSON path filter "${jsonPath}" reduced media ${processedMedia.length} → ${filteredMedia.length}`,
-      );
-    }
-
-    logger.debug(`Fetched ${filteredMedia.length} media items for folder ${folderId || "root"}`);
+    logger.debug(`Fetched ${processedMedia.length} media items for folder ${folderId || "root"}`);
     logger.debug(`Fetched ${virtualFolders.length} total virtual folders`);
 
     // 🚀 Check which media items are referenced by published content
@@ -196,7 +200,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       const { MediaService } = await import("@src/utils/media/media-service.server");
       const mediaService = new MediaService(dbAdapter);
       publishedMediaIds = await mediaService.getPublishedReferencedIds(
-        filteredMedia.map((item) => String(item._id)),
+        processedMedia.map((item) => String(item._id)),
         (locals.tenantId as DatabaseId | null) ?? null,
       );
       logger.debug(`Found ${publishedMediaIds.length} media items referenced by published content`);
@@ -220,7 +224,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
               ? String((user.avatar as any).url || (user.avatar as any).toString?.() || "")
               : undefined,
       },
-      media: filteredMedia,
+      media: processedMedia,
       systemVirtualFolders: virtualFolders as SystemVirtualFolder[],
       currentFolder: currentFolder as SystemVirtualFolder | null,
       publishedMediaIds,

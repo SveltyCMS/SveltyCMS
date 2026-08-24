@@ -67,10 +67,13 @@ export async function getFreshLayoutUser(
   if (cached) return cached;
 
   try {
+    const { withSystemScope } = await import("@src/databases/system-tenant-scope");
     const { auth } = await import("@src/databases/db");
+    // Branded system scope (cache-warming domain) — the session user snapshot
+    // is re-read across the session's tenant context; the deprecated boolean
+    // form is rejected by the tenant isolation gate (lint:tenant).
     const dbUser = await auth?.getUserById(sessionUser._id as DatabaseId, {
-      tenantId: tenantId as DatabaseId,
-      bypassTenantCheck: true,
+      ...withSystemScope("cache-warming", { tenantId: tenantId as DatabaseId }),
     });
     if (dbUser) {
       void cacheService.set(layoutUserCacheKey(uid), dbUser, LAYOUT_CACHE_TTL_S, tenantId);
@@ -80,7 +83,7 @@ export async function getFreshLayoutUser(
     if (sessionUser.email) {
       const byEmail = await auth?.getUserByEmail(
         { email: sessionUser.email, tenantId: tenantId as DatabaseId },
-        { tenantId: tenantId as DatabaseId, bypassTenantCheck: true },
+        { ...withSystemScope("cache-warming", { tenantId: tenantId as DatabaseId }) },
       );
       if (byEmail) {
         void cacheService.set(

@@ -44,15 +44,17 @@
   --color-primary-200: oklch(87.85% 0.17 129.95deg);
   --color-primary-300: oklch(84.14% 0.2 132.96deg);
   --color-primary-400: oklch(80.36% 0.22 135.49deg);
-  /* Brand primary (green). 500-950 keep the bright brand-green lineage by
-     owner decision (reverted from the AA-darkened ramp) — white text on
-     primary is a known contrast trade-off (~1.94:1), accepted for branding. */
-  --color-primary-500: oklch(76.87% 0.23 137.58deg);
-  --color-primary-600: oklch(69.97% 0.21 138.5deg);
-  --color-primary-700: oklch(62.66% 0.19 139.5deg);
-  --color-primary-800: oklch(55.46% 0.18 140.59deg);
-  --color-primary-900: oklch(47.8% 0.16 141.65deg);
-  --color-primary-950: oklch(40.2% 0.14 142.5deg);
+  /* Brand primary (green). 500 is anchored at WCAG 2.2 AA — white text on
+     `bg-primary-500` must hold ≥4.5:1 (5.02:1 measured; the previous bright
+     ramp was ~1.94:1 and tripped the login/accessibility RTL axe audit).
+     Tints 50-400 keep the bright brand lineage for tinted surfaces; 600+
+     step down for hover/pressed and dark-mode emphasis. */
+  --color-primary-500: #15803d;
+  --color-primary-600: #116932;
+  --color-primary-700: #0e5629;
+  --color-primary-800: #0c4823;
+  --color-primary-900: #093c1e;
+  --color-primary-950: #072e17;
 
   /* Secondary | Neutral Gray */
   --color-secondary-50: oklch(94.91% 0 none);

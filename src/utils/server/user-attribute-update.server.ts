@@ -17,6 +17,7 @@ import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
 import { readSessionCookie } from "@src/databases/auth/constants";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 export async function applyUserAttributeUpdate(
   event: RequestEvent,
@@ -57,15 +58,17 @@ export async function applyUserAttributeUpdate(
 
   const updateOpts: {
     tenantId?: DatabaseId;
-    bypassTenantCheck?: boolean;
+    systemScope?: ReturnType<typeof withSystemScope>["systemScope"];
     allowPrivilegeEscalation?: boolean;
-  } = {
-    bypassTenantCheck: true,
-    ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
-  };
+  } = {};
+  if (isAdmin) updateOpts.allowPrivilegeEscalation = true;
   if (tenantId) {
     updateOpts.tenantId = tenantId;
-    updateOpts.bypassTenantCheck = false;
+  } else {
+    // Single-tenant / legacy profile route without a tenant context — branded
+    // system scope (auth-bootstrap) instead of the deprecated bypass boolean
+    // the tenant isolation gate (lint:tenant) rejects.
+    updateOpts.systemScope = withSystemScope("auth-bootstrap").systemScope;
   }
 
   let resolvedId = String(targetId);
@@ -77,8 +80,9 @@ export async function applyUserAttributeUpdate(
     event.locals.user?.email
   ) {
     try {
+      // Email fallback resolves the user across tenants — branded system scope.
       const byEmail = await cms.auth.getUserByEmail(String(event.locals.user.email), {
-        bypassTenantCheck: true,
+        ...withSystemScope("auth-bootstrap"),
       } as never);
       const emailUser =
         byEmail?.success && byEmail.data
@@ -90,7 +94,7 @@ export async function applyUserAttributeUpdate(
       if (emailId && String(emailId) !== resolvedId) {
         resolvedId = String(emailId);
         result = await cms.auth.updateUserAttributes(resolvedId, updates, {
-          bypassTenantCheck: true,
+          ...withSystemScope("auth-bootstrap"),
           ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
         } as never);
       }

@@ -99,6 +99,9 @@ describe("manifestsToPickerList", () => {
     const manifests = Array.from({ length: 22 }, (_, i) =>
       manifest({ id: `w-${i}`, name: `Widget ${i}` }),
     );
+    // JIT warm-up before the timed loop — a cold first call on a busy CI runner
+    // pays the compiler and made the old <50ms budget flaky (observed 71ms).
+    for (let i = 0; i < 1_000; i++) manifestsToPickerList(manifests, "0.0.8");
     const t0 = performance.now();
     for (let i = 0; i < 5_000; i++) manifestsToPickerList(manifests, "0.0.8");
     const elapsed = performance.now() - t0;

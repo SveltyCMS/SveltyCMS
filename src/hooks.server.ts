@@ -56,7 +56,7 @@ import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-registry";
 import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
-import { initHardwareProfile, describeHardware } from "@utils/hardware-profile";
+import { initHardwareProfile, getHardwareProfile, describeHardware } from "@utils/hardware-profile";
 
 // 🧠 ONE HARDWARE DETECTION AT PROCESS START: detects the host once and publishes
 // the shared profile to the global registry — every module, chunk and worker
