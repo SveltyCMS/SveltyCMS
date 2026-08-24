@@ -304,8 +304,6 @@ export class TelemetryService {
           environment,
           os: os.type(),
           installation_id: installationId,
-          timestamp,
-          signature: cryptoSignature,
           is_ephemeral: environment === "development" || environment === "test",
           stable_id: stableId,
           db_type: dbType,
@@ -323,6 +321,12 @@ export class TelemetryService {
           plugins,
         };
 
+        // Server contract: auth fields live at the TOP level —
+        // { payload, signature, timestamp } (telemetry-ecology.mdx §4). The
+        // receiver rejects with 403 "Missing authentication fields" when they
+        // are embedded inside the payload object.
+        const body = { payload, signature: cryptoSignature, timestamp };
+
         const telemetryEndpoint =
           env.TELEMETRY_ENDPOINT ||
           process.env.TELEMETRY_ENDPOINT ||
@@ -334,7 +338,7 @@ export class TelemetryService {
             "Content-Type": "application/json",
             "User-Agent": "SveltyCMS-Telemetry/1.0",
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(body),
           signal: AbortSignal.timeout(10_000),
         });
 

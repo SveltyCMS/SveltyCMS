@@ -45,26 +45,30 @@ Requests must include a `timestamp` (Unix milliseconds). The server MUST reject 
 ### Request Payload
 
 ```typescript
-interface TelemetryPayload {
-  // Required fields
-  current_version: string; // "0.9.0"
-  node_version: string; // "v20.10.0"
-  environment: string; // "production"
-  os: string; // "linux"
-  installation_id: string; // SHA256 hash of JWT_SECRET_KEY
-
-  // Authentication fields (REQUIRED)
+interface CheckUpdateRequest {
+  // Authentication fields (REQUIRED — top level, NOT inside payload)
   timestamp: number; // Unix timestamp in milliseconds
   signature: string; // HMAC-SHA256 signature (hex)
 
-  // Extension ecosystem (optional, aggregate)
-  widgets?: string[]; // custom content widget names
-  dashboard_widgets?: string[]; // installed dashboard widget package ids
-  plugins?: string[]; // installed plugin ids
+  payload: {
+    // Required fields
+    current_version: string; // "0.9.0"
+    node_version: string; // "v20.10.0"
+    environment: string; // "production"
+    os: string; // "linux"
+    installation_id: string; // SHA256 hash of JWT_SECRET_KEY
 
-  // ... rest of payload
+    // Extension ecosystem (optional, aggregate)
+    widgets?: string[]; // custom content widget names
+    dashboard_widgets?: string[]; // installed dashboard widget package ids
+    plugins?: string[]; // installed plugin ids
+
+    // ... rest of payload
+  };
 }
 ```
+
+> ⚠️ Wire contract: the receiver reads `signature`/`timestamp` from the **top level** of the body (`{ payload, signature, timestamp }`). Embedding them inside `payload` makes the server respond `403` with "Missing authentication fields".
 
 ### Signature Generation
 
@@ -74,6 +78,8 @@ The signature is computed over the string: `installation_id:current_version:time
 const data = `${payload.installation_id}:${payload.current_version}:${payload.timestamp}`;
 const signature = crypto.createHmac("sha256", clientSecret).update(data).digest("hex");
 ```
+
+(Client reference: `src/services/observability/telemetry-service.ts` signs the same string and sends `{ payload, signature, timestamp }`.)
 
 ## 3. Implementation Logic
 

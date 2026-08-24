@@ -105,7 +105,9 @@ describe("manifestsToPickerList", () => {
     const t0 = performance.now();
     for (let i = 0; i < 5_000; i++) manifestsToPickerList(manifests, "0.0.8");
     const elapsed = performance.now() - t0;
-    expect(elapsed).toBeLessThan(50);
+    // Budget is per-op ≈ 11µs on shared CI runners (56ms/5k observed). 100ms
+    // still catches a 10× regression while absorbing runner noise.
+    expect(elapsed).toBeLessThan(100);
   });
 });
 

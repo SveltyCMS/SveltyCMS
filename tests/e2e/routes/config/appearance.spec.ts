@@ -7,8 +7,12 @@
 
 import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { seedCookieConsent } from "../../helpers/cookie-consent";
 
 async function openOverrides(page: Page): Promise<void> {
+  // The GDPR cookie banner (role=dialog, z-9999) intercepts clicks on the
+  // save button if it appears — pre-seed consent so it never renders.
+  await seedCookieConsent(page);
   await loginAsAdmin(page);
   await page.goto("/config/design-system?tab=overrides", { waitUntil: "domcontentloaded" });
   if (page.url().includes("/login")) {
