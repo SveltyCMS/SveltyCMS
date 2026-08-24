@@ -26,6 +26,9 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
+  // Already bound (test bypass or an upstream hook) — nothing to do.
+  if ((locals as any).cms) return resolve(event);
+
   try {
     // 🚀 FAST-PATH: if the adapter is already booted, skip the getDbInitPromise
     // await entirely (getDbInitPromise may still incur a microtask/promise hop).
@@ -33,7 +36,9 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
       // Prefer the request-scoped tenant adapter bound by the authentication
       // hook — the global adapter would drop tenant isolation for this request.
       const activeAdapter = (locals as any).dbAdapter || dbAdapter;
-      (locals as any).cms = LocalCMS.getLocals(activeAdapter, { ...locals });
+      // Pass `locals` directly — the wrapper reads tenantId/user lazily, so the
+      // per-request `{ ...locals }` snapshot copy is unnecessary allocation.
+      (locals as any).cms = LocalCMS.getLocals(activeAdapter, locals);
       return resolve(event);
     }
 
@@ -41,8 +46,8 @@ export const handleLocalSdk: Handle = async ({ event, resolve }) => {
 
     if (dbAdapter) {
       const activeAdapter = (locals as any).dbAdapter || dbAdapter;
-      // Shallow copy to prevent cross-request reference bleed
-      (locals as any).cms = LocalCMS.getLocals(activeAdapter, { ...locals });
+      // Same as the fast-path: no snapshot copy (wrapper reads lazily).
+      (locals as any).cms = LocalCMS.getLocals(activeAdapter, locals);
     }
   } catch (dbError: any) {
     logger.error(`[LocalSDK] Database boot failed: ${dbError.message}`);

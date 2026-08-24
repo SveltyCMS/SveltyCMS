@@ -61,7 +61,11 @@ function instrumentNamespace<T extends object>(name: string, instance: T): T {
     if (key === "constructor" || typeof original !== "function" || skipSet?.has(key)) continue;
     if (original.constructor.name !== "AsyncFunction") continue;
     // Keep the original Promise — an extra `async` wrapper is a microtask per SDK call.
-    (instance as any)[key] = function (this: any, ...args: any[]) {
+    // Use the `arguments` object instead of a rest parameter: the rest-array
+    // allocation (`...args`) on every SDK call is garbage on the write hot path.
+    // The arrow captures `this` lexically, so no this-alias is needed.
+    (instance as any)[key] = function (this: unknown) {
+      const args = arguments;
       return traceSpan(`sdk:${name}:${key}`, () => original.apply(this, args));
     };
   }
