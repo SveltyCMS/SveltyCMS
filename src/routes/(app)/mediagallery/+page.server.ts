@@ -11,6 +11,12 @@
  * The load function prepares data for the media gallery, including user information,
  * a list of all media files, and virtual folders. The actions object defines the
  * server-side logic for handling file uploads.
+ *
+ * ### Security
+ * - Mutations require media:write (action-level — not only page load)
+ * - Remote URLs go through saveRemoteMediaUrls → MediaService.saveRemoteMedia
+ *   (validateEgressUrl + safeFetch egress-guard SSRF defense, re-checked per
+ *   redirect hop)
  */
 
 import type { DatabaseId } from "@root/src/content/types";
