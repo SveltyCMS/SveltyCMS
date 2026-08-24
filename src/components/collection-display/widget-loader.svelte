@@ -57,7 +57,6 @@ rather than bundling all widgets upfront.
 	let loading = $state(true);
 	let error = $state<Error | null>(null);
 	let lastSyncedValue = $state.raw<unknown>(value);
-	let skipFirstSync = true;
 
 	function runWidgetValidation(v: unknown) {
 		const widget = field.widget as { validationSchema?: unknown | ((f: FieldInstance) => unknown) } | undefined;
@@ -83,10 +82,6 @@ rather than bundling all widgets upfront.
 		if (v === lastSyncedValue) return;
 		lastSyncedValue = v;
 		runWidgetValidation(v);
-		if (skipFirstSync) {
-			skipFirstSync = false;
-			return;
-		}
 		onFieldSync?.();
 	});
 

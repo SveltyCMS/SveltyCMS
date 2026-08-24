@@ -238,8 +238,14 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
   }
 
   // Validate route exists
+  // SvelteKit has already resolved the route (`event.route`) before this
+  // middleware runs. Only paths that matched NO route need the legacy
+  // allowed-root guard — public site roots (share/shop/cart/checkout/account,
+  // the (site) catch-all, locale-prefixed collections, …) all resolve to real
+  // routes and must never be short-circuited here.
+  const matchedRouteId = (event as any).route?.id;
   const pathSegments = path.split("/").filter(Boolean);
-  if (pathSegments.length > 0) {
+  if (!matchedRouteId && pathSegments.length > 0) {
     const firstSegment = pathSegments[0];
     // 🚀 Use the configured Paraglide locales instead of a hardcoded ["en"].
     const availableLanguages = locales as readonly string[];

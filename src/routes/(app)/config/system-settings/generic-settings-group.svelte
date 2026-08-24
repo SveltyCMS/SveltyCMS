@@ -93,11 +93,14 @@ let hasEmptyRequiredFields = $state(false);
 let importInputEl = $state<HTMLInputElement | null>(null);
 
 // Optimize: Use $derived instead of $effect for unsaved changes.
-// Guard on !loading && !error: while loading or after a failed load, `originalValues` is not
-// populated, yet `bind:value` inputs (e.g. <select aria-label="Select">) auto-fill defaults into `values` — which
-// would otherwise look like unsaved edits and trigger a false "unsaved changes" navigation prompt.
+// Guard on !loading: while the initial load is in flight, `originalValues` is not
+// populated yet, so a naive comparison would treat the seeded defaults as edits and
+// trigger a false "unsaved changes" navigation prompt. A FAILED load is not blocked:
+// the catch block seeds both `values` and `originalValues` with the same fallback, so
+// edits stay correctly detectable — the save bar must not be locked forever just
+// because the initial load errored (the error alert is the user's signal to retry).
 let hasUnsavedChanges = $derived(
-	!loading && !error && hasUnsavedSettingChanges(values, originalValues),
+	!loading && hasUnsavedSettingChanges(values, originalValues),
 );
 
 // Notify parent component when hasUnsavedChanges changes

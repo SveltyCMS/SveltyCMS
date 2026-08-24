@@ -125,11 +125,16 @@ export function classifyRequest(url: URL, method: string, headers: Headers): Req
   const path = url.pathname;
 
   // 1. FAST_STATIC lane (O(1) direct string matches & static extensions)
+  // `/_app/remote/*` are SvelteKit remote-function transports (dynamic server
+  // code), NOT static assets — they must reach the middleware pipeline so
+  // auth/RBAC/rate-limit run and SvelteKit's `private, no-store` cache
+  // directive is preserved (stamping an immutable cache header here caches
+  // error/redirect envelopes and poisons identical subsequent calls).
   if (
     path === "/favicon.ico" ||
     path === "/robots.txt" ||
     path === "/sitemap.xml" ||
-    path.startsWith("/_app/") ||
+    (path.startsWith("/_app/") && !path.startsWith("/_app/remote/")) ||
     path.startsWith("/static/")
   ) {
     return RequestLane.FAST_STATIC;

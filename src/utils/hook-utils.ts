@@ -170,7 +170,14 @@ export function classifyRequest(pathname: string, locals: App.Locals): RequestFl
     isStatic,
     isApi: pathname.startsWith("/api/"),
     isBootstrap,
-    isPublic: isStatic || (isBootstrap && !setupApiLocked) || isPublicRoute(pathname, IS_TEST_MODE),
+    // Remote functions are self-guarding (each `.remote.ts` fn calls
+    // getAuthenticatedUser/requireUser/requirePagePermission), so authz must
+    // not gate the transport itself — same contract as public routes.
+    isPublic:
+      isStatic ||
+      (isBootstrap && !setupApiLocked) ||
+      pathname.startsWith("/_app/remote/") ||
+      isPublicRoute(pathname, IS_TEST_MODE),
     isTestMode: IS_TEST_MODE,
   };
 
@@ -196,14 +203,23 @@ export function getRequestFlags(locals: App.Locals): RequestFlags {
 export function isStaticOrInternalRequest(pathname: string): boolean {
   if (pathname.length < 2) return false;
   if (pathname.startsWith("/api/")) return false;
+  // `/_app/remote/*` are SvelteKit remote-function transports (dynamic server
+  // code) — NOT static. They must pass through the auth/RBAC middleware so
+  // auth-gated remote functions see `locals.user`. Static assets under
+  // `/_app/immutable/` etc. stay fast-static.
   if (
     pathname.startsWith("/files/") ||
     pathname.startsWith("/.well-known/") ||
-    pathname.startsWith("/_")
+    (pathname.startsWith("/_") && !pathname.startsWith("/_app/remote/"))
   )
     return true;
 
-  return INTERNAL_PATH_REGEX.test(pathname) || STATIC_EXT_REGEX.test(pathname);
+  // `INTERNAL_PATH_REGEX` also matches `/_app…` — exclude the remote-function
+  // transport there too (same rationale as the `/_` branch above).
+  return (
+    (INTERNAL_PATH_REGEX.test(pathname) && !pathname.startsWith("/_app/remote/")) ||
+    STATIC_EXT_REGEX.test(pathname)
+  );
 }
 
 export function isApiLike(pathname: string): boolean {

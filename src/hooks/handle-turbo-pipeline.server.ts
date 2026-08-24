@@ -419,7 +419,15 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         const isSetupRoute =
           pathname.startsWith("/setup") || /^\/[a-z]{2,5}(-[a-zA-Z]+)?\/setup/.test(pathname);
 
-        if (!isSetupRoute && !isApiRoute && !isStaticOrInternalRequest(pathname)) {
+        if (
+          !isSetupRoute &&
+          !isApiRoute &&
+          !isStaticOrInternalRequest(pathname) &&
+          // The setup wizard drives its steps through SvelteKit remote
+          // functions — let those through so the wizard can POST its config
+          // (they no longer classify as static assets).
+          !pathname.startsWith("/_app/remote/")
+        ) {
           const returnTo =
             pathname === "/"
               ? ""
