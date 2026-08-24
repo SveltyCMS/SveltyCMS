@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:030be1d5-6157-45b6-98dd-a05d1a35cb0f",
+  "serialNumber": "urn:uuid:7c9548e6-a710-43fe-b615-94ae72a49023",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-23T14:01:01.416Z",
+    "timestamp": "2026-08-24T12:52:40.831Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -458,19 +458,6 @@
         {
           "alg": "SHA-512",
           "content": "sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@cfworker/json-schema",
-      "version": "4.1.1",
-      "purl": "pkg:npm/@cfworker/json-schema@4.1.1",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og=="
         }
       ]
     },
@@ -1894,26 +1881,52 @@
     {
       "type": "library",
       "name": "@mcp-b/webmcp-polyfill",
-      "version": "4.0.0",
-      "purl": "pkg:npm/@mcp-b/webmcp-polyfill@4.0.0",
+      "version": "5.0.1",
+      "purl": "pkg:npm/@mcp-b/webmcp-polyfill@5.0.1",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-7M6WS3IcxaIEhidbS9N7wrrGjtJf474Vi4Fn1hGkFkmYFT5EoFw/kS/4CSdUR/KmlInO1kyluHRY6t3avMQfFw=="
+          "content": "sha512-xw/7f0bu4dsqWaGCE4RbB5/nkkbczeIP6NNeatE61Yxfpfp3r2E7pdgHmtYKb3oZ2BxROiM/yWkgiM3Ol0nkjA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@mcp-b/webmcp-types",
-      "version": "4.0.0",
-      "purl": "pkg:npm/@mcp-b/webmcp-types@4.0.0",
+      "version": "5.0.1",
+      "purl": "pkg:npm/@mcp-b/webmcp-types@5.0.1",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-CUBBmiut1UBsiD3FAF6xrLKeKAuJkzd6/BlL1C/uo8sVpwY42NW4mls9rLcTxmLF/8Cj5/ZOwJiLzXl/T3GIQg=="
+          "content": "sha512-UN7GsTrudXoMWxTL6n6451C19r5nsBzU4WLovRC6YVFnOJk3N5qYwmQySAISEi/0fcWkRDcT3OqAee7/jrl1iA=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@modelcontextprotocol/core",
+      "version": "2.0.0",
+      "purl": "pkg:npm/@modelcontextprotocol/core@2.0.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-pJCEwGG7Lfr/+PQp9ZTwKXNeO5wzbfKL7H3MYpCorM4oFBoQrdjnBgEoqG+RjhsvS1FKrDbKux+M1HhlnGWqcA=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@modelcontextprotocol/server",
+      "version": "2.0.0",
+      "purl": "pkg:npm/@modelcontextprotocol/server@2.0.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-YhHWdHfpFMQfd0prsEnxKeS3Qz3ytIGmsS0sth4KDjnacIT7hxk6hXHkJ9KysxlkvTM+WZAtQbbcUhdoP4Hvtw=="
         }
       ]
     },
@@ -3402,104 +3415,104 @@
     {
       "type": "library",
       "name": "@tiptap/core",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/core@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/core@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-QbZC/s1OOqcoUdkhIY16TjR/gCtR0qAk9e4bJwUqOJqZuv5ozqCL5hzWm22jjTPp6c6Ei2tPd6t30VwfIKW4lQ=="
+          "content": "sha512-kDD8KY99lBCKntCqTBE9eNR1ul/i/wPFw2METWT+LYZvifljXq2oiX6JaGF1Sk59efe7+sq9IISxOk47YlBiWQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-blockquote",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-blockquote@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-blockquote@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-BOkwhZenek7vzXBOgKppSrlx4YryBdAYu1p1MXKn0R9A9eNmE2HVhmm0gG49+E8BhsE/TG8wKVclwET42JJiIg=="
+          "content": "sha512-Dh8yfEqBKTqEdBKZ4Ta3DkTecP0VJxvRNA5b1LCF7gBbe54Lm3A28UuVvK/Sdhh9FJDrIVCQTDS0yHGbi6G9ew=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-bold",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-bold@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-bold@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-MsvJhPgYejY2D9MhwYJv8AmscozvLBI8qtJ7YLdYZBWkMR4bgmxHq5+xqEfBsao9bOMMwBon9p3+P+/Tq5ReWA=="
+          "content": "sha512-a4BSAjWRN4mWklRTdDCIaG9R+PqyUxXNYGQ2CLtOhO51Wq6daw2qFTHR+cTqAjaiiUSuDYII86UChb2qQRq8Lg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-bullet-list",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-bullet-list@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-bullet-list@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-+awIL/TUz4aB3rL68igU1rWfaaoBIAkPcakkktkRq8gYf0bd9eSb48P6kHkpx/3q+JyK7g9vsnltLNHNh6twnA=="
+          "content": "sha512-Z/ZqUfrd3Fd8hHpHEPv3XRzqwqVLD4CP67xFMyjy0cqEgnjgvd1iR6QzJsKD79V9zyu0Agu7ab9ZBf4NktpWcw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-character-count",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-character-count@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-character-count@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-9Mnej4qOLf2/kFPAmGxkxwdpFNRq8+D9nQVnyFF50x32myaKl/BXcCftsm+EiKpnH9JNT5mhZA0nh4JoH7OwrA=="
+          "content": "sha512-CU4PTrmC3XOlReAWdUZ6JWSVBNU9iKCixNy+FBhWNJBHQaXOoyBJOJ9isqWXARoMM1QOD1JyQtfsHhTs2RiuIw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-code",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-code@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-code@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-r8EZk3R9yGpF6v5xxafAU1HwrD/e+RpbfnmVi2TeB/ZHAsVO62fW96E32G0t6IdaCtOFtAd85hkDAaOfCT4yGg=="
+          "content": "sha512-mOV4Fg+ji6uXmFxTMuug9WK6zk0ksNQepnuvoDR4g4d+tnz2y9iEbgOXFohVxhOXOLDLdNeKdwHxbHQdi5Ivbw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-code-block",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-code-block@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-code-block@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-9otGKaQZmePHrLXFtCtz+BYDn5z4sSumTkUqQIQHz0gVxwPoTi7g51RedwxvViTb/zu2XV5ROXYLHIxKxypMPg=="
+          "content": "sha512-xT2cDil/ipy/LklPgv/JqSsXys1mjcqlIPDUetK3llB2DT7XZssYPV3qv278tqRO4pJDbrXk82I6Lh7vLwmIAg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-collaboration",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-collaboration@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-collaboration@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-n0de2+ZVQCJGrHzlvtZr1jA3qasr9AMlohGNrv/F6DFasXPNFYIzt+2Jin/Zx9mRvfiL47GPPQxg/pQftHTmjA=="
+          "content": "sha512-IYXJ9y9QrLnuyl3vZ/hZW/d+r6zILEa77JaBhrYhax4gXpYoWnukdv9NpIaE1vZVr+/1qYXPF9dAkf+RhBbLuw=="
         }
       ]
     },
@@ -3519,390 +3532,390 @@
     {
       "type": "library",
       "name": "@tiptap/extension-color",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-color@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-color@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-VNct6qKePIoruJZ4PR30JtA3YfENOqESrUtDLF1YMJYf/oU26Bx4ePJGTy428IA0mouyE+uHruyUGfZXnT73Iw=="
+          "content": "sha512-l9ERrkBneVZi7RfFG2M1AQCSqS0LpyL8yzJokbrUgPHDC+TNsdNkM5ZU4CPDXFyLm0QKuPqatSRSDKizbyT6Mg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-document",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-document@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-document@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-+xIv67V+/2L1uvz98FAT5W7kWEfHwfNV3MD7b4UsKPU0lhcCWuVOXy0JB8yYmdNExqpI7xT9g3MWzREoBvBQSg=="
+          "content": "sha512-B9gqrgM1uHjCKr/PSnnSl+bS+YQb5EN/PUW9KWp9nSgmIaqxXws2ufqowS65uTLJLqd7pwF4l5lUrsfhq0EKzw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-dropcursor",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-dropcursor@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-dropcursor@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-nyRKUmItATnKI9AiRChmjhcBbCEsNxRu+AaCz+cx8EvnAcNHsVRdNYL5PmBs3WlNA/Et4Eb2DG0hVQDnNF61eg=="
+          "content": "sha512-xdY66lcQakBLvWbJQHeJy/Td0f10YRXLyFeOFzt9PODsX4nqwJMju9tpqcLIGp0waaztu8PGwZ81oSCdQldIHQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-font-family",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-font-family@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-font-family@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-syg9Gfo+TN3rhxPxACgHSKRjcpl08enBHNinjCQI2pg8BMGDLG7DTrSAlIK/uEhTxxzSqBUOBaGrue+Q0oJQmg=="
+          "content": "sha512-AUQB5afkVbdn0p6cVykqecViAMW5n+JMymkEd4e2Lapmilp81lKg76EQfNs7vwim0kExrPN1p9Q1b5/0T0TLvw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-gapcursor",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-gapcursor@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-gapcursor@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-7Xk0ut6FM+RAsvKxDN3bAtk7zvYZ6Aa8pawJ6s7dLAmLR9JwrZevlcL4FSrj4bR7rqKOj92RYCFxzgTEbWimag=="
+          "content": "sha512-+mwm64+RiArd1G8xSgtaTrvx1X5Lzz6sJ93zTmaiMVNc2N29AN77BVPTJ0e+853+/F6Bec/vOnVkIjTLg/ZBRw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-hard-break",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-hard-break@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-hard-break@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-IxSNgmG3d4OZdUTeebrOI7SxdIWXXJqlcGiSNDabWqxipUitfy3mZ3gDDE6G01koKxZRbhz4KIplAZlpxnTFSg=="
+          "content": "sha512-/tX+IFW2C4RJltbwcn8/4zoHwj5YycRNOugb4Ul9Fl1AOJqjNwRx8xc0NpaOjuADhlMYMczEtSaOiDh5ZEOmjg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-heading",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-heading@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-heading@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-PblDvgSJ05p1t6hzyPi02xeiBjB0M2abReoGEImqSWCy79UqnAGacgsZo4EeEawtJV1NEP8chhvmX+nRtzdT1A=="
+          "content": "sha512-y+0u9qdrUAOGNrP52hAEiH1mvr1ZmzmkCBICICiXRH4+QNXpKkiBK3zlbDOPVQj0g0YIg6XIIU0vIaUBDPIaMQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-horizontal-rule",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-horizontal-rule@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-horizontal-rule@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-j8aswLTsuEdJKC62DF+kw0EgvIRL7QMUyAVp2fdjR0qgM0ZVlEwCC4qIEq3kK9tFVU4kRtQ5BSj/jn6QwrlbCA=="
+          "content": "sha512-J/ioKlXu5oJ+pPtybFonByx1LusbR0PUd1nkx6XsZqY9wyW6uecZQgAyI8KUWIXqOfhnAW38UTsHMBRdm2XupA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-image",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-image@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-image@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-K/BPlWauHXI6Y4s7se2A1BLcZ2pnWmRQTEDkPJYe/8kmv1GyJzPu34sZed5Mvfu5chUH8u6aNZ/utZbvSbI/0Q=="
+          "content": "sha512-vbKMliRLXkABwnPenPlQDEVp3MFN7Hs+WUh1eliVmYfsBfhEo596ahahv+JVoR9JW6HSM+LVdf2TT19Iqmh0sg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-italic",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-italic@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-italic@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-pp8uaiuXsUbLm5rYzR1jlWbwm1mAahRajdHwAKBtthFRB2rDvC7ZWhKaCSoKhZvfIDRmu9/B67+uAHoutL0dCA=="
+          "content": "sha512-dVWqJ/kDXdPHRBp4nU7bwi2G+c3oNruIgQHYVRgYlWkwW/opvnlACZLBUgEhihH7ANiSaGW1zLQ7HuUDSL3vog=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-link",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-link@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-link@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-jwdcymKcrbFpj5hRAuGVLCq8FieVkGFnENyroYmvkad+XAt8ZLy/MTFYRN6SK3ukH6PZMY7H4iObGtciQaC5nw=="
+          "content": "sha512-MAAXfLJNf6ZFiFK3w51yiLKc31HAQWJWNV+nQ1dAdRpa6WiXdjpkcrWTuxmPd/o6Qt+yNv+hoItAVxDPEox8qQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-list",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-list@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-list@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-MIUpo1Bd9Rf1Qg+TNYNwDZ4xsfFeQahjU9Xhy6UcaszKQzbAM7KCzn5BObNytK1NdcqNHsC8Wj5vFvMKEzrXdw=="
+          "content": "sha512-cCX99WoVb4UyXkamSh0vlXiRFhlZnwk3WXWdnXpR1E9+auxsQewk2Q9NDW1Ra0vwgzer1gkFhlOl9TCVzH2VVg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-list-item",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-list-item@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-list-item@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-HWgRCRlGxulE+hN1VUcnWD6P2NE08VBgGtcaxOfdXVqaI93BCK6AhRQZGpLsfKgajLk+5DXTBraaitwnBqzCxg=="
+          "content": "sha512-RhSyDlAATvXDTg/1VOw5aFTaewdCm+BAU3EG3eUCw4e5eoZ5pbhPOdOPTtaO45UR4i/AvjQNAZQ9LMDWX5WZFQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-list-keymap",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-list-keymap@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-list-keymap@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-TTve3WOlQaYu1ahMqsQ/T0wzaxfgZvcOl3/OuPyInOi8QtxXhqGhFjmYe5jOr56G9W2QDuFWVsZecVwfDte9zg=="
+          "content": "sha512-u6tOpQFnE1pOyvnzI2MvhW/Yw0omAIMlMfkykYx4N4zB1JDi+16OeOuKf3rX6G3V9VUu+qeOIGpSkifkME6H9Q=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-ordered-list",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-ordered-list@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-ordered-list@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Z7OO1HcF0idda1n6vodXeQ3h2ylN9JR4IfIGUYkar5Xl9JusK8PDETTBQZQn//96p49I2d+GoWsD2LXPtjHXXg=="
+          "content": "sha512-lct/FV8vm9Y5kZFcF5TXIM18opi6m7AAkGoChgGP/A7LYalaniX1X6Ja2j13Y22ZdGaOoPTgd8oKRZXP1/miaA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-paragraph",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-paragraph@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-paragraph@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-ulEu3LNt+kPVAWEnrhoz13Fs8Q/v/8NUxQbAeteuBchQ8joxJXuWExhpy1fUfZir5+b+W5z7/NesgPjZQfv47w=="
+          "content": "sha512-Z9OHCX9b2bDcMDeR3ODCFRAyHT5eNGO4AsDFeAJS/XSitffMyjFHtOkXlyyZ3+pIHxxX6xkUXAwaLMjyATRo1A=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-placeholder",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-placeholder@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-placeholder@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Bj1seUvPCoRrD/LpzMoKD+jQIjxuc+oq931GpPq4wobSUUbD4pF/0NMwpCLpiHO19QnTQz8+9p2dqPdlc44LHA=="
+          "content": "sha512-B7LwMzeQajQ18FWPGYv2UDh64HSUfXxh/mdIhS6ZQEDJS9NyUD0hPPnwaMQ1w870L/APgJdb2/EGqIkZqjJRSg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-strike",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-strike@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-strike@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-fBLxMXz6hYIURzLOD+/L6aVATztsKham00ANWmGi13vN0hx2lQMYZffN+gR+QqiCDfMQxBXzrf5a7tJuDiQHLQ=="
+          "content": "sha512-e9BI8Hzei23GjmYysXxL+CHq3fIgOm29BbSUMbYXxT2cJ+TkkgJp7EvHf74gSABNME0gUN+mG0pRR5wTFoOCcg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-table",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-table@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-table@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-zWp0ehZnx6N5lwRa8anSTn17GBEF3wxHXfOJGbBugf4Vwmp5keUEAXrgeIS4j7gIdxjN3XawdwjuMImG93N+Fg=="
+          "content": "sha512-g9vop64Ky92sBeL51wqMnVPNv9nDOd5X1CZz3B/Y5hDn1MKxf9lo7amkj7f+B2wi4WU9k/hIVCYb4sSRSeCq2A=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-table-cell",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-table-cell@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-table-cell@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-fcFG6MsJV+x1ua27dJqIdpOa5wiTXaLSfXfZ0G+rhwchH8EtSM3Q64gT4KeHsa/vVt7pOEc6ChQhKMnm40fWdA=="
+          "content": "sha512-KLTZ/KvJQu4OuoBNQ21w6qI+gm91TCXIJEFJE+wD3aJic/QatDok6OWfysK37TYI0/PiqLpImC8RWImtUmkLMg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-table-header",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-table-header@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-table-header@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-qcpMr8x1XvevEG5QZdk4JGLzsjZal1zzNfy4xmEtwUYVYkXkWaXklQvxEXC6GUkVpTGTOSXtHl25/cSbnJ5qbg=="
+          "content": "sha512-iB9h2b8ci1tmSzj1+T5xB92qhzDS+LMjXwSRFrl9vK4MgCdXt2Rfvzltu4HZTiG67FywK+TD/PyyvML4VDD3Og=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-table-row",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-table-row@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-table-row@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-dlbkcmgb5eiMI9hLX5C6CaPGuGcpyyPxJCjIYcI1l4glimYcbgxxEeqtGIvySgDewxWgofY/V3CLOGHrfyBCkQ=="
+          "content": "sha512-oGNmfJDUrScIfzrKlJy1OwddyNH6SP2cicn+FOrKE9qm+dA+sTNDNyCVDe9IkbU3ShIdME/vwZ+NJCZl/3daXQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-text",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-text@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-text@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-n/iZnirgRmXet6f97kolAnP3j8DsgLSiTbz/KLWc8eBYiFmkjRzkuisOm5xuGdfGIxwpB4x3tlSF4ef4DLnbRg=="
+          "content": "sha512-Jh8ZyI0HLOJOIPZl5a5XRJbTs4pAUakYIWCZ3Hv3lF9ouXW/C0bY67XQU7bv6Rvu8AHzDszhKklnOZ6z1NQPXQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-text-align",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-text-align@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-text-align@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-zexiz0uJlX2KzeAyYI/uEoBsl0Zw3Ua0CTV/kRKTnk7K9vCOnwvJXtXdkHA4WC12ACqUsPnyc4yMTwDR22fKFw=="
+          "content": "sha512-pwIZMn/PYoWZiUXrrD9oomV+Oh/GGhlIpa7Hr2WxdI8k3HZraweHa8S3ygvCUbodo9BWSI4zBs4KM3ic50cwlg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-text-style",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-text-style@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-text-style@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-o3YMN3JNHg/rCCLZB3PUcAfl4bkrsXDoYoHRXvrbE9cl/RT+qAEFAAssI8kBC1fp9en9V2F4Z7Uy2uuzkbecKw=="
+          "content": "sha512-aMacIkBwvcSABIXIOK0iCmGfNLICuuIWGiozycFwIJfwv87xwO6xAXfc6Q4/m3RE9Oj1DPqWohXMtc8tOp002w=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-underline",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-underline@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-underline@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-SZiTMnvqXcnrtJX+X25ZbYsuDO83haGOVMBD/O+mAWYNYXhaSc5Rkph5czzItxrd+Yyp/vs4PiwD7XTNbfqmpA=="
+          "content": "sha512-TiZ+b524Ee4PNlW+HNmkg3x4btR1K6btJy9pEjMuDf0Rx01UaTBvHpHmABR/DbbcC1CuZiQ3ylJwLL+90PaEoA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-youtube",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extension-youtube@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extension-youtube@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-DOx6/YBH2464oKeEiBsMfhrHPJHnwp6PugYOMbBGsdMLXFujp4IhM5Q5L/+RTvVp/D6sG/7BG5obQegFTusGKQ=="
+          "content": "sha512-zEgrIUKwE9+9tUlqGYnHJ5LhkSYep4V3hOvCA8e+25DzcUFwjGfHQdGjL+5wCrRKvpht6LPIedySJF/PfNu0PQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extensions",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/extensions@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/extensions@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-2LqAHXk26QDsryW+beECxYeBzv5Ylk4GuB3cOmfghS7/G37R2W+Te3TkUK7BT0EWoDryvBT57/5q0DEFIhfZZg=="
+          "content": "sha512-vig8ZjUL/NFnniEVbYDYj2UOIdkwZVha+9myFZkanShedviE3kl7c4uCY3fMl5EnqgyFIy2TQSKbg/i99xpztA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/pm",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/pm@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/pm@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-BJN8tUx4ppFN3R3cV/FJfrJbJkvo1lj4uciq+nwpjwzdRvFzqIuglWf+HLcJ6CwlYpLOHp7ArgkBg4Q5e60Gog=="
+          "content": "sha512-VheaqLAFUe+PCYEgHubM96Z1OAiluFhijQ2Cy1Ghiozoxm5OzevSaKhqm8SQ1VGfzZZko59oUjRzOmu8tB8yfA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/starter-kit",
-      "version": "3.30.2",
-      "purl": "pkg:npm/@tiptap/starter-kit@3.30.2",
+      "version": "3.30.3",
+      "purl": "pkg:npm/@tiptap/starter-kit@3.30.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-fJSrhW1CyD4sjYA20evSP4Cp13B/HhbxCdM974K0xpHOVqvCtNU9w2s9hfq9mg2yGoU7MSNHKNYMkJjIi2/Xyw=="
+          "content": "sha512-hj4rAhAoQm+wRk8eLNTyK+wK81+epbuo4O9PvPRv7GJGwYycej+xUN7jGM7Tney7GuTZpHoDCuwLKD2n1oG+pg=="
         }
       ]
     },
@@ -7315,13 +7328,13 @@
     {
       "type": "library",
       "name": "mysql2",
-      "version": "3.23.4",
-      "purl": "pkg:npm/mysql2@3.23.4",
+      "version": "3.24.2",
+      "purl": "pkg:npm/mysql2@3.24.2",
       "scope": "optional",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-J1Rgl8Oy5iw3mOBjKeTMQ3cJNjMYtJYavQVXShsMtSj9rKV8Q1+QaGKNJqDVQFcNINqYYp6Vxd90r69cCoBxBA=="
+          "content": "sha512-l9kXeKGwd6VCbSjmpO/bLWb+YCYpbvE4whte8ec6InXebvCNyEEydyRCnRU+TSHNqRLJ8B+Tk1uWb+vMCJgJzA=="
         }
       ]
     },
