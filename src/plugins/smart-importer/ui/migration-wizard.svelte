@@ -218,7 +218,7 @@
       const data = await postDryRunAction(formData);
 
       if (data.success) {
-        toast.primary(`Dry run: ${data.estimatedItems} items would be imported`);
+        toast.success(`Dry run: ${data.estimatedItems} items would be imported`);
         goToStep(4);
       } else {
         toast.error(data.error || 'Validation failed');
