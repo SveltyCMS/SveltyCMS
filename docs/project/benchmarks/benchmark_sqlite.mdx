@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     2 | 🟢     | —       | 0      |
+| **Core**       |    10 | 🟢     | +12%    | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,10 +62,18 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario | Latency   | Trend                              | Budget | Result |
-| -------- | --------- | ---------------------------------- | ------ | ------ |
-| **SDK**  | 116.344ms | ⚪ established at 116.34ms (1 run) | < 5ms  | 🟢     |
-| **HTTP** | 105.226ms | ⚪ established at 105.23ms (1 run) | < 5ms  | 🟢     |
+| Scenario                         | Latency | Trend                                     | Budget | Result |
+| -------------------------------- | ------- | ----------------------------------------- | ------ | ------ |
+| **Competitive Workload Replica** | 1.878ms | ⚪ stable at 1.80ms (±0.139ms) (3 runs)   | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 4.638ms | ⚪ stable at 4.76ms (±0.359ms) (3 runs)   | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 2.070ms | ⚪ stable at 1.87ms (±0.285ms) (3 runs)   | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.689ms | ⚪ stable at 1.60ms (±0.078ms) (3 runs)   | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.687ms | ⚪ stable at 1.60ms (±0.063ms) (3 runs)   | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.391ms | ⚪ stable at 1.40ms (±0.072ms) (3 runs)   | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 5.066ms | 🔴 slower: 4.81ms → 5.07ms (+5%) (3 runs) | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 7.846ms | ⚪ stable at 6.99ms (±1.39ms) (3 runs)    | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 6.968ms | ⚪ stable at 7.06ms (±2.20ms) (3 runs)    | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 5.348ms | ⚪ stable at 5.50ms (±1.59ms) (3 runs)    | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -86,6 +94,23 @@ xychart-beta
 ```
 
 </details>
+<details>
+<summary>📊 Regression severity matrix (quadrant)</summary>
+
+```mermaid
+quadrantChart
+  title "Regression severity (impact vs delta)"
+  x-axis Low latency impact --> High latency impact
+  y-axis Low delta --> High delta
+  quadrant-1 Monitor
+  quadrant-2 Investigate soon
+  quadrant-3 Acceptable variance
+  quadrant-4 Critical — fix first
+    Competitive Workload Replica: [0.26, 0.53]
+    Competitive Workload Replica: [0.95, 0.61]
+```
+
+</details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
@@ -98,39 +123,42 @@ xychart-beta
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-08-23)
+### Current Run Summary (2026-08-24)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `94c13f7b-ff2b-42a2-a4e1-a7b0669d0521` · **Tests invoked:** 1 · **Metrics:** 2 · **DB:** sqlite
+**Run ID:** `32f7170f-3fbd-4d65-8626-ae3b42f6a519` · **Tests invoked:** 1 · **Metrics:** 10 · **DB:** sqlite
 
-| Test              | Metric                | Avg (ms) | p95 (ms) | RPS | Trend | Detail                             |
-| ----------------- | --------------------- | -------- | -------- | --- | ----- | ---------------------------------- |
-| Media Performance | SDK: Media Processing | 116.344  | 132.149  | 17  | 🟢    | ⚪ established at 116.34ms (1 run) |
-| Media Performance | HTTP: Media Upload    | 105.226  | 137.979  | 16  | 🟢    | ⚪ established at 105.23ms (1 run) |
+| Test                         | Metric                                   | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                    |
+| ---------------------------- | ---------------------------------------- | -------- | -------- | ---- | ----- | ----------------------------------------- |
+| Competitive Workload Replica | findById (Concurrent 8c)                 | 1.878    | 3.273    | 2552 | 🟢    | ⚪ stable at 1.80ms (±0.139ms) (3 runs)   |
+| Competitive Workload Replica | findByIdRandom (Concurrent 8c)           | 4.638    | 6.046    | 1528 | 🟢    | ⚪ stable at 4.76ms (±0.359ms) (3 runs)   |
+| Competitive Workload Replica | listPlain (Concurrent 8c)                | 2.070    | 5.072    | 2425 | 🟢    | ⚪ stable at 1.87ms (±0.285ms) (3 runs)   |
+| Competitive Workload Replica | listFilterSort (Concurrent 8c)           | 1.689    | 2.867    | 2804 | 🟢    | ⚪ stable at 1.60ms (±0.078ms) (3 runs)   |
+| Competitive Workload Replica | listLarge (Concurrent 8c)                | 1.687    | 2.901    | 2794 | 🟢    | ⚪ stable at 1.60ms (±0.063ms) (3 runs)   |
+| Competitive Workload Replica | findMissing (Concurrent 8c)              | 1.391    | 2.382    | 3395 | 🟢    | ⚪ stable at 1.40ms (±0.072ms) (3 runs)   |
+| Competitive Workload Replica | create (Concurrent 8c)                   | 7.846    | 9.327    | 965  | 🟢    | ⚪ stable at 6.99ms (±1.39ms) (3 runs)    |
+| Competitive Workload Replica | update (Concurrent 8c)                   | 6.968    | 8.060    | 1092 | 🟢    | ⚪ stable at 7.06ms (±2.20ms) (3 runs)    |
+| Competitive Workload Replica | mixed (Concurrent 8c 50/50)              | 5.348    | 8.636    | 1293 | 🟢    | ⚪ stable at 5.50ms (±1.59ms) (3 runs)    |
+| Competitive Workload Replica | GraphQL Collection Query (Concurrent 8c) | 5.066    | 8.092    | 1475 | ⚪    | 🔴 slower: 4.81ms → 5.07ms (+5%) (3 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-08-23)
+### Historical Trends (2026-08-24)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
 **Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='sqlite' AND redis=0 ORDER BY timestamp DESC`
 
-**Series:** 6 · **DB:** sqlite
+**Series:** 1 · **DB:** sqlite
 
-| Metric                   | Trend | Sparkline (last 7) | Latest    |
-| ------------------------ | ----- | ------------------ | --------- |
-| BUILD ANALYSIS (warm)    | 🟢    | `▁▁`               | 0.000ms   |
-| CACHE SERVICE (warm)     | 🟢    | `█▁▂▂▁▂▂`          | 2.505ms   |
-| INDEX PRESSURE (warm)    | 🟢    | `▁█`               | 0.574ms   |
-| MEDIA PERFORMANCE (warm) | 🟢    | `▆█▁▂`             | 116.344ms |
-| MIGRATION SCALE (warm)   | 🟢    | `▁`                | 16.399ms  |
-| SEO PERFORMANCE (warm)   | 🟢    | `▁▇▃█`             | 2.823ms   |
+| Metric                              | Trend | Sparkline (last 7) | Latest  |
+| ----------------------------------- | ----- | ------------------ | ------- |
+| COMPETITIVE WORKLOAD REPLICA (warm) | ⚪    | `▅▁▁▁▂▆█`          | 6.968ms |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 

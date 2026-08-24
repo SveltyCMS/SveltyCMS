@@ -10,6 +10,15 @@
  * - Concurrent findMissing (negative lookup)
  * - Concurrent GraphQL query throughput
  * - Concurrent create, update, and mixed read/write workloads
+ *
+ * ### 🏭 External-harness comparison caveat (read before quoting these numbers)
+ * The write workloads (create/update/mixed) are queueing-bound under 8 workers:
+ * per-request serial work is ~1.3ms (hooks ~0.44ms + resolve/SDK ~0.88ms), so
+ * the concurrent p50 of 6-9ms is EVENT-LOOP + SQLite single-writer queueing, not
+ * request work. When comparing against the external benchmark container, its
+ * `--max-old-space-size=256` cap forces major GC under write concurrency and
+ * inflates p50/p95 by 3-6× (measured: 37.8ms vs 6.99ms for create). Run with
+ * the cap raised (≥1024) or unbounded before attributing any regression to code.
  */
 
 import {
