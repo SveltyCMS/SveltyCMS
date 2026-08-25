@@ -506,7 +506,7 @@ interface CompiledPrepPlan {
 
 const prepPlanCache = new WeakMap<object, CompiledPrepPlan>();
 
-function getOrCompilePrepPlan(schema: { fields?: Array<PrepField> }): CompiledPrepPlan {
+export function getOrCompilePrepPlan(schema: { fields?: Array<PrepField> }): CompiledPrepPlan {
   let plan = prepPlanCache.get(schema);
   if (plan) return plan;
 
