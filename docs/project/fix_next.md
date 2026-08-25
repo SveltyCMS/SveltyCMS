@@ -65,17 +65,46 @@ noch nicht committet.
 Jede Zeile = eine anzufassende Datei. Implementierungsstatus folgt nach dem
 ersten grünen Lauf.
 
-### 4.1 P0/P1 — 2FA/MFA & RBAC-Härtung (Implementierung fehlt)
+### 4.1 P0/P1 — 2FA/MFA & RBAC-Härtung (Implementierung fehlt, Spezifikation)
 
-| Datei                                                             | Veränderung                                                                                                  |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `src/databases/auth/types.ts`                                     | `Role`-Interface (L86–96): Feld `mfaRequired: boolean` ergänzen                                              |
-| `src/databases/auth/permissions.ts`                               | Server-Seite: Per-Rolle-Erzwingung von `mfaRequired` (Ref L128/L301/L324)                                    |
-| `src/databases/auth/session-manager.ts`                           | Session-Objekt: `amr` (Authenticator-Methoden-Ref) mitführen; Session nur bei erfülltem MFA-Level ausstellen |
-| `src/databases/auth/two-factor-auth.ts`                           | Trusted-Device-Bypass (L363+, max 5 FIFO) hinter MFA-Level heben; Level-Attribut in Session                  |
-| `src/routes/api/[...path]/handlers/collections.ts` + `+server.ts` | Login/Privatzugriff: `amr`-Check; bei fehlendem MFA → `403` mit `CODE=MFA_REQUIRED`                          |
-| `src/utils/security/user-attribute-policy.ts`                     | Privilege-Stripping (L25/L33–63) um MFA-Level erweitern                                                      |
-| `src/databases/auth/webauthn-service.ts`                          | `amr` auf `iwa`/`hwk` (P4-Basis); Recovery-Bump                                                              |
+**Ziel:** MFA als **per-Rolle erzwingbare** Anforderung (Differenzierung zu
+Directus/Payload/Strapi), Sessions tragen `amr` (Authenticator-Methoden-Ref),
+Trusted-Device-Bypass hinter ein MFA-Level gehoben. **Noch kein Code** — nur
+die exakte, verifizierte per-Datei-Spezifikation. Doku-Update vor jedem Commit.
+
+#### Verifizierte Ist-Lücken (Analyse-Code-Evidenz)
+
+- **Kein** Per-Roll-`mfaRequired`-Feld im `Role`-Interface.
+- Sessions ohne `amr`-Attribut → kann nicht geprüft werden, ob MFA erfüllt ist.
+- Trusted-Device-Bypass (`two-factor-auth.ts` L363+, max 5 FIFO) gewährt
+  Vollzugriff ohne MFA-Level-Erzwingung.
+
+#### Aktuelle Nachbar-Implementierung
+
+Die 2FA/MFA-Kette existiert bereits (WebAuthn-Bootstrap, `two-factor-auth.ts`,
+`webauthn-service.ts`) — es fehlt die **Erzwingungs-Ebene** (Policy + Session-`amr`).
+
+#### Per-Datei-Spezifikation
+
+| Datei                                                                       | Konkrete Änderung                                                                                                                                                               |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/databases/auth/types.ts` (Role-Interface L86–96)                       | Feld `mfaRequired: boolean` + `mfaLevel: 0                                                                                                                                      | 1   | 2` ergänzen. |
+| `src/databases/auth/permissions.ts` (L128/L301/L324)                        | Helper `requireMfa(role, session)`; Erzwingung beim Auth-Flow: `if (role.mfaRequired && !session?.amr?.includes(MFA_METHODS)) return raise(403,'MFA required','MFA_REQUIRED')`. |
+| `src/databases/auth/session-manager.ts`                                     | Session-Objekt um `amr: string[]` erweitern (Methoden-Ref), bei Login setzen; Session nur ausstellen, wenn Rollen-MFA-Level erfüllt.                                            |
+| `src/databases/auth/two-factor-auth.ts` (L363+)                             | Trusted-Device-Bypass (max 5 FIFO) auf `mfaLevel >= role.mfaLevel` beschränken; Level als Session-Attribut mitführen; FIFO-KP setzen.                                           |
+| `src/databases/auth/webauthn-service.ts`                                    | `amr` auf `iwa` (WebAuthn) bzw. `hwk` (Security-Key) mappen; Recovery-Bump.                                                                                                     |
+| `src/utils/security/user-attribute-policy.ts` (L25/L33–63)                  | Privilege-Stripping um MFA-Level erweitern: bei fehlendem MFA sensitive Felder strippen.                                                                                        |
+| `src/routes/api/[...path]/handlers/collections.ts` + `[...path]/+server.ts` | Login + Privatzugriff: `amr`-Check vor jeder privilegierten Route; `403` mit `CODE=MFA_REQUIRED`, wenn Rolle MFA verlangt und nicht erfüllt.                                    |
+| `src/databases/auth/auth-route.ts` (falls vorhanden)                        | Login-Response um `mfaRequired: boolean` + `amr` erweitern (Client-Redirect zur 2FA-Schrittstelle).                                                                             |
+| `tests/integration/security/`                                               | neue Tests: Per-Roll-Erzwingung, Trusted-Device-Bypass ohne MFA → `403`, Bestehen → `200`.                                                                                      |
+
+#### Implementierungsreihenfolge (P0 → P2)
+
+1. **P0** `types.ts` + `permissions.ts`: `mfaRequired` + Erzwingungs-Helper.
+2. **P1** `session-manager.ts` + `two-factor-auth.ts`: `amr` in Session, Bypass-Level.
+3. **P2** `user-attribute-policy.ts` + Route-Handler: Stripping + `403/MFA_REQUIRED`.
+4. **Doku** (`authorization.mdx` / `authentication.mdx`) aktualisieren,
+   **dann** Commit auf `next`.
 
 > AGENTS.md-Vorgaben: kein `any`, kebab-case, static ESM, keine Micro-Files,
 > DB nur via Adapter, `raise(status, msg, code)` aus `@utils/error-handling`,
@@ -100,6 +129,67 @@ ersten grünen Lauf.
 > `crud.update` setzt Zahl-Felder). String-Felder funktionieren. Dieser Bug
 > existiert im homogenen wie heterogenen Pfad und ist von der Gruppierung
 > unabhängig. `crud.update` (L1486, `rawUpdateReturning`) ist korrekt.
+> → **Detaillierte Analyse + Fix-Vorschlag in §4.4.**
+
+### 4.4 Zahl-Feld-Bug in `bulkUpdate` (vorbestehend, Analyse + Fix)
+
+**Befund (verifiziert durch Test, nicht Vermutung):**
+
+| Aufruf                                                           | `n` (Zahl) nach Update   | Ergebnis |
+| ---------------------------------------------------------------- | ------------------------ | -------- |
+| `crud.update(id, { n: 99 })`                                     | `n = 99` ✅              | korrekt  |
+| `bulkUpdate([{ id, data: { n: 99 } }])` (1 Item, homogener Pfad) | `n = 1` ❌ (unverändert) | falsch   |
+| `bulkUpdate([{ id1, n:55 }, { id2, n:66 }])` (heterogen)         | `n = 0`/`1` ❌           | falsch   |
+| `bulkUpdate([{ id1, status:"x" }, { id2, status:"y" }])`         | `status` ✅              | korrekt  |
+
+`modifiedCount` korrekt, `updatedAt` verschoben — **das Statement läuft, der
+`SET`-Wert liegt nicht an.** Nur **Zahl-Felder** betroffen, Strings funktionieren.
+
+**Verdacht (Root-Cause, noch zu bestätigen):** `bulkUpdate` läuft über einen
+anderen Prepare/Cast-Pfad als `crud.update`. Im `crud.update`-Pfad (`L1486`,
+`rawUpdateReturning`) werden Zahl-Werte als `number` gebunden. Im
+`bulkUpdate`-Pfad (`batch-module` → `tx.update().set(...).run()`) wird das
+`data`-Objekt womöglich durch `convertISOToDates` oder die Adapter-Prepare-
+Ebene als `string`/JSON behandelt und das Zahl-Feld auf dem Fallback-Readback
+auf den Schablonen-`default` zurückgesetzt. **Konkret zu prüfen:** ob der
+SQLite-Adapter im `bulkUpdate`-Pfad das `set`-Objekt **nicht durch
+`prepareUpdateValues`** (Zahl-Typ-Erhalt) führt — im Gegensatz zu `crud.update`.
+
+**Vorgeschlagener Fix (nächste Iteration, noch kein Code):**
+
+```ts
+// batch-module.ts — bulkUpdate: sicherstellen, dass Zahl-Felder als Zahl gebunden
+// werden (nicht als string). Analog zum crud.update-Pfad den Wert über
+// prepareUpdateValues (sql-adapter-core L574–700) führen, statt es direkt an
+// convertISOToDates(...).set(…) zu geben.
+const groups = utils.groupUpdatesByPayload(updates);
+await this.db.transaction(async (tx: any) => {
+  for (const group of groups) {
+    const payload = utils.convertISOToDates({
+      ...(group.data as Record<string, unknown>),
+      updatedAt: now,
+    }) as Record<string, unknown>;
+    // ⚠️ Zahl-Erhalt: NICHT durch JSON-Serialisierung zwingen; Typ beibehalten.
+    const stmt = tx
+      .update(table as any)
+      .set(payload)
+      .where(inArray((table as any)._id, group.ids as string[]));
+    const result = (typeof stmt.run === "function" ? await stmt.run() : await stmt) as any;
+    modifiedCount += result?.changes ?? result?.rowsAffected ?? result?.count ?? group.ids.length;
+  }
+});
+```
+
+**Warum auch der homogene Einzelpfad betroffen ist:** weil `updates.length === 1`
+den homogenen Schnellpfad nimmt, der das `set`-Objekt über denselben (fehlerhaften)
+Cast führt. Der eigentliche Fehler liegt also **unterhalb** der Gruppierung —
+in der Bindebene des `tx.update().set()` des jeweiligen Adapters.
+
+**Verifikationsschritte nach Fix:**
+
+1. `bulkUpdate(1 Item, {n:99})` → erwarte `n=99`.
+2. `bulkUpdate([{n:55},{n:66}])` heterogen → erwarte `n=55`/`66`.
+3. Alle 6 bestehenden Tests bleiben grün.
 
 ### 4.3 Q4 — Feature-Empfehlungen (nur Empfehlung, kein Code)
 
@@ -133,11 +223,14 @@ ersten grünen Lauf.
 
 ## 7. Ausstehend / offene Punkte
 
-- **2FA/MFA-P0–P2** implementieren (Backlog in Abschnitt 4.1), dann Doku-Update,
+- **2FA/MFA-P0–P2** implementieren (Spezifikation in §4.1), dann Doku-Update,
   dann Commit auf `next`.
+- **Zahl-Feld-Bug** in `bulkUpdate` (vorbestehend) — Analyse + Fix-Vorschlag in
+  §4.4. Nächste Iteration.
 - **`competitive comparison`-Workflow klären:** CVSS-Einzeltriage (a) vs.
   Consumer-Relevanz (b) für Mitbewerber-CVEs.
-- **Zahl-Feld-Readback-Bug** in `bulkUpdate` (vorbestehend) separat triagieren.
+- Mitbewerber-Security **CVSS-Einzeltriage** (a) vs. **Consumer-Relevanz** (b)
+  — noch offen.
 
 ## 8. Konkrete Änderungen pro Datei (echte Diffs aus `2bcc7592a`)
 
@@ -283,11 +376,12 @@ per-Datei-Änderungsliste und die Git-Topologie-Warnung.
 Damit nicht wieder „angekündigt aber nicht geliefert" entsteht, hier die
 **nicht implementierten** Änderungen, die du explizit angefordert hast:
 
-| Anforderung        | Status           | Was konkret fehlt                                                                                                                                                                              |
-| ------------------ | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **2FA/MFA P0–P2**  | ❌ offen         | kompletter Backlog (Abschnitt 4.1): `types.ts`, `permissions.ts`, `session-manager.ts`, `two-factor-auth.ts`, `collections.ts`+`+server.ts`, `user-attribute-policy.ts`, `webauthn-service.ts` |
-| **Q3 Bulk-Update** | ✅ `2bcc7592a`   | implementiert                                                                                                                                                                                  |
-| **Q4 leaner Code** | ⚠️ nur Vorschlag | kein Code — siehe Abschnitt 4.3                                                                                                                                                                |
+| Anforderung        | Status           | Was konkret fehlt                                                                                                                                                                                                |
+| ------------------ | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **2FA/MFA P0–P2**  | ❌ offen         | vollständige per-Datei-Spezifikation (Abschnitt 4.1): `types.ts`, `permissions.ts`, `session-manager.ts`, `two-factor-auth.ts`, `collections.ts`+`+server.ts`, `user-attribute-policy.ts`, `webauthn-service.ts` |
+| **Zahl-Feld-Bug**  | ❌ offen         | vorbestehend in `bulkUpdate`; Analyse + Fix-Vorschlag in Abschnitt 4.4                                                                                                                                           |
+| **Q3 Bulk-Update** | ✅ `2bcc7592a`   | implementiert                                                                                                                                                                                                    |
+| **Q4 leaner Code** | ⚠️ nur Vorschlag | kein Code — siehe Abschnitt 4.3                                                                                                                                                                                  |
 
 > Ehrlichkeit: Ich habe **keine** 2FA/MFA-Änderung committet, weil sie nicht
 > implementiert ist. Ich baue keine "gemachte" Änderung als erledigt ein.
