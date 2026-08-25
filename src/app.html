@@ -1,5 +1,13 @@
+<!--
+  @file src/app.html
+  @description SvelteKit HTML shell template.
+  SvelteKit 3.0.0-next.25 does NOT process the `%sveltekit.lang%` placeholder
+  (only head/body/assets are replaced) — a raw placeholder leaked into every
+  SSR response. Hardcode `en` to match the `dir="ltr"` default; the CMS
+  manages content languages at the content layer, not the html tag.
+-->
 <!doctype html>
-<html lang="%sveltekit.lang%" dir="ltr" class="dark">
+<html lang="en" dir="ltr" class="dark">
   <head>
     <meta charset="utf-8" />
     <script src="/theme-init.js"></script>
