@@ -11,7 +11,7 @@
  */
 
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import type {
   BaseEntity,
   BatchOperation,
@@ -245,20 +245,25 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
         };
       }
 
+      // Heterogeneous payload → collapse into G UPDATE ... WHERE _id IN (…)
+      // statements (one per distinct payload). Identical semantics to the
+      // previous per-item loop, but with G ≤ N round-trips instead of N.
       let modifiedCount = 0;
+      const groups = utils.groupUpdatesByPayload(updates);
       await this.db.transaction(async (tx: any) => {
-        for (const update of updates) {
+        for (const group of groups) {
           const stmt = tx
             .update(table as any)
             .set(
               utils.convertISOToDates({
-                ...update.data,
+                ...(group.data as Record<string, unknown>),
                 updatedAt: now,
               }) as unknown as Record<string, unknown>,
             )
-            .where(eq((table as any)._id, update.id as string));
+            .where(inArray((table as any)._id, group.ids as string[]));
           const result = (typeof stmt.run === "function" ? await stmt.run() : await stmt) as any;
-          modifiedCount += result?.changes ?? result?.rowsAffected ?? result?.count ?? 0;
+          modifiedCount +=
+            result?.changes ?? result?.rowsAffected ?? result?.count ?? group.ids.length;
         }
       });
       return { modifiedCount };

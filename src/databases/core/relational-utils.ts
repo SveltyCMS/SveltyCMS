@@ -875,3 +875,58 @@ export function sameBatchPayload<T>(
   }
   return true;
 }
+
+/**
+ * Group bulk-update items by identical payload values.
+ *
+ * Used by the relational bulkUpdate hot path to collapse the N+1 fallback
+ * (one UPDATE statement per item) into G statements — one per distinct
+ * payload (G ≤ N). Each group carries the same `data`, so issuing a single
+ * `UPDATE ... SET ... WHERE _id IN (...)` per group is equivalent to
+ * updating each row individually: identical semantics, fewer round-trips.
+ *
+ * Buckets are keyed by a canonical serialization (sorted keys at every
+ * level), so payloads with the same values are grouped regardless of key
+ * order or nesting. Items with no payload collapse into a single group.
+ */
+export function groupUpdatesByPayload<T>(
+  updates: Array<{ id: unknown; data?: Partial<T> | Record<string, unknown> }>,
+): Array<{ ids: Array<unknown>; data?: Partial<T> | Record<string, unknown> }> {
+  const groups: Map<string, { ids: Array<unknown>; data?: Partial<T> | Record<string, unknown> }> =
+    new Map();
+  for (const update of updates) {
+    const key = canonicalPayloadKey(update.data);
+    let bucket = groups.get(key);
+    if (!bucket) {
+      bucket = { ids: [], data: update.data };
+      groups.set(key, bucket);
+    }
+    bucket.ids.push(update.id);
+  }
+  return [...groups.values()];
+}
+
+/** Canonical string for a payload: recursively sorted keys, JSON-serialized. */
+function canonicalPayloadKey(data: unknown, seen = new WeakSet<object>()): string {
+  if (data === null || data === undefined) return "obj:{}";
+  switch (typeof data) {
+    case "boolean":
+    case "number":
+    case "string":
+      return `${typeof data}:${String(data)}`;
+    case "object": {
+      const obj = data as Record<string, unknown>;
+      if (seen.has(obj)) return "circular";
+      seen.add(obj);
+      if (Array.isArray(obj)) {
+        return `array:${obj.map((v) => canonicalPayloadKey(v, seen)).join(",")}`;
+      }
+      const keys = Object.keys(obj).sort();
+      const parts = keys.map((k) => `${k}=${canonicalPayloadKey(obj[k], seen)}`);
+      seen.delete(obj);
+      return `obj:{${parts.join(";")}}`;
+    }
+    default:
+      return `unknown:${String(data)}`;
+  }
+}
