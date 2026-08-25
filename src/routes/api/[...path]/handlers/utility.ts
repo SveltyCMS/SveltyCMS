@@ -353,7 +353,9 @@ async function handleTrashRoutes(
     if (!collectionId || !entryId) {
       throw new AppError("Missing collectionId or entryId", 400);
     }
-    const collectionName = `collection_${collectionId.replace(/-/g, "")}`;
+    // 🐛 FIX (BUG-01): canonical physical name — replaces the manual
+    // hyphen-stripping prefix (fragile duplicate of collectionTableName).
+    const collectionName = collectionTableName(collectionId);
     const result = await cms.db.crud.restore(collectionName, entryId as DatabaseId, {
       tenantId: tenantId as DatabaseId,
     });

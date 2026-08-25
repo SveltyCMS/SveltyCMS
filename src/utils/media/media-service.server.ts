@@ -31,6 +31,7 @@ import { buildOriginalRelPath, resolveMediaRelPath } from "./media-utils";
 import { getUrl } from "./storage-adapters";
 import { validateEgressUrl, safeFetch } from "../egress-guard";
 import { sniffMimeType } from "./slim-sniffer.server";
+import { collectionTableName } from "@src/databases/core/collection-name";
 import type { SharpFactory, SharpOverlayOptions } from "./media-processing.server";
 import { MediaReferenceIndex, type MediaReference } from "./media-reference-index";
 import { eventBus, SystemEvents } from "@utils/event-bus";
@@ -1526,7 +1527,9 @@ export class MediaService {
     }> = [];
 
     for (const schema of schemas) {
-      const collectionName = `collection_${schema._id}`;
+      // 🐛 FIX (BUG-01): canonical physical name — manual `collection_${id}`
+      // breaks for hyphenated ids; collectionTableName normalizes (idempotent).
+      const collectionName = collectionTableName(schema._id as string);
       const collectionLabel = schema.name || schema._id || "";
       try {
         const res = await this.db.crud.findMany(

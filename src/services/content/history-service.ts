@@ -10,6 +10,7 @@ import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { pubSub } from "../background/pub-sub";
 import { logger } from "@utils/logger";
+import { collectionTableName } from "@src/databases/core/collection-name";
 
 export class HistoryService {
   // === Version State Management ===
@@ -77,7 +78,9 @@ export class HistoryService {
 
     // --- MULTI-TENANCY SECURITY CHECK ---
     if (isMultiTenantEnabled()) {
-      const collectionName = `collection_${schema._id}`;
+      // 🐛 FIX (BUG-01): canonical physical name — manual `collection_${id}`
+      // breaks for hyphenated ids; collectionTableName normalizes.
+      const collectionName = collectionTableName(schema._id as string);
       const entryResult = await dbAdapter.crud.findMany(collectionName, {
         _id: entryId,
         tenantId,

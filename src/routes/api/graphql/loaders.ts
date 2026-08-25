@@ -10,6 +10,7 @@ import type { DatabaseAdapter, DatabaseId, MediaItem } from "@src/databases/db-i
 import { BatchLoader } from "@src/utils/server/batch-loader";
 import { logger } from "@utils/logger";
 import { applyPublicationToQuery } from "@utils/security/publication-policy";
+import { collectionTableName } from "@src/databases/core/collection-name";
 
 /**
  * Creates a fresh set of loaders for a single request.
@@ -32,7 +33,9 @@ export function createLoaders(
   const getCollectionLoader = (collectionId: string) => {
     let loader = collectionLoaders.get(collectionId);
     if (!loader) {
-      const collectionName = `collection_${collectionId}`;
+      // 🐛 FIX (BUG-01): canonical physical name — the manual `collection_${id}`
+      // broke GraphQL loading for hyphenated collection ids (missing table).
+      const collectionName = collectionTableName(collectionId);
       loader = new BatchLoader(async (ids) => {
         try {
           const entryMap = new Map<string, any>();
