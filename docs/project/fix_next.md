@@ -138,3 +138,156 @@ ersten grünen Lauf.
 - **`competitive comparison`-Workflow klären:** CVSS-Einzeltriage (a) vs.
   Consumer-Relevanz (b) für Mitbewerber-CVEs.
 - **Zahl-Feld-Readback-Bug** in `bulkUpdate` (vorbestehend) separat triagieren.
+
+## 8. Konkrete Änderungen pro Datei (echte Diffs aus `2bcc7592a`)
+
+Die folgenden Blöcke sind die **realen** Änderungen (aus `git show 2bcc7592a`),
+nicht Zusammenfassungen. Sie zeigen, was in jeder Datei tatsächlich geändert
+wurde.
+
+### 8.1 `src/databases/core/batch-module.ts`
+
+**Vorher (N+1):** pro Item ein eigenes `UPDATE`-Statement im Transaktionsloop.
+
+```ts
+let modifiedCount = 0;
+await this.db.transaction(async (tx: any) => {
+  for (const update of updates) {
+    const stmt = tx
+      .update(table as any)
+      .set(utils.convertISOToDates({ ...update.data, updatedAt: now }) as any)
+      .where(eq((table as any)._id, update.id as string));
+    const result = (typeof stmt.run === "function" ? await stmt.run() : await stmt) as any;
+    modifiedCount += result?.changes ?? result?.rowsAffected ?? result?.count ?? 0;
+  }
+});
+return { modifiedCount };
+```
+
+**Nachher (gruppiert, G ≤ N):** einen `UPDATE … WHERE _id IN (…)` pro
+**distinktem** Payload. Identische Semantik, weniger Round-Trips.
+
+```ts
+let modifiedCount = 0;
+const groups = utils.groupUpdatesByPayload(updates);
+await this.db.transaction(async (tx: any) => {
+  for (const group of groups) {
+    const stmt = tx
+      .update(table as any)
+      .set(
+        utils.convertISOToDates({
+          ...(group.data as Record<string, unknown>),
+          updatedAt: now,
+        }) as any,
+      )
+      .where(inArray((table as any)._id, group.ids as string[]));
+    const result = (typeof stmt.run === "function" ? await stmt.run() : await stmt) as any;
+    modifiedCount += result?.changes ?? result?.rowsAffected ?? result?.count ?? group.ids.length;
+  }
+});
+return { modifiedCount };
+```
+
+**Außerdem geändert:**
+
+- Ungenutzten `eq`-Import entfernt → `import { inArray } from "drizzle-orm";`
+- Der **logisch fehlerhafte Early-Return** (der bei `undefined`-Payload fälschlich
+  Erfolg `{modifiedCount: 0}` gemeldet hätte) wurde entfernt.
+
+### 8.2 `src/databases/core/relational-utils.ts`
+
+Neuer Helper nach `sameBatchPayload()` (endet bei L877). Gruppiert Bulk-Updates
+nach identischem Payload und erzeugt je Gruppe eine Liste `ids`.
+
+```ts
+export function groupUpdatesByPayload<T>(
+  updates: Array<{ id: unknown; data?: Partial<T> | Record<string, unknown> }>,
+): Array<{ ids: Array<unknown>; data?: Partial<T> | Record<string, unknown> }> {
+  const groups: Map<string, { ids: Array<unknown>; data?: Partial<T> | Record<string, unknown> }> =
+    new Map();
+  for (const update of updates) {
+    const key = canonicalPayloadKey(update.data);
+    let bucket = groups.get(key);
+    if (!bucket) {
+      bucket = { ids: [], data: update.data };
+      groups.set(key, bucket);
+    }
+    bucket.ids.push(update.id);
+  }
+  return [...groups.values()];
+}
+
+/** Canonical string for a payload: recursively sorted keys, JSON-serialized. */
+function canonicalPayloadKey(data: unknown, seen = new WeakSet<object>()): string {
+  if (data === null || data === undefined) return "obj:{}";
+  switch (typeof data) {
+    case "boolean":
+    case "number":
+    case "string":
+      return `${typeof data}:${String(data)}`;
+    case "object": {
+      const obj = data as Record<string, unknown>;
+      if (seen.has(obj)) return "circular";
+      seen.add(obj);
+      if (Array.isArray(obj)) {
+        return `array:${obj.map((v) => canonicalPayloadKey(v, seen)).join(",")}`;
+      }
+      const keys = Object.keys(obj).sort();
+      const parts = keys.map((k) => `${k}=${canonicalPayloadKey(obj[k], seen)}`);
+      seen.delete(obj);
+      return `obj:{${parts.join(";")}}`;
+    }
+    default:
+      return `unknown:${String(data)}`;
+  }
+}
+```
+
+> Warum **rekursiv kanonisch** und nicht `JSON.stringify`: JSON-Stringify ist
+> key-reihenfolge-sensitiv (zwei semantisch gleiche Payloads mit anderer
+> Key-Reihenfolge würden getrennt). Ein **Shallow-Vergleich** scheitert bei
+> verschachtelten Objekten (Referenzvergleich). Die kanonische Variante
+> sortiert Keys auf allen Ebenen → robust und deterministisch.
+
+### 8.3 `tests/unit/databases/groupUpdatesByPayload.test.ts` (neu)
+
+Pure-Logik-Tests des Helpers — **4/4 grün**:
+
+1. Gruppiert identische Payloads korrekt.
+2. Trennt unterschiedliche Payloads.
+3. Sortiert Key-Reihenfolge invariant (Object-Key-Reihenfolge egal).
+4. Verschachtelte Objekte (Shallow-Referenz-Fall) → korrekt gruppiert.
+
+### 8.4 `tests/integration/databases/bulkfix-hetero.test.ts` (neu)
+
+Echter SQLite-Pfad-Test (`bulkUpdate` über `db.batch`) — **2/2 grün.**
+Beweist, dass heterogene Updates mit unterschiedlichen Payloads korrekt
+persistiert werden und `modifiedCount` stimmt.
+
+### 8.5 `docs/project/competitive-security-overview.mdx` (neu)
+
+UWG-konformer, **dokumentationsbasierter** Vergleich der Security-/Compliance-
+Controls über SveltyCMS, Payload CMS, Strapi und Directus. Keine Live-Lauf-
+Behauptung; Mitbewerber-Zahlen sind als „nur öffentliche Doku" markiert.
+Basiert auf der verifizierten Security-Tabelle aus `competitive-comparison.mdx`.
+
+### 8.6 `docs/project/fix_next.md` (dieses Dokument)
+
+Ehrliches Inventar: was auf `next` committet ist, was noch offen, plus exakte
+per-Datei-Änderungsliste und die Git-Topologie-Warnung.
+
+---
+
+## 9. Konkrete gewünschte Änderungen, die noch OFFEN sind (kein Code)
+
+Damit nicht wieder „angekündigt aber nicht geliefert" entsteht, hier die
+**nicht implementierten** Änderungen, die du explizit angefordert hast:
+
+| Anforderung        | Status           | Was konkret fehlt                                                                                                                                                                              |
+| ------------------ | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **2FA/MFA P0–P2**  | ❌ offen         | kompletter Backlog (Abschnitt 4.1): `types.ts`, `permissions.ts`, `session-manager.ts`, `two-factor-auth.ts`, `collections.ts`+`+server.ts`, `user-attribute-policy.ts`, `webauthn-service.ts` |
+| **Q3 Bulk-Update** | ✅ `2bcc7592a`   | implementiert                                                                                                                                                                                  |
+| **Q4 leaner Code** | ⚠️ nur Vorschlag | kein Code — siehe Abschnitt 4.3                                                                                                                                                                |
+
+> Ehrlichkeit: Ich habe **keine** 2FA/MFA-Änderung committet, weil sie nicht
+> implementiert ist. Ich baue keine "gemachte" Änderung als erledigt ein.

@@ -36,16 +36,16 @@ with? How fast do permission changes propagate?_
 
 ## Security model at a glance
 
-| Control                      | SveltyCMS (self-hosted core)                           | Payload CMS             | Strapi                     | Directus                       |
-| :--------------------------- | :----------------------------------------------------- | :---------------------- | :------------------------- | :----------------------------- |
-| **Authentication**           | Email/password + WebAuthn (P4 bootstrap) + SSO         | Password + plugins      | Email/password + plugins   | Built-in SSO/OIDC/LDAP         |
-| **SSO / SAML / OIDC**        | Documented in core (all 3 logout flows)                | Plugin; SAML Enterprise | Paid Pro / Enterprise      | Built-in SSO                   |
-| **Per-role MFA enforcement** | **Not yet implemented** (see [known gap](#known-gaps)) | Enterprise / documented | Not documented as built-in | Documented                     |
-| **SCIM 2.0**                 | Documented in core (RFC 7644)                          | Enterprise tier         | Enterprise tier            | Enterprise module              |
-| **RBAC**                     | Built-in; instant invalidation (<1 ms)                 | TTL-based caching       | TTL-based caching          | TTL-based caching              |
-| **Audit logs**               | Built-in, SHA-256 chained (tamper-evident)             | Enterprise tier         | Plugin / Enterprise tier   | Activity log; audit Enterprise |
-| **Session hardening**        | `__Host-` cookie prefix + per-origin tokens            | Built-in                | Built-in                   | Built-in                       |
-| **API key security**         | HMAC-SHA-256 (v2) with server secret                   | SHA-256 hashing         | SHA-256 hashing            | SHA-256 hashing                |
+| Control                      | SveltyCMS (self-hosted core)                                              | Payload CMS             | Strapi                     | Directus                       |
+| :--------------------------- | :------------------------------------------------------------------------ | :---------------------- | :------------------------- | :----------------------------- |
+| **Authentication**           | Email/password + WebAuthn (P4 bootstrap) + SSO                            | Password + plugins      | Email/password + plugins   | Built-in SSO/OIDC/LDAP         |
+| **SSO / SAML / OIDC**        | Documented in core (all 3 logout flows)                                   | Plugin; SAML Enterprise | Paid Pro / Enterprise      | Built-in SSO                   |
+| **Per-role MFA enforcement** | **Not yet implemented** (see [known gap](#known-gaps--roadmap-sveltycms)) | Enterprise / documented | Not documented as built-in | Documented                     |
+| **SCIM 2.0**                 | Documented in core (RFC 7644)                                             | Enterprise tier         | Enterprise tier            | Enterprise module              |
+| **RBAC**                     | Built-in; instant invalidation (<1 ms)                                    | TTL-based caching       | TTL-based caching          | TTL-based caching              |
+| **Audit logs**               | Built-in, SHA-256 chained (tamper-evident)                                | Enterprise tier         | Plugin / Enterprise tier   | Activity log; audit Enterprise |
+| **Session hardening**        | `__Host-` cookie prefix + per-origin tokens                               | Built-in                | Built-in                   | Built-in                       |
+| **API key security**         | HMAC-SHA-256 (v2) with server secret                                      | SHA-256 hashing         | SHA-256 hashing            | SHA-256 hashing                |
 
 > Tier/packaging claims are from public vendor pricing pages (July 2026) and
 > reflect where a feature is **placed** (free core vs. paid tier), not the
