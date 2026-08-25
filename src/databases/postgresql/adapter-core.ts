@@ -346,6 +346,173 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   }
 
   /**
+   * Raw heterogeneous bulk UPDATE for PostgreSQL — one prepared statement
+   * instead of N per-row UPDATEs (BatchModule.bulkUpdate's transactional
+   * fallback loop, which also errored on blob-field payloads: Drizzle .set()
+   * rejects keys that live in the jsonb `data` column).
+   *
+   * Builds `SET "col" = CASE "_id" WHEN $n THEN $n … ELSE "col" END` for
+   * varying columns (rows omitting a column fall through to ELSE), plain
+   * `"constCol" = $n` for columns every row sets to the same value
+   * (updatedAt, tenantId), and `WHERE "_id" IN ($n, …)` + tenant clause.
+   *
+   * Values come from prepareUpdateValues (same semantics as crud.update);
+   * binding mirrors rawUpdateReturning (bindPgParam: Date→ISO, data→jsonb
+   * string, objects→JSON text). Chunks run inside exec.begin() so a batch
+   * is all-or-nothing; returns null on any failure (nothing committed).
+   */
+  public override async rawBulkUpdate(
+    table: any,
+    _collection: string,
+    updates: Array<{
+      id: import("../db-interface").DatabaseId;
+      data: Partial<Record<string, unknown>>;
+    }>,
+    now: Date,
+    options: BaseQueryOptions,
+  ): Promise<{ modifiedCount: number } | null> {
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql!;
+    try {
+      if (updates.length < 2) return null;
+      const tableName = getTableName(table);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) return null;
+      const idColName = idCol?.name || "_id";
+
+      // 🛡️ TENANT ISOLATION: fail-closed guard (BatchModule asserts too; keep
+      // defense-in-depth for direct calls) + tenant WHERE like rawUpdateReturning.
+      if (this.getColumn(table, "tenantId"))
+        utils.applyTenantFilter([], this.getColumn(table, "tenantId"), options);
+
+      const prepared = updates.map((u) =>
+        this.prepareUpdateValues(table, u.data, u.id as string, now, options),
+      );
+
+      const setCols: string[] = [];
+      const seen = new Set<string>();
+      for (const values of prepared) {
+        for (const k in values) {
+          if (!Object.hasOwn(values, k)) continue;
+          if (k === idColName || k === "id") continue;
+          if (!seen.has(k)) {
+            seen.add(k);
+            setCols.push(k);
+          }
+        }
+      }
+      if (setCols.length === 0) return null;
+
+      const maxParams = 65_000;
+      const maxRowsPerChunk = Math.max(1, Math.floor(maxParams / (setCols.length * 2 + 1)));
+
+      let modifiedCount = 0;
+      const runChunks = async (db: any) => {
+        for (let start = 0; start < prepared.length; start += maxRowsPerChunk) {
+          const chunk = prepared.slice(start, start + maxRowsPerChunk);
+          const chunkIds = updates.slice(start, start + maxRowsPerChunk).map((u) => String(u.id));
+
+          const setPairs: string[] = [];
+          const boundValues: any[] = [];
+          const sameValue = (a: unknown, b: unknown): boolean => {
+            if (a === b) return true;
+            if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+            if (a && b && typeof a === "object" && typeof b === "object") {
+              return JSON.stringify(a) === JSON.stringify(b);
+            }
+            return false;
+          };
+
+          for (const col of setCols) {
+            const phys = this.getColumn(table, col);
+            const physName = phys?.name ?? col;
+            const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
+            const isJson = physName === "data" || (phys as any)?.dataType === "json";
+
+            let constant = true;
+            let firstVal: unknown;
+            let firstSet = false;
+            for (const values of chunk) {
+              if (!Object.hasOwn(values, col)) {
+                constant = false;
+                break;
+              }
+              const v = values[col];
+              if (!firstSet) {
+                firstVal = v;
+                firstSet = true;
+              } else if (!sameValue(v, firstVal)) {
+                constant = false;
+                break;
+              }
+            }
+
+            if (constant) {
+              boundValues.push(bindPgParam(firstVal, isJson));
+              setPairs.push(
+                isJson
+                  ? `"${safeCol}" = $${boundValues.length}::jsonb`
+                  : `"${safeCol}" = $${boundValues.length}`,
+              );
+              continue;
+            }
+
+            const whens: string[] = [];
+            for (let i = 0; i < chunk.length; i++) {
+              const values = chunk[i];
+              if (!Object.hasOwn(values, col)) continue;
+              // postgres.js placeholders are 1-based — capture the indices
+              // BEFORE pushing (boundValues.length grows by 2 per row).
+              const idParam = boundValues.length + 1;
+              const valParam = boundValues.length + 2;
+              boundValues.push(String(chunkIds[i]), bindPgParam(values[col], isJson));
+              whens.push(`WHEN $${idParam} THEN $${valParam}${isJson ? "::jsonb" : ""}`);
+            }
+            const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+            setPairs.push(
+              `"${safeCol}" = CASE "${safeIdCol}" ${whens.join(" ")} ELSE "${safeCol}" END`,
+            );
+          }
+
+          const idParamIdx = boundValues.length;
+          const idPlaceholders = chunkIds.map((_, i) => `$${idParamIdx + i + 1}`).join(", ");
+          boundValues.push(...chunkIds);
+
+          let whereSql = `"${utils.assertSafeSqlIdentifier(idColName, "column")}" IN (${idPlaceholders})`;
+          if (
+            options?.tenantId !== undefined &&
+            options.tenantId !== null &&
+            options.tenantId !== "global"
+          ) {
+            boundValues.push(String(options.tenantId));
+            whereSql += ` AND "tenantId" = $${boundValues.length}`;
+          }
+
+          const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+          const rawSql = `UPDATE "${safeTableName}" SET ${setPairs.join(", ")} WHERE ${whereSql}`;
+          const res = await db.unsafe(rawSql, boundValues, { prepare: true });
+          modifiedCount += Number((res as any)?.count ?? 0);
+        }
+      };
+
+      if (options?.transaction || txnSql) {
+        await runChunks(exec);
+      } else {
+        // postgres.js begin() pins one connection so BEGIN/UPDATE/COMMIT are
+        // atomic across chunks (pool calls would hop connections).
+        await exec.begin(async (tx: any) => {
+          await runChunks(tx);
+        });
+      }
+
+      return { modifiedCount };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Raw multi-VALUES INSERT fast path — mirrors the SQLite insertMany path:
    * one prepared statement per chunk (stable SQL text → postgres.js statement
    * cache) instead of Drizzle's per-call AST build. Chunked under the 65535

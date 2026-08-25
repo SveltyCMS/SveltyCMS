@@ -4,8 +4,10 @@
  */
 
 import { DatabaseModule } from "../core/base-adapter";
-import { sameBatchPayload } from "../core/relational-utils";
+import { applyTenantFilterToMongoQuery, sameBatchPayload } from "../core/relational-utils";
+import { nowISODateString } from "@src/utils/date";
 import type {
+  BaseQueryOptions,
   DatabaseResult,
   DatabaseId,
   EntityCreate,
@@ -63,6 +65,7 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
   async bulkUpdate(
     collection: string,
     updates: Array<{ id: DatabaseId; data: EntityUpdate<any> }>,
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
     if (!updates.length) {
       return { success: true as const, data: { modifiedCount: 0 } };
@@ -70,11 +73,16 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
 
     const model = (this.adapter as any).getModel?.(collection);
 
+    // 🛡️ TENANT ISOLATION: every write filter is tenant-scoped like crud.update
+    // (safeQuery would do the same) — bulk ops must never touch other tenants.
+
     // Homogeneous payload (status/archive) → one updateMany, not N updateOne ops.
     if (model && sameBatchPayload(updates)) {
       const ids = updates.map((upd) => upd.id);
-      const { _id: _idOut, createdAt: _createdAt, ...set } = { ...updates[0].data };
-      const result = await model.updateMany({ _id: { $in: ids } }, { $set: set });
+      const filter = applyTenantFilterToMongoQuery({ _id: { $in: ids } }, options);
+      const data = { ...updates[0].data, updatedAt: nowISODateString() } as Record<string, unknown>;
+      const { _id: _idOut, createdAt: _createdAt, ...set } = data;
+      const result = await model.updateMany(filter, { $set: set });
       return {
         success: true as const,
         data: { modifiedCount: result.modifiedCount ?? -1 },
@@ -85,10 +93,11 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
     if (model && updates.length > 1) {
       const bulkOps = updates.map((upd) => {
         // createdAt is insert-only — never rewrite it through $set.
-        const { _id: _idOut, createdAt: _createdAt, ...set } = { ...upd.data };
+        const data = { ...upd.data, updatedAt: nowISODateString() } as Record<string, unknown>;
+        const { _id: _idOut, createdAt: _createdAt, ...set } = data;
         return {
           updateOne: {
-            filter: { _id: upd.id },
+            filter: applyTenantFilterToMongoQuery({ _id: upd.id }, options),
             update: { $set: set },
           },
         };
@@ -101,7 +110,7 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
     }
     const res = await Promise.all(
       updates.map((upd) =>
-        (this.adapter as any)["crud"].update(collection, upd.id, upd.data as any),
+        (this.adapter as any)["crud"].update(collection, upd.id, upd.data as any, options),
       ),
     );
     return {

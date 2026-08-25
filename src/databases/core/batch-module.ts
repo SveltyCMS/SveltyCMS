@@ -11,9 +11,11 @@
  */
 
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray, type SQL } from "drizzle-orm";
+import { assertTenantContext } from "@src/utils/security/safe-query";
 import type {
   BaseEntity,
+  BaseQueryOptions,
   BatchOperation,
   BatchResult,
   DatabaseError,
@@ -220,54 +222,110 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
   async bulkUpdate<T extends BaseEntity>(
     collection: string,
     updates: Array<{ id: DatabaseId; data: Partial<T> }>,
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
-    return this.core.wrap(async () => {
-      const table = this.core.getTable(collection);
-      if (!updates.length) return { modifiedCount: 0 };
+    return this.core.wrap(
+      async () => {
+        const table = this.core.getTable(collection);
+        if (!updates.length) return { modifiedCount: 0 };
 
-      const now = isoDateStringToDate(nowISODateString());
+        const now = isoDateStringToDate(nowISODateString());
 
-      // Homogeneous payload → one UPDATE ... WHERE _id IN (...) instead of N statements.
-      if (updates.length === 1 || utils.sameBatchPayload(updates)) {
-        const ids = updates.map((u) => u.id as string);
-        const query = this.db
-          .update(table as any)
-          .set(
-            utils.convertISOToDates({
-              ...updates[0].data,
-              updatedAt: now,
-            }) as unknown as Record<string, unknown>,
-          )
-          .where(inArray((table as any)._id, ids));
-        const result = await executeWrite(query);
-        return {
-          modifiedCount: result?.changes ?? result?.rowsAffected ?? result?.count ?? -1,
-        };
-      }
+        // 🛡️ TENANT ISOLATION: fail-closed MULTI_TENANT guard + tenant WHERE on
+        // every path below (same semantics as crud.update's applyTenantFilter).
+        // Without it a bulk payload could touch rows outside the caller's
+        // tenant by id. The raw CASE fast path uses buildRawTenantClause which
+        // is silent on missing context — this guard makes both paths uniform.
+        assertTenantContext(options, "batch.bulkUpdate");
 
-      // Heterogeneous payload → collapse into G UPDATE ... WHERE _id IN (…)
-      // statements (one per distinct payload). Identical semantics to the
-      // previous per-item loop, but with G ≤ N round-trips instead of N.
-      let modifiedCount = 0;
-      const groups = utils.groupUpdatesByPayload(updates);
-      await this.db.transaction(async (tx: any) => {
-        for (const group of groups) {
-          const stmt = tx
+        // Homogeneous payload → one UPDATE ... WHERE _id IN (...) instead of N statements.
+        if (updates.length === 1 || utils.sameBatchPayload(updates)) {
+          const ids = updates.map((u) => u.id as string);
+          const conditions: SQL[] = [inArray((table as any)._id, ids)];
+          utils.applyTenantFilter(conditions, (table as any).tenantId, options);
+          // 🐛 PREPARE-PARITY FIX: route through prepareValues (like
+          // crud.update) instead of dumping the raw payload into Drizzle
+          // .set(). Drizzle silently DROPS keys that are not physical columns
+          // (blob-field payloads like `title`/`count` vanished — success:true
+          // but nothing persisted, the Zahl-Feld class). prepareValues moves
+          // non-column fields into the JSON `data` blob and preserves number
+          // types; updatedAt/tenantId stamps come from the same helper.
+          const values = this.core.prepareValues(
+            table,
+            updates[0].data as Record<string, unknown>,
+            undefined,
+            now,
+            (options as { isUpdate?: boolean })?.isUpdate === true
+              ? options
+              : { ...options, isUpdate: true, operation: "update" },
+          );
+          const query = this.db
             .update(table as any)
-            .set(
-              utils.convertISOToDates({
-                ...(group.data as Record<string, unknown>),
-                updatedAt: now,
-              }) as unknown as Record<string, unknown>,
-            )
-            .where(inArray((table as any)._id, group.ids as string[]));
-          const result = (typeof stmt.run === "function" ? await stmt.run() : await stmt) as any;
-          modifiedCount +=
-            result?.changes ?? result?.rowsAffected ?? result?.count ?? group.ids.length;
+            .set(values as Record<string, unknown>)
+            .where(and(...conditions));
+          const result = await executeWrite(query);
+          return {
+            modifiedCount: result?.changes ?? result?.rowsAffected ?? result?.count ?? -1,
+          };
         }
-      });
-      return { modifiedCount };
-    }, "BULK_UPDATE_FAILED");
+
+        // 🚀 HETEROGENEOUS CASE FAST PATH: one
+        // UPDATE … SET "col" = CASE "_id" WHEN ? THEN ? … ELSE "col" END
+        // statement (statement-cache friendly) instead of N per-row UPDATEs.
+        // SQLite implements it today; other adapters fall back to the
+        // transactional per-row loop below (parity-preserving).
+        const rawBulk = await this.core.rawBulkUpdate?.(
+          table,
+          collection,
+          updates as Array<{ id: DatabaseId; data: Partial<Record<string, unknown>> }>,
+          now,
+          options,
+        );
+        if (rawBulk !== null && rawBulk !== undefined) return rawBulk;
+
+        let modifiedCount = 0;
+        const tenantCond = utils.getTenantCondition((table as any).tenantId, options);
+        // 🔒 TRANSACTION SPAN: the per-row loop is one BEGIN…COMMIT — run it
+        // under the adapter's write lock (SQLite write mutex; no-op elsewhere)
+        // so no other writer interleaves mid-transaction.
+        await this.core.withWriteLock(() =>
+          this.db.transaction(async (tx: any) => {
+            for (const update of updates) {
+              const stmt = tx
+                .update(table as any)
+                // 🐛 PREPARE-PARITY (fallback path): route through prepareValues
+                // like the homogeneous fast path — blob fields land in `data`,
+                // number types stay numbers (the Zahl-Feld class), updatedAt
+                // is stamped by the same helper.
+                .set(
+                  this.core.prepareValues(
+                    table,
+                    update.data as Record<string, unknown>,
+                    undefined,
+                    now,
+                    (options as { isUpdate?: boolean })?.isUpdate === true
+                      ? options
+                      : { ...options, isUpdate: true, operation: "update" },
+                  ) as Record<string, unknown>,
+                )
+                .where(
+                  tenantCond
+                    ? and(eq((table as any)._id, update.id as string), tenantCond)
+                    : eq((table as any)._id, update.id as string),
+                );
+              const result = (
+                typeof stmt.run === "function" ? await stmt.run() : await stmt
+              ) as any;
+              modifiedCount += result?.changes ?? result?.rowsAffected ?? result?.count ?? 0;
+            }
+          }),
+        );
+        return { modifiedCount };
+      },
+      "BULK_UPDATE_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async bulkDelete(

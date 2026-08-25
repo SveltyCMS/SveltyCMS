@@ -1409,6 +1409,7 @@ export interface IBatchAdapter {
   bulkUpdate<T extends BaseEntity>(
     collection: string,
     updates: Array<{ id: DatabaseId; data: Partial<T> }>,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>>;
   bulkDelete(
     collection: string,
@@ -1458,6 +1459,14 @@ export interface ISqlAdapter extends BaseAdapter {
     conflictTarget: any[],
     options?: BaseQueryOptions,
   ): Promise<void>;
+  rawBulkUpdate(
+    table: any,
+    collection: string,
+    updates: Array<{ id: DatabaseId; data: Partial<Record<string, unknown>> }>,
+    now: Date,
+    options: BaseQueryOptions,
+  ): Promise<{ modifiedCount: number } | null>;
+  withWriteLock<T>(fn: () => T | Promise<T>): Promise<T>;
   transaction<T>(
     fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
     options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean },

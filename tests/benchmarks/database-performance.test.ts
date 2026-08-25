@@ -101,6 +101,11 @@ export async function runDatabaseBenchmark() {
       { name: "COUNT CACHED", fn: createCountCachedTest(db) },
       { name: "DELETE", fn: createDeleteTest(db) },
       { name: "BULK INSERT (100)", fn: createBulkInsertTest(db) },
+      // Heterogeneous bulk UPDATE (each row its own payload) — exercises the
+      // batch.bulkUpdate fast path; the audit flagged N+1 per-row UPDATEs here.
+      { name: "BULK UPDATE (100 heterogeneous)", fn: createBulkUpdateTest(db, "heterogeneous") },
+      // Control: identical payloads collapse to one UPDATE ... WHERE _id IN (...).
+      { name: "BULK UPDATE (100 homogeneous)", fn: createBulkUpdateTest(db, "homogeneous") },
     ].filter((s) => s.fn !== null);
 
     const results: any[] = [];
@@ -472,6 +477,50 @@ function createBulkInsertTest(db: any) {
     }));
     const res = await db.crud.insertMany(COLLECTION_ID, batch, GLOBAL_TENANT_OPTS);
     assertSuccess(res, "insertMany");
+  };
+}
+
+/**
+ * Bulk UPDATE of 100 pre-seeded rows via batch.bulkUpdate.
+ *
+ * - heterogeneous: each row carries a different payload → the CASE fast path
+ *   (or N per-row UPDATEs on adapters without it).
+ * - homogeneous: identical payload → single UPDATE ... WHERE _id IN (...).
+ *
+ * The 100 rows are seeded lazily on the first call so warmup + measured loops
+ * hit stable ids without insert traffic polluting the measurement.
+ */
+function createBulkUpdateTest(db: any, mode: "heterogeneous" | "homogeneous") {
+  const seededIds: string[] = [];
+  let seeded = false;
+  return async () => {
+    if (!seeded) {
+      const batch = Array.from({ length: 100 }, (_, i) => ({
+        _id: `bulk-upd-${mode}-${i}` as any,
+        title: `Bulk upd ${mode} ${i}`,
+        status: "active",
+        value: i,
+        tenantId: TEST_TENANT,
+      }));
+      const seed = await db.crud.insertMany(COLLECTION_ID, batch, GLOBAL_TENANT_OPTS);
+      assertSuccess(seed, "insertMany seed");
+      for (const b of batch) seededIds.push(b._id);
+      seeded = true;
+    }
+    const stamp = Date.now() % 100000;
+    const updates = seededIds.map((id, i) => ({
+      id,
+      data:
+        mode === "homogeneous"
+          ? { title: "Bulk sync title", status: "published", value: 42 }
+          : {
+              title: `Bulk title ${i}-${stamp}`,
+              status: i % 3 === 0 ? "draft" : "published",
+              value: (i * 7 + 1) % 1000,
+            },
+    }));
+    const res = await db.batch.bulkUpdate(COLLECTION_ID, updates, GLOBAL_TENANT_OPTS);
+    assertSuccess(res, "bulkUpdate");
   };
 }
 

@@ -191,7 +191,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     opts?: { intBooleans?: boolean },
   ): Record<string, any> {
     const result: Record<string, any> = { ...values };
-    const tableCols = getTableColumns(table);
+    // 🚀 Reuse the warm per-table column cache (populated by prepareValues /
+    // getRawFindByIdCols) instead of re-walking getTableColumns per insert.
+    const tableCols = this._tableColumnsCache.get(table) ?? getTableColumns(table);
     const now = new Date();
     for (const [name, col] of Object.entries(tableCols)) {
       if (result[name] !== undefined) continue;
@@ -322,6 +324,45 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return null;
   }
 
+  /**
+   * Adapter-specific raw heterogeneous bulk UPDATE fast path — returns null
+   * when not used (BatchModule.bulkUpdate then falls back to N per-row UPDATE
+   * statements inside a transaction).
+   *
+   * Heterogeneous payloads (each row a different document) otherwise compile N
+   * statements; a single `SET "col" = CASE "_id" WHEN ? THEN ? … ELSE "col"
+   * END` statement collapses the whole batch into one prepared statement while
+   * preserving per-row values (rows omitting a column fall through to ELSE).
+   *
+   * `now` is the shared updatedAt timestamp (ISO→Date); `options` carries the
+   * tenant context — the WHERE must be tenant-scoped exactly like
+   * applyTenantFilter in crud.update (fail-closed under MULTI_TENANT).
+   *
+   * Implementations must be all-or-nothing per call: either every update is
+   * applied (chunks wrapped in an explicit transaction) or no changes are
+   * committed and null is returned so the caller retries on the generic path.
+   */
+  public async rawBulkUpdate(
+    _table: any,
+    _collection: string,
+    _updates: Array<{ id: DatabaseId; data: Partial<Record<string, unknown>> }>,
+    _now: Date,
+    _options: BaseQueryOptions,
+  ): Promise<{ modifiedCount: number } | null> {
+    return null;
+  }
+
+  /**
+   * Write critical-section hook — runs `fn` under the adapter's write
+   * serialization. No-op for adapters whose drivers handle write concurrency
+   * natively (PostgreSQL/MariaDB); SQLite overrides this with the single-writer
+   * write mutex so multi-statement transaction spans (BEGIN…COMMIT) stay
+   * atomic. Reentrant: nested calls inside an active span execute directly.
+   */
+  public withWriteLock<T>(fn: () => T | Promise<T>): Promise<T> {
+    return Promise.resolve().then(fn);
+  }
+
   /** Resolve a collection name to a Drizzle schema object (system tables). */
   protected getAliasedTable(collection: string): any {
     const schemaAny = this.schema as any;
@@ -351,6 +392,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   protected preparedStatements = new Map<string, any>();
   protected readonly MAX_PREPARED_STATEMENTS = 500;
   protected _tableColumnsCache = new Map<any, Record<string, Column>>();
+  /**
+   * Per-table date-column key set (WeakMap keyed by the schemaCols object →
+   * auto-invalidated when a table def is rebuilt, no manual clear needed).
+   * Replaces the per-key `*Date/*At/*Time` string heuristics in prepareValues
+   * (4 × `includes()` + metadata property walks per key per write) with one
+   * O(columns) derivation per table def — identical predicate, cached result.
+   */
+  protected _dateKeyCache = new WeakMap<object, Set<string>>();
   protected tableRegistry = new Map<string, any>();
   protected dynamicTables = new Map<string, any>();
   /**
@@ -563,6 +612,45 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return this.prepareValues(table, data, id, now, updateOpts);
   }
 
+  /**
+   * Date-column key set for a table def — mirrors the original per-key
+   * predicate exactly (createdAt/updatedAt always; name-suffix heuristic AND
+   * date/timestamp column metadata otherwise) but evaluated ONCE per table def
+   * instead of per key per write. `schemaCols` is the cached getTableColumns
+   * object; its identity changes when the def is rebuilt, so the WeakMap entry
+   * is automatically stale-free and GC-able.
+   */
+  protected getDateColumnKeys(schemaCols: Record<string, any>): Set<string> {
+    let keys = this._dateKeyCache.get(schemaCols);
+    if (keys) return keys;
+
+    keys = new Set<string>();
+    for (const k in schemaCols) {
+      if (!Object.hasOwn(schemaCols, k)) continue;
+      const col = schemaCols[k];
+      const isSpecial = k === "createdAt" || k === "updatedAt";
+      const mayBeDate =
+        isSpecial ||
+        k.includes("Date") ||
+        k.includes("date") ||
+        k.includes("At") ||
+        k.includes("Time") ||
+        k.includes("time");
+      if (
+        isSpecial ||
+        (mayBeDate &&
+          (col?.dataType === "date" ||
+            (col?.columnType && String(col.columnType).includes("Timestamp")) ||
+            col?.config?.dataType === "date" ||
+            (col?.config?.columnType && String(col.config.columnType).includes("Timestamp"))))
+      ) {
+        keys.add(k);
+      }
+    }
+    this._dateKeyCache.set(schemaCols, keys);
+    return keys;
+  }
+
   public prepareValues(table: any, data: any, id: any, now: Date, options: any): any {
     const values: any = {};
     if (id) {
@@ -584,6 +672,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         /* safe fallback */
       }
     }
+    // 🚀 PRE-COMPUTED DATE COLUMNS: the per-key `*Date/*At/*Time` heuristics
+    // below are resolved ONCE per table def (getDateColumnKeys) instead of per
+    // key per write. Null when schemaCols is unavailable → original fallback.
+    const dateKeys = schemaCols ? this.getDateColumnKeys(schemaCols) : null;
 
     for (const k in data) {
       if (!Object.hasOwn(data, k)) continue;
@@ -604,22 +696,28 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           // (e.g. a materialized publishDate VARCHAR) and produced a Date that
           // SQLite bindings serialize as a JSON-quoted string — double-encoded
           // values that read back unparseable (temporal-integrity regression).
-          const isSpecialTimestamp = k === "createdAt" || k === "updatedAt";
-          const mayBeDate =
-            isSpecialTimestamp ||
-            k.includes("Date") ||
-            k.includes("date") ||
-            k.includes("At") ||
-            k.includes("Time") ||
-            k.includes("time");
-          const isDateColumn =
-            isSpecialTimestamp ||
-            (mayBeDate &&
-              (isPhysical?.dataType === "date" ||
-                (isPhysical?.columnType && String(isPhysical.columnType).includes("Timestamp")) ||
-                isPhysical?.config?.dataType === "date" ||
-                (isPhysical?.config?.columnType &&
-                  String(isPhysical.config.columnType).includes("Timestamp"))));
+          let isDateColumn = false;
+          if (dateKeys) {
+            isDateColumn = dateKeys.has(k);
+          } else {
+            // Fallback (no schemaCols): identical original per-key predicate.
+            const isSpecialTimestamp = k === "createdAt" || k === "updatedAt";
+            const mayBeDate =
+              isSpecialTimestamp ||
+              k.includes("Date") ||
+              k.includes("date") ||
+              k.includes("At") ||
+              k.includes("Time") ||
+              k.includes("time");
+            isDateColumn =
+              isSpecialTimestamp ||
+              (mayBeDate &&
+                (isPhysical?.dataType === "date" ||
+                  (isPhysical?.columnType && String(isPhysical.columnType).includes("Timestamp")) ||
+                  isPhysical?.config?.dataType === "date" ||
+                  (isPhysical?.config?.columnType &&
+                    String(isPhysical.config.columnType).includes("Timestamp"))));
+          }
 
           if (isDateColumn) {
             if (typeof val === "number" && val > 0) {

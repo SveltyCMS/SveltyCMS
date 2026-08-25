@@ -1104,6 +1104,171 @@ export abstract class AdapterCore extends SqlAdapterCore {
     return super.update(collection, id, data, options);
   }
 
+  /**
+   * Raw heterogeneous bulk UPDATE for MariaDB — one prepared statement
+   * instead of N per-row UPDATEs (BatchModule.bulkUpdate's transactional
+   * fallback loop, which also errored on blob-field payloads: Drizzle
+   * mysql2 .set() rejects keys that live in the JSON `data` column).
+   *
+   * Builds `SET \`col\` = CASE \`_id\` WHEN ? THEN ? … ELSE \`col\` END` for
+   * varying columns (rows omitting a column fall through to ELSE), plain
+   * `\`constCol\` = ?` for columns every row sets to the same value
+   * (updatedAt, tenantId), and `WHERE \`_id\` IN (?, …)` + tenant clause.
+   *
+   * Values come from prepareUpdateValues (same semantics as crud.update);
+   * binding mirrors rawInsertReturning (objects→JSON text, Date objects
+   * bound natively by mysql2). Chunks run inside a pool transaction so a
+   * batch is all-or-nothing; returns null on any failure (nothing committed).
+   */
+  public override async rawBulkUpdate(
+    table: any,
+    _collection: string,
+    updates: Array<{ id: DatabaseId; data: Partial<Record<string, unknown>> }>,
+    now: Date,
+    options: BaseQueryOptions,
+  ): Promise<{ modifiedCount: number } | null> {
+    try {
+      if (!this.pool) return null;
+      const txnConn = this.getTxnConn(options);
+      if (options?.transaction && !txnConn) return null;
+      if (updates.length < 2) return null;
+      const tableName = getTableName(table);
+      const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) return null;
+      const idColName = idCol?.name || "_id";
+
+      // 🛡️ TENANT ISOLATION: fail-closed guard (BatchModule asserts too; keep
+      // defense-in-depth for direct calls) + tenant WHERE like rawFindById.
+      if (this.getColumn(table, "tenantId")) {
+        utils.applyTenantFilter([], this.getColumn(table, "tenantId"), options);
+      }
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+
+      const prepared = updates.map((u) =>
+        this.prepareUpdateValues(table, u.data, u.id as string, now, options),
+      );
+
+      const setCols: string[] = [];
+      const seen = new Set<string>();
+      for (const values of prepared) {
+        for (const k in values) {
+          if (!Object.hasOwn(values, k)) continue;
+          if (k === idColName || k === "id") continue;
+          if (!seen.has(k)) {
+            seen.add(k);
+            setCols.push(k);
+          }
+        }
+      }
+      if (setCols.length === 0) return null;
+
+      // MariaDB max placeholders (65535) — same conservative chunking as the
+      // other adapters; CASE columns cost 2 params/row + 1 id in WHERE IN.
+      const maxParams = 65_000;
+      const maxRowsPerChunk = Math.max(1, Math.floor(maxParams / (setCols.length * 2 + 1)));
+
+      const bind = (v: unknown) =>
+        v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
+      const sameValue = (a: unknown, b: unknown): boolean => {
+        if (a === b) return true;
+        if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+        if (a && b && typeof a === "object" && typeof b === "object") {
+          return JSON.stringify(a) === JSON.stringify(b);
+        }
+        return false;
+      };
+
+      let modifiedCount = 0;
+      const runChunks = async (rawExec: (sql: string, params?: any[]) => Promise<any>) => {
+        for (let start = 0; start < prepared.length; start += maxRowsPerChunk) {
+          const chunk = prepared.slice(start, start + maxRowsPerChunk);
+          const chunkIds = updates.slice(start, start + maxRowsPerChunk).map((u) => String(u.id));
+
+          const setPairs: string[] = [];
+          const params: unknown[] = [];
+          for (const col of setCols) {
+            const phys = this.getColumn(table, col);
+            const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+
+            let constant = true;
+            let firstVal: unknown;
+            let firstSet = false;
+            for (const values of chunk) {
+              if (!Object.hasOwn(values, col)) {
+                constant = false;
+                break;
+              }
+              const v = values[col];
+              if (!firstSet) {
+                firstVal = v;
+                firstSet = true;
+              } else if (!sameValue(v, firstVal)) {
+                constant = false;
+                break;
+              }
+            }
+
+            if (constant) {
+              setPairs.push(`\`${safeCol}\` = ?`);
+              params.push(bind(firstVal));
+              continue;
+            }
+
+            const whens: string[] = [];
+            for (let i = 0; i < chunk.length; i++) {
+              const values = chunk[i];
+              if (!Object.hasOwn(values, col)) continue;
+              whens.push("WHEN ? THEN ?");
+              params.push(chunkIds[i], bind(values[col]));
+            }
+            const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+            setPairs.push(
+              `\`${safeCol}\` = CASE \`${safeIdCol}\` ${whens.join(" ")} ELSE \`${safeCol}\` END`,
+            );
+          }
+
+          const idPlaceholders = chunkIds.map(() => "?").join(", ");
+          const rawSql = `UPDATE \`${safeTableName}\` SET ${setPairs.join(", ")} WHERE \`${utils.assertSafeSqlIdentifier(idColName, "column")}\` IN (${idPlaceholders})${tenantSql}`;
+          const res = await rawExec(rawSql, [...params, ...chunkIds, ...tenantParams]);
+          modifiedCount += Number((res as any)?.affectedRows ?? 0);
+        }
+      };
+
+      if (txnConn) {
+        await runChunks(async (sql: string, params: any[] = []) => {
+          const [rows] = await txnConn.execute(sql, params);
+          return rows;
+        });
+      } else {
+        // One pinned connection for the whole batch → atomic (mysql2 promise
+        // Pool has no beginTransaction; transactions live on a connection).
+        const conn = await this.pool.getConnection();
+        try {
+          await conn.beginTransaction();
+          await runChunks(async (sql: string, params: any[] = []) => {
+            const [rows] = await conn.execute(sql, params);
+            return rows;
+          });
+          await conn.commit();
+        } catch (err) {
+          try {
+            await conn.rollback();
+          } catch {
+            /* already aborted */
+          }
+          throw err;
+        } finally {
+          conn.release();
+        }
+      }
+
+      return { modifiedCount };
+    } catch {
+      return null;
+    }
+  }
+
   async atomicIncrement(
     collection: string,
     id: DatabaseId,

@@ -930,7 +930,9 @@ export class CollectionsNamespace {
         { tenantId: tenantId as DatabaseId },
       );
     } else {
-      result = await this._dbAdapter.batch.bulkUpdate(table, formattedUpdates);
+      result = await this._dbAdapter.batch.bulkUpdate(table, formattedUpdates, {
+        tenantId: tenantId as DatabaseId,
+      });
     }
 
     if (result.success && !shouldSkipWriteSideEffects(options)) {

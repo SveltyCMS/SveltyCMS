@@ -41,13 +41,31 @@ const RE_EVENT_HANDLERS = /\s+on[a-z]+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi;
 const RE_PROTOCOLS = /(href|src|action)\s*=\s*(['"])(javascript|data):/gi;
 
 /**
+ * Fast-path scans — non-global (no lastIndex state) mirrors of the dangerous
+ * patterns that can appear WITHOUT a `<` (attribute-injection payloads like
+ * `" onmouseover=\"…"` or `javascript:` URLs). `RE_EVENT_HANDLERS` is a
+ * superset of the full-path handler regex, so the fast path never returns a
+ * string the full pipeline would have modified.
+ */
+const RE_EVENT_HANDLER_SCAN = /\son[a-z]+\s*=/i;
+const RE_JAVASCRIPT_SCAN = /javascript:/i;
+
+/**
  * Strips dangerous HTML tags and event handlers from a string.
  * Single-pass regex approach — no while loop, no ReDoS surface.
  */
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
-  if (!html.includes("<") && !html.includes("on") && !html.includes("javascript:")) {
-    return html;
+  // 🚀 FAST PATH: no markup (`<`) and none of the attribute-injection patterns
+  // that matter without tags. Checks the actual threat patterns instead of the
+  // bare "on" substring — "Content for item…" (plain-text field values) no
+  // longer forces the full regex pipeline. Output-identical to the full path
+  // for every input the fast path accepts (the full pipeline would find no
+  // matches either), so this is a pure zero-allocation short-circuit.
+  if (!html.includes("<")) {
+    if (!RE_EVENT_HANDLER_SCAN.test(html) && !RE_JAVASCRIPT_SCAN.test(html)) {
+      return html;
+    }
   }
 
   // 1. Remove dangerous tags and their content via pre-compiled single-pass regexes

@@ -90,6 +90,41 @@ describe("sanitizeHtml", () => {
     const result = sanitizeHtml(input);
     expect(result).not.toContain("script");
   });
+
+  it("fast path: plain text containing the substring 'on' returns the same reference", () => {
+    // Regression: the old fast path bailed on the bare "on" substring, so
+    // harmless plain-text values like "Content for item…" (fields such as
+    // title/content/slug) ran the full regex pipeline on every write.
+    const input = "Content for item 0 with representative text payload";
+    expect(sanitizeHtml(input)).toBe(input);
+    expect(sanitizeHtml(input)).toBe(input); // value-identical
+  });
+
+  it("fast path: no-'<' strings with safe words are untouched", () => {
+    for (const input of ["one", "foundation", "done", "console", "version 2.0"]) {
+      expect(sanitizeHtml(input)).toBe(input);
+    }
+  });
+
+  it("attribute-injection payload without '<' still goes through the full path", () => {
+    const input = '" onmouseover="alert(1)" text';
+    const result = sanitizeHtml(input);
+    expect(result).not.toContain("onmouseover");
+    expect(result).toContain("text");
+  });
+
+  it("javascript: without '<' still goes through the full path", () => {
+    // Bare `href="javascript:…"` (no tag) is an attribute-injection payload:
+    // the JS scan forces the full pipeline, which blocks the protocol.
+    const result = sanitizeHtml('href="javascript:alert(1)"');
+    expect(result).not.toContain("javascript:");
+    expect(result).toContain("#blocked");
+  });
+
+  it("uppercase JAVASCRIPT: without '<' is still handled", () => {
+    const result = sanitizeHtml('HREF="JAVASCRIPT:alert(1)"');
+    expect(result).not.toContain("JAVASCRIPT:");
+  });
 });
 
 describe("stripHtml", () => {
