@@ -220,7 +220,16 @@ export class MongoCollectionMethods {
 
   async listSchemas(tenantId?: string | null): Promise<Schema[]> {
     try {
-      const structureCollection = this.connection.db?.collection("system_content_structure");
+      // 🛡️ DB PARITY FIX: The Mongo adapter stores content nodes in
+      // "collection_content_nodes" (the crud-mapped name, same as the core
+      // listSchemas path via this.crud.findMany("content_nodes")). The old
+      // "system_content_structure" collection is NEVER populated (it is only a
+      // Mongoose base model / docker-discriminator host), so reading from it
+      // always returned [] and forced the fieldless this.models fallback —
+      // which dropped field info for empty collections like "BenchmarkStable"
+      // and broke GraphQL query-field registration (Cannot query field
+      // "BenchmarkStable" on type "Query"). Reading the real node store fixes it.
+      const structureCollection = this.connection.db?.collection("collection_content_nodes");
       const query: Record<string, unknown> = { nodeType: "collection" };
       if (tenantId && tenantId !== "global") {
         query.tenantId = tenantId;
