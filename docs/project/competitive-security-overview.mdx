@@ -1,0 +1,126 @@
+---
+path: "docs/project/competitive-security-overview.mdx"
+title: "Competitive Security Overview"
+description: "An EU-compliant, documentation-based comparison of security and compliance controls across SveltyCMS, Payload CMS, Strapi, and Directus."
+author: "SveltyCMS Team"
+created: "2026-08-25"
+updated: "2026-08-25"
+tags:
+  - "security"
+  - "compliance"
+  - "comparison"
+  - "payload"
+  - "strapi"
+  - "directus"
+  - "rbac"
+  - "2fa"
+  - "mfa"
+---
+
+# Competitive Security Overview
+
+This is a **dedicated security companion** to the broader
+[Competitive Comparison](./competitive-comparison.mdx). It answers the
+questions a security officer or lead architect asks during a vendor review:
+_How do users authenticate? What forces a second factor? Can logs be tampered
+with? How fast do permission changes propagate?_
+
+> **Honesty note (EU/UWG §6):** Every claim is **date-stamped**, **source-based
+> (public vendor documentation or pricing pages)**, and **not** a third-party
+> audit or a live measurement run against competitor instances. Nothing below
+> was measured with our own benchmark harness against a running competitor
+> deployment. Where a capability is described as "documented in core," that is
+> what **our own documentation** states about SveltyCMS; for competitors it is
+> what **their** public documentation states. Verify current tiers on each
+> vendor's pricing page before a procurement decision.
+
+## Security model at a glance
+
+| Control                      | SveltyCMS (self-hosted core)                           | Payload CMS             | Strapi                     | Directus                       |
+| :--------------------------- | :----------------------------------------------------- | :---------------------- | :------------------------- | :----------------------------- |
+| **Authentication**           | Email/password + WebAuthn (P4 bootstrap) + SSO         | Password + plugins      | Email/password + plugins   | Built-in SSO/OIDC/LDAP         |
+| **SSO / SAML / OIDC**        | Documented in core (all 3 logout flows)                | Plugin; SAML Enterprise | Paid Pro / Enterprise      | Built-in SSO                   |
+| **Per-role MFA enforcement** | **Not yet implemented** (see [known gap](#known-gaps)) | Enterprise / documented | Not documented as built-in | Documented                     |
+| **SCIM 2.0**                 | Documented in core (RFC 7644)                          | Enterprise tier         | Enterprise tier            | Enterprise module              |
+| **RBAC**                     | Built-in; instant invalidation (<1 ms)                 | TTL-based caching       | TTL-based caching          | TTL-based caching              |
+| **Audit logs**               | Built-in, SHA-256 chained (tamper-evident)             | Enterprise tier         | Plugin / Enterprise tier   | Activity log; audit Enterprise |
+| **Session hardening**        | `__Host-` cookie prefix + per-origin tokens            | Built-in                | Built-in                   | Built-in                       |
+| **API key security**         | HMAC-SHA-256 (v2) with server secret                   | SHA-256 hashing         | SHA-256 hashing            | SHA-256 hashing                |
+
+> Tier/packaging claims are from public vendor pricing pages (July 2026) and
+> reflect where a feature is **placed** (free core vs. paid tier), not the
+> quality of the implementation.
+
+## Per-platform control detail
+
+### SveltyCMS
+
+- **SSO/SAML/OIDC** — documented in core, with RP-initiated, front-channel, and
+  back-channel logout flows.
+- **SCIM 2.0** — native endpoints (RFC 7644), core, free.
+- **RBAC** — permission revocations propagate in under 1 ms (instant
+  invalidations), versus TTL-based caching in the alternatives.
+- **Audit logs** — built-in, tamper-evident via SHA-256-chained ledger.
+- **Session & cookie hardening** — `__Host-` prefix plus per-origin tokens.
+- **Known gap — MFA:** There is **no per-role `mfaRequired` field**, no
+  `amr` (authenticator method reference) carried on sessions, and a trusted
+  device bypass (FIFO, max 5) that does not yet sit behind a per-role MFA
+  level. Sealed `Role` interface (`src/databases/auth/types.ts` L86–96) has no
+  MFA attribute. **This is the primary hardening work item.**
+
+### Payload CMS
+
+- SSO/SAML/OIDC offered via **plugin**; SAML in the Enterprise tier.
+- SCIM 2.0 and compliance-grade audit logs in the **Enterprise tier**.
+- MFA/2FA available via documented configuration in paywalled tiers.
+- RBAC relies on TTL-based caching (change propagation is not instant).
+
+### Strapi
+
+- SSO/SAML/OIDC and SCIM in **Paid Pro / Enterprise** tiers.
+- Audit logs via **plugin** or Enterprise tier.
+- Rate limiting provided by a community plugin.
+- RBAC via TTL-based caching.
+
+### Directus
+
+- **Built-in SSO** (OIDC / LDAP / SAML) — a genuine strength.
+- SCIM 2.0 and compliance-grade audit module in the **Enterprise** tier.
+- Built-in activity log (non-chained) in the open tiers.
+- RBAC also relies on TTL-based caching.
+
+## What this comparison is (and is not)
+
+| Statement                                                     | Status                                |
+| :------------------------------------------------------------ | :------------------------------------ |
+| Feature-tier placement vs. competition                        | Documented from public docs/pricing   |
+| SveltyCMS controls are self-measured / self-documented        | Yes — our docs, not independent audit |
+| Live benchmark ran against competitor instances               | **No**                                |
+| Competitor figures independently verified on a common harness | **No**                                |
+| A SOC 2 / HIPAA certification claim                           | **No** — controls only                |
+
+## Known gaps & roadmap (SveltyCMS)
+
+1. **Per-role MFA enforcement** — add `mfaRequired` to the `Role` interface and
+   enforce it server-side; carry `amr` on sessions and reject sessions that do
+   not meet the required MFA level.
+2. **Trusted-device MFA-level gate** — the FIFO bypass (max 5 devices) should
+   be lifted to the session MFA level.
+3. **RBAC audit trail** — record _who changed role X and when_ (currently only a
+   chained operational audit ledger, not a role-change audit trail).
+
+## Sources & methodology (self-described)
+
+- **Date of assessment:** July 2026 (tier/packaging); overview refreshed
+  **2026-08-25**.
+- SveltyCMS rows are **self-reported** from our docs; competitor rows are from
+  their **public documentation and pricing pages**.
+- No competitor instance was run under our benchmark harness; treat all
+  competitor figures as **orientation only**.
+- **Legal basis:** EU Directive 2006/114/EC and German UWG §6 — neutral,
+  date-stamped, source-based, no absolute ranking claims.
+
+## Related
+
+- [Competitive Comparison (broader TCO / time-to-market)](./competitive-comparison.mdx)
+- [Benchmark Reports](./benchmarks/index.mdx)
