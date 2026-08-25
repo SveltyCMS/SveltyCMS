@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:a4d5e6d5-6451-47f2-a2cc-72a6acb3130e",
+  "serialNumber": "urn:uuid:be24cadf-1aab-49bb-a9b8-7bd68dd2984c",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-25T06:27:19.531Z",
+    "timestamp": "2026-08-25T06:38:49.305Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
