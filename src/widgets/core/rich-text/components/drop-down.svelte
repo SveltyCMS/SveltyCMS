@@ -20,7 +20,6 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import { onMount, tick } from 'svelte';
-	import { twMerge } from 'tailwind-merge';
 
 	// Lucide icons
 

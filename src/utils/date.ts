@@ -157,8 +157,23 @@ export function isISODateString(value: unknown): value is ISODateString {
   return utcMinutes >= 0 && utcMinutes < 1440;
 }
 
-// Backward compatibility wrappers
-export const nowISODateString = (): ISODateString => dateToISODateString(new Date());
+// 🚀 Zero-allocation 1ms-resolution timestamp cache
+let _lastTimeMs = 0;
+let _cachedIsoString: ISODateString = "" as ISODateString;
+
+/**
+ * Returns current UTC time as ISODateString with 1ms-tick memoization.
+ * Eliminates repeated new Date().toISOString() heap allocations on write hot paths.
+ */
+export function nowISODateString(): ISODateString {
+  const now = Date.now();
+  if (now === _lastTimeMs) {
+    return _cachedIsoString;
+  }
+  _lastTimeMs = now;
+  _cachedIsoString = new Date(now).toISOString() as ISODateString;
+  return _cachedIsoString;
+}
 
 /**
  * Safely converts an ISO date string to a Date object, returning null if invalid or NaN.

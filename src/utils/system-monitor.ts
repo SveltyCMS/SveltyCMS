@@ -3,12 +3,12 @@
  * @description Highly optimized hardware-aware system monitor.
  *
  * Uses process.cpuUsage() delta tracking for zero-blocking CPU measurement,
- * node-os-utils for memory/load sensing, and perf_hooks for event loop lag.
+ * native node:os for memory/load sensing, and perf_hooks for event loop lag.
  * Drives hardware-aware rate limiting (documented in state-management.mdx).
  *
  * ### Features:
- * - Zero-blocking CPU via process.cpuUsage() delta (no 100ms osu.cpu.usage call)
- * - Static ES module imports, lazy dependency init
+ * - Zero-blocking CPU via process.cpuUsage() delta
+ * - 100% native node:os metrics (no child processes, zero external dependencies)
  * - Reusable snapshot objects, low GC pressure
  * - Rolling historical buffer (60 samples, 5s intervals)
  * - getPressureMultiplier() — adaptive 0.8x–2.0x for rate limit cost adjustment
@@ -63,11 +63,9 @@ let _lastSnapshot: SystemHealthSnapshot | null = null;
 const _history: HistoricalPoint[] = [];
 
 let _lagHistogram: ReturnType<typeof monitorEventLoopDelay> | null = null;
-let _osuCpu: any = null;
-let _osuMem: any = null;
 
 // Static hardware descriptors cached once on initialization
-let _cpuCores = 1;
+const _cpuCores = Math.max(1, os.cpus()?.length || 1);
 
 // State tracking for high-performance CPU delta calculation
 let _lastCpuUsage = process.cpuUsage();
@@ -94,18 +92,14 @@ function calculateCpuUsagePercentage(): number {
   return Math.min(Math.round(percent), 100);
 }
 
-async function lazyLoadDependencies(): Promise<boolean> {
-  if (_osuCpu && _osuMem) return true;
+function getMemoryUsedPercent(): number {
   try {
-    const osu = await import("node-os-utils");
-    const osuRoot = (osu as any).default || osu;
-    _osuCpu = osuRoot.cpu;
-    _osuMem = osuRoot.mem;
-    _cpuCores = _osuCpu?.count?.() ?? os.cpus().length ?? 1;
-    return true;
-  } catch (err) {
-    logger.error("[SystemMonitor] Failed to load dependency node-os-utils", err);
-    return false;
+    const total = os.totalmem();
+    const free = os.freemem();
+    if (total <= 0) return 0;
+    return Math.round(((total - free) / total) * 100);
+  } catch {
+    return 0;
   }
 }
 
@@ -146,22 +140,9 @@ function determinePressure(
   return "normal";
 }
 
-async function collectSnapshot(): Promise<SystemHealthSnapshot> {
-  const depsLoaded = await lazyLoadDependencies();
-
-  let memPercent = 0;
-  let loadAvg = 0;
-
-  if (depsLoaded) {
-    try {
-      const memInfo = await _osuMem.info();
-      memPercent = Math.round(memInfo.usedMemPercentage ?? 0);
-      loadAvg = _osuCpu.loadavgTime?.(1) ?? os.loadavg()?.[0] ?? 0;
-    } catch {
-      // non-critical sensor failure — continue with defaults
-    }
-  }
-
+function collectSnapshot(): SystemHealthSnapshot {
+  const memPercent = getMemoryUsedPercent();
+  const loadAvg = os.loadavg()?.[0] ?? 0;
   const cpuPercent = calculateCpuUsagePercentage();
   const lag = getEventLoopLagMs();
 
@@ -211,10 +192,14 @@ export function startSystemMonitor(): void {
   _lastCpuUsage = process.cpuUsage();
   _lastCpuTime = Date.now();
 
-  collectSnapshot().catch(() => {});
+  try {
+    collectSnapshot();
+  } catch {}
 
   _interval = setInterval(() => {
-    collectSnapshot().catch(() => {});
+    try {
+      collectSnapshot();
+    } catch {}
   }, SAMPLE_INTERVAL_MS);
 
   _started = true;

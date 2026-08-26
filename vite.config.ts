@@ -50,7 +50,6 @@ const SSR_NO_EXTERNAL = [
   "@iconify/svelte",
   "@thisux/sveltednd",
   "svelte-canvas",
-  "svelte-dnd-action",
   "svelte-awesome-color-picker",
   "json-render-svelte",
   "drizzle-orm",
@@ -64,7 +63,6 @@ const OPTIMIZE_DEPS_INCLUDE = [
   "@iconify/svelte",
   "@thisux/sveltednd",
   "svelte-canvas",
-  "svelte-dnd-action",
   "svelte-awesome-color-picker",
   "json-render-svelte",
   "valibot",
@@ -81,7 +79,6 @@ const SERVER_STUB_PACKAGES = new Set([
   "postgres",
   "mysql2",
   "bun:sqlite",
-  "node-os-utils",
 ]);
 
 const SERVER_STUB_FILES = [
@@ -92,7 +89,6 @@ const SERVER_STUB_FILES = [
   "/src/databases/cache/cache-metrics.ts",
   "/src/databases/config-state.ts",
   "/src/databases/theme-manager.ts",
-  "/src/databases/core/db-adapter-wrapper.ts",
   "/src/databases/db-utils.ts",
   "/src/databases/schemas.ts",
   "/src/databases/auth/index.ts",

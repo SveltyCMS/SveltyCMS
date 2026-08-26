@@ -1020,10 +1020,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onnotice: () => {},
           onclose,
           transform: { undefined: null },
-          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || getHardwareProfile().dbPoolSize,
+          max:
+            Number(process.env.DATABASE_MAX_CONNECTIONS) ||
+            Math.max(20, getHardwareProfile().dbPoolSize),
           connect_timeout: 10,
           prepare: effectivePrepare,
-          idle_timeout: 300,
+          idle_timeout: 30,
           max_lifetime: 60 * 60,
           keepalive: true,
           keepaliveInitialDelayMillis: 10000,
@@ -1046,14 +1048,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           database: c.database || c.DB_NAME,
           max:
             Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) ||
-            getHardwareProfile().dbPoolSize,
+            Math.max(20, getHardwareProfile().dbPoolSize),
           connect_timeout: Number(c.connect_timeout || 10),
           ssl: c.ssl || false,
           onnotice: () => {},
           onclose,
           transform: { undefined: null },
           prepare: usePrepared,
-          idle_timeout: Number(c.idle_timeout || 300),
+          idle_timeout: Number(c.idle_timeout || 30),
           max_lifetime: Number(c.max_lifetime || 60 * 60),
           keepalive: c.keepalive ?? true,
           keepaliveInitialDelayMillis: Number(c.keepaliveInitialDelayMillis || 10000),
