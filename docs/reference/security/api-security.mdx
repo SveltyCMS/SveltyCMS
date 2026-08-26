@@ -54,15 +54,21 @@ Designed for machine-to-machine communication. Stateless secrets bound to a spec
 | **Consumption** | Atomic one-time token support via `dbAdapter.system.websiteTokens.consume()` — prevents TOCTOU race conditions |
 | **Lookup**      | Single-pass `getByToken` — no redundant round-trips                                                            |
 
-### 2.2 Session Tokens
+### 2.2 Session & CSRF Cookies
 
-Browser-based authentication uses secure session cookies:
+Browser-based authentication and mutation security rely on hardened cookie structures:
 
-- **Cookie prefix**: `__Host-` in production (RFC 6265bis — prevents subdomain leakage)
-- **Attributes**: `httpOnly`, `secure`, `sameSite: strict`
-- **Rotation**: Every 15 minutes for active users
-- **Cascading invalidation**: Password change purges all sessions across all devices
-- **3-layer cache**: Memory (L1) → Redis (L2) → Database (L3)
+| Cookie             | Name (Prod / Dev)                        | Attributes                                                           | Purpose                                                                                   |
+| :----------------- | :--------------------------------------- | :------------------------------------------------------------------- | :---------------------------------------------------------------------------------------- |
+| **Session Cookie** | `__Host-auth_sessions` / `auth_sessions` | `httpOnly: true`, `secure: true`, `sameSite: "strict"`, `path: "/"`  | Holds the 32-character CSPRNG session token. Inaccessible to JavaScript (XSS mitigation). |
+| **CSRF Cookie**    | `__Host-csrf_token` / `csrf_token`       | `httpOnly: false`, `secure: true`, `sameSite: "strict"`, `path: "/"` | 256-bit CSPRNG token read by client fetch utilities to attach the `X-CSRF-Token` header.  |
+
+- **`__Host-` Prefix Contract** (RFC 6265bis): In HTTPS environments, cookies use the `__Host-` prefix, requiring `secure: true`, `path: "/"`, and forbidding `domain` delegation. This guarantees subdomains cannot plant, spoof, or overwrite cookies.
+- **Cookie Deletion Parity**: `clearSessionCookies` sets identical cookie attributes (`path: "/"`, `sameSite: "strict"`, `secure: true`, `httpOnly: true`) upon logout or invalidation across all prefix variants (`__Host-`, `__Secure-`, plain), ensuring complete cookie removal across all browsers.
+- **Session Lifecycle & Invalidation**:
+  - Auto-rotated upon login and session renewal.
+  - Password change or logout triggers cascading invalidation across all devices.
+  - 3-layer caching: Memory (L1) → Redis (L2) → Database (L3) with credential-free memory caching.
 
 ---
 
@@ -154,14 +160,58 @@ All API responses include mandatory security headers:
 
 ---
 
-## 7. CSRF Protection
+## 7. CSRF Protection & Request Verification Architecture
 
-Multi-layer origin and referer validation for all mutation requests (POST, PUT, DELETE, PATCH):
+SveltyCMS enforces a hardened **Double-Submit Cookie Pattern** combined with multi-layer origin and referer verification on all mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`).
 
-- **SvelteKit CSRF**: Enabled by default for form actions
-- **Origin check**: All mutations verify `Origin` or `Referer` headers match the current host
-- **SAML CSRF**: Dual-cookie protection for SAML ACS endpoints
-- **Token-bound mutations**: Bearer token requests are CSRF-immune (no cookie dependency)
+### 7.1 The Double-Submit Handshake
+
+```
+Client Request (Mutation)
+  ├─ Cookie: __Host-csrf_token=<token_A> (or csrf_token in dev)
+  ├─ Header: X-CSRF-Token: <token_A>
+  └─ Header: Origin / Referer: https://example.com
+       │
+       ▼
+[1] Safe-Method Bypass (GET / HEAD / OPTIONS) ───► 0µs cost, CSRF skipped
+       │
+[2] Token-Bound Bypass (Bearer / API Key / SCIM) ──► CSRF skipped (stateless)
+       │
+[3] Same-Origin Fast-Path (Origin/Referer === Host) ──► Validated in nanoseconds
+       │
+[4] Constant-Time Token Comparison ──────────────► XOR accumulator (no timing leak)
+       │
+[5] Single-Use Token Rotation ───────────────────► Invalidate old token, issue fresh cookie
+```
+
+1. **Token Generation**: 256-bit CSPRNG token (`crypto.getRandomValues()`) placed in the `csrf_token` / `__Host-csrf_token` cookie (`sameSite: "strict"`, `httpOnly: false`, `path: "/"`).
+2. **Double Submission**: Browser clients extract the cookie value and submit it in the `X-CSRF-Token` HTTP header on every mutating API request (`clientJsonHeaders()`).
+3. **Constant-Time Comparison**: `validateCsrfToken` validates the header token against the cookie using a bitwise XOR accumulator:
+   ```typescript
+   let result = 0;
+   for (let i = 0; i < cookieToken.length; i++) {
+     result |= cookieToken.charCodeAt(i) ^ tokenToValidate.charCodeAt(i);
+   }
+   return result === 0;
+   ```
+4. **Single-Use Rotation**: On every successful mutation, the server immediately invalidates the consumed CSRF token and issues a fresh token in the response cookie, preventing replay attacks.
+5. **Same-Origin Fast-Path**: Same-origin requests (`originUrl.host === host` or `refererUrl.host === host`) pass verification via nanosecond string comparison.
+6. **Stateless Exemption**: Machine-to-machine requests utilizing Bearer tokens, API Keys, or SCIM credentials are automatically exempt from cookie CSRF (they do not rely on ambient browser cookies).
+
+---
+
+### 7.2 Check Parity: Read Paths vs. Mutation Paths
+
+To ensure optimal throughput and prevent performance bottlenecks, SveltyCMS maintains strict check parity without duplicate or redundant operations:
+
+| Execution Stage           | Read Paths (`findById`, `find`, `list`)                                            | Mutation Paths (`create`, `update`, `bulk`)                                                            |
+| :------------------------ | :--------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| **CSRF Verification**     | **0 checks (0µs overhead)** — Safe HTTP verbs (`GET`/`HEAD`) bypass CSRF.          | **1 check** at the API gateway layer (`validateCsrfForRequest`).                                       |
+| **Authentication & RBAC** | Single check in `handleAuthentication` + `handleAuthorization` (cached in locals). | Single check in middleware + endpoint permission mapping (`_checkEndpointPermission`).                 |
+| **Schema Resolution**     | Single lookup from hot in-memory LRU (`schemaOf`).                                 | Single lookup from hot in-memory LRU (`schemaOf`).                                                     |
+| **Payload Preparation**   | Skipped on read.                                                                   | Single unified pass (`prepareWritePayload`) combining sanitization, type validation, and write guards. |
+| **Database Execution**    | Single direct prepared query (`findById` / `findOne`).                             | Single atomic prepared statement (`insert` / `update` with `RETURNING`).                               |
+| **Post-Write Processing** | None.                                                                              | **Detached / non-blocking** background execution (`schedulePostWrite`) — does not delay response.      |
 
 ---
 

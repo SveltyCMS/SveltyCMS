@@ -43,15 +43,24 @@ To achieve sub-millisecond authentication checks on every request, SveltyCMS use
 
 ### Session ID & Generation
 
-SveltyCMS uses high-entropy, cryptographically secure random tokens for session IDs. These IDs are:
+SveltyCMS uses high-entropy, cryptographically secure random tokens for session IDs:
 
-- **32 characters** (alphanumeric), generated via `generateRandomToken()` using `crypto.getRandomValues()`
-- **Stored directly** in cookies and database — no additional hashing required due to CSPRNG source
-- **Rotated automatically** on login. On password change, all other active sessions across all devices are immediately invalidated.
+- **32 characters** (alphanumeric), generated via `generateRandomToken()` using `crypto.getRandomValues()` (CSPRNG).
+- **Stored directly** in secure cookies and the database.
+- **Rotated automatically** on login and renewal. On password change or explicit logout, all active sessions across all devices are immediately invalidated.
 
-### Cookie Invalidation Parity
+### Session & CSRF Cookie Security Model
 
-When destroying sessions (`clearSessionCookies`), SveltyCMS sets exact matching deletion attributes (`path: "/"`, `httpOnly: true`, `sameSite`, `secure`) matching `setSessionCookie`. This ensures session cookies are cleanly invalidated by user agents across all cross-site or subdomain contexts.
+SveltyCMS employs dual-cookie architecture enforcing strict browser boundaries:
+
+| Cookie      | Production Name        | Dev Name        | Flags                                                                | Security Role                                                                                      |
+| :---------- | :--------------------- | :-------------- | :------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------- |
+| **Session** | `__Host-auth_sessions` | `auth_sessions` | `httpOnly: true`, `secure: true`, `sameSite: "strict"`, `path: "/"`  | Carries user authentication session token. Inaccessible via JavaScript.                            |
+| **CSRF**    | `__Host-csrf_token`    | `csrf_token`    | `httpOnly: false`, `secure: true`, `sameSite: "strict"`, `path: "/"` | Carries 256-bit CSRF token read by client fetch utilities for `X-CSRF-Token` double-submit header. |
+
+- **`__Host-` Cookie Prefix (RFC 6265bis)**: In production HTTPS contexts, session and CSRF cookies use the `__Host-` prefix. This mandates `secure: true`, `path: "/"`, and forbids `domain` inheritance — guaranteeing subdomains cannot inject, overwrite, or hijack cookies.
+- **Cookie Invalidation Flag Parity**: When terminating sessions (`clearSessionCookies`), deletion calls match creation flags (`path: "/"`, `httpOnly: true`, `sameSite: "strict"`, `secure: true`) across all prefix variations (`__Host-`, `__Secure-`, plain), guaranteeing full browser cookie revocation.
+- **CSRF Token Rotation**: Mutating endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) require matching `X-CSRF-Token` headers and rotate the CSRF cookie upon successful execution to prevent token reuse. Safe read methods (`GET`, `HEAD`, `OPTIONS`) bypass CSRF checks entirely (0µs overhead).
 
 ### Multi-Tenancy 2.0
 
