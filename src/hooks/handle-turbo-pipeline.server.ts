@@ -42,6 +42,7 @@ import {
   MEDIA_RESOURCE_HEADERS,
 } from "../utils/security/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
+import { getTurboAuthContext } from "./handle-turbo-get";
 import { logger } from "@src/utils/logger";
 // Hook is initialized lazily
 let cachedDbAdapter: any = null;
@@ -288,26 +289,43 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
       const sessionId = readSessionCookie(event.cookies);
       if (sessionId) {
-        // Using globalThis access for the auth service to ensure we don't trigger recursive imports
-        const authService = (globalThis as any).__AUTH_INSTANCE__;
-        if (authService) {
-          try {
-            const result = await authService.validateSession(sessionId);
-            // 🛡️ HARDENING: Handle both high-level Auth (User|null) and adapter (DatabaseResult<User|null>)
-            const user = (result as any)?.success !== undefined ? (result as any).data : result;
+        // 🚀 PERFORMANCE: Reuse the in-memory turbo-auth cache instead of a
+        // validateSession DB JOIN on every request. The cache is populated by
+        // handleAuthorization (_populateTurboAuth) at the end of the previous
+        // request; reading it here avoids a redundant auth_sessions⋈auth_users
+        // round-trip per request (the single biggest warm-path cost).
+        const turboCtx = getTurboAuthContext(sessionId);
+        if (turboCtx && turboCtx.user && turboCtx.user._id) {
+          (event.locals as any).user = turboCtx.user;
+          // Allow x-test-tenant-id header to override the user's default tenant
+          // (e.g. bulk-seed under tenant A/B), mirroring the DB path below.
+          const testTenantHeader =
+            event.request.headers.get("x-test-tenant-id") ||
+            event.request.headers.get("x-tenant-id");
+          (event.locals as any).tenantId = testTenantHeader || turboCtx.tenantId || null;
+          logger.debug(`[Turbo] Resolved user from turbo-auth cache: ${turboCtx.user.email}`);
+        } else {
+          // Using globalThis access for the auth service to ensure we don't trigger recursive imports
+          const authService = (globalThis as any).__AUTH_INSTANCE__;
+          if (authService) {
+            try {
+              const result = await authService.validateSession(sessionId);
+              // 🛡️ HARDENING: Handle both high-level Auth (User|null) and adapter (DatabaseResult<User|null>)
+              const user = (result as any)?.success !== undefined ? (result as any).data : result;
 
-            if (user && user._id) {
-              (event.locals as any).user = user;
-              // Allow x-test-tenant-id header to override the user's default tenant
-              // for tenant-isolation integration tests (e.g. bulk-seed under tenant A/B).
-              const testTenantHeader =
-                event.request.headers.get("x-test-tenant-id") ||
-                event.request.headers.get("x-tenant-id");
-              (event.locals as any).tenantId = testTenantHeader || user.tenantId || null;
-              logger.debug(`[Turbo] Resolved REAL user: ${user.email}`);
+              if (user && user._id) {
+                (event.locals as any).user = user;
+                // Allow x-test-tenant-id header to override the user's default tenant
+                // for tenant-isolation integration tests (e.g. bulk-seed under tenant A/B).
+                const testTenantHeader =
+                  event.request.headers.get("x-test-tenant-id") ||
+                  event.request.headers.get("x-tenant-id");
+                (event.locals as any).tenantId = testTenantHeader || user.tenantId || null;
+                logger.debug(`[Turbo] Resolved REAL user: ${user.email}`);
+              }
+            } catch {
+              /* ignore session errors in bypass */
             }
-          } catch {
-            /* ignore session errors in bypass */
           }
         }
       }

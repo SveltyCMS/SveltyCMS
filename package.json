@@ -145,7 +145,7 @@
     "migrate": "bun run src/plugins/smart-importer/cli.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1117.0",
+    "@aws-sdk/client-s3": "^3.1118.0",
     "@better-svelte-email/components": "^2.1.3",
     "@better-svelte-email/preview": "^2.1.3",
     "@better-svelte-email/server": "^2.1.3",
@@ -265,7 +265,7 @@
     "wait-on": "9.1.0"
   },
   "optionalDependencies": {
-    "mongoose": "^9.9.3",
+    "mongoose": "^9.9.4",
     "mysql2": "^3.24.2",
     "postgres": "^3.4.9"
   },
