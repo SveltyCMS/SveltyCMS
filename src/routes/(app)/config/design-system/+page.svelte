@@ -238,13 +238,15 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
   onMount(() => {
     const localPrefs = readLocalThemePrefs();
-    if (localPrefs && !userPrefs) {
-      myDensity = localPrefs.density || "";
-      myVariant = localPrefs.variant || "";
-      myReducedMotion = localPrefs.reducedMotion ?? false;
-      myHighContrast = localPrefs.highContrast ?? false;
+    if (localPrefs) {
+      if (localPrefs.density && !myDensity) myDensity = localPrefs.density;
+      if (localPrefs.variant && !myVariant) myVariant = localPrefs.variant;
+      if (localPrefs.reducedMotion !== undefined && !myReducedMotion) myReducedMotion = localPrefs.reducedMotion;
+      if (localPrefs.highContrast !== undefined && !myHighContrast) myHighContrast = localPrefs.highContrast;
       for (const key of USER_LAYOUT_PREF_KEYS) {
-        myLayoutPrefs[key] = localPrefs.layoutState?.[key] ?? "";
+        if (localPrefs.layoutState?.[key] && !myLayoutPrefs[key]) {
+          myLayoutPrefs[key] = localPrefs.layoutState[key];
+        }
       }
       userThemePrefs.apply(localPrefs as UserThemePreferences);
     }
@@ -298,6 +300,13 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
   let activeTab = $state<AppearanceTabId>(
     untrack(() => resolveTabFromUrl(Boolean((data as { isAdmin?: boolean }).isAdmin))),
   );
+
+  $effect(() => {
+    const tabFromUrl = resolveTabFromUrl(isAdmin);
+    if (tabFromUrl !== activeTab) {
+      activeTab = tabFromUrl;
+    }
+  });
 
   const visibleTabs = $derived(ALL_TABS.filter((t) => !t.adminOnly || isAdmin));
 

@@ -41,8 +41,10 @@ import { showConfirm } from "@utils/modal.svelte";
 const { data } = $props();
 const isAdmin = $derived(data.isAdmin);
 
-//  Use $state for all component state
-let availableGroups: SettingGroup[] = $state([]);
+// 🚀 DERIVED: availableGroups is computed synchronously for SSR and instant client render
+const availableGroups = $derived(
+	getSettingGroupsByRole(isAdmin).sort((a, b) => a.name.localeCompare(b.name)),
+);
 let hasUnsavedChanges = $state(false);
 let saveTrigger = $state<{ fire: () => void; discard?: () => void }>({ fire: () => {} });
 let saving = $state(false);
@@ -156,10 +158,6 @@ async function checkAllGroupsForEmptyFields() {
 
 
 onMount(() => {
-	availableGroups = getSettingGroupsByRole(isAdmin).sort((a, b) =>
-		a.name.localeCompare(b.name),
-	);
-
 	// Default selection if none in URL
 	if (!selectedGroupId && availableGroups.length > 0) {
 		const url = new URL(window.location.href);

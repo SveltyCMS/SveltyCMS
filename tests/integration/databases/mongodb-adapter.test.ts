@@ -103,7 +103,7 @@ describeMongo("MongoDB Adapter Integration", () => {
       if (!db) return;
 
       const runId = `mongo-crud-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const testId = `pref-${runId}` as any as DatabaseId;
+      const testId = crypto.randomUUID() as any as DatabaseId;
 
       await db.crud.deleteMany(
         CRUD_COLLECTION,

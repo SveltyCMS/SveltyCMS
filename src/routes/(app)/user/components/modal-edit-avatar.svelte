@@ -320,9 +320,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 							previewUrl = null;
 
 						// Show success message
-						toast.success({
-							description: '<iconify-icon icon="radix-icons:avatar" width={24} ></iconify-icon> Avatar Deleted'
-						});
+						toast.success('Avatar Deleted');
 
 						// Close dialog
 						modalState.close();
@@ -337,9 +335,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 					const msg = error instanceof Error ? error.message : 'Failed to delete avatar';
 
-					toast.error({
-						description: `<iconify-icon icon="radix-icons:cross-2" width={24} ></iconify-icon> ${msg}`
-					});
+					toast.error(msg);
 				}
 			}
 		});
