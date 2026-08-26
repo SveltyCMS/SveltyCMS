@@ -39,8 +39,21 @@ import crypto from "node:crypto";
 
 let stopServer: (() => Promise<void>) | null = null;
 let baseUrl: string;
-const SEED_COUNT = 300;
+const SEED_COUNT = 500;
 const createdIds: string[] = [];
+
+function createRealisticArticlePayload(i: number, runId: string) {
+  return {
+    title: `Scaling headless CMS for enterprise — Part ${i}`,
+    slug: `bench-article-${runId}-${i}`,
+    status: i % 3 === 0 ? "draft" : "published",
+    count: i * 10,
+    publishDate: new Date().toISOString(),
+    content: `# Article ${i}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. `.repeat(
+      10,
+    ),
+  };
+}
 
 test("Competitive 9-Workload Replica Benchmark", async () => {
   logger.info("🚀 Starting Competitive 9-Workload Replica Benchmark (8 Workers)...");
@@ -53,21 +66,15 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     "content-type": "application/json",
   };
   const dbType = getDbType();
+  const runId = crypto.randomUUID().slice(0, 8);
 
-  // Pre-seed a known batch for read/update workloads
-  logger.info(`   → Pre-seeding ${SEED_COUNT} benchmark records...`);
+  // Pre-seed a realistic batch for read/update workloads
+  logger.info(`   → Pre-seeding ${SEED_COUNT} benchmark records with realistic payloads...`);
   for (let i = 0; i < SEED_COUNT; i++) {
     const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable`, {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        title: `Item ${i}`,
-        slug: `item-${i}`,
-        content: `Content for item ${i} with representative text payload`,
-        published: true,
-        status: "published",
-        views: i * 10,
-      }),
+      body: JSON.stringify(createRealisticArticlePayload(i, runId)),
     });
     if (res.ok) {
       const json = (await res.json()) as any;
@@ -79,6 +86,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
 
   const stableId = createdIds[0] || "20000000-0000-4000-8000-000000000001";
   let updateIdx = 0;
+  let createSeq = 0;
 
   const workloads = [
     {
@@ -123,7 +131,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       shortLabel: "listFilterSort",
       fn: async () => {
         const res = await fetch(
-          `${baseUrl}/api/collections/BenchmarkStable?limit=10&sort=createdAt&sortDirection=desc`,
+          `${baseUrl}/api/collections/BenchmarkStable?limit=20&filter=${encodeURIComponent(JSON.stringify({ status: "published" }))}&sort=-count`,
           { headers },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -135,9 +143,10 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       name: "listLarge (Concurrent 8c)",
       shortLabel: "listLarge",
       fn: async () => {
-        const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable?limit=50`, {
-          headers,
-        });
+        const res = await fetch(
+          `${baseUrl}/api/collections/BenchmarkStable?limit=50&filter=${encodeURIComponent(JSON.stringify({ status: "published" }))}&sort=-count`,
+          { headers },
+        );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         await res.json();
       },
@@ -166,7 +175,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
           method: "POST",
           headers,
           body: JSON.stringify({
-            query: "query { BenchmarkStable(pagination: { limit: 10 }) { _id title } }",
+            query: "query { BenchmarkStable(pagination: { limit: 10 }) { _id title count } }",
           }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -181,15 +190,11 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       name: "create (Concurrent 8c)",
       shortLabel: "create",
       fn: async () => {
-        const uniq = crypto.randomUUID();
+        const seq = createSeq++;
         const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable`, {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            title: `Created Item ${uniq}`,
-            slug: `created-${uniq}`,
-            content: "Concurrent create test payload content",
-          }),
+          body: JSON.stringify(createRealisticArticlePayload(seq + 10000, runId)),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         await res.json();
@@ -205,8 +210,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
           method: "PATCH",
           headers,
           body: JSON.stringify({
-            title: `Updated Title ${Date.now()}`,
-            views: Math.floor(Math.random() * 1000),
+            count: Math.floor(Math.random() * 1000) + 1,
           }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -224,7 +228,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
           const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable/${targetId}`, {
             method: "PATCH",
             headers,
-            body: JSON.stringify({ views: Math.floor(Math.random() * 500) }),
+            body: JSON.stringify({ count: Math.floor(Math.random() * 500) + 1 }),
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           await res.json();
@@ -248,7 +252,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     logger.info(`   → Testing ${w.name}...`);
     const res = await runBenchmark({
       name: w.name,
-      warmupIterations: 15,
+      warmupIterations: 25,
       iterations: 80,
       concurrency: w.concurrency,
       onIteration: w.fn,

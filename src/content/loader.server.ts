@@ -453,10 +453,11 @@ export async function loadSchemaPooled(
 
     if (result.error) {
       logger.warn(
-        `[WorkerPool] Schema load failed for ${path.basename(filePath)}: ${result.error}`,
+        `[WorkerPool] Schema load failed for ${path.basename(filePath)}: ${result.error} — falling back to native load`,
       );
+      return loadSchemaNative(filePath, mtimeMs);
     }
-    return null;
+    return loadSchemaNative(filePath, mtimeMs);
   } catch {
     return loadSchemaNative(filePath, mtimeMs);
   }
