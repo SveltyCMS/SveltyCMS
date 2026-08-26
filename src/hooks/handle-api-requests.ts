@@ -206,6 +206,11 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           const cached = await cacheService.get<any>(cacheKey, locals.tenantId);
           if (cached) {
             metricsService.recordApiCacheHit();
+            // 🚀 Stash the cache entry's already-serialized payload into locals so
+            // the downstream token-resolution hook reuses it instead of
+            // response.clone().text() on the cache-HIT body (its #1 hot-path cost).
+            (locals as any).apiData = cached?.data ?? (locals as any).apiData;
+            if (typeof cached?.body === "string") (locals as any).apiBody = cached.body;
             return serveCachedEntry(cached, request);
           }
         } catch (cacheError) {
@@ -226,6 +231,11 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           const entry = await inflight;
           if (entry) {
             metricsService.recordApiCacheHit();
+            // 🚀 Same locals stash as the L2 cache-HIT path above — let the
+            // downstream token-resolution hook reuse the serialized payload
+            // instead of re-cloning/reading the body.
+            (locals as any).apiData = entry?.data ?? (locals as any).apiData;
+            if (typeof entry?.body === "string") (locals as any).apiBody = entry.body;
             return serveCachedEntry(entry, request);
           }
           // Leader produced no cacheable entry (GraphQL bypass / error) —

@@ -61,11 +61,20 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
       if (!isNaN(contentLength) && contentLength > MAX_JSON_SIZE) return response;
     }
 
+    // 🚀 Avoid a second response.clone().text() on the hot path. buildJsonResponse
+    // (routes/api/[...path]/handlers/base.ts) already stashes BOTH the serialized
+    // body (`apiBody`) and the raw payload (`apiData`) into locals for every
+    // standard API response. Prefer those over re-reading the body — cloning +
+    // text() re-serializes the entire payload on every request (token-free ones
+    // included), a pure cost for a check that almost always returns early.
     const apiBody = (event.locals as any).apiBody;
+    const apiData = (event.locals as any).apiData ?? (event.locals as any).__apiData;
     let responseText: string;
 
     if (typeof apiBody === "string") {
       responseText = apiBody;
+    } else if (apiData !== undefined) {
+      responseText = typeof apiData === "string" ? apiData : JSON.stringify(apiData);
     } else {
       const clonedResponse = response.clone();
       responseText = await clonedResponse.text();
