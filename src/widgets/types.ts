@@ -10,7 +10,7 @@
  */
 
 import type { User } from "@src/databases/auth/types";
-import type { GuiFieldConfig } from "@utils/utils";
+import type { GuiFieldConfig } from "@utils/schema/field-utils";
 import type { SvelteComponent } from "svelte";
 import type { FieldInstance, Schema } from "../content/types";
 import type { SchemaHooks } from "../content/schema-hooks";

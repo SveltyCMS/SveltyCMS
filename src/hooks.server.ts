@@ -685,7 +685,15 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   // 🚀 Health check fast-return: skip trace setup, context, and full pipeline
-  if (lane === RequestLane.HEALTH || pathname === "/api/system/health" || pathname === "/health") {
+  if (
+    lane === RequestLane.HEALTH ||
+    pathname === "/api/system/health" ||
+    pathname === "/health" ||
+    pathname === "/healthz" ||
+    pathname === "/livez" ||
+    pathname === "/readyz" ||
+    pathname === "/_healthz"
+  ) {
     inFlightRequests++;
     try {
       const state =

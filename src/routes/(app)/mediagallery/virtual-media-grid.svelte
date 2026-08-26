@@ -11,7 +11,7 @@ Features:
 <script lang="ts">
 import type { MediaBase, MediaImage } from "@utils/media/media-models";
 import { mediaDisplayUrl } from "@utils/media/media-utils";
-import { formatBytes } from "@utils/utils";
+import { formatBytes } from "@utils/file";
 import { onMount } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
 	import Button from '@components/ui/button.svelte';

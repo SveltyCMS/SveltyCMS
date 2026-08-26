@@ -44,7 +44,7 @@ functionality for image editing and basic file information display.
 	import { logger } from '@utils/logger';
 	import { updateMediaMetadata } from '@utils/media/media-utils';
 	import type { MediaImage, WatermarkOptions } from '@utils/media/media-models';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import { formatDateString } from '@utils/date';
 	import { modalState } from '@utils/modal.svelte';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';

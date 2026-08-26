@@ -13,7 +13,7 @@ Renders a currency selector and a number input side-by-side.
 <script lang="ts">
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { minValue, nullable, number, object, optional, parse, pipe, regex, string } from 'valibot';
 	import type { FieldType } from './index';

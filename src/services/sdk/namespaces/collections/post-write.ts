@@ -39,6 +39,43 @@ export function shouldSkipWriteSideEffects(options: LocalApiOptions): boolean {
 }
 
 /**
+ * Coalesced Microtask Queue for PubSub entryUpdated events.
+ * Fast sequential/batch writes coalesce onto a single microtask flush.
+ */
+interface PendingPubSubEvent {
+  collection: string;
+  id: string;
+  action: string;
+  data: any;
+  timestamp: string;
+  user: any;
+}
+
+const _pendingPubSubQueue: PendingPubSubEvent[] = [];
+let _pubSubFlushScheduled = false;
+
+function queuePubSubEntryUpdated(event: PendingPubSubEvent): void {
+  _pendingPubSubQueue.push(event);
+  if (!_pubSubFlushScheduled) {
+    _pubSubFlushScheduled = true;
+    queueMicrotask(async () => {
+      const batch = _pendingPubSubQueue.splice(0, _pendingPubSubQueue.length);
+      _pubSubFlushScheduled = false;
+      if (batch.length === 0) return;
+
+      try {
+        const pubSub = await getPubSubLazy();
+        for (let i = 0; i < batch.length; i++) {
+          pubSub.publish("entryUpdated", batch[i]);
+        }
+      } catch {
+        /* best-effort */
+      }
+    });
+  }
+}
+
+/**
  * Tick-debounce set for cache invalidation: coalesces consecutive writes in
  * the same macrotask into a single clear pass (keyed by tenant + schema).
  */
@@ -154,17 +191,14 @@ export function schedulePostWrite(
           }
         }
 
-        try {
-          const pubSub = await getPubSubLazy();
-          pubSub.publish("entryUpdated", {
-            collection: schema.name || schemaId,
-            id,
-            action,
-            data,
-            timestamp: nowISODateString(),
-            user,
-          });
-        } catch {}
+        queuePubSubEntryUpdated({
+          collection: schema.name || schemaId,
+          id,
+          action,
+          data,
+          timestamp: nowISODateString(),
+          user,
+        });
 
         const hookName = action === "create" || action === "update" ? "afterSave" : "afterDelete";
         const after = triggerLifecycleHook(

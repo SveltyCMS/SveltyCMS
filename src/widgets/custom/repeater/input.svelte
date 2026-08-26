@@ -15,7 +15,7 @@ Renders a list of forms, one for each item in the array. Supports Drag-and-Drop 
 	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import { flip } from 'svelte/animate';
 	import { untrack } from 'svelte';
 	import { draggable, droppable } from '@thisux/sveltednd';

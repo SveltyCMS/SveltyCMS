@@ -35,7 +35,7 @@
 	import Input from '@components/ui/input.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { app, validationStore } from '@src/stores/store.svelte';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { maxValue, minValue, nullable, number as numberSchema, parse, pipe } from 'valibot';
 	import type { FieldType } from '.';
@@ -149,7 +149,7 @@
 				onclick={handleClear}
 				aria-label="Clear value"
 				title="Clear"
-			 class="p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 p-1 me-1 opacity-60 hover:opacity-100">
+			 class="min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 p-1 me-1 opacity-60 hover:opacity-100">
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			</Button>
 		{/if}

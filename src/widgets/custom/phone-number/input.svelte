@@ -37,7 +37,7 @@
 	import Input from '@components/ui/input.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { app, validationStore } from '@src/stores/store.svelte';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { minLength, optional, parse, pipe, regex, string } from 'valibot';
 	import type { FieldType } from '.';

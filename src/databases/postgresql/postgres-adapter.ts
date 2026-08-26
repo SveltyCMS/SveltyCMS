@@ -10,7 +10,7 @@ import { createDatabaseError } from "../core/relational-utils";
 import { SqlQueryBuilder, POSTGRES_DIALECT } from "../core/sql-query-builder";
 import { PostgresFtsAdapter } from "./fts-adapter";
 import { withMigrationLock } from "../migration-lock";
-import { PerformanceModule } from "../core/performance-module";
+import { PerformanceModule } from "../core/base-adapter";
 import { CacheModule } from "../core/cache-module";
 
 export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter {

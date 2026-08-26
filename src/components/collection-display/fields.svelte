@@ -29,7 +29,7 @@ import { tick, untrack } from "svelte";
 		import Select from '@components/ui/select.svelte';
   import { logger } from "@utils/logger";
   import { clientJsonHeaders } from "@utils/security/client-csrf";
-  import { getFieldName } from "@utils/utils";
+  import { getFieldName } from "@utils/schema/field-utils";
 
   // Auth & Page data
   import { page } from "$app/state";

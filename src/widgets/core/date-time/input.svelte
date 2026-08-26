@@ -31,7 +31,7 @@ Part of the Three Pillars Architecture for widget system.
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
-	import { getFieldName } from '@src/utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import type { FieldType } from './';
 
 	interface Props {

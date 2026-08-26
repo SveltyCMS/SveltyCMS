@@ -28,7 +28,7 @@ rather than bundling all widgets upfront.
 	import Button from '@components/ui/button.svelte';
 	import type { FieldInstance } from '@src/content/types';
 	import { validationStore } from '@src/stores/store.svelte.ts';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import { logger } from '@utils/logger';
 	import { safeParse } from 'valibot';
 

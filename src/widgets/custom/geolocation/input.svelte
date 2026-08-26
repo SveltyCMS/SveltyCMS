@@ -9,7 +9,7 @@ import { logger } from "@utils/logger";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import { validationStore } from '@src/stores/store.svelte';
-	import { getFieldName } from '@src/utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import type { FieldType } from './index';
 	import type { GeoPoint } from './types';
 

@@ -93,16 +93,31 @@ export function unwrapSchemaExport(moduleData: unknown): unknown {
   return schema;
 }
 
+const compiledSchemaCache = new WeakMap<object, SchemaContractResult>();
+
 /**
  * Normalizes raw module export into a Schema and validates the contract.
  * Returns `{ ok: false }` without throwing — callers keep last-good output.
+ * Fast-path: Uses WeakMap memoization for object inputs.
  */
 export function assertCompiledSchema(moduleData: unknown, filePath: string): SchemaContractResult {
+  if (moduleData && typeof moduleData === "object") {
+    const cached = compiledSchemaCache.get(moduleData as object);
+    if (cached) return cached;
+  }
+
   const errors: string[] = [];
   let schema = unwrapSchemaExport(moduleData) as any;
 
   if (!schema || typeof schema !== "object") {
-    return { ok: false, errors: [`No schema object in ${path.basename(filePath)}`] };
+    const res: SchemaContractResult = {
+      ok: false,
+      errors: [`No schema object in ${path.basename(filePath)}`],
+    };
+    if (moduleData && typeof moduleData === "object") {
+      compiledSchemaCache.set(moduleData as object, res);
+    }
+    return res;
   }
 
   if (!schema.fields || !Array.isArray(schema.fields)) {
@@ -191,7 +206,11 @@ export function assertCompiledSchema(moduleData: unknown, filePath: string): Sch
   }
 
   // Soft warnings still ok:true — hard failures already returned
-  return { ok: true, schema: schema as Schema, errors };
+  const finalRes: SchemaContractResult = { ok: true, schema: schema as Schema, errors };
+  if (moduleData && typeof moduleData === "object") {
+    compiledSchemaCache.set(moduleData as object, finalRes);
+  }
+  return finalRes;
 }
 
 /**

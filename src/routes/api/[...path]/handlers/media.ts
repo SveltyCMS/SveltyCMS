@@ -32,7 +32,7 @@ import {
 } from "@src/utils/media/sharing";
 import { hashSharePassword, verifySharePassword } from "@src/utils/media/share-link-hash.server";
 import { analyze, insights, trends, quota } from "@src/utils/media/storage-analytics";
-import { formatBytes } from "@utils/utils";
+import { formatBytes } from "@utils/file";
 import {
   compareVersions,
   createVersion,

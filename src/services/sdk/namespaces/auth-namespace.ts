@@ -6,12 +6,11 @@ import { AppError, getErrorMessage, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
 import { verifyPassword } from "@utils/security/crypto";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled, withTenant } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions, invalidatePermissionCache } from "@src/databases/auth/permissions";
 import { sessionTtlMs } from "@src/databases/auth/constants";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
-import { withTenant } from "@src/databases/core/db-adapter-wrapper";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import type {
   DatabaseId,

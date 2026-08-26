@@ -31,7 +31,7 @@ import {
 } from "@src/services/cache/response-cache";
 
 // Dynamic handlers map for build-time tree-shaking.
-// Hot handlers (collections, content, auth, system) are eager-preloaded at import
+// Hot handlers (collections, content, auth, system, tokens) are eager-preloaded at import
 // time to eliminate the ~0.3ms dynamic-import tax on 90%+ of API traffic.
 const HANDLERS: Record<string, () => Promise<any>> = {
   auth: () => import("./handlers/auth"),
@@ -46,19 +46,12 @@ const HANDLERS: Record<string, () => Promise<any>> = {
   tokens: () => import("./handlers/tokens"),
   utility: () => import("./handlers/utility"),
   setup: () => import("./handlers/setup"),
-  version: () => import("./handlers/version"),
-  database: () => import("./handlers/database"),
-  logs: () => import("./handlers/logs"),
-  "api-keys": () => import("./handlers/api-keys"),
   config: () => import("./handlers/config"),
   "content-transfer": () => import("./handlers/content-transfer"),
   migrations: () => import("./handlers/migrations"),
-  importers: () => import("./handlers/importers"),
   backups: () => import("./handlers/backups"),
   "content-sync": () => import("./handlers/content-sync"),
-  gdpr: () => import("./handlers/gdpr"),
   commerce: () => import("./handlers/commerce"),
-  stripe: () => import("./handlers/stripe"),
 };
 
 // Eager-preload hot handlers on first request (lazy-init to not break unit test mocks).
@@ -113,7 +106,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   system: { handler: "system", fn: "handleSystemRoutes" },
   settings: { handler: "system", fn: "handleSettingsRoutes" },
   "system-settings": { handler: "system", fn: "handleSettingsRoutes" },
-  importer: { handler: "system", fn: "handleImporterRoutes" },
+  importer: { handler: "content-transfer", fn: "handleImporterRoutes" },
   ai: { handler: "system", fn: "handleAiRoutes" },
   "ai-builder": { handler: "system", fn: "handleAiBuilderRoutes" },
   automations: { handler: "system", fn: "handleAutomationRoutes" },
@@ -141,9 +134,9 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   trash: { handler: "utility", fn: "handleUtilityRoutes" },
   debug: { handler: "utility", fn: "handleUtilityRoutes" },
   "openapi.json": { handler: "utility", fn: "handleUtilityRoutes" },
-  database: { handler: "database", fn: "handleDatabaseRoutes" },
-  logs: { handler: "logs", fn: "handleLogsRoutes" },
-  "api-keys": { handler: "api-keys", fn: "handleApiKeyRoutes" },
+  database: { handler: "system", fn: "handleDatabaseRoutes" },
+  logs: { handler: "system", fn: "handleLogsRoutes" },
+  "api-keys": { handler: "tokens", fn: "handleApiKeyRoutes" },
   webhooks: { handler: "system", fn: "handleWebhookRoutes" },
   "system-webhooks": { handler: "system", fn: "handleWebhookRoutes" },
   "system-virtual-folder": {
@@ -154,7 +147,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
     handler: "system",
     fn: "handleSystemVirtualFolderRoutes",
   },
-  version: { handler: "version", fn: "handleVersionRoutes" },
+  version: { handler: "system", fn: "handleVersionRoutes" },
   graphql: { handler: "content", fn: "handleGraphqlRoutes" },
   "system-jobs": { handler: "system", fn: "handleSystemJobRoutes" },
 
@@ -163,7 +156,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "content-export": { handler: "content-transfer", fn: "handleContentExportRoutes" },
   "content-import": { handler: "content-transfer", fn: "handleContentImportRoutes" },
   migrations: { handler: "migrations", fn: "handleMigrationRoutes" },
-  importers: { handler: "importers", fn: "handleImporterRoutes" },
+  importers: { handler: "content-transfer", fn: "handleImporterRoutes" },
   backups: { handler: "backups", fn: "handleBackupRoutes" },
   "content-sync": { handler: "content-sync", fn: "handleContentSyncRoutes" },
 
@@ -171,12 +164,12 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "plugin-settings": { handler: "system", fn: "handlePluginSettingsRoutes" },
 
   // GDPR Right to Access / Erasure (self or admin)
-  gdpr: { handler: "gdpr", fn: "handleGdprRoutes" },
+  gdpr: { handler: "auth", fn: "handleGdprRoutes" },
   commerce: { handler: "commerce", fn: "handleCommerceRoutes" },
-  stripe: { handler: "stripe", fn: "handleStripeRoutes" },
+  stripe: { handler: "commerce", fn: "handleStripeRoutes" },
 
   // Deprecated Aliases
-  "import-data": { handler: "importers", fn: "handleImporterRoutes" },
+  "import-data": { handler: "content-transfer", fn: "handleImporterRoutes" },
   config_sync: { handler: "config", fn: "handleConfigRoutes" },
   "config-sync": { handler: "config", fn: "handleConfigRoutes" },
 };

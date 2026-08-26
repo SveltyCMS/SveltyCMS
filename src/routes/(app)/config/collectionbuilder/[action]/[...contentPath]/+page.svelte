@@ -19,7 +19,7 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import { widgetStoreActions } from "@src/stores/widget-store.svelte.ts";
 import { logger } from "@utils/logger";
 import { showConfirm } from "@utils/modal.svelte";
-import { obj2formData } from "@utils/utils";
+import { obj2formData } from "@utils/form.svelte";
 import { registerHotkey } from "@src/utils/hotkeys";
 import { onMount, onDestroy } from "svelte";
 import { goto } from "$app/navigation";

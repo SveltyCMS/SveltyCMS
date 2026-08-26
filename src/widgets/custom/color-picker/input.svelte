@@ -25,7 +25,7 @@ Renders a color input with label, helper, and validation
 	import Button from '@components/ui/button.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { parse, pipe, regex, string, optional } from 'valibot';
 	import type { FieldType } from './';

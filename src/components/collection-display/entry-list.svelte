@@ -93,7 +93,8 @@ bulk actions, and predictive preloading.
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modal.svelte';
 	import { preloadEntry, reflectModeInURL } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { getFieldName, meta_data } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
+	import { meta_data } from '@utils/entry-actions';
 	import { untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';

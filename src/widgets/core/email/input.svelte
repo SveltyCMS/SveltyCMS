@@ -24,7 +24,7 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { email as emailValidator, minLength, optional, parse, pipe, string } from 'valibot';
 	import type { FieldType } from '.';
@@ -121,7 +121,7 @@
 				onclick={handleClear}
 				aria-label="Clear email"
 				title="Clear"
-			 class="p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 p-1 me-1 opacity-60 hover:opacity-100">
+			 class="min-w-0 hover:bg-surface-200 dark:hover:bg-surface-700 p-1 me-1 opacity-60 hover:opacity-100">
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			</Button>
 		{/if}

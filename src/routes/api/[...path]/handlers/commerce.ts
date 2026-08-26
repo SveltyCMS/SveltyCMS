@@ -493,3 +493,44 @@ export async function handleCommerceRoutes(
     throw new AppError((err as Error).message || "Commerce operation failed", 500);
   }
 }
+
+/**
+ * Public Stripe webhook + publishable config.
+ */
+export async function handleStripeRoutes(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  segments: string[],
+) {
+  try {
+    const action = (segments[1] || "").toLowerCase();
+    const scoped = requireCommerceTenantId(tenantId);
+
+    if (action === "config" && event.request.method === "GET") {
+      const state = await pluginRegistry.getPluginState("stripe", String(scoped));
+      const publishableKey =
+        (state?.settings as { publishableKey?: string } | undefined)?.publishableKey || "";
+      return successResponse(event, { publishableKey });
+    }
+
+    if (action === "webhook" && event.request.method === "POST") {
+      const signature = event.request.headers.get("stripe-signature") || "";
+      const payload = await event.request.text();
+      const { handleStripeWebhook } = await import("@src/plugins/stripe/server/webhooks");
+      const adapter = cms.db;
+      const result = await handleStripeWebhook(payload, signature, String(scoped), adapter);
+      if (!result.received) {
+        raise(400, result.error || "Webhook rejected.", "WEBHOOK_REJECTED");
+      }
+      return successResponse(event, { received: true });
+    }
+
+    raise(404, `Unknown stripe action '${action}'.`, "NOT_FOUND");
+  } catch (err: unknown) {
+    rethrow(err);
+    if (!isAppError(err)) logger.error("[Stripe] route failed", err);
+    if (isAppError(err)) throw err;
+    throw new AppError((err as Error).message || "Stripe operation failed", 500);
+  }
+}

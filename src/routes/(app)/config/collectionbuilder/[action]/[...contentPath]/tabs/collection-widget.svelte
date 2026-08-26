@@ -15,7 +15,7 @@ import { toast } from "@src/stores/toast.svelte.ts";
 import { getWidgetFunction, widgetStoreActions } from "@src/stores/widget-store.svelte.ts";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { modalState } from "@utils/modal.svelte";
-import { getGuiFields } from "@utils/utils";
+import { getGuiFields } from "@utils/schema/field-utils";
 import { logger } from "@utils/logger";
 import { onMount, untrack } from "svelte";
 import { flip } from "svelte/animate";
@@ -392,7 +392,7 @@ const remoteFiltered = $derived(
 </script>
 
 <div
-	class="flex h-full min-h-[28rem] w-full flex-col lg:flex-row"
+	class="flex h-full min-h-112 w-full flex-col lg:flex-row"
 	data-testid="collection-widgets-tab"
 >
 	<!-- ═══ LEFT: Field canvas ═══ -->

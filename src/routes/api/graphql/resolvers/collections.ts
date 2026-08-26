@@ -35,7 +35,7 @@ import { widgets } from "@src/stores/widget-store.svelte";
 
 // System Logger
 import { logger } from "@utils/logger";
-import { getFieldName } from "@utils/utils";
+import { getFieldName } from "@utils/schema/field-utils";
 // deepmerge import removed
 import type { GraphQLFieldResolver } from "graphql";
 

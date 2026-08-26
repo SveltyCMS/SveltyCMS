@@ -9,7 +9,6 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createSchemaProxy } from "../../../src/databases/core/schema-proxy";
 
 // 🟢 Apply the v8 shim before any MongoDB/Bson imports
 // This must happen before the dynamic import of MongoDBAdapter below.
@@ -89,17 +88,17 @@ describe("Database Interface Contract Tests", () => {
 
     if (currentDbType === "mongodb") {
       const { MongoDBAdapter } = await import("../../../src/databases/mongodb/mongo-db-adapter");
-      db = createSchemaProxy(new MongoDBAdapter());
+      db = new MongoDBAdapter();
     } else if (currentDbType === "mariadb") {
       const { MariaDBAdapter } = await import("../../../src/databases/mariadb/mariadb-adapter");
-      db = createSchemaProxy(new MariaDBAdapter()) as any;
+      db = new MariaDBAdapter() as any;
     } else if (currentDbType === "postgresql") {
       const { PostgreSQLAdapter } =
         await import("../../../src/databases/postgresql/postgres-adapter");
-      db = createSchemaProxy(new PostgreSQLAdapter()) as any;
+      db = new PostgreSQLAdapter() as any;
     } else {
       const { SQLiteAdapter } = await import("../../../src/databases/sqlite/sqlite-adapter");
-      db = createSchemaProxy(new SQLiteAdapter()) as any;
+      db = new SQLiteAdapter() as any;
     }
 
     try {

@@ -19,7 +19,7 @@ import {
   getDashboardEndpointLicense,
   checkDashboardEndpointLicense,
   requireDashboardWidgetLicense,
-} from "../../../src/routes/api/[...path]/handlers/dashboard-license";
+} from "../../../src/routes/api/[...path]/handlers/dashboard";
 
 const mockedCheck = vi.mocked(checkExtensionLicense);
 

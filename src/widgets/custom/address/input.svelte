@@ -34,7 +34,7 @@ import { logger } from "@utils/logger";
 		import { publicEnv } from '@src/stores/global-settings.svelte';
 	/* global google */
 	import { app, validationStore } from '@src/stores/store.svelte';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { onMount } from 'svelte';
 	import { minLength, object, optional, parse, pipe, string } from 'valibot';

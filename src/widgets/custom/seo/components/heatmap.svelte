@@ -17,7 +17,7 @@
 -->
 
 <script lang="ts">
-	import { debounce } from '@utils/utils';
+	import { debounce } from '@utils/debounce';
 	import { tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 

@@ -314,3 +314,106 @@ export async function handleContentImportRoutes(
     404,
   );
 }
+
+/**
+ * Handle external importer routes under `/api/importers/*`.
+ */
+export async function handleImporterRoutes(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  _tenantId: DatabaseId,
+  segments: string[],
+) {
+  const { request } = event;
+  const action = segments[1];
+
+  if (!action && request.method === "GET") {
+    const { json } = await import("@sveltejs/kit");
+    return json(
+      {
+        success: true,
+        message:
+          "Use /api/importers/sources to list supported formats, or /api/migration/import to upload files.",
+      },
+      { status: 200, headers: { Deprecation: "true" } },
+    );
+  }
+
+  if (action === "sources" && request.method === "GET") {
+    return successResponse(event, {
+      sources: [
+        {
+          id: "wordpress",
+          name: "WordPress",
+          formats: ["wxr", "xml"],
+          description: "WordPress WXR export files",
+        },
+        { id: "drupal", name: "Drupal", formats: ["json"], description: "Drupal JSON:API exports" },
+        {
+          id: "directus",
+          name: "Directus",
+          formats: ["json"],
+          description: "Directus JSON exports",
+        },
+        { id: "strapi", name: "Strapi", formats: ["json"], description: "Strapi JSON exports" },
+        {
+          id: "payload",
+          name: "Payload CMS",
+          formats: ["json"],
+          description: "Payload CMS JSON exports",
+        },
+        {
+          id: "sveltycms",
+          name: "SveltyCMS",
+          formats: ["ndjson"],
+          description: "SveltyCMS content packages",
+        },
+        { id: "csv", name: "CSV", formats: ["csv"], description: "Comma-separated values" },
+        {
+          id: "json",
+          name: "Generic JSON",
+          formats: ["json"],
+          description: "Flat or nested JSON arrays",
+        },
+      ],
+    });
+  }
+
+  if (action === "validate" && request.method === "POST") {
+    const { json } = await import("@sveltejs/kit");
+    return json(
+      {
+        success: true,
+        message:
+          "Importer validation — not yet implemented via this endpoint. Use /api/migration/import for file uploads.",
+      },
+      { status: 501 },
+    );
+  }
+
+  if (action === "preview" && request.method === "POST") {
+    const { json } = await import("@sveltejs/kit");
+    return json(
+      {
+        success: true,
+        message:
+          "Importer preview — not yet implemented via this endpoint. Use /api/migration/import for file uploads.",
+      },
+      { status: 501 },
+    );
+  }
+
+  if (action === "jobs" && request.method === "POST") {
+    const { json } = await import("@sveltejs/kit");
+    return json(
+      {
+        success: true,
+        message:
+          "Background import jobs — use the Smart Importer plugin UI or /api/migration/import.",
+      },
+      { status: 501 },
+    );
+  }
+
+  throw new AppError(`Importer action "${action || "(none)"}" is not implemented`, 404);
+}

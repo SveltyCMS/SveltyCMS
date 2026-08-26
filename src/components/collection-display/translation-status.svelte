@@ -27,7 +27,7 @@ FIXES:
 	import { contentLanguage, translationProgress } from '@src/stores/store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';

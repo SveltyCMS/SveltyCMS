@@ -18,7 +18,7 @@
 			import Badge from '@components/ui/badge.svelte';
 			import Tabs from '@components/ui/tabs.svelte';
   import { fade } from "svelte/transition";
-  import { formatBytes } from "@utils/utils";
+  import { formatBytes } from "@utils/file";
   import { toast } from "@src/stores/toast.svelte.ts";
   import { mediaUrl } from "@utils/media/media-utils";
   import { debounce } from "@utils/debounce";

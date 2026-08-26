@@ -22,7 +22,7 @@
 	import MediaLibraryModal from '@components/media-library-modal.svelte';
 	import { collectionValue, setCollectionValue } from '@src/stores/collection-store.svelte';
 	import { logger } from '@utils/logger';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
 	import Portal from "@components/ui/portal.svelte";
 	import Badge from '@components/ui/badge.svelte';

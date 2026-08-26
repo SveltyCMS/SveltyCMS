@@ -36,7 +36,8 @@ Part of the Three Pillars Architecture for widget system.
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
-	import { debounce, getFieldName } from '@utils/utils';
+	import { debounce } from '@utils/debounce';
+	import { getFieldName } from '@utils/schema/field-utils';
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	// Valibot validation

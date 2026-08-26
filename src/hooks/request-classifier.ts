@@ -146,7 +146,14 @@ export function classifyRequest(url: URL, method: string, headers: Headers): Req
   }
 
   // 3. HEALTH lane
-  if (path === "/health" || path === "/api/system/health") {
+  if (
+    path === "/health" ||
+    path === "/healthz" ||
+    path === "/livez" ||
+    path === "/readyz" ||
+    path === "/_healthz" ||
+    path === "/api/system/health"
+  ) {
     return RequestLane.HEALTH;
   }
 

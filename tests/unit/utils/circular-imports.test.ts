@@ -9,13 +9,12 @@
  */
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 
 const UTILS_DIR = join(import.meta.dirname, "..", "..", "..", "src", "utils");
 const BARREL_PATH = join(UTILS_DIR, "utils.ts");
 
 const BARREL_IMPORT_RE = /from\s+["']@utils\/utils["']/;
-const BARREL_EXPORT_RE = /export \* from ["'](\.\/[^"']+)["']/;
 
 function getAllTsFiles(dir: string): string[] {
   const entries = readdirSync(dir, { withFileTypes: true });
@@ -35,23 +34,11 @@ function getAllTsFiles(dir: string): string[] {
 }
 
 describe("Circular Import Detection (utils barrel)", () => {
-  const barrelDir = dirname(BARREL_PATH);
   const allFiles = getAllTsFiles(UTILS_DIR);
-  const barrelExports: string[] = [];
 
-  // Parse the barrel to know what it exports
-  try {
-    const barrelContent = readFileSync(BARREL_PATH, "utf8");
-    const lines = barrelContent.split("\n");
-    for (const line of lines) {
-      const match = line.match(BARREL_EXPORT_RE);
-      if (match) {
-        barrelExports.push(match[1]);
-      }
-    }
-  } catch {
-    // Barrel not readable
-  }
+  it("should have completely eliminated the legacy @utils/utils barrel", () => {
+    expect(existsSync(BARREL_PATH)).toBe(false);
+  });
 
   it("should have no utils file importing from @utils/utils (barrel)", () => {
     const violations: string[] = [];
@@ -77,32 +64,5 @@ describe("Circular Import Detection (utils barrel)", () => {
             "from the source file, e.g. `import { X } from '@utils/logger'`."
         : undefined,
     ).toHaveLength(0);
-  });
-
-  it("should have the barrel exporting expected domain files", () => {
-    const required = ["./date", "./string", "./logger", "./debounce", "./data-utils"];
-    for (const exp of required) {
-      expect(barrelExports).toContain(exp);
-    }
-  });
-
-  it("should NOT export known-dead files from barrel", () => {
-    const forbidden = ["http/cookie-utils", "sdk/edge-sdk"];
-    for (const exp of forbidden) {
-      expect(barrelExports).not.toContain(exp);
-    }
-  });
-
-  it("should have no non-existent barrel exports", () => {
-    for (const exp of barrelExports) {
-      const resolved = join(barrelDir, exp);
-      const withTs = resolved + ".ts";
-      const withIndex = join(resolved, "index.ts");
-      const withSvelteTs = resolved + ".svelte.ts";
-
-      const found = existsSync(withTs) || existsSync(withIndex) || existsSync(withSvelteTs);
-
-      expect(found, `Barrel export "${exp}" does not resolve to an existing file`).toBe(true);
-    }
   });
 });

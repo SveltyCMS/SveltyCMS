@@ -25,12 +25,13 @@ import {
   updateSettingsFromSnapshot,
 } from "@src/services/core/settings-service";
 import { generateSecureToken } from "@utils/native-utils";
-import { withTenant } from "@src/databases/core/db-adapter-wrapper";
+import { withTenant } from "@utils/tenant";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { MediaService } from "@utils/media/media-service.server";
 import { type LocalApiOptions, type TokenOptions } from "./types";
 import { bulkImportCollectionDocuments } from "@src/services/background/jobs/import-jobs";
+import { lazyModule } from "@src/utils/lazy-module";
 
 export abstract class BaseNamespace {
   constructor(protected _dbAdapter: IDBAdapter) {}
@@ -684,40 +685,44 @@ export class SystemNamespace {
   }
 }
 
+const getAdminThemeServiceLazy = lazyModule(() =>
+  import("@src/services/core/admin-theme-service").then((m) => m.adminThemeService),
+);
+
 /**
  * Theme Namespace — zero-overhead server-side theme operations via LocalCMS SDK
  */
 export class ThemeNamespace {
   async getAdminTheme(tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.getAdminTheme(tenantId);
   }
   async saveAdminTheme(settings: any, tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.saveAdminTheme(settings, tenantId);
   }
   async listThemes(tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.listThemes(tenantId);
   }
   async createTheme(name: string, settings?: any, tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.createTheme(name, settings, tenantId);
   }
   async activateTheme(themeId: string, tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.activateTheme(themeId, tenantId);
   }
   async deleteTheme(themeId: string, tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.deleteTheme(themeId, tenantId);
   }
   async cloneTheme(sourceId: string, newName: string, tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.cloneTheme(sourceId, newName, tenantId);
   }
   async resetToDefaults(tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.resetToDefaults(tenantId);
   }
 }

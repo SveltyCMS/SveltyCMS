@@ -1279,3 +1279,61 @@ export async function handlePermissionRoutes(
 function notAllowed(): never {
   throw new AppError("Method not allowed", 405);
 }
+
+/**
+ * POST /api/gdpr
+ * Body: { action: "export" | "anonymize", userId: string, reason?: string }
+ */
+export async function handleGdprRoutes(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  tenantId: DatabaseId,
+  _segments: string[],
+) {
+  const { request, locals } = event;
+  if (request.method !== "POST") {
+    throw new AppError("Method not allowed", 405, "METHOD_NOT_ALLOWED");
+  }
+
+  const user = locals.user;
+  if (!user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const action = String(body.action || "");
+  const targetUserId = String(body.userId || body.user_id || "");
+  if (!targetUserId) {
+    throw new AppError("userId is required", 400, "INVALID_USER_ID");
+  }
+
+  const actorId = String(user._id || user.id || "");
+  const admin = !!(locals.isAdmin || isAdmin(user));
+  if (!admin && targetUserId !== actorId) {
+    throw new AppError("Forbidden: can only manage your own data", 403, "FORBIDDEN");
+  }
+
+  const effectiveTenant =
+    (tenantId as string) || (user.tenantId as string) || (locals.tenantId as string) || "global";
+
+  const { gdprService } = await import("@src/services/security/gdpr-service");
+
+  if (action === "export") {
+    const data = await gdprService.exportUserData(targetUserId, effectiveTenant);
+    return successResponse(event, data);
+  }
+
+  if (action === "anonymize") {
+    const ok = await gdprService.anonymizeUser(
+      targetUserId,
+      effectiveTenant,
+      body.reason || "User self-request (Right to Erasure)",
+    );
+    if (!ok) {
+      throw new AppError("Anonymization failed", 400, "GDPR_ANONYMIZE_FAILED");
+    }
+    return successResponse(event, { anonymized: true });
+  }
+
+  throw new AppError("Invalid GDPR action", 400, "INVALID_GDPR_ACTION");
+}

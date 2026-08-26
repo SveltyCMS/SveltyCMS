@@ -23,7 +23,7 @@
     suppressNativeDragGhost,
   } from "@utils/media/media-dnd";
   import { liftAndCarry } from "@utils/media/media-lift-drag";
-  import { formatBytes } from "@utils/utils";
+  import { formatBytes } from "@utils/file";
   import { SvelteSet } from "svelte/reactivity";
   import { fade, scale } from "svelte/transition";
 

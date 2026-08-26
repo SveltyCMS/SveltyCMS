@@ -36,7 +36,7 @@ import {
 	suppressNativeDragGhost,
 } from "@utils/media/media-dnd";
 import { liftAndCarry } from "@utils/media/media-lift-drag";
-import { formatBytes } from "@utils/utils";
+import { formatBytes } from "@utils/file";
 import { SvelteSet } from "svelte/reactivity";
 import Checkbox from "@components/ui/checkbox.svelte";
 

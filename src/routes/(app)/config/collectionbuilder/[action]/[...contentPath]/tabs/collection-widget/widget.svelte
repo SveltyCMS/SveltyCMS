@@ -22,7 +22,7 @@ import { getWidgetFunction } from "@src/stores/widget-store.svelte.ts";
 // Native UI Components
 import { modalState } from "@utils/modal.svelte";
 // Using iconify-icon web component
-import { getGuiFields } from "@utils/utils";
+import { getGuiFields } from "@utils/schema/field-utils";
 import { draggable, droppable } from '@thisux/sveltednd';
 import type { DragDropState } from '@thisux/sveltednd';
 import { untrack } from 'svelte';
