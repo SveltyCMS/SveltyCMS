@@ -1048,9 +1048,15 @@ export class CollectionsNamespace {
     // 🚀 DIRECT DB CALL: Direct findById bypasses findOne -> parseIdLookup overhead.
     // Publication clamping is applied to the retrieved item so unpublished rows never
     // escape to clamped callers (and empty result is cached under the publication suffix).
-    const result = await this._dbAdapter.crud.findById(collectionName, entryId as DatabaseId, {
-      tenantId: tenantId as DatabaseId,
-    });
+    const crud = this._dbAdapter.crud as any;
+    const result =
+      typeof crud.findById === "function"
+        ? await crud.findById(collectionName, entryId as DatabaseId, {
+            tenantId: tenantId as DatabaseId,
+          })
+        : await crud.findOne(collectionName, { _id: entryId } as any, {
+            tenantId: tenantId as DatabaseId,
+          });
 
     let item =
       result.success && result.data

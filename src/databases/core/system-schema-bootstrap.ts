@@ -324,12 +324,28 @@ async function runPostgresLegacyTails(sql: postgres.Sql): Promise<void> {
     `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "preferences" JSONB`,
     `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "failedAttempts" INT NOT NULL DEFAULT 0`,
     `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "lockoutUntil" TIMESTAMP WITH TIME ZONE`,
+    `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "isDeleted" BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP WITH TIME ZONE`,
+    `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS "userAgent" VARCHAR(500)`,
+    `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS "deviceId" VARCHAR(64)`,
+    `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS "ipAddress" VARCHAR(64)`,
+    `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS "consumed" BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS "blocked" BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS "role" VARCHAR(50)`,
+    `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS "username" VARCHAR(255)`,
+    `ALTER TABLE auth_api_keys ADD COLUMN IF NOT EXISTS "rateLimit" INT`,
+    `ALTER TABLE auth_api_keys ADD COLUMN IF NOT EXISTS "status" VARCHAR(20) NOT NULL DEFAULT 'active'`,
+    `ALTER TABLE auth_api_keys ADD COLUMN IF NOT EXISTS "lastUsed" TIMESTAMP WITH TIME ZONE`,
+    `ALTER TABLE auth_api_keys ADD COLUMN IF NOT EXISTS "keyHash" VARCHAR(64)`,
+    `ALTER TABLE auth_api_keys ADD COLUMN IF NOT EXISTS "prefix" VARCHAR(16)`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "collectionDef" JSONB`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "position" INT NOT NULL DEFAULT 0`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "isDeleted" BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP WITH TIME ZONE`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "source" VARCHAR(50) NOT NULL DEFAULT 'filesystem'`,
     `ALTER TABLE system_virtual_folders ADD COLUMN IF NOT EXISTS "position" INT NOT NULL DEFAULT 0`,
+    `ALTER TABLE media ADD COLUMN IF NOT EXISTS "isDeleted" BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE media ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP WITH TIME ZONE`,
   ];
   try {
     for (const alter of alters) {
@@ -422,12 +438,28 @@ async function runMariaDbLegacyTails(connection: mysql.Pool): Promise<void> {
     `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS authenticators JSON`,
     `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS failedAttempts INT NOT NULL DEFAULT 0`,
     `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS lockoutUntil DATETIME`,
+    `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS deletedAt DATETIME`,
+    `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS userAgent VARCHAR(500)`,
+    `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS deviceId VARCHAR(64)`,
+    `ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS ipAddress VARCHAR(64)`,
+    `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS consumed BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS blocked BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS role VARCHAR(50)`,
+    `ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS username VARCHAR(255)`,
+    `ALTER TABLE auth_api_keys ADD COLUMN IF NOT EXISTS rateLimit INT`,
+    `ALTER TABLE auth_api_keys ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'`,
+    `ALTER TABLE auth_api_keys ADD COLUMN IF NOT EXISTS lastUsed DATETIME`,
+    `ALTER TABLE auth_api_keys ADD COLUMN IF NOT EXISTS keyHash VARCHAR(64)`,
+    `ALTER TABLE auth_api_keys ADD COLUMN IF NOT EXISTS prefix VARCHAR(16)`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS collectionDef JSON`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'filesystem'`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS position INT NOT NULL DEFAULT 0`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS deletedAt DATETIME`,
     `ALTER TABLE system_virtual_folders ADD COLUMN IF NOT EXISTS position INT NOT NULL DEFAULT 0`,
+    `ALTER TABLE media ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE media ADD COLUMN IF NOT EXISTS deletedAt DATETIME`,
   ];
   try {
     for (const alter of alters) {
@@ -526,10 +558,42 @@ function executeSqlite(db: unknown, sql: string): void {
 
 async function runSqliteTails(db: unknown): Promise<void> {
   // 🚀 MIGRATION: Add missing auth columns for upgraded databases (idempotent)
+  executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "isRegistered" INTEGER DEFAULT 0`);
+  executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "role" TEXT DEFAULT 'user'`);
+  executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "is2FAEnabled" INTEGER DEFAULT 0`);
+  executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "totpSecret" TEXT`);
+  executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "backupCodes" TEXT`);
+  executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "last2FAVerification" INTEGER`);
   executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "authenticators" TEXT`);
   executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "failedAttempts" INTEGER DEFAULT 0`);
   executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "lockoutUntil" INTEGER`);
   executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "preferences" TEXT`);
+  executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "isDeleted" INTEGER DEFAULT 0`);
+  executeSqlite(db, `ALTER TABLE "auth_users" ADD COLUMN "deletedAt" INTEGER`);
+
+  executeSqlite(db, `ALTER TABLE "auth_sessions" ADD COLUMN "userAgent" TEXT`);
+  executeSqlite(db, `ALTER TABLE "auth_sessions" ADD COLUMN "deviceId" TEXT`);
+  executeSqlite(db, `ALTER TABLE "auth_sessions" ADD COLUMN "ipAddress" TEXT`);
+
+  executeSqlite(db, `ALTER TABLE "auth_tokens" ADD COLUMN "consumed" INTEGER DEFAULT 0`);
+  executeSqlite(db, `ALTER TABLE "auth_tokens" ADD COLUMN "blocked" INTEGER DEFAULT 0`);
+  executeSqlite(db, `ALTER TABLE "auth_tokens" ADD COLUMN "role" TEXT`);
+  executeSqlite(db, `ALTER TABLE "auth_tokens" ADD COLUMN "username" TEXT`);
+
+  executeSqlite(db, `ALTER TABLE "auth_api_keys" ADD COLUMN "rateLimit" INTEGER`);
+  executeSqlite(db, `ALTER TABLE "auth_api_keys" ADD COLUMN "status" TEXT DEFAULT 'active'`);
+  executeSqlite(db, `ALTER TABLE "auth_api_keys" ADD COLUMN "lastUsed" INTEGER`);
+  executeSqlite(db, `ALTER TABLE "auth_api_keys" ADD COLUMN "keyHash" TEXT`);
+  executeSqlite(db, `ALTER TABLE "auth_api_keys" ADD COLUMN "prefix" TEXT`);
+
+  executeSqlite(db, `ALTER TABLE "content_nodes" ADD COLUMN "collectionDef" TEXT`);
+  executeSqlite(db, `ALTER TABLE "content_nodes" ADD COLUMN "position" INTEGER DEFAULT 0`);
+  executeSqlite(db, `ALTER TABLE "content_nodes" ADD COLUMN "isDeleted" INTEGER DEFAULT 0`);
+  executeSqlite(db, `ALTER TABLE "content_nodes" ADD COLUMN "deletedAt" INTEGER`);
+  executeSqlite(db, `ALTER TABLE "content_nodes" ADD COLUMN "source" TEXT DEFAULT 'filesystem'`);
+  executeSqlite(db, `ALTER TABLE "system_virtual_folders" ADD COLUMN "position" INTEGER DEFAULT 0`);
+  executeSqlite(db, `ALTER TABLE "media" ADD COLUMN "isDeleted" INTEGER DEFAULT 0`);
+  executeSqlite(db, `ALTER TABLE "media" ADD COLUMN "deletedAt" INTEGER`);
 
   // 🚀 MIGRATION: Rename 'security' to 'password' if needed
   try {
