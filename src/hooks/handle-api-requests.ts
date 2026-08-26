@@ -188,19 +188,19 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     }
 
     const tenantIdString = locals.tenantId ? String(locals.tenantId) : null;
-    const cacheKey = generateCacheKey(
-      url.pathname,
-      url.search,
-      String(locals.user._id),
-      tenantIdString,
-    );
+    const isGet = request.method === "GET";
+    const cacheKey = isGet
+      ? generateCacheKey(url.pathname, url.search, String(locals.user._id), tenantIdString)
+      : "";
 
-    const refresh = url.searchParams.get("refresh") === "true";
+    const refresh = isGet && url.searchParams.get("refresh") === "true";
     const nocache =
-      url.searchParams.get("nocache") === "true" || url.searchParams.get("bypassCache") === "true";
+      isGet &&
+      (url.searchParams.get("nocache") === "true" ||
+        url.searchParams.get("bypassCache") === "true");
     const bypassCache = refresh || nocache;
 
-    if (request.method === "GET") {
+    if (isGet) {
       if (!bypassCache && locals.user?._id) {
         try {
           const cached = await cacheService.get<any>(cacheKey, locals.tenantId);

@@ -448,6 +448,17 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
+  // Collection mutations return ~0.4–2 KiB JSON. Compressing them without a
+  // Content-Length (or even with gzip-9) is pure event-loop tax on create/update
+  // concurrency — skip before wrapping resolve.
+  const method = event.request.method;
+  if (
+    (method === "POST" || method === "PATCH" || method === "PUT" || method === "DELETE") &&
+    event.url.pathname.startsWith("/api/collections")
+  ) {
+    return resolve(event);
+  }
+
   // Ensure native modules are loaded when available
   if (!isNativeChecked) await initNativeModules();
 
@@ -467,6 +478,16 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
 
   // Enforce threshold ONLY when content-length is explicitly known
   if (contentLength > 0 && contentLength < MIN_COMPRESSION_SIZE) {
+    return response;
+  }
+
+  // Mutations: skip gzip/br for small JSON (create/update/GraphQL page). The
+  // setup cost dominates <4 KiB and serializes the event loop under 8 workers.
+  if (
+    contentLength > 0 &&
+    contentLength < SIZE_TINY &&
+    (method === "POST" || method === "PATCH" || method === "PUT" || method === "DELETE")
+  ) {
     return response;
   }
 

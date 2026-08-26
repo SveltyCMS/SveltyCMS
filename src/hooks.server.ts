@@ -48,6 +48,10 @@ if (typeof (globalThis as any).__dirname === "undefined") {
 
 import { isSetupComplete } from "./utils/setup-check-fast";
 import { classifyRequest, RequestLane } from "./hooks/request-classifier";
+import {
+  isSimpleCollectionWrite,
+  tryCollectionWriteLane,
+} from "./hooks/handle-collection-write-lane";
 import { resetIdCounters } from "@utils/id-generator";
 import { handleApiError } from "@utils/error-handling";
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
@@ -208,6 +212,9 @@ async function ensureFullMiddleware() {
   // a first request racing the async module load would otherwise be served
   // by passThrough handlers forever (security/authz permanently bypassed).
   cachedPipelineReady = null;
+  cachedPipelineApi = null;
+  cachedPipelineApiWrite = null;
+  cachedPipelineSetup = null;
 }
 
 if (setupComplete) {
@@ -557,6 +564,7 @@ function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
 // based on the current system state.
 let cachedPipelineReady: Handle | null = null;
 let cachedPipelineApi: Handle | null = null;
+let cachedPipelineApiWrite: Handle | null = null;
 let cachedPipelineSetup: Handle | null = null;
 
 // 🛡️ AWAIT full middleware before building the READY pipeline: at boot,
@@ -570,13 +578,30 @@ const getPipeline = async (lane?: RequestLane): Promise<Handle> => {
     if (!fullMiddlewareInitialized) {
       await ensureFullMiddleware();
     }
-    const isApiLane =
-      lane === RequestLane.API_READ ||
-      lane === RequestLane.API_WRITE ||
-      lane === RequestLane.HYPER_TURBO;
     // API lanes skip page-only hooks (redirects / AEO / user-preferences).
-    // Auth, WAF, rate-limit, turbo-get, and RBAC stay in place.
-    if (isApiLane) {
+    // Auth, WAF, rate-limit, and RBAC stay in place.
+    // Writes skip turbo-get (GET-only) — one less sequence hop on create/update.
+    if (lane === RequestLane.API_WRITE) {
+      if (!cachedPipelineApiWrite) {
+        cachedPipelineApiWrite = sequence(
+          wrapHandle("turbo-pipeline", () => handleTurboPipeline),
+          wrapHandle("test-isolation", () => handleTestIsolation),
+          wrapHandle("security", () => handleSecurity),
+          wrapHandle("rate-limit", () => handleRateLimit),
+          wrapHandle("system-state", () => handleSystemState),
+          wrapHandle("compression", () => handleCompression),
+          wrapHandle("authentication", () => handleAuthentication),
+          wrapHandle("authorization", () => handleAuthorization),
+          wrapHandle("local-sdk", () => handleLocalSdk),
+          wrapHandle("content-initialization", () => handleContentInitialization),
+          wrapHandle("audit-logging", () => handleAuditLogging),
+          wrapHandle("api-requests", () => handleApiRequests),
+          wrapHandle("token-resolution", () => handleTokenResolution),
+        );
+      }
+      return cachedPipelineApiWrite;
+    }
+    if (lane === RequestLane.API_READ || lane === RequestLane.HYPER_TURBO) {
       if (!cachedPipelineApi) {
         cachedPipelineApi = sequence(
           wrapHandle("turbo-pipeline", () => handleTurboPipeline),
@@ -662,6 +687,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   const pathname = event.url.pathname;
 
+  // Warm collection create/update: WAF + CSRF + rate-limit + one persist.
+  // Cold sessions fall through to the full API_WRITE sequence.
+  if (lane === RequestLane.API_WRITE && isSimpleCollectionWrite(event)) {
+    return withLane(
+      await tryCollectionWriteLane({
+        event,
+        resolve: async (evt) => {
+          const pipeline = await getPipeline(lane);
+          return pipeline({ event: evt, resolve });
+        },
+      }),
+      lane,
+    );
+  }
+
   // 🚀 HOT-SWAP CHECK: Dynamically synchronize setup state on every request
   const currentSetupState = currentSetupStateWithMemo(pathname);
   if (setupComplete !== currentSetupState) {
@@ -669,6 +709,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     setupComplete = currentSetupState;
     cachedPipelineReady = null;
     cachedPipelineApi = null;
+    cachedPipelineApiWrite = null;
     cachedPipelineSetup = null;
     if (setupComplete) {
       try {

@@ -25,6 +25,9 @@ import type { contentSystem as serverContentSystem } from "@src/content/index.se
 
 export type ContentSystem = typeof serverContentSystem;
 
+/** Widgets whose modifyRequest is folded into prepareWritePayload (no async pipeline). */
+const INLINE_MODIFY_WIDGETS = new Set(["DateTime"]);
+
 /** Hot-path flags cached on schema objects after first inspection. */
 export type SchemaHotFlags = {
   _hasActiveWidgets?: boolean;
@@ -32,6 +35,10 @@ export type SchemaHotFlags = {
   _hasSanitizableFields?: boolean;
   _hasHooks?: boolean;
   _hasConstrainedFields?: boolean;
+  /** DateTime fields present — normalized synchronously in prepareWritePayload. */
+  _hasDateTimeFields?: boolean;
+  /** db_fieldName of widgets that still need the async modifyRequest pipeline. */
+  _activeWidgetFieldNames?: string[];
 };
 
 const _schemaCache = new LRUCache<string, Schema>({ max: 500 });
@@ -95,21 +102,26 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   if (s._hasActiveWidgets !== undefined) return s;
 
   const fields = (schema.fields || []) as FieldInstance[];
-  let hasActiveWidgets = false;
+  const activeWidgetFieldNames: string[] = [];
   let hasNumberFields = false;
   let hasSanitizableFields = false;
   let hasConstrainedFields = false;
+  let hasDateTimeFields = false;
 
   for (const f of fields) {
-    if (!hasActiveWidgets) {
-      const wFn = widgetRegistryService.getWidgetSync(f.widget?.Name);
+    const widgetName = f.widget?.Name;
+    if (widgetName === "DateTime") hasDateTimeFields = true;
+    if (widgetName && !INLINE_MODIFY_WIDGETS.has(widgetName)) {
+      const wFn = widgetRegistryService.getWidgetSync(widgetName);
       if (wFn && (wFn as { modifyRequest?: unknown }).modifyRequest) {
-        hasActiveWidgets = true;
+        const fieldName = (f as { db_fieldName?: string }).db_fieldName || widgetName;
+        if (fieldName) activeWidgetFieldNames.push(fieldName);
       }
     }
     const type = (f as { type?: string }).type;
     if (type === "number") hasNumberFields = true;
     if (type && SANITIZE_FIELD_TYPES.has(type)) hasSanitizableFields = true;
+    if (widgetName === "RichText" || widgetName === "Markdown") hasSanitizableFields = true;
     if (
       (f as { maxLength?: number }).maxLength ||
       type === "array" ||
@@ -121,7 +133,9 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
     }
   }
 
-  s._hasActiveWidgets = hasActiveWidgets;
+  s._hasActiveWidgets = activeWidgetFieldNames.length > 0;
+  s._activeWidgetFieldNames = activeWidgetFieldNames;
+  s._hasDateTimeFields = hasDateTimeFields;
   s._hasNumberFields = hasNumberFields;
   s._hasSanitizableFields = hasSanitizableFields;
   s._hasHooks = Boolean(schema.hooks?.beforeValidate || schema.hooks?.afterValidate);
@@ -162,6 +176,12 @@ const BENCHMARK_FALLBACK_FIELDS: Record<string, BenchmarkFallbackField[]> = {
       db_fieldName: "slug",
       label: "Slug",
       widget: { Name: "Input" },
+      type: "string",
+    },
+    {
+      db_fieldName: "status",
+      label: "Status",
+      widget: { Name: "Select" },
       type: "string",
     },
     {

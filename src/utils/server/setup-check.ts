@@ -135,15 +135,25 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 }
 
 /**
+ * Sync setup state when it is already known (benchmark, missing config, or a
+ * completed deep check). Returns null when the async DB deep-check is required.
+ * Callers that only need COMPLETE/MISSING_CONFIG after boot must not `await`.
+ */
+export function peekSetupState(): SetupState | null {
+  if (typeof process !== "undefined" && process.env.BENCHMARK === "true") {
+    return SetupState.COMPLETE;
+  }
+  if (!isSetupComplete()) return SetupState.MISSING_CONFIG;
+  if (setupStatusCheckedDb && setupDbStatus) return SetupState.COMPLETE;
+  return null;
+}
+
+/**
  * Returns the current SetupState enum.
  */
 export async function getSetupState(): Promise<SetupState> {
-  // 🚀 BENCHMARK OPTIMIZATION: Avoid deep checks during high-frequency audits
-  if (process.env.BENCHMARK === "true") {
-    return SetupState.COMPLETE;
-  }
-
-  if (!isSetupComplete()) return SetupState.MISSING_CONFIG;
+  const peeked = peekSetupState();
+  if (peeked !== null) return peeked;
   const isDeepComplete = await isSetupCompleteAsync();
   return isDeepComplete ? SetupState.COMPLETE : SetupState.MISSING_ADMIN;
 }

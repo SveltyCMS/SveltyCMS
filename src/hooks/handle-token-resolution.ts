@@ -34,6 +34,16 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
   // Fast-path triage before resolve to save microtask cycles
   if (!pathname.startsWith("/api/")) return resolve(event);
 
+  // Collection mutations don't embed {{tokens}} in the write response; skip
+  // the body scan so create/update don't pay token + field-permission walks.
+  const method = event.request.method;
+  if (
+    pathname.startsWith("/api/collections") &&
+    (method === "POST" || method === "PATCH" || method === "PUT" || method === "DELETE")
+  ) {
+    return resolve(event);
+  }
+
   if (event.request.headers.get("X-Svelty-Internal") === "true") return resolve(event);
 
   for (let i = 0; i < EXCLUDED_PREFIXES.length; i++) {

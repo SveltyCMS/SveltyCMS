@@ -2,6 +2,10 @@
  * @file src/databases/core/base-adapter.ts
  * @description Standard base class for all SveltyCMS database adapters.
  * Provides common state management, capability reporting, and error wrapping.
+ *
+ * ### Features:
+ * - wrap() is not async — skipMeta writes settle without a second microtask
+ * - okEnvelope() reuses the ring-buffer result pool
  */
 
 import { logger } from "@utils/logger";
@@ -153,18 +157,8 @@ export abstract class BaseAdapter {
   private _poolAcquire<T>(data: T): { success: true; data: T; meta?: any } {
     const slot = this._resultPool[this._poolIndex];
     this._poolIndex = (this._poolIndex + 1) % this._poolSize;
-    // DEBUG: Detect slot reuse before the previous consumer's microtask releases it.
-    if ((slot as any)._inUse) {
-      logger.warn(
-        "[BaseAdapter] Ring buffer slot reused before previous consumer released it. Pool may be undersized.",
-      );
-    }
-    (slot as any)._inUse = true;
-    queueMicrotask(() => {
-      (slot as any)._inUse = false;
-    });
     slot.data = data;
-    // meta will be attached in wrap() for non-skipMeta if needed
+    slot.meta = undefined;
     return slot as { success: true; data: T; meta?: any };
   }
 
@@ -253,7 +247,25 @@ export abstract class BaseAdapter {
     };
   }
 
-  public async wrap<T>(
+  /**
+   * Pooled `{ success: true, data }` envelope. Callers MUST NOT retain the
+   * reference across awaits — the ring buffer recycles slots.
+   */
+  protected okEnvelope<T>(data: T, skipMeta = true): DatabaseResult<T> {
+    const pooled = this._poolAcquire(data);
+    if (!skipMeta) pooled.meta = this._meta;
+    return pooled as DatabaseResult<T>;
+  }
+
+  /**
+   * Maps `fn` success/throw onto `DatabaseResult` without an extra `async`
+   * wrapper (that wrapper was a second microtask on every CRUD call).
+   *
+   * `skipMeta + isWrite` (insert/update) skips AsyncLocalStorage trace lookup
+   * and slow-query timing — both sat on the same order of magnitude as the
+   * raw-db-ceiling INSERT itself. Other ops keep spans + 500ms slow logs.
+   */
+  public wrap<T>(
     fn: () => Promise<T>,
     code: string,
     message?: string,
@@ -269,40 +281,40 @@ export abstract class BaseAdapter {
       if (!options?.suppressErrorLog) {
         logger.error(`[BaseAdapter] Operation ${code} rejected: Adapter is not connected.`);
       }
-      return this.notConnectedError<T>();
+      return Promise.resolve(this.notConnectedError<T>());
     }
-    const startTime = performance.now();
-    try {
-      this.metrics.queryCount++;
-      const data = await traceSpan(`db:${code}`, fn);
-      const latency = performance.now() - startTime;
-      this.metrics.lastLatency = latency;
-
-      if (latency > 500) {
-        this.metrics.slowQueryCount++;
-        const stack =
-          process.env.SVELTY_SQL_DEBUG === "1"
-            ? `\n${new Error("slow-op").stack?.split("\n").slice(2, 12).join("\n")}`
-            : "";
-        logger.warn(
-          `Slow database operation detected: ${code} took ${latency.toFixed(2)}ms${stack}`,
-        );
-      }
-
-      // 🚀 PERFORMANCE: Always use ring-buffer pool for the result wrapper.
-      // Eliminates *all* per-call {success, data} allocations (internal + external).
-      // For non-skipMeta (external), attach the pre-allocated meta.
-      // See "Remaining Allocations" audit for details.
-      const pooled = this._poolAcquire(data);
-      if (!options?.skipMeta) {
-        pooled.meta = this._meta;
-      }
-      return pooled as DatabaseResult<T>;
-    } catch (error) {
+    this.metrics.queryCount++;
+    const hot = options?.skipMeta === true && options?.isWrite === true;
+    const startTime = hot ? 0 : performance.now();
+    const fail = (error: unknown): DatabaseResult<T> => {
       this.metrics.errorCount++;
       return this.handleError<T>(error, code, message, {
         suppressErrorLog: options?.suppressErrorLog,
       });
+    };
+    const succeed = (data: T): DatabaseResult<T> => {
+      if (!hot) {
+        const latency = performance.now() - startTime;
+        this.metrics.lastLatency = latency;
+        if (latency > 500) {
+          this.metrics.slowQueryCount++;
+          const stack =
+            process.env.SVELTY_SQL_DEBUG === "1"
+              ? `\n${new Error("slow-op").stack?.split("\n").slice(2, 12).join("\n")}`
+              : "";
+          logger.warn(
+            `Slow database operation detected: ${code} took ${latency.toFixed(2)}ms${stack}`,
+          );
+        }
+      }
+      return this.okEnvelope(data, options?.skipMeta === true);
+    };
+    try {
+      // Promise.resolve(thenable) adopts a native Promise without an extra hop;
+      // a sync throw from fn() still maps to handleError (previous try/catch).
+      return Promise.resolve(hot ? fn() : traceSpan(`db:${code}`, fn)).then(succeed, fail);
+    } catch (error) {
+      return Promise.resolve(fail(error));
     }
   }
 

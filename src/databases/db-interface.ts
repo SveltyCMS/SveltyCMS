@@ -1451,7 +1451,13 @@ export interface ISqlAdapter extends BaseAdapter {
   getTable(collection: string): any;
   getColumn(table: any, name: string, forcePhysical?: boolean): any;
   getPhysicalSelection(table: any): any;
-  prepareValues(table: any, data: any, id: DatabaseId | undefined, now: Date, options: any): any;
+  prepareValues(
+    table: any,
+    data: any,
+    id: DatabaseId | undefined,
+    now: Date | string,
+    options: any,
+  ): any;
   mapQuery(table: any, query: any, options?: any): any;
   applyOrderBy(builder: any, table: any, options: any): any;
   isSystemTable(collection: string): boolean;

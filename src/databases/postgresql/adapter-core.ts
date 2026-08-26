@@ -93,6 +93,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   // Abstract hook implementations
   // --------------------------------------------------------------------------
 
+  /** postgres.js binds timestamptz as ISO text — skip ISO→Date→ISO. */
+  protected get persistTimestampsAsDate(): boolean {
+    return false;
+  }
+
   /** PostgreSQL supports RETURNING on INSERT and UPDATE. */
   protected get insertReturnsRows(): boolean {
     return true;
@@ -194,7 +199,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         ...this.convertDatesOptions,
         table: collection,
       }) as unknown as T;
-    } catch {
+    } catch (err: any) {
+      // Unique violations must not fall through to a second Drizzle INSERT.
+      if (err?.code === "23505") throw err;
       return null;
     }
   }
@@ -377,7 +384,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }) as T;
       }
       return null;
-    } catch {
+    } catch (err: any) {
+      if (err?.code === "23505") throw err;
       return null;
     }
   }

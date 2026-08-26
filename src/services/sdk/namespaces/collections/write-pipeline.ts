@@ -6,11 +6,12 @@
  * centralized widget pipeline.
  *
  * ### Features:
- * - prepareWritePayload: sanitize + constraints + stamps + hooks + write guard
+ * - prepareWritePayload: sanitize + constraints + stamps + DateTime inline + hooks
  * - schema hook pipeline with numeric-range gate (AppError, 400)
  * - assertWriteAllowed for non-admin/non-system writes on schemas with fields
  * - applyWidgetPipeline: collectionModelCache lookup + resilient model resolve
- *   + modifyRequest (POST/PATCH sanitization happens inside modifyRequest)
+ *   + modifyRequest (XSS already applied in prepareWritePayload when skipSanitize)
+ * - writeTouchesActiveWidgets: skip async pipeline when payload has no widget fields
  */
 
 import {
@@ -21,11 +22,12 @@ import {
 import { applySchemaHookPipeline } from "@src/content/schema-hooks";
 import { modifyRequest, type EntryData } from "@utils/modify-request";
 import { AppError } from "@utils/error-handling";
-import { nowISODateString } from "@src/utils/date";
+import { hasIsoDateTimePrefix, nowISODateString, toISOString } from "@src/utils/date";
 import { assertWriteAllowed } from "@src/services/security/field-permission-service";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { FieldInstance, Schema } from "@src/content/types";
 import { collectionModelCache, getModelResilient, type SchemaHotFlags } from "./schema-store";
+import { sanitizeObject } from "@utils/security/input-sanitizer";
 
 /** Structural schema view accepted by the content prep/validation helpers. */
 export type PrepFieldSchema = {
@@ -85,6 +87,24 @@ export function prepareWritePayload(
     entryData.updatedAt = nowISODateString();
   }
 
+  // XSS pass lives here so create/update can skip the async widget pipeline
+  // when no widget actually needs modifyRequest (DateTime is inlined below).
+  entryData = sanitizeObject(entryData);
+
+  if (hot._hasDateTimeFields && Array.isArray(schema.fields)) {
+    for (let i = 0; i < schema.fields.length; i++) {
+      const field = schema.fields[i] as FieldInstance;
+      if (field.widget?.Name !== "DateTime") continue;
+      const name = (field as { db_fieldName?: string }).db_fieldName;
+      if (!name || !Object.hasOwn(entryData, name)) continue;
+      const val = entryData[name];
+      if (val === undefined || val === null || val === "") continue;
+      if (typeof val === "string" && hasIsoDateTimePrefix(val)) continue;
+      const normalized = toISOString(val);
+      if (normalized !== val) entryData[name] = normalized;
+    }
+  }
+
   const fieldValidationError = (messages: string[]) =>
     new AppError(messages.join("; "), 400, "FIELD_VALIDATION_ERROR");
 
@@ -132,6 +152,22 @@ export function prepareWritePayload(
   return entryData;
 }
 
+/**
+ * True when the payload includes at least one field that still needs the
+ * async widget modifyRequest pipeline (media, SEO, geo, …). DateTime is
+ * excluded — it is normalized synchronously in prepareWritePayload.
+ */
+export function writeTouchesActiveWidgets(hot: SchemaHotFlags, data: unknown): boolean {
+  const names = hot._activeWidgetFieldNames;
+  if (!names || names.length === 0) return false;
+  if (!data || typeof data !== "object") return false;
+  const rec = data as Record<string, unknown>;
+  for (let i = 0; i < names.length; i++) {
+    if (Object.hasOwn(rec, names[i])) return true;
+  }
+  return false;
+}
+
 export interface ApplyWidgetPipelineOptions {
   dbAdapter: IDBAdapter;
   user: any;
@@ -141,6 +177,8 @@ export interface ApplyWidgetPipelineOptions {
   skipValidation?: boolean;
   action?: string;
   system?: boolean;
+  /** Caller already ran sanitizeObject (create/update prepareWritePayload). */
+  skipSanitize?: boolean;
 }
 
 /**
@@ -170,5 +208,6 @@ export async function applyWidgetPipeline(
     skipValidation: opts.skipValidation,
     action: opts.action,
     system: opts.system,
+    skipSanitize: opts.skipSanitize,
   });
 }

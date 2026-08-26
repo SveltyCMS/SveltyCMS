@@ -34,7 +34,13 @@ function buildJsonResponse(event: RequestEvent, data: any, status = 200): Respon
 
   return new Response(serialized, {
     status,
-    headers: STATIC_JSON_HEADERS,
+    headers: {
+      ...STATIC_JSON_HEADERS,
+      // Lets handleCompression honor MIN_COMPRESSION_SIZE. Without this, Node
+      // fetch's Accept-Encoding: gzip compresses every tiny create/update body
+      // on the event loop (the 1 KiB threshold never fires).
+      "content-length": String(Buffer.byteLength(serialized)),
+    },
   });
 }
 

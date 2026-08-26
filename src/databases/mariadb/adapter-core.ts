@@ -899,7 +899,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       },
       "INSERT_FAILED",
       undefined,
-      { ...options, isWrite: true },
+      { ...options, isWrite: true, skipMeta: true },
     );
   }
 
@@ -1073,10 +1073,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
           this.hooks.length > 0
             ? await this.runHooks("after", "update", collection, converted, options)
             : converted;
-        return this.wrap(async () => finalData, "UPDATE_FAILED", undefined, {
-          ...options,
-          isWrite: true,
-        });
+        this.metrics.queryCount++;
+        return this.okEnvelope(finalData, true);
       }
 
       if (Array.isArray(rows) && rows.length > 0) {
@@ -1089,11 +1087,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
           this.hooks.length > 0
             ? await this.runHooks("after", "update", collection, converted, options)
             : converted;
-        // Match base wrap semantics (pooled envelope + write metrics)
-        return this.wrap(async () => finalData, "UPDATE_FAILED", undefined, {
-          ...options,
-          isWrite: true,
-        });
+        this.metrics.queryCount++;
+        return this.okEnvelope(finalData, true);
       }
     } catch (err: any) {
       this._returningSupported = false;

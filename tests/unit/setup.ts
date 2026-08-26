@@ -1614,6 +1614,7 @@ const mockSetupCheck = {
   isSetupFullyComplete: mock(() => setupStateValue === SetupState.COMPLETE),
   isSetupCompleteAsync: mock(async () => setupStateValue === SetupState.COMPLETE),
   getSetupState: mock(async () => setupStateValue),
+  peekSetupState: mock(() => null),
   SetupState,
   invalidateSetupCache: mock(() => {}),
   setSetupComplete: mock((val: boolean) => {

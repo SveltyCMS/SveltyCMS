@@ -902,6 +902,7 @@ export async function runStochasticLoadTest(config: {
 // forges, no test bypass, no rate-limit/WAF exemptions.
 
 let _benchmarkSessionCookie: string | null = null;
+let _benchmarkCsrfToken: string | null = null;
 let _benchmarkSessionBaseUrl: string | null = null;
 let _benchmarkSessionUserKey: string | null = null;
 
@@ -939,16 +940,21 @@ export async function loginBenchmarkUser(
     typeof (res.headers as any).getSetCookie === "function"
       ? (res.headers as any).getSetCookie()
       : (res.headers.get("set-cookie") || "").split(/,(?=\s*[^;,]+=[^;,])/);
-  const sessionPair = (setCookies || [])
+  const pairs = (setCookies || [])
     .map((c: string) => c.split(";")[0]?.trim() ?? "")
-    .find((c: string) => /auth_sessions/i.test(c));
+    .filter(Boolean);
+  const sessionPair = pairs.find((c: string) => /auth_sessions/i.test(c));
   if (!sessionPair) {
     throw new Error("Benchmark login succeeded but no session cookie was set");
   }
-  _benchmarkSessionCookie = sessionPair;
+  const csrfPair = pairs.find((c: string) => /csrf/i.test(c));
+  _benchmarkCsrfToken = csrfPair ? csrfPair.slice(csrfPair.indexOf("=") + 1) || null : null;
+  // Production browsers send every login cookie (session + csrf). Origin still
+  // takes the CSRF same-origin fast-path; the extra cookie is the harness contract.
+  _benchmarkSessionCookie = pairs.join("; ");
   _benchmarkSessionBaseUrl = normalizedBaseUrl;
   _benchmarkSessionUserKey = userKey;
-  return sessionPair;
+  return _benchmarkSessionCookie;
 }
 
 /**
@@ -964,11 +970,13 @@ export function benchmarkAuthHeaders(): Record<string, string> {
   const origin = process.env.API_BASE_URL;
   const headers: Record<string, string> = { Cookie: _benchmarkSessionCookie };
   if (origin) headers.Origin = origin;
+  if (_benchmarkCsrfToken) headers["X-CSRF-Token"] = _benchmarkCsrfToken;
   return headers;
 }
 
 export function clearBenchmarkSession(): void {
   _benchmarkSessionCookie = null;
+  _benchmarkCsrfToken = null;
   _benchmarkSessionBaseUrl = null;
   _benchmarkSessionUserKey = null;
 }
@@ -1227,8 +1235,16 @@ export async function seedBenchmarkState(): Promise<void> {
       fields: [
         { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
         { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "slug", label: "Slug", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "status", label: "Status", widget: { Name: "Select" }, type: "string" },
         { db_fieldName: "content", label: "Content", widget: { Name: "RichText" }, type: "string" },
         { db_fieldName: "count", label: "Count", widget: { Name: "Input" }, type: "number" },
+        {
+          db_fieldName: "publishDate",
+          label: "Publish Date",
+          widget: { Name: "DateTime" },
+          type: "string",
+        },
       ],
     },
     // 🛡️ INDEX PRESSURE: bench_index_pressure powers the 100k-row sort/filter
@@ -1504,6 +1520,7 @@ export async function setupBenchmarkServer() {
       BENCHMARK_AUDIT_MODE: process.env.BENCHMARK_AUDIT_MODE || "production",
       AUDIT_CHAIN_SYNC: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "true" : "false",
       DISABLE_AUDIT_LOGS: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "false" : "true",
+      DISABLE_OUTBOX: process.env.DISABLE_OUTBOX || "true",
       RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "20000",
       SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
     },

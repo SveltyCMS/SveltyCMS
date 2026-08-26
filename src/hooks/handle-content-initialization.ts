@@ -73,7 +73,8 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
   }
 
   // Phase 3: Auth & fresh install redirects (no global store — request-scoped only)
-  if (locals.user) {
+  // API routes never redirect to collectionbuilder — skip the collection scan.
+  if (locals.user && !WHITELIST_REGEX.test(pathname)) {
     let collections = contentSystem.getCollections(tenantId);
 
     if (collections.length === 0 && !contentSystem.isInitializedForTenant(tenantId)) {

@@ -124,7 +124,8 @@ describe("Audit Fixes Verification", () => {
         setTenantContext: mockSetTenantContext,
       } as any;
 
-      await applyAdapterTenantContext(mockAdapter, "tenant_alpha" as any);
+      const first = applyAdapterTenantContext(mockAdapter, "tenant_alpha" as any);
+      expect(first).toBeUndefined();
       expect(mockSetTenantContext).not.toHaveBeenCalled();
 
       await applyAdapterTenantContext(mockAdapter, "tenant_beta" as any);

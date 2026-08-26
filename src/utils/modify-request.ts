@@ -34,6 +34,8 @@ interface ModifyRequestParams {
   action?: string;
   system?: boolean;
   collectionName?: string;
+  /** Caller already sanitized (create/update prepareWritePayload). */
+  skipSanitize?: boolean;
 }
 
 /**
@@ -47,7 +49,7 @@ export async function modifyRequest(params: ModifyRequestParams) {
   if (!data || data.length === 0) return data;
 
   // 🛡️ INPUT SANITIZATION: Fast single-pass sanitization
-  if (type === "POST" || type === "PATCH" || type === "PUT") {
+  if (!params.skipSanitize && (type === "POST" || type === "PATCH" || type === "PUT")) {
     for (let i = 0; i < data.length; i++) {
       if (data[i]) {
         data[i] = sanitizeObject(data[i]);

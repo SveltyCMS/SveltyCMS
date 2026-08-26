@@ -15,6 +15,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 vi.mock("@src/utils/server/setup-check", () => ({
   isSetupComplete: vi.fn(() => true),
   getSetupState: vi.fn(() => Promise.resolve("COMPLETE")),
+  peekSetupState: vi.fn(() => null),
   SetupState: {
     COMPLETE: "COMPLETE",
     IDLE: "IDLE",

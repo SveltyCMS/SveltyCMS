@@ -522,7 +522,8 @@ export function getOrCompilePrepPlan(schema: { fields?: Array<PrepField> }): Com
       const name = field.db_fieldName;
       const type = field.type;
 
-      if (type === "richtext" || type === "markdown") {
+      const widgetName = field.widget?.Name;
+      if (type === "richtext" || type === "markdown" || widgetName === "RichText") {
         sanitizeRich.push(name);
       } else if (type === "text" || type === "textarea") {
         sanitizeText.push(name);

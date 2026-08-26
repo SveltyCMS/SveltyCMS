@@ -30,7 +30,7 @@ import {
 import { getAllPermissions, hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { User } from "@src/databases/auth/types";
 import { successResponse, rawResponse } from "./base";
-import { invalidateSessionCache } from "@src/hooks/handle-authentication";
+import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
 import { verifyPassword } from "@src/databases/auth";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
@@ -282,6 +282,8 @@ export async function handleLogin(
 
   setSessionCookie(event, result.session._id);
   generateCsrfToken(cookies, getCookieConfig(event).isSecure);
+  // Warm turbo-auth at login so the first collection write hits the write lane.
+  primeSessionMemoryCache(result.session._id, result.user, tenantId);
 
   return successResponse(event, {
     user: sanitizeUserForResponse(result.user),
@@ -626,6 +628,7 @@ export async function handleOidcLoginCallback(
       maxAge: 60 * 60 * 24 * 7,
     });
   }
+  primeSessionMemoryCache(sessionId, user, tenantId);
 
   return new Response(null, {
     status: 302,

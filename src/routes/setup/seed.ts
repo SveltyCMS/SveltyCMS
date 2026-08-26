@@ -348,6 +348,12 @@ PRESET_COLLECTIONS.demo = [
         type: "string",
       },
       {
+        db_fieldName: "status",
+        label: "Status",
+        widget: { Name: "Select" },
+        type: "string",
+      },
+      {
         db_fieldName: "content",
         label: "Content",
         widget: { Name: "RichText" },

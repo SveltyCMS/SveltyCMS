@@ -472,7 +472,11 @@ async function signInInternal(event: RequestEvent, input: any) {
       // Prime in-memory session cache so getUserFromSession bypasses sqlite-proxy
       try {
         const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
-        primeSessionMemoryCache(ar.sessionId!, user);
+        primeSessionMemoryCache(
+          ar.sessionId!,
+          user,
+          event.locals.tenantId ?? user.tenantId ?? null,
+        );
         // Also force setup state to COMPLETE so handleAuthentication doesn't short-circuit
         const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
         invalidateSetupCache(false, true);
@@ -498,6 +502,10 @@ async function signInInternal(event: RequestEvent, input: any) {
         ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
+    } catch {}
+    try {
+      const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+      primeSessionMemoryCache(s._id, user, event.locals.tenantId ?? user.tenantId ?? null);
     } catch {}
   }
 

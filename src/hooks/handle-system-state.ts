@@ -24,7 +24,7 @@ import type { Handle } from "@sveltejs/kit/hooks";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { getSetupState, SetupState } from "@utils/server/setup-check";
+import { getSetupState, peekSetupState, SetupState } from "@utils/server/setup-check";
 import { isBootstrapRoute, getRequestFlags } from "@utils/hook-utils";
 
 const dev = (() => {
@@ -145,7 +145,7 @@ function isTrustedHost(event: RequestEvent, setupComplete: boolean): boolean {
   return !trusted || host === trusted;
 }
 
-export const handleSystemState: Handle = async ({ event, resolve }) => {
+export const handleSystemState: Handle = ({ event, resolve }) => {
   const { pathname, search } = event.url;
   const flags = getRequestFlags(event.locals as any);
   if (flags.isStatic) return resolve(event);
@@ -166,12 +166,19 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
+  const peeked = peekSetupState();
+  if (peeked === SetupState.COMPLETE && isSystemReady()) {
+    (event.locals as any).__setupState = peeked;
+    return resolve(event);
+  }
+
+  return handleSystemStateSlow({ event, resolve });
+};
+
+const handleSystemStateSlow: Handle = async ({ event, resolve }) => {
+  const { pathname } = event.url;
+  const systemState = getSystemState();
   try {
-    // Always evaluate setup state dynamically — a module-level
-    // setupConfirmedComplete flag went stale after wizard resets (a reset
-    // keeps config/private.ts but wipes the DB, so the shallow check alone
-    // reported COMPLETE while the system was back in SETUP). getSetupState()
-    // is memoized internally (fast shallow check + one-time deep DB check).
     const setupState = await getSetupState();
     (event.locals as any).__setupState = setupState;
     const setupComplete = setupState === SetupState.COMPLETE;

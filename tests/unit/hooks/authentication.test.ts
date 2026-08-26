@@ -56,8 +56,9 @@ vi.mock("@src/databases/cache/cache-service", () => ({
   },
 }));
 
-const { handleAuthentication, clearAllSessionCaches } =
+const { handleAuthentication, clearAllSessionCaches, primeSessionMemoryCache } =
   await import("@src/hooks/handle-authentication");
+const { getTurboAuthContext } = await import("@src/hooks/handle-turbo-get");
 const { dbAdapter } = await import("@src/databases/db");
 
 const futureExpiry = new Date(Date.now() + 86400000).toISOString();
@@ -659,5 +660,31 @@ describe("Cookie Path Configuration", () => {
       expect.any(String),
       expect.objectContaining({ path: "/" }),
     );
+  });
+});
+
+describe("primeSessionMemoryCache turbo write-through", () => {
+  beforeEach(() => {
+    clearAllSessionCaches();
+  });
+
+  it("warms turbo-auth so the first collection write hits the warm lane", () => {
+    primeSessionMemoryCache(
+      "login-session-1",
+      {
+        _id: "user-1",
+        email: "admin@example.com",
+        role: "admin",
+        password: "argon2-hash-must-not-cache",
+      } as never,
+      "tenant-a",
+    );
+    const turbo = getTurboAuthContext("login-session-1");
+    expect(turbo).not.toBeNull();
+    if (!turbo) return;
+    expect(turbo.user._id).toBe("user-1");
+    expect(turbo.user.role).toBe("admin");
+    expect((turbo.user as { password?: string }).password).toBeUndefined();
+    expect(turbo.tenantId).toBe("tenant-a");
   });
 });

@@ -78,6 +78,7 @@ import {
 import {
   applyWidgetPipeline,
   prepareWritePayload,
+  writeTouchesActiveWidgets,
   type PrepFieldSchema,
 } from "./collections/write-pipeline";
 import {
@@ -1123,9 +1124,12 @@ export class CollectionsNamespace {
   async create(collectionId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = PROFILE_WRITE_ENABLED
-      ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
-      : await this.schemaOf(collectionId, tenantId);
+    const peeked = peekReadySchema(tenantId, collectionId);
+    const schema = peeked
+      ? peeked
+      : PROFILE_WRITE_ENABLED
+        ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
+        : await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
 
     // 🛡️ ACTIVE SANITIZATION + hooks + write guard in one shared pass
@@ -1151,8 +1155,9 @@ export class CollectionsNamespace {
     if (isThenable(finalData)) finalData = await finalData;
 
     const m2 = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
-    // Widget pipeline only when widgets declare modifyRequest
-    if (hot._hasActiveWidgets) {
+    // Widget pipeline only when this payload actually hits a modifyRequest widget.
+    // DateTime is inlined in prepareWritePayload — skip the async round-trip.
+    if (hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
       const payload = [finalData];
       await applyWidgetPipeline(schema, payload, {
         dbAdapter: this._dbAdapter,
@@ -1163,6 +1168,7 @@ export class CollectionsNamespace {
         skipValidation: options.skipValidation,
         action: "create",
         system,
+        skipSanitize: true,
       });
       finalData = payload[0] ?? finalData;
     }
@@ -1209,9 +1215,12 @@ export class CollectionsNamespace {
   async update(collectionId: string, entryId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = PROFILE_WRITE_ENABLED
-      ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
-      : await this.schemaOf(collectionId, tenantId);
+    const peekedUpdate = peekReadySchema(tenantId, collectionId);
+    const schema = peekedUpdate
+      ? peekedUpdate
+      : PROFILE_WRITE_ENABLED
+        ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
+        : await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
 
     const m1u = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
@@ -1237,7 +1246,7 @@ export class CollectionsNamespace {
     if (isThenable(finalData)) finalData = await finalData;
 
     const m2u = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
-    if (hot._hasActiveWidgets) {
+    if (hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
       const payload = [finalData];
       await applyWidgetPipeline(schema, payload, {
         dbAdapter: this._dbAdapter,
@@ -1248,6 +1257,7 @@ export class CollectionsNamespace {
         skipValidation: options.skipValidation,
         action: "update",
         system,
+        skipSanitize: true,
       });
       finalData = payload[0] ?? finalData;
     }
