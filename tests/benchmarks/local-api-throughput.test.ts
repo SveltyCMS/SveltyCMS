@@ -46,12 +46,15 @@ async function run() {
     })
     .catch(() => {});
 
+  const writeDocIds: string[] = [];
   for (let i = 0; i < WRITE_DOCS; i += 50) {
     const docs = [];
     const limit = Math.min(i + 50, WRITE_DOCS);
     for (let j = i; j < limit; j++) {
+      const _id = crypto.randomUUID();
+      writeDocIds.push(_id);
       docs.push({
-        _id: `local-tp-${j}`,
+        _id,
         title: `W${j}`,
         count: 0,
         tenantId: T,
@@ -67,7 +70,7 @@ async function run() {
 
   const writeTasksThunks: (() => Promise<any>)[] = [];
   for (let d = 0; d < WRITE_DOCS; d++) {
-    const docId = `local-tp-${d}`;
+    const docId = writeDocIds[d];
     for (let w = 0; w < WRITES_PER_DOC; w++) {
       writeTasksThunks.push(() =>
         db.crud.atomicIncrement("BenchmarkStable", docId, "count", 1, GLOBAL_TENANT_OPTS),

@@ -720,59 +720,46 @@ export async function runBenchmark(config: any) {
   };
 
   const benchWallStart = performance.now();
+  // Shared per-iteration body (one source for serial AND pooled execution).
+  const runOne = async (i: number): Promise<void> => {
+    const iStart = performance.now();
+    try {
+      await onIteration(i);
+      results.push(performance.now() - iStart);
+      consecutiveErrors = 0;
+    } catch (err) {
+      totalErrors++;
+      consecutiveErrors++;
+      failResults.push(performance.now() - iStart);
+      if (totalErrors === 1 && abortOnErrors !== false)
+        console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
+    }
+    await sampleEventLoopLag();
+    await sleepThinkTime();
+  };
+
+  // 🚀 SLIDING-WINDOW WORKER POOL: constant `concurrency` in-flight requests.
+  // A finished slot immediately picks up the next task via the atomic `next++`
+  // — no wave/chunk sync, so a single p95 outlier no longer blocks the whole
+  // batch. concurrency=1 degenerates to plain serial execution (same path).
   for (let r = 0; r < runs; r++) {
     if (onSetup) await onSetup();
-    if (concurrency > 1) {
-      const tasks = Array.from({ length: iterations }, (_, i) => i);
-      const chunks = [];
-      for (let i = 0; i < tasks.length; i += concurrency)
-        chunks.push(tasks.slice(i, i + concurrency));
-      for (const chunk of chunks) {
-        if (abortOnErrors && consecutiveErrors >= maxConsecutiveErrors)
+    let next = 0;
+    const worker = async () => {
+      for (;;) {
+        if (abortOnErrors && consecutiveErrors >= maxConsecutiveErrors) {
           throw new Error(
             `Benchmark aborted: Exceeded ${maxConsecutiveErrors} consecutive errors.`,
           );
-        await Promise.all(
-          chunk.map(async (i) => {
-            const iStart = performance.now();
-            try {
-              await onIteration(i);
-              results.push(performance.now() - iStart);
-              consecutiveErrors = 0;
-            } catch (err) {
-              totalErrors++;
-              consecutiveErrors++;
-              failResults.push(performance.now() - iStart);
-              if (totalErrors === 1 && abortOnErrors !== false)
-                console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
-            }
-            await sampleEventLoopLag();
-            await sleepThinkTime();
-          }),
-        );
-      }
-    } else {
-      for (let i = 0; i < iterations; i++) {
-        if (abortOnErrors && consecutiveErrors >= maxConsecutiveErrors)
-          throw new Error(
-            `Benchmark aborted: Exceeded ${maxConsecutiveErrors} consecutive errors.`,
-          );
-        const iStart = performance.now();
-        try {
-          await onIteration(i);
-          results.push(performance.now() - iStart);
-          consecutiveErrors = 0;
-        } catch (err) {
-          totalErrors++;
-          consecutiveErrors++;
-          failResults.push(performance.now() - iStart);
-          if (totalErrors === 1 && abortOnErrors !== false)
-            console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
         }
-        await sampleEventLoopLag();
-        await sleepThinkTime();
+        const i = next++;
+        if (i >= iterations) break;
+        await runOne(i);
       }
-    }
+    };
+    await Promise.all(
+      Array.from({ length: Math.max(1, Math.min(concurrency, iterations)) }, () => worker()),
+    );
   }
   const benchWallDurationMs = performance.now() - benchWallStart;
   const validResults = results.filter((r) => !isNaN(r));
@@ -1033,13 +1020,14 @@ export function resolveBenchmarkAdminPassword(): string {
 /**
  * In-process equivalent of the legacy testing action `seed-throughput-docs`
  * (403 in production mode): creates the collection if missing, clears it, and
- * bulk-inserts `tp-*` documents via the adapter.
+ * bulk-inserts UUID-identified documents via the adapter. Returns the
+ * generated ids so callers can target the exact documents afterwards.
  */
 export async function seedThroughputDocs(
   count = 1000,
   collectionId = "BenchmarkStable",
   tenantId: string = "global",
-): Promise<number> {
+): Promise<string[]> {
   // MUST initialize the adapter first (same pattern as ensureStableTestData):
   // getDb() alone returns null on a fresh process, silently killing the seed
   // and leaving increment benchmarks with 404 "Entry not found" failures.
@@ -1065,21 +1053,21 @@ export async function seedThroughputDocs(
     /* ignore */
   }
   const BATCH = 5000;
-  let seeded = 0;
+  const ids: string[] = [];
   for (let i = 0; i < count; i += BATCH) {
     const end = Math.min(i + BATCH, count);
-    const docs = Array.from({ length: end - i }, (_, k) => {
-      const j = i + k;
-      return { _id: `tp-${j}`, title: `Throughput Doc ${j}`, count: 0, tenantId };
+    const docs = Array.from({ length: end - i }, () => {
+      const _id = crypto.randomUUID();
+      ids.push(_id);
+      return { _id, title: `Throughput Doc ${ids.length - 1}`, count: 0, tenantId };
     });
     await (db as any).crud.insertMany(collectionId, docs, {
       tenantId,
       bypassTenantCheck: true,
       skipReturning: true,
     });
-    seeded += docs.length;
   }
-  return seeded;
+  return ids;
 }
 
 /**
@@ -1354,12 +1342,14 @@ export async function seedBenchmarkState(): Promise<void> {
     }
   }
 
-  // 4. Entries: 10 authors, 50 posts, stable entry (upsert for re-runs)
-  const authors = Array.from({ length: 10 }, (_, i) => ({
-    _id: `author-${i + 1}`,
-    name: `Author ${i + 1}`,
-    tenantId,
-  }));
+  // 4. Entries: 10 authors, 50 posts, stable entry (upsert for re-runs).
+  // Deterministic UUIDv4 ids (version 4 / variant 8) — stable across re-runs
+  // and format-compliant with the enterprise _id contract on collection tables.
+  const AUTHOR_UUIDS = Array.from(
+    { length: 10 },
+    (_, i) => `10000000-0000-4000-8000-${(i + 1).toString(16).padStart(12, "0")}`,
+  );
+  const authors = AUTHOR_UUIDS.map((_id, i) => ({ _id, name: `Author ${i + 1}`, tenantId }));
   try {
     await cms.collections.bulkCreate("benchmark_authors", authors, {
       tenantId,
@@ -1380,8 +1370,9 @@ export async function seedBenchmarkState(): Promise<void> {
   } catch (err: any) {
     logger.warn(`[BenchSeed] Entry seeding failed (non-fatal): ${err.message}`);
   }
+  const STABLE_ENTRY_ID = "20000000-0000-4000-8000-000000000001";
   const stablePayload = {
-    _id: "bench-shared-001",
+    _id: STABLE_ENTRY_ID,
     title: "Stable Benchmark Entry",
     content: "This is a stable entry for REST and API performance testing.",
     count: 1,
@@ -1390,7 +1381,7 @@ export async function seedBenchmarkState(): Promise<void> {
   try {
     const res = await (db as any).crud.upsert(
       "BenchmarkStable",
-      { _id: "bench-shared-001" },
+      { _id: STABLE_ENTRY_ID },
       stablePayload,
       { tenantId, bypassTenantCheck: true },
     );
@@ -1835,7 +1826,8 @@ export function exportSubMetric(
 }
 
 export const STABLE_COLLECTION = "BenchmarkStable";
-export const STABLE_ENTRY_ID = "bench-shared-001";
+// Enterprise _id contract: collection-table entries require UUIDv4 ids.
+export const STABLE_ENTRY_ID = "20000000-0000-4000-8000-000000000001";
 // Kept for env-config compatibility (harness secret). It is NEVER sent as a
 // request header — benchmark servers run in production mode where x-test-secret
 // grants nothing and /api/testing is 403.
@@ -1957,7 +1949,7 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     try {
       await (activeDb as any).execute(
         sql.raw(
-          `INSERT OR REPLACE INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('bench-shared-001', 'global', '{"count":0}', 'published', 0, 0, 0)`,
+          `INSERT OR REPLACE INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}', 'published', 0, 0, 0)`,
         ),
       );
     } catch (e: any) {
@@ -1968,7 +1960,7 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     try {
       await (activeDb.raw?.execute || activeDb.execute).call(
         activeDb,
-        `INSERT INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('bench-shared-001', 'global', '{"count":0}'::jsonb, 'published', false, NOW(), NOW()) ON CONFLICT ("_id") DO UPDATE SET "data" = '{"count":0}'::jsonb, "updatedAt" = NOW()`,
+        `INSERT INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}'::jsonb, 'published', false, NOW(), NOW()) ON CONFLICT ("_id") DO UPDATE SET "data" = '{"count":0}'::jsonb, "updatedAt" = NOW()`,
       );
     } catch (e: any) {
       if (process.env.BENCHMARK_DEBUG === "true")
@@ -1978,7 +1970,7 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     try {
       await (activeDb as any).execute(
         sql.raw(
-          `INSERT INTO \`collection_BenchmarkStable\` (\`_id\`, \`tenantId\`, \`data\`, \`status\`, \`isDeleted\`, \`createdAt\`, \`updatedAt\`) VALUES ('bench-shared-001', 'global', '{"count":0}', 'published', false, NOW(), NOW()) ON DUPLICATE KEY UPDATE \`data\` = '{"count":0}', \`updatedAt\` = NOW()`,
+          `INSERT INTO \`collection_BenchmarkStable\` (\`_id\`, \`tenantId\`, \`data\`, \`status\`, \`isDeleted\`, \`createdAt\`, \`updatedAt\`) VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}', 'published', false, NOW(), NOW()) ON DUPLICATE KEY UPDATE \`data\` = '{"count":0}', \`updatedAt\` = NOW()`,
         ),
       );
     } catch (e: any) {
@@ -1990,8 +1982,8 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     try {
       await activeDb.crud.upsert(
         "collection_BenchmarkStable",
-        { _id: "bench-shared-001" },
-        { _id: "bench-shared-001", tenantId, count: 0 },
+        { _id: STABLE_ENTRY_ID },
+        { _id: STABLE_ENTRY_ID, tenantId, count: 0 },
       );
     } catch {
       /* ignore */

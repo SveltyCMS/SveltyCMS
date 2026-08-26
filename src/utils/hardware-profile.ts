@@ -80,6 +80,19 @@ export interface HardwareProfile {
   gzipLevel: number;
   /** Brotli quality cap for cache pre-compression. */
   brotliQuality: number;
+  /** Total host memory in bytes (`os.totalmem()`). */
+  totalMemoryBytes: number;
+  /**
+   * Hardware-adaptive SQLite PRAGMA cache_size (in KiB, positive number;
+   * applied as negative KiB in SQLite pragmas: `PRAGMA cache_size = -N`).
+   * Dynamically scales from 16MB on <1.5GB RAM boxes up to 256MB on high-end hosts.
+   */
+  sqliteCacheSizeKb: number;
+  /**
+   * Hardware-adaptive SQLite PRAGMA mmap_size in bytes.
+   * Dynamically scales from 64MB on small boxes up to 512MB on large hosts.
+   */
+  sqliteMmapSizeBytes: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────
@@ -102,6 +115,12 @@ function clamp(value: number, min: number, max: number): number {
 function envInt(name: string): number | null {
   const raw = process.env[name]?.trim();
   if (!raw || !/^\d+$/.test(raw)) return null;
+  return Number(raw);
+}
+
+function envSignedInt(name: string): number | null {
+  const raw = process.env[name]?.trim();
+  if (!raw || !/^-?\d+$/.test(raw)) return null;
   return Number(raw);
 }
 
@@ -146,6 +165,38 @@ function buildProfile(): HardwareProfile {
   const physical = estimatePhysicalCores(logical);
   const tier = classifyTier(logical);
   const weakBox = tier === "single" || tier === "small";
+
+  const totalMem = typeof os.totalmem === "function" ? os.totalmem() : 1024 * 1024 * 1024 * 4;
+  const totalMemMb = Math.floor(totalMem / (1024 * 1024));
+
+  // 🧠 DYNAMIC SQLITE CACHE SIZE: scales dynamically with host RAM.
+  // SQLite negative cache_size means KiB (e.g. -64000 = 64MB).
+  // - <1.5GB RAM (small container/VPS): 16MB (-16000 KiB)
+  // - 1.5–3.5GB RAM: 32MB (-32000 KiB)
+  // - 3.5–7.5GB RAM: 64MB (-64000 KiB)
+  // - 7.5–15.5GB RAM: 128MB (-128000 KiB)
+  // - ≥15.5GB RAM (workstation/server): 256MB (-256000 KiB)
+  let defaultSqliteCacheKb = 64000;
+  if (totalMemMb < 1500) defaultSqliteCacheKb = 16000;
+  else if (totalMemMb < 3500) defaultSqliteCacheKb = 32000;
+  else if (totalMemMb < 7500) defaultSqliteCacheKb = 64000;
+  else if (totalMemMb < 15500) defaultSqliteCacheKb = 128000;
+  else defaultSqliteCacheKb = 256000;
+
+  const rawEnvCache = envSignedInt("SQLITE_CACHE_SIZE");
+  const sqliteCacheSizeKb = rawEnvCache !== null ? Math.abs(rawEnvCache) : defaultSqliteCacheKb;
+
+  // 🧠 DYNAMIC SQLITE MMAP SIZE: scales with available virtual memory.
+  let defaultMmapBytes = 268435456;
+  if (totalMemMb < 1500)
+    defaultMmapBytes = 67108864; // 64MB
+  else if (totalMemMb < 3500)
+    defaultMmapBytes = 134217728; // 128MB
+  else if (totalMemMb < 7500)
+    defaultMmapBytes = 268435456; // 256MB
+  else defaultMmapBytes = 536870912; // 512MB
+
+  const sqliteMmapSizeBytes = envInt("SQLITE_MMAP_SIZE") ?? defaultMmapBytes;
 
   // 🧠 CPU BUDGET: the CMS reserves headroom for co-hosted services (DB server,
   // Redis, nginx) on all-in-one deployments. Default 75% — a dedicated app
@@ -216,6 +267,9 @@ function buildProfile(): HardwareProfile {
     // Strong boxes keep the size-adaptive levels (gzip 4-9 / brotli 4-8).
     gzipLevel: weakBox ? 4 : 9,
     brotliQuality: weakBox ? 4 : 8,
+    totalMemoryBytes: totalMem,
+    sqliteCacheSizeKb,
+    sqliteMmapSizeBytes,
   };
 
   // Publish to the shared global registry — the single detection every module
@@ -252,14 +306,17 @@ export function initHardwareProfile(): HardwareProfile {
 
 /** Human-readable one-liner for boot logs / setup wizard / dashboard. */
 export function describeHardware(profile: HardwareProfile = getHardwareProfile()): string {
+  const ramGb = (profile.totalMemoryBytes / (1024 * 1024 * 1024)).toFixed(1);
   return [
     `${profile.model}`,
     `${profile.physicalCores}P/${profile.cores}T cores`,
+    `RAM=${ramGb}GB`,
     `tier=${profile.tier}`,
     `budget=${Math.round(profile.cpuBudget * 100)}% (${profile.budgetCores}T)`,
     `threadPool=${profile.threadPoolSize}`,
     `media(sharp)=${profile.sharpConcurrency}`,
     `dbPool=${profile.dbPoolSize}`,
+    `sqliteCache=${Math.round(profile.sqliteCacheSizeKb / 1000)}MB`,
     `compile=${profile.compileConcurrency}`,
     `jobs=${profile.jobConcurrency}`,
   ].join(" · ");

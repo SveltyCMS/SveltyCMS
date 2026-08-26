@@ -28,6 +28,7 @@ import { normalizeCollectionTableName } from "../core/collection-name";
 import { SqlQueryBuilder, SQLITE_DIALECT } from "../core/sql-query-builder";
 import { TransactionModule } from "./transaction-module";
 import { withMigrationLock } from "../migration-lock";
+import { getHardwareProfile } from "@utils/hardware-profile";
 
 // Pre-register system table schemas for optimal row conversion
 for (const [tableName, columns] of Object.entries(helpers.SYSTEM_LITERAL_COLUMNS)) {
@@ -43,31 +44,36 @@ export type SQLiteDB = any;
 const testWorkerContext = new AsyncLocalStorage<string>();
 
 /**
- * 🚀 PERFORMANCE: Lightweight Re-entrant Mutex for serializing database writes.
+ * 🚀 PERFORMANCE: High-performance Re-entrant FIFO Mutex for serializing SQLite writes.
+ * - Zero Promise chaining allocations when uncontended.
+ * - Direct O(1) waiter hand-off without deep microtask Promise chain latency.
+ * - Full re-entrancy support via AsyncLocalStorage.
  */
 class Mutex {
-  private queue: Promise<any> = Promise.resolve();
+  private _locked = false;
+  private _waiting: Array<() => void> = [];
   private storage = new AsyncLocalStorage<boolean>();
 
-  async runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+  async runExclusive<T>(fn: () => T | Promise<T>): Promise<T> {
     if (this.storage.getStore()) {
-      return await fn();
+      return fn();
     }
 
-    return new Promise<T>((resolve, reject) => {
-      this.queue = this.queue
-        .then(async () => {
-          try {
-            const res = await this.storage.run(true, fn);
-            resolve(res);
-          } catch (err) {
-            reject(err);
-          }
-        })
-        .catch(() => {
-          logger.debug("SQLite mutex queue handler failed silently");
-        });
-    });
+    if (this._locked) {
+      await new Promise<void>((resolve) => this._waiting.push(resolve));
+    }
+    this._locked = true;
+
+    try {
+      return await this.storage.run(true, fn);
+    } finally {
+      const next = this._waiting.shift();
+      if (next) {
+        next();
+      } else {
+        this._locked = false;
+      }
+    }
   }
 }
 
@@ -1322,13 +1328,19 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       // - Uint8Array/Buffer → kept binary (JSON.stringify would corrupt blobs
       //   into {"type":"Buffer",...} text)
       // - plain objects → JSON text
-      const bound = params.map((p) => {
-        if (typeof p === "boolean") return p ? 1 : 0;
-        if (p instanceof Date) return p.getTime();
-        if (p instanceof Uint8Array) return p;
-        if (p !== null && typeof p === "object") return JSON.stringify(p);
-        return p;
-      });
+      const len = params.length;
+      let bound = params;
+      if (len > 0) {
+        bound = [];
+        for (let i = 0; i < len; i++) {
+          const p = params[i];
+          if (typeof p === "boolean") bound.push(p ? 1 : 0);
+          else if (p instanceof Date) bound.push(p.getTime());
+          else if (p instanceof Uint8Array) bound.push(p);
+          else if (p !== null && typeof p === "object") bound.push(JSON.stringify(p));
+          else bound.push(p);
+        }
+      }
       let out: any;
       if (method === "all") out = stmt.all(...bound);
       else if (method === "get") out = stmt.get(...bound);
@@ -1988,14 +2000,18 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     const rawCheckpoint = process.env.SQLITE_WAL_AUTOCHECKPOINT?.trim();
     const walCheckpoint = rawCheckpoint && /^\d+$/.test(rawCheckpoint) ? rawCheckpoint : "2000";
 
+    const hw = getHardwareProfile();
+    const cacheSizeKb = hw.sqliteCacheSizeKb;
+    const mmapBytes = hw.sqliteMmapSizeBytes;
+
     safeExec("PRAGMA journal_mode=WAL");
     safeExec(`PRAGMA synchronous=${syncMode}`);
     safeExec("PRAGMA foreign_keys=ON");
     safeExec("PRAGMA page_size=8192");
     safeExec(`PRAGMA busy_timeout=${busyTimeout}`);
     safeExec("PRAGMA temp_store=MEMORY");
-    safeExec("PRAGMA mmap_size=536870912");
-    safeExec("PRAGMA cache_size=-20000");
+    safeExec(`PRAGMA mmap_size=${mmapBytes}`);
+    safeExec(`PRAGMA cache_size=-${cacheSizeKb}`);
     safeExec(`PRAGMA wal_autocheckpoint=${walCheckpoint}`);
   }
 

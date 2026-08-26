@@ -48,7 +48,7 @@ async function runMixedWorkloadAudit() {
     const operations = [
       {
         type: "REST Read",
-        path: `/api/collections/BenchmarkStable/bench-shared-001`,
+        path: `/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001`,
         method: "GET",
         body: undefined as string | undefined,
       },

@@ -43,7 +43,7 @@ async function runCacheAudit() {
     await ensureStableTestData();
     await stabilize(1000);
 
-    const entryPath = "/api/collections/BenchmarkStable/bench-shared-001";
+    const entryPath = "/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001";
 
     // Canonical static headers layout — REAL admin session cookie (production auth)
     const baseHeaders = {

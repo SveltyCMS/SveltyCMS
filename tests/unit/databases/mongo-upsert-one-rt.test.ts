@@ -12,7 +12,7 @@ import type { DatabaseId } from "@src/content/types";
 describe("MongoCrudMethods.upsert", () => {
   it("issues a single findOneAndUpdate with upsert:true and no _id in $setOnInsert", async () => {
     const exec = vi.fn().mockResolvedValue({
-      _id: "doc-1",
+      _id: "10000000-0000-4000-8000-000000000001",
       title: "Hello",
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -29,11 +29,15 @@ describe("MongoCrudMethods.upsert", () => {
       { mapQuery: (q: unknown) => q },
     );
 
-    const res = await crud.upsert({ _id: "doc-1" } as never, { title: "Hello" } as never, {
-      tenantId: "tenant-1" as DatabaseId,
-      bypassSafeQuery: true,
-      bypassTenantCheck: true,
-    });
+    const res = await crud.upsert(
+      { _id: "10000000-0000-4000-8000-000000000001" } as never,
+      { title: "Hello" } as never,
+      {
+        tenantId: "tenant-1" as DatabaseId,
+        bypassSafeQuery: true,
+        bypassTenantCheck: true,
+      },
+    );
 
     expect(res.success).toBe(true);
     expect(create).not.toHaveBeenCalled();
@@ -43,7 +47,7 @@ describe("MongoCrudMethods.upsert", () => {
       { $set: Record<string, unknown>; $setOnInsert: Record<string, unknown> },
       Record<string, unknown>,
     ];
-    expect(filter._id).toBe("doc-1");
+    expect(filter._id).toBe("10000000-0000-4000-8000-000000000001");
     expect(options.upsert).toBe(true);
     expect(update.$setOnInsert._id).toBeUndefined();
     expect(update.$setOnInsert.createdAt).toEqual(expect.any(String));

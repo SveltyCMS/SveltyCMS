@@ -62,10 +62,13 @@ async function runThrottlingAudit() {
       concurrency: 15,
       silent: true,
       onIteration: async () => {
-        const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable/bench-shared-001`, {
-          method: "GET",
-          headers: rateLimiterHeaders,
-        });
+        const res = await fetch(
+          `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001`,
+          {
+            method: "GET",
+            headers: rateLimiterHeaders,
+          },
+        );
 
         if (res.status === 429) {
           throttled++;

@@ -26,8 +26,9 @@ const tenantOpts = Object.freeze({ tenantId: TEST_TENANT });
 let db: any = null;
 let adapter: any = null;
 
-function uid(p: string) {
-  return `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+/** Enterprise _id contract: collection-table entries require UUIDv4 ids. */
+function uid(_p: string) {
+  return crypto.randomUUID();
 }
 
 beforeAll(async () => {

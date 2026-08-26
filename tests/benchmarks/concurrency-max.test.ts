@@ -42,7 +42,7 @@ async function run() {
 
   // Seed 100 docs in-process (production mode has no /api/testing)
   console.log("   → Seeding 100 docs...");
-  await seedThroughputDocs(DOCS).catch(() => {});
+  const docIds = (await seedThroughputDocs(DOCS).catch(() => [])) || [];
 
   const seedPayload = JSON.stringify({ count: 0 });
 
@@ -52,7 +52,7 @@ async function run() {
 
     for (let j = 0; j < limit; j++) {
       seedBatch.push(
-        fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/tp-${i + j}`, {
+        fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${docIds[i + j]}`, {
           method: "PATCH",
           headers: H,
           body: seedPayload,
@@ -108,7 +108,7 @@ async function run() {
 
   const jobs: { url: string }[] = [];
   for (let d = 0; d < DOCS; d++) {
-    const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/tp-${d}/increment`;
+    const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/${docIds[d]}/increment`;
     for (let w = 0; w < WRITES_PER_DOC; w++) {
       jobs.push({ url: targetUrl });
     }

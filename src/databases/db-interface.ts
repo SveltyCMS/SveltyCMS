@@ -722,6 +722,8 @@ export interface IAuthAdapter {
       tenantId?: DatabaseId | null;
       /** Captured at login for device grouping in account Security tab */
       userAgent?: string;
+      /** Stable per-device id (client-generated, localStorage) — precise device grouping */
+      deviceId?: string;
       ipAddress?: string;
     },
     options?: BaseQueryOptions,

@@ -444,7 +444,10 @@ export class AuthNamespace {
       //   single-per-device (default) — reuse the existing session from this device
       //   single-per-user            — reuse ANY existing non-rotated session
       //   allow-multiple             — skip dedup, always create a new session
-      if (sessionMeta?.userAgent) {
+      // Device match: client deviceId when present, else exact user-agent
+      // (legacy sessions created before device capture only have userAgent).
+      const deviceKey = sessionMeta?.deviceId || sessionMeta?.userAgent;
+      if (deviceKey) {
         try {
           const policy = String(
             getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
@@ -459,7 +462,7 @@ export class AuthNamespace {
               const existing = sessions.find(
                 (s: any) =>
                   !s.rotated &&
-                  (policy === "single-per-user" || s.userAgent === sessionMeta.userAgent),
+                  (policy === "single-per-user" || (s.deviceId || s.userAgent) === deviceKey),
               );
               if (existing) {
                 logger.debug("Login: Reusing existing session for device", {
@@ -483,6 +486,7 @@ export class AuthNamespace {
           Date.now() + sessionTtlMs(getPrivateSettingSync("SESSION_TTL_HOURS")),
         ).toISOString() as ISODateString,
         userAgent: sessionMeta?.userAgent,
+        deviceId: sessionMeta?.deviceId,
         ipAddress: sessionMeta?.ipAddress,
       });
 

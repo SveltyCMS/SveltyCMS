@@ -19,7 +19,7 @@ export interface LocalApiOptions {
   populate?: string[];
   publicationFilter?: PublicationFilter | string;
   /** Passed through to session creation for device deduplication. */
-  sessionMeta?: { userAgent?: string; ipAddress?: string };
+  sessionMeta?: { userAgent?: string; deviceId?: string; ipAddress?: string };
   /**
    * Allow role / isAdmin / roleIds / permissions on updateUserAttributes.
    * Default false — privilege escalation fail-closed at Auth + adapter layers.

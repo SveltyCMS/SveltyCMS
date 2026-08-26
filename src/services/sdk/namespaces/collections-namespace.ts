@@ -1045,20 +1045,10 @@ export class CollectionsNamespace {
         { user: options.user, system: options.system },
         options.publicationFilter,
       );
-    const { query } = buildTenantQuery(
-      { _id: entryId as any },
-      tenantId,
-      { user: options.user, system: options.system },
-      options.publicationFilter,
-    );
-
-    // 🚀 DIRECT DB CALL: Skip coalesceQuery wrapper for single-id lookups.
-    // coalesceQuery creates a deferred promise + Map lookup even when nothing is
-    // in-flight — for findByIdRandom (10K distinct IDs, near-zero collision rate)
-    // this is pure overhead. Direct findOne is cheaper.
-    // Status is bound in the query so unpublished rows never enter process memory
-    // for clamped callers (and the empty result is cached under :published).
-    const result = await this._dbAdapter.crud.findOne(collectionName, query, {
+    // 🚀 DIRECT DB CALL: Direct findById bypasses findOne -> parseIdLookup overhead.
+    // Publication clamping is applied to the retrieved item so unpublished rows never
+    // escape to clamped callers (and empty result is cached under the publication suffix).
+    const result = await this._dbAdapter.crud.findById(collectionName, entryId as DatabaseId, {
       tenantId: tenantId as DatabaseId,
     });
 
@@ -1068,6 +1058,12 @@ export class CollectionsNamespace {
           ? result.data[0]
           : result.data
         : null;
+
+    if (item && effectivePublicationFilter !== "all") {
+      if (item.status && item.status !== effectivePublicationFilter) {
+        item = null;
+      }
+    }
 
     if (item) {
       const hot = ensureSchemaHotFlags(schema);

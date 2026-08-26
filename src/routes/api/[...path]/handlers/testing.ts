@@ -807,15 +807,12 @@ export async function handleTestingRoutes(
       const executeSeed = async (db: any) => {
         for (let i = 0; i < count; i += BATCH) {
           const end = Math.min(i + BATCH, count);
-          const docs = Array.from({ length: end - i }, (_, k) => {
-            const j = i + k;
-            return {
-              _id: `tp-${j}`,
-              title: `Throughput Doc ${j}`,
-              count: 0,
-              tenantId,
-            };
-          });
+          const docs = Array.from({ length: end - i }, () => ({
+            _id: crypto.randomUUID(),
+            title: `Throughput Doc`,
+            count: 0,
+            tenantId,
+          }));
           // Prefer tx.crud.insertMany (SQLite txn object) or adapter.crud
           const crud = db?.crud ?? db;
           await crud.insertMany(collectionId, docs, insertOpts);
@@ -1390,9 +1387,10 @@ export async function handleTestingRoutes(
         await localCms.collections.registerSchema(schema._id, schema as any, tenantId);
       }
 
-      // Seed authors
+      // Seed authors — deterministic UUIDv4 ids (version 4 / variant 8),
+      // format-compliant with the enterprise _id contract on collection tables.
       const authors = Array.from({ length: AUTHOR_COUNT }, (_, i) => ({
-        _id: `author-${i + 1}`,
+        _id: `10000000-0000-4000-8000-${(i + 1).toString(16).padStart(12, "0")}`,
         name: `Author ${i + 1}`,
         tenantId,
       }));
@@ -1417,8 +1415,9 @@ export async function handleTestingRoutes(
       });
 
       // Seed stable entry and redirects in parallel (upsert stable entry for re-runs)
+      const STABLE_ENTRY_ID = "20000000-0000-4000-8000-000000000001";
       const stablePayload = {
-        _id: "bench-shared-001",
+        _id: STABLE_ENTRY_ID,
         title: "Stable Benchmark Entry",
         content: "This is a stable entry for REST and API performance testing.",
         count: 1,
@@ -1428,7 +1427,7 @@ export async function handleTestingRoutes(
         initializedAdapter.crud
           .upsert(
             "BenchmarkStable" as any,
-            { _id: "bench-shared-001" } as any,
+            { _id: STABLE_ENTRY_ID } as any,
             stablePayload as any,
             { tenantId, bypassTenantCheck: true } as any,
           )
@@ -1445,14 +1444,14 @@ export async function handleTestingRoutes(
           "redirects",
           [
             {
-              _id: "bench-redirect-1",
+              _id: "30000000-0000-4000-8000-000000000001",
               source: "/old-path-1",
               target: "/new-path-1",
               type: 301,
               tenantId,
             },
             {
-              _id: "bench-redirect-2",
+              _id: "30000000-0000-4000-8000-000000000002",
               source: "/old-path-2",
               target: "/new-path-2",
               type: 301,
@@ -1638,7 +1637,7 @@ export async function handleTestingRoutes(
       if (!collectionId || collectionId.length > 64) {
         throw new AppError("Invalid collectionId", 400);
       }
-      const entryId = String(params.entryId || `trash_${generateUUID().slice(0, 12)}`);
+      const entryId = String(params.entryId || crypto.randomUUID());
       const title = String(params.title || `E2E Trash Item ${generateUUID().slice(0, 6)}`);
       const collectionName = collectionTableName(collectionId);
 

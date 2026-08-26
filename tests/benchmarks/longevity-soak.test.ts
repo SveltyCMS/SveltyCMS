@@ -185,11 +185,14 @@ async function runSoakTest() {
     {
       weight: 20,
       fn: async () => {
-        const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable/bench-shared-001`, {
-          method: "GET",
-          headers: baseHeaders,
-          signal: AbortSignal.timeout(10000),
-        });
+        const res = await fetch(
+          `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001`,
+          {
+            method: "GET",
+            headers: baseHeaders,
+            signal: AbortSignal.timeout(10000),
+          },
+        );
         if (!res.ok) return recordError("read");
         await res.arrayBuffer();
       },

@@ -295,38 +295,43 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         // request; reading it here avoids a redundant auth_sessions⋈auth_users
         // round-trip per request (the single biggest warm-path cost).
         const turboCtx = getTurboAuthContext(sessionId);
-        if (turboCtx && turboCtx.user && turboCtx.user._id) {
-          (event.locals as any).user = turboCtx.user;
-          // Allow x-test-tenant-id header to override the user's default tenant
-          // (e.g. bulk-seed under tenant A/B), mirroring the DB path below.
-          const testTenantHeader =
-            event.request.headers.get("x-test-tenant-id") ||
-            event.request.headers.get("x-tenant-id");
-          (event.locals as any).tenantId = testTenantHeader || turboCtx.tenantId || null;
-          logger.debug(`[Turbo] Resolved user from turbo-auth cache: ${turboCtx.user.email}`);
-        } else {
-          // Using globalThis access for the auth service to ensure we don't trigger recursive imports
+        let user: any = turboCtx?.user;
+        if (!user?._id) {
+          // Cache miss → DB fallback (identical behavior to pre-optimization).
+          // Using globalThis access for the auth service to ensure we don't
+          // trigger recursive imports.
           const authService = (globalThis as any).__AUTH_INSTANCE__;
           if (authService) {
             try {
               const result = await authService.validateSession(sessionId);
-              // 🛡️ HARDENING: Handle both high-level Auth (User|null) and adapter (DatabaseResult<User|null>)
-              const user = (result as any)?.success !== undefined ? (result as any).data : result;
-
-              if (user && user._id) {
-                (event.locals as any).user = user;
-                // Allow x-test-tenant-id header to override the user's default tenant
-                // for tenant-isolation integration tests (e.g. bulk-seed under tenant A/B).
-                const testTenantHeader =
-                  event.request.headers.get("x-test-tenant-id") ||
-                  event.request.headers.get("x-tenant-id");
-                (event.locals as any).tenantId = testTenantHeader || user.tenantId || null;
-                logger.debug(`[Turbo] Resolved REAL user: ${user.email}`);
-              }
+              // 🛡️ HARDENING: Handle both high-level Auth (User|null) and
+              // adapter (DatabaseResult<User|null>)
+              user = (result as any)?.success !== undefined ? (result as any).data : result;
             } catch {
               /* ignore session errors in bypass */
             }
           }
+        }
+
+        if (user && user._id) {
+          // Single apply point (cache-hit AND DB fallback): set user, allow the
+          // x-test-tenant-id/x-tenant-id header to override the default tenant
+          // (tenant-isolation tests), and propagate roles + bitset the cache
+          // already carries so RBAC-aware endpoints see the same privileges as
+          // a normal request.
+          (event.locals as any).user = user;
+          const testTenantHeader =
+            event.request.headers.get("x-test-tenant-id") ||
+            event.request.headers.get("x-tenant-id");
+          (event.locals as any).tenantId =
+            testTenantHeader || turboCtx?.tenantId || user.tenantId || null;
+          if (turboCtx) {
+            (event.locals as any).roles = turboCtx.roles;
+            (event.locals as any)._rbacBitset = turboCtx.bitset;
+          }
+          logger.debug(
+            `[Turbo] Resolved ${turboCtx ? "user from turbo-auth cache" : "REAL user"}: ${user.email}`,
+          );
         }
       }
 

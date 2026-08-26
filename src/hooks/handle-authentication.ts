@@ -586,6 +586,7 @@ async function handleSessionRotation(
       ).toISOString() as ISODateString,
       tenantId: event.locals.tenantId as DatabaseId,
       userAgent: event.request.headers.get("user-agent") || undefined,
+      deviceId: event.request.headers.get("x-device-id") || undefined,
       ipAddress:
         event.getClientAddress?.() ||
         event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||

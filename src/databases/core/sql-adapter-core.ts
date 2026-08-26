@@ -1442,6 +1442,38 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return null;
   }
 
+  /**
+   * 🛡️ ENTERPRISE `_id` CONTRACT — O(1) gate on every entry write (shared by
+   * all SQL adapters): dynamic collection tables accept only UUIDv4 ids
+   * (32-hex dash-less or 36-dashed). System tables (content_nodes, auth_*, …)
+   * keep slug-friendly ids. Cached system-table set + charCode scan →
+   * sub-microsecond, no regex, no allocation on the happy path.
+   */
+  protected validateEntryId(
+    collection: string,
+    id: unknown,
+  ): { success: false; message: string; error: { code: string; message: string } } | null {
+    if (
+      id === undefined ||
+      id === null ||
+      helpers.isSystemTable(collection) ||
+      collection.startsWith("plugin_")
+    ) {
+      return null;
+    }
+    if (typeof id !== "string" || !utils.validateId(id)) {
+      return {
+        success: false,
+        message: `Invalid _id format for "${collection}": expected UUIDv4 (32 hex or 36 dashed chars)`,
+        error: {
+          code: "INVALID_ID_FORMAT",
+          message: "_id must be a UUIDv4 string (32 hex or 36 dashed chars)",
+        },
+      };
+    }
+    return null;
+  }
+
   // --------------------------------------------------------------------------
   // CRUD: insert
   // --------------------------------------------------------------------------
@@ -1461,6 +1493,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         },
       };
     }
+    const invalid = this.validateEntryId(collection, (data as any)?._id);
+    if (invalid) return invalid;
     return this.wrap(
       async () => {
         const d =
@@ -1545,6 +1579,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T[]>> {
     if (!data || data.length === 0) return { success: true, data: [] };
+    for (let i = 0; i < data.length; i++) {
+      const invalid = this.validateEntryId(collection, (data[i] as any)?._id);
+      if (invalid) return invalid;
+    }
     return this.wrap(
       async () => {
         const table = this.getTable(collection);
@@ -1617,6 +1655,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         },
       };
     }
+    const invalid = this.validateEntryId(collection, id);
+    if (invalid) return invalid;
     return this.wrap(
       async () => {
         const d =
@@ -1936,6 +1976,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
     const conflictId = extractPkConflictId(query);
+    const invalid = this.validateEntryId(collection, conflictId);
+    if (invalid) return invalid;
     if (!conflictId) {
       return this.upsertByFind(collection, query, data, options);
     }
@@ -1958,6 +2000,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T[]>> {
     if (!items.length) return { success: true, data: [] };
+    for (const item of items) {
+      const invalid = this.validateEntryId(collection, extractPkConflictId(item.query));
+      if (invalid) return invalid;
+    }
     return this.wrap(
       async () => {
         const byId: Array<{ id: string; data: EntityCreate<T> }> = [];

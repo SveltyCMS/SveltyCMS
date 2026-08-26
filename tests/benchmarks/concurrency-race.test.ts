@@ -24,7 +24,7 @@ import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "BenchmarkStable";
-const ENTRY_ID = "bench-shared-001";
+const ENTRY_ID = "20000000-0000-4000-8000-000000000001";
 
 let stopServer: (() => Promise<void>) | null = null;
 

@@ -112,8 +112,8 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
   it("raw insert and insert-inside-transaction return identical documents", async () => {
     if (!db) return;
-    const rawId = `raw-${stamp}` as any as DatabaseId;
-    const txnId = `txn-${stamp}` as any as DatabaseId;
+    const rawId = crypto.randomUUID() as any as DatabaseId;
+    const txnId = crypto.randomUUID() as any as DatabaseId;
     const doc = { title: "parity", enabled: true, views: 7, tenantId: TENANT };
 
     const raw = await db.crud.insert(
@@ -156,7 +156,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
   it("rollback removes rows written by the raw paths inside the transaction", async () => {
     if (!db || !TXN_ENGINES.has(ENGINE)) return;
-    const doomedId = `doomed-${stamp}` as any as DatabaseId;
+    const doomedId = crypto.randomUUID() as any as DatabaseId;
     const txn = await db.transaction(async (tx) => {
       await (tx as any).insert(
         COLLECTION,
@@ -184,7 +184,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
   it("commit inside a transaction persists raw-written rows", async () => {
     if (!db || !TXN_ENGINES.has(ENGINE)) return;
-    const keptId = `kept-${stamp}` as any as DatabaseId;
+    const keptId = crypto.randomUUID() as any as DatabaseId;
     const txn = await db.transaction(async (tx) => {
       const res = await (tx as any).insert(
         COLLECTION,
@@ -209,7 +209,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
   it("read paths return ISODateString dates, never epoch numbers", async () => {
     if (!db) return;
-    const id = `dates-${stamp}` as any as DatabaseId;
+    const id = crypto.randomUUID() as any as DatabaseId;
     await db.crud.insert(
       COLLECTION,
       { _id: id, title: "dates", tenantId: TENANT } as any,
@@ -227,7 +227,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
 
   it("raw findById and Drizzle findOne agree on the same document", async () => {
     if (!db) return;
-    const id = `reads-${stamp}` as any as DatabaseId;
+    const id = crypto.randomUUID() as any as DatabaseId;
     await db.crud.insert(
       COLLECTION,
       { _id: id, title: "reads", views: 3, tenantId: TENANT } as any,

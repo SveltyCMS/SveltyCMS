@@ -68,7 +68,6 @@ let _osuMem: any = null;
 
 // Static hardware descriptors cached once on initialization
 let _cpuCores = 1;
-let _cpuModel = "Unknown";
 
 // State tracking for high-performance CPU delta calculation
 let _lastCpuUsage = process.cpuUsage();
@@ -103,7 +102,6 @@ async function lazyLoadDependencies(): Promise<boolean> {
     _osuCpu = osuRoot.cpu;
     _osuMem = osuRoot.mem;
     _cpuCores = _osuCpu?.count?.() ?? os.cpus().length ?? 1;
-    _cpuModel = _osuCpu?.model?.() ?? os.cpus()[0]?.model ?? "Unknown";
     return true;
   } catch (err) {
     logger.error("[SystemMonitor] Failed to load dependency node-os-utils", err);

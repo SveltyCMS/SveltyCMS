@@ -30,6 +30,11 @@ import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "benchmark_crud";
 const TEST_TENANT = "global";
+// Enterprise _id contract: collection-table entries require UUIDv4 ids.
+const STABLE_ID = "20000000-0000-4000-8000-000000000001";
+// Ids of the pre-seeded delete batch (filled by prepareCollection) — the DELETE
+// scenario must target exactly the rows the setup inserted.
+let DELETE_POOL: string[] = [];
 
 // Freeze global option contexts to prevent V8 allocation footprints in hot loops.
 // Policies come from src/databases/policy.ts — benchmarks opt out of caches
@@ -216,7 +221,7 @@ function createInsertTest(db: any) {
 }
 
 function createFindOneTest(db: any) {
-  const targetFilter = Object.freeze({ _id: "bench-shared-001" as any });
+  const targetFilter = Object.freeze({ _id: STABLE_ID as any });
   return async () => {
     const res = await db.crud.findOne(COLLECTION_ID, targetFilter, GLOBAL_TENANT_OPTS);
     assertSuccess(res, "findOne");
@@ -245,7 +250,7 @@ function createQueryBuilderListTest(db: any) {
 }
 
 function createUpdateTest(db: any) {
-  const targetId = "bench-shared-001" as any;
+  const targetId = STABLE_ID as any;
   const updatePayload = {
     title: "Updated Static Segment Baseline",
     status: "updated",
@@ -262,7 +267,7 @@ function createUpdateTest(db: any) {
  * RETURNING * + JSON parse/conversion. Measures the read-back tax.
  */
 function createUpdateNoReturningTest(db: any) {
-  const targetId = "bench-shared-001" as any;
+  const targetId = STABLE_ID as any;
   const updatePayload = {
     title: "Updated Static Segment Baseline",
     status: "updated",
@@ -277,10 +282,11 @@ function createUpdateNoReturningTest(db: any) {
 }
 
 function createDeleteTest(db: any) {
-  // Map static target records pre-allocated in setup steps
-  const deleteKeys = Array.from({ length: 1200 }, (_, i) => `del-shared-${i}`);
+  // Target the rows pre-seeded in prepareCollection (same id pool — otherwise
+  // the scenario measures cache/DB misses instead of actual deletes).
+  const deleteKeys = DELETE_POOL;
   return async (i: number) => {
-    const id = deleteKeys[i] ?? `del-fallback-${i}`;
+    const id = deleteKeys[i] ?? crypto.randomUUID();
     // DELETE may return success:false if the record was already deleted by a
     // warmup iteration (warmup and actual share the same key pool). We accept
     // this as expected behavior for the warmup→actual boundary.
@@ -289,7 +295,7 @@ function createDeleteTest(db: any) {
 }
 
 function createUpsertNativeTest(db: any) {
-  const targetId = "bench-shared-001";
+  const targetId = STABLE_ID;
   const mongoPayload = { title: "Native Static Segment Baseline Mongo" };
 
   if (db.type === "mongodb") {
@@ -495,11 +501,11 @@ function createBulkUpdateTest(db: any, mode: "heterogeneous" | "homogeneous") {
   let seeded = false;
   return async () => {
     if (!seeded) {
-      const batch = Array.from({ length: 100 }, (_, i) => ({
-        _id: `bulk-upd-${mode}-${i}` as any,
-        title: `Bulk upd ${mode} ${i}`,
+      const batch = Array.from({ length: 100 }, () => ({
+        _id: crypto.randomUUID() as any,
+        title: `Bulk upd ${mode}`,
         status: "active",
-        value: i,
+        value: 0,
         tenantId: TEST_TENANT,
       }));
       const seed = await db.crud.insertMany(COLLECTION_ID, batch, GLOBAL_TENANT_OPTS);
@@ -578,7 +584,7 @@ async function prepareCollection(db: any) {
   const seedRes = await db.crud.insert(
     COLLECTION_ID,
     {
-      _id: "bench-shared-001" as any,
+      _id: STABLE_ID as any,
       title: "Stable Benchmark Entry",
       status: "active",
       value: 100,
@@ -590,13 +596,14 @@ async function prepareCollection(db: any) {
 
   const batchSize = db.type === "mongodb" ? 4000 : 1000;
   console.log(`   [DB Trace] Pre-populating delete batch (${batchSize} records)...`);
-  const deleteBatch = Array.from({ length: batchSize }, (_, i) => ({
-    _id: `del-shared-${i}` as any,
-    title: `To remove ${i}`,
-    status: i % 2 === 0 ? "active" : "inactive",
-    value: i,
+  const deleteBatch = Array.from({ length: batchSize }, () => ({
+    _id: crypto.randomUUID() as any,
+    title: `To remove`,
+    status: "active",
+    value: 0,
     tenantId: TEST_TENANT,
   }));
+  DELETE_POOL = deleteBatch.map((b) => b._id as string);
 
   const batchRes = await db.crud.insertMany(COLLECTION_ID, deleteBatch, GLOBAL_TENANT_OPTS);
   assertSuccess(batchRes, "prepareCollection deleteBatch");

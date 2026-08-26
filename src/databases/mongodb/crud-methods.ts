@@ -19,7 +19,8 @@ import type {
   EntityCreate,
   EntityUpdate,
 } from "../db-interface";
-import { createDatabaseError, generateId, processDates } from "./mongodb-utils";
+import { createDatabaseError, generateId, processDates, validateId } from "./mongodb-utils";
+import { isSystemTable } from "../core/drizzle-sql-helpers";
 import {
   buildFindPageResult,
   DEFAULT_PAGE_SIZE,
@@ -40,6 +41,30 @@ export class MongoCrudMethods<T extends BaseEntity> {
   constructor(model: Model<T>, adapter: any) {
     this.model = model;
     this.adapter = adapter;
+  }
+
+  /**
+   * 🛡️ ENTERPRISE `_id` CONTRACT — O(1) gate on every entry write (parity
+   * with the SQL adapters): dynamic collection tables accept only UUIDv4 ids
+   * (32-hex dash-less or 36-dashed); system tables (content_nodes, auth_*, …)
+   * keep slug-friendly ids. Pre-compiled regex + cached system set.
+   */
+  private invalidEntryId(id: unknown): DatabaseResult<never> | null {
+    if (id === undefined || id === null) return null;
+    const name = this.model.modelName;
+    if (isSystemTable(name) || (typeof name === "string" && name.startsWith("plugin_")))
+      return null;
+    if (typeof id !== "string" || !validateId(id)) {
+      return {
+        success: false,
+        message: `Invalid _id format for "${this.model.modelName}": expected UUIDv4 (32 hex or 36 dashed chars)`,
+        error: {
+          code: "INVALID_ID_FORMAT",
+          message: "_id must be a UUIDv4 string (32 hex or 36 dashed chars)",
+        },
+      };
+    }
+    return null;
   }
 
   /**
@@ -314,6 +339,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
         systemScope: options.systemScope,
       });
 
+      const invalid = this.invalidEntryId(secureData._id);
+      if (invalid) return invalid;
+
       const now = nowISODateString();
       const doc = {
         ...secureData,
@@ -383,6 +411,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       if (data.length === 0) return { success: true, data: [] };
 
+      for (const item of data) {
+        const invalid = this.invalidEntryId((item as any)?._id);
+        if (invalid) return invalid;
+      }
+
       const now = nowISODateString();
       const ops = data.map((d) => {
         const secureData = safeQuery(d as Record<string, unknown>, options.tenantId as string, {
@@ -444,6 +477,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
         },
       };
     }
+
+    const invalid = this.invalidEntryId(id);
+    if (invalid) return invalid;
 
     const startTime = performance.now();
     try {
@@ -597,6 +633,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
         ...(data as any),
         updatedAt: now,
       };
+
+      const invalid = this.invalidEntryId((secureQuery as any)._id ?? dataId);
+      if (invalid) return invalid;
 
       // One round-trip: put _id on the filter (Mongo copies filter keys into
       // the inserted doc) so $setOnInsert never carries `_id` — Mongoose 9
@@ -1102,6 +1141,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       if (items.length === 0)
         return { success: true, data: { upsertedCount: 0, modifiedCount: 0 } };
+
+      for (const item of items) {
+        const invalid = this.invalidEntryId((item.query as any)?._id ?? (item.data as any)?._id);
+        if (invalid) return invalid;
+      }
       const now = nowISODateString();
       const ops = items.map((item) => ({
         updateOne: {

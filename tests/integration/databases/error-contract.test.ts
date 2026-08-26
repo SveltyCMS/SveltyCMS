@@ -69,7 +69,7 @@ describe("Error Contract — All Adapters", () => {
   // ─────────────────────────────────────────────────────────────
 
   describe("Duplicate Key (Unique Constraint)", () => {
-    const DUP_ID = `err-dup-${Date.now()}`;
+    const DUP_ID = crypto.randomUUID();
 
     beforeAll(async () => {
       const res = await db.crud.insert(
@@ -131,7 +131,7 @@ describe("Error Contract — All Adapters", () => {
   // ─────────────────────────────────────────────────────────────
 
   describe("Missing Record (Not Found)", () => {
-    const MISSING_ID = `err-missing-${Date.now()}`;
+    const MISSING_ID = crypto.randomUUID();
 
     it("findOne returns { success: true, data: null } for missing record", async () => {
       const result = await db.crud.findOne(
@@ -226,7 +226,7 @@ describe("Error Contract — All Adapters", () => {
       const result = await db.crud.insert(
         TEST_COLLECTION,
         {
-          _id: `err-shape-${Date.now()}`,
+          _id: crypto.randomUUID(),
           title: "Shape Test",
           status: "active",
           tenantId: TEST_TENANT,

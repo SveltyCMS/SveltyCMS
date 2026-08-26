@@ -30,6 +30,13 @@ describe("relational-utils — id + error helpers", () => {
     expect(utils.validateId("550e8400-e29b-41d4-a716-446655440000")).toBe(true);
   });
 
+  it("validateId enforces the UUIDv4 version and variant on dashed forms", () => {
+    expect(utils.validateId("550e8400-e29b-41d4-a716-446655440000")).toBe(true); // v4, variant [89ab]
+    expect(utils.validateId("550e8400-e29b-11d4-a716-446655440000")).toBe(false); // v1
+    expect(utils.validateId("550e8400-e29b-51d4-a716-446655440000")).toBe(false); // v5
+    expect(utils.validateId("550e8400-e29b-41d4-c716-446655440000")).toBe(false); // variant c
+  });
+
   it("validateId rejects empty, short, and invalid strings", () => {
     expect(utils.validateId("")).toBe(false);
     expect(utils.validateId("not-an-id")).toBe(false);

@@ -32,9 +32,9 @@ import { resetAndSeedDatabase } from "../../helpers/api";
 const BRAND_FILL_CLASS = /(?:^|[^.\w-])bg-primary-500|preset-filled-primary-500/;
 const SURFACE_TEXT_CLASS = /text-surface-500/;
 
-function nodeIsExempt(node: { html?: string; target?: string[] }): boolean {
+function nodeIsExempt(node: { html?: string; target?: unknown }): boolean {
   const html = node.html ?? "";
-  const target = (node.target ?? []).join(" ");
+  const target = Array.isArray(node.target) ? node.target.join(" ") : "";
   return (
     BRAND_FILL_CLASS.test(html) ||
     BRAND_FILL_CLASS.test(target) ||

@@ -44,8 +44,9 @@ afterAll(async () => {
   }
 });
 
-function uid(p: string) {
-  return `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+/** Enterprise _id contract: collection-table entries require UUIDv4 ids. */
+function uid(_p: string) {
+  return crypto.randomUUID();
 }
 
 describe("Bulk Operations Contract — All Adapters", () => {
@@ -105,14 +106,14 @@ describe("Bulk Operations Contract — All Adapters", () => {
   // ── updateMany ──────────────────────────────────────────────────────────
 
   describe("updateMany", () => {
-    const UP_PREFIX = uid("um");
+    const UP_IDS = [uid("um0"), uid("um1"), uid("um2")];
 
     beforeAll(async () => {
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < UP_IDS.length; i++) {
         await db.crud.insert(
           TEST_COLLECTION,
           {
-            _id: `${UP_PREFIX}-${i}`,
+            _id: UP_IDS[i],
             title: `Before ${i}`,
             status: "active",
             tenantId: TEST_TENANT,
@@ -159,8 +160,7 @@ describe("Bulk Operations Contract — All Adapters", () => {
   // N+1 bulk-update hot path the performance audit flagged.
 
   describe("batch.bulkUpdate", () => {
-    const BU_PREFIX = uid("bu");
-    const BU_IDS = [`${BU_PREFIX}-0`, `${BU_PREFIX}-1`, `${BU_PREFIX}-2`, `${BU_PREFIX}-3`];
+    const BU_IDS = [uid("bu0"), uid("bu1"), uid("bu2"), uid("bu3")];
 
     beforeAll(async () => {
       for (let i = 0; i < BU_IDS.length; i++) {
@@ -276,7 +276,7 @@ describe("Bulk Operations Contract — All Adapters", () => {
     });
 
     it("scopes by tenantId and never touches rows of other tenants", async () => {
-      const foreignId = `${BU_PREFIX}-foreign`;
+      const foreignId = uid("bu-fx");
       await db.crud.insert(
         TEST_COLLECTION,
         {
@@ -310,14 +310,14 @@ describe("Bulk Operations Contract — All Adapters", () => {
   // ── deleteMany ──────────────────────────────────────────────────────────
 
   describe("deleteMany", () => {
-    const DEL_PREFIX = uid("dm");
+    const DEL_IDS = [uid("dm0"), uid("dm1"), uid("dm2")];
 
     beforeAll(async () => {
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < DEL_IDS.length; i++) {
         await db.crud.insert(
           TEST_COLLECTION,
           {
-            _id: `${DEL_PREFIX}-${i}`,
+            _id: DEL_IDS[i],
             title: `Delete ${i}`,
             status: "active",
             tenantId: TEST_TENANT,
@@ -330,7 +330,7 @@ describe("Bulk Operations Contract — All Adapters", () => {
     it("deletes multiple matching documents", async () => {
       const result = await db.crud.deleteMany(
         TEST_COLLECTION,
-        { _id: { $in: [`${DEL_PREFIX}-0`, `${DEL_PREFIX}-1`] } },
+        { _id: { $in: [DEL_IDS[0], DEL_IDS[1]] } },
         { tenantId: TEST_TENANT, permanent: true },
       );
 
@@ -344,7 +344,7 @@ describe("Bulk Operations Contract — All Adapters", () => {
     it("returns deletedCount", async () => {
       const result = await db.crud.deleteMany(
         TEST_COLLECTION,
-        { _id: `${DEL_PREFIX}-2` },
+        { _id: DEL_IDS[2] },
         { tenantId: TEST_TENANT, permanent: true },
       );
 

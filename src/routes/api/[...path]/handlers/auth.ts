@@ -255,6 +255,12 @@ export async function handleLogin(
 ) {
   const body = await event.request.json();
   const { email, password } = body;
+  const deviceId =
+    (typeof body.deviceId === "string" && body.deviceId.trim()
+      ? body.deviceId.trim()
+      : undefined) ||
+    event.request.headers.get("x-device-id") ||
+    undefined;
 
   let result: { user: any; session: any };
 
@@ -268,7 +274,7 @@ export async function handleLogin(
       undefined;
     const loginResult = await cms.auth.login(
       { email, password },
-      { tenantId, sessionMeta: { userAgent, ipAddress } },
+      { tenantId, sessionMeta: { userAgent, ipAddress, deviceId } },
     );
     if (!loginResult.success) throw new AppError(loginResult.message || "Login failed", 401);
     result = loginResult.data;

@@ -93,9 +93,12 @@ test("Middleware Flamegraph & Stage Profiler", async () => {
       name: "Stage 5: Full REST Single Document",
       shortLabel: "REST FindOne",
       fn: async () => {
-        const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable/bench-shared-001`, {
-          headers,
-        });
+        const res = await fetch(
+          `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001`,
+          {
+            headers,
+          },
+        );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         await res.json();
       },

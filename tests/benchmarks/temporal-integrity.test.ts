@@ -82,7 +82,7 @@ async function runTemporalAudit() {
       const bodyPayload = pregeneratedPayloads[i]!;
 
       const res = await fetch(
-        `${baseUrl}/api/collections/${COLLECTION_ID}/bench-shared-001?bypassCache=true`,
+        `${baseUrl}/api/collections/${COLLECTION_ID}/20000000-0000-4000-8000-000000000001?bypassCache=true`,
         {
           method: "PATCH",
           headers: patchHeaders,
@@ -104,7 +104,7 @@ async function runTemporalAudit() {
       // Fallback query if data structure is missing from immediate PATCH return payload
       if (!returnedDate) {
         const getRes = await fetch(
-          `${baseUrl}/api/collections/${COLLECTION_ID}/bench-shared-001?bypassCache=true`,
+          `${baseUrl}/api/collections/${COLLECTION_ID}/20000000-0000-4000-8000-000000000001?bypassCache=true`,
           { headers: baseHeaders },
         );
 

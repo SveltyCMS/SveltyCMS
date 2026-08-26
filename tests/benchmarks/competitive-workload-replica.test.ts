@@ -79,7 +79,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
   }
   logger.info(`   ✅ Pre-seeded ${createdIds.length} records.`);
 
-  const stableId = createdIds[0] || "bench-shared-001";
+  const stableId = createdIds[0] || "20000000-0000-4000-8000-000000000001";
   let updateIdx = 0;
 
   const workloads = [
@@ -150,7 +150,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       shortLabel: "findMissing",
       fn: async () => {
         const res = await fetch(
-          `${baseUrl}/api/collections/BenchmarkStable/non-existent-id-999999`,
+          `${baseUrl}/api/collections/BenchmarkStable/00000000-0000-4000-8000-000000000000`,
           {
             headers,
           },

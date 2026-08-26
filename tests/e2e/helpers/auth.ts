@@ -685,6 +685,11 @@ export async function logout(page: Page) {
       return;
     }
 
+    // GDPR consent banner is a fixed z-9999 overlay in the bottom-left — the
+    // same corner as the sign-out button — and swallows the click before it
+    // reaches the sidebar (login.spec logout flake). Dismiss it first.
+    await dismissCookieConsent(page);
+
     // Look for logout button or menu - try multiple selectors
     const logoutSelectors = [
       '[data-testid="sign-out-button"]',

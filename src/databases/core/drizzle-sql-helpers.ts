@@ -321,7 +321,17 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "createdAt",
     "updatedAt",
   ],
-  authSessions: ["_id", "user_id", "expires", "tenantId", "createdAt", "updatedAt"],
+  authSessions: [
+    "_id",
+    "user_id",
+    "expires",
+    "tenantId",
+    "userAgent",
+    "deviceId",
+    "ipAddress",
+    "createdAt",
+    "updatedAt",
+  ],
   authTokens: [
     "_id",
     "user_id",

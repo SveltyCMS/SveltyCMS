@@ -187,6 +187,22 @@ let checkTimeout: ReturnType<typeof setTimeout> | undefined;
 
 const loginForm = new Form({ email: "", password: "", isToken: false }, loginFormSchema);
 
+// Stable per-device id for the session policy (one active session per device).
+// Persisted in localStorage so a re-login on the same device evicts the old
+// session instead of stacking concurrent sessions.
+let deviceId: string | undefined;
+if (typeof localStorage !== "undefined") {
+	try {
+		deviceId = localStorage.getItem("sveltycms-device-id") || "";
+		if (!deviceId) {
+			deviceId = crypto.randomUUID();
+			localStorage.setItem("sveltycms-device-id", deviceId);
+		}
+	} catch {
+		deviceId = undefined;
+	}
+}
+
 	async function handleLoginSubmit(event: Event) {
 		event.preventDefault();
 	if (loginForm.data.email) {
@@ -208,6 +224,7 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 			email: loginForm.data.email,
 			password: loginForm.data.password,
 			isToken: loginForm.data.isToken,
+			deviceId,
 			redirect: redirectTo || undefined,
 		})) as any;
 

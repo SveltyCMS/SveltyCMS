@@ -371,6 +371,7 @@ export class Auth {
       expires: ISODateString;
       tenantId?: DatabaseId | null;
       userAgent?: string;
+      deviceId?: string;
       ipAddress?: string;
     },
     options?: BaseQueryOptions,
@@ -422,11 +423,13 @@ export class Auth {
 
     // Session device policy (enterprise-configurable):
     //   single-per-device (default) — evict other non-rotated sessions of this
-    //     user that share the same device fingerprint (exact user-agent match)
+    //     user that share the same device key (client deviceId, falling back to
+    //     exact user-agent match for legacy sessions without a deviceId)
     //   single-per-user            — evict ALL other non-rotated sessions
     //   allow-multiple             — no eviction (unlimited concurrent sessions)
     // Best-effort — never fail the login on eviction errors.
-    if (sessionData.userAgent) {
+    const deviceKey = sessionData.deviceId || sessionData.userAgent;
+    if (deviceKey) {
       try {
         const policy = String(
           getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
@@ -434,7 +437,7 @@ export class Auth {
         if (policy !== "allow-multiple") {
           await this.evictSameDeviceSessions(
             session,
-            sessionData.userAgent,
+            deviceKey,
             policy === "single-per-user",
             options,
           );
@@ -463,10 +466,11 @@ export class Auth {
    * Delete active sessions per the device policy, excluding the freshly created
    * session. Purges DB row, in-memory/Redis session store, and the 3-layer
    * session cache (incl. turbo auth). `evictAllDevices` = single-per-user mode.
+   * Device match: client `deviceId` when present, else exact user-agent.
    */
   private async evictSameDeviceSessions(
     newSession: Session,
-    userAgent: string,
+    deviceKey: string,
     evictAllDevices: boolean,
     options?: BaseQueryOptions,
   ): Promise<void> {
@@ -480,7 +484,7 @@ export class Auth {
     for (const old of sessions) {
       if (old.rotated) continue;
       if (String(old._id) === String(newSession._id)) continue;
-      if (!evictAllDevices && old.userAgent !== userAgent) continue;
+      if (!evictAllDevices && (old.deviceId || old.userAgent) !== deviceKey) continue;
 
       await this.db.auth.deleteSession(old._id, options).catch(() => {});
       await this.sessionStore.delete(old._id).catch(() => {});
@@ -803,7 +807,7 @@ export class Auth {
     password: string,
     tenantId?: DatabaseId | null,
     options?: { bypassTenantCheck?: boolean },
-    sessionMeta?: { userAgent?: string; ipAddress?: string },
+    sessionMeta?: { userAgent?: string; deviceId?: string; ipAddress?: string },
   ): Promise<{ user: User; sessionId: DatabaseId } | null> {
     try {
       const user = await this.getUserByEmail({ email, tenantId }, options);
@@ -889,6 +893,7 @@ export class Auth {
           expires: expiresAt,
           tenantId,
           userAgent: sessionMeta?.userAgent,
+          deviceId: sessionMeta?.deviceId,
           ipAddress: sessionMeta?.ipAddress,
         },
         options,

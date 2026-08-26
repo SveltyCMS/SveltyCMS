@@ -526,6 +526,9 @@ export class RelationalAuthModule implements IAuthAdapter {
       user_id: DatabaseId;
       expires: ISODateString;
       tenantId?: DatabaseId | null;
+      userAgent?: string;
+      deviceId?: string;
+      ipAddress?: string;
     },
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Session>> {
@@ -539,6 +542,9 @@ export class RelationalAuthModule implements IAuthAdapter {
           user_id: sessionData.user_id as string,
           expires: new Date(sessionData.expires),
           tenantId: (sessionData.tenantId as string) || null,
+          userAgent: sessionData.userAgent || null,
+          deviceId: sessionData.deviceId || null,
+          ipAddress: sessionData.ipAddress || null,
           createdAt: now,
           updatedAt: now,
         };

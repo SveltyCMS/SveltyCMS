@@ -13,9 +13,7 @@ import type { DatabaseError, PaginatedResult, PaginationOptions } from "../db-in
 import type { Model, Schema, Connection } from "mongoose";
 import mongoose from "mongoose";
 
-// Pre-compiled regex for UUIDv4 validation (with or without dashes) for performance.
-const ID_VALIDATION_REGEX =
-  /^([0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
+export { validateId } from "../core/id-contract";
 
 // ===================================================================================
 // Error Handling
@@ -60,13 +58,6 @@ export function createDatabaseError(
  */
 export function generateId(): DatabaseId {
   return uuidv4().replace(/-/g, "") as DatabaseId;
-}
-
-/**
- * Validates if a string is a UUIDv4 (with or without dashes).
- */
-export function validateId(id: string): boolean {
-  return ID_VALIDATION_REGEX.test(id);
 }
 
 /**

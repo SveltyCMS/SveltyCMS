@@ -89,7 +89,7 @@ async function runCacheAudit() {
         silent: true,
         onIteration: async () => {
           const res = await fetch(
-            `${baseUrl}/api/collections/BenchmarkStable/bench-shared-001${scenario.urlSuffix}`,
+            `${baseUrl}/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001${scenario.urlSuffix}`,
             {
               method: "GET",
               headers: baseHeaders,

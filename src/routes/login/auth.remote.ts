@@ -392,12 +392,18 @@ async function signInInternal(event: RequestEvent, input: any) {
   } else {
     const ip = getClientIp(event);
     const ua = event.request.headers.get("user-agent") || "";
+    const deviceId =
+      (typeof input.deviceId === "string" && input.deviceId.trim()
+        ? input.deviceId.trim()
+        : undefined) ||
+      event.request.headers.get("x-device-id") ||
+      undefined;
     const ar = await auth.authenticate(
       e,
       p,
       undefined,
       { bypassTenantCheck: true },
-      { userAgent: ua, ipAddress: ip },
+      { userAgent: ua, deviceId, ipAddress: ip },
     );
     if (ar?.user) {
       user = ar.user;

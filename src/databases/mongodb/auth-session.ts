@@ -25,6 +25,7 @@ export const SessionSchema = new Schema(
     rotatedTo: { type: String },
     lastActiveAt: { type: Date, default: Date.now },
     userAgent: { type: String }, // Device tracking (browser/OS info)
+    deviceId: { type: String }, // Stable per-device id (client-generated, localStorage)
     ipAddress: { type: String }, // Security auditing (client IP)
   },
   {
@@ -62,6 +63,9 @@ export class SessionAdapter {
     user_id: DatabaseId;
     expires: ISODateString;
     tenantId?: DatabaseId | null;
+    userAgent?: string;
+    deviceId?: string;
+    ipAddress?: string;
   }): Promise<DatabaseResult<Session>> {
     try {
       const session = new this.SessionModel({

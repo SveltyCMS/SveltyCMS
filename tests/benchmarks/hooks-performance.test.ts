@@ -48,7 +48,7 @@ const middlewareScenarios = [
   {
     name: "Full Security + Auth Pipeline",
     shortLabel: "Auth+Security",
-    path: "/api/collections/BenchmarkStable/bench-shared-001",
+    path: "/api/collections/BenchmarkStable/20000000-0000-4000-8000-000000000001",
     method: "GET",
     concurrency: 8,
   },

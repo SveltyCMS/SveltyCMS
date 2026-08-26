@@ -46,8 +46,9 @@ afterAll(async () => {
   }
 });
 
-function uid(p: string) {
-  return `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+/** Enterprise _id contract: collection-table entries require UUIDv4 ids. */
+function uid(_p: string) {
+  return crypto.randomUUID();
 }
 
 describe("Streaming Read Contract", () => {

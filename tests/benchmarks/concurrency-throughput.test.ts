@@ -49,7 +49,7 @@ async function run() {
 
   const maxDocs = 1000;
   console.log(`   → Pre-seeding ${maxDocs} throughput documents (in-process)...`);
-  await seedThroughputDocs(maxDocs).catch(() => {});
+  const docIds = (await seedThroughputDocs(maxDocs).catch(() => [])) || [];
 
   // Pre-serialize common payloads out of time-sensitive paths
   const resetPayload = JSON.stringify({ count: 0 });
@@ -61,7 +61,7 @@ async function run() {
     const limit = Math.min(i + 50, maxDocs);
     for (let j = i; j < limit; j++) {
       batch.push(
-        fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/tp-${j}`, {
+        fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${docIds[j]}`, {
           method: "PATCH",
           headers: H,
           body: resetPayload,
@@ -86,7 +86,7 @@ async function run() {
 
     const tasks: (() => Promise<Response>)[] = [];
     for (let d = 0; d < s.docs; d++) {
-      const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/tp-${d}/increment`;
+      const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/${docIds[d]}/increment`;
       const timeoutSignal = AbortSignal.timeout(30000);
 
       for (let w = 0; w < s.perDoc; w++) {
