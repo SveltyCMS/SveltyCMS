@@ -353,14 +353,27 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
       }
 
       // Apply sorting (prioritize multi-sort over single sort)
+      // 🚀 STABILITY TIE-BREAKER: Append _id asc to ensure deterministic ordering
+      // for paginated queries — mirrors the sql-query-builder.ts fix for all SQL adapters.
       if (this.multiSortOptions.length > 0) {
         const sortObj: Record<string, 1 | -1> = {};
         this.multiSortOptions.forEach(({ field, direction }) => {
           sortObj[field as string] = direction === "asc" ? 1 : -1;
         });
+        if (this.limitValue !== undefined || this.skipValue !== undefined) {
+          sortObj["_id"] = sortObj["_id"] ?? 1;
+        }
         mongoQuery = mongoQuery.sort(sortObj);
       } else if (Object.keys(this.sortOptions).length > 0) {
-        mongoQuery = mongoQuery.sort(this.sortOptions);
+        const sortCopy = { ...this.sortOptions };
+        if (this.limitValue !== undefined || this.skipValue !== undefined) {
+          (sortCopy as Record<string, 1 | -1>)["_id"] =
+            (sortCopy as Record<string, 1 | -1>)["_id"] ?? 1;
+        }
+        mongoQuery = mongoQuery.sort(sortCopy);
+      } else if (this.limitValue !== undefined || this.skipValue !== undefined) {
+        // No explicit sort but paginated — add deterministic _id tie-breaker
+        mongoQuery = mongoQuery.sort({ _id: 1 });
       }
 
       // Apply field projection

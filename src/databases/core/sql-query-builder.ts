@@ -403,27 +403,33 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       q = q.where(and(...this.conditions));
     }
 
+    const orderClauses: any[] = [];
     if (this.sortOptions.length > 0) {
-      const orderBys = this.sortOptions.map((s) => {
+      for (let i = 0; i < this.sortOptions.length; i++) {
+        const s = this.sortOptions[i];
         const order = s.direction === "desc" ? desc : asc;
         const fieldName = s.field as string;
         // Resolve MongoDB-convention fields (e.g. _createdAt → createdAt)
         const column = this.table[fieldName] ?? this.table[fieldName.replace(/^_/, "")];
         if (!column) {
           // 🚀 HYBRID SCHEMA SUPPORT: JSON sorting for dynamic fields
-          return order(this.core.getJsonField(fieldName));
+          orderClauses.push(order(this.core.getJsonField(fieldName)));
+        } else {
+          orderClauses.push(order(column));
         }
-        return order(column);
-      });
-      q = q.orderBy(...orderBys);
+      }
     }
 
     // 🚀 STABILITY TIE-BREAKER: Ensure deterministic ordering for paginated queries
     if (this.limitValue !== undefined || this.skipValue !== undefined) {
       const idCol = this.table["_id"];
       if (idCol) {
-        q = q.orderBy(asc(idCol));
+        orderClauses.push(asc(idCol));
       }
+    }
+
+    if (orderClauses.length > 0) {
+      q = q.orderBy(...orderClauses);
     }
 
     if (this.limitValue !== undefined) {

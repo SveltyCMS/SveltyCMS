@@ -39,7 +39,6 @@ import crypto from "node:crypto";
 
 let stopServer: (() => Promise<void>) | null = null;
 let baseUrl: string;
-const SEED_COUNT = 500;
 const createdIds: string[] = [];
 
 function createRealisticArticlePayload(i: number, runId: string) {
@@ -67,22 +66,35 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
   };
   const dbType = getDbType();
   const runId = crypto.randomUUID().slice(0, 8);
+  const SEED_COUNT = Number(process.env.BENCH_DOCS) || 500;
 
-  // Pre-seed a realistic batch for read/update workloads
-  logger.info(`   → Pre-seeding ${SEED_COUNT} benchmark records with realistic payloads...`);
-  for (let i = 0; i < SEED_COUNT; i++) {
-    const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(createRealisticArticlePayload(i, runId)),
-    });
-    if (res.ok) {
-      const json = (await res.json()) as any;
-      const id = json?.data?._id || json?.data?.id || json?._id || json?.id;
-      if (id) createdIds.push(String(id));
+  // Pre-seed a realistic batch with 8 parallel workers
+  logger.info(
+    `   → Pre-seeding ${SEED_COUNT} benchmark records with realistic payloads (8 parallel seeders)...`,
+  );
+  let seedCursor = 0;
+  const seedWorkers = Array.from({ length: 8 }, async () => {
+    while (true) {
+      const i = seedCursor++;
+      if (i >= SEED_COUNT) return;
+      try {
+        const res = await fetch(`${baseUrl}/api/collections/BenchmarkStable`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(createRealisticArticlePayload(i, runId)),
+        });
+        if (res.ok) {
+          const json = (await res.json()) as any;
+          const id = json?.data?._id || json?.data?.id || json?._id || json?.id;
+          if (id) createdIds.push(String(id));
+        }
+      } catch {
+        // non-fatal
+      }
     }
-  }
-  logger.info(`   ✅ Pre-seeded ${createdIds.length} records.`);
+  });
+  await Promise.all(seedWorkers);
+  logger.info(`   ✅ Pre-seeded ${createdIds.length}/${SEED_COUNT} records.`);
 
   const stableId = createdIds[0] || "20000000-0000-4000-8000-000000000001";
   let updateIdx = 0;
@@ -262,8 +274,8 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
   }
 
   printTruthTable({
-    title: `COMPETITIVE 9-WORKLOAD REPLICA (${dbType.toUpperCase()})`,
-    subtitle: "Replicates the 9 external benchmark workloads under 8 parallel workers.",
+    title: `COMPETITIVE 9-WORKLOAD REPLICA (${dbType.toUpperCase()} — ${createdIds.length} Docs)`,
+    subtitle: `Replicates the 9 external benchmark workloads under 8 parallel workers with ${createdIds.length} stored records.`,
     results,
   });
 
