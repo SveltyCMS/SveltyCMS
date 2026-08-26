@@ -137,9 +137,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   >();
 
   private _getInsertTemplate(table: any, tableName: string, synthesized: Record<string, any>) {
-    let tpl = this._insertTemplateCache.get(tableName);
+    const synthCols = Object.keys(synthesized);
+    const key = `${tableName}:${synthCols.join(",")}`;
+    let tpl = this._insertTemplateCache.get(key);
     if (!tpl) {
-      const synthCols = Object.keys(synthesized);
       const colList = synthCols
         .map((c) => {
           const phys = this.getColumn(table, c);
@@ -156,7 +157,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       });
       const sqlText = `INSERT INTO "${utils.assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders.join(", ")})`;
       tpl = { synthCols, sqlText, isJsonMap };
-      this._insertTemplateCache.set(tableName, tpl);
+      this._insertTemplateCache.set(key, tpl);
     }
     return tpl;
   }
@@ -262,6 +263,60 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   }
 
+  protected _updateTemplateCache = new Map<
+    string,
+    {
+      columns: string[];
+      isJsonMap: boolean[];
+      sqlWithReturning: string;
+      sqlSkipReturning: string;
+      hasTenant: boolean;
+    }
+  >();
+
+  private _getUpdateTemplate(
+    table: any,
+    tableName: string,
+    columns: string[],
+    idColName: string,
+    hasTenant: boolean,
+  ) {
+    const key = `${tableName}:${idColName}:${hasTenant ? "1" : "0"}:${columns.join(",")}`;
+    let tpl = this._updateTemplateCache.get(key);
+    if (!tpl) {
+      const isJsonMap: boolean[] = [];
+      const setPairs: string[] = [];
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i];
+        const phys = this.getColumn(table, col);
+        const physName = phys?.name ?? col;
+        const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
+        const isJson = physName === "data" || (phys as any)?.dataType === "json";
+        isJsonMap[i] = isJson;
+        setPairs.push(isJson ? `"${safeCol}" = $${i + 1}::jsonb` : `"${safeCol}" = $${i + 1}`);
+      }
+      const idIdx = columns.length + 1;
+      const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+      const safeTable = utils.assertSafeSqlIdentifier(tableName, "table");
+      const setSql = setPairs.join(", ");
+      let whereSql = `"${safeIdCol}" = $${idIdx}`;
+      if (hasTenant) {
+        whereSql += ` AND "tenantId" = $${idIdx + 1}`;
+      }
+      const sqlWithReturning = `UPDATE "${safeTable}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
+      const sqlSkipReturning = `UPDATE "${safeTable}" SET ${setSql} WHERE ${whereSql}`;
+      tpl = {
+        columns,
+        isJsonMap,
+        sqlWithReturning,
+        sqlSkipReturning,
+        hasTenant,
+      };
+      this._updateTemplateCache.set(key, tpl);
+    }
+    return tpl;
+  }
+
   /**
    * Raw prepared-SQL UPDATE…RETURNING fast path for PostgreSQL:
    * Uses a single prepared statement with parameter binding instead of Drizzle's
@@ -284,43 +339,26 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       const tableName = getTableName(table);
       const idColName = idCol?.name || "_id";
-      const setPairs: string[] = [];
+      const hasTenant =
+        options?.tenantId !== undefined &&
+        options.tenantId !== null &&
+        options.tenantId !== "global";
+
+      const tpl = this._getUpdateTemplate(table, tableName, columns, idColName, hasTenant);
       const boundValues: any[] = [];
 
       for (let i = 0; i < columns.length; i++) {
-        const col = columns[i];
-        const phys = this.getColumn(table, col);
-        const physName = phys?.name ?? col;
-        const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
-        const isJson = physName === "data" || (phys as any)?.dataType === "json";
-        boundValues.push(bindPgParam(values[col], isJson));
-        setPairs.push(
-          isJson
-            ? `"${safeCol}" = $${boundValues.length}::jsonb`
-            : `"${safeCol}" = $${boundValues.length}`,
-        );
+        boundValues.push(bindPgParam(values[columns[i]], tpl.isJsonMap[i]));
       }
-
       boundValues.push(String(id));
-      const idParamIdx = boundValues.length;
-
-      let whereSql = `"${utils.assertSafeSqlIdentifier(idColName, "column")}" = $${idParamIdx}`;
-      if (
-        options?.tenantId !== undefined &&
-        options.tenantId !== null &&
-        options.tenantId !== "global"
-      ) {
+      if (hasTenant) {
         boundValues.push(String(options.tenantId));
-        whereSql += ` AND "tenantId" = $${boundValues.length}`;
       }
 
       const skipReturning = (options as any)?.skipReturning === true;
-      const setSql = setPairs.join(", ");
-      const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
 
       if (skipReturning) {
-        const runSql = `UPDATE "${safeTableName}" SET ${setSql} WHERE ${whereSql}`;
-        await exec.unsafe(runSql, boundValues, { prepare: true });
+        await exec.unsafe(tpl.sqlSkipReturning, boundValues, { prepare: true });
         const reconstructed = {
           ...values,
           [idColName]: id,
@@ -331,8 +369,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }) as unknown as T;
       }
 
-      const rawSql = `UPDATE "${safeTableName}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
-      const rows = await exec.unsafe(rawSql, boundValues, { prepare: true });
+      const rows = await exec.unsafe(tpl.sqlWithReturning, boundValues, { prepare: true });
       if (Array.isArray(rows) && rows.length > 0) {
         return utils.convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,

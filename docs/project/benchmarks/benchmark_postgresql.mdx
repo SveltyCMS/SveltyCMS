@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    10 | 🟢     | —       | 0      |
+| **Core**       |    10 | 🟢     | +38%    | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,27 +62,25 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario                         | Latency  | Trend                             | Budget | Result |
-| -------------------------------- | -------- | --------------------------------- | ------ | ------ |
-| **Competitive Workload Replica** | 2.909ms  | ⚪ established at 2.91ms (1 run)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 8.275ms  | ⚪ established at 8.28ms (1 run)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 3.134ms  | ⚪ established at 3.13ms (1 run)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.752ms  | ⚪ established at 1.75ms (1 run)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.687ms  | ⚪ established at 1.69ms (1 run)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.225ms  | ⚪ established at 1.23ms (1 run)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 7.223ms  | ⚪ established at 7.22ms (1 run)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 14.948ms | ⚪ established at 14.95ms (1 run) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 17.855ms | ⚪ established at 17.86ms (1 run) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 8.179ms  | ⚪ established at 8.18ms (1 run)  | < 5ms  | 🟢     |
+| Scenario                         | Latency  | Trend                                       | Budget | Result |
+| -------------------------------- | -------- | ------------------------------------------- | ------ | ------ |
+| **Competitive Workload Replica** | 4.868ms  | 🔴 slower: 3.52ms → 4.87ms (+38%) (2 runs)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 10.207ms | ⚪ stable at 9.97ms (±2.49ms) (2 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 4.062ms  | ⚪ stable at 4.56ms (±1.38ms) (2 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 3.980ms  | ⚪ stable at 3.97ms (±2.02ms) (2 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 5.129ms  | ⚪ stable at 4.35ms (±2.82ms) (2 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 4.810ms  | ⚪ stable at 3.69ms (±2.58ms) (2 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 7.642ms  | ⚪ stable at 7.12ms (±2.67ms) (2 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 18.166ms | ⚪ stable at 16.47ms (±3.00ms) (2 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 11.856ms | ⚪ stable at 13.56ms (±6.20ms) (2 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 12.304ms | 🔴 slower: 9.55ms → 12.30ms (+29%) (2 runs) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric                                               | Trend | Sparkline | Latest    |
-| ---------------------------------------------------- | ----- | --------- | --------- |
-| cold start phased (Cold Start (IDLE → READY)) (cold) | 🟢    | `▁`       | 953.807ms |
-| database performance (BULK INSERT (100)) (warm)      | 🟢    | `▁`       | 1.881ms   |
+| Metric | Trend | Sparkline | Latest |
+| ------ | ----- | --------- | ------ |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
@@ -93,6 +91,28 @@ xychart-beta
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
+```
+
+</details>
+<details>
+<summary>📊 Regression severity matrix (quadrant)</summary>
+
+```mermaid
+quadrantChart
+  title "Regression severity (impact vs delta)"
+  x-axis Low latency impact --> High latency impact
+  y-axis Low delta --> High delta
+  quadrant-1 Monitor
+  quadrant-2 Investigate soon
+  quadrant-3 Acceptable variance
+  quadrant-4 Critical — fix first
+    Competitive Workload Replica: [0.27, 0.95]
+    Competitive Workload Replica: [0.22, 0.29]
+    Competitive Workload Replica: [0.28, 0.47]
+    Competitive Workload Replica: [0.26, 0.79]
+    Competitive Workload Replica: [0.95, 0.27]
+    Competitive Workload Replica: [0.65, 0.33]
+    Competitive Workload Replica: [0.68, 0.75]
 ```
 
 </details>
@@ -108,49 +128,42 @@ xychart-beta
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-08-25)
+### Current Run Summary (2026-08-26)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `234c0152-57bb-4953-b4b9-62c1d81ae95d` · **Tests invoked:** 1 · **Metrics:** 10 · **DB:** postgresql
+**Run ID:** `5ee8b088-fa23-46ca-a70d-4392faa97dd3` · **Tests invoked:** 1 · **Metrics:** 10 · **DB:** postgresql
 
-| Test                         | Metric                                   | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                            |
-| ---------------------------- | ---------------------------------------- | -------- | -------- | ---- | ----- | --------------------------------- |
-| Competitive Workload Replica | findById (Concurrent 8c)                 | 2.909    | 5.225    | 1545 | 🟢    | ⚪ established at 2.91ms (1 run)  |
-| Competitive Workload Replica | findByIdRandom (Concurrent 8c)           | 8.275    | 19.692   | 797  | 🟢    | ⚪ established at 8.28ms (1 run)  |
-| Competitive Workload Replica | listPlain (Concurrent 8c)                | 3.134    | 5.248    | 1559 | 🟢    | ⚪ established at 3.13ms (1 run)  |
-| Competitive Workload Replica | listFilterSort (Concurrent 8c)           | 1.752    | 3.087    | 2705 | 🟢    | ⚪ established at 1.75ms (1 run)  |
-| Competitive Workload Replica | listLarge (Concurrent 8c)                | 1.687    | 4.016    | 2811 | 🟢    | ⚪ established at 1.69ms (1 run)  |
-| Competitive Workload Replica | findMissing (Concurrent 8c)              | 1.225    | 2.717    | 3868 | 🟢    | ⚪ established at 1.23ms (1 run)  |
-| Competitive Workload Replica | GraphQL Collection Query (Concurrent 8c) | 7.223    | 9.591    | 1070 | 🟢    | ⚪ established at 7.22ms (1 run)  |
-| Competitive Workload Replica | create (Concurrent 8c)                   | 14.948   | 32.617   | 523  | 🟢    | ⚪ established at 14.95ms (1 run) |
-| Competitive Workload Replica | update (Concurrent 8c)                   | 17.855   | 24.981   | 432  | 🟢    | ⚪ established at 17.86ms (1 run) |
-| Competitive Workload Replica | mixed (Concurrent 8c 50/50)              | 8.179    | 14.813   | 809  | 🟢    | ⚪ established at 8.18ms (1 run)  |
+| Test                         | Metric                                   | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                      |
+| ---------------------------- | ---------------------------------------- | -------- | -------- | ---- | ----- | ------------------------------------------- |
+| Competitive Workload Replica | findByIdRandom (Concurrent 8c)           | 10.207   | 33.734   | 769  | 🟢    | ⚪ stable at 9.97ms (±2.49ms) (2 runs)      |
+| Competitive Workload Replica | listPlain (Concurrent 8c)                | 4.062    | 8.247    | 1900 | 🟢    | ⚪ stable at 4.56ms (±1.38ms) (2 runs)      |
+| Competitive Workload Replica | listFilterSort (Concurrent 8c)           | 3.980    | 5.785    | 1949 | 🟢    | ⚪ stable at 3.97ms (±2.02ms) (2 runs)      |
+| Competitive Workload Replica | listLarge (Concurrent 8c)                | 5.129    | 6.754    | 1511 | 🟢    | ⚪ stable at 4.35ms (±2.82ms) (2 runs)      |
+| Competitive Workload Replica | findMissing (Concurrent 8c)              | 4.810    | 7.115    | 1605 | 🟢    | ⚪ stable at 3.69ms (±2.58ms) (2 runs)      |
+| Competitive Workload Replica | GraphQL Collection Query (Concurrent 8c) | 7.642    | 10.939   | 1021 | 🟢    | ⚪ stable at 7.12ms (±2.67ms) (2 runs)      |
+| Competitive Workload Replica | create (Concurrent 8c)                   | 18.166   | 22.904   | 430  | 🟢    | ⚪ stable at 16.47ms (±3.00ms) (2 runs)     |
+| Competitive Workload Replica | update (Concurrent 8c)                   | 11.856   | 15.773   | 659  | 🟢    | ⚪ stable at 13.56ms (±6.20ms) (2 runs)     |
+| Competitive Workload Replica | findById (Concurrent 8c)                 | 4.868    | 9.053    | 1557 | ⚪    | 🔴 slower: 3.52ms → 4.87ms (+38%) (2 runs)  |
+| Competitive Workload Replica | mixed (Concurrent 8c 50/50)              | 12.304   | 19.419   | 620  | ⚪    | 🔴 slower: 9.55ms → 12.30ms (+29%) (2 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-08-25)
+### Historical Trends (2026-08-26)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
 **Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='postgresql' AND redis=0 ORDER BY timestamp DESC`
 
-**Series:** 8 · **DB:** postgresql
+**Series:** 1 · **DB:** postgresql
 
-| Metric                              | Trend | Sparkline (last 7) | Latest    |
-| ----------------------------------- | ----- | ------------------ | --------- |
-| CACHE PERFORMANCE (warm)            | 🟢    | `▁`                | 0.286ms   |
-| COLD START PHASED (cold)            | 🟢    | `▁`                | 953.807ms |
-| DATABASE PERFORMANCE (warm)         | 🟢    | `█▁▄▂▇▁▁`          | 0.215ms   |
-| HOOKS PERFORMANCE (warm)            | 🟢    | `▄█▃▁▃`            | 0.575ms   |
-| TRANSACTION ACID (warm)             | 🟢    | `█▁`               | 0.495ms   |
-| TRUTH LATENCY (warm)                | 🟢    | `█▁▁`              | 0.000ms   |
-| COMPETITIVE WORKLOAD REPLICA (warm) | ⚪    | `▄▁▁▁▂▄█`          | 17.855ms  |
-| REST API PERFORMANCE (warm)         | ⚪    | `▄▇█▁`             | 0.316ms   |
+| Metric                              | Trend | Sparkline (last 7) | Latest   |
+| ----------------------------------- | ----- | ------------------ | -------- |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▁▂▁█▅▅`          | 11.856ms |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 

@@ -26,7 +26,6 @@ import {
   runBenchmark,
   exportResult,
   setupBenchmarkServer,
-  ensureStableTestData,
   stabilize,
   exportMetric,
   printTruthTable,
@@ -46,7 +45,6 @@ const createdIds: string[] = [];
 test("Competitive 9-Workload Replica Benchmark", async () => {
   logger.info("🚀 Starting Competitive 9-Workload Replica Benchmark (8 Workers)...");
 
-  await ensureStableTestData();
   const serverInfo = await setupBenchmarkServer();
   stopServer = serverInfo.stop;
   baseUrl = serverInfo.baseUrl;
