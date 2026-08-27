@@ -1597,6 +1597,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${colName}")`,
             );
+            // 🚀 Covering composite index for filter+sort on dynamic columns (e.g. status + views/count):
+            // WHERE "tenantId"=? AND status=? ORDER BY colName DESC, _id DESC
+            await this.raw.execute(
+              `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_${colName}_id" ON "${physicalName}" ("tenantId", status, "${colName}" DESC, "_id" DESC)`,
+            );
           } catch {
             /* safe */
           }

@@ -1747,6 +1747,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${col.name}")`,
             );
+            // 🚀 Covering composite index for filter+sort on dynamic columns:
+            // WHERE tenantId=? AND status=? ORDER BY col.name, _id
+            await this.raw.execute(
+              `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_${col.name}_id" ON "${physicalName}" ("tenantId", "status", "${col.name}", "_id")`,
+            );
           } catch {
             /* safe */
           }

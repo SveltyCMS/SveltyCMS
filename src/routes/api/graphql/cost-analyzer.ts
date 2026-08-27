@@ -41,6 +41,13 @@ export function getOrParseDocument(rawQuery: string): DocumentNode {
   return cached;
 }
 
+export interface MatchedCollectionQuery {
+  field: string;
+  selections: string[];
+  limit: number;
+  page: number;
+}
+
 /**
  * Detect a single-root-field query (optional `query Name`) for the Yoga bypass.
  * Comments/whitespace are normalized first. Returns null for mutations / multi-field ops.
@@ -58,6 +65,40 @@ export function matchSingleFieldQuery(
   const inner = (match[2] ?? "").trim();
   const selections = inner ? inner.split(/\s+/).filter(Boolean) : [];
   return { field, selections };
+}
+
+/**
+ * Detect a single collection query with optional pagination/limit/page arguments.
+ * Rejects nested selections (relations) or complex directives so they fall through to Yoga.
+ */
+export function matchCollectionQuery(rawQuery: string): MatchedCollectionQuery | null {
+  const normalized = normalizeQueryString(rawQuery);
+  const match =
+    /^(?:query(?:\s+[A-Za-z_][A-Za-z0-9_]*)?)?\s*\{\s*([A-Za-z_][A-Za-z0-9_]*)(?:\s*\(([^)]*)\))?\s*(?:\{\s*([^}]*)\s*\})?\s*\}\s*$/.exec(
+      normalized,
+    );
+  if (!match) return null;
+  const field = match[1];
+  const rawArgs = (match[2] ?? "").trim();
+  const inner = (match[3] ?? "").trim();
+
+  // If inner contains { or }, it has nested sub-selections (relational queries) -> Yoga
+  if (inner.includes("{") || inner.includes("}")) return null;
+
+  const selections = inner ? inner.replace(/,/g, " ").split(/\s+/).filter(Boolean) : [];
+
+  let limit = 50;
+  let page = 1;
+
+  if (rawArgs) {
+    const limitMatch = /limit\s*:\s*(\d+)/.exec(rawArgs);
+    if (limitMatch) limit = Number(limitMatch[1]);
+
+    const pageMatch = /page\s*:\s*(\d+)/.exec(rawArgs);
+    if (pageMatch) page = Number(pageMatch[1]);
+  }
+
+  return { field, selections, limit, page };
 }
 
 export interface CostAnalysisResult {

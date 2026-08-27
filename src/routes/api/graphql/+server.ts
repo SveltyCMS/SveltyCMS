@@ -34,6 +34,7 @@ import {
   registerCollections,
   collectionsResolvers,
   resolveAllCollections,
+  createCleanTypeName,
 } from "./resolvers/collections";
 import { isDbConnected, getDbInitPromise, getDb } from "@src/databases/db";
 import { contentSystem, contentStore } from "@src/content/index.server";
@@ -41,9 +42,14 @@ import {
   analyzeQueryCost,
   formatCostError,
   getOrParseDocument,
-  matchSingleFieldQuery,
+  matchCollectionQuery,
 } from "./cost-analyzer";
-import { resolvePublicationFilter } from "@utils/security/publication-policy";
+import {
+  resolvePublicationFilter,
+  type PublicationFilter,
+} from "@utils/security/publication-policy";
+import { LocalCMS } from "@src/services/sdk";
+import type { DatabaseId, Schema } from "@src/content/types";
 
 // GraphQL validation plugin: enforces query depth (max 8), alias count (max 15),
 // and blocks schema introspection in production environments
@@ -79,41 +85,94 @@ const fastJsonCache = new Map<string, { body: string; ts: number }>();
 
 async function tryGraphqlFastPath(
   query: string,
-  ctx: { user: unknown; tenantId?: string | null },
+  ctx: {
+    user: unknown;
+    tenantId?: string | null;
+    dbAdapter?: any;
+    publicationFilter?: PublicationFilter;
+  },
 ): Promise<string | null> {
   if (!ctx.user || !query) return null;
-  const matched = matchSingleFieldQuery(query);
+  const matched = matchCollectionQuery(query);
   if (!matched) return null;
-  if (matched.field !== "contentSystemHealth" && matched.field !== "allCollections") {
-    return null;
-  }
-  const jsonKey = `${matched.field}|${String(ctx.tenantId ?? "global")}|${matched.selections.join(",")}`;
-  const cachedJson = fastJsonCache.get(jsonKey);
-  if (cachedJson && Date.now() - cachedJson.ts < FAST_JSON_TTL_MS) {
-    return cachedJson.body;
+
+  // 1. In-memory system queries (contentSystemHealth / allCollections)
+  if (matched.field === "contentSystemHealth" || matched.field === "allCollections") {
+    const jsonKey = `${matched.field}|${String(ctx.tenantId ?? "global")}|${matched.selections.join(",")}`;
+    const cachedJson = fastJsonCache.get(jsonKey);
+    if (cachedJson && Date.now() - cachedJson.ts < FAST_JSON_TTL_MS) {
+      return cachedJson.body;
+    }
+
+    let payload: Record<string, unknown>;
+    if (matched.field === "contentSystemHealth") {
+      const health = contentSystem.getHealthStatus() as unknown as Record<string, unknown>;
+      payload = { data: { contentSystemHealth: projectGraphqlFields(health, matched.selections) } };
+    } else {
+      const rows = await resolveAllCollections(ctx.tenantId);
+      const data =
+        matched.selections.length === 0
+          ? rows
+          : rows.map((row) =>
+              projectGraphqlFields(row as unknown as Record<string, unknown>, matched.selections),
+            );
+      payload = { data: { allCollections: data } };
+    }
+    const body = JSON.stringify(payload);
+    if (fastJsonCache.size >= 64) {
+      const oldest = fastJsonCache.keys().next().value;
+      if (oldest) fastJsonCache.delete(oldest);
+    }
+    fastJsonCache.set(jsonKey, { body, ts: Date.now() });
+    return body;
   }
 
-  let payload: Record<string, unknown>;
-  if (matched.field === "contentSystemHealth") {
-    const health = contentSystem.getHealthStatus() as unknown as Record<string, unknown>;
-    payload = { data: { contentSystemHealth: projectGraphqlFields(health, matched.selections) } };
-  } else {
-    const rows = await resolveAllCollections(ctx.tenantId);
-    const data =
-      matched.selections.length === 0
-        ? rows
-        : rows.map((row) =>
-            projectGraphqlFields(row as unknown as Record<string, unknown>, matched.selections),
-          );
-    payload = { data: { allCollections: data } };
+  // 2. Collection root query fast-path (e.g. BenchmarkStable, Articles)
+  const collections = contentStore.getCollections(ctx.tenantId as any);
+  let targetCollection: Schema | undefined;
+  for (const c of collections) {
+    if (!c._id) continue;
+    const cleanName = createCleanTypeName({ _id: c._id, name: c.name });
+    if (cleanName === matched.field || c._id === matched.field || c.name === matched.field) {
+      targetCollection = c;
+      break;
+    }
   }
-  const body = JSON.stringify(payload);
-  if (fastJsonCache.size >= 64) {
-    const oldest = fastJsonCache.keys().next().value;
-    if (oldest) fastJsonCache.delete(oldest);
+
+  if (!targetCollection || !targetCollection._id) {
+    return null;
   }
-  fastJsonCache.set(jsonKey, { body, ts: Date.now() });
-  return body;
+
+  let adapter = ctx.dbAdapter;
+  if (!adapter || (typeof adapter.isConnected === "function" && !adapter.isConnected())) {
+    if (!isDbConnected()) await getDbInitPromise();
+    adapter = getDb();
+  }
+  if (!adapter) return null;
+
+  if (!sharedCMS || sharedCMS.db !== adapter) {
+    sharedCMS = new LocalCMS(adapter);
+  }
+
+  const fields = matched.selections.length > 0 ? matched.selections : undefined;
+  const result = await sharedCMS.collections.find(targetCollection._id, {
+    tenantId: ctx.tenantId as DatabaseId,
+    limit: matched.limit,
+    offset: (matched.page - 1) * matched.limit,
+    publicationFilter: ctx.publicationFilter || "all",
+    user: ctx.user,
+    fields,
+  });
+
+  const rows = (
+    result && result.success && Array.isArray(result.data) ? result.data : []
+  ) as Record<string, unknown>[];
+  const projected =
+    fields && fields.length > 0
+      ? rows.map((r: Record<string, unknown>) => projectGraphqlFields(r, fields))
+      : rows;
+
+  return JSON.stringify({ data: { [matched.field]: projected } });
 }
 
 const securityValidationPlugin = {
@@ -230,7 +289,6 @@ import {
   JSONScalar,
 } from "./resolvers/data-operations";
 import { createLoaders } from "./loaders";
-import { LocalCMS } from "@src/services/sdk";
 
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -596,6 +654,8 @@ async function handleRequest(event: RequestEvent) {
   const fast = await tryGraphqlFastPath(query, {
     user: locals.user,
     tenantId: locals.tenantId,
+    dbAdapter: locals.dbAdapter,
+    publicationFilter,
   });
   if (fast) {
     const tenant = locals.tenantId as string;

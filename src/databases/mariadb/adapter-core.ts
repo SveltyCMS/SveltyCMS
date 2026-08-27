@@ -1501,6 +1501,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS \`${indexName}\` ON \`${physicalName}\` (\`${colName}\`)`,
             );
+            // 🚀 Covering composite index for filter+sort on dynamic columns:
+            // WHERE tenantId=? AND status=? ORDER BY colName, _id
+            await this.raw.execute(
+              `CREATE INDEX IF NOT EXISTS \`${physicalName}_tenant_status_${colName}_id\` ON \`${physicalName}\` (\`tenantId\`, \`status\`, \`${colName}\`, \`_id\`)`,
+            );
           } catch {
             /* safe */
           }
