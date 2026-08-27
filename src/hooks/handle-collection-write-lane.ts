@@ -26,7 +26,6 @@ import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import { applyAdapterTenantContext } from "@src/databases/tenant-adapter";
 import { successResponse } from "@src/routes/api/[...path]/handlers/base";
-import { responseCache } from "@src/services/cache/response-cache";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import type { DatabaseId } from "@src/content/types";
 
@@ -126,8 +125,12 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
     result = await cms.collections.update(collectionId, entryId, data, { user, tenantId });
   }
 
-  const tenantKey = tenantId ? String(tenantId) : "global";
-  void responseCache.invalidateCollection("collections", tenantKey).catch(() => {});
+  // Response-cache invalidation is handled inside cms.collections.create/update
+  // (schedulePostWrite → invalidateCache → responseCache.invalidateCollection(schemaId)),
+  // which busts exactly this collection. The previous broad
+  // invalidateCollection("collections", …) here was redundant AND over-broad —
+  // its `res:*collections*` pattern cleared every collection's cached responses
+  // and walked the whole response-cache Map on the event loop of every write.
 
   const res = successResponse(event, result, request.method === "POST" ? 201 : 200);
   applyAllSecurityHeaders(
