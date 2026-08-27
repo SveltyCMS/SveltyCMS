@@ -88,13 +88,6 @@ async function awaitInitOrThrow(): Promise<void> {
 }
 
 let testModeWarned = false;
-const IS_GK_TEST_MODE =
-  process.env.TEST_MODE === "true" ||
-  process.env.VITE_TEST_MODE === "true" ||
-  process.env.NODE_ENV === "test" ||
-  process.env.VITEST === "true" ||
-  !!process.env.BUN_TEST;
-const IS_STRICT_SETUP_CHECK = process.env.STRICT_SETUP_CHECK === "true";
 
 /**
  * Renders an appropriate restricted-state response.
@@ -169,6 +162,19 @@ export const handleSystemState: Handle = ({ event, resolve }) => {
   const peeked = peekSetupState();
   if (peeked === SetupState.COMPLETE && isSystemReady()) {
     (event.locals as any).__setupState = peeked;
+    if (
+      pathname === "/setup" ||
+      pathname.startsWith("/setup/") ||
+      pathname.startsWith("/api/setup")
+    ) {
+      if (pathname.startsWith("/api/")) {
+        throw new AppError("Setup already complete", 403, "SETUP_ALREADY_COMPLETE");
+      }
+      return new Response(null, {
+        status: 302,
+        headers: { Location: "/login" },
+      });
+    }
     return resolve(event);
   }
 
@@ -200,7 +206,6 @@ const handleSystemStateSlow: Handle = async ({ event, resolve }) => {
         throw new AppError("Access from untrusted host blocked", 403, "UNTRUSTED_HOST");
       }
       if (
-        (!IS_GK_TEST_MODE || IS_STRICT_SETUP_CHECK) &&
         setupComplete &&
         (pathname === "/setup" ||
           pathname.startsWith("/setup/") ||

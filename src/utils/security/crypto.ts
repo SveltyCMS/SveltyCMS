@@ -10,6 +10,8 @@
  * - SHA256 checksums
  */
 
+import { logger } from "@utils/logger";
+
 // --- Types & Constants ---
 
 const IS_TEST =
@@ -76,15 +78,10 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
   } catch (err) {
     // Never swallow silently: a broken argon2 binding / malformed hash must be
     // visible in logs instead of surfacing as a generic "Invalid credentials".
-    try {
-      const { logger } = await import("@utils/logger");
-      logger.warn("verifyPassword failed", {
-        error: err instanceof Error ? err.message : String(err),
-        hashPrefix: typeof hash === "string" ? hash.slice(0, 14) : typeof hash,
-      });
-    } catch {
-      // logger unavailable (edge) — fall through to the security-safe result
-    }
+    logger.warn("verifyPassword failed", {
+      error: err instanceof Error ? err.message : String(err),
+      hashPrefix: typeof hash === "string" ? hash.slice(0, 14) : typeof hash,
+    });
     return false;
   }
 }

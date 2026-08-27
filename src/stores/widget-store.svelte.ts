@@ -42,13 +42,13 @@ export interface CollectionWidgetDependency {
 }
 
 class WidgetState {
-  widgets = $state<Record<string, FieldInstance>>({});
-  widgetFunctions = $state<WidgetRegistry>({});
-  coreWidgets = $state<string[]>([]);
-  customWidgets = $state<string[]>([]);
-  marketplaceWidgets = $state<string[]>([]);
-  activeWidgets = $state<string[]>([]);
-  dependencyMap = $state<Record<string, string[]>>({});
+  widgets = $state.raw<Record<string, FieldInstance>>({});
+  widgetFunctions = $state.raw<WidgetRegistry>({});
+  coreWidgets = $state.raw<string[]>([]);
+  customWidgets = $state.raw<string[]>([]);
+  marketplaceWidgets = $state.raw<string[]>([]);
+  activeWidgets = $state.raw<string[]>([]);
+  dependencyMap = $state.raw<Record<string, string[]>>({});
 
   tenantId = $state<string>("default");
   isLoaded = $state(false);

@@ -123,7 +123,7 @@ export function createSmartTable<T extends Record<string, unknown> = Record<stri
 
   const savedLayout = layoutKey ? loadTableLayout(layoutKey) : null;
 
-  let rows = $state<T[]>([]);
+  let rows = $state.raw<T[]>([]);
   let columns = $state<SmartTableColumn<T>[]>([]);
   let density = $state<TableDensity>(
     (savedLayout?.density && isValidDensity(savedLayout.density)

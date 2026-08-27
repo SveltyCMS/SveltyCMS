@@ -4,6 +4,7 @@
  */
 
 import { command, getRequestEvent } from "$app/server";
+import { logger } from "@utils/logger";
 
 export const repairContentCache = command(
   "unchecked",
@@ -14,7 +15,6 @@ export const repairContentCache = command(
   }> => {
     const event = getRequestEvent();
     const { contentService } = await import("@src/content/engine.server");
-    const { logger } = await import("@utils/logger");
 
     if (!event.locals.isAdmin) {
       return {
@@ -61,7 +61,6 @@ export const runTenantMigration = command(
       return { success: false, error: "Only administrators can run tenant migration." };
     }
 
-    const { logger } = await import("@utils/logger");
     logger.info(`Tenant migration triggered by user: ${event.locals.user?._id}`);
 
     try {

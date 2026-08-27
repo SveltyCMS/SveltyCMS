@@ -380,6 +380,17 @@ export class RelationalAuthModule implements IAuthAdapter {
         // Fail-closed under MULTI_TENANT (parity with Mongo safeQuery)
         assertTenantContext(options, "auth.getUserById");
 
+        // 🚀 FAST-PATH: Prepared statement lookup via rawFindById (SQLite / PG / MariaDB)
+        if ((this.adapter as any).useRawFindById && !options?.transaction) {
+          const rawResult = await (this.adapter as any).rawFindById(
+            this.schema.authUsers,
+            "auth_users",
+            userId,
+            options,
+          );
+          if (rawResult) return this.mapUser(rawResult);
+        }
+
         const idCond = eq(this.schema.authUsers._id, String(userId));
         const conditions = [idCond];
         applyTenantFilter(conditions, this.schema.authUsers.tenantId, options);

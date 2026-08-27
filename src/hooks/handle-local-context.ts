@@ -1,61 +1,85 @@
 /**
- * @file src/hooks/handle-content-initialization.ts
+ * @file src/hooks/handle-local-context.ts
  * @description
- * Hardened multi-tenant content initialization with flight deduplication and request-scoped state.
+ * Unified local context middleware combining zero-latency SDK binding (`locals.cms`)
+ * and multi-tenant content system initialization into a single atomic middleware step.
  *
- * ### Features:
- * - Coalesced per-tenant `ensureContentInitialized` (stampede protection)
- * - Fresh-install redirects (admin → collectionbuilder, others → profile)
- * - Whitelist for zero-collection routes (setup, admin, config, …)
- * - Static imports only — no per-request dynamic import microtasks
+ * Consolidates `handleLocalSdk` + `handleContentInitialization` into one async handle,
+ * eliminating redundant middleware promise-wrapping and microtask hopping per request.
  */
 
 import { redirect } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
+import { getDbInitPromise, dbAdapter, isDbConnected } from "@src/databases/db";
+import { LocalCMS } from "@src/services/sdk";
 import { contentSystem, ensureContentInitialized } from "@src/content/index.server";
+import { getRequestFlags } from "@utils/hook-utils";
 import { logger } from "@utils/logger";
-import { getDbInitPromise, isDbConnected } from "@src/databases/db";
 import { getSetupState, SetupState } from "@utils/server/setup-check";
 
-// Routes reachable with zero collections (fresh install / E2E after seed).
-// /admin must be included so tenant management is not redirected to collectionbuilder.
-// `(?:/|$)` boundary prevents prefix false-positives (e.g. /administrator must
-// NOT match `admin`). The optional locale prefix is consumed BEFORE the check.
 const WHITELIST_REGEX =
   /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews|admin|setup)(?:\/|$)/;
 
-// Cache stampede containment: tracks active in-flight tenant initializations
 const tenantInitializationFlights = new Map<string, Promise<void>>();
 
-export const handleContentInitialization: Handle = async ({ event, resolve }) => {
-  const { locals, url } = event;
-  const { pathname } = url;
-  const tenantId = locals.tenantId ? String(locals.tenantId) : null;
+export const handleLocalContext: Handle = async ({ event, resolve }) => {
+  const { pathname } = event.url;
+  const { locals } = event;
+  const flags = getRequestFlags(locals as any);
 
-  // Phase 1: Gated initialization (static import — no per-request dynamic import)
+  // Short-circuit for static assets and health checks
+  if (flags.isStatic || pathname === "/api/system/health" || pathname === "/health") {
+    return resolve(event);
+  }
+
+  // 1. Bind LocalCMS SDK (locals.cms)
+  if (!(locals as any).cms) {
+    try {
+      if (dbAdapter) {
+        const activeAdapter = (locals as any).dbAdapter || dbAdapter;
+        (locals as any).cms = LocalCMS.getLocals(activeAdapter, locals);
+      } else {
+        await getDbInitPromise();
+        if (dbAdapter) {
+          const activeAdapter = (locals as any).dbAdapter || dbAdapter;
+          (locals as any).cms = LocalCMS.getLocals(activeAdapter, locals);
+        }
+      }
+    } catch (dbError: any) {
+      logger.error(`[LocalContext] Database boot failed: ${dbError.message}`);
+      if (!pathname.startsWith("/api/")) {
+        (locals as any).dbInitializationError = dbError.message || String(dbError);
+      } else {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "Database adapter unavailable",
+          }),
+          { status: 503, headers: { "Content-Type": "application/json" } },
+        );
+      }
+    }
+  }
+
+  // 2. Content System Initialization
+  const tenantId = locals.tenantId ? String(locals.tenantId) : null;
   const setupState = (locals as any).__setupState || (await getSetupState());
   (locals as any).__setupConfigExists = setupState !== SetupState.MISSING_CONFIG;
 
   if (setupState !== SetupState.COMPLETE) {
-    logger.debug("[handleContentInitialization] System in SETUP mode. Skipping content init.");
-    return await resolve(event);
+    return resolve(event);
   }
 
-  // Resolved-promise await still costs a microtask per request. Skip once booted.
   if (!isDbConnected()) {
     await getDbInitPromise(false, "CORE");
   }
 
-  // Phase 2: Coalesced content system initialization (prevents thundering herd)
   if (tenantId && !contentSystem.isInitializedForTenant(tenantId)) {
     let initPromise = tenantInitializationFlights.get(tenantId);
-
     if (!initPromise) {
       initPromise = ensureContentInitialized(tenantId, false)
         .catch((err) => {
-          logger.error(
-            `[handleContentInitialization] Tenant init crashed for ${tenantId}: ${err.message}`,
-          );
+          logger.error(`[LocalContext] Tenant init crashed for ${tenantId}: ${err.message}`);
         })
         .finally(() => {
           tenantInitializationFlights.delete(tenantId!);
@@ -72,8 +96,7 @@ export const handleContentInitialization: Handle = async ({ event, resolve }) =>
     }
   }
 
-  // Phase 3: Auth & fresh install redirects (no global store — request-scoped only)
-  // API routes never redirect to collectionbuilder — skip the collection scan.
+  // Auth & fresh install redirects for SSR page routes
   if (locals.user && !WHITELIST_REGEX.test(pathname)) {
     let collections = contentSystem.getCollections(tenantId);
 

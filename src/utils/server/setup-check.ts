@@ -86,7 +86,6 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
   try {
     // Dynamic imports to avoid Vite/SSR side-effects at top-level
     // Vite will resolve these during the main app build and bundle them correctly.
-    const { logger } = await import("../logger");
     const db = await import("../../databases/db");
 
     // Wait for DB boot

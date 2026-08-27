@@ -21,7 +21,6 @@ import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/database
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { turboAuthCache } from "./handle-turbo-get";
 import { wafGuard } from "./wasm-waf-guard";
-import { handleRateLimit } from "./handle-rate-limit";
 import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import { applyAdapterTenantContext } from "@src/databases/tenant-adapter";
@@ -148,6 +147,7 @@ export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
   try {
+    const { handleRateLimit } = await import("./handle-rate-limit");
     return await handleRateLimit({
       event,
       resolve: () => executeWarmCollectionWrite(event),

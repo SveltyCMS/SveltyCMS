@@ -58,6 +58,30 @@ export function successResponse(event: RequestEvent, result: any, status = 200) 
   return buildJsonResponse(event, body, status);
 }
 
+/**
+ * High-performance JSON response builder for pre-serialized or schema-fast payloads.
+ * Bypasses intermediate wrapping object allocations.
+ */
+export function fastSuccessResponse(
+  event: RequestEvent,
+  serializedData: string,
+  rawData?: any,
+  status = 200,
+): Response {
+  const serialized = `{"success":true,"data":${serializedData}}`;
+  if (event?.locals) {
+    (event.locals as any).apiData = rawData;
+    (event.locals as any).apiBody = serialized;
+  }
+  return new Response(serialized, {
+    status,
+    headers: {
+      ...STATIC_JSON_HEADERS,
+      "content-length": String(Buffer.byteLength(serialized)),
+    },
+  });
+}
+
 export function rawResponse(event: RequestEvent, data: any, status = 200) {
   return buildJsonResponse(event, data, status);
 }

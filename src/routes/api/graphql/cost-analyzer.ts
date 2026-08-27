@@ -71,10 +71,13 @@ export function matchSingleFieldQuery(
  * Detect a single collection query with optional pagination/limit/page arguments.
  * Rejects nested selections (relations) or complex directives so they fall through to Yoga.
  */
-export function matchCollectionQuery(rawQuery: string): MatchedCollectionQuery | null {
+export function matchCollectionQuery(
+  rawQuery: string,
+  variables?: Record<string, any>,
+): MatchedCollectionQuery | null {
   const normalized = normalizeQueryString(rawQuery);
   const match =
-    /^(?:query(?:\s+[A-Za-z_][A-Za-z0-9_]*)?)?\s*\{\s*([A-Za-z_][A-Za-z0-9_]*)(?:\s*\(([^)]*)\))?\s*(?:\{\s*([^}]*)\s*\})?\s*\}\s*$/.exec(
+    /^(?:query(?:\s+[A-Za-z_][A-Za-z0-9_]*(?:\s*\([^)]*\))?)?)?\s*\{\s*([A-Za-z_][A-Za-z0-9_]*)(?:\s*\(([^)]*)\))?\s*(?:\{\s*([^}]*)\s*\})?\s*\}\s*$/.exec(
       normalized,
     );
   if (!match) return null;
@@ -89,16 +92,90 @@ export function matchCollectionQuery(rawQuery: string): MatchedCollectionQuery |
 
   let limit = 50;
   let page = 1;
+  let sort: string | undefined;
+  let sortDirection: "asc" | "desc" = "asc";
+  let filter: Record<string, any> | undefined;
 
   if (rawArgs) {
-    const limitMatch = /limit\s*:\s*(\d+)/.exec(rawArgs);
-    if (limitMatch) limit = Number(limitMatch[1]);
+    const limitMatch = /limit\s*:\s*(?:\$([A-Za-z0-9_]+)|(\d+))/.exec(rawArgs);
+    if (limitMatch) {
+      if (limitMatch[1] && variables && typeof variables[limitMatch[1]] === "number") {
+        limit = variables[limitMatch[1]];
+      } else if (limitMatch[2]) {
+        limit = Number(limitMatch[2]);
+      }
+    }
 
-    const pageMatch = /page\s*:\s*(\d+)/.exec(rawArgs);
-    if (pageMatch) page = Number(pageMatch[1]);
+    const pageMatch = /page\s*:\s*(?:\$([A-Za-z0-9_]+)|(\d+))/.exec(rawArgs);
+    if (pageMatch) {
+      if (pageMatch[1] && variables && typeof variables[pageMatch[1]] === "number") {
+        page = variables[pageMatch[1]];
+      } else if (pageMatch[2]) {
+        page = Number(pageMatch[2]);
+      }
+    }
+
+    const sortMatch = /sort\s*:\s*(?:\$([A-Za-z0-9_]+)|"([^"]+)")/.exec(rawArgs);
+    if (sortMatch) {
+      let sortField =
+        sortMatch[1] && variables ? String(variables[sortMatch[1]] || "") : sortMatch[2];
+      if (sortField) {
+        if (sortField.startsWith("-")) {
+          sortDirection = "desc";
+          sortField = sortField.slice(1);
+        }
+        sort = sortField;
+      }
+    }
+
+    const sortDirMatch = /sortDirection\s*:\s*(?:\$([A-Za-z0-9_]+)|"?([A-Za-z]+)"?)/.exec(rawArgs);
+    if (sortDirMatch) {
+      const rawDir =
+        sortDirMatch[1] && variables ? String(variables[sortDirMatch[1]] || "") : sortDirMatch[2];
+      if (rawDir) {
+        const dir = rawDir.toLowerCase();
+        if (dir === "desc" || dir === "asc") sortDirection = dir;
+      }
+    }
+
+    const filterVarMatch = /filter\s*:\s*\$([A-Za-z0-9_]+)/.exec(rawArgs);
+    if (filterVarMatch && variables && typeof variables[filterVarMatch[1]] === "object") {
+      filter = variables[filterVarMatch[1]];
+    } else {
+      const filterMatch = /filter\s*:\s*\{([^}]+)\}/.exec(rawArgs);
+      if (filterMatch) {
+        const filterBody = filterMatch[1];
+        if (!filterBody.includes("{") && !filterBody.includes("}")) {
+          filter = {};
+          const pairs = filterBody.split(/,\s*/);
+          for (const pair of pairs) {
+            const kv = pair.match(/([A-Za-z0-9_]+)\s*:\s*(?:"([^"]*)"|([0-9.]+)|(true|false))/);
+            if (kv) {
+              const k = kv[1];
+              const val =
+                kv[2] !== undefined
+                  ? kv[2]
+                  : kv[3] !== undefined
+                    ? Number(kv[3])
+                    : kv[4] === "true";
+              filter[k] = val;
+            }
+          }
+        }
+      }
+    }
   }
 
-  return { field, selections, limit, page };
+  const result: MatchedCollectionQuery = { field, selections, limit, page };
+  if (sort !== undefined) {
+    result.sort = sort;
+    result.sortDirection = sortDirection;
+  }
+  if (filter !== undefined) {
+    result.filter = filter;
+  }
+
+  return result;
 }
 
 export interface CostAnalysisResult {

@@ -142,15 +142,13 @@ let handleSecurity: Handle = passThrough,
   handleUserPreferences: Handle = passThrough,
   handleAuthentication: Handle = passThrough,
   handleAuthorization: Handle = passThrough,
-  handleLocalSdk: Handle = passThrough,
-  handleContentInitialization: Handle = passThrough,
+  handleLocalContext: Handle = passThrough,
   handleApiRequests: Handle = passThrough,
   handleAuditLogging: Handle = passThrough,
   handleTokenResolution: Handle = passThrough,
   handleRedirects: Handle = passThrough,
   handleSystemState: Handle = passThrough,
-  handleTestIsolation: Handle = passThrough,
-  handleAeoHeaders: Handle = passThrough;
+  handleTestIsolation: Handle = passThrough;
 
 // ✨ ENTERPRISE: Lazy-loaded handle variables for dynamic mode switching
 let fullMiddlewareInitialized = false;
@@ -166,30 +164,26 @@ async function ensureFullMiddleware() {
     preferences,
     auth,
     authz,
-    sdk,
-    content,
+    context,
     api,
     audit,
     token,
     redirects,
     state,
     isolation,
-    aeo,
   ] = await Promise.all([
     import("./hooks/handle-security"),
     import("./hooks/handle-rate-limit"),
     import("./hooks/handle-user-preferences"),
     import("./hooks/handle-authentication"),
     import("./hooks/handle-authorization"),
-    import("./hooks/handle-local-sdk"),
-    import("./hooks/handle-content-initialization"),
+    import("./hooks/handle-local-context"),
     import("./hooks/handle-api-requests"),
     import("./hooks/handle-audit-logging"),
     import("./hooks/handle-token-resolution"),
     import("./hooks/handle-redirects"),
     import("./hooks/handle-system-state"),
     import("./hooks/handle-test-isolation"),
-    import("./hooks/handle-aeo-headers"),
   ]);
 
   handleSecurity = security.handleSecurity;
@@ -197,15 +191,13 @@ async function ensureFullMiddleware() {
   handleUserPreferences = preferences.handleUserPreferences;
   handleAuthentication = auth.handleAuthentication;
   handleAuthorization = authz.handleAuthorization;
-  handleLocalSdk = sdk.handleLocalSdk;
-  handleContentInitialization = content.handleContentInitialization;
+  handleLocalContext = context.handleLocalContext;
   handleApiRequests = api.handleApiRequests;
   handleAuditLogging = audit.handleAuditLogging;
   handleTokenResolution = token.handleTokenResolution;
   handleRedirects = redirects.handleRedirects;
   handleSystemState = state.handleSystemState;
   handleTestIsolation = isolation.handleTestIsolation;
-  handleAeoHeaders = aeo.handleAeoHeaders;
 
   fullMiddlewareInitialized = true;
   // 🛡️ Invalidate any pipeline cached before the real handlers were loaded:
@@ -578,73 +570,75 @@ const getPipeline = async (lane?: RequestLane): Promise<Handle> => {
     if (!fullMiddlewareInitialized) {
       await ensureFullMiddleware();
     }
+    const isTestMode = process.env.TEST_MODE === "true";
+
     // API lanes skip page-only hooks (redirects / AEO / user-preferences).
     // Auth, WAF, rate-limit, and RBAC stay in place.
-    // Writes skip turbo-get (GET-only) — one less sequence hop on create/update.
+    // Writes skip turbo-get (GET-only) and token-resolution (writes do not rewrite response templates).
     if (lane === RequestLane.API_WRITE) {
       if (!cachedPipelineApiWrite) {
-        cachedPipelineApiWrite = sequence(
-          wrapHandle("turbo-pipeline", () => handleTurboPipeline),
-          wrapHandle("test-isolation", () => handleTestIsolation),
+        const handlers: Handle[] = [wrapHandle("turbo-pipeline", () => handleTurboPipeline)];
+        if (isTestMode) {
+          handlers.push(wrapHandle("test-isolation", () => handleTestIsolation));
+        }
+        handlers.push(
           wrapHandle("security", () => handleSecurity),
           wrapHandle("rate-limit", () => handleRateLimit),
           wrapHandle("system-state", () => handleSystemState),
           wrapHandle("compression", () => handleCompression),
           wrapHandle("authentication", () => handleAuthentication),
           wrapHandle("authorization", () => handleAuthorization),
-          wrapHandle("local-sdk", () => handleLocalSdk),
-          wrapHandle("content-initialization", () => handleContentInitialization),
+          wrapHandle("local-context", () => handleLocalContext),
           wrapHandle("audit-logging", () => handleAuditLogging),
           wrapHandle("api-requests", () => handleApiRequests),
-          wrapHandle("token-resolution", () => handleTokenResolution),
         );
+        cachedPipelineApiWrite = sequence(...handlers);
       }
       return cachedPipelineApiWrite;
     }
+    // Reads skip rate-limit (mutations only) and audit-logging (mutations only)
     if (lane === RequestLane.API_READ || lane === RequestLane.HYPER_TURBO) {
       if (!cachedPipelineApi) {
-        cachedPipelineApi = sequence(
-          wrapHandle("turbo-pipeline", () => handleTurboPipeline),
-          wrapHandle("test-isolation", () => handleTestIsolation),
+        const handlers: Handle[] = [wrapHandle("turbo-pipeline", () => handleTurboPipeline)];
+        if (isTestMode) {
+          handlers.push(wrapHandle("test-isolation", () => handleTestIsolation));
+        }
+        handlers.push(
           wrapHandle("security", () => handleSecurity),
-          wrapHandle("rate-limit", () => handleRateLimit),
           wrapHandle("system-state", () => handleSystemState),
           wrapHandle("turbo-get", () => handleTurboGet),
           wrapHandle("compression", () => handleCompression),
           wrapHandle("authentication", () => handleAuthentication),
           wrapHandle("authorization", () => handleAuthorization),
-          wrapHandle("local-sdk", () => handleLocalSdk),
-          wrapHandle("content-initialization", () => handleContentInitialization),
-          wrapHandle("audit-logging", () => handleAuditLogging),
+          wrapHandle("local-context", () => handleLocalContext),
           wrapHandle("api-requests", () => handleApiRequests),
           wrapHandle("token-resolution", () => handleTokenResolution),
         );
+        cachedPipelineApi = sequence(...handlers);
       }
       return cachedPipelineApi;
     }
     if (!cachedPipelineReady) {
-      cachedPipelineReady = sequence(
-        wrapHandle("turbo-pipeline", () => handleTurboPipeline),
-        wrapHandle("test-isolation", () => handleTestIsolation),
+      const handlers: Handle[] = [wrapHandle("turbo-pipeline", () => handleTurboPipeline)];
+      if (isTestMode) {
+        handlers.push(wrapHandle("test-isolation", () => handleTestIsolation));
+      }
+      handlers.push(
         wrapHandle("security", () => handleSecurity),
         wrapHandle("rate-limit", () => handleRateLimit),
         wrapHandle("system-state", () => handleSystemState),
-        // 🚀 Turbo GET: Right after security gates but BEFORE auth/authz.
-        // Serves pre-encoded cached responses with pre-computed session auth,
-        // bypassing handleAuthentication, handleAuthorization, and CSRF.
         wrapHandle("turbo-get", () => handleTurboGet),
         wrapHandle("redirects", () => handleRedirects),
         wrapHandle("compression", () => handleCompression),
-        wrapHandle("aeo-headers", () => handleAeoHeaders),
         wrapHandle("user-preferences", () => handleUserPreferences),
         wrapHandle("authentication", () => handleAuthentication),
         wrapHandle("authorization", () => handleAuthorization),
-        wrapHandle("local-sdk", () => handleLocalSdk),
-        wrapHandle("content-initialization", () => handleContentInitialization),
+        wrapHandle("local-context", () => handleLocalContext),
         wrapHandle("audit-logging", () => handleAuditLogging),
         wrapHandle("api-requests", () => handleApiRequests),
         wrapHandle("token-resolution", () => handleTokenResolution),
       );
+      cachedPipelineReady = sequence(...handlers);
     }
     return cachedPipelineReady;
   } else {

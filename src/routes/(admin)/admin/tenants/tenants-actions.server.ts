@@ -5,10 +5,11 @@
  */
 
 import type { IDBAdapter } from "@src/databases/db-interface";
+import { error } from "@sveltejs/kit";
+import { logger } from "@utils/logger";
+import { generateUUID } from "@utils/native-utils";
 
 export const toggleTenantStatus = async (data: any, dbAdapter: IDBAdapter) => {
-  const { error } = await import("@sveltejs/kit");
-  const { logger } = await import("@utils/logger");
   const { tenantId, status } = data;
 
   if (!tenantId || !["active", "suspended"].includes(status)) {
@@ -34,10 +35,6 @@ export const toggleTenantStatus = async (data: any, dbAdapter: IDBAdapter) => {
 };
 
 export const createTenant = async (data: { name: string }, dbAdapter: IDBAdapter) => {
-  const { error } = await import("@sveltejs/kit");
-  const { logger } = await import("@utils/logger");
-  const { generateUUID } = await import("@utils/native-utils");
-
   if (!data.name || typeof data.name !== "string" || data.name.trim().length === 0) {
     throw error(400, "Tenant name is required");
   }

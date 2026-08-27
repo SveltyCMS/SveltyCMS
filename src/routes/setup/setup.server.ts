@@ -65,7 +65,6 @@ async function verifyDiskSpace() {
       };
     }
   } catch (err: any) {
-    const { logger } = await import("@utils/logger");
     logger.warn("Failed to check disk space during setup:", err);
   }
   return null;

@@ -5,6 +5,8 @@
 
 import { getRequestEvent } from "$app/server";
 import { error } from "@sveltejs/kit";
+import { getDb } from "@src/databases/db";
+import { logger } from "@utils/logger";
 
 function requireAdminPermission() {
   try {
@@ -22,8 +24,6 @@ function requireAdminPermission() {
 
 export const retryJob = async (data: any) => {
   requireAdminPermission();
-  const { getDb } = await import("@src/databases/db");
-  const { logger } = await import("@utils/logger");
   const jobId = String(data);
 
   if (!jobId) throw error(400, "Job ID is required");
@@ -47,8 +47,6 @@ export const retryJob = async (data: any) => {
 
 export const deleteJob = async (data: any) => {
   requireAdminPermission();
-  const { getDb } = await import("@src/databases/db");
-  const { logger } = await import("@utils/logger");
   const jobId = String(data);
 
   if (!jobId) throw error(400, "Job ID is required");
@@ -67,9 +65,6 @@ export const deleteJob = async (data: any) => {
 
 export const clearCompleted = async (_data?: any) => {
   requireAdminPermission();
-  const { getDb } = await import("@src/databases/db");
-  const { logger } = await import("@utils/logger");
-
   const db = getDb();
   if (!db?.system?.jobs) throw error(500, "Database adapter not ready or jobs not supported.");
 

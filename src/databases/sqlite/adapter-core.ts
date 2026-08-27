@@ -1331,14 +1331,24 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       const len = params.length;
       let bound = params;
       if (len > 0) {
-        bound = [];
+        let needsCoerce = false;
         for (let i = 0; i < len; i++) {
           const p = params[i];
-          if (typeof p === "boolean") bound.push(p ? 1 : 0);
-          else if (p instanceof Date) bound.push(p.getTime());
-          else if (p instanceof Uint8Array) bound.push(p);
-          else if (p !== null && typeof p === "object") bound.push(JSON.stringify(p));
-          else bound.push(p);
+          if (typeof p === "boolean" || typeof p === "object") {
+            needsCoerce = true;
+            break;
+          }
+        }
+        if (needsCoerce) {
+          bound = Array.from({ length: len });
+          for (let i = 0; i < len; i++) {
+            const p = params[i];
+            if (typeof p === "boolean") bound[i] = p ? 1 : 0;
+            else if (p instanceof Date) bound[i] = p.getTime();
+            else if (p instanceof Uint8Array) bound[i] = p;
+            else if (p !== null && typeof p === "object") bound[i] = JSON.stringify(p);
+            else bound[i] = p;
+          }
         }
       }
       let out: any;

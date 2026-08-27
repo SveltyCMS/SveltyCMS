@@ -157,15 +157,21 @@ export function sanitizeObject<T>(obj: T, depth = 0): T {
   if (!objectNeedsSanitize(obj)) return obj;
 
   const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    result[key] = sanitizeObject(value, depth + 1);
+  const raw = obj as Record<string, unknown>;
+  for (const key in raw) {
+    if (Object.hasOwn(raw, key)) {
+      result[key] = sanitizeObject(raw[key], depth + 1);
+    }
   }
   return result as T;
 }
 
 /** Shallow pre-check: does any own value (or nested string) contain an XSS vector? */
 function objectNeedsSanitize(obj: object): boolean {
-  for (const value of Object.values(obj)) {
+  const raw = obj as Record<string, unknown>;
+  for (const key in raw) {
+    if (!Object.hasOwn(raw, key)) continue;
+    const value = raw[key];
     if (typeof value === "string") {
       if (containsXssVector(value)) return true;
     } else if (Array.isArray(value)) {

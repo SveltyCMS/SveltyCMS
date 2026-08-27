@@ -608,6 +608,7 @@ function buildWarningManagerPlugin(): Plugin {
     /Your build spent significant time in plugins/i,
     /Reading `config\.kit` inside adapters is deprecated/i,
     /\[UNRESOLVED_IMPORT\].*bun:sqlite/i,
+    /manualChunks option is ignored because the codeSplitting option is specified/i,
   ];
 
   const sourcemapPattern = /\[SOURCEMAP_BROKEN\]|Sourcemap is likely to be incorrect/i;
@@ -618,9 +619,13 @@ function buildWarningManagerPlugin(): Plugin {
     originalWarn = console.warn;
 
     const filter = (message: string): boolean => {
-      if (noisePatterns.some((p) => p.test(message))) return true;
-      if (sourcemapPattern.test(message)) {
-        const match = message.match(/\[([^\]]+)\]/);
+      const clean = message.replace(
+        new RegExp(String.fromCharCode(27) + "\\[[0-9;]*[a-zA-Z]", "g"),
+        "",
+      );
+      if (noisePatterns.some((p) => p.test(clean))) return true;
+      if (sourcemapPattern.test(clean)) {
+        const match = clean.match(/\[([^\]]+)\]/);
         const plugin = match?.[1] ?? "unknown";
         sourcemapCounts.set(plugin, (sourcemapCounts.get(plugin) ?? 0) + 1);
         return true;

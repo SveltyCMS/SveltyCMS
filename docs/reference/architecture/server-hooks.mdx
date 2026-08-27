@@ -87,19 +87,17 @@ The pipeline is **dynamically dispatched** based on system state and request lan
 // API Lanes Pipeline (API_READ / API_WRITE / HYPER_TURBO):
 const apiPipeline = [
   handleTurboPipeline, //  1. CONSOLIDATED GATEWAY & Security Headers
-  handleTestIsolation, //  2. CI ISOLATION (TEST_MODE only)
-  handleSecurity, //  3. Firewall, GraphQL Shield, WAF Load Shedding
-  handleRateLimit, //  4. Per-IP Fixed-Window Rate Limiting (adaptive pressure)
-  handleSystemState, //  5. AUTHORITATIVE GATEKEEPER
-  handleTurboGet, //  6. 🚀 TURBO GET (Session Cache + responseCache L1 for GETs)
-  handleCompression, //  7. ESM-Native Streaming (Zstd/Brotli/Gzip)
-  handleAuthentication, //  8. Identity, Session Token Validation (__Host-auth_sessions)
-  handleAuthorization, //  9. Role-Based Access Control (Bitset & Roles)
-  handleLocalSdk, // 10. Zero-Latency CMS Bridge (LocalCMS)
-  handleContentInitialization, // 11. Content Manager per Tenant
-  handleAuditLogging, // 12. Fire-and-Forget Audit Trails (microtask outbox)
-  handleApiRequests, // 13. API Caching (ETags, L1 Sync Cache)
-  handleTokenResolution, // 14. RBAC Token Replacement
+  handleSecurity, //  2. Firewall, GraphQL Shield, WAF Load Shedding
+  handleRateLimit, //  3. Per-IP Fixed-Window Rate Limiting (mutations only)
+  handleSystemState, //  4. AUTHORITATIVE GATEKEEPER
+  handleTurboGet, //  5. 🚀 TURBO GET (Session Cache + responseCache L1 for GETs)
+  handleCompression, //  6. ESM-Native Streaming (Zstd/Brotli/Gzip)
+  handleAuthentication, //  7. Identity, Session Token Validation (__Host-auth_sessions)
+  handleAuthorization, //  8. Role-Based Access Control (Bitset & Roles)
+  handleLocalContext, //  9. Zero-Latency CMS Bridge (LocalCMS) & Content System per Tenant
+  handleAuditLogging, // 10. Fire-and-Forget Audit Trails (mutations only)
+  handleApiRequests, // 11. API Caching (ETags, L1 Sync Cache)
+  handleTokenResolution, // 12. RBAC Token Replacement (reads only)
 ];
 ```
 
@@ -826,32 +824,19 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ---
 
-### handleLocalSdk - Zero-Latency CMS Bridge (Pipeline #15)
+### handleLocalContext - Zero-Latency CMS Bridge & Content Initialization (Pipeline #15)
 
-**File**: `src/hooks/handle-local-sdk.ts`
-**Service**: `@src/services/local-cms`
-**Purpose**: Injects the `LocalCMS` SDK into the request context for server-side operations.
+**File**: `src/hooks/handle-local-context.ts`
+**Service**: `@src/services/local-cms`, `@src/content/index.server`
+**Purpose**: Injects the `LocalCMS` SDK into `locals.cms` and ensures tenant content system initialization in a single unified atomic middleware step.
 
 **Key Features**:
 
-- **Service-Based**: Decoupled from the routing layer to prevent circular dependencies and bundling issues.
+- **Service-Based**: Decoupled from the routing layer to prevent circular dependencies.
 - **Zero-Latency**: Direct database adapter access without HTTP overhead.
 - **Context Injection**: populates `event.locals.cms` for use in all downstream load functions and actions.
 - **Tenant-Aware**: Automatically initializes with the current `tenantId` resolved in earlier middleware.
-
-```
-export const handleLocalSdk: Handle = async ({ event, resolve }) => {
-  const { locals } = event;
-  const adapter = locals.dbAdapter;
-
-  if (adapter) {
-    // Injected from @src/services/local-cms
-    locals.cms = new LocalCMS(adapter);
-  }
-
-  return resolve(event);
-};
-```
+- **Consolidated Hop**: Replaces two separate legacy handles (`handleLocalSdk` + `handleContentInitialization`) with a single async execution, eliminating unnecessary microtask allocations.
 
 ---
 

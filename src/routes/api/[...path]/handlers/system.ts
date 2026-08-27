@@ -469,13 +469,11 @@ export async function handleSystemMgmtRoutes(
       const { _getYogaApp } = await import("@src/routes/api/graphql/+server");
       if (_getYogaApp) {
         await _getYogaApp(cms.db, body.tenantId);
-        const { logger } = await import("@utils/logger");
         if (process.env.BENCHMARK_DEBUG === "true") {
           logger.info(`[System Refresh] Successfully warmed up GraphQL Yoga Schema.`);
         }
       }
     } catch (err: any) {
-      const { logger } = await import("@utils/logger");
       logger.warn(`[System Refresh] GraphQL warmup skipped or failed: ${err.message}`);
     }
 
@@ -589,7 +587,6 @@ export async function handleAiRoutes(
   const body = await request.json();
   const { aiService } = await import("@src/services/core/ai-service");
   const { eventBus } = await import("@src/services/background/automation/event-bus");
-  const { logger } = await import("@utils/logger");
 
   if (action === "chat") {
     const { userMessage, history = [], content, room, tab } = body;

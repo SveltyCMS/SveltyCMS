@@ -192,50 +192,55 @@ export function schedulePostWrite(
   // Pass the written id so its per-id cache is cleared surgically (doc:<coll>:<id>).
   invalidateCache(schema, tenantId, { skipRequestCacheClear: true, writtenId: id });
 
-  queueMicrotask(() => {
-    void (async () => {
-      try {
-        if (action === "create") {
-          try {
-            const workflowService = await getWorkflowServiceLazy();
-            // Negative cache hit: collection has no workflow — skip the
-            // extra findMany round-trip that previously ran on every create.
-            const peeked =
-              typeof workflowService.peekWorkflowCache === "function"
-                ? workflowService.peekWorkflowCache(schemaId, tid)
-                : undefined;
-            if (peeked !== null) {
-              await workflowService.initializeWorkflow(id, schemaId, tid);
-            }
-          } catch {
-            /* no workflow for collection / service unavailable */
-          }
-        }
+  const hookName = action === "create" || action === "update" ? "afterSave" : "afterDelete";
+  const hasPluginHook = pluginRegistry.hasAnyHook(hookName);
+  const needsWorkflow = action === "create";
 
-        queuePubSubEntryUpdated({
-          collection: schema.name || schemaId,
-          id,
-          action,
-          data,
-          timestamp: nowISODateString(),
-          user,
-        });
-
-        const hookName = action === "create" || action === "update" ? "afterSave" : "afterDelete";
-        const after = triggerLifecycleHook(
-          dbAdapter,
-          hookName,
-          collectionId,
-          data ?? id,
-          options,
-          schema,
-        );
-        if (after && typeof after.then === "function") await after;
-      } catch {
-        /* post-write side effects must never surface to the caller */
-      }
-    })();
+  queuePubSubEntryUpdated({
+    collection: schema.name || schemaId,
+    id,
+    action,
+    data,
+    timestamp: nowISODateString(),
+    user,
   });
+
+  if (hasPluginHook || needsWorkflow) {
+    queueMicrotask(() => {
+      void (async () => {
+        try {
+          if (needsWorkflow) {
+            try {
+              const workflowService = await getWorkflowServiceLazy();
+              const peeked =
+                typeof workflowService.peekWorkflowCache === "function"
+                  ? workflowService.peekWorkflowCache(schemaId, tid)
+                  : undefined;
+              if (peeked !== null) {
+                await workflowService.initializeWorkflow(id, schemaId, tid);
+              }
+            } catch {
+              /* no workflow for collection / service unavailable */
+            }
+          }
+
+          if (hasPluginHook) {
+            const after = triggerLifecycleHook(
+              dbAdapter,
+              hookName,
+              collectionId,
+              data ?? id,
+              options,
+              schema,
+            );
+            if (after && typeof after.then === "function") await after;
+          }
+        } catch {
+          /* post-write side effects must never surface to the caller */
+        }
+      })();
+    });
+  }
 }
 
 /** Tenant settings cache shared by plugin lifecycle hooks. */

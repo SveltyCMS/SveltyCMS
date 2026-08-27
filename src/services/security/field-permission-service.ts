@@ -223,25 +223,45 @@ export function getCollectionFromPath(pathname: string): string | null {
   return null;
 }
 
+const guardedFieldsWeakMap = new WeakMap<FieldInstance[], boolean>();
+
 /**
  * True when any field in the schema declares per-field restrictions
  * (`readRoles` / `writeRoles` / `requiredAuth` / hidden / private visibility).
  * Collections without guarded fields skip the write guard entirely (zero cost).
+ * Pre-compiled via WeakMap for O(1) zero-allocation lookup on hot write paths.
  */
 export function hasGuardedFields(fields: FieldInstance[]): boolean {
+  if (!fields || fields.length === 0) return false;
+  const cached = guardedFieldsWeakMap.get(fields);
+  if (cached !== undefined) return cached;
+
+  let isGuarded = false;
   for (const field of fields) {
     const p = field.permissions;
     if (p) {
-      if (Array.isArray(p.readRoles) && p.readRoles.length > 0) return true;
-      if (Array.isArray(p.writeRoles) && p.writeRoles.length > 0) return true;
-      if (p.requiredAuth) return true;
+      if (Array.isArray(p.readRoles) && p.readRoles.length > 0) {
+        isGuarded = true;
+        break;
+      }
+      if (Array.isArray(p.writeRoles) && p.writeRoles.length > 0) {
+        isGuarded = true;
+        break;
+      }
+      if (p.requiredAuth) {
+        isGuarded = true;
+        break;
+      }
     }
     const extra = field as { hidden?: boolean; visibility?: string };
     if (extra.hidden || extra.visibility === "hidden" || extra.visibility === "private") {
-      return true;
+      isGuarded = true;
+      break;
     }
   }
-  return false;
+
+  guardedFieldsWeakMap.set(fields, isGuarded);
+  return isGuarded;
 }
 
 // Schema-field memo: schema changes are rare (collection-builder save /

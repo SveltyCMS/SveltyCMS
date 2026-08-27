@@ -227,7 +227,6 @@ export const resetSetup = command("unchecked", async (_payload?: {}) => {
   const { getSystemState } = await import("@src/stores/system/state.svelte.ts");
   const { shutdownSystem } = await import("@src/databases/db");
   const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
-  const { logger } = await import("@utils/logger");
   const event = getRequestEvent();
 
   const systemState = getSystemState();

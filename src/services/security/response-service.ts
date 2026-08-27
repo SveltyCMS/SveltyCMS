@@ -395,9 +395,11 @@ export class SecurityResponseService {
         if (maxThreat === "critical") break;
       }
     } else if (typeof obj === "object") {
-      for (const value of Object.values(obj)) {
-        maxThreat = this.upgradeThreat(maxThreat, this.scanRecursive(value, depth + 1));
-        if (maxThreat === "critical") break;
+      for (const k in obj) {
+        if (Object.hasOwn(obj, k)) {
+          maxThreat = this.upgradeThreat(maxThreat, this.scanRecursive(obj[k], depth + 1));
+          if (maxThreat === "critical") break;
+        }
       }
     }
     return maxThreat;

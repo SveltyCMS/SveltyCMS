@@ -803,6 +803,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
         },
       };
     }
+    const invalid = this.validateEntryId(collection, (data as any)?._id);
+    if (invalid) return invalid;
     // Inside an outer transaction WITHOUT a raw handle (a Drizzle tx from
     // another caller) the raw pool path would bypass the txn connection and
     // commit immediately — defer to the base Drizzle path. With the

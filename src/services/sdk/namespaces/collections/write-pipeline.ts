@@ -89,7 +89,9 @@ export function prepareWritePayload(
 
   // XSS pass lives here so create/update can skip the async widget pipeline
   // when no widget actually needs modifyRequest (DateTime is inlined below).
-  entryData = sanitizeObject(entryData);
+  if (hot._hasSanitizableFields !== false) {
+    entryData = sanitizeObject(entryData);
+  }
 
   if (hot._hasDateTimeFields && Array.isArray(schema.fields)) {
     for (let i = 0; i < schema.fields.length; i++) {

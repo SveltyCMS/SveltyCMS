@@ -31,20 +31,21 @@ import {
   generateContentEtag,
 } from "@src/services/cache/response-cache";
 
-// Dynamic handlers map for build-time tree-shaking.
-// Hot handlers (collections, content, auth, system, tokens) are eager-preloaded at import
-// time to eliminate the ~0.3ms dynamic-import tax on 90%+ of API traffic.
-const HANDLERS: Record<string, () => Promise<any>> = {
-  auth: () => import("./handlers/auth"),
-  collections: () => import("./handlers/collections"),
+// Static ESM binding for hot domain handlers (collections, content, auth, system, tokens, media, dashboard)
+// eliminates dynamic import resolution overhead entirely on 95%+ of API traffic.
+import * as collectionsHandler from "./handlers/collections";
+import * as contentHandler from "./handlers/content";
+import * as authHandler from "./handlers/auth";
+import * as systemHandler from "./handlers/system";
+import * as tokensHandler from "./handlers/tokens";
+import * as mediaHandler from "./handlers/media";
+import * as dashboardHandler from "./handlers/dashboard";
+
+// Dynamic handlers map for rarely-used/cold domains to keep initial memory footprint lean.
+const DYNAMIC_HANDLERS: Record<string, () => Promise<any>> = {
   "virtual-collections": () => import("./handlers/virtual-collections"),
-  content: () => import("./handlers/content"),
-  dashboard: () => import("./handlers/dashboard"),
-  media: () => import("./handlers/media"),
   scim: () => import("./handlers/scim"),
-  system: () => import("./handlers/system"),
   testing: () => import("./handlers/testing"),
-  tokens: () => import("./handlers/tokens"),
   utility: () => import("./handlers/utility"),
   setup: () => import("./handlers/setup"),
   config: () => import("./handlers/config"),
@@ -55,36 +56,15 @@ const HANDLERS: Record<string, () => Promise<any>> = {
   commerce: () => import("./handlers/commerce"),
 };
 
-// Eager-preload hot handlers on first request (lazy-init to not break unit test mocks).
-// Once triggered, subsequent requests resolve the cached module synchronously.
-const LOADED_HANDLERS: Record<string, any> = {};
-let _hotPreload: Promise<void> | null = null;
-function ensureHotPreload() {
-  if (!_hotPreload) {
-    _hotPreload = Promise.all([
-      HANDLERS.collections().then((m) => {
-        LOADED_HANDLERS.collections = m;
-      }),
-      HANDLERS.content().then((m) => {
-        LOADED_HANDLERS.content = m;
-      }),
-      HANDLERS.auth().then((m) => {
-        LOADED_HANDLERS.auth = m;
-      }),
-      HANDLERS.system().then((m) => {
-        LOADED_HANDLERS.system = m;
-      }),
-      HANDLERS.tokens().then((m) => {
-        LOADED_HANDLERS.tokens = m;
-      }),
-    ])
-      .then(() => {})
-      .catch(() => {
-        _hotPreload = null;
-      });
-  }
-  return _hotPreload;
-}
+const LOADED_HANDLERS: Record<string, any> = {
+  collections: collectionsHandler,
+  content: contentHandler,
+  auth: authHandler,
+  system: systemHandler,
+  tokens: tokensHandler,
+  media: mediaHandler,
+  dashboard: dashboardHandler,
+};
 
 // Map domain namespaces to the correct handler module
 const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
@@ -589,16 +569,12 @@ export const _handler = async (event: RequestEvent) => {
     throw new AppError(`API Namespace "/api/${namespace}" not found`, 403, "NAMESPACE_FORBIDDEN");
   }
 
-  // 🚀 Kick off hot-handler preload on first API request (non-blocking).
-  // Once cached, subsequent handler imports resolve from module cache instantly.
-  ensureHotPreload();
-
   let handlerModule = LOADED_HANDLERS[config.handler];
-  if (!handlerModule) {
-    handlerModule = await HANDLERS[config.handler]();
+  if (!handlerModule && DYNAMIC_HANDLERS[config.handler]) {
+    handlerModule = await DYNAMIC_HANDLERS[config.handler]();
     LOADED_HANDLERS[config.handler] = handlerModule;
   }
-  const fn = handlerModule[config.fn];
+  const fn = handlerModule?.[config.fn];
 
   if (typeof fn !== "function") {
     throw new AppError(

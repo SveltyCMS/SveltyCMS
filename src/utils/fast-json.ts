@@ -167,3 +167,28 @@ export function serializeQueryShape(
 
   return `q:${queryStr}|l:${limit}|o:${offset}|s:${sortStr}|f:${fieldsStr}|p:${populateStr}`;
 }
+
+/**
+ * Fast JSON envelope builder for standard `{ success: true, data: ... }` responses.
+ * Avoids object allocation and generic JSON.stringify overhead.
+ */
+export function serializeSuccessEnvelope(serializedData: string, metaJson?: string): string {
+  if (metaJson) {
+    return `{"success":true,"data":${serializedData},"meta":${metaJson}}`;
+  }
+  return `{"success":true,"data":${serializedData}}`;
+}
+
+/**
+ * Fast JSON serializer for paginated collection list responses.
+ */
+export function serializeCollectionListResponse(
+  serializedItems: string,
+  total: number,
+  page: number,
+  limit: number,
+  totalPages?: number,
+): string {
+  const calculatedTotalPages = totalPages ?? (limit > 0 ? Math.ceil(total / limit) : 1);
+  return `{"success":true,"data":${serializedItems},"pagination":{"total":${total},"page":${page},"limit":${limit},"totalPages":${calculatedTotalPages}}}`;
+}

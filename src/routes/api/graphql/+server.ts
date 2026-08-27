@@ -91,9 +91,10 @@ async function tryGraphqlFastPath(
     dbAdapter?: any;
     publicationFilter?: PublicationFilter;
   },
+  variables?: Record<string, any>,
 ): Promise<string | null> {
   if (!ctx.user || !query) return null;
-  const matched = matchCollectionQuery(query);
+  const matched = matchCollectionQuery(query, variables);
   if (!matched) return null;
 
   // 1. In-memory system queries (contentSystemHealth / allCollections)
@@ -159,6 +160,8 @@ async function tryGraphqlFastPath(
     tenantId: ctx.tenantId as DatabaseId,
     limit: matched.limit,
     offset: (matched.page - 1) * matched.limit,
+    sort: matched.sort ? { [matched.sort]: matched.sortDirection === "desc" ? -1 : 1 } : undefined,
+    filter: matched.filter,
     publicationFilter: ctx.publicationFilter || "all",
     user: ctx.user,
     fields,
@@ -651,12 +654,16 @@ async function handleRequest(event: RequestEvent) {
     }
   }
 
-  const fast = await tryGraphqlFastPath(query, {
-    user: locals.user,
-    tenantId: locals.tenantId,
-    dbAdapter: locals.dbAdapter,
-    publicationFilter,
-  });
+  const fast = await tryGraphqlFastPath(
+    query,
+    {
+      user: locals.user,
+      tenantId: locals.tenantId,
+      dbAdapter: locals.dbAdapter,
+      publicationFilter,
+    },
+    variables,
+  );
   if (fast) {
     const tenant = locals.tenantId as string;
     if (cacheKey) {
