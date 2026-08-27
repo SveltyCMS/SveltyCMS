@@ -219,6 +219,7 @@ class ResponseCacheService {
     entry: CachedResponseEntry,
     ttlMs: number = 300_000,
     tenantId?: string | null,
+    opts?: { skipSharedL1?: boolean },
   ): void {
     const fullKey = this.buildKey(key, tenantId);
     if (!entry.buffer && textEncoder) {
@@ -228,6 +229,12 @@ class ResponseCacheService {
 
     this.enforceL1Capacity();
     this.localL1.set(fullKey, entry);
+
+    // 🚀 High-cardinality per-entry GETs (findById over 10k+ ids) stay in the
+    // bounded FIFO localL1 only — writing them to the shared 500k L1 lets it
+    // accumulate one `res:` key per document, which makes every write's
+    // collection invalidation an O(#docs) scan of the `res:` namespace bucket.
+    if (opts?.skipSharedL1) return;
 
     const ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
     // Persist expiresAt so L2-promoted entries keep their TTL instead of

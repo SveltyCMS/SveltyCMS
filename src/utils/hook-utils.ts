@@ -67,6 +67,16 @@ export function buildUserCacheKey(pathname: string, search: string, userId: stri
   return `${pathname}${search}:u:${userId}`;
 }
 
+/**
+ * True for a single-entity API GET: `/api/(collections|content)/<coll>/<id>`.
+ * These are high-cardinality (one key per document) — their responses stay in
+ * the bounded turbo L1 only, never the shared 500k L1, so collection cache
+ * invalidation never degrades to an O(#docs) scan of the response namespace.
+ */
+export function isPerEntityApiPath(pathname: string): boolean {
+  return /^\/api\/(?:collections|content)\/[^/]+\/[^/]+/.test(pathname);
+}
+
 // ─── Pre-compiled classification matchers ─────────────────────────────────
 
 export const INTERNAL_PATH_REGEX =

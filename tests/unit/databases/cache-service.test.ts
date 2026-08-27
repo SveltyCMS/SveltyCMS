@@ -171,6 +171,54 @@ describe("CacheService (Whitebox)", () => {
     });
   });
 
+  // ── Write-cliff invalidation: surgical doc tags vs collection tags ────────
+  // Regression guard for the O(#docs) write cliff. Per-id reads are tagged
+  // doc:<coll>:<id>; list/count caches are tagged collection:<coll>. A write
+  // must clear collection-wide caches + ONLY the written doc — never scan or
+  // drop every cached per-id entry.
+  describe("write-cliff invalidation (tag scoping)", () => {
+    const COLL = "posts";
+
+    async function seedPerIdAndList(n: number) {
+      for (let i = 0; i < n; i++) {
+        await service.set(`collection:${COLL}:${i}`, { _id: i }, 180, null, undefined, [
+          `doc:${COLL}:${i}`,
+        ]);
+      }
+      await service.set(`collection:${COLL}:find:default_50`, [{ _id: 0 }], 180, null, undefined, [
+        `collection:${COLL}`,
+      ]);
+      await service.set(`count:${COLL}:auto:0:x`, 3, 30, null, undefined, [
+        `collection:${COLL}`,
+        `count:${COLL}`,
+      ]);
+    }
+
+    it("collection-wide clear removes list/count but NOT per-id doc entries", async () => {
+      await seedPerIdAndList(50);
+      await service.clearByTags([`collection:${COLL}`, `count:${COLL}`], "default");
+
+      expect(await service.get(`collection:${COLL}:find:default_50`)).toBeUndefined();
+      expect(await service.get(`count:${COLL}:auto:0:x`)).toBeUndefined();
+      // All 50 per-id doc caches survive — the O(#matched) guarantee that keeps
+      // writes from degrading to O(#docs) at scale.
+      for (let i = 0; i < 50; i++) {
+        expect(await service.get(`collection:${COLL}:${i}`)).toEqual({ _id: i });
+      }
+    });
+
+    it("surgical doc clear removes ONLY the written doc's per-id cache", async () => {
+      await seedPerIdAndList(50);
+      await service.clearByTags([`doc:${COLL}:7`], "default");
+
+      expect(await service.get(`collection:${COLL}:7`)).toBeUndefined();
+      expect(await service.get(`collection:${COLL}:6`)).toEqual({ _id: 6 });
+      expect(await service.get(`collection:${COLL}:8`)).toEqual({ _id: 8 });
+      // A per-doc clear must not drop the collection-wide list cache.
+      expect(await service.get(`collection:${COLL}:find:default_50`)).toEqual([{ _id: 0 }]);
+    });
+  });
+
   // ── Edge Cases ──────────────────────────────────────────────────────────
 
   describe("edge cases", () => {

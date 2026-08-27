@@ -348,6 +348,30 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
   if (createRes) exportMetric("competitive.create.rps", createRes.rps, "req/s");
   if (updateRes) exportMetric("competitive.update.rps", updateRes.rps, "req/s");
 
+  // 🛡️ SCALE-CLIFF REGRESSION GUARD (opt-in: BENCH_SCALE_GUARD=1, use with BENCH_DOCS=10000).
+  // The write path must not collapse relative to a read that touches the SAME
+  // working set. Reintroducing O(#docs) cache invalidation shows up here as
+  // create/update RPS far below findByIdRandom. The ratio is hardware-portable
+  // (both measured in the same run). Measured post-fix: ~0.6–0.8; pre-fix: ~0.24.
+  if (process.env.BENCH_SCALE_GUARD === "1") {
+    const randomReadRes = results.find((r) => r.shortLabel === "findByIdRandom");
+    const minRatio = Number(process.env.BENCH_SCALE_MIN_WRITE_READ_RATIO) || 0.4;
+    if (randomReadRes && createRes && updateRes && randomReadRes.rps > 0) {
+      const createRatio = createRes.rps / randomReadRes.rps;
+      const updateRatio = updateRes.rps / randomReadRes.rps;
+      logger.info(
+        `🛡️ Scale guard @ ${createdIds.length} docs: create ${createRes.rps.toFixed(0)} (${createRatio.toFixed(2)}×read), update ${updateRes.rps.toFixed(0)} (${updateRatio.toFixed(2)}×read); floor ${minRatio}`,
+      );
+      if (createRatio < minRatio || updateRatio < minRatio) {
+        throw new Error(
+          `Scale-cliff regression at ${createdIds.length} docs: write/read RPS ratio below ${minRatio} ` +
+            `(create ${createRatio.toFixed(2)}, update ${updateRatio.toFixed(2)}). ` +
+            `Likely a reintroduced O(#docs) cache invalidation on the write path.`,
+        );
+      }
+    }
+  }
+
   if (stopServer) {
     await stopServer();
     stopServer = null;

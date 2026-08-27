@@ -635,6 +635,9 @@ export class CollectionsNamespace {
           ttl || 180,
           (tenantId || undefined) as string,
           CacheCategory.CONTENT,
+          // 🚀 List/query caches are collection-wide: any write to the collection
+          // must clear them. Tagged so clearByTags is O(#list-keys), not O(#docs).
+          [`collection:${schema._id}`],
         );
 
         // Negative Caching: If result is empty and it was a specific ID query
@@ -937,7 +940,9 @@ export class CollectionsNamespace {
     }
 
     if (result.success && !shouldSkipWriteSideEffects(options)) {
-      invalidateCache(schema, tenantId);
+      invalidateCache(schema, tenantId, {
+        writtenIds: formattedUpdates.map((u) => String(u.id)),
+      });
     }
 
     return result;
@@ -964,7 +969,7 @@ export class CollectionsNamespace {
     );
 
     if (result.success && !shouldSkipWriteSideEffects(options)) {
-      invalidateCache(schema, tenantId);
+      invalidateCache(schema, tenantId, { writtenIds: ids });
     }
 
     return result;
@@ -1111,6 +1116,9 @@ export class CollectionsNamespace {
             ttl || 180,
             (tenantId || undefined) as string,
             CacheCategory.CONTENT,
+            // 🚀 Surgical invalidation: tag by the SPECIFIC doc so a write to
+            // this entry clears only this key — NOT all 10k per-id entries.
+            [`doc:${schema._id}:${entryId}`],
           )
           .catch(() => {});
       } else {

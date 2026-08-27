@@ -81,11 +81,19 @@ function queuePubSubEntryUpdated(event: PendingPubSubEvent): void {
  */
 let _pendingInvalidationTasks = new Set<string>();
 let _pendingInvalidationDirty = new Set<string>();
+/**
+ * Per-request-key set of the SPECIFIC document ids written during a coalesced
+ * tick. Lets the flush clear only the touched docs (`doc:<coll>:<id>`) instead
+ * of every cached per-id entry — the fix for the O(#docs) write cliff at scale.
+ */
+const _pendingInvalidationIds = new Map<string, Set<string>>();
 
 /**
  * Invalidate L1 (synchronous, scoped) + L2 (tick-debounced, coalesced).
  * Consecutive writes in the same macrotask (batch saves, importers) coalesce
- * into ONE pass instead of N × (response-cache clear + 5-6 pattern walks).
+ * into ONE pass. Collection-wide list/count caches are cleared by tag
+ * (O(#list-keys)); per-id document caches are cleared surgically by the ids
+ * actually written (O(#writes)) — never a scan over all cached documents.
  * Microtasks drain before the next macrotask, so no reader can observe a
  * stale entry between the write and the debounced clear — zero consistency
  * cost.
@@ -93,17 +101,27 @@ let _pendingInvalidationDirty = new Set<string>();
 export function invalidateCache(
   schema: Schema,
   tenantId?: DatabaseId | null,
-  opts?: { skipRequestCacheClear?: boolean },
+  opts?: { skipRequestCacheClear?: boolean; writtenId?: string; writtenIds?: readonly string[] },
 ): void {
   // 1. Clear L1 (In-Memory) Cache synchronously (0ms) — scoped to this collection keyspace
   if (!opts?.skipRequestCacheClear) {
     evictRequestCache(schema._id as string, tenantId as string);
   }
 
-  // 2. Tick-debounced L2 pattern clears.
+  // 2. Tick-debounced L2 tag clears.
   const tenantKey = (tenantId as string) || "default";
   const schemaId = schema._id as string | undefined;
   const requestKey = `${tenantKey}:${schemaId ?? "*"}`;
+
+  if (schemaId && (opts?.writtenId || opts?.writtenIds?.length)) {
+    let ids = _pendingInvalidationIds.get(requestKey);
+    if (!ids) {
+      ids = new Set<string>();
+      _pendingInvalidationIds.set(requestKey, ids);
+    }
+    if (opts.writtenId) ids.add(opts.writtenId);
+    if (opts.writtenIds) for (const id of opts.writtenIds) ids.add(id);
+  }
 
   if (_pendingInvalidationTasks.has(requestKey)) {
     _pendingInvalidationDirty.add(requestKey);
@@ -112,23 +130,25 @@ export function invalidateCache(
   _pendingInvalidationTasks.add(requestKey);
 
   queueMicrotask(async () => {
+    const ids = _pendingInvalidationIds.get(requestKey);
+    _pendingInvalidationIds.delete(requestKey);
     try {
       const responseCache = await getResponseCacheLazy();
       if (schemaId) {
+        // Collection-wide caches (list/query + count): O(#matched keys), not
+        // O(#docs) — per-id reads are tagged doc:<coll>:<id>, not collection:*.
+        void cacheService
+          .clearByTags([`collection:${schemaId}`, `count:${schemaId}`], tenantKey)
+          .catch(() => {});
+        // Surgical: clear ONLY the per-id caches of documents written this tick.
+        if (ids && ids.size > 0) {
+          const docTags: string[] = [];
+          for (const id of ids) docTags.push(`doc:${schemaId}:${id}`);
+          void cacheService.clearByTags(docTags, tenantKey).catch(() => {});
+        }
         void responseCache.invalidateCollection(schemaId, tenantKey).catch(() => {});
       } else {
         void responseCache.invalidateAll(tenantKey).catch(() => {});
-      }
-
-      if (schemaId) {
-        void cacheService.clearByPattern(`collection:${schemaId}:`, tenantKey).catch(() => {});
-        void cacheService
-          .clearByPattern(`/api/collections/${schemaId}*`, tenantKey)
-          .catch(() => {});
-        const lower = schemaId.toLowerCase();
-        if (lower !== schemaId) {
-          void cacheService.clearByPattern(`/api/collections/${lower}*`, tenantKey).catch(() => {});
-        }
       }
     } catch {
     } finally {
@@ -169,7 +189,8 @@ export function schedulePostWrite(
 
   // L2 invalidation starts IMMEDIATELY (debounced + coalesced) — never behind
   // workflow/pubsub work, so save-then-read can't race a stale cached list.
-  invalidateCache(schema, tenantId, { skipRequestCacheClear: true });
+  // Pass the written id so its per-id cache is cleared surgically (doc:<coll>:<id>).
+  invalidateCache(schema, tenantId, { skipRequestCacheClear: true, writtenId: id });
 
   queueMicrotask(() => {
     void (async () => {

@@ -359,28 +359,28 @@ export abstract class BaseAdapter {
   ): Promise<void> {
     try {
       const { cacheService } = await import("@src/databases/cache/cache-service");
+      // Normalize the tenant: a nullish OR empty tenantId falls through to the
+      // clearByTags "*" wildcard branch, which scans the ENTIRE L1 (the O(#cached)
+      // cliff) AND clears across ALL tenants. `||` (not `??`) also maps "" →
+      // "default", matching normalizeTenantId and the post-write path.
+      const tid = tenantId || "default";
 
       if (options?.tags && options.tags.length > 0) {
         // 🚀 Surgical: Clear only specific tags
-        await cacheService.clearByTags(options.tags, tenantId);
+        await cacheService.clearByTags(options.tags, tid);
       } else {
-        // Standard: Pattern matches collection:name:* for that tenant
-        await cacheService.clearByPattern(`collection:${collection}:*`, tenantId);
-        // 🚀 COUNT CACHE: short-lived tenant counts keyed count:{collection}:…
-        await cacheService.clearByPattern(`count:${collection}:*`, tenantId);
-        await cacheService.clearByTags([`count:${collection}`], tenantId);
+        // Collection-wide list/query + count caches by tag (O(#matched)) — never a
+        // pattern scan over all cached documents. Per-id caches are tagged
+        // doc:{collection}:{id} and only cleared for the ids actually written.
+        await cacheService.clearByTags([`collection:${collection}`, `count:${collection}`], tid);
       }
-
-      // 🚀 TURBO & API CACHE: purge API path keys for collection on all writes
-      await cacheService.clearByPattern(`/api/collections/${collection}*`, tenantId);
-      await cacheService.clearByPattern(`/api/content/${collection}*`, tenantId);
 
       if (options?.ids && options.ids.length > 0) {
         const idTags = options.ids.map((id) => `doc:${collection}:${id}`);
-        await cacheService.clearByTags(idTags, tenantId);
+        await cacheService.clearByTags(idTags, tid);
       }
 
-      await cacheService.set("system:content_version", Date.now(), 0, tenantId);
+      await cacheService.set("system:content_version", Date.now(), 0, tid);
       logger.debug(
         `[BaseAdapter] Invalidated cache for ${collection} (Tags: ${options?.tags?.length || 0})`,
       );
