@@ -16,7 +16,7 @@ import {
   buildUserResponseCacheKey,
   buildGraphQLResponseCacheKey,
 } from "@src/services/cache/response-cache";
-import { CACHEABLE_PREFIXES } from "./request-classifier";
+import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
 import { readSessionCookie } from "@src/databases/auth/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getRequestFlags } from "@utils/hook-utils";

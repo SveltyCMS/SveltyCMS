@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:89efd6f3-8126-45bf-8048-05cde2ae32c4",
+  "serialNumber": "urn:uuid:5890d748-8f51-4d0b-b9b4-6a14306108b0",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-27T21:09:20.532Z",
+    "timestamp": "2026-08-28T14:44:40.534Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -13,9 +13,9 @@
     ],
     "component": {
       "name": "create-sveltycms",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "type": "application",
-      "purl": "pkg:npm/create-sveltycms@0.0.8"
+      "purl": "pkg:npm/create-sveltycms@0.0.9"
     }
   },
   "components": [
@@ -74,13 +74,13 @@
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1119.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1119.0",
+      "version": "3.1120.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1120.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-8+UH1uBWwjbRu0ugTBhJ/cu3rL/vzf1tm9/3+xZGf1uybIO3HTF2xLJJaTKkRPvzxz8/n/w+YrwoHGZ2Q/a2Zg=="
+          "content": "sha512-UunWgNl/U8wIlxVRyhUPqlozFkUS88UqXjAH50XfPDXaZeK9P7KVYTAh4KREVrLPQTzPxVSbQGog3gHlc/P6vg=="
         }
       ]
     },
@@ -1569,13 +1569,13 @@
     {
       "type": "library",
       "name": "@inlang/paraglide-js",
-      "version": "2.24.1",
-      "purl": "pkg:npm/@inlang/paraglide-js@2.24.1",
+      "version": "2.25.0",
+      "purl": "pkg:npm/@inlang/paraglide-js@2.25.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-r/gak0kY2yuqgz0RFxccb7A89fgcLpiqoEbYfv3nxlqyhdW2v8NajE1A2xiXrv/iAo7WCX4zk8EJAhL69rcp0g=="
+          "content": "sha512-a3Gw3md1S3WyJK1rFAP/FwDCsFKnu1b98rJ3k5bUl6nc3cmbglaSYpuK9qq9aLLlUlZhuCtB/Pb1LeKDUaLycg=="
         }
       ]
     },
@@ -1602,19 +1602,6 @@
         {
           "alg": "SHA-512",
           "content": "sha512-QvyMYjCqF7CnrTp8ZaPiuwpmxsoQPIDgfqGeWfqi4FDxBREye4QdyaZS4DGwIlCZXybF/YMj0TtL2uBfbmajug=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "@isaacs/ttlcache",
-      "version": "1.4.1",
-      "purl": "pkg:npm/@isaacs/ttlcache@1.4.1",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-RQgQ4uQ+pLbqXfOmieB91ejmLwvSgv9nLx6sT6sD83s7umBypgg+OIBOBbEUiJXrfpnp9j0mRhYYdzp9uqq3lA=="
         }
       ]
     },
@@ -8687,19 +8674,6 @@
         {
           "alg": "SHA-512",
           "content": "sha512-t2scM//ZuVbSY/T2w6FSBw1v9s2NEmh/g+sy1lqtosW5ylBV5AF4wFb1Ts9Kf3MbfPDUDJDZ9L436YT0SPTdvw=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "sveltekit-rate-limiter",
-      "version": "0.7.0",
-      "purl": "pkg:npm/sveltekit-rate-limiter@0.7.0",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-aQI8Y1dTWKsB4YiZMBYORMDwy2SaFA2J5t848dEPVNkXWzhqrHqHUBb7QiNiLWqAeWvOJBwD+MZnsbmvbhGQdg=="
         }
       ]
     },

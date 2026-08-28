@@ -166,7 +166,7 @@ const RelationWidget = createWidget<RelationProps>({
   // GraphQL schema for relation (returns related document for population)
   GraphqlSchema: ({ field, fieldName, collectionNameMapping }) => {
     const relProps = field as RelationProps;
-    const targetCollection = relProps.collection;
+    const targetCollection = relProps.collection || (field as any).relation;
     const cleanTypeName = collectionNameMapping?.get(targetCollection);
 
     if (cleanTypeName) {

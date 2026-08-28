@@ -637,7 +637,13 @@ async function handleRequest(event: RequestEvent) {
           "Content-Type": "application/json",
           ETag: cached.etag,
           "X-Cache": "HIT",
-          "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=86400",
+          // 🛡️ HARDENING: the L1 cache is user-keyed. A CDN/proxy MUST NOT
+          // replay one user's privileged GraphQL response to another client,
+          // so the response is private, no-store (previously `public,
+          // s-maxage=60, stale-while-revalidate=86400` — a shared-cache
+          // cross-tenant replay window).
+          "Cache-Control": "private, no-store",
+          Vary: "Cookie",
         },
       });
     }

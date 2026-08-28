@@ -677,7 +677,7 @@ describe("primeSessionMemoryCache turbo write-through", () => {
         role: "admin",
         password: "argon2-hash-must-not-cache",
       } as never,
-      "tenant-a",
+      "tenant-a" as any,
     );
     const turbo = getTurboAuthContext("login-session-1");
     expect(turbo).not.toBeNull();

@@ -22,7 +22,7 @@ import { getTenantIdFromHostname, isMultiTenantEnabled } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getClientIp, IS_TEST_MODE } from "@utils/hook-utils";
 import { isAiOrScannerBot, isHoneypotPath } from "@src/services/security/threat-scan";
-import { wafGuard } from "./wasm-waf-guard";
+import { wafGuard } from "./handle-waf-guard";
 import { PROFILE_WRITE_ENABLED } from "@utils/write-profiler";
 
 // ESM-safe dynamic import for graphql
@@ -203,8 +203,8 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     } catch {}
   }
 
-  // Layer 0 WASM/JS WAF Inspection
-  const wafCheck = wafGuard.inspectRequest(url.pathname, url.search, request.headers);
+  // Layer 0 WASM/JS WAF Inspection (memoized per request)
+  const wafCheck = wafGuard.inspectEvent(event);
   if (wafCheck.blocked) {
     metricsService.incrementSecurityViolations(tenantId);
     logger.warn(`[WAF Blocked] ${wafCheck.reason} (${wafCheck.threatType}) from ${clientIp}`);

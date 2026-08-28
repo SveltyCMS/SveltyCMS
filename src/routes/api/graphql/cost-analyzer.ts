@@ -46,6 +46,9 @@ export interface MatchedCollectionQuery {
   selections: string[];
   limit: number;
   page: number;
+  sort?: string;
+  sortDirection?: "asc" | "desc";
+  filter?: Record<string, any>;
 }
 
 /**
@@ -85,97 +88,91 @@ export function matchCollectionQuery(
   const rawArgs = (match[2] ?? "").trim();
   const inner = (match[3] ?? "").trim();
 
-  // If inner contains { or }, it has nested sub-selections (relational queries) -> Yoga
+  // Nested sub-selections (relations) fall through to Yoga
   if (inner.includes("{") || inner.includes("}")) return null;
 
   const selections = inner ? inner.replace(/,/g, " ").split(/\s+/).filter(Boolean) : [];
-
-  let limit = 50;
-  let page = 1;
-  let sort: string | undefined;
-  let sortDirection: "asc" | "desc" = "asc";
-  let filter: Record<string, any> | undefined;
+  const result: MatchedCollectionQuery = { field, selections, limit: 50, page: 1 };
 
   if (rawArgs) {
-    const limitMatch = /limit\s*:\s*(?:\$([A-Za-z0-9_]+)|(\d+))/.exec(rawArgs);
-    if (limitMatch) {
-      if (limitMatch[1] && variables && typeof variables[limitMatch[1]] === "number") {
-        limit = variables[limitMatch[1]];
-      } else if (limitMatch[2]) {
-        limit = Number(limitMatch[2]);
-      }
-    }
-
-    const pageMatch = /page\s*:\s*(?:\$([A-Za-z0-9_]+)|(\d+))/.exec(rawArgs);
-    if (pageMatch) {
-      if (pageMatch[1] && variables && typeof variables[pageMatch[1]] === "number") {
-        page = variables[pageMatch[1]];
-      } else if (pageMatch[2]) {
-        page = Number(pageMatch[2]);
-      }
-    }
-
-    const sortMatch = /sort\s*:\s*(?:\$([A-Za-z0-9_]+)|"([^"]+)")/.exec(rawArgs);
-    if (sortMatch) {
-      let sortField =
-        sortMatch[1] && variables ? String(variables[sortMatch[1]] || "") : sortMatch[2];
-      if (sortField) {
-        if (sortField.startsWith("-")) {
-          sortDirection = "desc";
-          sortField = sortField.slice(1);
-        }
-        sort = sortField;
-      }
-    }
-
-    const sortDirMatch = /sortDirection\s*:\s*(?:\$([A-Za-z0-9_]+)|"?([A-Za-z]+)"?)/.exec(rawArgs);
-    if (sortDirMatch) {
-      const rawDir =
-        sortDirMatch[1] && variables ? String(variables[sortDirMatch[1]] || "") : sortDirMatch[2];
-      if (rawDir) {
-        const dir = rawDir.toLowerCase();
-        if (dir === "desc" || dir === "asc") sortDirection = dir;
-      }
-    }
-
-    const filterVarMatch = /filter\s*:\s*\$([A-Za-z0-9_]+)/.exec(rawArgs);
-    if (filterVarMatch && variables && typeof variables[filterVarMatch[1]] === "object") {
-      filter = variables[filterVarMatch[1]];
-    } else {
-      const filterMatch = /filter\s*:\s*\{([^}]+)\}/.exec(rawArgs);
-      if (filterMatch) {
-        const filterBody = filterMatch[1];
-        if (!filterBody.includes("{") && !filterBody.includes("}")) {
-          filter = {};
-          const pairs = filterBody.split(/,\s*/);
-          for (const pair of pairs) {
-            const kv = pair.match(/([A-Za-z0-9_]+)\s*:\s*(?:"([^"]*)"|([0-9.]+)|(true|false))/);
-            if (kv) {
-              const k = kv[1];
-              const val =
-                kv[2] !== undefined
-                  ? kv[2]
-                  : kv[3] !== undefined
-                    ? Number(kv[3])
-                    : kv[4] === "true";
-              filter[k] = val;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  const result: MatchedCollectionQuery = { field, selections, limit, page };
-  if (sort !== undefined) {
-    result.sort = sort;
-    result.sortDirection = sortDirection;
-  }
-  if (filter !== undefined) {
-    result.filter = filter;
+    applyArgTokens(rawArgs, result, variables);
   }
 
   return result;
+}
+
+/**
+ * Scans a single-level argument token string and folds recognized pagination
+ * keys into `result`. Nested object values (e.g. `pagination: { limit: 10 }`)
+ * are recursed into so shorthand pagination keeps working on the fast path.
+ */
+function applyArgTokens(
+  rawArgs: string,
+  result: MatchedCollectionQuery,
+  variables?: Record<string, any>,
+): void {
+  const argRegex =
+    /([A-Za-z0-9_]+)\s*:\s*(?:\$([A-Za-z0-9_]+)|"([^"]*)"|([0-9.]+)|(true|false)|\{([^}]*)\})/g;
+  let m: RegExpExecArray | null;
+  while ((m = argRegex.exec(rawArgs)) !== null) {
+    const key = m[1];
+    const varName = m[2];
+    const strVal = m[3];
+    const numVal = m[4];
+    const boolVal = m[5];
+    const objVal = m[6];
+
+    // Recurse into object-typed arguments (pagination, filter, …)
+    if (objVal !== undefined) {
+      if (key === "filter" && !objVal.includes("{") && !objVal.includes("}")) {
+        result.filter = parseFlatObject(objVal);
+      } else {
+        applyArgTokens(objVal, result, variables);
+      }
+      continue;
+    }
+
+    const val: any =
+      varName && variables
+        ? variables[varName]
+        : strVal !== undefined
+          ? strVal
+          : numVal !== undefined
+            ? Number(numVal)
+            : boolVal !== undefined
+              ? boolVal === "true"
+              : undefined;
+
+    if (key === "limit" && typeof val === "number") result.limit = val;
+    else if (key === "page" && typeof val === "number") result.page = val;
+    else if (key === "sort" && typeof val === "string") {
+      if (val.startsWith("-")) {
+        result.sortDirection = "desc";
+        result.sort = val.slice(1);
+      } else {
+        result.sort = val;
+      }
+    } else if (key === "sortDirection" && typeof val === "string") {
+      const d = val.toLowerCase();
+      if (d === "desc" || d === "asc") result.sortDirection = d;
+    } else if (key === "filter") {
+      if (varName && variables && typeof variables[varName] === "object") {
+        result.filter = variables[varName];
+      }
+    }
+  }
+}
+
+/** Parses `limit: 10, page: 2`-style flat object tokens into a plain object. */
+function parseFlatObject(objVal: string): Record<string, any> {
+  const filterObj: Record<string, any> = {};
+  const pairRegex = /([A-Za-z0-9_]+)\s*:\s*(?:"([^"]*)"|([0-9.]+)|(true|false))/g;
+  let pm: RegExpExecArray | null;
+  while ((pm = pairRegex.exec(objVal)) !== null) {
+    filterObj[pm[1]] =
+      pm[2] !== undefined ? pm[2] : pm[3] !== undefined ? Number(pm[3]) : pm[4] === "true";
+  }
+  return filterObj;
 }
 
 export interface CostAnalysisResult {

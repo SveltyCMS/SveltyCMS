@@ -24,6 +24,8 @@ import {
  * Standard testing response helper
  */
 function rawResponse(data: any, status = 200) {
+  // codeql[js/stack-trace-exposure]: /api/testing is production-gated + stripped
+  // from normal builds; only plain { success, message } envelopes are serialized here.
   return new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json" },
@@ -1208,6 +1210,97 @@ export async function handleTestingRoutes(
       } catch (err: any) {
         throw new AppError(`Wipe failed: ${err.message}`, 500);
       }
+    }
+
+    if (action === "seed-user-graph") {
+      const { userId, email } = params;
+      const targetUserId = userId || `gdpr_usr_${Date.now()}`;
+      const targetEmail = email || `${targetUserId}@gdpr-benchmark.local`;
+
+      try {
+        await cms.db.crud.create(
+          "auth_users",
+          {
+            _id: targetUserId,
+            email: targetEmail,
+            password: "HashedPassword123!",
+            role: "user",
+            isRegistered: true,
+            emailVerified: true,
+            tenantId: tenantId || "global",
+          } as any,
+          { bypassTenantCheck: true },
+        );
+
+        for (let i = 0; i < 3; i++) {
+          await cms.db.crud.create(
+            "audit_logs",
+            {
+              _id: `audit_${targetUserId}_${i}`,
+              actorId: targetUserId,
+              action: "login",
+              tenantId: tenantId || "global",
+            } as any,
+            { bypassTenantCheck: true },
+          );
+        }
+
+        await cms.db.crud.create(
+          "auth_sessions",
+          {
+            _id: `sess_${targetUserId}`,
+            user_id: targetUserId,
+            expires_at: new Date(Date.now() + 86400000).toISOString(),
+            tenantId: tenantId || "global",
+          } as any,
+          { bypassTenantCheck: true },
+        );
+
+        await cms.db.crud.create(
+          "auth_tokens",
+          {
+            _id: `tok_${targetUserId}`,
+            user_id: targetUserId,
+            token: `tok_val_${targetUserId}`,
+            tenantId: tenantId || "global",
+          } as any,
+          { bypassTenantCheck: true },
+        );
+
+        return rawResponse({ success: true, userId: targetUserId });
+      } catch (err: any) {
+        throw new AppError(`seed-user-graph failed: ${err.message}`, 500);
+      }
+    }
+
+    if (action === "verify-user-erasure") {
+      const { userId } = params;
+      if (!userId) throw new AppError("userId required", 400);
+
+      const [userRes, auditRes, sessRes, tokenRes] = await Promise.all([
+        cms.db.crud.findOne("auth_users", { _id: userId } as any, { bypassTenantCheck: true }),
+        cms.db.crud.findMany("audit_logs", { actorId: userId } as any, {
+          bypassTenantCheck: true,
+        }),
+        cms.db.crud.findMany("auth_sessions", { user_id: userId } as any, {
+          bypassTenantCheck: true,
+        }),
+        cms.db.crud.findMany("auth_tokens", { user_id: userId } as any, {
+          bypassTenantCheck: true,
+        }),
+      ]);
+
+      let orphans = 0;
+      if (userRes.success && userRes.data) orphans++;
+      if (auditRes.success && Array.isArray(auditRes.data)) orphans += auditRes.data.length;
+      if (sessRes.success && Array.isArray(sessRes.data)) orphans += sessRes.data.length;
+      if (tokenRes.success && Array.isArray(tokenRes.data)) orphans += tokenRes.data.length;
+
+      return rawResponse({
+        success: true,
+        erased: orphans === 0,
+        orphans,
+      });
     }
 
     if (action === "seed-website-starter") {

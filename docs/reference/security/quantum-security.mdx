@@ -22,7 +22,7 @@ This page is a **self-assessment of application cryptography**, dated **2026-08-
 
 - Passwords: **Argon2id** (64 MiB, t=3, p=4 in production — `ARGON2_CONFIG` in `@utils/security/crypto.ts`)
 - Data at rest (plugin settings, TOTP secrets, backups): **AES-256-GCM**. Hex/base64 `ENCRYPTION_KEY` / `SECRET_ENCRYPTION_KEY` are used as 256-bit keys (AES-NI). Passphrase-shaped values are **HKDF-SHA-256** (cached once); decrypt still accepts the older SHA-256(raw) envelopes.
-- API keys, backup-code hashes, re-auth proofs: **HMAC-SHA-256** with the server secret (legacy SHA-256 verify still exists for old rows)
+- API keys, backup-code hashes, re-auth proofs: **HMAC-SHA-256** with the server secret (single scheme — the legacy plain-SHA-256 dual-read was removed in 2026-08; pre-HMAC rows must be rotated/regenerated)
 - Checksums / content hashes: **SHA-256**
 - **No ML-KEM / ML-DSA / SLH-DSA in application code** as of this date
 

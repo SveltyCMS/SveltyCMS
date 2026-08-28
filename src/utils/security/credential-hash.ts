@@ -9,6 +9,12 @@
  * - portable Web Crypto digest
  * - hex-encoded output for indexed equality lookups
  * - sync server-side digest for auth middleware hot paths
+ *
+ * ### Security model:
+ * Inputs are CSPRNG website tokens / API keys (`generateSecureToken(32)`,
+ * 256-bit entropy) stored and looked up by digest — the GitHub token-hash
+ * pattern. Unsalted SHA-256 is sound for equality lookup of high-entropy
+ * random tokens; it is NOT a password KDF (login passwords are Argon2id).
  */
 
 // Use createRequire for sync node:crypto access to avoid Vite browser warnings.
@@ -40,5 +46,7 @@ export async function hashCredentialSha256Hex(value: string): Promise<string> {
  * Sync SHA-256 (hex) for server middleware — avoids double-hashing on auth hot paths.
  */
 export function hashCredentialSha256HexSync(value: string): string {
+  // codeql[js/insufficient-password-hash]: high-entropy CSPRNG token equality
+  // lookup (GitHub-style digest), not a password KDF — login is Argon2id.
   return _createHash("sha256").update(value).digest("hex");
 }

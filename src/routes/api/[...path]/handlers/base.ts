@@ -19,15 +19,20 @@ function buildJsonResponse(event: RequestEvent, data: any, status = 200): Respon
   let serialized = "";
   if (typeof data === "string") {
     serialized = data;
+  } else if (data === undefined) {
+    serialized = '{"success":true}';
   } else {
     try {
-      serialized = JSON.stringify(data);
+      serialized = JSON.stringify(data) ?? "{}";
     } catch {
       serialized = "{}";
     }
   }
 
   if (event?.locals) {
+    // codeql[js/stack-trace-exposure]: same-response fast-path stash consumed
+    // by token-resolution/ETag middleware; locals is never serialized into
+    // responses or logs (handleApiError/handleError scrub in production).
     (event.locals as any).apiData = data;
     (event.locals as any).apiBody = serialized;
   }
@@ -70,6 +75,9 @@ export function fastSuccessResponse(
 ): Response {
   const serialized = `{"success":true,"data":${serializedData}}`;
   if (event?.locals) {
+    // codeql[js/stack-trace-exposure]: same-response fast-path stash consumed
+    // by token-resolution/ETag middleware; locals is never serialized into
+    // responses or logs (handleApiError/handleError scrub in production).
     (event.locals as any).apiData = rawData;
     (event.locals as any).apiBody = serialized;
   }

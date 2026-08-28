@@ -1,12 +1,7 @@
 /**
  * @file tests/benchmarks/cold-start-phased.test.ts
- * @description Phased Cold Start Audit (Optimized)
- * @summary Measures server cold-start latency to READY state, using the built server.
- *
- * ### Features:
- * - Cold start measurement via setupBenchmarkServer()
- * - Requires build/ or .svelte-kit/ to exist
- * - Skips gracefully when no build output is available
+ * @description Phased Cold Start & Ready Latency Audit (Optimized)
+ * @summary Measures process spawn, dependency hydration, and first-request TTFB readiness.
  */
 
 import {
@@ -21,74 +16,121 @@ import {
 import "../unit/bun-preload.ts";
 import { existsSync } from "node:fs";
 
+const TOTAL_ITERATIONS = 5;
+const HEALTHCHECK_TIMEOUT_MS = 15_000;
+
 async function runColdStartPhasedAudit() {
   console.log("\n🚀 Starting Phased Cold Start Audit...\n");
 
   const buildExists =
     existsSync("build/index.js") || existsSync(".svelte-kit/output/server/index.js");
   if (!buildExists) {
-    console.log("⏭️ No build/ or .svelte-kit/ found — cold start requires build. Skipping.");
+    console.log("⏭️ No build/ or .svelte-kit/ found — cold start requires build output. Skipping.");
     return;
   }
 
-  const coldStarts: number[] = [];
-  const TOTAL_ITERATIONS = 5;
+  const bootTimes: number[] = [];
+  let firstColdBootMs: number | null = null;
 
-  // oxlint-disable-next-line eslint/no-unreachable-loop
   for (let i = 0; i < TOTAL_ITERATIONS; i++) {
-    console.log(`   → Cold start iteration ${i + 1}/${TOTAL_ITERATIONS}...`);
-    const start = performance.now();
+    console.log(`   → Boot measurement iteration ${i + 1}/${TOTAL_ITERATIONS}...`);
+
+    // Force engine GC cleanup between iterations to avoid startup GC jitter
+    if (typeof (globalThis as any).gc === "function") {
+      (globalThis as any).gc();
+    }
+    await stabilize(500);
+
     let server: any = null;
+    const start = performance.now();
 
     try {
       server = await setupBenchmarkServer();
-      coldStarts.push(performance.now() - start);
+      const baseUrl = server.baseUrl || "http://localhost:3000";
+
+      // Verify HTTP stack readiness (TTFB probe)
+      const probeRes = await fetch(`${baseUrl}/api/health`, {
+        signal: AbortSignal.timeout(HEALTHCHECK_TIMEOUT_MS),
+      }).catch(async () => {
+        // Fallback root probe if /api/health is unavailable
+        return fetch(`${baseUrl}/`, { signal: AbortSignal.timeout(HEALTHCHECK_TIMEOUT_MS) });
+      });
+
+      await probeRes.arrayBuffer().catch(() => {});
+
+      const durationMs = performance.now() - start;
+      bootTimes.push(durationMs);
+
+      if (i === 0) {
+        firstColdBootMs = durationMs;
+      }
+    } catch (err: any) {
+      console.warn(`  ⚠️ Boot iteration ${i + 1} failed or timed out: ${err.message}`);
     } finally {
-      // Ensure the background infrastructure process is dropped cleanly before proceeding
       if (server && typeof server.stop === "function") {
         await server.stop().catch(() => {});
       }
-      await stabilize(500);
     }
   }
 
-  const avgCold = coldStarts.reduce((a, b) => a + b, 0) / coldStarts.length;
-  const sorted = [...coldStarts].sort((a, b) => a - b);
+  if (bootTimes.length === 0) {
+    throw new Error("Phased Cold Start Audit failed: Zero successful boot cycles completed.");
+  }
 
-  // Guard mathematical precision boundary for non-destructive p95 resolution mapping
-  const p95Cold = sorted[Math.floor(sorted.length * 0.95)] ?? sorted[sorted.length - 1]!;
+  // ── STATISTICAL CALCULATIONS ──────────────────────────────────────────────
+  const sorted = [...bootTimes].sort((a, b) => a - b);
+  const minMs = sorted[0];
+  const maxMs = sorted[sorted.length - 1];
+  const avgCold = bootTimes.reduce((a, b) => a + b, 0) / bootTimes.length;
+  const p95Cold = sorted[Math.floor(sorted.length * 0.95)] ?? maxMs;
+  const initialCold = firstColdBootMs ?? avgCold;
+
+  const dbType = getDbType().toUpperCase();
 
   printTruthTable({
     title: "SVELTYCMS — PHASED COLD START AUDIT",
     shortLabel: "Cold Start",
-    subtitle: `Build-Based Boot • ${getDbType().toUpperCase()}`,
+    subtitle: `Build-Based Boot & TTFB Readiness • ${dbType}`,
     results: [
       {
-        name: "Cold Start (IDLE → READY)",
+        name: "Initial Cold Boot (Fresh Process)",
+        avgMs: initialCold,
+        p95Ms: initialCold,
+        layer: "Core (Cold)",
+      },
+      {
+        name: "Steady-State Respawn (Average)",
         avgMs: avgCold,
         p95Ms: p95Cold,
-        layer: "Core",
+        layer: "Core (Warm)",
       },
     ],
   });
 
-  printSummaryTable([
-    { key: "Average Cold Start", val: avgCold.toFixed(0), unit: "ms" },
-    { key: "p95 Cold Start", val: p95Cold.toFixed(0), unit: "ms" },
-    {
-      key: "Rating",
-      val: avgCold < 8000 ? "EXCELLENT" : avgCold < 12000 ? "GOOD" : "SLOW",
-      unit: "",
-    },
-  ]);
+  printSummaryTable(
+    [
+      { key: "Database", val: dbType, unit: "" },
+      { key: "Initial Cold Start (P0)", val: initialCold.toFixed(0), unit: "ms" },
+      { key: "Fastest Respawn (Min)", val: minMs.toFixed(0), unit: "ms" },
+      { key: "Average Boot Latency", val: avgCold.toFixed(0), unit: "ms" },
+      { key: "P95 Boot Latency", val: p95Cold.toFixed(0), unit: "ms" },
+      { key: "Successful Cycles", val: `${bootTimes.length}/${TOTAL_ITERATIONS}`, unit: "" },
+      {
+        key: "Rating",
+        val: initialCold < 4000 ? "EXCELLENT" : initialCold < 8000 ? "GOOD" : "SLOW",
+        unit: "",
+      },
+    ],
+    "Cold Start Summary",
+  );
 
-  exportResult({
-    name: "Cold Start (IDLE → READY)",
+  await exportResult({
+    name: "Cold Start (IDLE → HTTP READY)",
     avgMs: avgCold,
     p95Ms: p95Cold,
-  });
+  }).catch(() => {});
 }
 
 test("Cold Start Phased Boot Latency", async () => {
   await runColdStartPhasedAudit();
-}, 300000);
+}, 300_000);

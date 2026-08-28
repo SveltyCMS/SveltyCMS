@@ -91,6 +91,17 @@ vi.mock("@src/databases/auth", () => ({
   validateUserPermission: vi.fn().mockReturnValue(true),
 }));
 
+// Deterministic pending-2FA tokens: the real HMAC round-trip (sign + verify,
+// expiry, tamper/wrong-user rejection) is covered by
+// tests/unit/security/login-hardening.test.ts. Here we only need the handler
+// contract — verify2FA must REQUIRE a token bound to the claimed userId.
+vi.mock("@src/utils/server/pending-2fa-token.server", () => ({
+  PENDING_2FA_TTL_MS: 5 * 60 * 1000,
+  signPending2faToken: (userId: string) => `test-pending2fa:${userId}`,
+  verifyPending2faToken: (token?: string | null, userId?: string) =>
+    token === `test-pending2fa:${userId}`,
+}));
+
 vi.mock("@utils/security", () => ({
   verifyPassword: vi.fn().mockResolvedValue(true),
   hashPassword: vi.fn().mockResolvedValue("hashed"),
@@ -154,14 +165,54 @@ describe("2FA API Unit Tests", () => {
   });
 
   describe("POST /api/auth/2fa/verify", () => {
+    // 🛡️ HARDENING: verify is the login-completion step — it must require a
+    // signed pending-2FA token bound to the claimed userId (pen-test High #2).
+    it("should reject a verify attempt without a pending-2FA token", async () => {
+      const event = createMockEvent(
+        { userId: "user-1", code: "123456" },
+        createMockUser({ _id: "user-1", is2FAEnabled: true } as any),
+        undefined,
+        "verify",
+        {
+          headers: { "X-CSRF-Token": "mock-csrf-token" },
+          cookies: { csrf_token: "mock-csrf-token" },
+        },
+      );
+      await expect(POST_VERIFY(event)).rejects.toThrow("Session expired. Please sign in again.");
+      expect(mockTwoFactorService.verify2FA).not.toHaveBeenCalled();
+    });
+
+    it("should reject a token bound to a different user", async () => {
+      const event = createMockEvent(
+        { userId: "user-1", code: "123456", pending2faToken: "test-pending2fa:attacker" },
+        createMockUser({ _id: "user-1", is2FAEnabled: true } as any),
+        undefined,
+        "verify",
+        {
+          headers: { "X-CSRF-Token": "mock-csrf-token" },
+          cookies: { csrf_token: "mock-csrf-token" },
+        },
+      );
+      await expect(POST_VERIFY(event)).rejects.toThrow("Session expired. Please sign in again.");
+      expect(mockTwoFactorService.verify2FA).not.toHaveBeenCalled();
+    });
+
     it("should verify TOTP code successfully", async () => {
       mockTwoFactorService.verify2FA.mockResolvedValue({
         success: true,
         data: { user: { _id: "user-1" } },
       });
+      (mockDbAdapter.auth as any).getUserById = vi.fn().mockResolvedValue({
+        success: true,
+        data: createMockUser({ _id: "user-1", is2FAEnabled: true } as any),
+      });
+      (mockDbAdapter.auth as any).createSession = vi.fn().mockResolvedValue({
+        success: true,
+        data: { _id: "sess-1", user_id: "user-1" },
+      });
 
       const event = createMockEvent(
-        { userId: "user-1", code: "123456" },
+        { userId: "user-1", code: "123456", pending2faToken: "test-pending2fa:user-1" },
         createMockUser({ _id: "user-1", is2FAEnabled: true } as any),
         undefined,
         "verify",
@@ -174,7 +225,12 @@ describe("2FA API Unit Tests", () => {
       const result = await response!.json();
 
       expect(result.success).toBe(true);
-      expect(mockTwoFactorService.verify2FA).toHaveBeenCalledWith("user-1", "123456", "t1");
+      expect(mockTwoFactorService.verify2FA).toHaveBeenCalledWith(
+        "user-1",
+        "123456",
+        "t1",
+        undefined,
+      );
     });
 
     it("should verify backup code successfully", async () => {
@@ -182,9 +238,17 @@ describe("2FA API Unit Tests", () => {
         success: true,
         data: { user: { _id: "user-1" } },
       });
+      (mockDbAdapter.auth as any).getUserById = vi.fn().mockResolvedValue({
+        success: true,
+        data: createMockUser({ _id: "user-1", is2FAEnabled: true } as any),
+      });
+      (mockDbAdapter.auth as any).createSession = vi.fn().mockResolvedValue({
+        success: true,
+        data: { _id: "sess-1", user_id: "user-1" },
+      });
 
       const event = createMockEvent(
-        { userId: "user-1", code: "backup-123" },
+        { userId: "user-1", code: "backup-123", pending2faToken: "test-pending2fa:user-1" },
         createMockUser({ _id: "user-1", is2FAEnabled: true } as any),
         undefined,
         "verify",
@@ -206,7 +270,7 @@ describe("2FA API Unit Tests", () => {
       });
 
       const event = createMockEvent(
-        { userId: "user-1", code: "000000" },
+        { userId: "user-1", code: "000000", pending2faToken: "test-pending2fa:user-1" },
         createMockUser({ _id: "user-1", is2FAEnabled: true } as any),
         undefined,
         "verify",
@@ -222,7 +286,7 @@ describe("2FA API Unit Tests", () => {
       mockIsMultiTenantEnabled.mockReturnValue(true);
 
       const event = createMockEvent(
-        { userId: "user-1", code: "123456" },
+        { userId: "user-1", code: "123456", pending2faToken: "test-pending2fa:user-1" },
         createMockUser({ _id: "user-1" }),
         undefined,
         "verify",
@@ -241,9 +305,17 @@ describe("2FA API Unit Tests", () => {
     it("should use locals.tenantId in multi-tenant mode", async () => {
       mockIsMultiTenantEnabled.mockReturnValue(true);
       mockTwoFactorService.verify2FA.mockResolvedValue({ success: true });
+      (mockDbAdapter.auth as any).getUserById = vi.fn().mockResolvedValue({
+        success: true,
+        data: createMockUser({ _id: "user-1" }),
+      });
+      (mockDbAdapter.auth as any).createSession = vi.fn().mockResolvedValue({
+        success: true,
+        data: { _id: "sess-1", user_id: "user-1" },
+      });
 
       const event = createMockEvent(
-        { userId: "user-1", code: "123456" },
+        { userId: "user-1", code: "123456", pending2faToken: "test-pending2fa:user-1" },
         createMockUser({ _id: "user-1" }),
         "tenant-1",
         "verify",
@@ -254,7 +326,12 @@ describe("2FA API Unit Tests", () => {
       );
       await POST_VERIFY(event);
 
-      expect(mockTwoFactorService.verify2FA).toHaveBeenCalledWith("user-1", "123456", "tenant-1");
+      expect(mockTwoFactorService.verify2FA).toHaveBeenCalledWith(
+        "user-1",
+        "123456",
+        "tenant-1",
+        undefined,
+      );
     });
   });
 

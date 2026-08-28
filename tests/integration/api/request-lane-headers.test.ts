@@ -11,7 +11,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { prepareAuthenticatedContext } from "../helpers/test-setup";
-import { RequestLane } from "../../../src/hooks/request-classifier";
+import { RequestLane } from "../../../src/hooks/handle-request-classifier";
 
 const API_BASE_URL = getApiBaseUrl();
 

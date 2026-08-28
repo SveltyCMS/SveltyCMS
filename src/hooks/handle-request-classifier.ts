@@ -1,5 +1,5 @@
 /**
- * @file src/hooks/request-classifier.ts
+ * @file src/hooks/handle-request-classifier.ts
  * @description
  * Ultra-Fast O(1) Environment-Aware Request Classifier for SveltyCMS.
  * Categorizes incoming HTTP requests into dedicated operational lanes:

@@ -1,14 +1,9 @@
 /**
  * @file tests/benchmarks/media-upload-stress.test.ts
- * @description Media Upload Stress Test
- * @summary Measures throughput for large file uploads, concurrent transfers, and streaming efficiency.
- *
- * ### Features:
- * - Large file upload throughput measurement
- * - Concurrent upload stress testing
- * - Streaming efficiency analysis
- * - Multi-size payload performance profiling
+ * @description Media Upload Stress Test (Optimized)
+ * @summary Measures throughput for large file uploads, concurrent transfers, and streaming efficiency with valid media fixtures.
  */
+
 import {
   test,
   runBenchmark,
@@ -23,121 +18,208 @@ import {
   benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
-import { randomBytes } from "node:crypto";
+import sharp from "sharp";
 
 let stopServer: (() => Promise<void>) | null = null;
 
-// Pre-allocated static buffers to avoid randomBytes + allocation per iteration
-let staticLargeBuffer: Uint8Array;
-let staticSmallBuffer: Uint8Array;
+function forceGarbageCollection() {
+  if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
+    (Bun as any).gc(true);
+  } else if (typeof (globalThis as any).gc === "function") {
+    (globalThis as any).gc();
+  }
+}
 
-function initializeStaticBuffers(largeSizeMb: number) {
-  staticLargeBuffer = new Uint8Array(randomBytes(Math.round(largeSizeMb * 1024 * 1024)));
-  staticSmallBuffer = new Uint8Array(randomBytes(Math.round(0.02 * 1024 * 1024)));
+// Pre-allocated genuine JPEG buffers for valid Sharp image processing
+let staticLargeBuffer: Buffer;
+let staticSmallBuffer: Buffer;
+
+async function initializeStaticBuffers() {
+  staticLargeBuffer = await sharp({
+    create: {
+      width: 1920,
+      height: 1080,
+      channels: 3,
+      background: { r: 64, g: 64, b: 96 },
+    },
+  })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+
+  staticSmallBuffer = await sharp({
+    create: {
+      width: 200,
+      height: 200,
+      channels: 3,
+      background: { r: 128, g: 128, b: 128 },
+    },
+  })
+    .jpeg({ quality: 80 })
+    .toBuffer();
 }
 
 async function runUploadAudit() {
-  // pre-existing unused var removed for TS strict mode
-  const FILE_SIZE_MB = parseFloat(process.env.BENCH_UPLOAD_SIZE || "0.1");
-  console.log(`🚀 Starting Media Upload Stress Audit (${FILE_SIZE_MB}MB files)...\n`);
+  const dbType = getDbType().toUpperCase();
+  console.log(`🚀 Starting Media Upload Stress Audit (${dbType})...\n`);
 
   try {
     const server = await setupBenchmarkServer();
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
+    const uploadUrl = `${baseUrl}/api/media/upload`;
 
     await ensureStableTestData();
     await stabilize(1000);
 
-    // Pre-allocate payloads once — out of benchmark timing
-    initializeStaticBuffers(FILE_SIZE_MB);
+    await initializeStaticBuffers();
+    const largeSizeMb = parseFloat((staticLargeBuffer.length / (1024 * 1024)).toFixed(2));
+    const smallSizeMb = parseFloat((staticSmallBuffer.length / (1024 * 1024)).toFixed(3));
 
-    const uploadHeaders = {
+    const uploadHeaders: Record<string, string> = {
       ...benchmarkAuthHeaders(),
       Origin: baseUrl,
+      connection: "keep-alive",
     };
 
-    // 1. Single upload throughput
-    console.log(`   → Measuring Single Upload (${FILE_SIZE_MB}MB)...`);
+    const results: any[] = [];
+
+    // ── 1. SINGLE LARGE FILE UPLOAD THROUGHPUT ───────────────────────────────
+    forceGarbageCollection();
+    await stabilize(150);
+
+    console.log(`   → 1. Measuring Single Large File Upload (${largeSizeMb}MB)...`);
+    let largeSeq = 0;
+
     const singleResult = await runBenchmark({
-      name: `Single Upload (${FILE_SIZE_MB}MB)`,
-      iterations: 10,
+      name: `Single Upload (${largeSizeMb}MB)`,
+      iterations: 12,
       warmupIterations: 2,
       runs: 2,
       concurrency: 1,
+      trimOutliers: "iqr",
+      measureMemory: true,
       silent: true,
-      onIteration: async (i: number) => {
+      onIteration: async () => {
+        const currentSeq = largeSeq++;
         const formData = new FormData();
-        const blob = new Blob([staticLargeBuffer as BlobPart], {
-          type: "application/octet-stream",
-        });
-        formData.append("file", blob, `bench-upload-${FILE_SIZE_MB}mb-${i}.bin`);
+        const blob = new Blob([staticLargeBuffer], { type: "image/jpeg" });
+        formData.append("files", blob, `bench-upload-${largeSizeMb}mb-${currentSeq}.jpg`);
 
-        const res = await fetch(`${baseUrl}/api/media/upload`, {
+        const res = await fetch(uploadUrl, {
           method: "POST",
           headers: uploadHeaders,
           body: formData,
+          signal: AbortSignal.timeout(60_000),
         });
+
         if (!res.ok) {
           const errBody = await res.text().catch(() => "<no body>");
-          throw new Error(`Upload failed: ${res.status} - ${errBody}`);
+          throw new Error(`Upload ${largeSizeMb}MB failed: HTTP ${res.status} - ${errBody}`);
         }
-        await res.json();
+
+        // Fast zero-copy stream drain
+        await res.arrayBuffer().catch(() => {});
       },
     });
 
-    // 2. Small file upload (20KB, high throughput)
-    console.log("   → Measuring Small File Upload (20KB)...");
+    const largeThroughput = largeSizeMb / (singleResult.avgMs / 1000);
+    results.push({
+      ...singleResult,
+      shortLabel: `Large-${largeSizeMb}MB`,
+      layer: "Large File",
+      throughputMBps: largeThroughput,
+    });
+
+    // ── 2. SMALL FILE CONCURRENT UPLOAD (HIGH THROUGHPUT) ───────────────────
+    forceGarbageCollection();
+    await stabilize(150);
+
+    console.log(`   → 2. Measuring Concurrent Small File Uploads (${smallSizeMb}MB @ 4c)...`);
+    let smallSeq = 0;
+
     const smallResult = await runBenchmark({
-      name: "Small Upload (20KB)",
-      iterations: 50,
+      name: `Small Upload (${smallSizeMb}MB @ 4c)`,
+      iterations: 60,
       warmupIterations: 10,
       runs: 2,
       concurrency: 4,
+      trimOutliers: "iqr",
+      measureMemory: true,
       silent: true,
-      onIteration: async (i: number) => {
+      onIteration: async () => {
+        const currentSeq = smallSeq++;
         const formData = new FormData();
-        const blob = new Blob([staticSmallBuffer as BlobPart], {
-          type: "application/octet-stream",
-        });
-        formData.append("file", blob, `bench-upload-20kb-${i}.bin`);
+        const blob = new Blob([staticSmallBuffer], { type: "image/jpeg" });
+        formData.append("files", blob, `bench-upload-small-${currentSeq}.jpg`);
 
-        const res = await fetch(`${baseUrl}/api/media/upload`, {
+        const res = await fetch(uploadUrl, {
           method: "POST",
           headers: uploadHeaders,
           body: formData,
+          signal: AbortSignal.timeout(15_000),
         });
-        if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-        await res.json();
+
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => "<no body>");
+          throw new Error(`Small upload failed: HTTP ${res.status} - ${errBody}`);
+        }
+
+        await res.arrayBuffer().catch(() => {});
       },
     });
 
-    const throughput = FILE_SIZE_MB / (singleResult.avgMs / 1000);
+    const smallThroughput = smallSizeMb * smallResult.rps;
+    results.push({
+      ...smallResult,
+      shortLabel: `Small-${smallSizeMb}MB`,
+      layer: "Small File",
+      throughputMBps: smallThroughput,
+    });
 
-    const results = [singleResult, smallResult];
-
+    // ── REPORTING & TELEMETRY ───────────────────────────────────────────────
     printTruthTable({
       title: "SVELTYCMS — MEDIA UPLOAD STRESS AUDIT",
       shortLabel: "Media Upload",
-      subtitle: `${FILE_SIZE_MB}MB Upload • ${getDbType().toUpperCase()}`,
+      subtitle: `${largeSizeMb}MB Large vs ${smallSizeMb}MB Concurrent • ${dbType}`,
       results,
     });
 
-    printSummaryTable([
-      { key: `Upload ${FILE_SIZE_MB}MB`, val: singleResult.avgMs, unit: "ms" },
-      { key: "Upload 20KB", val: smallResult.avgMs, unit: "ms" },
-      { key: "Throughput", val: throughput.toFixed(1), unit: "MB/s" },
-      {
-        key: "Small RPS",
-        val: Math.round(smallResult.rps || 0),
-        unit: "req/s",
-      },
-    ]);
+    printSummaryTable(
+      [
+        { key: "Database Engine", val: dbType, unit: "" },
+        {
+          key: `Large File Latency (${largeSizeMb}MB)`,
+          val: singleResult.avgMs.toFixed(2),
+          unit: "ms",
+        },
+        {
+          key: `Large File p95`,
+          val: (singleResult.p95Ms || singleResult.avgMs).toFixed(2),
+          unit: "ms",
+        },
+        { key: "Large File Throughput", val: largeThroughput.toFixed(1), unit: "MB/s" },
+        {
+          key: `Small File Latency (${smallSizeMb}MB)`,
+          val: smallResult.avgMs.toFixed(2),
+          unit: "ms",
+        },
+        { key: "Small File Throughput", val: Math.round(smallResult.rps || 0), unit: "req/s" },
+        { key: "Small Aggregate Bandwidth", val: smallThroughput.toFixed(2), unit: "MB/s" },
+        { key: "Memory RSS Δ", val: (singleResult.rssDelta ?? 0).toFixed(1), unit: "MB" },
+      ],
+      "Upload Stress Summary",
+    );
 
     for (const r of results) exportResult(r);
-    exportMetric("media.upload.large_ms", singleResult.avgMs, "ms");
-    exportMetric("media.upload.small_ms", smallResult.avgMs, "ms");
-    exportMetric("media.upload.throughput_mbps", throughput, "MB/s");
+    exportMetric("media.upload.large_avg_ms", singleResult.avgMs, "ms");
+    exportMetric("media.upload.large_p95_ms", singleResult.p95Ms || singleResult.avgMs, "ms");
+    exportMetric(
+      "media.upload.large_throughput_mbps",
+      parseFloat(largeThroughput.toFixed(2)),
+      "MB/s",
+    );
+    exportMetric("media.upload.small_avg_ms", smallResult.avgMs, "ms");
+    exportMetric("media.upload.small_rps", Math.round(smallResult.rps || 0), "req/s");
   } catch (err: any) {
     console.error(`Upload audit failed: ${err.message}`);
     throw err;
@@ -151,4 +233,4 @@ async function runUploadAudit() {
 
 test("Media Upload Stress Audit", async () => {
   await runUploadAudit();
-}, 300000);
+}, 300_000);

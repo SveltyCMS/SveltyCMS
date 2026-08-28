@@ -380,6 +380,7 @@ export class CacheService {
   }
 
   private buildKey(key: string, tenantId?: string | null): string {
+    if (key.startsWith("tenant:")) return key;
     if (!tenantId || tenantId === "default") {
       return `tenant:default:${key}`;
     }
@@ -597,8 +598,24 @@ export class CacheService {
     tenantId?: string | null,
     category = CacheCategory.GENERAL,
   ): Promise<void> {
+    const l2Ready = this.isL2Ready();
+    const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
     for (const entry of entries) {
-      await this.set(entry.key, entry.value, entry.ttl, tenantId, category, entry.tags);
+      this.setSync(entry.key, entry.value, entry.ttl, tenantId, category, entry.tags);
+      if (l2Ready) {
+        const fullKey = this.generateKey(entry.key, tenantId);
+        const effectiveTTL =
+          (entry.ttl ?? 0) > 0
+            ? entry.ttl!
+            : (CATEGORY_TTL_SECONDS[category] ?? CATEGORY_TTL_SECONDS.general ?? 300);
+        await this.batcher.bufferWrite(this.l2, {
+          key: fullKey,
+          val: serializeL2Value(entry.value),
+          ttl: effectiveTTL,
+          tags: entry.tags || [],
+          tagPrefix,
+        });
+      }
     }
   }
 

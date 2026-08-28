@@ -199,41 +199,60 @@ export function isCleanRequestSurface(s: string): boolean {
 }
 
 function matchDangerousVerb(s: string, start: number, len: number): boolean {
+  let c0 = s.charCodeAt(start);
+  if (c0 >= 65 && c0 <= 90) c0 += 32;
+
   switch (len) {
     case 2:
-      return eqI(s, start, 2, "or");
+      return c0 === 111 /* o */ && eqI(s, start, 2, "or");
     case 3:
-      return eqI(s, start, 3, "and");
+      return c0 === 97 /* a */ && eqI(s, start, 3, "and");
     case 4:
-      return eqI(s, start, 4, "drop") || eqI(s, start, 4, "exec");
+      if (c0 === 100 /* d */) return eqI(s, start, 4, "drop");
+      if (c0 === 101 /* e */) return eqI(s, start, 4, "exec");
+      return false;
     case 5:
-      return (
-        eqI(s, start, 5, "union") ||
-        eqI(s, start, 5, "sleep") ||
-        eqI(s, start, 5, "token") ||
-        eqI(s, start, 5, "embed")
-      );
+      switch (c0) {
+        case 117 /* u */:
+          return eqI(s, start, 5, "union");
+        case 115 /* s */:
+          return eqI(s, start, 5, "sleep");
+        case 116 /* t */:
+          return eqI(s, start, 5, "token");
+        case 101 /* e */:
+          return eqI(s, start, 5, "embed");
+        default:
+          return false;
+      }
     case 6:
-      return (
-        eqI(s, start, 6, "select") ||
-        eqI(s, start, 6, "insert") ||
-        eqI(s, start, 6, "delete") ||
-        eqI(s, start, 6, "update") ||
-        eqI(s, start, 6, "script") ||
-        eqI(s, start, 6, "iframe") ||
-        eqI(s, start, 6, "object") ||
-        eqI(s, start, 6, "secret")
-      );
+      switch (c0) {
+        case 115 /* s */:
+          return (
+            eqI(s, start, 6, "select") || eqI(s, start, 6, "script") || eqI(s, start, 6, "secret")
+          );
+        case 105 /* i */:
+          return eqI(s, start, 6, "insert") || eqI(s, start, 6, "iframe");
+        case 100 /* d */:
+          return eqI(s, start, 6, "delete");
+        case 117 /* u */:
+          return eqI(s, start, 6, "update");
+        case 111 /* o */:
+          return eqI(s, start, 6, "object");
+        default:
+          return false;
+      }
     case 7:
-      return eqI(s, start, 7, "waitfor");
+      return c0 === 119 /* w */ && eqI(s, start, 7, "waitfor");
     case 8:
-      return eqI(s, start, 8, "password");
+      return c0 === 112 /* p */ && eqI(s, start, 8, "password");
     case 9:
-      return eqI(s, start, 9, "benchmark") || eqI(s, start, 9, "prototype");
+      if (c0 === 98 /* b */) return eqI(s, start, 9, "benchmark");
+      if (c0 === 112 /* p */) return eqI(s, start, 9, "prototype");
+      return false;
     case 10:
-      return eqI(s, start, 10, "javascript");
+      return c0 === 106 /* j */ && eqI(s, start, 10, "javascript");
     case 11:
-      return eqI(s, start, 11, "constructor");
+      return c0 === 99 /* c */ && eqI(s, start, 11, "constructor");
     default:
       return false;
   }
@@ -711,17 +730,20 @@ function hasHeaderSplit(value: string): boolean {
 }
 
 function inspectHeadersOnly(headers: Headers | Record<string, string>): WafScanResult | null {
+  if (!headers) return null;
   if (typeof (headers as Headers).forEach === "function") {
-    for (const [key, value] of headers as Headers) {
-      if (hasHeaderSplit(value)) {
-        return {
+    let result: WafScanResult | null = null;
+    (headers as Headers).forEach((value, key) => {
+      if (result) return;
+      if (typeof value === "string" && hasHeaderSplit(value)) {
+        result = {
           blocked: true,
           reason: `Header splitting attempt in ${key}`,
           threatType: "HEADER_SPLITTING",
         };
       }
-    }
-    return null;
+    });
+    return result;
   }
   const rec = headers as Record<string, string>;
   for (const key in rec) {

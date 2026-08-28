@@ -60,7 +60,7 @@ describe("ensureSchemaHotFlags DateTime inline", () => {
       {
         user: { _id: "u1", isAdmin: true },
         operation: "create",
-        tenantId: "global",
+        tenantId: "global" as any,
       },
     );
     expect(prepared.publishedAt).toBe("2026-08-26T12:00:00.000Z");

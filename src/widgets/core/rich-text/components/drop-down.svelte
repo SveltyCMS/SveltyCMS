@@ -146,7 +146,7 @@
 	}
 </script>
 
-<div class={twMerge('relative', className)} class:hidden={!show} bind:this={dropdownRef}>
+<div class="relative {className}" class:hidden={!show} bind:this={dropdownRef}>
 	<div bind:this={buttonWrapperRef} class="contents">
 	<Button
 		variant="primary"

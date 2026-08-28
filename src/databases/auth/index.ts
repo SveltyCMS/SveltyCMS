@@ -846,6 +846,19 @@ export class Auth {
         return null;
       }
 
+      // 🛡️ HARDENING: reject blocked accounts at the form-login path too.
+      // AuthNamespace.login already checked `user.blocked`; Auth.authenticate
+      // (used by /login and signInInternal) did NOT — a blocked user could
+      // still get a fresh session from the UI.
+      if (user.blocked) {
+        logger.warn("Login rejected: account is blocked", {
+          email,
+          tenantId,
+          userId: user._id,
+        });
+        return null;
+      }
+
       const isValid = await cryptoVerifyPassword(user.password, password);
 
       logger.debug("Password verification result", { email, isValid });

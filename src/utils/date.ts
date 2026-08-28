@@ -151,10 +151,12 @@ export function isISODateString(value: unknown): value is ISODateString {
   }
   if (index !== value.length) return false;
 
-  // --- UTC instant must fall on the literal date (reproduces the old
-  //     `value.startsWith(date.toISOString().slice(0, 10))` semantics) ---
-  const utcMinutes = hour * 60 + minute - offsetMinutes;
-  return utcMinutes >= 0 && utcMinutes < 1440;
+  // --- If no timezone offset is specified (UTC), time must fall within standard 0..1439 minute day ---
+  if (offsetMinutes === 0) {
+    const utcMinutes = hour * 60 + minute;
+    return utcMinutes >= 0 && utcMinutes < 1440;
+  }
+  return true;
 }
 
 // 🚀 Zero-allocation 1ms-resolution timestamp cache

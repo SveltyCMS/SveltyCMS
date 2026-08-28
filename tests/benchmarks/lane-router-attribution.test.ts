@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, test } from "vitest";
-import { classifyRequest, RequestLane } from "@src/hooks/request-classifier";
+import { classifyRequest, RequestLane } from "@src/hooks/handle-request-classifier";
 
 describe("Request Lane Router Attribution Benchmark", () => {
   test("measures O(1) classification latency across 100,000 iterations", () => {

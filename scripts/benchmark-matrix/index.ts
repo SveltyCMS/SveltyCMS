@@ -552,7 +552,7 @@ async function run() {
         AUDIT_CHAIN_SYNC: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "true" : "false",
         DISABLE_AUDIT_LOGS: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "false" : "true",
         // Deployment-tuned rate ceilings for load-testing (bucket machinery stays active)
-        RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "20000",
+        RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "200000",
         SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
         // Always point media at sandbox (ci-fresh wizard may leave mediaFolder missing)
         MEDIA_FOLDER: mediaFolderRel,

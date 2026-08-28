@@ -1,18 +1,14 @@
 /**
  * @file tests/benchmarks/media-performance.test.ts
- * @description Enterprise Media Pipeline Benchmark
- * @summary Measures full upload, processing, and storage pipeline via HTTP E2E
- *
- * ### Features:
- * - Image upload throughput (sharp-based processing)
- * - Thumbnail generation latency
- * - Storage write/read pipeline end-to-end timing
+ * @description Enterprise Media Pipeline Benchmark (Optimized)
+ * @summary Measures full upload, Sharp thumbnail processing, SDK vs HTTP latency, and asset streaming throughput.
  */
 
 import {
   test,
   runBenchmark,
   exportResult,
+  exportMetric,
   setupBenchmarkServer,
   ensureStableTestData,
   stabilize,
@@ -28,13 +24,19 @@ import sharp from "sharp";
 let stopServer: (() => Promise<void>) | null = null;
 let baseUrl: string;
 
-// Pre-allocated scratch buffer for zero-allocation mutation in hot loops
-const NOISE_BYTES = 2;
-let scratchBuffer: Buffer;
-let baseImageLength: number;
+function forceGarbageCollection() {
+  if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
+    (Bun as any).gc(true);
+  } else if (typeof (globalThis as any).gc === "function") {
+    (globalThis as any).gc();
+  }
+}
 
-async function generateTestImage() {
-  const baseImage = await sharp({
+// Pre-render static base JPEG buffer
+let baseJpegBuffer: Buffer;
+
+async function prepareBaseImage(): Promise<Buffer> {
+  return sharp({
     create: {
       width: 1920,
       height: 1080,
@@ -44,19 +46,19 @@ async function generateTestImage() {
   })
     .jpeg({ quality: 85 })
     .toBuffer();
+}
 
-  baseImageLength = baseImage.length;
-
-  // Single combined buffer: [Base Image | 2 Bytes for noise]
-  // Mutate the trailing bytes in-place instead of allocating per iteration
-  const combined = Buffer.alloc(baseImageLength + NOISE_BYTES);
-  baseImage.copy(combined);
-  return combined;
+/** Creates an isolated worker-safe buffer with unique trailing bytes */
+function createWorkerImageBuffer(seq: number): Buffer {
+  const buf = Buffer.allocUnsafe(baseJpegBuffer.length + 4);
+  baseJpegBuffer.copy(buf);
+  buf.writeUInt32BE(seq, baseJpegBuffer.length);
+  return buf;
 }
 
 async function runMediaAudit() {
-  // pre-existing unused var removed for TS strict mode
-  console.log("🚀 Starting Enterprise Media Pipeline Audit...\n");
+  const dbType = getDbType().toUpperCase();
+  console.log(`🚀 Starting Enterprise Media Pipeline Audit (${dbType})...\n`);
 
   try {
     const server = await setupBenchmarkServer();
@@ -64,23 +66,31 @@ async function runMediaAudit() {
     baseUrl = server.baseUrl;
 
     await ensureStableTestData();
-    await stabilize(1200);
+    await stabilize(1000);
 
-    // Generate test image scratch buffer once (zero-allocation hot path)
-    scratchBuffer = await generateTestImage();
+    baseJpegBuffer = await prepareBaseImage();
 
     const { getDb, ensureFullInitialization } = await import("@src/databases/db");
     const { LocalCMS } = await import("@src/services/sdk");
     const { settingsService } = await import("@src/services/core/settings-service");
+
     await ensureFullInitialization();
     const db = getDb();
+    if (!db) throw new Error("Database initialization failed");
+
     await settingsService.loadSettingsCache();
-    const cms = new LocalCMS(db!);
+    const cms = new LocalCMS(db);
 
     const results: any[] = [];
-    const uploadedSdkPaths: string[] = [];
+    const uploadedAssetPaths: string[] = [];
 
-    console.log("   → Measuring Local SDK Media Processing...");
+    // ── 1. IN-PROCESS SDK MEDIA PROCESSING BENCHMARK ─────────────────────────
+    forceGarbageCollection();
+    await stabilize(150);
+
+    console.log("   → 1. Measuring Local SDK Media Upload & Sharp Processing...");
+    let sdkSeq = 0;
+
     const sdkResult = await runBenchmark({
       name: "SDK: Media Processing",
       iterations: 80,
@@ -90,28 +100,41 @@ async function runMediaAudit() {
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
-      onIteration: async (i: number) => {
-        // Zero-allocation: mutate trailing bytes of the scratch buffer in place
-        scratchBuffer[baseImageLength] = i % 256;
-        scratchBuffer[baseImageLength + 1] = Math.floor(Math.random() * 256);
+      onIteration: async () => {
+        const currentSeq = sdkSeq++;
+        const imageBuffer = createWorkerImageBuffer(currentSeq);
 
-        const file = new File([scratchBuffer as BlobPart], `sdk-media-${i}.jpg`, {
+        const file = new File([imageBuffer], `sdk-media-${currentSeq}.jpg`, {
           type: "image/jpeg",
         });
+
         const res = await cms.media.upload(file, {
           userId: "system",
           tenantId: "global" as any,
         });
+
         if (!res.success || (!res.data?.url && !(res.data as any)?.path)) {
-          console.error("SDK upload failed, FULL res:", res);
-          throw new Error(`SDK upload failed: Missing URL/Path`);
+          throw new Error("SDK media upload returned invalid payload");
         }
-        if ((res.data as any)?.path) uploadedSdkPaths.push((res.data as any).path);
+
+        const p = (res.data as any)?.path || res.data?.url;
+        if (p) uploadedAssetPaths.push(p);
       },
     });
     results.push({ ...sdkResult, shortLabel: "SDK", layer: "SDK" });
 
-    console.log("   → Measuring HTTP Media Upload Pipeline...");
+    // ── 2. HTTP MEDIA UPLOAD PIPELINE BENCHMARK ──────────────────────────────
+    forceGarbageCollection();
+    await stabilize(150);
+
+    console.log("   → 2. Measuring HTTP Multipart Upload & Processing Pipeline...");
+    let httpSeq = 0;
+    const uploadHeaders: Record<string, string> = {
+      ...benchmarkAuthHeaders(),
+      Origin: baseUrl,
+      connection: "keep-alive",
+    };
+
     const httpResult = await runBenchmark({
       name: "HTTP: Media Upload",
       iterations: 80,
@@ -121,75 +144,108 @@ async function runMediaAudit() {
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
-      onIteration: async (i: number) => {
+      onIteration: async () => {
+        const currentSeq = httpSeq++;
+        const imageBuffer = createWorkerImageBuffer(currentSeq);
+
         const formData = new FormData();
-
-        // Zero-allocation: mutate trailing bytes of the scratch buffer in place
-        scratchBuffer[baseImageLength] = i % 256;
-        scratchBuffer[baseImageLength + 1] = Math.floor(Math.random() * 256);
-
-        const blob = new Blob([scratchBuffer as BlobPart], {
-          type: "image/jpeg",
-        });
-        formData.append("files", blob, `bench-media-${i}.jpg`);
+        const blob = new Blob([imageBuffer], { type: "image/jpeg" });
+        formData.append("files", blob, `http-media-${currentSeq}.jpg`);
 
         const res = await fetch(`${baseUrl}/api/media/upload`, {
           method: "POST",
-          headers: {
-            ...benchmarkAuthHeaders(),
-            Origin: baseUrl,
-          },
+          headers: uploadHeaders,
           body: formData,
+          signal: AbortSignal.timeout(30_000),
         });
 
         if (!res.ok) {
           const text = await res.text().catch(() => "");
-          throw new Error(`Media upload failed: ${res.status} ${text}`);
+          throw new Error(`Media upload failed: HTTP ${res.status} ${text}`);
         }
-        await res.json();
+
+        // Fast zero-copy stream drain
+        await res.arrayBuffer().catch(() => {});
       },
     });
     results.push({ ...httpResult, shortLabel: "HTTP", layer: "HTTP" });
 
-    // Cleanup skipped — matrix GC handles artifact purging
-    // (Adapter delete has known circular call stack issue in bulk path)
-    if (uploadedSdkPaths.length > 0) {
-      console.log(
-        `   → Skipping artifact cleanup (${uploadedSdkPaths.length} files) — matrix GC will handle`,
-      );
+    // ── 3. THUMBNAIL RETRIEVAL & ASSET STREAMING ────────────────────────────
+    if (uploadedAssetPaths.length > 0) {
+      forceGarbageCollection();
+      await stabilize(150);
+
+      console.log("   → 3. Measuring Thumbnail Transformation & Asset Streaming...");
+      const samplePath = uploadedAssetPaths[0]!;
+      const cleanPath = samplePath.startsWith("/") ? samplePath.slice(1) : samplePath;
+
+      const streamResult = await runBenchmark({
+        name: "HTTP: Asset Stream (Thumbnail)",
+        iterations: 100,
+        warmupIterations: 10,
+        runs: 2,
+        concurrency: 4,
+        trimOutliers: "iqr",
+        measureMemory: true,
+        silent: true,
+        onIteration: async () => {
+          const res = await fetch(`${baseUrl}/files/${cleanPath}?w=300&h=200&q=80`, {
+            method: "GET",
+            headers: {
+              ...benchmarkAuthHeaders(),
+              connection: "keep-alive",
+            },
+            signal: AbortSignal.timeout(10_000),
+          });
+
+          if (!res.ok) {
+            throw new Error(`Thumbnail stream failed: HTTP ${res.status}`);
+          }
+          await res.arrayBuffer().catch(() => {});
+        },
+      });
+      results.push({ ...streamResult, shortLabel: "Stream", layer: "Storage" });
     }
+
+    // ── REPORTING & TELEMETRY ───────────────────────────────────────────────
+    const httpOverheadMs = Math.max(0, httpResult.avgMs - sdkResult.avgMs);
+    const httpTaxPct =
+      sdkResult.avgMs > 0 ? ((httpOverheadMs / sdkResult.avgMs) * 100).toFixed(1) : "0.0";
 
     printTruthTable({
       title: "SVELTYCMS — MEDIA PIPELINE AUDIT",
       shortLabel: "Media",
-      subtitle: `Upload → Resize → Storage • SDK vs HTTP • ${getDbType().toUpperCase()}`,
+      subtitle: `Upload → Sharp Resize → Storage • ${dbType}`,
       results,
     });
 
-    printSummaryTable([
-      { key: "SDK Processing Latency", val: sdkResult.avgMs, unit: "ms" },
-      { key: "HTTP Pipeline Latency", val: httpResult.avgMs, unit: "ms" },
-      {
-        key: "SDK Throughput",
-        val: Math.round(sdkResult.rps || 0),
-        unit: "images/s",
-      },
-      {
-        key: "HTTP Throughput",
-        val: Math.round(httpResult.rps || 0),
-        unit: "images/s",
-      },
-      {
-        key: "HTTP p95 Latency",
-        val: httpResult.p95Ms || httpResult.avgMs,
-        unit: "ms",
-      },
-      {
-        key: "Memory Growth",
-        val: (httpResult.rssDelta || 0).toFixed(1),
-        unit: "MB",
-      },
-    ]);
+    printSummaryTable(
+      [
+        { key: "Database Engine", val: dbType, unit: "" },
+        { key: "SDK Upload Latency (Avg)", val: sdkResult.avgMs.toFixed(2), unit: "ms" },
+        { key: "HTTP Pipeline Latency (Avg)", val: httpResult.avgMs.toFixed(2), unit: "ms" },
+        {
+          key: "HTTP p95 Latency",
+          val: (httpResult.p95Ms || httpResult.avgMs).toFixed(2),
+          unit: "ms",
+        },
+        {
+          key: "HTTP Transport Tax",
+          val: `+${httpOverheadMs.toFixed(2)} (${httpTaxPct}%)`,
+          unit: "ms",
+        },
+        { key: "SDK Throughput", val: Math.round(sdkResult.rps || 0), unit: "img/s" },
+        { key: "HTTP Throughput", val: Math.round(httpResult.rps || 0), unit: "img/s" },
+        { key: "HTTP Memory RSS Δ", val: (httpResult.rssDelta ?? 0).toFixed(1), unit: "MB" },
+      ],
+      "Media Pipeline Summary",
+    );
+
+    exportMetric("media.sdk.latency_avg_ms", sdkResult.avgMs, "ms");
+    exportMetric("media.http.latency_avg_ms", httpResult.avgMs, "ms");
+    exportMetric("media.http.latency_p95_ms", httpResult.p95Ms || httpResult.avgMs, "ms");
+    exportMetric("media.http.throughput_rps", Math.round(httpResult.rps || 0), "img/s");
+    exportMetric("media.http.rss_delta_mb", httpResult.rssDelta ?? 0, "MB");
 
     for (const r of results) exportResult(r);
   } catch (err: any) {
@@ -206,4 +262,4 @@ async function runMediaAudit() {
 
 test("Media Engine Enterprise Suite", async () => {
   await runMediaAudit();
-}, 600000);
+}, 600_000);

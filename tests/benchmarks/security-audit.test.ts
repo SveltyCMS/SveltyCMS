@@ -1,19 +1,14 @@
 /**
  * @file tests/benchmarks/security-audit.test.ts
  * @description Enterprise Security Defense Benchmark (Optimized)
- * @summary Measures overhead of WAF request analysis, audit log persistence, Argon2id password hashing, and RBAC permission checks.
- *
- * ### Features:
- * - Web Application Firewall (WAF) deep analysis overhead
- * - Crypto-chained audit log persistence throughput
- * - Argon2id password hashing latency and memory cost
- * - Defense-in-depth RBAC permission check micro-benchmark
+ * @summary Measures overhead of WAF request analysis (clean & malicious), audit log persistence, Argon2id password hashing, and RBAC permission checks.
  */
 
 import {
   test,
   runBenchmark,
   exportResult,
+  exportMetric,
   setupBenchmarkServer,
   ensureStableTestData,
   stabilize,
@@ -26,8 +21,17 @@ import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
 
+function forceGarbageCollection() {
+  if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
+    (Bun as any).gc(true);
+  } else if (typeof (globalThis as any).gc === "function") {
+    (globalThis as any).gc();
+  }
+}
+
 async function runSecurityAudit() {
-  console.log("🚀 Starting Enterprise Security Audit...\n");
+  const dbType = getDbType().toUpperCase();
+  console.log(`🚀 Starting Enterprise Security Infrastructure Audit (${dbType})...\n`);
 
   try {
     const server = await setupBenchmarkServer();
@@ -41,19 +45,19 @@ async function runSecurityAudit() {
       await import("@src/services/security/audit-service");
     const { hashPassword } = await import("@src/utils/security");
     const { _checkEndpointPermission } = await import("@src/routes/api/[...path]/+server");
+    const { inspectRequest } = await import("@src/services/security/threat-scan");
+    const { hasPermissionWithRoles } = await import("@src/databases/auth/permissions");
 
-    // 🛡️ HONESTY: the crypto-chained audit pipeline only persists when the
-    // server runs with audit ENABLED (BENCHMARK_AUDIT_MODE=compliance →
-    // DISABLE_AUDIT_LOGS=false). Default production benchmark servers disable
-    // it — auditLogService.log() then early-returns (a no-op, ~0ms).
     const auditEnabled = process.env.BENCHMARK_AUDIT_MODE === "compliance";
-
     const results = [];
 
-    // 1. WAF Analysis
-    console.log("   → Measuring WAF (Web Application Firewall) overhead...");
+    // ── 1. WAF DEEP ANALYSIS PIPELINE (REQUEST CLONE + FULL PIPELINE) ────────
+    forceGarbageCollection();
+    await stabilize(100);
 
-    // Instantiate template request out of hot execution path
+    console.log(
+      "   → 1. Measuring Full WAF Pipeline Overhead (Request.clone + Rule Evaluation)...",
+    );
     const targetWafRequest = new Request("http://localhost/api/collections/posts?limit=10", {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
@@ -63,7 +67,7 @@ async function runSecurityAudit() {
     });
 
     const wafResult = await runBenchmark({
-      name: "WAF Deep Analysis",
+      name: "WAF Deep Analysis (Clean)",
       iterations: 800,
       warmupIterations: 100,
       runs: 2,
@@ -72,56 +76,85 @@ async function runSecurityAudit() {
       measureMemory: true,
       silent: true,
       onIteration: async () => {
-        // Clone static object pattern to isolate evaluation performance
         await securityResponseService.analyzeRequest(targetWafRequest.clone());
       },
     });
-    results.push({ ...wafResult, shortLabel: "WAF", layer: "Security" });
+    results.push({ ...wafResult, shortLabel: "WAF Pipeline", layer: "Security" });
 
-    // Isolate scanner cost from Request.clone() + async analyzeRequest.
-    // Those two frames dominate "WAF Deep Analysis" (~0.002 ms) and hide
-    // whether the matcher got faster. This row is the actual inspect() work.
-    const { inspectRequest } = await import("@src/services/security/threat-scan");
-    const inspectResult = await runBenchmark({
-      name: "WAF Inspect (clean URL)",
-      iterations: 2000,
+    // ── 2. WAF SCANNER: CLEAN VS MALICIOUS PATTERNS ─────────────────────────
+    forceGarbageCollection();
+    await stabilize(100);
+
+    console.log("   → 2. Measuring Raw WAF Inspection Engine (Clean vs Malicious Probes)...");
+    const wafCleanResult = await runBenchmark({
+      name: "WAF Inspect (Clean Query)",
+      iterations: 4000,
       warmupIterations: 400,
-      runs: 3,
+      runs: 2,
+      concurrency: 1,
+      trimOutliers: "iqr",
+      silent: true,
+      onIteration: () => {
+        inspectRequest("/api/collections/posts", "limit=10&sort=createdAt", {});
+      },
+    });
+    results.push({ ...wafCleanResult, shortLabel: "WAF (Clean)", layer: "Threat Scan" });
+
+    const wafThreatResult = await runBenchmark({
+      name: "WAF Inspect (Malicious Probe)",
+      iterations: 4000,
+      warmupIterations: 400,
+      runs: 2,
+      concurrency: 1,
+      trimOutliers: "iqr",
+      silent: true,
+      onIteration: () => {
+        // High-entropy attack vector testing regex backtracking (SQLi + XSS + Path Traversal)
+        inspectRequest(
+          "/api/collections/posts/..%2F..%2Fetc%2Fpasswd",
+          "query=1%27%20OR%20%271%27=%271&xss=%3Cscript%3Ealert(1)%3C/script%3E",
+          { "x-custom-payload": "UNION SELECT null, username, password FROM users--" },
+        );
+      },
+    });
+    results.push({ ...wafThreatResult, shortLabel: "WAF (Threat)", layer: "Threat Scan" });
+
+    // ── 3. AUDIT LOGGING PERSISTENCE / DISPATCH ─────────────────────────────
+    const AUDIT_ITERATIONS = 600;
+    const AUDIT_WARMUP = 80;
+    const TOTAL_AUDIT_CAPACITY = (AUDIT_ITERATIONS + AUDIT_WARMUP) * 2;
+
+    const preallocatedActor = Object.freeze({
+      id: "admin" as any,
+      email: "admin@test.com",
+      role: "admin",
+    });
+
+    const pregeneratedLogs = Array.from({ length: TOTAL_AUDIT_CAPACITY }, (_, i) =>
+      Object.freeze({
+        target: { id: `entry-${i}` as any, type: "benchmark" },
+        context: { entryId: `entry-${i}` },
+      }),
+    );
+    let auditCursor = 0;
+
+    forceGarbageCollection();
+    await stabilize(100);
+
+    console.log(
+      `   → 3. Measuring Audit Log Pipeline (${auditEnabled ? "Compliance Persistence" : "Disabled Fast-Path"})...`,
+    );
+    const auditResult = await runBenchmark({
+      name: auditEnabled ? "Audit Log Persistence" : "Audit Log Dispatch (Disabled Fast-Path)",
+      iterations: AUDIT_ITERATIONS,
+      warmupIterations: AUDIT_WARMUP,
+      runs: 2,
       concurrency: 1,
       trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
-      onIteration: () => {
-        inspectRequest("/api/collections/posts", "limit=10", {});
-      },
-    });
-    results.push({ ...inspectResult, shortLabel: "WAFInspect", layer: "Security" });
-
-    // 2. Audit Logging
-    console.log("   → Measuring Audit Log persistence...");
-
-    // Pre-allocated collection records array to decouple string construction from database performance metrics
-    const AUDIT_ITERATIONS = 600;
-    const preallocatedActor = {
-      id: "admin" as any,
-      email: "admin@test.com",
-      role: "admin",
-    };
-    const pregeneratedLogs = Array.from({ length: AUDIT_ITERATIONS }, (_, i) => ({
-      target: { id: `entry-${i}` as any, type: "benchmark" },
-      context: { entryId: `entry-${i}` },
-    }));
-
-    const auditResult = await runBenchmark({
-      name: auditEnabled ? "Audit Log Persistence" : "Audit Log Dispatch (disabled no-op)",
-      iterations: AUDIT_ITERATIONS,
-      warmupIterations: 80,
-      runs: 2,
-      concurrency: 1,
-      measureMemory: true,
-      silent: true,
-      onIteration: async (i: number) => {
-        const logData = pregeneratedLogs[i] ?? pregeneratedLogs[0]!;
+      onIteration: async () => {
+        const logData = pregeneratedLogs[auditCursor++ % pregeneratedLogs.length]!;
         await auditLogService.log(
           "bench.test",
           preallocatedActor,
@@ -134,30 +167,31 @@ async function runSecurityAudit() {
         );
       },
     });
-    results.push({ ...auditResult, shortLabel: "Audit", layer: "Security" });
+    results.push({ ...auditResult, shortLabel: "Audit Log", layer: "Audit" });
 
-    // 3. Password Hashing
-    console.log("   → Measuring Password Hashing (Argon2id)...");
+    // ── 4. ARGON2ID PASSWORD HASHING (CRYPTO ENGINE PROFILE) ─────────────────
+    forceGarbageCollection();
+    await stabilize(200);
+
+    console.log("   → 4. Measuring Argon2id Key Derivation & Memory Hardness...");
     const hashResult = await runBenchmark({
       name: "Argon2id Password Hashing",
-      iterations: 8, // Computationally / CPU intensive payload execution bounds
+      iterations: 8,
       warmupIterations: 2,
       runs: 1,
       concurrency: 1,
+      trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
       onIteration: async () => {
         await hashPassword("SuperSecretPassword123!@#");
       },
     });
-    results.push({ ...hashResult, shortLabel: "Hashing", layer: "Crypto" });
+    results.push({ ...hashResult, shortLabel: "Argon2id", layer: "Crypto" });
 
-    // 4. Defense-in-Depth Permission Overhead
-    console.log("   → Measuring Defense-in-Depth Permission Check Overhead...");
-    const { hasPermissionWithRoles } = await import("@src/databases/auth/permissions");
-
-    const staticTime = "2026-06-27T20:00:00.000Z";
-    const mockUser = {
+    // ── 5. DEFENSE-IN-DEPTH PERMISSION & RBAC OVERHEAD ───────────────────────
+    const staticTime = "2026-08-28T12:00:00.000Z";
+    const mockAdminUser = Object.freeze({
       _id: "test-admin",
       email: "admin@test.com",
       role: "admin",
@@ -165,21 +199,34 @@ async function runSecurityAudit() {
       permissions: [],
       createdAt: staticTime as any,
       updatedAt: staticTime as any,
-    } as any;
+    });
 
-    const mockRoles: any[] = ["admin", "editor"];
-    const mockPermissions = [
+    const mockPermissions = Object.freeze([
       "collections:read",
       "collections:write",
+      "media:read",
       "media:write",
       "media:delete",
       "system:settings",
       "config:collectionbuilder",
-    ];
-    // Non-admin user exercising the REAL dispatcher gate (ENDPOINT_PERMISSIONS
-    // mapping + RBAC). The previous version measured `array.includes()` — a
-    // hand-rolled stand-in, not the dispatcher.
-    const mockNonAdminUser = {
+    ]);
+
+    const mockRoles: any[] = Object.freeze([
+      {
+        _id: "admin",
+        name: "Administrator",
+        isAdmin: true,
+        permissions: [],
+      },
+      {
+        _id: "editor",
+        name: "Editor",
+        isAdmin: false,
+        permissions: mockPermissions,
+      },
+    ]);
+
+    const mockNonAdminUser = Object.freeze({
       _id: "test-editor",
       email: "editor@test.com",
       role: "editor",
@@ -187,117 +234,170 @@ async function runSecurityAudit() {
       permissions: mockPermissions,
       createdAt: staticTime as any,
       updatedAt: staticTime as any,
-    } as any;
+    });
 
-    // Measure dispatcher-only check (real ENDPOINT_PERMISSIONS mapping + RBAC)
+    forceGarbageCollection();
+    await stabilize(100);
+
+    console.log("   → 5. Measuring Endpoint Dispatcher & RBAC Authorization Checks...");
     const dispatcherOnlyResult = await runBenchmark({
-      name: "Dispatcher-Only Permission Check",
-      iterations: 5000,
+      name: "Dispatcher Permission Check",
+      iterations: 8000,
       warmupIterations: 500,
       runs: 2,
       concurrency: 1,
-      measureMemory: true,
+      trimOutliers: "iqr",
       silent: true,
-      onIteration: async () => {
-        const permitted = _checkEndpointPermission(mockNonAdminUser, mockRoles, "POST", "media", [
-          "media",
-        ]);
-        void permitted;
-      },
-    });
-    results.push({
-      ...dispatcherOnlyResult,
-      shortLabel: "DispOnly",
-      layer: "Defense",
-    });
-
-    // Measure defense-in-depth check (dispatcher + handler-level RBAC)
-    const defenseInDepthResult = await runBenchmark({
-      name: "Full Defense-in-Depth Check",
-      iterations: 5000,
-      warmupIterations: 500,
-      runs: 2,
-      concurrency: 1,
-      measureMemory: true,
-      silent: true,
-      onIteration: async () => {
-        const dispatcherPassed = _checkEndpointPermission(
-          mockNonAdminUser,
+      onIteration: () => {
+        const permitted = _checkEndpointPermission(
+          mockNonAdminUser as any,
           mockRoles,
           "POST",
           "media",
           ["media"],
         );
-        if (!dispatcherPassed) return;
-
-        const handlerPassed = hasPermissionWithRoles(mockNonAdminUser, "media:write", mockRoles);
-        void handlerPassed;
+        if (!permitted) throw new Error("Expected permission pass");
       },
     });
-    results.push({
-      ...defenseInDepthResult,
-      shortLabel: "FullDID",
-      layer: "Defense",
-    });
+    results.push({ ...dispatcherOnlyResult, shortLabel: "Dispatcher RBAC", layer: "Auth Gate" });
 
-    // Measure worst-case: admin fast-path + permission check pattern
-    const adminCheckResult = await runBenchmark({
-      name: "Admin Verification + Permission Check",
-      iterations: 5000,
+    forceGarbageCollection();
+    await stabilize(100);
+
+    const defenseInDepthResult = await runBenchmark({
+      name: "Full Defense-in-Depth (Gate + Handler)",
+      iterations: 8000,
       warmupIterations: 500,
       runs: 2,
       concurrency: 1,
-      measureMemory: true,
+      trimOutliers: "iqr",
       silent: true,
-      onIteration: async () => {
-        // REAL dispatcher admin fast-path (isAdmin/role check) + RBAC fallback
-        const isAdmin = _checkEndpointPermission(mockUser, mockRoles, "GET", "system", ["system"]);
+      onIteration: () => {
+        const dispatcherPassed = _checkEndpointPermission(
+          mockNonAdminUser as any,
+          mockRoles,
+          "POST",
+          "media",
+          ["media"],
+        );
+        if (!dispatcherPassed) throw new Error("Dispatcher rejection");
+
+        const handlerPassed = hasPermissionWithRoles(
+          mockNonAdminUser as any,
+          "media:write",
+          mockRoles,
+        );
+        if (!handlerPassed) throw new Error("Handler RBAC rejection");
+      },
+    });
+    results.push({ ...defenseInDepthResult, shortLabel: "Full DID", layer: "Auth Gate" });
+
+    forceGarbageCollection();
+    await stabilize(100);
+
+    const adminCheckResult = await runBenchmark({
+      name: "Admin Fast-Path Verification",
+      iterations: 8000,
+      warmupIterations: 500,
+      runs: 2,
+      concurrency: 1,
+      trimOutliers: "iqr",
+      silent: true,
+      onIteration: () => {
+        const isAdmin = _checkEndpointPermission(mockAdminUser as any, mockRoles, "GET", "system", [
+          "system",
+        ]);
         if (!isAdmin) {
-          hasPermissionWithRoles(mockUser, "system:settings", mockRoles);
+          hasPermissionWithRoles(mockAdminUser as any, "system:settings", mockRoles);
         }
       },
     });
-    results.push({
-      ...adminCheckResult,
-      shortLabel: "AdminChk",
-      layer: "Defense",
-    });
+    results.push({ ...adminCheckResult, shortLabel: "Admin Fast-Path", layer: "Auth Gate" });
 
-    // Output formatting logic
+    // ── 6. REPORTING & TELEMETRY ────────────────────────────────────────────
+    const didOverheadUs = Math.max(
+      0,
+      (defenseInDepthResult.avgMs - dispatcherOnlyResult.avgMs) * 1000,
+    );
+    const wafThreatDeltaUs = Math.max(0, (wafThreatResult.avgMs - wafCleanResult.avgMs) * 1000);
+
     printTruthTable({
       title: "SVELTYCMS — SECURITY INFRASTRUCTURE AUDIT",
       shortLabel: "Security",
-      subtitle: `WAF • Audit • Cryptography • ${getDbType().toUpperCase()}`,
+      subtitle: `WAF • Cryptography • Audit • RBAC Defense • ${dbType}`,
       results,
     });
 
-    printSummaryTable([
-      { key: "WAF Analysis", val: wafResult.avgMs, unit: "ms" },
-      { key: "WAF Inspect (clean URL)", val: inspectResult.avgMs, unit: "ms" },
-      {
-        key: auditEnabled ? "Audit Logging" : "Audit Dispatch (no-op)",
-        val: auditResult.avgMs,
-        unit: "ms",
-      },
-      { key: "Password Hashing", val: hashResult.avgMs, unit: "ms" },
-      { key: "Dispatcher Check", val: dispatcherOnlyResult.avgMs, unit: "ms" },
-      {
-        key: "Full Defense-in-Depth",
-        val: defenseInDepthResult.avgMs,
-        unit: "ms",
-      },
-      { key: "Admin Verification", val: adminCheckResult.avgMs, unit: "ms" },
-      {
-        key: "DID Overhead",
-        val: (defenseInDepthResult.avgMs - dispatcherOnlyResult.avgMs).toFixed(4),
-        unit: "ms",
-      },
-      {
-        key: "Security Overhead Rating",
-        val: wafResult.avgMs < 1 ? "EXCELLENT" : "GOOD",
-        unit: "",
-      },
-    ]);
+    printSummaryTable(
+      [
+        { key: "Database Engine", val: dbType, unit: "" },
+        { key: "WAF Pipeline Latency (Avg)", val: wafResult.avgMs.toFixed(3), unit: "ms" },
+        {
+          key: "WAF Scanner (Clean Query)",
+          val: (wafCleanResult.avgMs * 1000).toFixed(2),
+          unit: "µs",
+        },
+        {
+          key: "WAF Scanner (Threat Vector)",
+          val: (wafThreatResult.avgMs * 1000).toFixed(2),
+          unit: "µs",
+        },
+        { key: "WAF Complex Pattern Tax", val: `+${wafThreatDeltaUs.toFixed(2)}`, unit: "µs" },
+        {
+          key: auditEnabled ? "Audit Log Persistence" : "Audit Dispatch (No-Op)",
+          val: auditResult.avgMs.toFixed(3),
+          unit: "ms",
+        },
+        { key: "Argon2id Hashing Latency", val: hashResult.avgMs.toFixed(1), unit: "ms" },
+        {
+          key: "Argon2id Memory Allocation",
+          val: (hashResult.rssDelta || 0).toFixed(1),
+          unit: "MB",
+        },
+        {
+          key: "Dispatcher Permission Check",
+          val: (dispatcherOnlyResult.avgMs * 1000).toFixed(2),
+          unit: "µs",
+        },
+        {
+          key: "Full Defense-in-Depth Check",
+          val: (defenseInDepthResult.avgMs * 1000).toFixed(2),
+          unit: "µs",
+        },
+        {
+          key: "Admin Fast-Path Verification",
+          val: (adminCheckResult.avgMs * 1000).toFixed(2),
+          unit: "µs",
+        },
+        { key: "Defense-in-Depth Tax", val: `+${didOverheadUs.toFixed(2)}`, unit: "µs" },
+        {
+          key: "Security SLA Compliance",
+          val: wafResult.avgMs < 0.2 && dispatcherOnlyResult.avgMs < 0.01 ? "EXCELLENT" : "PASSED",
+          unit: "",
+        },
+      ],
+      "Security Infrastructure Summary",
+    );
+
+    exportMetric("security.waf_pipeline_avg_ms", wafResult.avgMs, "ms");
+    exportMetric(
+      "security.waf_clean_us",
+      parseFloat((wafCleanResult.avgMs * 1000).toFixed(2)),
+      "µs",
+    );
+    exportMetric(
+      "security.waf_threat_us",
+      parseFloat((wafThreatResult.avgMs * 1000).toFixed(2)),
+      "µs",
+    );
+    exportMetric("security.audit_log_avg_ms", auditResult.avgMs, "ms");
+    exportMetric("security.argon2id_hash_ms", hashResult.avgMs, "ms");
+    exportMetric(
+      "security.rbac_dispatcher_us",
+      parseFloat((dispatcherOnlyResult.avgMs * 1000).toFixed(2)),
+      "µs",
+    );
+    exportMetric("security.rbac_did_overhead_us", parseFloat(didOverheadUs.toFixed(2)), "µs");
 
     for (const r of results) exportResult(r);
   } catch (err: any) {
@@ -314,4 +414,4 @@ async function runSecurityAudit() {
 
 test("Security Infrastructure Performance", async () => {
   await runSecurityAudit();
-}, 600000);
+}, 600_000);

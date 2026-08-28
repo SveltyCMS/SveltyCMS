@@ -1,18 +1,14 @@
 /**
  * @file tests/benchmarks/edge-sync.test.ts
  * @description Enterprise Edge Sync Benchmark (Optimized)
- * @summary Measures cache invalidation propagation latency across real edge nodes via live Redis
- *
- * ### Features:
- * - Multi-node invalidation propagation timing
- * - Redis pub/sub channel throughput
- * - Cross-node cache coherence verification
+ * @summary Measures cache invalidation propagation latency across real edge nodes via live Redis Pub/Sub.
  */
 
 import {
   test,
   runBenchmark,
   exportResult,
+  exportMetric,
   stabilize,
   printTruthTable,
   printSummaryTable,
@@ -24,7 +20,21 @@ import { CacheCategory } from "@src/databases/cache/types";
 import { logger } from "@utils/logger";
 import { LRUCache } from "lru-cache";
 
-async function createLiveNode(id: string) {
+const TEST_TAGS = Object.freeze(["edge-sync-live-test"]);
+const TENANT = "global";
+const ITERATIONS = 25;
+const REMOTE_NODE_COUNT = 6;
+const PROPAGATION_TIMEOUT_MS = 250;
+
+function forceGarbageCollection() {
+  if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
+    (Bun as any).gc(true);
+  } else if (typeof (globalThis as any).gc === "function") {
+    (globalThis as any).gc();
+  }
+}
+
+async function createLiveNode(id: string): Promise<CacheService> {
   const node = new CacheService();
 
   (node as any).l1 = new LRUCache({
@@ -37,16 +47,45 @@ async function createLiveNode(id: string) {
 
   (node as any).nodeId = id;
 
-  console.log(`[${id}] Connecting to Live Redis...`);
   await node.initializeL2({
     USE_REDIS: true,
     REDIS_HOST: process.env.REDIS_HOST || "127.0.0.1",
     REDIS_PORT: Number(process.env.REDIS_PORT) || 6379,
     REDIS_PASSWORD: process.env.REDIS_PASSWORD || undefined,
   });
-  console.log(`[${id}] Redis Connected Successfully!`);
 
   return node;
+}
+
+/**
+ * Polls remote nodes with micro-sleeps until all nodes reflect the cache eviction.
+ */
+async function waitForConvergence(
+  nodes: CacheService[],
+  key: string,
+  timeoutMs = PROPAGATION_TIMEOUT_MS,
+): Promise<number> {
+  const start = performance.now();
+
+  while (performance.now() - start < timeoutMs) {
+    let allEvicted = true;
+    for (let i = 0; i < nodes.length; i++) {
+      const val = nodes[i].getSync(key, TENANT);
+      if (val !== undefined && val !== null) {
+        allEvicted = false;
+        break;
+      }
+    }
+
+    if (allEvicted) {
+      return performance.now() - start;
+    }
+
+    // Yield execution tick to allow Redis pub/sub network events to process
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+
+  throw new Error(`Edge sync convergence timed out after ${timeoutMs}ms across cluster.`);
 }
 
 async function runEdgeSyncAudit() {
@@ -56,111 +95,119 @@ async function runEdgeSyncAudit() {
     return;
   }
 
-  console.log("🚀 Starting Enterprise Edge Sync Audit (Live Redis)...\n");
+  const dbType = getDbType().toUpperCase();
+  console.log(`🚀 Starting Enterprise Edge Sync Audit (Live Redis • ${dbType})...\n`);
 
-  let nodeA: CacheService | null = null;
+  let coordinatorNode: CacheService | null = null;
   let remoteNodes: CacheService[] = [];
 
   try {
-    console.log("Creating node-A...");
-    nodeA = await createLiveNode("node-A");
-    console.log("Creating 6 remote nodes...");
+    console.log("   → Initializing coordinator node...");
+    coordinatorNode = await createLiveNode("node-coordinator");
+
+    console.log(`   → Connecting ${REMOTE_NODE_COUNT} edge worker nodes to Redis...`);
     remoteNodes = await Promise.all(
-      Array.from({ length: 6 }, (_, i) => createLiveNode(`node-${i}`)),
+      Array.from({ length: REMOTE_NODE_COUNT }, (_, i) => createLiveNode(`node-edge-${i}`)),
     );
 
-    console.log("Flushing L2 Distributed Store...");
-    await (nodeA as any).l2?.flushAll();
+    console.log("   → Flushing distributed L2 cache layer...");
+    await (coordinatorNode as any).l2?.flushAll();
+    await stabilize(200);
+
+    const cachePayload = Object.freeze({ value: "cached-edge-state" });
+    let globalKeySeq = 0;
+
+    // ── EDGE SYNC INVALIDATION BENCHMARK ────────────────────────────────────
+    forceGarbageCollection();
     await stabilize(100);
 
-    // Freeze loop metadata parameters to reduce memory tracking signatures
-    const TEST_TAGS = Object.freeze(["edge-sync-live-test"]);
-    const TENANT = "global";
-    const ITERATIONS = 20;
-
-    // Pre-allocate explicit cache keyspace arrays to protect the hot paths from continuous string processing
-    const cachedKeyPool = Array.from(
-      { length: ITERATIONS },
-      (_, i) => `edge:live:bench:${1774728000000 + i}`,
+    console.log(
+      `   → Measuring Pub/Sub Invalidation Propagation across ${REMOTE_NODE_COUNT} nodes...`,
     );
-    const cachePayload = Object.freeze({ value: "cached" });
 
     const result = await runBenchmark({
       name: "Edge Sync Propagation",
       iterations: ITERATIONS,
       warmupIterations: 5,
       runs: 2,
-      concurrency: 1, // Must be sequential to verify step-by-step propagation speeds accurately
+      concurrency: 1,
       trimOutliers: "iqr",
+      measureMemory: true,
       silent: true,
-      onIteration: async (i: number) => {
-        const key = cachedKeyPool[i] ?? `edge:live:bench:fallback-${i}`;
+      onIteration: async () => {
+        // Monotonic key generation ensures isolation across warmups and runs
+        const key = `edge:bench:key:${globalKeySeq++}`;
 
-        // 1. Warm remote caches (Concurrent batch operations)
-        const warmPromises = remoteNodes.map((node) =>
-          node.set(
-            key,
-            cachePayload,
-            60,
-            TENANT,
-            CacheCategory.GENERAL,
-            TEST_TAGS as unknown as string[],
+        // 1. Pre-warm remote L1/L2 caches
+        await Promise.all(
+          remoteNodes.map((node) =>
+            node.set(
+              key,
+              cachePayload,
+              60,
+              TENANT,
+              CacheCategory.GENERAL,
+              TEST_TAGS as unknown as string[],
+            ),
           ),
         );
-        await Promise.all(warmPromises);
 
-        // 2. Trigger invalidation from primary coordinator node
-        await nodeA!.clearByTags(TEST_TAGS as unknown as string[], TENANT);
+        // 2. Publish invalidation message from primary coordinator
+        await coordinatorNode!.clearByTags(TEST_TAGS as unknown as string[], TENANT);
 
-        // 3. Allow real Redis event loop layers 10ms to flush Pub/Sub sockets natively
-        await new Promise((r) => setTimeout(r, 10));
-
-        // 4. Validate cluster consistency layers
-        for (let j = 0; j < remoteNodes.length; j++) {
-          const targetNode = remoteNodes[j]!;
-          const val = targetNode.getSync(key, TENANT);
-
-          if (val !== undefined && val !== null) {
-            throw new Error(
-              `Edge sync propagation failed for node ${(targetNode as any).nodeId} (cache was not cleared)`,
-            );
-          }
-        }
+        // 3. Measure convergence latency across all cluster nodes
+        await waitForConvergence(remoteNodes, key);
       },
     });
 
+    // ── REPORTING & TELEMETRY ───────────────────────────────────────────────
     printTruthTable({
       title: "SVELTYCMS — EDGE SYNC PROPAGATION AUDIT",
       shortLabel: "Edge Sync",
-      subtitle: `Live Redis PubSub • ${remoteNodes.length} Nodes • ${getDbType().toUpperCase()}`,
-      results: [{ ...result, layer: "Edge" }],
+      subtitle: `Live Redis Pub/Sub • ${REMOTE_NODE_COUNT} Nodes • ${dbType}`,
+      results: [{ ...result, layer: "Edge (PubSub)" }],
     });
 
-    printSummaryTable([
-      { key: "Avg Propagation Latency", val: result.avgMs, unit: "ms" },
-      { key: "p95 Propagation", val: result.p95Ms || result.avgMs, unit: "ms" },
-      { key: "Throughput", val: Math.round(result.rps || 0), unit: "ops/s" },
-      {
-        key: "Rating",
-        val: result.avgMs < 50 ? "EXCELLENT" : "GOOD",
-        unit: "",
-      },
-    ]);
+    printSummaryTable(
+      [
+        { key: "Database Engine", val: dbType, unit: "" },
+        { key: "Remote Cluster Nodes", val: REMOTE_NODE_COUNT, unit: "nodes" },
+        { key: "Avg Propagation Latency", val: result.avgMs.toFixed(2), unit: "ms" },
+        {
+          key: "p95 Propagation Latency",
+          val: (result.p95Ms || result.avgMs).toFixed(2),
+          unit: "ms",
+        },
+        { key: "Pub/Sub Throughput", val: Math.round(result.rps || 0), unit: "sync/s" },
+        {
+          key: "Memory RSS Δ",
+          val: (result.rssDelta ?? 0).toFixed(2),
+          unit: "MB",
+        },
+        {
+          key: "Sync SLA Compliance",
+          val: result.avgMs < 15 ? "ELITE (<15ms)" : result.avgMs < 50 ? "GOOD" : "SLOW",
+          unit: "",
+        },
+      ],
+      "Edge Sync Summary",
+    );
+
+    exportMetric("edge_sync.propagation.avg_ms", result.avgMs, "ms");
+    exportMetric("edge_sync.propagation.p95_ms", result.p95Ms || result.avgMs, "ms");
+    exportMetric("edge_sync.throughput", Math.round(result.rps || 0), "sync/s");
 
     exportResult(result);
   } catch (err: any) {
     logger.error(`Edge Sync benchmark failed: ${err.message}`);
-    console.error(err);
     throw err;
   } finally {
-    // Isolated teardown graph guards against process leaks if an intermediate socket connection fails
-    if (nodeA) {
-      await nodeA.cleanup().catch(() => {});
+    if (coordinatorNode) {
+      await coordinatorNode.cleanup().catch(() => {});
     }
     for (let i = 0; i < remoteNodes.length; i++) {
-      const node = remoteNodes[i];
-      if (node) {
-        await node.cleanup().catch(() => {});
+      if (remoteNodes[i]) {
+        await remoteNodes[i].cleanup().catch(() => {});
       }
     }
     console.log("\n✅ Edge Sync workspace cleaned up.");
@@ -169,4 +216,4 @@ async function runEdgeSyncAudit() {
 
 test("Edge Sync Enterprise Audit", async () => {
   await runEdgeSyncAudit();
-}, 450000);
+}, 450_000);

@@ -101,7 +101,18 @@ export function prepareWritePayload(
       if (!name || !Object.hasOwn(entryData, name)) continue;
       const val = entryData[name];
       if (val === undefined || val === null || val === "") continue;
-      if (typeof val === "string" && hasIsoDateTimePrefix(val)) continue;
+      // Skip only when the value is ALREADY the canonical `toISOString()`
+      // form (millisecond precision + trailing Z). A bare "…T12:00:00Z" is a
+      // valid ISO timestamp but NOT the standardized .000Z contract the CMS
+      // promises — normalizing it here keeps persisted dates consistent with
+      // offset inputs (which are always padded to .000Z).
+      if (
+        typeof val === "string" &&
+        val.endsWith("Z") &&
+        val.includes(".") &&
+        hasIsoDateTimePrefix(val)
+      )
+        continue;
       const normalized = toISOString(val);
       if (normalized !== val) entryData[name] = normalized;
     }

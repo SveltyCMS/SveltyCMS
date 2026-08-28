@@ -390,7 +390,9 @@ export function buildRunSummaryTable(
   summary += `|------|--------|----------|----------|-----|-------|--------|\n`;
 
   for (const row of rows) {
-    const detail = row.detail.replace(/\|/g, "\\|");
+    // codeql[js/incomplete-sanitization]: markdown table-cell escaper (backslash
+    // FIRST, then pipe) — report formatting, not a security sanitizer.
+    const detail = row.detail.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
     summary += `| ${row.test} | ${row.metric} | ${row.avgMs.toFixed(3)} | ${row.p95Ms.toFixed(3)} | ${Math.round(row.rps)} | ${row.icon} | ${detail} |\n`;
   }
   summary += "\n";
@@ -493,7 +495,9 @@ export function buildHistoryArchiveTable(dbLabel?: string): string {
   summary += `|--------|-------|${"-".repeat(colW)}|--------|\n`;
 
   for (const row of sorted) {
-    const name = row.name.replace(/\|/g, "\\|");
+    // codeql[js/incomplete-sanitization]: markdown table-cell escaper (backslash
+    // FIRST, then pipe) — report formatting, not a security sanitizer.
+    const name = row.name.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
     summary += `| ${name} | ${row.icon} | \`${row.sparkline}\` | ${row.latestMs.toFixed(3)}ms |\n`;
   }
   summary += "\n";

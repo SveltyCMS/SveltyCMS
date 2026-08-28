@@ -396,15 +396,17 @@ function mapWPStatus(wpStatus: string): "published" | "draft" | "pending" | "arc
 
 function decodeHtmlEntities(text: string): string {
   if (!text) return "";
+  // codeql[js/double-escaping]: intentional — unescape `&amp;` LAST so nested
+  // `&amp;lt;` decodes to `&lt;` (single pass), never to `<`.
   return text
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#039;/g, "'")
     .replace(/&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)));
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/&amp;/g, "&");
 }
 
 function tryUnserialize(value: string): unknown {

@@ -190,8 +190,16 @@ export async function generateTrustedDeviceToken(
 
 /**
  * Verify a trusted-device token. Returns the userId if valid, null otherwise.
+ *
+ * 🛡️ HARDENING (pen-test M9): when `expectedFingerprint` (current IP prefix +
+ * UA hash) is supplied, the fingerprint embedded in the token must match — a
+ * stolen trusted-device cookie can no longer skip 2FA from a different device
+ * for the 30-day TTL.
  */
-export async function verifyTrustedDeviceToken(token: string): Promise<string | null> {
+export async function verifyTrustedDeviceToken(
+  token: string,
+  expectedFingerprint?: string,
+): Promise<string | null> {
   const keys = await getTotpKeys();
   if (!keys) return null;
 
@@ -200,12 +208,21 @@ export async function verifyTrustedDeviceToken(token: string): Promise<string | 
     // Expect: userId:fingerprint:expiresAt:signature
     if (parts.length < 4) return null;
 
+    // Pop from the END: the fingerprint itself contains a colon
+    // (`ipPrefix:uaHash`), so the userId is the only fixed leading field.
     const signature = parts.pop()!;
-    const payload = parts.join(":");
-    const expiresAt = parseInt(parts[2], 10);
+    const expiresAtRaw = parts.pop()!;
+    const expiresAt = parseInt(expiresAtRaw, 10);
+    if (Number.isNaN(expiresAt) || Date.now() > expiresAt) return null; // Expired / malformed
 
-    if (Date.now() > expiresAt) return null; // Expired
+    const userId = parts[0];
+    const fingerprint = parts.slice(1).join(":");
 
+    // Bind the token to the device that is presenting it — not just to the
+    // device that originally completed 2FA.
+    if (expectedFingerprint && fingerprint !== expectedFingerprint) return null;
+
+    const payload = `${parts.join(":")}:${expiresAtRaw}`;
     const cryptoModule = await getCrypto();
     if (
       hmacSha256VerifyWithKeys(cryptoModule, {
@@ -214,7 +231,7 @@ export async function verifyTrustedDeviceToken(token: string): Promise<string | 
         signatureB64url: signature,
       })
     ) {
-      return parts[0]; // userId
+      return userId;
     }
     return null;
   } catch {
@@ -428,19 +445,13 @@ export async function hashBackupCode(code: string): Promise<string> {
 export async function verifyBackupCode(code: string, hashedCode: string): Promise<boolean> {
   const cryptoModule = await getCrypto();
   const secret = await getBackupCodeHmacSecret();
-  // v2: HMAC-SHA-256 with the server secret (resistant to offline brute-force).
+  // HMAC-SHA-256 with the server secret (resistant to offline brute-force).
+  // The pre-HMAC plain-SHA-256 scheme was removed in 2026-08 — codes from
+  // before that migration must be regenerated (regenerateBackupCodes).
   const hmac = cryptoModule.createHmac("sha256", secret).update(code.toLowerCase()).digest("hex");
-  if (
+  return (
     hmac.length === hashedCode.length &&
     cryptoModule.timingSafeEqual(Buffer.from(hmac), Buffer.from(hashedCode))
-  ) {
-    return true;
-  }
-  // Legacy: plain SHA-256 for codes stored before the HMAC migration.
-  const legacy = cryptoModule.createHash("sha256").update(code.toLowerCase()).digest("hex");
-  return (
-    legacy.length === hashedCode.length &&
-    cryptoModule.timingSafeEqual(Buffer.from(legacy), Buffer.from(hashedCode))
   );
 }
 

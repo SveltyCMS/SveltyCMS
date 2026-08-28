@@ -56,7 +56,14 @@ const DateTimeWidget = createWidget<DateTimeProps>({
   modifyRequest: async ({ data }: any) => {
     const val = data.get();
     if (val !== undefined && val !== null && val !== "") {
-      if (typeof val === "string" && hasIsoDateTimePrefix(val)) {
+      // Skip only the canonical toISOString() form (millisecond precision + Z).
+      // Bare "…T12:00:00Z" is valid ISO but not the .000Z contract — normalize it.
+      if (
+        typeof val === "string" &&
+        val.endsWith("Z") &&
+        val.includes(".") &&
+        hasIsoDateTimePrefix(val)
+      ) {
         return data;
       }
       const normalized = toISOString(val);
@@ -157,7 +164,13 @@ export default DateTimeWidget;
 
     const val = data.get();
     if (val !== undefined && val !== null && val !== "") {
-      if (typeof val === "string" && hasIsoDateTimePrefix(val)) {
+      // Skip only the canonical toISOString() form (millisecond precision + Z).
+      if (
+        typeof val === "string" &&
+        val.endsWith("Z") &&
+        val.includes(".") &&
+        hasIsoDateTimePrefix(val)
+      ) {
         return {};
       }
       const normalized = toISOString(val);

@@ -247,7 +247,7 @@ export async function registerCollections(tenantId?: string | null) {
       const otherWidgetName =
         typeof otherField.widget === "string" ? otherField.widget : otherField.widget?.Name;
       if (otherWidgetName === "Relation") {
-        const targetCollection = (otherField as any).collection;
+        const targetCollection = (otherField as any).collection || (otherField as any).relation;
         if (targetCollection) {
           if (!relationMap.has(targetCollection)) relationMap.set(targetCollection, []);
           relationMap.get(targetCollection)!.push({ otherCollection, otherField });

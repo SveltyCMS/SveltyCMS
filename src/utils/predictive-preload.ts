@@ -47,7 +47,14 @@ let _started = false;
 // ─── Core Logic ────────────────────────────────────────────────────────────
 
 async function preload(href: string): Promise<void> {
-  if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+  // 🛡️ HARDENING: reject any URI-scheme link (case-insensitive) — `javascript:`, `data:`, `vbscript:`, etc.
+  // Only same-origin relative or absolute http(s) URLs are preloadable.
+  if (!href) return;
+  const trimmed = href.trim();
+  if (trimmed.startsWith("#")) return;
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+    if (!/^https?:/i.test(trimmed)) return;
+  }
 
   const now = Date.now();
   if ((_preloaded.get(href) ?? 0) > now - PRELOAD_DEDUP_MS) return;

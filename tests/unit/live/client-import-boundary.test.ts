@@ -141,7 +141,11 @@ function analyzeFile(absPath: string): string[] {
   // For .svelte, only scan <script> blocks for imports
   let src = raw;
   if (absPath.endsWith(".svelte")) {
-    const scripts = [...raw.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
+    // codeql[js/bad-tag-filter]: this only extracts client <script> bodies to
+    // scan imports — it is not an XSS sanitizer. Closing tag allows `</script …>`.
+    const scripts = [...raw.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)].map(
+      (m) => m[1],
+    );
     src = scripts.join("\n");
   }
   src = stripLineComments(stripBlockComments(src));

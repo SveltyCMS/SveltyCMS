@@ -1,23 +1,24 @@
 /**
  * @file src/utils/security/crypto.ts
- * @description Unified security and cryptography system for SveltyCMS.
+ * @description Shared security/crypto primitives for SveltyCMS.
  *
- * Consolidates:
- * - Password hashing and verification (Argon2id with Worker Pool)
- * - AES-256-GCM data encryption/decryption
- * - HKDF-SHA-256 static-key derivation (passphrase env fallback, cached by callers)
- * - Secure token and UUID generation
- * - SHA256 checksums
+ * - Password hashing/verification (Argon2id)
+ * - Static AES-256-GCM key resolution (hex / strict-base64 raw keys,
+ *   HKDF-SHA-256 passphrase derivation with legacy decrypt fallbacks)
+ * - Shared GCM decrypt / HMAC verify helpers for the key ring
  */
 
 import { logger } from "@utils/logger";
 
 // --- Types & Constants ---
 
+// ⚠️ Never weaken Argon2 on bare TEST_MODE: a public process mislabeled
+// TEST_MODE=true would hash new passwords at 1 MB / t=1 (offline-bruteable).
+// Only genuine harness runtimes (Vitest, bun:test, NODE_ENV=test) get the
+// fast config — E2E/preview servers keep production parameters.
 const IS_TEST =
   typeof process !== "undefined" &&
   (process.env.NODE_ENV === "test" ||
-    process.env.TEST_MODE === "true" ||
     process.env.VITEST === "true" ||
     process.env.BUN_TEST === "true");
 
@@ -83,80 +84,6 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
       hashPrefix: typeof hash === "string" ? hash.slice(0, 14) : typeof hash,
     });
     return false;
-  }
-}
-
-// --- Encryption Utilities ---
-
-export async function deriveKey(password: string, salt: Buffer): Promise<Buffer> {
-  const argon2 = await import("argon2");
-  const pwd = Buffer.from(password, "utf8");
-  const hash = await argon2.hash(pwd, { ...ARGON2_CONFIG, salt, raw: true });
-  return Buffer.from(hash).subarray(0, ENCRYPTION_CONFIG.keyLength);
-}
-
-export async function encryptData(data: any, password: string): Promise<string> {
-  const crypto = await import(/* @vite-ignore */ "node:crypto");
-  const salt = crypto.randomBytes(ENCRYPTION_CONFIG.saltLength);
-  const iv = crypto.randomBytes(ENCRYPTION_CONFIG.ivLength);
-  const key = await deriveKey(password, salt);
-
-  const cipher = crypto.createCipheriv(ENCRYPTION_CONFIG.algorithm, key, iv);
-  const encrypted = Buffer.concat([cipher.update(JSON.stringify(data), "utf8"), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-
-  const version = Buffer.from([0x01]);
-  return Buffer.concat([version, salt, iv, authTag, encrypted]).toString("base64");
-}
-
-export async function decryptData(encryptedData: string, password: string): Promise<any> {
-  const crypto = await import(/* @vite-ignore */ "node:crypto");
-  const combined = Buffer.from(encryptedData, "base64");
-
-  let offset = 0;
-
-  // Check for version byte
-  const isVersion1 = combined[0] === 0x01;
-  if (isVersion1) {
-    offset = 1;
-  }
-
-  const salt = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.saltLength));
-  const iv = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.ivLength));
-  const authTag = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.authTagLength));
-  const encrypted = combined.subarray(offset);
-
-  try {
-    const key = await deriveKey(password, Buffer.from(salt));
-    const decipher = crypto.createDecipheriv(ENCRYPTION_CONFIG.algorithm, key, iv);
-    decipher.setAuthTag(authTag);
-
-    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-    return JSON.parse(decrypted.toString("utf8"));
-  } catch (err) {
-    // Fallback: If it was identified as version 1 but failed (e.g. legacy data where first byte of salt happened to be 0x01)
-    if (isVersion1) {
-      offset = 0;
-      const legacySalt = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.saltLength));
-      const legacyIv = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.ivLength));
-      const legacyAuthTag = combined.subarray(offset, (offset += ENCRYPTION_CONFIG.authTagLength));
-      const legacyEncrypted = combined.subarray(offset);
-
-      const legacyKey = await deriveKey(password, Buffer.from(legacySalt));
-      const legacyDecipher = crypto.createDecipheriv(
-        ENCRYPTION_CONFIG.algorithm,
-        legacyKey,
-        legacyIv,
-      );
-      legacyDecipher.setAuthTag(legacyAuthTag);
-
-      const legacyDecrypted = Buffer.concat([
-        legacyDecipher.update(legacyEncrypted),
-        legacyDecipher.final(),
-      ]);
-      return JSON.parse(legacyDecrypted.toString("utf8"));
-    }
-    throw err;
   }
 }
 
@@ -270,7 +197,8 @@ export function resolveStaticAesKey(
     cryptoMod.hkdfSync("sha256", raw, AES256_HKDF_SALT, info, ENCRYPTION_CONFIG.keyLength),
   );
   const fallbacks: Buffer[] = [
-    // slop:suppress — dual-read of pre-HKDF passphrase envelopes (SHA-256(raw))
+    // slop:suppress — dual-read of pre-HKDF env-key envelopes (SHA-256(raw))
+    // codeql[js/insufficient-password-hash]: AES env-key compatibility digest, not a login password hash (Argon2id)
     cryptoMod.createHash("sha256").update(raw, "utf8").digest(),
   ];
   // slop:suppress — lenient base64 matches the pre-HKDF `Buffer.from(raw, "base64")`

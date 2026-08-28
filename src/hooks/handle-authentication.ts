@@ -30,9 +30,10 @@ import {
   readSessionCookie,
   clearAllSessionCookies as clearCookiesHelper,
   sessionTtlMs,
+  isAdmin,
 } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
-import { isValidApiKeyFormat, hashApiKey, hashApiKeyLegacy } from "@src/databases/auth/api-keys";
+import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
 import { recordApiKeyUsage } from "@src/databases/auth/api-key-usage-accumulator";
 import {
   getApiKeyAuthCacheSync,
@@ -56,7 +57,7 @@ import type { Handle } from "@sveltejs/kit/hooks";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError, isAppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { RateLimiter } from "sveltekit-rate-limiter/server";
+import { RateLimiter } from "./handle-rate-limit";
 
 /** Mask an email for log safety: r***s@web.de */
 function maskEmail(email: string): string {
@@ -938,8 +939,12 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
         if (user) {
           // --- NEW: Global Admin Exemption ---
-          // Global admins (no tenantId) are authorized to access any tenant path.
-          const isGlobalAdmin = !user.tenantId || user.tenantId === null;
+          // Global admins (isAdmin AND no tenantId) are authorized to access
+          // any tenant path. 🛡️ HARDENING: previously ANY user with a missing
+          // tenantId (common after enabling multi-tenancy on an existing DB)
+          // was treated as global admin — a privilege escalation. Now the role
+          // must also be admin.
+          const isGlobalAdmin = isAdmin(user) && (!user.tenantId || user.tenantId === null);
           if (
             locals.tenantId &&
             !isGlobalAdmin &&
@@ -1067,19 +1072,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             );
           } else {
             metricsService.incrementAuthValidations();
-            let res = await dbAdapter.auth.getApiKey(hash, {
+            const res = await dbAdapter.auth.getApiKey(hash, {
               tenantId: locals.tenantId,
             });
-            // Fallback: try legacy SHA-256 hash for keys created before HMAC migration
-            // (computed lazily — only a DB miss pays for the legacy digest)
-            if (!res.success) {
-              const legacyHash = hashApiKeyLegacy(tokenValue);
-              if (legacyHash !== hash) {
-                res = await dbAdapter.auth.getApiKey(legacyHash, {
-                  tenantId: locals.tenantId,
-                });
-              }
-            }
             if (res.success && res.data) {
               const apiKey = res.data;
 

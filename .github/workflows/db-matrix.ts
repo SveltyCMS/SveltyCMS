@@ -52,7 +52,7 @@ const dbMatrix: DbMatrix = {
     },
     {
       db: "postgresql",
-      image: "postgres:latest",
+      image: "postgres:18",
       port: 5432,
       db_user: "postgres",
       db_password: "postgres",

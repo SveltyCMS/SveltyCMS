@@ -7,6 +7,7 @@ import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { logger } from "@utils/logger";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";
 
 // Registers media schemas dynamically.
@@ -84,6 +85,13 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
   ) => {
     if (!context.user) {
       throw new Error("Authentication required");
+    }
+
+    // 🛡️ HARDENING: RBAC parity with REST — media routes require `media:read`.
+    // GraphQL previously exposed the media library to ANY logged-in user
+    // because it only checked `context.user` presence.
+    if (!hasPermissionWithRoles(context.user, "media:read")) {
+      throw new Error("Forbidden: insufficient permissions");
     }
 
     const { page = 1, limit = 50 } = pagination || {};

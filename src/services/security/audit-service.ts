@@ -14,6 +14,7 @@ import type {
   IDBAdapter,
 } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
+import { nowISODateString } from "@utils/date";
 import {
   getAuditFlags,
   getAuditFlagsSync,
@@ -269,7 +270,9 @@ export class AuditService {
         const flags = getAuditFlagsSync() ?? (await getAuditFlags().catch(() => null));
         if (flags?.disabled) return;
 
-        const timestamp = new Date().toISOString();
+        // Zero-allocation cached timestamp (per-ms reuse) — this runs on every
+        // write in the crypto chain, the documented create/update bottleneck.
+        const timestamp = nowISODateString();
         const entry: Omit<AuditLogEntry, "_id"> = {
           action,
           actorId: actor.id,
@@ -289,6 +292,7 @@ export class AuditService {
           previousHash: this.lastHash,
         };
 
+        // codeql[js/insufficient-password-hash]: tamper-evident audit chain (SHA-256 of the entry JSON), not a password KDF
         const hash = createHash("sha256").update(JSON.stringify(entry)).digest("hex");
         const fullEntry = { ...entry, hash };
         this.lastHash = hash;

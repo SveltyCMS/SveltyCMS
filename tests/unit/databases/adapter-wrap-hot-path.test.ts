@@ -41,8 +41,10 @@ describe("BaseAdapter.wrap hot path", () => {
       skipMeta: true,
     });
     expect(result.success).toBe(true);
-    if (result.success) expect(result.data).toEqual({ _id: "doc-1" });
-    expect(result.meta).toBeUndefined();
+    if (result.success) {
+      expect(result.data).toEqual({ _id: "doc-1" });
+      expect((result as any).meta).toBeUndefined();
+    }
   });
 
   it("maps a rejected write onto INSERT_FAILED without throwing", async () => {

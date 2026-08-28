@@ -105,6 +105,16 @@ function getTenantMaxRequests(lane: RateLimitLane = "default"): number {
   return getMaxRequests(lane) * 10;
 }
 
+/**
+ * Dynamically resolves the rate-limit window on every check — mirror of
+ * `getMaxRequests`. Benchmarks set `RATE_LIMIT_WINDOW_MS` at runtime to make
+ * cooldown/recovery tests deterministic instead of waiting the 60s default.
+ */
+function getWindowMs(): number {
+  const configured = Number(process.env.RATE_LIMIT_WINDOW_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_WINDOW_MS;
+}
+
 function getLaneCost(pathname: string, pressureCost: number): number {
   return isCommerceSensitive(pathname) ? pressureCost * COMMERCE_SENSITIVE_COST : pressureCost;
 }
@@ -247,13 +257,14 @@ const globalWithLimiter = globalThis as typeof globalThis & {
 if (typeof setInterval !== "undefined" && !globalWithLimiter[LIMITER_CLEANUP_KEY]) {
   globalWithLimiter[LIMITER_CLEANUP_KEY] = setInterval(() => {
     const now = Date.now();
+    const windowMs = getWindowMs();
     for (const [key, entry] of _buckets) {
-      if (now - entry.windowStart > DEFAULT_WINDOW_MS * 2) {
+      if (now - entry.windowStart > windowMs * 2) {
         _buckets.delete(key);
       }
     }
     for (const [key, entry] of _tenantBuckets) {
-      if (now - entry.windowStart > DEFAULT_WINDOW_MS * 2) {
+      if (now - entry.windowStart > windowMs * 2) {
         _tenantBuckets.delete(key);
       }
     }
@@ -324,7 +335,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   // Get or create per-IP bucket (bounded: evicts oldest BEFORE insert)
   let bucket = _buckets.get(clientKey);
-  if (!bucket || now - bucket.windowStart > DEFAULT_WINDOW_MS) {
+  if (!bucket || now - bucket.windowStart > getWindowMs()) {
     bucket = { count: 0, windowStart: now };
     setBoundedBucket(_buckets, clientKey, bucket);
   }
@@ -367,7 +378,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   bucket.count += cost;
 
   const remaining = Math.max(0, maxRequests - bucket.count);
-  const resetTime = Math.ceil((bucket.windowStart + DEFAULT_WINDOW_MS - now) / 1000);
+  const resetTime = Math.ceil((bucket.windowStart + getWindowMs() - now) / 1000);
 
   // Per-IP rate limit exceeded
   if (bucket.count > maxRequests) {
@@ -399,7 +410,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   if (tenantKey) {
     const tenantMaxRequests = getTenantMaxRequests(lane);
     let tenantBucket = _tenantBuckets.get(tenantKey);
-    if (!tenantBucket || now - tenantBucket.windowStart > DEFAULT_WINDOW_MS) {
+    if (!tenantBucket || now - tenantBucket.windowStart > getWindowMs()) {
       tenantBucket = { count: 0, windowStart: now };
       setBoundedBucket(_tenantBuckets, tenantKey, tenantBucket);
     }
@@ -407,7 +418,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
     tenantBucket.count += cost;
 
     tenantRemaining = Math.max(0, tenantMaxRequests - tenantBucket.count);
-    const tenantResetTime = Math.ceil((tenantBucket.windowStart + DEFAULT_WINDOW_MS - now) / 1000);
+    const tenantResetTime = Math.ceil((tenantBucket.windowStart + getWindowMs() - now) / 1000);
 
     if (tenantBucket.count > tenantMaxRequests) {
       logger.warn(
@@ -449,3 +460,172 @@ export function resetRateLimitBuckets(): void {
   _buckets.clear();
   _tenantBuckets.clear();
 }
+
+// ─── Targeted Endpoint & Action Rate Limiter ───────────────────────────────
+
+export type RateUnit = "ms" | "s" | "m" | "h" | "d";
+export type RateTuple = [number, RateUnit] | [number, string] | [number, number];
+
+export interface CookieRateLimitOptions {
+  name: string;
+  secret?: string;
+  rate?: RateTuple;
+  preflight?: boolean;
+}
+
+export interface RateLimiterOptions {
+  IP?: RateTuple;
+  IPUA?: RateTuple;
+  cookie?: CookieRateLimitOptions;
+  rates?: {
+    IP?: RateTuple;
+    IPUA?: RateTuple;
+    cookie?: CookieRateLimitOptions;
+  };
+  maxRequests?: number;
+  windowMs?: number;
+}
+
+function parseRateTuple(rate?: RateTuple): { max: number; windowMs: number } | null {
+  if (!rate || !Array.isArray(rate) || rate.length < 2) return null;
+  const count = Number(rate[0]) || 1;
+  const unit = rate[1];
+  let windowMs = DEFAULT_WINDOW_MS;
+  if (typeof unit === "number") {
+    windowMs = unit;
+  } else if (typeof unit === "string") {
+    switch (unit.toLowerCase()) {
+      case "ms":
+        windowMs = 1;
+        break;
+      case "s":
+        windowMs = 1000;
+        break;
+      case "m":
+        windowMs = 60_000;
+        break;
+      case "h":
+        windowMs = 3600_000;
+        break;
+      case "d":
+        windowMs = 86400_000;
+        break;
+      default:
+        windowMs = 60_000;
+        break;
+    }
+  }
+  return { max: count, windowMs };
+}
+
+/**
+ * Lightweight, zero-dependency endpoint & action rate limiter.
+ * Replaces external `sveltekit-rate-limiter` with unified IP resolution and fast sync hashing.
+ */
+export class RateLimiter {
+  private _buckets = new Map<string, RateLimitEntry>();
+  private _ipRule: { max: number; windowMs: number } | null;
+  private _ipUaRule: { max: number; windowMs: number } | null;
+  private _cookieRule: { name: string; max: number; windowMs: number } | null = null;
+
+  constructor(options: RateLimiterOptions = {}) {
+    const ipRate = options.IP ?? options.rates?.IP;
+    this._ipRule = parseRateTuple(ipRate);
+
+    const ipUaRate = options.IPUA ?? options.rates?.IPUA;
+    this._ipUaRule = parseRateTuple(ipUaRate);
+
+    const cookieOpts = options.cookie ?? options.rates?.cookie;
+    if (cookieOpts?.name) {
+      const parsed = parseRateTuple(cookieOpts.rate) ?? { max: 100, windowMs: DEFAULT_WINDOW_MS };
+      this._cookieRule = {
+        name: cookieOpts.name,
+        max: parsed.max,
+        windowMs: parsed.windowMs,
+      };
+    }
+
+    if (!this._ipRule && !this._ipUaRule && !this._cookieRule) {
+      this._ipRule = {
+        max: options.maxRequests ?? 100,
+        windowMs: options.windowMs ?? DEFAULT_WINDOW_MS,
+      };
+    }
+  }
+
+  public async isLimited(event: RequestEvent, _extraData?: unknown): Promise<boolean> {
+    const res = await this.check(event);
+    return res.limited;
+  }
+
+  public async check(
+    event: RequestEvent,
+    _extraData?: unknown,
+  ): Promise<{ limited: boolean; reason?: "IP" | "IPUA" | "cookie" | string }> {
+    const now = Date.now();
+    const rawIp = getClientIp(event) || "unknown";
+
+    // 1. IP rule check
+    if (this._ipRule) {
+      const key = hashClientKeySync(`ip:${rawIp}`);
+      let b = this._buckets.get(key);
+      if (!b || now - b.windowStart > this._ipRule.windowMs) {
+        b = { count: 0, windowStart: now };
+        setBoundedBucket(this._buckets, key, b);
+      }
+      b.count++;
+      if (b.count > this._ipRule.max) {
+        return { limited: true, reason: "IP" };
+      }
+    }
+
+    // 2. IP + User-Agent rule check
+    if (this._ipUaRule) {
+      const ua = event.request.headers.get("user-agent") || "";
+      const key = hashClientKeySync(`ipua:${rawIp}:${ua}`);
+      let b = this._buckets.get(key);
+      if (!b || now - b.windowStart > this._ipUaRule.windowMs) {
+        b = { count: 0, windowStart: now };
+        setBoundedBucket(this._buckets, key, b);
+      }
+      b.count++;
+      if (b.count > this._ipUaRule.max) {
+        return { limited: true, reason: "IPUA" };
+      }
+    }
+
+    // 3. Cookie rule check
+    if (this._cookieRule) {
+      let cookieVal = event.cookies.get(this._cookieRule.name);
+      if (!cookieVal) {
+        cookieVal = hashClientKeySync(`${rawIp}:${now}`);
+        try {
+          event.cookies.set(this._cookieRule.name, cookieVal, {
+            path: "/",
+            httpOnly: true,
+            sameSite: "lax",
+            secure: event.url.protocol === "https:",
+          });
+        } catch {}
+      }
+      const key = hashClientKeySync(`cookie:${this._cookieRule.name}:${cookieVal}`);
+      let b = this._buckets.get(key);
+      if (!b || now - b.windowStart > this._cookieRule.windowMs) {
+        b = { count: 0, windowStart: now };
+        setBoundedBucket(this._buckets, key, b);
+      }
+      b.count++;
+      if (b.count > this._cookieRule.max) {
+        return { limited: true, reason: "cookie" };
+      }
+    }
+
+    return { limited: false };
+  }
+
+  public async clear(): Promise<void> {
+    this._buckets.clear();
+  }
+}
+
+export const EndpointRateLimiter = RateLimiter;

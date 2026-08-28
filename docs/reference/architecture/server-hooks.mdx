@@ -547,7 +547,7 @@ Rate limiting is handled at two levels for defense-in-depth:
 
 1. **Global** (in `handle-security.ts`): `securityResponseService.analyzeRequest()` applies IP/IPUA/cookie rate limits to all requests via the centralized security pipeline. `/api/commerce/*` maps to a dedicated WAF limiter (60/min).
 2. **Hook lane** (`handle-rate-limit.ts`): Per-IP + per-tenant fixed window. Guest `/api/commerce` mutations use an isolated **commerce** lane (tighter cap, `X-RateLimit-Lane`) so cart floods cannot exhaust admin APIs.
-3. **Per-endpoint** (e.g., auth actions in `login/+page.server.ts`): Critical endpoints apply additional `RateLimiter` instances from `sveltekit-rate-limiter` for targeted protection.
+3. **Per-endpoint** (e.g., auth actions in `login/+page.server.ts`): Critical endpoints apply additional `RateLimiter` instances from `@src/hooks/handle-rate-limit` for targeted protection.
 
 ```
 export const handleSecurity: Handle = async ({ event, resolve }) => {

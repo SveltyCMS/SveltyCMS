@@ -15,12 +15,13 @@
  * - Delegates persist to cms.collections.create/update (same adapter path)
  */
 
-import type { Handle, RequestEvent } from "@sveltejs/kit";
+import type { RequestEvent } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { turboAuthCache } from "./handle-turbo-get";
-import { wafGuard } from "./wasm-waf-guard";
+import { wafGuard } from "./handle-waf-guard";
 import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import { applyAdapterTenantContext } from "@src/databases/tenant-adapter";
@@ -78,7 +79,7 @@ function hasWarmSession(event: RequestEvent): boolean {
 
 async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response> {
   const { request, url, cookies, locals } = event;
-  const wafCheck = wafGuard.inspectRequest(url.pathname, url.search, request.headers);
+  const wafCheck = wafGuard.inspectEvent(event);
   if (wafCheck.blocked) {
     throw new AppError(wafCheck.reason ?? "Security Policy Violation", 400);
   }
@@ -126,7 +127,7 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
   }
 
   const tenantKey = tenantId ? String(tenantId) : "global";
-  void responseCache.invalidateCollection("collections", tenantKey).catch(() => {});
+  void responseCache.invalidateCollection(collectionId, tenantKey).catch(() => {});
 
   const res = successResponse(event, result, request.method === "POST" ? 201 : 200);
   applyAllSecurityHeaders(

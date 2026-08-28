@@ -47,8 +47,19 @@ import {
   signReauthToken,
   verifyReauthToken,
 } from "@utils/server/session-reauth.server";
+import { RateLimiter } from "@src/hooks/handle-rate-limit";
+import { verifyPending2faToken } from "@src/utils/server/pending-2fa-token.server";
+import { getClientIp } from "@utils/hook-utils";
+import { buildDeviceFingerprint, getTrustedDeviceCookieConfig } from "@src/databases/auth/totp";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+// 🛡️ HARDENING: rate-limit the API TOTP challenge per client. A 6-digit code
+// is brute-forceable without a gate — parity with the form-path twoFaLimiter.
+const twoFaLimiter = new RateLimiter({
+  IP: [10, "m"],
+  IPUA: [10, "m"],
+});
 
 /** Strip sensitive fields from user object before sending to client. */
 function sanitizeUserForResponse(user: any) {
@@ -262,22 +273,71 @@ export async function handleLogin(
     event.request.headers.get("x-device-id") ||
     undefined;
 
+  // 🛡️ HARDENING: validate the login payload with the SAME schema the HTML
+  // form uses (loginFormSchema). Without this, a body with a missing/empty
+  // password reached cms.auth.login — which previously accepted passwordless
+  // logins (full account takeover). Defense-in-depth: schema first, then the
+  // mandatory password check inside AuthNamespace.login.
+  const { safeParse } = await import("valibot");
+  const { loginFormSchema } = await import("@utils/schemas");
+  // isToken is optional for API callers (the HTML form always sends it) —
+  // loginFormSchema is strictObject with isToken: boolean(), so passing
+  // `isToken: undefined` would fail validation and break valid password logins.
+  const parsed = safeParse(loginFormSchema, {
+    email,
+    password,
+    ...(body.isToken !== undefined ? { isToken: body.isToken } : {}),
+  });
+  if (!parsed.success) {
+    throw new AppError("Invalid credentials", 401);
+  }
+  const parsedPassword = parsed.output.password;
+  if (!parsedPassword) {
+    throw new AppError("Invalid credentials", 401);
+  }
+
   let result: { user: any; session: any };
 
   if ((event.locals as any).__testBypass) {
     result = await handleTestLoginBypass(cms, email || "admin@example.com", tenantId);
   } else {
     const userAgent = event.request.headers.get("user-agent") || undefined;
-    const ipAddress =
-      event.getClientAddress?.() ||
-      event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      undefined;
+    const ipAddress = event.getClientAddress?.() || undefined;
     const loginResult = await cms.auth.login(
-      { email, password },
+      { email, password: parsedPassword },
       { tenantId, sessionMeta: { userAgent, ipAddress, deviceId } },
     );
     if (!loginResult.success) throw new AppError(loginResult.message || "Login failed", 401);
     result = loginResult.data;
+  }
+
+  // 🛡️ HARDENING (2FA parity with the form path): the API login previously
+  // minted a session for any valid password — 2FA was never enforced here. A
+  // stolen password via the API thus bypassed 2FA. When the user has 2FA
+  // enabled, do NOT set the session cookie; return a requires2FA response with
+  // a short-lived signed token that the /api/user/2fa/verify path requires.
+  if (result.user && (result.user as any).is2FAEnabled && !(event.locals as any).__testBypass) {
+    const { signPending2faToken } = await import("@src/utils/server/pending-2fa-token.server");
+    const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+    // AuthNamespace.login returns session: null for 2FA accounts (no session is
+    // minted from the password step), so the cleanup below is defensive only.
+    if (result.session?._id) {
+      try {
+        await cms.auth.logout(result.session._id).catch(() => {});
+        invalidateSessionCache(result.session._id, tenantId);
+      } catch {}
+    }
+    return rawResponse(
+      event,
+      {
+        success: false,
+        requires2FA: true,
+        userId: result.user._id || result.user.id,
+        pending2faToken: signPending2faToken(String(result.user._id || result.user.id)),
+        message: "2FA required",
+      },
+      401,
+    );
   }
 
   setSessionCookie(event, result.session._id);
@@ -693,7 +753,9 @@ export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenan
   const body = await event.request.json();
   const result = await cms.auth.createUser(body, { tenantId });
   if (!result.success) throw new AppError(result.message || "Failed to create user", 400);
-  return successResponse(event, result.data, 201);
+  // 🛡️ Strip the password hash (and other server-only fields) from the response
+  // AND the locals.apiData stash — the raw adapter record must never leave the server.
+  return successResponse(event, sanitizeUserForResponse(result.data), 201);
 }
 
 /**
@@ -989,7 +1051,14 @@ export async function handle2FARoutes(
   const action = segments[2];
   const twoFactorService = new TwoFactorAuthService(cms.db.auth);
 
-  if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  // 🛡️ HARDENING: `verify` is the login-completion step — it runs BEFORE a
+  // session exists (the 2FA-gated API login deliberately sets no cookie). It is
+  // protected by the signed pending-2FA token (minted only after a successful
+  // password check) plus per-client rate limiting. Every other 2FA action still
+  // requires an authenticated session.
+  if (action !== "verify" && !user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
 
   switch (action) {
     case "setup":
@@ -1026,14 +1095,83 @@ export async function handle2FARoutes(
 
     case "verify": {
       if (event.request.method !== "POST") throw notAllowed();
-      const { code, userId } = await event.request.json().catch(() => ({}));
-      if (!userId) throw new AppError("User ID required", 400);
+
+      // 🛡️ HARDENING: a TOTP code alone must NOT mint a session. The pending-2FA
+      // token is only issued by handleLogin AFTER a successful password check,
+      // so a passwordless attacker (who knows a user id) cannot brute-force the
+      // 6-digit code. Rate limiting adds a second gate.
+      const { code, userId, pending2faToken, trustDevice } = await event.request
+        .json()
+        .catch(() => ({}));
+      if (!userId || typeof userId !== "string" || !code || typeof code !== "string") {
+        throw new AppError("User ID and code required", 400);
+      }
+      if (!verifyPending2faToken(pending2faToken, userId)) {
+        throw new AppError("Session expired. Please sign in again.", 401);
+      }
+      if (process.env.TEST_MODE !== "true" && (await twoFaLimiter.isLimited(event))) {
+        try {
+          event.setHeaders({ "Retry-After": "60" });
+        } catch {}
+        throw new AppError("Too many requests. Try again in a minute.", 429);
+      }
       if (isMultiTenantEnabled() && !tenantId) {
         throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
       }
-      const result = await twoFactorService.verify2FA(user._id, code, tenantId);
+
+      // Build device fingerprint for trusted-device support (parity with the form path).
+      let deviceFingerprint: string | undefined;
+      if (trustDevice) {
+        const ip = getClientIp(event);
+        const ua = event.request.headers.get("user-agent") || "";
+        deviceFingerprint = await buildDeviceFingerprint(ip, ua);
+      }
+
+      const result = await twoFactorService.verify2FA(
+        userId as DatabaseId,
+        code,
+        tenantId,
+        deviceFingerprint,
+      );
       if (!result.success) throw new AppError(result.message || "Invalid code", 400);
-      return successResponse(event, result);
+
+      // ── Mint the session now that the full login chain is proven ──
+      const userResult = await cms.auth.getUserById(userId, { tenantId });
+      const freshUser = userResult?.success ? userResult.data : null;
+      if (!freshUser) throw new AppError("User not found", 404);
+
+      const sessionResult = await cms.db.auth.createSession({
+        user_id: userId as DatabaseId,
+        tenantId,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
+      });
+      const created = sessionResult?.success ? sessionResult.data : null;
+      const sessionId = (created as any)?._id ?? (created as any)?.id;
+      if (!sessionId) throw new AppError("Failed to create session", 500);
+
+      setSessionCookie(event, sessionId);
+      generateCsrfToken(event.cookies, getCookieConfig(event).isSecure);
+      primeSessionMemoryCache(sessionId, freshUser, tenantId);
+
+      // Set trusted-device cookie if the client opted in and a token was minted.
+      if (trustDevice && result.trustedDeviceToken) {
+        try {
+          const { name, maxAge, httpOnly, secure, sameSite, path } = getTrustedDeviceCookieConfig();
+          event.cookies.set(name, result.trustedDeviceToken, {
+            maxAge,
+            httpOnly,
+            secure,
+            sameSite,
+            path,
+          });
+        } catch {}
+      }
+
+      return successResponse(event, {
+        success: true,
+        user: sanitizeUserForResponse(freshUser),
+        token: sessionId,
+      });
     }
 
     case "disable": {

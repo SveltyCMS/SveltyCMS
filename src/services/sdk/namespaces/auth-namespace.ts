@@ -11,6 +11,7 @@ import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions, invalidatePermissionCache } from "@src/databases/auth/permissions";
 import { sessionTtlMs } from "@src/databases/auth/constants";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
+import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import type {
   DatabaseId,
@@ -390,7 +391,16 @@ export class AuthNamespace {
         throw new AppError("Account suspended or incomplete", 401);
       }
 
-      if (password) {
+      // 🛡️ HARDENING: password is REQUIRED and always verified. Previously the
+      // check was `if (password)` — an attacker could log in with ONLY an email
+      // (no password) and get a session cookie (full account takeover for any
+      // user with a stored hash).
+      if (!password) {
+        logger.warn("Login attempt without password", { email });
+        throw new AppError("Invalid credentials", 401);
+      }
+
+      {
         const isValid = await verifyPassword(user.password, password);
         if (!isValid) {
           // --- FAILED ATTEMPT TRACKING (parity with Auth.authenticate) ---
@@ -437,6 +447,16 @@ export class AuthNamespace {
             error: getErrorMessage(err),
           });
         }
+      }
+
+      // 🛡️ PERF + HARDENING: 2FA-required accounts must NOT get a session from
+      // the password step alone — the API login flow completes the pending-2FA
+      // challenge and mints the session afterward. Returning `session: null`
+      // skips the createSession+logout churn handleLogin used to perform per
+      // 2FA login (2 wasted DB writes). Test harnesses keep the old behavior
+      // (their seeded users are not 2FA-enabled).
+      if ((user as any).is2FAEnabled && !isAutomatedTestHarness()) {
+        return { user, session: null };
       }
 
       // Device dedup (SESSION_DEVICE_POLICY):

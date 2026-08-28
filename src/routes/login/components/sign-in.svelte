@@ -125,6 +125,7 @@ let isAuthenticating = $state(false);
 let requires2FA = $state(false);
 let twoFAUserId = $state("");
 let twoFACode = $state("");
+let twoFAPendingToken = $state("");
 let useBackupCode = $state(false);
 let isVerifying2FA = $state(false);
 
@@ -231,6 +232,7 @@ if (typeof localStorage !== "undefined") {
 		if (result.requires2FA) {
 			requires2FA = true;
 			twoFAUserId = result.userId || "";
+			twoFAPendingToken = result.pending2faToken || "";
 			isAuthenticating = false;
 			globalLoadingStore.stopLoading(loadingOperations.authentication);
 			toast.warning({
@@ -517,7 +519,11 @@ async function submitTwoFA() {
 	isVerifying2FA = true;
 	try {
 		const { verify2FA } = await import("../auth.remote");
-		const result = (await verify2FA({ userId: twoFAUserId, code: twoFACode })) as any;
+		const result = (await verify2FA({
+			userId: twoFAUserId,
+			code: twoFACode,
+			pending2faToken: twoFAPendingToken || undefined,
+		})) as any;
 		isVerifying2FA = false;
 		if (result.success && result.redirectPath) {
 				toast.success({ title: "Verification Successful", description: "Redirecting…" });
@@ -553,6 +559,7 @@ function back2FAToLogin() {
 	requires2FA = false;
 	twoFAUserId = "";
 	twoFACode = "";
+	twoFAPendingToken = "";
 	useBackupCode = false;
 	isVerifying2FA = false;
 }

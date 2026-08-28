@@ -93,7 +93,16 @@ function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T> 
 /** 🛡️ Filters custom CSS input to prevent simple style injection */
 function sanitizeCss(css?: string): string | undefined {
   if (!css) return undefined;
-  if (css.includes("expression(") || css.includes("javascript:")) return undefined;
+  // All scriptable CSS payloads: IE expression(), and url(javascript:/vbscript:/
+  // data:image/svg+xml|data:text/html) — conservative over-blocking is fine for
+  // a theme-merge guard (harmless data: URI fonts pass, they don't match these).
+  if (
+    /\(?\s*(?:expression\s*\(|javascript\s*:|vbscript\s*:|data\s*:\s*(?:image\/svg|text\/html))/i.test(
+      css,
+    )
+  ) {
+    return undefined;
+  }
   return css;
 }
 

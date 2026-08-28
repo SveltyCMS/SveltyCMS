@@ -109,6 +109,7 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/system/health",
   "/api/system/version",
   "/api/user/login",
+  "/api/user/2fa/verify",
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/oidc-logout",
@@ -242,12 +243,22 @@ export { isAdmin } from "@src/databases/auth/constants";
  * High-performance client IP detection.
  * 🛡️ If getClientAddress fails, returns "0.0.0.0" to prevent IP spoofing via
  * untrusted X-Forwarded-For / X-Real-IP headers.
+ *
+ * Memoized per request on `event.locals` — the IP is resolved at most once
+ * across the security → rate-limit → auth hook chain instead of calling the
+ * platform adapter 3–5× per request.
  */
 export function getClientIp(event: RequestEvent): string {
   if (IS_TEST_MODE) return "127.0.0.1";
 
+  const locals = event.locals as Record<string, any>;
+  const cached = locals?.__clientIp;
+  if (cached) return cached;
+
   try {
-    return event.getClientAddress();
+    const ip = event.getClientAddress();
+    if (locals) locals.__clientIp = ip;
+    return ip;
   } catch (err: any) {
     if (process.env.BENCHMARK_DEBUG === "true") {
       logger.debug(

@@ -976,7 +976,7 @@ Per-request auth work was paying for debug-string interpolation and `new Date()`
 - `handle-authentication.ts`: debug logs behind `logger.isEnabled("debug")`; expiry via `.getTime() < Date.now()`.
 - `content-registry.svelte.ts`: `getSmartFirstCollection` memoized on `contentVersion`.
 - `cache-locks.ts`: lock owner is `crypto.randomUUID()` only.
-- `totp.ts`: backup codes HMAC-SHA-256 (`backupcode-hmac:` + JWT secret), dual-verify with legacy SHA-256.
+- `totp.ts`: backup codes HMAC-SHA-256 (`backupcode-hmac:` + JWT secret), single-scheme verify (legacy plain SHA-256 removed 2026-08).
 
 **Self-measured 2026-08-23, SQLite, two consecutive `hooks-performance` runs vs 0.598 ms baseline:**
 

@@ -28,7 +28,6 @@ import { SvelteSet } from "svelte/reactivity";
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import GenericSettingsGroup from "./generic-settings-group.svelte";
-import type { SettingGroup } from "./settings-groups";
 
 // Import settings structure
 import { getSettingGroupsByRole } from "./settings-groups";

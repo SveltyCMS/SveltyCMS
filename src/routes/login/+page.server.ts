@@ -14,7 +14,7 @@ import {
 import { auth, dbInitPromise } from "@src/databases/db";
 import { readSessionCookie } from "@src/databases/auth/constants";
 import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
-import { RateLimiter } from "sveltekit-rate-limiter/server";
+import { RateLimiter } from "@src/hooks/handle-rate-limit";
 import type { PageServerLoad } from "./$types";
 import type { ISODateString, DatabaseId } from "@src/content/types";
 import {
@@ -246,8 +246,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       throw redirect(302, returnTo);
     }
 
-    if (limiter.cookieLimiter?.preflight) {
-      await limiter.cookieLimiter.preflight({ request, cookies } as any);
+    if ((limiter as any).cookieLimiter?.preflight) {
+      await (limiter as any).cookieLimiter.preflight({ request, cookies } as any);
     }
 
     // Magic Link Verification

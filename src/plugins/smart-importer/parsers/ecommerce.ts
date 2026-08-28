@@ -423,12 +423,14 @@ function wxrCategories(itemXml: string, domain: string): string[] {
 }
 
 function decodeXml(value: string): string {
+  // codeql[js/double-escaping]: intentional — unescape `&amp;` LAST so nested
+  // `&amp;lt;` decodes to `&lt;` (single pass), never to `<`.
   return value
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'");
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, "&");
 }
 
 // ============================================================================

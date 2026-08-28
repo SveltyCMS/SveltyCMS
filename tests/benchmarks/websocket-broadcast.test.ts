@@ -1,22 +1,22 @@
 /**
  * @file tests/benchmarks/websocket-broadcast.test.ts
  * @description Yjs WebSocket Real-Time Synchronization Benchmark (Optimized)
- * @summary Measures end-to-end Yjs update propagation latency and connection handshake timing.
- *
- * Protocol: outer varUint messageSync (0) + y-protocols sync body
- * (messageYjsUpdate = 2, writeVarUint8Array). Matches `yjs-sync-server.ts`.
+ * @summary Measures WebSocket handshake latency, bidirectional Yjs CRDT update propagation, and synchronization throughput.
  */
 
 import {
   test,
   runBenchmark,
   exportResult,
+  exportMetric,
   setupBenchmarkServer,
   ensureStableTestData,
   stabilize,
   printTruthTable,
   printSummaryTable,
   benchmarkAuthHeaders,
+  getDbType,
+  getMemorySnapshot,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -32,19 +32,31 @@ let wsB: WebSocket | null = null;
 
 const messageSync = 0;
 
-/** Send a Yjs update using the correct y-protocols framing (type=2 + varuint8array). */
+// SyncStep1/2 readiness flags — set when a peer completes the initial server
+// sync handshake (a SyncStep2 reply is emitted for the server's SyncStep1).
+let syncReadyA = false;
+let syncReadyB = false;
+let resolveSyncReady: (() => void) | null = null;
+
+function forceGarbageCollection() {
+  if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
+    (Bun as any).gc(true);
+  } else if (typeof (globalThis as any).gc === "function") {
+    (globalThis as any).gc();
+  }
+}
+
+/** Send a Yjs update using correct y-protocols framing (type=0 Sync, subtype=2 Update). */
 function sendYjsUpdate(ws: WebSocket, update: Uint8Array) {
+  if (ws.readyState !== WebSocket.OPEN) return;
   const encoder = encoding.createEncoder();
   encoding.writeVarUint(encoder, messageSync);
   syncProtocol.writeUpdate(encoder, update);
   ws.send(encoding.toUint8Array(encoder));
 }
 
-/**
- * Handle an inbound WS frame: apply sync to local doc and reply if needed
- * (SyncStep1 → SyncStep2 handshake).
- */
-function handleIncomingSync(ws: WebSocket, doc: Y.Doc, raw: ArrayBuffer | Buffer) {
+/** Handle an inbound WS frame: apply sync to local doc and reply if needed. */
+function handleIncomingSync(ws: WebSocket, doc: Y.Doc, raw: ArrayBuffer | Buffer, peer: "A" | "B") {
   try {
     const data = new Uint8Array(raw as ArrayBuffer);
     const decoder = decoding.createDecoder(data);
@@ -53,34 +65,51 @@ function handleIncomingSync(ws: WebSocket, doc: Y.Doc, raw: ArrayBuffer | Buffer
 
     const replyEncoder = encoding.createEncoder();
     encoding.writeVarUint(replyEncoder, messageSync);
-    syncProtocol.readSyncMessage(decoder, replyEncoder, doc, "remote");
-    // length > 1 means sync payload was appended after outer type
-    if ((encoding as any).length(replyEncoder) > 1) {
+    const syncType = syncProtocol.readSyncMessage(decoder, replyEncoder, doc, "remote");
+
+    if ((encoding as any).length(replyEncoder) > 1 && ws.readyState === WebSocket.OPEN) {
       ws.send(encoding.toUint8Array(replyEncoder));
     }
+
+    // Handshake complete only after the server's SyncStep1 was processed (the
+    // client replied with SyncStep2). Later Update frames must NOT flip the flag.
+    if (syncType === syncProtocol.messageYjsSyncStep1) {
+      const peerReady = peer === "A" ? syncReadyA : syncReadyB;
+      if (!peerReady) {
+        if (peer === "A") syncReadyA = true;
+        else syncReadyB = true;
+        if (syncReadyA && syncReadyB && resolveSyncReady) {
+          resolveSyncReady();
+          resolveSyncReady = null;
+        }
+      }
+    }
   } catch {
-    // Suppress transient decode noise during handshake
+    // Suppress transient decode noise during sync handshake
   }
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-    p.then(
-      (v) => {
-        clearTimeout(t);
-        resolve(v);
-      },
-      (e) => {
-        clearTimeout(t);
-        reject(e);
-      },
-    );
-  });
+  let timer: ReturnType<typeof setTimeout>;
+  return Promise.race([
+    p.then((v) => {
+      clearTimeout(timer);
+      return v;
+    }),
+    new Promise<T>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    }),
+  ]);
 }
 
 export async function runBroadcastAudit() {
-  console.log("🚀 Starting Yjs Collaboration Sync Performance Audit...\n");
+  const dbType = getDbType().toUpperCase();
+  console.log(`🚀 Starting Yjs Collaboration Sync Performance Audit (${dbType})...\n`);
+
+  // Reset handshake state — a second run (retry) must re-arm the flags.
+  syncReadyA = false;
+  syncReadyB = false;
+  resolveSyncReady = null;
 
   try {
     process.env.SKIP_GRAPHQL_WS = "false";
@@ -88,130 +117,215 @@ export async function runBroadcastAudit() {
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
 
-    const wsUrl =
-      baseUrl.replace("http", "ws") + `/ws?docId=benchmark-collab-${Date.now()}&tenantId=default`;
+    const wsUrl = `${baseUrl.replace(/^http/, "ws")}/ws?docId=benchmark-collab-${Date.now()}&tenantId=default`;
 
     await ensureStableTestData();
     await stabilize(500);
 
-    const ITERATIONS = 100;
-    const results = [];
+    const wsHeaders = {
+      ...benchmarkAuthHeaders(),
+      connection: "Upgrade",
+      upgrade: "websocket",
+    };
 
-    console.log("   → Establishing Client connections...");
+    const results: any[] = [];
 
-    // Production /ws requires a real session — attach the admin cookie to the
-    // WebSocket upgrade handshake (ws library `headers` option).
-    const wsHeaders = { ...benchmarkAuthHeaders() };
+    // ── 1. WEBSOCKET UPGRADE & INITIAL SYNC HANDSHAKE TIMING ─────────────────
+    forceGarbageCollection();
+    await stabilize(100);
+
+    console.log("   → 1. Measuring Dual-Client WebSocket Handshake & SyncStep Setup...");
+    const handshakeT0 = performance.now();
+
     wsA = new WebSocket(wsUrl, { headers: wsHeaders });
     wsB = new WebSocket(wsUrl, { headers: wsHeaders });
 
-    await withTimeout(
-      Promise.all([
-        new Promise<void>((resolve, reject) => {
-          wsA!.on("open", resolve);
-          wsA!.on("error", reject);
-        }),
-        new Promise<void>((resolve, reject) => {
-          wsB!.on("open", resolve);
-          wsB!.on("error", reject);
-        }),
-      ]),
-      10_000,
-      "WebSocket open",
-    );
-
+    // Register frame handlers BEFORE awaiting open: the server streams its
+    // SyncStep1 immediately after upgrade, and a late `message` listener would
+    // miss frames (or resolve the handshake promise on a stale frame).
     const docA = new Y.Doc();
     const docB = new Y.Doc();
 
-    // Both peers must complete the SyncStep1/2 handshake with the server
-    wsA.on("message", (raw) => handleIncomingSync(wsA!, docA, raw as Buffer));
-    wsB.on("message", (raw) => handleIncomingSync(wsB!, docB, raw as Buffer));
+    wsA.on("message", (raw) => handleIncomingSync(wsA!, docA, raw as Buffer, "A"));
+    wsB.on("message", (raw) => handleIncomingSync(wsB!, docB, raw as Buffer, "B"));
 
-    // Local updates from A → wire → server → B
     docA.on("update", (update, origin) => {
       if (origin === "remote") return;
       sendYjsUpdate(wsA!, update);
     });
 
-    // Give handshake a moment after open (server sends SyncStep1 immediately)
-    await stabilize(200);
+    await withTimeout(
+      Promise.all([
+        new Promise<void>((resolve, reject) => {
+          wsA!.once("open", () => resolve());
+          wsA!.once("error", reject);
+        }),
+        new Promise<void>((resolve, reject) => {
+          wsB!.once("open", () => resolve());
+          wsB!.once("error", reject);
+        }),
+      ]),
+      10_000,
+      "WebSocket open handshake",
+    );
 
-    console.log("   → Performing end-to-end Yjs sync latency profiling...");
-
-    // Warm-up with hard timeout (never hang the suite for 480s)
+    // Wait for the initial SyncStep1/2 exchange to complete on both peers.
     await withTimeout(
       new Promise<void>((resolve) => {
-        const textB = docB.getText("shared-text");
+        resolveSyncReady = resolve;
+        // Check whether both flags were already set by a fast in-flight frame.
+        if (syncReadyA && syncReadyB) resolve();
+      }),
+      10_000,
+      "Yjs SyncStep1/2 handshake",
+    );
+
+    const handshakeLatencyMs = performance.now() - handshakeT0;
+    results.push({
+      name: "WS Handshake + SyncStep",
+      shortLabel: "Handshake",
+      layer: "Network (WS)",
+      avgMs: Number(handshakeLatencyMs.toFixed(2)),
+    });
+
+    await stabilize(250);
+
+    // ── 2. WARM-UP ───────────────────────────────────────────────────────────
+    const textA = docA.getText("shared-text");
+    const textB = docB.getText("shared-text");
+
+    await withTimeout(
+      new Promise<void>((resolve, reject) => {
         const observer = () => {
           textB.unobserve(observer);
           resolve();
         };
         textB.observe(observer);
-        docA.getText("shared-text").insert(0, "warmup");
+        try {
+          textA.insert(0, "warmup-token ");
+        } catch (err) {
+          textB.unobserve(observer);
+          reject(err);
+        }
       }),
-      8_000,
+      8000,
       "Yjs warmup sync",
     );
 
+    // ── 3. E2E CRDT UPDATE PROPAGATION LATENCY ──────────────────────────────
+    forceGarbageCollection();
+    await stabilize(100);
+
+    console.log("   → 2. Measuring Bidirectional CRDT Update Propagation Latency...");
     let messageCounter = 0;
+    const memBefore = getMemorySnapshot();
 
     const syncResult = await runBenchmark({
-      name: "Yjs CRDT Update Sync",
-      iterations: ITERATIONS,
-      warmupIterations: 10,
-      runs: 1,
+      name: "Yjs CRDT Propagation",
+      iterations: 200,
+      warmupIterations: 20,
+      runs: 2,
+      concurrency: 1,
+      trimOutliers: "iqr",
+      measureMemory: true,
       silent: true,
       onIteration: async () => {
-        return withTimeout(
-          new Promise<void>((resolve) => {
-            const textB = docB.getText("shared-text");
-            const observer = () => {
+        const currentTag = `m_${++messageCounter}:`;
+        // Tag-validated observer with a SELF-CLEANING timeout: resolves only on
+        // the actual frame payload and ALWAYS unregisters — on match, on insert
+        // error, and on timeout — so no dangling listener survives a failed
+        // iteration (previous builds leaked observers into docB, which then
+        // resolved phantom iterations on later ticks).
+        return new Promise<void>((resolve, reject) => {
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          const observer = (event: Y.YTextEvent) => {
+            const insertedText = event.changes.delta.map((d) => d.insert).join("");
+            if (insertedText.includes(currentTag)) {
               textB.unobserve(observer);
+              if (timer) clearTimeout(timer);
               resolve();
-            };
-            textB.observe(observer);
-            messageCounter++;
-            docA.getText("shared-text").insert(0, "msg-" + messageCounter + " ");
-          }),
-          3_000,
-          "Yjs Sync Timeout",
-        );
+            }
+          };
+          textB.observe(observer);
+          timer = setTimeout(() => {
+            textB.unobserve(observer);
+            reject(new Error("Yjs Sync Frame Timeout"));
+          }, 4000);
+          try {
+            textA.insert(0, `${currentTag}payload `);
+          } catch (err) {
+            textB.unobserve(observer);
+            if (timer) clearTimeout(timer);
+            reject(err);
+          }
+        });
       },
     });
+
+    const memAfter = getMemorySnapshot();
+    const rssDelta = Number((memAfter.rss - memBefore.rss).toFixed(1));
 
     results.push({
       ...syncResult,
-      shortLabel: "Yjs Collab",
-      layer: "Network (ws)",
+      rssDelta,
+      shortLabel: "CRDT Sync",
+      layer: "Network (WS)",
     });
 
+    // ── 4. REPORTING & TELEMETRY ────────────────────────────────────────────
     printTruthTable({
       title: "SVELTYCMS — YJS COLLABORATION SYNC AUDIT",
       shortLabel: "Collaboration",
-      subtitle: "Yjs + ws adapter-node",
+      subtitle: `Yjs CRDT Wire Framing • Peer-to-Peer Relay • ${dbType}`,
       results,
     });
 
-    printSummaryTable([
-      { key: "Yjs E2E Update Propagation Latency", val: results[0].avgMs, unit: "ms" },
-      {
-        key: "Peak Update Velocity",
-        val: Math.round(results[0].rps),
-        unit: "syncs/s",
-      },
-    ]);
+    const isSyncOptimal = syncResult.avgMs < 8.0;
 
-    exportResult(results[0]);
+    printSummaryTable(
+      [
+        { key: "Database Engine", val: dbType, unit: "" },
+        {
+          key: "Dual Handshake + SyncStep Latency",
+          val: handshakeLatencyMs.toFixed(2),
+          unit: "ms",
+        },
+        { key: "E2E CRDT Update Propagation (Avg)", val: syncResult.avgMs.toFixed(2), unit: "ms" },
+        {
+          key: "E2E CRDT Update Propagation (p95)",
+          val: (syncResult.p95Ms || syncResult.avgMs).toFixed(2),
+          unit: "ms",
+        },
+        { key: "Update Velocity", val: Math.round(syncResult.rps || 0), unit: "syncs/s" },
+        { key: "Memory RSS Δ", val: rssDelta.toFixed(1), unit: "MB" },
+        {
+          key: "Collaboration SLA",
+          val: isSyncOptimal ? "ELITE (<8ms)" : syncResult.avgMs < 20 ? "GOOD" : "SLOW",
+          unit: "",
+        },
+      ],
+      "Yjs Collaboration Summary",
+    );
+
+    exportMetric("websocket.handshake_ms", handshakeLatencyMs, "ms");
+    exportMetric("websocket.sync.avg_ms", syncResult.avgMs, "ms");
+    exportMetric("websocket.sync.p95_ms", syncResult.p95Ms || syncResult.avgMs, "ms");
+    exportMetric("websocket.sync.velocity_rps", Math.round(syncResult.rps || 0), "syncs/s");
+
+    exportResult(syncResult);
   } catch (err: any) {
-    logger.error("Yjs benchmark failed: " + err.message);
+    logger.error(`Yjs benchmark failed: ${err.message}`);
     console.error(err);
     throw err;
   } finally {
+    resolveSyncReady = null;
     if (wsA) {
+      wsA.removeAllListeners();
       wsA.close();
       wsA = null;
     }
     if (wsB) {
+      wsB.removeAllListeners();
       wsB.close();
       wsB = null;
     }
@@ -222,7 +336,6 @@ export async function runBroadcastAudit() {
   }
 }
 
-// Cap at 60s — warmup/open timeouts fail fast; no more 480s hangs
 test("Yjs Collaboration Sync Latency Audit", async () => {
   await runBroadcastAudit();
 }, 60_000);

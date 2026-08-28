@@ -30,7 +30,7 @@ import { sendMail } from "@utils/email.server";
 import { isRedirect } from "@sveltejs/kit";
 import type { ISODateString, DatabaseId } from "@src/content/types";
 import type { RequestEvent } from "@sveltejs/kit";
-import { RateLimiter } from "sveltekit-rate-limiter/server";
+import { RateLimiter } from "@src/hooks/handle-rate-limit";
 import { command, query, getRequestEvent } from "$app/server";
 import { isSecureCookieContext } from "@src/databases/auth/constants";
 import { pluginRegistry } from "@src/plugins";
@@ -54,6 +54,28 @@ const limiter = new RateLimiter({
     rate: [10, "m"],
     preflight: true,
   },
+});
+
+/**
+ * 🛡️ PENDING-2FA TOKEN (HARDENING):
+ * `verify2FA` used to be a passwordless login — anyone who knew a user id
+ * (returned on the requires2FA sign-in response) could brute-force a 6-digit
+ * TOTP. The TOTP proof must be chained to a PRIOR password proof.
+ *
+ * When sign-in requires 2FA, the server now issues a short-lived signed
+ * token bound to the authenticated user. verify2FA accepts the code ONLY
+ * together with this token, so a TOTP guess without a valid password login
+ * cannot mint a session.
+ */
+import {
+  signPending2faToken,
+  verifyPending2faToken,
+} from "@src/utils/server/pending-2fa-token.server";
+
+/** Dedicated limiter for the 2FA challenge endpoint — TOTP brute-force defense. */
+const twoFaLimiter = new RateLimiter({
+  IP: [10, "m"],
+  IPUA: [10, "m"],
 });
 
 // ────────────────────────────────────────────────────────────
@@ -141,16 +163,38 @@ export const verify2FA = command(
     userId,
     code,
     trustDevice,
+    pending2faToken,
   }: {
     userId: string;
     code: string;
     trustDevice?: boolean;
+    pending2faToken?: string;
   }) => {
     const event = getRequestEvent();
+
+    // 🛡️ HARDENING: rate-limit the TOTP challenge per client. 6-digit TOTP is
+    // brute-forceable without this gate.
+    if (process.env.TEST_MODE !== "true" && (await twoFaLimiter.isLimited(event))) {
+      try {
+        event.setHeaders({ "Retry-After": "60" });
+      } catch {}
+      return { success: false, message: "Too many requests. Try again in a minute." };
+    }
+
     await dbInitPromise;
     if (!auth) return { success: false, message: "Authentication system is not ready." };
 
     if (!userId || !code) return { success: false, message: "User ID and code required." };
+
+    // 🛡️ HARDENING: a TOTP code alone must NOT mint a session. The challenge
+    // token is issued only after a successful password login (signInInternal
+    // requires2FA branch) — a passwordless attacker cannot obtain one.
+    if (!verifyPending2faToken(pending2faToken, userId)) {
+      return {
+        success: false,
+        message: "Session expired. Please sign in again.",
+      };
+    }
 
     const { getDefaultTwoFactorAuthService } = await import("@src/databases/auth/two-factor-auth");
     const twoFactorService = getDefaultTwoFactorAuthService(auth as any);
@@ -430,7 +474,12 @@ async function signInInternal(event: RequestEvent, input: any) {
       if (requires2FA && !authHookResult?.requires2FA) {
         const trustedCookie = event.cookies.get("__Host-2fa-trusted-device");
         if (trustedCookie) {
-          const trustedUserId = await verifyTrustedDeviceToken(trustedCookie);
+          // 🛡️ HARDENING (pen-test M9): rebind the trusted-device cookie to the
+          // CURRENT IP prefix + UA hash. A cookie minted on another device no
+          // longer skips 2FA — only the device that completed the original 2FA
+          // challenge stays trusted for the 30-day TTL.
+          const currentFingerprint = await buildDeviceFingerprint(ip, ua);
+          const trustedUserId = await verifyTrustedDeviceToken(trustedCookie, currentFingerprint);
           if (trustedUserId === String(user._id)) {
             logger.debug("Skipping 2FA for trusted device", { userId: user._id });
             // Fall through to cookie issuance
@@ -439,6 +488,7 @@ async function signInInternal(event: RequestEvent, input: any) {
               success: false,
               requires2FA: true,
               userId: user._id,
+              pending2faToken: signPending2faToken(String(user._id)),
               message: "2FA required",
             };
           }
@@ -447,6 +497,7 @@ async function signInInternal(event: RequestEvent, input: any) {
             success: false,
             requires2FA: true,
             userId: user._id,
+            pending2faToken: signPending2faToken(String(user._id)),
             message: "2FA required",
           };
         }
@@ -455,6 +506,7 @@ async function signInInternal(event: RequestEvent, input: any) {
           success: false,
           requires2FA: true,
           userId: user._id,
+          pending2faToken: signPending2faToken(String(user._id)),
           message: "2FA required",
         };
       }
@@ -541,7 +593,11 @@ async function signInInternal(event: RequestEvent, input: any) {
     });
 
   // Determine redirect: explicit redirect param takes priority, then first collection, else builder
-  let redirectPath = (input.redirect as string) || "/config/collectionbuilder";
+  // 🛡️ HARDENING: the client-supplied redirect MUST pass safeRedirect() — an
+  // attacker could otherwise send the victim off-site after a real login
+  // (`/login?redirect=https://evil.example`).
+  const { safeRedirect } = await import("@src/utils/security/safe-redirect");
+  let redirectPath = safeRedirect(input.redirect as string, "/config/collectionbuilder");
   if (!input.redirect) {
     try {
       const { getCachedFirstCollectionPath } =

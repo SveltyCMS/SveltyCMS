@@ -16,7 +16,6 @@ import {
   isPublicRoute,
   getUserCacheId,
   buildUserCacheKey,
-  isPerEntityApiPath,
   MUTATION_HTTP_METHODS,
   WRITE_HTTP_METHODS,
 } from "@src/utils/hook-utils";
@@ -608,13 +607,23 @@ export const _handler = async (event: RequestEvent) => {
       const ifNoneMatch = request.headers.get("if-none-match");
       const userIdStr = getUserCacheId(user);
       const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
-      // Per-entity GETs are high-cardinality — keep them out of the shared L1.
-      const skipSharedL1 = isPerEntityApiPath(url.pathname);
+      const parts = url.pathname.split("/").filter(Boolean);
+      const colName =
+        parts.length >= 3 && (parts[1] === "collections" || parts[1] === "content")
+          ? parts[2]
+          : null;
+      const entityDocId =
+        parts.length >= 4 && parts[3] !== "list" && parts[3] !== "search" ? parts[3] : null;
+      const tags: string[] = ["res:all"];
+      if (colName) {
+        tags.push(`collection:${colName}`, `res:${colName}`);
+        if (entityDocId) tags.push(`doc:${colName}:${entityDocId}`);
+      }
 
       if (user) {
-        // Sync L1 turbo cache — zero microtask delay for next authenticated GET
+        // Sync L1 turbo cache with tags — instant O(#matched) invalidation on write
         responseCache.set(turboKey, { body: stashedBody, etag: contentEtag }, 300_000, tenantId, {
-          skipSharedL1,
+          tags,
         });
       }
 
@@ -660,20 +669,27 @@ export const _handler = async (event: RequestEvent) => {
     if (isCacheable && etag) {
       const userIdStr = getUserCacheId(user);
       const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
-      // Per-entity GETs are high-cardinality (one key per doc): keep them in the
-      // bounded turbo L1 only, never the shared 500k L1 / dispatch cache — else
-      // collection invalidation degrades to an O(#docs) scan of those namespaces.
-      const skipSharedL1 = isPerEntityApiPath(url.pathname);
-      // L1 turbo map (sync) + L2 cacheService (async fire-and-forget)
-      responseCache.set(turboKey, { body: responseBody, etag }, 300_000, tenantId, {
-        skipSharedL1,
-      });
-      if (!skipSharedL1) {
-        const dispatchCacheKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
-        cacheService
-          .set(dispatchCacheKey, { body: responseBody, etag }, 300, tenantId, CacheCategory.API)
-          .catch(() => {});
+      const parts = url.pathname.split("/").filter(Boolean);
+      const colName =
+        parts.length >= 3 && (parts[1] === "collections" || parts[1] === "content")
+          ? parts[2]
+          : null;
+      const entityDocId =
+        parts.length >= 4 && parts[3] !== "list" && parts[3] !== "search" ? parts[3] : null;
+      const tags: string[] = ["res:all"];
+      if (colName) {
+        tags.push(`collection:${colName}`, `res:${colName}`);
+        if (entityDocId) tags.push(`doc:${colName}:${entityDocId}`);
       }
+
+      // L1 turbo map (sync) + L2 cacheService (async fire-and-forget) with reverse tag index
+      responseCache.set(turboKey, { body: responseBody, etag }, 300_000, tenantId, {
+        tags,
+      });
+      const dispatchCacheKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
+      cacheService
+        .set(dispatchCacheKey, { body: responseBody, etag }, 300, tenantId, CacheCategory.API, tags)
+        .catch(() => {});
     }
 
     // ETag conditional response

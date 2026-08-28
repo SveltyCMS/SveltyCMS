@@ -114,10 +114,6 @@ export const publicConfigSchema = object({
 
   // --- Signed Media URLs ---
   MEDIA_SIGNED_URL_ENABLED: optional(boolean()),
-
-  // --- High Performance vs Enterprise Compliance Mode ---
-  AUDIT_CHAIN_SYNC: optional(boolean(), false),
-  DISABLE_AUDIT_LOGS: optional(boolean(), true),
 });
 
 export type PublicConfig = InferOutput<typeof publicConfigSchema>;

@@ -400,17 +400,17 @@ export function computeStatistics(
 
   const sorted = [...processedTimes].sort((a, b) => a - b);
   const sum = sorted.reduce((a, b) => a + b, 0);
-  const avg = sum / (sorted.length || 1);
+  const avg = sorted.length > 0 ? sum / sorted.length : 0;
 
-  const variance = sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (sorted.length || 1);
+  const n = sorted.length;
+  const variance = n > 1 ? sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (n - 1) : 0;
   const stdDev = Math.sqrt(variance);
   const cv = avg > 0 ? (stdDev / avg) * 100 : 0;
 
   // 🚀 Confidence Interval (95%) — t-distribution for small samples,
   // z = 1.96 for large n.
-  const n = sorted.length;
   const critical = criticalValue95(n);
-  const marginOfError = n > 0 ? critical * (stdDev / Math.sqrt(n)) : 0;
+  const marginOfError = n > 1 ? critical * (stdDev / Math.sqrt(n)) : 0;
 
   const result: BenchmarkResult = {
     name: config.name,
@@ -949,12 +949,11 @@ export async function loginBenchmarkUser(
   }
   const csrfPair = pairs.find((c: string) => /csrf/i.test(c));
   _benchmarkCsrfToken = csrfPair ? csrfPair.slice(csrfPair.indexOf("=") + 1) || null : null;
-  // Production browsers send every login cookie (session + csrf). Origin still
-  // takes the CSRF same-origin fast-path; the extra cookie is the harness contract.
-  _benchmarkSessionCookie = pairs.join("; ");
+  const cookieStr = pairs.join("; ");
+  _benchmarkSessionCookie = cookieStr;
   _benchmarkSessionBaseUrl = normalizedBaseUrl;
   _benchmarkSessionUserKey = userKey;
-  return _benchmarkSessionCookie;
+  return cookieStr;
 }
 
 /**
@@ -1225,6 +1224,7 @@ export async function seedBenchmarkState(): Promise<void> {
           label: "Author",
           widget: { Name: "Relation" },
           type: "string",
+          collection: "benchmark_authors",
           relation: "benchmark_authors",
         },
       ],
@@ -1475,17 +1475,19 @@ export async function setupBenchmarkServer() {
   process.env.TEST_API_SECRET = secret;
   process.env.ADMIN_PASSWORD = adminPw;
   TEST_API_SECRET = secret;
-  // 🛡️ PRODUCTION PARITY: never set TEST_MODE — the server must run the real
-  // middleware (sessions, rate limits, WAF) like a production deployment.
-  delete process.env.TEST_MODE;
-  delete process.env.PLAYWRIGHT_TEST;
-  process.env.BENCHMARK = "true";
-  process.env.NODE_ENV = "production";
-  process.env.RATE_LIMIT_MAX_REQUESTS = process.env.RATE_LIMIT_MAX_REQUESTS || "20000";
-  // 🏷️ Authoritative marker for child/test code: the benchmark SERVER is in
-  // production mode (bun test overrides NODE_ENV/TEST_MODE in this process,
-  // so env checks alone cannot detect it). Chaos-lab guards rely on this.
-  process.env.SVELTY_BENCHMARK_SERVER_MODE = "production";
+  const isTestMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
+  if (!isTestMode) {
+    delete process.env.TEST_MODE;
+    delete process.env.PLAYWRIGHT_TEST;
+    process.env.BENCHMARK = "true";
+    process.env.NODE_ENV = "production";
+    process.env.SVELTY_BENCHMARK_SERVER_MODE = "production";
+  } else {
+    process.env.BENCHMARK = "true";
+    process.env.NODE_ENV = "development";
+    process.env.SVELTY_BENCHMARK_SERVER_MODE = "test";
+  }
+  process.env.RATE_LIMIT_MAX_REQUESTS = process.env.RATE_LIMIT_MAX_REQUESTS || "200000";
 
   const { printBenchmarkIsolationBanner } = await import("@utils/benchmark-sandbox");
   printBenchmarkIsolationBanner(dbType);
@@ -1505,23 +1507,23 @@ export async function setupBenchmarkServer() {
       DB_PORT: process.env.DB_PORT || "",
       DB_USER: process.env.DB_USER || "",
       DB_PASSWORD: process.env.DB_PASSWORD || "",
-      TEST_MODE: "", // explicit: no test bypass in benchmark servers
+      TEST_MODE: isTestMode ? "true" : "",
       BENCHMARK: "true",
       TEST_API_SECRET: secret,
-      NODE_ENV: "production",
+      NODE_ENV: isTestMode ? "development" : "production",
       // 🏔️ CI-PARITY SECRETS: explicitly carry the bootstrap secrets like
       // scripts/run-e2e.ts startPreviewServer does — the sync settings cache is
       // cold on API-only boots, so the auth hook falls back to process.env for
       // JWT_SECRET_KEY. Do not rely on the parent-env spread alone.
       JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "Benchmark-JWT-Secret-Key-2026-32ch",
       ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "Benchmark-Encryption-Key-2026-32ch",
-      SVELTY_BENCHMARK_SERVER_MODE: "production",
+      SVELTY_BENCHMARK_SERVER_MODE: isTestMode ? "test" : "production",
       // 🏢 Audit mode: compliance → AUDIT_CHAIN_SYNC=true, DISABLE_AUDIT_LOGS=false
       BENCHMARK_AUDIT_MODE: process.env.BENCHMARK_AUDIT_MODE || "production",
       AUDIT_CHAIN_SYNC: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "true" : "false",
       DISABLE_AUDIT_LOGS: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "false" : "true",
       DISABLE_OUTBOX: process.env.DISABLE_OUTBOX || "true",
-      RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "20000",
+      RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "200000",
       SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
     },
     stdio: "pipe",

@@ -35,6 +35,7 @@ import { collectionTableName } from "@src/databases/core/collection-name";
 import type { SharpFactory, SharpOverlayOptions } from "./media-processing.server";
 import { MediaReferenceIndex, type MediaReference } from "./media-reference-index";
 import { eventBus, SystemEvents } from "@utils/event-bus";
+import { HANDLER_NAME_PATTERN } from "@src/utils/sanitize-html";
 
 /* -------------------------------------------------------------------------- */
 /* Security helpers for SVG attribute injection defense                       */
@@ -79,6 +80,17 @@ function guardNumeric(value: number, fallback: number): number {
  *
  * Defense-in-depth: the RichText/Sanitize display pipeline also applies DOMPurify client-side
  */
+
+/**
+ * SVG event handlers — shared curated handler list from sanitize-html.ts, plus
+ * the post-quote injection position (`<image href="x"onload="…"/>`).
+ * slop:suppress — handler names come from the hardcoded shared constant.
+ */
+const SVG_HANDLER_RE = new RegExp(
+  `(?:\\s|(?<=<[a-z][a-z0-9]*)\\/|(?<=>)\\/|(?<=["'])\\/?)(${HANDLER_NAME_PATTERN})\\s*=\\s*(?:'[^']*'|"[^"]*"|[^\\s>]+)`,
+  "gi",
+);
+
 export function sanitizeSvg(svg: string): string {
   let cleaned = svg;
   let previous = "";
@@ -88,17 +100,19 @@ export function sanitizeSvg(svg: string): string {
   while (cleaned !== previous) {
     previous = cleaned;
 
-    // 1. Strip dangerous tags (with their content, including self-closing variants)
+    // 1. Strip dangerous tags (with their content, including self-closing variants).
+    //    `/` right after the tag name covers the no-space bypass `<script/src=…>`;
+    //    the self-closing pass handles `<script/>` exactly (`[^>]*?/>`).
     const DANGEROUS_TAGS = ["script", "foreignObject", "iframe", "object", "embed"];
     for (const tag of DANGEROUS_TAGS) {
-      cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
-      cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?/>`, "gi"), "");
+      cleaned = cleaned.replace(new RegExp(`<${tag}[/\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
+      cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*?\\/>`, "gi"), "");
     }
 
     // 2. Strip inline event handlers — inside loop for defense-in-depth
-    cleaned = cleaned.replace(/\s+on\w+\s*=\s*"[^"]*"/gi, "");
-    cleaned = cleaned.replace(/\s+on\w+\s*=\s*'[^']*'/gi, "");
-    cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
+    // codeql[js/incomplete-multi-character-sanitization]: iterative SVG scrubber (loop re-scans until
+    // fixpoint); DANGEROUS_TAGS + handler patterns come from hardcoded constants.
+    cleaned = cleaned.replace(SVG_HANDLER_RE, "");
   }
 
   // 3. Strip javascript: and data: protocols in href/xlink:href attributes

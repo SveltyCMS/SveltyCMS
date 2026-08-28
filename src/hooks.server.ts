@@ -47,7 +47,7 @@ if (typeof (globalThis as any).__dirname === "undefined") {
 }
 
 import { isSetupComplete } from "./utils/setup-check-fast";
-import { classifyRequest, RequestLane } from "./hooks/request-classifier";
+import { classifyRequest, RequestLane } from "./hooks/handle-request-classifier";
 import {
   isSimpleCollectionWrite,
   tryCollectionWriteLane,

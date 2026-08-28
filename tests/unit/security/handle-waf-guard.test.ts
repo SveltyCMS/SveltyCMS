@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/security/wasm-waf-guard.test.ts
+ * @file tests/unit/security/handle-waf-guard.test.ts
  * @description
  * Unit tests for WafGuard security middleware.
  *
@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { WafGuard } from "@src/hooks/wasm-waf-guard";
+import { WafGuard } from "@src/hooks/handle-waf-guard";
 
 describe("WafGuard (Layer 0 WAF Middleware)", () => {
   const waf = new WafGuard();
@@ -62,6 +62,22 @@ describe("WafGuard (Layer 0 WAF Middleware)", () => {
     });
     expect(res.blocked).toBe(true);
     expect(res.threatType).toBe("HEADER_SPLITTING");
+  });
+
+  it("memoizes scan results on event.locals to ensure WAF runs only once per request", () => {
+    const mockEvent: any = {
+      url: new URL("http://localhost:5173/api/collections/posts"),
+      request: { headers: new Headers({ host: "localhost:5173" }) },
+      locals: {},
+    };
+
+    const first = waf.inspectEvent(mockEvent);
+    expect(first.blocked).toBe(false);
+    expect(mockEvent.locals.__wafCheck).toBe(first);
+
+    // Subsequent calls return exact same object reference from locals
+    const second = waf.inspectEvent(mockEvent);
+    expect(second).toBe(first);
   });
 
   it("executes automated payload fuzzing with 100% WAF resilience", async () => {

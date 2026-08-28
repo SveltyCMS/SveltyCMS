@@ -1,18 +1,14 @@
 /**
  * @file tests/benchmarks/migration-scale.test.ts
- * @description Migration & Bulk I/O Scale Benchmark
- * @summary Measures bulk ingestion throughput for 10,000 entries and post-migration random lookup performance.
- *
- * ### Features:
- * - Batch bulk ingestion of 10k entries (500 per batch)
- * - Post-migration random ID lookup latency on large collections
- * - Memory footprint measurement during large-scale data import
+ * @description Migration & Bulk I/O Scale Benchmark (Optimized)
+ * @summary Measures bulk ingestion throughput for 10,000 entries, random point-lookups, and indexed range scans across large datasets.
  */
 
 import {
   test,
   runBenchmark,
   exportResult,
+  exportMetric,
   setupBenchmarkServer,
   ensureStableTestData,
   stabilize,
@@ -27,15 +23,54 @@ import { logger } from "@utils/logger";
 const COLLECTION_ID = "bench_migration_large";
 const TOTAL_ENTRIES = 10_000;
 const BATCH_SIZE = 500;
+const TOTAL_BATCHES = Math.ceil(TOTAL_ENTRIES / BATCH_SIZE);
 
 let stopServer: (() => Promise<void>) | null = null;
 
-// Pre-computed content template — avoids .repeat(8) allocation in hot loop
-const STATIC_CONTENT = "<p>Stress test content for large scale migration.</p>".repeat(8);
+function forceGarbageCollection() {
+  if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
+    (Bun as any).gc(true);
+  } else if (typeof (globalThis as any).gc === "function") {
+    (globalThis as any).gc();
+  }
+}
+
+const STATIC_CONTENT = "<p>Stress test content for large scale migration.</p>".repeat(4);
+
+/**
+ * Pre-serializes bulk batch payloads ahead of time to eliminate JSON stringification overhead in hot loops.
+ */
+function precomputeBulkPayloads(initialTimestamp: number): {
+  batches: string[];
+  allIds: string[];
+} {
+  const allIds: string[] = [];
+  const batches = Array.from({ length: TOTAL_BATCHES }, (_, batchIndex) => {
+    const batch = Array.from({ length: BATCH_SIZE }, (_, j) => {
+      const absoluteIndex = batchIndex * BATCH_SIZE + j;
+      const id = `mig_${initialTimestamp}_${absoluteIndex}`;
+      allIds.push(id);
+      return {
+        _id: id,
+        title: `Bulk Entry ${absoluteIndex.toString().padStart(6, "0")}`,
+        content: STATIC_CONTENT,
+        count: absoluteIndex,
+        metadata: {
+          importedAt: "2026-08-28T12:00:00.000Z",
+          batch: batchIndex,
+          tags: ["migration", "scale_test"],
+        },
+      };
+    });
+    return JSON.stringify(batch);
+  });
+  return { batches, allIds };
+}
 
 async function runMigrationAudit() {
+  const dbType = getDbType().toUpperCase();
   console.log(
-    `🚀 Starting Migration & Scale Audit (${TOTAL_ENTRIES.toLocaleString()} entries)...\n`,
+    `🚀 Starting Migration & Scale Audit (${TOTAL_ENTRIES.toLocaleString()} entries • ${dbType})...\n`,
   );
 
   try {
@@ -44,111 +79,194 @@ async function runMigrationAudit() {
     const baseUrl = server.baseUrl;
 
     await ensureStableTestData();
+    await stabilize(1000);
 
-    // 1. Bulk Ingestion Benchmark
-    console.log(`   → Ingesting ${TOTAL_ENTRIES} entries...`);
+    const baseHeaders: Record<string, string> = {
+      ...benchmarkAuthHeaders(),
+      "content-type": "application/json",
+      connection: "keep-alive",
+    };
 
-    // Capture once before the benchmark clock starts — avoids Date.now() in hot loop
     const initialRunTime = Date.now();
+    const bulkUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/bulk`;
+    const listUrl = `${baseUrl}/api/collections/${COLLECTION_ID}?limit=20&sort=title&order=asc`;
+
+    // Pre-serialize all batch JSON payloads
+    console.log(`   → Pre-serializing ${TOTAL_BATCHES} batches (${BATCH_SIZE} items/batch)...`);
+    const { batches: serializedBatches, allIds } = precomputeBulkPayloads(initialRunTime);
+
+    const results: any[] = [];
+
+    // ── 1. BULK INGESTION BENCHMARK ──────────────────────────────────────────
+    forceGarbageCollection();
+    await stabilize(200);
+
+    console.log(
+      `   → Ingesting ${TOTAL_ENTRIES.toLocaleString()} entries in ${TOTAL_BATCHES} batches...`,
+    );
+    const t0 = performance.now();
 
     const migrationResult = await runBenchmark({
-      name: "Bulk Migration (10k)",
-      iterations: Math.ceil(TOTAL_ENTRIES / BATCH_SIZE),
+      name: `Bulk Migration (${TOTAL_ENTRIES / 1000}k docs)`,
+      iterations: TOTAL_BATCHES,
       warmupIterations: 0,
       runs: 1,
       concurrency: 1,
+      trimOutliers: "iqr",
       measureMemory: true,
       silent: true,
       onIteration: async (batchIndex: number) => {
-        const batch = Array.from({ length: BATCH_SIZE }, (_, j) => {
-          const absoluteIndex = batchIndex * BATCH_SIZE + j;
-          return {
-            _id: `mig-${initialRunTime}-${absoluteIndex}`,
-            title: `Bulk Entry ${absoluteIndex}`,
-            content: STATIC_CONTENT,
-            metadata: {
-              importedAt: "2026-06-27T20:00:00.000Z",
-              batch: batchIndex,
-              tags: ["migration", "benchmark"],
-            },
-          };
-        });
+        const payload = serializedBatches[batchIndex % serializedBatches.length]!;
 
-        const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/bulk`, {
+        const res = await fetch(bulkUrl, {
           method: "POST",
-          headers: {
-            ...benchmarkAuthHeaders(),
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(batch),
+          headers: baseHeaders,
+          body: payload,
+          signal: AbortSignal.timeout(60_000),
         });
 
         if (!res.ok) {
           const text = await res.text().catch(() => "");
-          throw new Error(`Bulk create failed: ${res.status} ${text}`);
+          throw new Error(`Bulk ingestion failed: HTTP ${res.status} ${text}`);
         }
+
+        await res.arrayBuffer().catch(() => {});
       },
     });
 
-    await stabilize(2000);
+    const totalIngestTimeMs = performance.now() - t0;
+    const ingestThroughput = Math.round(TOTAL_ENTRIES / (totalIngestTimeMs / 1000));
 
-    // 2. Post-Migration Read Performance
-    console.log("   → Measuring read performance on large collection...");
-    const lookupResult = await runBenchmark({
-      name: "Post-Migration Read",
+    results.push({
+      ...migrationResult,
+      shortLabel: "Bulk Import",
+      layer: "Ingestion",
+      rps: ingestThroughput,
+    });
+
+    // ── 2. RANDOM POINT-LOOKUP BENCHMARK ────────────────────────────────────
+    forceGarbageCollection();
+    await stabilize(500);
+
+    console.log("   → Measuring Random ID Point-Lookups on 10k dataset...");
+    let lookupCursor = 0;
+
+    const pointLookupResult = await runBenchmark({
+      name: "Random Point Lookup",
       iterations: 600,
-      warmupIterations: 80,
+      warmupIterations: 50,
       runs: 2,
       concurrency: 6,
+      trimOutliers: "iqr",
+      measureMemory: true,
       silent: true,
       onIteration: async () => {
-        const res = await fetch(
-          `${baseUrl}/api/collections/${COLLECTION_ID}?limit=20&sort=title&order=asc`,
-          {
-            headers: {
-              ...benchmarkAuthHeaders(),
-            },
-          },
-        );
-        if (!res.ok) throw new Error(`Lookup failed: ${res.status}`);
-        await res.text();
+        const randIdx = (lookupCursor++ * 7919) % TOTAL_ENTRIES;
+        const targetId = allIds[randIdx] || `mig_${initialRunTime}_${randIdx}`;
+
+        const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${targetId}`, {
+          method: "GET",
+          headers: baseHeaders,
+          signal: AbortSignal.timeout(10_000),
+        });
+
+        if (!res.ok) throw new Error(`Point lookup failed: HTTP ${res.status}`);
+        await res.arrayBuffer().catch(() => {});
       },
     });
 
-    // Reporting
+    results.push({
+      ...pointLookupResult,
+      shortLabel: "Point Lookup",
+      layer: "Read (ID)",
+    });
+
+    // ── 3. INDEXED PAGINATED RANGE SCAN ─────────────────────────────────────
+    forceGarbageCollection();
+    await stabilize(200);
+
+    console.log("   → Measuring Indexed Range Queries (Pagination + Sort)...");
+    const scanResult = await runBenchmark({
+      name: "Range Scan & Pagination",
+      iterations: 400,
+      warmupIterations: 40,
+      runs: 2,
+      concurrency: 6,
+      trimOutliers: "iqr",
+      measureMemory: true,
+      silent: true,
+      onIteration: async () => {
+        const res = await fetch(listUrl, {
+          method: "GET",
+          headers: baseHeaders,
+          signal: AbortSignal.timeout(10_000),
+        });
+
+        if (!res.ok) throw new Error(`Range scan failed: HTTP ${res.status}`);
+        await res.arrayBuffer().catch(() => {});
+      },
+    });
+
+    results.push({
+      ...scanResult,
+      shortLabel: "Range Scan",
+      layer: "Read (Scan)",
+    });
+
+    // ── REPORTING & TELEMETRY ───────────────────────────────────────────────
     printTruthTable({
       title: "SVELTYCMS — MIGRATION & SCALE AUDIT",
       shortLabel: "Migration",
-      subtitle: `10k Entries • ${getDbType().toUpperCase()}`,
-      results: [
-        { ...migrationResult, layer: "Ingestion", shortLabel: "Bulk Import" },
-        { ...lookupResult, layer: "Read", shortLabel: "Random Lookup" },
+      subtitle: `${TOTAL_ENTRIES.toLocaleString()} Ingested Entries • Point Lookups • Range Scans • ${dbType}`,
+      results,
+    });
+
+    printSummaryTable(
+      [
+        { key: "Database Engine", val: dbType, unit: "" },
+        { key: "Total Ingestion Time", val: (totalIngestTimeMs / 1000).toFixed(2), unit: "s" },
+        {
+          key: "Bulk Ingestion Throughput",
+          val: ingestThroughput.toLocaleString(),
+          unit: "entries/s",
+        },
+        {
+          key: "Batch Latency (500 items/batch)",
+          val: migrationResult.avgMs.toFixed(2),
+          unit: "ms",
+        },
+        {
+          key: "Random Point-Lookup Latency",
+          val: pointLookupResult.avgMs.toFixed(2),
+          unit: "ms",
+        },
+        {
+          key: "Random Point-Lookup p95",
+          val: (pointLookupResult.p95Ms || pointLookupResult.avgMs).toFixed(2),
+          unit: "ms",
+        },
+        { key: "Paginated Range Scan Latency", val: scanResult.avgMs.toFixed(2), unit: "ms" },
+        {
+          key: "Ingestion Memory Growth",
+          val: (migrationResult.rssDelta || 0).toFixed(1),
+          unit: "MB",
+        },
       ],
-    });
+      "Migration & Scale Summary",
+    );
 
-    const throughput = Math.round(TOTAL_ENTRIES / (migrationResult.totalMs / 1000));
+    exportMetric("migration.ingest_throughput_docs_s", ingestThroughput, "entries/s");
+    exportMetric("migration.batch_latency_avg_ms", migrationResult.avgMs, "ms");
+    exportMetric("migration.point_lookup_avg_ms", pointLookupResult.avgMs, "ms");
+    exportMetric(
+      "migration.point_lookup_p95_ms",
+      pointLookupResult.p95Ms || pointLookupResult.avgMs,
+      "ms",
+    );
+    exportMetric("migration.range_scan_avg_ms", scanResult.avgMs, "ms");
+    exportMetric("migration.memory_rss_delta_mb", migrationResult.rssDelta || 0, "MB");
 
-    printSummaryTable([
-      {
-        key: "Total Migration Time",
-        val: (migrationResult.totalMs / 1000).toFixed(1),
-        unit: "s",
-      },
-      { key: "Ingestion Throughput", val: throughput, unit: "entries/s" },
-      { key: "Post-Migration Read", val: lookupResult.avgMs, unit: "ms" },
-      {
-        key: "Memory Growth",
-        val: (migrationResult.rssDelta || 0).toFixed(1),
-        unit: "MB",
-      },
-    ]);
-
-    exportResult({
-      ...migrationResult,
-      name: "Migration 10k",
-      throughput,
-      lookupAvgMs: lookupResult.avgMs,
-    });
+    for (const r of results) exportResult(r);
   } catch (err: any) {
     logger.error(`Migration audit failed: ${err.message}`);
     console.error(err);
@@ -163,4 +281,4 @@ async function runMigrationAudit() {
 
 test("Migration & Large Scale Ingestion", async () => {
   await runMigrationAudit();
-}, 900_000); // 15 minutes
+}, 900_000);

@@ -454,10 +454,13 @@ export async function handleSystemMgmtRoutes(
   const action = segments[1];
   if (action === "reinitialize" && event.request.method === "POST") {
     const body = await event.request.json().catch(() => ({}));
-    return rawResponse(event, await cms.system.reinitialize(body.force ?? true));
+    invalidateHealthCache();
+    const result = await cms.system.reinitialize(body.force ?? true);
+    return successResponse(event, result ?? { reinitialized: true });
   }
   if (action === "refresh" && event.request.method === "POST") {
     const body = await event.request.json().catch(() => ({}));
+    invalidateHealthCache();
     const refreshResult = await cms.system.refresh({
       tenantId: body.tenantId,
       skipReconciliation: body.skipReconciliation ?? false,
@@ -1200,6 +1203,13 @@ export async function handleSetupRoutes(
 
 let lastHealthReport = "";
 let lastHealthTime = 0;
+let lastHealthOverallState = "";
+
+export function invalidateHealthCache(): void {
+  lastHealthReport = "";
+  lastHealthTime = 0;
+  lastHealthOverallState = "";
+}
 
 export async function handleHealthRoutes(
   event: RequestEvent,
@@ -1211,6 +1221,9 @@ export async function handleHealthRoutes(
   const failExternal = request.headers.get("x-test-fail-external") === "true";
   const now = Date.now();
 
+  const { getOverallState, isSystemReady } = await import("@src/stores/system/state.svelte");
+  const currentOverallState = getOverallState();
+
   // 🛡️ CIRCUIT BREAKER AUDIT: If requested, simulate a degraded state
   if (failExternal) {
     const isUp = await cms.db.isConnected();
@@ -1218,6 +1231,7 @@ export async function handleHealthRoutes(
       JSON.stringify({
         status: "degraded",
         overallStatus: "DEGRADED",
+        state: "DEGRADED",
         database: isUp ? "connected" : "disconnected",
         external: { status: "failed", message: "Simulated External Outage" },
         uptime: process.uptime(),
@@ -1227,8 +1241,13 @@ export async function handleHealthRoutes(
     );
   }
 
-  // 🚀 PERFORMANCE: 10-second memoization of health report
-  if (lastHealthReport && now - lastHealthTime < 10000 && !request.headers.has("x-refresh")) {
+  // 🚀 PERFORMANCE: Memoization of health report with state-change invalidation
+  if (
+    lastHealthReport &&
+    now - lastHealthTime < 10000 &&
+    lastHealthOverallState === currentOverallState &&
+    !request.headers.has("x-refresh")
+  ) {
     return new Response(lastHealthReport, {
       headers: { "Content-Type": "application/json", "X-Cached": "TRUE" },
     });
@@ -1237,8 +1256,12 @@ export async function handleHealthRoutes(
   const isUp = await cms.db.isConnected();
   const { getDatabaseResilience } = await import("@src/databases/database-resilience");
   const metrics = getDatabaseResilience().getMetrics();
+  const ready = isSystemReady();
   const report = {
     status: isUp ? "healthy" : "degraded",
+    overallStatus: currentOverallState,
+    state: currentOverallState,
+    ready,
     database: isUp ? "connected" : "disconnected",
     latency: 0, // Simplified for high-frequency checks
     serverTime: new Date().toISOString(),
@@ -1251,9 +1274,17 @@ export async function handleHealthRoutes(
     },
   };
 
-  const reportString = JSON.stringify({ success: true, data: report });
+  const reportString = JSON.stringify({
+    success: true,
+    overallStatus: currentOverallState,
+    status: isUp ? "healthy" : "degraded",
+    state: currentOverallState,
+    ready,
+    data: report,
+  });
   lastHealthReport = reportString;
   lastHealthTime = now;
+  lastHealthOverallState = currentOverallState;
 
   return new Response(reportString, {
     headers: { "Content-Type": "application/json" },

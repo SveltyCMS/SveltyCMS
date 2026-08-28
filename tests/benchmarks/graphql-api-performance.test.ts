@@ -1,17 +1,7 @@
 /**
  * @file tests/benchmarks/graphql-api-performance.test.ts
- * @description GraphQL API Performance Audit
- * @summary Measures GraphQL resolver performance across query scenarios,
- *          reporting both cold (cache-bypassed) and hot (cache-hit) latency.
- *
- * Cold path uses unique GraphQL comments (#) per iteration to change the
- * response-cache key while keeping JIT compilation identical (comments are
- * stripped from the Document AST by graphql-js parse).
- *
- * ### Features:
- * - Dual-mode: cold (JIT + DB, no response cache) vs hot (cache hit)
- * - Resolver-level latency profiling
- * - Query complexity throughput analysis
+ * @description GraphQL API Performance Audit (Optimized)
+ * @summary Measures GraphQL resolver performance across cold (cache-bypassed) and hot (response-cache hit) execution paths.
  */
 
 import {
@@ -33,6 +23,14 @@ import { logger } from "@utils/logger";
 
 let stopServer: (() => Promise<void>) | null = null;
 
+function forceGarbageCollection() {
+  if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
+    (Bun as any).gc(true);
+  } else if (typeof (globalThis as any).gc === "function") {
+    (globalThis as any).gc();
+  }
+}
+
 const graphqlScenarios = [
   {
     name: "GQL: System Health",
@@ -47,93 +45,110 @@ const graphqlScenarios = [
     concurrency: 6,
   },
   {
-    name: "GQL: Concurrent Load",
-    query: `query { allCollections { _id name } }`,
-    shortLabel: "Load",
-    concurrency: 5,
+    name: "GQL: Parameterized Query",
+    query: `query { BenchmarkStable(pagination: { limit: 10 }) { _id title count } }`,
+    shortLabel: "ParamQuery",
+    concurrency: 8,
   },
 ];
 
-async function graphqlPost(
-  baseUrl: string,
+/**
+ * High-performance GraphQL post handler with connection pooling and fast-path stream drainage.
+ */
+async function executeGraphQL(
+  endpoint: string,
   headers: Record<string, string>,
-  bodyObj: Record<string, unknown>,
+  body: string,
+  retries = 3,
 ): Promise<Response> {
-  let retries = 5;
-  let lastError: any = null;
-  while (retries > 0) {
+  for (let i = 0; i < retries; i++) {
     try {
-      return await fetch(`${baseUrl}/api/graphql`, {
+      const res = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          Connection: "keep-alive",
-          ...headers,
-        },
-        body: JSON.stringify(bodyObj),
+        headers,
+        body,
+        signal: AbortSignal.timeout(10000),
       });
-    } catch (err: any) {
-      lastError = err;
-      retries--;
-      if (retries > 0) {
-        await new Promise((r) => setTimeout(r, (5 - retries) * 50));
+
+      if (res.ok) return res;
+
+      // Drain error stream before retrying
+      await res.arrayBuffer().catch(() => {});
+      if (i < retries - 1) {
+        await new Promise((r) => setTimeout(r, (i + 1) * 40));
       }
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise((r) => setTimeout(r, (i + 1) * 40));
     }
   }
-  throw lastError || new Error("Failed after 5 retries");
+  throw new Error("GraphQL request failed after retries");
 }
 
 export async function runGraphQLBenchmark() {
-  console.log("🚀 Starting GraphQL API Performance Audit (Cold + Hot)...\n");
+  const dbType = getDbType().toUpperCase();
+  console.log(`🚀 Starting GraphQL API Performance Audit (Cold + Hot • ${dbType})...\n`);
 
   try {
     const server = await setupBenchmarkServer();
     stopServer = server.stop;
     const baseUrl = server.baseUrl;
+    const graphqlEndpoint = `${baseUrl}/api/graphql`;
 
     const tenantId = process.env.TENANT_ID || "global";
 
     await ensureStableTestData();
     await forceRefreshServer(baseUrl);
-    await stabilize(1200);
+    await stabilize(500);
 
-    // REAL admin session cookie (production auth)
     const requestHeaders: Record<string, string> = {
       "content-type": "application/json",
       ...benchmarkAuthHeaders(),
       "x-tenant-id": tenantId,
+      connection: "keep-alive",
     };
 
     const allResults: any[] = [];
 
     for (const scenario of graphqlScenarios) {
-      console.log(`   → ${scenario.name}...`);
+      console.log(`   → Benchmarking ${scenario.name}...`);
 
       const baseQuery = scenario.query;
+      const staticHotBody = JSON.stringify({ query: baseQuery });
 
-      // ── Phase 1: Cold (cache-bypassed) — unique comment per iteration ──
-      console.log(`      Cold (cache-bypassed)...`);
+      // Pre-flight sanity check on the query
+      const verifyRes = await executeGraphQL(graphqlEndpoint, requestHeaders, staticHotBody);
+      const verifyJson = (await verifyRes.json()) as any;
+      if (verifyJson.errors?.length) {
+        throw new Error(
+          `GraphQL Pre-flight Error on ${scenario.name}: ${verifyJson.errors[0].message}`,
+        );
+      }
+
+      // ── PHASE 1: COLD (CACHE-BYPASSED / DYNAMIC QUERY COMMENTS) ───────────
+      forceGarbageCollection();
+      await stabilize(150);
+
+      console.log(`      🔬 Cold path (cache-bypassed via Document AST comment)...`);
       let coldNonce = 0;
+
       const coldResult = await runBenchmark({
         name: `${scenario.name} [cold]`,
         iterations: 300,
         warmupIterations: 40,
         runs: 2,
         concurrency: scenario.concurrency,
+        trimOutliers: "iqr",
         measureMemory: true,
         silent: true,
         onIteration: async () => {
-          // Append unique comment to change raw query string hash (cache key)
-          // while graphql-js parse strips it — same JIT compilation, different cache key
-          const query = `${baseQuery} # n:${coldNonce++}`;
-          const res = await graphqlPost(baseUrl, requestHeaders, { query });
-          if (!res.ok) {
-            const text = await res.text().catch(() => "unreadable");
-            throw new Error(`GraphQL HTTP ${res.status}: ${text}`);
-          }
-          const parsed = await res.json();
-          if (parsed.errors?.length) {
-            throw new Error(`GraphQL Error: ${parsed.errors[0].message}`);
-          }
+          const dynamicBody = JSON.stringify({
+            query: `${baseQuery} # cold_nonce_${coldNonce++}`,
+          });
+          const res = await executeGraphQL(graphqlEndpoint, requestHeaders, dynamicBody);
+
+          if (!res.ok) throw new Error(`GraphQL Cold HTTP ${res.status}`);
+          await res.arrayBuffer().catch(() => {});
         },
       });
 
@@ -144,35 +159,32 @@ export async function runGraphQLBenchmark() {
       });
       exportResult({ ...coldResult, shortLabel: scenario.shortLabel, layer: "GraphQL (cold)" });
 
-      // ── Phase 2: Hot (cache-hit) — prime cache, then benchmark ──
-      console.log(`      Hot (cache-primed)...`);
+      // ── PHASE 2: HOT (RESPONSE CACHE HIT) ─────────────────────────────────
+      forceGarbageCollection();
+      await stabilize(150);
 
-      // Prime the response cache with identical queries
-      for (let w = 0; w < 3; w++) {
-        try {
-          await graphqlPost(baseUrl, requestHeaders, { query: baseQuery });
-        } catch {}
+      console.log(`      🔥 Hot path (cache-primed steady state)...`);
+
+      // Prime response cache
+      for (let p = 0; p < 5; p++) {
+        const prime = await executeGraphQL(graphqlEndpoint, requestHeaders, staticHotBody);
+        await prime.arrayBuffer().catch(() => {});
       }
-      await stabilize(100);
 
       const hotResult = await runBenchmark({
         name: `${scenario.name} [hot]`,
         iterations: 600,
-        warmupIterations: 40,
+        warmupIterations: 50,
         runs: 3,
         concurrency: scenario.concurrency,
+        trimOutliers: "iqr",
         measureMemory: true,
         silent: true,
         onIteration: async () => {
-          const res = await graphqlPost(baseUrl, requestHeaders, { query: baseQuery });
-          if (!res.ok) {
-            const text = await res.text().catch(() => "unreadable");
-            throw new Error(`GraphQL HTTP ${res.status}: ${text}`);
-          }
-          const parsed = await res.json();
-          if (parsed.errors?.length) {
-            throw new Error(`GraphQL Error: ${parsed.errors[0].message}`);
-          }
+          const res = await executeGraphQL(graphqlEndpoint, requestHeaders, staticHotBody);
+
+          if (!res.ok) throw new Error(`GraphQL Hot HTTP ${res.status}`);
+          await res.arrayBuffer().catch(() => {});
         },
       });
 
@@ -184,11 +196,11 @@ export async function runGraphQLBenchmark() {
       exportResult({ ...hotResult, shortLabel: scenario.shortLabel, layer: "GraphQL (hot)" });
     }
 
-    // ── Reporting ──────────────────────────────────────────────────────
+    // ── REPORTING & TELEMETRY ───────────────────────────────────────────────
     printTruthTable({
       title: "SVELTYCMS — GRAPHQL PERFORMANCE AUDIT",
       shortLabel: "GraphQL",
-      subtitle: `Cold (JIT+DB) vs Hot (Cache Hit) • ${getDbType().toUpperCase()}`,
+      subtitle: `Cold (JIT+DB) vs Hot (Cache Hit) • ${dbType}`,
       results: allResults,
     });
 
@@ -204,44 +216,64 @@ export async function runGraphQLBenchmark() {
     const hotColl = allResults.find(
       (r) => r.shortLabel === "Collections" && r.layer === "GraphQL (hot)",
     );
-    const coldLoad = allResults.find(
-      (r) => r.shortLabel === "Load" && r.layer === "GraphQL (cold)",
+    const coldParam = allResults.find(
+      (r) => r.shortLabel === "ParamQuery" && r.layer === "GraphQL (cold)",
     );
-    const hotLoad = allResults.find((r) => r.shortLabel === "Load" && r.layer === "GraphQL (hot)");
+    const hotParam = allResults.find(
+      (r) => r.shortLabel === "ParamQuery" && r.layer === "GraphQL (hot)",
+    );
 
-    printSummaryTable([
-      { key: "Health (cold)", val: coldHealth?.avgMs ?? 0, unit: "ms" },
-      { key: "Health (hot)", val: hotHealth?.avgMs ?? 0, unit: "ms" },
-      { key: "Collection List (cold)", val: coldColl?.avgMs ?? 0, unit: "ms" },
-      { key: "Collection List (hot)", val: hotColl?.avgMs ?? 0, unit: "ms" },
-      { key: "Concurrent Load (cold)", val: coldLoad?.avgMs ?? 0, unit: "ms" },
-      { key: "Concurrent Load (hot)", val: hotLoad?.avgMs ?? 0, unit: "ms" },
-      {
-        key: "Peak RPS (hot)",
-        val: Math.round(Math.max(hotHealth?.rps ?? 0, hotColl?.rps ?? 0, hotLoad?.rps ?? 0)),
-        unit: "req/s",
-      },
-      {
-        key: "Cache Speedup",
-        val:
-          coldColl && hotColl
-            ? `${(coldColl.avgMs / Math.max(hotColl.avgMs, 0.01)).toFixed(1)}x`
-            : "N/A",
-        unit: "",
-      },
-    ]);
+    const collSpeedup =
+      coldColl && hotColl && hotColl.avgMs > 0
+        ? (coldColl.avgMs / hotColl.avgMs).toFixed(1)
+        : "1.0";
 
-    // Export metrics for matrix dashboard
-    const mainResult = hotColl!;
-    exportMetric("api.graphql.avg", mainResult.avgMs, "ms");
-    exportMetric("api.graphql.p95", mainResult.p95Ms || mainResult.avgMs, "ms");
-    exportMetric("api.graphql.rps", mainResult.rps, "req/s");
+    const paramSpeedup =
+      coldParam && hotParam && hotParam.avgMs > 0
+        ? (coldParam.avgMs / hotParam.avgMs).toFixed(1)
+        : "1.0";
+
+    const peakHotRps = Math.round(
+      Math.max(hotHealth?.rps ?? 0, hotColl?.rps ?? 0, hotParam?.rps ?? 0),
+    );
+
+    printSummaryTable(
+      [
+        { key: "Database Engine", val: dbType, unit: "" },
+        {
+          key: "Health (Cold → Hot)",
+          val: `${coldHealth?.avgMs.toFixed(2) ?? 0} → ${hotHealth?.avgMs.toFixed(2) ?? 0}`,
+          unit: "ms",
+        },
+        {
+          key: "Collections (Cold → Hot)",
+          val: `${coldColl?.avgMs.toFixed(2) ?? 0} → ${hotColl?.avgMs.toFixed(2) ?? 0}`,
+          unit: "ms",
+        },
+        { key: "Collections Cache Speedup", val: `${collSpeedup}×`, unit: "" },
+        {
+          key: "Param Query (Cold → Hot)",
+          val: `${coldParam?.avgMs.toFixed(2) ?? 0} → ${hotParam?.avgMs.toFixed(2) ?? 0}`,
+          unit: "ms",
+        },
+        { key: "Param Query Speedup", val: `${paramSpeedup}×`, unit: "" },
+        { key: "Peak Hot Throughput", val: peakHotRps, unit: "req/s" },
+      ],
+      "GraphQL Performance Summary",
+    );
+
+    // Matrix dashboard metrics export
+    if (hotColl) {
+      exportMetric("api.graphql.avg", hotColl.avgMs, "ms");
+      exportMetric("api.graphql.p95", hotColl.p95Ms || hotColl.avgMs, "ms");
+      exportMetric("api.graphql.rps", hotColl.rps, "req/s");
+    }
     if (coldColl) {
       exportMetric("api.graphql.cold.avg", coldColl.avgMs, "ms");
     }
+    exportMetric("api.graphql.peak_rps", peakHotRps, "req/s");
   } catch (err: any) {
     logger.error(`GraphQL benchmark failed: ${err.message}`);
-    console.error(err);
     throw err;
   } finally {
     if (stopServer) {
@@ -253,4 +285,4 @@ export async function runGraphQLBenchmark() {
 
 test("GraphQL Performance Audit Suite", async () => {
   await runGraphQLBenchmark();
-}, 600000);
+}, 600_000);

@@ -218,6 +218,20 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Files Modified**: `scripts/scan-security-risk.ts`, `scripts/scan-osv.ts`, `scripts/risk-audit.ts`, `.githooks/pre-commit`, `src/routes/setup/setup.server.ts`, `src/routes/setup/setup-service.server.ts`, `src/routes/setup/+page.server.ts`, `src/routes/setup/setup.remote.ts`.
 
+### Pen-Test Hardening Batch (August 2026)
+
+External penetration-test findings closed with regression coverage in `tests/unit/security/login-hardening.test.ts`, `tests/unit/api/auth-2fa.test.ts`, `tests/unit/auth/totp-encryption.test.ts`, and `tests/unit/security/egress-guard.test.ts`:
+
+- **Passwordless API login blocked (Critical)** — `AuthNamespace.login` requires a password and `handleLogin` validates the body with `loginFormSchema`; email-only bodies return 401 without a session.
+- **Passwordless 2FA verify closed (High)** — `verify2FA` (form + API) accepts the TOTP code only together with a short-lived signed pending-2FA token minted after a successful password login, plus per-client rate limiting.
+- **Blocked users rejected on the form path (High)** — `Auth.authenticate` now checks `user.blocked` (parity with `AuthNamespace.login`).
+- **API login enforces 2FA (High)** — `handleLogin` returns `requires2FA` + pending token instead of a session; 2FA-enabled accounts get no session from the password step (`AuthNamespace.login` returns `session: null` outside the test harness).
+- **GraphQL RBAC parity with REST (High)** — `users`/`media` resolvers require `user:read`/`media:read` instead of any logged-in user.
+- **Global-admin requires the admin role (High)** — `isGlobalAdmin = isAdmin(user) && !user.tenantId` (previously any null-tenant user was treated as global admin).
+- **Open redirect after login closed (High)** — `safeRedirect(input.redirect)` on the login success path.
+- **Trusted-device cookie rebound to IP/UA at skip time (Medium)** — the 30-day 2FA-skip cookie is now validated against the presenting device's fingerprint; this also fixed a latent parsing bug where a colon-bearing fingerprint (ip prefix + UA hash) bypassed the expiry check.
+- **SSRF egress-guard coverage completed (Medium)** — IPv6 ULA `fc00::/7` is fully blocked (both `fc00:` and `fd00:` hextets), CGNAT `100.64.0.0/10` added, and bracketed IPv6 literals (`[::1]`) are now recognized as IPs instead of falling through to DNS.
+
 ---
 
 ## No Backdoor Policy

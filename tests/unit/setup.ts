@@ -759,15 +759,6 @@ moduleMock("$app/state", () => ({
   },
 }));
 
-moduleMock("sveltekit-rate-limiter/server", () => ({
-  RateLimiter: class {
-    check = mock(() => Promise.resolve({ success: true }));
-    isLimited = mock(() => Promise.resolve(false));
-    add = mock(() => {});
-    clear = mock(() => {});
-  },
-}));
-
 // 2. ENVIRONMENT GLOBALS
 setGlobal("browser", false);
 setGlobal("dev", true);
