@@ -102,7 +102,7 @@ async function runUploadAudit() {
       onIteration: async () => {
         const currentSeq = largeSeq++;
         const formData = new FormData();
-        const blob = new Blob([staticLargeBuffer], { type: "image/jpeg" });
+        const blob = new Blob([new Uint8Array(staticLargeBuffer)], { type: "image/jpeg" });
         formData.append("files", blob, `bench-upload-${largeSizeMb}mb-${currentSeq}.jpg`);
 
         const res = await fetch(uploadUrl, {
@@ -149,7 +149,7 @@ async function runUploadAudit() {
       onIteration: async () => {
         const currentSeq = smallSeq++;
         const formData = new FormData();
-        const blob = new Blob([staticSmallBuffer], { type: "image/jpeg" });
+        const blob = new Blob([new Uint8Array(staticSmallBuffer)], { type: "image/jpeg" });
         formData.append("files", blob, `bench-upload-small-${currentSeq}.jpg`);
 
         const res = await fetch(uploadUrl, {

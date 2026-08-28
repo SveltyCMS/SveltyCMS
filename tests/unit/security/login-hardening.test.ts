@@ -134,7 +134,7 @@ describe("AuthNamespace.login — password requirement (Critical #1 regression)"
     const result = await ns.login({ email: "pwless@test.com" }, {});
 
     expect(result.success).toBe(false);
-    expect(result.message).toBe("Invalid credentials");
+    expect((result as any).message).toBe("Invalid credentials");
     expect(createSession).not.toHaveBeenCalled();
   });
 
@@ -147,7 +147,7 @@ describe("AuthNamespace.login — password requirement (Critical #1 regression)"
     const result = await ns.login({ email: "empty-pw@test.com", password: "" }, {});
 
     expect(result.success).toBe(false);
-    expect(result.message).toBe("Invalid credentials");
+    expect((result as any).message).toBe("Invalid credentials");
     expect(createSession).not.toHaveBeenCalled();
   });
 
@@ -161,7 +161,7 @@ describe("AuthNamespace.login — password requirement (Critical #1 regression)"
     const result = await ns.login({ email: "blocked@test.com", password: "ValidPass1!" }, {});
 
     expect(result.success).toBe(false);
-    expect(result.message).toBe("Account suspended or incomplete");
+    expect((result as any).message).toBe("Account suspended or incomplete");
     expect(createSession).not.toHaveBeenCalled();
   });
 
@@ -187,7 +187,7 @@ describe("AuthNamespace.login — password requirement (Critical #1 regression)"
     const result = await ns.login({ email: "twofa@test.com", password: "ValidPass1!" }, {});
 
     expect(result.success).toBe(true);
-    const data = result.data as { user: User; session: any };
+    const data = (result as any).data as { user: User; session: any };
     expect(data.user.is2FAEnabled).toBe(true);
     expect(data.session).toBeNull();
     expect(createSession).not.toHaveBeenCalled();
@@ -200,7 +200,7 @@ describe("pending-2FA token — verify2FA gate (High #2 regression)", () => {
     expect(verifyPending2faToken(token, "usr_123")).toBe(true);
   });
 
-  it("rejects a token presented for a different user", () => {
+  it("rejects a token signed for a different user", () => {
     const token = signPending2faToken("usr_123");
     expect(verifyPending2faToken(token, "usr_456")).toBe(false);
   });
@@ -218,7 +218,7 @@ describe("pending-2FA token — verify2FA gate (High #2 regression)", () => {
     expect(verifyPending2faToken("not-a-token", "usr_123")).toBe(false);
   });
 
-  it("rejects an expired token", () => {
+  it("rejects an expired pending-2FA token", () => {
     const exp = Date.now() - 1000;
     const sig = createHmac("sha256", "test-jwt-secret")
       .update(`pending2fa:usr_123:${exp}`)
@@ -226,7 +226,7 @@ describe("pending-2FA token — verify2FA gate (High #2 regression)", () => {
     expect(verifyPending2faToken(`${exp}:${sig}`, "usr_123")).toBe(false);
   });
 
-  it("rejects a token that claims a lifetime beyond the TTL", () => {
+  it("rejects a token whose expiry is far in the future (> TTL + tolerance)", () => {
     const exp = Date.now() + PENDING_2FA_TTL_MS + 60_000;
     const sig = createHmac("sha256", "test-jwt-secret")
       .update(`pending2fa:usr_123:${exp}`)
@@ -245,7 +245,7 @@ describe("GraphQL RBAC parity with REST (High #5 regression)", () => {
       email: "editor@test.com",
       role: "editor",
       permissions: [],
-    } as User;
+    } as unknown as User;
 
     await expect(
       resolver(undefined, { pagination: { page: 1, limit: 10 } }, { user: editor }),
@@ -262,7 +262,7 @@ describe("GraphQL RBAC parity with REST (High #5 regression)", () => {
       email: "admin@test.com",
       role: "admin",
       permissions: [],
-    } as User;
+    } as unknown as User;
 
     await resolver(undefined, { pagination: { page: 1, limit: 10 } }, { user: admin });
     expect(getAllUsers).toHaveBeenCalledTimes(1);
@@ -277,7 +277,7 @@ describe("GraphQL RBAC parity with REST (High #5 regression)", () => {
       email: "editor2@test.com",
       role: "editor",
       permissions: [],
-    } as User;
+    } as unknown as User;
 
     await expect(
       resolver(undefined, { pagination: { page: 1, limit: 50 } }, { user: editor }),
@@ -294,7 +294,7 @@ describe("GraphQL RBAC parity with REST (High #5 regression)", () => {
       email: "admin-media@test.com",
       role: "admin",
       permissions: [],
-    } as User;
+    } as unknown as User;
 
     await resolver(undefined, { pagination: { page: 1, limit: 50 } }, { user: admin });
     expect(findMany).toHaveBeenCalledTimes(1);

@@ -211,7 +211,7 @@ async function runSecurityAudit() {
       "config:collectionbuilder",
     ]);
 
-    const mockRoles: any[] = Object.freeze([
+    const mockRoles: any = Object.freeze([
       {
         _id: "admin",
         name: "Administrator",

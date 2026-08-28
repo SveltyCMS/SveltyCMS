@@ -104,7 +104,7 @@ async function runMediaAudit() {
         const currentSeq = sdkSeq++;
         const imageBuffer = createWorkerImageBuffer(currentSeq);
 
-        const file = new File([imageBuffer], `sdk-media-${currentSeq}.jpg`, {
+        const file = new File([new Uint8Array(imageBuffer)], `sdk-media-${currentSeq}.jpg`, {
           type: "image/jpeg",
         });
 
@@ -149,7 +149,7 @@ async function runMediaAudit() {
         const imageBuffer = createWorkerImageBuffer(currentSeq);
 
         const formData = new FormData();
-        const blob = new Blob([imageBuffer], { type: "image/jpeg" });
+        const blob = new Blob([new Uint8Array(imageBuffer)], { type: "image/jpeg" });
         formData.append("files", blob, `http-media-${currentSeq}.jpg`);
 
         const res = await fetch(`${baseUrl}/api/media/upload`, {
