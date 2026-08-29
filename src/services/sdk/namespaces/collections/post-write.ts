@@ -27,11 +27,12 @@ import type { Schema } from "@src/content/types";
 import type { LocalApiOptions } from "../types";
 import { evictRequestCache } from "./request-cache";
 import {
+  getResponseCacheLazy,
   getOutboxLazy,
   getPubSubLazy,
-  getResponseCacheLazy,
   getWorkflowServiceLazy,
 } from "./lazy-services";
+import { recordWriteAccess } from "@src/services/intelligence/behavioral-learner";
 
 /** True when the caller explicitly opted out of write side effects — no outbox, workflow, plugin afterSave, or L2 fan-out. */
 export function shouldSkipWriteSideEffects(options: LocalApiOptions): boolean {
@@ -199,6 +200,10 @@ export function schedulePostWrite(
   // workflow/pubsub work, so save-then-read can't race a stale cached list.
   // Pass the written id so its per-id cache is cleared surgically (doc:<coll>:<id>).
   invalidateCache(schema, tenantId, { skipRequestCacheClear: true, writtenId: id });
+
+  if (action === "create" || action === "update") {
+    recordWriteAccess(tid || "global", schemaId, id);
+  }
 
   const hookName = action === "create" || action === "update" ? "afterSave" : "afterDelete";
   const hasPluginHook = pluginRegistry.hasAnyHook(hookName);

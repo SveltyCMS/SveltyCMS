@@ -90,6 +90,18 @@ export function recordEntryAccess(tenantId: string, collectionId: string, entryI
   updateHeatRecord(getOrCreateTenant(tenantId).heat.entries, `${collectionId}:${entryId}`);
 }
 
+/**
+ * Record a mutation (create/update/write) for a collection and optional entry.
+ * Mutations carry higher behavioral signal (weight: 2) than passive reads.
+ */
+export function recordWriteAccess(tenantId: string, collectionId: string, entryId?: string): void {
+  const tid = tenantId || "global";
+  updateHeatRecord(getOrCreateTenant(tid).heat.collections, collectionId, 2);
+  if (entryId) {
+    updateHeatRecord(getOrCreateTenant(tid).heat.entries, `${collectionId}:${entryId}`, 2);
+  }
+}
+
 export function recordNavigation(tenantId: string, fromPath: string, toPath: string): void {
   updateHeatRecord(getOrCreateTenant(tenantId).heat.transitions, `${fromPath}→${toPath}`);
 }
@@ -320,4 +332,12 @@ export function stopBehavioralEngine(): void {
     _persistTimer = null;
   }
   persistBehavioralData().catch(() => {});
+}
+
+export function clearBehavioralData(tenantId?: string): void {
+  if (tenantId) {
+    _tenants.delete(tenantId);
+  } else {
+    _tenants.clear();
+  }
 }

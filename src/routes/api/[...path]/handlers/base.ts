@@ -15,7 +15,12 @@ import { safeParse, type GenericSchema, type InferOutput } from "valibot";
 
 const STATIC_JSON_HEADERS = { "content-type": "application/json" } as const;
 
-function buildJsonResponse(event: RequestEvent, data: any, status = 200): Response {
+function buildJsonResponse(
+  event: RequestEvent,
+  data: any,
+  status = 200,
+  extraHeaders?: Record<string, string>,
+): Response {
   let serialized = "";
   if (typeof data === "string") {
     serialized = data;
@@ -37,30 +42,43 @@ function buildJsonResponse(event: RequestEvent, data: any, status = 200): Respon
     (event.locals as any).apiBody = serialized;
   }
 
+  const headers: Record<string, string> = extraHeaders
+    ? {
+        ...STATIC_JSON_HEADERS,
+        "content-length": String(Buffer.byteLength(serialized)),
+        ...extraHeaders,
+      }
+    : {
+        ...STATIC_JSON_HEADERS,
+        "content-length": String(Buffer.byteLength(serialized)),
+      };
+
   return new Response(serialized, {
     status,
-    headers: {
-      ...STATIC_JSON_HEADERS,
-      // Lets handleCompression honor MIN_COMPRESSION_SIZE. Without this, Node
-      // fetch's Accept-Encoding: gzip compresses every tiny create/update body
-      // on the event loop (the 1 KiB threshold never fires).
-      "content-length": String(Buffer.byteLength(serialized)),
-    },
+    headers,
   });
 }
 
-export function successResponse(event: RequestEvent, result: any, status = 200) {
+export function successResponse(
+  event: RequestEvent,
+  result: any,
+  status = 200,
+  extraHeaders?: Record<string, string>,
+) {
   let body: any;
   if (isDatabaseResult(result)) {
     if (!result.success) {
-      return buildJsonResponse(event, result, result.error?.statusCode || 400);
+      return buildJsonResponse(event, result, result.error?.statusCode || 400, extraHeaders);
     }
-    body = { success: true, data: result.data, meta: result.meta };
+    body =
+      result.meta !== undefined
+        ? { success: true, data: result.data, meta: result.meta }
+        : { success: true, data: result.data };
   } else {
     body = { success: true, data: result };
   }
 
-  return buildJsonResponse(event, body, status);
+  return buildJsonResponse(event, body, status, extraHeaders);
 }
 
 /**
@@ -72,6 +90,7 @@ export function fastSuccessResponse(
   serializedData: string,
   rawData?: any,
   status = 200,
+  extraHeaders?: Record<string, string>,
 ): Response {
   const serialized = `{"success":true,"data":${serializedData}}`;
   if (event?.locals) {
@@ -81,12 +100,20 @@ export function fastSuccessResponse(
     (event.locals as any).apiData = rawData;
     (event.locals as any).apiBody = serialized;
   }
+  const headers: Record<string, string> = extraHeaders
+    ? {
+        ...STATIC_JSON_HEADERS,
+        "content-length": String(Buffer.byteLength(serialized)),
+        ...extraHeaders,
+      }
+    : {
+        ...STATIC_JSON_HEADERS,
+        "content-length": String(Buffer.byteLength(serialized)),
+      };
+
   return new Response(serialized, {
     status,
-    headers: {
-      ...STATIC_JSON_HEADERS,
-      "content-length": String(Buffer.byteLength(serialized)),
-    },
+    headers,
   });
 }
 

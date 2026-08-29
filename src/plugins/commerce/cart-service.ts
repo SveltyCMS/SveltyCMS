@@ -15,6 +15,10 @@
 import { nowISODateString } from "@utils/date";
 import { raise } from "@utils/error-handling";
 import { add, money } from "@src/services/commerce/price";
+import {
+  recordWriteAccess,
+  recordCollectionAccess,
+} from "@src/services/intelligence/behavioral-learner";
 import type { CommerceRow, CommerceStore } from "./store";
 import { displayText, majorToPrice, priceToMajor } from "./money";
 
@@ -240,6 +244,8 @@ export async function addCartItem(
     expiresAt: expiresAt(),
     updatedAt: nowISODateString(),
   });
+  recordWriteAccess(String(store.tenantId || "global"), "products", input.productId);
+  recordCollectionAccess(String(store.tenantId || "global"), "carts");
   const saved = await store.findOne("carts", { _id: cart.id });
   return toView(saved || { ...cart, items: next }, input.currency);
 }

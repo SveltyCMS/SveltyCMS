@@ -131,18 +131,22 @@ export class CacheWarmingService {
         `🧠 [PredictiveCache] Pre-warming cache from Behavioral Learner for tenant "${tenantId}"`,
       );
 
+      const tenantPrefix = tenantId ? `${tenantId}:` : "global:";
+
       // 1. Warm hot collections (per-collection error isolation — missing tables must not cascade)
       await Promise.allSettled(
         hotCollections.map(async ({ id }) => {
           if (db?.crud?.find) {
             try {
-              await cacheService.getOrSetSWR(
-                `collection:${id}:list`,
-                () => db.crud.find(id, {}, { limit: 20, skipMeta: true, ...systemScope }),
-                300_000, // 5 min TTL
-                1_800_000, // 30 min stale SWR window
-                tenantId,
-              );
+              const res = await db.crud.find(id, {}, { limit: 50, skipMeta: true, ...systemScope });
+              if (res?.success && res.data) {
+                const listData = Array.isArray(res.data) ? res.data : [];
+                const payload = { success: true, data: listData };
+                const defaultKey = `${tenantPrefix}collection:${id}:find:default_50:published`;
+                const defaultKeyAll = `${tenantPrefix}collection:${id}:find:default_50`;
+                await cacheService.set(defaultKey, payload, 300, tenantId);
+                await cacheService.set(defaultKeyAll, payload, 300, tenantId);
+              }
             } catch {
               logger.trace(
                 `[PredictiveCache] Skipping collection "${id}" — table may not exist yet`,
@@ -157,13 +161,22 @@ export class CacheWarmingService {
         hotEntries.map(async ({ collectionId, entryId }) => {
           if (db?.crud?.findOne) {
             try {
-              await cacheService.getOrSetSWR(
-                `entry:${collectionId}:${entryId}`,
-                () => db.crud.findOne({ _id: entryId }, { tenantId, ...systemScope }),
-                300_000,
-                1_800_000,
-                tenantId,
+              const docRes = await db.crud.findOne(
+                collectionId,
+                { _id: entryId },
+                { tenantId, ...systemScope },
               );
+              if (docRes?.success && docRes.data) {
+                const item = Array.isArray(docRes.data) ? docRes.data[0] : docRes.data;
+                const payload = { success: true, data: item };
+                const listPayload = { success: true, data: [item] };
+                const keyPublished = `${tenantPrefix}collection:${collectionId}:${entryId}:published`;
+                const keyAll = `${tenantPrefix}collection:${collectionId}:${entryId}`;
+                const keyFindId = `${tenantPrefix}collection:${collectionId}:find:id:${entryId}`;
+                await cacheService.set(keyPublished, payload, 300, tenantId);
+                await cacheService.set(keyAll, payload, 300, tenantId);
+                await cacheService.set(keyFindId, listPayload, 300, tenantId);
+              }
             } catch {
               logger.trace(`[PredictiveCache] Skipping entry "${entryId}" in "${collectionId}"`);
             }
