@@ -23,6 +23,17 @@
 </script>
 
 <script lang="ts">
+	import { getClientLicenseStatus } from '@utils/client-license-cache';
+	import type { LicenseStatus } from '@utils/license-manager';
+
+	let licenseStatus = $state<LicenseStatus | null>(null);
+
+	$effect(() => {
+		getClientLicenseStatus('dashboard', 'commerce-orders').then((status) => {
+			licenseStatus = status;
+		});
+	});
+
 	import type { WidgetSize } from '@src/content/types';
 	import { formatRelativeDate } from '@utils/date';
 	import UpgradePrompt from '@components/ui/upgrade-prompt.svelte';
@@ -59,19 +70,6 @@
 		onSizeChange = ((_newSize: WidgetSize) => {}) as (newSize: WidgetSize) => void,
 		onRemove = (() => {}) as () => void
 	} = $props();
-
-	let licenseStatus = $state<LicenseStatus | null>(null);
-
-	$effect(() => {
-		fetch('/api/system/license-status?type=dashboard&id=commerce-orders')
-			.then((res) => res.json())
-			.then((data) => {
-				licenseStatus = data;
-			})
-			.catch(() => {
-				licenseStatus = { active: false, hasLicense: false, daysRemaining: 0 };
-			});
-	});
 
 	const isCompact = $derived(size.h === 1);
 	const trialLocked = $derived(Boolean(licenseStatus && !licenseStatus.active && !licenseStatus.hasLicense));

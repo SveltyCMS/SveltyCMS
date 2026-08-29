@@ -22,24 +22,20 @@ export const widgetMeta = {
 	description: "Recent system activity with filtering and search",
 	defaultSize: { w: 2, h: 2 },
 };
-
-	let licenseStatus = $state<{ active?: boolean; hasLicense?: boolean; daysRemaining?: number | null } | null>(null);
-
-	$effect(() => {
-		fetch('/api/system/license-status?type=dashboard&id=logs')
-			.then((res) => res.json())
-			.then((data) => {
-				licenseStatus = data;
-			})
-			.catch(() => {
-				licenseStatus = { active: false, hasLicense: false, daysRemaining: 0 };
-			});
-		});
-
-		const isLicensed = $derived(licenseStatus?.active || licenseStatus?.hasLicense || false);
 </script>
 
 <script lang="ts">
+	import { getClientLicenseStatus } from '@utils/client-license-cache';
+	import type { LicenseStatus } from '@utils/license-manager';
+
+	let licenseStatus = $state<LicenseStatus | null>(null);
+
+	$effect(() => {
+		getClientLicenseStatus('dashboard', 'logs').then((status) => {
+			licenseStatus = status;
+		});
+	});
+
 import type { WidgetSize } from '@src/content/types';
 import BaseWidget from '../../base-widget.svelte';
 import Select from '@components/ui/select.svelte';

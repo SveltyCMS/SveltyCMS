@@ -23,22 +23,20 @@ export const widgetMeta = {
 	description: "Currently active users with role indicators",
 	defaultSize: { w: 1, h: 2 },
 };
-
-	let licenseStatus = $state<{ active?: boolean; hasLicense?: boolean; daysRemaining?: number | null } | null>(null);
-
-	$effect(() => {
-		fetch('/api/system/license-status?type=dashboard&id=user-online')
-			.then((res) => res.json())
-			.then((data) => {
-				licenseStatus = data;
-			})
-			.catch(() => {
-				licenseStatus = { active: false, hasLicense: false, daysRemaining: 0 };
-			});
-	});
 </script>
 
 <script lang="ts">
+	import { getClientLicenseStatus } from '@utils/client-license-cache';
+	import type { LicenseStatus } from '@utils/license-manager';
+
+	let licenseStatus = $state<LicenseStatus | null>(null);
+
+	$effect(() => {
+		getClientLicenseStatus('dashboard', 'user-online').then((status) => {
+			licenseStatus = status;
+		});
+	});
+
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
 
