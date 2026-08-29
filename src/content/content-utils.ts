@@ -351,22 +351,24 @@ const MIN_SAFE_SQL_INT = -2_147_483_648;
  *
  * @returns Array of validation error messages (empty = all valid)
  */
-export function validateNumericFields(
+/** Pre-compiled number-field plan: name + optional range bounds. */
+export interface NumberFieldPlan {
+  db_fieldName: string;
+  min?: number;
+  max?: number;
+}
+
+/**
+ * Validate numeric values against pre-compiled field plans — zero schema walk.
+ * Kept separate from `validateNumericFields` so the hot path can pass
+ * `SchemaHotFlags._numberFields` directly instead of re-walking `schema.fields`.
+ */
+export function validateNumberFieldPlans(
   data: Record<string, unknown>,
-  schema: {
-    fields?: Array<{
-      db_fieldName: string;
-      type?: string;
-      min?: number;
-      max?: number;
-    }>;
-  },
+  fields: NumberFieldPlan[],
 ): string[] {
   const errors: string[] = [];
-  if (!schema.fields) return errors;
-
-  for (const field of schema.fields) {
-    if (field.type !== "number") continue;
+  for (const field of fields) {
     const value = data[field.db_fieldName];
     if (value === undefined || value === null) continue;
 
@@ -395,8 +397,27 @@ export function validateNumericFields(
       );
     }
   }
-
   return errors;
+}
+
+export function validateNumericFields(
+  data: Record<string, unknown>,
+  schema: {
+    fields?: Array<{
+      db_fieldName: string;
+      type?: string;
+      min?: number;
+      max?: number;
+    }>;
+  },
+): string[] {
+  if (!schema.fields) return [];
+  const plans: NumberFieldPlan[] = [];
+  for (const field of schema.fields) {
+    if (field.type !== "number") continue;
+    plans.push({ db_fieldName: field.db_fieldName, min: field.min, max: field.max });
+  }
+  return validateNumberFieldPlans(data, plans);
 }
 
 // ─────────────────────────────────────────────────────────────

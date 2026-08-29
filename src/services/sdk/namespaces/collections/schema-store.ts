@@ -19,6 +19,7 @@
 import { LRUCache } from "lru-cache";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { FieldInstance, Schema } from "@src/content/types";
+import type { NumberFieldPlan } from "@src/content/content-utils";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import { AppError } from "@utils/error-handling";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
@@ -37,6 +38,10 @@ export type SchemaHotFlags = {
   _hasConstrainedFields?: boolean;
   /** DateTime fields present — normalized synchronously in prepareWritePayload. */
   _hasDateTimeFields?: boolean;
+  /** db_fieldName of DateTime fields (pre-compiled to skip per-write schema walk). */
+  _dateTimeFieldNames?: string[];
+  /** Number fields needing range/safe-int validation (pre-compiled). */
+  _numberFields?: NumberFieldPlan[];
   /** db_fieldName of widgets that still need the async modifyRequest pipeline. */
   _activeWidgetFieldNames?: string[];
 };
@@ -103,6 +108,8 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
 
   const fields = (schema.fields || []) as FieldInstance[];
   const activeWidgetFieldNames: string[] = [];
+  const dateTimeFieldNames: string[] = [];
+  const numberFields: NumberFieldPlan[] = [];
   let hasNumberFields = false;
   let hasSanitizableFields = false;
   let hasConstrainedFields = false;
@@ -110,16 +117,29 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
 
   for (const f of fields) {
     const widgetName = f.widget?.Name;
-    if (widgetName === "DateTime") hasDateTimeFields = true;
+    const dbName = (f as { db_fieldName?: string }).db_fieldName;
+    if (widgetName === "DateTime") {
+      hasDateTimeFields = true;
+      if (dbName) dateTimeFieldNames.push(dbName);
+    }
     if (widgetName && !INLINE_MODIFY_WIDGETS.has(widgetName)) {
       const wFn = widgetRegistryService.getWidgetSync(widgetName);
       if (wFn && (wFn as { modifyRequest?: unknown }).modifyRequest) {
-        const fieldName = (f as { db_fieldName?: string }).db_fieldName || widgetName;
+        const fieldName = dbName || widgetName;
         if (fieldName) activeWidgetFieldNames.push(fieldName);
       }
     }
     const type = (f as { type?: string }).type;
-    if (type === "number") hasNumberFields = true;
+    if (type === "number") {
+      hasNumberFields = true;
+      if (dbName) {
+        numberFields.push({
+          db_fieldName: dbName,
+          min: (f as { min?: number }).min,
+          max: (f as { max?: number }).max,
+        });
+      }
+    }
     if (type && SANITIZE_FIELD_TYPES.has(type)) hasSanitizableFields = true;
     if (widgetName === "RichText" || widgetName === "Markdown") hasSanitizableFields = true;
     if (
@@ -136,6 +156,8 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   s._hasActiveWidgets = activeWidgetFieldNames.length > 0;
   s._activeWidgetFieldNames = activeWidgetFieldNames;
   s._hasDateTimeFields = hasDateTimeFields;
+  s._dateTimeFieldNames = dateTimeFieldNames;
+  s._numberFields = numberFields;
   s._hasNumberFields = hasNumberFields;
   s._hasSanitizableFields = hasSanitizableFields;
   s._hasHooks = Boolean(schema.hooks?.beforeValidate || schema.hooks?.afterValidate);

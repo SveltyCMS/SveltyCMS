@@ -16,7 +16,7 @@
 
 import {
   prepareCollectionFields,
-  validateNumericFields,
+  validateNumberFieldPlans,
   type CollectionFieldPrepFlags,
 } from "@src/content/content-utils";
 import { applySchemaHookPipeline } from "@src/content/schema-hooks";
@@ -24,10 +24,10 @@ import { modifyRequest, type EntryData } from "@utils/modify-request";
 import { AppError } from "@utils/error-handling";
 import { hasIsoDateTimePrefix, nowISODateString, toISOString } from "@src/utils/date";
 import { assertWriteAllowed } from "@src/services/security/field-permission-service";
+import { sanitizeObject } from "@utils/security/input-sanitizer";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { FieldInstance, Schema } from "@src/content/types";
 import { collectionModelCache, getModelResilient, type SchemaHotFlags } from "./schema-store";
-import { sanitizeObject } from "@utils/security/input-sanitizer";
 
 /** Structural schema view accepted by the content prep/validation helpers. */
 export type PrepFieldSchema = {
@@ -84,6 +84,11 @@ export function prepareWritePayload(
     entryData = { ...data };
   }
 
+  // Sanitize the full payload tree (including undeclared/extra fields that get
+  // serialized into the `data` JSON column or nested objects/arrays).
+  // Zero-allocation fast path returns entryData by reference when no XSS vector is present.
+  entryData = sanitizeObject(entryData);
+
   if (operation === "create") {
     entryData.tenantId = tenantId;
     entryData.createdBy = system ? "system" : user?._id;
@@ -93,18 +98,11 @@ export function prepareWritePayload(
     entryData.updatedAt = nowISODateString();
   }
 
-  // XSS pass lives here so create/update can skip the async widget pipeline
-  // when no widget actually needs modifyRequest (DateTime is inlined below).
-  if (hot._hasSanitizableFields === true) {
-    entryData = sanitizeObject(entryData);
-  }
-
-  if (hot._hasDateTimeFields && Array.isArray(schema.fields)) {
-    for (let i = 0; i < schema.fields.length; i++) {
-      const field = schema.fields[i] as FieldInstance;
-      if (field.widget?.Name !== "DateTime") continue;
-      const name = (field as { db_fieldName?: string }).db_fieldName;
-      if (!name || !Object.hasOwn(entryData, name)) continue;
+  const dateTimeFieldNames = hot._dateTimeFieldNames;
+  if (dateTimeFieldNames && dateTimeFieldNames.length > 0) {
+    for (let i = 0; i < dateTimeFieldNames.length; i++) {
+      const name = dateTimeFieldNames[i];
+      if (!Object.hasOwn(entryData, name)) continue;
       const val = entryData[name];
       if (val === undefined || val === null || val === "") continue;
       // Skip only when the value is ALREADY the canonical `toISOString()`
@@ -136,9 +134,10 @@ export function prepareWritePayload(
       tenantId: tenantId as string | undefined,
       userId: user?._id as string | undefined,
     };
-    const validate = hot._hasNumberFields
-      ? (doc: Record<string, unknown>) => validateNumericFields(doc, schema as PrepFieldSchema)
-      : undefined;
+    const validate =
+      hot._hasNumberFields && hot._numberFields
+        ? (doc: Record<string, unknown>) => validateNumberFieldPlans(doc, hot._numberFields!)
+        : undefined;
     return applySchemaHookPipeline(schema.hooks, entryData, hookCtx, validate, {
       createError: fieldValidationError,
     }).then(async (prepared) => {
@@ -153,8 +152,8 @@ export function prepareWritePayload(
     });
   }
 
-  if (hot._hasNumberFields) {
-    const rangeErrors = validateNumericFields(entryData, schema as PrepFieldSchema);
+  if (hot._hasNumberFields && hot._numberFields) {
+    const rangeErrors = validateNumberFieldPlans(entryData, hot._numberFields);
     if (rangeErrors.length > 0) {
       throw fieldValidationError(rangeErrors);
     }

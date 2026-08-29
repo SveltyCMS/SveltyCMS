@@ -39,8 +39,9 @@ import { generateUUID } from "@src/utils/native-utils";
 
 /** Bind a JS value for postgres.js prepared params. Objects/arrays become JSON text so the driver does not emit PG array literals. */
 function bindPgParam(v: unknown, asJson: boolean): unknown {
+  if (v === undefined) return null;
   if (v instanceof Date) return v.toISOString();
-  if (asJson) return v === null || v === undefined ? null : JSON.stringify(v);
+  if (asJson) return v === null ? null : JSON.stringify(v);
   if (v !== null && typeof v === "object") return JSON.stringify(v);
   return v;
 }
