@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     3 | 🟢     | -70%    | 0      |
+| **Core**       |     6 | 🟢     | -48%    | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,11 +62,14 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario      | Latency | Trend                                  | Budget | Result |
-| ------------- | ------- | -------------------------------------- | ------ | ------ |
-| **Baseline**  | 1.082ms | ⚪ stable at 3.00ms (±2.71ms) (3 runs) | < 5ms  | 🟢     |
-| **Read Path** | 0.740ms | ⚪ stable at 2.45ms (±2.14ms) (3 runs) | < 5ms  | 🟢     |
-| **History**   | 0.373ms | ⚪ stable at 1.15ms (±1.05ms) (3 runs) | < 5ms  | 🟢     |
+| Scenario | Latency | Trend                                    | Budget | Result |
+| -------- | ------- | ---------------------------------------- | ------ | ------ |
+| **DB**   | 0.006ms | ⚪ stable at 0.006ms (±0.002ms) (3 runs) | < 5ms  | 🟢     |
+| **SDK**  | 0.001ms | ⚪ stable at 0.001ms (3 runs)            | < 5ms  | 🟢     |
+| **SDK**  | 0.005ms | ⚪ stable at 0.007ms (±0.002ms) (3 runs) | < 5ms  | 🟢     |
+| **SDK**  | 0.083ms | ⚪ stable at 0.145ms (±0.067ms) (3 runs) | < 5ms  | 🟢     |
+| **SDK**  | 0.057ms | ⚪ stable at 0.103ms (±0.040ms) (3 runs) | < 5ms  | 🟢     |
+| **SDK**  | 0.155ms | ⚪ stable at 0.299ms (±0.128ms) (3 runs) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -103,9 +106,10 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    Baseline: [0.95, 0.92]
-    Read Path: [0.68, 0.95]
-    History: [0.34, 0.95]
+    SDK: [0.05, 0.59]
+    SDK: [0.08, 0.89]
+    SDK: [0.06, 0.93]
+    SDK: [0.15, 0.95]
 ```
 
 </details>
@@ -127,13 +131,16 @@ quadrantChart
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `69f1a2e8-f318-4add-83fa-b645bc1a21a5` · **Tests invoked:** 1 · **Metrics:** 3 · **DB:** sqlite
+**Run ID:** `9fd1c866-b65f-4b33-88b0-5ae02e75c417` · **Tests invoked:** 1 · **Metrics:** 6 · **DB:** sqlite
 
-| Test            | Metric                         | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                 |
-| --------------- | ------------------------------ | -------- | -------- | ---- | ----- | -------------------------------------- |
-| Revision Stress | Clean Document Read (Baseline) | 1.082    | 2.305    | 3299 | 🟢    | ⚪ stable at 3.00ms (±2.71ms) (3 runs) |
-| Revision Stress | Latest Read (100 Revisions)    | 0.740    | 1.381    | 5061 | 🟢    | ⚪ stable at 2.45ms (±2.14ms) (3 runs) |
-| Revision Stress | History List Retrieval         | 0.373    | 0.528    | 4716 | 🟢    | ⚪ stable at 1.15ms (±1.05ms) (3 runs) |
+| Test           | Metric                   | Avg (ms) | p95 (ms) | RPS    | Trend | Detail                                   |
+| -------------- | ------------------------ | -------- | -------- | ------ | ----- | ---------------------------------------- |
+| Local Cms Crud | Adapter FIND ONE         | 0.006    | 0.010    | 118758 | 🟢    | ⚪ stable at 0.006ms (±0.002ms) (3 runs) |
+| Local Cms Crud | LocalCMS findById (Warm) | 0.001    | 0.002    | 774919 | 🟢    | ⚪ stable at 0.001ms (3 runs)            |
+| Local Cms Crud | LocalCMS findById (Cold) | 0.005    | 0.007    | 153053 | 🟢    | ⚪ stable at 0.007ms (±0.002ms) (3 runs) |
+| Local Cms Crud | LocalCMS create          | 0.083    | 0.156    | 4835   | 🟢    | ⚪ stable at 0.145ms (±0.067ms) (3 runs) |
+| Local Cms Crud | LocalCMS update          | 0.057    | 0.088    | 9633   | 🟢    | ⚪ stable at 0.103ms (±0.040ms) (3 runs) |
+| Local Cms Crud | LocalCMS mixed C/U/R     | 0.155    | 0.286    | 3091   | 🟢    | ⚪ stable at 0.299ms (±0.128ms) (3 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
@@ -158,7 +165,7 @@ quadrantChart
 | CACHE SERVICE (warm)                | 🟢    | `▃▁█▅▁▇▄`          | 4.510ms    |
 | CLIENT JOURNEY (warm)               | 🟢    | `█▁`               | 9.324ms    |
 | COLD START PHASED (cold)            | 🟢    | `▁`                | 2070.865ms |
-| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `█▁▄▅▁█▁`          | 2.436ms    |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `█▃▁▄▁▅▁`          | 0.781ms    |
 | CONCURRENCY MAX (warm)              | 🟢    | `▁█▇`              | 835.712ms  |
 | CONFIG PROMOTION (warm)             | 🟢    | `▁▄▅▄█▃▂`          | 4.627ms    |
 | CONTENT SCALE STRESS (warm)         | 🟢    | `▇▁█▂▆▂`           | 0.706ms    |
@@ -176,14 +183,14 @@ quadrantChart
 | LARGE PAYLOAD STREAMING (warm)      | 🟢    | `█▅▆▃▁▇▄`          | 16.614ms   |
 | LOCAL API PERFORMANCE (warm)        | 🟢    | `▁▅▇▇▆██`          | 0.037ms    |
 | LOCAL API THROUGHPUT (warm)         | 🟢    | `▁▁▂▄▇█▇`          | 1.146ms    |
-| LOCAL CMS CRUD (warm)               | 🟢    | `▁▄▁▁█▃`           | 0.067ms    |
+| LOCAL CMS CRUD (warm)               | 🟢    | `▆▁▅▁▁█▄`          | 0.057ms    |
 | LOCAL SDK VS DIRECT (warm)          | 🟢    | `▇▄██▁▄▅`          | 0.135ms    |
 | LONGEVITY SOAK (warm)               | 🟢    | `▁`                | 6.010ms    |
-| MEDIA PERFORMANCE (warm)            | 🟢    | `▄▁▅█▁▄▄`          | 134.457ms  |
+| MEDIA PERFORMANCE (warm)            | 🟢    | `█▁▅▄▁▄▄`          | 109.651ms  |
 | MEDIA UPLOAD STRESS (warm)          | 🟢    | `▁▂▄█▄▄`           | 170.481ms  |
 | MEMORY STABILITY (warm)             | 🟢    | `▁`                | 0.000ms    |
 | MIGRATION SCALE (warm)              | 🟢    | `▁▄▁▁█▁▁`          | 4.044ms    |
-| MIXED WORKLOAD (warm)               | 🟢    | `▁█▃`              | 3.961ms    |
+| MIXED WORKLOAD (warm)               | 🟢    | `▂█▃▁`             | 2.094ms    |
 | MULTI TENANT PERFORMANCE (warm)     | 🟢    | `▁██`              | 6.059ms    |
 | NEGATIVE CACHE (warm)               | 🟢    | `▁██▁▇▇▁`          | 0.001ms    |
 | OPENAPI PERFORMANCE (warm)          | 🟢    | `▁▄▆▂▇█▂`          | 0.656ms    |
@@ -649,10 +656,11 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 
 <!-- SECTION:HTTP:START -->
 <details id="section-http">
-<summary><strong>🏷️ HTTP</strong> · 🟢 8.690ms · ↘️ ⚪ stable at 9.20ms (±4.08ms) (3 runs) (2026-08-29 13:12:54) · <a href="../../../tests/benchmarks/api-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ HTTP</strong> · 🟢 122.505ms · ↘️ ⚪ stable at 137.22ms (±36.48ms) (5 runs) (2026-08-29 18:01:49) · <a href="../../../tests/benchmarks/media-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.  
+Throughput dropped 13% — check connection pool saturation or lock contention.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -676,7 +684,7 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 
 <!-- SECTION:SDK:START -->
 <details id="section-sdk">
-<summary><strong>🏷️ SDK</strong> · 🟢 0.300ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/media-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ SDK</strong> · 🟢 0.155ms · ↘️ ⚪ stable at 0.245ms (±0.076ms) (7 runs) (2026-08-29 18:41:05) · <a href="../../../tests/benchmarks/local-cms-crud.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
@@ -686,14 +694,17 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║                                  SVELTYCMS — SDK OVERHEAD TELEMETRY                                   ║
-║                         File: tests/benchmarks/local-api-performance.test.ts                          ║
-║                                       Ran: 2026-08-29 16:38:45                                        ║
-║Measures LocalCMS SDK dispatch overhead vs direct adapter calls to verify zero-tax in-process performance.║
+║                                SVELTYCMS — LOCALCMS CRUD TAX (SQLITE)                                 ║
+║                             File: tests/benchmarks/local-cms-crud.test.ts                             ║
+║                                       Ran: 2026-08-29 18:41:05                                        ║
+║Measures full CollectionsNamespace tax vs direct adapter baseline with isolated garbage collection and deterministic ID generation.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Direct Adapter Call          │ Cold:     0.30 ms │ Warm:     0.012 ms │ p95:     0.022 ms │  66,620 RPS ║
-║ LocalCMS Hoisted Call        │ Cold:     0.48 ms │ Warm:     0.011 ms │ p95:     0.016 ms │  72,870 RPS ║
-║ LocalCMS Full Property Path  │ Cold:     0.31 ms │ Warm:     0.010 ms │ p95:     0.014 ms │  86,290 RPS ║
+║ Adapter FIND ONE             │ Cold:     1.26 ms │ Warm:     0.006 ms │ p95:     0.010 ms │ 118,758 RPS ║
+║ LocalCMS findById (Warm)     │ Cold:     0.21 ms │ Warm:     0.001 ms │ p95:     0.002 ms │ 774,919 RPS ║
+║ LocalCMS findById (Cold)     │ Cold:     0.33 ms │ Warm:     0.005 ms │ p95:     0.007 ms │ 153,053 RPS ║
+║ LocalCMS create              │ Cold:     0.65 ms │ Warm:     0.083 ms │ p95:     0.156 ms │   4,835 RPS ║
+║ LocalCMS update              │ Cold:     1.20 ms │ Warm:     0.057 ms │ p95:     0.088 ms │   9,633 RPS ║
+║ LocalCMS mixed C/U/R         │ Cold:     0.83 ms │ Warm:     0.155 ms │ p95:     0.286 ms │   3,091 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -852,9 +863,16 @@ Throughput dropped 85% — check connection pool saturation or lock contention.
 
 <!-- SECTION:DB:START -->
 <details id="section-db">
-<summary><strong>🏷️ DB</strong> · 🟢 0.106ms · ➡️ ⚪ established at 0.106ms (1 run) (2026-08-28 10:22:19) · <a href="../../../tests/benchmarks/local-sdk-vs-direct.test.ts">source</a></summary>
+<summary><strong>🏷️ DB</strong> · 🟢 0.006ms · ↘️ ⚪ stable at 0.009ms (±0.006ms) (7 runs) (2026-08-29 18:41:05) · <a href="../../../tests/benchmarks/local-cms-crud.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 > ⏳ Pending
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -1342,12 +1360,10 @@ Throughput dropped 49% — check connection pool saturation or lock contention.
 
 <!-- SECTION:STORAGE:START -->
 <details id="section-storage">
-<summary><strong>🏷️ Storage</strong> · 🟢 6.072ms · ↗️ ⚪ stable at 3.96ms (±4.49ms) (2 runs) (2026-08-29 13:07:44) · <a href="../../../tests/benchmarks/media-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Storage</strong> · 🟢 1.540ms · ↘️ ⚪ stable at 6.07ms (±4.49ms) (3 runs) (2026-08-29 18:01:49) · <a href="../../../tests/benchmarks/media-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 57% — check connection pool saturation or lock contention.  
-**Severe degradation** (+53%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -1911,7 +1927,7 @@ Throughput dropped 59% — check connection pool saturation or lock contention.
 <!-- SECTION:MEDIA:START -->
 
 <details id="section-media">
-<summary><strong>🏷️ Media Engine & DAM Overhead</strong> · 🟢 59.710ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/media-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Media Engine & DAM Overhead</strong> · 🟢 60.430ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/media-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -1919,12 +1935,12 @@ Throughput dropped 59% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                   SVELTYCMS — MEDIA PIPELINE AUDIT                                    ║
 ║                           File: tests/benchmarks/media-performance.test.ts                            ║
-║                                       Ran: 2026-08-29 16:41:26                                        ║
+║                                       Ran: 2026-08-29 18:01:48                                        ║
 ║Measures full upload, Sharp thumbnail processing, SDK vs HTTP latency, and asset streaming throughput. ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ SDK: Media Processing        │ Cold:    59.71 ms │ Warm:    55.452 ms │ p95:    65.033 ms │      36 RPS ║
-║ HTTP: Media Upload           │ Cold:    82.98 ms │ Warm:    54.708 ms │ p95:    62.860 ms │      36 RPS ║
-║ HTTP: Asset Stream (Thumbnail) │ Cold:     4.81 ms │ Warm:     1.729 ms │ p95:     4.213 ms │   1,984 RPS ║
+║ SDK: Media Processing        │ Cold:    60.43 ms │ Warm:   109.651 ms │ p95:   136.593 ms │      18 RPS ║
+║ HTTP: Media Upload           │ Cold:    79.68 ms │ Warm:   122.505 ms │ p95:   151.928 ms │      16 RPS ║
+║ HTTP: Asset Stream (Thumbnail) │ Cold:     8.79 ms │ Warm:     1.540 ms │ p95:     7.614 ms │   1,873 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2253,11 +2269,10 @@ Throughput dropped 66% — check connection pool saturation or lock contention.
 
 <!-- SECTION:MIXED:START -->
 <details id="section-mixed">
-<summary><strong>🏷️ mixed workload</strong> · 🟢 1.596ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/mixed-workload.test.ts">source</a></summary>
+<summary><strong>🏷️ mixed workload</strong> · 🟢 2.094ms · ↘️ ⚪ stable at 2.64ms (±2.27ms) (5 runs) (2026-08-29 18:02:38) · <a href="../../../tests/benchmarks/mixed-workload.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-**Severe degradation** (+83%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -2266,14 +2281,14 @@ Throughput dropped 66% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                   SVELTYCMS — MIXED WORKLOAD AUDIT                                    ║
 ║                             File: tests/benchmarks/mixed-workload.test.ts                             ║
-║                                       Ran: 2026-08-29 16:38:43                                        ║
+║                                       Ran: 2026-08-29 18:02:38                                        ║
 ║Simulates real-world traffic with a weighted mix of reads, searches, GraphQL queries, and metadata requests with per-operation telemetry.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Mixed Workload               │ Cold:     1.11 ms │ Warm:     1.641 ms │ p95:     4.562 ms │   3,871 RPS ║
-║ Mix: REST Read                 │        1.596 ms │ p95:        2.413 ms │ RPS:        465 ║
-║ Mix: REST Search               │        1.598 ms │ p95:        2.390 ms │ RPS:        157 ║
-║ Mix: GraphQL                   │        4.191 ms │ p95:        5.895 ms │ RPS:        113 ║
-║ Mix: Metadata                  │        1.521 ms │ p95:        2.458 ms │ RPS:         36 ║
+║ Mixed Workload               │ Cold:     5.46 ms │ Warm:     2.094 ms │ p95:     4.412 ms │   3,549 RPS ║
+║ Mix: REST Read                 │        2.145 ms │ p95:        4.379 ms │ RPS:        326 ║
+║ Mix: REST Search               │        2.154 ms │ p95:        4.342 ms │ RPS:        110 ║
+║ Mix: GraphQL                   │        2.204 ms │ p95:        4.340 ms │ RPS:         77 ║
+║ Mix: Metadata                  │        2.123 ms │ p95:        4.435 ms │ RPS:         24 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 

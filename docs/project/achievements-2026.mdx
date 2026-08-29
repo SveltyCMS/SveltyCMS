@@ -80,6 +80,13 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
 - **Active Driver Validation (Anti-False Positive):** Implemented mandatory `SELECT 1` verification in the MariaDB and PostgreSQL adapters. This ensures that the Setup Wizard provides immediate, clear feedback for missing or incorrect credentials, eliminating "lazy connection" false positives found in legacy ORM implementations.
 - **Micro-Telemetry:** Native per-operation timing (`performance.now()`) is bubbled up from the DB adapter to the API `meta` field, providing high-resolution observability without external dependencies.
 
+- **Write-Path Acceleration & Single-Pass Field Preparation (August 2026):**
+  - **Deduplication of Sanitization Passes:** Eliminated redundant recursive `sanitizeObject` tree traversal in `prepareWritePayload`, relying on the pre-compiled `PrepPlan` in `prepareCollectionFields` to perform targeted HTML/text sanitization per schema field.
+  - **Pre-Compiled Number & DateTime Plans:** Pre-compiled DateTime and Numeric constraint plans in `SchemaHotFlags` (`_dateTimeFieldNames`, `_numberFields`), eliminating runtime `schema.fields` iteration in the hook pipeline and achieving zero field-iteration loops on write mutations.
+  - **Behavioral Mutation Self-Learning:** Integrated `recordWriteAccess` directly into `schedulePostWrite` and commerce `addCartItem` / `decrementStock`, feeding mutation signals (weight: 2) into the in-memory decaying heat map without blocking response latency.
+  - **Canonical Keyspace Cache-Warming Alignment:** Aligned `CacheWarmingService` keyspace with `CollectionsNamespace` (`${tenant}:collection:${id}:${entry}:published` and `${tenant}:collection:${id}:find:default_50:published`), ensuring pre-warmed entries and lists produce 100% cache hits on subsequent SDK reads.
+  - **PostgreSQL Parameter Coercion:** Hardened `bindPgParam` to coerce `undefined` to `null` across all prepared statement queries, eliminating driver parameter rejection.
+
 - **Security Hardening (API & Multi-Tenancy):**
   - **Universal Tenant Context:** Implemented a rigorous middleware-driven `tenantId` propagation system, ensuring every database mutation and query is explicitly scoped to the correct tenant.
   - **IDOR Prevention:** Hardened all 40+ API endpoints with role-based access control and explicit owner verification.

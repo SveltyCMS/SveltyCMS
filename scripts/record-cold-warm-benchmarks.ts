@@ -1,7 +1,16 @@
 #!/usr/bin/env bun
 /**
  * @file scripts/record-cold-warm-benchmarks.ts
- * @description Runs benchmark tests and aggregates Cold & Warm metrics into a structured JSON file.
+ * @description Runs the benchmark suite ONCE against the CURRENT checkout and
+ * aggregates Cold & Warm metrics into a structured JSON file.
+ *
+ * ⚠️ The `target` argument is ONLY an output-filename label. This script does
+ * NOT switch code between "base" and "enhanced" — running it twice produces two
+ * samples of the SAME code. A meaningful base-vs-enhanced comparison requires
+ * running this script at two different git refs (e.g. `git checkout <base>` →
+ * run → `git checkout <enhanced>` → run), ideally interleaved A/B/A/B to avoid
+ * time/system-state confounds. Do not cite the two JSON files as a real A/B
+ * unless they were produced from different commits.
  */
 
 import { spawn } from "node:child_process";
@@ -199,12 +208,16 @@ async function runSingleTest(file: string): Promise<BenchmarkMetrics[]> {
 }
 
 async function main() {
-  const target = process.argv[2] || "base";
+  const target = process.argv[2] || "run";
   const outputFile = path.join(RESULTS_DIR, `${target}-cold-warm.json`);
   if (!fs.existsSync(RESULTS_DIR)) fs.mkdirSync(RESULTS_DIR, { recursive: true });
 
   console.log(
-    `\n🚀 Recording Benchmark Suite [Mode: ${target.toUpperCase()}] (${BENCHMARK_56_TESTS.length} Tests)...\n`,
+    `\n🚀 Recording Benchmark Suite [Run label: ${target.toUpperCase()}] (${BENCHMARK_56_TESTS.length} Tests)...\n`,
+  );
+  console.log(
+    `   ⚠️  This records the CURRENT checkout only. "base" vs "enhanced" is NOT\n` +
+      `   a real A/B unless run at two different git refs (see file header).\n`,
   );
 
   const allMetrics: Record<string, BenchmarkMetrics[]> = {};

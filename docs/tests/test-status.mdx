@@ -42,13 +42,13 @@ tags:
 
 ## 2. Health by layer
 
-| Layer                       | Confidence    | What it proves                                                                                                        | How to run                                                              |
-| --------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| **Unit** (Vitest)           | **A++**       | 416 files / **3667 tests** — auth, lanes/turbo cache, CacheService, page gates, widgets, security, field write guards | `bun run test:unit` · coverage: `test:unit:coverage`                    |
-| **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth + full `risk:audit` (security-risk, secrets, slop, OSV) on pre-commit                   | `bun run test:security` · `bun run risk:audit`                          |
-| **Integration** (black-box) | **A++**       | ~65 files / **~617 tests** SQLite local; multi-adapter matrix in CI; lane headers + session page-load canaries        | `bun run test:integration` (SQLite) · `bun run test:matrix` (all 4 DBs) |
-| **E2E** (Playwright)        | **A++**       | ~44 specs — browser goldens / P0 journeys; hooks-lane smoke; CI-parity preview :4173                                  | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`                 |
-| **Benchmarks**              | **Selective** | Perf matrix + lane-router attribution; full suite is long — not every PR                                              | See [benchmarks](../project/benchmarks/index.mdx)                       |
+| Layer                       | Confidence    | What it proves                                                                                                         | How to run                                                              |
+| --------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Unit** (Vitest)           | **A++**       | 428 files / **3778+ tests** — auth, lanes/turbo cache, CacheService, page gates, widgets, security, field write guards | `bun run test:unit` · coverage: `test:unit:coverage`                    |
+| **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth + full `risk:audit` (security-risk, secrets, slop, OSV) on pre-commit                    | `bun run test:security` · `bun run risk:audit`                          |
+| **Integration** (black-box) | **A++**       | ~65 files / **~617 tests** SQLite local; multi-adapter matrix in CI; lane headers + session page-load canaries         | `bun run test:integration` (SQLite) · `bun run test:matrix` (all 4 DBs) |
+| **E2E** (Playwright)        | **A++**       | ~44 specs — browser goldens / P0 journeys; hooks-lane smoke; CI-parity preview :4173                                   | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`                 |
+| **Benchmarks**              | **Selective** | Perf matrix + lane-router attribution; full suite is long — not every PR                                               | See [benchmarks](../project/benchmarks/index.mdx)                       |
 
 ## 3. Testing tiers
 
