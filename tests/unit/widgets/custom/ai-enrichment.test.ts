@@ -3,8 +3,8 @@
  * @description Unit tests for the AI Enrichment widget validation logic.
  */
 
-import { describe, it, expect } from "bun:test";
-import AIEnrichmentWidget from "../index";
+import { describe, it, expect } from "vitest";
+import AIEnrichmentWidget from "@widgets/custom/ai-enrichment";
 import { safeParse } from "valibot";
 
 describe("AI Enrichment Widget - Validation", () => {

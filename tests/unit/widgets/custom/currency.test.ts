@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import CurrencyWidget from "../index";
+import CurrencyWidget from "@widgets/custom/currency";
 import { safeParse } from "valibot";
 
 describe("Currency Widget - Validation", () => {

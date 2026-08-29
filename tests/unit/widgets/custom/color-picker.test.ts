@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import ColorPickerWidget from "../index";
+import ColorPickerWidget from "@widgets/custom/color-picker";
 import { safeParse } from "valibot";
 
 describe("ColorPicker Widget - Validation", () => {

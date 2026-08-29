@@ -3,8 +3,8 @@
  * @description Unit tests for the RemoteVideo widget validation logic.
  */
 
-import { describe, it, expect } from "bun:test";
-import RemoteVideoWidget from "../index";
+import { describe, it, expect } from "vitest";
+import RemoteVideoWidget from "@widgets/custom/remote-video";
 import { safeParse } from "valibot";
 
 describe("RemoteVideo Widget - Validation", () => {

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import RatingWidget from "../index";
+import RatingWidget from "@widgets/custom/rating";
 import { safeParse } from "valibot";
 
 describe("Rating Widget - Validation", () => {

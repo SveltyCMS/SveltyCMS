@@ -3,8 +3,8 @@
  * @description Unit tests for the JSON Editor widget validation logic.
  */
 
-import { describe, it, expect } from "bun:test";
-import JsonEditorWidget from "../index";
+import { describe, it, expect } from "vitest";
+import JsonEditorWidget from "@widgets/custom/json-editor";
 import { safeParse } from "valibot";
 
 describe("JSON Editor Widget - Validation", () => {

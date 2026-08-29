@@ -3,8 +3,8 @@
  * @description Unit tests for the Geolocation widget validation logic.
  */
 
-import { describe, it, expect } from "bun:test";
-import GeolocationWidget from "../index";
+import { describe, it, expect } from "vitest";
+import GeolocationWidget from "@widgets/custom/geolocation";
 import { safeParse } from "valibot";
 
 describe("Geolocation Widget - Validation", () => {

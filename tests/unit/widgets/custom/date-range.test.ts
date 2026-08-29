@@ -3,8 +3,8 @@
  * @description Unit tests for the Date Range widget validation logic.
  */
 
-import { describe, it, expect } from "bun:test";
-import DateRangeWidget from "../index";
+import { describe, it, expect } from "vitest";
+import DateRangeWidget from "@widgets/custom/date-range";
 import { safeParse } from "valibot";
 
 describe("Date Range Widget - Validation", () => {

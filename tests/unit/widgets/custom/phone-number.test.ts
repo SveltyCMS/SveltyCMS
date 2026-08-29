@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import PhoneNumberWidget from "../index";
+import PhoneNumberWidget from "@widgets/custom/phone-number";
 import { safeParse } from "valibot";
 
 describe("PhoneNumber Widget - Validation", () => {

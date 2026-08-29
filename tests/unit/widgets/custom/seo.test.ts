@@ -3,8 +3,8 @@
  * @description Unit tests for the SEO widget validation logic.
  */
 
-import { describe, it, expect } from "bun:test";
-import SeoWidget from "../index";
+import { describe, it, expect } from "vitest";
+import SeoWidget from "@widgets/custom/seo";
 import { safeParse } from "valibot";
 
 describe("SEO Widget - Validation", () => {

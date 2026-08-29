@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import MarkdownWidget from "../index";
+import MarkdownWidget from "@widgets/custom/markdown";
 import { safeParse } from "valibot";
 
 describe("Markdown Widget - Validation", () => {
