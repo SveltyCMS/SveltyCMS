@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { MediaService } from "@src/utils/media/media-service.server";
+import type { DatabaseId } from "@src/content/types";
 
 // Mock dependencies
 vi.mock("sharp", () => ({
@@ -164,18 +165,18 @@ describe("MediaService (Whitebox)", () => {
         file,
         "user-1",
         "public",
-        "tenant-delta",
+        "tenant-delta" as DatabaseId,
         "new-folder",
       );
 
       expect(mediaService.files.getByHash).toHaveBeenCalledWith(expect.any(String), {
-        tenantId: "tenant-delta",
+        tenantId: "tenant-delta" as DatabaseId,
       });
       expect(mockDbAdapter.crud.update).toHaveBeenCalledWith(
         "media_items",
         "media-existing-1",
         expect.anything(),
-        { tenantId: "tenant-delta" },
+        { tenantId: "tenant-delta" as DatabaseId },
       );
       expect(res.success).toBe(true);
     });

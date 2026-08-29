@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { prepareWritePayload } from "@src/services/sdk/namespaces/collections/write-pipeline";
 import { ensureSchemaHotFlags } from "@src/services/sdk/namespaces/collections/schema-store";
-import type { Schema } from "@src/content/types";
+import type { DatabaseId, Schema } from "@src/content/types";
 
 describe("Write-Path Sanitization & XSS Defense Regression", () => {
   const articleSchema: Schema = {
@@ -54,8 +54,9 @@ describe("Write-Path Sanitization & XSS Defense Regression", () => {
 
     const prepared = prepareWritePayload(rawPayload, articleSchema, hot, {
       operation: "create",
-      tenantId: "tenant-xss",
+      tenantId: "tenant-xss" as DatabaseId,
       system: true,
+      user: { _id: "system" },
     });
 
     // Plain text should strip HTML tags
@@ -79,8 +80,9 @@ describe("Write-Path Sanitization & XSS Defense Regression", () => {
 
     const prepared = prepareWritePayload(cleanPayload, articleSchema, hot, {
       operation: "update",
-      tenantId: "tenant-clean",
+      tenantId: "tenant-clean" as DatabaseId,
       system: true,
+      user: { _id: "system" },
       entryId: "art-1",
     });
 
@@ -100,8 +102,9 @@ describe("Write-Path Sanitization & XSS Defense Regression", () => {
 
     const prepared = prepareWritePayload(payloadWithExtra, articleSchema, hot, {
       operation: "create",
-      tenantId: "tenant-extra",
+      tenantId: "tenant-extra" as DatabaseId,
       system: true,
+      user: { _id: "system" },
     });
 
     // Declared fields are sanitized

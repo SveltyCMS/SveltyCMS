@@ -34,6 +34,7 @@ export const PermissionType = {
   CONFIGURATION: "configuration", // Configuration-related permissions
   SYSTEM: "system", // System-wide permissions
   API: "api", // API-related permissions
+  PLUGIN: "plugin", // Plugin-registered dynamic permissions
 } as const;
 
 export type PermissionType = (typeof PermissionType)[keyof typeof PermissionType];

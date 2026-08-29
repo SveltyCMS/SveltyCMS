@@ -107,7 +107,7 @@ async function runTemporalAudit() {
           name: COLLECTION_ID,
           fields: [
             { db_fieldName: "title", type: "string" },
-            { db_fieldName: "publishDate", type: "datetime" },
+            { db_fieldName: "publishDate", type: "string", widget: { Name: "DateTime" } },
           ],
         } as any)
         .catch(() => {});

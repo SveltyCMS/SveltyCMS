@@ -20,7 +20,7 @@ describe("Client License Cache", () => {
       return {
         json: async () => ({ active: true, hasLicense: true, daysRemaining: null }),
       } as any;
-    });
+    }) as unknown as typeof fetch;
 
     // 3 concurrent calls for the same widget
     const [res1, res2, res3] = await Promise.all([
@@ -43,7 +43,7 @@ describe("Client License Cache", () => {
       return {
         json: async () => ({ active: true, hasLicense: false, daysRemaining: 14 }),
       } as any;
-    });
+    }) as unknown as typeof fetch;
 
     const first = await getClientLicenseStatus("dashboard", "cache-test-1");
     expect(first.daysRemaining).toBe(14);
@@ -56,7 +56,9 @@ describe("Client License Cache", () => {
   });
 
   it("fails open on network error to prevent locking users out", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network Error"));
+    globalThis.fetch = vi
+      .fn()
+      .mockRejectedValue(new Error("Network Error")) as unknown as typeof fetch;
 
     const fallback = await getClientLicenseStatus("dashboard", "network-down-widget");
     expect(fallback.active).toBe(true);

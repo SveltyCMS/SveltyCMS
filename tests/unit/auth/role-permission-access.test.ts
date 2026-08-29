@@ -376,6 +376,8 @@ describe("Role and Permission Access Management", () => {
       email: "plugin@example.com",
       role: "custom_plugin_role",
       permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
     };
 
     // Register a new dynamic plugin permission
@@ -397,6 +399,8 @@ describe("Role and Permission Access Management", () => {
       email: "override@example.com",
       role: "viewer", // viewer only has collection:read
       permissions: ["collection:delete"], // direct override
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
     };
 
     // Has collection:read from role
@@ -455,6 +459,8 @@ describe("Role and Permission Access Management", () => {
       email: "scaled@example.com",
       role: "scaled_enterprise_role",
       permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
     };
 
     // Word 0 check

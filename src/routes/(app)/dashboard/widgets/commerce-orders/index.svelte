@@ -24,7 +24,6 @@
 
 <script lang="ts">
 	import { getClientLicenseStatus } from '@utils/client-license-cache';
-	import type { LicenseStatus } from '@utils/license-manager';
 
 	let licenseStatus = $state<LicenseStatus | null>(null);
 

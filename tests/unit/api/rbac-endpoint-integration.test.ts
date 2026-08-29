@@ -11,7 +11,7 @@
 import { describe, it, expect } from "vitest";
 import { _checkEndpointPermission } from "@src/routes/api/[...path]/+server";
 import type { Role, User } from "@src/databases/auth/types";
-import type { DatabaseId } from "@src/content/types";
+import type { DatabaseId, ISODateString } from "@src/content/types";
 
 describe("RBAC Endpoint Pipeline Integration", () => {
   const editorRole: Role = {
@@ -36,6 +36,8 @@ describe("RBAC Endpoint Pipeline Integration", () => {
       email: "viewer@example.com",
       role: "role_viewer",
       permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
     };
 
     // GET /api/collections -> content:read -> Granted
@@ -59,6 +61,8 @@ describe("RBAC Endpoint Pipeline Integration", () => {
       email: "editor@example.com",
       role: "role_editor",
       permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
     };
 
     const canWrite = _checkEndpointPermission(editorUser, roles, "POST", "collections", [
@@ -75,6 +79,8 @@ describe("RBAC Endpoint Pipeline Integration", () => {
       role: "admin",
       isAdmin: true,
       permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
     };
 
     const canDoAnything = _checkEndpointPermission(adminUser, [], "DELETE", "collections", [
@@ -90,6 +96,8 @@ describe("RBAC Endpoint Pipeline Integration", () => {
       email: "override@example.com",
       role: "role_viewer", // Role only has content:read
       permissions: ["media:write"], // Direct override granting media upload
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
     };
 
     const canUploadMedia = _checkEndpointPermission(

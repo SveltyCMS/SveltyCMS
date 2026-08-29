@@ -28,6 +28,8 @@ export const widgetMeta = {
 		});
 	});
 
+	const isLicensed = $derived(Boolean(licenseStatus?.hasLicense));
+
 		import type { WidgetSize } from '@src/content/types';
 
 		import BaseWidget from '../../base-widget.svelte';
