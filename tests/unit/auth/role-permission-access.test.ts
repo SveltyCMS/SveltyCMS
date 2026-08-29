@@ -361,4 +361,109 @@ describe("Role and Permission Access Management", () => {
     expect(hasCollectionBuilderPermission(editorUser, mockRoles)).toBe(false);
     expect(hasCollectionBuilderPermission(null, mockRoles)).toBe(false);
   });
+
+  test("Dynamic permission registration auto-resizes bitsets and preserves access", () => {
+    const customRole: Role = {
+      _id: "custom_plugin_role" as DatabaseId,
+      name: "CustomPluginRole",
+      permissions: ["custom:dynamic_action_1"],
+      isAdmin: false,
+    };
+
+    // Pre-cache bitset before dynamic permission registration
+    const user: User = {
+      _id: "plugin_user_1" as DatabaseId,
+      email: "plugin@example.com",
+      role: "custom_plugin_role",
+      permissions: [],
+    };
+
+    // Register a new dynamic plugin permission
+    registerPermission({
+      _id: "custom:dynamic_action_1" as DatabaseId,
+      name: "Custom Action 1",
+      action: PermissionAction.READ,
+      type: PermissionType.PLUGIN,
+    });
+
+    // Verify permission is granted without stale bitset denial
+    const canDoDynamic = hasPermissionWithRoles(user, "custom:dynamic_action_1", [customRole]);
+    expect(canDoDynamic).toBe(true);
+  });
+
+  test("Direct user-level permission overrides grant access even when role lacks permission", () => {
+    const restrictedUser: User = {
+      _id: "user_override_1" as DatabaseId,
+      email: "override@example.com",
+      role: "viewer", // viewer only has collection:read
+      permissions: ["collection:delete"], // direct override
+    };
+
+    // Has collection:read from role
+    expect(hasPermissionWithRoles(restrictedUser, "collection:read", mockRoles)).toBe(true);
+    // Has collection:delete from direct user override
+    expect(hasPermissionWithRoles(restrictedUser, "collection:delete", mockRoles)).toBe(true);
+    // Denied collection:create (neither role nor user override has it)
+    expect(hasPermissionWithRoles(restrictedUser, "collection:create", mockRoles)).toBe(false);
+  });
+
+  test("Multi-word boundary scaling (>32 and >64 permissions) correctly evaluates across Uint32Array words", () => {
+    // Register 75 dynamic permissions to cross word boundaries (Word 0: 0-31, Word 1: 32-63, Word 2: 64-95)
+    const targetPermWord1 = "plugin:permission_word_1_test_35";
+    const targetPermWord2 = "plugin:permission_word_2_test_70";
+    const ungrantedPerm = "plugin:permission_ungranted_test_72";
+
+    for (let i = 1; i <= 75; i++) {
+      registerPermission({
+        _id: `plugin:permission_word_test_${i}` as DatabaseId,
+        name: `Dynamic Plugin Permission ${i}`,
+        action: PermissionAction.READ,
+        type: PermissionType.PLUGIN,
+      });
+    }
+
+    registerPermission({
+      _id: targetPermWord1 as DatabaseId,
+      name: "Target Permission Word 1",
+      action: PermissionAction.READ,
+      type: PermissionType.PLUGIN,
+    });
+
+    registerPermission({
+      _id: targetPermWord2 as DatabaseId,
+      name: "Target Permission Word 2",
+      action: PermissionAction.READ,
+      type: PermissionType.PLUGIN,
+    });
+
+    registerPermission({
+      _id: ungrantedPerm as DatabaseId,
+      name: "Ungranted Permission Word 2",
+      action: PermissionAction.READ,
+      type: PermissionType.PLUGIN,
+    });
+
+    const scaledRole: Role = {
+      _id: "scaled_enterprise_role" as DatabaseId,
+      name: "ScaledEnterpriseRole",
+      permissions: [targetPermWord1, targetPermWord2, "collection:read"],
+      isAdmin: false,
+    };
+
+    const user: User = {
+      _id: "scaled_user_1" as DatabaseId,
+      email: "scaled@example.com",
+      role: "scaled_enterprise_role",
+      permissions: [],
+    };
+
+    // Word 0 check
+    expect(hasPermissionWithRoles(user, "collection:read", [scaledRole])).toBe(true);
+    // Word 1 check (>32 bit index)
+    expect(hasPermissionWithRoles(user, targetPermWord1, [scaledRole])).toBe(true);
+    // Word 2 check (>64 bit index)
+    expect(hasPermissionWithRoles(user, targetPermWord2, [scaledRole])).toBe(true);
+    // Ungranted check in Word 2 -> must be false (no bit collisions)
+    expect(hasPermissionWithRoles(user, ungrantedPerm, [scaledRole])).toBe(false);
+  });
 });

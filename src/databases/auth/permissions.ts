@@ -53,6 +53,7 @@ corePermissions.forEach((permission) => {
 export function registerPermission(permission: Permission): void {
   permissionRegistry.set(permission._id, permission);
   indexPermission(permission);
+  permissionCache.invalidateAll();
   logger.trace(`Permission registered: ${permission._id}`);
 }
 
@@ -68,12 +69,14 @@ export function getPermissionById(permissionId: string): Permission | undefined 
 
 // Compile a role's permissions into a Uint32Array bitset, cached directly on the role
 export function getRoleBitset(role: Role): Uint32Array {
-  if ((role as any).__bitset) {
-    return (role as any).__bitset;
+  const requiredSize = Math.max(1, Math.ceil(nextBitIndex / 32));
+  let bitset = (role as any).__bitset as Uint32Array | undefined;
+
+  if (bitset && bitset.length >= requiredSize) {
+    return bitset;
   }
 
-  const size = Math.max(1, Math.ceil(nextBitIndex / 32));
-  const bitset = new Uint32Array(size);
+  bitset = new Uint32Array(requiredSize);
 
   for (const permId of role.permissions || []) {
     let index = permissionToBitIndex.get(permId);
@@ -84,10 +87,9 @@ export function getRoleBitset(role: Role): Uint32Array {
       nextBitIndex++;
     }
     const wordIndex = index >> 5;
-    if (wordIndex >= bitset.length) {
-      continue;
+    if (wordIndex < bitset.length) {
+      bitset[wordIndex] |= 1 << (index & 31);
     }
-    bitset[wordIndex] |= 1 << (index & 31);
   }
 
   (role as any).__bitset = bitset;
@@ -158,6 +160,11 @@ export function hasPermissionWithRoles(
  * Split out so the result can be cached (and invalidated) as a unit.
  */
 function evaluatePermissionWithRoles(user: User, permissionId: string, safeRoles: Role[]): boolean {
+  // Direct user-level permission override fast path
+  if (Array.isArray(user.permissions) && user.permissions.includes(permissionId)) {
+    return true;
+  }
+
   const userRoleLower = (user.role || "").toLowerCase();
   const defaultRoleName = DEFAULT_ROLE_NAMES[userRoleLower];
   let matchedAnyRole = false;
@@ -185,9 +192,13 @@ function evaluatePermissionWithRoles(user: User, permissionId: string, safeRoles
 
     if (index !== undefined) {
       const bitset = getRoleBitset(role);
-      if (wordIndex < bitset.length && (bitset[wordIndex] & bitMask) !== 0) {
-        return true;
-      }
+      const granted =
+        wordIndex < bitset.length
+          ? (bitset[wordIndex] & bitMask) !== 0
+          : role.permissions?.includes(permissionId);
+      if (granted) return true;
+    } else if (role.permissions?.includes(permissionId)) {
+      return true;
     }
   }
 
