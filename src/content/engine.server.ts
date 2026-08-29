@@ -659,6 +659,13 @@ export const contentService = {
       this.syncStoreAndDatabase(operations, prunedPaths, tenantId ?? null, dbAdapter),
     ]);
 
+    // 🚀 Pre-warm SDK schema LRU + adapter table registry so first write hits in-memory cache
+    try {
+      const { prewarmCollectionSchemas } =
+        await import("@src/services/sdk/namespaces/collections/schema-store");
+      prewarmCollectionSchemas(schemas, dbAdapter, tenantId);
+    } catch {}
+
     // 4. Invalidate navigation L1/L2 + broadcast
     await notifyContentUpdate(tenantId);
   },

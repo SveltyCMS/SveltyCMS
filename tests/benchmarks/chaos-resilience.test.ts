@@ -21,6 +21,7 @@ import {
   printSummaryTable,
   getDbType,
   requireTestInfrastructure,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
@@ -43,6 +44,7 @@ async function runChaosAudit() {
     // Cache authorization token and request definitions outside hot trails
     const apiSecret = process.env.TEST_API_SECRET || "SVELTYCMS_TEST_SECRET_2026";
     const requestHeaders = {
+      ...benchmarkAuthHeaders(),
       "x-test-mode": "true",
       "x-test-secret": apiSecret,
     };

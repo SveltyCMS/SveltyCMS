@@ -88,7 +88,22 @@ const ROUTE_SPECS: Record<RouteResourceLane, RouteResourceSpec> = {
 };
 
 export class RouteResourceStateMachine {
-  private _cache = new Map<string, RouteResourceSpec>();
+  private _cache = new Map<string, RouteResourceSpec>([
+    ["/login", ROUTE_SPECS.bootstrap],
+    ["/setup", ROUTE_SPECS.bootstrap],
+    ["/api/system/health", ROUTE_SPECS.api],
+    ["/api/graphql", ROUTE_SPECS.graphql],
+    ["/api/collections", ROUTE_SPECS.collection],
+    ["/api/content", ROUTE_SPECS.collection],
+    ["/api/media", ROUTE_SPECS.media],
+    ["/api/settings", ROUTE_SPECS.settings],
+    ["/api/config", ROUTE_SPECS.settings],
+    ["/", ROUTE_SPECS.dashboard],
+    ["/dashboard", ROUTE_SPECS.dashboard],
+    ["/mediagallery", ROUTE_SPECS.media],
+    ["/collections", ROUTE_SPECS.collection],
+    ["/settings", ROUTE_SPECS.settings],
+  ]);
 
   /**
    * Classifies URL into a precise RouteResourceSpec in < 10 microseconds.

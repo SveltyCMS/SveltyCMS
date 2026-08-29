@@ -4,6 +4,7 @@
  * @summary Measures bulk ingestion throughput for 10,000 entries, random point-lookups, and indexed range scans across large datasets.
  */
 
+import { randomUUID } from "node:crypto";
 import {
   test,
   runBenchmark,
@@ -40,7 +41,7 @@ const STATIC_CONTENT = "<p>Stress test content for large scale migration.</p>".r
 /**
  * Pre-serializes bulk batch payloads ahead of time to eliminate JSON stringification overhead in hot loops.
  */
-function precomputeBulkPayloads(initialTimestamp: number): {
+function precomputeBulkPayloads(): {
   batches: string[];
   allIds: string[];
 } {
@@ -48,7 +49,7 @@ function precomputeBulkPayloads(initialTimestamp: number): {
   const batches = Array.from({ length: TOTAL_BATCHES }, (_, batchIndex) => {
     const batch = Array.from({ length: BATCH_SIZE }, (_, j) => {
       const absoluteIndex = batchIndex * BATCH_SIZE + j;
-      const id = `mig_${initialTimestamp}_${absoluteIndex}`;
+      const id = randomUUID();
       allIds.push(id);
       return {
         _id: id,
@@ -87,13 +88,12 @@ async function runMigrationAudit() {
       connection: "keep-alive",
     };
 
-    const initialRunTime = Date.now();
     const bulkUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/bulk`;
     const listUrl = `${baseUrl}/api/collections/${COLLECTION_ID}?limit=20&sort=title&order=asc`;
 
     // Pre-serialize all batch JSON payloads
     console.log(`   → Pre-serializing ${TOTAL_BATCHES} batches (${BATCH_SIZE} items/batch)...`);
-    const { batches: serializedBatches, allIds } = precomputeBulkPayloads(initialRunTime);
+    const { batches: serializedBatches, allIds } = precomputeBulkPayloads();
 
     const results: any[] = [];
 
@@ -162,7 +162,7 @@ async function runMigrationAudit() {
       silent: true,
       onIteration: async () => {
         const randIdx = (lookupCursor++ * 7919) % TOTAL_ENTRIES;
-        const targetId = allIds[randIdx] || `mig_${initialRunTime}_${randIdx}`;
+        const targetId = allIds[randIdx]!;
 
         const res = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${targetId}`, {
           method: "GET",

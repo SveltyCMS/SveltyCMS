@@ -157,7 +157,7 @@ function transitionServiceState(
     state.services[serviceName] = {
       status: "initializing",
       message: "Auto-registered during transition",
-      metrics: structuredClone(initialServiceMetrics),
+      metrics: { ...initialServiceMetrics },
     };
   }
 
@@ -565,7 +565,8 @@ export function isServiceHealthy(serviceName: ServiceName): boolean {
 export function resetSystemState(): void {
   logger.info("Resetting system state to IDLE");
   system.set({
-    ...structuredClone(initialState),
+    ...initialState,
+    services: { ...initialState.services },
     lastStateChange: Date.now(),
   });
 }

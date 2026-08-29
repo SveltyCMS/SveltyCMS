@@ -4,6 +4,7 @@
  * @summary Measures direct adapter write throughput, read throughput, and percentile latencies with zero HTTP overhead.
  */
 
+import { randomUUID } from "node:crypto";
 import {
   test,
   setupBenchmarkServer,
@@ -149,11 +150,14 @@ async function run() {
     console.log("\n   ═══ PHASE 2: PARALLEL READS ═══");
 
     // Provision multi-collection read tree
+    const docIdsByCollection: string[][] = [];
     await Promise.all(
       readCols.map(async (name, c) => {
         await db.collection.createModel({ _id: name, name, fields: [] }).catch(() => {});
-        const docs = Array.from({ length: DOCS_PER_COLLECTION }, (_, i) => ({
-          _id: `rd-${c}-${i}`,
+        const ids = Array.from({ length: DOCS_PER_COLLECTION }, () => randomUUID());
+        docIdsByCollection[c] = ids;
+        const docs = ids.map((id, i) => ({
+          _id: id,
           title: `R${c}-${i}`,
           tenantId: T,
         }));
@@ -179,7 +183,7 @@ async function run() {
 
         for (let k = i; k < batchLimit; k++) {
           const currentReadSlot = readIdx++;
-          const filter = { _id: `rd-${c}-${k}` };
+          const filter = { _id: docIdsByCollection[c]![k] };
 
           wavePromises.push(
             (async () => {

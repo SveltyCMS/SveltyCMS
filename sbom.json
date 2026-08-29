@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:9d4b4edb-5cbf-480b-a301-8287fd054c85",
+  "serialNumber": "urn:uuid:21155e99-6689-4911-a358-1186f376ff67",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-28T14:58:44.884Z",
+    "timestamp": "2026-08-29T13:23:06.298Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -74,13 +74,13 @@
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1120.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1120.0",
+      "version": "3.1121.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1121.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-UunWgNl/U8wIlxVRyhUPqlozFkUS88UqXjAH50XfPDXaZeK9P7KVYTAh4KREVrLPQTzPxVSbQGog3gHlc/P6vg=="
+          "content": "sha512-hBnoqaVBeWdkgXcJElMXA2yUZWkBCBntu2qmN+tfqmzC+j4LzJC3ox8qIgS2WdMS1cb8UwyBogUVrkRXybNm0A=="
         }
       ]
     },
@@ -399,39 +399,39 @@
     {
       "type": "library",
       "name": "@better-svelte-email/components",
-      "version": "2.1.3",
-      "purl": "pkg:npm/@better-svelte-email/components@2.1.3",
+      "version": "2.2.0",
+      "purl": "pkg:npm/@better-svelte-email/components@2.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-jpko0VE9hLrATUIjNCkR8MN/oWmq6HJ3icpk2zmuN4OSITPEzKZGUbWXhW/GH/9HoSIxeGTpVBx/mpMv3dnZCg=="
+          "content": "sha512-Hk18XB6SnO60R9JTTZd9w4/uewZw9393xNuqNw4m09URxRf9asslUtlTtS0h/a5ENTnBKmC1749/ynpDdQnDwg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@better-svelte-email/preview",
-      "version": "2.1.3",
-      "purl": "pkg:npm/@better-svelte-email/preview@2.1.3",
+      "version": "2.2.0",
+      "purl": "pkg:npm/@better-svelte-email/preview@2.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-w0Rz+L+leU/KEJXTTgEZhUAADJkKVxG5yoaw8oI4TLa9ZQ1xTuCO4B2rEkSo2woqx2GL0NptRqugCtv0UyAbDw=="
+          "content": "sha512-ujbUp8Cx0LB3zbD7QvethlPUP1/lcyoZLPoa0BIHKWMytO9NPTVox7Eadl/OVjMOdTNm5tbtng/2Gp5wvCPoBw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@better-svelte-email/server",
-      "version": "2.1.3",
-      "purl": "pkg:npm/@better-svelte-email/server@2.1.3",
+      "version": "2.2.0",
+      "purl": "pkg:npm/@better-svelte-email/server@2.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-5reRQaSmsI3afxDZRqnhyr1ghIOtaCK5RPBbHedcJFbicw/FtJTRTXnGQi4ZiM7hvwOt+3Uptm/F7t+FPOuKMQ=="
+          "content": "sha512-vq/2NTo/XzM0uX9WLLX3vMsmhAae5J/WlJrwn3TbYiPwHApqyOCEajLs6m/125uoL1mL/gl98GdKe6qCEMTAEg=="
         }
       ]
     },
@@ -6210,13 +6210,13 @@
     {
       "type": "library",
       "name": "html-to-text",
-      "version": "10.0.0",
-      "purl": "pkg:npm/html-to-text@10.0.0",
+      "version": "10.0.1",
+      "purl": "pkg:npm/html-to-text@10.0.1",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-2OH59Gtprdczel+7Rxgpz9hGVJREaf8Lt1H4kZwWHpEn70VQKRuMNGsb2eDbwaTzrYzb0hheiOG1P7Dim0B4dQ=="
+          "content": "sha512-GiVhRI1BatGARSCmlXWNCjDT0cWrwBWoeduLoV0WSKAgaV/wa+hUWy5LiQLUs4UwiUrE52ZCMfBGiKD87TDPrg=="
         }
       ]
     },
@@ -8134,13 +8134,13 @@
     {
       "type": "library",
       "name": "resend",
-      "version": "6.20.0",
-      "purl": "pkg:npm/resend@6.20.0",
+      "version": "6.25.0",
+      "purl": "pkg:npm/resend@6.25.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-fXDFt7jVMuka6ruS79DzaQFKPyxOAUtoYUGSl3dTUyOnFK9klmUULxADQRzFFtHfHRipYyy62jYcm4cMKqvtjw=="
+          "content": "sha512-iptUEycs+6Hu+W8mExK708LrDiMYOuGgnCP+wTD5L4Zrqqd2B86h1oyAmNe0khZWQw0ccI7jz8OgAaplEsyaIA=="
         }
       ]
     },
@@ -8615,13 +8615,13 @@
     {
       "type": "library",
       "name": "svelte",
-      "version": "5.56.10",
-      "purl": "pkg:npm/svelte@5.56.10",
+      "version": "5.57.0",
+      "purl": "pkg:npm/svelte@5.57.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Lcxbj8I/KAbpY+VjtY4ENQBV0dDCipfGAhqb51XQZ67CIQqXgsv/8dPkbILaj4Fb6/b6JAEM/PIVbILXgDQy2g=="
+          "content": "sha512-NdbDn7fl4be1ViUG0oq/lvG6OZy3oENolV2ONjiqqsfVoeAfzaQAKUcEX3MrQod/Bebv1PgwET9rfXhgn9s4Kg=="
         }
       ]
     },

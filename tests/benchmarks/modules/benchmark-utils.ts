@@ -42,6 +42,8 @@ export {
  */
 const isTestRunner =
   !!process.env.BUN_TEST ||
+  (typeof process !== "undefined" &&
+    (process.argv.includes("test") || process.execArgv.includes("test"))) ||
   (typeof (globalThis as any).test !== "undefined" && !process.env.BENCHMARK_STANDALONE);
 
 // 🚀 Auto-Redirector: Ensures benchmarks always run via 'bun test' engine
@@ -273,6 +275,13 @@ export interface BenchmarkResult {
   trimmedCount?: number;
   ci95MarginMs?: number;
   ci95Ms?: [number, number];
+  coldFirstMs?: number;
+  coldAvgMs?: number;
+  coldP95Ms?: number;
+  coldMaxMs?: number;
+  warmAvgMs?: number;
+  warmP95Ms?: number;
+  warmRps?: number;
   [key: string]: any;
 }
 
@@ -565,7 +574,7 @@ export function printTruthTable(options: {
     outputBuffer += s + "\n";
   };
 
-  const W = 91;
+  const W = 105;
   const h = makeHelpers(W);
   log("\n" + h.bar("╔", "╗"));
   log(h.center(options.title));
@@ -585,9 +594,16 @@ export function printTruthTable(options: {
     const avgMs = r.avgMs ?? 0;
     const p95Ms = r.p95Ms ?? 0;
     const rps = r.rps ?? 0;
-    log(
-      `║ ${r.name.padEnd(30)} │ ${avgMs.toFixed(3).padStart(12)} ms │ p95: ${p95Ms.toFixed(3).padStart(12)} ms │ RPS: ${Math.round(rps).toLocaleString().padStart(10)} ║`,
-    );
+    const coldMs = r.coldFirstMs ?? r.coldAvgMs;
+    if (coldMs !== undefined) {
+      log(
+        `║ ${r.name.padEnd(28)} │ Cold: ${coldMs.toFixed(2).padStart(8)} ms │ Warm: ${avgMs.toFixed(3).padStart(9)} ms │ p95: ${p95Ms.toFixed(3).padStart(9)} ms │ ${Math.round(rps).toLocaleString().padStart(7)} RPS ║`,
+      );
+    } else {
+      log(
+        `║ ${r.name.padEnd(30)} │ ${avgMs.toFixed(3).padStart(12)} ms │ p95: ${p95Ms.toFixed(3).padStart(12)} ms │ RPS: ${Math.round(rps).toLocaleString().padStart(10)} ║`,
+      );
+    }
   });
   log(h.bar("╚", "╝"));
 
@@ -665,11 +681,14 @@ export async function runBenchmark(config: any) {
     await new Promise((r) => setTimeout(r, lo + Math.random() * Math.max(0, hi - lo)));
   };
 
+  const warmupLatencies: number[] = [];
   let warmupErrors = 0;
   if (warmupIterations > 0) {
     for (let i = 0; i < warmupIterations; i++) {
+      const w0 = performance.now();
       try {
         await onIteration(i);
+        warmupLatencies.push(performance.now() - w0);
       } catch (err: any) {
         warmupErrors++;
         // 🛡️ HARDENING: Log first warmup error with full context so CI/stderr catches it.
@@ -781,6 +800,24 @@ export async function runBenchmark(config: any) {
   const eluEnd = eluAvailable && eluStart ? performance.eventLoopUtilization(eluStart) : null;
   if (eluEnd) (stats as any).eventLoopUtilization = eluEnd.utilization;
   if (maxEventLoopLagMs > 0) (stats as any).eventLoopLagMs = maxEventLoopLagMs;
+
+  // ❄️ Calculate dual-phase Cold and Warm metrics
+  if (warmupLatencies.length > 0) {
+    const coldSorted = [...warmupLatencies].sort((a, b) => a - b);
+    const coldSum = coldSorted.reduce((a, b) => a + b, 0);
+    stats.coldFirstMs = Number(warmupLatencies[0]!.toFixed(3));
+    stats.coldAvgMs = Number((coldSum / coldSorted.length).toFixed(3));
+    stats.coldP95Ms = Number(percentile(coldSorted, 95).toFixed(3));
+    stats.coldMaxMs = Number(coldSorted[coldSorted.length - 1]!.toFixed(3));
+  } else if (validResults.length > 0) {
+    stats.coldFirstMs = Number(validResults[0]!.toFixed(3));
+    stats.coldAvgMs = Number(validResults[0]!.toFixed(3));
+    stats.coldP95Ms = Number(validResults[0]!.toFixed(3));
+    stats.coldMaxMs = Number(validResults[0]!.toFixed(3));
+  }
+  stats.warmAvgMs = stats.avgMs;
+  stats.warmP95Ms = stats.p95Ms;
+  stats.warmRps = stats.rps;
 
   // 🛡️ RELIABILITY GUARD: Ensure the benchmark reached an acceptable success rate
   const reliabilityThreshold = config.reliabilityThreshold ?? 0.99; // Default 99% success required
@@ -1649,6 +1686,13 @@ export async function exportResult(r: any) {
     p95Ms: r.p95Ms ?? 0,
     rps: r.rps ?? 0,
     cv: r.cv ?? 0,
+    coldFirstMs: r.coldFirstMs,
+    coldAvgMs: r.coldAvgMs,
+    coldP95Ms: r.coldP95Ms,
+    coldMaxMs: r.coldMaxMs,
+    warmAvgMs: r.warmAvgMs ?? r.avgMs,
+    warmP95Ms: r.warmP95Ms ?? r.p95Ms,
+    warmRps: r.warmRps ?? r.rps,
     errorRate: r.errorCount && r.iterations ? r.errorCount / r.iterations : 0,
     wallClockMs,
     serverBootMs: _benchmarkBootMs,
@@ -1678,6 +1722,16 @@ export async function exportResult(r: any) {
   const fileName = `${r.name.replace(/[^a-zA-Z0-9]/g, "_")}.json`;
   fs.writeFileSync(path.join(resultDir, fileName), JSON.stringify(entry, null, 2));
 
+  // Export structured sub-metrics
+  if (r.coldFirstMs !== undefined) {
+    exportSubMetric(r.name, r.coldFirstMs, "ms", "cold");
+  } else if (r.coldAvgMs !== undefined) {
+    exportSubMetric(r.name, r.coldAvgMs, "ms", "cold");
+  }
+  if (r.avgMs !== undefined) {
+    exportSubMetric(r.name, r.avgMs, "ms", "warm");
+  }
+
   // Print summary line (always)
   const p95Str = entry.p95Ms ? `p95: ${entry.p95Ms.toFixed(3)}ms` : "";
   // Track which test files have been reported (dedup)
@@ -1688,8 +1742,9 @@ export async function exportResult(r: any) {
 
   // In standalone mode, show per-metric line
   if (runMode === "standalone") {
+    const coldSummary = r.coldFirstMs !== undefined ? ` [Cold: ${r.coldFirstMs.toFixed(2)}ms]` : "";
     console.log(
-      `  ${r.name}: ${entry.avgMs.toFixed(3)}ms${p95Str ? ` (${p95Str})` : ""} · RPS: ${Math.round(entry.rps)}`,
+      `  ${r.name}: ${entry.avgMs.toFixed(3)}ms${p95Str ? ` (${p95Str})` : ""}${coldSummary} · RPS: ${Math.round(entry.rps)}`,
     );
   }
 }
@@ -2097,7 +2152,7 @@ export function generateRealisticEntry(
 ) {
   const size = complexity === "light" ? 500 : complexity === "medium" ? 2500 : 10000;
   return {
-    _id: `real-${Date.now()}-${i}`,
+    _id: crypto.randomUUID(),
     title: `Post Title ${i} - SveltyCMS Performance Audit`,
     slug: `post-${i}-${Math.random().toString(36).substring(7)}`,
     content: "A".repeat(size),

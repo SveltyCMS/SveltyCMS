@@ -542,7 +542,7 @@ jobs:
           export const privateEnv = {
             DB_TYPE: "sqlite",
             DB_HOST: "127.0.0.1",
-            DB_NAME: "sveltycms_test",
+            DB_NAME: "e2e_auth_test",
             DB_USER: "",
             DB_PASSWORD: "",
             JWT_SECRET_KEY: "Integration-Test-JWT-Secret-Key-2026",

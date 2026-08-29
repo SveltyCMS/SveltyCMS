@@ -156,6 +156,15 @@ function initRotationRateLimiter() {
   return rotationRateLimiter;
 }
 
+/**
+ * 🚀 Pre-warms the authentication lazy promises, settings caches, and rate limiters at system startup.
+ */
+export function prewarmAuthenticationHotPaths(): void {
+  getCachedSettings();
+  initRotationRateLimiter();
+  void getSessionManagerLazy().catch(() => {});
+}
+
 // --- IN-MEMORY SESSION CACHE WITH WEAKREF-BASED CLEANUP ---
 
 interface SessionCacheEntry {

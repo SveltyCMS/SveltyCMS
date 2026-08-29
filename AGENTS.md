@@ -76,7 +76,7 @@ All public-facing documentation, marketing, and competitive comparisons MUST com
 8. **Predictive preloading** — primary navigation via `<a data-preload="…">` (smart/predict/hover/viewport per context), never `goto()` for navigation (filters/sorting/pagination are the escape hatch). See `docs/reference/architecture/hover-preloading.mdx`.
 9. **Behavioral learning** — keep `recordCollectionAccess()`/`recordNavigation()` in `+layout.server.ts`; call `recordEntryAccess()` on collection detail; consult `getHotCollections()`/`predictNextPath()`. See `docs/reference/architecture/behavioral-learning.mdx`.
 10. **Reactive search params** — `useReactiveSearchParams()` for client-side table filter/sort/pagination.
-11. **Performance** — every change respects the sub-5ms persistence goal; benchmark before/after (`BENCHMARK_RECORD=1`) and check trend labels in `docs/project/benchmarks/`; run `bun run lint:docs` before shipping to catch broken internal links.
+11. **Performance** — every change respects the sub-2ms persistence goal; benchmark before/after (`BENCHMARK_RECORD=1`) and check trend labels in `docs/project/benchmarks/`; run `bun run lint:docs` before shipping to catch broken internal links.
 12. **Fix pre-existing issues** — never leave the codebase worse; repair bugs/lint/type errors you encounter (unless the fix dwarfs the task — then document and move on).
 13. **Commit messages** — Conventional Commits; subject ≤50 chars, imperative, no trailing punctuation; NEVER add `Co-Authored-By` or AI attribution lines.
 
