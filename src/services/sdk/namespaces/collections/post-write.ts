@@ -87,6 +87,13 @@ let _pendingInvalidationDirty = new Set<string>();
  * of every cached per-id entry — the fix for the O(#docs) write cliff at scale.
  */
 const _pendingInvalidationIds = new Map<string, Set<string>>();
+/** Set free-list — recycles per-tick id Sets instead of re-allocating one per coalesced write burst. */
+const _idSetPool: Set<string>[] = [];
+const acquireIdSet = (): Set<string> => _idSetPool.pop() ?? new Set<string>();
+const releaseIdSet = (ids: Set<string>): void => {
+  ids.clear();
+  _idSetPool.push(ids);
+};
 
 /**
  * Invalidate L1 (synchronous, scoped) + L2 (tick-debounced, coalesced).
@@ -116,7 +123,7 @@ export function invalidateCache(
   if (schemaId && (opts?.writtenId || opts?.writtenIds?.length)) {
     let ids = _pendingInvalidationIds.get(requestKey);
     if (!ids) {
-      ids = new Set<string>();
+      ids = acquireIdSet();
       _pendingInvalidationIds.set(requestKey, ids);
     }
     if (opts.writtenId) ids.add(opts.writtenId);
@@ -152,6 +159,7 @@ export function invalidateCache(
       }
     } catch {
     } finally {
+      if (ids) releaseIdSet(ids);
       _pendingInvalidationTasks.delete(requestKey);
       if (_pendingInvalidationDirty.has(requestKey)) {
         _pendingInvalidationDirty.delete(requestKey);

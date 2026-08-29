@@ -528,13 +528,14 @@ async function run() {
         API_BASE_URL: baseUrl,
         ORIGIN: baseUrl,
         HOST: "127.0.0.1",
-        // 🛡️ DB_PORT SAFETY: on hosts where the production Postgres (honcho-postgres)
-        // owns :5432, the isolated test Postgres runs on :5433. getBenchmarkTestEnv
-        // defaults postgresql -> DB_PORTS.postgresql ("5432") and the matrix
-        // orchestrator would otherwise measure against PRODUCTION. Honor an
-        // explicit POSTGRES_TEST_PORT override (default 5433) so benchmarks never
-        // touch prod. Other adapters keep their canonical ports.
-        ...(db === "postgresql" ? { DB_PORT: process.env.POSTGRES_TEST_PORT || "5433" } : {}),
+        // 🛡️ DB_PORT SAFETY: on hosts where a production Postgres owns :5432,
+        // the isolated test Postgres may run on :5433. Honor an EXPLICIT
+        // POSTGRES_TEST_PORT override; otherwise fall through to the canonical
+        // DB_PORTS.postgresql (5432) from getBenchmarkTestEnv — matching
+        // tests/docker-compose.yml and test-db-credentials.ts.
+        ...(db === "postgresql" && process.env.POSTGRES_TEST_PORT
+          ? { DB_PORT: process.env.POSTGRES_TEST_PORT }
+          : {}),
         TEST_API_SECRET: apiSecret,
         ADMIN_PASSWORD: adminPassword,
         BENCHMARK_PROFILE: profile,

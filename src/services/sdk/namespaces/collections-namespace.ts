@@ -1271,6 +1271,26 @@ export class CollectionsNamespace {
     }
     m2u?.();
 
+    // 🛡️ REVISION TRACKING: for revision-enabled collections, snapshot the entry
+    // BEFORE the write so the update can persist the previous version. Best-effort
+    // — a failed snapshot must never fail the update itself.
+    const revisionEnabled = schema.revision === true && !options.skipSideEffects;
+    let previousSnapshot: any = null;
+    if (revisionEnabled) {
+      try {
+        const prev = await this._dbAdapter.crud.findOne(
+          this.getCollectionName(schema._id as string),
+          { _id: entryId } as any,
+          { tenantId: tenantId as DatabaseId },
+        );
+        if (prev.success && prev.data) {
+          previousSnapshot = prev.data;
+        }
+      } catch {
+        /* best-effort */
+      }
+    }
+
     const m3u = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await persistWithOutbox(
       "update",
@@ -1292,6 +1312,10 @@ export class CollectionsNamespace {
     m1u?.();
 
     if (result && result.success && result.data) {
+      // 🛡️ REVISION TRACKING: persist the pre-write snapshot (fire-and-forget).
+      if (revisionEnabled && previousSnapshot) {
+        void this.recordRevision(entryId, previousSnapshot, effectiveUser, tenantId);
+      }
       // ⚡ Response-path: never await side effects — concurrent update RPS depends on this
       schedulePostWrite(
         this._dbAdapter,
@@ -1307,6 +1331,38 @@ export class CollectionsNamespace {
     }
 
     return result;
+  }
+
+  /**
+   * Persist a revision snapshot for a revision-enabled collection update.
+   * Fire-and-forget — revision history must never block or fail the write path.
+   * The version is derived from the latest existing revision (+1).
+   */
+  private async recordRevision(
+    entryId: string,
+    previousData: any,
+    user: any,
+    tenantId: DatabaseId | null | undefined,
+  ): Promise<void> {
+    try {
+      const history = await this._dbAdapter.content.revisions.getHistory(entryId as DatabaseId, {
+        page: 1,
+        pageSize: 1,
+      });
+      const items = history.success ? history.data.items : [];
+      const latestVersion = items.length > 0 ? items[0].version : 0;
+      await this._dbAdapter.content.revisions.create({
+        contentId: entryId as DatabaseId,
+        authorId: (user?._id || "system") as DatabaseId,
+        data: previousData,
+        version: latestVersion + 1,
+        tenantId: tenantId ?? undefined,
+      });
+    } catch (err) {
+      logger.debug(
+        `[Revisions] Failed to record revision for ${entryId}: ${(err as Error)?.message ?? err}`,
+      );
+    }
   }
 
   async delete(collectionId: string, entryId: string, options: LocalApiOptions = {}) {

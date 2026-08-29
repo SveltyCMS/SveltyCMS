@@ -598,7 +598,7 @@ SveltyCMS supports native environment variable overrides to tune database sessio
 In addition to database-level session settings, SveltyCMS incorporates pure application-layer code optimizations in the core API dispatcher, schema validation engine, and audit pipeline. These zero-allocation optimizations apply **universally to all 4 database adapters (PostgreSQL, MariaDB, SQLite, MongoDB)** as well as core CMS database tables:
 
 1. **Copy-On-Write Request Body Sanitization (`src/content/content-utils.ts`)**:
-   - `validateFieldConstraints()` and `stripNullRows()` use a Copy-On-Write pattern.
+   - `prepareCollectionFields()` uses a single-pass Copy-On-Write pattern (sanitize + maxLength + null-row strip in one schema walk).
    - For 99% of normal write payloads, **zero shallow object copies (`{ ...data }`) are allocated**, eliminating memory churn before reaching any database adapter.
 
 2. **Asynchronous Non-Blocking Microtask Audit Logger (`src/services/security/audit-service.ts`)**:

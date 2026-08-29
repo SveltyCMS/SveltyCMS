@@ -736,6 +736,7 @@ export class CacheService {
   }
 
   private clearLocalL1ByTags(tags: string[], tenantId: string | null) {
+    if (this.tagMap.size === 0) return;
     this._isBulkClearing = true;
     const deletedKeys: string[] = [];
     const isWildcard =
@@ -743,34 +744,22 @@ export class CacheService {
     const tid = isWildcard ? null : this.normalizeTenantId(tenantId);
     const tenantKeyPrefix = tid ? `tenant:${tid}:` : null;
 
-    for (const tag of tags) {
-      const candidates: string[] = [];
+    for (let t = 0; t < tags.length; t++) {
+      const tag = tags[t];
       if (tid) {
-        candidates.push(this.scopeTag(tag, tid));
-        if (this.tagMap.has(tag)) candidates.push(tag);
+        const scopedTag = this.scopeTag(tag, tid);
+        const keys1 = this.tagMap.get(scopedTag);
+        if (keys1) this.processTagKeys(scopedTag, keys1, tenantKeyPrefix, deletedKeys);
+        if (scopedTag !== tag) {
+          const keys2 = this.tagMap.get(tag);
+          if (keys2) this.processTagKeys(tag, keys2, tenantKeyPrefix, deletedKeys);
+        }
       } else {
         const suffix = `:${tag}`;
-        for (const k of this.tagMap.keys()) {
-          if (k === tag || k.endsWith(suffix)) candidates.push(k);
-        }
-      }
-
-      for (const scoped of new Set(candidates)) {
-        const keys = this.tagMap.get(scoped);
-        if (!keys) continue;
-        const keep = new Set<string>();
-        for (const key of keys) {
-          if (tenantKeyPrefix && !key.startsWith(tenantKeyPrefix)) {
-            keep.add(key);
-            continue;
+        for (const [k, keys] of this.tagMap.entries()) {
+          if (k === tag || k.endsWith(suffix)) {
+            this.processTagKeys(k, keys, tenantKeyPrefix, deletedKeys);
           }
-          this.l1.delete(key);
-          deletedKeys.push(key);
-        }
-        if (keep.size === 0) {
-          this.tagMap.delete(scoped);
-        } else {
-          this.tagMap.set(scoped, keep);
         }
       }
     }
@@ -778,6 +767,29 @@ export class CacheService {
     for (let i = 0; i < deletedKeys.length; i++) {
       this.cleanupTagsForKey(deletedKeys[i]);
       this.removeFromPrefixMap(deletedKeys[i]);
+    }
+  }
+
+  private processTagKeys(
+    scoped: string,
+    keys: Set<string>,
+    tenantKeyPrefix: string | null,
+    deletedKeys: string[],
+  ) {
+    let keep: Set<string> | null = null;
+    for (const key of keys) {
+      if (tenantKeyPrefix && !key.startsWith(tenantKeyPrefix)) {
+        if (!keep) keep = new Set<string>();
+        keep.add(key);
+        continue;
+      }
+      this.l1.delete(key);
+      deletedKeys.push(key);
+    }
+    if (!keep || keep.size === 0) {
+      this.tagMap.delete(scoped);
+    } else {
+      this.tagMap.set(scoped, keep);
     }
   }
 

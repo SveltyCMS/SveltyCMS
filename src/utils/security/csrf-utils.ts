@@ -94,6 +94,9 @@ export function validateCsrfForRequest(
   const origin = request.headers.get("origin");
   const host = request.headers.get("host");
   if (origin && host) {
+    if (origin === `http://${host}` || origin === `https://${host}` || origin === `//${host}`) {
+      return { isValid: true };
+    }
     try {
       const originUrl = new URL(origin);
       if (originUrl.host === host) {
@@ -109,6 +112,14 @@ export function validateCsrfForRequest(
   if (!origin && host) {
     const referer = request.headers.get("referer");
     if (referer) {
+      if (
+        referer === `http://${host}/` ||
+        referer === `https://${host}/` ||
+        referer.startsWith(`http://${host}/`) ||
+        referer.startsWith(`https://${host}/`)
+      ) {
+        return { isValid: true };
+      }
       try {
         const refererUrl = new URL(referer);
         if (refererUrl.host === host) {

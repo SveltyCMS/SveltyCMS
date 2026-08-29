@@ -399,24 +399,6 @@ export function validateNumericFields(
   return errors;
 }
 
-/**
- * Sanitizes input data fields before database persistence.
- * - Fields of type "richtext" or "markdown" are run through HTML sanitization (retaining safe tags).
- * - Fields of type "text" or "textarea" have all HTML tags stripped out to prevent HTML/XSS injection.
- * - This actively prevents database pollution and stored XSS inside collections.
- */
-export function sanitizeCollectionFields(
-  data: Record<string, unknown>,
-  schema: {
-    fields?: Array<{
-      db_fieldName: string;
-      type?: string;
-    }>;
-  },
-): Record<string, unknown> {
-  return prepareFieldsCore(data, schema, { sanitize: true, stripNulls: false, truncate: false });
-}
-
 // ─────────────────────────────────────────────────────────────
 // String Field MaxLength Validation
 // ─────────────────────────────────────────────────────────────
@@ -432,51 +414,12 @@ const STRING_FIELD_TYPES = new Set([
   "password",
 ]);
 
-/**
- * Validates string field values against schema-defined maxLength constraints.
- * Values exceeding the limit are truncated to maxLength (default 255).
- * Logs a warning when truncation occurs.
- *
- * @returns A new data object with truncated string values (shallow clone).
- */
-export function validateFieldConstraints(
-  data: Record<string, unknown>,
-  schema: {
-    fields?: Array<{
-      db_fieldName: string;
-      type?: string;
-      maxLength?: number;
-    }>;
-  },
-): Record<string, unknown> {
-  return prepareFieldsCore(data, schema, { sanitize: false, stripNulls: false, truncate: true });
-}
-
 // ─────────────────────────────────────────────────────────────
 // Array / Block Null Row Stripping
 // ─────────────────────────────────────────────────────────────
 
 /** Widget types that represent array/repeating data. */
 const ARRAY_WIDGET_TYPES = new Set(["array", "blocks", "group", "repeater"]);
-
-/**
- * Walks schema fields and removes null/undefined entries from array/block
- * typed fields, preventing DB pollution from empty rows in repeating widgets.
- *
- * @returns A new data object with null rows stripped (shallow clone only if needed).
- */
-export function stripNullRows(
-  data: Record<string, unknown>,
-  schema: {
-    fields?: Array<{
-      db_fieldName: string;
-      type?: string;
-      widget?: { Name?: string };
-    }>;
-  },
-): Record<string, unknown> {
-  return prepareFieldsCore(data, schema, { sanitize: false, stripNulls: true, truncate: false });
-}
 
 // ─────────────────────────────────────────────────────────────
 // Single-Pass Field Preparation (SDK write path)

@@ -337,6 +337,12 @@ export async function ensureFullInitialization(): Promise<any | null> {
       await dbInit.initializeDatabase(adapter);
       logger.info(`[Boot] Service initialization complete.`);
 
+      // 🚀 Pre-warm the DB connection pool (networked adapters) so the first
+      // request never pays cold connection setup. Fire-and-forget; SQLite no-ops.
+      import("@src/databases/database-resilience")
+        .then(({ preWarmConnectionPool }) => preWarmConnectionPool(adapter))
+        .catch(() => {});
+
       const authInstance = (adapter as any).authService;
       setGlobal(AUTH_KEY, authInstance);
 

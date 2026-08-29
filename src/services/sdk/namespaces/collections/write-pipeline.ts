@@ -68,13 +68,19 @@ export function prepareWritePayload(
 ): any {
   const { user, system, operation, tenantId, entryId } = opts;
 
-  const prepFlags: CollectionFieldPrepFlags = {
-    sanitize: hot._hasSanitizableFields,
-    constraints: hot._hasConstrainedFields,
-  };
-  let entryData = prepareCollectionFields(data, schema as PrepFieldSchema, prepFlags);
-
-  if (entryData === data) {
+  let entryData: any;
+  if (hot._hasSanitizableFields === true || hot._hasConstrainedFields === true) {
+    // Sanitize + constraints pass — single walk over schema.fields, lazy clone.
+    const prepFlags: CollectionFieldPrepFlags = {
+      sanitize: hot._hasSanitizableFields,
+      constraints: hot._hasConstrainedFields,
+    };
+    entryData = prepareCollectionFields(data, schema as PrepFieldSchema, prepFlags);
+    if (entryData === data) entryData = { ...data };
+  } else {
+    // Fast path: no sanitizable/constrained fields → one shallow copy for the
+    // stamps below. Never mutate the caller's payload (the widget pipeline and
+    // adapters write through this object).
     entryData = { ...data };
   }
 
@@ -89,7 +95,7 @@ export function prepareWritePayload(
 
   // XSS pass lives here so create/update can skip the async widget pipeline
   // when no widget actually needs modifyRequest (DateTime is inlined below).
-  if (hot._hasSanitizableFields !== false) {
+  if (hot._hasSanitizableFields === true) {
     entryData = sanitizeObject(entryData);
   }
 

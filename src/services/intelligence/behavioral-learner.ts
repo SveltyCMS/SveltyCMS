@@ -68,48 +68,30 @@ function applyDecay(record: AccessRecord, now: number): void {
 
 // ─── Public API ───────────────────────────────────────────────────────────
 
-export function recordCollectionAccess(tenantId: string, collectionId: string): void {
-  const t = getOrCreateTenant(tenantId);
+/** Shared heat-record update: decay + count + score, zero per-call object churn. */
+function updateHeatRecord(map: Map<string, AccessRecord>, key: string, weight = 1): void {
   const now = Date.now();
-  let rec = t.heat.collections.get(collectionId);
+  let rec = map.get(key);
   if (!rec) {
     rec = { count: 0, lastAccess: now, score: 0 };
-    t.heat.collections.set(collectionId, rec);
+    map.set(key, rec);
   }
   applyDecay(rec, now);
   rec.count++;
   rec.lastAccess = now;
-  rec.score += 1;
+  rec.score += weight;
+}
+
+export function recordCollectionAccess(tenantId: string, collectionId: string): void {
+  updateHeatRecord(getOrCreateTenant(tenantId).heat.collections, collectionId);
 }
 
 export function recordEntryAccess(tenantId: string, collectionId: string, entryId: string): void {
-  const t = getOrCreateTenant(tenantId);
-  const key = `${collectionId}:${entryId}`;
-  const now = Date.now();
-  let rec = t.heat.entries.get(key);
-  if (!rec) {
-    rec = { count: 0, lastAccess: now, score: 0 };
-    t.heat.entries.set(key, rec);
-  }
-  applyDecay(rec, now);
-  rec.count++;
-  rec.lastAccess = now;
-  rec.score += 1;
+  updateHeatRecord(getOrCreateTenant(tenantId).heat.entries, `${collectionId}:${entryId}`);
 }
 
 export function recordNavigation(tenantId: string, fromPath: string, toPath: string): void {
-  const t = getOrCreateTenant(tenantId);
-  const key = `${fromPath}→${toPath}`;
-  const now = Date.now();
-  let rec = t.heat.transitions.get(key);
-  if (!rec) {
-    rec = { count: 0, lastAccess: now, score: 0 };
-    t.heat.transitions.set(key, rec);
-  }
-  applyDecay(rec, now);
-  rec.count++;
-  rec.lastAccess = now;
-  rec.score += 1;
+  updateHeatRecord(getOrCreateTenant(tenantId).heat.transitions, `${fromPath}→${toPath}`);
 }
 
 /**
@@ -178,11 +160,18 @@ interface PredictionStats {
 
 const _predictionStats = new Map<string, PredictionStats>();
 const MIN_CONFIDENCE_THRESHOLD = 0.3;
+/** Hard cap on tracked prediction paths — prevents unbounded map growth on long-lived servers. */
+const MAX_PREDICTION_STATS = 5000;
 
 function trackPredictionResult(tenantId: string, from: string, wasCorrect: boolean): void {
   const key = `${tenantId}:${from}`;
   let stats = _predictionStats.get(key);
   if (!stats) {
+    // Bounded cache: evict the oldest tracked path when at capacity (LRU-ish).
+    if (_predictionStats.size >= MAX_PREDICTION_STATS) {
+      const oldest = _predictionStats.keys().next().value;
+      if (oldest !== undefined) _predictionStats.delete(oldest);
+    }
     stats = { correct: 0, total: 0, lastCorrect: 0 };
     _predictionStats.set(key, stats);
   }
@@ -266,39 +255,53 @@ export function predictNextPath(tenantId: string, currentPath: string): string |
 
 export async function persistBehavioralData(): Promise<void> {
   const { cacheService } = await import("@src/databases/cache/cache-service");
+  // Single aggregate payload keyed by tenantId — restore reads ONE key and
+  // repopulates every tenant's heat maps, so multi-tenant learning survives a
+  // restart (the old per-tenant keys were never restored).
+  const snapshot: Record<string, unknown> = {};
   for (const [tenantId, t] of _tenants) {
-    const data = {
+    snapshot[tenantId] = {
       collections: Array.from(t.heat.collections.entries()),
       entries: Array.from(t.heat.entries.entries()),
       transitions: Array.from(t.heat.transitions.entries()),
     };
-    await cacheService.set(`behavioral:${tenantId}`, data, 7 * 24 * 3600);
     t.lastPersisted = Date.now();
   }
+  await cacheService.set("behavioral:global", snapshot, 7 * 24 * 3600);
 }
 
 export async function restoreBehavioralData(): Promise<void> {
   const { cacheService } = await import("@src/databases/cache/cache-service");
   try {
     const data = await cacheService.get<any>("behavioral:global");
-    if (data) {
-      const t = getOrCreateTenant("global");
-      for (const [k, v] of data.collections || []) t.heat.collections.set(k, v);
-      for (const [k, v] of data.entries || []) t.heat.entries.set(k, v);
-      for (const [k, v] of data.transitions || []) {
-        if (typeof v === "number") {
-          t.heat.transitions.set(k, {
-            count: v,
-            lastAccess: Date.now(),
-            score: v,
-          });
-        } else {
-          t.heat.transitions.set(k, v);
-        }
-      }
+    if (!data) return;
+
+    // Backward-compat: the legacy single-tenant payload had top-level
+    // `collections` (a flat per-tenant shape for "global").
+    if (Array.isArray(data.collections)) {
+      restoreTenantMaps("global", data);
+      return;
+    }
+
+    // Current format: { [tenantId]: { collections, entries, transitions } }.
+    for (const [tenantId, tenantData] of Object.entries(data)) {
+      restoreTenantMaps(tenantId, tenantData as any);
     }
   } catch {
-    /* first run */
+    /* first run / malformed payload */
+  }
+}
+
+function restoreTenantMaps(tenantId: string, data: any): void {
+  const t = getOrCreateTenant(tenantId);
+  for (const [k, v] of data.collections || []) t.heat.collections.set(k, v);
+  for (const [k, v] of data.entries || []) t.heat.entries.set(k, v);
+  for (const [k, v] of data.transitions || []) {
+    if (typeof v === "number") {
+      t.heat.transitions.set(k, { count: v, lastAccess: Date.now(), score: v });
+    } else {
+      t.heat.transitions.set(k, v);
+    }
   }
 }
 

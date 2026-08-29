@@ -197,6 +197,55 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // Instance-level cache to skip even the Map.has() call after first registration
   protected _registeredSchemas = new Set<string>();
 
+  protected _insertDefaultsPlanCache = new WeakMap<
+    object,
+    Array<{
+      name: string;
+      def?: unknown;
+      isBooleanDef?: boolean;
+      defaultFn?: () => unknown;
+      isTimestamp?: boolean;
+    }>
+  >();
+
+  protected getInsertDefaultsPlan(tableCols: Record<string, any>) {
+    let plan = this._insertDefaultsPlanCache.get(tableCols);
+    if (plan) return plan;
+
+    plan = [];
+    for (const name in tableCols) {
+      if (!Object.hasOwn(tableCols, name)) continue;
+      const col = tableCols[name] as {
+        default?: unknown;
+        defaultFn?: () => unknown;
+      };
+      const def = col.default;
+      const isTimestamp = name === "createdAt" || name === "updatedAt";
+      if (
+        def !== undefined &&
+        (typeof def !== "object" || Object.getPrototypeOf(def) === Object.prototype)
+      ) {
+        plan.push({
+          name,
+          def,
+          isBooleanDef: typeof def === "boolean",
+        });
+      } else if (typeof col.defaultFn === "function") {
+        plan.push({
+          name,
+          defaultFn: col.defaultFn,
+        });
+      } else if (isTimestamp) {
+        plan.push({
+          name,
+          isTimestamp: true,
+        });
+      }
+    }
+    this._insertDefaultsPlanCache.set(tableCols, plan);
+    return plan;
+  }
+
   /**
    * Reconstruct the inserted row from prepared values + column defaults.
    * Sparse: omit columns with neither a value nor a client-side default so
@@ -216,33 +265,24 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     const cached = this._tableColumnsCache.get(table);
     const tableCols = cached ?? getTableColumns(table);
     if (!cached && tableCols) this._tableColumnsCache.set(table, tableCols);
-    let now: Date | string | undefined;
-    const stamp = () => {
-      if (now === undefined) now = this.writeNow();
-      return now;
-    };
-    for (const name in tableCols) {
-      if (!Object.hasOwn(tableCols, name)) continue;
-      if (result[name] !== undefined) continue;
-      const col = tableCols[name] as {
-        default?: unknown;
-        defaultFn?: () => unknown;
-      };
-      const def = col.default;
-      // Plain literal defaults (string/boolean/number/{}) apply client-side;
-      // SQL expression defaults (CURRENT_TIMESTAMP, gen_random_uuid) can't be
-      // evaluated here — timestamps fall through to `now`, others stay omitted.
-      if (
-        def !== undefined &&
-        (typeof def !== "object" || Object.getPrototypeOf(def) === Object.prototype)
-      ) {
-        // MariaDB TINYINT(1) reads back as 0/1 — keep insert responses
-        // identical to what a subsequent read returns.
-        result[name] = opts?.intBooleans && typeof def === "boolean" ? (def ? 1 : 0) : def;
-      } else if (typeof col.defaultFn === "function") {
-        result[name] = col.defaultFn();
-      } else if (name === "createdAt" || name === "updatedAt") {
-        result[name] = stamp();
+
+    if (tableCols) {
+      const plan = this.getInsertDefaultsPlan(tableCols);
+      let now: Date | string | undefined;
+      const stamp = () => (now ??= this.writeNow());
+
+      for (let i = 0; i < plan.length; i++) {
+        const item = plan[i];
+        const name = item.name;
+        if (result[name] !== undefined) continue;
+
+        if (item.isTimestamp) {
+          result[name] = stamp();
+        } else if (item.defaultFn) {
+          result[name] = item.defaultFn();
+        } else if (item.def !== undefined) {
+          result[name] = opts?.intBooleans && item.isBooleanDef ? (item.def ? 1 : 0) : item.def;
+        }
       }
     }
     return result;
@@ -712,6 +752,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     // key per write. Null when schemaCols is unavailable → original fallback.
     const dateKeys = schemaCols ? this.getDateColumnKeys(schemaCols) : null;
 
+    const hasDataCol = schemaCols?.["data"] || getCol(table, "data");
+    const dynamicData: Record<string, unknown> = {};
+    let hasDynamicKeys = false;
+
     for (const k in data) {
       if (!Object.hasOwn(data, k)) continue;
       if (k === "_id" || k === "id") continue;
@@ -721,7 +765,6 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       const isPhysical = schemaCols?.[k] || getCol(table, k);
 
       if (isPhysical) {
-        if ((k === "_id" || k === "id") && id) continue;
         if (data[k] !== undefined) {
           let val = data[k];
           // Convert numeric timestamps or ISO date strings to Date objects for
@@ -779,6 +822,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           }
           values[k] = val;
         }
+      } else if (hasDataCol && k !== "tenantId" && k !== "createdAt" && k !== "updatedAt") {
+        dynamicData[k] = data[k];
+        hasDynamicKeys = true;
       }
     }
 
@@ -826,26 +872,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       values.locale = data.locale;
     }
 
-    if (getCol(table, "data")) {
-      const dynamicData: any = {};
-      let hasDynamicKeys = false;
-      for (const k in data) {
-        if (!Object.hasOwn(data, k)) continue;
-        if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
-          continue;
-        // 🚀 ROW-STORE HYBRID: fields backed by a physical column live in the
-        // column — the `data` blob keeps only dynamic (non-column) fields.
-        if (schemaCols?.[k] || getCol(table, k)) continue;
-        dynamicData[k] = data[k];
-        hasDynamicKeys = true;
-      }
-      // On partial updates, only write the `data` column if the caller provided dynamic keys or explicit `data`
-      if (!isUpdate || hasDynamicKeys || "data" in data) {
-        if (this.shouldJsonSerializeInPrepare) {
-          values.data = JSON.stringify(dynamicData) || "{}";
-        } else {
-          values.data = dynamicData;
-        }
+    if (hasDataCol && (!isUpdate || hasDynamicKeys || "data" in data)) {
+      if (this.shouldJsonSerializeInPrepare) {
+        values.data = JSON.stringify(dynamicData) || "{}";
+      } else {
+        values.data = dynamicData;
       }
     }
 

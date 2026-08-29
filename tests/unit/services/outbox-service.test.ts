@@ -168,8 +168,31 @@ describe("outboxService.emit", () => {
     expect(insertManyMock).not.toHaveBeenCalled();
     await new Promise((resolve) => setTimeout(resolve, 60));
     expect(insertManyMock).toHaveBeenCalled();
-    const rows = insertManyMock.mock.calls[0][1] as unknown[];
-    expect(rows.length).toBeGreaterThanOrEqual(80);
+    // All 80 events persist in bounded chunks (max 50 per INSERT) — every row
+    // is flushed, but no single statement starves the connection pool.
+    const calls = insertManyMock.mock.calls as [string, unknown[], unknown][];
+    const totalRows = calls.reduce((sum, c) => sum + c[1].length, 0);
+    expect(totalRows).toBe(80);
+    for (const c of calls) expect(c[1].length).toBeLessThanOrEqual(50);
+  });
+
+  it("re-queues only the uncommitted tail when a chunk flush fails", async () => {
+    // Chunk 1 (50) commits; chunk 2 (30) fails; the re-flush succeeds.
+    insertManyMock
+      .mockResolvedValueOnce({ success: true, data: [] })
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValue({ success: true, data: [] });
+    for (let i = 0; i < 80; i++) {
+      await outboxService.emit("entry:create", "entry", `doc-${i}`, {}, "tenant-burst");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 80));
+
+    // 50 committed + failed chunk → ONLY the 30 uncommitted events are
+    // re-queued and flushed again — committed rows are never re-inserted.
+    const calls = insertManyMock.mock.calls as [string, unknown[], unknown][];
+    expect(insertManyMock).toHaveBeenCalledTimes(3);
+    expect((calls[0][1] as unknown[]).length).toBe(50);
+    expect((calls[2][1] as unknown[]).length).toBe(30);
   });
 
   it("skips when DISABLE_OUTBOX is set", async () => {

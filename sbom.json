@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:21155e99-6689-4911-a358-1186f376ff67",
+  "serialNumber": "urn:uuid:c72bc952-af52-4cd2-85e3-f2d5b7edf5a4",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-29T13:23:06.298Z",
+    "timestamp": "2026-08-29T17:48:35.578Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -399,39 +399,39 @@
     {
       "type": "library",
       "name": "@better-svelte-email/components",
-      "version": "2.2.0",
-      "purl": "pkg:npm/@better-svelte-email/components@2.2.0",
+      "version": "2.3.0",
+      "purl": "pkg:npm/@better-svelte-email/components@2.3.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Hk18XB6SnO60R9JTTZd9w4/uewZw9393xNuqNw4m09URxRf9asslUtlTtS0h/a5ENTnBKmC1749/ynpDdQnDwg=="
+          "content": "sha512-0Zcq8GV72JyaneIrlT/9ynu2k8zFUywO6tPEuTlgLkt/sYVYcGI9Db2+u2ftV7J4mpSCWzlmEP8coxSA5JB3WA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@better-svelte-email/preview",
-      "version": "2.2.0",
-      "purl": "pkg:npm/@better-svelte-email/preview@2.2.0",
+      "version": "2.3.0",
+      "purl": "pkg:npm/@better-svelte-email/preview@2.3.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-ujbUp8Cx0LB3zbD7QvethlPUP1/lcyoZLPoa0BIHKWMytO9NPTVox7Eadl/OVjMOdTNm5tbtng/2Gp5wvCPoBw=="
+          "content": "sha512-V4SzpbVYlWYGV4OcHyCb2sDIAeVd1judvhtoR+LKN/TnFyPHBff9mzC4l26rsBzjHNqP/Hi93pCi5RltYKqeng=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@better-svelte-email/server",
-      "version": "2.2.0",
-      "purl": "pkg:npm/@better-svelte-email/server@2.2.0",
+      "version": "2.3.0",
+      "purl": "pkg:npm/@better-svelte-email/server@2.3.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-vq/2NTo/XzM0uX9WLLX3vMsmhAae5J/WlJrwn3TbYiPwHApqyOCEajLs6m/125uoL1mL/gl98GdKe6qCEMTAEg=="
+          "content": "sha512-UWpSE87uMOWIIeIgfYcxKdbb+yvZ4Qsjf6oYVZuqLyyxNWwx1lWIZKBTsN48VJpqoWFIW9P5XuQMM/77Sv6EQw=="
         }
       ]
     },

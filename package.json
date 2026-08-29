@@ -146,9 +146,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",
-    "@better-svelte-email/components": "^2.2.0",
-    "@better-svelte-email/preview": "^2.2.0",
-    "@better-svelte-email/server": "^2.2.0",
+    "@better-svelte-email/components": "^2.3.0",
+    "@better-svelte-email/preview": "^2.3.0",
+    "@better-svelte-email/server": "^2.3.0",
     "@envelop/graphql-jit": "^11.2.0",
     "@googlemaps/js-api-loader": "^2.1.1",
     "@inlang/paraglide-js": "^2.25.0",

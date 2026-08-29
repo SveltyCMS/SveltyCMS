@@ -296,6 +296,9 @@ class OutboxServiceImpl {
     this.emitFlushInFlight = (async () => {
       const db = getDb();
       if (!db || batch.length === 0) return;
+      // Count of events durably committed so a mid-flush failure re-queues ONLY
+      // the uncommitted tail — never duplicates already-persisted chunks.
+      let committed = 0;
       try {
         // Stamp deferred _ids now — emit() skips crypto on the write path.
         for (const ev of batch) {
@@ -305,23 +308,28 @@ class OutboxServiceImpl {
         // capability (scheduler domain) writing across tenants in one batch.
         const { withSystemScope } = await import("@src/databases/system-tenant-scope");
         const systemScope = withSystemScope("scheduler");
-        if (typeof db.crud.insertMany === "function") {
+        // Bounded statement size (max 50 events per INSERT) so a saturated flush
+        // never starves the connection pool — each chunk is a short-lived
+        // statement that returns its slot to PostgreSQL/MariaDB between awaits.
+        const CHUNK_SIZE = 50;
+
+        for (let i = 0; i < batch.length; i += CHUNK_SIZE) {
+          const chunk = batch.slice(i, i + CHUNK_SIZE);
           await db.crud.insertMany(
             this.collectionName,
-            batch as any[],
+            chunk as any[],
             { ...systemScope, skipReturning: true } as any,
           );
-        } else {
-          for (const event of batch) {
-            await db.crud.insert(this.collectionName, event as any, systemScope as any);
-          }
+          committed = i + chunk.length;
         }
         logger.debug(`[Outbox] Bulk-flushed ${batch.length} event(s)`);
       } catch (error: any) {
         logger.error(`[Outbox] Bulk flush failed (${batch.length} events):`, error);
-        // Best-effort re-queue (cap to avoid unbounded growth under sustained failure)
-        if (this.emitBuffer.length < OUTBOX_BUFFER_HARD_MAX * 4) {
-          this.emitBuffer.unshift(...batch);
+        // Best-effort re-queue of the UNCOMMITTED tail only (cap to avoid
+        // unbounded growth under sustained failure) — committed chunks stay
+        // persisted and are picked up by the poller, never re-inserted.
+        if (committed < batch.length && this.emitBuffer.length < OUTBOX_BUFFER_HARD_MAX * 4) {
+          this.emitBuffer.unshift(...batch.slice(committed));
         }
       } finally {
         this.emitFlushInFlight = null;
