@@ -2018,13 +2018,11 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
 
   // Upsert the target entry with count=0 directly into the DB
   // This bypasses the built server's API layer entirely
-  const { sql } = await import("drizzle-orm");
   if (activeDb.type === "sqlite") {
     try {
-      await (activeDb as any).execute(
-        sql.raw(
-          `INSERT OR REPLACE INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}', 'published', 0, 0, 0)`,
-        ),
+      await activeDb.raw.execute(
+        `INSERT OR REPLACE INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [STABLE_ENTRY_ID, "global", '{"count":0}', "published", 0, 0, 0],
       );
     } catch (e: any) {
       if (process.env.BENCHMARK_DEBUG === "true")
@@ -2042,10 +2040,9 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     }
   } else if (activeDb.type === "mariadb" || activeDb.type === "mysql") {
     try {
-      await (activeDb as any).execute(
-        sql.raw(
-          `INSERT INTO \`collection_BenchmarkStable\` (\`_id\`, \`tenantId\`, \`data\`, \`status\`, \`isDeleted\`, \`createdAt\`, \`updatedAt\`) VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}', 'published', false, NOW(), NOW()) ON DUPLICATE KEY UPDATE \`data\` = '{"count":0}', \`updatedAt\` = NOW()`,
-        ),
+      await activeDb.raw.execute(
+        `INSERT INTO \`collection_BenchmarkStable\` (\`_id\`, \`tenantId\`, \`data\`, \`status\`, \`isDeleted\`, \`createdAt\`, \`updatedAt\`) VALUES (?, ?, ?, ?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE \`data\` = ?, \`updatedAt\` = NOW()`,
+        [STABLE_ENTRY_ID, "global", '{"count":0}', "published", false, '{"count":0}'],
       );
     } catch (e: any) {
       if (process.env.BENCHMARK_DEBUG === "true")

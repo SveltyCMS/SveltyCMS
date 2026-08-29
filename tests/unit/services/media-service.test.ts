@@ -139,4 +139,45 @@ describe("MediaService (Whitebox)", () => {
       expect(mediaService.getMediaType("application/x-executable")).toBe("document");
     });
   });
+
+  describe("Deduplication & Multi-Tenancy", () => {
+    it("scopes deduplication hash lookups and updates by tenantId", async () => {
+      const existingRecord = {
+        _id: "media-existing-1",
+        path: "old/path.jpg",
+        folderId: "root",
+        hash: "sha256-abc",
+      };
+
+      vi.spyOn(mediaService.files as any, "getByHash").mockResolvedValue({
+        success: true,
+        data: existingRecord,
+      });
+
+      (mockDbAdapter.crud.update as any).mockResolvedValue({
+        success: true,
+        data: existingRecord,
+      });
+
+      const file = new File([Buffer.from("fake-img")], "test.jpg", { type: "image/jpeg" });
+      const res = await mediaService.saveMedia(
+        file,
+        "user-1",
+        "public",
+        "tenant-delta",
+        "new-folder",
+      );
+
+      expect(mediaService.files.getByHash).toHaveBeenCalledWith(expect.any(String), {
+        tenantId: "tenant-delta",
+      });
+      expect(mockDbAdapter.crud.update).toHaveBeenCalledWith(
+        "media_items",
+        "media-existing-1",
+        expect.anything(),
+        { tenantId: "tenant-delta" },
+      );
+      expect(res.success).toBe(true);
+    });
+  });
 });
