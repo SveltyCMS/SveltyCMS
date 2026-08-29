@@ -1,10 +1,7 @@
 /**
  * @file tests/benchmarks/concurrency-throughput.test.ts
- * @description Multi-Document Concurrency Throughput
- * @summary Phased wave writes across 10 / 100 / 1000 documents. Loads are
- * labeled honestly per phase: 10×100 and 100×1 are the SAME total work (100
- * writes) at different parallelism; 1000×1 is 10× the load. SQLite flat-lines
- * (file lock); PG/Mongo scale with doc count.
+ * @description Multi-Document Concurrency Throughput (Optimized)
+ * @summary Phased wave writes across 10 / 100 / 1000 documents with inline stream consumption.
  */
 
 import {
@@ -21,9 +18,6 @@ import {
 import "../unit/bun-preload.ts";
 
 const COLLECTION_ID = "BenchmarkStable";
-let BATCH = 20;
-let GAP_MS = 25;
-
 let stopServer: (() => Promise<void>) | null = null;
 
 async function run() {
@@ -34,43 +28,70 @@ async function run() {
   await ensureStableTestData();
   await forceRefreshServer(baseUrl);
 
-  // Canonical lowercase header layout — REAL admin session cookie (production auth)
-  const H = {
+  const H: HeadersInit = {
     "content-type": "application/json",
     ...benchmarkAuthHeaders(),
     "x-tenant-id": "global",
+    connection: "keep-alive",
   };
   const dbType = getDbType();
-
   const dbLower = dbType.toLowerCase();
-  BATCH = dbLower.includes("sqlite") ? 20 : dbLower.includes("mongodb") ? 100 : 50;
-  GAP_MS = dbLower.includes("sqlite") ? 25 : 0;
+
+  // Adapter-specific concurrency and throttling parameters
+  const BATCH = dbLower.includes("sqlite") ? 20 : dbLower.includes("mongodb") ? 100 : 50;
+  const GAP_MS = dbLower.includes("sqlite") ? 25 : 0;
   console.log(`   → Throughput config: batch ${BATCH}, gap ${GAP_MS}ms (${dbType})`);
 
   const maxDocs = 1000;
-  console.log(`   → Pre-seeding ${maxDocs} throughput documents (in-process)...`);
-  await seedThroughputDocs(maxDocs).catch(() => {});
+  console.log(`   → Pre-seeding ${maxDocs} throughput documents...`);
+  let docIds = (await seedThroughputDocs(maxDocs).catch(() => [])) || [];
 
-  // Pre-serialize common payloads out of time-sensitive paths
+  if (!docIds || docIds.length < maxDocs) {
+    // Generate deterministic UUID fallback array to ensure zero undefined URL interpolation
+    docIds = Array.from(
+      { length: maxDocs },
+      (_, i) => `20000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+    );
+  }
+
   const resetPayload = JSON.stringify({ count: 0 });
   const incrementPayload = JSON.stringify({ field: "count", amount: 1 });
 
-  // Reset all counts to 0
+  // ── RESET STATE (Drained Chunks) ──────────────────────────────────────────
   for (let i = 0; i < maxDocs; i += 50) {
-    const batch = [];
-    const limit = Math.min(i + 50, maxDocs);
-    for (let j = i; j < limit; j++) {
-      batch.push(
-        fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/tp-${j}`, {
+    const chunk = docIds.slice(i, Math.min(i + 50, maxDocs));
+    await Promise.all(
+      chunk.map((id) =>
+        fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${id}`, {
           method: "PATCH",
           headers: H,
           body: resetPayload,
-        }).catch(() => {}),
-      );
-    }
-    await Promise.all(batch);
+        })
+          .then((res) => res.arrayBuffer())
+          .catch(() => {}),
+      ),
+    );
   }
   await forceRefreshServer(baseUrl);
+
+  // ── EXPLICIT WRITE WORKER ────────────────────────────────────────────────
+  async function executeIncrement(url: string): Promise<{ ok: boolean; latency: number }> {
+    const start = performance.now();
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: H,
+        body: incrementPayload,
+        signal: AbortSignal.timeout(30000), // Independent per-request timeout
+      });
+
+      // Release socket back to pool immediately
+      await res.arrayBuffer().catch(() => {});
+      return { ok: res.ok, latency: performance.now() - start };
+    } catch {
+      return { ok: false, latency: performance.now() - start };
+    }
+  }
 
   const scales = [
     { label: "10 docs × 10 (100 writes)", docs: 10, perDoc: 10 },
@@ -78,68 +99,70 @@ async function run() {
     { label: "1000 docs × 1 (1000 writes)", docs: 1000, perDoc: 1 },
   ];
 
-  const results: { label: string; rps: number; total: number; ok: number }[] = [];
+  const results: {
+    label: string;
+    rps: number;
+    avgMs: number;
+    p95Ms: number;
+    total: number;
+    ok: number;
+  }[] = [];
 
   for (const s of scales) {
     const total = s.docs * s.perDoc;
     console.log(`   ═══ ${s.label} ─ ${total} writes ═══`);
 
-    const tasks: (() => Promise<Response>)[] = [];
+    const targetUrls: string[] = [];
     for (let d = 0; d < s.docs; d++) {
-      const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/tp-${d}/increment`;
-      const timeoutSignal = AbortSignal.timeout(30000);
-
+      const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/${docIds[d]}/increment`;
       for (let w = 0; w < s.perDoc; w++) {
-        tasks.push(() =>
-          fetch(targetUrl, {
-            method: "POST",
-            headers: H,
-            body: incrementPayload,
-            signal: timeoutSignal,
-          }),
-        );
+        targetUrls.push(targetUrl);
       }
     }
 
-    const out: Response[] = [];
+    const latencies: number[] = [];
+    let ok = 0;
     const t0 = performance.now();
 
-    // Phased batch/wave processing loop execution
-    for (let i = 0; i < tasks.length; i += BATCH) {
-      const wave = tasks.slice(i, i + BATCH);
-      const waveResponses = await Promise.all(wave.map((thunk) => thunk()));
+    // Phased wave execution with immediate drainage
+    for (let i = 0; i < targetUrls.length; i += BATCH) {
+      const waveUrls = targetUrls.slice(i, i + BATCH);
+      const waveResults = await Promise.all(waveUrls.map((url) => executeIncrement(url)));
 
-      for (const res of waveResponses) {
-        out.push(res);
+      for (const res of waveResults) {
+        if (res.ok) ok++;
+        latencies.push(res.latency);
       }
 
-      if (i + BATCH < tasks.length && GAP_MS > 0) {
+      if (i + BATCH < targetUrls.length && GAP_MS > 0) {
         await new Promise((r) => setTimeout(r, GAP_MS));
       }
     }
 
     const duration = performance.now() - t0;
-
-    let ok = 0;
-    for (const res of out) {
-      if (res.ok) ok++;
-      // Drain buffers immediately to prevent raw socket exhaustion
-      await res.arrayBuffer().catch(() => {});
-    }
-
     const rps = (total / duration) * 1000;
-    results.push({ label: s.label, rps, total, ok });
-    console.log(`   → ${ok}/${total} OK, ${rps.toFixed(0)} RPS, ${ok === total ? "✅" : "❌"}`);
+
+    latencies.sort((a, b) => a - b);
+    const avgMs = latencies.length ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0;
+    const p95Ms = latencies.length ? latencies[Math.floor(latencies.length * 0.95)] : 0;
+
+    results.push({ label: s.label, rps, avgMs, p95Ms, total, ok });
+    console.log(
+      `   → ${ok}/${total} OK, ${rps.toFixed(0)} RPS, avg: ${avgMs.toFixed(1)}ms, p95: ${p95Ms.toFixed(1)}ms (${
+        ok === total ? "✅" : "❌"
+      })`,
+    );
   }
 
+  // ── REPORTING ─────────────────────────────────────────────────────────────
   printTruthTable({
     title: `SVELTYCMS — THROUGHPUT SCALING (${dbType.toUpperCase()})`,
     shortLabel: "Scale",
     subtitle: "Wave-parallel PATCH-increment writes — loads labeled per phase",
     results: results.map((r) => ({
       name: r.label,
-      avgMs: 0,
-      p95Ms: 0,
+      avgMs: r.avgMs,
+      p95Ms: r.p95Ms,
       rps: r.rps,
       layer: r.ok === r.total ? "✅" : "❌",
     })),
@@ -151,18 +174,21 @@ async function run() {
   printSummaryTable([
     { key: "Database", val: dbType.toUpperCase(), unit: "" },
     ...results.map((r) => ({
-      key: r.label + " RPS",
-      val: r.rps,
-      unit: "req/s",
+      key: `${r.label} Throughput`,
+      val: r.rps.toFixed(0),
+      unit: "RPS",
     })),
-    // NOTE: phases differ in total work (100/100/1000 writes) — the factor
-    // shows RPS at 10× the load relative to the baseline, NOT a like-for-like
-    // scaling factor of the same workload.
-    { key: "RPS @ 10× load ÷ baseline", val: sf + "×", unit: "" },
+    ...results.map((r) => ({
+      key: `${r.label} Latency (Avg/P95)`,
+      val: `${r.avgMs.toFixed(1)} / ${r.p95Ms.toFixed(1)}`,
+      unit: "ms",
+    })),
+    { key: "RPS @ 10× load ÷ baseline", val: `${sf}×`, unit: "" },
   ]);
 
-  if (results.some((r) => r.ok !== r.total))
-    throw new Error("Throughput failed due to lost updates");
+  if (results.some((r) => r.ok !== r.total)) {
+    throw new Error("Throughput failed due to lost updates or connection drops");
+  }
 }
 
 test("Multi-Doc Throughput", async () => {
@@ -171,4 +197,4 @@ test("Multi-Doc Throughput", async () => {
   } finally {
     if (stopServer) await stopServer().catch(() => {});
   }
-}, 600000);
+}, 600_000);

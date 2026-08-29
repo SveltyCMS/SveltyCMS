@@ -33,7 +33,7 @@ import { AdapterCore } from "./adapter-core";
 import { MariaDBFtsAdapter } from "./fts-adapter";
 import { logger } from "@src/utils/logger";
 import { withMigrationLock } from "../migration-lock";
-import { PerformanceModule } from "../core/performance-module";
+import { PerformanceModule } from "../core/base-adapter";
 import { CacheModule } from "../core/cache-module";
 
 function quoteMariaIdentifier(identifier: string): string {

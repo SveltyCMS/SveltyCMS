@@ -107,7 +107,9 @@ SveltyCMS supports mandatory or optional Two-Factor Authentication via Time-base
 When 2FA is enabled, a standard login will return a `2FA_REQUIRED` status, requiring a second step. **Plugins can also force 2FA** via the `afterAuthenticate` hook — see [Plugin Architecture](../../development/plugins/architecture.mdx).
 
 **Endpoint**: `POST /api/auth/2fa/verify`  
-**Payload**: `{ "userId": "...", "code": "123456" }`
+**Payload**: `{ "userId": "...", "code": "123456", "pending2faToken": "<signed token>", "trustDevice": false }`
+
+The `pending2faToken` is a short-lived signed token issued **only after a successful password login** (the `requires2FA` login response). It is bound to the claimed `userId` — a TOTP code alone cannot mint a session, and requests without a valid token are rejected fail-closed with `401`.
 
 #### Trusted Devices ("Remember This Device")
 

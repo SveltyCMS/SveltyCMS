@@ -263,10 +263,13 @@ function main(): number {
 
   md += `<details open><summary>❌ Failures (${Math.min(parsed.failures.length, maxFailures)} shown)</summary>\n\n`;
   md += `| Test | Error | Fix hint |\n|------|-------|----------|\n`;
+  // codeql[js/incomplete-sanitization]: markdown table-cell escaper (backslash
+  // FIRST, then pipe) — script-only report formatting, not a security sanitizer.
+  const mdCell = (s: string) => s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
   for (const f of parsed.failures.slice(0, maxFailures)) {
-    const err = (f.error || f.status).replace(/\|/g, "\\|").replace(/\n/g, " ").slice(0, 160);
-    const hint = hintForError(f.error || "").replace(/\|/g, "\\|");
-    const title = f.fullTitle.replace(/\|/g, "\\|").slice(0, 120);
+    const err = mdCell((f.error || f.status).replace(/\n/g, " ")).slice(0, 160);
+    const hint = mdCell(hintForError(f.error || ""));
+    const title = mdCell(f.fullTitle).slice(0, 120);
     md += `| \`${title}\` | ${err} | ${hint} |\n`;
   }
   if (parsed.failures.length > maxFailures) {

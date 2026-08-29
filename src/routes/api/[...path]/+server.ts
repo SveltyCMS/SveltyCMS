@@ -30,67 +30,40 @@ import {
   generateContentEtag,
 } from "@src/services/cache/response-cache";
 
-// Dynamic handlers map for build-time tree-shaking.
-// Hot handlers (collections, content, auth, system) are eager-preloaded at import
-// time to eliminate the ~0.3ms dynamic-import tax on 90%+ of API traffic.
-const HANDLERS: Record<string, () => Promise<any>> = {
-  auth: () => import("./handlers/auth"),
-  collections: () => import("./handlers/collections"),
+// Static ESM binding for hot domain handlers (collections, content, auth, system, tokens, media, dashboard)
+// eliminates dynamic import resolution overhead entirely on 95%+ of API traffic.
+import * as collectionsHandler from "./handlers/collections";
+import * as contentHandler from "./handlers/content";
+import * as authHandler from "./handlers/auth";
+import * as systemHandler from "./handlers/system";
+import * as tokensHandler from "./handlers/tokens";
+import * as mediaHandler from "./handlers/media";
+import * as dashboardHandler from "./handlers/dashboard";
+
+// Dynamic handlers map for rarely-used/cold domains to keep initial memory footprint lean.
+const DYNAMIC_HANDLERS: Record<string, () => Promise<any>> = {
   "virtual-collections": () => import("./handlers/virtual-collections"),
-  content: () => import("./handlers/content"),
-  dashboard: () => import("./handlers/dashboard"),
-  media: () => import("./handlers/media"),
   scim: () => import("./handlers/scim"),
-  system: () => import("./handlers/system"),
   testing: () => import("./handlers/testing"),
-  tokens: () => import("./handlers/tokens"),
   utility: () => import("./handlers/utility"),
   setup: () => import("./handlers/setup"),
-  version: () => import("./handlers/version"),
-  database: () => import("./handlers/database"),
-  logs: () => import("./handlers/logs"),
-  "api-keys": () => import("./handlers/api-keys"),
   config: () => import("./handlers/config"),
   "content-transfer": () => import("./handlers/content-transfer"),
   migrations: () => import("./handlers/migrations"),
-  importers: () => import("./handlers/importers"),
   backups: () => import("./handlers/backups"),
   "content-sync": () => import("./handlers/content-sync"),
-  gdpr: () => import("./handlers/gdpr"),
   commerce: () => import("./handlers/commerce"),
-  stripe: () => import("./handlers/stripe"),
 };
 
-// Eager-preload hot handlers on first request (lazy-init to not break unit test mocks).
-// Once triggered, subsequent requests resolve the cached module synchronously.
-const LOADED_HANDLERS: Record<string, any> = {};
-let _hotPreload: Promise<void> | null = null;
-function ensureHotPreload() {
-  if (!_hotPreload) {
-    _hotPreload = Promise.all([
-      HANDLERS.collections().then((m) => {
-        LOADED_HANDLERS.collections = m;
-      }),
-      HANDLERS.content().then((m) => {
-        LOADED_HANDLERS.content = m;
-      }),
-      HANDLERS.auth().then((m) => {
-        LOADED_HANDLERS.auth = m;
-      }),
-      HANDLERS.system().then((m) => {
-        LOADED_HANDLERS.system = m;
-      }),
-      HANDLERS.tokens().then((m) => {
-        LOADED_HANDLERS.tokens = m;
-      }),
-    ])
-      .then(() => {})
-      .catch(() => {
-        _hotPreload = null;
-      });
-  }
-  return _hotPreload;
-}
+const LOADED_HANDLERS: Record<string, any> = {
+  collections: collectionsHandler,
+  content: contentHandler,
+  auth: authHandler,
+  system: systemHandler,
+  tokens: tokensHandler,
+  media: mediaHandler,
+  dashboard: dashboardHandler,
+};
 
 // Map domain namespaces to the correct handler module
 const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
@@ -113,7 +86,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   system: { handler: "system", fn: "handleSystemRoutes" },
   settings: { handler: "system", fn: "handleSettingsRoutes" },
   "system-settings": { handler: "system", fn: "handleSettingsRoutes" },
-  importer: { handler: "system", fn: "handleImporterRoutes" },
+  importer: { handler: "content-transfer", fn: "handleImporterRoutes" },
   ai: { handler: "system", fn: "handleAiRoutes" },
   "ai-builder": { handler: "system", fn: "handleAiBuilderRoutes" },
   automations: { handler: "system", fn: "handleAutomationRoutes" },
@@ -141,9 +114,9 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   trash: { handler: "utility", fn: "handleUtilityRoutes" },
   debug: { handler: "utility", fn: "handleUtilityRoutes" },
   "openapi.json": { handler: "utility", fn: "handleUtilityRoutes" },
-  database: { handler: "database", fn: "handleDatabaseRoutes" },
-  logs: { handler: "logs", fn: "handleLogsRoutes" },
-  "api-keys": { handler: "api-keys", fn: "handleApiKeyRoutes" },
+  database: { handler: "system", fn: "handleDatabaseRoutes" },
+  logs: { handler: "system", fn: "handleLogsRoutes" },
+  "api-keys": { handler: "tokens", fn: "handleApiKeyRoutes" },
   webhooks: { handler: "system", fn: "handleWebhookRoutes" },
   "system-webhooks": { handler: "system", fn: "handleWebhookRoutes" },
   "system-virtual-folder": {
@@ -154,7 +127,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
     handler: "system",
     fn: "handleSystemVirtualFolderRoutes",
   },
-  version: { handler: "version", fn: "handleVersionRoutes" },
+  version: { handler: "system", fn: "handleVersionRoutes" },
   graphql: { handler: "content", fn: "handleGraphqlRoutes" },
   "system-jobs": { handler: "system", fn: "handleSystemJobRoutes" },
 
@@ -163,7 +136,7 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "content-export": { handler: "content-transfer", fn: "handleContentExportRoutes" },
   "content-import": { handler: "content-transfer", fn: "handleContentImportRoutes" },
   migrations: { handler: "migrations", fn: "handleMigrationRoutes" },
-  importers: { handler: "importers", fn: "handleImporterRoutes" },
+  importers: { handler: "content-transfer", fn: "handleImporterRoutes" },
   backups: { handler: "backups", fn: "handleBackupRoutes" },
   "content-sync": { handler: "content-sync", fn: "handleContentSyncRoutes" },
 
@@ -171,12 +144,12 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "plugin-settings": { handler: "system", fn: "handlePluginSettingsRoutes" },
 
   // GDPR Right to Access / Erasure (self or admin)
-  gdpr: { handler: "gdpr", fn: "handleGdprRoutes" },
+  gdpr: { handler: "auth", fn: "handleGdprRoutes" },
   commerce: { handler: "commerce", fn: "handleCommerceRoutes" },
-  stripe: { handler: "stripe", fn: "handleStripeRoutes" },
+  stripe: { handler: "commerce", fn: "handleStripeRoutes" },
 
   // Deprecated Aliases
-  "import-data": { handler: "importers", fn: "handleImporterRoutes" },
+  "import-data": { handler: "content-transfer", fn: "handleImporterRoutes" },
   config_sync: { handler: "config", fn: "handleConfigRoutes" },
   "config-sync": { handler: "config", fn: "handleConfigRoutes" },
 };
@@ -304,6 +277,10 @@ export function _checkEndpointPermission(
       action === "2fa"
     ) {
       return true;
+    }
+    // Role-matrix writes are admin-only (handler also fail-closes).
+    if (action === "update-roles") {
+      return false;
     }
     // If updating user attributes or saving avatar on self:
     if (
@@ -591,16 +568,12 @@ export const _handler = async (event: RequestEvent) => {
     throw new AppError(`API Namespace "/api/${namespace}" not found`, 403, "NAMESPACE_FORBIDDEN");
   }
 
-  // 🚀 Kick off hot-handler preload on first API request (non-blocking).
-  // Once cached, subsequent handler imports resolve from module cache instantly.
-  ensureHotPreload();
-
   let handlerModule = LOADED_HANDLERS[config.handler];
-  if (!handlerModule) {
-    handlerModule = await HANDLERS[config.handler]();
+  if (!handlerModule && DYNAMIC_HANDLERS[config.handler]) {
+    handlerModule = await DYNAMIC_HANDLERS[config.handler]();
     LOADED_HANDLERS[config.handler] = handlerModule;
   }
-  const fn = handlerModule[config.fn];
+  const fn = handlerModule?.[config.fn];
 
   if (typeof fn !== "function") {
     throw new AppError(
@@ -634,10 +607,24 @@ export const _handler = async (event: RequestEvent) => {
       const ifNoneMatch = request.headers.get("if-none-match");
       const userIdStr = getUserCacheId(user);
       const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
+      const parts = url.pathname.split("/").filter(Boolean);
+      const colName =
+        parts.length >= 3 && (parts[1] === "collections" || parts[1] === "content")
+          ? parts[2]
+          : null;
+      const entityDocId =
+        parts.length >= 4 && parts[3] !== "list" && parts[3] !== "search" ? parts[3] : null;
+      const tags: string[] = ["res:all"];
+      if (colName) {
+        tags.push(`collection:${colName}`, `res:${colName}`);
+        if (entityDocId) tags.push(`doc:${colName}:${entityDocId}`);
+      }
 
       if (user) {
-        // Sync L1 turbo cache — zero microtask delay for next authenticated GET
-        responseCache.set(turboKey, { body: stashedBody, etag: contentEtag }, 300_000, tenantId);
+        // Sync L1 turbo cache with tags — instant O(#matched) invalidation on write
+        responseCache.set(turboKey, { body: stashedBody, etag: contentEtag }, 300_000, tenantId, {
+          tags,
+        });
       }
 
       if (ifNoneMatch === contentEtag || ifNoneMatch === "*") {
@@ -681,12 +668,27 @@ export const _handler = async (event: RequestEvent) => {
 
     if (isCacheable && etag) {
       const userIdStr = getUserCacheId(user);
-      const dispatchCacheKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
       const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
-      // L1 turbo map (sync) + L2 cacheService (async fire-and-forget)
-      responseCache.set(turboKey, { body: responseBody, etag }, 300_000, tenantId);
+      const parts = url.pathname.split("/").filter(Boolean);
+      const colName =
+        parts.length >= 3 && (parts[1] === "collections" || parts[1] === "content")
+          ? parts[2]
+          : null;
+      const entityDocId =
+        parts.length >= 4 && parts[3] !== "list" && parts[3] !== "search" ? parts[3] : null;
+      const tags: string[] = ["res:all"];
+      if (colName) {
+        tags.push(`collection:${colName}`, `res:${colName}`);
+        if (entityDocId) tags.push(`doc:${colName}:${entityDocId}`);
+      }
+
+      // L1 turbo map (sync) + L2 cacheService (async fire-and-forget) with reverse tag index
+      responseCache.set(turboKey, { body: responseBody, etag }, 300_000, tenantId, {
+        tags,
+      });
+      const dispatchCacheKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
       cacheService
-        .set(dispatchCacheKey, { body: responseBody, etag }, 300, tenantId, CacheCategory.API)
+        .set(dispatchCacheKey, { body: responseBody, etag }, 300, tenantId, CacheCategory.API, tags)
         .catch(() => {});
     }
 

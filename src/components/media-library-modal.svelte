@@ -22,7 +22,7 @@
 	import RemoteUpload from '@src/routes/(app)/mediagallery/upload-media/remote-upload.svelte';
 	import { logger } from '@utils/logger';
 	import type { MediaBase, MediaImage, MediaItem } from '@utils/media/media-models';
-	import { mediaUrl } from '@utils/media/media-utils';
+	import { mediaDisplayUrl, mediaUrl } from '@utils/media/media-utils';
 	import { modalState } from '@utils/modal.svelte';
 	import { onMount } from 'svelte';
 	import type { ISODateString } from '@src/content/types';
@@ -54,14 +54,7 @@
 	}
 
 	function getPreviewUrl(file: MediaBase | MediaImage): string {
-		// Use mediaUrl utility to properly construct the URL with /files/ prefix
-		if ('thumbnails' in file && file.thumbnails) {
-			const thumbs = file.thumbnails as Record<string, { url?: string } | undefined>;
-			if (thumbs.sm?.url) return mediaUrl({ ...file, url: thumbs.sm.url } as MediaItem);
-			if (thumbs.md?.url) return mediaUrl({ ...file, url: thumbs.md.url } as MediaItem);
-			if (thumbs.thumbnail?.url) return mediaUrl({ ...file, url: thumbs.thumbnail.url } as MediaItem);
-		}
-		return mediaUrl(file as MediaItem);
+		return mediaDisplayUrl(file, "sm") || mediaUrl(file as MediaItem);
 	}
 
 	function getFileType(file: MediaBase | MediaImage) {

@@ -119,7 +119,7 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
 
   it("authenticated list as B never returns tenant A marker", async () => {
     const marker = `iso-marker-${Date.now()}`;
-    const entryId = `iso_${Date.now()}`;
+    const entryId = crypto.randomUUID();
 
     // bulk-seed under tenant A — collection was provisioned in beforeAll
     const seed = await testing(

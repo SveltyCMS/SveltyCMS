@@ -129,11 +129,12 @@ export function bindRequestDbAdapter(
 /**
  * Sync PG pool routing (`_currentTenantId`) and optional session GUC.
  * Safe no-op on adapters that do not implement setTenantContext.
+ * Returns void on the warm no-op so callers can skip `await` (no microtask).
  */
-export async function applyAdapterTenantContext(
+export function applyAdapterTenantContext(
   adapter: DatabaseAdapter | null | undefined,
   tenantId: DatabaseId | null | undefined,
-): Promise<void> {
+): void | Promise<void> {
   if (!adapter) return;
   const raw =
     typeof (adapter as TenantBoundAdapter).unscoped === "function"
@@ -145,6 +146,6 @@ export async function applyAdapterTenantContext(
   }
   const fn = (raw as { setTenantContext?: (id: string | null) => Promise<void> }).setTenantContext;
   if (typeof fn === "function") {
-    await fn.call(raw, targetTenant);
+    return fn.call(raw, targetTenant);
   }
 }

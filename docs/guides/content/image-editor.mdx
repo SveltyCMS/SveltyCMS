@@ -6,7 +6,7 @@ order: 15
 icon: "mdi:image-edit"
 author: "SveltyCMS Team"
 created: "2025-11-16"
-updated: "2026-06-26"
+updated: "2026-08-23"
 tags:
   - "image-editor"
   - "svelte-canvas"
@@ -111,6 +111,8 @@ The editor is built on a modular widget system where each tool registers itself 
 ### Web Worker: Offloaded Pixel Processing
 
 Sharpness and blur convolution (3×3 kernel) run on a dedicated **Web Worker thread** to keep the main UI at 60fps during slider adjustments. The worker lives at `src/components/image-editor/workers/filter.worker.ts` and is initialized automatically on canvas mount.
+
+`/mediagallery` does **not** statically import the editor. Grid/table tiles use `mediaDisplayUrl()` (thumbnail/sm/md) so a page of originals is not decoded in the browser; `ImageEditorModal` is `import()`'d when the user clicks Edit, and the editor still loads the original URL for canvas work.
 
 - **What it handles**: `applySharpness()` — unsharp mask sharpening and box blur softening. `buildFilterString()` — CSS filter string assembly.
 - **Zero-copy transfer**: Processed `ImageData` buffers are transferred via `postMessage(buffer, [buffer])` for minimal latency.
@@ -236,6 +238,7 @@ To integrate the editor in a custom widget:
 
 ```
 <script lang="ts">
+  // Prefer dynamic import() from gallery/widgets so svelte-canvas stays out of the first paint.
   import ImageEditorModal from '@src/components/image-editor/image-editor-modal.svelte';
   let showEditor = $state(false);
 

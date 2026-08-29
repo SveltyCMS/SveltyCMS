@@ -31,9 +31,11 @@ import { buildOriginalRelPath, resolveMediaRelPath } from "./media-utils";
 import { getUrl } from "./storage-adapters";
 import { validateEgressUrl, safeFetch } from "../egress-guard";
 import { sniffMimeType } from "./slim-sniffer.server";
+import { collectionTableName } from "@src/databases/core/collection-name";
 import type { SharpFactory, SharpOverlayOptions } from "./media-processing.server";
 import { MediaReferenceIndex, type MediaReference } from "./media-reference-index";
 import { eventBus, SystemEvents } from "@utils/event-bus";
+import { HANDLER_NAME_PATTERN } from "@src/utils/sanitize-html";
 
 /* -------------------------------------------------------------------------- */
 /* Security helpers for SVG attribute injection defense                       */
@@ -78,6 +80,17 @@ function guardNumeric(value: number, fallback: number): number {
  *
  * Defense-in-depth: the RichText/Sanitize display pipeline also applies DOMPurify client-side
  */
+
+/**
+ * SVG event handlers — shared curated handler list from sanitize-html.ts, plus
+ * the post-quote injection position (`<image href="x"onload="…"/>`).
+ * slop:suppress — handler names come from the hardcoded shared constant.
+ */
+const SVG_HANDLER_RE = new RegExp(
+  `(?:\\s+|\\/?\\b)(${HANDLER_NAME_PATTERN})\\s*=\\s*(?:'[^']*'|"[^"]*"|[^\\s>]+)`,
+  "gi",
+);
+
 export function sanitizeSvg(svg: string): string {
   let cleaned = svg;
   let previous = "";
@@ -87,17 +100,19 @@ export function sanitizeSvg(svg: string): string {
   while (cleaned !== previous) {
     previous = cleaned;
 
-    // 1. Strip dangerous tags (with their content, including self-closing variants)
+    // 1. Strip dangerous tags (with their content, including self-closing variants).
+    //    `/` right after the tag name covers the no-space bypass `<script/src=…>`;
+    //    the self-closing pass handles `<script/>` exactly (`[^>]*?/>`).
     const DANGEROUS_TAGS = ["script", "foreignObject", "iframe", "object", "embed"];
     for (const tag of DANGEROUS_TAGS) {
-      cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
-      cleaned = cleaned.replace(new RegExp(`<${tag}[\\s>][\\s\\S]*?/>`, "gi"), "");
+      cleaned = cleaned.replace(new RegExp(`<${tag}[/\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
+      cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*?\\/>`, "gi"), "");
     }
 
     // 2. Strip inline event handlers — inside loop for defense-in-depth
-    cleaned = cleaned.replace(/\s+on\w+\s*=\s*"[^"]*"/gi, "");
-    cleaned = cleaned.replace(/\s+on\w+\s*=\s*'[^']*'/gi, "");
-    cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, "");
+    // codeql[js/incomplete-multi-character-sanitization]: iterative SVG scrubber (loop re-scans until
+    // fixpoint); DANGEROUS_TAGS + handler patterns come from hardcoded constants.
+    cleaned = cleaned.replace(SVG_HANDLER_RE, "");
   }
 
   // 3. Strip javascript: and data: protocols in href/xlink:href attributes
@@ -613,7 +628,6 @@ export class MediaService {
         // Extract image dimensions + generate derivatives for image files
         let imageMetadata: Record<string, unknown> = {};
         let imageThumbnails: Record<string, unknown> = {};
-        let imageVariants: ImageVariant[] = [];
         if (effectiveType.startsWith("image/") && !isSvgFile(effectiveType, file.name)) {
           try {
             const sharpMod = await import("sharp");
@@ -631,27 +645,9 @@ export class MediaService {
               ext,
               tenantId || "global",
             );
-
-            // 🚀 Generate responsive image variants (resilient — original already saved)
-            try {
-              imageVariants = await processImageWithPresets(
-                buffer,
-                hash,
-                ["thumbnail", "card", "default"],
-                tenantId,
-              );
-              if (imageVariants.length > 0) {
-                logger.debug("[Media] Responsive variants generated", {
-                  hash: hash.slice(0, 12),
-                  count: imageVariants.length,
-                });
-              }
-            } catch (variantErr) {
-              logger.warn("[Media] Responsive variant generation failed — original intact", {
-                error: variantErr instanceof Error ? variantErr.message : String(variantErr),
-              });
-              // Continue — the original file is already saved and users can still access it.
-            }
+            // Responsive variants are generated ASYNC after the record exists
+            // (see generateVariantsForStreamedFile below) — the sharp work
+            // (~60-100ms on a 1080p upload) must not block the response.
           } catch (e) {
             logger.warn("[Media] Derivative generation skipped", e);
           }
@@ -681,22 +677,8 @@ export class MediaService {
             ) as unknown as MediaItem,
           };
         }
-        const recordMetadata =
-          imageVariants.length > 0
-            ? {
-                ...imageMetadata,
-                imageVariants: imageVariants.map((v) => ({
-                  preset: v.preset,
-                  width: v.width,
-                  height: v.height,
-                  format: v.format,
-                  quality: v.quality,
-                  path: v.path,
-                  size: v.size,
-                })),
-              }
-            : imageMetadata;
-        return (await this.files.upload(
+        const recordMetadata = imageMetadata;
+        const uploadResult = (await this.files.upload(
           {
             filename: file.name,
             originalFilename: file.name,
@@ -714,6 +696,24 @@ export class MediaService {
           } as unknown as EntityCreate<DbMediaItem>,
           { tenantId: tenantId ?? undefined },
         )) as unknown as DatabaseResult<MediaItem>;
+
+        // 🚀 DEFER responsive variant generation off the request path — the
+        // sharp work (~60-100ms on a 1080p upload) must not block the upload
+        // response. Same pattern as the streamed path
+        // (generateVariantsForStreamedFile): the record is updated in place and
+        // enrichMediaWithUrl serves the variants from the DB record.
+        if (effectiveType.startsWith("image/") && !isSvgFile(effectiveType, file.name)) {
+          this.generateVariantsForStreamedFile(
+            hash,
+            relPath,
+            file.type,
+            file.name,
+            uploadResult,
+            tenantId,
+          );
+        }
+
+        return uploadResult;
       } else {
         // Large file: Stream it! (SVG never reaches here — handled above)
         if (isSvgFile(file.type, file.name)) {
@@ -1397,6 +1397,19 @@ export class MediaService {
    * Uses the in-memory reverse-index for O(1) lookups after an initial
    * O(n) rebuild on first access or after cache invalidation.
    */
+  /** Coalesce concurrent rebuilds so a gallery page cannot stampede collection scans. */
+  private rebuildInflight: Promise<void> | null = null;
+
+  private async ensureReferenceIndex(tenantId?: DatabaseId | null): Promise<void> {
+    if (this.referenceIndex.isBuilt()) return;
+    if (!this.rebuildInflight) {
+      this.rebuildInflight = this.rebuildReferenceIndex(tenantId).finally(() => {
+        this.rebuildInflight = null;
+      });
+    }
+    await this.rebuildInflight;
+  }
+
   public async getMediaReferences(
     mediaId: string,
     tenantId?: DatabaseId | null,
@@ -1404,12 +1417,30 @@ export class MediaService {
     try {
       // Rebuild once per cache lifetime — empty refs for an unknown mediaId
       // must NOT re-scan all collections (caused OOM on DELETE nonexistent).
-      if (!this.referenceIndex.isBuilt()) {
-        await this.rebuildReferenceIndex(tenantId);
-      }
+      await this.ensureReferenceIndex(tenantId);
       return this.enrichReferences(this.referenceIndex.getReferences(mediaId));
     } catch (err) {
       logger.error(`[MediaService] Error scanning usage references:`, err);
+      return [];
+    }
+  }
+
+  /**
+   * Gallery load helper: one rebuild, then O(1) lookups per id.
+   */
+  public async getPublishedReferencedIds(
+    mediaIds: string[],
+    tenantId?: DatabaseId | null,
+  ): Promise<string[]> {
+    if (mediaIds.length === 0) return [];
+    try {
+      await this.ensureReferenceIndex(tenantId);
+      return this.referenceIndex.collectPublishedIds(
+        mediaIds,
+        (entryId) => this.entryStatusMap.get(entryId) === "publish",
+      );
+    } catch (err) {
+      logger.error(`[MediaService] Error collecting published media ids:`, err);
       return [];
     }
   }
@@ -1443,9 +1474,7 @@ export class MediaService {
     tenantId?: DatabaseId | null,
   ): Promise<MediaReference[]> {
     try {
-      if (!this.referenceIndex.isBuilt()) {
-        await this.rebuildReferenceIndex(tenantId);
-      }
+      await this.ensureReferenceIndex(tenantId);
       // Filter to published-only references by checking the status map
       const allRefs = this.referenceIndex.getReferences(mediaId);
       return this.enrichReferences(
@@ -1512,7 +1541,9 @@ export class MediaService {
     }> = [];
 
     for (const schema of schemas) {
-      const collectionName = `collection_${schema._id}`;
+      // 🐛 FIX (BUG-01): canonical physical name — manual `collection_${id}`
+      // breaks for hyphenated ids; collectionTableName normalizes (idempotent).
+      const collectionName = collectionTableName(schema._id as string);
       const collectionLabel = schema.name || schema._id || "";
       try {
         const res = await this.db.crud.findMany(

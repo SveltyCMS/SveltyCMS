@@ -27,38 +27,7 @@ export { isoDateStringToDate, nowISODateString };
 
 export const generateId = () => uuidv4().replace(/-/g, "") as DatabaseId;
 
-function isHex32(str: string): boolean {
-  for (let i = 0; i < 32; i++) {
-    const c = str.charCodeAt(i);
-    if (!((c >= 48 && c <= 57) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102))) return false;
-  }
-  return true;
-}
-
-function isUuid36(str: string): boolean {
-  if (
-    str.charCodeAt(8) !== 45 ||
-    str.charCodeAt(13) !== 45 ||
-    str.charCodeAt(18) !== 45 ||
-    str.charCodeAt(23) !== 45
-  ) {
-    return false;
-  }
-  for (let i = 0; i < 36; i++) {
-    if (i === 8 || i === 13 || i === 18 || i === 23) continue;
-    const c = str.charCodeAt(i);
-    if (!((c >= 48 && c <= 57) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102))) return false;
-  }
-  return true;
-}
-
-export const validateId = (id: string): boolean => {
-  if (typeof id !== "string") return false;
-  const len = id.length;
-  if (len === 32) return isHex32(id);
-  if (len === 36) return isUuid36(id);
-  return false;
-};
+export { validateId } from "./id-contract";
 
 export const createDatabaseError = (
   code: string,
@@ -598,7 +567,7 @@ export function convertISOToDates(
     return data.map((d) => convertISOToDates(d, options));
   }
 
-  const result: any = Object.assign({}, data);
+  const result: any = options?.inPlace ? data : Object.assign({}, data);
   const table = options?.table;
   const hasSchema = table ? _tableDateCols.has(table) : false;
   const dateCols = hasSchema && table ? getTableDateColumns(table) : null;

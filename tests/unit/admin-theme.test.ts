@@ -238,15 +238,20 @@ describe("theme-merge utilities", () => {
 // ─── CSS Sanitization (from admin-theme-service) ───
 
 describe("CSS sanitization", () => {
+  // codeql[js/incomplete-multi-character-sanitization]: test mirror of the
+  // admin-only CSS blocklist in admin-theme-service.ts (annotated there too).
   function sanitizeCss(css: string): string {
-    return css
-      .replace(/url\s*\([^)]*\)/gi, "url()")
-      .replace(/expression\s*\(/gi, "/* blocked */")
-      .replace(/javascript\s*:/gi, "/* blocked */")
-      .replace(/behavior\s*:/gi, "/* blocked */")
-      .replace(/@import/gi, "/* blocked */")
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<[^>]*>/g, "");
+    return (
+      css
+        .replace(/url\s*\([^)]*\)/gi, "url()")
+        .replace(/expression\s*\(/gi, "/* blocked */")
+        .replace(/javascript\s*:/gi, "/* blocked */")
+        .replace(/behavior\s*:/gi, "/* blocked */")
+        .replace(/@import/gi, "/* blocked */")
+        // codeql[js/bad-tag-filter]: removes script blocks from injected CSS strings
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<[^>]*>/g, "")
+    );
   }
 
   it("should strip url() references", () => {

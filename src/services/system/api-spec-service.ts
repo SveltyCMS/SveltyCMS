@@ -8,6 +8,8 @@
 import { version } from "../../../package.json";
 import type { Schema, FieldInstance, DatabaseId } from "@src/content/types";
 import { CacheCategory } from "@src/databases/cache/types";
+import { deepClone } from "@utils/native-utils";
+import { logger } from "@utils/logger";
 
 export class ApiSpecService {
   private static instance: ApiSpecService;
@@ -116,7 +118,6 @@ export class ApiSpecService {
       const { cacheService } = await import("@src/databases/cache/cache-service");
       await cacheService.delete(cacheKey, tenantId);
     } catch (err) {
-      const { logger } = await import("@utils/logger");
       logger.debug("Non-fatal API spec cache delete error:", err);
     }
   }
@@ -153,7 +154,7 @@ export class ApiSpecService {
     }
 
     // 3. ACTUAL GENERATION (Only if cache miss)
-    const spec = structuredClone(this.baseSpec);
+    const spec = deepClone(this.baseSpec);
 
     // 1. Add Auth & User Paths
     this.addAuthPaths(spec);

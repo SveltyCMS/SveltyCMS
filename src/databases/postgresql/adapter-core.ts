@@ -17,6 +17,7 @@
  */
 
 import { logger } from "@src/utils/logger";
+import { getHardwareProfile } from "@utils/hardware-profile";
 import { SqlAdapterCore } from "../core/sql-adapter-core";
 import type {
   BaseQueryOptions,
@@ -92,6 +93,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   // Abstract hook implementations
   // --------------------------------------------------------------------------
 
+  /** postgres.js binds timestamptz as ISO text — skip ISO→Date→ISO. */
+  protected get persistTimestampsAsDate(): boolean {
+    return false;
+  }
+
   /** PostgreSQL supports RETURNING on INSERT and UPDATE. */
   protected get insertReturnsRows(): boolean {
     return true;
@@ -136,9 +142,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   >();
 
   private _getInsertTemplate(table: any, tableName: string, synthesized: Record<string, any>) {
-    let tpl = this._insertTemplateCache.get(tableName);
+    const synthCols = Object.keys(synthesized);
+    const key = `${tableName}:${synthCols.join(",")}`;
+    let tpl = this._insertTemplateCache.get(key);
     if (!tpl) {
-      const synthCols = Object.keys(synthesized);
       const colList = synthCols
         .map((c) => {
           const phys = this.getColumn(table, c);
@@ -155,7 +162,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       });
       const sqlText = `INSERT INTO "${utils.assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders.join(", ")})`;
       tpl = { synthCols, sqlText, isJsonMap };
-      this._insertTemplateCache.set(tableName, tpl);
+      this._insertTemplateCache.set(key, tpl);
     }
     return tpl;
   }
@@ -192,7 +199,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         ...this.convertDatesOptions,
         table: collection,
       }) as unknown as T;
-    } catch {
+    } catch (err: any) {
+      // Unique violations must not fall through to a second Drizzle INSERT.
+      if (err?.code === "23505") throw err;
       return null;
     }
   }
@@ -261,6 +270,60 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   }
 
+  protected _updateTemplateCache = new Map<
+    string,
+    {
+      columns: string[];
+      isJsonMap: boolean[];
+      sqlWithReturning: string;
+      sqlSkipReturning: string;
+      hasTenant: boolean;
+    }
+  >();
+
+  private _getUpdateTemplate(
+    table: any,
+    tableName: string,
+    columns: string[],
+    idColName: string,
+    hasTenant: boolean,
+  ) {
+    const key = `${tableName}:${idColName}:${hasTenant ? "1" : "0"}:${columns.join(",")}`;
+    let tpl = this._updateTemplateCache.get(key);
+    if (!tpl) {
+      const isJsonMap: boolean[] = [];
+      const setPairs: string[] = [];
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i];
+        const phys = this.getColumn(table, col);
+        const physName = phys?.name ?? col;
+        const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
+        const isJson = physName === "data" || (phys as any)?.dataType === "json";
+        isJsonMap[i] = isJson;
+        setPairs.push(isJson ? `"${safeCol}" = $${i + 1}::jsonb` : `"${safeCol}" = $${i + 1}`);
+      }
+      const idIdx = columns.length + 1;
+      const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+      const safeTable = utils.assertSafeSqlIdentifier(tableName, "table");
+      const setSql = setPairs.join(", ");
+      let whereSql = `"${safeIdCol}" = $${idIdx}`;
+      if (hasTenant) {
+        whereSql += ` AND "tenantId" = $${idIdx + 1}`;
+      }
+      const sqlWithReturning = `UPDATE "${safeTable}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
+      const sqlSkipReturning = `UPDATE "${safeTable}" SET ${setSql} WHERE ${whereSql}`;
+      tpl = {
+        columns,
+        isJsonMap,
+        sqlWithReturning,
+        sqlSkipReturning,
+        hasTenant,
+      };
+      this._updateTemplateCache.set(key, tpl);
+    }
+    return tpl;
+  }
+
   /**
    * Raw prepared-SQL UPDATE…RETURNING fast path for PostgreSQL:
    * Uses a single prepared statement with parameter binding instead of Drizzle's
@@ -283,43 +346,26 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       const tableName = getTableName(table);
       const idColName = idCol?.name || "_id";
-      const setPairs: string[] = [];
+      const hasTenant =
+        options?.tenantId !== undefined &&
+        options.tenantId !== null &&
+        options.tenantId !== "global";
+
+      const tpl = this._getUpdateTemplate(table, tableName, columns, idColName, hasTenant);
       const boundValues: any[] = [];
 
       for (let i = 0; i < columns.length; i++) {
-        const col = columns[i];
-        const phys = this.getColumn(table, col);
-        const physName = phys?.name ?? col;
-        const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
-        const isJson = physName === "data" || (phys as any)?.dataType === "json";
-        boundValues.push(bindPgParam(values[col], isJson));
-        setPairs.push(
-          isJson
-            ? `"${safeCol}" = $${boundValues.length}::jsonb`
-            : `"${safeCol}" = $${boundValues.length}`,
-        );
+        boundValues.push(bindPgParam(values[columns[i]], tpl.isJsonMap[i]));
       }
-
       boundValues.push(String(id));
-      const idParamIdx = boundValues.length;
-
-      let whereSql = `"${utils.assertSafeSqlIdentifier(idColName, "column")}" = $${idParamIdx}`;
-      if (
-        options?.tenantId !== undefined &&
-        options.tenantId !== null &&
-        options.tenantId !== "global"
-      ) {
+      if (hasTenant) {
         boundValues.push(String(options.tenantId));
-        whereSql += ` AND "tenantId" = $${boundValues.length}`;
       }
 
       const skipReturning = (options as any)?.skipReturning === true;
-      const setSql = setPairs.join(", ");
-      const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
 
       if (skipReturning) {
-        const runSql = `UPDATE "${safeTableName}" SET ${setSql} WHERE ${whereSql}`;
-        await exec.unsafe(runSql, boundValues, { prepare: true });
+        await exec.unsafe(tpl.sqlSkipReturning, boundValues, { prepare: true });
         const reconstructed = {
           ...values,
           [idColName]: id,
@@ -330,8 +376,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }) as unknown as T;
       }
 
-      const rawSql = `UPDATE "${safeTableName}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
-      const rows = await exec.unsafe(rawSql, boundValues, { prepare: true });
+      const rows = await exec.unsafe(tpl.sqlWithReturning, boundValues, { prepare: true });
       if (Array.isArray(rows) && rows.length > 0) {
         return utils.convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,
@@ -339,6 +384,174 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }) as T;
       }
       return null;
+    } catch (err: any) {
+      if (err?.code === "23505") throw err;
+      return null;
+    }
+  }
+
+  /**
+   * Raw heterogeneous bulk UPDATE for PostgreSQL — one prepared statement
+   * instead of N per-row UPDATEs (BatchModule.bulkUpdate's transactional
+   * fallback loop, which also errored on blob-field payloads: Drizzle .set()
+   * rejects keys that live in the jsonb `data` column).
+   *
+   * Builds `SET "col" = CASE "_id" WHEN $n THEN $n … ELSE "col" END` for
+   * varying columns (rows omitting a column fall through to ELSE), plain
+   * `"constCol" = $n` for columns every row sets to the same value
+   * (updatedAt, tenantId), and `WHERE "_id" IN ($n, …)` + tenant clause.
+   *
+   * Values come from prepareUpdateValues (same semantics as crud.update);
+   * binding mirrors rawUpdateReturning (bindPgParam: Date→ISO, data→jsonb
+   * string, objects→JSON text). Chunks run inside exec.begin() so a batch
+   * is all-or-nothing; returns null on any failure (nothing committed).
+   */
+  public override async rawBulkUpdate(
+    table: any,
+    _collection: string,
+    updates: Array<{
+      id: import("../db-interface").DatabaseId;
+      data: Partial<Record<string, unknown>>;
+    }>,
+    now: Date,
+    options: BaseQueryOptions,
+  ): Promise<{ modifiedCount: number } | null> {
+    const txnSql = this.getTxnSql(options);
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql!;
+    try {
+      if (updates.length < 2) return null;
+      const tableName = getTableName(table);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) return null;
+      const idColName = idCol?.name || "_id";
+
+      // 🛡️ TENANT ISOLATION: fail-closed guard (BatchModule asserts too; keep
+      // defense-in-depth for direct calls) + tenant WHERE like rawUpdateReturning.
+      if (this.getColumn(table, "tenantId"))
+        utils.applyTenantFilter([], this.getColumn(table, "tenantId"), options);
+
+      const prepared = updates.map((u) =>
+        this.prepareUpdateValues(table, u.data, u.id as string, now, options),
+      );
+
+      const setCols: string[] = [];
+      const seen = new Set<string>();
+      for (const values of prepared) {
+        for (const k in values) {
+          if (!Object.hasOwn(values, k)) continue;
+          if (k === idColName || k === "id") continue;
+          if (!seen.has(k)) {
+            seen.add(k);
+            setCols.push(k);
+          }
+        }
+      }
+      if (setCols.length === 0) return null;
+
+      const maxParams = 65_000;
+      const maxRowsPerChunk = Math.max(1, Math.floor(maxParams / (setCols.length * 2 + 1)));
+
+      let modifiedCount = 0;
+      const runChunks = async (db: any) => {
+        for (let start = 0; start < prepared.length; start += maxRowsPerChunk) {
+          const chunk = prepared.slice(start, start + maxRowsPerChunk);
+          const chunkIds = updates.slice(start, start + maxRowsPerChunk).map((u) => String(u.id));
+
+          const setPairs: string[] = [];
+          const boundValues: any[] = [];
+          const sameValue = (a: unknown, b: unknown): boolean => {
+            if (a === b) return true;
+            if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+            if (a && b && typeof a === "object" && typeof b === "object") {
+              return JSON.stringify(a) === JSON.stringify(b);
+            }
+            return false;
+          };
+
+          for (const col of setCols) {
+            const phys = this.getColumn(table, col);
+            const physName = phys?.name ?? col;
+            const safeCol = utils.assertSafeSqlIdentifier(physName, "column");
+            const isJson = physName === "data" || (phys as any)?.dataType === "json";
+
+            let constant = true;
+            let firstVal: unknown;
+            let firstSet = false;
+            for (const values of chunk) {
+              if (!Object.hasOwn(values, col)) {
+                constant = false;
+                break;
+              }
+              const v = values[col];
+              if (!firstSet) {
+                firstVal = v;
+                firstSet = true;
+              } else if (!sameValue(v, firstVal)) {
+                constant = false;
+                break;
+              }
+            }
+
+            if (constant) {
+              boundValues.push(bindPgParam(firstVal, isJson));
+              setPairs.push(
+                isJson
+                  ? `"${safeCol}" = $${boundValues.length}::jsonb`
+                  : `"${safeCol}" = $${boundValues.length}`,
+              );
+              continue;
+            }
+
+            const whens: string[] = [];
+            for (let i = 0; i < chunk.length; i++) {
+              const values = chunk[i];
+              if (!Object.hasOwn(values, col)) continue;
+              // postgres.js placeholders are 1-based — capture the indices
+              // BEFORE pushing (boundValues.length grows by 2 per row).
+              const idParam = boundValues.length + 1;
+              const valParam = boundValues.length + 2;
+              boundValues.push(String(chunkIds[i]), bindPgParam(values[col], isJson));
+              whens.push(`WHEN $${idParam} THEN $${valParam}${isJson ? "::jsonb" : ""}`);
+            }
+            const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+            setPairs.push(
+              `"${safeCol}" = CASE "${safeIdCol}" ${whens.join(" ")} ELSE "${safeCol}" END`,
+            );
+          }
+
+          const idParamIdx = boundValues.length;
+          const idPlaceholders = chunkIds.map((_, i) => `$${idParamIdx + i + 1}`).join(", ");
+          boundValues.push(...chunkIds);
+
+          let whereSql = `"${utils.assertSafeSqlIdentifier(idColName, "column")}" IN (${idPlaceholders})`;
+          if (
+            options?.tenantId !== undefined &&
+            options.tenantId !== null &&
+            options.tenantId !== "global"
+          ) {
+            boundValues.push(String(options.tenantId));
+            whereSql += ` AND "tenantId" = $${boundValues.length}`;
+          }
+
+          const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+          const rawSql = `UPDATE "${safeTableName}" SET ${setPairs.join(", ")} WHERE ${whereSql}`;
+          const res = await db.unsafe(rawSql, boundValues, { prepare: true });
+          modifiedCount += Number((res as any)?.count ?? 0);
+        }
+      };
+
+      if (options?.transaction || txnSql) {
+        await runChunks(exec);
+      } else {
+        // postgres.js begin() pins one connection so BEGIN/UPDATE/COMMIT are
+        // atomic across chunks (pool calls would hop connections).
+        await exec.begin(async (tx: any) => {
+          await runChunks(tx);
+        });
+      }
+
+      return { modifiedCount };
     } catch {
       return null;
     }
@@ -782,7 +995,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       if (typeof finalConnection === "string") {
         options = {
-          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 100,
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || getHardwareProfile().dbPoolSize,
           connect_timeout: 30,
           onclose,
         };
@@ -815,10 +1028,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onnotice: () => {},
           onclose,
           transform: { undefined: null },
-          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 100,
+          max:
+            Number(process.env.DATABASE_MAX_CONNECTIONS) ||
+            Math.max(20, getHardwareProfile().dbPoolSize),
           connect_timeout: 10,
           prepare: effectivePrepare,
-          idle_timeout: 300,
+          idle_timeout: 30,
           max_lifetime: 60 * 60,
           keepalive: true,
           keepaliveInitialDelayMillis: 10000,
@@ -839,14 +1054,16 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           user: c.user || c.DB_USER || "postgres",
           password: c.password || c.DB_PASSWORD || "",
           database: c.database || c.DB_NAME,
-          max: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS || 100),
+          max:
+            Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) ||
+            Math.max(20, getHardwareProfile().dbPoolSize),
           connect_timeout: Number(c.connect_timeout || 10),
           ssl: c.ssl || false,
           onnotice: () => {},
           onclose,
           transform: { undefined: null },
           prepare: usePrepared,
-          idle_timeout: Number(c.idle_timeout || 300),
+          idle_timeout: Number(c.idle_timeout || 30),
           max_lifetime: Number(c.max_lifetime || 60 * 60),
           keepalive: c.keepalive ?? true,
           keepaliveInitialDelayMillis: Number(c.keepaliveInitialDelayMillis || 10000),
@@ -1379,6 +1596,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             const indexName = `${physicalName}_${colName}_idx`;
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${colName}")`,
+            );
+            // 🚀 Covering composite index for filter+sort on dynamic columns (e.g. status + views/count):
+            // WHERE "tenantId"=? AND status=? ORDER BY colName DESC, _id DESC
+            await this.raw.execute(
+              `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_${colName}_id" ON "${physicalName}" ("tenantId", status, "${colName}" DESC, "_id" DESC)`,
             );
           } catch {
             /* safe */

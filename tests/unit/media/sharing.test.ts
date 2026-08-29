@@ -4,7 +4,6 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { createHash } from "node:crypto";
 import {
   createLink,
   validateLink,
@@ -16,7 +15,6 @@ import {
 } from "../../../src/utils/media/sharing";
 import {
   hashSharePassword,
-  hashSharePasswordWithLegacy,
   verifySharePassword,
 } from "../../../src/utils/media/share-link-hash.server";
 
@@ -164,39 +162,20 @@ describe("sharing — password hashing (HMAC)", () => {
     expect(a).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("hashSharePassword differs from the legacy plain-SHA-256 digest", () => {
-    const { legacy } = hashSharePasswordWithLegacy("hunter2");
-    // HMAC (keyed) must never equal the unkeyed digest of the same input
-    expect(hashSharePassword("hunter2")).not.toBe(legacy);
-  });
-
   it("produces different hashes for different passwords", () => {
     expect(hashSharePassword("alpha")).not.toBe(hashSharePassword("beta"));
   });
 
-  it("hashSharePasswordWithLegacy returns distinct current and legacy forms", () => {
-    const { current, legacy } = hashSharePasswordWithLegacy("s3cret");
-    expect(current).toMatch(/^[0-9a-f]{64}$/);
-    expect(legacy).toMatch(/^[0-9a-f]{64}$/);
-    expect(current).not.toBe(legacy);
-    expect(current).toBe(hashSharePassword("s3cret"));
-  });
-
-  it("verifySharePassword accepts the current HMAC stored value", () => {
+  it("verifySharePassword accepts the stored HMAC value", () => {
     const stored = hashSharePassword("correct horse");
     expect(verifySharePassword("correct horse", stored)).toBe(true);
     expect(verifySharePassword("wrong horse", stored)).toBe(false);
   });
 
-  it("verifySharePassword accepts legacy plain-SHA-256 stored values (backward compat)", () => {
-    const legacyStored = createHash("sha256").update("old-password").digest("hex");
-    expect(verifySharePassword("old-password", legacyStored)).toBe(true);
-    expect(verifySharePassword("different", legacyStored)).toBe(false);
-  });
-
   it("verifySharePassword rejects malformed stored hashes without throwing", () => {
     expect(verifySharePassword("x", "")).toBe(false);
     expect(verifySharePassword("x", "not-a-hex-hash")).toBe(false);
+    expect(verifySharePassword("x", hashSharePassword("y"))).toBe(false);
   });
 
   it("fails closed when JWT_SECRET_KEY is unavailable", () => {

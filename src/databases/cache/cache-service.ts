@@ -165,6 +165,9 @@ export class CacheService {
   /**
    * Extracts the 2-level namespace bucket for O(1) pattern clearing.
    * e.g. "tenant:default:collection:posts:1" -> "tenant:default:collection"
+   * Flat keys (no third colon, e.g. "tenant:global:theme:x") bucket under the
+   * tenant namespace — otherwise each becomes its own bucket and every
+   * clearByPattern misses, falling back to a full L1 scan.
    */
   private getNamespaceBucketKey(key: string): string {
     const firstColon = key.indexOf(":");
@@ -172,7 +175,8 @@ export class CacheService {
     const secondColon = key.indexOf(":", firstColon + 1);
     if (secondColon === -1) return key;
     const thirdColon = key.indexOf(":", secondColon + 1);
-    return thirdColon === -1 ? key : key.slice(0, thirdColon);
+    if (thirdColon === -1) return key.slice(0, secondColon);
+    return key.slice(0, thirdColon);
   }
 
   private addToPrefixMap(key: string) {
@@ -376,6 +380,7 @@ export class CacheService {
   }
 
   private buildKey(key: string, tenantId?: string | null): string {
+    if (key.startsWith("tenant:")) return key;
     if (!tenantId || tenantId === "default") {
       return `tenant:default:${key}`;
     }
@@ -440,6 +445,10 @@ export class CacheService {
             const responseTime = performance.now() - start;
             this.recordLatency(responseTime);
             this.l1.set(fullKey, parsed);
+            // Keep the namespace bucket index consistent with L1 so pattern
+            // clears don't silently miss L2-hydrated entries (and fall back to
+            // a full L1 scan).
+            this.addToPrefixMap(fullKey);
             this.stats.hits++;
             this.stats.l2Hits++;
             this.recordMetricSync("cache:hit:l2", 1);
@@ -589,8 +598,24 @@ export class CacheService {
     tenantId?: string | null,
     category = CacheCategory.GENERAL,
   ): Promise<void> {
+    const l2Ready = this.isL2Ready();
+    const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
     for (const entry of entries) {
-      await this.set(entry.key, entry.value, entry.ttl, tenantId, category, entry.tags);
+      this.setSync(entry.key, entry.value, entry.ttl, tenantId, category, entry.tags);
+      if (l2Ready) {
+        const fullKey = this.generateKey(entry.key, tenantId);
+        const effectiveTTL =
+          (entry.ttl ?? 0) > 0
+            ? entry.ttl!
+            : (CATEGORY_TTL_SECONDS[category] ?? CATEGORY_TTL_SECONDS.general ?? 300);
+        await this.batcher.bufferWrite(this.l2, {
+          key: fullKey,
+          val: serializeL2Value(entry.value),
+          ttl: effectiveTTL,
+          tags: entry.tags || [],
+          tagPrefix,
+        });
+      }
     }
   }
 
@@ -807,6 +832,25 @@ export class CacheService {
     }
   }
 
+  /**
+   * Upper bound on entries scanned when a pattern clear cannot use a namespace
+   * bucket. Above this, a full L1 walk on the write critical path would cost
+   * O(#cached) and collapse write throughput — the scale cliff. Hot-path
+   * invalidation is tag-based (O(#matched)) and never relies on a full scan.
+   */
+  private readonly MAX_PATTERN_L1_SCAN = 50000;
+
+  private canFullScan(): boolean {
+    return this.l1.size <= this.MAX_PATTERN_L1_SCAN;
+  }
+
+  private logSkippedFullScan(pattern: string): void {
+    this.recordMetricSync("cache:pattern-scan-skipped", 1);
+    logger.debug(
+      `[Cache] Skipped O(n) L1 scan for pattern "${pattern}" (l1Size=${this.l1.size}); relying on tags + TTL.`,
+    );
+  }
+
   private clearLocalL1ByPattern(pattern: string, tenantId: string | null) {
     const isWildcardTenant =
       tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
@@ -817,14 +861,18 @@ export class CacheService {
     try {
       if (isWildcardTenant) {
         const patternPrefix = pattern.replace(/[*?]+$/, "");
-        for (const key of this.l1.keys()) {
-          const sep = key.indexOf(":", "tenant:".length);
-          if (sep === -1) continue;
-          const logicalKey = key.slice(sep + 1);
-          if (logicalKey.startsWith(patternPrefix)) {
-            this.l1.delete(key);
-            deletedKeys.push(key);
+        if (this.canFullScan()) {
+          for (const key of this.l1.keys()) {
+            const sep = key.indexOf(":", "tenant:".length);
+            if (sep === -1) continue;
+            const logicalKey = key.slice(sep + 1);
+            if (logicalKey.startsWith(patternPrefix)) {
+              this.l1.delete(key);
+              deletedKeys.push(key);
+            }
           }
+        } else {
+          this.logSkippedFullScan(pattern);
         }
       } else {
         const fullPattern = this.generateKey(pattern, tenantId);
@@ -833,19 +881,26 @@ export class CacheService {
         const bucket = this.prefixMap.get(bucketKey);
 
         if (bucket) {
+          // O(#keys in this namespace bucket) — the fast path.
           for (const key of bucket) {
             if (key.startsWith(patternPrefix)) {
               this.l1.delete(key);
               deletedKeys.push(key);
             }
           }
-        } else {
+        } else if (this.canFullScan()) {
+          // Bucket miss on a small cache — cheap to scan exhaustively.
           for (const key of this.l1.keys()) {
             if (key.startsWith(patternPrefix)) {
               this.l1.delete(key);
               deletedKeys.push(key);
             }
           }
+        } else {
+          // Bucket miss on a large cache: never block the event loop with an
+          // O(#cached) scan on a write. Hot-path invalidation is tag-based and
+          // does not reach here; stragglers fall back to TTL expiry.
+          this.logSkippedFullScan(pattern);
         }
       }
     } finally {

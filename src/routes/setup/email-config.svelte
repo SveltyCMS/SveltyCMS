@@ -11,6 +11,7 @@
 -->
 <script lang="ts">
 	import Alert from '@components/ui/alert.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -462,13 +463,14 @@
 	<!-- Why SMTP is Needed -->
 	<div class="card preset-outlined-tertiary-500 dark:preset-outlined-primary-500 p-4">
 		<!-- Header - Always visible with toggle button -->
-		<button
-				type="button"
-				class="flex w-full items-start gap-3 text-start"
-				onclick={() => (showWhySmtp = !showWhySmtp)}
-				aria-expanded={showWhySmtp}
-				aria-controls="why-smtp-content"
-			>
+		<Button
+			variant="transparent"
+			type="button"
+			class="flex w-full! items-start gap-3! text-start p-0! h-auto! justify-start! font-normal!"
+			onclick={() => (showWhySmtp = !showWhySmtp)}
+			aria-expanded={showWhySmtp}
+			aria-controls="why-smtp-content"
+		>
 			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl dark:text-primary-500 text-tertiary-500" aria-hidden="true"></iconify-icon>
 			<div class="flex-1">
 				<h3 class="font-semibold text-tertiary-500 dark:text-primary-500">{setup_email_why_title()}</h3>
@@ -478,7 +480,7 @@
 				class="mt-0.5 shrink-0 text-xl text-tertiary-500 dark:text-primary-500"
 				aria-hidden="true"
 			></iconify-icon>
-		</button>
+		</Button>
 
 		<!-- Collapsible content -->
 		{#if showWhySmtp}
@@ -501,16 +503,9 @@
 		<label class="label">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:email-fast-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-				<span class="text-black dark:text-white">{setup_email_provider()}</span>
+				<span class="text-surface-900 dark:text-surface-50">{setup_email_provider()}</span>
 				<SystemTooltip title={setup_email_help_provider()}>
-					<button
-						type="button"
-						tabindex="-1"
-						aria-label={setup_email_aria_help_provider()}
-						class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-					>
-						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-					</button>
+					<HelpIcon ariaLabel={setup_email_aria_help_provider()} />
 				</SystemTooltip>
 			</div>
 			<Select
@@ -536,16 +531,9 @@
 		<label class="label" for="smtp-host">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-				<span class="text-black dark:text-white">{setup_email_host()} <span class="text-error-500">*</span></span>
+				<span class="text-surface-900 dark:text-surface-50">{setup_email_host()} <span class="text-error-500">*</span></span>
 				<SystemTooltip title={setup_email_help_host()}>
-					<button
-						type="button"
-						tabindex="-1"
-						aria-label={setup_email_aria_help_host()}
-						class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-					>
-						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-					</button>
+					<HelpIcon ariaLabel={setup_email_aria_help_host()} />
 				</SystemTooltip>
 			</div>
 			<Input
@@ -573,16 +561,9 @@
 			<div class="mb-1 flex items-center justify-between">
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-					<span class="font-medium text-black dark:text-white">{setup_email_port()} <span class="text-error-500">*</span></span>
+					<span class="font-medium text-surface-900 dark:text-surface-50">{setup_email_port()} <span class="text-error-500">*</span></span>
 					<SystemTooltip title={setup_email_help_port()}>
-						<button
-							type="button"
-							tabindex="-1"
-							aria-label={setup_email_aria_help_port()}
-							class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-						</button>
+						<HelpIcon ariaLabel={setup_email_aria_help_port()} />
 					</SystemTooltip>
 				</div>
 			</div>
@@ -612,7 +593,7 @@
 							useCustomPort = false;
 							wizard.emailSettings.port = '587'; // Reset to default
 						}}
-					 size="sm" class="whitespace-nowrap border border-slate-300 dark:border-surface-600">
+					 size="sm" class="whitespace-nowrap border border-surface-500/30 dark:border-surface-600">
 						<iconify-icon icon="mdi:arrow-u-left-top" class="text-lg" aria-hidden="true"></iconify-icon>
 						{setup_email_button_use_standard()}
 					</Button>
@@ -664,16 +645,9 @@
 		<label class="label" for="smtp-user">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-				<span class="text-black dark:text-white">{setup_email_user()} <span class="text-error-500">*</span></span>
+				<span class="text-surface-900 dark:text-surface-50">{setup_email_user()} <span class="text-error-500">*</span></span>
 				<SystemTooltip title={setup_email_help_user()}>
-					<button
-						type="button"
-						tabindex="-1"
-						aria-label={setup_email_aria_help_user()}
-						class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-					>
-						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-					</button>
+					<HelpIcon ariaLabel={setup_email_aria_help_user()} />
 				</SystemTooltip>
 			</div>
 			<Input
@@ -702,16 +676,9 @@
 		<label class="label" for="smtp-password">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-				<span class="text-black dark:text-white">{setup_email_password()} <span class="text-error-500">*</span></span>
+				<span class="text-surface-900 dark:text-surface-50">{setup_email_password()} <span class="text-error-500">*</span></span>
 				<SystemTooltip title={setup_email_help_password()}>
-					<button
-						type="button"
-						tabindex="-1"
-						aria-label={setup_email_aria_help_password()}
-						class="ms-1 text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-					>
-						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-					</button>
+					<HelpIcon ariaLabel={setup_email_aria_help_password()} />
 				</SystemTooltip>
 			</div>
 			<div class="relative">
@@ -750,7 +717,7 @@
 		<label class="label md:col-span-2" for="smtp-from">
 			<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 				<iconify-icon icon="mdi:email-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-				<span class="text-black dark:text-white">{setup_email_from()}</span>
+				<span class="text-surface-900 dark:text-surface-50">{setup_email_from()}</span>
 			</div>
 			<Input
 				id="smtp-from"

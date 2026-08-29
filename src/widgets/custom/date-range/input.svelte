@@ -25,7 +25,7 @@ Part of the Three Pillars Architecture for widget system.
 <script lang="ts">
 	import Input from '@components/ui/input.svelte';
 	import { validationStore } from '@src/stores/store.svelte';
-	import { getFieldName } from '@src/utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import type { FieldType } from './';
 
 	let {

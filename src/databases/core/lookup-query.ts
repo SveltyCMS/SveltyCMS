@@ -10,6 +10,7 @@
  * - zero-allocation field walk (no Object.keys)
  * - accepts `_id` or `id` with optional `tenantId`, scalar `status`, and `isDeleted: false`
  * - extract helpers for tenant + id without extra object spreads on miss
+ * - extractPkConflictId for INSERT ON CONFLICT (_id) (rejects status-pinned queries)
  */
 
 export interface IdLookupResult {
@@ -104,6 +105,17 @@ export function extractLookupStatus(query: unknown): string | undefined {
  */
 export function extractLookupId(query: unknown): string | null {
   return parseIdLookup(query)?.id ?? null;
+}
+
+/**
+ * `_id` (optional tenantId / isDeleted:false) suitable as an INSERT conflict
+ * target. Queries that also pin `status` are rejected — ON CONFLICT (_id)
+ * would overwrite a row the findOne+update path would miss.
+ */
+export function extractPkConflictId(query: unknown): string | null {
+  const lookup = parseIdLookup(query);
+  if (!lookup || lookup.status !== undefined) return null;
+  return lookup.id;
 }
 
 /**

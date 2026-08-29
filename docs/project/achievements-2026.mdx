@@ -108,6 +108,20 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
 
     - **TOTP Secret Encryption**: TOTP secrets are now encrypted at rest using AES-256-GCM under the instance
 
+    - **HKDF + size-aware compression (August 2026)**: Passphrase-shaped `ENCRYPTION_KEY` / `SECRET_ENCRYPTION_KEY` values (not 64-char hex) derive AES-256 keys with **HKDF-SHA-256** (cached once per process, domain-separated per subsystem). Decrypt still accepts SHA-256(raw) envelopes. Hex keys are unchanged (AES-NI, no KDF on the request path). Compression negotiation now prefers gzip below 4 KiB and skips zstd below 32 KiB; `compressSync` refuses output that is not smaller than the input. No ML-KEM on the request path.
+
+    - **SQL PK upsert + bulk import (August 2026)**: `crud.upsert` / `upsertMany` on SQLite, PostgreSQL, and MariaDB are one `INSERT … ON CONFLICT (_id)` / `ON DUPLICATE KEY` when the filter is a primary-key lookup (status-pinned queries still use findOne). Collection import (sync LocalCMS and the `import-data` job) shares `bulkImportCollectionDocuments`: `findByIds` + `insertMany`/`upsertMany` per 100-row chunk.
+
+    - **Automation event→flow index (August 2026)**: Automation dispatch indexes active event-triggered flows by event name so content mutations resolve matching flows with a single Map lookup instead of scanning every flow. Unmatched events exit before flow iteration.
+
+    - **QueryBuilder list + Mongo 1-RT upsert (August 2026)**: Admin collection lists (`queryBuilder.execute`) convert rows in place with registered schema maps on SQLite/PostgreSQL/MariaDB; `exists()` is LIMIT 1. Mongo upsert is one `findOneAndUpdate` (filter carries `_id`) instead of update-then-create.
+
+    - **Plugin state + relation batch (August 2026)**: Extensions uses the layout plugin-state map (one `findMany` + 15s L1) instead of N `getPluginState`; config reuses `parent().pluginStates`. Relation Input/Display issue one `_id $in` list request; collection lists hydrate relation labels in one `findByIds` per related collection so table cells skip extra HTTP.
+
+    - **Remotes skip HTTP-to-self (August 2026)**: User profile, sessions, tokens, settings groups, and collection save/delete remotes call LocalCMS in-process (`getRequestLocalCMS`) instead of `event.fetch("/api/...")`. Dashboard health uses `cms.db.isConnected()` instead of fetching `/health`. Same privilege strips as the REST handlers.
+
+    - **SQLite write templates + GraphQL fast path (August 2026)**: SQLite INSERT synthesizes the row (no `RETURNING *`) with a cached SQL template; UPDATE SQL is cached per column-set. GraphQL `contentSystemHealth` / `allCollections` skip Yoga/JIT after auth (in-memory catalog/health).
+
 - **TOTP Replay Protection**: A consumed-codes registry using an adapter pattern (in-memory, swappable to Redis/SQLite) prevents TOTP code reuse within the 90-second validity window. Fail-closed design — registry errors reject the code.
 - **TOTP Timing Attack Mitigation**: Replaced standard string comparisons in the 2FA layer with `crypto.timingSafeEqual`, mathematically neutralizing nanosecond-level side-channel attacks on TOTP code verification.
 
@@ -927,6 +941,73 @@ Product-layer APIs are now equal on SQLite, PostgreSQL, MariaDB, and MongoDB:
 
 The Full Security + Auth Pipeline (all hooks, HTTP E2E) averaged **0.583 ms** (p95 0.768 ms, ~1,442 RPS) on the recorded run — a **~32% latency reduction vs the 0.856 ms July 31 baseline** published in [3.8](#38-august-2026-session-rbac-extension-security-sprint), with ~40% higher throughput. Other layers in the same run: Turbo Pipeline (light) 0.285 ms / ~3,201 RPS; REST with API caching 0.540 ms; Static Asset 0.549 ms; Mutation + Audit Logging 1.031 ms. Reproduce with `BENCHMARK_RECORD=1 bun test tests/benchmarks/hooks-performance.test.ts`. Single-run variance on the harness is ~±10%; quote the trend, not one run.
 
+### 3.10 August 2026 — ReDoS-safe linear threat scan
+
+Layer 0 WAF and AuthGuard payload analysis now share one O(n) scanner (`src/services/security/threat-scan.ts`). Per-request RegExp engines, the unused WASM instantiate stub, and `new URL()` on the allow path are gone. Pathological `select`/`from` bait returns in well under 25 ms (unit-tested); clean ASCII URLs skip `decodeURIComponent`. SQL `prepareValues` uses a char-code ISO datetime prefix instead of regex.
+
+**Self-measured 2026-08-23:** `WAF Deep Analysis` in `security-audit` stays at **0.002 ms** because that row times `Request.clone()` + `await analyzeRequest()` — a ~1.5 µs floor that hides the matcher. Isolated scanner microbench (`bun run scripts/waf-scan-microbench.ts`, 200k iters, clean `/api/collections/posts?limit=10`):
+
+| Matcher                               |  ns/op |          ops/s |
+| ------------------------------------- | -----: | -------------: |
+| Previous regex inspect (4× haystacks) |  1,495 |        669,119 |
+| Linear `inspectRequest`               | **96** | **10,388,153** |
+| `isCleanRequestSurface`               |     61 |     16,442,771 |
+
+Linear inspect is **15.5×** less work on the allow-path (ReDoS-safe). Reproduce: `bun run scripts/waf-scan-microbench.ts`. Full service row: `BENCHMARK_RECORD=1 bun test tests/benchmarks/security-audit.test.ts`.
+
+### 3.11 August 2026 — Entry list / field-editor widget + plugin path
+
+Entry edit and collection tables were dropping widgets: `widget.Name` missing when `field.widget` existed, list cells giving up if the registry was not ready at `onMount`, and plugin `entry_edit` slots ignoring `slotRegistry.version` (late registrations never appeared). Loader resolve scanned every glob path per field.
+
+**Self-measured 2026-08-23, `tests/benchmarks/entry-edit-hydration.test.ts`:** 50-field loader resolve **0.053 → 0.023 ms** (~16.3k → **31.9k RPS**, ~2×). Widget prefetch **0.013 → 0.009 ms**. Plugin list columns now skip disabled plugins; plugin cells use a warm L1 peek; plugin tabs load only when selected.
+
+Reproduce: `BENCHMARK_RECORD=1 bun test tests/benchmarks/entry-edit-hydration.test.ts`.
+
+### 3.12 August 2026 — Layout user / plugin / collection-order fetch tax
+
+Every admin navigation hit `(app)/+layout.server.ts`, which re-read the user from the DB, `findOne`’d plugin state per slotted plugin, and parsed the collection-order manifest from disk. Settings TTL was also passed as `30_000` into `cacheService.set` (seconds), so the 30s L1 comment was wrong.
+
+Now: 15s L1 for user snapshot, user-count, and plugin enablement; **one `findMany`** for all plugin states; collection order is mtime-cached; widget first-load no longer busts `/api/widgets/active` with `?refresh=true`. Profile `/user` shares the same user cache; attribute writes and plugin toggles invalidate it.
+
+### 3.13 August 2026 — Auth-path logs + TOTP backup HMAC (hooks re-bench)
+
+Per-request auth work was paying for debug-string interpolation and `new Date()` expiry checks on the Full Auth Pipeline. Cache miss-locks had a `Math.random()` owner fallback. 2FA backup codes were stored as plain SHA-256.
+
+- `handle-authentication.ts`: debug logs behind `logger.isEnabled("debug")`; expiry via `.getTime() < Date.now()`.
+- `content-registry.svelte.ts`: `getSmartFirstCollection` memoized on `contentVersion`.
+- `cache-locks.ts`: lock owner is `crypto.randomUUID()` only.
+- `totp.ts`: backup codes HMAC-SHA-256 (`backupcode-hmac:` + JWT secret), single-scheme verify (legacy plain SHA-256 removed 2026-08).
+
+**Self-measured 2026-08-23, SQLite, two consecutive `hooks-performance` runs vs 0.598 ms baseline:**
+
+| Benchmark         | Metric                     | Baseline         | After                             | Δ                          |
+| ----------------- | -------------------------- | ---------------- | --------------------------------- | -------------------------- |
+| hooks-performance | Full Auth Pipeline avg     | 0.598 ms         | **0.457 ms** (0.474 first re-run) | **−23.6% / −20.7%**        |
+|                   | p95                        | 0.829 ms         | 0.698 / 0.617 ms                  | **−16% / −26%**            |
+|                   | Auth Overhead (Turbo→Full) | 0.276 ms         | 0.143 ms                          | **−48%**                   |
+| auth-performance  | Auth @1c avg               | 0.396 ms         | 0.369 ms                          | **−6.8%**                  |
+|                   | Pipeline @8c / RPS         | 1.244 ms / 3,708 | 1.192 ms / 3,872                  | **−4.2% / +4.4%**          |
+| truth-latency     | HTTP E2E avg / p95         | 0.505 / 0.813 ms | 0.509 / 0.710 ms                  | avg ±noise; p95 **−12.7%** |
+| security-audit    | pass                       | ✓                | ✓                                 | no regression              |
+
+Published overlay (`docs/project/benchmarks/benchmark_sqlite.mdx`, 7-run trend): Full Auth **0.457 ms**, ⚪ stable at **0.474 ms**. Reproduce: `BENCHMARK_RECORD=1 bun test tests/benchmarks/hooks-performance.test.ts`. Single-run variance ~±10%; the −20% middleware move is the two-run confirmation against 0.598 ms, not the WAF Deep Analysis clone+await floor.
+
+### 3.14 August 2026 — Hardware-adaptive tuning + honest 4-DB benchmark matrix
+
+One hardware detection at boot now drives every CPU-critical subsystem, and the benchmark matrix runs honest production-parity numbers on all 4 databases.
+
+**Hardware-adaptive profile (`@utils/hardware-profile`)** — detected once at process start (`hooks.server.ts` → `initHardwareProfile()`), published to the shared global registry; every module, chunk and worker import reads the same frozen object. Workload-prioritized CPU allocation under a global `HARDWARE_CPU_BUDGET` (default 0.75 = all-in-one VPS reserving headroom for co-hosted DB/Redis/nginx; `1` = dedicated app server): media/sharp gets the largest slice (up to 50% of physical budget), DB fan-out the most conservative (2 queries per budget core — the co-hosted DB server needs CPU per query), compile 75% / jobs 50% / module workers 50% (capped). Per-knob env overrides: `SHARP_CONCURRENCY`, `DB_POOL_SIZE`, `MONGO_MIN_POOL_SIZE`, `MODULE_WORKER_POOL_SIZE`, `COMPILE_CONCURRENCY`, `JOB_CONCURRENCY`, `UV_THREADPOOL_SIZE`. Wired into: `hooks.server.ts`, all 4 DB adapters (pool defaults were hardcoded 20/100/100 — now hardware-derived), `loader.server.ts` worker pool, `compile.ts` + `sync-content-state.server.ts`, `job-queue-service.ts`, `handle-compression.ts` (weak boxes cap gzip 4 / brotli 4), `database-resilience.ts` pool prewarm, setup wizard (surfaces the profile in the complete response) and dashboard (`/api/dashboard/system-info` returns the profile the CMS tuned itself to).
+
+**Media pipeline (validated on matrix)** — preset (width,format) dedup collapses 20 variant jobs into 12 unique files (records still expanded per referencing preset); responsive-variant generation for buffer uploads is deferred (fire-and-forget) so the HTTP response no longer blocks on it. Self-measured 2026-08-23: SDK media **210.0 → 116.3 ms (−45%)**, HTTP upload **208.4 → 105.2 ms (−50%)**.
+
+**CacheService pattern invalidation** — flat-key namespace bucketing fix: `tenant:global:<flat-key>` now lives under the `tenant:global` bucket so pattern purges hit one bucket instead of every key. Self-measured: **26 → 4.5 ms**.
+
+**Benchmark matrix run (2026-08-23)** — **200/200 green on the hardware-profile build** (SQLite 50/0 · MariaDB 50/0 · Postgres 50/0 · Mongo 50/0; run 2 was 199/200, the lone failure was `dev-dependency-load`: `bun run check` flags auto-generated benchmark MDX that drifts from oxfmt formatting — the reporter now runs oxfmt on every written report, keeping the DX toolchain honest and green). Seeder provisions `bench_index_pressure` + `bench_migration_large` (kills the 100k-row index audit `SQLITE_ERROR no such table`); SEO redirect source unique per run; state-machine accepted states widened (RECOVERY/DEGRADED/IDLE); MongoDB stress flakes fixed via pre-stress full readiness wait + bounded crash-retry in the harness. **Restart overhead cut ~20%**: post-destructive restarts are data-driven (two full 4-DB runs proved only `graphql-stress` → relational-performance and `large-payload-streaming` → migration-scale need the restart) — the other 5 destructive tests skip the ~12–16s server boot, saving ~4 min of the ~22 min run.
+
+**Pre-profile vs profile measurement (run 2 → run 3, same machine):** no systematic regression — the feared GQL-100c pool regression from smaller DB pools did NOT materialize (GQL 100c flat-to-better on all 4 DBs), media SDK −3%, and notable gains on Postgres (widget pipeline −44%, Yjs −37%, mixed workload −25%, SEO −17–27%) and Mongo (collection search −29%, uploads −17–20%). Remaining flags are sub-5 ms run-to-run noise (cache pattern-invalidation, Yjs CRDT, small payloads).
+
+Reproduce: `bun run scripts/benchmark-matrix/index.ts --continue-on-error` (4 DBs, ~23 min) · `bun run test:unit` (416 files / 3667 tests). GPU note: sharp/libvips exposes no GPU backend — media parallelism is CPU-tier capped; further media gains come from job dedup/deferral, not more threads.
+
 ## 4. Final Sprint Achievements (March 2026)
 
 Having secured the "Engine War" with superior performance and security, SveltyCMS has now closed the **Editorial Depth** gap.
@@ -1062,12 +1143,13 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 
 - **Toolchain**: oxlint/oxfmt for fast lint/format (project-scale times vary by machine).
 - **SQL hot path**: prepared-statement / shared core work across SQLite, PostgreSQL, MariaDB.
+- **Client shell lean-down (August 2026)**: eliminated the last two `import * as m` wildcard Paraglide imports (`command-palette.svelte`, `modal.svelte.ts`) that forced the full 968-message catalog into the eager `(app)` shell. Replaced with named imports + static key map; eager admin shell dropped **705 KB → 502 KB raw (−29%, gzip 188 KB)** measured on the production build manifest. `scripts/check-bundle-size.ts` now detects the real admin-shell node (`nodes/N.js`) instead of only `layout*.js` files, so TipTap/email-preview leaks into the shell fail CI.
 - **Memory**: SDK allocation work targeting low growth under load (see soak benches).
 - **Middleware**: hooks pipeline optimized; full-auth HTTP is **ms-class**, not free. August 2026 hardening sprint measured **0.583 ms avg / 0.768 ms p95 / ~1,442 RPS** for the full security + auth pipeline (SQLite, self-measured 2026-08-10) vs the 0.856 ms July 31 baseline.
 - **Widgets**: `ComponentLoader` / tree-shakeable loaders.
 - **DB parity**: MongoDB, MariaDB, PostgreSQL, SQLite as production adapters.
 
-- **Enterprise Security & Automated Response**: Unified `SecurityResponseService` with Redis-backed state and ReDoS-safe patterns.
+- **Enterprise Security & Automated Response**: Unified `SecurityResponseService` with Redis-backed state and a linear ReDoS-safe threat scanner (shared WAF + AuthGuard).
 - **CI Pipeline Restoration**: Playwright E2E suite stabilized across all supported databases.
 - **Active Database Driver Validation**: Eliminated "lazy connection" false positives in setup via mandatory `SELECT 1` pings.
 - **GraphQL JIT Execution Engine**: Multi-fold increase in RPS via `@envelop/graphql-jit`.
@@ -1129,7 +1211,12 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **AI Widget Scaffolder (June 2026)**: On-demand code generation for custom 3-pillar widgets from a config object.
 - **Hosted Marketplace (June 2026)**: Plugin/widget ecosystem at marketplace.sveltycms.com with REST API, Stripe checkout, and License v1 verification.
 - **Marketplace Phase 2 — In-App Catalog & Dashboard Widget Packages (August 2026)**: Extensions → Marketplace tab with `GET /api/marketplace` offline-first merge; dashboard widgets refactored into marketplace-portable package folders (`widgets/<folder>/` + required `widget.json` + `.mdx`); `installDashboardWidget()`; local catalog listings with license/price badges. Server-side license gates for premium dashboard endpoints (`dashboard-license.ts` → `403 LICENSE_REQUIRED`, 14-day key-less trial) alongside client-side upgrade prompts — one Free / Freemium / Paid model shared with widgets, plugins, and the site starter. 22/22 core dashboard packages validated by `scripts/check-dashboard-widget-packages.mjs` (manual: `bun run lint:widgets`), including freemium **Commerce Orders** and **Commerce Inventory** (14-day trial).
+- **Dashboard first-paint lean-up (August 2026)**: `/dashboard` no longer eager-evals all 22 widget Svelte modules for picker metadata (`widget.json` via `getInstalledDashboardWidgets()` + `manifestsToPickerList()`); saved layout hydrates in `+page.server.ts` so the client skips `/api/system-preferences` on first paint; widgets are **optional** — Svelte chunks load only when added or visible (no first-6 prefetch); plugin-gated packages (`requiresPlugin`, e.g. Commerce Orders / Inventory) stay out of the picker until that plugin is enabled; AI `GenerativeDashboard` / `json-render-svelte` load on demand; `base-widget` pauses polls while `document.hidden` and dropped `_=Date.now()` cache-bust query strings. Helper coverage: `tests/unit/dashboard/dashboard-runtime.test.ts`.
+- **Access management lean-up + fail-closed RBAC writes (August 2026)**: `/config/access-management` stays admin-only; `POST /api/user/update-roles` is denied to `user:write` editors at the dispatcher **and** handler; website-token mutations require admin; unused `access.remote.ts` `query("unchecked")` token RPCs removed; tabs (permissions/roles/admin/tokens) load on demand; role/permission SSR payloads are field-allowlisted; token user picker drops password/2FA fields. Coverage: `tests/unit/api/user.test.ts`, `tests/unit/api/dispatcher-security-matrix.test.ts`, `tests/unit/routes/access-management-page-server.test.ts`, `tests/unit/config/website-tokens-api.test.ts`.
+- **Media gallery → image editor lean-up (August 2026)**: `/mediagallery` grid/table previews use `mediaDisplayUrl()` (thumbnail/sm/md) instead of the original file; SSR rows are `toGalleryListItem()` allowlists; Sharp/`MediaService` is not imported for gallery `load()`; `ImageEditorModal` / details / table / advanced search / tag editor / drag-preview / folder prompt load via `import()` on use; published-in-use gating is one `getPublishedReferencedIds()` pass (coalesced index rebuild) instead of N parallel `isReferencedByPublishedContent()` scans. Coverage: `tests/unit/media/media-utils.test.ts`, `tests/unit/media/media-reference-index.test.ts`, `tests/unit/media/gallery-list-item.test.ts`.
 - **Plugin Admin Pages (`page` part, August 2026)**: plugins contribute full admin pages under `/plugin/<path>` (catch-all route + isomorphic registry + server `load` + RBAC 403 gate) with declarative sidebar nav, plus the `<AdminZone>` renderer that activates the previously dormant `adminTool` and `AdminAreaExtension` registries (sidebar/header/footer/toolbar/dashboard/config/content zones).
+- **Zero-Allocation Driver & GraphQL Fast-Path Acceleration (August 2026)**: Static ESM binding for hot API domain handlers (`collections`, `content`, `auth`, `system`, `tokens`, `media`, `dashboard`) eliminating dynamic-import resolution on 95%+ of traffic; bounded FIFO route resource state machine (1024 entries); zero-allocation SQLite/relational query parameter coercion (direct array reuse when values need no conversion); pre-compiled fast-JSON envelope serializers; and expanded single-collection GraphQL fast-path supporting filters and sorts directly via `LocalCMS` (bypassing Yoga GraphQL AST generation). Verified with reproducible benchmarks: direct adapter reads at 0.013ms (48.4k RPS), LocalCMS SDK calls at 0.017ms (54.9k RPS), cached counts at 0.003ms (145.8k RPS), and GraphQL collection throughput of 759 RPS.
+- **Middleware Pipeline Streamlining & Tag-Based Invalidation (August 2026)**: Pruned mutation-only hooks (`handleRateLimit`, `handleAuditLogging`) from `API_READ` (GET) and `token-resolution` from `API_WRITE`; merged `handleLocalSdk` + `handleContentInitialization` into atomic `handleLocalContext`; unified AEO headers directly into `applyAllSecurityHeaders` eliminating standalone middleware; tag-based cache invalidation across all 4 database adapters (`res:graphql`, `res:col:*`) resolving GQL-after-write caching; and `$state.raw` frontend table runes. Verified via `tests/benchmarks/hooks-performance.test.ts`: REST with API Caching latency reduced to 1.27ms (604 RPS, +11.2% throughput), mutation latency reduced to 2.10ms (-14.3%), and p95 auth pipeline down to 4.34ms.
 - **LiteRT.js AI Client (July 2026)**: Client-side browser ML inference via LiteRT.js in an isolated Web Worker — WebGPU primary, XNNPACK fallback, transparent Ollama fallback. First use case: alt-text generation (`ai.generateAltText()`) for direct WCAG/ATAG compliance. CSP-safe — admin page security headers never modified. SvelteKit remote function API (`import { ai } from \"@services/ai-client\"`). Dedicated `/ai/worker` endpoint with isolated WASM-allowing CSP. 13 files, 3K+ lines, 100% TypeScript, 4 unit tests.
 
 - **Unified Data Hub v2.4.0 (REST write-back)**: All 5 connector types (Postgres, MariaDB, SQLite, MongoDB, REST) support read+write. REST writes are opt-in (`writesEnabled`), SSRF-safe, with Idempotency-Key dedup and circuit breaker. GraphQL mutations (`createVirtualEntry`, `updateVirtualEntry`, `deleteVirtualEntry`) for headless clients. Full API parity across LocalCMS, HTTP, GraphQL, and WebMCP agents. 96 unit tests.

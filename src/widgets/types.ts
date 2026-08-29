@@ -10,7 +10,7 @@
  */
 
 import type { User } from "@src/databases/auth/types";
-import type { GuiFieldConfig } from "@utils/utils";
+import type { GuiFieldConfig } from "@utils/schema/field-utils";
 import type { SvelteComponent } from "svelte";
 import type { FieldInstance, Schema } from "../content/types";
 import type { SchemaHooks } from "../content/schema-hooks";
@@ -134,6 +134,8 @@ export interface WidgetDefinition<
   Name: string;
   /** Semver version of the widget package (e.g. '1.0.0'). Required for marketplace verification. */
   version?: string;
+  /** CMS version range this widget supports (e.g. '>=0.0.8'). */
+  sveltycms?: string;
   /** Widget package author. */
   author?: string;
 
@@ -180,6 +182,8 @@ export interface WidgetFactory<TProps extends Record<string, unknown> = Record<s
   Name: string;
   /** Semver version of the widget package (e.g. '1.0.0'). */
   version?: string;
+  /** CMS version range this widget supports (e.g. '>=0.0.8'). */
+  sveltycms?: string;
   /** Widget package author. */
   author?: string;
 

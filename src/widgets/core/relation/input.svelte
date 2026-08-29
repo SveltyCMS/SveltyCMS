@@ -33,6 +33,7 @@ import { logger } from "@utils/logger";
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import type { FieldType } from './';
+	import { fetchRelatedEntries } from './fetch-related';
 
 	let {
 		field,
@@ -53,16 +54,9 @@ import { logger } from "@utils/logger";
 	async function fetchEntryData(ids: string[]): Promise<Record<string, any>[]> {
 		if (!field.collection) return [];
 		try {
-			// Optimized bulk fetch if the API supports it, or individual fetches
-			const results = await Promise.all(
-				ids.map(async (id) => {
-					const res = await fetch(`/api/collections/${field.collection}/${id}`);
-					if (!res.ok) return null;
-					const result = await res.json();
-					return result.data || result;
-				})
-			);
-			return results.filter(Boolean) as Record<string, any>[];
+			// CollectionPicker config has no typed schema output — the runtime value
+			// is the target collection name (string).
+			return await fetchRelatedEntries(String(field.collection), ids);
 		} catch (e) {
 			logger.error('[RelationInput] Failed to fetch entries:', e);
 			return [];

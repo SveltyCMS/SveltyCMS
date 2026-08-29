@@ -10,7 +10,8 @@ Features:
 
 <script lang="ts">
 import type { MediaBase, MediaImage } from "@utils/media/media-models";
-import { formatBytes } from "@utils/utils";
+import { mediaDisplayUrl } from "@utils/media/media-utils";
+import { formatBytes } from "@utils/file";
 import { onMount } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
 	import Button from '@components/ui/button.svelte';
@@ -146,7 +147,7 @@ onMount(() => {
 					<!-- Main Preview -->
 					<div class="relative flex-1 bg-surface-500/10 dark:bg-surface-800 overflow-hidden">
 						{#if file.type === 'image'}
-							<img src={file.url} alt="" class="h-full w-full object-cover" loading="lazy" crossorigin="anonymous" />
+							<img src={mediaDisplayUrl(file, "thumbnail")} alt="" class="h-full w-full object-cover" loading="lazy" decoding="async" crossorigin="anonymous" />
 						{:else}
 							<div class="h-full w-full flex items-center justify-center opacity-30">
 								<iconify-icon icon="mdi:file-document-outline" width={48}></iconify-icon>

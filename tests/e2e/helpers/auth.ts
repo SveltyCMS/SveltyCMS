@@ -685,6 +685,11 @@ export async function logout(page: Page) {
       return;
     }
 
+    // GDPR consent banner is a fixed z-9999 overlay in the bottom-left — the
+    // same corner as the sign-out button — and swallows the click before it
+    // reaches the sidebar (login.spec logout flake). Dismiss it first.
+    await dismissCookieConsent(page);
+
     // Look for logout button or menu - try multiple selectors
     const logoutSelectors = [
       '[data-testid="sign-out-button"]',
@@ -701,27 +706,38 @@ export async function logout(page: Page) {
       const button = page.locator(selector).first();
       if (await button.isVisible({ timeout: 1000 }).catch(() => false)) {
         console.log(`[Auth] Logging out using selector: ${selector}`);
-        await button.click();
+        await button.click({ force: true }).catch(() => {});
         await page.waitForURL(/\/(login|signup)/, { timeout: 5000 }).catch(() => {});
-        return;
+        if (page.url().includes("/login") || page.url().includes("/signup")) {
+          return;
+        }
       }
     }
 
-    console.log("[Auth] No logout button found, clearing cookies and localStorage");
-    // If no logout button found, clear session manually
+    console.log(
+      "[Auth] Logout button not found or did not redirect, clearing cookies and navigating to /login",
+    );
+    // If no logout button found or redirect timed out, clear session manually
     await page.context().clearCookies();
-    await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
+    await page
+      .evaluate(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      })
+      .catch(() => {});
 
     // Navigate to login to confirm logout
     await page.goto("/login", {
-      timeout: 10_000,
+      timeout: 15_000,
       waitUntil: "domcontentloaded",
     });
   } catch (error) {
-    console.log("[Auth] Error during logout, continuing anyway:", error);
+    console.log("[Auth] Error during logout, falling back to direct /login navigation:", error);
+    await page
+      .context()
+      .clearCookies()
+      .catch(() => {});
+    await page.goto("/login", { timeout: 15_000, waitUntil: "domcontentloaded" }).catch(() => {});
   }
 }
 

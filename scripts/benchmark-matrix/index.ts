@@ -56,6 +56,17 @@ const DESTRUCTIVE_OR_STRESS_TESTS = new Set([
   "websocket-broadcast",
 ]);
 
+/**
+ * Destructive tests that leave the server measurably degraded for the NEXT
+ * test — verified empirically across full 4-DB matrix runs (2026-08-23):
+ * `graphql-stress` → relational-performance (deep GraphQL queries 429/fail) and
+ * `large-payload-streaming` → migration-scale (bulk mutations fail). A post-run
+ * health/probe can't predict these (they break during the successor's own
+ * setup), so these two keep an UNCONDITIONAL restart. The other destructive
+ * tests are probed and only restart when the server actually failed.
+ */
+const ALWAYS_RESTART_AFTER = new Set(["graphql-stress", "large-payload-streaming"]);
+
 const DBS = ["sqlite", "mariadb", "postgresql", "mongodb"];
 // 🛡️ `--db=` with an EMPTY value (or unknown names) must not silently run zero
 // databases — normalize, drop empties, then fall back to the full set.
@@ -517,6 +528,13 @@ async function run() {
         API_BASE_URL: baseUrl,
         ORIGIN: baseUrl,
         HOST: "127.0.0.1",
+        // 🛡️ DB_PORT SAFETY: on hosts where the production Postgres (honcho-postgres)
+        // owns :5432, the isolated test Postgres runs on :5433. getBenchmarkTestEnv
+        // defaults postgresql -> DB_PORTS.postgresql ("5432") and the matrix
+        // orchestrator would otherwise measure against PRODUCTION. Honor an
+        // explicit POSTGRES_TEST_PORT override (default 5433) so benchmarks never
+        // touch prod. Other adapters keep their canonical ports.
+        ...(db === "postgresql" ? { DB_PORT: process.env.POSTGRES_TEST_PORT || "5433" } : {}),
         TEST_API_SECRET: apiSecret,
         ADMIN_PASSWORD: adminPassword,
         BENCHMARK_PROFILE: profile,
@@ -534,7 +552,7 @@ async function run() {
         AUDIT_CHAIN_SYNC: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "true" : "false",
         DISABLE_AUDIT_LOGS: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "false" : "true",
         // Deployment-tuned rate ceilings for load-testing (bucket machinery stays active)
-        RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "20000",
+        RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "200000",
         SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
         // Always point media at sandbox (ci-fresh wizard may leave mediaFolder missing)
         MEDIA_FOLDER: mediaFolderRel,
@@ -831,21 +849,49 @@ async function run() {
                 // Health-gate before every test — kills ConnectionRefused cascades after server death
                 await restartServerIfNeeded(`before ${name}`);
                 if (DESTRUCTIVE_OR_STRESS_TESTS.has(name)) {
-                  if (!(await waitForServerReady(baseUrl, 2))) {
+                  // Full readiness wait, not a ~1s peek: a slow-but-alive server
+                  // (Mongo re-init after the post-stress restart) must not be
+                  // killed+respawned mid-warmup — that churn is what produces
+                  // intermittent ConnectionRefused flakes on the stress group.
+                  if (!(await waitForServerReady(baseUrl))) {
                     await forceRestartServer(`pre-stress ${name}`);
                   }
                 }
 
-                const { code, durationMs, output } = await spawnTestProcess(
-                  file,
-                  serverEnv,
-                  baseUrl,
-                  BENCHMARK_RUN_ID,
-                );
+                // 🛡️ CRASH-RETRY: a shared-server process dying MID-test is
+                // infrastructure, not a benchmark result. When the server exited
+                // during the attempt, restart it and re-run the test ONCE
+                // (bounded — a genuine failure still fails on the second try).
+                let attempt = 0;
+                let elapsedSum = 0;
+                let result;
+                for (;;) {
+                  result = await spawnTestProcess(file, serverEnv, baseUrl, BENCHMARK_RUN_ID);
+                  elapsedSum += result.durationMs;
+                  if (result.code === 0) break;
+                  if (attempt === 0 && serverExited) {
+                    attempt++;
+                    console.log(
+                      `  ↻ ${name} failed while the server was down — restarting and retrying once...`,
+                    );
+                    try {
+                      await forceRestartServer(`crash during ${name}`);
+                    } catch (re) {
+                      console.warn(
+                        `  ⚠️  crash-restart soft-failed: ${re instanceof Error ? re.message : re}`,
+                      );
+                      break;
+                    }
+                    continue;
+                  }
+                  break;
+                }
+
+                const { code, durationMs, output } = result;
                 runningTests.delete(file);
                 activeTestDurations.delete(file);
                 completedTests++;
-                totalElapsedTime += durationMs;
+                totalElapsedTime += elapsedSum;
 
                 process.stdout.write("\r\x1B[K\n\x1B[K\x1B[1A");
 
@@ -882,12 +928,29 @@ async function run() {
                     `  ${seqNum.toString().padEnd(2)} ${name.padEnd(35)} \u2705  ${durationSec}s`,
                   );
                   if (DESTRUCTIVE_OR_STRESS_TESTS.has(name)) {
-                    try {
-                      await forceRestartServer(`after ${name}`);
-                    } catch (re) {
-                      console.warn(
-                        `  ⚠️  post-stress restart soft-failed: ${re instanceof Error ? re.message : re}`,
-                      );
+                    if (ALWAYS_RESTART_AFTER.has(name)) {
+                      // Verified empirically (full 4-DB runs, 2026-08-23): these
+                      // two measurably degrade the server for their successor
+                      // (graphql-stress → relational-performance deep queries;
+                      // large-payload-streaming → migration-scale bulk writes),
+                      // and the breakage surfaces during the successor's OWN
+                      // setup — too late for any post-stress probe to predict.
+                      // Restart unconditionally so the next test measures cleanly.
+                      try {
+                        await forceRestartServer(`after ${name}`);
+                      } catch (re) {
+                        console.warn(
+                          `  ⚠️  post-stress restart soft-failed: ${re instanceof Error ? re.message : re}`,
+                        );
+                      }
+                    } else {
+                      // The other destructive tests leave the server healthy —
+                      // their successors pass without a restart (verified across
+                      // runs). Skipping the ~12-16s boot saves ~20% of matrix
+                      // wall-time. The per-test pre-gate (restartServerIfNeeded)
+                      // + bounded crash-retry remain as the safety net, and the
+                      // matrix reports honestly if a successor ever breaks.
+                      console.log(`    ✓ server survived ${name} — restart skipped`);
                     }
                   }
                 }

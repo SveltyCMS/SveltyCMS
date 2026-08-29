@@ -20,7 +20,8 @@ import { parseSessionDuration } from "@utils/security/auth-utils";
 import type { Session } from "@src/databases/auth/types";
 import { rawResponse } from "./base";
 import type { DatabaseId } from "@src/content/types";
-import { checkDashboardEndpointLicense } from "./dashboard-license";
+import { checkExtensionLicense } from "@src/utils/license-manager";
+import { raise } from "@utils/error-handling";
 import {
   commerceRows,
   emptyInventorySnapshot,
@@ -28,6 +29,41 @@ import {
   summarizeInventory,
   summarizeOrders,
 } from "@src/services/commerce/dashboard-snapshot";
+
+export const DASHBOARD_ENDPOINT_LICENSE: Readonly<Record<string, string>> = {
+  audit: "audit-log",
+  logs: "logs",
+  security: "security",
+  scim: "scim-status",
+  "cache-metrics": "cache-monitor",
+  "online-user": "user-online",
+  metrics: "unified-metrics",
+  "commerce-orders": "commerce-orders",
+  "commerce-inventory": "commerce-inventory",
+};
+
+export function getDashboardEndpointLicense(method: string): string | undefined {
+  return DASHBOARD_ENDPOINT_LICENSE[method.toLowerCase()];
+}
+
+export async function requireDashboardWidgetLicense(widgetId: string): Promise<void> {
+  const status = await checkExtensionLicense("dashboard", widgetId);
+  if (!status.active && !status.hasLicense) {
+    logger.warn(`[Dashboard] License gate blocked widget "${widgetId}" (no active license/trial)`);
+    raise(
+      403,
+      `The "${widgetId}" dashboard widget requires an active license or trial`,
+      "LICENSE_REQUIRED",
+    );
+  }
+}
+
+export async function checkDashboardEndpointLicense(method: string): Promise<void> {
+  const widgetId = getDashboardEndpointLicense(method);
+  if (widgetId) {
+    await requireDashboardWidgetLicense(widgetId);
+  }
+}
 
 interface DashboardQuery {
   method: string;
@@ -205,10 +241,15 @@ export async function handleDashboardRoutes(
         return rawResponse(event, analyticsData);
       }
 
-      case "health":
-        const healthUrl = new URL("/health", event.url.origin);
-        const healthRes = await event.fetch(healthUrl.toString());
-        return rawResponse(event, await healthRes.json());
+      case "health": {
+        const isUp = await cms.db.isConnected();
+        return rawResponse(event, {
+          status: isUp ? "healthy" : "degraded",
+          database: isUp ? "connected" : "disconnected",
+          uptime: process.uptime(),
+          timestamp: Date.now(),
+        });
+      }
 
       case "metrics":
       case "unified": {

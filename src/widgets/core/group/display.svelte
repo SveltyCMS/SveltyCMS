@@ -25,7 +25,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import { getFieldName } from '@src/utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import type { FieldType, GroupWidgetData } from './';
 
 	interface Props {

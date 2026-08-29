@@ -722,6 +722,8 @@ export interface IAuthAdapter {
       tenantId?: DatabaseId | null;
       /** Captured at login for device grouping in account Security tab */
       userAgent?: string;
+      /** Stable per-device id (client-generated, localStorage) — precise device grouping */
+      deviceId?: string;
       ipAddress?: string;
     },
     options?: BaseQueryOptions,
@@ -1409,6 +1411,7 @@ export interface IBatchAdapter {
   bulkUpdate<T extends BaseEntity>(
     collection: string,
     updates: Array<{ id: DatabaseId; data: Partial<T> }>,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ modifiedCount: number }>>;
   bulkDelete(
     collection: string,
@@ -1448,7 +1451,13 @@ export interface ISqlAdapter extends BaseAdapter {
   getTable(collection: string): any;
   getColumn(table: any, name: string, forcePhysical?: boolean): any;
   getPhysicalSelection(table: any): any;
-  prepareValues(table: any, data: any, id: DatabaseId | undefined, now: Date, options: any): any;
+  prepareValues(
+    table: any,
+    data: any,
+    id: DatabaseId | undefined,
+    now: Date | string,
+    options: any,
+  ): any;
   mapQuery(table: any, query: any, options?: any): any;
   applyOrderBy(builder: any, table: any, options: any): any;
   isSystemTable(collection: string): boolean;
@@ -1458,6 +1467,14 @@ export interface ISqlAdapter extends BaseAdapter {
     conflictTarget: any[],
     options?: BaseQueryOptions,
   ): Promise<void>;
+  rawBulkUpdate(
+    table: any,
+    collection: string,
+    updates: Array<{ id: DatabaseId; data: Partial<Record<string, unknown>> }>,
+    now: Date,
+    options: BaseQueryOptions,
+  ): Promise<{ modifiedCount: number } | null>;
+  withWriteLock<T>(fn: () => T | Promise<T>): Promise<T>;
   transaction<T>(
     fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
     options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean },

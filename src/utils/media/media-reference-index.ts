@@ -65,6 +65,21 @@ export class MediaReferenceIndex {
   }
 
   /**
+   * One pass over a gallery page of ids — O(n) map lookups after rebuild,
+   * instead of N `getPublishedReferences()` calls that can stampede rebuild.
+   */
+  collectPublishedIds(
+    mediaIds: Iterable<string>,
+    checkStatus: (entryId: string) => boolean,
+  ): string[] {
+    const out: string[] = [];
+    for (const id of mediaIds) {
+      if (id && this.hasPublishedReferences(id, checkStatus)) out.push(id);
+    }
+    return out;
+  }
+
+  /**
    * Rebuild the entire index from a full scan of all collection entries.
    * Call this on first access or after a cache invalidation.
    */

@@ -1,21 +1,178 @@
 /**
- * @file src/services/jobs/import-jobs.ts
- * @description Background job handler for large-scale data imports.
+ * @file src/services/background/jobs/import-jobs.ts
+ * @description Background job handler and shared bulk importer for collection documents.
+ *
+ * Features:
+ * - findByIds + insertMany / upsertMany (no per-document findOne)
+ * - replace mode: one deleteMany then insertMany
+ * - skip mode: one findByIds then insertMany of missing rows
+ * - overwrite mode: insertMany (no _id) + upsertMany (has _id)
  */
 
 import { dbAdapter, getDb } from "@src/databases/db";
 import { logger } from "@utils/logger";
 import type { JobHandler } from "./job-queue-service";
 import { getTempPayload, deleteTempPayload } from "@utils/temp-store";
-import type { Job, DatabaseId } from "@src/databases/db-interface";
+import type { DatabaseId, IDBAdapter, Job } from "@src/databases/db-interface";
+
+export type BulkImportMode = "merge" | "replace";
+export type BulkImportDuplicateStrategy = "skip" | "overwrite";
+
+export interface BulkImportParams {
+  collectionName: string;
+  data: Record<string, unknown>[];
+  mode?: BulkImportMode;
+  duplicateStrategy?: BulkImportDuplicateStrategy;
+  tenantId?: string;
+}
+
+export interface BulkImportResult {
+  imported: number;
+  skipped: number;
+  errors: number;
+  total: number;
+}
+
+const IMPORT_CHUNK_SIZE = 100;
+
+/**
+ * Import documents with one engine call per chunk (findByIds / insertMany / upsertMany).
+ * Shared by the sync LocalCMS importer and the background `import-data` job.
+ */
+export async function bulkImportCollectionDocuments(
+  adapter: IDBAdapter,
+  params: BulkImportParams,
+  onProgress?: (state: BulkImportResult & { progress: number }) => Promise<void> | void,
+): Promise<BulkImportResult> {
+  const { collectionName, data, mode = "merge", duplicateStrategy = "skip", tenantId } = params;
+  const tenantOpts = { tenantId: tenantId as DatabaseId };
+  const total = data.length;
+  const result: BulkImportResult = { imported: 0, skipped: 0, errors: 0, total };
+
+  if (total === 0) return result;
+
+  if (mode === "replace") {
+    const deleteResult = await adapter.crud.deleteMany(collectionName, {}, tenantOpts);
+    if (!deleteResult.success) {
+      logger.warn(`[Import] Failed to clear collection ${collectionName} for replace mode`);
+    }
+  }
+
+  for (let i = 0; i < total; i += IMPORT_CHUNK_SIZE) {
+    const chunk = data.slice(i, i + IMPORT_CHUNK_SIZE);
+    try {
+      await importChunk(
+        adapter,
+        collectionName,
+        chunk,
+        mode,
+        duplicateStrategy,
+        tenantOpts,
+        result,
+      );
+    } catch (innerError: unknown) {
+      result.errors += chunk.length;
+      logger.error(`[Import] Unexpected error during bulk import`, {
+        error: innerError instanceof Error ? innerError.message : String(innerError),
+        tenantId,
+      });
+    }
+    if (onProgress) {
+      await onProgress({
+        ...result,
+        progress: Math.round(((i + chunk.length) / total) * 100),
+      });
+    }
+  }
+
+  return result;
+}
+
+async function importChunk(
+  adapter: IDBAdapter,
+  collectionName: string,
+  chunk: Record<string, unknown>[],
+  mode: BulkImportMode,
+  duplicateStrategy: BulkImportDuplicateStrategy,
+  tenantOpts: { tenantId: DatabaseId },
+  result: BulkImportResult,
+): Promise<void> {
+  const existingIds = new Set<string>();
+  const docsWithIds = chunk.filter((doc) => typeof doc._id === "string" && doc._id.length > 0);
+
+  if (mode !== "replace" && duplicateStrategy === "skip" && docsWithIds.length > 0) {
+    const existing = await adapter.crud.findByIds(
+      collectionName,
+      docsWithIds.map((doc) => doc._id as DatabaseId),
+      { ...tenantOpts, fields: ["_id"] },
+    );
+    if (existing.success && existing.data) {
+      for (const item of existing.data) {
+        if (item._id) {
+          existingIds.add(String(item._id));
+          result.skipped++;
+        }
+      }
+    }
+  }
+
+  const itemsToInsert: Record<string, unknown>[] = [];
+  const itemsToUpsert: Array<{ query: { _id: DatabaseId }; data: Record<string, unknown> }> = [];
+
+  for (const doc of chunk) {
+    const id = typeof doc._id === "string" ? doc._id : undefined;
+    if (id && existingIds.has(id)) continue;
+
+    if (mode === "replace" || !id || duplicateStrategy === "skip") {
+      // Replace already deleted the table; skip already filtered existing ids.
+      itemsToInsert.push(doc);
+    } else {
+      itemsToUpsert.push({ query: { _id: id as DatabaseId }, data: doc });
+    }
+  }
+
+  const writeOpts = { ...tenantOpts, skipReturning: true };
+
+  if (itemsToInsert.length > 0) {
+    const insertResult = await adapter.crud.insertMany(
+      collectionName,
+      itemsToInsert as never,
+      writeOpts,
+    );
+    if (insertResult.success) result.imported += itemsToInsert.length;
+    else {
+      result.errors += itemsToInsert.length;
+      logger.warn(`[Import] Failed to bulk insert in ${collectionName}`, {
+        error: insertResult.error,
+        tenantId: tenantOpts.tenantId,
+      });
+    }
+  }
+
+  if (itemsToUpsert.length > 0) {
+    const upsertResult = await adapter.crud.upsertMany(
+      collectionName,
+      itemsToUpsert as never,
+      writeOpts,
+    );
+    if (upsertResult.success) result.imported += itemsToUpsert.length;
+    else {
+      result.errors += itemsToUpsert.length;
+      logger.warn(`[Import] Failed to bulk upsert in ${collectionName}`, {
+        error: upsertResult.error,
+        tenantId: tenantOpts.tenantId,
+      });
+    }
+  }
+}
 
 export const importDataHandler: JobHandler = async (
   payload: {
     collectionName: string;
-    data?: any[];
+    data?: Record<string, unknown>[];
     tempPayloadId?: string;
-    mode: "merge" | "replace";
-    duplicateStrategy: "skip" | "overwrite";
+    mode: BulkImportMode;
+    duplicateStrategy: BulkImportDuplicateStrategy;
     tenantId?: string;
   },
   job: Job,
@@ -24,7 +181,6 @@ export const importDataHandler: JobHandler = async (
 
   const db = getDb();
 
-  // If data is missing but tempPayloadId is present, retrieve it
   if (!data && tempPayloadId) {
     logger.debug(`[ImportJob] Retrieving large payload from temp store: ${tempPayloadId}`);
     data = await getTempPayload(tempPayloadId);
@@ -46,130 +202,39 @@ export const importDataHandler: JobHandler = async (
     },
   );
 
-  let imported = 0;
-  let skipped = 0;
-  let errors = 0;
-
   try {
-    // Handle replace mode
-    if (mode === "replace") {
-      const deleteResult = await dbAdapter.crud.deleteMany(
-        collectionName,
-        {},
-        { tenantId: tenantId as DatabaseId },
-      );
-      if (!deleteResult.success) {
-        logger.warn(`[ImportJob] Failed to clear collection ${collectionName} for replace mode`);
-      }
-    }
-
-    // Process in chunks to avoid memory pressure and allow progress tracking
-    const chunkSize = 100;
-    const total = data.length;
-
-    for (let i = 0; i < total; i += chunkSize) {
-      const chunk = data.slice(i, i + chunkSize);
-
-      // High-Performance Bulk Processing Path
-      const itemsToUpsert: any[] = [];
-      const itemsToInsert: any[] = [];
-
-      try {
-        // Optimize duplicate checking: fetch all existing IDs in one query
-        const docsWithIds = chunk.filter((doc) => doc._id);
-        const existingIds = new Set<string>();
-
-        if (duplicateStrategy === "skip" && docsWithIds.length > 0) {
-          const ids = docsWithIds.map((doc) => doc._id);
-          const existing = await dbAdapter.crud.findByIds(collectionName, ids, {
-            tenantId: tenantId as DatabaseId,
-            fields: ["_id"] as any,
-          });
-          if (existing.success && existing.data) {
-            for (const item of existing.data) {
-              if (item._id) {
-                existingIds.add(item._id as string);
-                skipped++;
-              }
-            }
-          }
-        }
-
-        // Segregate chunk into inserts vs upserts
-        for (const doc of chunk) {
-          if (doc._id && existingIds.has(doc._id)) continue;
-
-          if (doc._id) {
-            itemsToUpsert.push({ query: { _id: doc._id }, data: doc });
-          } else {
-            itemsToInsert.push(doc);
-          }
-        }
-
-        // Execute bulk insertMany
-        if (itemsToInsert.length > 0) {
-          const insertResult = await dbAdapter.crud.insertMany(collectionName, itemsToInsert, {
-            tenantId: tenantId as DatabaseId,
-          });
-          if (insertResult.success) {
-            imported += itemsToInsert.length;
-          } else {
-            errors += itemsToInsert.length;
-            logger.warn(`[ImportJob] Failed to bulk insert in ${collectionName}`, {
-              error: insertResult.error,
-              tenantId,
-            });
-          }
-        }
-
-        // Execute bulk upsertMany
-        if (itemsToUpsert.length > 0) {
-          const upsertResult = await dbAdapter.crud.upsertMany(collectionName, itemsToUpsert, {
-            tenantId: tenantId as DatabaseId,
-          });
-          if (upsertResult.success) {
-            imported += itemsToUpsert.length;
-          } else {
-            errors += itemsToUpsert.length;
-            logger.warn(`[ImportJob] Failed to bulk upsert in ${collectionName}`, {
-              error: upsertResult.error,
-              tenantId,
-            });
-          }
-        }
-      } catch (innerError: unknown) {
-        errors += chunk.length;
-        logger.error(`[ImportJob] Unexpected error during bulk import`, {
-          error: innerError instanceof Error ? innerError.message : String(innerError),
-          tenantId,
-        });
-      }
-
-      // Update progress in DB
-      if (db?.system?.jobs) {
-        const progress = Math.round(((i + chunk.length) / total) * 100);
+    const tally = await bulkImportCollectionDocuments(
+      dbAdapter,
+      { collectionName, data, mode, duplicateStrategy, tenantId },
+      async (state) => {
+        if (!db?.system?.jobs) return;
         await db.system.jobs.update(job._id, {
-          progress,
-          metadata: { imported, skipped, errors, total },
+          progress: state.progress,
+          metadata: {
+            imported: state.imported,
+            skipped: state.skipped,
+            errors: state.errors,
+            total: state.total,
+          },
         });
-      }
-    }
+      },
+    );
 
-    // Clean up temp store if used
     if (tempPayloadId) {
       await deleteTempPayload(tempPayloadId);
     }
 
     logger.info(
-      `[ImportJob] Completed: ${imported} imported, ${skipped} skipped, ${errors} errors`,
+      `[ImportJob] Completed: ${tally.imported} imported, ${tally.skipped} skipped, ${tally.errors} errors`,
       {
         jobId: job._id,
         collection: collectionName,
         tenantId,
       },
     );
-  } catch (error: any) {
-    logger.error(`[ImportJob] Critical failure during import: ${error.message}`, {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error(`[ImportJob] Critical failure during import: ${message}`, {
       jobId: job._id,
       collection: collectionName,
       tenantId,

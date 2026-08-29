@@ -292,6 +292,9 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       { name: "user_id", type: varchar(36), notNull: true },
       { name: "expires", type: tsCol(), notNull: true },
       { name: "tenantId", type: varchar(36) },
+      { name: "userAgent", type: varchar(500) },
+      { name: "deviceId", type: varchar(64) },
+      { name: "ipAddress", type: varchar(64) },
       ...timestamps(),
     ],
     indexes: [

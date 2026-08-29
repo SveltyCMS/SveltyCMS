@@ -123,11 +123,17 @@ test.describe.serial("User Profile Management", () => {
 
     // Trigger upload — the Edit Avatar button is an absolutely-positioned overlay
     // that Playwright's viewport check rejects even with force:true, so dispatch
-    // a native DOM click instead.
+    // a native DOM click. SSR renders the pencil button before Svelte attaches
+    // its onclick, so a single dispatch can be a silent no-op — drive the modal
+    // open with an outcome-based retry instead.
     const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
-    await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
+    const avatarModal = page.locator(".modal-avatar").first();
+    await expect(async () => {
+      await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
+      await expect(avatarModal).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 15_000 });
 
-    // Handle file input safely — wait for modal to render
+    // Handle file input safely — the modal is confirmed open above
     const fileInput = page.locator('input[type="file"]');
     await expect(fileInput).toBeAttached({ timeout: 5000 });
     await fileInput.setInputFiles(AVATAR_PATH);
@@ -160,10 +166,17 @@ test.describe.serial("User Profile Management", () => {
     // (page.data.user.avatar !== '/Default_User.svg'). Edit Avatar (which runs
     // before this test in serial mode) uploads one — so absence here is a REAL
     // regression, not a reason to soft-skip (control-map row; soft-skips banned).
+    // Same hydration-race guard as Edit Avatar: the fresh page load renders the
+    // pencil button before hydration attaches the onclick, so retry the native
+    // click until the avatar modal actually opens.
     const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
-    await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
+    const avatarModal = page.locator(".modal-avatar").first();
+    await expect(async () => {
+      await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
+      await expect(avatarModal).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 15_000 });
 
-    const deleteBtn = page.getByRole("button", { name: "Delete Avatar" });
+    const deleteBtn = avatarModal.getByRole("button", { name: "Delete Avatar" });
     await expect(deleteBtn).toBeVisible({ timeout: 10_000 });
     await deleteBtn.click();
 

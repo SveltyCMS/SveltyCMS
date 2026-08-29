@@ -13,10 +13,10 @@ import { enablePlugin } from "./api";
 const WXR_FIXTURE = "tests/e2e/fixtures/sample-wordpress.wxr";
 
 /**
- * The plugin workspace dialog that hosts the migration wizard. Smart Importer
- * wraps several wizard actions in <StickyActions>, which mirrors them into the
- * layout's "Page actions" sticky bar. Scope interactions to the dialog so
- * role-based lookups don't match both copies.
+ * The plugin workspace dialog that hosts the migration wizard. Wizard step
+ * actions render in place inside the dialog — they are not mirrored into the
+ * layout's "Page actions" sticky bar, which lives outside the overlay. Scope
+ * interactions to the dialog so role-based lookups stay unambiguous.
  */
 export function workspace(page: Page) {
   return page.getByRole("dialog", { name: "Plugin workspace" });

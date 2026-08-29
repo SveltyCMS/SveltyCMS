@@ -7,13 +7,15 @@
  * - Bulk insert
  * - Bulk update
  * - Bulk delete
- * - Bulk upsert
+ * - Bulk upsert (coalesced upsertMany — one ON CONFLICT / bulkWrite)
  */
 
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, type SQL } from "drizzle-orm";
+import { assertTenantContext } from "@src/utils/security/safe-query";
 import type {
   BaseEntity,
+  BaseQueryOptions,
   BatchOperation,
   BatchResult,
   DatabaseError,
@@ -94,6 +96,28 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
               }
             } else if (!bulkRes.success) {
               errors.push((bulkRes as any).error!);
+            }
+            continue;
+          }
+          if (operation === "upsert" && ops.length > 1) {
+            const items = ops.map((op) => ({
+              query: op.query as import("../db-interface").QueryFilter<T & BaseEntity>,
+              data: op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
+            }));
+            const bulkRes = await this.crud.upsertMany(collection, items);
+            if (bulkRes.success && Array.isArray(bulkRes.data)) {
+              for (const item of bulkRes.data) {
+                results.push({ success: true, data: item } as DatabaseResult<T>);
+                totalProcessed++;
+              }
+            } else if (bulkRes.success && bulkRes.data && !Array.isArray(bulkRes.data)) {
+              // Mongo returns counts; treat the group as processed.
+              for (const op of ops) {
+                results.push({ success: true, data: op.data as T } as DatabaseResult<T>);
+                totalProcessed++;
+              }
+            } else if (!bulkRes.success) {
+              errors.push((bulkRes as { error?: DatabaseError }).error!);
             }
             continue;
           }
@@ -198,49 +222,110 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
   async bulkUpdate<T extends BaseEntity>(
     collection: string,
     updates: Array<{ id: DatabaseId; data: Partial<T> }>,
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ modifiedCount: number }>> {
-    return this.core.wrap(async () => {
-      const table = this.core.getTable(collection);
-      if (!updates.length) return { modifiedCount: 0 };
+    return this.core.wrap(
+      async () => {
+        const table = this.core.getTable(collection);
+        if (!updates.length) return { modifiedCount: 0 };
 
-      const now = isoDateStringToDate(nowISODateString());
+        const now = isoDateStringToDate(nowISODateString());
 
-      // Homogeneous payload → one UPDATE ... WHERE _id IN (...) instead of N statements.
-      if (updates.length === 1 || utils.sameBatchPayload(updates)) {
-        const ids = updates.map((u) => u.id as string);
-        const query = this.db
-          .update(table as any)
-          .set(
-            utils.convertISOToDates({
-              ...updates[0].data,
-              updatedAt: now,
-            }) as unknown as Record<string, unknown>,
-          )
-          .where(inArray((table as any)._id, ids));
-        const result = await executeWrite(query);
-        return {
-          modifiedCount: result?.changes ?? result?.rowsAffected ?? result?.count ?? -1,
-        };
-      }
+        // 🛡️ TENANT ISOLATION: fail-closed MULTI_TENANT guard + tenant WHERE on
+        // every path below (same semantics as crud.update's applyTenantFilter).
+        // Without it a bulk payload could touch rows outside the caller's
+        // tenant by id. The raw CASE fast path uses buildRawTenantClause which
+        // is silent on missing context — this guard makes both paths uniform.
+        assertTenantContext(options, "batch.bulkUpdate");
 
-      let modifiedCount = 0;
-      await this.db.transaction(async (tx: any) => {
-        for (const update of updates) {
-          const stmt = tx
+        // Homogeneous payload → one UPDATE ... WHERE _id IN (...) instead of N statements.
+        if (updates.length === 1 || utils.sameBatchPayload(updates)) {
+          const ids = updates.map((u) => u.id as string);
+          const conditions: SQL[] = [inArray((table as any)._id, ids)];
+          utils.applyTenantFilter(conditions, (table as any).tenantId, options);
+          // 🐛 PREPARE-PARITY FIX: route through prepareValues (like
+          // crud.update) instead of dumping the raw payload into Drizzle
+          // .set(). Drizzle silently DROPS keys that are not physical columns
+          // (blob-field payloads like `title`/`count` vanished — success:true
+          // but nothing persisted, the Zahl-Feld class). prepareValues moves
+          // non-column fields into the JSON `data` blob and preserves number
+          // types; updatedAt/tenantId stamps come from the same helper.
+          const values = this.core.prepareValues(
+            table,
+            updates[0].data as Record<string, unknown>,
+            undefined,
+            now,
+            (options as { isUpdate?: boolean })?.isUpdate === true
+              ? options
+              : { ...options, isUpdate: true, operation: "update" },
+          );
+          const query = this.db
             .update(table as any)
-            .set(
-              utils.convertISOToDates({
-                ...update.data,
-                updatedAt: now,
-              }) as unknown as Record<string, unknown>,
-            )
-            .where(eq((table as any)._id, update.id as string));
-          const result = (typeof stmt.run === "function" ? await stmt.run() : await stmt) as any;
-          modifiedCount += result?.changes ?? result?.rowsAffected ?? result?.count ?? 0;
+            .set(values as Record<string, unknown>)
+            .where(and(...conditions));
+          const result = await executeWrite(query);
+          return {
+            modifiedCount: result?.changes ?? result?.rowsAffected ?? result?.count ?? -1,
+          };
         }
-      });
-      return { modifiedCount };
-    }, "BULK_UPDATE_FAILED");
+
+        // 🚀 HETEROGENEOUS CASE FAST PATH: one
+        // UPDATE … SET "col" = CASE "_id" WHEN ? THEN ? … ELSE "col" END
+        // statement (statement-cache friendly) instead of N per-row UPDATEs.
+        // SQLite implements it today; other adapters fall back to the
+        // transactional per-row loop below (parity-preserving).
+        const rawBulk = await this.core.rawBulkUpdate?.(
+          table,
+          collection,
+          updates as Array<{ id: DatabaseId; data: Partial<Record<string, unknown>> }>,
+          now,
+          options,
+        );
+        if (rawBulk !== null && rawBulk !== undefined) return rawBulk;
+
+        let modifiedCount = 0;
+        const tenantCond = utils.getTenantCondition((table as any).tenantId, options);
+        // 🔒 TRANSACTION SPAN: the per-row loop is one BEGIN…COMMIT — run it
+        // under the adapter's write lock (SQLite write mutex; no-op elsewhere)
+        // so no other writer interleaves mid-transaction.
+        await this.core.withWriteLock(() =>
+          this.db.transaction(async (tx: any) => {
+            for (const update of updates) {
+              const stmt = tx
+                .update(table as any)
+                // 🐛 PREPARE-PARITY (fallback path): route through prepareValues
+                // like the homogeneous fast path — blob fields land in `data`,
+                // number types stay numbers (the Zahl-Feld class), updatedAt
+                // is stamped by the same helper.
+                .set(
+                  this.core.prepareValues(
+                    table,
+                    update.data as Record<string, unknown>,
+                    undefined,
+                    now,
+                    (options as { isUpdate?: boolean })?.isUpdate === true
+                      ? options
+                      : { ...options, isUpdate: true, operation: "update" },
+                  ) as Record<string, unknown>,
+                )
+                .where(
+                  tenantCond
+                    ? and(eq((table as any)._id, update.id as string), tenantCond)
+                    : eq((table as any)._id, update.id as string),
+                );
+              const result = (
+                typeof stmt.run === "function" ? await stmt.run() : await stmt
+              ) as any;
+              modifiedCount += result?.changes ?? result?.rowsAffected ?? result?.count ?? 0;
+            }
+          }),
+        );
+        return { modifiedCount };
+      },
+      "BULK_UPDATE_FAILED",
+      undefined,
+      { ...options, isWrite: true },
+    );
   }
 
   async bulkDelete(

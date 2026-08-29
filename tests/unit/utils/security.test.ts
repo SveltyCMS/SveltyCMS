@@ -1,163 +1,20 @@
 /**
- * @file tests/bun/utils/crypto.test.ts
- * @description Tests for cryptographic utility functions
+ * @file tests/unit/utils/security.test.ts
+ * @description Tests for cryptographic utility functions.
  *
  * Tests:
  * - Password hashing (Argon2id)
- * - Random token generation
  * - Checksum generation
- * - AES-256-GCM encryption/decryption
- * - Key derivation (Argon2)
- * - Security properties (timing attack resistance)
+ * - Security properties
+ *
+ * Note: the legacy password-based encryptData/decryptData/deriveKey helpers
+ * were removed (dead code — see src/utils/security/crypto.ts); static-key
+ * encryption is covered by static-aes-key/settings-crypto/totp-encryption tests.
  */
 
-import {
-  createChecksum,
-  hashPassword,
-  verifyPassword,
-  encryptData,
-  decryptData,
-  deriveKey,
-  ENCRYPTION_CONFIG as encryptionConfig,
-} from "@src/utils/security";
+import { createChecksum, hashPassword, verifyPassword } from "@src/utils/security";
 import { timingSafeStringEqual } from "@src/utils/native-utils";
 import { describe, it, expect } from "vitest";
-
-// Argon2 hashing is CPU-intensive and can be slow in CI environments.
-// We use a longer timeout for this file.
-describe("Crypto Utils - AES-256-GCM Encryption", { timeout: 60000 }, () => {
-  const testPassword = "TestPassword123!";
-  const testData = {
-    username: "admin",
-    email: "admin@example.com",
-    secret: "my-secret-key",
-  };
-
-  it("should encrypt data successfully", async () => {
-    const encrypted = await encryptData(testData, testPassword);
-
-    expect(typeof encrypted).toBe("string");
-    expect(encrypted.length).toBeGreaterThan(0);
-    // Encrypted data should be base64 encoded
-    expect(() => Buffer.from(encrypted, "base64")).not.toThrow();
-  });
-
-  it("should decrypt data successfully with correct password", async () => {
-    const encrypted = await encryptData(testData, testPassword);
-    const decrypted = await decryptData(encrypted, testPassword);
-
-    expect(decrypted).toEqual(testData);
-  });
-
-  it("should produce different ciphertext for same data (unique salt/IV)", async () => {
-    const encrypted1 = await encryptData(testData, testPassword);
-    const encrypted2 = await encryptData(testData, testPassword);
-
-    // Each encryption should use unique salt and IV
-    expect(encrypted1).not.toBe(encrypted2);
-  });
-
-  it("should fail to decrypt with wrong password", async () => {
-    const encrypted = await encryptData(testData, testPassword);
-    const wrongPassword = "WrongPassword123!";
-
-    await expect(decryptData(encrypted, wrongPassword)).rejects.toThrow();
-  });
-
-  it("should fail to decrypt tampered data", async () => {
-    const encrypted = await encryptData(testData, testPassword);
-    // Tamper with the encrypted data
-    const tampered = encrypted.slice(0, -2) + "XX";
-
-    await expect(decryptData(tampered, testPassword)).rejects.toThrow();
-  });
-
-  it("should encrypt and decrypt nested objects", async () => {
-    const nestedData = {
-      user: {
-        profile: {
-          name: "John",
-          settings: { theme: "dark" },
-        },
-      },
-    };
-
-    const encrypted = await encryptData(nestedData, testPassword);
-    const decrypted = await decryptData(encrypted, testPassword);
-
-    expect(decrypted).toEqual(nestedData);
-  });
-
-  it("should handle empty objects", async () => {
-    const emptyData = {};
-
-    const encrypted = await encryptData(emptyData, testPassword);
-    const decrypted = await decryptData(encrypted, testPassword);
-
-    expect(decrypted).toEqual(emptyData);
-  });
-
-  it("should handle special characters in data", async () => {
-    const specialData = { text: "!@#$%^&*()_+-=[]{}|;:,.<>?/~`" };
-
-    const encrypted = await encryptData(specialData, testPassword);
-    const decrypted = await decryptData(encrypted, testPassword);
-
-    expect(decrypted).toEqual(specialData);
-  });
-
-  it("should handle unicode in data", async () => {
-    const unicodeData = { name: "José García", emoji: "🎉", chinese: "你好" };
-
-    const encrypted = await encryptData(unicodeData, testPassword);
-    const decrypted = await decryptData(encrypted, testPassword);
-
-    expect(decrypted).toEqual(unicodeData);
-  });
-
-  it("should use correct encryption algorithm", async () => {
-    expect(encryptionConfig.algorithm).toBe("aes-256-gcm");
-    expect(encryptionConfig.keyLength).toBe(32); // 256 bits
-  });
-});
-
-describe("Crypto Utils - Key Derivation", () => {
-  const testPassword = "DeriveKey123!";
-
-  it("should derive key from password", async () => {
-    const salt = Buffer.alloc(16, "test-salt-");
-    const key = await deriveKey(testPassword, salt);
-
-    expect(key).toBeInstanceOf(Buffer);
-    expect(key.length).toBe(32); // 256 bits for AES-256
-  });
-
-  it("should produce different keys for different passwords", async () => {
-    const salt = Buffer.alloc(16, "test-salt-");
-    const key1 = await deriveKey(testPassword, salt);
-    const key2 = await deriveKey("DifferentPassword123!", salt);
-
-    expect(key1.toString("hex")).not.toBe(key2.toString("hex"));
-  });
-
-  it("should produce same key for same password and salt", async () => {
-    const salt = Buffer.alloc(16, "test-salt-");
-    const key1 = await deriveKey(testPassword, salt);
-    const key2 = await deriveKey(testPassword, salt);
-
-    expect(key1.toString("hex")).toBe(key2.toString("hex"));
-  });
-
-  it("should produce different keys with different salts", async () => {
-    const salt1 = Buffer.alloc(16, "salt-one----");
-    const salt2 = Buffer.alloc(16, "salt-two----");
-    const key1 = await deriveKey(testPassword, salt1);
-    const key2 = await deriveKey(testPassword, salt2);
-
-    // Keys should be different due to different salts
-    expect(key1.toString("hex")).not.toBe(key2.toString("hex"));
-  });
-});
 
 describe("Crypto Utils - Password Hashing", () => {
   it("should hash a password", async () => {

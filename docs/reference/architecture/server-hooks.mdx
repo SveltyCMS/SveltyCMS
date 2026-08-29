@@ -77,43 +77,40 @@ Request → classifyRequest (O(1))
 
 ## 🏗️ Middleware Pipeline (2026 Optimized)
 
-The pipeline is **dynamically dispatched** based on system state, with **two cached sequences** (after lane classification):
+The pipeline is **dynamically dispatched** based on system state and request lane, using **pre-compiled, cached sequences**:
 
-- **READY pipeline** (18 hooks): Full production middleware chain
-- **SETUP pipeline** (3 hooks): Minimal bootstrap chain during installation
+- **API Lanes Pipeline** (`API_READ`, `API_WRITE`, `HYPER_TURBO` - 14 hooks): Bypasses page-only SSR hooks (`redirects`, `aeo-headers`, `user-preferences`) while strictly preserving full security, rate limiting, authentication, authorization, and CSRF protection.
+- **READY / APP_SSR Pipeline** (17 hooks): Full production middleware chain for admin and SSR page rendering.
+- **SETUP Pipeline** (2 hooks): Minimal bootstrap chain during initial setup.
 
 ```typescript
-// READY Pipeline (production order) — after classifyRequest + HEALTH/STATIC fast-paths:
-const pipeline = [
-  handleTurboPipeline, //  1. CONSOLIDATED GATEWAY
-  handleTestIsolation, //  2. CI ISOLATION (TEST_MODE only)
-  handleSecurity, //  3. Firewall, GraphQL Shield
-  handleRateLimit, //  4. Per-IP Fixed-Window Rate Limiting (adaptive pressure; `/api/commerce` lane)
-  handleSystemState, //  5. AUTHORITATIVE GATEKEEPER
-  handleTurboGet, //  6. 🚀 TURBO GET (session cache + responseCache L1)
-  handleRedirects, //  7. SEO Redirects (tenant header post-auth only)
-  handleCompression, //  8. ESM-Native Streaming
-  handleAeoHeaders, //  9. Automatic Early Opinions
-  handleUserPreferences, // 10. i18n + SSR Theme
-  handleAuthentication, // 11. Identity, Sessions
-  handleAuthorization, // 12. Role-Based Access Control
-  handleLocalSdk, // 13. Zero-Latency CMS Bridge
-  handleContentInitialization, // 14. Content Manager per Tenant
-  handleAuditLogging, // 15. Fire-and-Forget Audit Trails (microtask)
-  handleApiRequests, // 16. API Caching (ETags, 2-Layer Cache)
-  handleTokenResolution, // 17. RBAC Token Replacement
+// API Lanes Pipeline (API_READ / API_WRITE / HYPER_TURBO):
+const apiPipeline = [
+  handleTurboPipeline, //  1. CONSOLIDATED GATEWAY & Security Headers
+  handleSecurity, //  2. Firewall, GraphQL Shield, WAF Load Shedding
+  handleRateLimit, //  3. Per-IP Fixed-Window Rate Limiting (mutations only)
+  handleSystemState, //  4. AUTHORITATIVE GATEKEEPER
+  handleTurboGet, //  5. 🚀 TURBO GET (Session Cache + responseCache L1 for GETs)
+  handleCompression, //  6. ESM-Native Streaming (Zstd/Brotli/Gzip)
+  handleAuthentication, //  7. Identity, Session Token Validation (__Host-auth_sessions)
+  handleAuthorization, //  8. Role-Based Access Control (Bitset & Roles)
+  handleLocalContext, //  9. Zero-Latency CMS Bridge (LocalCMS) & Content System per Tenant
+  handleAuditLogging, // 10. Fire-and-Forget Audit Trails (mutations only)
+  handleApiRequests, // 11. API Caching (ETags, L1 Sync Cache)
+  handleTokenResolution, // 12. RBAC Token Replacement (reads only)
 ];
 ```
 
 > **August 2026 Pipeline Hardening & Zero-Overhead Dispatch**:
 >
-> - **Zero-Overhead Dispatch**: `wrapHandle` passes raw resolved handlers directly to SvelteKit `sequence()`, eliminating 15+ nested async timing closures per request unless `ENABLE_HOOK_TIMING=1` is explicitly provided.
-> - **Rate Limit Fast-Exit**: `handleRateLimit` checks `GET`/`HEAD`/`OPTIONS` on line 1, skipping IP parsing for >90% of traffic.
-> - **HTML-Only Middleware Bypass**: `handleAeoHeaders` and `handleUserPreferences` immediately return on `/api/` endpoints.
+> - **API Lane Fast-Path**: API endpoints automatically bypass SSR-only hooks (`handleRedirects`, `handleAeoHeaders`, `handleUserPreferences`), saving 3 middleware invocations per API request.
+> - **Read vs. Write Execution Parity**:
+>   - **Read Operations (`findById`, `find`, `list`)**: Safe HTTP methods (`GET`, `HEAD`, `OPTIONS`) completely bypass CSRF checks (0µs overhead), leverage synchronous L1 cache hits, and execute direct prepared statements.
+>   - **Write Operations (`create`, `update`, `bulk`)**: Single CSRF verification via double-submit `X-CSRF-Token` header + `__Host-csrf_token` cookie, single schema LRU resolve, single-pass unified validation (`prepareWritePayload`), and detached non-blocking post-write hooks (`schedulePostWrite`).
+>   - **Zero Redundant Checks**: No duplicate permission queries, no multiple CSRF evaluations, and no duplicate schema fetches between the gateway and DB adapters.
+> - **Zero-Overhead Dispatch**: `wrapHandle` passes raw resolved handlers directly to SvelteKit `sequence()`, eliminating nested timing closures unless `ENABLE_HOOK_TIMING=1` is set.
 > - **Fast Guest Resolution**: `handleAuthentication` detects credential-free safe reads and resolves guest locals in 0 microseconds without cookie scanning.
-> - **Asynchronous Audit Outbox**: `handleAuditLogging` enqueues mutation entries into a bounded in-memory ring buffer flushed via microtasks, decoupling 200/201 response flushes from audit disk/Merkle writes.
-
-> **2026-08-11**: `handleHyperTurbo` (benchmark auth forge) was **removed**. Benchmarks run `NODE_ENV=production` with real session cookies — `BENCHMARK` grants no request-path bypass. READY pipeline runs **17 hooks**.
+> - **Asynchronous Audit Outbox**: `handleAuditLogging` enqueues mutation entries into an in-memory ring buffer flushed via microtasks, decoupling response flushes from audit disk writes.
 
 > **2026-07 Security Hardening**: Turbo-auth restricted to GET/HEAD/OPTIONS (mutations pass through CSRF). `x-tenant-id` header only trusted when user is authenticated. Turbo-auth cache invalidated on role change, block, delete, and unblock. Auth methods use `safeCall` pattern (return `DatabaseResult` instead of throwing). `invalidateTurboAuthForUser()` exported for programmatic session revocation.
 
@@ -550,7 +547,7 @@ Rate limiting is handled at two levels for defense-in-depth:
 
 1. **Global** (in `handle-security.ts`): `securityResponseService.analyzeRequest()` applies IP/IPUA/cookie rate limits to all requests via the centralized security pipeline. `/api/commerce/*` maps to a dedicated WAF limiter (60/min).
 2. **Hook lane** (`handle-rate-limit.ts`): Per-IP + per-tenant fixed window. Guest `/api/commerce` mutations use an isolated **commerce** lane (tighter cap, `X-RateLimit-Lane`) so cart floods cannot exhaust admin APIs.
-3. **Per-endpoint** (e.g., auth actions in `login/+page.server.ts`): Critical endpoints apply additional `RateLimiter` instances from `sveltekit-rate-limiter` for targeted protection.
+3. **Per-endpoint** (e.g., auth actions in `login/+page.server.ts`): Critical endpoints apply additional `RateLimiter` instances from `@src/hooks/handle-rate-limit` for targeted protection.
 
 ```
 export const handleSecurity: Handle = async ({ event, resolve }) => {
@@ -827,32 +824,19 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ---
 
-### handleLocalSdk - Zero-Latency CMS Bridge (Pipeline #15)
+### handleLocalContext - Zero-Latency CMS Bridge & Content Initialization (Pipeline #15)
 
-**File**: `src/hooks/handle-local-sdk.ts`
-**Service**: `@src/services/local-cms`
-**Purpose**: Injects the `LocalCMS` SDK into the request context for server-side operations.
+**File**: `src/hooks/handle-local-context.ts`
+**Service**: `@src/services/local-cms`, `@src/content/index.server`
+**Purpose**: Injects the `LocalCMS` SDK into `locals.cms` and ensures tenant content system initialization in a single unified atomic middleware step.
 
 **Key Features**:
 
-- **Service-Based**: Decoupled from the routing layer to prevent circular dependencies and bundling issues.
+- **Service-Based**: Decoupled from the routing layer to prevent circular dependencies.
 - **Zero-Latency**: Direct database adapter access without HTTP overhead.
 - **Context Injection**: populates `event.locals.cms` for use in all downstream load functions and actions.
 - **Tenant-Aware**: Automatically initializes with the current `tenantId` resolved in earlier middleware.
-
-```
-export const handleLocalSdk: Handle = async ({ event, resolve }) => {
-  const { locals } = event;
-  const adapter = locals.dbAdapter;
-
-  if (adapter) {
-    // Injected from @src/services/local-cms
-    locals.cms = new LocalCMS(adapter);
-  }
-
-  return resolve(event);
-};
-```
+- **Consolidated Hop**: Replaces two separate legacy handles (`handleLocalSdk` + `handleContentInitialization`) with a single async execution, eliminating unnecessary microtask allocations.
 
 ---
 

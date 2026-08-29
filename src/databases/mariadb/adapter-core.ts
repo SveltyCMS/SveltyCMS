@@ -14,6 +14,7 @@
  */
 
 import { logger } from "@src/utils/logger";
+import { getHardwareProfile } from "@utils/hardware-profile";
 import { SqlAdapterCore } from "../core/sql-adapter-core";
 import type {
   BaseEntity,
@@ -37,6 +38,7 @@ import * as utils from "../core/relational-utils";
 import { registerTableSchema } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
+import { extractPkConflictId } from "../core/lookup-query";
 
 export abstract class AdapterCore extends SqlAdapterCore {
   public type = "mariadb";
@@ -80,6 +82,24 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
   /** mysql2's execute/query return [rows, fields] — rows are the first element. */
   protected async executeDynamicSql(db: any, sqlQuery: SQL): Promise<any[]> {
+    try {
+      const rendered = (
+        sqlQuery as { toQuery?: (opts: unknown) => { sql: string; params: unknown[] } }
+      ).toQuery?.({
+        escapeName: (n: string) => `\`${n.replace(/`/g, "``")}\``,
+        escapeParam: () => "?",
+      });
+      if (rendered?.sql && Array.isArray(rendered.params)) {
+        const rawExec = this.getRawExec({});
+        const rows = await rawExec(rendered.sql, rendered.params);
+        if (Array.isArray(rows) && rows.length >= 1 && Array.isArray(rows[0])) {
+          return rows[0];
+        }
+        return Array.isArray(rows) ? rows : [];
+      }
+    } catch {
+      /* fall through */
+    }
     const execResult = await db.execute(sqlQuery);
     if (Array.isArray(execResult) && execResult.length >= 1 && Array.isArray(execResult[0])) {
       return execResult[0];
@@ -286,7 +306,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
       if (typeof finalConnection === "string") {
         poolConfig = {
           uri: finalConnection,
-          connectionLimit: Number(process.env.DATABASE_MAX_CONNECTIONS) || 20,
+          connectionLimit:
+            Number(process.env.DATABASE_MAX_CONNECTIONS) || getHardwareProfile().dbPoolSize,
           connectTimeout: 30000,
           maxIdle: 10,
           idleTimeout: 60000,
@@ -300,7 +321,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
           user: c.user || c.DB_USER || "root",
           password: c.password || c.DB_PASSWORD || "",
           database: c.database || c.DB_NAME,
-          connectionLimit: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS || 20),
+          connectionLimit:
+            Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) ||
+            getHardwareProfile().dbPoolSize,
           connectTimeout: 30000,
           waitForConnections: true,
           maxIdle: 10,
@@ -619,7 +642,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const idColName = idCol.name || "_id";
 
       // Only when the conflict filter is a pure _id lookup (common sync/import path)
-      const lookupId = this.extractIdFromQuery(query);
+      const lookupId = extractPkConflictId(query);
       if (!lookupId) return super.upsert(collection, query, data, options);
 
       const tableName = getTableName(table);
@@ -681,20 +704,6 @@ export abstract class AdapterCore extends SqlAdapterCore {
       );
       return super.upsert(collection, query, data, options);
     }
-  }
-
-  /** Extract a plain _id value from a query filter, or null if not a pure _id lookup. */
-  private extractIdFromQuery(query: QueryFilter<any>): string | null {
-    if (!query || typeof query !== "object") return null;
-    const keys = Object.keys(query);
-    if (keys.length > 2) return null;
-    const idVal = (query as any)._id ?? (query as any).id;
-    if (idVal === undefined || idVal === null) return null;
-    if (typeof idVal === "object" && !(idVal instanceof Date) && !Array.isArray(idVal)) return null;
-    const remaining = keys.filter((k) => k !== "_id" && k !== "id");
-    if (remaining.length === 0) return String(idVal);
-    if (remaining.length === 1 && remaining[0] === "tenantId") return String(idVal);
-    return null;
   }
 
   /**
@@ -794,6 +803,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
         },
       };
     }
+    const invalid = this.validateEntryId(collection, (data as any)?._id);
+    if (invalid) return invalid;
     // Inside an outer transaction WITHOUT a raw handle (a Drizzle tx from
     // another caller) the raw pool path would bypass the txn connection and
     // commit immediately — defer to the base Drizzle path. With the
@@ -890,7 +901,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       },
       "INSERT_FAILED",
       undefined,
-      { ...options, isWrite: true },
+      { ...options, isWrite: true, skipMeta: true },
     );
   }
 
@@ -1064,10 +1075,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
           this.hooks.length > 0
             ? await this.runHooks("after", "update", collection, converted, options)
             : converted;
-        return this.wrap(async () => finalData, "UPDATE_FAILED", undefined, {
-          ...options,
-          isWrite: true,
-        });
+        this.metrics.queryCount++;
+        return this.okEnvelope(finalData, true);
       }
 
       if (Array.isArray(rows) && rows.length > 0) {
@@ -1080,11 +1089,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
           this.hooks.length > 0
             ? await this.runHooks("after", "update", collection, converted, options)
             : converted;
-        // Match base wrap semantics (pooled envelope + write metrics)
-        return this.wrap(async () => finalData, "UPDATE_FAILED", undefined, {
-          ...options,
-          isWrite: true,
-        });
+        this.metrics.queryCount++;
+        return this.okEnvelope(finalData, true);
       }
     } catch (err: any) {
       this._returningSupported = false;
@@ -1093,6 +1099,171 @@ export abstract class AdapterCore extends SqlAdapterCore {
       );
     }
     return super.update(collection, id, data, options);
+  }
+
+  /**
+   * Raw heterogeneous bulk UPDATE for MariaDB — one prepared statement
+   * instead of N per-row UPDATEs (BatchModule.bulkUpdate's transactional
+   * fallback loop, which also errored on blob-field payloads: Drizzle
+   * mysql2 .set() rejects keys that live in the JSON `data` column).
+   *
+   * Builds `SET \`col\` = CASE \`_id\` WHEN ? THEN ? … ELSE \`col\` END` for
+   * varying columns (rows omitting a column fall through to ELSE), plain
+   * `\`constCol\` = ?` for columns every row sets to the same value
+   * (updatedAt, tenantId), and `WHERE \`_id\` IN (?, …)` + tenant clause.
+   *
+   * Values come from prepareUpdateValues (same semantics as crud.update);
+   * binding mirrors rawInsertReturning (objects→JSON text, Date objects
+   * bound natively by mysql2). Chunks run inside a pool transaction so a
+   * batch is all-or-nothing; returns null on any failure (nothing committed).
+   */
+  public override async rawBulkUpdate(
+    table: any,
+    _collection: string,
+    updates: Array<{ id: DatabaseId; data: Partial<Record<string, unknown>> }>,
+    now: Date,
+    options: BaseQueryOptions,
+  ): Promise<{ modifiedCount: number } | null> {
+    try {
+      if (!this.pool) return null;
+      const txnConn = this.getTxnConn(options);
+      if (options?.transaction && !txnConn) return null;
+      if (updates.length < 2) return null;
+      const tableName = getTableName(table);
+      const safeTableName = utils.assertSafeSqlIdentifier(tableName, "table");
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) return null;
+      const idColName = idCol?.name || "_id";
+
+      // 🛡️ TENANT ISOLATION: fail-closed guard (BatchModule asserts too; keep
+      // defense-in-depth for direct calls) + tenant WHERE like rawFindById.
+      if (this.getColumn(table, "tenantId")) {
+        utils.applyTenantFilter([], this.getColumn(table, "tenantId"), options);
+      }
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(options, "mysql");
+
+      const prepared = updates.map((u) =>
+        this.prepareUpdateValues(table, u.data, u.id as string, now, options),
+      );
+
+      const setCols: string[] = [];
+      const seen = new Set<string>();
+      for (const values of prepared) {
+        for (const k in values) {
+          if (!Object.hasOwn(values, k)) continue;
+          if (k === idColName || k === "id") continue;
+          if (!seen.has(k)) {
+            seen.add(k);
+            setCols.push(k);
+          }
+        }
+      }
+      if (setCols.length === 0) return null;
+
+      // MariaDB max placeholders (65535) — same conservative chunking as the
+      // other adapters; CASE columns cost 2 params/row + 1 id in WHERE IN.
+      const maxParams = 65_000;
+      const maxRowsPerChunk = Math.max(1, Math.floor(maxParams / (setCols.length * 2 + 1)));
+
+      const bind = (v: unknown) =>
+        v !== null && typeof v === "object" && !(v instanceof Date) ? JSON.stringify(v) : v;
+      const sameValue = (a: unknown, b: unknown): boolean => {
+        if (a === b) return true;
+        if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+        if (a && b && typeof a === "object" && typeof b === "object") {
+          return JSON.stringify(a) === JSON.stringify(b);
+        }
+        return false;
+      };
+
+      let modifiedCount = 0;
+      const runChunks = async (rawExec: (sql: string, params?: any[]) => Promise<any>) => {
+        for (let start = 0; start < prepared.length; start += maxRowsPerChunk) {
+          const chunk = prepared.slice(start, start + maxRowsPerChunk);
+          const chunkIds = updates.slice(start, start + maxRowsPerChunk).map((u) => String(u.id));
+
+          const setPairs: string[] = [];
+          const params: unknown[] = [];
+          for (const col of setCols) {
+            const phys = this.getColumn(table, col);
+            const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+
+            let constant = true;
+            let firstVal: unknown;
+            let firstSet = false;
+            for (const values of chunk) {
+              if (!Object.hasOwn(values, col)) {
+                constant = false;
+                break;
+              }
+              const v = values[col];
+              if (!firstSet) {
+                firstVal = v;
+                firstSet = true;
+              } else if (!sameValue(v, firstVal)) {
+                constant = false;
+                break;
+              }
+            }
+
+            if (constant) {
+              setPairs.push(`\`${safeCol}\` = ?`);
+              params.push(bind(firstVal));
+              continue;
+            }
+
+            const whens: string[] = [];
+            for (let i = 0; i < chunk.length; i++) {
+              const values = chunk[i];
+              if (!Object.hasOwn(values, col)) continue;
+              whens.push("WHEN ? THEN ?");
+              params.push(chunkIds[i], bind(values[col]));
+            }
+            const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+            setPairs.push(
+              `\`${safeCol}\` = CASE \`${safeIdCol}\` ${whens.join(" ")} ELSE \`${safeCol}\` END`,
+            );
+          }
+
+          const idPlaceholders = chunkIds.map(() => "?").join(", ");
+          const rawSql = `UPDATE \`${safeTableName}\` SET ${setPairs.join(", ")} WHERE \`${utils.assertSafeSqlIdentifier(idColName, "column")}\` IN (${idPlaceholders})${tenantSql}`;
+          const res = await rawExec(rawSql, [...params, ...chunkIds, ...tenantParams]);
+          modifiedCount += Number((res as any)?.affectedRows ?? 0);
+        }
+      };
+
+      if (txnConn) {
+        await runChunks(async (sql: string, params: any[] = []) => {
+          const [rows] = await txnConn.execute(sql, params);
+          return rows;
+        });
+      } else {
+        // One pinned connection for the whole batch → atomic (mysql2 promise
+        // Pool has no beginTransaction; transactions live on a connection).
+        const conn = await this.pool.getConnection();
+        try {
+          await conn.beginTransaction();
+          await runChunks(async (sql: string, params: any[] = []) => {
+            const [rows] = await conn.execute(sql, params);
+            return rows;
+          });
+          await conn.commit();
+        } catch (err) {
+          try {
+            await conn.rollback();
+          } catch {
+            /* already aborted */
+          }
+          throw err;
+        } finally {
+          conn.release();
+        }
+      }
+
+      return { modifiedCount };
+    } catch {
+      return null;
+    }
   }
 
   async atomicIncrement(
@@ -1331,6 +1502,11 @@ export abstract class AdapterCore extends SqlAdapterCore {
             const indexName = `${physicalName}_${colName}_idx`;
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS \`${indexName}\` ON \`${physicalName}\` (\`${colName}\`)`,
+            );
+            // 🚀 Covering composite index for filter+sort on dynamic columns:
+            // WHERE tenantId=? AND status=? ORDER BY colName, _id
+            await this.raw.execute(
+              `CREATE INDEX IF NOT EXISTS \`${physicalName}_tenant_status_${colName}_id\` ON \`${physicalName}\` (\`tenantId\`, \`status\`, \`${colName}\`, \`_id\`)`,
             );
           } catch {
             /* safe */

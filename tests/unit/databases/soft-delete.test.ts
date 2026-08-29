@@ -56,6 +56,7 @@ vi.mock("@src/databases/mongodb/mongodb-utils", () => ({
     originalCode: (error as any)?.code,
   })),
   generateId: vi.fn(() => "new-id"),
+  validateId: vi.fn(() => true),
   processDates: vi.fn((doc) => doc),
 }));
 
@@ -247,10 +248,12 @@ describe("Soft Delete Engine", () => {
   describe("Update createdAt immutability", () => {
     it("strips createdAt from $set on update (insert path still owns it)", async () => {
       mockModel.findOneAndUpdate.mockReturnValue({
-        exec: vi.fn().mockResolvedValue({ _id: "1", title: "n" }),
+        exec: vi
+          .fn()
+          .mockResolvedValue({ _id: "10000000-0000-4000-8000-000000000001", title: "n" }),
       });
 
-      await crud.update("1", {
+      await crud.update("10000000-0000-4000-8000-000000000001", {
         title: "n",
         createdAt: "2020-01-01T00:00:00.000Z",
       });

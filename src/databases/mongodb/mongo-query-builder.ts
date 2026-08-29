@@ -62,6 +62,17 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
     this.model = model;
   }
 
+  /** Lean docs are plain objects — stamp ISO dates in place (no per-row spread). */
+  private stampIsoDatesInPlace(doc: T): T {
+    if (!doc || typeof doc !== "object") return doc;
+    const row = doc as unknown as Record<string, unknown>;
+    const created = row.createdAt;
+    if (created instanceof Date) row.createdAt = created.toISOString();
+    const updated = row.updatedAt;
+    if (updated instanceof Date) row.updatedAt = updated.toISOString();
+    return doc;
+  }
+
   where(conditions: Partial<T> | ((item: T) => boolean)): this {
     if (typeof conditions === "function") {
       // For function-based conditions, we need to convert to MongoDB query
@@ -299,9 +310,10 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
     const startTime = Date.now();
     try {
       const query = this.buildQuery();
-      const count = await this.model.countDocuments(query).limit(1);
+      // LIMIT 1 + _id projection — countDocuments still plans a count even with .limit(1).
+      const doc = await this.model.findOne(query, { _id: 1 }).lean().exec();
       const meta = this.buildQueryMeta(startTime);
-      return { success: true, data: count > 0, meta };
+      return { success: true, data: !!doc, meta };
     } catch (error) {
       const dbError = this.createDatabaseError(
         error,
@@ -341,14 +353,27 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
       }
 
       // Apply sorting (prioritize multi-sort over single sort)
+      // 🚀 STABILITY TIE-BREAKER: Append _id asc to ensure deterministic ordering
+      // for paginated queries — mirrors the sql-query-builder.ts fix for all SQL adapters.
       if (this.multiSortOptions.length > 0) {
         const sortObj: Record<string, 1 | -1> = {};
         this.multiSortOptions.forEach(({ field, direction }) => {
           sortObj[field as string] = direction === "asc" ? 1 : -1;
         });
+        if (this.limitValue !== undefined || this.skipValue !== undefined) {
+          sortObj["_id"] = sortObj["_id"] ?? 1;
+        }
         mongoQuery = mongoQuery.sort(sortObj);
       } else if (Object.keys(this.sortOptions).length > 0) {
-        mongoQuery = mongoQuery.sort(this.sortOptions);
+        const sortCopy = { ...this.sortOptions };
+        if (this.limitValue !== undefined || this.skipValue !== undefined) {
+          (sortCopy as Record<string, 1 | -1>)["_id"] =
+            (sortCopy as Record<string, 1 | -1>)["_id"] ?? 1;
+        }
+        mongoQuery = mongoQuery.sort(sortCopy);
+      } else if (this.limitValue !== undefined || this.skipValue !== undefined) {
+        // No explicit sort but paginated — add deterministic _id tie-breaker
+        mongoQuery = mongoQuery.sort({ _id: 1 });
       }
 
       // Apply field projection
@@ -391,22 +416,12 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 
       // Execute the query with lean() for better performance
       const results = await mongoQuery.lean().exec();
-
-      // Simplified ISO date conversion: check for object and toISOString method only.
-      const processedResults = results.map((doc) => ({
-        ...(doc as unknown as Record<string, unknown>),
-        createdAt:
-          (doc as unknown as { createdAt: unknown }).createdAt instanceof Date
-            ? (doc as unknown as { createdAt: Date }).createdAt.toISOString()
-            : (doc as unknown as { createdAt: string }).createdAt,
-        updatedAt:
-          (doc as unknown as { updatedAt: unknown }).updatedAt instanceof Date
-            ? (doc as unknown as { updatedAt: Date }).updatedAt.toISOString()
-            : (doc as unknown as { updatedAt: string }).updatedAt,
-      })) as unknown as T[];
+      for (let i = 0; i < results.length; i++) {
+        this.stampIsoDatesInPlace(results[i] as T);
+      }
 
       const meta = this.buildQueryMeta(startTime);
-      return { success: true, data: processedResults, meta };
+      return { success: true, data: results as T[], meta };
     } catch (error) {
       const dbError = this.createDatabaseError(
         error,
@@ -456,23 +471,12 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 
       // Create async iterable from cursor
       const cursor = mongoQuery.lean().cursor();
+      const stampIso = (doc: T) => this.stampIsoDatesInPlace(doc);
       const asyncIterable = {
         async *[Symbol.asyncIterator]() {
           try {
             for await (const doc of cursor) {
-              // FIX: Robust date processing that handles various formats
-              const processedDoc = {
-                ...(doc as unknown as Record<string, unknown>),
-                createdAt:
-                  (doc as unknown as { createdAt: unknown }).createdAt instanceof Date
-                    ? (doc as unknown as { createdAt: Date }).createdAt.toISOString()
-                    : (doc as unknown as { createdAt: string }).createdAt,
-                updatedAt:
-                  (doc as unknown as { updatedAt: unknown }).updatedAt instanceof Date
-                    ? (doc as unknown as { updatedAt: Date }).updatedAt.toISOString()
-                    : (doc as unknown as { updatedAt: string }).updatedAt,
-              } as unknown as T;
-              yield processedDoc;
+              yield stampIso(doc as T);
             }
           } catch (error) {
             if (error instanceof Error) {
@@ -541,21 +545,8 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
         return { success: true, data: null, meta };
       }
 
-      // FIX: Robust date processing that handles various formats
-      const processedResult = {
-        ...(result as unknown as Record<string, unknown>),
-        createdAt:
-          (result as unknown as { createdAt: unknown }).createdAt instanceof Date
-            ? (result as unknown as { createdAt: Date }).createdAt.toISOString()
-            : (result as unknown as { createdAt: string }).createdAt,
-        updatedAt:
-          (result as unknown as { updatedAt: unknown }).updatedAt instanceof Date
-            ? (result as unknown as { updatedAt: Date }).updatedAt.toISOString()
-            : (result as unknown as { updatedAt: string }).updatedAt,
-      } as unknown as T;
-
       const meta = this.buildQueryMeta(startTime);
-      return { success: true, data: processedResult, meta };
+      return { success: true, data: this.stampIsoDatesInPlace(result as T), meta };
     } catch (error) {
       const dbError = this.createDatabaseError(
         error,

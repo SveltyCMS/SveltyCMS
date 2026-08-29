@@ -30,7 +30,7 @@
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
-	import { getFieldName } from '@src/utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import { logger } from '@utils/logger';
 	// Unified error handling
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';

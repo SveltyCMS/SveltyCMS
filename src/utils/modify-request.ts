@@ -34,6 +34,8 @@ interface ModifyRequestParams {
   action?: string;
   system?: boolean;
   collectionName?: string;
+  /** Caller already sanitized (create/update prepareWritePayload). */
+  skipSanitize?: boolean;
 }
 
 /**
@@ -47,7 +49,7 @@ export async function modifyRequest(params: ModifyRequestParams) {
   if (!data || data.length === 0) return data;
 
   // 🛡️ INPUT SANITIZATION: Fast single-pass sanitization
-  if (type === "POST" || type === "PATCH" || type === "PUT") {
+  if (!params.skipSanitize && (type === "POST" || type === "PATCH" || type === "PUT")) {
     for (let i = 0; i < data.length; i++) {
       if (data[i]) {
         data[i] = sanitizeObject(data[i]);
@@ -60,17 +62,21 @@ export async function modifyRequest(params: ModifyRequestParams) {
     ._activeWidgets;
   if (!activeWidgets) {
     activeWidgets = [];
-    for (const f of fields) {
-      const widgetName = f.widget?.Name;
-      if (!widgetName) continue;
-      const wFn = widgetRegistryService.getWidgetSync(widgetName);
-      if (wFn && (wFn as any).modifyRequest) {
-        activeWidgets.push({ field: f, widget: wFn, name: getFieldName(f) });
+    if (Array.isArray(fields)) {
+      for (let i = 0; i < fields.length; i++) {
+        const f = fields[i];
+        const widgetName = f.widget?.Name;
+        if (!widgetName) continue;
+        const wFn = widgetRegistryService.getWidgetSync(widgetName);
+        if (wFn && (wFn as any).modifyRequest) {
+          activeWidgets.push({ field: f, widget: wFn, name: getFieldName(f) });
+        }
       }
     }
     (fields as any)._activeWidgets = activeWidgets;
   }
 
+  // 🛡️ FAST EXIT: If no widgets have modifyRequest, data is returned directly (0ms)
   if (activeWidgets.length === 0) return data;
 
   // Reused across fields/entries. Widgets finish (including their own awaits)
@@ -106,11 +112,11 @@ export async function modifyRequest(params: ModifyRequestParams) {
 
     for (let w = 0; w < activeWidgets.length; w++) {
       const { field, widget, name } = activeWidgets[w];
+      if (!Object.hasOwn(entry, name)) continue;
+      currentName = name;
+      ctx.field = field;
+      ctx.value = entry[name];
       try {
-        if (!Object.hasOwn(entry, name)) continue;
-        currentName = name;
-        ctx.field = field;
-        ctx.value = entry[name];
         await widget.modifyRequest(ctx);
       } catch (err: any) {
         logger.error(`[modifyRequest] Widget '${widget.Name}' failed for field '${name}':`, {

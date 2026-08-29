@@ -83,6 +83,8 @@ function getManifestPath(tenantId?: string | null): string {
   return resolved;
 }
 
+const manifestOrderCache = new Map<string, { mtime: number; order: Record<string, number> }>();
+
 /** 🛡️ Hardened: Atomic Read with robust error handling for partial files */
 async function readManifest(filePath: string): Promise<ManifestData> {
   try {
@@ -103,14 +105,24 @@ async function writeManifest(filePath: string, data: ManifestData): Promise<void
   const { atomicWriteJson } = await import("./atomic-write");
   assertLiveDataWriteAllowed(filePath);
   await atomicWriteJson(filePath, data);
+  manifestOrderCache.delete(filePath);
 }
 
 export async function getCollectionOrder(
   tenantId?: string | null,
 ): Promise<Record<string, number>> {
   const manifestPath = getManifestPath(tenantId);
-  const manifest = await readManifest(manifestPath);
-  return manifest.collectionOrder ?? {};
+  try {
+    const st = await fs.stat(manifestPath);
+    const hit = manifestOrderCache.get(manifestPath);
+    if (hit && hit.mtime === st.mtimeMs) return hit.order;
+    const manifest = await readManifest(manifestPath);
+    const order = manifest.collectionOrder ?? {};
+    manifestOrderCache.set(manifestPath, { mtime: st.mtimeMs, order });
+    return order;
+  } catch {
+    return {};
+  }
 }
 
 export async function getStructureNodes(

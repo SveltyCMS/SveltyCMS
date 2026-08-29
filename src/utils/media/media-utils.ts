@@ -195,6 +195,36 @@ export function mediaUrl(item: MediaItem, size?: string): string {
   return `/files/${item.url}`;
 }
 
+export type MediaDisplayItem = {
+  url?: string | null;
+  thumbnail?: { url?: string } | null;
+  thumbnails?: Record<string, { url?: string } | undefined>;
+};
+
+const DISPLAY_SIZE_FALLBACK = ["thumbnail", "sm", "md"] as const;
+
+/**
+ * Gallery/list preview URL. Prefers a stored thumbnail over the original so
+ * a 60-tile grid does not decode 60 full-resolution files.
+ */
+export function mediaDisplayUrl(item: MediaDisplayItem, preferredSize?: string): string {
+  const thumbs = item.thumbnails;
+  const candidates: Array<string | undefined> = [
+    preferredSize ? thumbs?.[preferredSize]?.url : undefined,
+    ...DISPLAY_SIZE_FALLBACK.map((key) => thumbs?.[key]?.url),
+    item.thumbnail?.url ?? undefined,
+    item.url ?? undefined,
+  ];
+  const raw = candidates.find((url): url is string => typeof url === "string" && url.length > 0);
+  if (!raw) return "";
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  if (publicEnv.MEDIASERVER_URL) {
+    const cleanUrl = raw.replace(/^\/files\//, "");
+    return `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, "")}/files/${cleanUrl}`;
+  }
+  return raw;
+}
+
 // ─── Validation ────────────────────────────────────────────────────────────
 
 /** Client-side file validation */

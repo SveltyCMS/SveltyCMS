@@ -22,6 +22,7 @@ import type {
   AnomalyResult,
 } from "./types";
 import { safeFetch } from "../../utils/egress-guard";
+import { isCleanRequestSurface, splitRequestUrl } from "./threat-scan";
 
 // ============================================================================
 // CONSTANTS & POLICIES
@@ -94,6 +95,11 @@ function resolveRateLimitScope(cleanEndpoint: string): string {
 const GLOBAL_RATE_LIMIT = 500;
 const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB
 const SCAN_BODY_MAX_SIZE = 32768; // 32KB
+const ALLOW_STATUS: SecurityStatus = Object.freeze({ level: "none", action: "allow" });
+const NO_ANOMALY: AnomalyResult = Object.freeze({
+  detected: false,
+  indicators: Object.freeze([]) as unknown as ThreatIndicator[],
+});
 const RAW_SECURITY_RATE_LIMIT_SCALE = Number(process.env.SECURITY_RATE_LIMIT_SCALE);
 const SECURITY_RATE_LIMIT_SCALE =
   RAW_SECURITY_RATE_LIMIT_SCALE > 0 ? RAW_SECURITY_RATE_LIMIT_SCALE : 1;
@@ -183,36 +189,61 @@ export class SecurityResponseService {
     tenantId?: string,
     payloadSnapshot?: PayloadSnapshot,
   ): Promise<SecurityStatus> {
-    const url = new URL(request.url);
-    const pathname = url.pathname;
+    const { pathname, search } = splitRequestUrl(request.url);
+    const method = request.method;
+    const isReadOnly = method === "GET" || method === "HEAD" || method === "OPTIONS";
 
-    // 1. IP Block check
-    if (await securityStore.isBlocked(clientIp)) {
-      return { level: "critical", action: "block", reason: "IP is blocked" };
+    if (clientIp) {
+      if (securityStore.isBlockedSync(clientIp)) {
+        return { level: "critical", action: "block", reason: "IP is blocked" };
+      }
+      if (securityStore.needsDistributedLookup() && (await securityStore.isBlocked(clientIp))) {
+        return { level: "critical", action: "block", reason: "IP is blocked" };
+      }
     }
 
     const forceSecurity = request.headers.get("x-test-security") === "true";
 
-    // 2. Rate Limit check (Basic protection)
-    // Skip rate limiting for GET/HEAD/OPTIONS requests to non-API paths — these
-    // cannot mutate data and are often burst-heavy (page loads, Vite HMR, assets).
-    const method = request.method.toUpperCase();
-    const isApiPath = pathname.startsWith("/api/");
-    const isReadOnly = method === "GET" || method === "HEAD" || method === "OPTIONS";
-    if (!isApiPath && isReadOnly && !forceSecurity) {
-      // Pass through — read-only asset loads should never be rate-limited
-    } else {
-      const rateLimit = await this.checkRateLimit(clientIp, pathname, tenantId, forceSecurity);
-      if (rateLimit.action !== "allow") return rateLimit;
+    // GET allow-path: skip IP-keyed work when the caller passed no IP, and skip
+    // rate-limit/throttle machinery when the process is test/dev or the path is
+    // a non-API read. Clean collection URLs return here without concat or regex.
+    if (isReadOnly && !forceSecurity) {
+      const ua = request.headers.get("user-agent") || "";
+      if (
+        ua &&
+        isCleanRequestSurface(pathname) &&
+        isCleanRequestSurface(search) &&
+        AuthGuardService.scanUserAgent(ua) === "none"
+      ) {
+        if (clientIp) {
+          const throttle = securityStore.getThrottleSync(clientIp);
+          if (throttle && throttle.until > Date.now()) {
+            return { level: "medium", action: "throttle", reason: "IP is throttled" };
+          }
+        }
+        const isApiPath = pathname.startsWith("/api/");
+        if (!isApiPath || this.shouldSkipRateLimit(false)) {
+          return ALLOW_STATUS;
+        }
+      }
     }
 
-    // 3. Throttling check
-    const throttle = await securityStore.getThrottle(clientIp);
-    if (throttle && throttle.until > Date.now()) {
-      return { level: "medium", action: "throttle", reason: "IP is throttled" };
+    if (!isReadOnly || pathname.startsWith("/api/") || forceSecurity) {
+      if (!this.shouldSkipRateLimit(forceSecurity)) {
+        const rateLimit = await this.checkRateLimit(clientIp, pathname, tenantId, forceSecurity);
+        if (rateLimit.action !== "allow") return rateLimit;
+      }
     }
 
-    // 4. Anomaly detection
+    if (clientIp) {
+      const throttle =
+        securityStore.getThrottleSync(clientIp) ??
+        (securityStore.needsDistributedLookup() ? await securityStore.getThrottle(clientIp) : null);
+      if (throttle && throttle.until > Date.now()) {
+        return { level: "medium", action: "throttle", reason: "IP is throttled" };
+      }
+    }
+
     const anomaly = this.detectAnomalies(request);
     if (anomaly.detected) {
       for (const ind of anomaly.indicators) {
@@ -227,8 +258,11 @@ export class SecurityResponseService {
       }
     }
 
-    // 5. Payload pattern analysis
-    const threatLevel = await this.analyzePayload(request, payloadSnapshot);
+    const threatOrPromise = this.analyzePayload(request, payloadSnapshot, pathname, search);
+    const threatLevel =
+      threatOrPromise !== null && typeof threatOrPromise === "object" && "then" in threatOrPromise
+        ? await threatOrPromise
+        : threatOrPromise;
     if (threatLevel === "critical") {
       await this.blockIp(clientIp, "Critical threat detected in payload");
       return {
@@ -245,87 +279,109 @@ export class SecurityResponseService {
       };
     }
 
-    return { level: "none", action: "allow" };
+    return ALLOW_STATUS;
   }
 
-  private async analyzePayload(
+  private analyzePayload(
     request: Request,
     payloadSnapshot?: PayloadSnapshot,
-  ): Promise<ThreatLevel> {
-    const url = new URL(request.url);
-    let maxThreat: ThreatLevel = "none";
+    pathname?: string,
+    search?: string,
+  ): ThreatLevel | Promise<ThreatLevel> {
+    const parsed =
+      pathname !== undefined ? { pathname, search: search ?? "" } : splitRequestUrl(request.url);
+    const method = request.method;
+    const isMutation =
+      (method === "POST" ||
+        method === "PUT" ||
+        method === "PATCH" ||
+        method === "DELETE" ||
+        method === "post" ||
+        method === "put" ||
+        method === "patch" ||
+        method === "delete") &&
+      Boolean(request.body);
+    const userAgent = request.headers.get("user-agent") || "";
 
-    // 1. Scan URL
+    // 99.9% GET allow-path: one alphabet pass, no concat, no second URL scan
+    if (
+      !isMutation &&
+      isCleanRequestSurface(parsed.pathname) &&
+      isCleanRequestSurface(parsed.search) &&
+      AuthGuardService.scanUserAgent(userAgent) === "none"
+    ) {
+      return "none";
+    }
+
+    let maxThreat: ThreatLevel = "none";
     const urlThreat = this.checkValue(
-      `${url.pathname} ${url.search}`,
-      url.pathname.includes("/scim/"),
+      parsed.search ? `${parsed.pathname} ${parsed.search}` : parsed.pathname,
+      parsed.pathname.includes("/scim/"),
     );
     if (urlThreat === "critical") return "critical";
     maxThreat = this.upgradeThreat(maxThreat, urlThreat);
-
-    // 2. Scan User Agent
-    const userAgent = request.headers.get("user-agent") || "";
     maxThreat = this.upgradeThreat(maxThreat, AuthGuardService.scanUserAgent(userAgent));
 
-    // 3. Scan Body (Only for state-changing methods)
-    const mutationMethods = ["POST", "PUT", "PATCH", "DELETE"];
-    if (mutationMethods.includes(request.method) && request.body) {
-      const contentLength = parseInt(request.headers.get("content-length") || "0", 10);
-      if (contentLength > MAX_BODY_SIZE) return "high"; // Early reject oversized payloads
+    if (isMutation) {
+      return this.scanMutationBody(request, payloadSnapshot, parsed, maxThreat);
+    }
 
-      if (contentLength > 0) {
-        try {
-          const contentType = request.headers.get("content-type") || "";
+    return this.upgradeThreat(maxThreat, AuthGuardService.scanUrl(parsed.pathname + parsed.search));
+  }
 
-          if (contentType.includes("application/json") && contentLength < SCAN_BODY_MAX_SIZE * 2) {
-            const json =
-              payloadSnapshot && "json" in payloadSnapshot
-                ? payloadSnapshot.json
-                : await request
-                    .clone()
-                    .json()
-                    .catch(() => ({}));
-            maxThreat = this.upgradeThreat(maxThreat, this.scanRecursive(json));
-          } else if (contentType.includes("application/x-www-form-urlencoded")) {
-            const text =
-              payloadSnapshot && "text" in payloadSnapshot
-                ? payloadSnapshot.text || ""
-                : await request
-                    .clone()
-                    .text()
-                    .catch(() => "");
-            maxThreat = this.upgradeThreat(maxThreat, this.checkValue(text));
-          } else if (
-            // 🚫 Multipart (file uploads) is NOT buffered: formData() would
-            // materialize multi-MB binaries in RAM purely to scan form strings
-            // (GC + event-loop stalls on every media upload). Binary bodies stay
-            // covered by URL/UA/header scans + MIME restrictions downstream.
-            !contentType.includes("multipart/form-data") &&
-            contentLength < SCAN_BODY_MAX_SIZE
-          ) {
-            // Fallback text scan for unknown types, with strict length cap
-            const text =
-              payloadSnapshot && "text" in payloadSnapshot
-                ? payloadSnapshot.text || ""
-                : await request
-                    .clone()
-                    .text()
-                    .catch(() => "");
-            maxThreat = this.upgradeThreat(maxThreat, this.checkValue(text));
-          }
-        } catch (err) {
-          logger.debug("Safe payload scan failed (non-blocking)", {
-            error: err,
-          });
+  private async scanMutationBody(
+    request: Request,
+    payloadSnapshot: PayloadSnapshot | undefined,
+    parsed: { pathname: string; search: string },
+    maxThreat: ThreatLevel,
+  ): Promise<ThreatLevel> {
+    const contentLength = parseInt(request.headers.get("content-length") || "0", 10);
+    if (contentLength > MAX_BODY_SIZE) return "high";
+
+    if (contentLength > 0) {
+      try {
+        const contentType = request.headers.get("content-type") || "";
+
+        if (contentType.includes("application/json") && contentLength < SCAN_BODY_MAX_SIZE * 2) {
+          const json =
+            payloadSnapshot && "json" in payloadSnapshot
+              ? payloadSnapshot.json
+              : await request
+                  .clone()
+                  .json()
+                  .catch(() => ({}));
+          maxThreat = this.upgradeThreat(maxThreat, this.scanRecursive(json));
+        } else if (contentType.includes("application/x-www-form-urlencoded")) {
+          const text =
+            payloadSnapshot && "text" in payloadSnapshot
+              ? payloadSnapshot.text || ""
+              : await request
+                  .clone()
+                  .text()
+                  .catch(() => "");
+          maxThreat = this.upgradeThreat(maxThreat, this.checkValue(text));
+        } else if (
+          !contentType.includes("multipart/form-data") &&
+          contentLength < SCAN_BODY_MAX_SIZE
+        ) {
+          const text =
+            payloadSnapshot && "text" in payloadSnapshot
+              ? payloadSnapshot.text || ""
+              : await request
+                  .clone()
+                  .text()
+                  .catch(() => "");
+          maxThreat = this.upgradeThreat(maxThreat, this.checkValue(text));
         }
+      } catch (err) {
+        logger.debug("Safe payload scan failed (non-blocking)", {
+          error: err,
+        });
       }
     }
 
-    // App-specific threats
-    const fullUrl = url.pathname + url.search;
-    maxThreat = this.upgradeThreat(maxThreat, AuthGuardService.scanUrl(fullUrl));
-
-    return maxThreat;
+    const fullUrl = parsed.pathname + parsed.search;
+    return this.upgradeThreat(maxThreat, AuthGuardService.scanUrl(fullUrl));
   }
 
   private scanRecursive(obj: any, depth = 0): ThreatLevel {
@@ -339,9 +395,11 @@ export class SecurityResponseService {
         if (maxThreat === "critical") break;
       }
     } else if (typeof obj === "object") {
-      for (const value of Object.values(obj)) {
-        maxThreat = this.upgradeThreat(maxThreat, this.scanRecursive(value, depth + 1));
-        if (maxThreat === "critical") break;
+      for (const k in obj) {
+        if (Object.hasOwn(obj, k)) {
+          maxThreat = this.upgradeThreat(maxThreat, this.scanRecursive(obj[k], depth + 1));
+          if (maxThreat === "critical") break;
+        }
       }
     }
     return maxThreat;
@@ -363,33 +421,40 @@ export class SecurityResponseService {
   }
 
   private detectAnomalies(request: Request): AnomalyResult {
-    const indicators: ThreatIndicator[] = [];
-    const now = Date.now();
-
     const ua = request.headers.get("user-agent");
     if (!ua || ua.trim() === "") {
-      indicators.push({
-        type: "header_anomaly",
-        severity: 4,
-        evidence: "Missing UA",
-        timestamp: now,
-      });
+      return {
+        detected: true,
+        indicators: [
+          {
+            type: "header_anomaly",
+            severity: 4,
+            evidence: "Missing UA",
+            timestamp: Date.now(),
+          },
+        ],
+      };
     }
 
     const contentLengthHeader = request.headers.get("content-length");
     if (contentLengthHeader) {
       const size = parseInt(contentLengthHeader, 10);
       if (size > MAX_BODY_SIZE) {
-        indicators.push({
-          type: "payload_anomaly",
-          severity: 8,
-          evidence: `Oversized: ${size}`,
-          timestamp: now,
-        });
+        return {
+          detected: true,
+          indicators: [
+            {
+              type: "payload_anomaly",
+              severity: 8,
+              evidence: `Oversized: ${size}`,
+              timestamp: Date.now(),
+            },
+          ],
+        };
       }
     }
 
-    return { detected: indicators.length > 0, indicators };
+    return NO_ANOMALY;
   }
 
   // ========================================================================
@@ -403,6 +468,21 @@ export class SecurityResponseService {
     await this.dispatchAlert(ip, "critical", reason, tenantId);
   }
 
+  private _skipRateLimitMemo: boolean | undefined;
+
+  private shouldSkipRateLimit(forceSecurity: boolean): boolean {
+    if (forceSecurity) return false;
+    if (this._skipRateLimitMemo !== undefined) return this._skipRateLimitMemo;
+    this._skipRateLimitMemo =
+      building ||
+      process.env.TEST_MODE === "true" ||
+      process.env.VITE_TEST_MODE === "true" ||
+      dev ||
+      (globalThis as { process?: { env?: Record<string, string> } }).process?.env?.TEST_MODE ===
+        "true";
+    return this._skipRateLimitMemo;
+  }
+
   /**
    * Performs an adaptive rate limit check.
    * @param points - The number of points to consume (higher for suspicious requests)
@@ -414,14 +494,7 @@ export class SecurityResponseService {
     forceSecurity = false,
     points = 1,
   ): Promise<SecurityStatus> {
-    // 🚀  Robust test mode detection to prevent rate-limit flicker in CI
-    const isTest =
-      process.env.TEST_MODE === "true" ||
-      process.env.VITE_TEST_MODE === "true" ||
-      dev ||
-      (globalThis as any).process?.env?.TEST_MODE === "true";
-
-    if ((building || isTest) && !forceSecurity) {
+    if (this.shouldSkipRateLimit(forceSecurity)) {
       return { level: "none", action: "allow" };
     }
 

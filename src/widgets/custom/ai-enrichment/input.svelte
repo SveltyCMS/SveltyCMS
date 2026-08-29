@@ -4,7 +4,7 @@ import type { AIEnrichmentProps } from "./types";
 import Icon from "@iconify/svelte";
 import { logger } from "@utils/logger";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
-import { getFieldName } from "@utils/utils";
+import { getFieldName } from "@utils/schema/field-utils";
 	import Button from '@components/ui/button.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 

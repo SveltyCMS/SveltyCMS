@@ -32,7 +32,7 @@ import {
 } from "@src/utils/media/sharing";
 import { hashSharePassword, verifySharePassword } from "@src/utils/media/share-link-hash.server";
 import { analyze, insights, trends, quota } from "@src/utils/media/storage-analytics";
-import { formatBytes } from "@utils/utils";
+import { formatBytes } from "@utils/file";
 import {
   compareVersions,
   createVersion,
@@ -869,8 +869,8 @@ export async function handleMediaShareDownload(
     );
   }
 
-  // 🛡️ Timing-safe HMAC verification (legacy plain-SHA-256 stored values
-  // remain verifiable via verifySharePassword's backward-compatible path).
+  // 🛡️ Timing-safe HMAC verification (every link stores hashSharePassword;
+  // the pre-HMAC plain-SHA-256 scheme was removed in 2026-08).
   if (shareLink.passwordHash && !verifySharePassword(password, shareLink.passwordHash)) {
     return successResponse(event, { passwordRequired: true });
   }

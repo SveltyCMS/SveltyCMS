@@ -44,7 +44,62 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 	import { page } from '$app/state';
 	import { onMount, tick } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import * as m from '@src/paraglide/messages';
+	import {
+		// STATIC_CATALOG keys (title/description)
+		global_search_access_description,
+		global_search_access_title,
+		global_search_automations_description,
+		global_search_automations_title,
+		global_search_builder_description,
+		global_search_builder_title,
+		global_search_config_description,
+		global_search_config_title,
+		global_search_create_collection_description,
+		global_search_create_collection_title,
+		global_search_dashboard_description,
+		global_search_dashboard_title,
+		global_search_extensions_description,
+		global_search_extensions_title,
+		global_search_invite_user_description,
+		global_search_invite_user_title,
+		global_search_media_description,
+		global_search_media_title,
+		global_search_monitor_description,
+		global_search_monitor_title,
+		global_search_profile_description,
+		global_search_profile_title,
+		global_search_queue_description,
+		global_search_queue_title,
+		global_search_redirects_description,
+		global_search_redirects_title,
+		global_search_settings_description,
+		global_search_settings_title,
+		global_search_sync_description,
+		global_search_sync_title,
+		global_search_trash_description,
+		global_search_trash_title,
+		global_search_webhooks_description,
+		global_search_webhooks_title,
+		// UI strings
+		global_search_aria_label,
+		global_search_close_hint,
+		global_search_filter_chip,
+		global_search_from_context,
+		global_search_nav_hint,
+		global_search_no_results,
+		global_search_no_results_hint,
+		global_search_placeholder,
+		global_search_results_count,
+		global_search_searching,
+		global_search_section_actions,
+		global_search_section_collections,
+		global_search_section_context,
+		global_search_section_pages,
+		global_search_section_recent,
+		global_search_section_results,
+		global_search_select_hint,
+		global_search_start_typing
+	} from '@src/paraglide/messages';
 	import { locales as paraglideLocales } from '@src/paraglide/runtime';
 
 	// ─── i18n helpers ───────────────────────────────────────────────────────
@@ -53,13 +108,73 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		options?: { locale?: string }
 	) => string;
 
+	/**
+	 * Statically-keyed message map — named imports (not `import * as m`) let
+	 * Rollup tree-shake the other ~950 messages out of the admin shell.
+	 * Keys mirror STATIC_CATALOG title/description ids + the UI strings below.
+	 */
+	const MESSAGES: Record<string, unknown> = {
+		global_search_access_description,
+		global_search_access_title,
+		global_search_automations_description,
+		global_search_automations_title,
+		global_search_builder_description,
+		global_search_builder_title,
+		global_search_config_description,
+		global_search_config_title,
+		global_search_create_collection_description,
+		global_search_create_collection_title,
+		global_search_dashboard_description,
+		global_search_dashboard_title,
+		global_search_extensions_description,
+		global_search_extensions_title,
+		global_search_invite_user_description,
+		global_search_invite_user_title,
+		global_search_media_description,
+		global_search_media_title,
+		global_search_monitor_description,
+		global_search_monitor_title,
+		global_search_profile_description,
+		global_search_profile_title,
+		global_search_queue_description,
+		global_search_queue_title,
+		global_search_redirects_description,
+		global_search_redirects_title,
+		global_search_settings_description,
+		global_search_settings_title,
+		global_search_sync_description,
+		global_search_sync_title,
+		global_search_trash_description,
+		global_search_trash_title,
+		global_search_webhooks_description,
+		global_search_webhooks_title,
+		global_search_aria_label,
+		global_search_close_hint,
+		global_search_filter_chip,
+		global_search_from_context,
+		global_search_nav_hint,
+		global_search_no_results,
+		global_search_no_results_hint,
+		global_search_placeholder,
+		global_search_results_count,
+		global_search_searching,
+		global_search_section_actions,
+		global_search_section_collections,
+		global_search_section_context,
+		global_search_section_pages,
+		global_search_section_recent,
+		global_search_section_results,
+		global_search_select_hint,
+		global_search_start_typing
+	};
+
 	function msg(
 		key: string,
 		fallback: string,
 		params?: Record<string, string | number>,
 		locale?: string
 	): string {
-		const fn = (m as Record<string, unknown>)[key];
+		const fn = MESSAGES[key];
 		if (typeof fn === 'function') {
 			try {
 				const call = fn as MsgFn;

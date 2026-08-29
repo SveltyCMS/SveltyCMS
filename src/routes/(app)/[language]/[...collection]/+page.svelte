@@ -29,7 +29,7 @@ import { logger } from "@utils/logger";
 import { parseURLToMode } from "@utils/navigation";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { createEntry, updateEntry } from "@utils/api";
-import { getFieldName } from "@utils/utils";
+import { getFieldName } from "@utils/schema/field-utils";
 import { onMount, untrack } from "svelte";
 import { beforeNavigate, refreshAll, goto } from "$app/navigation";
 import { page } from "$app/state";

@@ -21,6 +21,11 @@ vi.mock("@utils/page-guards.server", () => ({
   }),
 }));
 
+// DB boundary — the loader refreshes the session snapshot via the layout cache.
+vi.mock("@utils/server/layout-caches.server", () => ({
+  getFreshLayoutUser: vi.fn(async (sessionUser: unknown) => sessionUser ?? null),
+}));
+
 import { getUntypedSetting } from "@src/services/core/settings-service";
 import { load } from "../../../src/routes/(app)/user/+page.server";
 

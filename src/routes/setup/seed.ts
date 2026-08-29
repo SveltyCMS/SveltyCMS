@@ -348,6 +348,12 @@ PRESET_COLLECTIONS.demo = [
         type: "string",
       },
       {
+        db_fieldName: "status",
+        label: "Status",
+        widget: { Name: "Select" },
+        type: "string",
+      },
+      {
         db_fieldName: "content",
         label: "Content",
         widget: { Name: "RichText" },
@@ -1878,8 +1884,6 @@ export async function updateSystemSettings(
     CF_API_TOKEN: "cfApiToken",
     CF_ZONE_ID: "cfZoneId",
     CF_PURGE_MODE: "cfPurgeMode",
-    AUDIT_CHAIN_SYNC: "auditChainSync" as any,
-    DISABLE_AUDIT_LOGS: "disableAuditLogs" as any,
   };
 
   const updatePromises = Object.entries(mapping).map(async ([dbKey, wizardKey]) => {

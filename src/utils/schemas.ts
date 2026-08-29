@@ -91,11 +91,13 @@ const tokenSchema = pipe(
 
 // --- Form Schemas ---
 
-// Login Form Schema — strictObject blocks extra field injection
+// Login Form Schema — strictObject blocks extra field injection.
+// isToken is optional so the API login (POST /api/auth/login with only
+// { email, password }) validates; the HTML form always sends it explicitly.
 export const loginFormSchema = strictObject({
   email: emailSchema,
   password: pipe(string(), trim()), // No complexity check at login
-  isToken: boolean(),
+  isToken: optional(boolean()),
 });
 
 // Forgot Password Form Schema

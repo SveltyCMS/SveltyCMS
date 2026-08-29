@@ -4,7 +4,11 @@
  */
 
 import { describe, expect, test } from "vitest";
-import { classifyRequest, RequestLane, CACHEABLE_PREFIXES } from "@src/hooks/request-classifier";
+import {
+  classifyRequest,
+  RequestLane,
+  CACHEABLE_PREFIXES,
+} from "@src/hooks/handle-request-classifier";
 import {
   responseCache,
   buildUserResponseCacheKey,

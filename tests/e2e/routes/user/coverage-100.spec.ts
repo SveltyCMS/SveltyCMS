@@ -268,9 +268,27 @@ test.describe("2FA enroll with fixture", () => {
     const modal = page.locator(".modal-2fa").first();
     await expect(modal).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    const secretCode = modal.locator("code").first();
-    await expect(secretCode).toBeVisible({ timeout: 40_000 });
+    // The setup secret renders once /api/auth/2fa/setup resolves. The modal can
+    // surface a transient setup error (shared SQLite write contention under
+    // parallel workers) — it exposes a "Retry setup" button in that state. Wait
+    // on the outcome (secret visible), retrying when the server reports an
+    // error, and fail fast with the API message if it cannot recover.
+    await expect(async () => {
+      const setupError = modal.locator('[data-testid="2fa-setup-error"]');
+      if (await setupError.isVisible({ timeout: 1_000 }).catch(() => false)) {
+        const msg = (await setupError.textContent().catch(() => ""))?.trim();
+        const retryBtn = modal.getByRole("button", { name: /retry setup/i });
+        if (await retryBtn.isVisible({ timeout: 500 }).catch(() => false)) {
+          console.warn(`[2FA] setup error surfaced, retrying: ${msg}`);
+          await retryBtn.click();
+        } else {
+          throw new Error(`2FA setup failed: ${msg || "(no message)"}`);
+        }
+      }
+      await expect(modal.locator("code").first()).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 40_000 });
 
+    const secretCode = modal.locator("code").first();
     const secret = ((await secretCode.textContent()) || "").trim();
     if (secret.length <= 8) {
       const modalHtml = await modal.innerHTML().catch(() => "(unreadable)");
@@ -408,15 +426,33 @@ test.describe("Sessions and multi-tenant column", () => {
     await openUserTab(page, /^security$/i);
     const section = page.getByTestId("active-sessions-section");
     await expect(section).toBeVisible({ timeout: ACTION_TIMEOUT });
-    await page.getByRole("button", { name: /refresh active sessions/i }).click();
+    const refreshBtn = section.getByRole("button", { name: /refresh active sessions/i });
+    // The mount-initiated load disables the button — wait for it to settle so the
+    // click below is not swallowed by the in-flight request.
+    await expect(refreshBtn).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await refreshBtn.click();
+    // Refresh re-loads sessions; the button reads "Loading…" while in flight.
+    // Wait for the request to settle (an in-flight load renders an empty list
+    // container with zero height, which Playwright treats as not visible). The
+    // Button component wraps the label in whitespace ("  Refresh  "), so match
+    // the substring, not an anchored exact string.
+    await expect(refreshBtn).toContainText(/refresh/i, { timeout: ACTION_TIMEOUT });
     // Current session or empty state — not error (`.first()` — the combined locator
-    // matches every list + device line in the section)
-    await expect(
-      section
-        .getByText(/this device|no other sessions|unknown device|ip /i)
-        .or(section.getByRole("list"))
-        .first(),
-    ).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // matches every list + device line in the section). Surface the actual API
+    // error when the load failed instead of an opaque timeout.
+    await expect(async () => {
+      const errorAlert = section.locator('[role="alert"]').first();
+      if (await errorAlert.isVisible({ timeout: 500 }).catch(() => false)) {
+        const errorText = (await errorAlert.textContent().catch(() => ""))?.trim();
+        throw new Error(`Active sessions API error: ${errorText || "(no message)"}`);
+      }
+      await expect(
+        section
+          .getByText(/this device|no other sessions|unknown device|ip /i)
+          .or(section.getByRole("list"))
+          .first(),
+      ).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT });
   });
 
   test("tenant column hidden when multi-tenant is off", async ({ page }) => {

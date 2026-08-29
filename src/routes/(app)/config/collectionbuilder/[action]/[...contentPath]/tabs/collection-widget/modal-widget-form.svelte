@@ -18,6 +18,7 @@
   } from "@src/stores/collection-store.svelte";
   import { widgets } from "@src/stores/widget-store.svelte.ts";
   import { modalState } from "@utils/modal.svelte";
+  import { deepClone } from "@utils/native-utils";
   import type { Role } from "@src/databases/auth/types";
   import { SvelteSet } from "svelte/reactivity";
 
@@ -72,7 +73,7 @@
       };
     }
     try {
-      return JSON.parse(JSON.stringify(v));
+      return deepClone(v);
     } catch {
       return { ...v };
     }

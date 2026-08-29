@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:lightning-bolt"
 author: "SveltyCMS Team"
 created: "2026-03-29"
-updated: "2026-08-21"
+updated: "2026-08-23"
 tags:
   - "architecture"
   - "performance"
@@ -98,6 +98,20 @@ The Local SDK (`src/services/sdk/index.ts` — the `LocalCMS` class) is a high-p
 3. **Calls Core Logic**: Executes the exact same `modifyRequest` pipeline as the HTTP layer.
 4. **Maintains Consistency**: Automatically triggers cache invalidation and real-time events (SSE).
 5. **Unified Context**: Respects the same tenant isolation and permissions as the external API.
+
+### What is _not_ faster than LocalCMS (2026)
+
+gRPC / protobuf / HTTP/3 beat **JSON-over-HTTP between processes**. They do not beat an in-process function call. Spotify’s published backend work (gRPC as the default service-to-service protocol, proxyless xDS mesh) is for thousands of Kubernetes services talking across the network — not for a server talking to itself. In this CMS the analog is:
+
+| Hop                                | What to use                                                             | Why                                                               |
+| ---------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Browser → this Node process        | SvelteKit **remote functions** (`query` / `command`) that call LocalCMS | One typed RPC; still one HTTP to the server, then zero extra hops |
+| `.server.ts` / remotes / jobs → DB | **LocalCMS**                                                            | Same process; JSON + WAF + auth stack never run                   |
+| Browser → `/api/...`               | REST / GraphQL                                                          | Public contract, mobile apps, webhooks                            |
+
+A `.remote.ts` that `event.fetch("/api/...")` re-enters the HTTP pipeline (auth, WAF, JSON) and throws away the LocalCMS advantage. Remotes must call LocalCMS the same way `+page.server.ts` does (`getRequestLocalCMS()`). User profile, settings groups, collection save/delete remotes, and dashboard `health` follow that path.
+
+HTTP/3 and QUIC still matter for **clients on lossy networks**; they do not replace LocalCMS on the server.
 
 ## Measured Local SDK vs HTTP (SQLite, self-measured 2026-08)
 

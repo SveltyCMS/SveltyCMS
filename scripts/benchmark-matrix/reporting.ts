@@ -21,6 +21,7 @@
 import fs from "node:fs/promises";
 import fsSync from "node:fs";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import { version as pkgVersion } from "../../package.json";
 import { log } from "./logger";
 import {
@@ -58,6 +59,25 @@ import {
   ZONE_MARKERS,
 } from "../../tests/benchmarks/modules/benchmark-mdx";
 import { writeHistoryArchive } from "../../tests/benchmarks/modules/benchmark-reporting";
+
+/**
+ * Best-effort oxfmt pass on a freshly written report. The generated MDX must stay
+ * `bun run check`-clean — the dev-dependency-load DX benchmark runs the real
+ * toolchain and fails when generated docs drift from oxfmt's table alignment.
+ * Fire-and-forget: formatting is cosmetic and must never fail the run itself.
+ */
+function formatMdxDoc(filePath: string): void {
+  try {
+    const child = spawn("bun", ["x", "oxfmt", filePath], {
+      cwd: process.cwd(),
+      stdio: "ignore",
+      shell: process.platform === "win32",
+    });
+    child.unref();
+  } catch {
+    /* best-effort */
+  }
+}
 import { analyzeTrend, classifyRootCause } from "../../tests/benchmarks/modules/benchmark-analysis";
 import { loadHistory } from "../../tests/benchmarks/modules/benchmark-history";
 import {
@@ -747,6 +767,7 @@ async function writeRankedExecutiveSummary(
       const tmpPath = docPath + ".tmp." + Date.now();
       await fs.writeFile(tmpPath, doc, "utf8");
       await fs.rename(tmpPath, docPath);
+      formatMdxDoc(docPath);
     } catch {
       /* best-effort */
     }
@@ -1377,6 +1398,7 @@ tags:
 
     await fs.writeFile(filePath, doc);
     writeHistoryArchive(dbKey, filePath);
+    formatMdxDoc(filePath);
     log.info(`Updated technical ledger: benchmark_${dbKey.replace("-", "_")}.mdx`);
   }
 }

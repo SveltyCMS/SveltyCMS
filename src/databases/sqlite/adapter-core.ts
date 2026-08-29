@@ -28,6 +28,7 @@ import { normalizeCollectionTableName } from "../core/collection-name";
 import { SqlQueryBuilder, SQLITE_DIALECT } from "../core/sql-query-builder";
 import { TransactionModule } from "./transaction-module";
 import { withMigrationLock } from "../migration-lock";
+import { getHardwareProfile } from "@utils/hardware-profile";
 
 // Pre-register system table schemas for optimal row conversion
 for (const [tableName, columns] of Object.entries(helpers.SYSTEM_LITERAL_COLUMNS)) {
@@ -43,31 +44,36 @@ export type SQLiteDB = any;
 const testWorkerContext = new AsyncLocalStorage<string>();
 
 /**
- * 🚀 PERFORMANCE: Lightweight Re-entrant Mutex for serializing database writes.
+ * 🚀 PERFORMANCE: High-performance Re-entrant FIFO Mutex for serializing SQLite writes.
+ * - Zero Promise chaining allocations when uncontended.
+ * - Direct O(1) waiter hand-off without deep microtask Promise chain latency.
+ * - Full re-entrancy support via AsyncLocalStorage.
  */
 class Mutex {
-  private queue: Promise<any> = Promise.resolve();
+  private _locked = false;
+  private _waiting: Array<() => void> = [];
   private storage = new AsyncLocalStorage<boolean>();
 
-  async runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+  async runExclusive<T>(fn: () => T | Promise<T>): Promise<T> {
     if (this.storage.getStore()) {
-      return await fn();
+      return fn();
     }
 
-    return new Promise<T>((resolve, reject) => {
-      this.queue = this.queue
-        .then(async () => {
-          try {
-            const res = await this.storage.run(true, fn);
-            resolve(res);
-          } catch (err) {
-            reject(err);
-          }
-        })
-        .catch(() => {
-          logger.debug("SQLite mutex queue handler failed silently");
-        });
-    });
+    if (this._locked) {
+      await new Promise<void>((resolve) => this._waiting.push(resolve));
+    }
+    this._locked = true;
+
+    try {
+      return await this.storage.run(true, fn);
+    } finally {
+      const next = this._waiting.shift();
+      if (next) {
+        next();
+      } else {
+        this._locked = false;
+      }
+    }
   }
 }
 
@@ -88,6 +94,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   // SQLite-specific: cache whether RETURNING works for INSERT ... VALUES
   private _insertManyReturningSupported: boolean | null = null;
 
+  /** tableName → INSERT SQL (no RETURNING — row is synthesized, same as PostgreSQL). */
+  private _insertTemplateCache = new Map<string, { cols: string[]; sqlText: string }>();
+  /** table|cols|returning|tenant → UPDATE SQL. */
+  private _updateSqlCache = new Map<string, string>();
+
   /** Clients whose prepare() is wrapped with a per-SQL statement cache. */
   protected _preparedStatementClients = new Set<any>();
 
@@ -104,6 +115,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
     }
     this._statementCache.clear();
+    this._insertTemplateCache.clear();
+    this._updateSqlCache.clear();
   }
 
   // --------------------------------------------------------------------------
@@ -136,8 +149,26 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     return hasMsg || direct || viaCause;
   }
 
-  protected async executeDynamicSql(db: any, sqlQuery: SQL): Promise<any[]> {
-    return (db as any).values(sqlQuery);
+  protected async executeDynamicSql(
+    db: any,
+    sqlQuery: SQL,
+    _options?: BaseQueryOptions,
+  ): Promise<any[]> {
+    try {
+      const rendered = (
+        sqlQuery as { toQuery?: (opts: unknown) => { sql: string; params: unknown[] } }
+      ).toQuery?.({
+        escapeName: (n: string) => `"${n.replace(/"/g, '""')}"`,
+        escapeParam: () => "?",
+      });
+      if (rendered?.sql && Array.isArray(rendered.params)) {
+        const rows = this.prepareAndExecute(rendered.sql, "all", ...rendered.params);
+        return Array.isArray(rows) ? rows : [];
+      }
+    } catch {
+      /* fall through to Drizzle values() */
+    }
+    return (db as { values: (q: SQL) => Promise<any[]> }).values(sqlQuery);
   }
 
   protected async rawFindById<T>(
@@ -224,20 +255,30 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   ): Promise<T | null> {
     try {
       const tableName = getTableName(table);
-      const cols = Object.keys(values);
-      if (cols.length === 0) return null;
-      const colList = cols.map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`).join(", ");
-      const placeholders = cols.map(() => "?").join(", ");
-      const params = cols.map((c) => values[c]);
-      const rawSql = `INSERT INTO "${tableName}" (${colList}) VALUES (${placeholders}) RETURNING *`;
-      const rows = this.prepareAndExecute(rawSql, "all", ...params);
-      if (Array.isArray(rows) && rows.length > 0) {
-        return utils.convertDatesToISO(rows[0], {
-          ...this.convertDatesOptions,
-          table: collection,
-        }) as T;
+      if (Object.keys(values).length === 0) return null;
+      const synthesized = this.synthesizeInsertRow(table, values);
+      const cols = Object.keys(synthesized);
+      const cacheKey = `${tableName}|${cols.join(",")}`;
+      let tpl = this._insertTemplateCache.get(cacheKey);
+      if (!tpl) {
+        const colList = cols
+          .map((c) => `"${utils.assertSafeSqlIdentifier(c, "column")}"`)
+          .join(", ");
+        const placeholders = cols.map(() => "?").join(", ");
+        const sqlText = `INSERT INTO "${utils.assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders})`;
+        tpl = { cols, sqlText };
+        if (this._insertTemplateCache.size >= 256) {
+          const oldest = this._insertTemplateCache.keys().next().value;
+          if (oldest) this._insertTemplateCache.delete(oldest);
+        }
+        this._insertTemplateCache.set(cacheKey, tpl);
       }
-      return null;
+      const params = tpl.cols.map((c) => synthesized[c]);
+      await this.prepareAndExecuteWrite(tpl.sqlText, "run", ...params);
+      return utils.convertDatesToISO(synthesized, {
+        ...this.convertDatesOptions,
+        table: collection,
+      }) as T;
     } catch {
       return null;
     }
@@ -274,7 +315,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
 
       const rawSql = `INSERT INTO "${tableName}" (${colList}) VALUES ${rowTuples.join(", ")} RETURNING *`;
-      const rows = this.prepareAndExecute(rawSql, "all", ...allParams);
+      const rows = await this.prepareAndExecuteWrite(rawSql, "all", ...allParams);
       if (Array.isArray(rows) && rows.length > 0) {
         return utils.convertArrayDatesToISO(rows, {
           ...this.convertDatesOptions,
@@ -317,29 +358,38 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
       const tableName = getTableName(table);
       const idColName = idCol?.name || "_id";
-      const setPairs: string[] = [];
-      const params: any[] = [];
-      for (let i = 0; i < columns.length; i++) {
-        const col = columns[i];
-        // Drizzle def property names may differ from physical column names
-        // (e.g. plugin_storage: collectionName → `collection`).
-        const phys = this.getColumn(table, col);
-        const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
-        setPairs.push(`"${safeCol}" = ?`);
-        params.push(values[col]);
-      }
+      const params: unknown[] = [];
+      for (let i = 0; i < columns.length; i++) params.push(values[columns[i]]);
 
       const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
         options,
         "sqlite",
       );
-      const setSql = setPairs.join(", ");
-      const whereSql = `"${idColName}" = ?${tenantSql}`;
-      const skipReturning = (options as any)?.skipReturning === true;
+      const skipReturning = (options as { skipReturning?: boolean })?.skipReturning === true;
+      const cacheKey = `${tableName}|${columns.join(",")}|${skipReturning ? 1 : 0}|${tenantSql}`;
+      let rawSql = this._updateSqlCache.get(cacheKey);
+      if (!rawSql) {
+        const setPairs: string[] = [];
+        for (let i = 0; i < columns.length; i++) {
+          const col = columns[i];
+          const phys = this.getColumn(table, col);
+          const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+          setPairs.push(`"${safeCol}" = ?`);
+        }
+        const whereSql = `"${utils.assertSafeSqlIdentifier(idColName, "column")}" = ?${tenantSql}`;
+        const setSql = setPairs.join(", ");
+        rawSql = skipReturning
+          ? `UPDATE "${utils.assertSafeSqlIdentifier(tableName, "table")}" SET ${setSql} WHERE ${whereSql}`
+          : `UPDATE "${utils.assertSafeSqlIdentifier(tableName, "table")}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
+        if (this._updateSqlCache.size >= 256) {
+          const oldest = this._updateSqlCache.keys().next().value;
+          if (oldest) this._updateSqlCache.delete(oldest);
+        }
+        this._updateSqlCache.set(cacheKey, rawSql);
+      }
 
       if (skipReturning) {
-        const runSql = `UPDATE "${tableName}" SET ${setSql} WHERE ${whereSql}`;
-        this.prepareAndExecute(runSql, "run", ...params, String(id), ...tenantParams);
+        await this.prepareAndExecuteWrite(rawSql, "run", ...params, String(id), ...tenantParams);
         const reconstructed = {
           ...values,
           [idColName]: id,
@@ -350,8 +400,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         }) as unknown as T;
       }
 
-      const rawSql = `UPDATE "${tableName}" SET ${setSql} WHERE ${whereSql} RETURNING *`;
-      const rows = this.prepareAndExecute(rawSql, "all", ...params, String(id), ...tenantParams);
+      const rows = await this.prepareAndExecuteWrite(
+        rawSql,
+        "all",
+        ...params,
+        String(id),
+        ...tenantParams,
+      );
       if (Array.isArray(rows) && rows.length > 0) {
         return utils.convertDatesToISO(rows[0], {
           ...this.convertDatesOptions,
@@ -359,6 +414,177 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         }) as T;
       }
       return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Raw heterogeneous bulk UPDATE for SQLite — one prepared statement instead
+   * of N per-row UPDATEs (BatchModule.bulkUpdate's transactional fallback loop).
+   *
+   * Builds `SET "col" = CASE "_id" WHEN ? THEN ? … ELSE "col" END` for every
+   * varying column (rows omitting a column fall through to ELSE), plain
+   * `"constCol" = ?` for columns every row sets to the same value (updatedAt,
+   * tenantId), and `WHERE "_id" IN (…)` + the parameterized tenant clause.
+   *
+   * Values come from prepareUpdateValues (same semantics as crud.update:
+   * ISO→Date, dynamic data blob, updatedAt/tenantId stamps). Parameter
+   * coercion (Date→epoch ms, boolean→1/0, object→JSON text) is handled
+   * centrally by prepareAndExecute — do NOT pre-map here.
+   *
+   * Chunked under SQLITE_MAX_VARIABLE_NUMBER (conservative 900, matching
+   * executeUpsertById) and wrapped in BEGIN IMMEDIATE/COMMIT so the batch is
+   * all-or-nothing. Returns null on ANY failure — the caller then falls back
+   * to the transactional per-row loop (nothing was committed).
+   */
+  public override async rawBulkUpdate(
+    table: any,
+    _collection: string,
+    updates: Array<{ id: DatabaseId; data: Partial<Record<string, unknown>> }>,
+    now: Date,
+    options: BaseQueryOptions,
+  ): Promise<{ modifiedCount: number } | null> {
+    try {
+      if (updates.length < 2) return null;
+      const tableName = getTableName(table);
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      if (!idCol) return null;
+      const idColName = idCol?.name || "_id";
+
+      // 🛡️ TENANT ISOLATION: fail-closed guard (BatchModule asserts too; keep
+      // defense-in-depth for direct calls) + parameterized tenant WHERE.
+      const tenantCol = this.getColumn(table, "tenantId");
+      if (tenantCol) utils.applyTenantFilter([], tenantCol, options);
+      const { sql: tenantSql, params: tenantParams } = utils.buildRawTenantClause(
+        options,
+        "sqlite",
+      );
+
+      // Prepare per-row values once — same shape as crud.update's SET clause
+      // (id column included by prepareValues, stripped from SET below).
+      const prepared = updates.map((u) =>
+        this.prepareUpdateValues(table, u.data, u.id as string, now, options),
+      );
+
+      // Union of SET columns (PK excluded — it is the CASE matcher / WHERE key).
+      const setCols: string[] = [];
+      const seen = new Set<string>();
+      for (const values of prepared) {
+        for (const k in values) {
+          if (!Object.hasOwn(values, k)) continue;
+          if (k === idColName || k === "id") continue;
+          if (!seen.has(k)) {
+            seen.add(k);
+            setCols.push(k);
+          }
+        }
+      }
+      if (setCols.length === 0) return null;
+
+      // Params per row: one CASE match id per varying column (WHEN/THEN = 2
+      // params) + one id in WHERE IN. Constant columns add a single param.
+      const maxParams = 900;
+      const maxRowsPerChunk = Math.max(1, Math.floor(maxParams / (setCols.length * 2 + 1)));
+
+      let modifiedCount = 0;
+      const runChunks = () => {
+        for (let start = 0; start < prepared.length; start += maxRowsPerChunk) {
+          const chunk = prepared.slice(start, start + maxRowsPerChunk);
+          const chunkIds = updates.slice(start, start + maxRowsPerChunk).map((u) => String(u.id));
+
+          const setPairs: string[] = [];
+          const params: unknown[] = [];
+          for (const col of setCols) {
+            const phys = this.getColumn(table, col);
+            const safeCol = utils.assertSafeSqlIdentifier(phys?.name ?? col, "column");
+
+            // Constant column (every row sets the identical value) → plain SET.
+            // Value-based comparison: `{}` data blobs and same-timestamp Dates
+            // are distinct object refs but semantically constant.
+            const sameValue = (a: unknown, b: unknown): boolean => {
+              if (a === b) return true;
+              if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+              if (a && b && typeof a === "object" && typeof b === "object") {
+                return JSON.stringify(a) === JSON.stringify(b);
+              }
+              return false;
+            };
+            let constant = true;
+            let firstVal: unknown;
+            let firstSet = false;
+            for (const values of chunk) {
+              if (!Object.hasOwn(values, col)) {
+                constant = false;
+                break;
+              }
+              const v = values[col];
+              if (!firstSet) {
+                firstVal = v;
+                firstSet = true;
+              } else if (!sameValue(v, firstVal)) {
+                constant = false;
+                break;
+              }
+            }
+            if (constant) {
+              setPairs.push(`"${safeCol}" = ?`);
+              params.push(firstVal);
+              continue;
+            }
+
+            // Varying column → per-row CASE; rows without the column fall to ELSE.
+            const whens: string[] = [];
+            for (let i = 0; i < chunk.length; i++) {
+              const values = chunk[i];
+              if (!Object.hasOwn(values, col)) continue;
+              whens.push("WHEN ? THEN ?");
+              params.push(chunkIds[i], values[col]);
+            }
+            const safeIdCol = utils.assertSafeSqlIdentifier(idColName, "column");
+            setPairs.push(
+              `"${safeCol}" = CASE "${safeIdCol}" ${whens.join(" ")} ELSE "${safeCol}" END`,
+            );
+          }
+
+          const idPlaceholders = chunkIds.map(() => "?").join(", ");
+          const rawSql = `UPDATE "${utils.assertSafeSqlIdentifier(tableName, "table")}" SET ${setPairs.join(", ")} WHERE "${utils.assertSafeSqlIdentifier(idColName, "column")}" IN (${idPlaceholders})${tenantSql}`;
+          const res = this.prepareAndExecute(
+            rawSql,
+            "run",
+            ...params,
+            ...chunkIds,
+            ...tenantParams,
+          );
+          modifiedCount += (res as { changes?: number })?.changes ?? 0;
+        }
+      };
+
+      // Atomicity across chunks: BEGIN IMMEDIATE acquires the write lock up
+      // front; unless the caller already owns a transaction (options.transaction
+      // → inside Drizzle's txn). 🔒 The whole BEGIN…COMMIT span runs under the
+      // write mutex (withWriteLock) so no other writer interleaves mid-span;
+      // reentrant when the caller's span already holds the lock.
+      return this.withWriteLock(async () => {
+        if (!options.transaction) {
+          this.prepareAndExecute("BEGIN IMMEDIATE", "run");
+          try {
+            runChunks();
+            this.prepareAndExecute("COMMIT", "run");
+          } catch (err) {
+            try {
+              this.prepareAndExecute("ROLLBACK", "run");
+            } catch {
+              /* already aborted */
+            }
+            throw err;
+          }
+        } else {
+          runChunks();
+        }
+
+        return { modifiedCount };
+      });
     } catch {
       return null;
     }
@@ -685,7 +911,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
                   valuesSql.push(`(${rowPlaceholders.join(", ")})`);
                 }
                 const sqlText = `INSERT INTO "${getTableName(table)}" (${colList}) VALUES ${valuesSql.join(", ")}${skipReturning ? "" : " RETURNING *"}`;
-                const rawRows = this.prepareAndExecute(sqlText, "all", ...params);
+                const rawRows = await this.prepareAndExecuteWrite(sqlText, "all", ...params);
                 executedChunks++;
                 if (Array.isArray(rawRows) && rawRows.length > 0) rowsOut.push(...rawRows);
               }
@@ -745,7 +971,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         if (inOuterTxn) {
           return await runInsert(db);
         }
-        return await db.transaction(async (tx: any) => runInsert(tx));
+        // 🔒 TRANSACTION SPAN: the Drizzle BEGIN…COMMIT fallback runs under the
+        // write mutex so no other writer interleaves mid-transaction.
+        return await this.withWriteLock(() => db.transaction(async (tx: any) => runInsert(tx)));
       },
       "INSERT_MANY_FAILED",
       undefined,
@@ -805,21 +1033,31 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   }
 
   // --------------------------------------------------------------------------
-  // Wrap override — SQLite write mutex for single-writer safety
+  // Wrap override — single-writer safety for SQLite
   // --------------------------------------------------------------------------
+  // The write mutex is NO LONGER held for the whole `wrap` body: CPU-only work
+  // (prepareValues, row synthesis, hooks) must not serialize other writers.
+  // Instead, single-statement writes lock at the statement level
+  // (prepareAndExecuteWrite) and multi-statement transaction spans lock
+  // explicitly via withWriteLock. This override is now a plain pass-through.
 
   public override async wrap<T>(
     fn: () => Promise<T>,
     code: string,
     message?: string,
-    options?: any,
+    _options?: any,
   ): Promise<DatabaseResult<T>> {
-    if (options?.isWrite && !options?.transaction) {
-      return SQLiteAdapterCore.writeMutex.runExclusive(() =>
-        super.wrap(fn, code, message, options),
-      );
-    }
-    return super.wrap(fn, code, message, options);
+    return super.wrap(fn, code, message, _options);
+  }
+
+  /**
+   * Write critical-section hook — runs `fn` under the SQLite single-writer
+   * mutex. Use for multi-statement transaction spans (BEGIN…COMMIT).
+   * Reentrant via AsyncLocalStorage: nested calls inside an active span
+   * (e.g. writes inside the TransactionModule) execute directly.
+   */
+  public withWriteLock<T>(fn: () => T | Promise<T>): Promise<T> {
+    return SQLiteAdapterCore.writeMutex.runExclusive(async () => fn());
   }
 
   // --------------------------------------------------------------------------
@@ -1090,13 +1328,29 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       // - Uint8Array/Buffer → kept binary (JSON.stringify would corrupt blobs
       //   into {"type":"Buffer",...} text)
       // - plain objects → JSON text
-      const bound = params.map((p) => {
-        if (typeof p === "boolean") return p ? 1 : 0;
-        if (p instanceof Date) return p.getTime();
-        if (p instanceof Uint8Array) return p;
-        if (p !== null && typeof p === "object") return JSON.stringify(p);
-        return p;
-      });
+      const len = params.length;
+      let bound = params;
+      if (len > 0) {
+        let needsCoerce = false;
+        for (let i = 0; i < len; i++) {
+          const p = params[i];
+          if (typeof p === "boolean" || typeof p === "object") {
+            needsCoerce = true;
+            break;
+          }
+        }
+        if (needsCoerce) {
+          bound = Array.from({ length: len });
+          for (let i = 0; i < len; i++) {
+            const p = params[i];
+            if (typeof p === "boolean") bound[i] = p ? 1 : 0;
+            else if (p instanceof Date) bound[i] = p.getTime();
+            else if (p instanceof Uint8Array) bound[i] = p;
+            else if (p !== null && typeof p === "object") bound[i] = JSON.stringify(p);
+            else bound[i] = p;
+          }
+        }
+      }
       let out: any;
       if (method === "all") out = stmt.all(...bound);
       else if (method === "get") out = stmt.get(...bound);
@@ -1119,6 +1373,24 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     }
   }
 
+  /**
+   * Execute a WRITE statement under the write mutex. The critical section is
+   * the statement itself — the surrounding CPU work (prepareValues, row
+   * synthesis, response conversion) runs outside the lock so other writers
+   * are not serialized behind it. Reentrant: inside an active withWriteLock
+   * span / transaction (AsyncLocalStorage) the lock is already held and
+   * execution is direct.
+   */
+  public prepareAndExecuteWrite(
+    sqlText: string,
+    method: "all" | "get" | "run" | "values" = "all",
+    ...params: any[]
+  ): any {
+    return SQLiteAdapterCore.writeMutex.runExclusive(() =>
+      this.prepareAndExecute(sqlText, method, ...params),
+    );
+  }
+
   // --------------------------------------------------------------------------
   // Raw Access
   // --------------------------------------------------------------------------
@@ -1134,6 +1406,9 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             sqlText,
           );
         const method = isNonSelect ? "run" : "all";
+        if (isNonSelect) {
+          return this.prepareAndExecuteWrite(sqlText, method, ...params);
+        }
         return this.prepareAndExecute(sqlText, method, ...params);
       },
       client: this.sqlite,
@@ -1296,44 +1571,49 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`
             : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql} RETURNING *`;
 
-        try {
-          const rows = this.prepareAndExecute(
-            updateReturning,
+        // 🔒 SPAN LOCK: the UPDATE (+ its SELECT read-back) must be atomic —
+        // another writer must not interleave between the increment and the
+        // returned-row read.
+        return this.withWriteLock(async () => {
+          try {
+            const rows = this.prepareAndExecute(
+              updateReturning,
+              "all",
+              amountNum,
+              nowMs,
+              idStr,
+              ...tenantParams,
+            );
+            if (Array.isArray(rows) && rows.length > 0) {
+              return utils.convertDatesToISO(rows[0], {
+                table: collection,
+              }) as Record<string, unknown>;
+            }
+          } catch (err: any) {
+            logger.debug(`SQLite RETURNING failed, using inline SELECT fallback: ${err.message}`);
+          }
+
+          const updateSql = fieldIsColumn
+            ? `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
+            : dataCol
+              ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
+              : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`;
+
+          this.prepareAndExecute(updateSql, "run", amountNum, nowMs, idStr, ...tenantParams);
+
+          const selectRows = this.prepareAndExecute(
+            `SELECT * FROM "${tableName}" WHERE "${idCol.name}" = ?${tenantSql} LIMIT 1`,
             "all",
-            amountNum,
-            nowMs,
             idStr,
             ...tenantParams,
           );
-          if (Array.isArray(rows) && rows.length > 0) {
-            return utils.convertDatesToISO(rows[0], {
-              table: collection,
-            }) as Record<string, unknown>;
+          if (!Array.isArray(selectRows) || selectRows.length === 0) {
+            throw new Error(`Entry not found after increment: ${idStr}`);
           }
-        } catch (err: any) {
-          logger.debug(`SQLite RETURNING failed, using inline SELECT fallback: ${err.message}`);
-        }
-
-        const updateSql = fieldIsColumn
-          ? `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
-          : dataCol
-            ? `UPDATE "${tableName}" SET "data" = json_set(coalesce("data", '{}'), '$.${safeField}', coalesce(json_extract(coalesce("data", '{}'), '$.${safeField}'), 0) + ?), "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`
-            : `UPDATE "${tableName}" SET "${safeField}" = coalesce("${safeField}", 0) + ?, "updatedAt" = ? WHERE "${idCol.name}" = ?${tenantSql}`;
-
-        this.prepareAndExecute(updateSql, "run", amountNum, nowMs, idStr, ...tenantParams);
-
-        const selectRows = this.prepareAndExecute(
-          `SELECT * FROM "${tableName}" WHERE "${idCol.name}" = ?${tenantSql} LIMIT 1`,
-          "all",
-          idStr,
-          ...tenantParams,
-        );
-        if (!Array.isArray(selectRows) || selectRows.length === 0) {
-          throw new Error(`Entry not found after increment: ${idStr}`);
-        }
-        return utils.convertDatesToISO(selectRows[0], {
-          table: collection,
-        }) as Record<string, unknown>;
+          return utils.convertDatesToISO(selectRows[0], {
+            table: collection,
+          }) as Record<string, unknown>;
+        });
       },
       "ATOMIC_INCREMENT_FAILED",
       undefined,
@@ -1476,6 +1756,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             const indexName = `${physicalName}_${col.name}_idx`;
             await this.raw.execute(
               `CREATE INDEX IF NOT EXISTS "${indexName}" ON "${physicalName}" ("${col.name}")`,
+            );
+            // 🚀 Covering composite index for filter+sort on dynamic columns:
+            // WHERE tenantId=? AND status=? ORDER BY col.name, _id
+            await this.raw.execute(
+              `CREATE INDEX IF NOT EXISTS "${physicalName}_tenant_status_${col.name}_id" ON "${physicalName}" ("tenantId", "status", "${col.name}", "_id")`,
             );
           } catch {
             /* safe */
@@ -1730,14 +2015,18 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     const rawCheckpoint = process.env.SQLITE_WAL_AUTOCHECKPOINT?.trim();
     const walCheckpoint = rawCheckpoint && /^\d+$/.test(rawCheckpoint) ? rawCheckpoint : "2000";
 
+    const hw = getHardwareProfile();
+    const cacheSizeKb = hw.sqliteCacheSizeKb;
+    const mmapBytes = hw.sqliteMmapSizeBytes;
+
     safeExec("PRAGMA journal_mode=WAL");
     safeExec(`PRAGMA synchronous=${syncMode}`);
     safeExec("PRAGMA foreign_keys=ON");
     safeExec("PRAGMA page_size=8192");
     safeExec(`PRAGMA busy_timeout=${busyTimeout}`);
     safeExec("PRAGMA temp_store=MEMORY");
-    safeExec("PRAGMA mmap_size=536870912");
-    safeExec("PRAGMA cache_size=-20000");
+    safeExec(`PRAGMA mmap_size=${mmapBytes}`);
+    safeExec(`PRAGMA cache_size=-${cacheSizeKb}`);
     safeExec(`PRAGMA wal_autocheckpoint=${walCheckpoint}`);
   }
 

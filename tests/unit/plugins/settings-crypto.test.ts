@@ -13,6 +13,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import {
   isMasked,
   getMaskedValue,
@@ -157,6 +158,131 @@ describe("Plugin Settings Crypto — decryptSecretFields", () => {
     const stored = { name: "test", value: 42 };
     const result = await decryptSecretFields(stored, []);
     expect(result).toEqual(stored);
+  });
+});
+
+describe("Plugin Settings Crypto — HKDF passphrase dual-read", () => {
+  const envKeyMaterial = "plugin-static-env-key-32byte!!";
+
+  it("round-trips a passphrase-derived envelope", async () => {
+    const prev = process.env.SECRET_ENCRYPTION_KEY;
+    process.env.SECRET_ENCRYPTION_KEY = envKeyMaterial;
+    vi.resetModules();
+    const fresh = await import("@src/plugins/settings-crypto");
+    try {
+      const envelope = await fresh.encryptSecret("sk_live_hkdf");
+      expect(envelope).toBeTruthy();
+      const plain = await fresh.decryptSecret(envelope!);
+      expect(plain).toBe("sk_live_hkdf");
+    } finally {
+      if (prev === undefined) delete process.env.SECRET_ENCRYPTION_KEY;
+      else process.env.SECRET_ENCRYPTION_KEY = prev;
+      vi.resetModules();
+    }
+  });
+
+  it("decrypts envelopes written with SHA-256(raw) before HKDF", async () => {
+    const prev = process.env.SECRET_ENCRYPTION_KEY;
+    process.env.SECRET_ENCRYPTION_KEY = envKeyMaterial;
+    vi.resetModules();
+    const fresh = await import("@src/plugins/settings-crypto");
+    try {
+      const legacyKey = createHash("sha256").update(envKeyMaterial, "utf8").digest();
+      // codeql[js/insufficient-password-hash]: legacy pre-HKDF envelope fixture
+      // (AES key material, not a password KDF).
+      const iv = randomBytes(16);
+      const cipher = createCipheriv("aes-256-gcm", legacyKey, iv);
+      const ciphertext = Buffer.concat([cipher.update("legacy-secret", "utf8"), cipher.final()]);
+      const envelope = Buffer.concat([
+        Buffer.from([1]),
+        iv,
+        cipher.getAuthTag(),
+        ciphertext,
+      ]).toString("base64");
+
+      const plain = await fresh.decryptSecret(envelope);
+      expect(plain).toBe("legacy-secret");
+    } finally {
+      if (prev === undefined) delete process.env.SECRET_ENCRYPTION_KEY;
+      else process.env.SECRET_ENCRYPTION_KEY = prev;
+      vi.resetModules();
+    }
+  });
+});
+
+describe("Plugin Settings Crypto — AAD tenant+plugin binding", () => {
+  const envKeyMaterial = "plugin-static-env-key-32byte!!";
+
+  it("round-trips an envelope with matching context", async () => {
+    const prev = process.env.SECRET_ENCRYPTION_KEY;
+    process.env.SECRET_ENCRYPTION_KEY = envKeyMaterial;
+    vi.resetModules();
+    const fresh = await import("@src/plugins/settings-crypto");
+    try {
+      const ctx = { tenantId: "tenant-a", pluginId: "plugin-1" };
+      const envelope = await fresh.encryptSecret("sk_live_aad", ctx);
+      expect(envelope).toBeTruthy();
+      expect(await fresh.decryptSecret(envelope!, ctx)).toBe("sk_live_aad");
+    } finally {
+      if (prev === undefined) delete process.env.SECRET_ENCRYPTION_KEY;
+      else process.env.SECRET_ENCRYPTION_KEY = prev;
+      vi.resetModules();
+    }
+  });
+
+  it("rejects a DB copy moved to another tenant (AAD mismatch)", async () => {
+    const prev = process.env.SECRET_ENCRYPTION_KEY;
+    process.env.SECRET_ENCRYPTION_KEY = envKeyMaterial;
+    vi.resetModules();
+    const fresh = await import("@src/plugins/settings-crypto");
+    try {
+      const envelope = await fresh.encryptSecret("sk_live_aad", {
+        tenantId: "tenant-a",
+        pluginId: "plugin-1",
+      });
+      // Same plugin, different tenant — must NOT decrypt.
+      expect(
+        await fresh.decryptSecret(envelope!, { tenantId: "tenant-b", pluginId: "plugin-1" }),
+      ).toBeNull();
+      // Same tenant, different plugin — must NOT decrypt.
+      expect(
+        await fresh.decryptSecret(envelope!, { tenantId: "tenant-a", pluginId: "plugin-2" }),
+      ).toBeNull();
+      // No context at decrypt time — AAD mismatch, must NOT decrypt.
+      expect(await fresh.decryptSecret(envelope!)).toBeNull();
+    } finally {
+      if (prev === undefined) delete process.env.SECRET_ENCRYPTION_KEY;
+      else process.env.SECRET_ENCRYPTION_KEY = prev;
+      vi.resetModules();
+    }
+  });
+
+  it("encrypt is fail-closed without a configured key (throws)", async () => {
+    const prev = process.env.SECRET_ENCRYPTION_KEY;
+    delete process.env.SECRET_ENCRYPTION_KEY;
+    vi.resetModules();
+    const fresh = await import("@src/plugins/settings-crypto");
+    try {
+      await expect(fresh.encryptSecret("sk_live")).rejects.toThrow(/not set/i);
+    } finally {
+      if (prev === undefined) delete process.env.SECRET_ENCRYPTION_KEY;
+      else process.env.SECRET_ENCRYPTION_KEY = prev;
+      vi.resetModules();
+    }
+  });
+
+  it("decrypt returns null without a configured key (fail-closed)", async () => {
+    const prev = process.env.SECRET_ENCRYPTION_KEY;
+    delete process.env.SECRET_ENCRYPTION_KEY;
+    vi.resetModules();
+    const fresh = await import("@src/plugins/settings-crypto");
+    try {
+      expect(await fresh.decryptSecret("v1:garbage")).toBeNull();
+    } finally {
+      if (prev === undefined) delete process.env.SECRET_ENCRYPTION_KEY;
+      else process.env.SECRET_ENCRYPTION_KEY = prev;
+      vi.resetModules();
+    }
   });
 });
 

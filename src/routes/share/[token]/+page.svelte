@@ -12,7 +12,7 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-  import { formatBytes } from "@utils/utils";
+  import { formatBytes } from "@utils/file";
   import { toast } from "@src/stores/toast.svelte.ts";
 
   let { data } = $props();

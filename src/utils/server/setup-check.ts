@@ -31,6 +31,16 @@ export { isSetupComplete, invalidateFastSetupCache };
 // Memoization
 let setupDbStatus: boolean | null = null;
 let setupStatusCheckedDb = false;
+let setupStatusCheckedAt = 0;
+
+/**
+ * A cached FALSE deep-check result is re-checked after this TTL. Without it,
+ * the first false result (a boot race where the DB is still seeding, or a
+ * manual reseed after deploy) wedged the installation in SETUP mode for the
+ * whole process lifetime — `setupDbStatus` was frozen once checked. TRUE stays
+ * cached indefinitely; only invalidateSetupCache() clears it.
+ */
+const SETUP_DB_STATUS_RECHECK_TTL_MS = 60_000;
 
 export enum SetupState {
   MISSING_CONFIG = "MISSING_CONFIG", // config/private.ts not found
@@ -64,17 +74,18 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
   // 1. Fast fail: Check config first
   if (!isSetupComplete()) return false;
 
-  // 2. Cache hit
-  if (setupStatusCheckedDb || (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true) {
-    return (
-      (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true || (setupDbStatus ?? false)
-    );
+  // 2. Cache hit: TRUE is stable; FALSE is re-checked after the TTL so the
+  //    system self-heals once the DB is seeded (a frozen false previously
+  //    wedged setup mode for the whole process lifetime).
+  if ((globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ === true) return true;
+  const cacheFresh = Date.now() - setupStatusCheckedAt < SETUP_DB_STATUS_RECHECK_TTL_MS;
+  if (setupStatusCheckedDb && (setupDbStatus === true || cacheFresh)) {
+    return setupDbStatus === true;
   }
 
   try {
     // Dynamic imports to avoid Vite/SSR side-effects at top-level
     // Vite will resolve these during the main app build and bundle them correctly.
-    const { logger } = await import("../logger");
     const db = await import("../../databases/db");
 
     // Wait for DB boot
@@ -107,11 +118,13 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
       }
       setupDbStatus = false;
       setupStatusCheckedDb = true;
+      setupStatusCheckedAt = Date.now();
       return false;
     }
 
     setupDbStatus = true;
     setupStatusCheckedDb = true;
+    setupStatusCheckedAt = Date.now();
     return true;
   } catch (err: any) {
     // Fail safe to false to stay in setup mode if DB is unreachable
@@ -121,15 +134,25 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 }
 
 /**
+ * Sync setup state when it is already known (benchmark, missing config, or a
+ * completed deep check). Returns null when the async DB deep-check is required.
+ * Callers that only need COMPLETE/MISSING_CONFIG after boot must not `await`.
+ */
+export function peekSetupState(): SetupState | null {
+  if (typeof process !== "undefined" && process.env.BENCHMARK === "true") {
+    return SetupState.COMPLETE;
+  }
+  if (!isSetupComplete()) return SetupState.MISSING_CONFIG;
+  if (setupStatusCheckedDb && setupDbStatus) return SetupState.COMPLETE;
+  return null;
+}
+
+/**
  * Returns the current SetupState enum.
  */
 export async function getSetupState(): Promise<SetupState> {
-  // 🚀 BENCHMARK OPTIMIZATION: Avoid deep checks during high-frequency audits
-  if (process.env.BENCHMARK === "true") {
-    return SetupState.COMPLETE;
-  }
-
-  if (!isSetupComplete()) return SetupState.MISSING_CONFIG;
+  const peeked = peekSetupState();
+  if (peeked !== null) return peeked;
   const isDeepComplete = await isSetupCompleteAsync();
   return isDeepComplete ? SetupState.COMPLETE : SetupState.MISSING_ADMIN;
 }
@@ -190,6 +213,7 @@ export function invalidateSetupCache(
   invalidateFastSetupCache();
   setupDbStatus = forceStatus;
   setupStatusCheckedDb = forceStatus !== null;
+  setupStatusCheckedAt = forceStatus !== null ? Date.now() : 0;
   if (typeof globalThis !== "undefined") {
     (globalThis as any).__SVELTY_SETUP_FORCED_COMPLETE__ = forceStatus;
   }

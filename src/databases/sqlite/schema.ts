@@ -88,6 +88,9 @@ export const authSessions = sqliteTable(
     user_id: text("user_id", { length: 36 }).notNull(),
     expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
     tenantId: tenantField(),
+    userAgent: text("userAgent"),
+    deviceId: text("deviceId", { length: 64 }),
+    ipAddress: text("ipAddress"),
     ...timestamps,
   },
   (table) => ({

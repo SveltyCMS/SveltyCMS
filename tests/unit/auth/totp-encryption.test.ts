@@ -4,7 +4,8 @@
  *              and backward compatibility with legacy plaintext secrets.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // Set encryption key before importing totp module
 const ENCRYPTION_KEY = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4";
@@ -114,16 +115,64 @@ describe("TOTP Secret Encryption", () => {
     it("should store plaintext when no encryption key is configured", async () => {
       delete process.env.ENCRYPTION_KEY;
       delete process.env.SECRET_ENCRYPTION_KEY;
+      vi.resetModules();
 
-      // Need fresh import to re-read env
-      const { encryptTotpSecret } = await import("@src/databases/auth/totp");
+      const { encryptTotpSecret, resetTotpEncryptionKeyCache } =
+        await import("@src/databases/auth/totp");
+      resetTotpEncryptionKeyCache();
       const secret = "JBSWY3DPEHPK3PXP";
 
       const result = await encryptTotpSecret(secret);
       // Without a key, returns the secret as-is (graceful degradation)
-      expect(typeof result).toBe("string");
-      expect(result.length).toBeGreaterThan(0);
+      expect(result).toBe(secret);
     });
+  });
+});
+
+describe("TOTP passphrase HKDF dual-read", () => {
+  const envKeyMaterial = "totpEnvKeyMaterial00000000000001";
+  const totpBase32 = "JBSWY3DPEHPK3PXP";
+
+  afterEach(() => {
+    process.env = { ...OLD_ENV };
+    vi.resetModules();
+  });
+
+  it("round-trips a TOTP secret under a passphrase ENCRYPTION_KEY", async () => {
+    process.env.ENCRYPTION_KEY = envKeyMaterial;
+    delete process.env.SECRET_ENCRYPTION_KEY;
+    vi.resetModules();
+    const { encryptTotpSecret, decryptTotpSecret, resetTotpEncryptionKeyCache } =
+      await import("@src/databases/auth/totp");
+    resetTotpEncryptionKeyCache();
+
+    const encrypted = await encryptTotpSecret(totpBase32);
+    expect(encrypted).not.toBe(totpBase32);
+    expect(await decryptTotpSecret(encrypted)).toBe(totpBase32);
+  });
+
+  it("decrypts SHA-256(raw) envelopes written before HKDF", async () => {
+    process.env.ENCRYPTION_KEY = envKeyMaterial;
+    delete process.env.SECRET_ENCRYPTION_KEY;
+    vi.resetModules();
+    const { decryptTotpSecret, resetTotpEncryptionKeyCache } =
+      await import("@src/databases/auth/totp");
+    resetTotpEncryptionKeyCache();
+
+    const legacyKey = createHash("sha256").update(envKeyMaterial, "utf8").digest();
+    // codeql[js/insufficient-password-hash]: legacy pre-HKDF envelope fixture
+    // (AES key material, not a password KDF).
+    const iv = randomBytes(16);
+    const cipher = createCipheriv("aes-256-gcm", legacyKey, iv);
+    const ciphertext = Buffer.concat([cipher.update(totpBase32, "utf8"), cipher.final()]);
+    const envelope = Buffer.concat([
+      Buffer.from([1]),
+      iv,
+      cipher.getAuthTag(),
+      ciphertext,
+    ]).toString("base64");
+
+    expect(await decryptTotpSecret(envelope)).toBe(totpBase32);
   });
 });
 
@@ -172,6 +221,27 @@ describe("Trusted Device Tokens", () => {
 
     expect(await verifyTrustedDeviceToken("too-few-parts")).toBeNull();
     expect(await verifyTrustedDeviceToken("")).toBeNull();
+  });
+
+  it("should verify a token presented by the same device fingerprint (M9 rebinding)", async () => {
+    const { generateTrustedDeviceToken, verifyTrustedDeviceToken } =
+      await import("@src/databases/auth/totp");
+
+    const token = await generateTrustedDeviceToken("user-1", "192.168:abc123");
+    const userId = await verifyTrustedDeviceToken(token!, "192.168:abc123");
+
+    expect(userId).toBe("user-1");
+  });
+
+  it("should reject a token presented by a different device fingerprint (M9 rebinding)", async () => {
+    const { generateTrustedDeviceToken, verifyTrustedDeviceToken } =
+      await import("@src/databases/auth/totp");
+
+    const token = await generateTrustedDeviceToken("user-1", "192.168:abc123");
+    // Stolen cookie replayed from another IP prefix / UA must NOT skip 2FA.
+    const userId = await verifyTrustedDeviceToken(token!, "203.0.113:other-ua-hash");
+
+    expect(userId).toBeNull();
   });
 
   it("should build a device fingerprint from IP and user-agent", async () => {

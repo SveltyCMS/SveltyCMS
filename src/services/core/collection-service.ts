@@ -25,7 +25,7 @@ import type { CollectionEntry, RevisionData, Schema } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
-import type { IDBAdapter } from "@src/databases/db-interface";
+import type { BaseEntity, DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import {
   applyFiltersToQueryBuilder,
   compileSecureFilters,
@@ -40,8 +40,10 @@ import {
 import { recordListQuery } from "@utils/list-query-metrics";
 import { modifyRequest } from "@utils/modify-request";
 import { isMultiTenantEnabled } from "@utils/tenant";
+import { collectionTableName } from "@src/databases/core/collection-name";
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import { deepClone } from "@utils/native-utils";
 
 const clientSchemaMemo = new WeakMap<object, Schema>();
 
@@ -198,7 +200,11 @@ export class CollectionService {
 
     return countStatusFacets({
       queryBuilder: (table) => dbAdapter.queryBuilder(table) as any,
-      collectionTableName: `collection_${collectionId}`,
+      // 🐛 FIX (BUG-01): canonical physical name — manual `collection_${id}`
+      // breaks for hyphenated ids ("blog-posts" → collection_blog-posts,
+      // actual table: collection_blogposts). collectionTableName normalizes
+      // and is idempotent for already-prefixed names.
+      collectionTableName: collectionTableName(collectionId),
       baseWhere,
       tenantId: input.tenantId,
       crudCount: (table, filter, opts) =>
@@ -238,7 +244,7 @@ export class CollectionService {
       await dbAdapter.ensureCollections();
     }
 
-    const collectionTableName = `collection_${collectionId}`;
+    const collectionTable = collectionTableName(collectionId);
 
     // Base isolation (tenant + edit) — never from client filter map
     const baseWhere: Record<string, unknown> = {};
@@ -251,7 +257,7 @@ export class CollectionService {
 
     // Platform filter engine: schema + FLAC → portable QueryBuilder IR
     const compiled = compileSecureFilters(filter, collection, user);
-    logger.debug(`[CollectionService] Querying table: ${collectionTableName}`, {
+    logger.debug(`[CollectionService] Querying table: ${collectionTable}`, {
       equality: compiled.equality,
       ranges: compiled.ranges,
       textSearch: compiled.textSearch,
@@ -260,7 +266,7 @@ export class CollectionService {
       search: search || undefined,
     });
 
-    let query = dbAdapter.queryBuilder(collectionTableName);
+    let query = dbAdapter.queryBuilder(collectionTable);
     const applied = applyFiltersToQueryBuilder(query, compiled, {
       baseWhere,
       globalSearch: search,
@@ -296,13 +302,13 @@ export class CollectionService {
     const runEntries = () => query.execute();
     const runCount = () =>
       simpleCountEligible
-        ? dbAdapter.crud.count(collectionTableName, countFilter as any, {
+        ? dbAdapter.crud.count(collectionTable, countFilter as any, {
             tenantId: tenantId as any,
             mode: "exact",
             skipMeta: true,
           })
         : (() => {
-            let countQuery = dbAdapter.queryBuilder(collectionTableName);
+            let countQuery = dbAdapter.queryBuilder(collectionTable);
             countQuery = applyFiltersToQueryBuilder(countQuery, compiled, {
               baseWhere,
               globalSearch: search,
@@ -387,6 +393,7 @@ export class CollectionService {
           }
         }
       }
+      await hydrateRelationDisplays(entries, collection, dbAdapter, tenantId);
     }
 
     // Plugin SSR hooks
@@ -461,7 +468,7 @@ export class CollectionService {
     // Memoized client-sanitized schema (avoids JSON serialization on hot edit page loads)
     let collectionSchemaForClient = clientSchemaMemo.get(collection);
     if (!collectionSchemaForClient) {
-      collectionSchemaForClient = JSON.parse(JSON.stringify(collection)) as Schema;
+      collectionSchemaForClient = deepClone(collection) as Schema;
       clientSchemaMemo.set(collection, collectionSchemaForClient);
     }
 
@@ -478,6 +485,101 @@ export class CollectionService {
       },
       revisions: revisionsMeta || [],
     };
+  }
+}
+
+/**
+ * One findByIds per related collection so list cells do not HTTP-fetch each row.
+ * Replaces stored ids with `{ _id, [displayField] }` for Relation Display.
+ */
+async function hydrateRelationDisplays(
+  entries: CollectionEntry[],
+  collection: Schema,
+  dbAdapter: IDBAdapter,
+  tenantId?: string | null,
+): Promise<void> {
+  if (entries.length === 0 || !Array.isArray(collection.fields)) return;
+
+  type RelField = { name: string; table: string; displayField: string };
+  const relFields: RelField[] = [];
+  for (const field of collection.fields as Array<Record<string, unknown>>) {
+    const widgetName = (field.widget as { Name?: string } | undefined)?.Name;
+    if (widgetName !== "Relation" && widgetName !== "RelationList") continue;
+    const target = typeof field.collection === "string" ? field.collection : "";
+    const displayField = typeof field.displayField === "string" ? field.displayField : "";
+    const name = String(field.db_fieldName || field.name || field.label || "");
+    if (!target || !displayField || !name) continue;
+    relFields.push({ name, table: collectionTableName(target), displayField });
+  }
+  if (relFields.length === 0) return;
+
+  const byTable = new Map<string, { displayField: string; names: string[]; ids: Set<string> }>();
+  for (const rel of relFields) {
+    let group = byTable.get(rel.table);
+    if (!group) {
+      group = { displayField: rel.displayField, names: [], ids: new Set() };
+      byTable.set(rel.table, group);
+    }
+    group.names.push(rel.name);
+    for (const entry of entries) {
+      const raw = (entry as Record<string, unknown>)[rel.name];
+      const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
+      for (const v of values) {
+        if (typeof v === "string" && v) group.ids.add(v);
+      }
+    }
+  }
+
+  const lookups = await Promise.all(
+    [...byTable.entries()].map(async ([table, group]) => {
+      const ids = [...group.ids];
+      if (ids.length === 0) return { group, rows: [] as Record<string, unknown>[] };
+      try {
+        // Display-field column names are dynamic schema strings, so widen the
+        // generic to an index-signature row (keyof becomes `string`).
+        const res = await dbAdapter.crud.findByIds<BaseEntity & Record<string, unknown>>(
+          table,
+          ids as DatabaseId[],
+          {
+            tenantId: tenantId as DatabaseId,
+            fields: ["_id", group.displayField],
+            limit: ids.length,
+          },
+        );
+        const rows = res.success && Array.isArray(res.data) ? res.data : [];
+        return { group, rows };
+      } catch (err) {
+        logger.debug("[CollectionService] Relation hydrate skipped", { table, err });
+        return { group, rows: [] as Record<string, unknown>[] };
+      }
+    }),
+  );
+
+  for (const { group, rows } of lookups) {
+    if (rows.length === 0) continue;
+    const byId = new Map<string, Record<string, unknown>>();
+    for (const row of rows) {
+      const id = String(row._id ?? "");
+      if (id) byId.set(id, row);
+    }
+    for (const entry of entries) {
+      const rec = entry as Record<string, unknown>;
+      for (const name of group.names) {
+        const raw = rec[name];
+        if (Array.isArray(raw)) {
+          rec[name] = raw.map((v) =>
+            typeof v === "string" && byId.has(v)
+              ? { _id: v, [group.displayField]: byId.get(v)?.[group.displayField] }
+              : v,
+          );
+        } else if (typeof raw === "string" && byId.has(raw)) {
+          rec[name] = {
+            _id: raw,
+            [group.displayField]: byId.get(raw)?.[group.displayField],
+          };
+        }
+      }
+    }
   }
 }
 

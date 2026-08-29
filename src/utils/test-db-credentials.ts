@@ -162,7 +162,11 @@ export function getBenchmarkTestEnv(
     JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "Benchmark-JWT-Secret-Key-2026-32ch",
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "Benchmark-Encryption-Key-2026-32ch",
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "Password123!",
-    BENCHMARK_NO_REDIS: "1",
+    // 🧮 USE_REDIS=true variants must exercise the REAL Redis L2 path
+    // (production parity — see benchmark-runtime.isBenchmarkRedisDisabled).
+    // Derive the gate from the override so a redis report never measures a
+    // no-redis server.
+    BENCHMARK_NO_REDIS: overrides.USE_REDIS === "true" ? "0" : "1",
     BENCHMARK_RECORD: "1",
     PASSWORD_MIN_LENGTH: "8",
     UDH_PG_DATABASE: process.env.UDH_PG_DATABASE || getBenchmarkUdhPgDatabase(normalized),

@@ -207,7 +207,7 @@ if (isManual) {
     if (!db) throw new Error("DB Initialization Failed");
     await ensureStableTestData(db);
 
-    // Ensure bench-shared-001 exists for the journey PATCH step
+    // Ensure the stable entry exists for the journey PATCH step
     const checkRes = await fetch(
       `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}?bypassCache=true`,
       {

@@ -3,10 +3,10 @@
  * @description
  * Server-only HMAC-SHA-256 hashing for share-link passwords.
  *
- * Mirrors the `hashApiKey` / `hashApiKeyWithLegacy` pattern in
- * `src/databases/auth/api-keys.ts`: passwords are keyed with a domain-prefixed
- * server secret derived from `JWT_SECRET_KEY` (never a plain digest), and
- * legacy plain-SHA-256 stored values remain verifiable during migration.
+ * Passwords are keyed with a domain-prefixed server secret derived from
+ * `JWT_SECRET_KEY` (never a plain digest). The pre-HMAC plain-SHA-256 scheme
+ * was removed in 2026-08 — share links created before that migration have
+ * expired (default 24 h TTL), so no dual-read fallback remains.
  *
  * This module MUST stay server-only (`.server.ts`) because it reads the
  * bootstrap secret — the secret-misuse scanner enforces that classification.
@@ -14,11 +14,10 @@
  * ### Features:
  * - HMAC-SHA-256 password hashing (hex, 64 chars)
  * - Timing-safe verification (padded constant-time compare)
- * - Backward-compatible legacy SHA-256 verification
  * - Fail-closed when `JWT_SECRET_KEY` is not configured
  */
 
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 
 /** Constant-time compare that pads to the longer input (no length leak). */
@@ -50,35 +49,15 @@ function getShareLinkHmacSecret(): string {
  * without the server-side secret (unlike the legacy plain SHA-256 digest).
  */
 export function hashSharePassword(password: string): string {
+  // codeql[js/insufficient-password-hash]: HMAC-SHA-256 with server secret (not unsalted SHA-256); login passwords are Argon2id
   return createHmac("sha256", getShareLinkHmacSecret()).update(password).digest("hex");
 }
 
 /**
- * Returns both the current HMAC hash and the legacy plain-SHA-256 hash so
- * links created before the HMAC migration remain verifiable.
- * slop:suppress — legacy fallback intentionally uses SHA-256 for backward compat
- */
-export function hashSharePasswordWithLegacy(password: string): {
-  current: string;
-  legacy: string;
-} {
-  const secret = getShareLinkHmacSecret();
-  return {
-    current: createHmac("sha256", secret).update(password).digest("hex"),
-    legacy: createHash("sha256").update(password).digest("hex"),
-  };
-}
-
-/**
- * Timing-safe verification of a share-link password against a stored hash.
- * Accepts either the current HMAC-SHA-256 format or a legacy plain-SHA-256
- * value, mirroring `hashApiKeyWithLegacy`'s backward-compatible lookup.
+ * Timing-safe verification of a share-link password against the stored HMAC.
+ * Every link created since the HMAC migration stores `hashSharePassword`; the
+ * pre-HMAC plain-SHA-256 scheme was removed with the legacy links (24 h TTL).
  */
 export function verifySharePassword(password: string, storedHash: string): boolean {
-  const { current, legacy } = hashSharePasswordWithLegacy(password);
-  const stored = Buffer.from(storedHash);
-  return (
-    constantTimeBufferEqual(Buffer.from(current), stored) ||
-    constantTimeBufferEqual(Buffer.from(legacy), stored)
-  );
+  return constantTimeBufferEqual(Buffer.from(hashSharePassword(password)), Buffer.from(storedHash));
 }

@@ -93,6 +93,8 @@ Optional dual-query list paths (`findMany` + exact `count`) vs shared **`findPag
 
 ### Verified Head-to-Head Database Benchmarks (10,000 Documents, PostgreSQL 16)
 
+> **Engine note:** These numbers were measured on **PostgreSQL 16** (August 2026). The local/CI benchmark matrix now pins `postgres:18` — the adapter writes are not DB-version-sensitive (the write bottleneck is synchronous audit logging + versioning, not the server engine), so the figures remain representative. See [Performance Architecture](../reference/database/performance-architecture.mdx).
+
 Self-measured p50 latency and throughput (RPS) across SveltyCMS, Strapi v5, Directus 12, and Payload CMS 3.0 on identical hardware (PostgreSQL 16 native, 10,000 seeded documents, August 2026, byte-identical dataset):
 
 | Workload                                | Metric               | SveltyCMS (v0.0.7)              | Strapi v5                       | Directus 12             | Payload CMS 3.0         | Architectural Difference & Notes                                                                                      |

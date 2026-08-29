@@ -300,8 +300,10 @@ export function buildIssuesTable(entries: TestRollupEntry[]): string {
       row.baselineMs > 0
         ? `${row.deltaPct >= 0 ? "+" : ""}${row.deltaPct.toFixed(0)}% (${row.baselineMs.toFixed(2)}\u2192${row.avgMs.toFixed(2)}ms)`
         : row.trendLabel;
-    const name = row.label.replace(/\|/g, "\\|");
-    const cause = (row.likelyCause || "\u2014").replace(/\|/g, "\\|");
+    const name = row.label.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+    // codeql[js/incomplete-sanitization]: markdown table-cell escaper (backslash
+    // FIRST, then pipe) — report formatting, not a security sanitizer.
+    const cause = (row.likelyCause || "\u2014").replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
     table += `| ${name} | ${row.icon} | ${delta} | ${row.budgetLabel} | ${cause} | ${row.expected} | ${row.owner} | [\u2193](#section-${row.tag.toLowerCase()}) |\n`;
   }
   return `${table}\n`;

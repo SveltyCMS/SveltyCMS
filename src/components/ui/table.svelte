@@ -298,7 +298,7 @@ function onVirtualScroll() {
                             </td>
                         </tr>
                     {:else}
-                        {#each data as row, index (row._id || row.id || Math.random())}
+                        						{#each data as row, index (row._id || row.id || index)}
                             {#if rowSnippet}
                                 {@render rowSnippet({ row, index })}
                             {:else}

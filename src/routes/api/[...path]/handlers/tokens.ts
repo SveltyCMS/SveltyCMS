@@ -131,6 +131,9 @@ export async function handleTokenRoutes(
   if (!locals.user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
 
   const isWebsite = segments[0] === "website-tokens";
+  if (isWebsite && !(locals.isAdmin || isAdmin(locals.user))) {
+    throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
 
   if (request.method === "POST") {
     const body = await request.json().catch(() => ({}));
@@ -246,4 +249,137 @@ export async function handleTokenRoutes(
   }
 
   throw new AppError(`Method ${request.method} or action ${action} not implemented`, 404);
+}
+
+function scrubApiKey(key: any) {
+  const { hash: _hash, ...safe } = key;
+  return safe;
+}
+
+/**
+ * Admin API key lifecycle — create, list, revoke machine-to-machine credentials.
+ */
+export async function handleApiKeyRoutes(
+  event: RequestEvent,
+  tenantId: DatabaseId,
+  segments: string[],
+) {
+  const { request, locals, url } = event;
+  const keyId = segments[1];
+
+  const { auth, getDbInitPromise } = await import("@src/databases/db");
+  const { generateApiKey } = await import("@src/databases/auth/api-keys");
+  const { nowISODateString } = await import("@utils/date");
+  const { validateRequestBody } = await import("./base");
+  const v = await import("valibot");
+
+  const schema = v.object({
+    name: v.pipe(v.string(), v.minLength(1, "Name is required")),
+    userId: v.optional(v.string()),
+    permissions: v.optional(v.array(v.string()), []),
+    scopes: v.optional(v.array(v.string()), []),
+    expiresAt: v.optional(v.string()),
+  });
+
+  await getDbInitPromise();
+  if (!auth) {
+    throw new AppError("Authentication system unavailable", 503, "SERVICE_UNAVAILABLE");
+  }
+
+  if (!locals.user) {
+    throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+  }
+
+  const userIsAdmin = !!(locals.isAdmin || isAdmin(locals.user));
+  const dbOptions = { tenantId: tenantId ?? undefined };
+
+  if (request.method === "GET" && !keyId) {
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "20", 10), 100);
+    const skip = (page - 1) * limit;
+
+    const filter: { userId?: DatabaseId; tenantId?: DatabaseId | null } = {
+      tenantId,
+    };
+    if (!userIsAdmin) {
+      filter.userId = locals.user._id as DatabaseId;
+    } else {
+      const userIdFilter = url.searchParams.get("userId");
+      if (userIdFilter) filter.userId = userIdFilter as DatabaseId;
+    }
+
+    const result = await auth!.listApiKeys(filter, { limit, skip });
+    if (!result.success) {
+      throw new AppError(result.message || "Failed to list API keys", 500);
+    }
+
+    return rawResponse(event, {
+      success: true,
+      data: (result.data || []).map(scrubApiKey),
+      pagination: { page, limit, totalItems: result.data?.length || 0 },
+    });
+  }
+
+  if (request.method === "POST" && !keyId) {
+    if (!userIsAdmin && !locals.user._id) {
+      throw new AppError("Forbidden", 403, "FORBIDDEN");
+    }
+
+    const body = await validateRequestBody(event, schema);
+
+    const { full, prefix, hash } = generateApiKey();
+    const createResult = await auth!.createApiKey(
+      {
+        name: body.name,
+        hash,
+        prefix,
+        userId: (body.userId as DatabaseId) || (locals.user._id as DatabaseId),
+        permissions: body.permissions || [],
+        scopes: body.scopes || [],
+        expiresAt: body.expiresAt,
+        tenantId,
+        revoked: false,
+        usageCount: 0,
+        createdAt: nowISODateString() as any,
+      },
+      dbOptions,
+    );
+
+    if (!createResult.success || !createResult.data) {
+      throw new AppError(createResult.message || "Failed to create API key", 500);
+    }
+
+    return rawResponse(
+      event,
+      {
+        success: true,
+        data: {
+          ...scrubApiKey(createResult.data),
+          key: full,
+          apiKey: full,
+        },
+      },
+      201,
+    );
+  }
+
+  if (request.method === "DELETE" && keyId) {
+    const existing = await auth!.getApiKeyById(keyId, dbOptions);
+    if (!existing.success || !existing.data) {
+      throw new AppError("API key not found", 404, "NOT_FOUND");
+    }
+
+    if (!userIsAdmin && existing.data.userId !== locals.user._id) {
+      throw new AppError("Forbidden", 403, "FORBIDDEN");
+    }
+
+    const result = await auth!.revokeApiKey(keyId, dbOptions);
+    if (!result.success) {
+      throw new AppError(result.message || "Failed to revoke API key", 500);
+    }
+
+    return successResponse(event, { revoked: true });
+  }
+
+  throw new AppError(`Method ${request.method} not allowed for /api/api-keys`, 405);
 }

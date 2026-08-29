@@ -37,23 +37,34 @@ export const getGuiFields = (
   return guiFields;
 };
 
+const fieldNameCache = new WeakMap<object, string>();
+const rawFieldNameCache = new WeakMap<object, string>();
+
+const SPECIAL_FIELD_MAPPINGS: Readonly<Record<string, string>> = Object.freeze({
+  "First Name": "first_name",
+  "Last Name": "last_name",
+});
+
 /**
  * Returns the database field name for a FieldInstance, derived from its label.
  * Converts to snake_case, strips non-alphanumeric characters, and prefixes
  * digit-starting names with `_` for GraphQL compatibility.
+ * Fast-path: Uses WeakMap memoization on the field object.
  */
 export function getFieldName(
   field: Partial<FieldInstance> & { label: string },
   rawName = false,
 ): string {
-  if (!field) return "";
+  if (!field || typeof field !== "object") return "";
 
-  if (field.db_fieldName) return field.db_fieldName;
+  const cache = rawName ? rawFieldNameCache : fieldNameCache;
+  const hit = cache.get(field);
+  if (hit !== undefined) return hit;
 
-  const specialMappings: Record<string, string> = {
-    "First Name": "first_name",
-    "Last Name": "last_name",
-  };
+  if (field.db_fieldName) {
+    cache.set(field, field.db_fieldName);
+    return field.db_fieldName;
+  }
 
   let name = field.label;
   if (!name && "widget" in field && (field as any).widget?.Name) {
@@ -64,8 +75,16 @@ export function getFieldName(
   }
   if (!name) name = "unknown_field";
 
-  if (rawName) return name;
-  if (specialMappings[name]) return specialMappings[name];
+  if (rawName) {
+    cache.set(field, name);
+    return name;
+  }
+
+  if (SPECIAL_FIELD_MAPPINGS[name]) {
+    const mapped = SPECIAL_FIELD_MAPPINGS[name];
+    cache.set(field, mapped);
+    return mapped;
+  }
 
   let result = name
     .toLowerCase()
@@ -73,6 +92,7 @@ export function getFieldName(
     .replace(/[^a-z0-9_]/g, "");
 
   if (/^[0-9]/.test(result)) result = "_" + result;
+  cache.set(field, result);
   return result;
 }
 

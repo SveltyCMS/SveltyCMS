@@ -13,7 +13,7 @@ import fs from "node:fs";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import { generateUUID } from "@utils/native-utils";
+import { generateUUID, deepClone } from "@utils/native-utils";
 import {
   isAutomatedTestHarness,
   resolvePrivateConfigFileName,
@@ -24,6 +24,8 @@ import {
  * Standard testing response helper
  */
 function rawResponse(data: any, status = 200) {
+  // codeql[js/stack-trace-exposure]: /api/testing is production-gated + stripped
+  // from normal builds; only plain { success, message } envelopes are serialized here.
   return new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json" },
@@ -314,7 +316,7 @@ export async function handleTestingRoutes(
 
         // 4. Seed default theme and refresh ThemeManager
         const { DEFAULT_THEME, ThemeManager } = await import("@src/databases/theme-manager");
-        const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
+        const safeTheme = deepClone(DEFAULT_THEME);
         await initializedAdapter.system.themes.ensure(safeTheme);
         const themeManager = ThemeManager.getInstance();
         if (themeManager.isInitialized()) {
@@ -454,7 +456,7 @@ export async function handleTestingRoutes(
       const { DEFAULT_THEME } = await import("@src/databases/theme-manager");
 
       // 🚀 HARDENING: Ensure all DEFAULT_THEME properties are strings or null (no undefined)
-      const safeTheme = JSON.parse(JSON.stringify(DEFAULT_THEME));
+      const safeTheme = deepClone(DEFAULT_THEME);
       await initializedAdapter.system.themes.ensure(safeTheme);
 
       const { ThemeManager } = await import("@src/databases/theme-manager");
@@ -807,15 +809,12 @@ export async function handleTestingRoutes(
       const executeSeed = async (db: any) => {
         for (let i = 0; i < count; i += BATCH) {
           const end = Math.min(i + BATCH, count);
-          const docs = Array.from({ length: end - i }, (_, k) => {
-            const j = i + k;
-            return {
-              _id: `tp-${j}`,
-              title: `Throughput Doc ${j}`,
-              count: 0,
-              tenantId,
-            };
-          });
+          const docs = Array.from({ length: end - i }, () => ({
+            _id: crypto.randomUUID(),
+            title: `Throughput Doc`,
+            count: 0,
+            tenantId,
+          }));
           // Prefer tx.crud.insertMany (SQLite txn object) or adapter.crud
           const crud = db?.crud ?? db;
           await crud.insertMany(collectionId, docs, insertOpts);
@@ -1213,6 +1212,97 @@ export async function handleTestingRoutes(
       }
     }
 
+    if (action === "seed-user-graph") {
+      const { userId, email } = params;
+      const targetUserId = userId || `gdpr_usr_${Date.now()}`;
+      const targetEmail = email || `${targetUserId}@gdpr-benchmark.local`;
+
+      try {
+        await cms.db.crud.create(
+          "auth_users",
+          {
+            _id: targetUserId,
+            email: targetEmail,
+            password: "HashedPassword123!",
+            role: "user",
+            isRegistered: true,
+            emailVerified: true,
+            tenantId: tenantId || "global",
+          } as any,
+          { bypassTenantCheck: true },
+        );
+
+        for (let i = 0; i < 3; i++) {
+          await cms.db.crud.create(
+            "audit_logs",
+            {
+              _id: `audit_${targetUserId}_${i}`,
+              actorId: targetUserId,
+              action: "login",
+              tenantId: tenantId || "global",
+            } as any,
+            { bypassTenantCheck: true },
+          );
+        }
+
+        await cms.db.crud.create(
+          "auth_sessions",
+          {
+            _id: `sess_${targetUserId}`,
+            user_id: targetUserId,
+            expires_at: new Date(Date.now() + 86400000).toISOString(),
+            tenantId: tenantId || "global",
+          } as any,
+          { bypassTenantCheck: true },
+        );
+
+        await cms.db.crud.create(
+          "auth_tokens",
+          {
+            _id: `tok_${targetUserId}`,
+            user_id: targetUserId,
+            token: `tok_val_${targetUserId}`,
+            tenantId: tenantId || "global",
+          } as any,
+          { bypassTenantCheck: true },
+        );
+
+        return rawResponse({ success: true, userId: targetUserId });
+      } catch (err: any) {
+        throw new AppError(`seed-user-graph failed: ${err.message}`, 500);
+      }
+    }
+
+    if (action === "verify-user-erasure") {
+      const { userId } = params;
+      if (!userId) throw new AppError("userId required", 400);
+
+      const [userRes, auditRes, sessRes, tokenRes] = await Promise.all([
+        cms.db.crud.findOne("auth_users", { _id: userId } as any, { bypassTenantCheck: true }),
+        cms.db.crud.findMany("audit_logs", { actorId: userId } as any, {
+          bypassTenantCheck: true,
+        }),
+        cms.db.crud.findMany("auth_sessions", { user_id: userId } as any, {
+          bypassTenantCheck: true,
+        }),
+        cms.db.crud.findMany("auth_tokens", { user_id: userId } as any, {
+          bypassTenantCheck: true,
+        }),
+      ]);
+
+      let orphans = 0;
+      if (userRes.success && userRes.data) orphans++;
+      if (auditRes.success && Array.isArray(auditRes.data)) orphans += auditRes.data.length;
+      if (sessRes.success && Array.isArray(sessRes.data)) orphans += sessRes.data.length;
+      if (tokenRes.success && Array.isArray(tokenRes.data)) orphans += tokenRes.data.length;
+
+      return rawResponse({
+        success: true,
+        erased: orphans === 0,
+        orphans,
+      });
+    }
+
     if (action === "seed-website-starter") {
       const { seedWebsiteStarterBlueprint } =
         await import("@src/services/site/website-starter-seed.server");
@@ -1390,9 +1480,10 @@ export async function handleTestingRoutes(
         await localCms.collections.registerSchema(schema._id, schema as any, tenantId);
       }
 
-      // Seed authors
+      // Seed authors — deterministic UUIDv4 ids (version 4 / variant 8),
+      // format-compliant with the enterprise _id contract on collection tables.
       const authors = Array.from({ length: AUTHOR_COUNT }, (_, i) => ({
-        _id: `author-${i + 1}`,
+        _id: `10000000-0000-4000-8000-${(i + 1).toString(16).padStart(12, "0")}`,
         name: `Author ${i + 1}`,
         tenantId,
       }));
@@ -1417,8 +1508,9 @@ export async function handleTestingRoutes(
       });
 
       // Seed stable entry and redirects in parallel (upsert stable entry for re-runs)
+      const STABLE_ENTRY_ID = "20000000-0000-4000-8000-000000000001";
       const stablePayload = {
-        _id: "bench-shared-001",
+        _id: STABLE_ENTRY_ID,
         title: "Stable Benchmark Entry",
         content: "This is a stable entry for REST and API performance testing.",
         count: 1,
@@ -1428,7 +1520,7 @@ export async function handleTestingRoutes(
         initializedAdapter.crud
           .upsert(
             "BenchmarkStable" as any,
-            { _id: "bench-shared-001" } as any,
+            { _id: STABLE_ENTRY_ID } as any,
             stablePayload as any,
             { tenantId, bypassTenantCheck: true } as any,
           )
@@ -1445,14 +1537,14 @@ export async function handleTestingRoutes(
           "redirects",
           [
             {
-              _id: "bench-redirect-1",
+              _id: "30000000-0000-4000-8000-000000000001",
               source: "/old-path-1",
               target: "/new-path-1",
               type: 301,
               tenantId,
             },
             {
-              _id: "bench-redirect-2",
+              _id: "30000000-0000-4000-8000-000000000002",
               source: "/old-path-2",
               target: "/new-path-2",
               type: 301,
@@ -1638,7 +1730,7 @@ export async function handleTestingRoutes(
       if (!collectionId || collectionId.length > 64) {
         throw new AppError("Invalid collectionId", 400);
       }
-      const entryId = String(params.entryId || `trash_${generateUUID().slice(0, 12)}`);
+      const entryId = String(params.entryId || crypto.randomUUID());
       const title = String(params.title || `E2E Trash Item ${generateUUID().slice(0, 6)}`);
       const collectionName = collectionTableName(collectionId);
 

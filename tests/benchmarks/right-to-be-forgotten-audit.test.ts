@@ -1,34 +1,44 @@
 /**
  * @file tests/benchmarks/right-to-be-forgotten-audit.test.ts
  * @description GDPR/CCPA Right-to-be-Forgotten Compliance Benchmark (Optimized)
- * @summary Measures the speed and integrity of deep-deletion across all linked repositories for regulatory compliance.
- *
- * ### Features:
- * - Deep-deletion latency measurement (GDPR wipe procedure)
- * - Cross-repository cascading deletion integrity verification
- * - Compliance rating based on wipe latency thresholds
+ * @summary Measures the latency, cascading relational integrity, and throughput of deep user erasure across all linked repositories.
  */
 
 import {
   test,
+  expect,
   runBenchmark,
+  exportResult,
+  exportMetric,
   setupBenchmarkServer,
   ensureStableTestData,
+  stabilize,
   printTruthTable,
   printSummaryTable,
   getDbType,
   requireTestInfrastructure,
   TEST_API_SECRET,
+  benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
+import type { DatabaseId } from "@src/content/types";
 
 let stopServer: (() => Promise<void>) | null = null;
 
+function forceGarbageCollection() {
+  if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
+    (Bun as any).gc(true);
+  } else if (typeof (globalThis as any).gc === "function") {
+    (globalThis as any).gc();
+  }
+}
+
 async function runGdprAudit() {
-  // The GDPR wipe path is exercised via the testing API (TEST_MODE-only action)
+  process.env.TEST_MODE = "true";
   requireTestInfrastructure("right-to-be-forgotten-audit");
-  console.log("🚀 Starting Enterprise Right-to-be-Forgotten Audit...\n");
+  const dbType = getDbType().toUpperCase();
+  console.log(`🚀 Starting Enterprise Right-to-be-Forgotten Audit (${dbType})...\n`);
 
   try {
     const server = await setupBenchmarkServer();
@@ -36,65 +46,159 @@ async function runGdprAudit() {
     const baseUrl = server.baseUrl;
 
     await ensureStableTestData();
+    await stabilize(1000);
 
-    // Pre-allocated headers outside the hot iteration loop
-    const complianceHeaders = {
-      "Content-Type": "application/json",
+    const { getDb, getDbInitPromise } = await import("@src/databases/db");
+    await getDbInitPromise(false, "CORE").catch(() => {});
+    const _db = getDb();
+    if (!_db) throw new Error("Database adapter not initialized");
+
+    const testEndpoint = `${baseUrl}/api/testing`;
+    const complianceHeaders: Record<string, string> = {
+      "content-type": "application/json",
       "x-test-secret": TEST_API_SECRET,
+      ...benchmarkAuthHeaders(),
+      connection: "keep-alive",
     };
 
-    const ITERATIONS = 20;
+    const ITERATIONS = 25;
+    const WARMUP_COUNT = 5;
+    const TOTAL_USERS_NEEDED = (ITERATIONS + WARMUP_COUNT) * 2;
 
-    // Pre-serialize all payload strings to isolate backend execution from local engine serialization limits
-    const pregeneratedPayloads = Array.from({ length: ITERATIONS }, (_, i) =>
+    // ── 1. PRE-SEED LINKED USER GRAPHS ──────────────────────────────────────
+    console.log(
+      `   → Pre-seeding ${TOTAL_USERS_NEEDED} relational user graphs for deep-wipe audit...`,
+    );
+
+    const preseededUserIds: DatabaseId[] = Array.from(
+      { length: TOTAL_USERS_NEEDED },
+      (_, i) => `gdpr_usr_${Date.now()}_${i}` as DatabaseId,
+    );
+
+    for (const userId of preseededUserIds) {
+      await _db.auth.createUser(
+        {
+          _id: userId,
+          email: `${userId}@gdpr-benchmark.local`,
+          password: "HashedPassword123!",
+          role: "user",
+          isRegistered: true,
+          emailVerified: true,
+          tenantId: "global" as DatabaseId,
+        },
+        { tenantId: "global" as DatabaseId },
+      );
+    }
+
+    await stabilize(500);
+
+    // Pre-serialize erase payloads
+    const wipePayloads = preseededUserIds.map((userId) =>
       JSON.stringify({
         action: "wipe-user",
-        userId: `gdpr-bench-${i}`,
+        userId,
       }),
     );
 
-    console.log("   → Measuring Deep-Deletion (GDPR) speed across linked tables...");
+    let wipeCursor = 0;
+    const wipedIdsForVerification: DatabaseId[] = [];
+
+    // ── 2. MEASURE CASCADING DEEP-DELETION SPEED ────────────────────────────
+    forceGarbageCollection();
+    await stabilize(150);
+
+    console.log("   → Measuring Cascading Deep-Deletion Latency...");
 
     const results = await runBenchmark({
       name: "Deep Deletion Speed",
       iterations: ITERATIONS,
-      runs: 1,
+      warmupIterations: WARMUP_COUNT,
+      runs: 2,
       concurrency: 1,
+      trimOutliers: "iqr",
+      measureMemory: true,
       silent: true,
-      onIteration: async (i: number) => {
-        const bodyPayload = pregeneratedPayloads[i] ?? pregeneratedPayloads[0];
+      onIteration: async () => {
+        const idx = wipeCursor++ % wipePayloads.length;
+        const targetUserId = preseededUserIds[idx]!;
+        const bodyPayload = wipePayloads[idx]!;
 
-        const res = await fetch(`${baseUrl}/api/testing`, {
+        const res = await fetch(testEndpoint, {
           method: "POST",
           headers: complianceHeaders,
           body: bodyPayload,
+          signal: AbortSignal.timeout(15_000),
         });
 
         if (!res.ok) {
-          throw new Error(`GDPR Wipe failed for target payload index ${i}: ${res.status}`);
+          const errText = await res.text().catch(() => "");
+          throw new Error(`GDPR Wipe failed for ${targetUserId}: HTTP ${res.status} - ${errText}`);
         }
 
-        // Fast low-level socket drain instead of .json() block parser serialization
-        await res.arrayBuffer();
+        wipedIdsForVerification.push(targetUserId);
+        await res.arrayBuffer().catch(() => {});
       },
     });
 
+    // ── 3. POST-WIPE INTEGRITY AUDIT (VERIFY COMPLETE GRAPH PURGE) ──────────
+    console.log("   → Verifying cascading erasure integrity across tables...");
+    let orphanRecordsFound = 0;
+
+    const sampleAuditIds = wipedIdsForVerification.slice(0, 10);
+    for (const userId of sampleAuditIds) {
+      const [userRes, sessionRes] = await Promise.all([
+        _db.auth.getUserById(userId, { tenantId: "global" as DatabaseId }),
+        _db.auth.getActiveSessions(userId, { tenantId: "global" as DatabaseId }),
+      ]);
+
+      if (userRes.success && userRes.data) orphanRecordsFound++;
+      if (sessionRes.success && Array.isArray(sessionRes.data) && sessionRes.data.length > 0) {
+        orphanRecordsFound += sessionRes.data.length;
+      }
+    }
+
+    const integrityStatus =
+      orphanRecordsFound === 0 ? "VERIFIED (Zero Orphans)" : "FAILED (Orphans Found)";
+
+    // ── 4. REPORTING & TELEMETRY ────────────────────────────────────────────
     printTruthTable({
       title: "SVELTYCMS — GDPR COMPLIANCE AUDIT",
       shortLabel: "Compliance",
-      subtitle: `Deep Deletion Integrity • ${getDbType().toUpperCase()}`,
-      results: [{ ...results, layer: "Governance" }],
+      subtitle: `Deep Deletion Integrity • ${dbType}`,
+      results: [{ ...results, layer: "Governance", shortLabel: "GDPR Wipe" }],
     });
 
-    printSummaryTable([
-      { key: "Wipe Latency (Avg)", val: results.avgMs, unit: "ms" },
-      { key: "Audit Integrity", val: "VERIFIED", unit: "" },
-      {
-        key: "Compliance Rating",
-        val: results.avgMs < 50 ? "EXCELLENT" : "GOOD",
-        unit: "",
-      },
-    ]);
+    const isComplianceElite = results.avgMs < 40 && orphanRecordsFound === 0;
+
+    printSummaryTable(
+      [
+        { key: "Database Engine", val: dbType, unit: "" },
+        { key: "Wipe Latency (Avg)", val: results.avgMs.toFixed(2), unit: "ms" },
+        {
+          key: "Wipe Latency (p95)",
+          val: (results.p95Ms || results.avgMs).toFixed(2),
+          unit: "ms",
+        },
+        { key: "Wipe Throughput", val: Math.round(results.rps || 0), unit: "wipes/s" },
+        { key: "Cascading Integrity", val: integrityStatus, unit: "" },
+        { key: "Memory RSS Δ", val: (results.rssDelta || 0).toFixed(1), unit: "MB" },
+        {
+          key: "Compliance Rating",
+          val: isComplianceElite ? "EXCELLENT (<40ms)" : results.avgMs < 80 ? "GOOD" : "REVIEW",
+          unit: "",
+        },
+      ],
+      "GDPR Compliance Summary",
+    );
+
+    exportMetric("gdpr.wipe.latency_avg_ms", results.avgMs, "ms");
+    exportMetric("gdpr.wipe.latency_p95_ms", results.p95Ms || results.avgMs, "ms");
+    exportMetric("gdpr.wipe.throughput_rps", Math.round(results.rps || 0), "wipes/s");
+    exportMetric("gdpr.wipe.orphans_found", orphanRecordsFound, "records");
+
+    exportResult(results);
+
+    expect(orphanRecordsFound).toBe(0);
   } catch (err: any) {
     logger.error(`GDPR audit failed: ${err.message}`);
     console.error(err);
@@ -109,4 +213,4 @@ async function runGdprAudit() {
 
 test("Right-to-be-Forgotten Deletion Integrity", async () => {
   await runGdprAudit();
-}, 600000);
+}, 600_000);

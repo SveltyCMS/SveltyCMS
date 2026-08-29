@@ -121,9 +121,11 @@ export class RouteResourceStateMachine {
       spec = ROUTE_SPECS.dashboard;
     }
 
-    if (this._cache.size < 256) {
-      this._cache.set(path, spec);
+    if (this._cache.size >= 1024) {
+      const oldest = this._cache.keys().next().value;
+      if (oldest !== undefined) this._cache.delete(oldest);
     }
+    this._cache.set(path, spec);
     return spec;
   }
 

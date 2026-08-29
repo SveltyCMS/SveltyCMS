@@ -10,6 +10,7 @@
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { DatabaseConfig } from "@src/databases/schemas";
 import { logger } from "@utils/logger";
+import { getHardwareProfile } from "@utils/hardware-profile";
 import { createClient } from "redis";
 import { resolveSqlitePath } from "@src/databases/config-state";
 
@@ -109,7 +110,9 @@ export async function getSetupDatabaseAdapter(
           const connectionOptions: any = {
             serverSelectionTimeoutMS: 15_000,
             socketTimeoutMS: 45_000,
-            maxPoolSize: 50,
+            // 🧠 HARDWARE-ADAPTIVE: temporary setup probe — same pool default as
+            // the runtime adapters so a weak VPS doesn't hold 50 sockets open.
+            maxPoolSize: getHardwareProfile().dbPoolSize,
             retryWrites: true,
             dbName: config.name,
           };

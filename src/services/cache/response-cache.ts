@@ -219,6 +219,7 @@ class ResponseCacheService {
     entry: CachedResponseEntry,
     ttlMs: number = 300_000,
     tenantId?: string | null,
+    opts?: { skipSharedL1?: boolean; tags?: string[] },
   ): void {
     const fullKey = this.buildKey(key, tenantId);
     if (!entry.buffer && textEncoder) {
@@ -229,14 +230,24 @@ class ResponseCacheService {
     this.enforceL1Capacity();
     this.localL1.set(fullKey, entry);
 
+    // 🚀 High-cardinality per-entry GETs (findById over 10k+ ids) stay in the
+    // bounded FIFO localL1 only — writing them to the shared 500k L1 lets it
+    // accumulate one `res:` key per document, which makes every write's
+    // collection invalidation an O(#docs) scan of the `res:` namespace bucket.
+    if (opts?.skipSharedL1) return;
+
     const ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
-    // Persist expiresAt so L2-promoted entries keep their TTL instead of
-    // becoming immortal in L1 after the L2 entry expired.
-    cacheService.set(
+    const tags = opts?.tags ? [...opts.tags] : ["res:all"];
+    if (key.includes("graphql") || key.includes("/api/graphql")) {
+      tags.push("res:graphql");
+    }
+    void cacheService.set(
       `res:${key}`,
       { body: entry.body, etag: entry.etag, expiresAt: entry.expiresAt },
       ttlSec,
       tenantId,
+      undefined,
+      tags,
     );
   }
 
@@ -260,6 +271,7 @@ class ResponseCacheService {
         this.localL1.delete(k);
       }
     }
+    await cacheService.clearByTags(["res:all", "res:graphql"], tenantId || undefined);
     await cacheService.clearByPattern("res:*", tenantId || undefined);
   }
 
@@ -277,8 +289,11 @@ class ResponseCacheService {
         this.localL1.delete(k);
       }
     }
+    await cacheService.clearByTags(
+      [`res:${collectionName}`, "res:graphql", `collection:${collectionName}`],
+      tenantId || undefined,
+    );
     await cacheService.clearByPattern(`res:*${collectionName}*`, tenantId || undefined);
-    await cacheService.clearByPattern("res:*graphql*", tenantId || undefined);
   }
 
   /**

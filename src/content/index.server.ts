@@ -137,6 +137,21 @@ export async function ensureContentInitialized(
         contentStore.markInitializedForTenant(tenantId);
         initializedTenants.add(tenantId);
 
+        // 🔥 COLD-REMOVAL: Pre-warm the write-path caches (collection model +
+        // field-prep plan + schema cache) so the FIRST write after a boot does
+        // not pay the one-time ~10ms (update) / ~2ms (create) lazy-init cost.
+        // Strictly best-effort / fire-and-forget: never blocks boot, never
+        // writes data, never throws into the init path.
+        {
+          const prewarmTask = (async () => {
+            const { prewarmWritePath } = await import("./prewarm");
+            return prewarmWritePath(db, tenantId);
+          })();
+          void prewarmTask.catch((err) => {
+            logger.warn("[ContentSystem] write-path prewarm failed (non-fatal)", { error: err });
+          });
+        }
+
         // Guard against duplicate watcher registration across tenants / forced
         // re-inits (engine.startContentWatcher is also idempotent as backstop).
         if (

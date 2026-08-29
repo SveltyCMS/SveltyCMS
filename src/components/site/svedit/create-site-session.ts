@@ -24,13 +24,23 @@ import {
 } from "svedit";
 
 function generateSveditNodeId(length = 16): string {
+  // 🛡️ HARDENING: rejection-sampled uniform distribution over the alphabet.
+  // `value % alphabet.length` was biased (256 % 26 !== 0) — a modulo bias in
+  // a cryptographically-sourced random id (CodeQL js/biased-crypto-random).
   const alphabet = "abcdefghijklmnopqrstuvwxyz";
-  const randomValues = globalThis.crypto.getRandomValues(new Uint8Array(length));
+  const alphabetLength = alphabet.length;
+  // Largest multiple of alphabetLength ≤ 256 — rejection threshold.
+  const maxValid = 256 - (256 % alphabetLength);
   let id = "n";
-  for (const value of randomValues) {
-    id += alphabet[value % alphabet.length];
+  while (id.length <= length) {
+    const randomValues = globalThis.crypto.getRandomValues(new Uint8Array(length));
+    for (const value of randomValues) {
+      if (value >= maxValid) continue; // reject biased tail, draw again
+      id += alphabet[value % alphabetLength];
+      if (id.length > length) break;
+    }
   }
-  return id;
+  return id.slice(0, length + 1);
 }
 
 const sessionConfig = {

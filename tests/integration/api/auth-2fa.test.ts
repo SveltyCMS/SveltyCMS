@@ -185,7 +185,7 @@ describe("2FA Authentication API - Verify Code", () => {
     expect(response.status).toBeGreaterThanOrEqual(400);
   });
 
-  it("should handle verification with valid body structure", async () => {
+  it("should reject verification without a pending-2FA token (fail-closed)", async () => {
     if (!userId) {
       console.log("Skipping: userId not available");
       return;
@@ -203,8 +203,10 @@ describe("2FA Authentication API - Verify Code", () => {
       }),
     });
 
-    // Returns 200 with success: false (invalid code) or 400 if 2FA not enabled on user
-    expect([200, 400]).toContain(response.status);
+    // 🛡️ HARDENING: the verify path is bound to a short-lived signed pending-2FA
+    // token issued only after a successful password login. A TOTP code alone
+    // cannot mint a session — requests without the token are rejected 401.
+    expect(response.status).toBe(401);
     const result = await response.json();
     expect(result).toHaveProperty("message");
   });

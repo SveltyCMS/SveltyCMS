@@ -99,9 +99,15 @@ function serveCachedEntry(cached: any, request: Request): Response {
   }
 
   const acceptEncoding = request.headers.get("Accept-Encoding") || "";
-  const algo = negotiateEncoding(acceptEncoding, hasNativeCompression());
+  const originalSize =
+    cached.buffer?.length ||
+    (typeof cached.body === "string" ? Buffer.byteLength(cached.body, "utf8") : 0);
+  const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
+    contentLength: originalSize,
+  });
   const preComp = algo ? cached.compressed?.[algo] : null;
-  if (preComp) {
+  // Never serve a "compressed" variant that is larger than the original.
+  if (preComp && (originalSize === 0 || preComp.length < originalSize)) {
     const responseHeaders = new Headers(cached.headers || {});
     // 🐛 cached.headers carries the ORIGINAL (uncompressed) Content-Length.
     // Serving the compressed variant with it makes clients wait for bytes that
@@ -109,13 +115,7 @@ function serveCachedEntry(cached: any, request: Request): Response {
     responseHeaders.delete("content-length");
     responseHeaders.set("X-Cache", "HIT");
     addVaryHeader(responseHeaders, "Accept-Encoding");
-    setCompressionHeaders(
-      responseHeaders,
-      algo!,
-      cached.buffer?.length ||
-        (cached.body ? Buffer.byteLength(cached.body, "utf8") : preComp.length),
-      preComp.length,
-    );
+    setCompressionHeaders(responseHeaders, algo!, originalSize || preComp.length, preComp.length);
     return new Response(preComp, { status: 200, headers: responseHeaders });
   }
 
@@ -188,24 +188,29 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     }
 
     const tenantIdString = locals.tenantId ? String(locals.tenantId) : null;
-    const cacheKey = generateCacheKey(
-      url.pathname,
-      url.search,
-      String(locals.user._id),
-      tenantIdString,
-    );
+    const isGet = request.method === "GET";
+    const cacheKey = isGet
+      ? generateCacheKey(url.pathname, url.search, String(locals.user._id), tenantIdString)
+      : "";
 
-    const refresh = url.searchParams.get("refresh") === "true";
+    const refresh = isGet && url.searchParams.get("refresh") === "true";
     const nocache =
-      url.searchParams.get("nocache") === "true" || url.searchParams.get("bypassCache") === "true";
+      isGet &&
+      (url.searchParams.get("nocache") === "true" ||
+        url.searchParams.get("bypassCache") === "true");
     const bypassCache = refresh || nocache;
 
-    if (request.method === "GET") {
+    if (isGet) {
       if (!bypassCache && locals.user?._id) {
         try {
           const cached = await cacheService.get<any>(cacheKey, locals.tenantId);
           if (cached) {
             metricsService.recordApiCacheHit();
+            // 🚀 Stash the cache entry's already-serialized payload into locals so
+            // the downstream token-resolution hook reuses it instead of
+            // response.clone().text() on the cache-HIT body (its #1 hot-path cost).
+            (locals as any).apiData = cached?.data ?? (locals as any).apiData;
+            if (typeof cached?.body === "string") (locals as any).apiBody = cached.body;
             return serveCachedEntry(cached, request);
           }
         } catch (cacheError) {
@@ -226,6 +231,11 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           const entry = await inflight;
           if (entry) {
             metricsService.recordApiCacheHit();
+            // 🚀 Same locals stash as the L2 cache-HIT path above — let the
+            // downstream token-resolution hook reuse the serialized payload
+            // instead of re-cloning/reading the body.
+            (locals as any).apiData = entry?.data ?? (locals as any).apiData;
+            if (typeof entry?.body === "string") (locals as any).apiBody = entry.body;
             return serveCachedEntry(entry, request);
           }
           // Leader produced no cacheable entry (GraphQL bypass / error) —
@@ -342,23 +352,24 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                     // Compression variants only pay off above the TURBO-HIT
                     // threshold (1 KiB) — tiny bodies compress to nothing and
                     // would just burn CPU on every unique response.
-                    if (!responseBody || responseBody.length <= 1024) return;
+                    const bodyBytes = responseBody ? Buffer.byteLength(responseBody, "utf8") : 0;
+                    if (!responseBody || bodyBytes <= 1024) return;
                     const compressedPayloads: Record<string, Uint8Array> = {};
                     const compressionTasks: Promise<void>[] = [];
                     if (hasNativeCompression()) {
                       compressionTasks.push(
                         Promise.resolve().then(() => {
-                          const br = compressSync(responseBody!, "br");
-                          if (br) compressedPayloads.br = br;
-                          const gz = compressSync(responseBody!, "gzip");
-                          if (gz) compressedPayloads.gzip = gz;
+                          const br = compressSync(responseBody!, "br", bodyBytes);
+                          if (br && br.byteLength < bodyBytes) compressedPayloads.br = br;
+                          const gz = compressSync(responseBody!, "gzip", bodyBytes);
+                          if (gz && gz.byteLength < bodyBytes) compressedPayloads.gzip = gz;
                         }),
                       );
                     }
                     compressionTasks.push(
                       compressZstd(responseBody!)
                         .then((zstd) => {
-                          if (zstd) compressedPayloads.zstd = zstd;
+                          if (zstd && zstd.byteLength < bodyBytes) compressedPayloads.zstd = zstd;
                         })
                         .catch(() => {}),
                     );

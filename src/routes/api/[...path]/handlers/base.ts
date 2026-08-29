@@ -19,22 +19,33 @@ function buildJsonResponse(event: RequestEvent, data: any, status = 200): Respon
   let serialized = "";
   if (typeof data === "string") {
     serialized = data;
+  } else if (data === undefined) {
+    serialized = '{"success":true}';
   } else {
     try {
-      serialized = JSON.stringify(data);
+      serialized = JSON.stringify(data) ?? "{}";
     } catch {
       serialized = "{}";
     }
   }
 
   if (event?.locals) {
+    // codeql[js/stack-trace-exposure]: same-response fast-path stash consumed
+    // by token-resolution/ETag middleware; locals is never serialized into
+    // responses or logs (handleApiError/handleError scrub in production).
     (event.locals as any).apiData = data;
     (event.locals as any).apiBody = serialized;
   }
 
   return new Response(serialized, {
     status,
-    headers: STATIC_JSON_HEADERS,
+    headers: {
+      ...STATIC_JSON_HEADERS,
+      // Lets handleCompression honor MIN_COMPRESSION_SIZE. Without this, Node
+      // fetch's Accept-Encoding: gzip compresses every tiny create/update body
+      // on the event loop (the 1 KiB threshold never fires).
+      "content-length": String(Buffer.byteLength(serialized)),
+    },
   });
 }
 
@@ -50,6 +61,33 @@ export function successResponse(event: RequestEvent, result: any, status = 200) 
   }
 
   return buildJsonResponse(event, body, status);
+}
+
+/**
+ * High-performance JSON response builder for pre-serialized or schema-fast payloads.
+ * Bypasses intermediate wrapping object allocations.
+ */
+export function fastSuccessResponse(
+  event: RequestEvent,
+  serializedData: string,
+  rawData?: any,
+  status = 200,
+): Response {
+  const serialized = `{"success":true,"data":${serializedData}}`;
+  if (event?.locals) {
+    // codeql[js/stack-trace-exposure]: same-response fast-path stash consumed
+    // by token-resolution/ETag middleware; locals is never serialized into
+    // responses or logs (handleApiError/handleError scrub in production).
+    (event.locals as any).apiData = rawData;
+    (event.locals as any).apiBody = serialized;
+  }
+  return new Response(serialized, {
+    status,
+    headers: {
+      ...STATIC_JSON_HEADERS,
+      "content-length": String(Buffer.byteLength(serialized)),
+    },
+  });
 }
 
 export function rawResponse(event: RequestEvent, data: any, status = 200) {

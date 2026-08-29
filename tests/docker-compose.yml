@@ -45,7 +45,7 @@ services:
       start_period: 15s
 
   postgresql:
-    image: postgres:latest
+    image: postgres:18
     container_name: sveltycms-postgresql
     profiles: [postgresql]
     restart: unless-stopped

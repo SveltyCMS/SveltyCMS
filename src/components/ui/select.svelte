@@ -120,7 +120,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				id={generatedId}
 				{disabled}
 				{required}
-				value={value}
+				bind:value={value}
 				onchange={handleChange}
 				aria-invalid={invalid || !!error}
 				aria-describedby={describedBy}
@@ -188,7 +188,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				id={generatedId}
 				{disabled}
 				{required}
-				value={value}
+				bind:value={value}
 				onchange={handleChange}
 				aria-invalid={invalid || !!error}
 				aria-describedby={describedBy}

@@ -60,14 +60,14 @@ Complete test coverage for SvelteKit middleware hooks, the **Request Lane Router
 
 All hooks are benchmarked via `tests/benchmarks/hooks-performance.test.ts` which measures 3 pipeline layers under production load (600+ iterations each):
 
-| Metric                       | Latest (SQLite) | Budget | What it measures                 |
-| ---------------------------- | :-------------: | :----: | -------------------------------- |
-| **Turbo Pipeline (Light)**   |   2.55ms avg    |  <2ms  | Health check — fastest path      |
-| **Full Security + Auth**     |   5.47ms avg    |  <2ms  | JWT + session + RBAC             |
-| **Mutation + Audit Logging** |   1.90ms avg    |  <2ms  | Write with fire-and-forget audit |
-| **Auth Overhead**            |   **0.66ms**    |   —    | Turbo → Full Auth delta          |
-| **Compression Ratio (br)**   |    ~65% avg     |   —    | Brotli on cache HIT payloads     |
-| **Compression Ratio (gzip)** |    ~58% avg     |   —    | Gzip on cache HIT payloads       |
+| Metric                       | Latest (SQLite) | Budget | What it measures                  |
+| ---------------------------- | :-------------: | :----: | --------------------------------- |
+| **Turbo Pipeline (Light)**   |   0.289ms avg   |  <5ms  | Health / turbo lane               |
+| **Full Security + Auth**     |   0.457ms avg   |  <5ms  | Session + RBAC + security stack   |
+| **Mutation + Audit Logging** |   1.376ms avg   |  <5ms  | Write with fire-and-forget audit  |
+| **Auth Overhead**            |   **0.168ms**   |   —    | Turbo → Full Auth delta (overlay) |
+| **Compression Ratio (br)**   |    ~65% avg     |   —    | Brotli on cache HIT payloads      |
+| **Compression Ratio (gzip)** |    ~58% avg     |   —    | Gzip on cache HIT payloads        |
 
 **Note**: Audit is now fire-and-forget (context captured before resolve, logged in detached promise). HOOK_TIMING_ENABLED gate disables per-request instrumentation in production and under BENCHMARK=true for cleaner benchmarks. Compression metrics captured via X-\* headers.
 

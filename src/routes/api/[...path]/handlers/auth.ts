@@ -42,9 +42,24 @@ import {
 } from "@utils/security/user-attribute-policy";
 import { logger } from "@utils/logger";
 import { generateSecureToken } from "@utils/native-utils";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  REAUTH_TOKEN_TTL_MS,
+  signReauthToken,
+  verifyReauthToken,
+} from "@utils/server/session-reauth.server";
+import { RateLimiter } from "@src/hooks/handle-rate-limit";
+import { verifyPending2faToken } from "@src/utils/server/pending-2fa-token.server";
+import { getClientIp } from "@utils/hook-utils";
+import { buildDeviceFingerprint, getTrustedDeviceCookieConfig } from "@src/databases/auth/totp";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+// 🛡️ HARDENING: rate-limit the API TOTP challenge per client. A 6-digit code
+// is brute-forceable without a gate — parity with the form-path twoFaLimiter.
+const twoFaLimiter = new RateLimiter({
+  IP: [10, "m"],
+  IPUA: [10, "m"],
+});
 
 /** Strip sensitive fields from user object before sending to client. */
 function sanitizeUserForResponse(user: any) {
@@ -227,9 +242,16 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
   });
 
   if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
-  return raw
-    ? rawResponse(event, result.data?.data || result.data)
-    : rawResponse(event, { success: true, ...result.data });
+  const inner = result.data as { data?: unknown; pagination?: unknown } | unknown[] | undefined;
+  const items = Array.isArray(inner)
+    ? inner
+    : Array.isArray((inner as { data?: unknown })?.data)
+      ? (inner as { data: unknown[] }).data
+      : [];
+  const safe = items.map((u) => sanitizeUserForResponse(u));
+  if (raw) return rawResponse(event, safe);
+  const pagination = inner && !Array.isArray(inner) ? inner.pagination : undefined;
+  return rawResponse(event, { success: true, data: safe, pagination });
 }
 
 /**
@@ -244,6 +266,35 @@ export async function handleLogin(
 ) {
   const body = await event.request.json();
   const { email, password } = body;
+  const deviceId =
+    (typeof body.deviceId === "string" && body.deviceId.trim()
+      ? body.deviceId.trim()
+      : undefined) ||
+    event.request.headers.get("x-device-id") ||
+    undefined;
+
+  // 🛡️ HARDENING: validate the login payload with the SAME schema the HTML
+  // form uses (loginFormSchema). Without this, a body with a missing/empty
+  // password reached cms.auth.login — which previously accepted passwordless
+  // logins (full account takeover). Defense-in-depth: schema first, then the
+  // mandatory password check inside AuthNamespace.login.
+  const { safeParse } = await import("valibot");
+  const { loginFormSchema } = await import("@utils/schemas");
+  // isToken is optional for API callers (the HTML form always sends it) —
+  // loginFormSchema is strictObject with isToken: boolean(), so passing
+  // `isToken: undefined` would fail validation and break valid password logins.
+  const parsed = safeParse(loginFormSchema, {
+    email,
+    password,
+    ...(body.isToken !== undefined ? { isToken: body.isToken } : {}),
+  });
+  if (!parsed.success) {
+    throw new AppError("Invalid credentials", 401);
+  }
+  const parsedPassword = parsed.output.password;
+  if (!parsedPassword) {
+    throw new AppError("Invalid credentials", 401);
+  }
 
   let result: { user: any; session: any };
 
@@ -251,20 +302,48 @@ export async function handleLogin(
     result = await handleTestLoginBypass(cms, email || "admin@example.com", tenantId);
   } else {
     const userAgent = event.request.headers.get("user-agent") || undefined;
-    const ipAddress =
-      event.getClientAddress?.() ||
-      event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      undefined;
+    const ipAddress = event.getClientAddress?.() || undefined;
     const loginResult = await cms.auth.login(
-      { email, password },
-      { tenantId, sessionMeta: { userAgent, ipAddress } },
+      { email, password: parsedPassword },
+      { tenantId, sessionMeta: { userAgent, ipAddress, deviceId } },
     );
     if (!loginResult.success) throw new AppError(loginResult.message || "Login failed", 401);
     result = loginResult.data;
   }
 
+  // 🛡️ HARDENING (2FA parity with the form path): the API login previously
+  // minted a session for any valid password — 2FA was never enforced here. A
+  // stolen password via the API thus bypassed 2FA. When the user has 2FA
+  // enabled, do NOT set the session cookie; return a requires2FA response with
+  // a short-lived signed token that the /api/user/2fa/verify path requires.
+  if (result.user && (result.user as any).is2FAEnabled && !(event.locals as any).__testBypass) {
+    const { signPending2faToken } = await import("@src/utils/server/pending-2fa-token.server");
+    const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+    // AuthNamespace.login returns session: null for 2FA accounts (no session is
+    // minted from the password step), so the cleanup below is defensive only.
+    if (result.session?._id) {
+      try {
+        await cms.auth.logout(result.session._id).catch(() => {});
+        invalidateSessionCache(result.session._id, tenantId);
+      } catch {}
+    }
+    return rawResponse(
+      event,
+      {
+        success: false,
+        requires2FA: true,
+        userId: result.user._id || result.user.id,
+        pending2faToken: signPending2faToken(String(result.user._id || result.user.id)),
+        message: "2FA required",
+      },
+      401,
+    );
+  }
+
   setSessionCookie(event, result.session._id);
   generateCsrfToken(cookies, getCookieConfig(event).isSecure);
+  // Warm turbo-auth at login so the first collection write hits the write lane.
+  primeSessionMemoryCache(result.session._id, result.user, tenantId);
 
   return successResponse(event, {
     user: sanitizeUserForResponse(result.user),
@@ -609,6 +688,7 @@ export async function handleOidcLoginCallback(
       maxAge: 60 * 60 * 24 * 7,
     });
   }
+  primeSessionMemoryCache(sessionId, user, tenantId);
 
   return new Response(null, {
     status: 302,
@@ -673,7 +753,9 @@ export async function handleCreateUser(event: RequestEvent, cms: LocalCMS, tenan
   const body = await event.request.json();
   const result = await cms.auth.createUser(body, { tenantId });
   if (!result.success) throw new AppError(result.message || "Failed to create user", 400);
-  return successResponse(event, result.data, 201);
+  // 🛡️ Strip the password hash (and other server-only fields) from the response
+  // AND the locals.apiData stash — the raw adapter record must never leave the server.
+  return successResponse(event, sanitizeUserForResponse(result.data), 201);
 }
 
 /**
@@ -733,132 +815,10 @@ export async function handleUpdateUserAttributesRoute(
   cms: LocalCMS,
   tenantId: DatabaseId,
 ) {
-  const caller = event.locals.user;
-  if (!caller?._id) throw new AppError("Unauthorized", 401);
-
-  const body = await event.request.json();
-  const { user_id, newUserData, ...directUpdates } = body;
-  const targetId = !user_id || user_id === "self" ? caller._id : user_id;
-
-  if (!targetId) throw new AppError("User ID is required", 400);
-
-  const isSelf = String(targetId) === String(caller._id);
-  const isAdmin = isAdminCaller(caller);
-  const roles = (event.locals.roles ?? []) as Parameters<typeof hasPermissionWithRoles>[2];
-  const canManageUsers = isAdmin || hasPermissionWithRoles(caller as User, "user:write", roles);
-
-  // Non-privileged users may only edit their own profile
-  if (!isSelf && !canManageUsers) {
-    throw new AppError("Forbidden: cannot update another user", 403);
-  }
-
-  const merged: Record<string, unknown> =
-    newUserData && typeof newUserData === "object"
-      ? { ...directUpdates, ...newUserData }
-      : { ...directUpdates };
-
-  if (hasPrivilegedUserFields(merged) && !isAdmin) {
-    logger.warn(
-      `[Auth] Stripped privileged fields from update-user-attributes (user=${caller._id})`,
-    );
-  }
-
-  // 🛡️ Client-facing policy: non-admin full strip; admin may set role/isAdmin
-  const updates = sanitizeClientUserAttributePatch(merged, { isAdmin });
-
-  if (Object.keys(updates).length === 0) {
-    throw new AppError("At least one user attribute is required", 400);
-  }
-
-  // Never force isNull(tenantId) when multi-tenant is off — session-cached users
-  // after re-seed can miss null-tenant filters. Prefer id-only update.
-  // allowPrivilegeEscalation: adapters also fail-closed unless this is set.
-  const updateOpts: {
-    tenantId?: DatabaseId;
-    bypassTenantCheck?: boolean;
-    allowPrivilegeEscalation?: boolean;
-  } = {
-    bypassTenantCheck: true,
-    ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
-  };
-  if (tenantId) {
-    updateOpts.tenantId = tenantId;
-    updateOpts.bypassTenantCheck = false;
-  }
-
-  let resolvedId = String(targetId);
-  let result = await cms.auth.updateUserAttributes(resolvedId, updates, updateOpts);
-
-  // Session can hold a stale user_id after wizard reset / re-seed while email is current.
-  // Resolve by email and retry once so self-profile updates never 404 spuriously.
-  if (
-    !result.success &&
-    /not found/i.test(String(result.message || "")) &&
-    event.locals.user?.email
-  ) {
-    try {
-      const byEmail = await cms.auth.getUserByEmail(String(event.locals.user.email), {
-        bypassTenantCheck: true,
-      } as any);
-      const emailUser =
-        byEmail?.success && byEmail.data
-          ? byEmail.data
-          : byEmail && typeof byEmail === "object" && "_id" in (byEmail as object)
-            ? (byEmail as unknown as { _id: string })
-            : null;
-      const emailId = emailUser && (emailUser as { _id?: string })._id;
-      if (emailId && String(emailId) !== resolvedId) {
-        resolvedId = String(emailId);
-        result = await cms.auth.updateUserAttributes(resolvedId, updates, {
-          bypassTenantCheck: true,
-          ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
-        } as any);
-      }
-    } catch {
-      /* keep original failure */
-    }
-  }
-
-  if (!result.success) throw new AppError(result.message || "Update failed", 400);
-
-  // 🔄 Refresh session caches so the next page load returns updated user data
-  const currentSessionId =
-    (event.locals.session_id as DatabaseId | undefined) ??
-    readSessionCookie(event.cookies, event.url.protocol === "https:");
-  if (targetId === event.locals.user?._id && currentSessionId && result.data) {
-    primeSessionMemoryCache(currentSessionId, result.data as User);
-    // Also clear the Redis cache key so it's re-read from DB on next cache miss
-    try {
-      const { cacheService } = await import("@src/databases/cache/cache-service");
-      const cacheKey = tenantId
-        ? `session:${tenantId}:${currentSessionId}`
-        : `session:${currentSessionId}`;
-      cacheService.delete(cacheKey, tenantId ?? undefined).catch(() => {});
-    } catch {
-      /* cache service not available — memory-only is fine */
-    }
-  }
-
-  // 🔐 Password change: Invalidate all other sessions across all devices
-  const hasPasswordField = "password" in updates || "password" in (body as any);
-  if (hasPasswordField) {
-    const currentSessionId = event.locals.session_id as DatabaseId | undefined;
-    // 1. Get active sessions before invalidation so we can identify which to clean
-    const sessionsResult = await cms.auth.getActiveSessions(targetId, {
-      tenantId,
-    });
-    const otherSessions = ((sessionsResult as any).data || sessionsResult || []).filter(
-      (s: any) => s._id !== currentSessionId,
-    );
-    // 2. Delete all user sessions from the database (L2) and session store (L0/L1)
-    await cms.auth.invalidateAllUserSessions(targetId, { tenantId });
-    // 3. Purge each invalidated session from the 3-layer cache
-    for (const s of otherSessions) {
-      invalidateSessionCache(s._id, tenantId);
-    }
-  }
-
-  return successResponse(event, result.data);
+  const body = (await event.request.json()) as Record<string, unknown>;
+  const { applyUserAttributeUpdate } = await import("@utils/server/user-attribute-update.server");
+  const data = await applyUserAttributeUpdate(event, cms, tenantId, body);
+  return successResponse(event, data);
 }
 
 /**
@@ -925,51 +885,19 @@ export async function handleUpdateRoles(
   tenantId: DatabaseId,
   user: any,
 ) {
+  // Coarse `api:user` + `user:write` is not enough — editors must not rewrite RBAC.
+  if (!(event.locals.isAdmin === true || isAdmin(user))) {
+    throw new AppError("Admin privileges required", 403, "FORBIDDEN");
+  }
   const roles = await event.request.json();
+  if (!Array.isArray(roles)) {
+    throw new AppError("Roles payload must be an array", 400, "VALIDATION_FAILED");
+  }
   const result = await cms.auth.updateRoles(roles, { user, tenantId });
   return successResponse(event, result);
 }
 
 // ─── Session Management Handlers ─────────────────────────────────────────────
-
-/** Re-auth proof lifetime (5 minutes) — Laravel-style password confirmation. */
-const REAUTH_TOKEN_TTL_MS = 5 * 60 * 1000;
-
-/**
- * Sign a re-auth proof: HMAC-SHA256(userId:sessionId:exp) with the server secret.
- * Stateless — no server-side storage, verifiable by any node.
- */
-function signReauthToken(userId: string, sessionId: string, exp: number): string {
-  const secret = String(getPrivateSettingSync("JWT_SECRET_KEY") || "");
-  const sig = createHmac("sha256", secret)
-    .update(`${userId}:${sessionId}:${exp}`)
-    .digest("base64url");
-  return `${exp}:${sig}`;
-}
-
-/** Verify a re-auth proof and return true when valid, fresh, and bound to this session. */
-function verifyReauthToken(
-  token: string | null | undefined,
-  userId: string,
-  sessionId: string,
-): boolean {
-  if (!token) return false;
-  const parts = token.split(":");
-  if (parts.length !== 2) return false;
-  const exp = Number(parts[0]);
-  if (!Number.isFinite(exp) || exp - Date.now() > REAUTH_TOKEN_TTL_MS || exp < Date.now())
-    return false;
-  const secret = String(getPrivateSettingSync("JWT_SECRET_KEY") || "");
-  if (!secret) return false;
-  const expected = createHmac("sha256", secret)
-    .update(`${userId}:${sessionId}:${exp}`)
-    .digest("base64url");
-  try {
-    return timingSafeEqual(Buffer.from(parts[1]), Buffer.from(expected));
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Password re-authentication for sensitive session management (Laravel-style).
@@ -1123,7 +1051,14 @@ export async function handle2FARoutes(
   const action = segments[2];
   const twoFactorService = new TwoFactorAuthService(cms.db.auth);
 
-  if (!user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  // 🛡️ HARDENING: `verify` is the login-completion step — it runs BEFORE a
+  // session exists (the 2FA-gated API login deliberately sets no cookie). It is
+  // protected by the signed pending-2FA token (minted only after a successful
+  // password check) plus per-client rate limiting. Every other 2FA action still
+  // requires an authenticated session.
+  if (action !== "verify" && !user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
 
   switch (action) {
     case "setup":
@@ -1160,14 +1095,83 @@ export async function handle2FARoutes(
 
     case "verify": {
       if (event.request.method !== "POST") throw notAllowed();
-      const { code, userId } = await event.request.json().catch(() => ({}));
-      if (!userId) throw new AppError("User ID required", 400);
+
+      // 🛡️ HARDENING: a TOTP code alone must NOT mint a session. The pending-2FA
+      // token is only issued by handleLogin AFTER a successful password check,
+      // so a passwordless attacker (who knows a user id) cannot brute-force the
+      // 6-digit code. Rate limiting adds a second gate.
+      const { code, userId, pending2faToken, trustDevice } = await event.request
+        .json()
+        .catch(() => ({}));
+      if (!userId || typeof userId !== "string" || !code || typeof code !== "string") {
+        throw new AppError("User ID and code required", 400);
+      }
+      if (!verifyPending2faToken(pending2faToken, userId)) {
+        throw new AppError("Session expired. Please sign in again.", 401);
+      }
+      if (process.env.TEST_MODE !== "true" && (await twoFaLimiter.isLimited(event))) {
+        try {
+          event.setHeaders({ "Retry-After": "60" });
+        } catch {}
+        throw new AppError("Too many requests. Try again in a minute.", 429);
+      }
       if (isMultiTenantEnabled() && !tenantId) {
         throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
       }
-      const result = await twoFactorService.verify2FA(user._id, code, tenantId);
+
+      // Build device fingerprint for trusted-device support (parity with the form path).
+      let deviceFingerprint: string | undefined;
+      if (trustDevice) {
+        const ip = getClientIp(event);
+        const ua = event.request.headers.get("user-agent") || "";
+        deviceFingerprint = await buildDeviceFingerprint(ip, ua);
+      }
+
+      const result = await twoFactorService.verify2FA(
+        userId as DatabaseId,
+        code,
+        tenantId,
+        deviceFingerprint,
+      );
       if (!result.success) throw new AppError(result.message || "Invalid code", 400);
-      return successResponse(event, result);
+
+      // ── Mint the session now that the full login chain is proven ──
+      const userResult = await cms.auth.getUserById(userId, { tenantId });
+      const freshUser = userResult?.success ? userResult.data : null;
+      if (!freshUser) throw new AppError("User not found", 404);
+
+      const sessionResult = await cms.db.auth.createSession({
+        user_id: userId as DatabaseId,
+        tenantId,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString,
+      });
+      const created = sessionResult?.success ? sessionResult.data : null;
+      const sessionId = (created as any)?._id ?? (created as any)?.id;
+      if (!sessionId) throw new AppError("Failed to create session", 500);
+
+      setSessionCookie(event, sessionId);
+      generateCsrfToken(event.cookies, getCookieConfig(event).isSecure);
+      primeSessionMemoryCache(sessionId, freshUser, tenantId);
+
+      // Set trusted-device cookie if the client opted in and a token was minted.
+      if (trustDevice && result.trustedDeviceToken) {
+        try {
+          const { name, maxAge, httpOnly, secure, sameSite, path } = getTrustedDeviceCookieConfig();
+          event.cookies.set(name, result.trustedDeviceToken, {
+            maxAge,
+            httpOnly,
+            secure,
+            sameSite,
+            path,
+          });
+        } catch {}
+      }
+
+      return successResponse(event, {
+        success: true,
+        user: sanitizeUserForResponse(freshUser),
+        token: sessionId,
+      });
     }
 
     case "disable": {
@@ -1415,4 +1419,62 @@ export async function handlePermissionRoutes(
 
 function notAllowed(): never {
   throw new AppError("Method not allowed", 405);
+}
+
+/**
+ * POST /api/gdpr
+ * Body: { action: "export" | "anonymize", userId: string, reason?: string }
+ */
+export async function handleGdprRoutes(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  tenantId: DatabaseId,
+  _segments: string[],
+) {
+  const { request, locals } = event;
+  if (request.method !== "POST") {
+    throw new AppError("Method not allowed", 405, "METHOD_NOT_ALLOWED");
+  }
+
+  const user = locals.user;
+  if (!user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const action = String(body.action || "");
+  const targetUserId = String(body.userId || body.user_id || "");
+  if (!targetUserId) {
+    throw new AppError("userId is required", 400, "INVALID_USER_ID");
+  }
+
+  const actorId = String(user._id || user.id || "");
+  const admin = !!(locals.isAdmin || isAdmin(user));
+  if (!admin && targetUserId !== actorId) {
+    throw new AppError("Forbidden: can only manage your own data", 403, "FORBIDDEN");
+  }
+
+  const effectiveTenant =
+    (tenantId as string) || (user.tenantId as string) || (locals.tenantId as string) || "global";
+
+  const { gdprService } = await import("@src/services/security/gdpr-service");
+
+  if (action === "export") {
+    const data = await gdprService.exportUserData(targetUserId, effectiveTenant);
+    return successResponse(event, data);
+  }
+
+  if (action === "anonymize") {
+    const ok = await gdprService.anonymizeUser(
+      targetUserId,
+      effectiveTenant,
+      body.reason || "User self-request (Right to Erasure)",
+    );
+    if (!ok) {
+      throw new AppError("Anonymization failed", 400, "GDPR_ANONYMIZE_FAILED");
+    }
+    return successResponse(event, { anonymized: true });
+  }
+
+  throw new AppError("Invalid GDPR action", 400, "INVALID_GDPR_ACTION");
 }

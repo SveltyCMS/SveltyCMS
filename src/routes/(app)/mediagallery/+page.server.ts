@@ -11,6 +11,12 @@
  * The load function prepares data for the media gallery, including user information,
  * a list of all media files, and virtual folders. The actions object defines the
  * server-side logic for handling file uploads.
+ *
+ * ### Security
+ * - Mutations require media:write (action-level — not only page load)
+ * - Remote URLs go through saveRemoteMediaUrls → MediaService.saveRemoteMedia
+ *   (validateEgressUrl + safeFetch egress-guard SSRF defense, re-checked per
+ *   redirect hop)
  */
 
 import type { DatabaseId } from "@root/src/content/types";
@@ -20,7 +26,6 @@ import type { MediaAccess } from "@root/src/utils/media/media-models";
 // Auth
 import { dbAdapter } from "@src/databases/db";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { MediaService } from "@src/utils/media/media-service.server";
 import { isAdmin } from "@src/databases/auth/constants";
 import { error, isHttpError, isRedirect } from "@sveltejs/kit";
 import { getAuthenticatedUser, requirePagePermission } from "@utils/page-guards.server";
@@ -30,13 +35,14 @@ import { getImageSizes, moveMediaToTrash } from "@utils/media/media-storage.serv
 import { resolveMediaPublicPath } from "@utils/media/media-utils";
 import type { Actions, PageServerLoad } from "./$types";
 import { matchesJsonPathFilter } from "@utils/json-path-filter";
+import { toGalleryListItem } from "./gallery-list-item";
 
 /**
  * 🚀 Fast serializer: converts _id/parent ObjectIds to strings.
  * Uses JSON.stringify with a replacer — far faster than the previous
  * iterative DFS walker (eliminated ~50ms per large folder tree).
  */
-function serializeIds(obj: unknown): unknown {
+function serializeIds<T>(obj: T): T {
   return JSON.parse(
     JSON.stringify(obj, (_key, value) => {
       if (_key === "_id" || _key === "parent") {
@@ -114,14 +120,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       virtualFoldersData = [];
     }
 
-    const serializedVirtualFolders = (virtualFoldersData || []).map((folder) =>
-      serializeIds(folder as unknown),
-    );
+    const virtualFolders = virtualFoldersData || [];
 
-    // Determine current folder
+    // Determine current folder (id compare without a JSON round-trip per folder)
     const currentFolder = folderId
-      ? serializedVirtualFolders.find((f) => (f as Record<string, unknown>)._id === folderId) ||
-        null
+      ? virtualFolders.find(
+          (f) => String((f as Record<string, unknown>)?._id ?? "") === folderId,
+        ) || null
       : null;
     logger.trace("Current folder determined:", currentFolder);
 
@@ -159,96 +164,51 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       logger.debug("No media items found");
     }
 
-    // Process and flatten media results - Filter and validate media items before processing
-    const processedMedia = allMediaResults
-      .filter((item) => {
-        if (!item) {
-          return false;
-        }
-        const isValid =
-          item.hash &&
-          item.filename &&
-          item.mimeType &&
-          typeof item.hash === "string" &&
-          typeof item.filename === "string" &&
-          typeof item.mimeType === "string";
-
-        if (!isValid) {
-          logger.warn("Skipping invalid media item", {
-            item,
-            reason: "Missing required fields or invalid types",
-          });
-        }
-        return isValid;
-      })
-      .map((item) => {
-        try {
-          const mediaItem = item as unknown as MediaItem;
-
-          const publicUrl = resolveMediaPublicPath(mediaItem);
-
-          // Use DB-stored thumbnails directly (already has correct URLs from upload)
-          const thumbnails = (mediaItem.thumbnails ?? {}) as Record<
-            string,
-            { url: string; width?: number; height?: number; size?: number }
-          >;
-          const thumbnailEntry = thumbnails.thumbnail ?? thumbnails.sm ?? null;
-
-          return {
-            ...mediaItem,
-            type: mediaItem.mimeType.split("/")[0],
-            path: mediaItem.path ?? "global",
-            name: mediaItem.filename ?? "unnamed-media",
-            url: publicUrl,
-            thumbnail: thumbnailEntry ? { url: thumbnailEntry.url } : { url: publicUrl },
-            thumbnails,
-            width:
-              (mediaItem as any).width ??
-              (mediaItem.metadata as any)?.width ??
-              (mediaItem.metadata as any)?.advancedMetadata?.width,
-            height:
-              (mediaItem as any).height ??
-              (mediaItem.metadata as any)?.height ??
-              (mediaItem.metadata as any)?.advancedMetadata?.height,
-          };
-        } catch (err) {
-          logger.error("Error processing media item", {
-            item,
-            error: err instanceof Error ? err.message : String(err),
-          });
-          return null;
-        }
-      })
-      .filter((item): item is NonNullable<typeof item> => item !== null);
-
-    // Optional server-side JSON path filter (reduces payload when linked via ?jsonPath=)
-    let filteredMedia = processedMedia;
+    // Optional server-side JSON path filter — must run on the RAW adapter rows,
+    // NOT the mapped gallery items: toGalleryListItem → slimMetadata strips
+    // arbitrary metadata fields (camera, iso, … are not in META_KEEP), so a
+    // second pass over the slimmed shape would drop every row even when the DB
+    // query already matched it via json_extract (media-jsonpath regression).
+    let filteredSource = allMediaResults;
     if (jsonPath) {
-      filteredMedia = processedMedia.filter((item) => matchesJsonPathFilter(item, jsonPath));
+      filteredSource = allMediaResults.filter((item) => matchesJsonPathFilter(item, jsonPath));
       logger.debug(
-        `JSON path filter "${jsonPath}" reduced media ${processedMedia.length} → ${filteredMedia.length}`,
+        `JSON path filter "${jsonPath}" reduced media ${allMediaResults.length} → ${filteredSource.length}`,
       );
     }
 
-    logger.debug(`Fetched ${filteredMedia.length} media items for folder ${folderId || "root"}`);
-    logger.debug(`Fetched ${serializedVirtualFolders.length} total virtual folders`);
+    const processedMedia = filteredSource
+      .map((item) => {
+        if (!item) return null;
+        const mediaItem = item as unknown as MediaItem;
+        const publicUrl = resolveMediaPublicPath(mediaItem);
+        const row = toGalleryListItem({
+          ...mediaItem,
+          url: publicUrl,
+          _id: mediaItem._id,
+        } as unknown as Record<string, unknown>);
+        if (!row) {
+          logger.warn("Skipping invalid media item", {
+            reason: "Missing required fields or invalid types",
+          });
+        }
+        return row;
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    logger.debug(`Fetched ${processedMedia.length} media items for folder ${folderId || "root"}`);
+    logger.debug(`Fetched ${virtualFolders.length} total virtual folders`);
 
     // 🚀 Check which media items are referenced by published content
-    // Soft-fail: never 500 the gallery if reference scanning crashes
-    const publishedMediaIds: string[] = [];
+    // One index rebuild + O(1) lookups — never N parallel full collection scans.
+    let publishedMediaIds: string[] = [];
     try {
+      const { MediaService } = await import("@src/utils/media/media-service.server");
       const mediaService = new MediaService(dbAdapter);
-      const publishedRefResults = await Promise.allSettled(
-        filteredMedia.map((item) =>
-          mediaService.isReferencedByPublishedContent(item._id as string, null),
-        ),
+      publishedMediaIds = await mediaService.getPublishedReferencedIds(
+        processedMedia.map((item) => String(item._id)),
+        (locals.tenantId as DatabaseId | null) ?? null,
       );
-      for (let i = 0; i < publishedRefResults.length; i++) {
-        const result = publishedRefResults[i];
-        if (result.status === "fulfilled" && result.value.referenced) {
-          publishedMediaIds.push(filteredMedia[i]!._id as string);
-        }
-      }
       logger.debug(`Found ${publishedMediaIds.length} media items referenced by published content`);
     } catch (refErr) {
       logger.warn(
@@ -258,28 +218,25 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     // Force JSON-safe payload — Buffers/ObjectIds in avatar or media metadata
     // previously crashed SvelteKit serialization after a successful load (500 UI).
-    const returnData = JSON.parse(
-      JSON.stringify({
-        user: {
-          role: user.role,
-          _id: String(user._id),
-          avatar:
-            typeof user.avatar === "string"
-              ? user.avatar
-              : user.avatar
-                ? String((user.avatar as any).url || (user.avatar as any).toString?.() || "")
-                : undefined,
-        },
-        media: filteredMedia,
-        systemVirtualFolders: serializedVirtualFolders as SystemVirtualFolder[],
-        currentFolder: currentFolder as SystemVirtualFolder | null,
-        publishedMediaIds,
-        /** Echo server-applied JSON path filter for client sync / shareable URLs */
-        jsonPathFilter: jsonPath || "",
-      }),
-    );
-
-    return returnData;
+    // One stringify for the whole tree (not once per folder).
+    return serializeIds({
+      user: {
+        role: user.role,
+        _id: String(user._id),
+        avatar:
+          typeof user.avatar === "string"
+            ? user.avatar
+            : user.avatar
+              ? String((user.avatar as any).url || (user.avatar as any).toString?.() || "")
+              : undefined,
+      },
+      media: processedMedia,
+      systemVirtualFolders: virtualFolders as SystemVirtualFolder[],
+      currentFolder: currentFolder as SystemVirtualFolder | null,
+      publishedMediaIds,
+      /** Echo server-applied JSON path filter for client sync / shareable URLs */
+      jsonPathFilter: jsonPath || "",
+    });
   } catch (err) {
     if (isRedirect(err) || isHttpError(err)) {
       throw err;
@@ -306,6 +263,7 @@ export const actions: Actions = {
       const formData = await request.formData();
       const files = formData.getAll("files");
       const folder = (formData.get("folder") as string) || "global";
+      const { MediaService } = await import("@src/utils/media/media-service.server");
       const mediaService = new MediaService(dbAdapter);
       const access: MediaAccess = "public";
 
@@ -500,43 +458,14 @@ export const actions: Actions = {
       const formData = await request.formData();
       const remoteUrls = JSON.parse(formData.get("remoteUrls") as string) as string[];
       const folder = (formData.get("folder") as string) || "global";
-
-      if (!(remoteUrls && Array.isArray(remoteUrls)) || remoteUrls.length === 0) {
-        throw new Error("No URLs provided");
-      }
-
-      const mediaService = new MediaService(dbAdapter);
-      // Public is intentional for gallery assets after successful egress-safe fetch.
-      // Internal/private targets never reach saveMedia (saveRemoteMedia + egress-guard).
-      const access: MediaAccess = "public";
-
-      // 🛡️ SSRF: MUST use saveRemoteMedia (validateEgressUrl + safeFetch) — never raw fetch(url)
-      await Promise.allSettled(
-        remoteUrls.map(async (url) => {
-          try {
-            const result = await mediaService.saveRemoteMedia(
-              url,
-              user._id as any,
-              access,
-              (locals.tenantId as DatabaseId | null) ?? null,
-              folder, // virtual folder; "global" keeps root
-            );
-            if (!result.success) {
-              logger.warn(`Failed to fetch remote URL: ${url} — ${result.message}`);
-              return;
-            }
-            logger.debug(`Remote file uploaded successfully to ${folder}: ${url}`);
-          } catch (fileError) {
-            const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
-            if (errorMessage.includes("duplicate")) {
-              logger.warn(`A file from URL "${url}" already exists`);
-            } else {
-              logger.error(`Failed to upload file from ${url}: ${errorMessage}`);
-            }
-          }
-        }),
-      );
-
+      const { saveRemoteMediaUrls } = await import("./save-remote-urls.server");
+      const result = await saveRemoteMediaUrls({
+        urls: remoteUrls,
+        folder,
+        userId: String(user._id),
+        tenantId: (locals.tenantId as DatabaseId | null) ?? null,
+      });
+      if (!result.success) throw new Error(result.error || "No URLs provided");
       return { success: true };
     } catch (err) {
       // Preserve 403 from requirePagePermission / redirects from getAuthenticatedUser

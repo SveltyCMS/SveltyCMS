@@ -38,7 +38,11 @@ import { page } from "$app/state";
 import { beforeNavigate, afterNavigate } from "$app/navigation";
 
 // WebMCP Support (Polyfill + Plugin)
-import "@mcp-b/webmcp-polyfill";
+// 5.x ESM entry is side-effect-free (`sideEffects: ["./dist/index.iife.js"]`)
+// and no longer auto-installs on import (4.x did). Install explicitly, in the
+// browser only — module scope so document.modelContext exists before onMount
+// runs initWebMCP().
+import { initializeWebMCPPolyfill } from "@mcp-b/webmcp-polyfill";
 
 // Components
 import DialogManager from "@src/components/system/dialog-manager.svelte";
@@ -197,6 +201,7 @@ import { initializeContent } from "@src/content";
 // Initialize public environment settings from server data
 // Note: Only access page.data after mount to avoid hydration issues
 if (browser) {
+	initializeWebMCPPolyfill();
 	globalLoadingStore.startLoading(loadingOperations.initialization);
 }
 
@@ -469,7 +474,7 @@ onMount(() => {
 <div class="relative z-0">
 <svelte:boundary>
 	    {#snippet failed(error: any, reset: any)}
-		{console.error("[Boundary] Unhandled render error:", error)}
+		{logger.error("[Boundary] Unhandled render error:", error)}
 		<div class="flex h-screen w-full flex-col items-center justify-center space-y-6 bg-surface-500/10 text-center dark:bg-surface-900">
 			<div class="space-y-2">
 				<h1 class="text-4xl font-bold text-error-500">System Error</h1>

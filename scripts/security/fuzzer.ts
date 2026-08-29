@@ -12,7 +12,7 @@
  * - Memory leak and unhandled exception detection
  */
 
-import { WafGuard } from "@src/hooks/wasm-waf-guard";
+import { WafGuard } from "@src/hooks/handle-waf-guard";
 
 const waf = new WafGuard();
 

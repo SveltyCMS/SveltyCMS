@@ -79,14 +79,15 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 							</div>
 							<div class="custom-scrollbar max-h-64 overflow-y-auto">
 								{#each filteredLanguages as lang (lang)}
-									<button
+									<Button
+										variant="transparent"
 										type="button"
 										onclick={() => selectLanguage(lang)}
-										class="flex w-full items-center justify-between px-3 py-2 text-start rounded cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors"
+										class="flex w-full! items-center justify-between! px-3! py-2! h-auto! text-start rounded cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors font-normal!"
 									>
 										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
 										<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
-									</button>
+									</Button>
 								{/each}
 							</div>
 						</Dropdown>
@@ -120,14 +121,15 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 						</div>
 						<div class="custom-scrollbar max-h-64 overflow-y-auto">
 							{#each filteredLanguages as lang (lang)}
-								<button
+								<Button
+									variant="transparent"
 									type="button"
 									onclick={() => selectLanguage(lang)}
-									class="flex w-full items-center justify-between px-3 py-2 text-start rounded cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors"
+									class="flex w-full! items-center justify-between! px-3! py-2! h-auto! text-start rounded cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors font-normal!"
 								>
 									<span class="text-sm font-medium">{getLanguageName(lang)}</span>
 									<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
-								</button>
+								</Button>
 							{/each}
 						</div>
 					</Dropdown>
@@ -135,7 +137,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 			</div>
 
 			<SystemTooltip title="Accessibility Help">
-				<Button variant="outline" type="button" onclick={() => modalState.trigger(AccessibilityHelp)} aria-label="Accessibility Help" class="h-10 w-10 rounded text-black dark:text-white">
+				<Button variant="outline" type="button" onclick={() => modalState.trigger(AccessibilityHelp)} aria-label="Accessibility Help" class="h-10 w-10 rounded text-surface-900 dark:text-surface-50">
 					<iconify-icon icon="mdi:accessibility" width="20"></iconify-icon>
 				</Button>
 			</SystemTooltip>

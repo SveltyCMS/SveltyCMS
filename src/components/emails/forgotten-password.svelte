@@ -10,7 +10,7 @@
 	import { forgottenpassword_ignore, forgottenpassword_resetbutton, forgottenpassword_token, forgottenpassword_valid } from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app } from '@src/stores/store.svelte';
-	import { ReadableExpireIn } from '@utils/utils';
+	import { ReadableExpireIn } from '@utils/date';
 	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
 	import { dev } from '$app/env';
 

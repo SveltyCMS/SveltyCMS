@@ -60,7 +60,7 @@ describe("handleApiKeyRoutes", () => {
       ],
     });
 
-    const { handleApiKeyRoutes } = await import("@src/routes/api/[...path]/handlers/api-keys");
+    const { handleApiKeyRoutes } = await import("@src/routes/api/[...path]/handlers/tokens");
     const res = await handleApiKeyRoutes(
       mockEvent("GET", { _id: "u1", role: "admin" }),
       "global" as any,
@@ -90,7 +90,7 @@ describe("handleApiKeyRoutes", () => {
       },
     });
 
-    const { handleApiKeyRoutes } = await import("@src/routes/api/[...path]/handlers/api-keys");
+    const { handleApiKeyRoutes } = await import("@src/routes/api/[...path]/handlers/tokens");
     const res = await handleApiKeyRoutes(
       mockEvent("POST", { _id: "u1", role: "admin" }, { name: "Deploy" }),
       "global" as any,

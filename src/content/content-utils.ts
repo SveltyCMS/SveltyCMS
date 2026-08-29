@@ -506,7 +506,7 @@ interface CompiledPrepPlan {
 
 const prepPlanCache = new WeakMap<object, CompiledPrepPlan>();
 
-function getOrCompilePrepPlan(schema: { fields?: Array<PrepField> }): CompiledPrepPlan {
+export function getOrCompilePrepPlan(schema: { fields?: Array<PrepField> }): CompiledPrepPlan {
   let plan = prepPlanCache.get(schema);
   if (plan) return plan;
 
@@ -522,7 +522,8 @@ function getOrCompilePrepPlan(schema: { fields?: Array<PrepField> }): CompiledPr
       const name = field.db_fieldName;
       const type = field.type;
 
-      if (type === "richtext" || type === "markdown") {
+      const widgetName = field.widget?.Name;
+      if (type === "richtext" || type === "markdown" || widgetName === "RichText") {
         sanitizeRich.push(name);
       } else if (type === "text" || type === "textarea") {
         sanitizeText.push(name);

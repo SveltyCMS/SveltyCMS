@@ -17,6 +17,7 @@
  * - Tenant isolation enforcement (prevents cross-tenant access)
  * - API key auth with usage tracking via `getClientIp()` (no XFF spoofing)
  * - Turbo GET hand-off when `__turboAuth` is already resolved
+ * - Login-time turbo-auth write-through via primeSessionMemoryCache
  *
  * @prerequisite handleSystemState has already confirmed readiness
  */
@@ -29,9 +30,10 @@ import {
   readSessionCookie,
   clearAllSessionCookies as clearCookiesHelper,
   sessionTtlMs,
+  isAdmin,
 } from "@src/databases/auth/constants";
 import type { User } from "@src/databases/auth/types";
-import { isValidApiKeyFormat, hashApiKey, hashApiKeyLegacy } from "@src/databases/auth/api-keys";
+import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
 import { recordApiKeyUsage } from "@src/databases/auth/api-key-usage-accumulator";
 import {
   getApiKeyAuthCacheSync,
@@ -55,7 +57,7 @@ import type { Handle } from "@sveltejs/kit/hooks";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError, isAppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { RateLimiter } from "sveltekit-rate-limiter/server";
+import { RateLimiter } from "./handle-rate-limit";
 
 /** Mask an email for log safety: r***s@web.de */
 function maskEmail(email: string): string {
@@ -91,14 +93,11 @@ import {
   getTurboAuthContext,
   setTurboAuthContext,
 } from "./handle-turbo-get";
-
-// Lazy module singletons — dynamic imports resolve from the module cache on
-// every call, but each await still costs a microtask + lookup on the hot path.
-// Cache the promise once per process (modules are immutable after load).
-let tenantAdapterPromise: Promise<typeof import("@src/databases/tenant-adapter")> | null = null;
-function getTenantAdapterLazy() {
-  return (tenantAdapterPromise ??= import("@src/databases/tenant-adapter"));
-}
+import {
+  applyAdapterTenantContext,
+  bindRequestDbAdapter,
+  runWithTenantAdapter,
+} from "@src/databases/tenant-adapter";
 
 let sessionManagerPromise: Promise<typeof import("@src/databases/auth/session-manager")> | null =
   null;
@@ -586,6 +585,7 @@ async function handleSessionRotation(
       ).toISOString() as ISODateString,
       tenantId: event.locals.tenantId as DatabaseId,
       userAgent: event.request.headers.get("user-agent") || undefined,
+      deviceId: event.request.headers.get("x-device-id") || undefined,
       ipAddress:
         event.getClientAddress?.() ||
         event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -697,11 +697,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     // (identity flips between proxy and raw break schema caches).
     locals.dbAdapter = dbAdapter;
     (locals as any).dbAdapterUnscoped = dbAdapter;
-    {
-      const { applyAdapterTenantContext } = await getTenantAdapterLazy();
-      await applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
-    }
-    return await resolve(event);
+    const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
+    if (tenantP) await tenantP;
+    return resolve(event);
   }
 
   // 🚀 PERFORMANCE: Ultra-fast exit for static assets using pre-computed flags
@@ -835,7 +833,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     // tenant-injecting proxy wrap on every authenticated multi-tenant request).
     const preUserTenant = locals.tenantId as DatabaseId | null | undefined;
     {
-      const { bindRequestDbAdapter, applyAdapterTenantContext } = await getTenantAdapterLazy();
       const bound = bindRequestDbAdapter(
         dbAdapter,
         locals.tenantId as DatabaseId,
@@ -843,7 +840,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       );
       locals.dbAdapter = bound.dbAdapter as any;
       (locals as any).dbAdapterUnscoped = bound.dbAdapterUnscoped;
-      await applyAdapterTenantContext(bound.dbAdapterUnscoped, locals.tenantId ?? null);
+      const tenantP = applyAdapterTenantContext(bound.dbAdapterUnscoped, locals.tenantId ?? null);
+      if (tenantP) await tenantP;
     }
 
     const authHeader = event.request.headers.get("Authorization");
@@ -904,7 +902,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       // 🛡️ Guard: wrap session validation in try-catch so malformed/invalid session
       // cookies don't crash the server (integration tests inject poisoned values).
       try {
-        logger.debug(`[Auth] SESSION: ${sessionId.slice(0, 12)}... path=${event.url.pathname}`);
+        if (logger.isEnabled("debug")) {
+          logger.debug(`[Auth] SESSION: ${sessionId.slice(0, 12)}... path=${event.url.pathname}`);
+        }
         metricsService.incrementAuthValidations();
         if (!auth) {
           logger.warn(`[Auth] Auth service NOT initialized! (sessionId: ${sessionId})`);
@@ -939,8 +939,12 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
         if (user) {
           // --- NEW: Global Admin Exemption ---
-          // Global admins (no tenantId) are authorized to access any tenant path.
-          const isGlobalAdmin = !user.tenantId || user.tenantId === null;
+          // Global admins (isAdmin AND no tenantId) are authorized to access
+          // any tenant path. 🛡️ HARDENING: previously ANY user with a missing
+          // tenantId (common after enabling multi-tenancy on an existing DB)
+          // was treated as global admin — a privilege escalation. Now the role
+          // must also be admin.
+          const isGlobalAdmin = isAdmin(user) && (!user.tenantId || user.tenantId === null);
           if (
             locals.tenantId &&
             !isGlobalAdmin &&
@@ -975,15 +979,17 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           // common case — hostname tenant == user tenant — keeps the first
           // binding and skips a redundant proxy wrap.
           if ((multiTenant || testMode) && locals.tenantId && locals.tenantId !== preUserTenant) {
-            const { bindRequestDbAdapter } = await import("@src/databases/tenant-adapter");
             const bound = bindRequestDbAdapter(
               (locals as any).dbAdapterUnscoped || dbAdapter,
               locals.tenantId as DatabaseId,
               true,
             );
             locals.dbAdapter = bound.dbAdapter as any;
-            const { applyAdapterTenantContext } = await import("@src/databases/tenant-adapter");
-            await applyAdapterTenantContext(bound.dbAdapterUnscoped, locals.tenantId ?? null);
+            const tenantP = applyAdapterTenantContext(
+              bound.dbAdapterUnscoped,
+              locals.tenantId ?? null,
+            );
+            if (tenantP) await tenantP;
           }
           await handleSessionRotation(event, user, sessionId);
         } else if (resolution.status === "invalid") {
@@ -1032,7 +1038,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         clearAllSessionCookies(event);
       }
     } else {
-      logger.debug(`[Auth] NO cookie found. path=${event.url.pathname} cookieName=${cookieName}`);
+      if (logger.isEnabled("debug")) {
+        logger.debug(`[Auth] NO cookie found. path=${event.url.pathname} cookieName=${cookieName}`);
+      }
     }
 
     // 3. API Token Authentication (Bearer) - Hardened for 2026 Retro-compatibility
@@ -1064,24 +1072,14 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
             );
           } else {
             metricsService.incrementAuthValidations();
-            let res = await dbAdapter.auth.getApiKey(hash, {
+            const res = await dbAdapter.auth.getApiKey(hash, {
               tenantId: locals.tenantId,
             });
-            // Fallback: try legacy SHA-256 hash for keys created before HMAC migration
-            // (computed lazily — only a DB miss pays for the legacy digest)
-            if (!res.success) {
-              const legacyHash = hashApiKeyLegacy(tokenValue);
-              if (legacyHash !== hash) {
-                res = await dbAdapter.auth.getApiKey(legacyHash, {
-                  tenantId: locals.tenantId,
-                });
-              }
-            }
             if (res.success && res.data) {
               const apiKey = res.data;
 
               // 1. Expiry Check
-              if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
+              if (apiKey.expiresAt && new Date(apiKey.expiresAt).getTime() < Date.now()) {
                 logger.warn(`[Auth] API Key expired: ${apiKey.name}`);
                 metricsService.incrementAuthFailures();
               } else if (apiKey.revoked) {
@@ -1162,7 +1160,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               const token = res.data;
 
               // 1. Expiry Check
-              if (token.expiresAt && new Date(token.expiresAt) < new Date()) {
+              if (token.expiresAt && new Date(token.expiresAt).getTime() < Date.now()) {
                 logger.warn(`[Auth] API Token expired: ${token.name}`);
                 metricsService.incrementAuthFailures();
               } else {
@@ -1269,7 +1267,6 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
         // Full async tree can use getRequestDbAdapter() when tenant-bound.
         const bound = locals.dbAdapter as any;
         if (bound && typeof bound === "object" && "boundTenantId" in bound) {
-          const { runWithTenantAdapter } = await getTenantAdapterLazy();
           return runWithTenantAdapter(bound, () => resolve(event));
         }
         return resolve(event);
@@ -1358,15 +1355,25 @@ export function invalidateUserSessionCaches(userId: string): void {
 }
 
 /**
- * Prime the in-memory session cache directly — bypasses Redis and validateSession.
- * Used by setup wizard and sign-in to ensure getUserFromSession gets an instant hit.
+ * Prime the in-memory session cache AND turbo-auth in one shot.
+ * Login/OIDC/setup used to only warm the session LRU — the first collection
+ * create then missed the warm write lane and paid the full API_WRITE sequence.
+ * Turbo is filled with the credential-free user snapshot; roles stay empty
+ * here (handleAuthorization hydrates on miss). Write lane only needs isAdmin.
  */
-export function primeSessionMemoryCache(sessionId: string, user: User): void {
+export function primeSessionMemoryCache(
+  sessionId: string,
+  user: User,
+  tenantId?: DatabaseId | null,
+): void {
   // Targeted negative-entry removal (the session is now known-valid) — never
   // clear the whole negative cache for one session.
   negativeSessionCache.delete(sessionId);
   // Credential-free snapshot — the in-memory cache must never hold password
   // hashes, TOTP secrets, backup codes, or reset/refresh tokens.
-  const entry: SessionCacheEntry = { user: toSafeSessionUser(user), timestamp: Date.now() };
+  const safeUser = toSafeSessionUser(user);
+  const entry: SessionCacheEntry = { user: safeUser, timestamp: Date.now() };
   setSessionInCache(sessionId, entry);
+  const resolvedTenant = tenantId ?? (safeUser as User).tenantId ?? null;
+  setTurboAuthContext(sessionId, safeUser, [], new Uint32Array(1), resolvedTenant);
 }

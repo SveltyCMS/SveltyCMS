@@ -4,19 +4,21 @@
  */
 
 import type { IDialectProvider } from "../db-interface";
+import { getHardwareProfile } from "@utils/hardware-profile";
 
 export class SqliteDialect implements IDialectProvider {
   constructor(private db: any) {}
 
   async applyOptimizations(): Promise<void> {
+    const hw = getHardwareProfile();
     const pragmas = [
       "PRAGMA journal_mode=WAL",
       "PRAGMA synchronous=NORMAL",
       "PRAGMA foreign_keys=ON",
       "PRAGMA busy_timeout=30000",
       "PRAGMA temp_store=MEMORY",
-      "PRAGMA mmap_size=536870912",
-      "PRAGMA cache_size=-128000",
+      `PRAGMA mmap_size=${hw.sqliteMmapSizeBytes}`,
+      `PRAGMA cache_size=-${hw.sqliteCacheSizeKb}`,
     ];
     for (const p of pragmas) await this.executeTuningCommand(p);
   }

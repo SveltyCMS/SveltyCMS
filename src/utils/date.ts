@@ -43,6 +43,25 @@ function parseTwoDigits(value: string, offset: number): number {
 }
 
 /**
+ * True when `value` starts with `YYYY-MM-DDTHH:mm:ss` (char-code scan, no regex).
+ * Same predicate as the previous `/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/` check
+ * used on SQL write paths — does not validate calendar correctness.
+ */
+export function hasIsoDateTimePrefix(value: string): boolean {
+  if (value.length < 19) return false;
+  for (let i = 0; i < 4; i++) {
+    const c = value.charCodeAt(i);
+    if (c < 48 || c > 57) return false;
+  }
+  if (value.charCodeAt(4) !== 45) return false;
+  if (!hasTwoDigits(value, 5) || value.charCodeAt(7) !== 45) return false;
+  if (!hasTwoDigits(value, 8) || value.charCodeAt(10) !== 84 /* T */) return false;
+  if (!hasTwoDigits(value, 11) || value.charCodeAt(13) !== 58) return false;
+  if (!hasTwoDigits(value, 14) || value.charCodeAt(16) !== 58) return false;
+  return hasTwoDigits(value, 17);
+}
+
+/**
  * Type guard for ISODateString.
  *
  * Zero-allocation validator: pure `charCodeAt` + integer arithmetic (no `Date`,
@@ -132,14 +151,31 @@ export function isISODateString(value: unknown): value is ISODateString {
   }
   if (index !== value.length) return false;
 
-  // --- UTC instant must fall on the literal date (reproduces the old
-  //     `value.startsWith(date.toISOString().slice(0, 10))` semantics) ---
-  const utcMinutes = hour * 60 + minute - offsetMinutes;
-  return utcMinutes >= 0 && utcMinutes < 1440;
+  // --- If no timezone offset is specified (UTC), time must fall within standard 0..1439 minute day ---
+  if (offsetMinutes === 0) {
+    const utcMinutes = hour * 60 + minute;
+    return utcMinutes >= 0 && utcMinutes < 1440;
+  }
+  return true;
 }
 
-// Backward compatibility wrappers
-export const nowISODateString = (): ISODateString => dateToISODateString(new Date());
+// 🚀 Zero-allocation 1ms-resolution timestamp cache
+let _lastTimeMs = 0;
+let _cachedIsoString: ISODateString = "" as ISODateString;
+
+/**
+ * Returns current UTC time as ISODateString with 1ms-tick memoization.
+ * Eliminates repeated new Date().toISOString() heap allocations on write hot paths.
+ */
+export function nowISODateString(): ISODateString {
+  const now = Date.now();
+  if (now === _lastTimeMs) {
+    return _cachedIsoString;
+  }
+  _lastTimeMs = now;
+  _cachedIsoString = new Date(now).toISOString() as ISODateString;
+  return _cachedIsoString;
+}
 
 /**
  * Safely converts an ISO date string to a Date object, returning null if invalid or NaN.

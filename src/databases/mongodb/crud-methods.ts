@@ -19,7 +19,8 @@ import type {
   EntityCreate,
   EntityUpdate,
 } from "../db-interface";
-import { createDatabaseError, generateId, processDates } from "./mongodb-utils";
+import { createDatabaseError, generateId, processDates, validateId } from "./mongodb-utils";
+import { isSystemTable } from "../core/drizzle-sql-helpers";
 import {
   buildFindPageResult,
   DEFAULT_PAGE_SIZE,
@@ -40,6 +41,30 @@ export class MongoCrudMethods<T extends BaseEntity> {
   constructor(model: Model<T>, adapter: any) {
     this.model = model;
     this.adapter = adapter;
+  }
+
+  /**
+   * 🛡️ ENTERPRISE `_id` CONTRACT — O(1) gate on every entry write (parity
+   * with the SQL adapters): dynamic collection tables accept only UUIDv4 ids
+   * (32-hex dash-less or 36-dashed); system tables (content_nodes, auth_*, …)
+   * keep slug-friendly ids. Pre-compiled regex + cached system set.
+   */
+  private invalidEntryId(id: unknown): DatabaseResult<never> | null {
+    if (id === undefined || id === null) return null;
+    const name = this.model.modelName;
+    if (isSystemTable(name) || (typeof name === "string" && name.startsWith("plugin_")))
+      return null;
+    if (typeof id !== "string" || !validateId(id)) {
+      return {
+        success: false,
+        message: `Invalid _id format for "${this.model.modelName}": expected UUIDv4 (32 hex or 36 dashed chars)`,
+        error: {
+          code: "INVALID_ID_FORMAT",
+          message: "_id must be a UUIDv4 string (32 hex or 36 dashed chars)",
+        },
+      };
+    }
+    return null;
   }
 
   /**
@@ -314,6 +339,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
         systemScope: options.systemScope,
       });
 
+      const invalid = this.invalidEntryId(secureData._id);
+      if (invalid) return invalid;
+
       const now = nowISODateString();
       const doc = {
         ...secureData,
@@ -383,6 +411,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       if (data.length === 0) return { success: true, data: [] };
 
+      for (const item of data) {
+        const invalid = this.invalidEntryId((item as any)?._id);
+        if (invalid) return invalid;
+      }
+
       const now = nowISODateString();
       const ops = data.map((d) => {
         const secureData = safeQuery(d as Record<string, unknown>, options.tenantId as string, {
@@ -444,6 +477,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
         },
       };
     }
+
+    const invalid = this.invalidEntryId(id);
+    if (invalid) return invalid;
 
     const startTime = performance.now();
     try {
@@ -584,26 +620,40 @@ export class MongoCrudMethods<T extends BaseEntity> {
           bypassSafeQuery: opts.bypassSafeQuery,
           systemScope: opts.systemScope,
         }),
-      );
+      ) as Record<string, unknown>;
       const now = nowISODateString();
 
       // Strip _id, tenantId, and createdAt from the $set payload (createdAt is insert-only)
       const {
-        _id: _,
-        tenantId: __,
-        createdAt: ___,
+        _id: dataId,
+        tenantId: dataTenant,
+        createdAt: _createdAt,
         ...updateData
       } = {
         ...(data as any),
         updatedAt: now,
       };
 
-      // Step 1: Try atomic update first (no upsert flag, no $setOnInsert)
-      // This avoids Mongoose 9's pre-validation that rejects _id in $setOnInsert
-      // even on the update path.
-      const findOptions: any = {
+      const invalid = this.invalidEntryId((secureQuery as any)._id ?? dataId);
+      if (invalid) return invalid;
+
+      // One round-trip: put _id on the filter (Mongo copies filter keys into
+      // the inserted doc) so $setOnInsert never carries `_id` — Mongoose 9
+      // pre-validation rejects `_id` in $setOnInsert even on the insert path.
+      const filter: Record<string, unknown> = { ...secureQuery };
+      if (filter._id == null) filter._id = dataId || generateId();
+
+      const setOnInsert: Record<string, unknown> = {
+        createdAt: now,
+      };
+      // Path conflict if the same key is in $set and $setOnInsert.
+      if (updateData.isDeleted === undefined) setOnInsert.isDeleted = false;
+      const tenantId = opts.tenantId || dataTenant;
+      if (tenantId && filter.tenantId == null) setOnInsert.tenantId = tenantId;
+
+      const findOptions: Record<string, unknown> = {
+        upsert: true,
         returnDocument: "after",
-        // 🚀 SDK/API layer already validates (Valibot) — skip Mongoose re-validation.
         runValidators: false,
         cloneUpdate: false,
       };
@@ -612,38 +662,18 @@ export class MongoCrudMethods<T extends BaseEntity> {
       }
 
       const updated = await this.model
-        .findOneAndUpdate(secureQuery, { $set: updateData }, findOptions)
+        .findOneAndUpdate(filter, { $set: updateData, $setOnInsert: setOnInsert }, findOptions)
         .lean()
         .exec();
 
-      if (updated) {
-        return { success: true, data: processDates(updated) as T };
+      if (!updated) {
+        return {
+          success: false,
+          message: "Upsert failed",
+          error: { code: "UPSERT_ERROR", message: "Upsert returned no document" },
+        };
       }
-
-      // Step 2: No document matched — insert a new one
-      const insertData = {
-        ...(data as any),
-        _id: (data as any)._id || generateId(),
-        createdAt: now,
-        updatedAt: now,
-      };
-      try {
-        const created = await this.model.create(insertData);
-        return { success: true, data: processDates(created.toObject()) as T };
-      } catch (insertError: any) {
-        // E11000 duplicate key: another request created this document between
-        // our findOneAndUpdate and create calls. Retry the update path.
-        if (insertError?.code === 11000) {
-          const retried = await this.model
-            .findOneAndUpdate(secureQuery, { $set: updateData }, findOptions)
-            .lean()
-            .exec();
-          if (retried) {
-            return { success: true, data: processDates(retried) as T };
-          }
-        }
-        throw insertError;
-      }
+      return { success: true, data: this.mapDates(updated) as T };
     } catch (error) {
       return {
         success: false,
@@ -1111,6 +1141,11 @@ export class MongoCrudMethods<T extends BaseEntity> {
     try {
       if (items.length === 0)
         return { success: true, data: { upsertedCount: 0, modifiedCount: 0 } };
+
+      for (const item of items) {
+        const invalid = this.invalidEntryId((item.query as any)?._id ?? (item.data as any)?._id);
+        if (invalid) return invalid;
+      }
       const now = nowISODateString();
       const ops = items.map((item) => ({
         updateOne: {

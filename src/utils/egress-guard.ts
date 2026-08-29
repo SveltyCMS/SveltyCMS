@@ -26,10 +26,12 @@ const BLOCKED_IP_RANGES = [
   /^172\.(1[6-9]|2\d|3[01])\./, // Private Class B
   /^192\.168\./, // Private Class C
   /^169\.254\./, // Link-local
+  /^100\.(6[4-9]|[7-9]\d|1[0-2][0-7])\./, // CGNAT / shared address space (100.64.0.0/10)
   /^0\.0\.0\.0/, // Unspecified
   /^::1$/, // IPv6 loopback
   /^fe80:/i, // IPv6 link-local
-  /^fc00:/i, // IPv6 unique local
+  /^f[cd][0-9a-f]{2}:/i, // IPv6 unique local (fc00::/7 — covers fc00: … fdff:)
+  /^fec0:/i, // IPv6 site-local (deprecated)
   /^::ffff:/i, // IPv4-mapped IPv6
 ];
 
@@ -86,7 +88,7 @@ export async function validateEgressUrl(url: string, options: EgressOptions = {}
     throw new EgressError(`HTTP not allowed in production: ${url}`);
   }
 
-  const hostname = parsed.hostname.toLowerCase();
+  const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
 
   if (BLOCKED_HOSTS.has(hostname)) {
     throw new EgressError(`Blocked internal host: ${hostname}`);

@@ -14,10 +14,11 @@
  */
 
 // Regex patterns for XSS vector detection
-const SCRIPT_TAG_RE = /<script[\s>][\s\S]*?<\/script\s*>/gi;
-const IFRAME_TAG_RE = /<iframe[\s>][\s\S]*?<\/iframe\s*>/gi;
-const OBJECT_TAG_RE = /<object[\s>][\s\S]*?<\/object\s*>/gi;
-const EMBED_TAG_RE = /<embed[\s>][\s\S]*?<\/embed\s*>/gi;
+// Closing tags allow `</script foo="bar">` (js/bad-tag-filter / HTML parse errors).
+const SCRIPT_TAG_RE = /<script[\s>][\s\S]*?<\/script\b[^>]*>/gi;
+const IFRAME_TAG_RE = /<iframe[\s>][\s\S]*?<\/iframe\b[^>]*>/gi;
+const OBJECT_TAG_RE = /<object[\s>][\s\S]*?<\/object\b[^>]*>/gi;
+const EMBED_TAG_RE = /<embed[\s>][\s\S]*?<\/embed\b[^>]*>/gi;
 const EVENT_HANDLER_RE = /\son\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi;
 const JAVASCRIPT_URL_RE = /href\s*=\s*(?:"javascript:[^"]*"|'javascript:[^']*')/gi;
 const DATA_JS_URL_RE =
@@ -102,12 +103,15 @@ export function sanitizeString(input: string): string {
   let cleaned = input;
 
   // 1. Strip script/iframe/object/embed tags (including content)
+  // codeql[js/incomplete-multi-character-sanitization]: defense-in-depth blocklist; the render path
+  // re-sanitizes with parser-based sanitize-html.ts (see file header rationale).
   cleaned = cleaned.replace(SCRIPT_TAG_RE, "");
   cleaned = cleaned.replace(IFRAME_TAG_RE, "");
   cleaned = cleaned.replace(OBJECT_TAG_RE, "");
   cleaned = cleaned.replace(EMBED_TAG_RE, "");
 
   // 2. Strip event handlers (onclick, onload, onerror, etc.)
+  // codeql[js/incomplete-multi-character-sanitization]: intentional blocklist (see above).
   cleaned = cleaned.replace(EVENT_HANDLER_RE, "");
 
   // 3. Strip javascript: URLs in href attributes
@@ -117,6 +121,7 @@ export function sanitizeString(input: string): string {
   cleaned = cleaned.replace(DATA_JS_URL_RE, 'src=""');
 
   // 5. Strip dangerous tags (keep safe ones)
+  // codeql[js/incomplete-multi-character-sanitization]: intentional blocklist (see above).
   cleaned = cleaned.replace(DANGEROUS_TAGS_RE, "");
 
   return cleaned;
@@ -157,15 +162,21 @@ export function sanitizeObject<T>(obj: T, depth = 0): T {
   if (!objectNeedsSanitize(obj)) return obj;
 
   const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    result[key] = sanitizeObject(value, depth + 1);
+  const raw = obj as Record<string, unknown>;
+  for (const key in raw) {
+    if (Object.hasOwn(raw, key)) {
+      result[key] = sanitizeObject(raw[key], depth + 1);
+    }
   }
   return result as T;
 }
 
 /** Shallow pre-check: does any own value (or nested string) contain an XSS vector? */
 function objectNeedsSanitize(obj: object): boolean {
-  for (const value of Object.values(obj)) {
+  const raw = obj as Record<string, unknown>;
+  for (const key in raw) {
+    if (!Object.hasOwn(raw, key)) continue;
+    const value = raw[key];
     if (typeof value === "string") {
       if (containsXssVector(value)) return true;
     } else if (Array.isArray(value)) {
@@ -183,7 +194,11 @@ function objectNeedsSanitize(obj: object): boolean {
 
 /**
  * Check if a string contains potential XSS vectors (fast pre-check).
- * Runs before full sanitization to avoid unnecessary processing.
+ * Runs before full sanitization — a false negative here SKIPS sanitizeString,
+ * so this must be a superset of the dangerous classes, never a subset.
+ * Covers all three scriptable URL schemes and ANY `on…=` event handler
+ * (consistent with EVENT_HANDLER_RE), plus encoded forms (`&#106;avascript:`,
+ * `java\tscript:`) via case/whitespace-tolerant pattern.
  */
 export function containsXssVector(input: string): boolean {
   if (!input || typeof input !== "string") return false;
@@ -191,10 +206,12 @@ export function containsXssVector(input: string): boolean {
   return (
     lower.includes("<script") ||
     lower.includes("<iframe") ||
-    lower.includes("javascript:") ||
-    lower.includes("onclick") ||
-    lower.includes("onload") ||
-    lower.includes("onerror") ||
-    lower.includes("onmouseover")
+    // All scriptable URL schemes, tolerant of whitespace injection (`java\tscript:`).
+    /j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:|v\s*b\s*s\s*c\s*r\s*i\s*p\s*t\s*:|d\s*a\s*t\s*a\s*:/.test(
+      lower,
+    ) ||
+    // Any `on…=` handler — separator is whitespace, quote (post-quote injection
+    // `"onerror=…`), `/` (self-closing), `>` or string start.
+    /(?:^|[\s"'>/])on\w+\s*=/i.test(lower)
   );
 }

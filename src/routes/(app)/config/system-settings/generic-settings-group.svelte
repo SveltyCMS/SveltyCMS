@@ -20,12 +20,14 @@ import iso6391 from "@utils/iso639-1.json";
 import { getLanguageName } from "@utils/language-utils";
 import { logger } from "@utils/logger";
 import { showConfirm } from "@utils/modal.svelte";
+import { deepClone } from "@utils/native-utils";
 import { onMount, tick, untrack } from "svelte";
 import type { SvelteSet } from "svelte/reactivity";
 import Alert from "@components/ui/alert.svelte";
 import Badge from "@components/ui/badge.svelte";
 import Checkbox from "@components/ui/checkbox.svelte";
 import GroupIcon from "@src/components/group-icon.svelte";
+import HelpIcon from "@components/ui/help-icon.svelte";
 import Input from "@components/ui/input.svelte";
 import Select from "@components/ui/select.svelte";
 import StickyActions from "@components/ui/sticky-actions.svelte";
@@ -91,11 +93,14 @@ let hasEmptyRequiredFields = $state(false);
 let importInputEl = $state<HTMLInputElement | null>(null);
 
 // Optimize: Use $derived instead of $effect for unsaved changes.
-// Guard on !loading && !error: while loading or after a failed load, `originalValues` is not
-// populated, yet `bind:value` inputs (e.g. <select aria-label="Select">) auto-fill defaults into `values` — which
-// would otherwise look like unsaved edits and trigger a false "unsaved changes" navigation prompt.
+// Guard on !loading: while the initial load is in flight, `originalValues` is not
+// populated yet, so a naive comparison would treat the seeded defaults as edits and
+// trigger a false "unsaved changes" navigation prompt. A FAILED load is not blocked:
+// the catch block seeds both `values` and `originalValues` with the same fallback, so
+// edits stay correctly detectable — the save bar must not be locked forever just
+// because the initial load errored (the error alert is the user's signal to retry).
 let hasUnsavedChanges = $derived(
-	!loading && !error && hasUnsavedSettingChanges(values, originalValues),
+	!loading && hasUnsavedSettingChanges(values, originalValues),
 );
 
 // Notify parent component when hasUnsavedChanges changes
@@ -163,7 +168,7 @@ function checkForEmptyFields() {
 
 /** Revert local edits to last loaded/saved originals */
 function discardChanges() {
-	values = JSON.parse(JSON.stringify(originalValues));
+	values = deepClone(originalValues);
 	errors = {};
 	error = null;
 	checkForEmptyFields();
@@ -221,7 +226,7 @@ async function loadSettings(bypassCache = false) {
 
 			values = initializedValues;
 			// Store a deep copy of original values
-			originalValues = JSON.parse(JSON.stringify(values));
+			originalValues = deepClone(values);
 			checkForEmptyFields(); // Check if configuration is needed
 		} else {
 			throw new Error(data.error || "Failed to load settings");
@@ -232,7 +237,7 @@ async function loadSettings(bypassCache = false) {
 		// Initialize all fields to safe defaults so the UI doesn't crash
 		const fallback = initializeGroupValues(group.fields, {});
 		values = fallback;
-		originalValues = JSON.parse(JSON.stringify(fallback));
+		originalValues = deepClone(fallback);
 	} finally {
 		loading = false;
 		// Ensure Svelte has flushed DOM updates before callers check input values
@@ -753,9 +758,7 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={defaultLangField.description}>
-										<button type="button" class="ms-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
-											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
-										</button>
+										<HelpIcon ariaLabel="Field information" />
 									</SystemTooltip>
 								</label>
 								<Select
@@ -785,9 +788,7 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={availableLangsField.description}>
-										<button type="button" class="ms-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
-											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
-										</button>
+										<HelpIcon ariaLabel="Field information" />
 									</SystemTooltip>
 								</div>
 								<div class="relative">
@@ -904,9 +905,7 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={baseLocaleField.description}>
-										<button type="button" class="ms-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
-											<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
-										</button>
+										<HelpIcon ariaLabel="Field information" />
 									</SystemTooltip>
 								</label>
 								<Select
@@ -936,9 +935,7 @@ onMount(() => {
 										<span class="text-error-500">*</span>
 									{/if}
 									<SystemTooltip title={localesField.description}>
-										<button type="button" class="ms-1 text-slate-400 hover:text-tertiary-500 dark:text-primary-500" aria-label="Field information">
-											<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
-										</button>
+										<HelpIcon ariaLabel="Field information" />
 									</SystemTooltip>
 								</div>
 								<div class="relative">

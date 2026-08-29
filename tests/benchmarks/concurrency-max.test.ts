@@ -1,7 +1,7 @@
 /**
  * @file tests/benchmarks/concurrency-max.test.ts
- * @description Max Throughput — no semaphore, full blast (Optimized)
- * @summary All requests fire simultaneously to measure true database parallelism.
+ * @description Max Throughput — sliding-window queue, zero-allocation pipeline (Optimized)
+ * @summary Eliminates wave synchronization barriers and measures exact per-request latency.
  */
 
 import {
@@ -20,7 +20,7 @@ import "../unit/bun-preload.ts";
 
 const COLLECTION_ID = "BenchmarkStable";
 const DOCS = 100;
-const WRITES_PER_DOC = 10; // 1000 total writes
+const WRITES_PER_DOC = 10; // 1,000 total writes
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -32,124 +32,147 @@ async function run() {
   await ensureStableTestData();
   await forceRefreshServer(baseUrl);
 
-  // Canonical lowercase header layouts — REAL admin session cookie (production auth)
-  const H = {
+  const H: HeadersInit = {
     "content-type": "application/json",
     ...benchmarkAuthHeaders(),
     "x-tenant-id": "global",
+    connection: "keep-alive",
   };
   const dbType = getDbType();
 
-  // Seed 100 docs in-process (production mode has no /api/testing)
+  // ── SEED DOCS ─────────────────────────────────────────────────────────────
   console.log("   → Seeding 100 docs...");
-  await seedThroughputDocs(DOCS).catch(() => {});
+  let docIds = (await seedThroughputDocs(DOCS).catch(() => [])) || [];
+
+  if (!docIds || docIds.length < DOCS) {
+    // Fallback deterministic IDs if seeder returns partial or empty set
+    docIds = Array.from(
+      { length: DOCS },
+      (_, i) => `20000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+    );
+  }
 
   const seedPayload = JSON.stringify({ count: 0 });
 
-  for (let i = 0; i < DOCS; i += 50) {
-    const seedBatch = [];
-    const limit = Math.min(50, DOCS - i);
-
-    for (let j = 0; j < limit; j++) {
-      seedBatch.push(
-        fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/tp-${i + j}`, {
+  // Pre-seed batching in parallel chunks
+  const seedBatchSize = 50;
+  for (let i = 0; i < DOCS; i += seedBatchSize) {
+    const chunk = docIds.slice(i, i + seedBatchSize);
+    await Promise.all(
+      chunk.map((id) =>
+        fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${id}`, {
           method: "PATCH",
           headers: H,
           body: seedPayload,
-        }).catch(() => {}),
-      );
-    }
-    await Promise.all(seedBatch);
+        })
+          .then((res) => res.arrayBuffer())
+          .catch(() => {}),
+      ),
+    );
   }
   await forceRefreshServer(baseUrl);
 
   const totalWrites = DOCS * WRITES_PER_DOC;
-  // Full blast only on embedded SQLite — network DBs exhaust pools under 1000 parallel POSTs
-  // and report "Lost N writes". Wave concurrency keeps max-throughput meaningful.
-  const WAVE = dbType === "sqlite" ? totalWrites : dbType === "mongodb" ? 100 : 40;
+  // Sliding-window worker limit to prevent socket/pool exhaustion on network DBs
+  const MAX_CONCURRENCY = dbType === "sqlite" ? totalWrites : dbType === "mongodb" ? 100 : 40;
+
   console.log(
-    `   → Blasting ${totalWrites} writes (wave=${WAVE}${dbType === "sqlite" ? ", full parallel" : ", pool-safe waves"})...`,
+    `   → Blasting ${totalWrites} writes (concurrency=${MAX_CONCURRENCY}${
+      dbType === "sqlite" ? ", full blast" : ", pool-safe sliding window"
+    })...`,
   );
 
-  // Optimized fetch handler providing fast raw network retry loops.
-  // 🛡️ DISCLOSED RETRIES: 429/503/504 pool-pressure responses are retried like
-  // a production load balancer would, but every retry is COUNTED and reported
-  // below — success rate alone must not hide how much resilience was needed.
   let retryCount = 0;
-  async function fetchWithRetry(
-    url: string,
-    init: RequestInit,
-    retries = 8,
-    delay = 80,
-  ): Promise<Response> {
+
+  async function executeWrite(url: string, body: string, retries = 8, delay = 80): Promise<number> {
+    const reqStart = performance.now();
     for (let i = 0; i < retries; i++) {
       try {
-        const res = await fetch(url, init);
-        if (res.ok) return res;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: H,
+          body,
+          signal: AbortSignal.timeout(30000),
+        });
+
+        // Drain stream immediately to release socket back to keep-alive pool
         await res.arrayBuffer().catch(() => {});
-        // Retry 429/503/502 — pool pressure under matrix shared server
+
+        if (res.ok) return performance.now() - reqStart;
+
+        // Retry 429/502/503/504 pool pressure
         if ([429, 502, 503, 504].includes(res.status) && i < retries - 1) {
           retryCount++;
           await new Promise((r) => setTimeout(r, delay * (i + 1) + Math.random() * 40));
           continue;
         }
-        return res;
+
+        throw new Error(`HTTP ${res.status}`);
       } catch (err) {
         if (i === retries - 1) throw err;
         retryCount++;
-        await new Promise((resolve) => setTimeout(resolve, delay + Math.random() * 50));
+        await new Promise((r) => setTimeout(r, delay + Math.random() * 50));
       }
     }
-    throw new Error("Fetch failed after retries");
+    throw new Error("Fetch failed after max retries");
   }
 
-  // Pre-serialize payload configurations out of the critical path to prevent execution drift
+  // Pre-generate target URLs and reuse static string payload
   const incrementPayload = JSON.stringify({ field: "count", amount: 1 });
-
-  const jobs: { url: string }[] = [];
+  const urls: string[] = [];
   for (let d = 0; d < DOCS; d++) {
-    const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/tp-${d}/increment`;
+    const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/${docIds[d]}/increment`;
     for (let w = 0; w < WRITES_PER_DOC; w++) {
-      jobs.push({ url: targetUrl });
+      urls.push(targetUrl);
     }
   }
 
+  // ── SLIDING WINDOW PIPELINE ───────────────────────────────────────────────
+  const latencies: number[] = Array.from<number>({ length: totalWrites });
+  let jobCursor = 0;
+  let ok = 0;
+
   const t0 = performance.now();
-  const responses: Response[] = [];
-  for (let i = 0; i < jobs.length; i += WAVE) {
-    const slice = jobs.slice(i, i + WAVE);
-    const waveRes = await Promise.all(
-      slice.map((j) =>
-        fetchWithRetry(j.url, {
-          method: "POST",
-          headers: H,
-          body: incrementPayload,
-          signal: AbortSignal.timeout(30000),
-        }),
-      ),
-    );
-    responses.push(...waveRes);
-  }
+
+  const workers = Array.from({ length: Math.min(MAX_CONCURRENCY, totalWrites) }, async () => {
+    while (true) {
+      const idx = jobCursor++;
+      if (idx >= totalWrites) break;
+      try {
+        latencies[idx] = await executeWrite(urls[idx], incrementPayload);
+        ok++;
+      } catch {
+        latencies[idx] = -1;
+      }
+    }
+  });
+
+  await Promise.all(workers);
   const duration = performance.now() - t0;
 
-  let ok = 0;
-  for (const r of responses) {
-    if (r.ok) ok++;
-    await r.arrayBuffer().catch(() => {});
-  }
-
+  // ── STATS CALCULATION ─────────────────────────────────────────────────────
+  const validLatencies = latencies.filter((l) => l >= 0).sort((a, b) => a - b);
+  const avgMs = validLatencies.length
+    ? validLatencies.reduce((a, b) => a + b, 0) / validLatencies.length
+    : 0;
+  const p95Ms = validLatencies.length
+    ? validLatencies[Math.floor(validLatencies.length * 0.95)]
+    : 0;
   const rps = (totalWrites / duration) * 1000;
-  console.log(`   → ${ok}/${totalWrites} OK, ${rps.toFixed(0)} RPS, ${duration.toFixed(0)}ms`);
+
+  console.log(
+    `   → ${ok}/${totalWrites} OK, ${rps.toFixed(0)} RPS, ${duration.toFixed(0)}ms (p95: ${p95Ms.toFixed(1)}ms)`,
+  );
 
   printTruthTable({
     title: `SVELTYCMS — MAX THROUGHPUT (${dbType.toUpperCase()})`,
     shortLabel: "Max",
-    subtitle: `${totalWrites} writes × ${DOCS} docs • No throttle`,
+    subtitle: `${totalWrites} writes × ${DOCS} docs • Sliding-window ${MAX_CONCURRENCY}c`,
     results: [
       {
         name: "Full Blast",
-        avgMs: duration / totalWrites,
-        p95Ms: duration / totalWrites,
+        avgMs,
+        p95Ms,
         rps,
         layer: ok === totalWrites ? "✅" : "❌",
       },
@@ -159,16 +182,18 @@ async function run() {
   printSummaryTable([
     { key: "Database", val: dbType.toUpperCase(), unit: "" },
     { key: "Total Writes", val: totalWrites, unit: "writes" },
-    { key: "Duration", val: duration, unit: "ms" },
-    { key: "Throughput", val: rps, unit: "RPS" },
+    { key: "Duration", val: duration.toFixed(1), unit: "ms" },
+    { key: "Throughput", val: rps.toFixed(0), unit: "RPS" },
+    { key: "Latency (Avg)", val: avgMs.toFixed(2), unit: "ms" },
+    { key: "Latency (P95)", val: p95Ms.toFixed(2), unit: "ms" },
     { key: "Success Rate", val: `${ok}/${totalWrites}`, unit: "" },
     { key: "Retries (429/503/504)", val: retryCount, unit: "" },
   ]);
 
   await exportResult({
     name: "Full Blast",
-    avgMs: duration / totalWrites,
-    p95Ms: duration / totalWrites,
+    avgMs,
+    p95Ms,
     rps,
     errorCount: totalWrites - ok,
     status: ok === totalWrites ? "SUCCESS" : "FAILED",
@@ -183,4 +208,4 @@ test("Max Throughput — No Throttle", async () => {
   } finally {
     if (stopServer) await stopServer().catch(() => {});
   }
-}, 300000);
+}, 300_000);

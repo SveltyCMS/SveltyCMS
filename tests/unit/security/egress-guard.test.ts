@@ -39,6 +39,42 @@ describe("validateEgressUrl — SSRF defense", () => {
     await expect(validateEgressUrl("http://172.16.0.1/", opts)).rejects.toThrow(/private|Blocked/i);
   });
 
+  it("blocks IPv6 loopback, link-local and ULA (both fc00: and fd00: halves)", async () => {
+    await expect(validateEgressUrl("http://[::1]/secret", opts)).rejects.toThrow(
+      /private|Blocked/i,
+    );
+    await expect(validateEgressUrl("http://[fe80::1]/secret", opts)).rejects.toThrow(
+      /private|Blocked/i,
+    );
+    await expect(validateEgressUrl("http://[fc00::1]/secret", opts)).rejects.toThrow(
+      /private|Blocked/i,
+    );
+    // ULA fd00::/8 — the second half of fc00::/7 (pen-test M5 gap).
+    await expect(validateEgressUrl("http://[fd00::1]/secret", opts)).rejects.toThrow(
+      /private|Blocked/i,
+    );
+    await expect(validateEgressUrl("http://[fd12:3456::1]/secret", opts)).rejects.toThrow(
+      /private|Blocked/i,
+    );
+    // IPv4-mapped IPv6 loopback
+    await expect(validateEgressUrl("http://[::ffff:127.0.0.1]/", opts)).rejects.toThrow(
+      /private|Blocked/i,
+    );
+  });
+
+  it("blocks CGNAT / shared address space (100.64.0.0/10)", async () => {
+    await expect(validateEgressUrl("http://100.64.0.1/", opts)).rejects.toThrow(/private|Blocked/i);
+    await expect(validateEgressUrl("http://100.100.100.100/", opts)).rejects.toThrow(
+      /private|Blocked/i,
+    );
+    await expect(validateEgressUrl("http://100.127.255.254/", opts)).rejects.toThrow(
+      /private|Blocked/i,
+    );
+    // Just outside the CGNAT range stays allowed (no DNS needed for an IP literal)
+    await expect(validateEgressUrl("http://100.63.0.1/", opts)).resolves.toBeTruthy();
+    await expect(validateEgressUrl("http://100.128.0.1/", opts)).resolves.toBeTruthy();
+  });
+
   it("blocks non-http(s) protocols", async () => {
     await expect(validateEgressUrl("file:///etc/passwd")).rejects.toThrow(/protocol|Blocked/i);
     await expect(validateEgressUrl("gopher://127.0.0.1/")).rejects.toThrow(/protocol|Blocked/i);

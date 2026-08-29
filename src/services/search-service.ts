@@ -145,7 +145,18 @@ export class SearchService {
     const limit = options?.limit ?? 50;
     const offset = options?.offset ?? 0;
 
-    const escapedQuery = query.replace(/'/g, "''").replace(/%/g, "\\%").replace(/_/g, "\\_");
+    // 🛡️ Defense-in-depth: identifiers are interpolated into raw SQL below —
+    // assert them even though production callers pass schema-derived names.
+    assertSafeSqlIdentifier(collection, "collection");
+    for (const col of columns) assertSafeSqlIdentifier(col, "column");
+
+    // Escape LIKE wildcards AND the escape character itself so user input
+    // (including a literal backslash) cannot change pattern semantics.
+    const escapedQuery = query
+      .replace(/\\/g, "\\\\")
+      .replace(/'/g, "''")
+      .replace(/%/g, "\\%")
+      .replace(/_/g, "\\_");
     const likePattern = `%${escapedQuery}%`;
 
     const orConditions = columns.map((col) => `"${col}" ILIKE '%${likePattern}%'`).join(" OR ");
@@ -204,6 +215,7 @@ export class SearchService {
     if (options?.filters) {
       for (const [key, value] of Object.entries(options.filters)) {
         if (value !== undefined && value !== null) {
+          assertSafeSqlIdentifier(key, "filter key");
           const strVal = String(value).replace(/'/g, "''");
           conditions.push(`"${key}" = '${strVal}'`);
         }

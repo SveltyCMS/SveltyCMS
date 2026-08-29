@@ -24,7 +24,7 @@ import type { Handle } from "@sveltejs/kit/hooks";
 import { error } from "@sveltejs/kit";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { getSetupState, SetupState } from "@utils/server/setup-check";
+import { getSetupState, peekSetupState, SetupState } from "@utils/server/setup-check";
 import { isBootstrapRoute, getRequestFlags } from "@utils/hook-utils";
 
 const dev = (() => {
@@ -88,13 +88,6 @@ async function awaitInitOrThrow(): Promise<void> {
 }
 
 let testModeWarned = false;
-const IS_GK_TEST_MODE =
-  process.env.TEST_MODE === "true" ||
-  process.env.VITE_TEST_MODE === "true" ||
-  process.env.NODE_ENV === "test" ||
-  process.env.VITEST === "true" ||
-  !!process.env.BUN_TEST;
-const IS_STRICT_SETUP_CHECK = process.env.STRICT_SETUP_CHECK === "true";
 
 /**
  * Renders an appropriate restricted-state response.
@@ -145,7 +138,7 @@ function isTrustedHost(event: RequestEvent, setupComplete: boolean): boolean {
   return !trusted || host === trusted;
 }
 
-export const handleSystemState: Handle = async ({ event, resolve }) => {
+export const handleSystemState: Handle = ({ event, resolve }) => {
   const { pathname, search } = event.url;
   const flags = getRequestFlags(event.locals as any);
   if (flags.isStatic) return resolve(event);
@@ -166,12 +159,32 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
+  const peeked = peekSetupState();
+  if (peeked === SetupState.COMPLETE && isSystemReady()) {
+    (event.locals as any).__setupState = peeked;
+    if (
+      pathname === "/setup" ||
+      pathname.startsWith("/setup/") ||
+      pathname.startsWith("/api/setup")
+    ) {
+      if (pathname.startsWith("/api/")) {
+        throw new AppError("Setup already complete", 403, "SETUP_ALREADY_COMPLETE");
+      }
+      return new Response(null, {
+        status: 302,
+        headers: { Location: "/login" },
+      });
+    }
+    return resolve(event);
+  }
+
+  return handleSystemStateSlow({ event, resolve });
+};
+
+const handleSystemStateSlow: Handle = async ({ event, resolve }) => {
+  const { pathname } = event.url;
+  const systemState = getSystemState();
   try {
-    // Always evaluate setup state dynamically — a module-level
-    // setupConfirmedComplete flag went stale after wizard resets (a reset
-    // keeps config/private.ts but wipes the DB, so the shallow check alone
-    // reported COMPLETE while the system was back in SETUP). getSetupState()
-    // is memoized internally (fast shallow check + one-time deep DB check).
     const setupState = await getSetupState();
     (event.locals as any).__setupState = setupState;
     const setupComplete = setupState === SetupState.COMPLETE;
@@ -193,7 +206,6 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
         throw new AppError("Access from untrusted host blocked", 403, "UNTRUSTED_HOST");
       }
       if (
-        (!IS_GK_TEST_MODE || IS_STRICT_SETUP_CHECK) &&
         setupComplete &&
         (pathname === "/setup" ||
           pathname.startsWith("/setup/") ||

@@ -6,12 +6,12 @@ import { AppError, getErrorMessage, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
 import { verifyPassword } from "@utils/security/crypto";
-import { isMultiTenantEnabled } from "@utils/tenant";
+import { isMultiTenantEnabled, withTenant } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions, invalidatePermissionCache } from "@src/databases/auth/permissions";
 import { sessionTtlMs } from "@src/databases/auth/constants";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
-import { withTenant } from "@src/databases/core/db-adapter-wrapper";
+import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import type {
   DatabaseId,
@@ -391,7 +391,16 @@ export class AuthNamespace {
         throw new AppError("Account suspended or incomplete", 401);
       }
 
-      if (password) {
+      // 🛡️ HARDENING: password is REQUIRED and always verified. Previously the
+      // check was `if (password)` — an attacker could log in with ONLY an email
+      // (no password) and get a session cookie (full account takeover for any
+      // user with a stored hash).
+      if (!password) {
+        logger.warn("Login attempt without password", { email });
+        throw new AppError("Invalid credentials", 401);
+      }
+
+      {
         const isValid = await verifyPassword(user.password, password);
         if (!isValid) {
           // --- FAILED ATTEMPT TRACKING (parity with Auth.authenticate) ---
@@ -440,11 +449,24 @@ export class AuthNamespace {
         }
       }
 
+      // 🛡️ PERF + HARDENING: 2FA-required accounts must NOT get a session from
+      // the password step alone — the API login flow completes the pending-2FA
+      // challenge and mints the session afterward. Returning `session: null`
+      // skips the createSession+logout churn handleLogin used to perform per
+      // 2FA login (2 wasted DB writes). Test harnesses keep the old behavior
+      // (their seeded users are not 2FA-enabled).
+      if ((user as any).is2FAEnabled && !isAutomatedTestHarness()) {
+        return { user, session: null };
+      }
+
       // Device dedup (SESSION_DEVICE_POLICY):
       //   single-per-device (default) — reuse the existing session from this device
       //   single-per-user            — reuse ANY existing non-rotated session
       //   allow-multiple             — skip dedup, always create a new session
-      if (sessionMeta?.userAgent) {
+      // Device match: client deviceId when present, else exact user-agent
+      // (legacy sessions created before device capture only have userAgent).
+      const deviceKey = sessionMeta?.deviceId || sessionMeta?.userAgent;
+      if (deviceKey) {
         try {
           const policy = String(
             getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
@@ -459,7 +481,7 @@ export class AuthNamespace {
               const existing = sessions.find(
                 (s: any) =>
                   !s.rotated &&
-                  (policy === "single-per-user" || s.userAgent === sessionMeta.userAgent),
+                  (policy === "single-per-user" || (s.deviceId || s.userAgent) === deviceKey),
               );
               if (existing) {
                 logger.debug("Login: Reusing existing session for device", {
@@ -483,6 +505,7 @@ export class AuthNamespace {
           Date.now() + sessionTtlMs(getPrivateSettingSync("SESSION_TTL_HOURS")),
         ).toISOString() as ISODateString,
         userAgent: sessionMeta?.userAgent,
+        deviceId: sessionMeta?.deviceId,
         ipAddress: sessionMeta?.ipAddress,
       });
 

@@ -9,6 +9,7 @@ import {
   getSchemaPath,
 } from "@src/content/first-collection";
 import type { ContentNode, Schema } from "@src/content/types";
+import { deepClone } from "@utils/native-utils";
 
 // ✨ Absolute Global Singleton Pattern using 'process' to bypass bundler chunk isolation
 const STORE_KEY = "__SVELTY_CONTENT_STORE_INSTANCE__";
@@ -26,6 +27,8 @@ class ContentStore {
   private _schemaAliasIndex = new Map<string, string>();
   /** Fast-path cached sanitized client nodes per tenant. */
   private _clientNodesCache = new Map<string, ContentNode[]>();
+  /** Memoized first-collection per tenant, invalidated on contentVersion bump. */
+  private _firstCollectionMemo = new Map<string, { version: number; schema: Schema | null }>();
   /** Tenants that completed content initialization, including empty tenants. */
   private _initializedTenants = new Set<string>();
 
@@ -141,8 +144,13 @@ class ContentStore {
   }
 
   getSmartFirstCollection(tenantId?: string | null): Schema | null {
+    const key = this._tenantKey(tenantId);
+    const memo = this._firstCollectionMemo.get(key);
+    if (memo && memo.version === this.contentVersion) return memo.schema;
     const collections = this.getCollections(tenantId);
-    return getFirstCollectionSchema(collections) || collections[0] || null;
+    const schema = getFirstCollectionSchema(collections) || collections[0] || null;
+    this._firstCollectionMemo.set(key, { version: this.contentVersion, schema });
+    return schema;
   }
 
   setCollections(tenantId: string, collections: Schema[]) {
@@ -184,7 +192,7 @@ class ContentStore {
     if (nodes.length === 0) return [];
 
     try {
-      const sanitized = JSON.parse(JSON.stringify(nodes)) as ContentNode[];
+      const sanitized = deepClone(nodes) as ContentNode[];
       this._clientNodesCache.set(tid, sanitized);
       return sanitized;
     } catch {
@@ -372,6 +380,7 @@ class ContentStore {
 
   updateVersion() {
     this._clientNodesCache.clear();
+    this._firstCollectionMemo.clear();
     this.contentVersion++;
   }
 

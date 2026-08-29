@@ -80,6 +80,9 @@ export const authSessions = mysqlTable(
     user_id: varchar("user_id", { length: 36 }).notNull(),
     expires: datetime("expires").notNull(),
     tenantId: tenantField(),
+    userAgent: varchar("userAgent", { length: 500 }),
+    deviceId: varchar("deviceId", { length: 64 }),
+    ipAddress: varchar("ipAddress", { length: 64 }),
     ...timestamps,
   },
   (table) => ({

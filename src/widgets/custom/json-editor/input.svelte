@@ -8,7 +8,7 @@
 	import Button from '@components/ui/button.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 	import { validationStore } from '@src/stores/store.svelte';
-	import { getFieldName } from '@src/utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import type { FieldType } from './index';
 
 	interface Props {

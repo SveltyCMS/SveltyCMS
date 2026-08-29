@@ -323,7 +323,7 @@ interface Engine {
   setup(seedRows: number): Promise<void>;
   bench(): Promise<OpSample[]>;
   /** Raw driver op behind the bare HTTP floor server (same statement as bench). */
-  rawOp?(op: "findById" | "update" | "listPlain", w: number): unknown | Promise<unknown>;
+  rawOp?(op: "findById" | "update" | "listPlain" | "insert", w: number): unknown | Promise<unknown>;
   teardown(): Promise<void>;
 }
 
@@ -543,7 +543,7 @@ class SqliteEngine implements Engine {
     return samples;
   }
 
-  rawOp(op: "findById" | "update" | "listPlain", w: number): unknown {
+  rawOp(op: "findById" | "update" | "listPlain" | "insert", w: number): unknown {
     const now = Date.now();
     const N = this.seedRows;
     if (op === "findById") {
@@ -551,6 +551,9 @@ class SqliteEngine implements Engine {
     }
     if (op === "update") {
       return this.stmts.update.run(PAYLOAD, now, `seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+    }
+    if (op === "insert") {
+      return this.stmts.insert.run(`http-${w}-${counter(w)}`, TENANT, PAYLOAD, STATUS, now, now);
     }
     return this.stmts.list[w % 8].all(TENANT, STATUS);
   }
@@ -760,13 +763,16 @@ class PostgresEngine implements Engine {
     return samples;
   }
 
-  rawOp(op: "findById" | "update" | "listPlain", w: number): unknown {
+  rawOp(op: "findById" | "update" | "listPlain" | "insert", w: number): unknown {
     const N = this.seedRows;
     if (op === "findById") {
       return this.findStmt(`seed-${Math.floor(nextRand(w) * N)}`, TENANT);
     }
     if (op === "update") {
       return this.updateStmt(PAYLOAD, this.now, `seed-${Math.floor(nextRand(w) * N)}`, TENANT);
+    }
+    if (op === "insert") {
+      return this.insertStmt(`http-${w}-${counter(w)}`, TENANT, PAYLOAD, STATUS);
     }
     return this.listStmt(TENANT, STATUS);
   }
@@ -1001,7 +1007,7 @@ class MariaDbEngine implements Engine {
     return samples;
   }
 
-  async rawOp(op: "findById" | "update" | "listPlain", w: number): Promise<unknown> {
+  async rawOp(op: "findById" | "update" | "listPlain" | "insert", w: number): Promise<unknown> {
     const N = this.seedRows;
     if (op === "findById") {
       const [rows] = await this.find.execute([`seed-${Math.floor(nextRand(w) * N)}`, TENANT]);
@@ -1013,6 +1019,16 @@ class MariaDbEngine implements Engine {
         this.now,
         `seed-${Math.floor(nextRand(w) * N)}`,
         TENANT,
+      ]);
+    }
+    if (op === "insert") {
+      return this.insert.execute([
+        `http-${w}-${counter(w)}`,
+        TENANT,
+        PAYLOAD,
+        STATUS,
+        this.now,
+        this.now,
       ]);
     }
     const [rows] = await this.list.execute([TENANT, STATUS]);
@@ -1187,7 +1203,7 @@ class MongoEngine implements Engine {
     return samples;
   }
 
-  rawOp(op: "findById" | "update" | "listPlain", w: number): unknown {
+  rawOp(op: "findById" | "update" | "listPlain" | "insert", w: number): unknown {
     const N = this.seedRows;
     const projection = {
       _id: 1,
@@ -1209,6 +1225,17 @@ class MongoEngine implements Engine {
         { _id: `seed-${Math.floor(nextRand(w) * N)}`, tenantId: TENANT },
         { $set: { data: PAYLOAD, updatedAt: this.now } },
       );
+    }
+    if (op === "insert") {
+      return this.col.insertOne({
+        _id: `http-${w}-${counter(w)}`,
+        tenantId: TENANT,
+        data: PAYLOAD,
+        status: STATUS,
+        isDeleted: 0,
+        createdAt: this.now,
+        updatedAt: this.now,
+      });
     }
     return this.col
       .find({ tenantId: TENANT, status: STATUS, isDeleted: 0 })
@@ -1270,7 +1297,8 @@ function printTable(engine: string, scaleResults: Map<number, OpSample[]>) {
       const b = get(s2, op, c);
       if (!a || !b) continue;
       const delta = a.rps > 0 ? b.rps / a.rps : 0;
-      const cms = c === 8 ? getCmsBoard(engine)[op] : undefined;
+      const cmsKey = op === "insert" ? "create" : op;
+      const cms = c === 8 ? getCmsBoard(engine)[cmsKey] : undefined;
       const cmsStr = cms
         ? `${String(cms).padStart(4)} RPS (${Math.round((cms / b.rps) * 100)}% of ceil)`
         : "—";
@@ -1292,13 +1320,14 @@ function printTable(engine: string, scaleResults: Map<number, OpSample[]>) {
 // framing — the remaining gap is the actual CMS middleware tax.
 
 const RAW_HTTP_OPS: Array<{
-  op: "findById" | "update" | "listPlain";
+  op: "findById" | "update" | "listPlain" | "insert";
   label: string;
   method: string;
   path: string;
 }> = [
   { op: "findById", label: "findById", method: "GET", path: "/entry" },
   { op: "update", label: "update", method: "POST", path: "/entry" },
+  { op: "insert", label: "create", method: "POST", path: "/create" },
   { op: "listPlain", label: "listPlain", method: "GET", path: "/list" },
 ];
 
@@ -1314,6 +1343,8 @@ async function startRawHttpServer(
         await engine.rawOp!("findById", worker);
       } else if (req.method === "POST" && req.url?.startsWith("/entry")) {
         await engine.rawOp!("update", worker);
+      } else if (req.method === "POST" && req.url?.startsWith("/create")) {
+        await engine.rawOp!("insert", worker);
       } else if (req.method === "GET" && req.url?.startsWith("/list")) {
         await engine.rawOp!("listPlain", worker);
       } else {
@@ -1358,7 +1389,7 @@ async function benchRawHttpFloor(engine: Engine): Promise<void> {
   for (const { op, label } of RAW_HTTP_OPS) {
     const s = floorSamples.get(label);
     if (!s) continue;
-    const cms = board[op] ?? 0;
+    const cms = board[label] ?? board[op] ?? 0;
     const layer = layers[op] || "default";
     // Only HTTP-layer CMS records are comparable to the HTTP floor. SDK/DB
     // records (in-process) or dated defaults would flatter the ratio.

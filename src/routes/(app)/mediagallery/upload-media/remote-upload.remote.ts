@@ -1,12 +1,13 @@
 /**
  * @file src/routes/(app)/mediagallery/upload-media/remote-upload.remote.ts
- * @description Remote URL upload function — callable directly from the component.
- *
- * ### Features:
- * - uploads URLs to the media gallery via the remoteUpload form action
+ * @description Remote URL upload — LocalCMS/MediaService, no form-action HTTP hop.
  */
 
-import { query } from "$app/server";
+import { query, getRequestEvent } from "$app/server";
+import type { DatabaseId } from "@src/content/types";
+import { getAuthenticatedUser, requirePagePermission } from "@utils/page-guards.server";
+import { saveRemoteMediaUrls } from "../save-remote-urls.server";
+import { remoteErrorMessage } from "@utils/server/request-cms.server";
 
 export const uploadRemoteUrls = query(
   "unchecked",
@@ -17,17 +18,22 @@ export const uploadRemoteUrls = query(
     urls: string[];
     folder?: string;
   }): Promise<{ success: boolean; error?: string }> => {
-    const fd = new FormData();
-    fd.append("remoteUrls", JSON.stringify(urls));
-    fd.append("folder", folder);
-
-    const r = await fetch("/mediagallery?/remoteUpload", {
-      method: "POST",
-      body: fd,
-    });
-    const d = await r.json();
-
-    const ok = d.type === "success" || d.success;
-    return ok ? { success: true } : { success: false, error: d.error || "Upload failed" };
+    try {
+      const event = getRequestEvent();
+      const user = getAuthenticatedUser(event.locals);
+      requirePagePermission(
+        event.locals,
+        "media:write",
+        "Insufficient permissions to upload media",
+      );
+      return await saveRemoteMediaUrls({
+        urls,
+        folder,
+        userId: String(user._id),
+        tenantId: (event.locals.tenantId as DatabaseId | null) ?? null,
+      });
+    } catch (err) {
+      return { success: false, error: remoteErrorMessage(err, "Upload failed") };
+    }
   },
 );

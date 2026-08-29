@@ -14,7 +14,7 @@ menu item at a specific level. Uses the standard widget loading system.
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
 	import { modalState } from '@utils/modal.svelte';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import type { MenuEditContext } from './types';
 
 	let { meta }: { meta: MenuEditContext } = $props();

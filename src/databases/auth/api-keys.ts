@@ -58,33 +58,11 @@ export function isValidApiKeyFormat(key: string): boolean {
 
 /**
  * Hashes an incoming API key from an HTTP request to look it up in the database.
- * v2: uses HMAC-SHA-256 with server secret (resistant to offline brute-force).
- * Legacy: plain SHA-256 for keys generated before the v2 migration.
+ * HMAC-SHA-256 with a domain-separated server secret (resistant to offline
+ * brute-force of a leaked database). The pre-HMAC plain-SHA-256 scheme was
+ * removed in 2026-08 — keys from before that migration must be rotated.
  */
 export function hashApiKey(key: string): string {
   const secret = getHmacSecret();
   return crypto.createHmac("sha256", secret).update(key).digest("base64url");
-}
-
-/**
- * For DB lookups: returns both the v2 HMAC hash and the legacy SHA-256 hash
- * so existing keys continue to work during migration.
- * slop:suppress — legacy fallback intentionally uses SHA-256 for backward compat
- */
-export function hashApiKeyWithLegacy(key: string): { current: string; legacy: string } {
-  const secret = getHmacSecret();
-  return {
-    current: crypto.createHmac("sha256", secret).update(key).digest("base64url"),
-    legacy: crypto.createHash("sha256").update(key).digest("base64url"),
-  };
-}
-
-/**
- * Legacy plain SHA-256 hash (pre-v2 migration keys).
- * Only compute this when the current HMAC lookup misses — hot authentication
- * paths should never pay for the legacy digest.
- * slop:suppress — legacy fallback intentionally uses SHA-256 for backward compat
- */
-export function hashApiKeyLegacy(key: string): string {
-  return crypto.createHash("sha256").update(key).digest("base64url");
 }

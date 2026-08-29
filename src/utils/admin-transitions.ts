@@ -22,6 +22,11 @@ function prefersReducedMotion(): boolean {
   );
 }
 
+/** Duration for FLIP / CSS motion — 0ms under prefers-reduced-motion. */
+export function motionDuration(ms: number): number {
+  return prefersReducedMotion() ? 0 : ms;
+}
+
 /** Standard 200ms fade for page shell entry — enterprise tier (no fly/bounce). */
 export function adminFade(
   _node: Element,

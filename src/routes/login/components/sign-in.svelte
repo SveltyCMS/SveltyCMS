@@ -125,6 +125,7 @@ let isAuthenticating = $state(false);
 let requires2FA = $state(false);
 let twoFAUserId = $state("");
 let twoFACode = $state("");
+let twoFAPendingToken = $state("");
 let useBackupCode = $state(false);
 let isVerifying2FA = $state(false);
 
@@ -187,6 +188,22 @@ let checkTimeout: ReturnType<typeof setTimeout> | undefined;
 
 const loginForm = new Form({ email: "", password: "", isToken: false }, loginFormSchema);
 
+// Stable per-device id for the session policy (one active session per device).
+// Persisted in localStorage so a re-login on the same device evicts the old
+// session instead of stacking concurrent sessions.
+let deviceId: string | undefined;
+if (typeof localStorage !== "undefined") {
+	try {
+		deviceId = localStorage.getItem("sveltycms-device-id") || "";
+		if (!deviceId) {
+			deviceId = crypto.randomUUID();
+			localStorage.setItem("sveltycms-device-id", deviceId);
+		}
+	} catch {
+		deviceId = undefined;
+	}
+}
+
 	async function handleLoginSubmit(event: Event) {
 		event.preventDefault();
 	if (loginForm.data.email) {
@@ -208,12 +225,14 @@ const loginForm = new Form({ email: "", password: "", isToken: false }, loginFor
 			email: loginForm.data.email,
 			password: loginForm.data.password,
 			isToken: loginForm.data.isToken,
+			deviceId,
 			redirect: redirectTo || undefined,
 		})) as any;
 
 		if (result.requires2FA) {
 			requires2FA = true;
 			twoFAUserId = result.userId || "";
+			twoFAPendingToken = result.pending2faToken || "";
 			isAuthenticating = false;
 			globalLoadingStore.stopLoading(loadingOperations.authentication);
 			toast.warning({
@@ -500,7 +519,11 @@ async function submitTwoFA() {
 	isVerifying2FA = true;
 	try {
 		const { verify2FA } = await import("../auth.remote");
-		const result = (await verify2FA({ userId: twoFAUserId, code: twoFACode })) as any;
+		const result = (await verify2FA({
+			userId: twoFAUserId,
+			code: twoFACode,
+			pending2faToken: twoFAPendingToken || undefined,
+		})) as any;
 		isVerifying2FA = false;
 		if (result.success && result.redirectPath) {
 				toast.success({ title: "Verification Successful", description: "Redirecting…" });
@@ -536,6 +559,7 @@ function back2FAToLogin() {
 	requires2FA = false;
 	twoFAUserId = "";
 	twoFACode = "";
+	twoFAPendingToken = "";
 	useBackupCode = false;
 	isVerifying2FA = false;
 }

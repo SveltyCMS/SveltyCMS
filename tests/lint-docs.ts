@@ -351,6 +351,8 @@ function fuzzySuggest(broken: string, idx: Set<string>): string | null {
 }
 
 function getWordCount(text: string): number {
+  // codeql[js/incomplete-multi-character-sanitization]: docs word-counter heuristic
+  // (strips inline code + tags), not a security sanitizer.
   return stripCodeBlocks(text)
     .replace(/<[^>]+>/g, "")
     .trim()
@@ -605,7 +607,9 @@ async function lintSingleFile(fp: string) {
     ) {
       addWarning("frontmatter", relPath, `Unquoted special char: "${val}"`);
       if (shouldAutofix && !isDryRun) {
-        fmLines[i] = `${key}: "${val.replace(/"/g, '\\"')}"`;
+        // codeql[js/incomplete-sanitization]: frontmatter YAML value quoting
+        // (backslash FIRST, then quote) — docs lint autofix, not a security sanitizer.
+        fmLines[i] = `${key}: "${val.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
         fmChanged = true;
       }
     }
@@ -673,8 +677,21 @@ async function lintSingleFile(fp: string) {
   for (const m of updatedBody.matchAll(/\[([^\]]*)\]\(([^)]+)\)/g)) {
     const [, , raw] = m;
     if (raw.match(/^https?:\/\//) || raw.startsWith("mailto:")) {
-      if (raw.includes("localhost:") || raw.includes("example.com"))
-        addWarning("links", relPath, `Dev URL leak: ${raw}`);
+      try {
+        // codeql[js/incomplete-url-substring-sanitization]: parsed hostname with
+        // exact + suffix-with-dot match (dev-URL leak lint, not a redirect gate).
+        const host = new URL(raw).hostname.toLowerCase();
+        if (
+          host === "localhost" ||
+          host === "127.0.0.1" ||
+          host === "example.com" ||
+          host.endsWith(".example.com")
+        ) {
+          addWarning("links", relPath, `Dev URL leak: ${raw}`);
+        }
+      } catch {
+        /* malformed URL — skip leak heuristic */
+      }
       continue;
     }
     const [linkPath, anchor] = raw.split("#");

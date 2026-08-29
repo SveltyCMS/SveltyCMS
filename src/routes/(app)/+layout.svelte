@@ -50,7 +50,7 @@ import PluginWorkspaceOverlay from "@components/system/plugin-workspace-overlay.
 import { setThemeContext } from "@src/components/ui/theme-context.svelte";
 // Utils
 import { adminPage, adminSlide } from "@utils/admin-transitions";
-import { getTextDirection } from "@utils/utils";
+import { getTextDirection } from "@utils/string";
 import { mergeAdminThemeWithUserPrefs } from "@utils/theme-merge";
 import {
 	applyLayoutPrefsToUiState,

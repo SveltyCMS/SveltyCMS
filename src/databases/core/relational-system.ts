@@ -24,7 +24,13 @@ import type {
 } from "../db-interface";
 import { hashCredentialSha256Hex } from "@src/utils/security/credential-hash";
 import { assertTenantContext } from "@src/utils/security/safe-query";
-import * as utils from "./relational-utils";
+import {
+  applyTenantFilter,
+  convertArrayDatesToISO,
+  convertDatesToISO,
+  convertISOToDates,
+  generateId,
+} from "./relational-utils";
 
 function looksJsonEncoded(value: string): boolean {
   const trimmed = value.trim();
@@ -270,7 +276,7 @@ export class RelationalSystemModule implements ISystemAdapter {
             .insert(this.schema.systemPreferences)
             .values({
               ...data,
-              _id: String(utils.generateId()),
+              _id: String(generateId()),
               createdAt: now,
             });
         }
@@ -289,11 +295,11 @@ export class RelationalSystemModule implements ISystemAdapter {
     ): Promise<DatabaseResult<void>> => {
       return this.adapter.wrap(async () => {
         if (preferences.length === 0) return;
-        const now = utils.nowISODateString();
+        const now = nowISODateString();
         const db = this.getDb(options as any);
         const tid = (options as any)?.tenantId ? String((options as any).tenantId) : null;
         const rows = preferences.map((pref) => ({
-          _id: String(utils.generateId()),
+          _id: String(generateId()),
           key: String(pref.key),
           value: encodePreferenceValue(this.adapter.type, pref.value),
           scope: String(pref.scope || "system"),
@@ -409,7 +415,7 @@ export class RelationalSystemModule implements ISystemAdapter {
     ): Promise<DatabaseResult<Job>> => {
       return this.adapter.wrap(
         async () => {
-          const id = utils.generateId();
+          const id = generateId();
           const now = new Date();
           const nextRunAt = job.nextRunAt
             ? job.nextRunAt instanceof Date
@@ -432,7 +438,7 @@ export class RelationalSystemModule implements ISystemAdapter {
             .select(this.adapter.getPhysicalSelection(this.schema.sveltyJobs))
             .from(this.schema.sveltyJobs)
             .where(eq(this.schema.sveltyJobs._id, id));
-          return utils.convertDatesToISO(result) as unknown as Job;
+          return convertDatesToISO(result) as unknown as Job;
         },
         "JOB_CREATE_FAILED",
         undefined,
@@ -470,7 +476,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           eq(this.schema.sveltyJobs.status, "pending"),
           lte(this.schema.sveltyJobs.nextRunAt, cleanNow),
         ];
-        utils.applyTenantFilter(conditions, this.schema.sveltyJobs.tenantId, options);
+        applyTenantFilter(conditions, this.schema.sveltyJobs.tenantId, options);
 
         const results = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.sveltyJobs))
@@ -496,7 +502,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (options?.status) conditions.push(eq(this.schema.sveltyJobs.status, options.status));
         if (options?.taskType)
           conditions.push(eq(this.schema.sveltyJobs.taskType, options.taskType));
-        utils.applyTenantFilter(conditions, this.schema.sveltyJobs.tenantId, options);
+        applyTenantFilter(conditions, this.schema.sveltyJobs.tenantId, options);
 
         if (conditions.length > 0) q = q.where(and(...conditions));
         q = q.orderBy(desc(this.schema.sveltyJobs.createdAt));
@@ -571,7 +577,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .where(and(...conditions));
         // No row matched the filter (already claimed by another consumer) → data
         // is undefined; callers treat that as "not claimed".
-        return utils.convertDatesToISO(result) as unknown as Job;
+        return convertDatesToISO(result) as unknown as Job;
       }, "JOB_UPDATE_FAILED");
     },
 
@@ -603,7 +609,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       tenant: EntityCreate<Tenant> & { _id?: DatabaseId },
     ): Promise<DatabaseResult<Tenant>> => {
       return this.adapter.wrap(async () => {
-        const id = tenant._id || utils.generateId();
+        const id = tenant._id || generateId();
         const now = isoDateStringToDate(nowISODateString());
 
         const values = {
@@ -612,12 +618,12 @@ export class RelationalSystemModule implements ISystemAdapter {
           createdAt: now,
           updatedAt: now,
         };
-        await this.db.insert(this.schema.tenants).values(utils.convertISOToDates(values) as any);
+        await this.db.insert(this.schema.tenants).values(convertISOToDates(values) as any);
         const [created] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.tenants))
           .from(this.schema.tenants)
           .where(eq(this.schema.tenants._id, id));
-        return utils.convertDatesToISO(created) as unknown as Tenant;
+        return convertDatesToISO(created) as unknown as Tenant;
       }, "CREATE_TENANT_FAILED");
     },
 
@@ -628,7 +634,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .from(this.schema.tenants)
           .where(eq(this.schema.tenants._id, tenantId))
           .limit(1);
-        return tenant ? (utils.convertDatesToISO(tenant) as unknown as Tenant) : null;
+        return tenant ? (convertDatesToISO(tenant) as unknown as Tenant) : null;
       }, "GET_TENANT_FAILED");
     },
 
@@ -640,7 +646,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         await this.db
           .update(this.schema.tenants)
           .set(
-            utils.convertISOToDates({
+            convertISOToDates({
               ...data,
               updatedAt: isoDateStringToDate(nowISODateString()),
             }) as any,
@@ -651,7 +657,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .from(this.schema.tenants)
           .where(eq(this.schema.tenants._id, tenantId))
           .limit(1);
-        return utils.convertDatesToISO(updated) as unknown as Tenant;
+        return convertDatesToISO(updated) as unknown as Tenant;
       }, "UPDATE_TENANT_FAILED");
     },
 
@@ -671,7 +677,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (options.offset) q = q.offset(options.offset);
 
         const results = await q;
-        return utils.convertArrayDatesToISO(results) as unknown as Tenant[];
+        return convertArrayDatesToISO(results) as unknown as Tenant[];
       }, "LIST_TENANTS_FAILED");
     },
   };
@@ -687,13 +693,13 @@ export class RelationalSystemModule implements ISystemAdapter {
     getActive: async (options?: BaseQueryOptions): Promise<DatabaseResult<Theme | null>> => {
       return this.adapter.wrap(async () => {
         const conditions = [eq(this.schema.themes.isActive, true)];
-        utils.applyTenantFilter(conditions, this.schema.themes.tenantId, options);
+        applyTenantFilter(conditions, this.schema.themes.tenantId, options);
         const [theme] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes)
           .where(and(...conditions))
           .limit(1);
-        return theme ? (utils.convertDatesToISO(theme) as unknown as Theme) : null;
+        return theme ? (convertDatesToISO(theme) as unknown as Theme) : null;
       }, "GET_ACTIVE_THEME_FAILED");
     },
 
@@ -709,7 +715,7 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     install: async (theme: EntityCreate<Theme>): Promise<DatabaseResult<Theme>> => {
       return this.adapter.wrap(async () => {
-        const id = utils.generateId();
+        const id = generateId();
         const now = isoDateStringToDate(nowISODateString());
         const values = {
           ...theme,
@@ -717,12 +723,12 @@ export class RelationalSystemModule implements ISystemAdapter {
           createdAt: now,
           updatedAt: now,
         };
-        await this.db.insert(this.schema.themes).values(utils.convertISOToDates(values) as any);
+        await this.db.insert(this.schema.themes).values(convertISOToDates(values) as any);
         const [inserted] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes)
           .where(eq(this.schema.themes._id, id));
-        return utils.convertDatesToISO(inserted) as unknown as Theme;
+        return convertDatesToISO(inserted) as unknown as Theme;
       }, "INSTALL_THEME_FAILED");
     },
 
@@ -740,7 +746,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         await this.db
           .update(this.schema.themes)
           .set(
-            utils.convertISOToDates({
+            convertISOToDates({
               ...theme,
               updatedAt: isoDateStringToDate(nowISODateString()),
             }) as any,
@@ -750,7 +756,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes)
           .where(eq(this.schema.themes._id, themeId));
-        return utils.convertDatesToISO(updated) as unknown as Theme;
+        return convertDatesToISO(updated) as unknown as Theme;
       }, "UPDATE_THEME_FAILED");
     },
 
@@ -759,7 +765,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         const results = await this.getDb(options)
           .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes);
-        return utils.convertArrayDatesToISO(results) as unknown as Theme[];
+        return convertArrayDatesToISO(results) as unknown as Theme[];
       } catch {
         return [];
       }
@@ -768,7 +774,7 @@ export class RelationalSystemModule implements ISystemAdapter {
     storeThemes: async (themes: Theme[], options?: BaseQueryOptions): Promise<void> => {
       const now = isoDateStringToDate(nowISODateString());
       for (const theme of themes) {
-        const values = utils.convertISOToDates({
+        const values = convertISOToDates({
           ...theme,
           updatedAt: now,
         }) as any;
@@ -794,7 +800,7 @@ export class RelationalSystemModule implements ISystemAdapter {
             .insert(this.schema.themes)
             .values({
               ...values,
-              _id: theme._id || utils.generateId(),
+              _id: theme._id || generateId(),
               createdAt: now,
             });
         }
@@ -808,7 +814,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .from(this.schema.themes)
           .where(eq(this.schema.themes.name, theme.name))
           .limit(1);
-        if (existing) return utils.convertDatesToISO(existing) as unknown as Theme;
+        if (existing) return convertDatesToISO(existing) as unknown as Theme;
       } catch (err: any) {
         logger.debug("[themes.ensure] Query failed, attempting install fallback:", err?.message);
       }
@@ -822,13 +828,13 @@ export class RelationalSystemModule implements ISystemAdapter {
         // Fail-closed: pass tenantId or withSystemScope("bootstrap"|"setup")
         assertTenantContext(options, "system.themes.getDefaultTheme");
         const conditions = [eq(this.schema.themes.isDefault, true)];
-        utils.applyTenantFilter(conditions, this.schema.themes.tenantId, options);
+        applyTenantFilter(conditions, this.schema.themes.tenantId, options);
         const [theme] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes)
           .where(and(...conditions))
           .limit(1);
-        return theme ? (utils.convertDatesToISO(theme) as unknown as Theme) : null;
+        return theme ? (convertDatesToISO(theme) as unknown as Theme) : null;
       }, "GET_DEFAULT_THEME_FAILED");
     },
   };
@@ -844,7 +850,7 @@ export class RelationalSystemModule implements ISystemAdapter {
     register: async (widget: EntityCreate<Widget>): Promise<DatabaseResult<Widget>> => {
       return this.adapter.wrap(async () => {
         const now = isoDateStringToDate(nowISODateString());
-        const values = utils.convertISOToDates({
+        const values = convertISOToDates({
           ...widget,
           updatedAt: now,
         }) as any;
@@ -863,7 +869,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         } else {
           await this.db
             .insert(this.schema.widgets)
-            .values({ ...values, _id: utils.generateId(), createdAt: now });
+            .values({ ...values, _id: generateId(), createdAt: now });
         }
 
         const [result] = await this.db
@@ -871,7 +877,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .from(this.schema.widgets)
           .where(eq(this.schema.widgets.name, widget.name))
           .limit(1);
-        return utils.convertDatesToISO(result) as unknown as Widget;
+        return convertDatesToISO(result) as unknown as Widget;
       }, "REGISTER_WIDGET_FAILED");
     },
 
@@ -880,7 +886,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         const results = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.widgets))
           .from(this.schema.widgets);
-        return utils.convertArrayDatesToISO(results) as unknown as Widget[];
+        return convertArrayDatesToISO(results) as unknown as Widget[];
       }, "FIND_ALL_WIDGETS_FAILED");
     },
 
@@ -890,7 +896,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.widgets))
           .from(this.schema.widgets)
           .where(eq(this.schema.widgets.isActive, true));
-        return utils.convertArrayDatesToISO(results) as unknown as Widget[];
+        return convertArrayDatesToISO(results) as unknown as Widget[];
       }, "GET_ACTIVE_WIDGETS_FAILED");
     },
 
@@ -926,7 +932,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         await this.db
           .update(this.schema.widgets)
           .set(
-            utils.convertISOToDates({
+            convertISOToDates({
               ...widget,
               updatedAt: isoDateStringToDate(nowISODateString()),
             }) as any,
@@ -936,7 +942,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.widgets))
           .from(this.schema.widgets)
           .where(eq(this.schema.widgets._id, widgetId));
-        return utils.convertDatesToISO(updated) as unknown as Widget;
+        return convertDatesToISO(updated) as unknown as Widget;
       }, "UPDATE_WIDGET_FAILED");
     },
 
@@ -958,7 +964,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       const originalToken = token.token;
       return this.adapter.wrap(async () => {
         assertTenantContext(options, "system.websiteTokens.create");
-        const id = utils.generateId();
+        const id = generateId();
         const now = new Date();
         const hashedTokenValue = await hashCredentialSha256Hex(originalToken);
         const tenantId = options?.tenantId;
@@ -970,14 +976,12 @@ export class RelationalSystemModule implements ISystemAdapter {
           updatedAt: now,
           ...(tenantId !== undefined && tenantId !== null ? { tenantId } : {}),
         };
-        await this.db
-          .insert(this.schema.websiteTokens)
-          .values(utils.convertISOToDates(values) as any);
+        await this.db.insert(this.schema.websiteTokens).values(convertISOToDates(values) as any);
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
           .where(eq(this.schema.websiteTokens._id, id));
-        const stored = utils.convertDatesToISO(result, {
+        const stored = convertDatesToISO(result, {
           mariaDoubleParseJson: this.adapter.type === "mariadb",
         }) as unknown as import("../db-interface").WebsiteToken;
         return { ...stored, token: originalToken };
@@ -1001,7 +1005,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         assertTenantContext(options, "system.websiteTokens.getAll");
         const opts = options ?? {};
         const tenantConditions: any[] = [];
-        utils.applyTenantFilter(tenantConditions, this.schema.websiteTokens.tenantId, opts);
+        applyTenantFilter(tenantConditions, this.schema.websiteTokens.tenantId, opts);
         const tenantWhere = tenantConditions.length > 0 ? and(...tenantConditions) : undefined;
 
         // 🚀 Parallel list + count (count path uses short-TTL L1 when via crud;
@@ -1033,7 +1037,7 @@ export class RelationalSystemModule implements ISystemAdapter {
         const [results, totalResultArr] = await Promise.all([q, countQ]);
         const [totalResult] = totalResultArr;
 
-        const stored = utils.convertArrayDatesToISO(results, {
+        const stored = convertArrayDatesToISO(results, {
           mariaDoubleParseJson: this.adapter.type === "mariadb",
         }) as unknown as import("../db-interface").WebsiteToken[];
         // Trim limit+1 sentinel row (hasMore signal for internal use; API keeps exact total)
@@ -1057,14 +1061,14 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         assertTenantContext(options, "system.websiteTokens.getByName");
         const conditions = [eq(this.schema.websiteTokens.name, name)];
-        utils.applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, options);
+        applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, options);
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
           .where(and(...conditions))
           .limit(1);
         return result
-          ? (utils.convertDatesToISO(result, {
+          ? (convertDatesToISO(result, {
               mariaDoubleParseJson: this.adapter.type === "mariadb",
             }) as unknown as import("../db-interface").WebsiteToken)
           : null;
@@ -1086,14 +1090,14 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         assertTenantContext(options, "system.websiteTokens.getByTokenHash");
         const conditions = [eq(this.schema.websiteTokens.token, tokenHash)];
-        utils.applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, options);
+        applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, options);
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
           .where(and(...conditions))
           .limit(1);
         return result
-          ? (utils.convertDatesToISO(result, {
+          ? (convertDatesToISO(result, {
               mariaDoubleParseJson: this.adapter.type === "mariadb",
             }) as unknown as import("../db-interface").WebsiteToken)
           : null;
@@ -1107,14 +1111,14 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         assertTenantContext(options, "system.websiteTokens.getById");
         const conditions = [eq(this.schema.websiteTokens._id, tokenId)];
-        utils.applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, options);
+        applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, options);
         const [result] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.websiteTokens))
           .from(this.schema.websiteTokens)
           .where(and(...conditions))
           .limit(1);
         return result
-          ? (utils.convertDatesToISO(result, {
+          ? (convertDatesToISO(result, {
               mariaDoubleParseJson: this.adapter.type === "mariadb",
             }) as unknown as import("../db-interface").WebsiteToken)
           : null;
@@ -1128,7 +1132,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         assertTenantContext(options, "system.websiteTokens.delete");
         const conditions = [eq(this.schema.websiteTokens._id, tokenId)];
-        utils.applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, options);
+        applyTenantFilter(conditions, this.schema.websiteTokens.tenantId, options);
         await this.db.delete(this.schema.websiteTokens).where(and(...conditions));
       }, "DELETE_WEBSITE_TOKEN_FAILED");
     },
@@ -1144,10 +1148,10 @@ export class RelationalSystemModule implements ISystemAdapter {
     ): Promise<DatabaseResult<SystemVirtualFolder>> => {
       return this.adapter.wrap(async () => {
         assertTenantContext(options, "system.virtualFolder.create");
-        const id = utils.generateId();
+        const id = generateId();
         const now = isoDateStringToDate(nowISODateString());
         await this.db.insert(this.schema.systemVirtualFolders).values(
-          utils.convertISOToDates({
+          convertISOToDates({
             ...folder,
             _id: id,
             tenantId: options?.tenantId ?? folder.tenantId ?? null,
@@ -1159,7 +1163,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(eq(this.schema.systemVirtualFolders._id, id));
-        return utils.convertDatesToISO(created) as unknown as SystemVirtualFolder;
+        return convertDatesToISO(created) as unknown as SystemVirtualFolder;
       }, "CREATE_VIRTUAL_FOLDER_FAILED");
     },
 
@@ -1170,13 +1174,13 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         assertTenantContext(options, "system.virtualFolder.getById");
         const conditions = [eq(this.schema.systemVirtualFolders._id, folderId)];
-        utils.applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
+        applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
         const [folder] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(and(...conditions))
           .limit(1);
-        return folder ? (utils.convertDatesToISO(folder) as unknown as SystemVirtualFolder) : null;
+        return folder ? (convertDatesToISO(folder) as unknown as SystemVirtualFolder) : null;
       }, "GET_VIRTUAL_FOLDER_FAILED");
     },
 
@@ -1189,12 +1193,12 @@ export class RelationalSystemModule implements ISystemAdapter {
         const conditions = parentId
           ? [eq(this.schema.systemVirtualFolders.parentId, parentId as string)]
           : [isNull(this.schema.systemVirtualFolders.parentId)];
-        utils.applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
+        applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
         const results = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(and(...conditions));
-        return utils.convertArrayDatesToISO(results) as unknown as SystemVirtualFolder[];
+        return convertArrayDatesToISO(results) as unknown as SystemVirtualFolder[];
       }, "GET_VIRTUAL_FOLDERS_BY_PARENT_FAILED");
     },
 
@@ -1206,10 +1210,10 @@ export class RelationalSystemModule implements ISystemAdapter {
           .from(this.schema.systemVirtualFolders)
           .$dynamic();
         const conditions: any[] = [];
-        utils.applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
+        applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
         if (conditions.length) q = q.where(and(...conditions));
         const results = await q;
-        return utils.convertArrayDatesToISO(results) as unknown as SystemVirtualFolder[];
+        return convertArrayDatesToISO(results) as unknown as SystemVirtualFolder[];
       }, "GET_ALL_VIRTUAL_FOLDERS_FAILED");
     },
 
@@ -1221,11 +1225,11 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         assertTenantContext(options, "system.virtualFolder.update");
         const conditions = [eq(this.schema.systemVirtualFolders._id, folderId)];
-        utils.applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
+        applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
         await this.db
           .update(this.schema.systemVirtualFolders)
           .set(
-            utils.convertISOToDates({
+            convertISOToDates({
               ...updateData,
               updatedAt: isoDateStringToDate(nowISODateString()),
             }) as any,
@@ -1235,7 +1239,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
           .where(eq(this.schema.systemVirtualFolders._id, folderId as string));
-        return utils.convertDatesToISO(updated) as unknown as SystemVirtualFolder;
+        return convertDatesToISO(updated) as unknown as SystemVirtualFolder;
       }, "UPDATE_VIRTUAL_FOLDER_FAILED");
     },
 
@@ -1246,7 +1250,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         assertTenantContext(options, "system.virtualFolder.delete");
         const conditions = [eq(this.schema.systemVirtualFolders._id, folderId)];
-        utils.applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
+        applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
         await this.db.delete(this.schema.systemVirtualFolders).where(and(...conditions));
       }, "DELETE_VIRTUAL_FOLDER_FAILED");
     },
@@ -1255,7 +1259,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         assertTenantContext(options, "system.virtualFolder.exists");
         const conditions = [eq(this.schema.systemVirtualFolders.path, path)];
-        utils.applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
+        applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
         const [folder] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
@@ -1272,7 +1276,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       return this.adapter.wrap(async () => {
         assertTenantContext(options, "system.virtualFolder.getContents");
         const conditions = [eq(this.schema.systemVirtualFolders.path, folderPath)];
-        utils.applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
+        applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
         const [folder] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
@@ -1281,9 +1285,9 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (!folder) throw new Error("Folder not found");
 
         const subConditions = [eq(this.schema.systemVirtualFolders.parentId, folder._id)];
-        utils.applyTenantFilter(subConditions, this.schema.systemVirtualFolders.tenantId, options);
+        applyTenantFilter(subConditions, this.schema.systemVirtualFolders.tenantId, options);
         const fileConditions = [eq(this.schema.mediaItems.folderId, folder._id)];
-        utils.applyTenantFilter(fileConditions, this.schema.mediaItems.tenantId, options);
+        applyTenantFilter(fileConditions, this.schema.mediaItems.tenantId, options);
 
         const subQuery = this.db
           .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
@@ -1295,8 +1299,8 @@ export class RelationalSystemModule implements ISystemAdapter {
           .where(and(...fileConditions));
         const [subfolders, files] = await Promise.all([subQuery, fileQuery]);
         return {
-          folders: utils.convertArrayDatesToISO(subfolders) as unknown as SystemVirtualFolder[],
-          files: utils.convertArrayDatesToISO(files) as unknown as MediaItem[],
+          folders: convertArrayDatesToISO(subfolders) as unknown as SystemVirtualFolder[],
+          files: convertArrayDatesToISO(files) as unknown as MediaItem[],
         };
       }, "GET_VIRTUAL_FOLDER_CONTENTS_FAILED");
     },
@@ -1311,11 +1315,7 @@ export class RelationalSystemModule implements ISystemAdapter {
 
         // Step 1: Find the folder by path.
         const folderConditions = [eq(this.schema.systemVirtualFolders.path, folderPath)];
-        utils.applyTenantFilter(
-          folderConditions,
-          this.schema.systemVirtualFolders.tenantId,
-          options,
-        );
+        applyTenantFilter(folderConditions, this.schema.systemVirtualFolders.tenantId, options);
         const [folder] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
@@ -1339,13 +1339,13 @@ export class RelationalSystemModule implements ISystemAdapter {
         // unsupported on MariaDB — fall back to affected-rows/changes detection
         // (same pattern as relational-auth consumeToken).
         const itemConditions = [eq(this.schema.mediaItems._id, contentId as string)];
-        utils.applyTenantFilter(itemConditions, this.schema.mediaItems.tenantId, options);
+        applyTenantFilter(itemConditions, this.schema.mediaItems.tenantId, options);
         let updatedRows = 0;
         try {
           const results = await this.db
             .update(this.schema.mediaItems)
             .set(
-              utils.convertISOToDates({
+              convertISOToDates({
                 folderId: foundFolderId as any,
                 updatedAt: nowISODateString(),
               }) as any,
@@ -1382,7 +1382,7 @@ export class RelationalSystemModule implements ISystemAdapter {
       const res = await this.virtualFolder.exists(folder.path, options);
       if (res.success && res.data) {
         const conditions = [eq(this.schema.systemVirtualFolders.path, folder.path)];
-        utils.applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
+        applyTenantFilter(conditions, this.schema.systemVirtualFolders.tenantId, options);
         const [f] = await this.db
           .select(this.adapter.getPhysicalSelection(this.schema.systemVirtualFolders))
           .from(this.schema.systemVirtualFolders)
@@ -1390,7 +1390,7 @@ export class RelationalSystemModule implements ISystemAdapter {
           .limit(1);
         return {
           success: true,
-          data: utils.convertDatesToISO(f) as unknown as SystemVirtualFolder,
+          data: convertDatesToISO(f) as unknown as SystemVirtualFolder,
         };
       }
       return this.virtualFolder.create(folder, options);

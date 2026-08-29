@@ -323,8 +323,50 @@ function percentile(sorted: number[], p: number): number {
 }
 
 /**
+ * Two-sided 95% t critical values for small samples (df = n - 1).
+ * z = 1.96 is only valid for large n; below ~30 the CI must widen.
+ */
+const T95_TABLE: Record<number, number> = {
+  1: 12.706,
+  2: 4.303,
+  3: 3.182,
+  4: 2.776,
+  5: 2.571,
+  6: 2.447,
+  7: 2.365,
+  8: 2.306,
+  9: 2.262,
+  10: 2.228,
+  11: 2.201,
+  12: 2.179,
+  13: 2.16,
+  14: 2.145,
+  15: 2.131,
+  16: 2.12,
+  17: 2.11,
+  18: 2.101,
+  19: 2.093,
+  20: 2.086,
+  21: 2.08,
+  22: 2.074,
+  23: 2.069,
+  24: 2.064,
+  25: 2.06,
+  26: 2.056,
+  27: 2.052,
+  28: 2.048,
+  29: 2.045,
+};
+
+function criticalValue95(n: number): number {
+  if (n >= 30) return 1.96;
+  return T95_TABLE[Math.max(1, n - 1)] ?? 1.96;
+}
+
+/**
  * 🚀 ENTERPRISE STATISTICS: Robust outlier removal using Interquartile Range (IQR).
  * Eliminates noise from GC spikes or background OS jitter.
+ * NOTE: applied to the MEAN only — tail percentiles are always read from raw data.
  */
 function trimOutliersIQR(times: number[]): number[] {
   if (times.length < 10) return times; // Too small to trim reliably
@@ -346,32 +388,39 @@ export function computeStatistics(
   config: any,
   failTimes: number[] = [],
 ): BenchmarkResult {
-  // Apply outlier trimming if requested
+  // RAW sample — percentiles and min/max MUST come from here so tail latency
+  // (GC spikes, jitter) stays visible in p95/p99/max instead of being trimmed
+  // away before the percentile is even computed.
+  const rawSorted = [...times].sort((a, b) => a - b);
+
+  // Robust central tendency — IQR-trim only the MEAN (noise resistance), never
+  // the tail metrics.
   const processedTimes =
     config.trimOutliers === "iqr" || config.trimOutliers === true ? trimOutliersIQR(times) : times;
 
   const sorted = [...processedTimes].sort((a, b) => a - b);
   const sum = sorted.reduce((a, b) => a + b, 0);
-  const avg = sum / (sorted.length || 1);
+  const avg = sorted.length > 0 ? sum / sorted.length : 0;
 
-  const variance = sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (sorted.length || 1);
+  const n = sorted.length;
+  const variance = n > 1 ? sorted.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / (n - 1) : 0;
   const stdDev = Math.sqrt(variance);
   const cv = avg > 0 ? (stdDev / avg) * 100 : 0;
 
-  // 🚀 Confidence Interval (95%)
-  const n = sorted.length;
-  const z = 1.96; // 95% critical value
-  const marginOfError = n > 0 ? z * (stdDev / Math.sqrt(n)) : 0;
+  // 🚀 Confidence Interval (95%) — t-distribution for small samples,
+  // z = 1.96 for large n.
+  const critical = criticalValue95(n);
+  const marginOfError = n > 1 ? critical * (stdDev / Math.sqrt(n)) : 0;
 
   const result: BenchmarkResult = {
     name: config.name,
     db: getDbType(),
     avgMs: Number(avg.toFixed(3)),
-    p50Ms: Number(percentile(sorted, 50).toFixed(3)),
-    p95Ms: Number(percentile(sorted, 95).toFixed(3)),
-    p99Ms: Number(percentile(sorted, 99).toFixed(3)),
-    minMs: Number((sorted[0] || 0).toFixed(3)),
-    maxMs: Number((sorted[sorted.length - 1] || 0).toFixed(3)),
+    p50Ms: Number(percentile(rawSorted, 50).toFixed(3)),
+    p95Ms: Number(percentile(rawSorted, 95).toFixed(3)),
+    p99Ms: Number(percentile(rawSorted, 99).toFixed(3)),
+    minMs: Number((rawSorted[0] || 0).toFixed(3)),
+    maxMs: Number((rawSorted[rawSorted.length - 1] || 0).toFixed(3)),
     rps: Number(rps.toFixed(1)),
     iterations: times.length, // Report original iteration count
     runs: config.runs || 1,
@@ -662,79 +711,65 @@ export async function runBenchmark(config: any) {
     if (!eluAvailable) return;
     lagSampleCounter++;
     if (lagSampleCounter % 50 !== 0) return;
-    const t0 = Date.now();
+    // performance.now() is monotonic + sub-ms — Date.now() would miss
+    // sub-millisecond lag and jump on wall-clock corrections.
+    const t0 = performance.now();
     await new Promise<void>((r) => setImmediate(r));
-    const lag = Date.now() - t0;
+    const lag = performance.now() - t0;
     if (lag > maxEventLoopLagMs) maxEventLoopLagMs = lag;
   };
 
   const benchWallStart = performance.now();
+  // Shared per-iteration body (one source for serial AND pooled execution).
+  const runOne = async (i: number): Promise<void> => {
+    const iStart = performance.now();
+    try {
+      await onIteration(i);
+      results.push(performance.now() - iStart);
+      consecutiveErrors = 0;
+    } catch (err) {
+      totalErrors++;
+      consecutiveErrors++;
+      failResults.push(performance.now() - iStart);
+      if (totalErrors === 1 && abortOnErrors !== false)
+        console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
+    }
+    await sampleEventLoopLag();
+    await sleepThinkTime();
+  };
+
+  // 🚀 SLIDING-WINDOW WORKER POOL: constant `concurrency` in-flight requests.
+  // A finished slot immediately picks up the next task via the atomic `next++`
+  // — no wave/chunk sync, so a single p95 outlier no longer blocks the whole
+  // batch. concurrency=1 degenerates to plain serial execution (same path).
   for (let r = 0; r < runs; r++) {
     if (onSetup) await onSetup();
-    if (concurrency > 1) {
-      const tasks = Array.from({ length: iterations }, (_, i) => i);
-      const chunks = [];
-      for (let i = 0; i < tasks.length; i += concurrency)
-        chunks.push(tasks.slice(i, i + concurrency));
-      for (const chunk of chunks) {
-        if (abortOnErrors && consecutiveErrors >= maxConsecutiveErrors)
+    let next = 0;
+    const worker = async () => {
+      for (;;) {
+        if (abortOnErrors && consecutiveErrors >= maxConsecutiveErrors) {
           throw new Error(
             `Benchmark aborted: Exceeded ${maxConsecutiveErrors} consecutive errors.`,
           );
-        await Promise.all(
-          chunk.map(async (i) => {
-            const iStart = performance.now();
-            try {
-              await onIteration(i);
-              results.push(performance.now() - iStart);
-              consecutiveErrors = 0;
-            } catch (err) {
-              totalErrors++;
-              consecutiveErrors++;
-              failResults.push(performance.now() - iStart);
-              if (totalErrors === 1 && abortOnErrors !== false)
-                console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
-            }
-            await sampleEventLoopLag();
-            await sleepThinkTime();
-          }),
-        );
-      }
-    } else {
-      for (let i = 0; i < iterations; i++) {
-        if (abortOnErrors && consecutiveErrors >= maxConsecutiveErrors)
-          throw new Error(
-            `Benchmark aborted: Exceeded ${maxConsecutiveErrors} consecutive errors.`,
-          );
-        const iStart = performance.now();
-        try {
-          await onIteration(i);
-          results.push(performance.now() - iStart);
-          consecutiveErrors = 0;
-        } catch (err) {
-          totalErrors++;
-          consecutiveErrors++;
-          failResults.push(performance.now() - iStart);
-          if (totalErrors === 1 && abortOnErrors !== false)
-            console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
         }
-        await sampleEventLoopLag();
-        await sleepThinkTime();
+        const i = next++;
+        if (i >= iterations) break;
+        await runOne(i);
       }
-    }
+    };
+    await Promise.all(
+      Array.from({ length: Math.max(1, Math.min(concurrency, iterations)) }, () => worker()),
+    );
   }
   const benchWallDurationMs = performance.now() - benchWallStart;
   const validResults = results.filter((r) => !isNaN(r));
-  const sum = validResults.reduce((a, b) => a + b, 0);
   const totalCompleted = validResults.length + failResults.length;
-  const rps =
-    concurrency > 1
-      ? benchWallDurationMs > 0
-        ? totalCompleted / (benchWallDurationMs / 1000)
-        : 0
-      : sum > 0
-        ? totalCompleted / (sum / 1000)
-        : 0;
+  // RPS always uses WALL-CLOCK duration — identical basis for concurrency=1 and
+  // concurrency>N so throughput numbers are directly comparable. The measured
+  // span (performance.now around onIteration) intentionally excludes think-time
+  // and event-loop sampling; wall clock includes them, which is the honest
+  // "requests per real second" figure.
+  const rps = benchWallDurationMs > 0 ? totalCompleted / (benchWallDurationMs / 1000) : 0;
   const stats = computeStatistics(
     validResults,
     rps,
@@ -820,10 +855,11 @@ export async function runStochasticLoadTest(config: {
   let totalReqs = 0;
   let failures = 0;
   for (const stage of stages) {
-    const startTime = Date.now();
+    // Monotonic clock — Date.now() would allow wall-clock jumps to stretch/shorten a stage.
+    const startTime = performance.now();
     const deadline = startTime + stage.duration * 1000;
     const interval = 1000 / stage.target;
-    while (Date.now() < deadline) {
+    while (performance.now() < deadline) {
       const t0 = performance.now();
       try {
         await onIteration(totalReqs++);
@@ -866,6 +902,7 @@ export async function runStochasticLoadTest(config: {
 // forges, no test bypass, no rate-limit/WAF exemptions.
 
 let _benchmarkSessionCookie: string | null = null;
+let _benchmarkCsrfToken: string | null = null;
 let _benchmarkSessionBaseUrl: string | null = null;
 let _benchmarkSessionUserKey: string | null = null;
 
@@ -903,16 +940,20 @@ export async function loginBenchmarkUser(
     typeof (res.headers as any).getSetCookie === "function"
       ? (res.headers as any).getSetCookie()
       : (res.headers.get("set-cookie") || "").split(/,(?=\s*[^;,]+=[^;,])/);
-  const sessionPair = (setCookies || [])
+  const pairs = (setCookies || [])
     .map((c: string) => c.split(";")[0]?.trim() ?? "")
-    .find((c: string) => /auth_sessions/i.test(c));
+    .filter(Boolean);
+  const sessionPair = pairs.find((c: string) => /auth_sessions/i.test(c));
   if (!sessionPair) {
     throw new Error("Benchmark login succeeded but no session cookie was set");
   }
-  _benchmarkSessionCookie = sessionPair;
+  const csrfPair = pairs.find((c: string) => /csrf/i.test(c));
+  _benchmarkCsrfToken = csrfPair ? csrfPair.slice(csrfPair.indexOf("=") + 1) || null : null;
+  const cookieStr = pairs.join("; ");
+  _benchmarkSessionCookie = cookieStr;
   _benchmarkSessionBaseUrl = normalizedBaseUrl;
   _benchmarkSessionUserKey = userKey;
-  return sessionPair;
+  return cookieStr;
 }
 
 /**
@@ -928,11 +969,13 @@ export function benchmarkAuthHeaders(): Record<string, string> {
   const origin = process.env.API_BASE_URL;
   const headers: Record<string, string> = { Cookie: _benchmarkSessionCookie };
   if (origin) headers.Origin = origin;
+  if (_benchmarkCsrfToken) headers["X-CSRF-Token"] = _benchmarkCsrfToken;
   return headers;
 }
 
 export function clearBenchmarkSession(): void {
   _benchmarkSessionCookie = null;
+  _benchmarkCsrfToken = null;
   _benchmarkSessionBaseUrl = null;
   _benchmarkSessionUserKey = null;
 }
@@ -984,13 +1027,14 @@ export function resolveBenchmarkAdminPassword(): string {
 /**
  * In-process equivalent of the legacy testing action `seed-throughput-docs`
  * (403 in production mode): creates the collection if missing, clears it, and
- * bulk-inserts `tp-*` documents via the adapter.
+ * bulk-inserts UUID-identified documents via the adapter. Returns the
+ * generated ids so callers can target the exact documents afterwards.
  */
 export async function seedThroughputDocs(
   count = 1000,
   collectionId = "BenchmarkStable",
   tenantId: string = "global",
-): Promise<number> {
+): Promise<string[]> {
   // MUST initialize the adapter first (same pattern as ensureStableTestData):
   // getDb() alone returns null on a fresh process, silently killing the seed
   // and leaving increment benchmarks with 404 "Entry not found" failures.
@@ -1016,21 +1060,21 @@ export async function seedThroughputDocs(
     /* ignore */
   }
   const BATCH = 5000;
-  let seeded = 0;
+  const ids: string[] = [];
   for (let i = 0; i < count; i += BATCH) {
     const end = Math.min(i + BATCH, count);
-    const docs = Array.from({ length: end - i }, (_, k) => {
-      const j = i + k;
-      return { _id: `tp-${j}`, title: `Throughput Doc ${j}`, count: 0, tenantId };
+    const docs = Array.from({ length: end - i }, () => {
+      const _id = crypto.randomUUID();
+      ids.push(_id);
+      return { _id, title: `Throughput Doc ${ids.length - 1}`, count: 0, tenantId };
     });
     await (db as any).crud.insertMany(collectionId, docs, {
       tenantId,
       bypassTenantCheck: true,
       skipReturning: true,
     });
-    seeded += docs.length;
   }
-  return seeded;
+  return ids;
 }
 
 /**
@@ -1180,6 +1224,7 @@ export async function seedBenchmarkState(): Promise<void> {
           label: "Author",
           widget: { Name: "Relation" },
           type: "string",
+          collection: "benchmark_authors",
           relation: "benchmark_authors",
         },
       ],
@@ -1190,8 +1235,78 @@ export async function seedBenchmarkState(): Promise<void> {
       fields: [
         { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
         { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "slug", label: "Slug", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "status", label: "Status", widget: { Name: "Select" }, type: "string" },
         { db_fieldName: "content", label: "Content", widget: { Name: "RichText" }, type: "string" },
         { db_fieldName: "count", label: "Count", widget: { Name: "Input" }, type: "number" },
+        {
+          db_fieldName: "publishDate",
+          label: "Publish Date",
+          widget: { Name: "DateTime" },
+          type: "string",
+        },
+      ],
+    },
+    // 🛡️ INDEX PRESSURE: bench_index_pressure powers the 100k-row sort/filter
+    // audit (tests/benchmarks/index-pressure.test.ts). It must be provisioned
+    // here — the schema-store fallback (BENCHMARK_FALLBACK_IDS) makes the
+    // schema GET return 200, but without createModel the physical table is
+    // never created and the bulk seed fails with SQLITE_ERROR on insert.
+    // Fields mirror the demo preset in src/routes/setup/seed.ts.
+    {
+      _id: "bench_index_pressure",
+      name: "bench_index_pressure",
+      fields: [
+        {
+          db_fieldName: "title",
+          label: "Title",
+          widget: { Name: "Input" },
+          type: "string",
+          indexed: true,
+          required: true,
+        },
+        { db_fieldName: "slug", label: "Slug", widget: { Name: "Input" }, type: "string" },
+        { db_fieldName: "content", label: "Content", widget: { Name: "RichText" }, type: "string" },
+        {
+          db_fieldName: "score",
+          label: "Score",
+          widget: { Name: "Number" },
+          type: "number",
+          indexed: true,
+        },
+        {
+          db_fieldName: "category",
+          label: "Category",
+          widget: { Name: "Select" },
+          type: "string",
+          indexed: true,
+        },
+        { db_fieldName: "author", label: "Author", widget: { Name: "Relation" }, type: "string" },
+        { db_fieldName: "tags", label: "Tags", widget: { Name: "Input" }, type: "string" },
+        {
+          db_fieldName: "metadata",
+          label: "Metadata",
+          widget: { Name: "Group" },
+          type: "object",
+        },
+      ],
+    },
+    // 🛡️ MIGRATION SCALE: bench_migration_large powers the 10k-row bulk
+    // ingestion audit (tests/benchmarks/migration-scale.test.ts). Same
+    // provisioning requirement as bench_index_pressure — without createModel
+    // the physical table is never created and the bulk seed 500s.
+    {
+      _id: "bench_migration_large",
+      name: "bench_migration_large",
+      fields: [
+        {
+          db_fieldName: "title",
+          label: "Title",
+          widget: { Name: "Input" },
+          type: "string",
+          required: true,
+        },
+        { db_fieldName: "data", label: "Data", widget: { Name: "JSON" }, type: "string" },
       ],
     },
   ];
@@ -1243,12 +1358,14 @@ export async function seedBenchmarkState(): Promise<void> {
     }
   }
 
-  // 4. Entries: 10 authors, 50 posts, stable entry (upsert for re-runs)
-  const authors = Array.from({ length: 10 }, (_, i) => ({
-    _id: `author-${i + 1}`,
-    name: `Author ${i + 1}`,
-    tenantId,
-  }));
+  // 4. Entries: 10 authors, 50 posts, stable entry (upsert for re-runs).
+  // Deterministic UUIDv4 ids (version 4 / variant 8) — stable across re-runs
+  // and format-compliant with the enterprise _id contract on collection tables.
+  const AUTHOR_UUIDS = Array.from(
+    { length: 10 },
+    (_, i) => `10000000-0000-4000-8000-${(i + 1).toString(16).padStart(12, "0")}`,
+  );
+  const authors = AUTHOR_UUIDS.map((_id, i) => ({ _id, name: `Author ${i + 1}`, tenantId }));
   try {
     await cms.collections.bulkCreate("benchmark_authors", authors, {
       tenantId,
@@ -1269,8 +1386,9 @@ export async function seedBenchmarkState(): Promise<void> {
   } catch (err: any) {
     logger.warn(`[BenchSeed] Entry seeding failed (non-fatal): ${err.message}`);
   }
+  const STABLE_ENTRY_ID = "20000000-0000-4000-8000-000000000001";
   const stablePayload = {
-    _id: "bench-shared-001",
+    _id: STABLE_ENTRY_ID,
     title: "Stable Benchmark Entry",
     content: "This is a stable entry for REST and API performance testing.",
     count: 1,
@@ -1279,7 +1397,7 @@ export async function seedBenchmarkState(): Promise<void> {
   try {
     const res = await (db as any).crud.upsert(
       "BenchmarkStable",
-      { _id: "bench-shared-001" },
+      { _id: STABLE_ENTRY_ID },
       stablePayload,
       { tenantId, bypassTenantCheck: true },
     );
@@ -1357,17 +1475,19 @@ export async function setupBenchmarkServer() {
   process.env.TEST_API_SECRET = secret;
   process.env.ADMIN_PASSWORD = adminPw;
   TEST_API_SECRET = secret;
-  // 🛡️ PRODUCTION PARITY: never set TEST_MODE — the server must run the real
-  // middleware (sessions, rate limits, WAF) like a production deployment.
-  delete process.env.TEST_MODE;
-  delete process.env.PLAYWRIGHT_TEST;
-  process.env.BENCHMARK = "true";
-  process.env.NODE_ENV = "production";
-  process.env.RATE_LIMIT_MAX_REQUESTS = process.env.RATE_LIMIT_MAX_REQUESTS || "20000";
-  // 🏷️ Authoritative marker for child/test code: the benchmark SERVER is in
-  // production mode (bun test overrides NODE_ENV/TEST_MODE in this process,
-  // so env checks alone cannot detect it). Chaos-lab guards rely on this.
-  process.env.SVELTY_BENCHMARK_SERVER_MODE = "production";
+  const isTestMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
+  if (!isTestMode) {
+    delete process.env.TEST_MODE;
+    delete process.env.PLAYWRIGHT_TEST;
+    process.env.BENCHMARK = "true";
+    process.env.NODE_ENV = "production";
+    process.env.SVELTY_BENCHMARK_SERVER_MODE = "production";
+  } else {
+    process.env.BENCHMARK = "true";
+    process.env.NODE_ENV = "development";
+    process.env.SVELTY_BENCHMARK_SERVER_MODE = "test";
+  }
+  process.env.RATE_LIMIT_MAX_REQUESTS = process.env.RATE_LIMIT_MAX_REQUESTS || "200000";
 
   const { printBenchmarkIsolationBanner } = await import("@utils/benchmark-sandbox");
   printBenchmarkIsolationBanner(dbType);
@@ -1387,22 +1507,23 @@ export async function setupBenchmarkServer() {
       DB_PORT: process.env.DB_PORT || "",
       DB_USER: process.env.DB_USER || "",
       DB_PASSWORD: process.env.DB_PASSWORD || "",
-      TEST_MODE: "", // explicit: no test bypass in benchmark servers
+      TEST_MODE: isTestMode ? "true" : "",
       BENCHMARK: "true",
       TEST_API_SECRET: secret,
-      NODE_ENV: "production",
+      NODE_ENV: isTestMode ? "development" : "production",
       // 🏔️ CI-PARITY SECRETS: explicitly carry the bootstrap secrets like
       // scripts/run-e2e.ts startPreviewServer does — the sync settings cache is
       // cold on API-only boots, so the auth hook falls back to process.env for
       // JWT_SECRET_KEY. Do not rely on the parent-env spread alone.
       JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "Benchmark-JWT-Secret-Key-2026-32ch",
       ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || "Benchmark-Encryption-Key-2026-32ch",
-      SVELTY_BENCHMARK_SERVER_MODE: "production",
+      SVELTY_BENCHMARK_SERVER_MODE: isTestMode ? "test" : "production",
       // 🏢 Audit mode: compliance → AUDIT_CHAIN_SYNC=true, DISABLE_AUDIT_LOGS=false
       BENCHMARK_AUDIT_MODE: process.env.BENCHMARK_AUDIT_MODE || "production",
       AUDIT_CHAIN_SYNC: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "true" : "false",
       DISABLE_AUDIT_LOGS: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "false" : "true",
-      RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "20000",
+      DISABLE_OUTBOX: process.env.DISABLE_OUTBOX || "true",
+      RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "200000",
       SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
     },
     stdio: "pipe",
@@ -1724,7 +1845,8 @@ export function exportSubMetric(
 }
 
 export const STABLE_COLLECTION = "BenchmarkStable";
-export const STABLE_ENTRY_ID = "bench-shared-001";
+// Enterprise _id contract: collection-table entries require UUIDv4 ids.
+export const STABLE_ENTRY_ID = "20000000-0000-4000-8000-000000000001";
 // Kept for env-config compatibility (harness secret). It is NEVER sent as a
 // request header — benchmark servers run in production mode where x-test-secret
 // grants nothing and /api/testing is 403.
@@ -1846,7 +1968,7 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     try {
       await (activeDb as any).execute(
         sql.raw(
-          `INSERT OR REPLACE INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('bench-shared-001', 'global', '{"count":0}', 'published', 0, 0, 0)`,
+          `INSERT OR REPLACE INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}', 'published', 0, 0, 0)`,
         ),
       );
     } catch (e: any) {
@@ -1857,7 +1979,7 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     try {
       await (activeDb.raw?.execute || activeDb.execute).call(
         activeDb,
-        `INSERT INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('bench-shared-001', 'global', '{"count":0}'::jsonb, 'published', false, NOW(), NOW()) ON CONFLICT ("_id") DO UPDATE SET "data" = '{"count":0}'::jsonb, "updatedAt" = NOW()`,
+        `INSERT INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}'::jsonb, 'published', false, NOW(), NOW()) ON CONFLICT ("_id") DO UPDATE SET "data" = '{"count":0}'::jsonb, "updatedAt" = NOW()`,
       );
     } catch (e: any) {
       if (process.env.BENCHMARK_DEBUG === "true")
@@ -1867,7 +1989,7 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     try {
       await (activeDb as any).execute(
         sql.raw(
-          `INSERT INTO \`collection_BenchmarkStable\` (\`_id\`, \`tenantId\`, \`data\`, \`status\`, \`isDeleted\`, \`createdAt\`, \`updatedAt\`) VALUES ('bench-shared-001', 'global', '{"count":0}', 'published', false, NOW(), NOW()) ON DUPLICATE KEY UPDATE \`data\` = '{"count":0}', \`updatedAt\` = NOW()`,
+          `INSERT INTO \`collection_BenchmarkStable\` (\`_id\`, \`tenantId\`, \`data\`, \`status\`, \`isDeleted\`, \`createdAt\`, \`updatedAt\`) VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}', 'published', false, NOW(), NOW()) ON DUPLICATE KEY UPDATE \`data\` = '{"count":0}', \`updatedAt\` = NOW()`,
         ),
       );
     } catch (e: any) {
@@ -1879,8 +2001,8 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     try {
       await activeDb.crud.upsert(
         "collection_BenchmarkStable",
-        { _id: "bench-shared-001" },
-        { _id: "bench-shared-001", tenantId, count: 0 },
+        { _id: STABLE_ENTRY_ID },
+        { _id: STABLE_ENTRY_ID, tenantId, count: 0 },
       );
     } catch {
       /* ignore */

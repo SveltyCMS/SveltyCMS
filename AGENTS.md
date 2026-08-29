@@ -87,22 +87,52 @@ All public-facing documentation, marketing, and competitive comparisons MUST com
 - **Testing API is fail-closed**: `/api/testing` ⇒ 403 in production; gated on `TEST_MODE`/`PLAYWRIGHT_TEST` (not bare `NODE_ENV=test`, not `BENCHMARK`); `x-test-secret` matches `TEST_API_SECRET` (timing-safe); stripped from production bundles (`testBackdoorStripperPlugin`). Never add alternate entry points.
 - **New features MUST update docs**: `docs/project/roadmap-2026.mdx` is the TODO list — add/mark items there; when shipped, move completed items to `docs/project/achievements-2026.mdx` (achievements log); defensible differentiators also go into `docs/project/competitive-comparison.mdx` (EU/DE-compliant, UWG §6). Plus the relevant MDX (feature→doc matrix and test↔docs map: `docs/contributing/style-guide-gui.mdx` for UI, `docs/contributing/agent-reference.mdx` for the full matrices, `docs/tests/test-to-docs-map.mdx` for test suites).
 
+### CI gate parity (`ci.yml` → local mirror)
+
+CI runs 8 whitebox tasks + harness build + DB ×4 + bench ×4 + 6 E2E shards on every push. Validate the mirror locally first — a green local tree must stay green on CI:
+
+| CI job (`ci.yml`)                  | Local mirror                                                                                                             |
+| :--------------------------------- | :----------------------------------------------------------------------------------------------------------------------- |
+| 🏁 Bootstrap (paraglide + codegen) | `bun run paraglide`; `bun x svelte-kit sync`                                                                             |
+| 01-format / 02-lint                | `bun run format`; `bun run lint` (CI `lint:ci` = same rules, github reporter)                                            |
+| 03-check                           | subset of `bun run check` (format + lint + lockfile) — always run full `bun run check`                                   |
+| 04-unit                            | `bun run test:unit`                                                                                                      |
+| 04b-tenant-gate                    | `bun run test:tenant`; on a dirty tree: `bun run lint:tenant -- --full`                                                  |
+| 05-cve / 06-secret / 07-backdoor   | `bun run risk:audit`; `bun run scripts/probe-deploy-testing-api.ts`                                                      |
+| 🏗️ Build                           | `COMPILE_ALL_ADAPTERS=true bun run build` (keeps `/api/testing`; plain `bun run build` strips it)                        |
+| 🧪 DB (`${{ matrix.db }}`)         | `DB_TYPE=<db> bun run test:integration` against the docker-compose adapter (CI adds `--strict-no-build --summary`)       |
+| 🧪 E2E shards                      | `bun run test:e2e` (harness build → wizard → auth-setup → chromium); one group: `bun run test:e2e -- --grep="(<shard>)"` |
+
+**Parity rules — the ones that break otherwise-green trees:**
+
+- **Perf assertions need JIT warm-up** — the `<50ms` timed-loop budget flaked at 71ms cold on CI (`dashboard-runtime`). Run ≥1k warm-up iterations before any timed loop that asserts a budget.
+- **Integration/E2E require the harness build** (`COMPILE_ALL_ADAPTERS=true`) — plain `bun run build` strips `/api/testing` ⇒ `API_ENDPOINT_NOT_AVAILABLE`. Only `bun run test:integration`/`test:e2e` (they orchestrate build + preview); never bare `bun x vitest` for integration.
+- **`lint-tenant-api` is incremental by default** (git-diff on a dirty tree); CI scans a clean checkout. Always `-- --full` locally.
+- **`svelte-kit sync`** after alias/type changes; prod boot is static-import-only — a missing import in `hooks.server.ts` is a `ReferenceError` at startup caught only by the integration harness, never by unit tests.
+- **E2E env must match `e2e-prep`** — `TEST_MODE=true`, `TEST_API_SECRET` in `tests/e2e/.auth/test-secret.txt`, `ORIGIN` pinned, `SKIP_TEST_CLEANUP=true`, `DB_NAME=e2e_auth_test`. The wizard → auth-setup chain seeds `tests/e2e/.auth/admin.json`; never skip it for a chromium run.
+- **Never combine `--grep` with `--shard`** — Playwright drops ~5/6 of each grep group and empty shards fail (see `.github/workflows/e2e-matrix.ts`).
+- **Axe audits run in the Auth & Branding shard** — any color change must keep `bg-{hue}-500` + `text-white` ≥ 4.5:1 (status-shade contract) or the RTL contrast audit fails.
+- **DB/contract changes must pass on all 4 adapters** — an adapter-specific bug (e.g. jsonPath re-filter after column-stripping) only surfaces on the DB matrix; when you touch adapter or load-path code, run `test:integration` on at least SQLite + one server DB locally.
+
+**Before you push** — minimum local set: `bun run check` → `bun run test:unit` → `bun run lint:tenant -- --full` → `bun run risk:audit`. Touched server/DB code: `bun run test:integration` (SQLite; `DB_TYPE=<db>` for a specific adapter). Touched a route: `bun run test:e2e -- --grep="(<its shard>)"`. Touched docs: `bun run lint:docs`.
+
 ### Commands
 
-| Category  | Command                                                    | Purpose                                                       |
-| :-------- | :--------------------------------------------------------- | :------------------------------------------------------------ |
-| Dev       | `bun run dev` / `build` / `preview`                        | Dev server / prod build / preview :4173                       |
-| Quality   | `bun run check`                                            | Format + lint + dead-class + design-token + lockfile          |
-|           | `bun run format` / `lint`                                  | oxfmt / oxlint                                                |
-| Tests     | `bun run test:unit`                                        | Vitest unit suite (~40s)                                      |
-|           | `bun run test:security`                                    | Hooks/authz/media/GraphQL security regressions + scanners     |
-|           | `bun run test:doctor`                                      | Unit + SQLite integration + gate map                          |
-|           | `bun run test:integration`                                 | Build + SQLite integration (harness)                          |
-|           | `bun run test:e2e`                                         | Playwright (CI-parity)                                        |
-| Git       | `bun run git commit` / `bun run git push` / `bun run gate` | Hardened commit / pre-push gate (blocks `--no-verify`)        |
-| CI parity | `bun run test:doctor` then `bun run gate`                  | Local green before push; DB matrix/E2E/benchmarks are CI-only |
+| Category  | Command                                                    | Purpose                                                                                       |
+| :-------- | :--------------------------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| Dev       | `bun run dev` / `build` / `preview`                        | Dev server / prod build / preview :4173                                                       |
+| Quality   | `bun run check`                                            | Format + lint + dead-class + design-token + lockfile                                          |
+|           | `bun run format` / `lint`                                  | oxfmt / oxlint                                                                                |
+| Tests     | `bun run test:unit`                                        | Vitest unit suite (~40s)                                                                      |
+|           | `bun run test:security`                                    | Hooks/authz/media/GraphQL security regressions + scanners                                     |
+|           | `bun run test:doctor`                                      | Unit + SQLite integration + gate map                                                          |
+|           | `bun run test:integration`                                 | Build + SQLite integration (harness)                                                          |
+|           | `bun run test:tenant`                                      | Tenant lint (`--full` on dirty trees) + tenant unit suite                                     |
+|           | `bun run test:e2e`                                         | Playwright (CI-parity; `-- --grep` for one shard)                                             |
+| Git       | `bun run git commit` / `bun run git push` / `bun run gate` | Hardened commit / pre-push gate (blocks `--no-verify`)                                        |
+| CI parity | `bun run test:doctor` then `bun run gate`                  | Local green before push; DB ×4/E2E/bench are CI-only — mirror each CI job via the table above |
 
-Pipeline: pre-commit = test-db-safety → format/lint → risk audit → unit → SBOM sync; pre-push = build (4 adapters) → SQLite integration. No double-running the unit suite on pre-push.
+Pipeline: pre-commit = test-db-safety → format/lint → risk audit → unit → SBOM sync; pre-push = build (4 adapters) → SQLite integration. No double-running the unit suite on pre-push. CI red on a green local tree ⇒ re-check the parity table (harness build, `lint:tenant --full`, JIT warm-up, all-4-DB contract) before touching product code.
 
 ## 5. Architecture (brief)
 
@@ -144,4 +174,4 @@ Pipeline: pre-commit = test-db-safety → format/lint → risk audit → unit �
 
 ---
 
-_Last updated: 2026-08-23_
+_Last updated: 2026-08-24_

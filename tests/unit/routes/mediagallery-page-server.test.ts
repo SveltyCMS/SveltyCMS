@@ -34,6 +34,7 @@ vi.mock("@src/utils/media/media-service.server", () => ({
   MediaService: class {
     list = vi.fn().mockResolvedValue({ success: true, data: [] });
     isReferencedByPublishedContent = vi.fn().mockResolvedValue({ referenced: false });
+    getPublishedReferencedIds = vi.fn().mockResolvedValue([]);
     saveRemoteMedia = (...args: unknown[]) => saveRemoteMedia(...args);
     saveMedia = vi.fn();
   },

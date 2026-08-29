@@ -30,6 +30,7 @@ import {
 } from "@utils/security/publication-policy";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
+import { deepClone } from "@utils/native-utils";
 import { logger } from "@utils/logger";
 import { AppError } from "@utils/error-handling";
 import { isMultiTenantEnabled } from "@utils/tenant";
@@ -77,6 +78,7 @@ import {
 import {
   applyWidgetPipeline,
   prepareWritePayload,
+  writeTouchesActiveWidgets,
   type PrepFieldSchema,
 } from "./collections/write-pipeline";
 import {
@@ -626,15 +628,16 @@ export class CollectionsNamespace {
     if (!bypassCache && cacheKey && result.success && result.data) {
       try {
         const cachePayload =
-          options.populate && Array.isArray(result.data)
-            ? structuredClone(result.data)
-            : result.data;
+          options.populate && Array.isArray(result.data) ? deepClone(result.data) : result.data;
         await cacheService.set(
           cacheKey,
           cachePayload,
           ttl || 180,
           (tenantId || undefined) as string,
           CacheCategory.CONTENT,
+          // 🚀 List/query caches are collection-wide: any write to the collection
+          // must clear them. Tagged so clearByTags is O(#list-keys), not O(#docs).
+          [`collection:${schema._id}`],
         );
 
         // Negative Caching: If result is empty and it was a specific ID query
@@ -931,11 +934,15 @@ export class CollectionsNamespace {
         { tenantId: tenantId as DatabaseId },
       );
     } else {
-      result = await this._dbAdapter.batch.bulkUpdate(table, formattedUpdates);
+      result = await this._dbAdapter.batch.bulkUpdate(table, formattedUpdates, {
+        tenantId: tenantId as DatabaseId,
+      });
     }
 
     if (result.success && !shouldSkipWriteSideEffects(options)) {
-      invalidateCache(schema, tenantId);
+      invalidateCache(schema, tenantId, {
+        writtenIds: formattedUpdates.map((u) => String(u.id)),
+      });
     }
 
     return result;
@@ -962,7 +969,7 @@ export class CollectionsNamespace {
     );
 
     if (result.success && !shouldSkipWriteSideEffects(options)) {
-      invalidateCache(schema, tenantId);
+      invalidateCache(schema, tenantId, { writtenIds: ids });
     }
 
     return result;
@@ -1044,22 +1051,18 @@ export class CollectionsNamespace {
         { user: options.user, system: options.system },
         options.publicationFilter,
       );
-    const { query } = buildTenantQuery(
-      { _id: entryId as any },
-      tenantId,
-      { user: options.user, system: options.system },
-      options.publicationFilter,
-    );
-
-    // 🚀 DIRECT DB CALL: Skip coalesceQuery wrapper for single-id lookups.
-    // coalesceQuery creates a deferred promise + Map lookup even when nothing is
-    // in-flight — for findByIdRandom (10K distinct IDs, near-zero collision rate)
-    // this is pure overhead. Direct findOne is cheaper.
-    // Status is bound in the query so unpublished rows never enter process memory
-    // for clamped callers (and the empty result is cached under :published).
-    const result = await this._dbAdapter.crud.findOne(collectionName, query, {
-      tenantId: tenantId as DatabaseId,
-    });
+    // 🚀 DIRECT DB CALL: Direct findById bypasses findOne -> parseIdLookup overhead.
+    // Publication clamping is applied to the retrieved item so unpublished rows never
+    // escape to clamped callers (and empty result is cached under the publication suffix).
+    const crud = this._dbAdapter.crud as any;
+    const result =
+      typeof crud.findById === "function"
+        ? await crud.findById(collectionName, entryId as DatabaseId, {
+            tenantId: tenantId as DatabaseId,
+          })
+        : await crud.findOne(collectionName, { _id: entryId } as any, {
+            tenantId: tenantId as DatabaseId,
+          });
 
     let item =
       result.success && result.data
@@ -1067,6 +1070,12 @@ export class CollectionsNamespace {
           ? result.data[0]
           : result.data
         : null;
+
+    if (item && effectivePublicationFilter !== "all") {
+      if (item.status && item.status !== effectivePublicationFilter) {
+        item = null;
+      }
+    }
 
     if (item) {
       const hot = ensureSchemaHotFlags(schema);
@@ -1107,6 +1116,9 @@ export class CollectionsNamespace {
             ttl || 180,
             (tenantId || undefined) as string,
             CacheCategory.CONTENT,
+            // 🚀 Surgical invalidation: tag by the SPECIFIC doc so a write to
+            // this entry clears only this key — NOT all 10k per-id entries.
+            [`doc:${schema._id}:${entryId}`],
           )
           .catch(() => {});
       } else {
@@ -1120,9 +1132,12 @@ export class CollectionsNamespace {
   async create(collectionId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = PROFILE_WRITE_ENABLED
-      ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
-      : await this.schemaOf(collectionId, tenantId);
+    const peeked = peekReadySchema(tenantId, collectionId);
+    const schema = peeked
+      ? peeked
+      : PROFILE_WRITE_ENABLED
+        ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
+        : await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
 
     // 🛡️ ACTIVE SANITIZATION + hooks + write guard in one shared pass
@@ -1148,8 +1163,9 @@ export class CollectionsNamespace {
     if (isThenable(finalData)) finalData = await finalData;
 
     const m2 = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
-    // Widget pipeline only when widgets declare modifyRequest
-    if (hot._hasActiveWidgets) {
+    // Widget pipeline only when this payload actually hits a modifyRequest widget.
+    // DateTime is inlined in prepareWritePayload — skip the async round-trip.
+    if (hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
       const payload = [finalData];
       await applyWidgetPipeline(schema, payload, {
         dbAdapter: this._dbAdapter,
@@ -1160,6 +1176,7 @@ export class CollectionsNamespace {
         skipValidation: options.skipValidation,
         action: "create",
         system,
+        skipSanitize: true,
       });
       finalData = payload[0] ?? finalData;
     }
@@ -1206,9 +1223,12 @@ export class CollectionsNamespace {
   async update(collectionId: string, entryId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-    const schema = PROFILE_WRITE_ENABLED
-      ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
-      : await this.schemaOf(collectionId, tenantId);
+    const peekedUpdate = peekReadySchema(tenantId, collectionId);
+    const schema = peekedUpdate
+      ? peekedUpdate
+      : PROFILE_WRITE_ENABLED
+        ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
+        : await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
 
     const m1u = PROFILE_WRITE_ENABLED ? profileMark("ns:sanitize+validate") : null;
@@ -1234,7 +1254,7 @@ export class CollectionsNamespace {
     if (isThenable(finalData)) finalData = await finalData;
 
     const m2u = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
-    if (hot._hasActiveWidgets) {
+    if (hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
       const payload = [finalData];
       await applyWidgetPipeline(schema, payload, {
         dbAdapter: this._dbAdapter,
@@ -1245,6 +1265,7 @@ export class CollectionsNamespace {
         skipValidation: options.skipValidation,
         action: "update",
         system,
+        skipSanitize: true,
       });
       finalData = payload[0] ?? finalData;
     }

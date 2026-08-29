@@ -16,7 +16,6 @@
  * Handle — the header set is always merged onto the already-produced response.
  */
 
-import { dev } from "$app/env";
 import { getCorsHeaders } from "@utils/security/cors-utils";
 import { API_CONTENT_SECURITY_POLICY } from "@utils/security/constants";
 import { applySecurityHeaders } from "@utils/hook-utils";
@@ -59,12 +58,16 @@ export function applyAllSecurityHeaders(
   const isPageRoute = !isApi;
   const svelteKitCsp = isPageRoute ? headers.get("Content-Security-Policy") : null;
 
-  applySecurityHeaders(headers, isHttps && !dev);
+  applySecurityHeaders(headers, isHttps);
 
   headers.set("X-XSS-Protection", "1; mode=block");
   headers.set("X-DNS-Prefetch-Control", "off");
   headers.set("X-Permitted-Cross-Domain-Policies", "none");
   headers.set("Permissions-Policy", PERMISSIONS_POLICY);
+
+  if (isPageRoute) {
+    headers.set("X-AEO-Enabled", "true");
+  }
 
   if (isApi) {
     // Cross-Origin Isolation: use credentialless for media routes to avoid third-party asset breakage

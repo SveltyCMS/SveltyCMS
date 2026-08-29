@@ -16,13 +16,22 @@ import { automationService } from "@src/services/background/automation/automatio
 import { getHealthCheckReport } from "@src/stores/system/reporting";
 import { reinitializeSystem } from "@src/databases/db";
 import { aiService } from "@src/services/core/ai-service";
-import * as settingsService from "@src/services/core/settings-service";
+import {
+  getAllSettings,
+  getUntypedSetting,
+  invalidateSettingsCache,
+  loadSettingsCache,
+  setPrivateSetting,
+  updateSettingsFromSnapshot,
+} from "@src/services/core/settings-service";
 import { generateSecureToken } from "@utils/native-utils";
-import { withTenant } from "@src/databases/core/db-adapter-wrapper";
+import { withTenant } from "@utils/tenant";
 import type { DatabaseId, IDBAdapter, ISODateString } from "@src/databases/db-interface";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { MediaService } from "@utils/media/media-service.server";
 import { type LocalApiOptions, type TokenOptions } from "./types";
+import { bulkImportCollectionDocuments } from "@src/services/background/jobs/import-jobs";
+import { lazyModule } from "@src/utils/lazy-module";
 
 export abstract class BaseNamespace {
   constructor(protected _dbAdapter: IDBAdapter) {}
@@ -109,24 +118,24 @@ export class WidgetsNamespace extends BaseNamespace {
 export class SettingsNamespace {
   constructor(_dbAdapter: IDBAdapter) {}
   async getAll(options: LocalApiOptions = {}) {
-    return settingsService.getAllSettings(options.tenantId as string);
+    return getAllSettings(options.tenantId as string);
   }
   async updateFromSnapshot(snapshot: any) {
-    return settingsService.updateSettingsFromSnapshot(snapshot);
+    return updateSettingsFromSnapshot(snapshot);
   }
   async invalidateCache(options: LocalApiOptions = {}) {
-    return settingsService.invalidateSettingsCache(options.tenantId as string);
+    return invalidateSettingsCache(options.tenantId as string);
   }
   async getPublic(options: LocalApiOptions = {}) {
-    const { public: p } = await settingsService.loadSettingsCache(options.tenantId as string);
+    const { public: p } = await loadSettingsCache(options.tenantId as string);
     return p;
   }
   async get(key: string, options: LocalApiOptions = {}) {
-    if (key === "all") return settingsService.getAllSettings(options.tenantId as string);
-    return settingsService.getUntypedSetting(key, "private", options.tenantId as string);
+    if (key === "all") return getAllSettings(options.tenantId as string);
+    return getUntypedSetting(key, "private", options.tenantId as string);
   }
   async set(key: string, value: any, options: LocalApiOptions = {}) {
-    return settingsService.setPrivateSetting(key as any, value, options.tenantId as string);
+    return setPrivateSetting(key as any, value, options.tenantId as string);
   }
 }
 
@@ -198,47 +207,19 @@ export class ImporterNamespace {
         status: "pending",
       };
     }
-    let imported = 0,
-      skipped = 0,
-      errors = 0;
-    if (mode === "replace")
-      await this._dbAdapter.crud.deleteMany(
-        collectionName,
-        {},
-        { tenantId: tenantId as DatabaseId },
-      );
-    for (const doc of data) {
-      try {
-        if (duplicateStrategy === "skip" && doc._id) {
-          const existing = await this._dbAdapter.crud.findOne(
-            collectionName,
-            { _id: doc._id as DatabaseId },
-            { tenantId: tenantId as DatabaseId },
-          );
-          if (existing.success && existing.data) {
-            skipped++;
-            continue;
-          }
-        }
-        const result = doc._id
-          ? await this._dbAdapter.crud.upsert(collectionName, { _id: doc._id as DatabaseId }, doc, {
-              tenantId: tenantId as DatabaseId,
-            })
-          : await this._dbAdapter.crud.insert(collectionName, doc, {
-              tenantId: tenantId as DatabaseId,
-            });
-        if (result.success) imported++;
-        else errors++;
-      } catch {
-        errors++;
-      }
-    }
+    const tally = await bulkImportCollectionDocuments(this._dbAdapter, {
+      collectionName,
+      data,
+      mode,
+      duplicateStrategy,
+      tenantId: tenantId as string | undefined,
+    });
     return {
       success: true,
-      imported,
-      skipped,
-      errors,
-      total: data.length,
+      imported: tally.imported,
+      skipped: tally.skipped,
+      errors: tally.errors,
+      total: tally.total,
       status: "completed",
     };
   }
@@ -704,40 +685,44 @@ export class SystemNamespace {
   }
 }
 
+const getAdminThemeServiceLazy = lazyModule(() =>
+  import("@src/services/core/admin-theme-service").then((m) => m.adminThemeService),
+);
+
 /**
  * Theme Namespace — zero-overhead server-side theme operations via LocalCMS SDK
  */
 export class ThemeNamespace {
   async getAdminTheme(tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.getAdminTheme(tenantId);
   }
   async saveAdminTheme(settings: any, tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.saveAdminTheme(settings, tenantId);
   }
   async listThemes(tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.listThemes(tenantId);
   }
   async createTheme(name: string, settings?: any, tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.createTheme(name, settings, tenantId);
   }
   async activateTheme(themeId: string, tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.activateTheme(themeId, tenantId);
   }
   async deleteTheme(themeId: string, tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.deleteTheme(themeId, tenantId);
   }
   async cloneTheme(sourceId: string, newName: string, tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.cloneTheme(sourceId, newName, tenantId);
   }
   async resetToDefaults(tenantId?: string | null) {
-    const { adminThemeService } = await import("@src/services/core/admin-theme-service");
+    const adminThemeService = await getAdminThemeServiceLazy();
     return adminThemeService.resetToDefaults(tenantId);
   }
 }

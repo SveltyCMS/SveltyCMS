@@ -11,6 +11,7 @@ import type { MediaAccess } from "@root/src/utils/media/media-models";
 // Large uploads use formData; body size validated at server level (Vite/SvelteKit config).
 // Files over configurable limit are rejected before parsing with a clear error.
 import { dbAdapter } from "@src/databases/db";
+import type { DatabaseId } from "@src/databases/db-interface";
 import { MediaService } from "@src/utils/media/media-service.server";
 import { error, isHttpError, isRedirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
@@ -74,39 +75,15 @@ export const actions: Actions = {
 
       const formData = await request.formData();
       const remoteUrls = JSON.parse(formData.get("remoteUrls") as string) as string[];
-
-      if (!(remoteUrls && Array.isArray(remoteUrls)) || remoteUrls.length === 0) {
-        throw new Error("No URLs provided");
-      }
-
-      const mediaService = new MediaService(dbAdapter);
-      // After egress-safe fetch only; internal targets never reach saveMedia
-      const access: MediaAccess = "public";
-
-      // 🛡️ SSRF: MUST use saveRemoteMedia — never raw fetch(url)
-      for (const url of remoteUrls) {
-        try {
-          const result = await mediaService.saveRemoteMedia(
-            url,
-            user._id as any,
-            access,
-            locals.tenantId as any,
-          );
-          if (!result.success) {
-            logger.warn(`Failed to fetch remote URL: ${url} — ${result.message}`);
-            continue;
-          }
-          logger.info(`Remote file uploaded successfully: ${url}`);
-        } catch (fileError) {
-          const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
-          if (errorMessage.includes("duplicate")) {
-            logger.warn(`A file from URL "${url}" already exists`);
-          } else {
-            logger.error(`Failed to upload file from ${url}: ${errorMessage}`);
-          }
-        }
-      }
-
+      const folder = (formData.get("folder") as string) || "global";
+      const { saveRemoteMediaUrls } = await import("../save-remote-urls.server");
+      const result = await saveRemoteMediaUrls({
+        urls: remoteUrls,
+        folder,
+        userId: String(user._id),
+        tenantId: (locals.tenantId as DatabaseId | null) ?? null,
+      });
+      if (!result.success) throw new Error(result.error || "No URLs provided");
       return { success: true };
     } catch (err) {
       if (isHttpError(err) || isRedirect(err)) throw err;

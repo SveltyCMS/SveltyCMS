@@ -14,6 +14,11 @@ import { settingsGroups } from "@src/routes/(app)/config/system-settings/setting
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { isAdmin } from "@src/databases/auth/constants";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { versionService } from "@services/core/version-service";
+import { getDatabaseResilience } from "@src/databases/database-resilience";
+import { getSystemStatus } from "@src/databases/resilience-integration";
+import { requireDashboardWidgetLicense } from "./dashboard";
+import { buildLogExport, type LogExportFormat, type LogExportType } from "@src/utils/log-export";
 import * as v from "valibot";
 
 const SaveWebhookSchema = v.object({
@@ -449,10 +454,13 @@ export async function handleSystemMgmtRoutes(
   const action = segments[1];
   if (action === "reinitialize" && event.request.method === "POST") {
     const body = await event.request.json().catch(() => ({}));
-    return rawResponse(event, await cms.system.reinitialize(body.force ?? true));
+    invalidateHealthCache();
+    const result = await cms.system.reinitialize(body.force ?? true);
+    return successResponse(event, result ?? { reinitialized: true });
   }
   if (action === "refresh" && event.request.method === "POST") {
     const body = await event.request.json().catch(() => ({}));
+    invalidateHealthCache();
     const refreshResult = await cms.system.refresh({
       tenantId: body.tenantId,
       skipReconciliation: body.skipReconciliation ?? false,
@@ -464,13 +472,11 @@ export async function handleSystemMgmtRoutes(
       const { _getYogaApp } = await import("@src/routes/api/graphql/+server");
       if (_getYogaApp) {
         await _getYogaApp(cms.db, body.tenantId);
-        const { logger } = await import("@utils/logger");
         if (process.env.BENCHMARK_DEBUG === "true") {
           logger.info(`[System Refresh] Successfully warmed up GraphQL Yoga Schema.`);
         }
       }
     } catch (err: any) {
-      const { logger } = await import("@utils/logger");
       logger.warn(`[System Refresh] GraphQL warmup skipped or failed: ${err.message}`);
     }
 
@@ -584,7 +590,6 @@ export async function handleAiRoutes(
   const body = await request.json();
   const { aiService } = await import("@src/services/core/ai-service");
   const { eventBus } = await import("@src/services/background/automation/event-bus");
-  const { logger } = await import("@utils/logger");
 
   if (action === "chat") {
     const { userMessage, history = [], content, room, tab } = body;
@@ -1198,6 +1203,13 @@ export async function handleSetupRoutes(
 
 let lastHealthReport = "";
 let lastHealthTime = 0;
+let lastHealthOverallState = "";
+
+export function invalidateHealthCache(): void {
+  lastHealthReport = "";
+  lastHealthTime = 0;
+  lastHealthOverallState = "";
+}
 
 export async function handleHealthRoutes(
   event: RequestEvent,
@@ -1209,6 +1221,9 @@ export async function handleHealthRoutes(
   const failExternal = request.headers.get("x-test-fail-external") === "true";
   const now = Date.now();
 
+  const { getOverallState, isSystemReady } = await import("@src/stores/system/state.svelte");
+  const currentOverallState = getOverallState();
+
   // 🛡️ CIRCUIT BREAKER AUDIT: If requested, simulate a degraded state
   if (failExternal) {
     const isUp = await cms.db.isConnected();
@@ -1216,6 +1231,7 @@ export async function handleHealthRoutes(
       JSON.stringify({
         status: "degraded",
         overallStatus: "DEGRADED",
+        state: "DEGRADED",
         database: isUp ? "connected" : "disconnected",
         external: { status: "failed", message: "Simulated External Outage" },
         uptime: process.uptime(),
@@ -1225,8 +1241,13 @@ export async function handleHealthRoutes(
     );
   }
 
-  // 🚀 PERFORMANCE: 10-second memoization of health report
-  if (lastHealthReport && now - lastHealthTime < 10000 && !request.headers.has("x-refresh")) {
+  // 🚀 PERFORMANCE: Memoization of health report with state-change invalidation
+  if (
+    lastHealthReport &&
+    now - lastHealthTime < 10000 &&
+    lastHealthOverallState === currentOverallState &&
+    !request.headers.has("x-refresh")
+  ) {
     return new Response(lastHealthReport, {
       headers: { "Content-Type": "application/json", "X-Cached": "TRUE" },
     });
@@ -1235,8 +1256,12 @@ export async function handleHealthRoutes(
   const isUp = await cms.db.isConnected();
   const { getDatabaseResilience } = await import("@src/databases/database-resilience");
   const metrics = getDatabaseResilience().getMetrics();
+  const ready = isSystemReady();
   const report = {
     status: isUp ? "healthy" : "degraded",
+    overallStatus: currentOverallState,
+    state: currentOverallState,
+    ready,
     database: isUp ? "connected" : "disconnected",
     latency: 0, // Simplified for high-frequency checks
     serverTime: new Date().toISOString(),
@@ -1249,9 +1274,17 @@ export async function handleHealthRoutes(
     },
   };
 
-  const reportString = JSON.stringify({ success: true, data: report });
+  const reportString = JSON.stringify({
+    success: true,
+    overallStatus: currentOverallState,
+    status: isUp ? "healthy" : "degraded",
+    state: currentOverallState,
+    ready,
+    data: report,
+  });
   lastHealthReport = reportString;
   lastHealthTime = now;
+  lastHealthOverallState = currentOverallState;
 
   return new Response(reportString, {
     headers: { "Content-Type": "application/json" },
@@ -1675,4 +1708,165 @@ export async function handlePluginSettingsRoutes(
   }
 
   throw new AppError(`Method ${request.method} not allowed for plugin-settings`, 405);
+}
+
+/**
+ * Validates admin authorization against the standardized SvelteKit locals context.
+ */
+function requireAdmin(event: RequestEvent): void {
+  const { locals } = event;
+  if (locals.isAdmin || isAdmin(locals.user)) return;
+  throw new AppError("Admin access required", 403, "FORBIDDEN");
+}
+
+/**
+ * Dispatches version-related requests.
+ * Path: /api/system/version/check
+ */
+export async function handleVersionRoutes(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  _tenantId: DatabaseId,
+  segments: string[],
+): Promise<Response> {
+  const { request } = event;
+  const subAction = segments[1]; // check
+
+  try {
+    // GET /api/system/version/check
+    if (subAction === "check" && request.method === "GET") {
+      return successResponse(event, await versionService.checkForUpdates());
+    }
+
+    // GET /api/system/version (bare — return current version only)
+    if (!subAction && request.method === "GET") {
+      const currentVersion = versionService.readLocalVersion();
+      return successResponse(event, { currentVersion });
+    }
+
+    throw new AppError(
+      `Version endpoint /api/system/version/${subAction || ""} not implemented`,
+      404,
+    );
+  } catch (err: any) {
+    logger.error(`[VersionRoute Error] ${segments.join("/")}:`, err);
+    if (err instanceof AppError) throw err;
+    throw new AppError(err.message || "Version operation failed", 500);
+  }
+}
+
+/**
+ * Database resilience API — pool diagnostics and unified system status.
+ */
+export async function handleDatabaseRoutes(
+  event: RequestEvent,
+  cms: LocalCMS,
+  _tenantId: DatabaseId,
+  segments: string[],
+) {
+  requireAdmin(event);
+
+  const method = event.request.method;
+  const action = segments.length > 1 ? segments[1] : "status";
+
+  if (action === "pool-diagnostics") {
+    if (method !== "GET")
+      throw new AppError(`Method ${method} not allowed`, 405, "METHOD_NOT_ALLOWED");
+    // Premium dashboard widget data source — license gate (defense-in-depth).
+    await requireDashboardWidgetLicense("database-pool-diagnostics");
+    const resilience = getDatabaseResilience();
+    const diagnostics = await resilience.getPoolDiagnostics();
+    return successResponse(event, diagnostics);
+  }
+
+  if (action === "status") {
+    if (method !== "GET")
+      throw new AppError(`Method ${method} not allowed`, 405, "METHOD_NOT_ALLOWED");
+    const status = await getSystemStatus(cms.db);
+    return successResponse(event, status);
+  }
+
+  throw new AppError(`Database endpoint /api/database/${action} not implemented`, 404);
+}
+
+const VALID_LOG_LEVELS = new Set(["debug", "info", "warn", "error", "fatal"]);
+
+/**
+ * Admin log export for resilience diagnostics and support bundles.
+ */
+export async function handleLogsRoutes(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  _tenantId: DatabaseId,
+  segments: string[],
+) {
+  requireAdmin(event);
+
+  const method = event.request.method;
+  const action = segments.length > 1 ? segments[1] : undefined;
+
+  if (action === "download") {
+    if (method !== "GET")
+      throw new AppError(`Method ${method} not allowed`, 405, "METHOD_NOT_ALLOWED");
+
+    const { url } = event;
+    const type = (url.searchParams.get("type") || "latest") as LogExportType;
+    const format = (url.searchParams.get("format") || "text") as LogExportFormat;
+
+    if (!["latest", "all", "archive"].includes(type)) {
+      throw new AppError("Invalid type parameter", 400, "VALIDATION_ERROR");
+    }
+    if (!["text", "gzip"].includes(format)) {
+      throw new AppError("Invalid format parameter", 400, "VALIDATION_ERROR");
+    }
+
+    const since = url.searchParams.get("since") || undefined;
+    const rawLevel = url.searchParams.get("level")?.toLowerCase();
+    const level = rawLevel && VALID_LOG_LEVELS.has(rawLevel) ? rawLevel : undefined;
+
+    const exported = await buildLogExport({ type, format, since, level });
+
+    return new Response(exported.body as any, {
+      status: 200,
+      headers: {
+        "Content-Type": exported.contentType,
+        "Content-Disposition": `attachment; filename="${exported.filename}"`,
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  }
+
+  if (action === "audit") {
+    if (method !== "GET") {
+      throw new AppError(`Method ${method} not allowed`, 405, "METHOD_NOT_ALLOWED");
+    }
+
+    const { queryAuditLogs } = await import("@src/services/security/audit-service");
+
+    const { url } = event;
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 500);
+    const offset = parseInt(url.searchParams.get("offset") || "0", 10);
+    const filterType = url.searchParams.get("type") || undefined;
+    const filterUser = url.searchParams.get("user") || undefined;
+
+    const filters: Record<string, any> = {};
+    if (filterType) filters.eventType = filterType;
+    if (filterUser) filters.actorEmail = filterUser;
+
+    const res = await queryAuditLogs({
+      tenantId: _tenantId,
+      limit,
+      offset,
+      filters,
+    });
+
+    if (!res.success) {
+      throw new AppError(res.message || "Failed to query audit logs", 500);
+    }
+
+    return successResponse(event, res.data || []);
+  }
+
+  throw new AppError(`Logs endpoint /api/logs/${action || ""} not implemented`, 404);
 }

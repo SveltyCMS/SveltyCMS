@@ -19,8 +19,9 @@
  * 🛡️ Security: Enforces 'no-cache' for dynamic content to ensure revalidation.
  */
 export function setETag(headers: Headers, contentVersion: string | number): void {
-  // ETag must be a quoted string per RFC 7232
-  const etag = `"${String(contentVersion).replace(/"/g, '\\"')}"`;
+  // ETag must be a quoted string per RFC 7232. Escape `\` first so a
+  // trailing backslash cannot eat the closing quote (js/incomplete-sanitization).
+  const etag = `"${String(contentVersion).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 
   headers.set("ETag", etag);
 

@@ -204,7 +204,7 @@ test.describe("Remote URL upload", () => {
     await expect(page.getByTestId("upload-tab-remote")).toBeVisible();
   });
 
-  test("remote tab posts remoteUpload action", async ({ page }) => {
+  test("remote tab posts uploadRemoteUrls remote query", async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/mediagallery/upload-media", {
       waitUntil: "domcontentloaded",
@@ -221,11 +221,14 @@ test.describe("Remote URL upload", () => {
 
     await page.getByTestId("remote-urls-input").fill(remoteUrl);
 
+    // The remote tab no longer posts a SvelteKit form action (?/remoteUpload):
+    // remote-upload.svelte calls uploadRemoteUrls from remote-upload.remote.ts,
+    // which SvelteKit transports as POST /_app/remote/<hash>/uploadRemoteUrls?payload=….
     const actionResponse = page.waitForResponse(
       (res) =>
         res.request().method() === "POST" &&
-        res.url().includes("upload-media") &&
-        (res.url().includes("remoteUpload") || res.url().includes("?/remoteUpload")),
+        res.url().includes("/_app/remote/") &&
+        res.url().includes("uploadRemoteUrls"),
       { timeout: ACTION_TIMEOUT },
     );
 

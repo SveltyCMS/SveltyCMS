@@ -190,6 +190,8 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
       const hasAccessibleName =
         /(aria-label|aria-labelledby|title|id\s*=)/i.test(attrs) ||
         ((tagName === "a" || tagName === "button") &&
+          // codeql[js/incomplete-multi-character-sanitization]: line-scoped a11y heuristic
+          // (visible-text check), not an XSS sanitizer — not used as HTML output.
           /[a-zA-Z0-9\u00C0-\u017F]/.test(line.replace(/<[^>]*>/g, "").trim())) ||
         false;
 
@@ -633,6 +635,38 @@ function scanClientSecurityPatterns(relPath: string, content: string) {
   }
 }
 
+/**
+ * BUG-01 guard: manual `collection_${id}` / "collection_" + physical-name
+ * prefixes silently break for hyphenated collection ids ("blog-posts" →
+ * collection_blog-posts instead of the canonical collection_blogposts). The
+ * canonical helper is `collectionTableName()` from
+ * @src/databases/core/collection-name — every manual construction is a
+ * latent wrong-table bug. The defining file itself is exempt.
+ */
+function scanCollectionTableNameRisk(relPath: string, content: string) {
+  if (content.includes("slop:suppress")) return;
+  if (relPath.endsWith("core/collection-name.ts")) return;
+  const re = /`collection_\$\{|["']collection_["']\s*\+/g;
+  const lines = content.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+    // Registry-key cleanups (tableRegistry.delete of the `collection_<raw>`
+    // variant) are legitimate — they delete cache keys, not query tables.
+    if (trimmed.includes("tableRegistry")) continue;
+    re.lastIndex = 0;
+    if (re.test(trimmed)) {
+      report(
+        relPath,
+        i + 1,
+        "collection-table-name",
+        "Manual `collection_${…}` physical table name — use collectionTableName() (BUG-01: hyphenated ids map to the wrong table)",
+        "warning",
+      );
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main Router
 // ---------------------------------------------------------------------------
@@ -692,6 +726,7 @@ async function main() {
         scanSecurityPatterns(rel, content);
         scanRawSqlRisk(rel, content);
         scanClientSecurityPatterns(rel, content);
+        scanCollectionTableNameRisk(rel, content);
 
         const size = (await fs.stat(file)).size;
         if (size > MAX_FILE_SIZE && !file.endsWith(".d.ts")) {
@@ -715,6 +750,7 @@ async function main() {
         scanSecurityPatterns(rel, content);
         scanRawSqlRisk(rel, content);
         scanClientSecurityPatterns(rel, content);
+        scanCollectionTableNameRisk(rel, content);
 
         const size = (await fs.stat(file)).size;
         if (size > MAX_FILE_SIZE && !file.endsWith(".d.ts")) {

@@ -38,7 +38,7 @@ vi.mock("@utils/tenant", () => ({
   getTenantIdFromHostname: vi.fn(() => "tenant-test"),
 }));
 
-import { handleRateLimit, resetRateLimitBuckets } from "@src/hooks/handle-rate-limit";
+import { handleRateLimit, resetRateLimitBuckets, RateLimiter } from "@src/hooks/handle-rate-limit";
 import { getPressureMultiplier, shouldRejectMutations } from "@utils/system-monitor";
 import { createMockEvent, mockResolve } from "./test-utils";
 
@@ -299,5 +299,43 @@ describe("handleRateLimit", () => {
       if (prev === undefined) delete process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS;
       else process.env.RATE_LIMIT_COMMERCE_MAX_REQUESTS = prev;
     }
+  });
+});
+
+describe("RateLimiter (Endpoint & Action Limiter)", () => {
+  it("enforces IP rate limits with shorthand tuple [max, unit]", async () => {
+    const limiter = new RateLimiter({ IP: [2, "m"] });
+    const event1 = postEvent("/login", { ip: "198.51.100.1" });
+
+    expect(await limiter.isLimited(event1)).toBe(false);
+    expect(await limiter.isLimited(event1)).toBe(false);
+    expect(await limiter.isLimited(event1)).toBe(true);
+
+    const checkRes = await limiter.check(event1);
+    expect(checkRes.limited).toBe(true);
+    expect(checkRes.reason).toBe("IP");
+  });
+
+  it("differentiates clients by IP", async () => {
+    const limiter = new RateLimiter({ IP: [1, "m"] });
+    const clientA = postEvent("/login", { ip: "198.51.100.2" });
+    const clientB = postEvent("/login", { ip: "198.51.100.3" });
+
+    expect(await limiter.isLimited(clientA)).toBe(false);
+    expect(await limiter.isLimited(clientA)).toBe(true);
+
+    // Client B has its own bucket
+    expect(await limiter.isLimited(clientB)).toBe(false);
+  });
+
+  it("supports clearing limits", async () => {
+    const limiter = new RateLimiter({ IP: [1, "m"] });
+    const event = postEvent("/login", { ip: "198.51.100.4" });
+
+    expect(await limiter.isLimited(event)).toBe(false);
+    expect(await limiter.isLimited(event)).toBe(true);
+
+    await limiter.clear();
+    expect(await limiter.isLimited(event)).toBe(false);
   });
 });

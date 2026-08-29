@@ -24,6 +24,10 @@ vi.mock("@src/plugins", () => ({
   },
 }));
 
+vi.mock("@utils/server/layout-caches.server", () => ({
+  getLayoutPluginStates: vi.fn(async () => ({ "demo-plugin": true })),
+}));
+
 vi.mock("@src/services/core/settings-service", () => ({
   getPrivateSettingSync: vi.fn(() => null),
 }));

@@ -33,7 +33,7 @@ import {
   desc,
 } from "drizzle-orm";
 import type { FindOptions, QueryCondition } from "../db-interface";
-import * as utils from "./relational-utils";
+import { acquireConditionsArray, applyTenantFilter, safeDate } from "./relational-utils";
 
 /**
  * Universal Drizzle write executor across SQLite (.run()), LibSQL (.run()), and PostgreSQL/MariaDB (thenable).
@@ -321,7 +321,17 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
     "createdAt",
     "updatedAt",
   ],
-  authSessions: ["_id", "user_id", "expires", "tenantId", "createdAt", "updatedAt"],
+  authSessions: [
+    "_id",
+    "user_id",
+    "expires",
+    "tenantId",
+    "userAgent",
+    "deviceId",
+    "ipAddress",
+    "createdAt",
+    "updatedAt",
+  ],
   authTokens: [
     "_id",
     "user_id",
@@ -751,11 +761,11 @@ export function translateCondition(col: Column, cond: QueryCondition): SQL {
   let val = cond.value;
 
   if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
-    val = utils.safeDate(val);
+    val = safeDate(val);
   } else if (Array.isArray(val)) {
     val = val.map((v) =>
       v !== null && typeof v === "object" && typeof (v as any).getTime === "function"
-        ? utils.safeDate(v)
+        ? safeDate(v)
         : v,
     );
   }
@@ -821,14 +831,15 @@ function addSingleCondition(
     val = Array.isArray(val) ? val.map(coerceJsonValue) : coerceJsonValue(val);
   }
   if (val !== null && typeof val === "object" && typeof (val as any).getTime === "function") {
-    val = utils.safeDate(val);
+    val = safeDate(val);
   } else if (Array.isArray(val)) {
     val = val.map((v) =>
       v !== null && typeof v === "object" && typeof (v as any).getTime === "function"
-        ? utils.safeDate(v)
+        ? safeDate(v)
         : v,
     );
   }
+  if (!col) return;
   // Date/timestamp columns need real Date objects for the driver mapping
   // (Drizzle timestamp modes call value.getTime() with no type guard).
   // Keyset cursors and API filters pass ISO strings / epoch numbers — coerce
@@ -1016,19 +1027,19 @@ export function mapQuery(
       if (idCol) {
         const conditions = [eq(idCol, query._id as any)];
         const tenantCol = getColumn(table, "tenantId");
-        utils.applyTenantFilter(conditions, tenantCol, options);
+        applyTenantFilter(conditions, tenantCol, options);
         return and(...conditions);
       }
     }
   }
 
-  const conditions = utils.acquireConditionsArray();
+  const conditions = acquireConditionsArray();
   if (query && typeof query === "object") {
     addFilterConds(conditions, table, query, getColumn, getJsonField, coerceJsonValue);
   }
 
   const tenantCol = getColumn(table, "tenantId");
-  utils.applyTenantFilter(conditions, tenantCol, options);
+  applyTenantFilter(conditions, tenantCol, options);
 
   if (!conditions.length) return undefined;
   return and(...conditions);

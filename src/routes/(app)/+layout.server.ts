@@ -16,7 +16,6 @@
  */
 
 import { contentSystem } from "@src/content/index.server";
-import type { User } from "@src/databases/auth/types";
 import { auth } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { DEFAULT_THEME } from "@src/databases/theme-manager";
@@ -32,67 +31,18 @@ import {
   applyExtinction,
 } from "@src/services/intelligence/behavioral-learner";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { pluginRegistry } from "@src/plugins/registry";
+import {
+  LAYOUT_CACHE_TTL_S,
+  getFreshLayoutUser,
+  getLayoutPluginStates,
+  layoutUserCountKey,
+} from "@utils/server/layout-caches.server";
 import type { LayoutServerLoad } from "./$types";
 
 interface LayoutError {
   code?: string;
   details?: string;
   message: string;
-}
-
-async function refreshUser(
-  sessionUser: User | null,
-  tenantId?: string | null,
-): Promise<User | null> {
-  if (!sessionUser) {
-    return null;
-  }
-
-  try {
-    const dbUser = await auth?.getUserById(sessionUser._id as DatabaseId, {
-      tenantId: tenantId as DatabaseId,
-      bypassTenantCheck: true,
-    });
-
-    if (dbUser) {
-      logger.debug("Fresh user data loaded in layout", {
-        userId: dbUser._id,
-        hasAvatar: !!dbUser.avatar,
-        avatar: dbUser.avatar,
-      });
-      return dbUser;
-    }
-
-    // 🛡️ Stale-session self-heal: the session can reference a user id that no
-    // longer resolves (wizard reset / re-seed recreates the account under a new
-    // id). Resolve by email — the same strategy as the update-user-attributes
-    // handler — so the UI never renders a stale cached snapshot.
-    if (sessionUser.email) {
-      const byEmail = await auth?.getUserByEmail(
-        { email: sessionUser.email, tenantId: tenantId as DatabaseId },
-        { tenantId: tenantId as DatabaseId, bypassTenantCheck: true },
-      );
-      if (byEmail) {
-        logger.warn("User id not found in database, resolved by email (stale session self-heal)", {
-          userId: sessionUser._id,
-          email: sessionUser.email,
-        });
-        return byEmail;
-      }
-    }
-
-    logger.warn("User not found in database, using session data", {
-      userId: sessionUser._id,
-    });
-    return sessionUser;
-  } catch (err: any) {
-    logger.warn("Failed to fetch fresh user data in layout, using session data", {
-      error: err.message,
-      userId: sessionUser._id,
-    });
-    return sessionUser;
-  }
 }
 
 function createLayoutError(err: unknown, fallbackMessage: string): LayoutError {
@@ -214,18 +164,18 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       /* non-fatal — sidebar renders empty */
     }
 
-    // Parallelize critical layout queries with short-lived 30s L1 cache
-    const userCountKey = `layout:userCount:${tenantId || "global"}`;
+    // Parallelize critical layout queries with short-lived L1 cache
+    const userCountKey = layoutUserCountKey(tenantId || "global");
     const aiSettingKey = `layout:aiEnabled`;
 
-    const [freshUser, totalUsers, aiEnabled] = await Promise.all([
-      refreshUser(sessionUser, tenantId),
+    const [freshUser, totalUsers, aiEnabled, pluginStates] = await Promise.all([
+      getFreshLayoutUser(sessionUser, tenantId),
       (async () => {
         const cached = cacheService.getSync<number>(userCountKey, tenantId);
         if (cached !== null) return cached;
         try {
           const count = (await auth?.getUserCount?.({}, { tenantId: tenantId as DatabaseId })) ?? 1;
-          cacheService.set(userCountKey, count, 30_000, tenantId);
+          void cacheService.set(userCountKey, count, LAYOUT_CACHE_TTL_S, tenantId);
           return count;
         } catch {
           return 1;
@@ -237,23 +187,14 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
         try {
           const aiModelChat = await getPrivateSetting("AI_MODEL_CHAT");
           const enabled = !!(publicEnv.USE_AI_TAGGING || (aiModelChat && aiModelChat !== ""));
-          cacheService.set(aiSettingKey, enabled, 30_000);
+          void cacheService.set(aiSettingKey, enabled, LAYOUT_CACHE_TTL_S);
           return enabled;
         } catch {
           return !!publicEnv.USE_AI_TAGGING;
         }
       })(),
+      getLayoutPluginStates(tid),
     ]);
-
-    // Plugin enablement states for client-side feature gating
-    const pluginStates: Record<string, boolean> = {};
-    try {
-      for (const plugin of pluginRegistry.getAll()) {
-        if (!plugin.ui?.slots?.length) continue;
-        const state = await pluginRegistry.getPluginState(plugin.metadata.id, tid);
-        pluginStates[plugin.metadata.id] = state?.enabled ?? plugin.metadata.enabled;
-      }
-    } catch {}
 
     const safeTheme = theme ?? DEFAULT_THEME;
 

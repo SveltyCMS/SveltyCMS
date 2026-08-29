@@ -7,6 +7,7 @@
  * - Uses Unified Dispatcher for GraphQL API endpoint.
  * - Uses PubSub for GraphQL API endpoint.
  * - Uses Loaders for GraphQL API endpoint.
+ * - Yoga-bypass fast path for contentSystemHealth / allCollections (in-memory)
  *
  * # Security
  * - Enforces query depth (max 8).
@@ -18,7 +19,7 @@
 import type { RequestEvent } from "@sveltejs/kit";
 
 import { createYoga, createSchema } from "graphql-yoga";
-import { GraphQLError, NoSchemaIntrospectionCustomRule, parse, type DocumentNode } from "graphql";
+import { GraphQLError, NoSchemaIntrospectionCustomRule, type DocumentNode } from "graphql";
 import { useGraphQlJit } from "@envelop/graphql-jit";
 import {
   responseCache,
@@ -29,11 +30,26 @@ import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-pr
 import { metricsService } from "@src/services/observability/metrics-service";
 import { pubSub } from "@src/services/background/pub-sub";
 import { createDepthLimitRule, createMaxAliasesRule } from "./rules";
-import { registerCollections, collectionsResolvers } from "./resolvers/collections";
+import {
+  registerCollections,
+  collectionsResolvers,
+  resolveAllCollections,
+  createCleanTypeName,
+} from "./resolvers/collections";
 import { isDbConnected, getDbInitPromise, getDb } from "@src/databases/db";
 import { contentSystem, contentStore } from "@src/content/index.server";
-import { analyzeQueryCost, formatCostError, normalizeQueryString } from "./cost-analyzer";
-import { resolvePublicationFilter } from "@utils/security/publication-policy";
+import {
+  analyzeQueryCost,
+  formatCostError,
+  getOrParseDocument,
+  matchCollectionQuery,
+} from "./cost-analyzer";
+import {
+  resolvePublicationFilter,
+  type PublicationFilter,
+} from "@utils/security/publication-policy";
+import { LocalCMS } from "@src/services/sdk";
+import type { DatabaseId, Schema } from "@src/content/types";
 
 // GraphQL validation plugin: enforces query depth (max 8), alias count (max 15),
 // and blocks schema introspection in production environments
@@ -46,23 +62,120 @@ const isProduction = () => process.env.NODE_ENV === "production";
 const depthLimitRule = createDepthLimitRule(MAX_QUERY_DEPTH);
 const maxAliasesRule = createMaxAliasesRule(MAX_ALIASES);
 
-// ─── Query AST & Document Validation Cache ──────────────────────────────────
-const MAX_AST_CACHE = 1000;
-const astCache = new Map<string, DocumentNode>();
 const validatedDocuments = new WeakMap<DocumentNode, number>();
 
-function getOrParseDocument(rawQuery: string): DocumentNode {
-  const key = normalizeQueryString(rawQuery);
-  let cached = astCache.get(key);
-  if (cached) return cached;
-
-  cached = parse(rawQuery);
-  if (astCache.size >= MAX_AST_CACHE) {
-    const oldestKey = astCache.keys().next().value;
-    if (oldestKey !== undefined) astCache.delete(oldestKey);
+function projectGraphqlFields(
+  row: Record<string, unknown>,
+  selections: string[],
+): Record<string, unknown> {
+  if (selections.length === 0) return row;
+  const out: Record<string, unknown> = {};
+  for (const field of selections) {
+    if (field in row) out[field] = row[field];
   }
-  astCache.set(key, cached);
-  return cached;
+  return out;
+}
+
+/**
+ * Skip Yoga/JIT for the two hottest in-memory queries (health + collection
+ * catalog). Auth already ran; cost/depth are trivial for a single root field.
+ */
+const FAST_JSON_TTL_MS = 2000;
+const fastJsonCache = new Map<string, { body: string; ts: number }>();
+
+async function tryGraphqlFastPath(
+  query: string,
+  ctx: {
+    user: unknown;
+    tenantId?: string | null;
+    dbAdapter?: any;
+    publicationFilter?: PublicationFilter;
+  },
+  variables?: Record<string, any>,
+): Promise<string | null> {
+  if (!ctx.user || !query) return null;
+  const matched = matchCollectionQuery(query, variables);
+  if (!matched) return null;
+
+  // 1. In-memory system queries (contentSystemHealth / allCollections)
+  if (matched.field === "contentSystemHealth" || matched.field === "allCollections") {
+    const jsonKey = `${matched.field}|${String(ctx.tenantId ?? "global")}|${matched.selections.join(",")}`;
+    const cachedJson = fastJsonCache.get(jsonKey);
+    if (cachedJson && Date.now() - cachedJson.ts < FAST_JSON_TTL_MS) {
+      return cachedJson.body;
+    }
+
+    let payload: Record<string, unknown>;
+    if (matched.field === "contentSystemHealth") {
+      const health = contentSystem.getHealthStatus() as unknown as Record<string, unknown>;
+      payload = { data: { contentSystemHealth: projectGraphqlFields(health, matched.selections) } };
+    } else {
+      const rows = await resolveAllCollections(ctx.tenantId);
+      const data =
+        matched.selections.length === 0
+          ? rows
+          : rows.map((row) =>
+              projectGraphqlFields(row as unknown as Record<string, unknown>, matched.selections),
+            );
+      payload = { data: { allCollections: data } };
+    }
+    const body = JSON.stringify(payload);
+    if (fastJsonCache.size >= 64) {
+      const oldest = fastJsonCache.keys().next().value;
+      if (oldest) fastJsonCache.delete(oldest);
+    }
+    fastJsonCache.set(jsonKey, { body, ts: Date.now() });
+    return body;
+  }
+
+  // 2. Collection root query fast-path (e.g. BenchmarkStable, Articles)
+  const collections = contentStore.getCollections(ctx.tenantId as any);
+  let targetCollection: Schema | undefined;
+  for (const c of collections) {
+    if (!c._id) continue;
+    const cleanName = createCleanTypeName({ _id: c._id, name: c.name });
+    if (cleanName === matched.field || c._id === matched.field || c.name === matched.field) {
+      targetCollection = c;
+      break;
+    }
+  }
+
+  if (!targetCollection || !targetCollection._id) {
+    return null;
+  }
+
+  let adapter = ctx.dbAdapter;
+  if (!adapter || (typeof adapter.isConnected === "function" && !adapter.isConnected())) {
+    if (!isDbConnected()) await getDbInitPromise();
+    adapter = getDb();
+  }
+  if (!adapter) return null;
+
+  if (!sharedCMS || sharedCMS.db !== adapter) {
+    sharedCMS = new LocalCMS(adapter);
+  }
+
+  const fields = matched.selections.length > 0 ? matched.selections : undefined;
+  const result = await sharedCMS.collections.find(targetCollection._id, {
+    tenantId: ctx.tenantId as DatabaseId,
+    limit: matched.limit,
+    offset: (matched.page - 1) * matched.limit,
+    sort: matched.sort ? { [matched.sort]: matched.sortDirection === "desc" ? -1 : 1 } : undefined,
+    filter: matched.filter,
+    publicationFilter: ctx.publicationFilter || "all",
+    user: ctx.user,
+    fields,
+  });
+
+  const rows = (
+    result && result.success && Array.isArray(result.data) ? result.data : []
+  ) as Record<string, unknown>[];
+  const projected =
+    fields && fields.length > 0
+      ? rows.map((r: Record<string, unknown>) => projectGraphqlFields(r, fields))
+      : rows;
+
+  return JSON.stringify({ data: { [matched.field]: projected } });
 }
 
 const securityValidationPlugin = {
@@ -179,7 +292,6 @@ import {
   JSONScalar,
 } from "./resolvers/data-operations";
 import { createLoaders } from "./loaders";
-import { LocalCMS } from "@src/services/sdk";
 
 import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
@@ -525,7 +637,13 @@ async function handleRequest(event: RequestEvent) {
           "Content-Type": "application/json",
           ETag: cached.etag,
           "X-Cache": "HIT",
-          "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=86400",
+          // 🛡️ HARDENING: the L1 cache is user-keyed. A CDN/proxy MUST NOT
+          // replay one user's privileged GraphQL response to another client,
+          // so the response is private, no-store (previously `public,
+          // s-maxage=60, stale-while-revalidate=86400` — a shared-cache
+          // cross-tenant replay window).
+          "Cache-Control": "private, no-store",
+          Vary: "Cookie",
         },
       });
     }
@@ -540,6 +658,39 @@ async function handleRequest(event: RequestEvent) {
     } else {
       await contentStore.waitForReload();
     }
+  }
+
+  const fast = await tryGraphqlFastPath(
+    query,
+    {
+      user: locals.user,
+      tenantId: locals.tenantId,
+      dbAdapter: locals.dbAdapter,
+      publicationFilter,
+    },
+    variables,
+  );
+  if (fast) {
+    const tenant = locals.tenantId as string;
+    if (cacheKey) {
+      // ETag + L1 write off the response path (same as the Yoga miss path).
+      queueMicrotask(() => {
+        responseCache.set(
+          cacheKey,
+          { body: fast, etag: generateContentEtag(fast) },
+          60_000,
+          tenant,
+        );
+      });
+      metricsService.recordGraphqlResponseMiss(tenant);
+    }
+    return new Response(fast, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Cache": "MISS",
+      },
+    });
   }
 
   let adapter = locals.dbAdapter;

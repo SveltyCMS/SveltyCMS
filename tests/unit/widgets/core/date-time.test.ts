@@ -42,4 +42,22 @@ describe("DateTime Widget", () => {
     const field = DateTimeWidget({ label: "Birthday" });
     expect(field.translated).toBe(false);
   });
+
+  it("skips Date construction when the value is already an ISO datetime", async () => {
+    const iso = "2026-08-26T17:41:14.614Z";
+    const accessor = {
+      stored: iso as string,
+      get() {
+        return this.stored;
+      },
+      update(next: string) {
+        this.stored = next;
+      },
+    };
+    await (DateTimeWidget as any).modifyRequest({
+      data: accessor,
+      type: "POST",
+    });
+    expect(accessor.stored).toBe(iso);
+  });
 });

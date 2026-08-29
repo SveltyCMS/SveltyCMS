@@ -28,7 +28,6 @@
   import Button from '@components/ui/button.svelte';
   import Input from '@components/ui/input.svelte';
   import Progress from '@components/ui/progress.svelte';
-  import StickyActions from '@components/ui/sticky-actions.svelte';
   import { inferTargetCollectionFromMigration } from '@plugins/smart-importer/infer-collection';
   import {
     postDetectAction,
@@ -564,12 +563,15 @@
             </table>
           </div>
 
-          <StickyActions>
+          <!-- In-place actions: the wizard runs inside the fullscreen Plugin
+               workspace dialog, so the layout sticky bar (outside the dialog)
+               must not be the only copy of the step buttons. -->
+          <div class="flex justify-end gap-2">
             <Button variant="outline" onclick={() => goToStep(1)}>← Back</Button>
             <Button variant="primary" onclick={() => goToStep(3)} disabled={fieldMappings.length === 0}>
               Next: Validate →
             </Button>
-          </StickyActions>
+          </div>
         </div>
 
       <!-- ================================================================ -->
@@ -692,7 +694,7 @@
           {/if}
 
           <!-- Actions -->
-          <StickyActions>
+          <div class="flex flex-wrap justify-end gap-2">
             <Button variant="outline" onclick={() => goToStep(2)}>← Adjust & Re-import</Button>
             <Button variant="primary" onclick={() => { file = null; step = 1; importResult = null; transactionToken = ''; }}>
               Start New Migration
@@ -702,7 +704,7 @@
                 ↩ Rollback This Migration
               </Button>
             {/if}
-          </StickyActions>
+          </div>
         </div>
       {/if}
     </div>

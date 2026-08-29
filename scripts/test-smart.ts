@@ -441,6 +441,8 @@ function getChangedFiles(): string[] {
 
 function matchesPattern(file: string, pattern: string): boolean {
   // Simple glob matching: convert ** → .* , * → [^/]*
+  // codeql[js/incomplete-sanitization]: glob→regex for dev/test file filters —
+  // only * and ** metacharacters are supported by design (paths, not user HTML).
   const regexStr = pattern
     .replace(/\./g, "\\.")
     .replace(/\*\*/g, "§§GLOBSTAR§§")
@@ -824,11 +826,10 @@ async function main() {
         }
 
         // Vitest uses -t for name filter (same intent as bun test -t).
-        const vitestFilter = filterFlag.replace(/^-t /, "-t ");
         const cmd =
           unitFiles.length > 25
-            ? `bun x vitest run tests/unit${vitestFilter}`
-            : `bun x vitest run ${unitFiles.join(" ")}${vitestFilter}`;
+            ? `bun x vitest run tests/unit${filterFlag}`
+            : `bun x vitest run ${unitFiles.join(" ")}${filterFlag}`;
 
         addSuites([
           {

@@ -22,7 +22,7 @@ import { logger } from "@utils/logger";
 	import { app } from '@src/stores/store.svelte';
 	import type { Editor } from '@tiptap/core';
 	import { getLocale } from '@src/paraglide/runtime';
-	import { getTextDirection } from '@utils/utils';
+	import { getTextDirection } from '@utils/string';
 	import { showModal } from '@utils/modal.svelte';
 	// Svelte
 	import { onMount } from 'svelte';

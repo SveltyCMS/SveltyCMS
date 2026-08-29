@@ -7,6 +7,7 @@
  */
 
 import { query, command, getRequestEvent } from "$app/server";
+import { logger } from "@utils/logger";
 
 export const testDatabaseConnection = query(
   "unchecked",
@@ -79,7 +80,6 @@ export const completeSetup = command(
         const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
         invalidateSetupCache(false, true);
       } catch (err) {
-        const { logger } = await import("@src/utils/logger");
         logger.error("Failed to set session cookie in setup.remote.ts:", err);
       }
     }
@@ -130,7 +130,6 @@ export const installDatabaseDriver = command("unchecked", async (dbType: string)
   const { existsSync } = await import("node:fs");
   const { join } = await import("node:path");
   const { promisify } = await import("node:util");
-  const { logger } = await import("@utils/logger");
 
   // execFile — never exec: package names must never reach a shell (see
   // src/routes/setup/+page.server.ts for the same hardening).

@@ -12,6 +12,7 @@
  * - AST-based cost calculation
  * - Configurable max budget
  * - Descriptive over-budget error messages
+ * - Shared parse cache + single-field matcher for the Yoga bypass
  */
 
 import { parse, visit, type ASTNode, type DocumentNode, type FieldNode } from "graphql";
@@ -23,6 +24,156 @@ export const DEFAULT_MAX_COST = 1000;
 const MAX_CACHE_SIZE = 500;
 let currentCache = new Map<string, CostAnalysisResult>();
 let oldCache = new Map<string, CostAnalysisResult>();
+const MAX_AST_CACHE = 1000;
+const astCache = new Map<string, DocumentNode>();
+
+/** Shared parse cache (comments stripped). Same DocumentNode → graphql-jit compile hits. */
+export function getOrParseDocument(rawQuery: string): DocumentNode {
+  const key = normalizeQueryString(rawQuery);
+  let cached = astCache.get(key);
+  if (cached) return cached;
+  cached = parse(rawQuery);
+  if (astCache.size >= MAX_AST_CACHE) {
+    const oldestKey = astCache.keys().next().value;
+    if (oldestKey !== undefined) astCache.delete(oldestKey);
+  }
+  astCache.set(key, cached);
+  return cached;
+}
+
+export interface MatchedCollectionQuery {
+  field: string;
+  selections: string[];
+  limit: number;
+  page: number;
+  sort?: string;
+  sortDirection?: "asc" | "desc";
+  filter?: Record<string, any>;
+}
+
+/**
+ * Detect a single-root-field query (optional `query Name`) for the Yoga bypass.
+ * Comments/whitespace are normalized first. Returns null for mutations / multi-field ops.
+ */
+export function matchSingleFieldQuery(
+  rawQuery: string,
+): { field: string; selections: string[] } | null {
+  const normalized = normalizeQueryString(rawQuery);
+  const match =
+    /^(?:query(?:\s+[A-Za-z_][A-Za-z0-9_]*)?)?\s*\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:\{\s*([^}]*)\s*\})?\s*\}\s*$/.exec(
+      normalized,
+    );
+  if (!match) return null;
+  const field = match[1];
+  const inner = (match[2] ?? "").trim();
+  const selections = inner ? inner.split(/\s+/).filter(Boolean) : [];
+  return { field, selections };
+}
+
+/**
+ * Detect a single collection query with optional pagination/limit/page arguments.
+ * Rejects nested selections (relations) or complex directives so they fall through to Yoga.
+ */
+export function matchCollectionQuery(
+  rawQuery: string,
+  variables?: Record<string, any>,
+): MatchedCollectionQuery | null {
+  const normalized = normalizeQueryString(rawQuery);
+  const match =
+    /^(?:query(?:\s+[A-Za-z_][A-Za-z0-9_]*(?:\s*\([^)]*\))?)?)?\s*\{\s*([A-Za-z_][A-Za-z0-9_]*)(?:\s*\(([^)]*)\))?\s*(?:\{\s*([^}]*)\s*\})?\s*\}\s*$/.exec(
+      normalized,
+    );
+  if (!match) return null;
+  const field = match[1];
+  const rawArgs = (match[2] ?? "").trim();
+  const inner = (match[3] ?? "").trim();
+
+  // Nested sub-selections (relations) fall through to Yoga
+  if (inner.includes("{") || inner.includes("}")) return null;
+
+  const selections = inner ? inner.replace(/,/g, " ").split(/\s+/).filter(Boolean) : [];
+  const result: MatchedCollectionQuery = { field, selections, limit: 50, page: 1 };
+
+  if (rawArgs) {
+    applyArgTokens(rawArgs, result, variables);
+  }
+
+  return result;
+}
+
+/**
+ * Scans a single-level argument token string and folds recognized pagination
+ * keys into `result`. Nested object values (e.g. `pagination: { limit: 10 }`)
+ * are recursed into so shorthand pagination keeps working on the fast path.
+ */
+function applyArgTokens(
+  rawArgs: string,
+  result: MatchedCollectionQuery,
+  variables?: Record<string, any>,
+): void {
+  const argRegex =
+    /([A-Za-z0-9_]+)\s*:\s*(?:\$([A-Za-z0-9_]+)|"([^"]*)"|([0-9.]+)|(true|false)|\{([^}]*)\})/g;
+  let m: RegExpExecArray | null;
+  while ((m = argRegex.exec(rawArgs)) !== null) {
+    const key = m[1];
+    const varName = m[2];
+    const strVal = m[3];
+    const numVal = m[4];
+    const boolVal = m[5];
+    const objVal = m[6];
+
+    // Recurse into object-typed arguments (pagination, filter, …)
+    if (objVal !== undefined) {
+      if (key === "filter" && !objVal.includes("{") && !objVal.includes("}")) {
+        result.filter = parseFlatObject(objVal);
+      } else {
+        applyArgTokens(objVal, result, variables);
+      }
+      continue;
+    }
+
+    const val: any =
+      varName && variables
+        ? variables[varName]
+        : strVal !== undefined
+          ? strVal
+          : numVal !== undefined
+            ? Number(numVal)
+            : boolVal !== undefined
+              ? boolVal === "true"
+              : undefined;
+
+    if (key === "limit" && typeof val === "number") result.limit = val;
+    else if (key === "page" && typeof val === "number") result.page = val;
+    else if (key === "sort" && typeof val === "string") {
+      if (val.startsWith("-")) {
+        result.sortDirection = "desc";
+        result.sort = val.slice(1);
+      } else {
+        result.sort = val;
+      }
+    } else if (key === "sortDirection" && typeof val === "string") {
+      const d = val.toLowerCase();
+      if (d === "desc" || d === "asc") result.sortDirection = d;
+    } else if (key === "filter") {
+      if (varName && variables && typeof variables[varName] === "object") {
+        result.filter = variables[varName];
+      }
+    }
+  }
+}
+
+/** Parses `limit: 10, page: 2`-style flat object tokens into a plain object. */
+function parseFlatObject(objVal: string): Record<string, any> {
+  const filterObj: Record<string, any> = {};
+  const pairRegex = /([A-Za-z0-9_]+)\s*:\s*(?:"([^"]*)"|([0-9.]+)|(true|false))/g;
+  let pm: RegExpExecArray | null;
+  while ((pm = pairRegex.exec(objVal)) !== null) {
+    filterObj[pm[1]] =
+      pm[2] !== undefined ? pm[2] : pm[3] !== undefined ? Number(pm[3]) : pm[4] === "true";
+  }
+  return filterObj;
+}
 
 export interface CostAnalysisResult {
   /** Total computed cost of the query */
@@ -72,10 +223,10 @@ export function analyzeQueryCost(
     return cached;
   }
 
-  let document: ReturnType<typeof parse>;
+  let document: DocumentNode;
 
   try {
-    document = parse(queryString);
+    document = getOrParseDocument(queryString);
   } catch {
     // If parsing fails, return a safe result — the GraphQL engine will
     // provide its own validation error downstream.

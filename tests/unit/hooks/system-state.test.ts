@@ -137,12 +137,24 @@ describe("handleSystemState - State Machine Logic", () => {
       expect(mockResolve).toHaveBeenCalledWith(event);
     });
 
-    it("should allow setup routes when system is READY", async () => {
+    it("should allow setup routes when system is READY and setup is not complete", async () => {
+      const mck = (globalThis as any).mockSetupCheck;
+      mck.setSetupComplete(false);
       const event = createMockEvent("/setup/database");
       const response = await handleSystemState({ event, resolve: mockResolve });
 
       expect(response.status).toBe(200);
       expect(mockResolve).toHaveBeenCalledWith(event);
+    });
+
+    it("should redirect setup routes to /login when system is READY and setup is complete", async () => {
+      const mck = (globalThis as any).mockSetupCheck;
+      mck.setSetupComplete(true);
+      const event = createMockEvent("/setup");
+      const response = await handleSystemState({ event, resolve: mockResolve });
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toBe("/login");
     });
   });
 
@@ -255,6 +267,8 @@ describe("handleSystemState - State Machine Logic", () => {
     });
 
     it("should allow setup routes during INITIALIZING", async () => {
+      const mck = (globalThis as any).mockSetupCheck;
+      mck.setSetupComplete(false);
       const event = createMockEvent("/setup/database");
       const response = await handleSystemState({ event, resolve: mockResolve });
 
@@ -341,17 +355,13 @@ describe("handleSystemState - State Machine Logic", () => {
       });
     });
 
-    it("should block setup routes when FAILED", async () => {
+    it("should allow setup routes when FAILED so administrator can reconfigure", async () => {
+      const mck = (globalThis as any).mockSetupCheck;
+      mck.setSetupComplete(false);
       const event = createMockEvent("/setup");
 
-      try {
-        await handleSystemState({ event, resolve: mockResolve });
-        // Setup IS allowed in FAILED state (line 182)
-        expect(mockResolve).toHaveBeenCalled();
-      } catch (err: unknown) {
-        const error = err as { status: number };
-        expect(error.status).toBe(503);
-      }
+      await handleSystemState({ event, resolve: mockResolve });
+      expect(mockResolve).toHaveBeenCalled();
     });
 
     it("should block API routes when FAILED", async () => {

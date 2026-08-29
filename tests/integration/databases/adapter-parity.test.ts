@@ -73,8 +73,9 @@ afterAll(async () => {
   }
 });
 
-function uid(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+/** Enterprise _id contract: collection-table entries require UUIDv4 ids. */
+function uid(_prefix: string): string {
+  return crypto.randomUUID();
 }
 
 const tenantOpts = Object.freeze({ tenantId: TEST_TENANT });
@@ -94,6 +95,27 @@ describe("Adapter Parity — CRUD Operations", () => {
       validateDatabaseResult(result, { operation: "insert", dataOptional: true });
       const data = assertDatabaseSuccess(result, { operation: "insert", dataOptional: true });
       expect(data).toBeDefined();
+    });
+
+    it("rejects non-UUIDv4 _id on collection tables (enterprise _id contract)", async () => {
+      const result = await db.crud.insert(
+        TEST_COLLECTION,
+        { _id: "not-a-uuid", title: "Bad", status: "active", tenantId: TEST_TENANT },
+        tenantOpts,
+      );
+      expect(result.success).toBe(false);
+      expect((result as any).error?.code).toBe("INVALID_ID_FORMAT");
+    });
+
+    it("rejects non-UUIDv4 update id on collection tables", async () => {
+      const result = await db.crud.update(
+        TEST_COLLECTION,
+        "not-a-uuid" as any,
+        { title: "Nope" },
+        tenantOpts,
+      );
+      expect(result.success).toBe(false);
+      expect((result as any).error?.code).toBe("INVALID_ID_FORMAT");
     });
 
     it("returns a valid DatabaseResult on duplicate _id (may upsert or fail)", async () => {
@@ -150,13 +172,13 @@ describe("Adapter Parity — CRUD Operations", () => {
   // ── FIND MANY ───────────────────────────────────────────────────────────
 
   describe("findMany", () => {
-    const MANY_PREFIX = uid("many");
+    const MANY_IDS = [uid("many0"), uid("many1"), uid("many2"), uid("many3"), uid("many4")];
     beforeAll(async () => {
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < MANY_IDS.length; i++) {
         await db.crud.insert(
           TEST_COLLECTION,
           {
-            _id: `${MANY_PREFIX}-${i}`,
+            _id: MANY_IDS[i],
             title: `Item ${i}`,
             status: i % 2 === 0 ? "active" : "inactive",
             tenantId: TEST_TENANT,

@@ -29,7 +29,7 @@ interface RawFolder {
 }
 
 class MediaFolderTreeStore {
-  folders = $state<MediaFolderRecord[]>([]);
+  folders = $state.raw<MediaFolderRecord[]>([]);
   isLoading = $state(false);
   error = $state<string | null>(null);
   /** A load has been attempted (success or failure) — see ensureLoaded. */

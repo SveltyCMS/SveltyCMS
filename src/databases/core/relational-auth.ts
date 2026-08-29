@@ -23,7 +23,17 @@ import type {
   ApiKey,
   ApiKeyUsageUpdate,
 } from "../db-interface";
-import * as utils from "./relational-utils";
+import {
+  applyTenantFilter,
+  convertArrayDatesToISO,
+  convertDatesToISO,
+  convertISOToDates,
+  convertSessionToISO,
+  convertUserToISO,
+  generateId,
+  parseJsonField,
+  shouldBypassTenantCheck,
+} from "./relational-utils";
 import type { ISODateString } from "@src/content/types";
 import { assertTenantContext } from "@src/utils/security/safe-query";
 
@@ -50,7 +60,7 @@ export class RelationalAuthModule implements IAuthAdapter {
    * Returns the database instance to use, favoring an active transaction if provided.
    */
   protected getDb(options?: BaseQueryOptions) {
-    // Tenant filter centralization: use utils.getEffectiveTenantId / applyTenantFilter (single source in relational-utils) in all SQL query builders.
+    // Tenant filter centralization: use getEffectiveTenantId / applyTenantFilter (single source in relational-utils) in all SQL query builders.
     const tx = options?.transaction;
     if (tx) {
       return tx.db || tx;
@@ -77,8 +87,8 @@ export class RelationalAuthModule implements IAuthAdapter {
     // Diagnostic Logging for specific user removed to clean up noisy logs
 
     // 🚀 Optimized mapper to bypass generic column scanning
-    const converted = utils.convertUserToISO(dbUser);
-    const finalRoleIds = utils.parseJsonField<string[]>(converted.roleIds, []);
+    const converted = convertUserToISO(dbUser);
+    const finalRoleIds = parseJsonField<string[]>(converted.roleIds, []);
 
     // Priority: roleIds[0] > dbUser.role > "user"
     // This ensures that if we set roleIds during creation, it becomes the primary role.
@@ -108,24 +118,24 @@ export class RelationalAuthModule implements IAuthAdapter {
   }
 
   protected mapRole(dbRole: any): Role {
-    const role = utils.convertDatesToISO(dbRole);
+    const role = convertDatesToISO(dbRole);
     return {
       ...role,
       _id: role._id as DatabaseId,
       tenantId: role.tenantId as DatabaseId | null,
-      permissions: utils.parseJsonField<string[]>(role.permissions, []),
+      permissions: parseJsonField<string[]>(role.permissions, []),
     } as unknown as Role;
   }
 
   protected mapApiKey(dbKey: any): ApiKey {
     if (!dbKey) throw new Error("API Key not found");
-    const converted = utils.convertDatesToISO(dbKey);
+    const converted = convertDatesToISO(dbKey);
     return {
       ...converted,
       _id: converted._id as DatabaseId,
       userId: converted.userId as DatabaseId,
-      scopes: utils.parseJsonField<string[]>(converted.scopes, []),
-      permissions: utils.parseJsonField<string[]>(converted.permissions, []),
+      scopes: parseJsonField<string[]>(converted.scopes, []),
+      permissions: parseJsonField<string[]>(converted.permissions, []),
       revoked: !!converted.revoked,
       usageCount: Number(converted.usageCount || 0),
       tenantId: converted.tenantId as DatabaseId | null,
@@ -158,7 +168,7 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<User>> {
     return this.adapter.wrap(
       async () => {
-        const id = (userData._id || utils.generateId()) as string;
+        const id = (userData._id || generateId()) as string;
         const now = isoDateStringToDate(nowISODateString());
 
         let password = userData.password;
@@ -231,7 +241,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           }
         }
 
-        const preparedValues = utils.convertISOToDates(values);
+        const preparedValues = convertISOToDates(values);
 
         await db.insert(this.schema.authUsers).values(preparedValues);
         const [result] = await db
@@ -261,7 +271,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         // scope marker (gdpr-service falls back to it for null-tenant rows) — treat
         // it like unset so id-only updates hit NULL-tenant (single-tenant) users.
         const applyTenant =
-          !utils.shouldBypassTenantCheck(options) &&
+          !shouldBypassTenantCheck(options) &&
           options?.tenantId !== undefined &&
           options?.tenantId !== null &&
           options?.tenantId !== "" &&
@@ -314,7 +324,7 @@ export class RelationalAuthModule implements IAuthAdapter {
 
         const db = this.getDb(options);
 
-        const preparedUpdate = utils.convertISOToDates(updateData);
+        const preparedUpdate = convertISOToDates(updateData);
         await db
           .update(this.schema.authUsers)
           .set(preparedUpdate)
@@ -370,9 +380,20 @@ export class RelationalAuthModule implements IAuthAdapter {
         // Fail-closed under MULTI_TENANT (parity with Mongo safeQuery)
         assertTenantContext(options, "auth.getUserById");
 
+        // 🚀 FAST-PATH: Prepared statement lookup via rawFindById (SQLite / PG / MariaDB)
+        if ((this.adapter as any).useRawFindById && !options?.transaction) {
+          const rawResult = await (this.adapter as any).rawFindById(
+            this.schema.authUsers,
+            "auth_users",
+            userId,
+            options,
+          );
+          if (rawResult) return this.mapUser(rawResult);
+        }
+
         const idCond = eq(this.schema.authUsers._id, String(userId));
         const conditions = [idCond];
-        utils.applyTenantFilter(conditions, this.schema.authUsers.tenantId, options);
+        applyTenantFilter(conditions, this.schema.authUsers.tenantId, options);
 
         const [result] = await this.getDb(options)
           .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
@@ -408,7 +429,7 @@ export class RelationalAuthModule implements IAuthAdapter {
 
         const email = normalizeEmail(criteria.email);
         const conditions = [eq(this.schema.authUsers.email, email)];
-        utils.applyTenantFilter(conditions, this.schema.authUsers.tenantId, scoped);
+        applyTenantFilter(conditions, this.schema.authUsers.tenantId, scoped);
 
         const results = await this.getDb(scoped)
           .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
@@ -516,12 +537,15 @@ export class RelationalAuthModule implements IAuthAdapter {
       user_id: DatabaseId;
       expires: ISODateString;
       tenantId?: DatabaseId | null;
+      userAgent?: string;
+      deviceId?: string;
+      ipAddress?: string;
     },
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<Session>> {
     return this.adapter.wrap(
       async () => {
-        const id = utils.generateId() as string;
+        const id = generateId() as string;
         const db = this.getDb(options);
         const now = new Date();
         const sessionValues = {
@@ -529,12 +553,15 @@ export class RelationalAuthModule implements IAuthAdapter {
           user_id: sessionData.user_id as string,
           expires: new Date(sessionData.expires),
           tenantId: (sessionData.tenantId as string) || null,
+          userAgent: sessionData.userAgent || null,
+          deviceId: sessionData.deviceId || null,
+          ipAddress: sessionData.ipAddress || null,
           createdAt: now,
           updatedAt: now,
         };
         await db.insert(this.schema.authSessions).values(sessionValues);
         // 🚀 Optimized mapper: construct the return session object directly to avoid a redundant SELECT query
-        return utils.convertSessionToISO(sessionValues) as unknown as Session;
+        return convertSessionToISO(sessionValues) as unknown as Session;
       },
       "CREATE_SESSION_FAILED",
       undefined,
@@ -679,7 +706,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           expires: new Date(newExpiry),
           updatedAt: new Date(),
         };
-        const preparedUpdate = utils.convertISOToDates(updateData as any);
+        const preparedUpdate = convertISOToDates(updateData as any);
         await db
           .update(this.schema.authSessions)
           .set(preparedUpdate)
@@ -689,7 +716,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .from(this.schema.authSessions)
           .where(eq(this.schema.authSessions._id, sessionId as string))
           .limit(1);
-        return utils.convertDatesToISO(res) as unknown as Session;
+        return convertDatesToISO(res) as unknown as Session;
       },
       "UPDATE_SESSION_FAILED",
       undefined,
@@ -747,7 +774,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
           .from(this.schema.authSessions)
           .where(and(...conditions));
-        return utils.convertArrayDatesToISO(res) as unknown as Session[];
+        return convertArrayDatesToISO(res) as unknown as Session[];
       },
       "GET_ACTIVE_SESSIONS_FAILED",
       undefined,
@@ -769,7 +796,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .select(this.adapter.getPhysicalSelection(this.schema.authSessions))
           .from(this.schema.authSessions)
           .where(and(...conditions));
-        return utils.convertArrayDatesToISO(res) as unknown as Session[];
+        return convertArrayDatesToISO(res) as unknown as Session[];
       },
       "GET_ALL_ACTIVE_SESSIONS_FAILED",
       undefined,
@@ -801,7 +828,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         .where(eq(this.schema.authSessions._id, oldToken))
         .limit(1);
       if (!old) throw new Error("Session not found");
-      const newId = utils.generateId();
+      const newId = generateId();
       await tx.db.insert(this.schema.authSessions).values({
         _id: newId,
         user_id: old.user_id,
@@ -823,12 +850,12 @@ export class RelationalAuthModule implements IAuthAdapter {
   async createToken(data: any): Promise<DatabaseResult<string>> {
     return this.adapter.wrap(
       async () => {
-        const tokenValue = utils.generateId();
+        const tokenValue = generateId();
         const hashedToken = await this._hashToken(tokenValue);
         await this.getDb()
           .insert(this.schema.authTokens)
           .values({
-            _id: utils.generateId(),
+            _id: generateId(),
             user_id: data.user_id,
             email: normalizeEmail(data.email),
             token: hashedToken,
@@ -857,7 +884,7 @@ export class RelationalAuthModule implements IAuthAdapter {
               : eq(this.schema.authTokens.tenantId, options.tenantId as string),
           );
         const db = this.getDb(options);
-        const preparedUpdate = utils.convertISOToDates(tokenData);
+        const preparedUpdate = convertISOToDates(tokenData);
         await db
           .update(this.schema.authTokens)
           .set(preparedUpdate)
@@ -867,7 +894,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           .from(this.schema.authTokens)
           .where(and(...conditions))
           .limit(1);
-        return utils.convertDatesToISO(res) as unknown as Token;
+        return convertDatesToISO(res) as unknown as Token;
       },
       "UPDATE_TOKEN_FAILED",
       undefined,
@@ -910,7 +937,7 @@ export class RelationalAuthModule implements IAuthAdapter {
               success: true,
               message: "Valid",
               email: t.email,
-              details: utils.convertDatesToISO(t) as any,
+              details: convertDatesToISO(t) as any,
             }
           : { success: false, message: "Invalid" };
       },
@@ -1070,7 +1097,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         // Honor an explicit _id (e.g. seedRoles wants stable ids like "admin") —
         // fall back to a generated id for UI-created roles. Without this, seeding
         // could never match its own existence check and duplicated roles every run.
-        const id = (roleData._id as string) || utils.generateId();
+        const id = (roleData._id as string) || generateId();
         const now = new Date();
         const values = {
           ...roleData,
@@ -1078,7 +1105,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           createdAt: roleData.createdAt || now,
           updatedAt: roleData.updatedAt || now,
         };
-        const preparedValues = utils.convertISOToDates(values);
+        const preparedValues = convertISOToDates(values);
 
         // drizzle json-mode columns must receive the raw array: convertISOToDates
         // pre-stringifies JSON_FIELDS (permissions), and json mode would then
@@ -1129,7 +1156,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           ...roleData,
           updatedAt: new Date(),
         };
-        const preparedUpdate = utils.convertISOToDates(updateData);
+        const preparedUpdate = convertISOToDates(updateData);
         // Same un-stringify as createRole — keep drizzle json-mode arrays raw.
         if (typeof preparedUpdate.permissions === "string") {
           try {
@@ -1429,11 +1456,11 @@ export class RelationalAuthModule implements IAuthAdapter {
             .from(this.schema.authTokens)
             .where(eq(this.schema.authTokens.tenantId, tenantId as string))
             .limit(1000);
-          return utils.convertArrayDatesToISO(res) as unknown as Token[];
+          return convertArrayDatesToISO(res) as unknown as Token[];
         }
 
         const res = await db.select(selection).from(this.schema.authTokens).limit(1000);
-        return utils.convertArrayDatesToISO(res) as unknown as Token[];
+        return convertArrayDatesToISO(res) as unknown as Token[];
       },
       "GET_ALL_TOKENS_FAILED",
       undefined,
@@ -1458,7 +1485,7 @@ export class RelationalAuthModule implements IAuthAdapter {
           ),
         )
         .limit(1);
-      return res ? (utils.convertDatesToISO(res) as unknown as Token) : null;
+      return res ? (convertDatesToISO(res) as unknown as Token) : null;
     }, "GET_TOKEN_FAILED");
   }
 
@@ -1472,7 +1499,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         .from(this.schema.authTokens)
         .where(eq(this.schema.authTokens._id, tokenId as string))
         .limit(1);
-      return res ? (utils.convertDatesToISO(res) as unknown as Token) : null;
+      return res ? (convertDatesToISO(res) as unknown as Token) : null;
     }, "GET_TOKEN_FAILED");
   }
 
@@ -1496,7 +1523,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         .from(this.schema.authTokens)
         .where(and(...conditions))
         .limit(1);
-      return res ? (utils.convertDatesToISO(res) as unknown as Token) : null;
+      return res ? (convertDatesToISO(res) as unknown as Token) : null;
     }, "GET_TOKEN_DATA_FAILED");
   }
 
@@ -1506,7 +1533,7 @@ export class RelationalAuthModule implements IAuthAdapter {
   ): Promise<DatabaseResult<ApiKey>> {
     return this.adapter.wrap(
       async () => {
-        const id = (apiKeyData._id || utils.generateId()) as string;
+        const id = (apiKeyData._id || generateId()) as string;
         const now = isoDateStringToDate(nowISODateString());
         const values: any = {
           _id: id,
@@ -1527,7 +1554,7 @@ export class RelationalAuthModule implements IAuthAdapter {
         };
 
         const db = this.getDb(options);
-        const preparedValues = utils.convertISOToDates(values);
+        const preparedValues = convertISOToDates(values);
         await db.insert(this.schema.authApiKeys).values(preparedValues);
 
         const [result] = await db

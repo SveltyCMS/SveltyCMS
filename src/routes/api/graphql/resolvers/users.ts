@@ -7,6 +7,7 @@ import type { User } from "@src/databases/auth/types";
 import type { DatabaseAdapter, ISODateString, DatabaseId } from "@src/databases/db-interface";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { logger } from "@utils/logger";
+import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";
 
 // GraphQL types
@@ -91,6 +92,13 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
     ) => {
       if (!context.user) {
         throw new Error("Authentication required");
+      }
+
+      // 🛡️ HARDENING: RBAC parity with REST — /api/user requires `user:read`.
+      // GraphQL previously exposed the tenant directory to ANY logged-in user
+      // (admin/editor) because it only checked `context.user` presence.
+      if (!hasPermissionWithRoles(context.user, "user:read")) {
+        throw new Error("Forbidden: insufficient permissions");
       }
 
       const { page = 1, limit = 10 } = args.pagination || {};

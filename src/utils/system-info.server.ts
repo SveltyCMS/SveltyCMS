@@ -22,6 +22,7 @@
 import * as os from "node:os";
 import * as fs from "node:fs/promises";
 import { getLatestSnapshot, getCpuHistory, getCpuInfo } from "@utils/system-monitor";
+import { getHardwareProfile, type HardwareProfile } from "@utils/hardware-profile";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,8 @@ export interface CpuInfoResponse {
   loadAverage: number[];
   /** @deprecated backward compat — use currentUsage */
   currentLoad: number;
+  /** 🧠 Hardware profile the CMS tuned itself to (tier, threads, pools). */
+  profile?: HardwareProfile;
 }
 
 export interface MemoryInfoResponse {
@@ -147,6 +150,8 @@ export async function getSystemInfo(): Promise<SystemInfoResponse> {
         currentUsage,
         currentLoad: currentUsage,
         loadAverage: [snapshot?.loadAvg ?? 0, 0, 0],
+        // The shared boot-time profile — same object all pools/threads read from.
+        profile: getHardwareProfile(),
       },
       memory: formatMemory(os.totalmem(), os.freemem(), snapshot?.memory),
       disk: { root: diskData },

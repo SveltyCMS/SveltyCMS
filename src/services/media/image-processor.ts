@@ -214,19 +214,90 @@ export async function processImageWithPresets(
 ): Promise<ImageVariant[]> {
   const allVariants: ImageVariant[] = [];
 
+  // 🚀 DEDUP: several presets request the same (width, format) pairs
+  // (320px/webp ∈ thumbnail ∪ card ∪ default). The old per-preset loop
+  // re-decoded/re-encoded/re-wrote the identical storage file for each
+  // preset — on a 1080p upload that is 20 variant jobs for 12 unique
+  // outputs. Generate each unique pair ONCE and expand the records per
+  // referencing preset so the output shape is unchanged.
+  const widthPresets = new Map<number, Set<string>>();
+  const widthQuality = new Map<number, number>();
+  const pairs = new Set<string>();
   for (const presetName of presets) {
     const preset = DEFAULT_PRESETS[presetName];
     if (!preset) {
       logger.warn(`[ImageProcessor] Unknown preset "${presetName}" — skipping`);
       continue;
     }
-
-    const variants = await processImage(buffer, hash, preset, tenantId);
-    // Tag each variant with its preset name
-    for (const v of variants) {
-      v.preset = presetName;
+    for (const w of preset.widths) {
+      let set = widthPresets.get(w);
+      if (!set) {
+        set = new Set();
+        widthPresets.set(w, set);
+      }
+      set.add(presetName);
+      // Later presets win for the shared file's encoding quality — matches
+      // the old loop's last-write-wins on the identical storage path.
+      widthQuality.set(w, preset.quality);
+      for (const f of preset.formats) pairs.add(`${w}:${f}`);
     }
-    allVariants.push(...variants);
+  }
+  if (pairs.size === 0) return allVariants;
+
+  const sharp = await getSharp();
+  const meta = await sharp(buffer, { limitInputPixels: 100_000_000, failOn: "none" }).metadata();
+  const originalWidth = meta.width ?? 0;
+  const originalHeight = meta.height ?? 0;
+
+  if (originalWidth === 0 || originalHeight === 0) {
+    logger.warn(
+      "[ImageProcessor] Unable to determine image dimensions — skipping variant generation",
+    );
+    return [];
+  }
+
+  // Generate each unique (width, format) pair once, in parallel.
+  const tasks: Promise<{ variant: ImageVariant; presetNames: Set<string> }>[] = [];
+  for (const key of pairs) {
+    const sep = key.indexOf(":");
+    const targetWidth = Number(key.slice(0, sep));
+    const format = key.slice(sep + 1);
+    if (targetWidth >= originalWidth) continue; // upscaling adds no value
+    const presetNames = widthPresets.get(targetWidth)!;
+    tasks.push(
+      generateVariant(
+        sharp,
+        buffer,
+        hash,
+        targetWidth,
+        format,
+        {
+          ...DEFAULT_CONFIG,
+          widths: [targetWidth],
+          formats: [format],
+          quality: widthQuality.get(targetWidth)!,
+        },
+        originalHeight,
+        originalWidth,
+        tenantId,
+      ).then((variant) => ({ variant, presetNames })),
+    );
+  }
+
+  const results = await Promise.allSettled(tasks);
+
+  for (const result of results) {
+    if (result.status === "rejected") {
+      logger.error("[ImageProcessor] Variant generation failed", {
+        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+      });
+      continue;
+    }
+    // Expand: one record per referencing preset (same path/size as before),
+    // all claiming the shared file's effective quality.
+    for (const presetName of result.value.presetNames) {
+      allVariants.push({ ...result.value.variant, preset: presetName });
+    }
   }
 
   return allVariants;

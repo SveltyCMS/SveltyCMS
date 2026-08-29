@@ -2,6 +2,10 @@
  * @file src/databases/core/base-adapter.ts
  * @description Standard base class for all SveltyCMS database adapters.
  * Provides common state management, capability reporting, and error wrapping.
+ *
+ * ### Features:
+ * - wrap() is not async — skipMeta writes settle without a second microtask
+ * - okEnvelope() reuses the ring-buffer result pool
  */
 
 import { logger } from "@utils/logger";
@@ -153,18 +157,8 @@ export abstract class BaseAdapter {
   private _poolAcquire<T>(data: T): { success: true; data: T; meta?: any } {
     const slot = this._resultPool[this._poolIndex];
     this._poolIndex = (this._poolIndex + 1) % this._poolSize;
-    // DEBUG: Detect slot reuse before the previous consumer's microtask releases it.
-    if ((slot as any)._inUse) {
-      logger.warn(
-        "[BaseAdapter] Ring buffer slot reused before previous consumer released it. Pool may be undersized.",
-      );
-    }
-    (slot as any)._inUse = true;
-    queueMicrotask(() => {
-      (slot as any)._inUse = false;
-    });
     slot.data = data;
-    // meta will be attached in wrap() for non-skipMeta if needed
+    slot.meta = undefined;
     return slot as { success: true; data: T; meta?: any };
   }
 
@@ -253,7 +247,25 @@ export abstract class BaseAdapter {
     };
   }
 
-  public async wrap<T>(
+  /**
+   * Pooled `{ success: true, data }` envelope. Callers MUST NOT retain the
+   * reference across awaits — the ring buffer recycles slots.
+   */
+  protected okEnvelope<T>(data: T, skipMeta = true): DatabaseResult<T> {
+    const pooled = this._poolAcquire(data);
+    if (!skipMeta) pooled.meta = this._meta;
+    return pooled as DatabaseResult<T>;
+  }
+
+  /**
+   * Maps `fn` success/throw onto `DatabaseResult` without an extra `async`
+   * wrapper (that wrapper was a second microtask on every CRUD call).
+   *
+   * `skipMeta + isWrite` (insert/update) skips AsyncLocalStorage trace lookup
+   * and slow-query timing — both sat on the same order of magnitude as the
+   * raw-db-ceiling INSERT itself. Other ops keep spans + 500ms slow logs.
+   */
+  public wrap<T>(
     fn: () => Promise<T>,
     code: string,
     message?: string,
@@ -269,40 +281,40 @@ export abstract class BaseAdapter {
       if (!options?.suppressErrorLog) {
         logger.error(`[BaseAdapter] Operation ${code} rejected: Adapter is not connected.`);
       }
-      return this.notConnectedError<T>();
+      return Promise.resolve(this.notConnectedError<T>());
     }
-    const startTime = performance.now();
-    try {
-      this.metrics.queryCount++;
-      const data = await traceSpan(`db:${code}`, fn);
-      const latency = performance.now() - startTime;
-      this.metrics.lastLatency = latency;
-
-      if (latency > 500) {
-        this.metrics.slowQueryCount++;
-        const stack =
-          process.env.SVELTY_SQL_DEBUG === "1"
-            ? `\n${new Error("slow-op").stack?.split("\n").slice(2, 12).join("\n")}`
-            : "";
-        logger.warn(
-          `Slow database operation detected: ${code} took ${latency.toFixed(2)}ms${stack}`,
-        );
-      }
-
-      // 🚀 PERFORMANCE: Always use ring-buffer pool for the result wrapper.
-      // Eliminates *all* per-call {success, data} allocations (internal + external).
-      // For non-skipMeta (external), attach the pre-allocated meta.
-      // See "Remaining Allocations" audit for details.
-      const pooled = this._poolAcquire(data);
-      if (!options?.skipMeta) {
-        pooled.meta = this._meta;
-      }
-      return pooled as DatabaseResult<T>;
-    } catch (error) {
+    this.metrics.queryCount++;
+    const hot = options?.skipMeta === true && options?.isWrite === true;
+    const startTime = hot ? 0 : performance.now();
+    const fail = (error: unknown): DatabaseResult<T> => {
       this.metrics.errorCount++;
       return this.handleError<T>(error, code, message, {
         suppressErrorLog: options?.suppressErrorLog,
       });
+    };
+    const succeed = (data: T): DatabaseResult<T> => {
+      if (!hot) {
+        const latency = performance.now() - startTime;
+        this.metrics.lastLatency = latency;
+        if (latency > 500) {
+          this.metrics.slowQueryCount++;
+          const stack =
+            process.env.SVELTY_SQL_DEBUG === "1"
+              ? `\n${new Error("slow-op").stack?.split("\n").slice(2, 12).join("\n")}`
+              : "";
+          logger.warn(
+            `Slow database operation detected: ${code} took ${latency.toFixed(2)}ms${stack}`,
+          );
+        }
+      }
+      return this.okEnvelope(data, options?.skipMeta === true);
+    };
+    try {
+      // Promise.resolve(thenable) adopts a native Promise without an extra hop;
+      // a sync throw from fn() still maps to handleError (previous try/catch).
+      return Promise.resolve(hot ? fn() : traceSpan(`db:${code}`, fn)).then(succeed, fail);
+    } catch (error) {
+      return Promise.resolve(fail(error));
     }
   }
 
@@ -347,28 +359,28 @@ export abstract class BaseAdapter {
   ): Promise<void> {
     try {
       const { cacheService } = await import("@src/databases/cache/cache-service");
+      // Normalize the tenant: a nullish OR empty tenantId falls through to the
+      // clearByTags "*" wildcard branch, which scans the ENTIRE L1 (the O(#cached)
+      // cliff) AND clears across ALL tenants. `||` (not `??`) also maps "" →
+      // "default", matching normalizeTenantId and the post-write path.
+      const tid = tenantId || "default";
 
       if (options?.tags && options.tags.length > 0) {
         // 🚀 Surgical: Clear only specific tags
-        await cacheService.clearByTags(options.tags, tenantId);
+        await cacheService.clearByTags(options.tags, tid);
       } else {
-        // Standard: Pattern matches collection:name:* for that tenant
-        await cacheService.clearByPattern(`collection:${collection}:*`, tenantId);
-        // 🚀 COUNT CACHE: short-lived tenant counts keyed count:{collection}:…
-        await cacheService.clearByPattern(`count:${collection}:*`, tenantId);
-        await cacheService.clearByTags([`count:${collection}`], tenantId);
+        // Collection-wide list/query + count caches by tag (O(#matched)) — never a
+        // pattern scan over all cached documents. Per-id caches are tagged
+        // doc:{collection}:{id} and only cleared for the ids actually written.
+        await cacheService.clearByTags([`collection:${collection}`, `count:${collection}`], tid);
       }
-
-      // 🚀 TURBO & API CACHE: purge API path keys for collection on all writes
-      await cacheService.clearByPattern(`/api/collections/${collection}*`, tenantId);
-      await cacheService.clearByPattern(`/api/content/${collection}*`, tenantId);
 
       if (options?.ids && options.ids.length > 0) {
         const idTags = options.ids.map((id) => `doc:${collection}:${id}`);
-        await cacheService.clearByTags(idTags, tenantId);
+        await cacheService.clearByTags(idTags, tid);
       }
 
-      await cacheService.set("system:content_version", Date.now(), 0, tenantId);
+      await cacheService.set("system:content_version", Date.now(), 0, tid);
       logger.debug(
         `[BaseAdapter] Invalidated cache for ${collection} (Tags: ${options?.tags?.length || 0})`,
       );
@@ -492,5 +504,49 @@ export abstract class DatabaseModule<T extends BaseAdapter = BaseAdapter> {
     },
   ): Promise<DatabaseResult<R>> {
     return this.adapter.wrap(fn, code, message, options);
+  }
+}
+
+/**
+ * Performance metrics module for SQL adapters
+ */
+export class PerformanceModule extends DatabaseModule<import("../db-interface").ISqlAdapter> {
+  async getMetrics(): Promise<DatabaseResult<import("../db-interface").PerformanceMetrics>> {
+    const stats = (this.adapter as any)["metrics"] || {
+      queryCount: 0,
+      lastLatency: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
+    };
+    return {
+      success: true,
+      data: {
+        queryCount: stats.queryCount,
+        slowQueries: (this.adapter as any)._slowQueries || [],
+        averageQueryTime: stats.lastLatency,
+        cacheHitRate: stats.cacheHits / (stats.cacheHits + stats.cacheMisses || 1),
+        connectionPoolUsage: 1,
+      },
+    };
+  }
+
+  async clearMetrics(): Promise<DatabaseResult<void>> {
+    return { success: true, data: undefined };
+  }
+
+  async enableProfiling(_enabled: boolean): Promise<DatabaseResult<void>> {
+    return { success: true, data: undefined };
+  }
+
+  async getSlowQueries(_limit?: number): Promise<
+    DatabaseResult<
+      Array<{
+        query: string;
+        duration: number;
+        timestamp: import("../db-interface").ISODateString;
+      }>
+    >
+  > {
+    return { success: true, data: [] };
   }
 }

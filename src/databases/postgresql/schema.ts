@@ -82,6 +82,9 @@ export const authSessions = pgTable(
     user_id: varchar("user_id", { length: 36 }).notNull(),
     expires: timestamp("expires").notNull(),
     tenantId: tenantField(),
+    userAgent: varchar("userAgent", { length: 500 }),
+    deviceId: varchar("deviceId", { length: 64 }),
+    ipAddress: varchar("ipAddress", { length: 64 }),
     ...timestamps,
   },
   (table) => ({

@@ -224,6 +224,29 @@ describe("User API Unit Tests", () => {
     expect([200, 403]).toContain(response.status);
   });
 
+  it("rejects editor POST /user/update-roles even with user:write", async () => {
+    await expectApi(
+      "POST",
+      {
+        path: "user/update-roles",
+        body: [{ _id: "admin", name: "Administrator", isAdmin: true, permissions: [] }],
+        user: editorUser,
+        tenantId: "t1",
+        roles: [
+          {
+            _id: "editor",
+            name: "Editor",
+            isAdmin: false,
+            permissions: ["user:read", "user:write"],
+          },
+        ],
+        dbAdapter,
+        bypass: false,
+      },
+      403,
+    );
+  });
+
   it("strips role/isAdmin from non-admin self updates (privilege escalation defense)", async () => {
     const updateSpy = vi.fn().mockResolvedValue({
       success: true,

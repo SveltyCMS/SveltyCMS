@@ -57,9 +57,9 @@ export class CacheLockManager {
     if (!l2 || !l2.isOpen) return null;
 
     const lockKey = `lock:${key}`;
-    const ownerId = globalThis.crypto
-      ? globalThis.crypto.randomUUID()
-      : Math.random().toString(36).substring(2);
+    // CSPRNG only (AGENTS.md §2.1): crypto is always present in Node ≥20 — never
+    // fall back to weak randomness for a lock-ownership token.
+    const ownerId = globalThis.crypto.randomUUID();
 
     try {
       const result = await l2.set(lockKey, ownerId, {

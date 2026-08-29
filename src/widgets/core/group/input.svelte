@@ -18,7 +18,7 @@ Renders a group of fields, allowing for nested data structures.
 	import WidgetLoader from '@src/components/collection-display/widget-loader.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte';
 	import { getCachedWidgetInputLoader } from '@widgets/widget-loader-registry';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/schema/field-utils';
 	import type { FieldType } from './';
 
 	interface Props {

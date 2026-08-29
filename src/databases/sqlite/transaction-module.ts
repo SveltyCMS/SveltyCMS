@@ -5,7 +5,7 @@
 
 import type { DatabaseResult, DatabaseTransaction } from "../db-interface";
 import { SQLiteAdapterCore } from "./adapter-core";
-import * as utils from "../core/relational-utils";
+import { createDatabaseError } from "../core/relational-utils";
 import { DatabaseModule } from "../core/base-adapter";
 
 export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {
@@ -120,7 +120,7 @@ export class TransactionModule extends DatabaseModule<SQLiteAdapterCore> {
           return {
             success: false,
             message: "Transaction rolled back",
-            error: utils.createDatabaseError("TRANSACTION_ROLLED_BACK", "Transaction rolled back"),
+            error: createDatabaseError("TRANSACTION_ROLLED_BACK", "Transaction rolled back"),
           };
         }
         return this.core.handleError(error, "TRANSACTION_FAILED");

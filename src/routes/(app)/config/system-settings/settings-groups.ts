@@ -174,22 +174,6 @@ export const settingsGroups: SettingGroup[] = [
         max: 86_400,
         unit: "seconds",
       },
-      {
-        key: "AUDIT_CHAIN_SYNC",
-        label: "Synchronous Audit & Revision Chain",
-        description:
-          "Enforce synchronous SHA-256 Merkle-tree audit chaining on write transactions. Off (default) enables sub-5ms async background processing.",
-        type: "boolean",
-        category: "public",
-      },
-      {
-        key: "DISABLE_AUDIT_LOGS",
-        label: "Disable Audit Logging",
-        description:
-          "Bypass audit log persistence entirely for maximum write throughput during benchmarks.",
-        type: "boolean",
-        category: "public",
-      },
     ],
   },
   {

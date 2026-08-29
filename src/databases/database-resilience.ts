@@ -12,6 +12,7 @@
 
 import { getSystemState, updateServiceHealth } from "@src/stores/system/state.svelte.ts";
 import { logger } from "@utils/logger";
+import { getHardwareProfile } from "@utils/hardware-profile";
 import type { DatabaseError } from "./db-interface";
 
 // Type definitions
@@ -687,9 +688,14 @@ export function resetDatabaseResilience(): void {
  * Call after `adapter.connect()` succeeds, before serving traffic.
  *
  * @param adapter  The connected database adapter instance
- * @param poolSize Number of connections to pre-warm (default: 10)
+ * @param poolSize Number of connections to pre-warm (default: scaled to the
+ *                 hardware profile — min(10, dbPoolSize) so weak boxes don't
+ *                 hold sockets they can't use)
  */
-export async function preWarmConnectionPool(adapter: any, poolSize: number = 10): Promise<void> {
+export async function preWarmConnectionPool(
+  adapter: any,
+  poolSize: number = Math.min(10, getHardwareProfile().dbPoolSize),
+): Promise<void> {
   // Only applicable to networked databases — SQLite uses file-based access
   if (!adapter || adapter.type === "sqlite") return;
 

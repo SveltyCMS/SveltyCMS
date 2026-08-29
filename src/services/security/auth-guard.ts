@@ -7,11 +7,16 @@
 
 import { logger } from "@utils/logger";
 import { auth } from "@src/databases/db";
-import { SECURITY_PATTERNS } from "./patterns";
+import {
+  scanPayload as scanPayloadLinear,
+  scanUrl as scanUrlLinear,
+  scanUserAgent as scanUserAgentLinear,
+  type ThreatLevel,
+} from "./threat-scan";
 import type { User, Role } from "@src/databases/auth/types";
 import { hasPermissionByAction as legacyHasPermissionByAction } from "@src/databases/auth/permissions";
 
-export type ThreatLevel = "none" | "low" | "medium" | "high" | "critical";
+export type { ThreatLevel };
 
 export class AuthGuardService {
   // ============================================================================
@@ -70,47 +75,20 @@ export class AuthGuardService {
    * Returns the highest threat level detected.
    */
   static scanPayload(value: string, checkLdap = false): ThreatLevel {
-    if (!value || value.length > 32768) return "none";
-
-    let decoded = value;
-    try {
-      decoded = decodeURIComponent(value);
-    } catch {
-      // Ignore decode errors
-    }
-
-    const content = (value + " " + decoded).substring(0, 32768);
-
-    for (const pattern of SECURITY_PATTERNS.sqli) if (pattern.test(content)) return "critical";
-    for (const pattern of SECURITY_PATTERNS.commandInjection)
-      if (pattern.test(content)) return "critical";
-    for (const pattern of SECURITY_PATTERNS.xss) if (pattern.test(content)) return "high";
-    for (const pattern of SECURITY_PATTERNS.pathTraversal) if (pattern.test(content)) return "high";
-    if (checkLdap) {
-      for (const pattern of SECURITY_PATTERNS.ldapInjection)
-        if (pattern.test(content)) return "high";
-    }
-
-    return "none";
+    return scanPayloadLinear(value, checkLdap);
   }
 
   /**
    * Scans a user agent string against known malicious actors.
    */
   static scanUserAgent(userAgent: string): ThreatLevel {
-    for (const pattern of SECURITY_PATTERNS.suspicious_ua) {
-      if (pattern.test(userAgent)) return "high";
-    }
-    return "none";
+    return scanUserAgentLinear(userAgent);
   }
 
   /**
    * Scans a URL for application-specific threat patterns.
    */
   static scanUrl(url: string): ThreatLevel {
-    for (const pattern of SECURITY_PATTERNS.app_threats) {
-      if (pattern.test(url)) return "high";
-    }
-    return "none";
+    return scanUrlLinear(url);
   }
 }

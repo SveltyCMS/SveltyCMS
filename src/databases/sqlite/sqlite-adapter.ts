@@ -16,7 +16,7 @@ import type { IDBAdapter, IFtsAdapter, DatabaseResult } from "../db-interface";
 import { logger } from "@src/utils/logger";
 import { SQLiteAdapterCore } from "./adapter-core";
 import { SQLiteFtsAdapter } from "./fts-adapter";
-import { PerformanceModule } from "../core/performance-module";
+import { PerformanceModule } from "../core/base-adapter";
 import { CacheModule } from "../core/cache-module";
 
 export class SQLiteAdapter extends SQLiteAdapterCore implements IDBAdapter {

@@ -116,3 +116,57 @@ export function encodeYjsToBase64(uint8Array: Uint8Array): string {
 export function decodeBase64ToYjs(base64: string): Uint8Array {
   return new Uint8Array(Buffer.from(base64, "base64"));
 }
+
+/**
+ * Options for tenant isolation wrapper.
+ */
+export interface TenantOptions {
+  /**
+   * Whether to allow access to global/system context when multi-tenancy is enabled but no tenantId is provided.
+   */
+  allowGlobal?: boolean;
+  /**
+   * Optional collection name for better error reporting.
+   */
+  collection?: string;
+}
+
+/**
+ * Central wrapper to enforce strict tenant isolation across database calls.
+ * Ensures operations are either scoped to a tenant or allowed in single-tenant/global mode.
+ */
+export async function withTenant<T>(
+  tenantId: string | null | undefined,
+  operation: () => Promise<T>,
+  options: TenantOptions = {},
+): Promise<T> {
+  // Guard against empty strings which might indicate a bug in tenant resolution
+  if (tenantId === "") {
+    throw new AppError("Invalid tenant context: empty string provided", 400, "INVALID_TENANT_ID");
+  }
+
+  // If tenantId is provided, we always allow (tenant context is active)
+  if (tenantId) {
+    return operation();
+  }
+
+  const isMultiTenant = isMultiTenantEnabled();
+
+  // If multi-tenancy is disabled, we don't require a tenantId
+  if (!isMultiTenant) {
+    logger.debug(`Single-tenant mode: allowing operation on ${options.collection || "unknown"}`);
+    return operation();
+  }
+
+  // If multi-tenancy is enabled but no tenantId provided, check if global access is allowed
+  if (options.allowGlobal) {
+    logger.debug(`Global/system context allowed for ${options.collection || "unknown"}`);
+    return operation();
+  }
+
+  throw new AppError(
+    `Tenant context required for this operation (collection: ${options.collection || "unknown"})`,
+    403,
+    "TENANT_REQUIRED",
+  );
+}

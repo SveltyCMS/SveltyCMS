@@ -13,6 +13,7 @@ This component presents a summary of all configuration steps before finalizing t
 -->
 <script lang="ts">
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	// ParaglideJS
 	import {
 		form_email,
@@ -102,89 +103,54 @@ This component presents a summary of all configuration steps before finalizing t
 			<div class="space-y-4">
 				<!-- Database Configuration -->
 				<div>
-					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
+					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-surface-900 dark:text-surface-50">
 						<iconify-icon icon="mdi:database" width="24" class="me-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						{setup_review_section_database?.() || 'Database Configuration'}
 					</h3>
 					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{setup_label_database_type ? setup_label_database_type() : 'Type'}:
 							<SystemTooltip title={setup_help_database_type?.() || 'Database type'}>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Database Type"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Database Type" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{dbConfig.type}</dd>
 
 						{#if dbConfig.host}
-							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+							<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 								{label_host?.() || 'Host'}:
 								<SystemTooltip title={setup_help_database_host?.() || 'Database host'}>
-									<button
-										type="button"
-										tabindex="-1"
-										class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-										aria-label="Help for Database Host"
-									>
-										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-									</button>
+									<HelpIcon ariaLabel="Help for Database Host" />
 								</SystemTooltip>
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{redact(dbConfig.host)}</dd>
 						{/if}
 
 						{#if dbConfig.port}
-							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+							<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 								{label_port?.() || 'Port'}:
 								<SystemTooltip title={setup_help_database_port?.() || 'Database port'}>
-									<button
-										type="button"
-										tabindex="-1"
-										class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-										aria-label="Help for Database Port"
-									>
-										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-									</button>
+									<HelpIcon ariaLabel="Help for Database Port" />
 								</SystemTooltip>
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{dbConfig.port}</dd>
 						{/if}
 
 						{#if dbConfig.name}
-							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+							<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 								{label_database?.() || 'Database'}:
 								<SystemTooltip title={setup_help_database_name?.() || 'Database name'}>
-									<button
-										type="button"
-										tabindex="-1"
-										class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-										aria-label="Help for Database Name"
-									>
-										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-									</button>
+									<HelpIcon ariaLabel="Help for Database Name" />
 								</SystemTooltip>
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{dbConfig.name}</dd>
 						{/if}
 
 						{#if dbConfig.user}
-							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+							<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 								{form_username()}:
 								<SystemTooltip title={setup_help_database_user?.() || 'Database username'}>
-									<button
-										type="button"
-										tabindex="-1"
-										class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-										aria-label="Help for Database Username"
-									>
-										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-									</button>
+									<HelpIcon ariaLabel="Help for Database Username" />
 								</SystemTooltip>
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{redact(dbConfig.user)}</dd>
@@ -194,50 +160,29 @@ This component presents a summary of all configuration steps before finalizing t
 
 				<!-- Administrator Account -->
 				<div>
-					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
+					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-surface-900 dark:text-surface-50">
 						<iconify-icon icon="mdi:account" width="24" class="me-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						{setup_review_section_admin?.() || 'Administrator Account'}
 					</h3>
 					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{form_username()}:
 							<SystemTooltip title={setup_help_admin_username?.() || 'Admin username'}>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Admin Username"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Admin Username" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{adminUser.username}</dd>
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{form_email()}:
 							<SystemTooltip title={setup_help_admin_email?.() || 'Admin email'}>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Admin Email"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Admin Email" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{redact(adminUser.email)}</dd>
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{form_password()}:
 							<SystemTooltip title={setup_help_admin_password?.() || 'Admin password'}>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Admin Password"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Admin Password" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold text-lg leading-none pt-1">••••••••</dd>
@@ -246,22 +191,15 @@ This component presents a summary of all configuration steps before finalizing t
 
 				<!-- Media Storage -->
 				<div>
-					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
+					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-surface-900 dark:text-surface-50">
 						<iconify-icon icon="mdi:folder" width="24" class="me-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						{setup_review_section_media?.() || 'Media Storage'}
 					</h3>
 					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							Storage Type:
 							<SystemTooltip title={setup_help_media_path?.() || 'The storage mechanism for user uploads.'}>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Storage Type"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Storage Type" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500">
@@ -275,19 +213,12 @@ This component presents a summary of all configuration steps before finalizing t
 								☁️ Cloudinary
 							{/if}
 						</dd>
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{systemSettings.mediaStorageType === 'local' ? 'Folder Path' : 'Bucket Name'}:
 							<SystemTooltip
 								title="For local storage: specify the folder path (e.g., ./mediaFolder). For cloud storage: enter the bucket or container name."
 							>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Media Folder"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Media Folder" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.mediaFolder}</dd>
@@ -296,22 +227,15 @@ This component presents a summary of all configuration steps before finalizing t
 
 				<!-- Email Configuration (SMTP) -->
 				<div>
-					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
+					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-surface-900 dark:text-surface-50">
 						<iconify-icon icon="mdi:email" width="24" class="me-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						Email Configuration
 					</h3>
 					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							Status:
 							<SystemTooltip title="Shows if the SMTP configuration was successfully tested and saved, or skipped.">
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Email Status"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Email Status" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
@@ -319,22 +243,22 @@ This component presents a summary of all configuration steps before finalizing t
 						</dd>
 
 						{#if emailSettings.smtpConfigured}
-							<dt class="flex items-center font-medium text-black dark:text-white">
+							<dt class="flex items-center font-medium text-surface-900 dark:text-surface-50">
 								{setup_email_host()}:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{redact(emailSettings.host)}</dd>
 
-							<dt class="flex items-center font-medium text-black dark:text-white">
+							<dt class="flex items-center font-medium text-surface-900 dark:text-surface-50">
 								{setup_email_port()}:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{emailSettings.port}</dd>
 
-							<dt class="flex items-center font-medium text-black dark:text-white">
+							<dt class="flex items-center font-medium text-surface-900 dark:text-surface-50">
 								{setup_email_user()}:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{redact(emailSettings.user)}</dd>
 
-							<dt class="flex items-center font-medium text-black dark:text-white">
+							<dt class="flex items-center font-medium text-surface-900 dark:text-surface-50">
 								{setup_email_from()}:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{redact(emailSettings.from || emailSettings.user)}</dd>
@@ -347,197 +271,113 @@ This component presents a summary of all configuration steps before finalizing t
 			<div class="space-y-4">
 				<!-- System Settings -->
 				<div>
-					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-black dark:text-white">
+					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-surface-900 dark:text-surface-50">
 						<iconify-icon icon="mdi:cog" width="24" class="me-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						{setup_review_section_system?.() || 'System Settings'}
 					</h3>
 					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							CMS Name:
 							<SystemTooltip title={setup_help_site_name?.() || 'The name for your CMS instance.'}>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Site Name"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Site Name" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.siteName}</dd>
 
 						<!-- Added missing preset -->
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							Project Blueprint:
 							<SystemTooltip title="The selected project blueprint/preset.">
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Project Blueprint"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Project Blueprint" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.preset}</dd>
 						{#if presetCollections.length > 0}
-							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+							<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 								Creates:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 text-sm">{presetCollections.join(', ')}</dd>
 						{/if}
 
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							Production URL:
 							<SystemTooltip
 								title="The production URL where your CMS will be accessible (e.g., https://mysite.com). Used for OAuth callbacks and email links."
 							>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Production URL"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Production URL" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.hostProd}</dd>
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{setup_review_label_default_system_lang?.() || 'Default System Lang'}:
 							<SystemTooltip title={setup_help_default_system_language?.() || 'Primary language for the admin interface.'}>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Default System Language"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Default System Language" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">{systemSettings.defaultSystemLanguage}</dd>
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{setup_review_label_system_languages?.() || 'System Languages'}:
 							<SystemTooltip title={setup_help_system_languages?.() || 'Available languages for the admin interface.'}>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for System Languages"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for System Languages" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">{systemSettings.systemLanguages.join(', ')}</dd>
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{setup_review_label_default_content_lang?.() || 'Default Content Lang'}:
 							<SystemTooltip title={setup_help_default_content_language?.() || 'Primary language for content creation.'}>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Default Content Language"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Default Content Language" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">{systemSettings.defaultContentLanguage}</dd>
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{setup_review_label_content_languages?.() || 'Content Languages'}:
 							<SystemTooltip title={setup_help_content_languages?.() || 'Available languages for content translations.'}>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Content Languages"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Content Languages" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">{systemSettings.contentLanguages.join(', ')}</dd>
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{setup_review_label_timezone?.() || 'Timezone'}:
 							<SystemTooltip title="The default timezone for the system. Used for scheduling and date displays.">
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Timezone"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Timezone" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.timezone}</dd>
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}:
 							<SystemTooltip title={setup_system_multi_tenant_desc?.() || 'Enables support for multiple isolated tenants on a single installation.'}>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Multi-Tenant Mode"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Multi-Tenant Mode" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.multiTenant ? 'Enabled' : 'Disabled'}</dd>
 
-						<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+						<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 							{setup_system_demo_mode?.() || 'Demo Mode'}:
 							<SystemTooltip
 								title={setup_system_demo_mode_desc?.() || 'Warning: Creates ephemeral environments for visitors. Data is wiped automatically.'}
 							>
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Demo Mode"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Demo Mode" />
 							</SystemTooltip>
 						</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.demoMode ? 'Enabled' : 'Disabled'}</dd>
 
 						<dt
-							class="flex items-center justify-between font-medium text-black dark:text-white border-t border-slate-100 dark:border-slate-800 pt-1 mt-1"
+							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1"
 						>
 							Redis Caching:
 							<SystemTooltip title="In-memory caching for database queries and session data.">
-								<button
-									type="button"
-									tabindex="-1"
-									class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-									aria-label="Help for Redis Caching"
-								>
-									<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-								</button>
+								<HelpIcon ariaLabel="Help for Redis Caching" />
 							</SystemTooltip>
 						</dt>
-						<dd class="text-tertiary-500 dark:text-primary-500 border-t border-slate-100 dark:border-slate-800 pt-1 mt-1 font-semibold">
+						<dd class="text-tertiary-500 dark:text-primary-500 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1 font-semibold">
 							{systemSettings.useRedis ? '🚀 Enabled' : 'Disabled'}
 						</dd>
 
 						{#if systemSettings.useRedis}
-							<dt class="flex items-center justify-between font-medium text-black dark:text-white">
+							<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50">
 								Redis Host:
 								<SystemTooltip title="The connection address and port for your Redis instance.">
-									<button
-										type="button"
-										tabindex="-1"
-										class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-										aria-label="Help for Redis Host"
-									>
-										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-									</button>
+									<HelpIcon ariaLabel="Help for Redis Host" />
 								</SystemTooltip>
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{systemSettings.redisHost}:{systemSettings.redisPort}</dd>
@@ -545,30 +385,23 @@ This component presents a summary of all configuration steps before finalizing t
 
 						{#if systemSettings.cfApiToken}
 							<dt
-								class="flex items-center justify-between font-medium text-black dark:text-white border-t border-slate-100 dark:border-slate-800 pt-1 mt-1"
+								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1"
 							>
 								Cloudflare CDN:
 								<SystemTooltip title="Native Cloudflare CDN integration for edge purging.">
-									<button
-										type="button"
-										tabindex="-1"
-										class="text-slate-400 hover:text-tertiary-500 hover:dark:text-primary-500"
-										aria-label="Help for Cloudflare CDN"
-									>
-										<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
-									</button>
+									<HelpIcon ariaLabel="Help for Cloudflare CDN" />
 								</SystemTooltip>
 							</dt>
-							<dd class="text-tertiary-500 dark:text-primary-500 border-t border-slate-100 dark:border-slate-800 pt-1 mt-1 font-semibold">
+							<dd class="text-tertiary-500 dark:text-primary-500 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1 font-semibold">
 								🚀 {systemSettings.cfZoneId ? 'Active' : 'Partial (Missing Zone ID)'}
 							</dd>
 							{#if systemSettings.cfZoneId}
-								<dt class="flex items-center justify-between font-medium text-black dark:text-white ps-4 text-xs opacity-70">
+								<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 ps-4 text-xs opacity-70">
 									Zone ID:
 								</dt>
 								<dd class="text-tertiary-500 dark:text-primary-500 font-mono text-xs">{redact(systemSettings.cfZoneId)}</dd>
 							{/if}
-							<dt class="flex items-center justify-between font-medium text-black dark:text-white ps-4 text-xs opacity-70">
+							<dt class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 ps-4 text-xs opacity-70">
 								Purge Strategy:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 text-xs">

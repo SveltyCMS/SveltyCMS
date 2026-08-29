@@ -157,7 +157,7 @@ The CMS can run directly exposed, but a reverse proxy adds:
 **Our internal stack already does a lot**:
 
 - Strong security headers (handle-security-headers).
-- Smart pre-compression (see section 3) for turbo/API cache hits (br/gzip) + on-the-fly.
+- Smart pre-compression (see section 3) for turbo/API cache hits (br/gzip/zstd) + on-the-fly. Known-tiny bodies (<4 KiB) use gzip; zstd is reserved for ≥32 KiB or unknown size; compressed variants that are not smaller than the original are not served.
 - ETag, Vary, cache-control via our layers.
 - Proxy header hardening (see `index.cjs` and `setup-proxy.test.ts`).
 

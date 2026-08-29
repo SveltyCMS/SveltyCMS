@@ -5,15 +5,15 @@
 
 ### Features:
 - Multi-line URL textarea
-- Posts to upload-media page remoteUpload action
+- Calls the uploadRemoteUrls remote (MediaService, no extra form-action hop)
 - CSRF token when available
 -->
 
 <script lang="ts">
 	import { logger } from "@utils/logger";
 	import { toast } from "@src/stores/toast.svelte.ts";
-	import { page } from "$app/state";
 	import Button from "@components/ui/button.svelte";
+	import { uploadRemoteUrls as uploadRemoteUrlsRemote } from "./remote-upload.remote";
 
 	interface Props {
 		folder?: string;
@@ -41,40 +41,14 @@
 		}
 
 		isUploading = true;
-		const formData = new FormData();
-		formData.append("remoteUrls", JSON.stringify(remoteUrls));
-		formData.append("folder", folder);
-
 		try {
-			const headers: Record<string, string> = {};
-			const csrf = (page.data as { csrfToken?: string })?.csrfToken;
-			if (csrf) headers["X-CSRF-Token"] = csrf;
-
-			// Actions live on this page route, not /mediagallery root
-			const response = await fetch("/mediagallery/upload-media?/remoteUpload", {
-				method: "POST",
-				headers,
-				body: formData,
-			});
-
-			if (!response.ok) {
-				const errText = await response.text().catch(() => "");
-				throw new Error(errText || `Upload failed (${response.status})`);
-			}
-
-			const result = await response.json().catch(() => ({}));
-			// SvelteKit action responses: { type: 'success', data: ... } or { success: true }
-			const ok =
-				result?.type === "success" ||
-				result?.success === true ||
-				result?.data?.success === true;
-
-			if (ok || response.ok) {
+			const result = await uploadRemoteUrlsRemote({ urls: remoteUrls, folder });
+			if (result.success) {
 				toast.success("Remote URLs submitted");
 				urlsText = "";
 				onUploadComplete?.();
 			} else {
-				throw new Error(result?.error || result?.message || "Upload failed");
+				throw new Error(result.error || "Upload failed");
 			}
 		} catch (error) {
 			logger.error("Error uploading URLs:", error);

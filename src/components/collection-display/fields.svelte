@@ -29,7 +29,7 @@ import { tick, untrack } from "svelte";
 		import Select from '@components/ui/select.svelte';
   import { logger } from "@utils/logger";
   import { clientJsonHeaders } from "@utils/security/client-csrf";
-  import { getFieldName } from "@utils/utils";
+  import { getFieldName } from "@utils/schema/field-utils";
 
   // Auth & Page data
   import { page } from "$app/state";
@@ -231,23 +231,12 @@ import { tick, untrack } from "svelte";
   $effect(() => {
     const newLang = contentLanguage.value as Locale;
     if (currentContentLanguage !== newLang) {
-      logger.debug("Language changed:", currentContentLanguage, "→", newLang);
-      logger.debug(
-        "Current collectionValue keys:",
-        Object.keys(currentCollectionValue),
-      );
-      // Update immediately to trigger {#key} block
       currentContentLanguage = newLang;
-      // Also update per-field locale overrides for fields NOT manually overridden
       for (const [fieldName] of fieldLocaleOverrides) {
         if (!manuallyOverridden.has(fieldName)) {
           fieldLocaleOverrides.set(fieldName, newLang);
         }
       }
-      logger.debug(
-        "Updated currentContentLanguage to:",
-        currentContentLanguage,
-      );
     }
   });
 
@@ -275,10 +264,12 @@ import { tick, untrack } from "svelte";
     if (!field) {
       return null;
     }
+    const widgetName =
+      field.widget?.Name || field.widget?.__widgetName || field.type || "Input";
     return {
       ...field,
       db_fieldName: field.db_fieldName || getFieldName(field, true),
-      widget: field.widget || { Name: field.type || "Input" },
+      widget: { ...field.widget, Name: widgetName },
       permissions: field.permissions || {},
     };
   }
@@ -317,17 +308,15 @@ import { tick, untrack } from "svelte";
     const globalId = (global as any)?._id;
 
     if (globalId && globalId !== lastEntryId) {
-      currentCollectionValue = { ...global } as any;
+      currentCollectionValue = applyTranslatedDefaults({ ...global } as Record<string, any>);
       lastEntryId = globalId;
       dataChangeStore.setInitialSnapshot(global as Record<string, any>);
-      normalizeTranslatedValues();
       return;
     }
 
     if (!(globalId || lastEntryId) && global && Object.keys(global).length > 0) {
-      currentCollectionValue = { ...global } as any;
+      currentCollectionValue = applyTranslatedDefaults({ ...global } as Record<string, any>);
       dataChangeStore.setInitialSnapshot(global as Record<string, any>);
-      normalizeTranslatedValues();
     }
   });
 
@@ -346,19 +335,23 @@ import { tick, untrack } from "svelte";
    * cannot re-trigger a render (see state_unsafe_mutation docs). Idempotent:
    * only fills missing records, never touches existing ones.
    */
+  function applyTranslatedDefaults(data: Record<string, any>): Record<string, any> {
+    for (const field of filteredFields) {
+      if (!field?.translated) continue;
+      const fieldName = getFieldName(field, false);
+      const value = data[fieldName];
+      if (typeof value === "string") {
+        data[fieldName] = { [currentContentLanguage]: value };
+      } else if (value === null || value === undefined) {
+        data[fieldName] = { [currentContentLanguage]: "" };
+      }
+    }
+    return data;
+  }
+
   function normalizeTranslatedValues() {
     untrack(() => {
-      for (const rawField of filteredFields) {
-        const field = ensureFieldProperties(rawField);
-        if (!field?.translated) continue;
-        const fieldName = getFieldName(field, false);
-        const value = currentCollectionValue[fieldName];
-        if (typeof value === "string") {
-          currentCollectionValue[fieldName] = { [currentContentLanguage]: value };
-        } else if (value === null || value === undefined) {
-          currentCollectionValue[fieldName] = { [currentContentLanguage]: "" };
-        }
-      }
+      applyTranslatedDefaults(currentCollectionValue);
     });
   }
 
@@ -434,12 +427,7 @@ import { tick, untrack } from "svelte";
       if (typeof widgetName === "string") nameSet.add(widgetName);
     }
     const names = [...nameSet];
-    const run = () => prefetchWidgetLoaders(names, widgetFunctions);
-    if (typeof requestIdleCallback !== "undefined") {
-      requestIdleCallback(run, { timeout: 2000 });
-    } else {
-      run();
-    }
+    prefetchWidgetLoaders(names, widgetFunctions);
   });
 
   // --- 5. REFACTORED REVISION LOGIC ---
@@ -563,16 +551,17 @@ import { tick, untrack } from "svelte";
   });
 
   // --- 7. PLUGIN SLOTS ---
-  const entryEditSlots = $derived(
-    slotRegistry.getSlots("entry_edit").filter(
+  const entryEditSlots = $derived.by(() => {
+    void slotRegistry.version;
+    return slotRegistry.getSlots("entry_edit").filter(
       (slot) =>
         !slot.condition ||
         slot.condition({
           collection: collection.value,
           entry: (collectionValue as any).value,
         }),
-    ),
-  );
+    );
+  });
 </script>
 
 <h1 class="sr-only">
@@ -699,9 +688,8 @@ import { tick, untrack } from "svelte";
         <div
           class="flex flex-wrap items-center justify-center gap-1 overflow-auto"
         >
-          {#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
-            {#if rawField.widget}
-              {const field = ensureFieldProperties(rawField)}
+          {#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
+            {#if field.widget}
               {@const fieldIcon = resolveFieldIcon(field)}
               <div
                 class="mx-auto text-center {!field?.width
@@ -780,8 +768,8 @@ import { tick, untrack } from "svelte";
                         {#if availableLanguages.length > 1 && currentFieldLocale !== sourceLocale}
                           <Button
                             variant="ghost"
-                            class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs transition-colors hover:bg-purple-100 dark:hover:bg-purple-500/20"
-                            style="color: var(--color-purple-500, #a855f7)"
+                            class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
+                            style="color: var(--color-tertiary-500)"
                             onclick={() => aiTranslateField(field, fieldName, sourceLocale, currentFieldLocale)}
                             disabled={isTranslating}
                             aria-label="AI translate {field.label || fieldName} from {sourceLocale.toUpperCase()} to {currentFieldLocale.toUpperCase()}"
@@ -845,19 +833,18 @@ import { tick, untrack } from "svelte";
                         {/if}
                       {/key}
                     {:else}
-                      {#key currentContentLanguage}
-                        <!-- Widget remounts when currentContentLanguage changes -->
-                        <WidgetLoader
-                          loader={loadedWidget}
-                          {field}
-                          WidgetData={{}}
-                          bind:value={currentCollectionValue[fieldName]}
-                          onFieldSync={() => syncFieldToStore(fieldName)}
-                          {tenantId}
-                          collectionName={collection.value?.name}
-                        />
-                      {/key}
+                      <WidgetLoader
+                        loader={loadedWidget}
+                        {field}
+                        WidgetData={{}}
+                        bind:value={currentCollectionValue[fieldName]}
+                        onFieldSync={() => syncFieldToStore(fieldName)}
+                        {tenantId}
+                        collectionName={collection.value?.name}
+                      />
                     {/if}
+                  {:else if widgets.loading}
+                    <div class="h-10 w-full animate-pulse rounded bg-surface-500/10"></div>
                   {:else}
                     <p class="text-error-500">
                       {Fields_no_widgets_found({ name: widgetName })}
@@ -1018,6 +1005,9 @@ import { tick, untrack } from "svelte";
     <!-- Plugin Slots Content -->
     {#each entryEditSlots as slot (slot.id)}
       <Tabs.Content value={slot.id} class="w-full">
+        {#if localTabSet !== slot.id}
+          <div class="h-40" aria-hidden="true"></div>
+        {:else}
         {#await componentLoader(slot)}
           <div class="flex h-40 items-center justify-center">
             <div
@@ -1056,6 +1046,7 @@ import { tick, untrack } from "svelte";
             </div>
           </div>
         {/await}
+        {/if}
       </Tabs.Content>
     {/each}
   </Tabs>

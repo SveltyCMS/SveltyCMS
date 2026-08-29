@@ -41,10 +41,10 @@ function envFlags(): AuditFlags | null {
 
 async function loadDbFlags(): Promise<AuditFlags> {
   try {
-    const { getPublicSetting } = await import("@src/services/core/settings-service");
+    const { getUntypedSetting } = await import("@src/services/core/settings-service");
     const [disableLogs, chainSync] = await Promise.all([
-      getPublicSetting("DISABLE_AUDIT_LOGS", "global").catch(() => null),
-      getPublicSetting("AUDIT_CHAIN_SYNC", "global").catch(() => null),
+      getUntypedSetting("DISABLE_AUDIT_LOGS", undefined, "global").catch(() => null),
+      getUntypedSetting("AUDIT_CHAIN_SYNC", undefined, "global").catch(() => null),
     ]);
     return {
       disabled: disableLogs === true,

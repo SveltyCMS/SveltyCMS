@@ -31,10 +31,6 @@ import { page } from "$app/state";
 import { beforeNavigate } from "$app/navigation";
 import { showConfirm } from "@utils/modal.svelte";
 import { modalState } from "@utils/modal.svelte";
-import AdminRole from "./admin-role.svelte";
-import Permissions from "./permissions.svelte";
-import Roles from "./roles.svelte";
-import WebsiteTokens from "./website-tokens.svelte";
 	import Button from '@components/ui/button.svelte';
 
 // Use $state for local component state
@@ -187,12 +183,50 @@ beforeNavigate(({ cancel }) => {
 			</Tabs.List>
 			</div>
 
-			<Tabs.Content value="0"><div class="p-2"><Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} /></div></Tabs.Content>
-			<Tabs.Content value="1"
-				><div class="p-2"><Roles roleData={rolesData} {setRoleData} {updateModifiedCount} permissions={page.data.permissions} /></div></Tabs.Content
-			>
-			<Tabs.Content value="2"><div class="p-2"><AdminRole roleData={rolesData} {setRoleData} /></div></Tabs.Content>
-			<Tabs.Content value="3"><div class="p-2"><WebsiteTokens permissions={page.data.permissions} /></div></Tabs.Content>
+			<Tabs.Content value="0">
+				<div class="p-2">
+					{#if currentTab === '0'}
+						{#await import("./permissions.svelte")}
+							<p class="text-sm text-surface-500">Loading permissions…</p>
+						{:then mod}
+							<mod.default roleData={rolesData} {setRoleData} {updateModifiedCount} />
+						{/await}
+					{/if}
+				</div>
+			</Tabs.Content>
+			<Tabs.Content value="1">
+				<div class="p-2">
+					{#if currentTab === '1'}
+						{#await import("./roles.svelte")}
+							<p class="text-sm text-surface-500">Loading roles…</p>
+						{:then mod}
+							<mod.default roleData={rolesData} {setRoleData} {updateModifiedCount} permissions={page.data.permissions} />
+						{/await}
+					{/if}
+				</div>
+			</Tabs.Content>
+			<Tabs.Content value="2">
+				<div class="p-2">
+					{#if currentTab === '2'}
+						{#await import("./admin-role.svelte")}
+							<p class="text-sm text-surface-500">Loading admin role…</p>
+						{:then mod}
+							<mod.default roleData={rolesData} {setRoleData} />
+						{/await}
+					{/if}
+				</div>
+			</Tabs.Content>
+			<Tabs.Content value="3">
+				<div class="p-2">
+					{#if currentTab === '3'}
+						{#await import("./website-tokens.svelte")}
+							<p class="text-sm text-surface-500">Loading website tokens…</p>
+						{:then mod}
+							<mod.default permissions={page.data.permissions} />
+						{/await}
+					{/if}
+				</div>
+			</Tabs.Content>
 		</Tabs>
 	</AdminCard>
 </AdminPageShell>

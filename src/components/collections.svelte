@@ -34,7 +34,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
-	import { debounce } from '@utils/utils';
+	import { debounce } from '@utils/debounce';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { logger } from '@utils/logger';
 	import { validateSchemaWidgets } from '@widgets/widget-validation';

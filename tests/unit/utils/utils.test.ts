@@ -3,18 +3,13 @@
  * @description Tests for the general utility functions re-exported from the barrel.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import {
-  uniqueItems,
-  getGuiFields,
-  getFieldName,
-  extractData,
-  deepCopy,
-  debounce,
-  SIZES,
-} from "@src/utils/utils";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { uniqueItems, deepCopy } from "@src/utils/data-utils";
+import { getGuiFields, getFieldName, extractData } from "@src/utils/schema/field-utils";
+import { debounce } from "@src/utils/debounce";
+import { SIZES } from "@src/utils/media/media-utils";
 
-describe("General Utilities (utils.ts)", () => {
+describe("General Utilities (sub-modules)", () => {
   describe("uniqueItems", () => {
     it("should return an array of unique items based on a key", () => {
       const items = [

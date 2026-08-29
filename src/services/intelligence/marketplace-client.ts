@@ -12,6 +12,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { assertPackageCompatibleWithCms } from "@src/widgets/widget-compatibility";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -255,6 +256,7 @@ export async function installPlugin(pluginId: string): Promise<MarketplacePlugin
   const cwd = process.cwd();
 
   const plugin = await marketplace.download(pluginId);
+  assertPackageCompatibleWithCms(plugin);
   const installDir = path.join(cwd, plugin.installPath);
 
   // Create directory structure

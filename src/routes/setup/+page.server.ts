@@ -10,6 +10,8 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { version as pkgVersion } from "../../../package.json";
 import { logger } from "@utils/logger";
+import { redirect } from "@sveltejs/kit";
+import { isSetupComplete } from "@utils/setup-check-fast";
 import type { Actions, PageServerLoad } from "./$types";
 import inlangSettings from "../../../project.inlang/settings.json";
 
@@ -40,6 +42,10 @@ const DRIVER_PACKAGES = {
 type DatabaseType = keyof typeof DRIVER_PACKAGES;
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
+  if (isSetupComplete()) {
+    throw redirect(302, "/login");
+  }
+
   // Clear ALL existing auth session cookie variants to ensure fresh start
   const { clearAllSessionCookies } = await import("@src/databases/auth/constants");
   clearAllSessionCookies(cookies, "/");

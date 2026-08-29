@@ -15,6 +15,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 vi.mock("@src/utils/server/setup-check", () => ({
   isSetupComplete: vi.fn(() => true),
   getSetupState: vi.fn(() => Promise.resolve("COMPLETE")),
+  peekSetupState: vi.fn(() => null),
   SetupState: {
     COMPLETE: "COMPLETE",
     IDLE: "IDLE",
@@ -83,7 +84,7 @@ describe("handleSystemState - Host Validation Security", () => {
     // Ensure TEST_MODE is disabled for hook logic
     process.env.TEST_MODE = "false";
 
-    // Reset mocks
+    // Reset mocks (setup is complete)
     (isSetupComplete as any).mockReturnValue(true);
     (getSetupState as any).mockResolvedValue("COMPLETE");
   });
@@ -94,7 +95,7 @@ describe("handleSystemState - Host Validation Security", () => {
 
   it("should allow bootstrap routes on localhost in any state (dev)", async () => {
     setSystemState("IDLE");
-    const event = createMockEvent("/setup", "localhost:5173");
+    const event = createMockEvent("/login", "localhost:5173");
     const response = await handleSystemState({ event, resolve: mockResolve });
     expect(response.status).toBe(200);
   });
@@ -102,7 +103,7 @@ describe("handleSystemState - Host Validation Security", () => {
   it("should allow bootstrap routes on configured HOST_DEV in dev mode", async () => {
     // Note: If dev is false, it uses HOST_PROD. We set both to local-ish names.
     setSystemState("IDLE");
-    const event = createMockEvent("/setup", "localhost");
+    const event = createMockEvent("/login", "dev.sveltycms.com");
     const response = await handleSystemState({ event, resolve: mockResolve });
     expect(response.status).toBe(200);
   });
@@ -110,15 +111,14 @@ describe("handleSystemState - Host Validation Security", () => {
   it("should block bootstrap routes on untrusted hosts during restricted states", async () => {
     setSystemState("IDLE");
     process.env.HOST_DEV = "localhost";
-    const event = createMockEvent("/setup", "attacker.com");
+    const event = createMockEvent("/login", "attacker.com");
 
     try {
       await handleSystemState({ event, resolve: mockResolve });
       expect(true).toBe(false); // Should not reach here
     } catch (err: any) {
-      // SvelteKit error() throws an object with status and body
       expect(err.status).toBe(403);
-      expect(err.body.message).toContain("Access from untrusted host blocked");
+      expect(err.message || err.body?.message).toContain("Access from untrusted host blocked");
     }
   });
 

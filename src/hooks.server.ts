@@ -20,7 +20,6 @@ import "@utils/logger.server";
 import { building } from "$app/env";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
-import os from "node:os";
 import { runWithContext, runWithTrace, getTrace, traceSpan } from "@utils/context";
 import { createRequire } from "node:module";
 
@@ -48,7 +47,11 @@ if (typeof (globalThis as any).__dirname === "undefined") {
 }
 
 import { isSetupComplete } from "./utils/setup-check-fast";
-import { classifyRequest, RequestLane } from "./hooks/request-classifier";
+import { classifyRequest, RequestLane } from "./hooks/handle-request-classifier";
+import {
+  isSimpleCollectionWrite,
+  tryCollectionWriteLane,
+} from "./hooks/handle-collection-write-lane";
 import { resetIdCounters } from "@utils/id-generator";
 import { handleApiError } from "@utils/error-handling";
 import { handleTurboPipeline } from "./hooks/handle-turbo-pipeline.server";
@@ -57,6 +60,14 @@ import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-registry";
 import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
+import { initHardwareProfile, getHardwareProfile, describeHardware } from "@utils/hardware-profile";
+
+// 🧠 ONE HARDWARE DETECTION AT PROCESS START: detects the host once and publishes
+// the shared profile to the global registry — every module, chunk and worker
+// import (DB pools, sharp, module loader, compression, dashboard) reads the same
+// object and tunes itself for THIS machine.
+initHardwareProfile();
+logger.info(`[Boot] Hardware profile: ${describeHardware()}`);
 
 // 🔐 /ws COLLABORATION AUTH: the standalone yjs-sync-server bundle cannot import
 // app internals, so it consults this registry (globalThis bridge) at upgrade
@@ -131,15 +142,13 @@ let handleSecurity: Handle = passThrough,
   handleUserPreferences: Handle = passThrough,
   handleAuthentication: Handle = passThrough,
   handleAuthorization: Handle = passThrough,
-  handleLocalSdk: Handle = passThrough,
-  handleContentInitialization: Handle = passThrough,
+  handleLocalContext: Handle = passThrough,
   handleApiRequests: Handle = passThrough,
   handleAuditLogging: Handle = passThrough,
   handleTokenResolution: Handle = passThrough,
   handleRedirects: Handle = passThrough,
   handleSystemState: Handle = passThrough,
-  handleTestIsolation: Handle = passThrough,
-  handleAeoHeaders: Handle = passThrough;
+  handleTestIsolation: Handle = passThrough;
 
 // ✨ ENTERPRISE: Lazy-loaded handle variables for dynamic mode switching
 let fullMiddlewareInitialized = false;
@@ -155,30 +164,26 @@ async function ensureFullMiddleware() {
     preferences,
     auth,
     authz,
-    sdk,
-    content,
+    context,
     api,
     audit,
     token,
     redirects,
     state,
     isolation,
-    aeo,
   ] = await Promise.all([
     import("./hooks/handle-security"),
     import("./hooks/handle-rate-limit"),
     import("./hooks/handle-user-preferences"),
     import("./hooks/handle-authentication"),
     import("./hooks/handle-authorization"),
-    import("./hooks/handle-local-sdk"),
-    import("./hooks/handle-content-initialization"),
+    import("./hooks/handle-local-context"),
     import("./hooks/handle-api-requests"),
     import("./hooks/handle-audit-logging"),
     import("./hooks/handle-token-resolution"),
     import("./hooks/handle-redirects"),
     import("./hooks/handle-system-state"),
     import("./hooks/handle-test-isolation"),
-    import("./hooks/handle-aeo-headers"),
   ]);
 
   handleSecurity = security.handleSecurity;
@@ -186,21 +191,22 @@ async function ensureFullMiddleware() {
   handleUserPreferences = preferences.handleUserPreferences;
   handleAuthentication = auth.handleAuthentication;
   handleAuthorization = authz.handleAuthorization;
-  handleLocalSdk = sdk.handleLocalSdk;
-  handleContentInitialization = content.handleContentInitialization;
+  handleLocalContext = context.handleLocalContext;
   handleApiRequests = api.handleApiRequests;
   handleAuditLogging = audit.handleAuditLogging;
   handleTokenResolution = token.handleTokenResolution;
   handleRedirects = redirects.handleRedirects;
   handleSystemState = state.handleSystemState;
   handleTestIsolation = isolation.handleTestIsolation;
-  handleAeoHeaders = aeo.handleAeoHeaders;
 
   fullMiddlewareInitialized = true;
   // 🛡️ Invalidate any pipeline cached before the real handlers were loaded:
   // a first request racing the async module load would otherwise be served
   // by passThrough handlers forever (security/authz permanently bypassed).
   cachedPipelineReady = null;
+  cachedPipelineApi = null;
+  cachedPipelineApiWrite = null;
+  cachedPipelineSetup = null;
 }
 
 if (setupComplete) {
@@ -226,18 +232,25 @@ if (!building) {
       const readyStates = ["READY", "WARMING", "WARMED", "DEGRADED"];
       if (readyStates.includes(state) && !isServicesInitialized) {
         isServicesInitialized = true;
-        // ✨ Hardware Optimization (Enterprise)
-        const cores = os.cpus().length;
-        process.env.UV_THREADPOOL_SIZE = String(cores);
+        // ✨ Hardware-Adaptive Tuning — the profile was detected ONCE at process
+        // start (module scope above) and published to the shared global registry.
+        // Here we only APPLY the knobs that must be set on the ready state.
+        const hw = getHardwareProfile();
+        process.env.UV_THREADPOOL_SIZE = String(hw.threadPoolSize);
         import("sharp")
           .then((sharp) => {
-            const physicalCores = Math.max(4, Math.floor(cores * 0.33));
-            sharp.default.concurrency(physicalCores);
+            // Measured: variant pipelines are generated in parallel, so the
+            // machine saturates at low libvips concurrency (4≈24 threads on a
+            // 24-core host). The profile caps concurrency per tier to leave CPU
+            // headroom for the event loop, DB pool and other requests.
+            sharp.default.concurrency(hw.sharpConcurrency);
             logger.debug(
-              `[System] Hardware optimized: ThreadPool=${cores} | SharpConcurrency=${physicalCores}`,
+              `[System] Hardware optimized: ThreadPool=${hw.threadPoolSize} | SharpConcurrency=${hw.sharpConcurrency}`,
             );
           })
           .catch(() => {});
+
+        logger.info(`[System] ${describeHardware(hw)}`);
 
         // ✨ Parallel Service Initialization (Optimized for Cold Start)
         // 🧠 PRE-WARM heavy modules used lazily inside request hooks so the first
@@ -543,6 +556,7 @@ function wrapHandle(name: string, handleFnRef: () => Handle): Handle {
 // based on the current system state.
 let cachedPipelineReady: Handle | null = null;
 let cachedPipelineApi: Handle | null = null;
+let cachedPipelineApiWrite: Handle | null = null;
 let cachedPipelineSetup: Handle | null = null;
 
 // 🛡️ AWAIT full middleware before building the READY pipeline: at boot,
@@ -556,56 +570,75 @@ const getPipeline = async (lane?: RequestLane): Promise<Handle> => {
     if (!fullMiddlewareInitialized) {
       await ensureFullMiddleware();
     }
-    const isApiLane =
-      lane === RequestLane.API_READ ||
-      lane === RequestLane.API_WRITE ||
-      lane === RequestLane.HYPER_TURBO;
+    const isTestMode = process.env.TEST_MODE === "true";
+
     // API lanes skip page-only hooks (redirects / AEO / user-preferences).
-    // Auth, WAF, rate-limit, turbo-get, and RBAC stay in place.
-    if (isApiLane) {
-      if (!cachedPipelineApi) {
-        cachedPipelineApi = sequence(
-          wrapHandle("turbo-pipeline", () => handleTurboPipeline),
-          wrapHandle("test-isolation", () => handleTestIsolation),
+    // Auth, WAF, rate-limit, and RBAC stay in place.
+    // Writes skip turbo-get (GET-only) and token-resolution (writes do not rewrite response templates).
+    if (lane === RequestLane.API_WRITE) {
+      if (!cachedPipelineApiWrite) {
+        const handlers: Handle[] = [wrapHandle("turbo-pipeline", () => handleTurboPipeline)];
+        if (isTestMode) {
+          handlers.push(wrapHandle("test-isolation", () => handleTestIsolation));
+        }
+        handlers.push(
           wrapHandle("security", () => handleSecurity),
           wrapHandle("rate-limit", () => handleRateLimit),
+          wrapHandle("system-state", () => handleSystemState),
+          wrapHandle("compression", () => handleCompression),
+          wrapHandle("authentication", () => handleAuthentication),
+          wrapHandle("authorization", () => handleAuthorization),
+          wrapHandle("local-context", () => handleLocalContext),
+          wrapHandle("audit-logging", () => handleAuditLogging),
+          wrapHandle("api-requests", () => handleApiRequests),
+        );
+        cachedPipelineApiWrite = sequence(...handlers);
+      }
+      return cachedPipelineApiWrite;
+    }
+    // Reads skip rate-limit (mutations only) and audit-logging (mutations only)
+    if (lane === RequestLane.API_READ || lane === RequestLane.HYPER_TURBO) {
+      if (!cachedPipelineApi) {
+        const handlers: Handle[] = [wrapHandle("turbo-pipeline", () => handleTurboPipeline)];
+        if (isTestMode) {
+          handlers.push(wrapHandle("test-isolation", () => handleTestIsolation));
+        }
+        handlers.push(
+          wrapHandle("security", () => handleSecurity),
           wrapHandle("system-state", () => handleSystemState),
           wrapHandle("turbo-get", () => handleTurboGet),
           wrapHandle("compression", () => handleCompression),
           wrapHandle("authentication", () => handleAuthentication),
           wrapHandle("authorization", () => handleAuthorization),
-          wrapHandle("local-sdk", () => handleLocalSdk),
-          wrapHandle("content-initialization", () => handleContentInitialization),
-          wrapHandle("audit-logging", () => handleAuditLogging),
+          wrapHandle("local-context", () => handleLocalContext),
           wrapHandle("api-requests", () => handleApiRequests),
           wrapHandle("token-resolution", () => handleTokenResolution),
         );
+        cachedPipelineApi = sequence(...handlers);
       }
       return cachedPipelineApi;
     }
     if (!cachedPipelineReady) {
-      cachedPipelineReady = sequence(
-        wrapHandle("turbo-pipeline", () => handleTurboPipeline),
-        wrapHandle("test-isolation", () => handleTestIsolation),
+      const handlers: Handle[] = [wrapHandle("turbo-pipeline", () => handleTurboPipeline)];
+      if (isTestMode) {
+        handlers.push(wrapHandle("test-isolation", () => handleTestIsolation));
+      }
+      handlers.push(
         wrapHandle("security", () => handleSecurity),
         wrapHandle("rate-limit", () => handleRateLimit),
         wrapHandle("system-state", () => handleSystemState),
-        // 🚀 Turbo GET: Right after security gates but BEFORE auth/authz.
-        // Serves pre-encoded cached responses with pre-computed session auth,
-        // bypassing handleAuthentication, handleAuthorization, and CSRF.
         wrapHandle("turbo-get", () => handleTurboGet),
         wrapHandle("redirects", () => handleRedirects),
         wrapHandle("compression", () => handleCompression),
-        wrapHandle("aeo-headers", () => handleAeoHeaders),
         wrapHandle("user-preferences", () => handleUserPreferences),
         wrapHandle("authentication", () => handleAuthentication),
         wrapHandle("authorization", () => handleAuthorization),
-        wrapHandle("local-sdk", () => handleLocalSdk),
-        wrapHandle("content-initialization", () => handleContentInitialization),
+        wrapHandle("local-context", () => handleLocalContext),
         wrapHandle("audit-logging", () => handleAuditLogging),
         wrapHandle("api-requests", () => handleApiRequests),
         wrapHandle("token-resolution", () => handleTokenResolution),
       );
+      cachedPipelineReady = sequence(...handlers);
     }
     return cachedPipelineReady;
   } else {
@@ -648,6 +681,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   const pathname = event.url.pathname;
 
+  // Warm collection create/update: WAF + CSRF + rate-limit + one persist.
+  // Cold sessions fall through to the full API_WRITE sequence.
+  if (lane === RequestLane.API_WRITE && isSimpleCollectionWrite(event)) {
+    return withLane(
+      await tryCollectionWriteLane({
+        event,
+        resolve: async (evt) => {
+          const pipeline = await getPipeline(lane);
+          return pipeline({ event: evt, resolve });
+        },
+      }),
+      lane,
+    );
+  }
+
   // 🚀 HOT-SWAP CHECK: Dynamically synchronize setup state on every request
   const currentSetupState = currentSetupStateWithMemo(pathname);
   if (setupComplete !== currentSetupState) {
@@ -655,6 +703,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     setupComplete = currentSetupState;
     cachedPipelineReady = null;
     cachedPipelineApi = null;
+    cachedPipelineApiWrite = null;
     cachedPipelineSetup = null;
     if (setupComplete) {
       try {
@@ -671,7 +720,15 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   // 🚀 Health check fast-return: skip trace setup, context, and full pipeline
-  if (lane === RequestLane.HEALTH || pathname === "/api/system/health" || pathname === "/health") {
+  if (
+    lane === RequestLane.HEALTH ||
+    pathname === "/api/system/health" ||
+    pathname === "/health" ||
+    pathname === "/healthz" ||
+    pathname === "/livez" ||
+    pathname === "/readyz" ||
+    pathname === "/_healthz"
+  ) {
     inFlightRequests++;
     try {
       const state =

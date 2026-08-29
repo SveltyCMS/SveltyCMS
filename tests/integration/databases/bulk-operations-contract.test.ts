@@ -44,8 +44,9 @@ afterAll(async () => {
   }
 });
 
-function uid(p: string) {
-  return `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+/** Enterprise _id contract: collection-table entries require UUIDv4 ids. */
+function uid(_p: string) {
+  return crypto.randomUUID();
 }
 
 describe("Bulk Operations Contract — All Adapters", () => {
@@ -105,14 +106,14 @@ describe("Bulk Operations Contract — All Adapters", () => {
   // ── updateMany ──────────────────────────────────────────────────────────
 
   describe("updateMany", () => {
-    const UP_PREFIX = uid("um");
+    const UP_IDS = [uid("um0"), uid("um1"), uid("um2")];
 
     beforeAll(async () => {
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < UP_IDS.length; i++) {
         await db.crud.insert(
           TEST_COLLECTION,
           {
-            _id: `${UP_PREFIX}-${i}`,
+            _id: UP_IDS[i],
             title: `Before ${i}`,
             status: "active",
             tenantId: TEST_TENANT,
@@ -153,17 +154,170 @@ describe("Bulk Operations Contract — All Adapters", () => {
     });
   });
 
-  // ── deleteMany ──────────────────────────────────────────────────────────
+  // ── batch.bulkUpdate ──────────────────────────────────────────────────────
+  // Covers the homogeneous single-statement path AND the heterogeneous
+  // per-row CASE fast path (SQLite) / bulkWrite fallback (MongoDB) — the
+  // N+1 bulk-update hot path the performance audit flagged.
 
-  describe("deleteMany", () => {
-    const DEL_PREFIX = uid("dm");
+  describe("batch.bulkUpdate", () => {
+    const BU_IDS = [uid("bu0"), uid("bu1"), uid("bu2"), uid("bu3")];
 
     beforeAll(async () => {
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < BU_IDS.length; i++) {
         await db.crud.insert(
           TEST_COLLECTION,
           {
-            _id: `${DEL_PREFIX}-${i}`,
+            _id: BU_IDS[i],
+            title: `Before ${i}`,
+            status: "active",
+            count: i,
+            tenantId: TEST_TENANT,
+          },
+          tenantOpts,
+        );
+      }
+    });
+
+    it("applies heterogeneous per-row payloads in one call", async () => {
+      const expectations = [
+        { title: "After 0", status: "draft", count: 10 },
+        { title: "After 1", status: "published", count: 20 },
+        { title: "After 2", status: "archived", count: 30 },
+        { title: "After 3", status: "draft", count: 40 },
+      ];
+      const result = await db.batch.bulkUpdate(
+        TEST_COLLECTION,
+        BU_IDS.map((id, i) => ({ id, data: expectations[i] })),
+        tenantOpts,
+      );
+
+      validateDatabaseResult(result, { operation: "batch.bulkUpdate (heterogeneous)" });
+      expect(result.success).toBe(true);
+
+      for (let i = 0; i < BU_IDS.length; i++) {
+        const row = await db.crud.findOne(TEST_COLLECTION, { _id: BU_IDS[i] }, tenantOpts);
+        expect(row.success).toBe(true);
+        expect(row.data.title).toBe(expectations[i].title);
+        expect(row.data.status).toBe(expectations[i].status);
+        expect(row.data.count).toBe(expectations[i].count);
+        // updatedAt must be stamped by the bulk path
+        expect(row.data.updatedAt).toBeDefined();
+      }
+    });
+
+    it("applies partial payloads per row (omitted physical columns preserved)", async () => {
+      const result = await db.batch.bulkUpdate(
+        TEST_COLLECTION,
+        [
+          { id: BU_IDS[0], data: { title: "Title Only" } },
+          { id: BU_IDS[1], data: { status: "Status Only" } },
+        ],
+        tenantOpts,
+      );
+
+      validateDatabaseResult(result, { operation: "batch.bulkUpdate (partial)" });
+      expect(result.success).toBe(true);
+
+      const row0 = await db.crud.findOne(TEST_COLLECTION, { _id: BU_IDS[0] }, tenantOpts);
+      expect(row0.success).toBe(true);
+      expect(row0.data.title).toBe("Title Only"); // sent field applied
+      // Omitted PHYSICAL column preserved (ELSE branch on SQL / untouched on Mongo):
+      expect(row0.data.status).toBe("draft");
+
+      const row1 = await db.crud.findOne(TEST_COLLECTION, { _id: BU_IDS[1] }, tenantOpts);
+      expect(row1.success).toBe(true);
+      expect(row1.data.title).toBe("After 1"); // omitted → preserved
+      expect(row1.data.status).toBe("Status Only"); // sent field applied
+    });
+
+    it("applies homogeneous payloads in one statement", async () => {
+      const result = await db.batch.bulkUpdate(
+        TEST_COLLECTION,
+        [
+          { id: BU_IDS[2], data: { status: "published" } },
+          { id: BU_IDS[3], data: { status: "published" } },
+        ],
+        tenantOpts,
+      );
+
+      validateDatabaseResult(result, { operation: "batch.bulkUpdate (homogeneous)" });
+      expect(result.success).toBe(true);
+
+      const row2 = await db.crud.findOne(TEST_COLLECTION, { _id: BU_IDS[2] }, tenantOpts);
+      const row3 = await db.crud.findOne(TEST_COLLECTION, { _id: BU_IDS[3] }, tenantOpts);
+      expect(row2.data.status).toBe("published");
+      expect(row3.data.status).toBe("published");
+      expect(row2.data.title).toBe("After 2"); // untouched
+      expect(row3.data.title).toBe("After 3"); // untouched
+    });
+
+    it("applies homogeneous blob-field payloads via prepareValues parity", async () => {
+      // The homogeneous fast path must route through prepareValues like
+      // crud.update — otherwise blob fields (non-materialized schema fields)
+      // fail Drizzle's .set() column lookup and number types can be mangled.
+      const result = await db.batch.bulkUpdate(
+        TEST_COLLECTION,
+        [
+          { id: BU_IDS[2], data: { title: "Same Title", count: 77 } },
+          { id: BU_IDS[3], data: { title: "Same Title", count: 77 } },
+        ],
+        tenantOpts,
+      );
+
+      validateDatabaseResult(result, { operation: "batch.bulkUpdate (homogeneous blob)" });
+      expect(result.success).toBe(true);
+
+      const row2 = await db.crud.findOne(TEST_COLLECTION, { _id: BU_IDS[2] }, tenantOpts);
+      const row3 = await db.crud.findOne(TEST_COLLECTION, { _id: BU_IDS[3] }, tenantOpts);
+      expect(row2.data.title).toBe("Same Title");
+      expect(row3.data.title).toBe("Same Title");
+      expect(row2.data.count).toBe(77); // number type preserved
+      expect(row3.data.count).toBe(77);
+    });
+
+    it("scopes by tenantId and never touches rows of other tenants", async () => {
+      const foreignId = uid("bu-fx");
+      await db.crud.insert(
+        TEST_COLLECTION,
+        {
+          _id: foreignId,
+          title: "Foreign",
+          status: "active",
+          tenantId: "other-tenant",
+        },
+        { tenantId: "other-tenant" },
+      );
+
+      const result = await db.batch.bulkUpdate(
+        TEST_COLLECTION,
+        [{ id: foreignId, data: { title: "Hacked" } }],
+        { tenantId: TEST_TENANT },
+      );
+      expect(result.success).toBe(true);
+
+      const foreign = await db.crud.findOne(
+        TEST_COLLECTION,
+        { _id: foreignId },
+        {
+          bypassTenantCheck: true,
+        },
+      );
+      expect(foreign.success).toBe(true);
+      expect(foreign.data.title).toBe("Foreign"); // untouched by the foreign-tenant id
+    });
+  });
+
+  // ── deleteMany ──────────────────────────────────────────────────────────
+
+  describe("deleteMany", () => {
+    const DEL_IDS = [uid("dm0"), uid("dm1"), uid("dm2")];
+
+    beforeAll(async () => {
+      for (let i = 0; i < DEL_IDS.length; i++) {
+        await db.crud.insert(
+          TEST_COLLECTION,
+          {
+            _id: DEL_IDS[i],
             title: `Delete ${i}`,
             status: "active",
             tenantId: TEST_TENANT,
@@ -176,7 +330,7 @@ describe("Bulk Operations Contract — All Adapters", () => {
     it("deletes multiple matching documents", async () => {
       const result = await db.crud.deleteMany(
         TEST_COLLECTION,
-        { _id: { $in: [`${DEL_PREFIX}-0`, `${DEL_PREFIX}-1`] } },
+        { _id: { $in: [DEL_IDS[0], DEL_IDS[1]] } },
         { tenantId: TEST_TENANT, permanent: true },
       );
 
@@ -190,7 +344,7 @@ describe("Bulk Operations Contract — All Adapters", () => {
     it("returns deletedCount", async () => {
       const result = await db.crud.deleteMany(
         TEST_COLLECTION,
-        { _id: `${DEL_PREFIX}-2` },
+        { _id: DEL_IDS[2] },
         { tenantId: TEST_TENANT, permanent: true },
       );
 

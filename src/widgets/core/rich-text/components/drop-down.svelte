@@ -20,7 +20,6 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import { onMount, tick } from 'svelte';
-	import { twMerge } from 'tailwind-merge';
 
 	// Lucide icons
 
@@ -147,7 +146,7 @@
 	}
 </script>
 
-<div class={twMerge('relative', className)} class:hidden={!show} bind:this={dropdownRef}>
+<div class="relative {className}" class:hidden={!show} bind:this={dropdownRef}>
 	<div bind:this={buttonWrapperRef} class="contents">
 	<Button
 		variant="primary"

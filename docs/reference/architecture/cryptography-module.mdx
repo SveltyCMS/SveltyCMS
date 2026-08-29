@@ -199,191 +199,6 @@ if (isValid) {
 
 ---
 
-### Data Encryption
-
-#### encryptData()
-
-Encrypts data using AES-256-GCM with Argon2id key derivation.
-
-**Signature:**
-
-```
-async function encryptData(data: Record<string, unknown>, password: string): Promise<string>;
-```
-
-**Parameters:**
-
-- `data` (Record<string, unknown>) - Object to encrypt
-- `password` (string) - Password for key derivation
-
-**Returns:**
-
-- Promise<string> - Base64-encoded encrypted blob
-
-**Example:**
-
-```
-import { encryptData } from "@utils/crypto";
-
-// Encrypt sensitive configuration data
-const sensitiveData = {
-  apiKey: "sk_live_abc123...",
-  dbPassword: "secretPassword",
-  jwtSecret: "myJWTSecret",
-};
-
-const encrypted = await encryptData(sensitiveData, "UserPassword123!");
-
-// encrypted = "A1B2C3...base64-encoded-blob"
-// Safe to store or transfer
-```
-
-**Encryption Process:**
-
-```
-1. Generate random salt (32 bytes)
-2. Derive key from password using Argon2id (64 MB RAM, 3 iterations)
-3. Generate random IV (16 bytes)
-4. Encrypt data with AES-256-GCM
-5. Get authentication tag (16 bytes)
-6. Combine: salt + IV + authTag + encrypted data
-7. Base64 encode result
-```
-
-**Output Format:**
-
-```
-[salt:32][iv:16][authTag:16][encryptedData:variable]
-```
-
-All base64-encoded as single string.
-
----
-
-#### decryptData()
-
-Decrypts data encrypted by `encryptData()`.
-
-**Signature:**
-
-```
-async function decryptData(
-  encryptedData: string,
-  password: string,
-): Promise<Record<string, unknown>>;
-```
-
-**Parameters:**
-
-- `encryptedData` (string) - Base64-encoded encrypted blob from `encryptData()`
-- `password` (string) - Password used for encryption
-
-**Returns:**
-
-- Promise<Record<string, unknown>> - Decrypted object
-
-**Throws:**
-
-- Error if password is incorrect
-- Error if data is tampered with (auth tag mismatch)
-- Error if data is corrupted
-
-**Example:**
-
-```
-import { decryptData } from "@utils/crypto";
-
-// Decrypt sensitive configuration
-try {
-  const decrypted = await decryptData(encrypted, "UserPassword123!");
-
-  console.log(decrypted);
-  // {
-  //   apiKey: 'sk_live_abc123...',
-  //   dbPassword: 'secretPassword',
-  //   jwtSecret: 'myJWTSecret'
-  // }
-} catch (error) {
-  console.error("Decryption failed:", error.message);
-  // Possible reasons:
-  // - Wrong password
-  // - Data tampered with
-  // - Data corrupted
-}
-```
-
-**Decryption Process:**
-
-```
-1. Base64 decode encrypted blob
-2. Extract: salt, IV, authTag, encrypted data
-3. Derive same key from password using Argon2id with extracted salt
-4. Decrypt with AES-256-GCM
-5. Verify authentication tag (ensures data integrity)
-6. Parse and return decrypted JSON
-```
-
-**Security Features:**
-
-- ✅ **Authentication tag verification** - Detects tampering
-- ✅ **Same salt reuse** - Ensures consistent key derivation
-- ✅ **Constant-time operations** - Prevents timing attacks
-- ✅ **Automatic validation** - Throws on any integrity issue
-
----
-
-### Key Derivation
-
-#### deriveKey()
-
-Derives a cryptographic key from a password using Argon2id.
-
-**Signature:**
-
-```
-async function deriveKey(password: string, salt: Buffer): Promise<Buffer>;
-```
-
-**Parameters:**
-
-- `password` (string) - Password to derive key from
-- `salt` (Buffer) - Random salt (32 bytes recommended)
-
-**Returns:**
-
-- Promise<Buffer> - 256-bit (32-byte) key
-
-**Example:**
-
-```
-import crypto from "crypto";
-import { deriveKey } from "@utils/crypto";
-
-// Generate random salt
-const salt = crypto.randomBytes(32);
-
-// Derive key from password
-const key = await deriveKey("UserPassword123!", salt);
-
-// Use key for custom encryption
-const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
-```
-
-**Use Cases:**
-
-- Custom encryption schemes
-- API key generation
-- Token signing keys
-- Database encryption keys
-
-**Security Notes:**
-
-- 🔒 Same password + salt = same key (deterministic)
-- 🎲 Different salt = different key (unique per use)
-- ⏱️ 64 MB RAM + 3 iterations = slow brute force (~100 attempts/sec on modern GPU)
-
----
-
 ## Security Properties
 
 ### Attack Resistance
@@ -655,99 +470,6 @@ export async function loginUser(email: string, password: string) {
 }
 ```
 
-### Secure Configuration Export/Import
-
-```
-import { encryptData, decryptData } from "@utils/crypto";
-
-// Export sensitive configuration
-export async function exportConfig(password: string) {
-  const config = {
-    database: {
-      host: "localhost",
-      password: "dbPassword123",
-    },
-    api: {
-      key: "sk_live_abc123",
-      secret: "secret_xyz789",
-    },
-    jwt: {
-      secret: "myJWTSecret",
-    },
-  };
-
-  // Encrypt with password
-  const encrypted = await encryptData(config, password);
-
-  // Save to file
-  await fs.writeFile("config.encrypted", encrypted);
-
-  return { success: true };
-}
-
-// Import configuration
-export async function importConfig(password: string) {
-  // Read encrypted file
-  const encrypted = await fs.readFile("config.encrypted", "utf8");
-
-  try {
-    // Decrypt with password
-    const config = await decryptData(encrypted, password);
-
-    // Apply configuration
-    await applyConfig(config);
-
-    return { success: true, config };
-  } catch (error) {
-    throw new Error("Invalid password or corrupted file");
-  }
-}
-```
-
-### API Token Encryption
-
-```
-import { encryptData, decryptData } from "@utils/crypto";
-
-// Store encrypted API token
-export async function storeApiToken(userId: string, token: string, masterPassword: string) {
-  const tokenData = {
-    token,
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-  };
-
-  // Encrypt token
-  const encrypted = await encryptData(tokenData, masterPassword);
-
-  // Store in database
-  await db.apiTokens.create({
-    userId,
-    encryptedToken: encrypted,
-  });
-}
-
-// Retrieve and decrypt API token
-export async function getApiToken(userId: string, masterPassword: string) {
-  const record = await db.apiTokens.findByUserId(userId);
-  if (!record) return null;
-
-  try {
-    // Decrypt token
-    const tokenData = await decryptData(record.encryptedToken, masterPassword);
-
-    // Check expiration
-    if (new Date(tokenData.expiresAt) < new Date()) {
-      throw new Error("Token expired");
-    }
-
-    return tokenData.token;
-  } catch (error) {
-    throw new Error("Failed to decrypt token");
-  }
-}
-```
-
 ---
 
 ## Best Practices
@@ -817,14 +539,14 @@ Never reveal detailed cryptographic errors to users:
 ```
 // ✅ GOOD: Generic error message
 try {
-  const decrypted = await decryptData(encrypted, password);
+  const isValid = await verifyPassword(storedHash, inputPassword);
 } catch (error) {
   throw new Error("Authentication failed"); // Don't reveal why
 }
 
 // ❌ BAD: Reveals information
 try {
-  const decrypted = await decryptData(encrypted, password);
+  const isValid = await verifyPassword(storedHash, inputPassword);
 } catch (error) {
   throw new Error("Wrong password"); // Reveals password was incorrect
 }
@@ -873,7 +595,7 @@ Typical performance on modern hardware:
 ### Unit Tests
 
 ```
-import { hashPassword, verifyPassword, encryptData, decryptData } from "@utils/crypto";
+import { hashPassword, verifyPassword } from "@utils/crypto";
 import { describe, it, expect } from "vitest";
 
 describe("Cryptography Module", () => {
@@ -882,33 +604,13 @@ describe("Cryptography Module", () => {
       const password = "MySecurePassword123!";
       const hash = await hashPassword(password);
 
-      expect(hash).toMatch(/^\$argon2id\$/);
+      expect(hash).toMatch(/^\$argon2id$/);
 
-      const isValid = await verifyPassword(password, hash);
+      const isValid = await verifyPassword(hash, password);
       expect(isValid).toBe(true);
 
-      const isInvalid = await verifyPassword("wrongpassword", hash);
+      const isInvalid = await verifyPassword(hash, "wrongpassword");
       expect(isInvalid).toBe(false);
-    });
-  });
-
-  describe("Data Encryption", () => {
-    it("should encrypt and decrypt data", async () => {
-      const data = { secret: "mySecret", apiKey: "key123" };
-      const password = "EncryptionPassword123!";
-
-      const encrypted = await encryptData(data, password);
-      expect(encrypted).toBeTypeOf("string");
-
-      const decrypted = await decryptData(encrypted, password);
-      expect(decrypted).toEqual(data);
-    });
-
-    it("should fail with wrong password", async () => {
-      const data = { secret: "mySecret" };
-      const encrypted = await encryptData(data, "password1");
-
-      await expect(decryptData(encrypted, "wrongpassword")).rejects.toThrow();
     });
   });
 });
@@ -935,21 +637,21 @@ describe("Cryptography Module", () => {
 
 ## Plugin Settings Encryption (Static-Key AES-256-GCM)
 
-In addition to password-based encryption (`encryptData`/`decryptData`), SveltyCMS provides a **static-key encryption** system for plugin settings via `@src/plugins/settings-crypto.ts`.
+In addition to password-based Argon2id hashing, SveltyCMS provides a **static-key encryption** system for plugin settings via `@src/plugins/settings-crypto.ts`.
 
 ### Use Case
 
 Plugin settings (API keys, webhook secrets, SMTP credentials) need to be encrypted at rest but decrypted transparently when the plugin runs — **without requiring a user password each time**. The static-key system uses an environment variable (`SECRET_ENCRYPTION_KEY`) as the encryption key.
 
-### Key Differences from `encryptData`
+### Key Differences from password-based encryption
 
-| Feature         | `encryptData` (Password-based)    | `encryptSecret` (Static-key)              |
-| :-------------- | :-------------------------------- | :---------------------------------------- |
-| Key source      | User-provided password + Argon2id | `SECRET_ENCRYPTION_KEY` env var           |
-| Key derivation  | Argon2id (64 MB, 3 iterations)    | Direct hex/base64 key (or SHA-256 derive) |
-| Use case        | User data export/import           | Automated plugin settings                 |
-| Interactive     | Yes (user enters password)        | No (fully automated)                      |
-| Envelope format | `salt:iv:authTag:ciphertext`      | `version:iv:authTag:ciphertext`           |
+| Feature         | Password-based (legacy)  | `encryptSecret` (Static-key)                               |
+| :-------------- | :----------------------- | :--------------------------------------------------------- |
+| Key source      | Removed (unused in src/) | `SECRET_ENCRYPTION_KEY` env var                            |
+| Key derivation  | —                        | Direct hex/base64 key (or HKDF-SHA-256; SHA-256 dual-read) |
+| Use case        | —                        | Automated plugin settings                                  |
+| Interactive     | —                        | No (fully automated)                                       |
+| Envelope format | —                        | `version:iv:authTag:ciphertext`                            |
 
 ### API Reference {#plugin-settings-api-reference}
 
@@ -1008,5 +710,7 @@ See [Plugin Settings Crypto](/src/plugins/settings-crypto.ts) and [Plugin Settin
 
 ---
 
-_Last Updated: July 2026_
+Passphrase-shaped `SECRET_ENCRYPTION_KEY` values (not 64-char hex / strict base64) are derived with **HKDF-SHA-256** (`info = sveltycms-plugin-settings`). Decrypt tries that key first, then the pre-2026-08 SHA-256(raw) digest so existing rows keep working. Derivation is cached for the process — not per request. Prefer a 64-char hex key in production.
+
+_Last Updated: August 2026_
 _Security Audit: Annual review recommended_

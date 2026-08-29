@@ -10,15 +10,18 @@ New Features:
 - Last update timestamp
 - Enhanced error handling
 - All features opt-in and backward compatible
+- Polling pauses while the tab is hidden
+- Polls skip localStorage cache so TTL does not freeze live data
 -->
 <script lang="ts">
 import type { WidgetSize } from "@src/content/types";
 import { logger } from "@utils/logger";
 	import Button from '@components/ui/button.svelte';
-
-// Lucide icons
-
-type Snippet<T = any> = (args: T) => any;
+import type { Snippet } from "svelte";
+import {
+	shouldFetchOnVisibility,
+	shouldSkipScheduledPoll,
+} from "./widget-runtime";
 
 interface ChildSnippetProps {
 	data: any;
@@ -35,7 +38,7 @@ const {
 	endpoint = undefined,
 	pollInterval = 0,
 	widgetId = undefined,
-	children = undefined as Snippet<ChildSnippetProps> | undefined,
+	children = undefined as Snippet<[ChildSnippetProps]> | undefined,
 	size = { w: 1, h: 1 } as WidgetSize,
 	onSizeChange = (_newSize: WidgetSize) => {},
 	resizable = true,
@@ -54,7 +57,7 @@ const {
 	endpoint?: string;
 	pollInterval?: number;
 	widgetId?: string;
-	children?: Snippet<ChildSnippetProps>;
+	children?: Snippet<[ChildSnippetProps]>;
 	size?: WidgetSize;
 	onSizeChange?: (newSize: WidgetSize) => void;
 	resizable?: boolean;
@@ -122,14 +125,14 @@ function setCachedData(data: any) {
 }
 
 // Enhanced fetch with retry logic
-async function fetchData(retryAttempt = 0): Promise<void> {
+async function fetchData(retryAttempt = 0, skipLocalCache = false): Promise<void> {
 	if (!endpoint) {
 		loading = false;
 		return;
 	}
 
-	// Check cache first on initial load
-	if (retryAttempt === 0) {
+	// Check cache first on initial load (polls skip so TTL cannot freeze live data)
+	if (retryAttempt === 0 && !skipLocalCache) {
 		const cached = getCachedData();
 		if (cached) {
 			internalData = cached;
@@ -144,9 +147,7 @@ async function fetchData(retryAttempt = 0): Promise<void> {
 	currentRetry = retryAttempt;
 
 	try {
-		// Add cache-busting param, use & if endpoint already has query params
-		const separator = endpoint.includes("?") ? "&" : "?";
-		const res = await fetch(`${endpoint}${separator}_=${Date.now()}`);
+		const res = await fetch(endpoint, { cache: "no-store" });
 		if (!res.ok) {
 			throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 		}
@@ -170,7 +171,7 @@ async function fetchData(retryAttempt = 0): Promise<void> {
 			);
 			const delay = retryDelay * 2 ** retryAttempt; // Exponential backoff
 			await new Promise((resolve) => setTimeout(resolve, delay));
-			return fetchData(retryAttempt + 1);
+			return fetchData(retryAttempt + 1, skipLocalCache);
 		}
 
 		error = errorMsg;
@@ -190,7 +191,7 @@ async function refresh() {
 	await fetchData();
 }
 
-// Effect for fetching data with polling
+// Effect for fetching data with polling (paused while the tab is hidden)
 $effect(() => {
 	if (!endpoint) {
 		loading = false;
@@ -198,27 +199,47 @@ $effect(() => {
 	}
 
 	let isActive = true;
-	let timerId: NodeJS.Timeout;
+	let timerId: ReturnType<typeof setInterval> | undefined;
 
-	// Initial fetch
 	(async () => {
 		if (isActive) {
 			await fetchData();
 		}
 	})();
 
-	// Setup polling if interval specified
 	if (pollInterval > 0) {
 		timerId = setInterval(() => {
-			if (isActive) {
-				fetchData();
+			if (!isActive) return;
+			if (shouldSkipScheduledPoll(typeof document !== "undefined" && document.hidden)) {
+				return;
 			}
+			void fetchData(0, true);
 		}, pollInterval);
+	}
+
+	const onVisibility = () => {
+		if (!isActive) return;
+		if (
+			shouldFetchOnVisibility(
+				typeof document !== "undefined" && document.hidden,
+				lastFetchTime,
+				pollInterval,
+				Date.now(),
+			)
+		) {
+			void fetchData(0, true);
+		}
+	};
+	if (typeof document !== "undefined") {
+		document.addEventListener("visibilitychange", onVisibility);
 	}
 
 	return () => {
 		isActive = false;
-		clearInterval(timerId);
+		if (timerId) clearInterval(timerId);
+		if (typeof document !== "undefined") {
+			document.removeEventListener("visibilitychange", onVisibility);
+		}
 	};
 });
 
@@ -419,7 +440,8 @@ $effect(() => {
 						style="z-index: 9999; position: absolute;"
 					>
 						{#each availableSizes as s (s.w + 'x' + s.h)}
-							<Button variant="outline">
+							<Button
+								variant="outline"
 								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-500/10 dark:hover:bg-surface-700 {size.w ===
 									s.w && size.h === s.h
 									? 'font-bold text-tertiary-500 dark:text-primary-500'

@@ -13,6 +13,29 @@
 import { BaseNamespace } from "./misc-namespaces";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { LocalApiOptions } from "./types";
+import { lazyModule } from "@src/utils/lazy-module";
+
+const getConfigServiceLazy = lazyModule(() =>
+  import("@src/services/core/config-service").then((m) => m.configService),
+);
+const getContentPackageServiceLazy = lazyModule(() =>
+  import("@src/services/core/content-package-service").then((m) => m.contentPackageService),
+);
+const getMigrationEngineLazy = lazyModule(() =>
+  import("@src/services/core/migration-engine").then((m) => m.MigrationEngine),
+);
+const getBackupServiceLazy = lazyModule(() =>
+  import("@src/services/core/backup-service").then((m) => m.backupService),
+);
+const getContentSyncServiceLazy = lazyModule(() =>
+  import("@src/services/core/content-sync-service").then((m) => m.contentSyncService),
+);
+const getSyncContentStateLazy = lazyModule(() =>
+  import("@src/content/index.server").then((m) => m.syncContentState),
+);
+const getContentServiceLazy = lazyModule(() =>
+  import("@src/content/engine.server").then((m) => m.contentService),
+);
 
 // ---------------------------------------------------------------------------
 // Configuration Namespace
@@ -29,12 +52,12 @@ export class ConfigurationNamespace extends BaseNamespace {
   }
 
   async getStatus(options: LocalApiOptions = {}) {
-    const { configService } = await import("@src/services/core/config-service");
+    const configService = await getConfigServiceLazy();
     return configService.getStatus(options.tenantId as string | undefined);
   }
 
   async performExport(params: { uuids?: string[] }, options: LocalApiOptions = {}) {
-    const { configService } = await import("@src/services/core/config-service");
+    const configService = await getConfigServiceLazy();
     return configService.performExport({
       uuids: params.uuids,
       tenantId: options.tenantId as string | undefined,
@@ -42,7 +65,7 @@ export class ConfigurationNamespace extends BaseNamespace {
   }
 
   async performImport(options: LocalApiOptions = {}) {
-    const { configService } = await import("@src/services/core/config-service");
+    const configService = await getConfigServiceLazy();
     return configService.performImport({
       tenantId: options.tenantId as string | undefined,
     });
@@ -75,7 +98,7 @@ export class ContentTransferNamespace extends BaseNamespace {
     },
     options: LocalApiOptions = {},
   ) {
-    const { contentPackageService } = await import("@src/services/core/content-package-service");
+    const contentPackageService = await getContentPackageServiceLazy();
     return contentPackageService.validateExport({
       collections: params.collections,
       filter: params.filter,
@@ -98,7 +121,7 @@ export class ContentTransferNamespace extends BaseNamespace {
     },
     options: LocalApiOptions = {},
   ) {
-    const { contentPackageService } = await import("@src/services/core/content-package-service");
+    const contentPackageService = await getContentPackageServiceLazy();
     return contentPackageService.planExport({
       collections: params.collections,
       filter: params.filter,
@@ -121,7 +144,7 @@ export class ContentTransferNamespace extends BaseNamespace {
     },
     options: LocalApiOptions = {},
   ) {
-    const { contentPackageService } = await import("@src/services/core/content-package-service");
+    const contentPackageService = await getContentPackageServiceLazy();
     return contentPackageService.runExport({
       collections: params.collections,
       filter: params.filter,
@@ -134,7 +157,7 @@ export class ContentTransferNamespace extends BaseNamespace {
   }
 
   async validateImport(pkg: Record<string, unknown>, options: LocalApiOptions = {}) {
-    const { contentPackageService } = await import("@src/services/core/content-package-service");
+    const contentPackageService = await getContentPackageServiceLazy();
     return contentPackageService.validateImport(pkg as any, {
       tenantId: options.tenantId as string,
       userId: (options as any).userId ?? "system",
@@ -149,7 +172,7 @@ export class ContentTransferNamespace extends BaseNamespace {
     } = {},
     options: LocalApiOptions = {},
   ) {
-    const { contentPackageService } = await import("@src/services/core/content-package-service");
+    const contentPackageService = await getContentPackageServiceLazy();
     return contentPackageService.planImport(pkg as any, {
       duplicateStrategy: params.duplicateStrategy as any,
       tenantId: options.tenantId as string,
@@ -158,7 +181,7 @@ export class ContentTransferNamespace extends BaseNamespace {
   }
 
   async applyImport(planId: string, options: LocalApiOptions & { userId?: string } = {}) {
-    const { contentPackageService } = await import("@src/services/core/content-package-service");
+    const contentPackageService = await getContentPackageServiceLazy();
     return contentPackageService.applyImport(planId, {
       tenantId: options.tenantId as string,
       userId: options.userId,
@@ -166,7 +189,7 @@ export class ContentTransferNamespace extends BaseNamespace {
   }
 
   async getJobStatus(jobId: string) {
-    const { contentPackageService } = await import("@src/services/core/content-package-service");
+    const contentPackageService = await getContentPackageServiceLazy();
     return contentPackageService.getJobStatus(jobId);
   }
 }
@@ -186,7 +209,7 @@ export class MigrationNamespace extends BaseNamespace {
   }
 
   async createPlan(codeSchema: any) {
-    const { MigrationEngine } = await import("@src/services/core/migration-engine");
+    const MigrationEngine = await getMigrationEngineLazy();
     return MigrationEngine.createPlan(codeSchema);
   }
 
@@ -195,7 +218,7 @@ export class MigrationNamespace extends BaseNamespace {
     codeSchema: any,
     params: { confirmed?: boolean; appliedBy?: string } = {},
   ) {
-    const { MigrationEngine } = await import("@src/services/core/migration-engine");
+    const MigrationEngine = await getMigrationEngineLazy();
     return MigrationEngine.applyMigration(plan, codeSchema, {
       confirmed: params.confirmed,
       appliedBy: params.appliedBy,
@@ -203,17 +226,17 @@ export class MigrationNamespace extends BaseNamespace {
   }
 
   async verifyMigration(codeSchema: any, planId: string) {
-    const { MigrationEngine } = await import("@src/services/core/migration-engine");
+    const MigrationEngine = await getMigrationEngineLazy();
     return MigrationEngine.verifyMigration(codeSchema, planId);
   }
 
   async getStatus(collectionId?: string) {
-    const { MigrationEngine } = await import("@src/services/core/migration-engine");
+    const MigrationEngine = await getMigrationEngineLazy();
     return MigrationEngine.getStatus(collectionId);
   }
 
   async getHistory(collectionId?: string) {
-    const { MigrationEngine } = await import("@src/services/core/migration-engine");
+    const MigrationEngine = await getMigrationEngineLazy();
     return MigrationEngine.getHistory(collectionId);
   }
 }
@@ -300,7 +323,7 @@ export class BackupNamespace extends BaseNamespace {
     },
     options: LocalApiOptions = {},
   ) {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const backupService = await getBackupServiceLazy();
     return backupService.createBackup({
       tenantId: options.tenantId as string,
       userId: params.userId ?? "system",
@@ -312,7 +335,7 @@ export class BackupNamespace extends BaseNamespace {
   }
 
   async validateBackup(backupPath: string) {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const backupService = await getBackupServiceLazy();
     return backupService.validateBackup(backupPath);
   }
 
@@ -324,7 +347,7 @@ export class BackupNamespace extends BaseNamespace {
     } = {},
     options: LocalApiOptions = {},
   ) {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const backupService = await getBackupServiceLazy();
     return backupService.createRestorePlan(backupPath, {
       tenantId: options.tenantId as string,
       collections: params.collections,
@@ -344,7 +367,7 @@ export class BackupNamespace extends BaseNamespace {
     },
     options: LocalApiOptions = {},
   ) {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const backupService = await getBackupServiceLazy();
     return backupService.restoreBackup(backupPath, {
       confirmed: params.confirmed,
       tenantId: options.tenantId as string,
@@ -357,12 +380,12 @@ export class BackupNamespace extends BaseNamespace {
   }
 
   async listBackups(options: LocalApiOptions = {}) {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const backupService = await getBackupServiceLazy();
     return backupService.listBackups(options.tenantId as string | undefined);
   }
 
   async getJobStatus(jobId: string) {
-    const { backupService } = await import("@src/services/core/backup-service");
+    const backupService = await getBackupServiceLazy();
     return backupService.getJobStatus(jobId);
   }
 }
@@ -394,7 +417,7 @@ export class ContentStructureNamespace extends BaseNamespace {
     operations: import("@src/content/types").ContentNodeOperation[],
     options: LocalApiOptions = {},
   ) {
-    const { syncContentState } = await import("@src/content/index.server");
+    const syncContentState = await getSyncContentStateLazy();
     return syncContentState({
       reason: "gui-save",
       tenantId: options.tenantId ?? null,
@@ -404,7 +427,7 @@ export class ContentStructureNamespace extends BaseNamespace {
   }
 
   async getFlatStructure(options: LocalApiOptions = {}) {
-    const { contentService } = await import("@src/content/engine.server");
+    const contentService = await getContentServiceLazy();
     return contentService.getContentStructureFromDatabase(
       "flat",
       options.tenantId ?? null,
@@ -439,7 +462,7 @@ export class ContentSyncNamespace extends BaseNamespace {
   }
 
   async listChannels(options: LocalApiOptions = {}) {
-    const { contentSyncService } = await import("@src/services/core/content-sync-service");
+    const contentSyncService = await getContentSyncServiceLazy();
     return contentSyncService.listChannels(options.tenantId as string | undefined);
   }
 
@@ -453,17 +476,17 @@ export class ContentSyncNamespace extends BaseNamespace {
     anonymizeOnPull?: boolean;
     conflictStrategy?: string;
   }) {
-    const { contentSyncService } = await import("@src/services/core/content-sync-service");
+    const contentSyncService = await getContentSyncServiceLazy();
     return contentSyncService.createChannel(config as any);
   }
 
   async updateChannel(channelId: string, updates: Record<string, unknown>) {
-    const { contentSyncService } = await import("@src/services/core/content-sync-service");
+    const contentSyncService = await getContentSyncServiceLazy();
     return contentSyncService.updateChannel(channelId, updates as any);
   }
 
   async deleteChannel(channelId: string) {
-    const { contentSyncService } = await import("@src/services/core/content-sync-service");
+    const contentSyncService = await getContentSyncServiceLazy();
     return contentSyncService.deleteChannel(channelId);
   }
 
@@ -476,7 +499,7 @@ export class ContentSyncNamespace extends BaseNamespace {
       userId?: string;
     } = {},
   ) {
-    const { contentSyncService } = await import("@src/services/core/content-sync-service");
+    const contentSyncService = await getContentSyncServiceLazy();
     return contentSyncService.createSyncPlan(channelId, params as any);
   }
 
@@ -491,7 +514,7 @@ export class ContentSyncNamespace extends BaseNamespace {
       includeMedia?: boolean;
     } = {},
   ) {
-    const { contentSyncService } = await import("@src/services/core/content-sync-service");
+    const contentSyncService = await getContentSyncServiceLazy();
     return contentSyncService.pushContent(channelId, params as any);
   }
 
@@ -505,12 +528,12 @@ export class ContentSyncNamespace extends BaseNamespace {
       includeMedia?: boolean;
     } = {},
   ) {
-    const { contentSyncService } = await import("@src/services/core/content-sync-service");
+    const contentSyncService = await getContentSyncServiceLazy();
     return contentSyncService.pullContent(channelId, params as any);
   }
 
   async getJobStatus(jobId: string) {
-    const { contentSyncService } = await import("@src/services/core/content-sync-service");
+    const contentSyncService = await getContentSyncServiceLazy();
     return contentSyncService.getJobStatus(jobId);
   }
 }

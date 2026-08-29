@@ -26,7 +26,7 @@ import { Underline } from "@tiptap/extension-underline";
 import { Youtube } from "@tiptap/extension-youtube";
 import StarterKit from "@tiptap/starter-kit";
 // Import helper for text direction
-import { getTextDirection } from "@utils/utils";
+import { getTextDirection } from "@utils/string";
 // Import your custom extensions
 import ImageResize from "./extensions/image-resize";
 import TextStyle from "./extensions/text-style";

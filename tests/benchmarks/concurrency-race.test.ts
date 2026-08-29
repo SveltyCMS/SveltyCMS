@@ -1,13 +1,7 @@
 /**
  * @file tests/benchmarks/concurrency-race.test.ts
  * @description Concurrency & Race Condition Audit (Optimized)
- * @summary Simulates high-concurrency writes to a single document to prove atomic consistency and lost update protection.
- *
- * ### Features:
- * - High-concurrency write collision simulation
- * - Atomic consistency verification
- * - Lost update detection and prevention
- * - Document-level concurrency stress testing
+ * @summary Simulates high-concurrency writes to a single document to prove atomic consistency.
  */
 
 import {
@@ -24,7 +18,8 @@ import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 
 const COLLECTION_ID = "BenchmarkStable";
-const ENTRY_ID = "bench-shared-001";
+const ENTRY_ID = "20000000-0000-4000-8000-000000000001";
+const CONCURRENCY = 100;
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -37,212 +32,172 @@ async function runConcurrencyAudit() {
     await ensureStableTestData();
     await forceRefreshServer(baseUrl);
 
-    // Canonical lowercase structural header format — REAL admin session (production auth)
-    const headers = {
+    const headers: HeadersInit = {
       "content-type": "application/json",
       ...benchmarkAuthHeaders(),
       "x-tenant-id": "global",
-    } as const;
+      connection: "keep-alive",
+    };
 
-    // 1. Check current state by reading the entry
-    const checkRes = await fetch(
-      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?bypassCache=true`,
-      { method: "GET", headers },
-    );
+    const targetUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`;
+    const collectionUrl = `${baseUrl}/api/collections/${COLLECTION_ID}`;
 
-    if (checkRes.ok) {
-      const checkData = await checkRes.json();
-      if (checkData?.data != null) {
-        console.log(`   → Concurrency target entry found.`);
-      } else {
-        console.log(`   → Entry returned null. Purging existing and creating _id=${ENTRY_ID}...`);
-        const delRes = await fetch(
-          `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?permanent=true`,
-          { method: "DELETE", headers },
-        );
-        await delRes.text().catch(() => {});
+    // ── 1. DETERMINISTIC SETUP & INITIAL STATE RESET ──────────────────────────
+    const checkRes = await fetch(`${targetUrl}?bypassCache=true`, { headers });
 
-        const createRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            _id: ENTRY_ID,
-            count: 0,
-            title: "Concurrency Target",
-          }),
-        });
-        if (!createRes.ok)
-          throw new Error(`Failed to create target entry: ${await createRes.text()}`);
-      }
-    } else if (checkRes.status === 404) {
-      console.log(`   → Entry not found. Creating _id=${ENTRY_ID}...`);
-      const createRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}`, {
+    if (checkRes.status === 404) {
+      await checkRes.arrayBuffer().catch(() => {});
+      const createRes = await fetch(collectionUrl, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          _id: ENTRY_ID,
-          count: 0,
-          title: "Concurrency Target",
-        }),
+        body: JSON.stringify({ _id: ENTRY_ID, count: 0, title: "Concurrency Target" }),
       });
-      if (!createRes.ok)
+      if (!createRes.ok) {
         throw new Error(`Failed to create target entry: ${await createRes.text()}`);
+      }
+      await createRes.arrayBuffer().catch(() => {});
+    } else if (checkRes.ok) {
+      await checkRes.arrayBuffer().catch(() => {});
+      // Reset counter to 0 explicitly
+      const resetRes = await fetch(targetUrl, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ count: 0 }),
+      });
+      if (!resetRes.ok) throw new Error(`Failed to reset count: ${await resetRes.text()}`);
+      await resetRes.arrayBuffer().catch(() => {});
     } else {
-      throw new Error(`Failed to check entry state: ${checkRes.status}`);
+      await checkRes.arrayBuffer().catch(() => {});
+      throw new Error(`Unexpected status checking entry state: ${checkRes.status}`);
     }
-
-    // Reset the count field to 0 via PATCH
-    const resetRes = await fetch(`${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ count: 0 }),
-    });
-    if (!resetRes.ok) await resetRes.text().catch(() => {});
 
     await forceRefreshServer(baseUrl);
 
-    const getRes = await fetch(
-      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?bypassCache=true&_t=${Date.now()}`,
-      { method: "GET", headers },
-    );
+    // Verify baseline count
+    const getRes = await fetch(`${targetUrl}?bypassCache=true&_t=${Date.now()}`, { headers });
     if (!getRes.ok) throw new Error("Failed to fetch initial state");
-    const initialData = await getRes.json();
+    const initialData = (await getRes.json()) as any;
     const initialCount =
       initialData.data?.count ?? initialData.data?.data?.count ?? initialData.count ?? 0;
 
-    console.log(`   → Initial count: ${initialCount}`);
+    console.log(`   → Baseline verified. Initial count: ${initialCount}`);
 
     const dbType = getDbType().toLowerCase();
-    const BATCH = dbType.includes("mongodb") ? 100 : 50;
-    const GAP = 0;
-    const CONCURRENCY = 100;
+    const POOL_CONCURRENCY = dbType.includes("mongodb") ? 100 : dbType.includes("sqlite") ? 50 : 25;
 
-    console.log(`   → Blasting 100 concurrent increments (batch ${BATCH}, ${dbType})...`);
+    console.log(
+      `   → Firing ${CONCURRENCY} concurrent increments (concurrency pool=${POOL_CONCURRENCY}, ${dbType})...`,
+    );
 
-    // Pre-allocate static request configuration components
-    const targetIncrementUrl = `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}/increment`;
+    // ── 2. CONCURRENT TRANSACTION PIPELINE ───────────────────────────────────
+    const incrementUrl = `${targetUrl}/increment`;
     const bodyPayload = JSON.stringify({ field: "count", amount: 1 });
 
-    const responses: Response[] = [];
-    const t0 = performance.now();
+    const latencies: number[] = Array.from<number>({ length: CONCURRENCY });
+    const responseCounts: number[] = [];
+    let jobCursor = 0;
+    let successCount = 0;
 
-    // Fix the async promise execution defect using a lazy closure executor graph
-    const taskQueue = Array.from(
-      { length: CONCURRENCY },
-      () => () =>
-        fetch(targetIncrementUrl, {
+    const executeIncrement = async (idx: number): Promise<void> => {
+      const start = performance.now();
+      try {
+        const res = await fetch(incrementUrl, {
           method: "POST",
           headers,
           body: bodyPayload,
-        }),
-    );
+        });
 
-    if (BATCH < CONCURRENCY) {
-      // Execute true sequentialized waves for locking-sensitive adapters (e.g., SQLite)
-      for (let i = 0; i < taskQueue.length; i += BATCH) {
-        const waveThunks = taskQueue.slice(i, i + BATCH);
-        const wavePromises = waveThunks.map((thunk) => thunk());
-        const waveRes = await Promise.all(wavePromises);
-        responses.push(...waveRes);
+        latencies[idx] = performance.now() - start;
 
-        if (i + BATCH < taskQueue.length && GAP > 0) {
-          await new Promise((r) => setTimeout(r, GAP));
-        }
-      }
-    } else {
-      // Full parallelism via connection pools for enterprise backends
-      const allPromises = taskQueue.map((thunk) => thunk());
-      const allRes = await Promise.all(allPromises);
-      responses.push(...allRes);
-    }
-    const duration = performance.now() - t0;
-    const successCount = responses.filter((r) => r.ok).length;
-
-    // 3. Evaluate returning metrics
-    let maxCountFromResponses = 0;
-    let loggedFailed = false;
-
-    for (const res of responses) {
-      if (res.ok) {
-        try {
-          const body = await res.json();
+        if (res.ok) {
+          const body = (await res.json()) as any;
           const data = body?.data ?? body;
-          const count = data?.count ?? data?.data?.count ?? 0;
-          if (count > maxCountFromResponses) {
-            maxCountFromResponses = count;
+          const count = data?.count ?? data?.data?.count;
+          if (typeof count === "number") {
+            responseCounts.push(count);
           }
-        } catch {
-          // Suppress parsing anomalies
+          successCount++;
+        } else {
+          await res.arrayBuffer().catch(() => {});
         }
-      } else if (!loggedFailed) {
-        loggedFailed = true;
-        try {
-          const errBody = await res.text();
-          console.error(`   → FAILED RESPONSE STATUS: ${res.status}, BODY: ${errBody}`);
-        } catch {
-          console.error(`   → FAILED RESPONSE STATUS: ${res.status}`);
-        }
-      } else {
-        // Drain remaining socket loops to preserve pooled descriptors
-        await res.arrayBuffer().catch(() => {});
+      } catch {
+        latencies[idx] = -1;
       }
-    }
+    };
 
-    let finalCount = maxCountFromResponses;
-    const finalRes = await fetch(
-      `${baseUrl}/api/collections/${COLLECTION_ID}/${ENTRY_ID}?bypassCache=true&_t=${Date.now()}`,
-      { method: "GET", headers },
+    const t0 = performance.now();
+
+    // Sliding window execution to avoid pool lockups while keeping pressure saturated
+    const workers = Array.from({ length: Math.min(POOL_CONCURRENCY, CONCURRENCY) }, async () => {
+      while (true) {
+        const idx = jobCursor++;
+        if (idx >= CONCURRENCY) break;
+        await executeIncrement(idx);
+      }
+    });
+
+    await Promise.all(workers);
+    const duration = performance.now() - t0;
+
+    // ── 3. ATOMIC CONSISTENCY VALIDATION ─────────────────────────────────────
+    const maxReturnedCount = responseCounts.length > 0 ? Math.max(...responseCounts) : 0;
+
+    const finalRes = await fetch(`${targetUrl}?bypassCache=true&_t=${Date.now()}`, { headers });
+    if (!finalRes.ok) throw new Error("Failed to fetch final state");
+    const finalData = (await finalRes.json()) as any;
+    const dbFinalCount =
+      finalData.data?.count ?? finalData.data?.data?.count ?? finalData.count ?? 0;
+
+    console.log(
+      `   → Max count in response payloads: ${maxReturnedCount}, Final count in DB: ${dbFinalCount}`,
     );
-    if (finalRes.ok) {
-      const finalData = await finalRes.json();
-      const dbCount = finalData.data?.count ?? finalData.data?.data?.count ?? finalData.count ?? 0;
-      console.log(
-        `   → Max count from responses: ${maxCountFromResponses}, DB final count: ${dbCount}`,
-      );
-      finalCount = Math.max(maxCountFromResponses, dbCount);
-    }
 
-    console.log(`   → Final count: ${finalCount}`);
-
-    const isPerfect = finalCount === initialCount + CONCURRENCY;
+    const isConsistent = dbFinalCount === initialCount + successCount;
+    const isPerfect = dbFinalCount === initialCount + CONCURRENCY;
     const lockUpDetected = !isPerfect || (successCount < CONCURRENCY && duration > 5000);
+
+    const validLatencies = latencies.filter((l) => l >= 0).sort((a, b) => a - b);
+    const avgMs = validLatencies.length
+      ? validLatencies.reduce((a, b) => a + b, 0) / validLatencies.length
+      : 0;
+    const p95Ms = validLatencies.length
+      ? validLatencies[Math.floor(validLatencies.length * 0.95)]
+      : 0;
+    const rps = (CONCURRENCY / duration) * 1000;
 
     printTruthTable({
       title: "SVELTYCMS — CONCURRENCY AUDIT",
       shortLabel: "Concurrency",
-      subtitle: `100 Concurrent Writes • ${getDbType().toUpperCase()}`,
+      subtitle: `${CONCURRENCY} Concurrent Writes • ${dbType.toUpperCase()}`,
       results: [
         {
           name: "Concurrent PATCH Bomb",
-          avgMs: duration / CONCURRENCY,
-          p95Ms: duration / CONCURRENCY,
-          rps: (CONCURRENCY / duration) * 1000,
-          layer: "Database Locks",
+          avgMs,
+          p95Ms,
+          rps,
+          layer: isConsistent ? "✅ Atomicity Intact" : "❌ Lost Updates",
         },
       ],
     });
 
     printSummaryTable([
-      { key: "Total Duration", val: duration, unit: "ms" },
-      { key: "Successful Writes", val: successCount, unit: `/${CONCURRENCY}` },
-      {
-        key: "Database Lockup",
-        val: lockUpDetected ? "DETECTED" : "NONE",
-        unit: "",
-      },
-      {
-        key: "Concurrency Health",
-        val: lockUpDetected ? "FAILED" : "EXCELLENT",
-        unit: "",
-      },
+      { key: "Total Duration", val: duration.toFixed(1), unit: "ms" },
+      { key: "Successful Writes", val: `${successCount}/${CONCURRENCY}`, unit: "" },
+      { key: "Atomic Delta Expected", val: `+${CONCURRENCY}`, unit: "" },
+      { key: "Actual Delta", val: `+${dbFinalCount - initialCount}`, unit: "" },
+      { key: "Latency (Avg / P95)", val: `${avgMs.toFixed(1)} / ${p95Ms.toFixed(1)}`, unit: "ms" },
+      { key: "Lockup / Lost Updates", val: lockUpDetected ? "DETECTED" : "NONE", unit: "" },
     ]);
 
     if (lockUpDetected) {
-      throw new Error("Concurrency Audit Failed: Database lockup or severe error rate detected.");
+      throw new Error(
+        `Concurrency Audit Failed: Expected final count ${initialCount + CONCURRENCY}, got ${dbFinalCount}. Lost ${
+          CONCURRENCY - successCount
+        } updates.`,
+      );
     }
   } catch (err: any) {
     logger.error(`Concurrency audit failed: ${err.message}`);
-    console.error(err);
     throw err;
   } finally {
     if (stopServer) {
