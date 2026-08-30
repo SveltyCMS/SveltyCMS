@@ -116,17 +116,17 @@ function detectColdWarmRatioRegressions(
 ): void {
   try {
     const baseDb = dbKey.replace("-redis", "");
-    const rows = db
-      .query(
-        `SELECT metric, phase, avg_ms, timestamp FROM runs
-         WHERE db_type = ? AND status = 'SUCCESS' AND avg_ms > 0
-         ORDER BY timestamp DESC LIMIT 800`,
-      )
-      .all(baseDb) as {
+    // Prepare once per handle (bun:sqlite also caches) and drop the unused
+    // `timestamp` column to reduce deserialization on the 600-row scan.
+    const query = db.query(
+      `SELECT metric, phase, avg_ms FROM runs
+       WHERE db_type = ? AND status = 'SUCCESS' AND avg_ms > 0
+       ORDER BY timestamp DESC LIMIT 600`,
+    );
+    const rows = query.all(baseDb) as {
       metric: string;
       phase: string;
       avg_ms: number;
-      timestamp: string;
     }[];
 
     // Group newest-first per metric + phase

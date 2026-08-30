@@ -69,6 +69,8 @@ for (let i = 0; i < benchmarks.length; i++) {
     encoding: "utf-8",
     shell: false,
     env: baseEnv as Record<string, string>,
+    // Bound each child so a hung benchmark can't stall the whole audit.
+    timeout: 300_000,
   });
   const duration = performance.now() - start;
 

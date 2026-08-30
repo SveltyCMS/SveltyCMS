@@ -598,15 +598,13 @@ class PostgresEngine implements Engine {
     await this.sql`TRUNCATE content_bench`;
     const CHUNK = 500; // 500 rows × 7 params = 3500 < 65535
     for (let start = 0; start < this.seedRows; start += CHUNK) {
-      const rows = Array.from({ length: Math.min(CHUNK, this.seedRows - start) }, (_, i) => [
-        `seed-${start + i}`,
-        TENANT,
-        PAYLOAD,
-        STATUS,
-        0,
-        this.now,
-        this.now,
-      ]);
+      const currentBatch = Math.min(CHUNK, this.seedRows - start);
+      // Pre-allocate the batch (avoid Array.from's mapper closure + intermediate
+      // GC churn on the 100k-row seed path).
+      const rows: unknown[][] = Array.from({ length: currentBatch });
+      for (let i = 0; i < currentBatch; i++) {
+        rows[i] = [`seed-${start + i}`, TENANT, PAYLOAD, STATUS, 0, this.now, this.now];
+      }
       const valuesSql = rows
         .map(
           (_, i) =>
@@ -805,9 +803,17 @@ class MariaDbEngine implements Engine {
     for (let start = 0; start < this.seedRows; start += CHUNK) {
       const n = Math.min(CHUNK, this.seedRows - start);
       const placeholders = Array(n).fill("(?, ?, ?, ?, 0, ?, ?)").join(",");
-      const values: any[] = [];
+      // Pre-allocate the flat values array (avoid push re-allocations) for the
+      // 100k-row seed path.
+      const values: unknown[] = Array.from({ length: n * 6 });
+      let ptr = 0;
       for (let i = 0; i < n; i++) {
-        values.push(`seed-${start + i}`, TENANT, PAYLOAD, STATUS, this.now, this.now);
+        values[ptr++] = `seed-${start + i}`;
+        values[ptr++] = TENANT;
+        values[ptr++] = PAYLOAD;
+        values[ptr++] = STATUS;
+        values[ptr++] = this.now;
+        values[ptr++] = this.now;
       }
       await this.pool.query(
         `INSERT INTO content_bench (_id, tenantId, data, status, isDeleted, createdAt, updatedAt) VALUES ${placeholders}`,
