@@ -19,12 +19,27 @@ else
   BOLD=''; DIM=''; GREEN=''; YELLOW=''; RED=''; CYAN=''; MAGENTA=''; NC=''
 fi
 
-# ── State ──────────────────────────────────────────────────────────
+# ── State ────────────────────────────────────────────────────────
 STEP=0
 TOTAL=0
 HOOK_START=$(date +%s 2>/dev/null || echo 0)
 TMPDIR="${TMPDIR:-/tmp}"
 LABEL_W=40
+CURRENT_CHILD_PID=""
+
+# ── Signal trapping & cleanup ─────────────────────────────────────
+# On SIGINT/SIGTERM (Ctrl+C or kill), terminate the in-flight background child
+# and remove our temp files so no orphaned subprocess keeps writing after the
+# hook is gone.
+cleanup_on_interrupt() {
+  if [ -n "$CURRENT_CHILD_PID" ] && kill -0 "$CURRENT_CHILD_PID" 2>/dev/null; then
+    kill -TERM "$CURRENT_CHILD_PID" 2>/dev/null || true
+  fi
+  rm -f "${TMPDIR}/svelty-hook.$$."* 2>/dev/null || true
+  printf '\n%b\n' "${YELLOW}⚠ Hook aborted by user.${NC}"
+  exit 130
+}
+trap cleanup_on_interrupt INT TERM
 
 # ── Estimated durations for known steps (seconds) ──────────────────
 # Used to show ETA when a step starts. Calibrated from real runs.
@@ -79,9 +94,9 @@ run() {
   # Run in background — capture output, show live ETA on the same line
   printf "  ${padded}  ETA ~${estimate_s}s        "
   "$@" > "$outfile" 2>&1 &
-  local pid=$!
+  CURRENT_CHILD_PID=$!
 
-  while kill -0 "$pid" 2>/dev/null; do
+  while kill -0 "$CURRENT_CHILD_PID" 2>/dev/null; do
     sleep 1
     local now
     now=$(date +%s 2>/dev/null || echo 0)
@@ -89,8 +104,9 @@ run() {
     printf "\r  ${padded}  ETA ~${estimate_s}s  ${elapsed}s elapsed "
   done
 
-  wait "$pid"
+  wait "$CURRENT_CHILD_PID"
   local code=$?
+  CURRENT_CHILD_PID=""
   local elapsed_s=$(( $(date +%s) - start_s ))
   local elapsed_str="${elapsed_s}s"
   [ "$elapsed_s" -le 1 ] && elapsed_str="<1s"
@@ -170,40 +186,43 @@ summary() {
   return 0
 }
 
-# ── Smart skip: only run unit tests when source/test files changed ──
-has_changes() {
-  local patterns="$*"
+# ── Change detection ──────────────────────────────────────────────
+# pre-commit MUST inspect the staging index (the commit has not happened yet);
+# pre-push compares against the upstream divergence (merge-base).
+has_staged_changes() {
+  local patterns="$1"
+  git diff --cached --name-only --diff-filter=ACMR 2>/dev/null | grep -qE "$patterns"
+}
+
+has_push_changes() {
+  local patterns="$1"
   local base
   base="$(git merge-base HEAD @{upstream} 2>/dev/null || echo 'HEAD~1')"
   git diff --name-only "$base" -- 2>/dev/null | grep -qE "$patterns"
 }
 
-# ── Detect Package Manager (Agnostic: bun, pnpm, yarn, npm) ────────
-PM_NAME="bun"
-RUN_CMD="bun run"
-EXEC_CMD="bun x"
+# ── Detect package manager (bun, pnpm, yarn, npm) ─────────────────
+# `PM_BIN` holds the binary only; `pm_run` passes args as an array so no
+# word-splitting (the old `$RUN_CMD ...`) can mangle flags or paths.
+PM_BIN="bun"
 
 detect_pm() {
   if command -v bun >/dev/null 2>&1; then
-    PM_NAME="bun"
-    RUN_CMD="bun run"
-    EXEC_CMD="bun x"
+    PM_BIN="bun"
   elif command -v pnpm >/dev/null 2>&1; then
-    PM_NAME="pnpm"
-    RUN_CMD="pnpm run"
-    EXEC_CMD="pnpm exec"
+    PM_BIN="pnpm"
   elif command -v yarn >/dev/null 2>&1; then
-    PM_NAME="yarn"
-    RUN_CMD="yarn run"
-    EXEC_CMD="yarn dlx"
+    PM_BIN="yarn"
   elif command -v npm >/dev/null 2>&1 || command -v npx >/dev/null 2>&1; then
-    PM_NAME="npm"
-    RUN_CMD="npm run"
-    EXEC_CMD="npx"
+    PM_BIN="npm"
   else
     printf '%b\n' "${RED}❌ No JavaScript package manager found (bun, pnpm, yarn, npm)${NC}"
     exit 1
   fi
+}
+
+pm_run() {
+  "$PM_BIN" run "$@"
 }
 
 require_bun() {
