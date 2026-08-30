@@ -17,8 +17,6 @@ import { cacheService } from "./cache-service";
 import { CacheCategory } from "./types";
 
 export class CacheWarmingService {
-  private lastReconcile = 0;
-
   /**
    * Strategically warms critical paths on startup or re-initialization.
    */
@@ -30,35 +28,54 @@ export class CacheWarmingService {
       const { withSystemScope } = await import("../system-tenant-scope");
       const systemScope = withSystemScope("bootstrap");
       let hasRedirectsCollection = false;
-      // 1. Warm Core Schemas (Required for all collection loads)
-      if (db?.collection?.listSchemas) {
+      // 🔴 FIX 1 (cross-tenant + dead work): the previous code wrote
+      // `cacheService.set("schema:${schema.name}", ..., /* tenantId */ null, ...)`.
+      // (a) That key is NOT read by any consumer — the real schema cache read by
+      //     `peekReadySchema()`/`resolveSchema()` is `_schemaCache` in
+      //     schema-store.ts, keyed `${tenant||"global"}:${collectionId.toLowerCase()}` and
+      //     populated via `prewarmCollectionSchemas()`. These writes were pure dead work.
+      // (b) tenantId hardcoded to `null` collapsed every tenant's schema sharing a name
+      //     into the single `tenant:default:schema:<name>` slot (e.g. Tenant A's "posts"
+      //     overwrote Tenant B's "posts") = cross-tenant cache pollution.
+      // Correct behavior: warm the REAL, tenant-scoped schema cache so identical collection
+      // names across tenants never collide and the entries are actually read.
+      const { prewarmCollectionSchemas } =
+        await import("@src/services/sdk/namespaces/collections/schema-store");
+      if (db?.collection?.listSchemas && typeof prewarmCollectionSchemas === "function") {
         const schemas = await db.collection.listSchemas(null, systemScope);
-        if (schemas.success && schemas.data) {
+        if (schemas.success && Array.isArray(schemas.data)) {
           for (const schema of schemas.data) {
             if (schema.name === "redirects") {
               hasRedirectsCollection = true;
             }
-            // 🚀 Pre-encode: cache the serialized JSON string so cache hits
-            // bypass JSON.stringify() entirely — direct stream to response.
-            const preEncoded = JSON.stringify(schema);
-            await cacheService.set(
-              `schema:${schema.name}`,
-              preEncoded,
-              3600,
-              null,
-              CacheCategory.SCHEMA,
-            );
+            const schemaTenant = (schema as { tenantId?: string | null }).tenantId ?? null;
+            try {
+              // Keys by `${schemaTenant||global}:${_id}`, so tenant isolation is preserved.
+              prewarmCollectionSchemas([schema], db, schemaTenant);
+            } catch {
+              // Partial/fieldless schema — non-fatal; resolveSchema covers the miss.
+            }
           }
         }
       }
 
-      // 2. Warm Default Theme
+      // 🔴 FIX 2 (dead work): the previous code wrote `cacheService.set("active_theme", ...)` —
+      // a key NO read path consumes (ThemeManager/getTheme read `theme:${tenant||"global"}` /
+      // adapter `theme:active:<tenant>`). The "active_theme" write was pure dead load that also
+      // gave false confidence via the "✨ Cache Warming Complete" log. Write the key that is
+      // actually read by theme-manager.ts (`theme:${tenant||"global"}`).
       if (db?.system?.themes?.getActive) {
         const theme = await db.system.themes.getActive(systemScope);
         if (theme.success && theme.data) {
-          // 🚀 Pre-encode: cache serialized theme so reads never touch DB
+          const themeTenant = (theme.data as { tenantId?: string | null }).tenantId ?? "global";
           const preEncodedTheme = JSON.stringify(theme.data);
-          await cacheService.set("active_theme", preEncodedTheme, 3600, null, CacheCategory.THEME);
+          await cacheService.set(
+            `theme:${themeTenant}`,
+            preEncodedTheme,
+            3600,
+            themeTenant,
+            CacheCategory.THEME,
+          );
         }
       }
 
@@ -235,53 +252,6 @@ export class CacheWarmingService {
     if (typeof (timer as any).unref === "function") (timer as any).unref();
 
     return result;
-  }
-
-  /**
-   * Structural reconciliation - ensures cache matches database structure.
-   * This implements the "Self-Healing Cache 2.0" pattern.
-   */
-  async reconcile(db: any) {
-    const now = Date.now();
-    if (now - this.lastReconcile < 300000) return; // Only reconcile every 5 minutes max
-
-    this.lastReconcile = now;
-    logger.debug("🔎 Running Cache Structural Reconciliation...");
-
-    try {
-      // 1. Check Content Version Consistency
-      const cachedVersion = await cacheService.get("system:content_version");
-      const dbVersion = await db.system.preferences.get("system:content_version");
-
-      if (dbVersion.success && dbVersion.data && cachedVersion !== dbVersion.data) {
-        logger.warn(
-          `[Reconcile] Content version mismatch (DB: ${dbVersion.data}, Cache: ${cachedVersion}). Triggering selective invalidation.`,
-        );
-        await cacheService.invalidateByCategory(CacheCategory.CONTENT);
-        await cacheService.set("system:content_version", dbVersion.data, 0);
-      }
-
-      // 2. Structural Count Verification for critical collections
-      const criticalCollections = ["system_content_structure", "auth_users", "media"];
-      for (const coll of criticalCollections) {
-        const countRes = await db.crud.count(coll);
-        if (countRes.success) {
-          // If counts are wildly different or missing from cache, we might need to invalidate
-          // For now, we just ensure the count metadata exists
-          await cacheService.set(
-            `meta:count:${coll}`,
-            countRes.data,
-            600,
-            null,
-            CacheCategory.SYSTEM,
-          );
-        }
-      }
-
-      logger.debug("✅ Cache Structural Reconciliation Finished.");
-    } catch (err) {
-      logger.error("Cache reconciliation failed", err);
-    }
   }
 }
 

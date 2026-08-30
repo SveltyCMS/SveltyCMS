@@ -64,7 +64,21 @@ export async function setSchemaCacheEntry(
 }
 
 export async function invalidateSchemaCache(tenantId: string | null = null): Promise<void> {
+  // Clear the legacy cacheService `schema:` pattern keys (if any still exist).
   await cacheService.clearByPattern("schema:", tenantId);
+  // 🔴 FIX 3 (invalidation gap): the REAL schema cache consumed by
+  // `peekReadySchema()`/`resolveSchema()` is the LRU in schema-store.ts
+  // (`_schemaCache`), NOT cacheService `schema:` keys. Previously a schema edit
+  // cleared the (dead) cacheService keys but never touched `_schemaCache`, so
+  // every schema change served staleness until LRU decay. Clear the actual
+  // per-tenant schema store so the next read re-resolves from the content store.
+  try {
+    const { clearSchemaCache } =
+      await import("@src/services/sdk/namespaces/collections/schema-store");
+    clearSchemaCache();
+  } catch {
+    // schema-store not loadable in this context (e.g. tests) — non-fatal.
+  }
 }
 
 export async function invalidateNavigationCache(tenantId: string | null = null): Promise<void> {

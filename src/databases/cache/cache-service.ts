@@ -18,7 +18,7 @@ import { generateUUID } from "@utils/native-utils";
 import { LRUCache } from "lru-cache";
 import { CacheCategory, type CacheStats } from "./types";
 import { cacheMetrics } from "./cache-metrics";
-import { CacheLockManager } from "./cache-locks";
+import { CacheLockManager, LOCK_ERROR } from "./cache-locks";
 import { NegativeCacheManager } from "./negative-cache";
 import { RedisWriteBatcher, serializeL2Value, deserializeL2Value } from "./redis-pipeline";
 
@@ -80,10 +80,14 @@ export class CacheService {
 
   private bootstrapping = false;
   private latencyBuffer: number[] = [];
+  private l1LatencyBuffer: number[] = [];
   private readonly MAX_LATENCY_SAMPLES = 100;
   private _metrics: any = null;
   private _cdnResolved = false;
   private _cdnActive = false;
+
+  /** Cooperative in-process counters for the no-Redis `increment()` fallback (FIX 5). */
+  private _coopCounters = new Map<string, { value: number }>();
 
   constructor() {
     this.l1 = new LRUCache<string, any>({
@@ -121,6 +125,16 @@ export class CacheService {
     this.latencyBuffer.push(ms);
     if (this.latencyBuffer.length > this.MAX_LATENCY_SAMPLES) {
       this.latencyBuffer.shift();
+    }
+  }
+
+  /** 🔴 FIX 9: record L1-hit latency separately. Previously L1 hits (the dominant path)
+   * never called recordLatency, so getLatencyStats() reported only L2 Redis round-trips —
+   * a benchmark relying on it looked healthy while L1 hits and lock-wait were unmeasured. */
+  private recordL1Latency(ms: number) {
+    this.l1LatencyBuffer.push(ms);
+    if (this.l1LatencyBuffer.length > this.MAX_LATENCY_SAMPLES) {
+      this.l1LatencyBuffer.shift();
     }
   }
 
@@ -400,10 +414,12 @@ export class CacheService {
 
   getSync<T>(key: string, tenantId?: string | null): T | null {
     const fullKey = this.generateKey(key, tenantId);
+    const start = performance.now();
     const l1Value = this.l1.get(fullKey, { updateAgeOnGet: false });
     if (l1Value !== undefined) {
       this.stats.hits++;
       this.stats.l1Hits++;
+      this.recordL1Latency(performance.now() - start);
       return l1Value as T;
     }
     return null;
@@ -417,10 +433,12 @@ export class CacheService {
     const fullKey = this.generateKey(key, tenantId);
 
     // 1. Fast Path: L1 Cache Hit (Sync)
+    const l1Start = performance.now();
     const l1Value = this.l1.get(fullKey);
     if (l1Value !== undefined) {
       this.stats.hits++;
       this.stats.l1Hits++;
+      this.recordL1Latency(performance.now() - l1Start);
       this.recordMetricSync("cache:hit:l1", 1);
       cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
       return l1Value as T;
@@ -429,6 +447,7 @@ export class CacheService {
     // 2. Negative Cache Hit
     if (this.negative.isNegativeHit(fullKey)) {
       this.stats.hits++;
+      this.recordL1Latency(0);
       cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
       return null;
     }
@@ -472,6 +491,12 @@ export class CacheService {
       // 4. Distributed Stampede Lock Coordination
       if (this.isL2Ready()) {
         lockOwner = await this.locks.acquireLock(this.l2, fullKey, 500);
+        if (lockOwner === LOCK_ERROR) {
+          // 🔴 FIX 6: L2 error, not a held lock. There is no winner populating the
+          // key — polling waitForCache would just burn 1000ms against a dead Redis
+          // and still return undefined. Fail open immediately (caller recomputes).
+          return undefined;
+        }
         if (!lockOwner) {
           await this.locks.waitForCache(this.l1, this.l2, fullKey, 1000, deserializeL2Value);
           const recheckVal = this.l1.get(fullKey);
@@ -591,6 +616,59 @@ export class CacheService {
     if (tags.length > 0) {
       this.registerTagsForKey(fullKey, tags, tenantId);
     }
+  }
+
+  /**
+   * 🔴 FIX 5: Atomic increment for version counters.
+   *
+   * The previous RMW in cache-module.ts (`get` → +1 → `set`) was not atomic — two concurrent
+   * mutation requests could read the same version and both write N+1, causing lost version bumps
+   * and stale-content delivery (v>N + collection invalidation is the only signal that forces a
+   * cache refresh). This performs a genuinely atomic `INCRBY` on L2 when Redis is available;
+   * where Redis is unavailable a serialized cooperative counter on L1 is used so the version
+   * still never goes backwards under a single-process deployment.
+   */
+  async increment(
+    key: string,
+    delta = 1,
+    tenantId?: string | null,
+    _category = CacheCategory.GENERAL,
+  ): Promise<number> {
+    const fullKey = this.generateKey(key, tenantId);
+
+    if (this.isL2Ready()) {
+      try {
+        // Atomic on the server: INCRBY is a single command, no read-modify-write race.
+        const next = await this.l2.incrBy(fullKey, delta);
+        // Keep L1 coherent with L2 (version scans read via get()).
+        this.l1.set(fullKey, next, { ttl: (CATEGORY_TTL_SECONDS[_category] ?? 300) * 1000 });
+        this.addToPrefixMap(fullKey);
+        this.stats.hits++;
+        return next as number;
+      } catch (err) {
+        logger.error(`[CacheService] L2 increment failure for ${fullKey}`, err);
+        // fall through to L1 cooperative counter so a Redis blip doesn't lose the bump
+      }
+    }
+
+    // L1 cooperative atomic-ish increment: keyed on the singleton so concurrent callers on the
+    // same process serialize through this map rather than reading+writing a shared number.
+    let coop = this._coopCounters.get(fullKey);
+    if (!coop) {
+      coop = { value: (this.l1.get(fullKey) as number) || 0 };
+      this._coopCounters.set(fullKey, coop);
+    }
+    coop.value += delta;
+    this.l1.set(fullKey, coop.value, { ttl: (CATEGORY_TTL_SECONDS[_category] ?? 300) * 1000 });
+    this.addToPrefixMap(fullKey);
+    return coop.value;
+  }
+
+  /**
+   * Check whether callers may rely on atomic increment (deterministic for tests).
+   */
+  isIncrementAtomic(): boolean {
+    return this.isL2Ready();
   }
 
   async setMany(
@@ -985,10 +1063,13 @@ export class CacheService {
   }
 
   getLatencyStats(): { avg: number; p95: number; p99: number; samples: number } {
-    if (this.latencyBuffer.length === 0) {
+    // 🔴 FIX 9: combine L1-hit latency (the dominant path) with L2/lock latency so the
+    // reported p95/p99 reflects real end-to-end read latency, not only Redis round-trips.
+    const combined = [...this.l1LatencyBuffer, ...this.latencyBuffer];
+    if (combined.length === 0) {
       return { avg: 0, p95: 0, p99: 0, samples: 0 };
     }
-    const sorted = [...this.latencyBuffer].sort((a, b) => a - b);
+    const sorted = [...combined].sort((a, b) => a - b);
     const sum = sorted.reduce((acc, v) => acc + v, 0);
     const avg = sum / sorted.length;
     const p95Idx = Math.min(Math.floor(sorted.length * 0.95), sorted.length - 1);

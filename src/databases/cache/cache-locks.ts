@@ -13,6 +13,13 @@
 
 import { logger } from "@utils/logger";
 
+/**
+ * 🔴 FIX 6: Sentinel return from `acquireLock` that distinguishes a genuine L2
+ * (Redis) error from "lock already held". `aquireLock` returns `""` on an L2
+ * throw so callers can fail open instead of polling a dead winner.
+ */
+export const LOCK_ERROR = "";
+
 export class CacheLockManager {
   private pendingRequests = new Map<string, Promise<any>>();
   private lockedKeys = new Map<string, Promise<boolean>>();
@@ -51,7 +58,10 @@ export class CacheLockManager {
 
   /**
    * Attempts to acquire a distributed cache miss lock using Redis (L2).
-   * @returns Owner ID if lock acquired, or null if lock is held or L2 unavailable.
+   * @returns Owner ID if lock acquired, `null` if lock held / L2 disabled,
+   *          or `""` (LOCK_ERROR) if the L2 command threw — callers MUST fail
+   *          open (skip polling, recompute now) instead of waiting for a
+   *          winner that will never populate the key (FIX 6).
    */
   async acquireLock(l2: any, key: string, ttlMs: number): Promise<string | null> {
     if (!l2 || !l2.isOpen) return null;
@@ -73,7 +83,12 @@ export class CacheLockManager {
       return ownerId;
     } catch (err) {
       logger.error(`[CacheLock] Failed to acquire lock for ${key}`, err);
-      return null;
+      // 🔴 FIX 6: signal a genuine L2 error distinctly from "lock is held".
+      // Returning null here made get() poll waitForCache for 1000ms against a
+      // dead Redis — and on a real Redis outage the "winner" never populates,
+      // so every coalesced request burned the full budget and then recomputed.
+      // The `""` sentinel lets callers fail open instantly.
+      return LOCK_ERROR;
     }
   }
 

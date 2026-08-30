@@ -35,12 +35,13 @@ import {
   generateContentEtag,
 } from "@src/services/cache/response-cache";
 import {
-  compressSync,
   negotiateEncoding,
+  compressSync,
+  compressZstd,
   hasNativeCompression,
   setCompressionHeaders,
   addVaryHeader,
-  compressZstd,
+  SYNC_MAX_SIZE,
 } from "./handle-compression";
 import {
   getCollectionFromPath,
@@ -356,7 +357,14 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                     if (!responseBody || bodyBytes <= 1024) return;
                     const compressedPayloads: Record<string, Uint8Array> = {};
                     const compressionTasks: Promise<void>[] = [];
-                    if (hasNativeCompression()) {
+                    // 🔴 FIX 8 (event-loop load): sync br/gzip compression runs on the
+                    // request thread. `Promise.resolve().then(...)` only DEFERS the work a
+                    // tick — it does not offload the CPU to another thread. For large bodies
+                    // that is real event-loop blocking per concurrent request. Only sync
+                    // compress bodies at/below SYNC_MAX_SIZE; everything larger goes through
+                    // the genuinely-async `compressZstd` (libuv thread pool) and/or the
+                    // streaming tier in handleCompression (never the sync path).
+                    if (hasNativeCompression() && bodyBytes <= SYNC_MAX_SIZE) {
                       compressionTasks.push(
                         Promise.resolve().then(() => {
                           const br = compressSync(responseBody!, "br", bodyBytes);

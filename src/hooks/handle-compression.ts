@@ -36,7 +36,9 @@ const MIN_COMPRESSION_SIZE = 1024; // 1KB
 const SIZE_TINY = 4 * 1024; // < 4KB
 const SIZE_SMALL = 32 * 1024; // < 32KB
 const SIZE_MEDIUM = 256 * 1024; // < 256KB
-const SYNC_MAX_SIZE = 64 * 1024; // 64KB
+/** Hard cap for SYNC compression — above this we must NOT block the request
+ * thread ripping a large body with brotli/zstd (FIX 7). */
+export const SYNC_MAX_SIZE = 64 * 1024; // 64KB
 
 // 🧠 HARDWARE-AWARE: weak hosts cap compression quality so the CPU stays on the
 // request path — the ratio loss on small payloads is negligible, the CPU saved
@@ -305,6 +307,13 @@ function compressWithWebStreams(
  * Sync compression for hot cached payloads (e.g. Turbo GET hits).
  * Uses native zlib sync APIs (very fast for <1MB JSON). Zero stream overhead.
  * Falls back to null (serve raw) if native not ready — preserves latency budget.
+ *
+ * 🔴 FIX 7 (event-loop load): this has a HARD size guard. `handle-compression.ts`
+ * capped the *middleware* sync path at SYNC_MAX_SIZE but `compressSync()` itself
+ * had no guard — the `handle-turbo-get.ts` fallback and `handle-api-requests.ts`
+ * background pre-compression called it with ANY payload size. Brotli/zstd on a
+ * multi-hundred-KB body blocked the request thread per in-flight request. Return
+ * null above the cap so callers serve the raw body instead of stalling the loop.
  */
 export function compressSync(
   data: string | Uint8Array | Buffer,
@@ -318,6 +327,10 @@ export function compressSync(
       ? Buffer.from(data)
       : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
   const len = contentLength ?? input.byteLength;
+  // 🔴 FIX 7: guard the synchronous path — large bodies must NOT be compressed on
+  // the request thread. Streaming tiers (compressWithZlib pipeline) can handle
+  // them; sync compression is only for small cached payloads.
+  if (len > SYNC_MAX_SIZE) return null;
   const opts = compressionLevel(algorithm, len);
   try {
     let out: Buffer | Uint8Array | null = null;
