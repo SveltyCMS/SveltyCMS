@@ -21,6 +21,12 @@ const WRITE_DOCS = 100;
 const WRITES_PER_DOC = 10;
 const READ_COLLECTIONS = 10;
 const DOCS_PER_COLLECTION = 100;
+// 🛡️ DEDICATED COLLECTION: never reuse `BenchmarkStable` here — other matrix
+// tests (temporal-integrity) depend on its schema keeping a `publishDate`
+// DateTime field. Re-provisioning it with a reduced schema (title + count) in
+// this adapter-level benchmark silently strips that field for every later run,
+// causing a deterministic "publishDate not persisted" contract failure.
+const WRITE_COLLECTION = "bench_throughput";
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -71,8 +77,8 @@ async function run() {
     console.log("   ═══ PHASE 1: ATOMIC WRITES ═══");
     await db.collection
       .createModel({
-        _id: "BenchmarkStable",
-        name: "BenchmarkStable",
+        _id: WRITE_COLLECTION,
+        name: WRITE_COLLECTION,
         fields: [
           { db_fieldName: "title", widget: { Name: "Input" }, type: "string" },
           { db_fieldName: "count", widget: { Name: "Input" }, type: "number" },
@@ -95,7 +101,7 @@ async function run() {
           tenantId: T,
         });
       }
-      await db.crud.insertMany("BenchmarkStable", docs, GLOBAL_TENANT_OPTS);
+      await db.crud.insertMany(WRITE_COLLECTION, docs, GLOBAL_TENANT_OPTS);
     }
 
     const totalWrites = WRITE_DOCS * WRITES_PER_DOC;
@@ -121,7 +127,7 @@ async function run() {
             (async () => {
               const tStart = performance.now();
               const res = await db.crud.atomicIncrement(
-                "BenchmarkStable",
+                WRITE_COLLECTION,
                 docId,
                 "count",
                 1,

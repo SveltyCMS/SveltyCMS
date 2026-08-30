@@ -159,7 +159,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:API_LATENCY:START -->
 
 <details id="section-api_latency">
-<summary><strong>🏷️ API LAYER LATENCY</strong> · 🟢 3.170ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/api-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ API LAYER LATENCY</strong> · 🟢 1.500ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/api-latency.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -167,11 +167,11 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                     SVELTYCMS — API LAYER LATENCY                                     ║
 ║                              File: tests/benchmarks/api-latency.test.ts                               ║
-║                                       Ran: 2026-08-29 16:42:49                                        ║
+║                                       Ran: 2026-08-29 21:35:48                                        ║
 ║              Cold full-pipeline findById + warm TURBO-HIT path after responseCache fill.              ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c (Cold)   │ Cold:     3.17 ms │ Warm:     3.262 ms │ p95:     5.153 ms │   2,281 RPS ║
-║ HTTP: findById TURBO-HIT @ 8c (Warm) │ Cold:     0.55 ms │ Warm:     2.007 ms │ p95:     3.322 ms │   3,741 RPS ║
+║ HTTP: findById @ 8c (Cold)   │ Cold:     1.50 ms │ Warm:     2.715 ms │ p95:     3.372 ms │   2,854 RPS ║
+║ HTTP: findById TURBO-HIT @ 8c (Warm) │ Cold:     0.53 ms │ Warm:     1.516 ms │ p95:     2.022 ms │   5,087 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -210,12 +210,12 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                      SVELTYCMS — SRE TRUTH AUDIT                                      ║
 ║                             File: tests/benchmarks/truth-latency.test.ts                              ║
-║                                       Ran: 2026-08-29 16:42:34                                        ║
+║                                       Ran: 2026-08-29 21:35:34                                        ║
 ║            Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack             ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline               │ Cold:     0.01 ms │ Warm:     0.006 ms │ p95:     0.000 ms │ 118,315 RPS ║
-║ Local SDK (Full)             │ Cold:    20.90 ms │ Warm:     0.030 ms │ p95:     0.011 ms │  29,915 RPS ║
-║ HTTP End-to-End              │ Cold:     8.17 ms │ Warm:     0.440 ms │ p95:     0.564 ms │   2,261 RPS ║
+║ Logic Baseline               │ Cold:     0.01 ms │ Warm:     0.000 ms │ p95:     0.000 ms │ 528,728 RPS ║
+║ Local SDK (Full)             │ Cold:    21.07 ms │ Warm:     0.023 ms │ p95:     0.010 ms │  41,504 RPS ║
+║ HTTP End-to-End              │ Cold:     7.04 ms │ Warm:     0.417 ms │ p95:     0.527 ms │   2,383 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -227,7 +227,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:INCREMENTAL:START -->
 
 <details id="section-incremental">
-<summary><strong>🏷️ Incremental Content Reload</strong> · 🟢 4.590ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/content-incremental-reload.test.ts">source</a></summary>
+<summary><strong>🏷️ Incremental Content Reload</strong> · 🟢 3.010ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/content-incremental-reload.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -235,13 +235,13 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                             SVELTYCMS — INCREMENTAL CONTENT RELOAD AUDIT                              ║
 ║                       File: tests/benchmarks/content-incremental-reload.test.ts                       ║
-║                                       Ran: 2026-08-29 16:46:47                                        ║
+║                                       Ran: 2026-08-29 21:40:12                                        ║
 ║      Measures surgical single-file fullReload vs full reconciliation path and batch processing.       ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Incremental fullReload (1 file) │ Cold:     4.59 ms │ Warm:     0.199 ms │ p95:     0.507 ms │   3,720 RPS ║
-║ Full Reconciliation Reload   │ Cold:     3.04 ms │ Warm:     0.317 ms │ p95:     0.493 ms │   2,895 RPS ║
-║ Sequential 10-File Reload    │ Cold:     7.23 ms │ Warm:     2.536 ms │ p95:     4.831 ms │     365 RPS ║
-║ Batched 10-File Reload       │ Cold:     1.77 ms │ Warm:     1.114 ms │ p95:     1.322 ms │     854 RPS ║
+║ Incremental fullReload (1 file) │ Cold:     3.01 ms │ Warm:     0.193 ms │ p95:     0.391 ms │   4,173 RPS ║
+║ Full Reconciliation Reload   │ Cold:     3.09 ms │ Warm:     0.327 ms │ p95:     0.460 ms │   2,790 RPS ║
+║ Sequential 10-File Reload    │ Cold:     5.34 ms │ Warm:     2.010 ms │ p95:     4.349 ms │     431 RPS ║
+║ Batched 10-File Reload       │ Cold:     1.88 ms │ Warm:     1.185 ms │ p95:     1.320 ms │     831 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -253,7 +253,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:HOOKS_TRACE:START -->
 
 <details id="section-hooks_trace">
-<summary><strong>🏷️ Middleware & Hooks Performance</strong> · 🟢 2.390ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Middleware & Hooks Performance</strong> · 🟢 1.670ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -261,14 +261,14 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                                  ║
 ║                           File: tests/benchmarks/hooks-performance.test.ts                            ║
-║                                       Ran: 2026-08-29 16:44:11                                        ║
+║                                       Ran: 2026-08-29 21:37:12                                        ║
 ║Measures the cost of the full middleware chain including Turbo, Security, Auth, and Audit via HTTP E2E.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Static Asset (No Middleware) │ Cold:     2.39 ms │ Warm:     1.141 ms │ p95:     2.707 ms │   3,066 RPS ║
-║ Turbo Pipeline (Light)       │ Cold:     1.28 ms │ Warm:     0.645 ms │ p95:     1.177 ms │   5,705 RPS ║
-║ Full Security + Auth Pipeline │ Cold:     1.18 ms │ Warm:     1.241 ms │ p95:     1.908 ms │   3,131 RPS ║
-║ REST with API Caching        │ Cold:     4.43 ms │ Warm:     1.090 ms │ p95:     1.993 ms │   3,417 RPS ║
-║ Mutation (audit logging disabled) │ Cold:     9.21 ms │ Warm:     2.593 ms │ p95:     3.489 ms │     379 RPS ║
+║ Static Asset (No Middleware) │ Cold:     1.67 ms │ Warm:     0.893 ms │ p95:     1.820 ms │   3,928 RPS ║
+║ Turbo Pipeline (Light)       │ Cold:     1.22 ms │ Warm:     0.591 ms │ p95:     1.010 ms │   6,268 RPS ║
+║ Full Security + Auth Pipeline │ Cold:     1.34 ms │ Warm:     1.039 ms │ p95:     1.475 ms │   3,718 RPS ║
+║ REST with API Caching        │ Cold:     3.54 ms │ Warm:     0.994 ms │ p95:     1.588 ms │   3,828 RPS ║
+║ Mutation (audit logging disabled) │ Cold:     9.59 ms │ Warm:     2.450 ms │ p95:     3.473 ms │     390 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -280,7 +280,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:STATE_MACHINE:START -->
 
 <details id="section-state_machine">
-<summary><strong>🏷️ State Machine Transitions</strong> · 🟢 97.040ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/state-machine-transition.test.ts">source</a></summary>
+<summary><strong>🏷️ State Machine Transitions</strong> · 🟢 92.020ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/state-machine-transition.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -288,11 +288,11 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  SVELTYCMS — STATE MACHINE INTEGRITY                                  ║
 ║                        File: tests/benchmarks/state-machine-transition.test.ts                        ║
-║                                       Ran: 2026-08-29 16:46:58                                        ║
+║                                       Ran: 2026-08-29 21:40:23                                        ║
 ║Measures state machine self-healing transition latencies, convergence settling time, and health probe consistency under stress.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ State Transition (Transient) │ Cold:    97.04 ms │ Warm:    76.231 ms │ p95:    84.102 ms │      13 RPS ║
-║ Self-Healing Full Convergence │ Cold:    80.39 ms │ Warm:    74.776 ms │ p95:    82.553 ms │      13 RPS ║
+║ State Transition (Transient) │ Cold:    92.02 ms │ Warm:    71.392 ms │ p95:    75.593 ms │      14 RPS ║
+║ Self-Healing Full Convergence │ Cold:    79.90 ms │ Warm:    72.150 ms │ p95:    79.847 ms │      14 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -303,33 +303,33 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:DB_RAW_P95:START -->
 <details id="section-db_raw_p95">
-<summary><strong>🏷️ database performance</strong> · 🟢 7.510ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ database performance</strong> · 🟢 4.290ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — DATABASE ADAPTER PERFORMANCE (MARIADB)                           ║
 ║                          File: tests/benchmarks/database-performance.test.ts                          ║
-║                                       Ran: 2026-08-29 16:46:26                                        ║
+║                                       Ran: 2026-08-29 21:39:51                                        ║
 ║          Measures raw CRUD performance, indexing efficiency, and connection pool resilience.          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                       │ Cold:     7.51 ms │ Warm:     2.143 ms │ p95:     3.887 ms │     428 RPS ║
-║ FIND ONE                     │ Cold:     2.41 ms │ Warm:     0.434 ms │ p95:     0.691 ms │   2,028 RPS ║
-║ FIND MANY (limit 50)         │ Cold:     6.54 ms │ Warm:     0.685 ms │ p95:     1.959 ms │   1,233 RPS ║
-║ QUERY BUILDER LIST (50)      │ Cold:     7.67 ms │ Warm:     2.976 ms │ p95:     4.610 ms │     304 RPS ║
-║ FIND PAGE (50 hasMore)       │ Cold:     2.67 ms │ Warm:     0.700 ms │ p95:     1.835 ms │   1,267 RPS ║
-║ FIND PAGE keyset             │ Cold:     7.80 ms │ Warm:     0.748 ms │ p95:     1.965 ms │   1,197 RPS ║
-║ FIND MANY offset 50          │ Cold:     3.54 ms │ Warm:     0.622 ms │ p95:     0.869 ms │   1,445 RPS ║
-║ LIST+COUNT (legacy)          │ Cold:     3.62 ms │ Warm:     0.863 ms │ p95:     2.089 ms │   1,025 RPS ║
-║ UPDATE                       │ Cold:     6.83 ms │ Warm:     0.861 ms │ p95:     2.180 ms │   1,024 RPS ║
-║ UPDATE (no-returning)        │ Cold:     2.87 ms │ Warm:     0.448 ms │ p95:     0.639 ms │   1,983 RPS ║
-║ NATIVE UPSERT                │ Cold:     2.06 ms │ Warm:     0.418 ms │ p95:     0.547 ms │   2,102 RPS ║
-║ COUNT                        │ Cold:     2.68 ms │ Warm:     0.647 ms │ p95:     0.838 ms │   1,369 RPS ║
-║ COUNT ESTIMATE               │ Cold:     4.46 ms │ Warm:     0.369 ms │ p95:     0.488 ms │   2,390 RPS ║
-║ COUNT CACHED                 │ Cold:     3.97 ms │ Warm:     0.001 ms │ p95:     0.003 ms │ 528,123 RPS ║
-║ DELETE (Active Rows)         │ Cold:    18.09 ms │ Warm:     1.662 ms │ p95:     3.488 ms │     515 RPS ║
-║ BULK INSERT (100)            │ Cold:     7.39 ms │ Warm:     7.090 ms │ p95:    66.542 ms │      65 RPS ║
-║ BULK UPDATE (100 heterogeneous) │ Cold:   108.29 ms │ Warm:     3.869 ms │ p95:     6.045 ms │     248 RPS ║
-║ BULK UPDATE (100 homogeneous) │ Cold:    48.81 ms │ Warm:     1.194 ms │ p95:     2.794 ms │     671 RPS ║
+║ INSERT                       │ Cold:     4.29 ms │ Warm:     2.234 ms │ p95:     4.141 ms │     415 RPS ║
+║ FIND ONE                     │ Cold:     4.16 ms │ Warm:     0.442 ms │ p95:     0.846 ms │   1,953 RPS ║
+║ FIND MANY (limit 50)         │ Cold:     8.13 ms │ Warm:     0.647 ms │ p95:     1.659 ms │   1,313 RPS ║
+║ QUERY BUILDER LIST (50)      │ Cold:     8.89 ms │ Warm:     2.827 ms │ p95:     4.484 ms │     319 RPS ║
+║ FIND PAGE (50 hasMore)       │ Cold:     3.96 ms │ Warm:     0.706 ms │ p95:     1.897 ms │   1,251 RPS ║
+║ FIND PAGE keyset             │ Cold:     4.39 ms │ Warm:     0.772 ms │ p95:     2.087 ms │   1,158 RPS ║
+║ FIND MANY offset 50          │ Cold:     1.97 ms │ Warm:     0.600 ms │ p95:     1.093 ms │   1,469 RPS ║
+║ LIST+COUNT (legacy)          │ Cold:     2.97 ms │ Warm:     0.854 ms │ p95:     2.128 ms │   1,022 RPS ║
+║ UPDATE                       │ Cold:    10.75 ms │ Warm:     0.831 ms │ p95:     2.288 ms │   1,059 RPS ║
+║ UPDATE (no-returning)        │ Cold:     2.15 ms │ Warm:     0.460 ms │ p95:     0.773 ms │   1,898 RPS ║
+║ NATIVE UPSERT                │ Cold:     2.75 ms │ Warm:     0.405 ms │ p95:     0.551 ms │   2,161 RPS ║
+║ COUNT                        │ Cold:     2.08 ms │ Warm:     0.635 ms │ p95:     0.960 ms │   1,372 RPS ║
+║ COUNT ESTIMATE               │ Cold:     4.45 ms │ Warm:     0.353 ms │ p95:     0.571 ms │   2,419 RPS ║
+║ COUNT CACHED                 │ Cold:     3.48 ms │ Warm:     0.001 ms │ p95:     0.003 ms │ 512,138 RPS ║
+║ DELETE (Active Rows)         │ Cold:    18.07 ms │ Warm:     1.675 ms │ p95:     3.482 ms │     513 RPS ║
+║ BULK INSERT (100)            │ Cold:    10.32 ms │ Warm:     7.739 ms │ p95:    64.460 ms │      68 RPS ║
+║ BULK UPDATE (100 heterogeneous) │ Cold:    95.89 ms │ Warm:     3.831 ms │ p95:     5.774 ms │     253 RPS ║
+║ BULK UPDATE (100 homogeneous) │ Cold:    50.33 ms │ Warm:     1.178 ms │ p95:     2.914 ms │     742 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -339,17 +339,17 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:ACID:START -->
 <details id="section-acid">
-<summary><strong>🏷️ transaction acid</strong> · 🟢 2.350ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/transaction-acid.test.ts">source</a></summary>
+<summary><strong>🏷️ transaction acid</strong> · 🟢 2.620ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/transaction-acid.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                   SVELTYCMS — ACID INTEGRITY AUDIT                                    ║
 ║                            File: tests/benchmarks/transaction-acid.test.ts                            ║
-║                                       Ran: 2026-08-29 16:46:29                                        ║
+║                                       Ran: 2026-08-29 21:39:54                                        ║
 ║         Measures transaction commit latencies and rollback overhead across database adapters          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ TX Commit                    │ Cold:     2.35 ms │ Warm:     0.606 ms │ p95:     1.850 ms │   5,152 RPS ║
-║ TX Rollback Integrity        │ Cold:     5.56 ms │ Warm:     2.099 ms │ p95:     3.891 ms │     475 RPS ║
+║ TX Commit                    │ Cold:     2.62 ms │ Warm:     0.813 ms │ p95:     2.533 ms │   4,143 RPS ║
+║ TX Rollback Integrity        │ Cold:     6.54 ms │ Warm:     1.914 ms │ p95:     3.858 ms │     522 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -359,18 +359,18 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:CACHE:START -->
 <details id="section-cache">
-<summary><strong>🏷️ Cache</strong> · 🟢 4.071ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Cache</strong> · 🟢 3.988ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  SVELTYCMS — CACHE SERVICE TELEMETRY                                  ║
 ║                             File: tests/benchmarks/cache-service.test.ts                              ║
-║                                       Ran: 2026-08-29 16:46:41                                        ║
+║                                       Ran: 2026-08-29 21:40:06                                        ║
 ║               Measures L1 cache hit latency and pattern invalidation overhead at scale.               ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache L1 Hit                 │ Cold:     0.26 ms │ Warm:     0.000 ms │ p95:     0.001 ms │ 1,434,202 RPS ║
-║ Pattern Invalidation (1k items @ 200k noise) │        4.071 ms │ p95:        5.412 ms │ RPS:        246 ║
-║ Pattern Invalidation (Namespaced 1k @ 100k noise) │        1.936 ms │ p95:        2.445 ms │ RPS:        517 ║
+║ Cache L1 Hit                 │ Cold:     0.31 ms │ Warm:     0.000 ms │ p95:     0.001 ms │ 1,401,745 RPS ║
+║ Pattern Invalidation (1k items @ 200k noise) │        3.988 ms │ p95:        5.224 ms │ RPS:        251 ║
+║ Pattern Invalidation (Namespaced 1k @ 100k noise) │        2.033 ms │ p95:        2.474 ms │ RPS:        492 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -381,7 +381,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:CACHE_EFFICIENCY:START -->
 
 <details id="section-cache_efficiency">
-<summary><strong>🏷️ Cache Hit/Miss Ratio & Efficiency</strong> · 🟢 0.507ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
+<summary><strong>🏷️ Cache Hit/Miss Ratio & Efficiency</strong> · 🟢 0.423ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -389,13 +389,13 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  SVELTYCMS — CACHE EFFICIENCY AUDIT                                   ║
 ║                            File: tests/benchmarks/cache-hit-ratio.test.ts                             ║
-║                                       Ran: 2026-08-29 16:43:15                                        ║
+║                                       Ran: 2026-08-29 21:36:13                                        ║
 ║           Measures true cold-fill, warm hit ratio, miss penalty, and invalidation latency.            ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache Cold Fill (Miss + Repopulate) │        0.507 ms │ p95:        1.062 ms │ RPS:      1,971 ║
-║ Cache Hit (Warm)             │ Cold:     1.62 ms │ Warm:     0.320 ms │ p95:     0.528 ms │   2,787 RPS ║
-║ Bypass Cache (Direct DB)     │ Cold:     0.60 ms │ Warm:     0.342 ms │ p95:     0.537 ms │   2,904 RPS ║
-║ Cache Invalidation           │ Cold:     2.83 ms │ Warm:     1.726 ms │ p95:     3.612 ms │     516 RPS ║
+║ Cache Cold Fill (Miss + Repopulate) │        0.423 ms │ p95:        0.478 ms │ RPS:      2,366 ║
+║ Cache Hit (Warm)             │ Cold:     0.52 ms │ Warm:     0.312 ms │ p95:     0.553 ms │   2,862 RPS ║
+║ Bypass Cache (Direct DB)     │ Cold:     0.59 ms │ Warm:     0.348 ms │ p95:     0.473 ms │   2,850 RPS ║
+║ Cache Invalidation           │ Cold:     3.19 ms │ Warm:     1.561 ms │ p95:     2.383 ms │     597 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -434,18 +434,18 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:SDK:START -->
 <details id="section-sdk">
-<summary><strong>🏷️ SDK</strong> · 🟢 2.100ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ SDK</strong> · 🟢 1.680ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  SVELTYCMS — SDK OVERHEAD TELEMETRY                                   ║
 ║                         File: tests/benchmarks/local-api-performance.test.ts                          ║
-║                                       Ran: 2026-08-29 16:43:49                                        ║
+║                                       Ran: 2026-08-29 21:36:50                                        ║
 ║Measures LocalCMS SDK dispatch overhead vs direct adapter calls to verify zero-tax in-process performance.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Direct Adapter Call          │ Cold:     2.10 ms │ Warm:     0.378 ms │ p95:     0.554 ms │   2,293 RPS ║
-║ LocalCMS Hoisted Call        │ Cold:     3.38 ms │ Warm:     0.372 ms │ p95:     0.503 ms │   2,351 RPS ║
-║ LocalCMS Full Property Path  │ Cold:     2.91 ms │ Warm:     0.381 ms │ p95:     0.647 ms │   2,211 RPS ║
+║ Direct Adapter Call          │ Cold:     1.68 ms │ Warm:     0.391 ms │ p95:     0.732 ms │   2,154 RPS ║
+║ LocalCMS Hoisted Call        │ Cold:     2.01 ms │ Warm:     0.358 ms │ p95:     0.496 ms │   2,423 RPS ║
+║ LocalCMS Full Property Path  │ Cold:     1.89 ms │ Warm:     0.356 ms │ p95:     0.537 ms │   2,404 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -505,17 +505,17 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:CONTENT:START -->
 <details id="section-content">
-<summary><strong>🏷️ Content</strong> · 🟢 2.962ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/seo-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Content</strong> · 🟢 3.135ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/seo-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                    SVELTYCMS — CONTENT SCAN AUDIT                                     ║
 ║                              File: tests/benchmarks/content-scan.test.ts                              ║
-║                                       Ran: 2026-08-29 16:46:46                                        ║
+║                                       Ran: 2026-08-29 21:40:11                                        ║
 ║          Measures filesystem + metadata processing and persistent Mtime dirty-bit discovery.          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Discovery (Filesystem I/O) │        2.962 ms │ p95:        3.594 ms │ RPS:        338 ║
-║ Warm Discovery (Mtime Tree Hit) │ Cold:     3.22 ms │ Warm:     1.654 ms │ p95:     2.981 ms │     531 RPS ║
+║ Cold Discovery (Filesystem I/O) │        3.135 ms │ p95:        3.348 ms │ RPS:        319 ║
+║ Warm Discovery (Mtime Tree Hit) │ Cold:     2.09 ms │ Warm:     1.662 ms │ p95:     2.918 ms │     555 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -545,7 +545,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:TEMPORAL:START -->
 
 <details id="section-temporal">
-<summary><strong>🏷️ Temporal Integrity Audit</strong> · 🟢 3.560ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/temporal-integrity.test.ts">source</a></summary>
+<summary><strong>🏷️ Temporal Integrity Audit</strong> · 🟢 7.400ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/temporal-integrity.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -553,10 +553,10 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — TEMPORAL INTEGRITY AUDIT                                  ║
 ║                           File: tests/benchmarks/temporal-integrity.test.ts                           ║
-║                                       Ran: 2026-08-29 16:44:25                                        ║
+║                                       Ran: 2026-08-29 21:37:26                                        ║
 ║Validates strict backend UTC normalization (ISO 8601 with trailing 'Z') across global timezone offsets, fractional timezones, and midnight transitions.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Temporal Ingestion & Normalization │ Cold:     3.56 ms │ Warm:     3.232 ms │ p95:     5.456 ms │   1,201 RPS ║
+║ Temporal Ingestion & Normalization │ Cold:     7.40 ms │ Warm:     3.170 ms │ p95:     6.032 ms │   1,195 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -568,7 +568,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:RELATIONAL:START -->
 
 <details id="section-relational">
-<summary><strong>🏷️ Relational & Nested Queries</strong> · 🟢 3.010ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/relational-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Relational & Nested Queries</strong> · 🟢 3.000ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/relational-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -576,12 +576,12 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — RELATIONAL RESOLVER AUDIT                                 ║
 ║                         File: tests/benchmarks/relational-performance.test.ts                         ║
-║                                       Ran: 2026-08-29 16:43:32                                        ║
+║                                       Ran: 2026-08-29 21:36:30                                        ║
 ║Measures GraphQL resolver performance for shallow listings, deep relational joins, and nested author population across cold/hot execution paths.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Shallow Query (Collections)  │ Cold:     3.01 ms │ Warm:     2.981 ms │ p95:     4.735 ms │   1,898 RPS ║
-║ Deep Join (Cold DB)          │ Cold:     3.46 ms │ Warm:     2.400 ms │ p95:     3.367 ms │   1,572 RPS ║
-║ Deep Join (Warm Cached)      │ Cold:     1.68 ms │ Warm:     1.892 ms │ p95:     2.687 ms │   1,987 RPS ║
+║ Shallow Query (Collections)  │ Cold:     3.00 ms │ Warm:     2.916 ms │ p95:     4.389 ms │   1,949 RPS ║
+║ Deep Join (Cold DB)          │ Cold:     2.68 ms │ Warm:     2.387 ms │ p95:     3.222 ms │   1,595 RPS ║
+║ Deep Join (Warm Cached)      │ Cold:     1.87 ms │ Warm:     1.872 ms │ p95:     2.880 ms │   1,996 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -593,7 +593,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:AUTH_TRACE:START -->
 
 <details id="section-auth_trace">
-<summary><strong>🏷️ Auth & RBAC Performance</strong> · 🟢 0.930ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/auth-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Auth & RBAC Performance</strong> · 🟢 0.940ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/auth-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -601,12 +601,12 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — AUTHENTICATION TELEMETRY                                  ║
 ║                            File: tests/benchmarks/auth-performance.test.ts                            ║
-║                                       Ran: 2026-08-29 16:42:52                                        ║
+║                                       Ran: 2026-08-29 21:35:51                                        ║
 ║           Evaluates authenticated session resolution, RBAC evaluation, and rejection paths.           ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Unauthenticated (401 Fast Path) │ Cold:     0.93 ms │ Warm:     0.348 ms │ p95:     0.451 ms │   2,668 RPS ║
-║ Auth Validation @ 1c         │ Cold:     1.08 ms │ Warm:     0.323 ms │ p95:     0.422 ms │   2,858 RPS ║
-║ HTTP Auth Pipeline @ 8c      │ Cold:     1.36 ms │ Warm:     1.576 ms │ p95:     2.532 ms │   4,902 RPS ║
+║ Unauthenticated (401 Fast Path) │ Cold:     0.94 ms │ Warm:     0.313 ms │ p95:     0.410 ms │   2,956 RPS ║
+║ Auth Validation @ 1c         │ Cold:     0.98 ms │ Warm:     0.280 ms │ p95:     0.377 ms │   3,324 RPS ║
+║ HTTP Auth Pipeline @ 8c      │ Cold:     1.50 ms │ Warm:     1.369 ms │ p95:     1.907 ms │   5,728 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -618,7 +618,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:REST:START -->
 
 <details id="section-rest">
-<summary><strong>🏷️ REST API Performance</strong> · 🟢 5.110ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ REST API Performance</strong> · 🟢 0.980ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -626,14 +626,14 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — ENTERPRISE REST API AUDIT                                 ║
 ║                          File: tests/benchmarks/rest-api-performance.test.ts                          ║
-║                                       Ran: 2026-08-29 16:42:47                                        ║
+║                                       Ran: 2026-08-29 21:35:46                                        ║
 ║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, single read, list, and search.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ System Health Check          │ Cold:     5.11 ms │ Warm:     1.110 ms │ p95:     2.325 ms │   3,130 RPS ║
-║ Collection Schema Metadata   │ Cold:     7.01 ms │ Warm:     1.426 ms │ p95:     2.587 ms │   2,589 RPS ║
-║ Single Document Read         │ Cold:     1.51 ms │ Warm:     1.409 ms │ p95:     2.397 ms │   2,673 RPS ║
-║ Collection Find (List Limit 20) │ Cold:    14.51 ms │ Warm:     1.314 ms │ p95:     2.990 ms │   2,549 RPS ║
-║ Collection Search Query      │ Cold:     6.28 ms │ Warm:     1.352 ms │ p95:     2.149 ms │   2,814 RPS ║
+║ System Health Check          │ Cold:     0.98 ms │ Warm:     0.729 ms │ p95:     1.310 ms │   4,968 RPS ║
+║ Collection Schema Metadata   │ Cold:     5.25 ms │ Warm:     0.946 ms │ p95:     1.456 ms │   3,976 RPS ║
+║ Single Document Read         │ Cold:     1.01 ms │ Warm:     0.848 ms │ p95:     1.287 ms │   4,534 RPS ║
+║ Collection Find (List Limit 20) │ Cold:     6.66 ms │ Warm:     0.915 ms │ p95:     1.307 ms │   4,223 RPS ║
+║ Collection Search Query      │ Cold:     3.24 ms │ Warm:     0.959 ms │ p95:     1.289 ms │   4,076 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -645,7 +645,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:GRAPHQL:START -->
 
 <details id="section-graphql">
-<summary><strong>🏷️ GraphQL API Performance</strong> · 🟢 1.800ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ GraphQL API Performance</strong> · 🟢 2.180ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-api-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -653,15 +653,15 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — GRAPHQL PERFORMANCE AUDIT                                 ║
 ║                        File: tests/benchmarks/graphql-api-performance.test.ts                         ║
-║                                       Ran: 2026-08-29 16:43:00                                        ║
+║                                       Ran: 2026-08-29 21:35:58                                        ║
 ║Measures GraphQL resolver performance across cold (cache-bypassed) and hot (response-cache hit) execution paths.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: System Health [cold]    │ Cold:     1.80 ms │ Warm:     0.924 ms │ p95:     1.818 ms │     959 RPS ║
-║ GQL: System Health [hot]     │ Cold:     0.97 ms │ Warm:     0.840 ms │ p95:     1.594 ms │   1,086 RPS ║
-║ GQL: Collection List [cold]  │ Cold:     1.66 ms │ Warm:     2.775 ms │ p95:     4.353 ms │   1,957 RPS ║
-║ GQL: Collection List [hot]   │ Cold:     0.77 ms │ Warm:     2.643 ms │ p95:     4.050 ms │   2,171 RPS ║
-║ GQL: Parameterized Query [cold] │ Cold:     1.81 ms │ Warm:     4.095 ms │ p95:     7.150 ms │   1,795 RPS ║
-║ GQL: Parameterized Query [hot] │ Cold:     0.95 ms │ Warm:     3.080 ms │ p95:     4.746 ms │   2,447 RPS ║
+║ GQL: System Health [cold]    │ Cold:     2.18 ms │ Warm:     0.891 ms │ p95:     1.614 ms │   1,028 RPS ║
+║ GQL: System Health [hot]     │ Cold:     1.08 ms │ Warm:     0.785 ms │ p95:     1.422 ms │   1,163 RPS ║
+║ GQL: Collection List [cold]  │ Cold:     1.45 ms │ Warm:     2.610 ms │ p95:     4.131 ms │   2,059 RPS ║
+║ GQL: Collection List [hot]   │ Cold:     0.72 ms │ Warm:     2.375 ms │ p95:     3.391 ms │   2,402 RPS ║
+║ GQL: Parameterized Query [cold] │ Cold:     1.73 ms │ Warm:     3.672 ms │ p95:     5.859 ms │   2,060 RPS ║
+║ GQL: Parameterized Query [hot] │ Cold:     0.92 ms │ Warm:     3.025 ms │ p95:     4.463 ms │   2,490 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -673,7 +673,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:SEO:START -->
 
 <details id="section-seo">
-<summary><strong>🏷️ Enterprise SEO Suite Audit</strong> · 🟢 1.500ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/seo-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Enterprise SEO Suite Audit</strong> · 🟢 1.170ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/seo-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -681,13 +681,13 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                   SVELTYCMS — ENTERPRISE SEO AUDIT                                    ║
 ║                            File: tests/benchmarks/seo-performance.test.ts                             ║
-║                                       Ran: 2026-08-29 16:43:38                                        ║
+║                                       Ran: 2026-08-29 21:36:39                                        ║
 ║Measures redirect lookup latency, dynamic sitemap.xml generation, robots.txt serving, and 404 logging performance.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Redirect Lookup (301)        │ Cold:     1.50 ms │ Warm:     1.456 ms │ p95:     2.576 ms │   5,432 RPS ║
-║ Dynamic Sitemap XML          │ Cold:  1098.29 ms │ Warm:     0.730 ms │ p95:     1.135 ms │  10,843 RPS ║
-║ Robots.txt Generation        │ Cold:     1.96 ms │ Warm:     1.815 ms │ p95:     3.050 ms │   4,379 RPS ║
-║ Missing Path (404 Log)       │ Cold:    59.51 ms │ Warm:    21.418 ms │ p95:    25.721 ms │     373 RPS ║
+║ Redirect Lookup (301)        │ Cold:     1.17 ms │ Warm:     1.382 ms │ p95:     2.486 ms │   5,727 RPS ║
+║ Dynamic Sitemap XML          │ Cold:  3994.17 ms │ Warm:     0.764 ms │ p95:     1.605 ms │  10,344 RPS ║
+║ Robots.txt Generation        │ Cold:     2.17 ms │ Warm:     2.071 ms │ p95:     3.782 ms │   3,829 RPS ║
+║ Missing Path (404 Log)       │ Cold:    59.80 ms │ Warm:    21.365 ms │ p95:    25.594 ms │     374 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -699,7 +699,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:BROADCAST:START -->
 
 <details id="section-broadcast">
-<summary><strong>🏷️ REAL-TIME BROADCAST AUDIT</strong> · 🟢 6.590ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/websocket-broadcast.test.ts">source</a></summary>
+<summary><strong>🏷️ REAL-TIME BROADCAST AUDIT</strong> · 🟢 6.060ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/websocket-broadcast.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -707,11 +707,11 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                               SVELTYCMS — YJS COLLABORATION SYNC AUDIT                                ║
 ║                          File: tests/benchmarks/websocket-broadcast.test.ts                           ║
-║                                       Ran: 2026-08-29 16:48:05                                        ║
+║                                       Ran: 2026-08-29 21:41:30                                        ║
 ║Measures WebSocket handshake latency, bidirectional Yjs CRDT update propagation, and synchronization throughput.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ WS Handshake + SyncStep        │        6.590 ms │ p95:        0.000 ms │ RPS:          0 ║
-║ Yjs CRDT Propagation         │ Cold:     2.10 ms │ Warm:     0.135 ms │ p95:     0.271 ms │   6,107 RPS ║
+║ WS Handshake + SyncStep        │        6.060 ms │ p95:        0.000 ms │ RPS:          0 ║
+║ Yjs CRDT Propagation         │ Cold:     1.75 ms │ Warm:     0.129 ms │ p95:     0.253 ms │   6,501 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -760,7 +760,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:REVISION_STRESS:START -->
 
 <details id="section-revision_stress">
-<summary><strong>🏷️ Revision & History Growth</strong> · 🟢 3.330ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/revision-stress.test.ts">source</a></summary>
+<summary><strong>🏷️ Revision & History Growth</strong> · 🟢 4.340ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/revision-stress.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -768,12 +768,12 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                   SVELTYCMS — REVISION STRESS AUDIT                                   ║
 ║                            File: tests/benchmarks/revision-stress.test.ts                             ║
-║                                       Ran: 2026-08-29 16:44:58                                        ║
+║                                       Ran: 2026-08-29 21:38:25                                        ║
 ║Measures latest read degradation, history retrieval speed, and storage footprint under heavy revision growth (100 revisions).║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Clean Document Read (Baseline) │ Cold:     3.33 ms │ Warm:     1.122 ms │ p95:     2.017 ms │   3,332 RPS ║
-║ Latest Read (100 Revisions)  │ Cold:     2.85 ms │ Warm:     1.046 ms │ p95:     1.949 ms │   3,563 RPS ║
-║ History List Retrieval       │ Cold:     6.17 ms │ Warm:     0.512 ms │ p95:     0.793 ms │   3,437 RPS ║
+║ Clean Document Read (Baseline) │ Cold:     4.34 ms │ Warm:     1.067 ms │ p95:     2.018 ms │   3,447 RPS ║
+║ Latest Read (100 Revisions)  │ Cold:     2.93 ms │ Warm:     0.951 ms │ p95:     1.954 ms │   3,908 RPS ║
+║ History List Retrieval       │ Cold:     6.51 ms │ Warm:     0.508 ms │ p95:     0.689 ms │   3,516 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -813,7 +813,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:MIXED:START -->
 
 <details id="section-mixed">
-<summary><strong>🏷️ Realistic Mixed Workload</strong> · 🟢 1.639ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/mixed-workload.test.ts">source</a></summary>
+<summary><strong>🏷️ Realistic Mixed Workload</strong> · 🟢 1.604ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/mixed-workload.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -821,14 +821,14 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                   SVELTYCMS — MIXED WORKLOAD AUDIT                                    ║
 ║                             File: tests/benchmarks/mixed-workload.test.ts                             ║
-║                                       Ran: 2026-08-29 16:43:41                                        ║
+║                                       Ran: 2026-08-29 21:36:42                                        ║
 ║Simulates real-world traffic with a weighted mix of reads, searches, GraphQL queries, and metadata requests with per-operation telemetry.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Mixed Workload               │ Cold:     4.97 ms │ Warm:     1.665 ms │ p95:     4.666 ms │   3,769 RPS ║
-║ Mix: REST Read                 │        1.639 ms │ p95:        2.424 ms │ RPS:        468 ║
-║ Mix: REST Search               │        1.671 ms │ p95:        2.448 ms │ RPS:        146 ║
-║ Mix: GraphQL                   │        4.212 ms │ p95:        5.656 ms │ RPS:        113 ║
-║ Mix: Metadata                  │        1.542 ms │ p95:        2.256 ms │ RPS:         39 ║
+║ Mixed Workload               │ Cold:     4.57 ms │ Warm:     1.646 ms │ p95:     4.504 ms │   3,899 RPS ║
+║ Mix: REST Read                 │        1.604 ms │ p95:        2.228 ms │ RPS:        474 ║
+║ Mix: REST Search               │        1.598 ms │ p95:        2.292 ms │ RPS:        149 ║
+║ Mix: GraphQL                   │        4.053 ms │ p95:        5.600 ms │ RPS:        112 ║
+║ Mix: Metadata                  │        1.549 ms │ p95:        2.240 ms │ RPS:         38 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -840,7 +840,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:GQL_STRESS:START -->
 
 <details id="section-gql_stress">
-<summary><strong>🏷️ GraphQL Load Stress</strong> · 🟢 2.650ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-stress.test.ts">source</a></summary>
+<summary><strong>🏷️ GraphQL Load Stress</strong> · 🟢 2.250ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-stress.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -848,16 +848,16 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                SVELTYCMS — GRAPHQL CAPACITY DISCOVERY                                 ║
 ║                             File: tests/benchmarks/graphql-stress.test.ts                             ║
-║                                       Ran: 2026-08-29 16:43:07                                        ║
+║                                       Ran: 2026-08-29 21:36:05                                        ║
 ║                Discovers maximum sustainable GraphQL throughput by ramping concurrency                ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup               │ Cold:     2.65 ms │ Warm:     2.422 ms │ p95:     6.172 ms │   1,771 RPS ║
-║ GQL: 10c Light               │ Cold:     1.80 ms │ Warm:     4.428 ms │ p95:     7.830 ms │   2,111 RPS ║
-║ GQL: 20c Moderate            │ Cold:     1.93 ms │ Warm:     8.693 ms │ p95:    12.898 ms │   2,256 RPS ║
-║ GQL: 40c Heavy               │ Cold:     1.48 ms │ Warm:    25.772 ms │ p95:    36.491 ms │   1,503 RPS ║
-║ GQL: 60c Stress              │ Cold:     1.74 ms │ Warm:    33.490 ms │ p95:    37.270 ms │   1,756 RPS ║
-║ GQL: 80c Extreme             │ Cold:     1.68 ms │ Warm:    47.618 ms │ p95:    77.166 ms │   1,660 RPS ║
-║ GQL: 100c Max                │ Cold:     1.47 ms │ Warm:    57.284 ms │ p95:    84.863 ms │   1,721 RPS ║
+║ GQL: 5c Warmup               │ Cold:     2.25 ms │ Warm:     2.278 ms │ p95:     5.108 ms │   1,895 RPS ║
+║ GQL: 10c Light               │ Cold:     1.66 ms │ Warm:     4.037 ms │ p95:     6.045 ms │   2,346 RPS ║
+║ GQL: 20c Moderate            │ Cold:     1.45 ms │ Warm:     7.324 ms │ p95:    11.158 ms │   2,559 RPS ║
+║ GQL: 40c Heavy               │ Cold:     1.48 ms │ Warm:    23.270 ms │ p95:    28.924 ms │   1,687 RPS ║
+║ GQL: 60c Stress              │ Cold:     1.76 ms │ Warm:    31.532 ms │ p95:    46.222 ms │   1,802 RPS ║
+║ GQL: 80c Extreme             │ Cold:     1.67 ms │ Warm:    48.552 ms │ p95:    78.368 ms │   1,613 RPS ║
+║ GQL: 100c Max                │ Cold:     1.58 ms │ Warm:    54.784 ms │ p95:    84.657 ms │   1,806 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -869,7 +869,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:MIGRATION:START -->
 
 <details id="section-migration">
-<summary><strong>🏷️ Bulk Migration & Scale</strong> · 🟢 124.690ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/migration-scale.test.ts">source</a></summary>
+<summary><strong>🏷️ Bulk Migration & Scale</strong> · 🟢 272.560ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/migration-scale.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -877,12 +877,12 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  SVELTYCMS — MIGRATION & SCALE AUDIT                                  ║
 ║                            File: tests/benchmarks/migration-scale.test.ts                             ║
-║                                       Ran: 2026-08-29 16:47:31                                        ║
+║                                       Ran: 2026-08-29 21:40:57                                        ║
 ║Measures bulk ingestion throughput for 10,000 entries, random point-lookups, and indexed range scans across large datasets.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Bulk Migration (10k docs)    │ Cold:   124.69 ms │ Warm:    24.130 ms │ p95:   125.933 ms │  13,400 RPS ║
-║ Random Point Lookup          │ Cold:     7.86 ms │ Warm:     4.891 ms │ p95:     7.720 ms │   1,162 RPS ║
-║ Range Scan & Pagination      │ Cold:    50.95 ms │ Warm:     1.340 ms │ p95:     1.971 ms │   4,283 RPS ║
+║ Bulk Migration (10k docs)    │ Cold:   272.56 ms │ Warm:    88.858 ms │ p95:   193.603 ms │   5,095 RPS ║
+║ Random Point Lookup          │ Cold:     7.09 ms │ Warm:     4.969 ms │ p95:     7.586 ms │   1,156 RPS ║
+║ Range Scan & Pagination      │ Cold:   157.49 ms │ Warm:     1.325 ms │ p95:     1.843 ms │   4,370 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -894,7 +894,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:INDEX_PRESSURE:START -->
 
 <details id="section-index_pressure">
-<summary><strong>🏷️ Million-Row Index Pressure</strong> · 🟢 5754.900ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/index-pressure.test.ts">source</a></summary>
+<summary><strong>🏷️ Million-Row Index Pressure</strong> · 🟢 14970.470ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/index-pressure.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -902,11 +902,11 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  SVELTYCMS  —  INDEX PRESSURE AUDIT                                   ║
 ║                             File: tests/benchmarks/index-pressure.test.ts                             ║
-║                                       Ran: 2026-08-29 16:44:52                                        ║
+║                                       Ran: 2026-08-29 21:38:19                                        ║
 ║           Measures read performance with sorting and filtering on a large entry collection.           ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Sorted List (25k rows)       │ Cold:  5754.90 ms │ Warm:     1.111 ms │ p95:     1.675 ms │   3,565 RPS ║
-║ Filtered Query (25k rows)    │ Cold:    23.30 ms │ Warm:     1.165 ms │ p95:     1.804 ms │   3,403 RPS ║
+║ Sorted List (25k rows)       │ Cold: 14970.47 ms │ Warm:     1.296 ms │ p95:     1.937 ms │   3,055 RPS ║
+║ Filtered Query (25k rows)    │ Cold:    23.49 ms │ Warm:     1.163 ms │ p95:     1.646 ms │   3,411 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -918,7 +918,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:CONTENT_STRESS:START -->
 
 <details id="section-content_stress">
-<summary><strong>🏷️ Content Scale Stress</strong> · 🟢 1.139ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/content-scale-stress.test.ts">source</a></summary>
+<summary><strong>🏷️ Content Scale Stress</strong> · 🟢 1.384ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/content-scale-stress.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -926,11 +926,11 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                SVELTYCMS — CONTENT SCALE STRESS AUDIT                                 ║
 ║                          File: tests/benchmarks/content-scale-stress.test.ts                          ║
-║                                       Ran: 2026-08-29 16:46:49                                        ║
+║                                       Ran: 2026-08-29 21:40:14                                        ║
 ║        Measures file-scanning and content discovery performance at scale (1,000+ collections).        ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cold Stress Scan (1000 files)  │        1.139 ms │ p95:        2.033 ms │ RPS:        878 ║
-║ Warm Stress Scan (1000 files) │ Cold:     0.61 ms │ Warm:     0.129 ms │ p95:     0.319 ms │   5,583 RPS ║
+║ Cold Stress Scan (1000 files)  │        1.384 ms │ p95:        2.082 ms │ RPS:        723 ║
+║ Warm Stress Scan (1000 files) │ Cold:     0.57 ms │ Warm:     0.180 ms │ p95:     0.225 ms │   5,090 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -942,7 +942,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:MEDIA_UPLOAD:START -->
 
 <details id="section-media_upload">
-<summary><strong>🏷️ Media Upload Stress & Throughput</strong> · 🟢 51.700ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/media-upload-stress.test.ts">source</a></summary>
+<summary><strong>🏷️ Media Upload Stress & Throughput</strong> · 🟢 47.510ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/media-upload-stress.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -950,11 +950,11 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — MEDIA UPLOAD STRESS AUDIT                                 ║
 ║                          File: tests/benchmarks/media-upload-stress.test.ts                           ║
-║                                       Ran: 2026-08-29 16:47:18                                        ║
+║                                       Ran: 2026-08-29 21:40:43                                        ║
 ║Measures throughput for large file uploads, concurrent transfers, and streaming efficiency with valid media fixtures.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Single Upload (0.01MB)       │ Cold:    51.70 ms │ Warm:    44.994 ms │ p95:    50.199 ms │      22 RPS ║
-║ Small Upload (0MB @ 4c)      │ Cold:    66.81 ms │ Warm:   105.241 ms │ p95:   161.478 ms │      37 RPS ║
+║ Single Upload (0.01MB)       │ Cold:    47.51 ms │ Warm:    44.966 ms │ p95:    51.400 ms │      22 RPS ║
+║ Small Upload (0MB @ 4c)      │ Cold:    65.01 ms │ Warm:   105.059 ms │ p95:   160.655 ms │      37 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -966,7 +966,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:JOURNEY:START -->
 
 <details id="section-journey">
-<summary><strong>🏷️ Full Client Journey Simulation</strong> · 🟢 11.070ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/client-journey.test.ts">source</a></summary>
+<summary><strong>🏷️ Full Client Journey Simulation</strong> · 🟢 23.000ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/client-journey.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -974,10 +974,10 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                     SVELTYCMS  —  WORLD LIFE DATA                                     ║
 ║                             File: tests/benchmarks/client-journey.test.ts                             ║
-║                                       Ran: 2026-08-29 16:44:27                                        ║
+║                                       Ran: 2026-08-29 21:37:31                                        ║
 ║ Measures cumulative latency of a realistic editorial user workflow: Auth → List → View → Edit → Save. ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Full Journey @ 1c            │ Cold:    11.07 ms │ Warm:     4.198 ms │ p95:     5.331 ms │     237 RPS ║
+║ Full Journey @ 1c            │ Cold:    23.00 ms │ Warm:     4.647 ms │ p95:     5.964 ms │     215 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -989,7 +989,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:CONCURRENCY:START -->
 
 <details id="section-concurrency">
-<summary><strong>🏷️ Concurrency & Race Condition</strong> · 🟢 33.477ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/concurrency-race.test.ts">source</a></summary>
+<summary><strong>🏷️ Concurrency & Race Condition</strong> · 🟢 30.142ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/concurrency-race.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -997,12 +997,12 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                               SVELTYCMS — THROUGHPUT SCALING (MARIADB)                                ║
 ║                         File: tests/benchmarks/concurrency-throughput.test.ts                         ║
-║                                       Ran: 2026-08-29 16:47:39                                        ║
+║                                       Ran: 2026-08-29 21:41:03                                        ║
 ║          Phased wave writes across 10 / 100 / 1000 documents with inline stream consumption.          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ 10 docs × 10 (100 writes)      │       33.477 ms │ p95:       44.250 ms │ RPS:      1,259 ║
-║ 100 docs × 1 (100 writes)      │       28.272 ms │ p95:       34.533 ms │ RPS:      1,442 ║
-║ 1000 docs × 1 (1000 writes)    │       27.807 ms │ p95:       36.244 ms │ RPS:      1,494 ║
+║ 10 docs × 10 (100 writes)      │       30.142 ms │ p95:       35.976 ms │ RPS:      1,352 ║
+║ 100 docs × 1 (100 writes)      │       25.892 ms │ p95:       31.788 ms │ RPS:      1,538 ║
+║ 1000 docs × 1 (1000 writes)    │       28.804 ms │ p95:       35.982 ms │ RPS:      1,396 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1014,7 +1014,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:THROUGHPUT:START -->
 
 <details id="section-throughput">
-<summary><strong>🏷️ Multi-Doc Concurrency Throughput</strong> · 🟢 3.633ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/concurrency-throughput.test.ts">source</a></summary>
+<summary><strong>🏷️ Multi-Doc Concurrency Throughput</strong> · 🟢 3.570ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/concurrency-throughput.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -1022,11 +1022,11 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — DIRECT ADAPTER THROUGHPUT (MARIADB)                            ║
 ║                          File: tests/benchmarks/local-api-throughput.test.ts                          ║
-║                                       Ran: 2026-08-29 16:45:00                                        ║
+║                                       Ran: 2026-08-29 21:38:27                                        ║
 ║Measures direct adapter write throughput, read throughput, and percentile latencies with zero HTTP overhead.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Writes (1000 atomic increments) │        3.633 ms │ p95:        5.475 ms │ RPS:      2,474 ║
-║ Reads (1000 point lookups)     │        1.231 ms │ p95:        3.485 ms │ RPS:     10,418 ║
+║ Writes (1000 atomic increments) │        3.570 ms │ p95:        5.361 ms │ RPS:      2,546 ║
+║ Reads (1000 point lookups)     │        1.535 ms │ p95:        4.557 ms │ RPS:      8,232 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1066,7 +1066,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:FAST_FAIL:START -->
 
 <details id="section-fast_fail">
-<summary><strong>🏷️ Failure Propagation & Fast-Fail Audit</strong> · 🟢 0.070ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/failure-propagation.test.ts">source</a></summary>
+<summary><strong>🏷️ Failure Propagation & Fast-Fail Audit</strong> · 🟢 0.110ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/failure-propagation.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -1074,11 +1074,11 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  SVELTYCMS — AI INFRASTRUCTURE AUDIT                                  ║
 ║                             File: tests/benchmarks/ai-performance.test.ts                             ║
-║                                       Ran: 2026-08-29 16:44:04                                        ║
+║                                       Ran: 2026-08-29 21:37:06                                        ║
 ║        Measures the latency tax of internal CMS logic for AI enrichment and layout generation.        ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ AI Text Enrichment           │ Cold:     0.07 ms │ Warm:     0.000 ms │ p95:     0.001 ms │ 631,380 RPS ║
-║ AI Layout Spec Generation    │ Cold:     0.05 ms │ Warm:     0.000 ms │ p95:     0.001 ms │ 840,807 RPS ║
+║ AI Text Enrichment           │ Cold:     0.11 ms │ Warm:     0.000 ms │ p95:     0.001 ms │ 602,289 RPS ║
+║ AI Layout Spec Generation    │ Cold:     0.04 ms │ Warm:     0.000 ms │ p95:     0.001 ms │ 838,223 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 

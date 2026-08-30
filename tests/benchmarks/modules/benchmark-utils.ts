@@ -470,6 +470,20 @@ export function getDbType(): string {
   return "sqlite";
 }
 
+/**
+ * Result-directory key for persisting per-run benchmark artifacts.
+ *
+ * Redis runs MUST land in a distinct subdirectory (`sqlite-redis`) so the
+ * matrix `scanResultsDirectory()` can reconstruct a `sqlite-redis` result and
+ * `updateDatabaseSpecificReports()` writes `benchmark_sqlite_redis.mdx` instead
+ * of silently overwriting the non-Redis artifacts. The report generator keys on
+ * the directory name — not the `redis` flag inside the JSON files.
+ */
+export function getResultDbKey(): string {
+  const dbType = getDbType();
+  return process.env.USE_REDIS === "true" ? `${dbType}-redis` : dbType;
+}
+
 function discoverBenchmarkMetadata() {
   let filePath = process.env.BENCH_FILE || "";
   if (!filePath) {
@@ -614,9 +628,9 @@ export function printTruthTable(options: {
 }
 
 function saveTerminalTable(title: string, content: string) {
-  const dbType = getDbType();
+  const resultDbKey = getResultDbKey();
   let dir = path.resolve(process.cwd(), RESULTS_DIR);
-  if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) dir = path.join(dir, dbType);
+  if (!dir.toLowerCase().endsWith(resultDbKey.toLowerCase())) dir = path.join(dir, resultDbKey);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const fileName = title.toLowerCase().replace(/[^a-z0-9]/g, "_") + ".table.txt";
   fs.writeFileSync(path.join(dir, fileName), content);
@@ -1715,9 +1729,10 @@ export async function exportResult(r: any) {
   fs.appendFileSync(historyFile, JSON.stringify(entry) + "\n");
 
   // Store individual result JSON for debugging
+  const resultDbKey = getResultDbKey();
   let resultDir = path.resolve(process.cwd(), RESULTS_DIR);
-  if (!resultDir.toLowerCase().endsWith(dbType.toLowerCase()))
-    resultDir = path.join(resultDir, dbType);
+  if (!resultDir.toLowerCase().endsWith(resultDbKey.toLowerCase()))
+    resultDir = path.join(resultDir, resultDbKey);
   if (!fs.existsSync(resultDir)) fs.mkdirSync(resultDir, { recursive: true });
   const fileName = `${r.name.replace(/[^a-zA-Z0-9]/g, "_")}.json`;
   fs.writeFileSync(path.join(resultDir, fileName), JSON.stringify(entry, null, 2));
@@ -1836,10 +1851,10 @@ export async function runOnAllDatabases(
 }
 
 export function exportMetric(key: string, value: number, unit: string) {
-  const dbType = getDbType();
+  const resultDbKey = getResultDbKey();
   try {
     let dir = path.resolve(process.cwd(), RESULTS_DIR);
-    if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) dir = path.join(dir, dbType);
+    if (!dir.toLowerCase().endsWith(resultDbKey.toLowerCase())) dir = path.join(dir, resultDbKey);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const metricsFile = path.join(dir, "matrix_metrics.json");
     let current: Record<string, any> = {};
@@ -1878,9 +1893,9 @@ export function exportSubMetric(
 
   // Also save to structured metrics for intelligence layer
   try {
-    const dbType = getDbType();
+    const resultDbKey = getResultDbKey();
     const dir = path.resolve(process.cwd(), RESULTS_DIR);
-    const dbDir = path.join(dir, dbType);
+    const dbDir = path.join(dir, resultDbKey);
     if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
     const metricsFile = path.join(dbDir, "structured-metrics.json");
     let data: any = {};
