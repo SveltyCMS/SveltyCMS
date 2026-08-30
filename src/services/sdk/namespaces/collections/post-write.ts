@@ -143,18 +143,18 @@ export function invalidateCache(
     try {
       const responseCache = await getResponseCacheLazy();
       if (schemaId) {
-        // Collection-wide caches (list/query + count): O(#matched keys), not
-        // O(#docs) — per-id reads are tagged doc:<coll>:<id>, not collection:*.
-        void cacheService
-          .clearByTags([`collection:${schemaId}`, `count:${schemaId}`], tenantKey)
-          .catch(() => {});
-        // Surgical: clear ONLY the per-id caches of documents written this tick.
+        // Consolidated tick invalidation: list/count + response cache + per-doc surgical tags in ONE pass.
+        const tagsToClear = [
+          `collection:${schemaId}`,
+          `count:${schemaId}`,
+          `res:${schemaId}`,
+          "res:graphql",
+        ];
         if (ids && ids.size > 0) {
-          const docTags: string[] = [];
-          for (const id of ids) docTags.push(`doc:${schemaId}:${id}`);
-          void cacheService.clearByTags(docTags, tenantKey).catch(() => {});
+          for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
         }
-        void responseCache.invalidateCollection(schemaId, tenantKey).catch(() => {});
+        void cacheService.clearByTags(tagsToClear, tenantKey).catch(() => {});
+        responseCache.invalidateLocal(schemaId, tenantKey);
       } else {
         void responseCache.invalidateAll(tenantKey).catch(() => {});
       }

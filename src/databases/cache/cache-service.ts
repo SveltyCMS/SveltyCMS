@@ -737,8 +737,6 @@ export class CacheService {
 
   private clearLocalL1ByTags(tags: string[], tenantId: string | null) {
     if (this.tagMap.size === 0) return;
-    this._isBulkClearing = true;
-    const deletedKeys: string[] = [];
     const isWildcard =
       tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
     const tid = isWildcard ? null : this.normalizeTenantId(tenantId);
@@ -749,33 +747,23 @@ export class CacheService {
       if (tid) {
         const scopedTag = this.scopeTag(tag, tid);
         const keys1 = this.tagMap.get(scopedTag);
-        if (keys1) this.processTagKeys(scopedTag, keys1, tenantKeyPrefix, deletedKeys);
+        if (keys1) this.processTagKeys(scopedTag, keys1, tenantKeyPrefix);
         if (scopedTag !== tag) {
           const keys2 = this.tagMap.get(tag);
-          if (keys2) this.processTagKeys(tag, keys2, tenantKeyPrefix, deletedKeys);
+          if (keys2) this.processTagKeys(tag, keys2, tenantKeyPrefix);
         }
       } else {
         const suffix = `:${tag}`;
         for (const [k, keys] of this.tagMap.entries()) {
           if (k === tag || k.endsWith(suffix)) {
-            this.processTagKeys(k, keys, tenantKeyPrefix, deletedKeys);
+            this.processTagKeys(k, keys, tenantKeyPrefix);
           }
         }
       }
     }
-    this._isBulkClearing = false;
-    for (let i = 0; i < deletedKeys.length; i++) {
-      this.cleanupTagsForKey(deletedKeys[i]);
-      this.removeFromPrefixMap(deletedKeys[i]);
-    }
   }
 
-  private processTagKeys(
-    scoped: string,
-    keys: Set<string>,
-    tenantKeyPrefix: string | null,
-    deletedKeys: string[],
-  ) {
+  private processTagKeys(scoped: string, keys: Set<string>, tenantKeyPrefix: string | null) {
     let keep: Set<string> | null = null;
     for (const key of keys) {
       if (tenantKeyPrefix && !key.startsWith(tenantKeyPrefix)) {
@@ -784,7 +772,13 @@ export class CacheService {
         continue;
       }
       this.l1.delete(key);
-      deletedKeys.push(key);
+      this.keyToTags.delete(key);
+      const bucketKey = this.getNamespaceBucketKey(key);
+      const bucket = this.prefixMap.get(bucketKey);
+      if (bucket) {
+        bucket.delete(key);
+        if (bucket.size === 0) this.prefixMap.delete(bucketKey);
+      }
     }
     if (!keep || keep.size === 0) {
       this.tagMap.delete(scoped);
@@ -819,22 +813,25 @@ export class CacheService {
           }
         } else {
           const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
+          const tagKeys = tags.map((t) => `tag:${tagPrefix}${t}`);
+          const membersList = await Promise.all(
+            tagKeys.map((tk) => this.l2.sMembers(tk).catch(() => [])),
+          );
           if (typeof this.l2.multi === "function") {
             const multi = this.l2.multi();
-            for (const tag of tags) {
-              const tagKey = `tag:${tagPrefix}${tag}`;
-              const keys = await this.l2.sMembers(tagKey);
-              if (keys?.length > 0) multi.del(keys);
-              multi.del(tagKey);
+            for (let i = 0; i < tagKeys.length; i++) {
+              const keys = membersList[i];
+              if (keys && keys.length > 0) multi.del(keys);
+              multi.del(tagKeys[i]);
             }
             await multi.exec();
           } else {
-            for (const tag of tags) {
-              const tagKey = `tag:${tagPrefix}${tag}`;
-              const keys = await this.l2.sMembers(tagKey);
-              if (keys?.length > 0) await this.l2.del(keys);
-              await this.l2.del(tagKey);
+            const allToDel: string[] = [...tagKeys];
+            for (let i = 0; i < membersList.length; i++) {
+              const m = membersList[i];
+              if (m && m.length > 0) allToDel.push(...m);
             }
+            if (allToDel.length > 0) await this.l2.del(allToDel);
           }
         }
         await this.publishInvalidation(null, tenantId, tags);

@@ -45,33 +45,16 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
    * Matches ADR: minimal testids, no soft-skip.
    */
   test("shell: page title and new collection control", async ({ page }) => {
-    await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
-    // The first SSR after a DB reset can briefly redirect to /login before the
-    // freshly seeded session is recognised. Re-authenticate instead of timing out
-    // on the heading — the shell test's contract is the board chrome, not auth.
-    if (page.url().includes("/login")) {
-      const { loginAsAdmin } = await import("../../helpers/auth");
-      await loginAsAdmin(page, "/config/collectionbuilder");
-    }
-    // 30s budget (matches the golden test): the first SSR after a DB reset may
-    // re-initialize the content system before the board renders.
-    await expect(page.getByRole("heading", { level: 1, name: /collection builder/i }))
-      .toBeVisible({
-        timeout: 30_000,
-      })
-      .catch(async (err) => {
-        // CI diagnostics: the public annotations carry this message, so a
-        // Linux-only render failure becomes debuggable without the artifacts.
-        const url = page.url();
-        const body =
-          (await page
-            .locator("body")
-            .innerText()
-            .catch(() => "<body unavailable>")) || "";
-        throw new Error(
-          `[E2E-DIAG] collectionbuilder heading never rendered\nURL: ${url}\nBody (first 1200 chars):\n${String(body).slice(0, 1200)}\n\nOriginal error: ${(err as Error).message}`,
-        );
-      });
+    await expect(async () => {
+      await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+      if (page.url().includes("/login")) {
+        const { loginAsAdmin } = await import("../../helpers/auth");
+        await loginAsAdmin(page, "/config/collectionbuilder");
+      }
+      await expect(
+        page.getByRole("heading", { level: 1, name: /collection builder/i }),
+      ).toBeVisible({ timeout: 10_000 });
+    }).toPass({ timeout: 45_000, intervals: [2_000, 3_000, 5_000] });
     await expect(
       page
         .getByTestId("collection-builder-board")

@@ -20,7 +20,6 @@ import {
   WRITE_HTTP_METHODS,
 } from "@src/utils/hook-utils";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { CacheCategory } from "@src/databases/cache/types";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import { pluginRouteRegistry } from "@src/plugins/plugin-route-registry";
@@ -686,10 +685,6 @@ export const _handler = async (event: RequestEvent) => {
       responseCache.set(turboKey, { body: responseBody, etag }, 300_000, tenantId, {
         tags,
       });
-      const dispatchCacheKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
-      cacheService
-        .set(dispatchCacheKey, { body: responseBody, etag }, 300, tenantId, CacheCategory.API, tags)
-        .catch(() => {});
     }
 
     // ETag conditional response

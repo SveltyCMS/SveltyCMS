@@ -165,6 +165,7 @@ test.describe("Guest commerce golden journey", () => {
     await addBtn.click();
     const res = await cartRes;
     expect(res.ok(), `POST /api/commerce/cart status=${res.status()}`).toBeTruthy();
+    await expect(page.getByRole("status")).toContainText(/added to cart/i, { timeout: 15_000 });
 
     await page.goto("/cart", { waitUntil: "domcontentloaded" });
     await dismissCookieBannerIfPresent(page);

@@ -84,10 +84,11 @@ export function prepareWritePayload(
     entryData = { ...data };
   }
 
-  // Sanitize the full payload tree (including undeclared/extra fields that get
-  // serialized into the `data` JSON column or nested objects/arrays).
+  // Sanitize the payload tree against XSS when sanitizable fields or extra dynamic fields exist.
   // Zero-allocation fast path returns entryData by reference when no XSS vector is present.
-  entryData = sanitizeObject(entryData);
+  if (hot._hasSanitizableFields !== false) {
+    entryData = sanitizeObject(entryData);
+  }
 
   if (operation === "create") {
     entryData.tenantId = tenantId;

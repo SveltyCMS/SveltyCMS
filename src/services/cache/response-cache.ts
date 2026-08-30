@@ -276,6 +276,18 @@ class ResponseCacheService {
   }
 
   /**
+   * Synchronous in-memory purge of cached response tuples for a collection.
+   */
+  public invalidateLocal(collectionName: string, tenantId?: string | null): void {
+    const prefix = `${tenantId || "default"}:`;
+    for (const k of this.localL1.keys()) {
+      if (k.startsWith(prefix) && (k.includes(collectionName) || k.includes("graphql"))) {
+        this.localL1.delete(k);
+      }
+    }
+  }
+
+  /**
    * Invalidate response cache entries associated with a specific collection
    * mutation — scoped to the given tenant only.
    */
@@ -283,17 +295,11 @@ class ResponseCacheService {
     collectionName: string,
     tenantId?: string | null,
   ): Promise<void> {
-    const prefix = `${tenantId || "default"}:`;
-    for (const k of this.localL1.keys()) {
-      if (k.startsWith(prefix) && (k.includes(collectionName) || k.includes("graphql"))) {
-        this.localL1.delete(k);
-      }
-    }
+    this.invalidateLocal(collectionName, tenantId);
     await cacheService.clearByTags(
       [`res:${collectionName}`, "res:graphql", `collection:${collectionName}`],
       tenantId || undefined,
     );
-    await cacheService.clearByPattern(`res:*${collectionName}*`, tenantId || undefined);
   }
 
   /**
