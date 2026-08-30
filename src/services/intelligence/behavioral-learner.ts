@@ -41,11 +41,37 @@ const DECAY_FACTOR = Math.LN2 / HALF_LIFE_MS;
 const PERSIST_INTERVAL_MS = 15 * 60 * 1000;
 let _persistTimer: ReturnType<typeof setInterval> | null = null;
 
+// 🔴 FIX 8 (unbounded growth): the three heat maps grow one entry per distinct
+// collection/entry/path-pair ever seen, FOREVER — applyDecay() only damps .score,
+// it never deletes the Map entry, so the maps never shrink. The docstring claim
+// "Self-pruning: Old entries expire automatically" was false. Worse,
+// persistBehavioralData() serializes ALL of it into Redis every 15 min and
+// restoreBehavioralData() reloads it on every boot — so the leak compounds across
+// restarts instead of resetting. The author capped _predictionStats (MAX=5000, LRU)
+// 40 lines below but forgot the three maps that matter most.
+// Fix: size caps (LRU-ish, same pattern as _predictionStats) + score-based expiry
+// pruned on persist, so a cold entry actually disappears and the snapshot never
+// grows. These are memory REGRESSION guards: keep them generous — they only bound
+// pathological growth, they don't throttle legitimate learning.
+const MAX_COLLECTIONS_HEAT = 5000; // bounded distinct collections per tenant
+const MAX_ENTRIES_HEAT = 20000; // bounded distinct entries per tenant
+const MAX_TRANSITIONS_HEAT = 10000; // bounded distinct path-pairs per tenant
+/** An entry whose score decays below this is considered cold and is pruned. */
+const MIN_HOT_SCORE = 0.01;
+/** Absolute ceiling on tracked tenants (multi-tenant safety net). */
+const MAX_TENANTS = 1000;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 function getOrCreateTenant(tenantId: string): TenantBehavior {
   let t = _tenants.get(tenantId);
   if (!t) {
+    // 🔴 FIX 8: cap tracked tenants so a flood of distinct tenant ids can't grow
+    // _tenants unbounded either.
+    if (_tenants.size >= MAX_TENANTS) {
+      const oldest = _tenants.keys().next().value;
+      if (oldest !== undefined) _tenants.delete(oldest);
+    }
     t = {
       heat: {
         collections: new Map(),
@@ -59,11 +85,57 @@ function getOrCreateTenant(tenantId: string): TenantBehavior {
   return t;
 }
 
+/**
+ * 🔴 FIX 8: prune ONE heat map — (a) drops entries whose score decayed below
+ * MIN_HOT_SCORE (real "old entries expire automatically"), and (b) evicts the
+ * oldest entry once the map exceeds its size cap (LRU-ish, same pattern the
+ * author used for _predictionStats). `now` is passed so decay is recomputed for
+ * entries not touched by a recent access — otherwise high stale scores live forever.
+ */
+function pruneHeatMap(map: Map<string, AccessRecord>, maxSize: number, now: number): void {
+  // (a) score-based expiry: recompute decay and drop genuinely cold entries.
+  for (const [key, rec] of map) {
+    // Only recompute if stale; freshly-updated records are already decayed.
+    if (now > rec.lastAccess) {
+      applyDecay(rec, now);
+      if (rec.score < MIN_HOT_SCORE) {
+        map.delete(key);
+      }
+    }
+  }
+  // (b) size cap (LRU-ish eviction by insertion order).
+  while (map.size > maxSize) {
+    const oldest = map.keys().next().value;
+    if (oldest === undefined) break;
+    map.delete(oldest);
+  }
+}
+
+/** Prune all three heat maps for a tenant to their caps. */
+function pruneTenantHeat(t: TenantBehavior, now: number): void {
+  pruneHeatMap(t.heat.collections, MAX_COLLECTIONS_HEAT, now);
+  pruneHeatMap(t.heat.entries, MAX_ENTRIES_HEAT, now);
+  pruneHeatMap(t.heat.transitions, MAX_TRANSITIONS_HEAT, now);
+}
+
 function applyDecay(record: AccessRecord, now: number): void {
   const elapsed = now - record.lastAccess;
   if (elapsed > 0) {
     record.score *= Math.exp(-DECAY_FACTOR * elapsed);
   }
+}
+
+/**
+ * Pure decayed-score read (NO mutation). Read paths (getHotCollections/getHotEntries/
+ * predictNextPath) must NOT mutate the maps — the original code called applyDecay() and
+ * stamped `rec.lastAccess = now` for EVERY entry on EVERY page-load, which kept every
+ * ever-seen entry perpetually "fresh" and made score-based expiry impossible. Computing
+ * the decayed score locally keeps readers side-effect-free so pruneHeatMap can actually
+ * retire cold entries.
+ */
+function decayedScore(record: AccessRecord, now: number): number {
+  const elapsed = now - record.lastAccess;
+  return elapsed > 0 ? record.score * Math.exp(-DECAY_FACTOR * elapsed) : record.score;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────
@@ -81,7 +153,6 @@ function updateHeatRecord(map: Map<string, AccessRecord>, key: string, weight = 
   rec.lastAccess = now;
   rec.score += weight;
 }
-
 export function recordCollectionAccess(tenantId: string, collectionId: string): void {
   updateHeatRecord(getOrCreateTenant(tenantId).heat.collections, collectionId);
 }
@@ -215,10 +286,12 @@ export function getHotCollections(tenantId: string, limit = 10): { id: string; s
   const now = Date.now();
   const scored: { id: string; score: number }[] = [];
   for (const [id, rec] of t.heat.collections) {
-    applyDecay(rec, now);
-    rec.lastAccess = now;
-    if (rec.score > 0.01) scored.push({ id, score: rec.score });
+    const score = decayedScore(rec, now);
+    if (score > MIN_HOT_SCORE) scored.push({ id, score });
   }
+  // 🔴 FIX 8: prune cold entries + enforce cap after reading (reads no longer refresh
+  // lastAccess, so real staleness is visible here).
+  pruneHeatMap(t.heat.collections, MAX_COLLECTIONS_HEAT, now);
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, limit);
 }
@@ -232,13 +305,15 @@ export function getHotEntries(
   const now = Date.now();
   const scored: { collectionId: string; entryId: string; score: number }[] = [];
   for (const [key, rec] of t.heat.entries) {
-    applyDecay(rec, now);
-    rec.lastAccess = now;
-    if (rec.score > 0.01) {
+    const score = decayedScore(rec, now);
+    if (score > MIN_HOT_SCORE) {
       const [collectionId, entryId] = key.split(":");
-      scored.push({ collectionId, entryId, score: rec.score });
+      scored.push({ collectionId, entryId, score });
     }
   }
+  // 🔴 FIX 8: prune cold entries + enforce cap after reading (reads no longer refresh
+  // lastAccess, so real staleness is visible here).
+  pruneHeatMap(t.heat.entries, MAX_ENTRIES_HEAT, now);
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, limit);
 }
@@ -252,14 +327,16 @@ export function predictNextPath(tenantId: string, currentPath: string): string |
   const now = Date.now();
   for (const [key, rec] of t.heat.transitions) {
     if (key.startsWith(prefix)) {
-      applyDecay(rec, now);
-      rec.lastAccess = now;
-      if (rec.score > bestScore) {
-        bestScore = rec.score;
+      const score = decayedScore(rec, now);
+      if (score > bestScore) {
+        bestScore = score;
         best = key.slice(prefix.length);
       }
     }
   }
+  // 🔴 FIX 8: prune cold entries + enforce cap after reading (reads no longer refresh
+  // lastAccess, so real staleness is visible here).
+  pruneHeatMap(t.heat.transitions, MAX_TRANSITIONS_HEAT, now);
   return best || null;
 }
 
@@ -267,6 +344,13 @@ export function predictNextPath(tenantId: string, currentPath: string): string |
 
 export async function persistBehavioralData(): Promise<void> {
   const { cacheService } = await import("@src/databases/cache/cache-service");
+  const now = Date.now();
+  // 🔴 FIX 8: prune all tenants to their caps BEFORE serializing, so a cold/overlong
+  // snapshot is never written to Redis. Without this the whole unbounded state was
+  // persisted every 15 min and reloaded every boot — the leak compounded across
+  // restarts instead of resetting. Pruning here means what survives a restart is
+  // already bounded.
+  for (const t of _tenants.values()) pruneTenantHeat(t, now);
   // Single aggregate payload keyed by tenantId — restore reads ONE key and
   // repopulates every tenant's heat maps, so multi-tenant learning survives a
   // restart (the old per-tenant keys were never restored).
@@ -315,6 +399,9 @@ function restoreTenantMaps(tenantId: string, data: any): void {
       t.heat.transitions.set(k, v);
     }
   }
+  // 🔴 FIX 8: after loading, prune to caps — a corrupted / oversized legacy snapshot
+  // (written before this fix) must be re-bounded on boot, not trusted at full size.
+  pruneTenantHeat(t, Date.now());
 }
 
 export function startBehavioralEngine(): void {
