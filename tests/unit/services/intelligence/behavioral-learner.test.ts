@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   recordCollectionAccess,
+  recordEntryAccess,
   recordWriteAccess,
   recordNavigation,
   getHotCollections,
@@ -79,6 +80,36 @@ describe("Behavioral Learner Engine", () => {
       // With zero previous hits, confidence is low -> returns null (no false-positive preload headers)
       const uncalibrated = predictNextPathAdaptive("tenant-e", "/admin/products");
       expect(uncalibrated).toBeNull();
+    });
+  });
+
+  describe("FIX 8: bounded heat maps (memory-leak regression guard)", () => {
+    it("caps collections heat at MAX_COLLECTIONS_HEAT", () => {
+      for (let i = 0; i < 5200; i++) recordCollectionAccess("cap-tenant", `col-${i}`);
+      const hot = getHotCollections("cap-tenant", 100000);
+      expect(hot.length).toBeLessThanOrEqual(5000);
+    });
+
+    it("caps entries heat at MAX_ENTRIES_HEAT", () => {
+      for (let i = 0; i < 20500; i++) {
+        recordEntryAccess("cap-tenant-2", "col", `entry-${i}`);
+      }
+      const hot = getHotEntries("cap-tenant-2", 100000);
+      expect(hot.length).toBeLessThanOrEqual(20000);
+    });
+
+    it("expires cold entries whose decayed score falls below MIN_HOT_SCORE", () => {
+      vi.useFakeTimers();
+      try {
+        recordCollectionAccess("expire-tenant", "cold-entry");
+        // Advance far beyond the 24h half-life so decay collapses score below 0.01.
+        vi.setSystemTime(Date.now() + 40 * 24 * 60 * 60 * 1000);
+        // Reading prunes the now-cold entry (score-based expiry in pruneHeatMap).
+        const hot = getHotCollections("expire-tenant", 100);
+        expect(hot.find((c) => c.id === "cold-entry")).toBeUndefined();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });
