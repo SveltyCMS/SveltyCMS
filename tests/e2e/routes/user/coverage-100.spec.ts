@@ -302,11 +302,21 @@ test.describe("2FA enroll with fixture", () => {
     await codeInput.fill(totp);
 
     const verifyBtn = modal.getByRole("button", { name: /verify|enable|confirm/i }).first();
+    // The verify button stays disabled until the 6-digit code has hydrated into
+    // the bound state. Wait for the enabled state so the click is never swallowed
+    // by a transient disabled render (the same hydration race as the avatar modal).
+    await expect(verifyBtn).toBeEnabled({ timeout: ACTION_TIMEOUT });
     await verifyBtn.click();
 
-    await expect(page.getByText(/enabled|success/i).first()).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
+    // Prefer the scoped success toast over a page-wide text sweep: the Security
+    // panel's "Enabled" status text also matches /enabled/i once refreshAll
+    // promotes the user, so a global getByText can be ambiguous/strict-flaky.
+    await expect(
+      page
+        .getByTestId("app-toast")
+        .filter({ hasText: /enabled|success/i })
+        .first(),
+    ).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });
 
@@ -458,7 +468,28 @@ test.describe("Sessions and multi-tenant column", () => {
   test("tenant column hidden when multi-tenant is off", async ({ page }) => {
     await loginAsAdmin(page, "/user");
     await goToUser(page);
-    await openUserManagement(page);
+
+    // Open the User Management tab with the same click-and-confirm guard used by
+    // the other tab-driven specs: the tab is SSR-rendered before hydration
+    // attaches its onclick, so a bare click can be a silent no-op.
+    await dismissCookieBanner(page);
+    const managementTab = page.getByRole("tab", { name: /user management/i });
+    await expect(managementTab).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(async () => {
+      if ((await managementTab.getAttribute("aria-selected")) !== "true") {
+        await managementTab.click({ timeout: ACTION_TIMEOUT });
+      }
+      await expect(managementTab).toHaveAttribute("aria-selected", "true", {
+        timeout: 2_000,
+      });
+    }).toPass({ timeout: ACTION_TIMEOUT });
+    await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // The users table renders as an empty-state until the /api/user fetch
+    // resolves; wait for a real table header before asserting the header set,
+    // so the assertion proves the rendered table hides the tenant column (rather
+    // than passing vacuously against a table that never mounted).
+    await expect(page.locator("thead th").first()).toBeVisible({ timeout: ACTION_TIMEOUT });
     // Column header "Tenant ID" should not appear in default single-tenant
     const tenantHeader = page.locator("thead th").filter({ hasText: /tenant id/i });
     await expect(tenantHeader).toHaveCount(0);

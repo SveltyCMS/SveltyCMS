@@ -65,7 +65,7 @@ async function openImageEditor(page: Page) {
   await cell.scrollIntoViewIfNeeded();
   await cell.hover();
 
-  const editButton = page
+  const editButton = cell
     .getByTestId("media-edit-button")
     .or(cell.getByRole("button", { name: /edit/i }))
     .first();

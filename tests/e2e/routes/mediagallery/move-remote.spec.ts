@@ -223,10 +223,12 @@ test.describe("Remote URL upload", () => {
 
     // The remote tab no longer posts a SvelteKit form action (?/remoteUpload):
     // remote-upload.svelte calls uploadRemoteUrls from remote-upload.remote.ts,
-    // which SvelteKit transports as POST /_app/remote/<hash>/uploadRemoteUrls?payload=….
+    // which is a `query()` remote function — SvelteKit transports it as a GET
+    // request to /_app/remote/<hash>/uploadRemoteUrls?payload=… (only `command`
+    // and `form` remote functions use POST).
     const actionResponse = page.waitForResponse(
       (res) =>
-        res.request().method() === "POST" &&
+        res.request().method() === "GET" &&
         res.url().includes("/_app/remote/") &&
         res.url().includes("uploadRemoteUrls"),
       { timeout: ACTION_TIMEOUT },

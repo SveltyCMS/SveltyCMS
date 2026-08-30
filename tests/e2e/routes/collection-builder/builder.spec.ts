@@ -46,6 +46,13 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
    */
   test("shell: page title and new collection control", async ({ page }) => {
     await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+    // The first SSR after a DB reset can briefly redirect to /login before the
+    // freshly seeded session is recognised. Re-authenticate instead of timing out
+    // on the heading — the shell test's contract is the board chrome, not auth.
+    if (page.url().includes("/login")) {
+      const { loginAsAdmin } = await import("../../helpers/auth");
+      await loginAsAdmin(page, "/config/collectionbuilder");
+    }
     // 30s budget (matches the golden test): the first SSR after a DB reset may
     // re-initialize the content system before the board renders.
     await expect(page.getByRole("heading", { level: 1, name: /collection builder/i }))
@@ -216,16 +223,23 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await titleBox.fill("Golden Entry");
     await page.getByRole("button", { name: /save/i }).first().click();
 
-    // Re-open entry list view to assert table row
-    await openCollectionEntries(page, fixture.slug);
+    // Save is async and navigates back to the list only after the write resolves.
+    // Wait for the persistence toast so the following hard navigation cannot race
+    // the in-flight create (the entry would then be missing from the fresh list).
+    await expect(page.getByText(/entry saved/i).first()).toBeVisible({ timeout: 20_000 });
 
-    // List may truncate cell text — assert a data row with status affordance
-    await expect(
-      page
-        .getByRole("row")
-        .filter({ hasText: /unpublish|publish|draft|golden entry/i })
-        .first(),
-    ).toBeVisible({ timeout: 20_000 });
+    // Assert a data row with status affordance. Retry: a parallel-worker reset or
+    // one extra navigation round-trip can leave the freshly saved entry out of the
+    // first SSR render, so re-navigate inside the retry to force a fresh list read.
+    await expect(async () => {
+      await openCollectionEntries(page, fixture.slug);
+      await expect(
+        page
+          .getByRole("row")
+          .filter({ hasText: /unpublish|publish|draft|golden entry/i })
+          .first(),
+      ).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 30_000, intervals: [1_500, 2_500, 4_000] });
 
     // API is source of truth — try product path + hyphen/underscore variants
     const apiIds = collectionSlugCandidates(fixture.slug);

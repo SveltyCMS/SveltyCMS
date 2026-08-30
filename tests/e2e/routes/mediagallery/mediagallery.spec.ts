@@ -308,14 +308,23 @@ test.describe("Media Gallery", () => {
     await dialog.getByRole("button", { name: /ok|create|confirm|save/i }).click();
     await expect(page.getByText(/folder created/i)).toBeVisible({ timeout: 10_000 });
 
-    // Navigate into the folder — breadcrumbs only appear when inside a subfolder
+    // Navigate into the folder. The sidebar tree refreshes asynchronously after
+    // creation, so wait for the folder link before clicking, then confirm the
+    // navigation actually lands inside the folder (URL gains ?folderId=).
     const folderLink = page.getByText(folderName, { exact: true }).first();
-    await expect(folderLink).toBeVisible({ timeout: 5_000 });
+    await expect(folderLink).toBeVisible({ timeout: 15_000 });
     await folderLink.click();
-    await expect(page.getByTestId("media-gallery-breadcrumbs")).toBeVisible({ timeout: 10_000 });
+    await expect(page).toHaveURL(/folderId=/, { timeout: 15_000 });
 
-    // Click root breadcrumb to go back
+    // Breadcrumbs now show the folder as a non-root crumb.
+    await expect(page.getByTestId("media-gallery-breadcrumbs").getByText(folderName)).toBeVisible({
+      timeout: 10_000,
+    });
+
+    // Click root breadcrumb to go back — now rendered as a link (not the
+    // current-folder span), so navigation lands back at /mediagallery.
     await page.getByTestId("media-breadcrumb-root").click();
+    await expect(page).toHaveURL(/\/mediagallery$/, { timeout: 15_000 });
     await expect(page.getByTestId("media-gallery-content")).toBeVisible({ timeout: 10_000 });
   });
 

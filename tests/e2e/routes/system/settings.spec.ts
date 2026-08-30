@@ -221,11 +221,13 @@ test.describe("System Settings shell", () => {
 
   test("gdpr group loads special panel", async ({ page }) => {
     await goSettings(page, "gdpr");
-    await expect(page.getByTestId("settings-panel-gdpr")).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect(page.getByText(/gdpr|privacy|export|anonymiz/i).first()).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
+    const panel = page.getByTestId("settings-panel-gdpr");
+    await expect(panel).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // The GDPR group renders a bespoke panel (not the generic field form) —
+    // assert its two compliance cards instead of a page-wide text match that
+    // can resolve to the sidebar's group name.
+    await expect(
+      panel.getByRole("heading", { name: /data portability|right to erasure/i }).first(),
+    ).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });
