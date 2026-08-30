@@ -204,7 +204,7 @@ test.describe("Remote URL upload", () => {
     await expect(page.getByTestId("upload-tab-remote")).toBeVisible();
   });
 
-  test("remote tab posts uploadRemoteUrls remote query", async ({ page }) => {
+  test("remote tab calls uploadRemoteUrls remote query", async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto("/mediagallery/upload-media", {
       waitUntil: "domcontentloaded",
