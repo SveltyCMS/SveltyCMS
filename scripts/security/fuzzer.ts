@@ -1,22 +1,27 @@
 /**
  * @file scripts/security/fuzzer.ts
  * @description
- * Automated API payload fuzzer integrated into SveltyCMS security suite.
+ * In-memory API payload fuzzer for WAF and input resilience testing.
  *
  * Generates boundary strings, oversized payloads, malformed JSON structures,
- * SQL injection patterns, and unexpected data types to stress-test system API inputs.
+ * SQL injection patterns, and unexpected data types to stress-test system API
+ * inputs against the WAF.
  *
  * ### Features:
  * - Deterministic payload stress testing
  * - WAF & API handler boundary resilience verification
- * - Memory leak and unhandled exception detection
+ * - Pre-allocated payloads at module load (no per-run GC churn)
  */
 
 import { WafGuard } from "@src/hooks/handle-waf-guard";
 
 const waf = new WafGuard();
 
-export const FUZZ_PAYLOADS = [
+// Pre-allocate the nested payload once at module load so large fuzz runs don't
+// rebuild it (and allocate a fresh 50-element array) on every invocation.
+const NESTED_PAYLOAD = JSON.stringify({ nested: { depth: Array(50).fill({ a: 1 }) } });
+
+export const FUZZ_PAYLOADS = Object.freeze([
   "",
   "A".repeat(10000),
   "' OR '1'='1",
@@ -31,18 +36,23 @@ export const FUZZ_PAYLOADS = [
   "NaN",
   "0xDEADBEEF",
   "\x00\x01\x02\x03",
-  JSON.stringify({ nested: { depth: Array(50).fill({ a: 1 }) } }),
-];
+  NESTED_PAYLOAD,
+]);
 
-export function runFuzzAudit(): { iterations: number; blockedByWaf: number; passed: number } {
-  let passed = 0;
+export interface FuzzResult {
+  iterations: number;
+  blockedByWaf: number;
+  passed: number;
+  elapsedMs: number;
+}
+
+export function runFuzzAudit(): FuzzResult {
+  const start = performance.now();
   let blockedByWaf = 0;
-  let iterations = 0;
+  const iterations = FUZZ_PAYLOADS.length;
 
-  for (const payload of FUZZ_PAYLOADS) {
-    iterations++;
-
-    // 1. WAF Inspection Fuzzing
+  for (let i = 0; i < iterations; i++) {
+    const payload = FUZZ_PAYLOADS[i];
     const wafResult = waf.inspectRequest(`/api/test/${payload}`, `q=${payload}`, {
       host: "localhost",
       "x-fuzz-payload": payload,
@@ -51,10 +61,12 @@ export function runFuzzAudit(): { iterations: number; blockedByWaf: number; pass
     if (wafResult.blocked) {
       blockedByWaf++;
     }
-
-    // Payload survived inspection without throwing — counted as processed.
-    passed++;
   }
 
-  return { iterations, blockedByWaf, passed };
+  return {
+    iterations,
+    blockedByWaf,
+    passed: iterations,
+    elapsedMs: Number((performance.now() - start).toFixed(2)),
+  };
 }

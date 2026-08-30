@@ -401,35 +401,44 @@ async function auditCSRF() {
     { method: "DELETE", path: "/api/collections/csrf-test" },
   ];
 
-  for (const mut of mutations) {
-    // Request WITHOUT CSRF token (but with session cookie)
-    const noCsrf = await probe(
-      mut.method,
-      mut.path,
-      {
-        "Content-Type": "application/json",
-        Origin: "https://evil.example.com",
-        // Explicitly do NOT send CSRF token
-      },
-      mut.body,
-    );
-
-    if (!noCsrf) continue;
-
-    if (noCsrf.status === 403 || noCsrf.status === 401) {
-      console.log(`  ✅ ${mut.method} ${mut.path}: rejected without CSRF token (${noCsrf.status})`);
-    } else if (noCsrf.status < 400) {
-      report(
+  // 🔀 PARALLEL: the "no CSRF" probes are independent (each is expected to be
+  // rejected, so they create no state) — fire them concurrently.
+  await Promise.all(
+    mutations.map(async (mut) => {
+      // Request WITHOUT CSRF token (but with session cookie)
+      const noCsrf = await probe(
+        mut.method,
         mut.path,
-        "CSRF bypass",
-        "A01",
-        "HIGH",
-        `${mut.method} accepted ${noCsrf.status} without CSRF token — cross-site request forgery risk`,
+        {
+          "Content-Type": "application/json",
+          Origin: "https://evil.example.com",
+          // Explicitly do NOT send CSRF token
+        },
+        mut.body,
       );
-    }
 
-    // Request WITH CSRF token (should succeed if valid)
-    if (csrfToken) {
+      if (!noCsrf) return;
+
+      if (noCsrf.status === 403 || noCsrf.status === 401) {
+        console.log(
+          `  ✅ ${mut.method} ${mut.path}: rejected without CSRF token (${noCsrf.status})`,
+        );
+      } else if (noCsrf.status < 400) {
+        report(
+          mut.path,
+          "CSRF bypass",
+          "A01",
+          "HIGH",
+          `${mut.method} accepted ${noCsrf.status} without CSRF token — cross-site request forgery risk`,
+        );
+      }
+    }),
+  );
+
+  // "with CSRF" probes stay sequential: the POST creates the `csrf-test`
+  // collection that the subsequent PUT/DELETE target.
+  if (csrfToken) {
+    for (const mut of mutations) {
       const withCsrf = await probe(
         mut.method,
         mut.path,
@@ -918,10 +927,19 @@ async function auditSecretLeakage() {
   let passed = 0;
   let blocked = 0;
 
-  for (const ep of probeEndpoints) {
-    const hdrs: Record<string, string> = { Origin: BASE };
-    if (ep.body) hdrs["Content-Type"] = "application/json";
-    const res = await probe(ep.method as any, ep.path, hdrs, (ep as any).body);
+  // 🔀 PARALLEL: every endpoint is an independent read/404 probe (no shared
+  // state, no ordering dependency) — fire them concurrently to cut the
+  // network-bound wall-clock time of this audit.
+  const results = await Promise.all(
+    probeEndpoints.map(async (ep) => {
+      const hdrs: Record<string, string> = { Origin: BASE };
+      if (ep.body) hdrs["Content-Type"] = "application/json";
+      const res = await probe(ep.method as any, ep.path, hdrs, (ep as any).body);
+      return { ep, res };
+    }),
+  );
+
+  for (const { ep, res } of results) {
     if (!res) {
       blocked++;
       continue;
