@@ -98,6 +98,14 @@ export const initialState: SystemStateStore = {
       message: "Not initialized",
       metrics: structuredClone(initialServiceMetrics),
     },
+    cacheWarming: {
+      // 🔴 FIX 9 (readiness gate): default to "skipped" so tests / non-db-init boots
+      // (setup phase, watch-only, etc.) are NOT blocked by a warming service that never
+      // starts. Only the real db-init boot flips it to "initializing" → "healthy".
+      status: "skipped",
+      message: "Not warmed (no boot warm-up)",
+      metrics: structuredClone(initialServiceMetrics),
+    },
   },
   performanceMetrics: {
     totalInitializations: 0,

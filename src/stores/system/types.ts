@@ -25,7 +25,8 @@ export type ServiceName =
   | "contentSystem"
   | "themeManager"
   | "widgets"
-  | "search";
+  | "search"
+  | "cacheWarming";
 
 export interface AnomalyThresholds {
   maxStartupTime: number;

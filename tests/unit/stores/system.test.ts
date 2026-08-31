@@ -259,3 +259,44 @@ describe("System Store - State Reset", () => {
     expect(state.performanceMetrics.totalInitializations).toBe(0);
   });
 });
+
+describe("System Store - FIX 9: cache-warming readiness gate", () => {
+  beforeEach(() => {
+    resetSystemState();
+  });
+
+  it("reports not-ready while cache warming is initializing (readiness gate)", () => {
+    // Force the boot-warm-up state: system otherwise READY, but warming still in flight.
+    updateServiceHealth("database", "healthy", "OK");
+    updateServiceHealth("auth", "healthy", "OK");
+    updateServiceHealth("cache", "healthy", "OK");
+    setSystemState("WARMED");
+    startServiceInitialization("cacheWarming");
+
+    // The load-balancer readiness probe must hold traffic until warming settles.
+    expect(isSystemReady()).toBe(false);
+  });
+
+  it("becomes ready once cache warming completes (healthy)", () => {
+    updateServiceHealth("database", "healthy", "OK");
+    updateServiceHealth("auth", "healthy", "OK");
+    updateServiceHealth("cache", "healthy", "OK");
+    startServiceInitialization("cacheWarming");
+    updateServiceHealth("cacheWarming", "healthy", "Cache warming complete");
+    setSystemState("WARMED");
+
+    expect(isSystemReady()).toBe(true);
+  });
+
+  it("does NOT block readiness when no boot warm-up runs (cacheWarming defaults skipped)", () => {
+    updateServiceHealth("database", "healthy", "OK");
+    updateServiceHealth("auth", "healthy", "OK");
+    updateServiceHealth("cache", "healthy", "OK");
+    setSystemState("WARMED");
+
+    // cacheWarming is 'skipped' in initialState — non-boot invocations (setup/tests/watch)
+    // must not be caught in a permanent not-ready state.
+    expect(getSystemState().services.cacheWarming.status).toBe("skipped");
+    expect(isSystemReady()).toBe(true);
+  });
+});
