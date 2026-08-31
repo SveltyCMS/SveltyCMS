@@ -36,7 +36,7 @@ import {
 } from "@src/services/cache/response-cache";
 import {
   negotiateEncoding,
-  compressSync,
+  compressAsync,
   compressZstd,
   hasNativeCompression,
   setCompressionHeaders,
@@ -366,12 +366,18 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                     // streaming tier in handleCompression (never the sync path).
                     if (hasNativeCompression() && bodyBytes <= SYNC_MAX_SIZE) {
                       compressionTasks.push(
-                        Promise.resolve().then(() => {
-                          const br = compressSync(responseBody!, "br", bodyBytes);
-                          if (br && br.byteLength < bodyBytes) compressedPayloads.br = br;
-                          const gz = compressSync(responseBody!, "gzip", bodyBytes);
-                          if (gz && gz.byteLength < bodyBytes) compressedPayloads.gzip = gz;
-                        }),
+                        compressAsync(responseBody!, "br", bodyBytes)
+                          .then((br) => {
+                            if (br && br.byteLength < bodyBytes) compressedPayloads.br = br;
+                          })
+                          .catch(() => {}),
+                      );
+                      compressionTasks.push(
+                        compressAsync(responseBody!, "gzip", bodyBytes)
+                          .then((gz) => {
+                            if (gz && gz.byteLength < bodyBytes) compressedPayloads.gzip = gz;
+                          })
+                          .catch(() => {}),
                       );
                     }
                     compressionTasks.push(

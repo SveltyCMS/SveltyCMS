@@ -293,7 +293,6 @@ import {
 } from "./resolvers/data-operations";
 import { createLoaders } from "./loaders";
 
-import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { withMutableHeaders } from "@utils/hook-utils";
@@ -569,15 +568,17 @@ export async function _refreshSchema(dbAdapter: any, tenantId?: string | null) {
 }
 
 let sharedCMS: LocalCMS | null = null;
+import { cacheService } from "@src/databases/cache/cache-service";
 
 async function handleRequest(event: RequestEvent) {
-  const { locals, request } = event;
+  const request = event.request;
+  const locals = event.locals;
+  const url = event.url;
 
   if (!locals.user) {
     throw new AppError("Unauthorized: Login required for GraphQL", 401);
   }
 
-  const url = event.url;
   const publicationFilterParam = url.searchParams.get("publicationFilter");
   const publicationFilterHeader = request.headers.get("x-publication-filter");
   const publicationFilter = resolvePublicationFilter(
@@ -588,6 +589,8 @@ async function handleRequest(event: RequestEvent) {
   let query = "";
   let variables: any = {};
   let bodyText = "";
+  let apqHash: string | null = null;
+  let parsedBody: Record<string, any> | null = null;
 
   if (request.method === "POST") {
     const bodyFromSecurity = (locals as any).__graphqlBodyText;
@@ -598,14 +601,23 @@ async function handleRequest(event: RequestEvent) {
 
     const parsedFromSecurity = (locals as any).__graphqlParsedBody;
     if (parsedFromSecurity && typeof parsedFromSecurity === "object") {
+      parsedBody = parsedFromSecurity;
       query = parsedFromSecurity?.query || "";
       variables = parsedFromSecurity?.variables || {};
     } else {
       try {
-        const body = JSON.parse(bodyText);
-        query = body?.query || "";
-        variables = body?.variables || {};
+        parsedBody = JSON.parse(bodyText);
+        query = parsedBody?.query || "";
+        variables = parsedBody?.variables || {};
       } catch {}
+    }
+
+    if (parsedBody?.extensions?.persistedQuery?.sha256Hash) {
+      apqHash = String(parsedBody.extensions.persistedQuery.sha256Hash);
+    } else if (parsedBody?.extensions?.persistedQuery?.hash) {
+      apqHash = String(parsedBody.extensions.persistedQuery.hash);
+    } else if (parsedBody?.hash) {
+      apqHash = String(parsedBody.hash);
     }
   } else if (request.method === "GET") {
     query = url.searchParams.get("query") || "";
@@ -614,6 +626,55 @@ async function handleRequest(event: RequestEvent) {
       try {
         variables = JSON.parse(varsParam);
       } catch {}
+    }
+
+    const extensionsParam = url.searchParams.get("extensions");
+    if (extensionsParam) {
+      try {
+        const ext = JSON.parse(extensionsParam);
+        if (ext?.persistedQuery?.sha256Hash) apqHash = String(ext.persistedQuery.sha256Hash);
+        else if (ext?.persistedQuery?.hash) apqHash = String(ext.persistedQuery.hash);
+      } catch {}
+    }
+    if (!apqHash) {
+      apqHash = url.searchParams.get("hash") || url.searchParams.get("sha256Hash") || null;
+    }
+  }
+
+  // 🚀 AUTOMATIC PERSISTED QUERIES (APQ): Resolve or register query via APQ hash
+  if (apqHash) {
+    const tenant = (locals.tenantId as string) || "global";
+    if (!query) {
+      // Lookup registered query from L1/L2 Redis
+      const cachedQuery =
+        cacheService.getSync<string>(`apq:${apqHash}`, tenant) ||
+        (await cacheService.get<string>(`apq:${apqHash}`, tenant).catch(() => null));
+
+      if (cachedQuery) {
+        query = cachedQuery;
+      } else {
+        // Return standard GraphQL APQ protocol error
+        return new Response(
+          JSON.stringify({
+            errors: [
+              {
+                message: "PersistedQueryNotFound",
+                extensions: { code: "PERSISTED_QUERY_NOT_FOUND" },
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+    } else {
+      // Register incoming query with its APQ hash across L1/L2 Redis (7 days TTL)
+      await cacheService.set(`apq:${apqHash}`, query, 7 * 24 * 3600, tenant, undefined, [
+        "graphql",
+        "apq",
+      ]);
     }
   }
 
@@ -629,22 +690,43 @@ async function handleRequest(event: RequestEvent) {
   if (cacheKey) {
     const cached = responseCache.get(cacheKey, locals.tenantId as string);
     if (cached) {
-      const payload = cached.buffer || cached.body;
       metricsService.recordGraphqlResponseHit(locals.tenantId as string);
+      const acceptEncoding = request.headers.get("Accept-Encoding") || "";
+      const rawBody = cached.body;
+      const payloadSize = cached.buffer
+        ? cached.buffer.byteLength
+        : Buffer.byteLength(rawBody, "utf-8");
+
+      const responseHeaders = new Headers({
+        "Content-Type": "application/json",
+        ETag: cached.etag,
+        "X-Cache": "HIT",
+        "Cache-Control": "private, no-store",
+        Vary: "Accept-Encoding, Cookie",
+      });
+
+      // 🚀 Zero-CPU Binary Byte Serving: serve pre-compressed chunk if supported
+      if (cached.compressed && payloadSize > 1024) {
+        if (acceptEncoding.includes("br") && cached.compressed.br) {
+          responseHeaders.set("Content-Encoding", "br");
+          return new Response(cached.compressed.br as BodyInit, {
+            status: 200,
+            headers: responseHeaders,
+          });
+        }
+        if (acceptEncoding.includes("gzip") && cached.compressed.gzip) {
+          responseHeaders.set("Content-Encoding", "gzip");
+          return new Response(cached.compressed.gzip as BodyInit, {
+            status: 200,
+            headers: responseHeaders,
+          });
+        }
+      }
+
+      const payload = cached.buffer || rawBody;
       return new Response(payload as any, {
         status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ETag: cached.etag,
-          "X-Cache": "HIT",
-          // 🛡️ HARDENING: the L1 cache is user-keyed. A CDN/proxy MUST NOT
-          // replay one user's privileged GraphQL response to another client,
-          // so the response is private, no-store (previously `public,
-          // s-maxage=60, stale-while-revalidate=86400` — a shared-cache
-          // cross-tenant replay window).
-          "Cache-Control": "private, no-store",
-          Vary: "Cookie",
-        },
+        headers: responseHeaders,
       });
     }
   }
@@ -735,9 +817,12 @@ async function handleRequest(event: RequestEvent) {
 
     // 🚀 SKIP REQUEST CLONING: Pass the original request for GET, create minimal
     // Request only for POST (Yoga needs the body, but we already have bodyText)
+    const yogaBody =
+      bodyText && bodyText.includes('"query"') ? bodyText : JSON.stringify({ query, variables });
+
     const yogaRequest =
       request.method === "POST"
-        ? new Request(request.url, { method: "POST", headers: request.headers, body: bodyText })
+        ? new Request(request.url, { method: "POST", headers: request.headers, body: yogaBody })
         : request;
 
     const handleYogaRequest = () => yogaApp.handleRequest(yogaRequest, buildYogaContext());
@@ -784,5 +869,5 @@ async function handleRequest(event: RequestEvent) {
   }
 }
 
-export const GET = apiHandler(handleRequest);
-export const POST = apiHandler(handleRequest);
+export const GET = handleRequest;
+export const POST = handleRequest;

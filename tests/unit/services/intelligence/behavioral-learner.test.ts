@@ -19,6 +19,7 @@ import {
 } from "@src/services/intelligence/behavioral-learner";
 import { CacheWarmingService } from "@src/databases/cache/cache-warming-service";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 
 describe("Behavioral Learner Engine", () => {
   beforeEach(() => {
@@ -119,6 +120,9 @@ describe("CacheWarmingService (Behavioral Pre-Warming)", () => {
     clearBehavioralData();
     recordWriteAccess("tenant-test", "articles", "art-1");
 
+    expect(getHotCollections("tenant-test")).toHaveLength(1);
+    expect(getHotEntries("tenant-test")).toHaveLength(1);
+
     const setSpy = vi.spyOn(cacheService, "set").mockResolvedValue(undefined as any);
 
     const mockDb = {
@@ -149,24 +153,30 @@ describe("CacheWarmingService (Behavioral Pre-Warming)", () => {
       expect.anything(),
     );
 
-    // Verify exact SDK keyspace matching
+    // Verify exact SDK keyspace matching without duplicate tenant prefix
     expect(setSpy).toHaveBeenCalledWith(
-      "tenant-test:collection:articles:find:default_50:published",
+      "collection:articles:find:default_50:published",
       expect.objectContaining({ success: true }),
       300,
       "tenant-test",
+      CacheCategory.COLLECTION,
+      ["collection", "collection:articles"],
     );
     expect(setSpy).toHaveBeenCalledWith(
-      "tenant-test:collection:articles:art-1:published",
+      "collection:articles:art-1:published",
       expect.objectContaining({ success: true }),
       300,
       "tenant-test",
+      CacheCategory.COLLECTION,
+      ["collection", "collection:articles", "doc:art-1"],
     );
     expect(setSpy).toHaveBeenCalledWith(
-      "tenant-test:collection:articles:find:id:art-1",
+      "collection:articles:find:id:art-1",
       expect.objectContaining({ success: true, data: expect.any(Array) }),
       300,
       "tenant-test",
+      CacheCategory.COLLECTION,
+      ["collection", "collection:articles", "doc:art-1"],
     );
 
     setSpy.mockRestore();

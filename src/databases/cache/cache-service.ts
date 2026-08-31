@@ -80,11 +80,16 @@ export class CacheService {
 
   private bootstrapping = false;
   private latencyBuffer: number[] = [];
+  private latencyIdx = 0;
   private l1LatencyBuffer: number[] = [];
-  private readonly MAX_LATENCY_SAMPLES = 100;
+  private l1LatencyIdx = 0;
+  private readonly MAX_LATENCY_SAMPLES = 1024;
   private _metrics: any = null;
   private _cdnResolved = false;
   private _cdnActive = false;
+
+  /** Collection write epochs for fencing race conditions between background warm and user writes. */
+  private collectionEpochs = new Map<string, number>();
 
   /** Cooperative in-process counters for the no-Redis `increment()` fallback (FIX 5). */
   private _coopCounters = new Map<string, { value: number }>();
@@ -100,6 +105,25 @@ export class CacheService {
     });
 
     this.nodeId = generateUUID();
+
+    // 🔍 Heap-leak triage: write a V8 heap snapshot after a delay when the
+    // operator requests it via env. Benchmark-only escape hatch; no effect
+    // unless HEAP_SNAPSHOT_PATH is set.
+    if (process.env.HEAP_SNAPSHOT_PATH) {
+      const afterMs = Number(process.env.HEAP_SNAPSHOT_AFTER_MS || 300000);
+      const t = setTimeout(async () => {
+        try {
+          const { writeHeapSnapshot } = await import("node:v8");
+          writeHeapSnapshot(process.env.HEAP_SNAPSHOT_PATH!);
+          process.stderr.write(`[heap-snapshot] wrote ${process.env.HEAP_SNAPSHOT_PATH}\n`);
+        } catch (e) {
+          process.stderr.write(`[heap-snapshot] failed: ${String(e)}\n`);
+        }
+      }, afterMs);
+      if (typeof (t as unknown as { unref?: () => void })?.unref === "function") {
+        (t as unknown as { unref: () => void }).unref();
+      }
+    }
   }
 
   // ── Metrics & Logging ───────────────────────────────────────────────────
@@ -122,9 +146,11 @@ export class CacheService {
   }
 
   private recordLatency(ms: number) {
-    this.latencyBuffer.push(ms);
-    if (this.latencyBuffer.length > this.MAX_LATENCY_SAMPLES) {
-      this.latencyBuffer.shift();
+    if (this.latencyBuffer.length < this.MAX_LATENCY_SAMPLES) {
+      this.latencyBuffer.push(ms);
+    } else {
+      this.latencyBuffer[this.latencyIdx] = ms;
+      this.latencyIdx = (this.latencyIdx + 1) % this.MAX_LATENCY_SAMPLES;
     }
   }
 
@@ -132,9 +158,11 @@ export class CacheService {
    * never called recordLatency, so getLatencyStats() reported only L2 Redis round-trips —
    * a benchmark relying on it looked healthy while L1 hits and lock-wait were unmeasured. */
   private recordL1Latency(ms: number) {
-    this.l1LatencyBuffer.push(ms);
-    if (this.l1LatencyBuffer.length > this.MAX_LATENCY_SAMPLES) {
-      this.l1LatencyBuffer.shift();
+    if (this.l1LatencyBuffer.length < this.MAX_LATENCY_SAMPLES) {
+      this.l1LatencyBuffer.push(ms);
+    } else {
+      this.l1LatencyBuffer[this.l1LatencyIdx] = ms;
+      this.l1LatencyIdx = (this.l1LatencyIdx + 1) % this.MAX_LATENCY_SAMPLES;
     }
   }
 
@@ -498,7 +526,9 @@ export class CacheService {
           return undefined;
         }
         if (!lockOwner) {
-          await this.locks.waitForCache(this.l1, this.l2, fullKey, 1000, deserializeL2Value);
+          await this.locks.waitForCache(this.l1, this.l2, fullKey, 1000, deserializeL2Value, (k) =>
+            this.addToPrefixMap(k),
+          );
           const recheckVal = this.l1.get(fullKey);
           if (recheckVal !== undefined) return recheckVal as T;
         }
@@ -506,6 +536,18 @@ export class CacheService {
 
       return undefined;
     });
+  }
+
+  getCollectionEpoch(collection: string, tenantId?: string | null): number {
+    const key = `${this.normalizeTenantId(tenantId)}:${collection}`;
+    return this.collectionEpochs.get(key) || 0;
+  }
+
+  bumpCollectionEpoch(collection: string, tenantId?: string | null): number {
+    const key = `${this.normalizeTenantId(tenantId)}:${collection}`;
+    const next = (this.collectionEpochs.get(key) || 0) + 1;
+    this.collectionEpochs.set(key, next);
+    return next;
   }
 
   async coalesceQuery<T>(key: string, queryFn: () => Promise<T>): Promise<T> {
@@ -542,6 +584,7 @@ export class CacheService {
           const parsed = deserializeL2Value(val);
           results[missingIndices[i]] = parsed as T;
           this.l1.set(missingKeys[i], parsed);
+          this.addToPrefixMap(missingKeys[i]);
           this.stats.hits++;
           this.stats.l2Hits++;
         } else {
@@ -1045,10 +1088,17 @@ export class CacheService {
   }
 
   async invalidateByCategory(category: CacheCategory, tenantId: string | null = "*") {
-    await this.clearByPattern(`*:${category}:`, tenantId);
+    if (category === CacheCategory.CONTENT || category === CacheCategory.COLLECTION) {
+      await this.clearByTags(["collection", "content"], tenantId);
+      await this.clearByPattern("collection:", tenantId);
+    } else {
+      await this.clearByPattern(`${category}:`, tenantId);
+    }
   }
 
   async invalidateCollection(collection: string, tenantId: string | null = "*") {
+    this.bumpCollectionEpoch(collection, tenantId);
+    await this.clearByTags([`collection:${collection}`, "collection"], tenantId);
     await this.clearByPattern(`collection:${collection}:`, tenantId);
   }
 
@@ -1072,8 +1122,8 @@ export class CacheService {
     const sorted = [...combined].sort((a, b) => a - b);
     const sum = sorted.reduce((acc, v) => acc + v, 0);
     const avg = sum / sorted.length;
-    const p95Idx = Math.min(Math.floor(sorted.length * 0.95), sorted.length - 1);
-    const p99Idx = Math.min(Math.floor(sorted.length * 0.99), sorted.length - 1);
+    const p95Idx = Math.max(0, Math.min(Math.ceil(sorted.length * 0.95) - 1, sorted.length - 1));
+    const p99Idx = Math.max(0, Math.min(Math.ceil(sorted.length * 0.99) - 1, sorted.length - 1));
     return {
       avg: Math.round(avg * 1000) / 1000,
       p95: Math.round(sorted[p95Idx] * 1000) / 1000,

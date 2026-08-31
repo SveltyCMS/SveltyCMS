@@ -61,7 +61,13 @@ export async function handleSystemRoutes(
     case "widgets":
       return handleWidgetRoutes(event, cms, tenantId, segments);
     case "system": {
-      const action = segments[1];
+      const action = segments[1] || event.url.searchParams.get("action");
+      if (action === "health") {
+        return handleHealthRoutes(event, cms, tenantId, segments);
+      }
+      if (action === "version") {
+        return handleVersionRoutes(event, cms, tenantId, segments.slice(1));
+      }
       if (action === "hot-collections" && event.request.method === "GET") {
         const { getHotCollections } = await import("@src/services/intelligence/behavioral-learner");
         const hot = getHotCollections(tenantId ?? "global", 20);
@@ -69,6 +75,20 @@ export async function handleSystemRoutes(
           event,
           hot.map((c) => c.id),
         );
+      }
+      if (action === "prewarm-route" && event.request.method === "GET") {
+        const targetPath = event.url.searchParams.get("path") || "/dashboard";
+        const { routeResourceStateMachine } =
+          await import("@src/services/core/route-resource-state-machine");
+        routeResourceStateMachine
+          .prewarmRouteResources(targetPath, event.url.origin)
+          .catch(() => {});
+        const spec = routeResourceStateMachine.classifyRouteSpec(targetPath);
+        return successResponse(event, {
+          path: targetPath,
+          lane: spec.lane,
+          requiredCacheCategories: spec.requiredCacheCategories,
+        });
       }
       if (action === "penalize-bounce" && event.request.method === "POST") {
         const body = await event.request.json().catch(() => ({}));

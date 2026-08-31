@@ -43,12 +43,53 @@ GraphQL relation resolvers use a request-scoped `BatchLoader` (`src/utils/server
 
 ## Architecture
 
-### Dual-Layer Strategy
+### Dual-Layer Strategy & Distributed Multi-Node Cluster
 
 ```
 Layer 1: In-Memory LRU Cache → <0.001ms (L1 hit, zero allocation)
-Layer 2: Redis (Optional)     → <1ms (distributed, cross-node)
-Layer 3: Database (Persistent) → Sub-ms CRUD (0.042-3.261ms)
+Layer 2: Redis (Optional)     → <0.5ms (distributed cluster, edge sync, cross-node invalidation)
+Layer 3: Database (Persistent) → PostgreSQL, MariaDB, MongoDB, SQLite (0.042-3.261ms)
+```
+
+```mermaid
+flowchart TD
+    subgraph Clients ["Traffic / Web / Mobile"]
+        C1[Client 1]
+        C2[Client 2]
+    end
+
+    subgraph Cluster ["SveltyCMS Multi-Node Cluster"]
+        subgraph NodeA ["SveltyCMS Instance A"]
+            L1A["L1 RAM LRU (0.001ms)<br>Zero-Copy Buffers"]
+            SM_A["Route State Machine<br>AI Speculative Prewarm"]
+        end
+        subgraph NodeB ["SveltyCMS Instance B"]
+            L1B["L1 RAM LRU (0.001ms)<br>Zero-Copy Buffers"]
+            SM_B["Route State Machine<br>AI Speculative Prewarm"]
+        end
+    end
+
+    subgraph DistributedState ["Distributed Redis L2 Layer"]
+        L2[("Redis Sentinel / Cluster <br> APQ Registry · L2 Response Cache")]
+        PUBSUB{{"Redis Pub/Sub <br> svelty:cache:invalidation"}}
+    end
+
+    subgraph Persistence ["Enterprise Database Cluster"]
+        DB[("PostgreSQL / MariaDB / MongoDB / SQLite")]
+    end
+
+    C1 --> NodeA
+    C2 --> NodeB
+
+    NodeA <-->|L1 Miss / Promotion| L2
+    NodeB <-->|L1 Miss / Promotion| L2
+
+    NodeA -.->|Mutation Invalidate| PUBSUB
+    PUBSUB -.->|Real-time Invalidation Push| L1B
+    PUBSUB -.->|Real-time Invalidation Push| L1A
+
+    NodeA ===|Write / DB Fallback| DB
+    NodeB ===|Write / DB Fallback| DB
 ```
 
 ```mermaid
@@ -61,16 +102,39 @@ flowchart TD
     L2 -->|hit| L2HIT[Promote to L1 + serve]
     L2 -->|miss| SF{Single-flight active?}
     SF -->|yes| WAIT[Coalesce - await winner]
-    SF -->|no| DB[(Database)]
+    SF -->|no| DB[(Database: Postgres / MariaDB / Mongo / SQLite)]
     DB --> STORE[Populate L1 + L2, open SWR window]
     STORE --> HIT
     L2HIT --> HIT
     WAIT --> HIT
 ```
 
+### Next-Gen 2026 Cache Features
+
+#### 1. GraphQL Automatic Persisted Queries (APQ)
+
+SveltyCMS natively implements the **Apollo APQ open standard protocol** (`extensions: { persistedQuery: { sha256Hash: "<hash>" } }` & `?extensions=...` / `?hash=...`):
+
+- **Bandwidth Reduction**: Clients send compact 64-bit/SHA-256 hashes instead of multi-kilobyte GraphQL query documents.
+- **Zero-Parse AST Hits**: Queries registered in the `cacheService` APQ registry (`apq:${hash}`) bypass Yoga query parsing and AST construction entirely.
+- **Fail-Open Handshake**: If an APQ hash is not yet registered, SveltyCMS returns HTTP 200 with standard `PERSISTED_QUERY_NOT_FOUND`, allowing the client to automatically retry and register the full query.
+
+#### 2. AI-Driven Speculative Pre-Warming
+
+The **`routeResourceStateMachine`** connects directly with the **Behavioral Learning Engine** (`predictNextPath`):
+
+- When users navigate the CMS, transition probability heatmaps track subsequent navigation patterns.
+- `speculativePrewarm()` selects the highest-scoring Markov transition from the decaying heat map and triggers non-blocking, single-flight background pre-warming of target endpoints before the user even hovers over the next link.
+- **Zero-Wait Navigation**: Response caches are primed in RAM before click events occur.
+
+#### 3. Pre-Compressed Binary Byte Serving (Zero-CPU)
+
+- For API and GraphQL responses $>1\text{ KB}$, `responseCache` asynchronously computes and caches pre-compressed **Brotli** and **Gzip** binary chunks (`Uint8Array`).
+- On `TURBO-HIT` and GraphQL cache hits, matching `Accept-Encoding` requests receive pre-compressed byte arrays directly, bypassing on-the-fly CPU compression during traffic spikes.
+
 ### Key: L1 is In-Memory, L2 is Redis
 
-The L1 cache is a local `LRUCache` instance (not Redis). Redis is the optional L2 layer for distributed deployments. This means even without Redis, the cache system is fully operational with sub-µs L1 hits.
+The L1 cache is a local `LRUCache` instance (not Redis). Redis is the optional L2 layer for distributed deployments. This means even without Redis, the cache system is fully operational with sub-µs L1 hits. In enterprise multi-node deployments with PostgreSQL, MariaDB, or MongoDB, Redis acts as the cluster synchronizer and persistent L2 layer.
 
 ### Content System: L0 + L1 + L2 (Three Tiers)
 

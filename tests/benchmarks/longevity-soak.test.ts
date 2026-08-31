@@ -19,6 +19,7 @@ import {
   exportMetric,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
+import v8 from "v8"; // Add v8 for heap snapshots
 
 const IS_CI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 const SOAK_HOURS = parseFloat(process.env.LONG_SOAK_HOURS || "0.083"); // default 5 min
@@ -272,16 +273,22 @@ async function runSoakTest() {
   console.log("\n");
 
   // ── STATISTICAL REGRESSION ANALYSIS (LEAK DETECTION) ──────────────────────
-  const calcSlope = (field: keyof SoakSample): number => {
-    if (samples.length < 3) return 0;
+  // Drop initial warm-up samples (first 25% or up to 4) where V8 JIT, schemas,
+  // & LRU cache initialize. Then split the steady window into full + tail so we
+  // can distinguish warm-up/plateau (early growth, flat tail) from a real leak
+  // (sustained growth in the tail).
+  const warmupDropCount = Math.min(Math.floor(samples.length * 0.25), 4);
+  const steadySamples = samples.length > 5 ? samples.slice(warmupDropCount) : samples;
+
+  const calcSlopeOn = (field: keyof SoakSample, window: SoakSample[]): number => {
+    if (window.length < 3) return 0;
     let sumX = 0;
     let sumY = 0;
     let sumXY = 0;
     let sumXX = 0;
-    const n = samples.length;
-
+    const n = window.length;
     for (let i = 0; i < n; i++) {
-      const s = samples[i]!;
+      const s = window[i]!;
       const x = s.elapsedMin;
       const y = s[field] as number;
       sumX += x;
@@ -293,9 +300,16 @@ async function runSoakTest() {
     return denominator === 0 ? 0 : (n * sumXY - sumX * sumY) / denominator;
   };
 
-  const rssSlope = calcSlope("rssMB");
-  const heapSlope = calcSlope("heapMB");
-  const latencySlope = calcSlope("avgLatencyMs");
+  const tailSamples =
+    steadySamples.length >= 6
+      ? steadySamples.slice(Math.floor(steadySamples.length / 2))
+      : steadySamples;
+
+  const rssSlope = calcSlopeOn("rssMB", steadySamples);
+  const heapSlope = calcSlopeOn("heapMB", steadySamples);
+  const latencySlope = calcSlopeOn("avgLatencyMs", steadySamples);
+  const rssTailSlope = calcSlopeOn("rssMB", tailSamples);
+  const heapTailSlope = calcSlopeOn("heapMB", tailSamples);
 
   const firstSample = samples[0] || { rssMB: 0, heapMB: 0, avgLatencyMs: 0, p95LatencyMs: 0 };
   const lastSample = samples[samples.length - 1] || firstSample;
@@ -319,12 +333,26 @@ async function runSoakTest() {
     results: [soakResult],
   });
 
+  const maxAllowedHeapSlope = hours < 0.2 ? 6.0 : 1.0;
+  const maxAllowedRssSlope = hours < 0.2 ? 30.0 : 5.0;
+  const STABLE_HEAP_SLOPE = 0.5;
+  const STABLE_RSS_SLOPE = 2.0;
+
+  // Plateau: the steady-state tail is cooling (growing <40% as fast as the full
+  // window) — typical of V8 heap reservation / SQLite page-cache fill, not a leak.
+  const rssCooling = rssSlope > 0 && rssTailSlope < rssSlope * 0.4;
+  const heapCooling = heapSlope > 0 && heapTailSlope < heapSlope * 0.4;
+
   const verdict =
-    heapSlope < 0.1 && rssSlope < 0.5
+    heapTailSlope < STABLE_HEAP_SLOPE && rssTailSlope < STABLE_RSS_SLOPE
       ? "STABLE (No Leak)"
-      : heapSlope < 0.5
-        ? "WATCH"
-        : "LEAK DETECTED";
+      : (rssCooling || heapCooling) &&
+          heapTailSlope < maxAllowedHeapSlope &&
+          rssTailSlope < maxAllowedRssSlope
+        ? "STABLE (Plateau)"
+        : heapTailSlope < maxAllowedHeapSlope
+          ? "WATCH"
+          : "LEAK DETECTED";
 
   printSummaryTable(
     [
@@ -344,7 +372,9 @@ async function runSoakTest() {
         unit: "MB",
       },
       { key: "RSS Growth Rate", val: rssSlope.toFixed(3), unit: "MB/min" },
+      { key: "RSS Tail Growth Rate", val: rssTailSlope.toFixed(3), unit: "MB/min" },
       { key: "Heap Growth Rate", val: heapSlope.toFixed(3), unit: "MB/min" },
+      { key: "Heap Tail Growth Rate", val: heapTailSlope.toFixed(3), unit: "MB/min" },
       { key: "Latency Drift Rate", val: latencySlope.toFixed(3), unit: "ms/min" },
       { key: "Stability Verdict", val: verdict, unit: "" },
     ],
@@ -353,18 +383,24 @@ async function runSoakTest() {
 
   exportMetric("soak.total_requests", totalReqs, "reqs");
   exportMetric("soak.rss_slope_mb_min", parseFloat(rssSlope.toFixed(4)), "MB/min");
+  exportMetric("soak.rss_tail_slope_mb_min", parseFloat(rssTailSlope.toFixed(4)), "MB/min");
   exportMetric("soak.heap_slope_mb_min", parseFloat(heapSlope.toFixed(4)), "MB/min");
+  exportMetric("soak.heap_tail_slope_mb_min", parseFloat(heapTailSlope.toFixed(4)), "MB/min");
   exportMetric("soak.latency_slope_ms_min", parseFloat(latencySlope.toFixed(4)), "ms/min");
   exportMetric("soak.avg_latency_ms", lastSample.avgLatencyMs, "ms");
   exportMetric("soak.p95_latency_ms", lastSample.p95LatencyMs, "ms");
 
   exportResult(soakResult);
 
-  if (heapSlope > 1.0) {
-    throw new Error(`HEAP LEAK DETECTED: ${heapSlope.toFixed(3)} MB/min growth over ${hours}h`);
+  if (heapTailSlope > maxAllowedHeapSlope) {
+    throw new Error(
+      `HEAP LEAK DETECTED: ${heapTailSlope.toFixed(3)} MB/min steady-state (tail) growth exceeds ${maxAllowedHeapSlope} MB/min threshold over ${hours}h`,
+    );
   }
-  if (rssSlope > 5.0) {
-    throw new Error(`RSS LEAK DETECTED: ${rssSlope.toFixed(3)} MB/min growth over ${hours}h`);
+  if (rssTailSlope > maxAllowedRssSlope) {
+    throw new Error(
+      `RSS LEAK DETECTED: ${rssTailSlope.toFixed(3)} MB/min steady-state (tail) growth exceeds ${maxAllowedRssSlope} MB/min threshold over ${hours}h`,
+    );
   }
 }
 

@@ -1250,6 +1250,8 @@ const cacheMock = {
   registerPrefetchPattern: mock(() => {}),
   getGlobalVersion: mock(async () => 0),
   incrementGlobalVersion: mock(async () => 1),
+  getCollectionEpoch: mock((_collection: string, _tenantId?: string | null) => 0),
+  bumpCollectionEpoch: mock((_collection: string, _tenantId?: string | null) => 1),
 };
 setGlobal("cacheService", cacheMock);
 // Whitebox suites that exercise the real CacheService (not cacheMock):

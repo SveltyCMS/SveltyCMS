@@ -115,6 +115,9 @@ class MetricsService {
     // Background pruning of stale tenants
     if (typeof setInterval !== "undefined") {
       this._pruneInterval = setInterval(() => this.pruneStaleTenants(), this.PRUNE_INTERVAL_MS);
+      if (typeof (this._pruneInterval as any)?.unref === "function") {
+        (this._pruneInterval as any).unref();
+      }
     }
   }
 

@@ -233,6 +233,8 @@ export function sseStreamingResponse(
     async start(controller) {
       const encoder = new TextEncoder();
 
+      let keepAlive: ReturnType<typeof setInterval> | null = null;
+
       // Send retry interval
       controller.enqueue(encoder.encode(`retry: ${retry}\n`));
 
@@ -244,23 +246,26 @@ export function sseStreamingResponse(
       );
 
       // Keep-alive timer
-      const keepAlive = setInterval(() => {
+      keepAlive = setInterval(() => {
         if (isClosed) {
-          clearInterval(keepAlive);
+          if (keepAlive) clearInterval(keepAlive);
           return;
         }
         try {
           controller.enqueue(encoder.encode(": keep-alive\n\n"));
         } catch {
           isClosed = true;
-          clearInterval(keepAlive);
+          if (keepAlive) clearInterval(keepAlive);
         }
       }, keepAliveMs);
+      if (typeof (keepAlive as any)?.unref === "function") {
+        (keepAlive as any).unref();
+      }
 
       // AbortSignal — client disconnection
       const onAbort = () => {
         isClosed = true;
-        clearInterval(keepAlive);
+        if (keepAlive) clearInterval(keepAlive);
         try {
           controller.close();
         } catch {
@@ -290,7 +295,7 @@ export function sseStreamingResponse(
           /* already closed */
         }
       } finally {
-        clearInterval(keepAlive);
+        if (keepAlive) clearInterval(keepAlive);
         signal?.removeEventListener("abort", onAbort);
         if (!isClosed) {
           controller.close();

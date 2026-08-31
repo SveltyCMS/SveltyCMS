@@ -1342,14 +1342,14 @@ bulk actions, and predictive preloading.
 												{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
 													<div class="flex flex-col text-xs">
 														<div class="font-semibold">
-															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, 'en', {
+															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, undefined, {
 																year: 'numeric',
 																month: 'short',
 																day: 'numeric'
 															})}
 														</div>
 														<div class="text-surface-500 dark:text-surface-400">
-															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, 'en', {
+															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, undefined, {
 																hour: '2-digit',
 																minute: '2-digit',
 																second: '2-digit',

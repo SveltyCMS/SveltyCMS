@@ -140,11 +140,20 @@ function decayedScore(record: AccessRecord, now: number): number {
 
 // ─── Public API ───────────────────────────────────────────────────────────
 
-/** Shared heat-record update: decay + count + score, zero per-call object churn. */
-function updateHeatRecord(map: Map<string, AccessRecord>, key: string, weight = 1): void {
+/** Shared heat-record update: decay + count + score, with eager LRU-ish capacity bound. */
+function updateHeatRecord(
+  map: Map<string, AccessRecord>,
+  key: string,
+  weight = 1,
+  maxSize = MAX_COLLECTIONS_HEAT,
+): void {
   const now = Date.now();
   let rec = map.get(key);
   if (!rec) {
+    if (map.size >= maxSize) {
+      const oldest = map.keys().next().value;
+      if (oldest !== undefined) map.delete(oldest);
+    }
     rec = { count: 0, lastAccess: now, score: 0 };
     map.set(key, rec);
   }
@@ -154,11 +163,21 @@ function updateHeatRecord(map: Map<string, AccessRecord>, key: string, weight = 
   rec.score += weight;
 }
 export function recordCollectionAccess(tenantId: string, collectionId: string): void {
-  updateHeatRecord(getOrCreateTenant(tenantId).heat.collections, collectionId);
+  updateHeatRecord(
+    getOrCreateTenant(tenantId).heat.collections,
+    collectionId,
+    1,
+    MAX_COLLECTIONS_HEAT,
+  );
 }
 
 export function recordEntryAccess(tenantId: string, collectionId: string, entryId: string): void {
-  updateHeatRecord(getOrCreateTenant(tenantId).heat.entries, `${collectionId}:${entryId}`);
+  updateHeatRecord(
+    getOrCreateTenant(tenantId).heat.entries,
+    `${collectionId}:${entryId}`,
+    1,
+    MAX_ENTRIES_HEAT,
+  );
 }
 
 /**
@@ -167,14 +186,24 @@ export function recordEntryAccess(tenantId: string, collectionId: string, entryI
  */
 export function recordWriteAccess(tenantId: string, collectionId: string, entryId?: string): void {
   const tid = tenantId || "global";
-  updateHeatRecord(getOrCreateTenant(tid).heat.collections, collectionId, 2);
+  updateHeatRecord(getOrCreateTenant(tid).heat.collections, collectionId, 2, MAX_COLLECTIONS_HEAT);
   if (entryId) {
-    updateHeatRecord(getOrCreateTenant(tid).heat.entries, `${collectionId}:${entryId}`, 2);
+    updateHeatRecord(
+      getOrCreateTenant(tid).heat.entries,
+      `${collectionId}:${entryId}`,
+      2,
+      MAX_ENTRIES_HEAT,
+    );
   }
 }
 
 export function recordNavigation(tenantId: string, fromPath: string, toPath: string): void {
-  updateHeatRecord(getOrCreateTenant(tenantId).heat.transitions, `${fromPath}→${toPath}`);
+  updateHeatRecord(
+    getOrCreateTenant(tenantId).heat.transitions,
+    `${fromPath}→${toPath}`,
+    1,
+    MAX_TRANSITIONS_HEAT,
+  );
 }
 
 /**
@@ -284,14 +313,13 @@ export function getHotCollections(tenantId: string, limit = 10): { id: string; s
   const t = _tenants.get(tenantId);
   if (!t) return [];
   const now = Date.now();
+  // 🔴 FIX 8: prune cold entries + enforce cap before reading
+  pruneHeatMap(t.heat.collections, MAX_COLLECTIONS_HEAT, now);
   const scored: { id: string; score: number }[] = [];
   for (const [id, rec] of t.heat.collections) {
     const score = decayedScore(rec, now);
     if (score > MIN_HOT_SCORE) scored.push({ id, score });
   }
-  // 🔴 FIX 8: prune cold entries + enforce cap after reading (reads no longer refresh
-  // lastAccess, so real staleness is visible here).
-  pruneHeatMap(t.heat.collections, MAX_COLLECTIONS_HEAT, now);
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, limit);
 }
@@ -303,17 +331,20 @@ export function getHotEntries(
   const t = _tenants.get(tenantId);
   if (!t) return [];
   const now = Date.now();
+  // 🔴 FIX 8: prune cold entries + enforce cap before reading
+  pruneHeatMap(t.heat.entries, MAX_ENTRIES_HEAT, now);
   const scored: { collectionId: string; entryId: string; score: number }[] = [];
   for (const [key, rec] of t.heat.entries) {
     const score = decayedScore(rec, now);
     if (score > MIN_HOT_SCORE) {
-      const [collectionId, entryId] = key.split(":");
-      scored.push({ collectionId, entryId, score });
+      const sep = key.indexOf(":");
+      if (sep !== -1) {
+        const collectionId = key.slice(0, sep);
+        const entryId = key.slice(sep + 1);
+        scored.push({ collectionId, entryId, score });
+      }
     }
   }
-  // 🔴 FIX 8: prune cold entries + enforce cap after reading (reads no longer refresh
-  // lastAccess, so real staleness is visible here).
-  pruneHeatMap(t.heat.entries, MAX_ENTRIES_HEAT, now);
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, limit);
 }
@@ -321,10 +352,12 @@ export function getHotEntries(
 export function predictNextPath(tenantId: string, currentPath: string): string | null {
   const t = _tenants.get(tenantId);
   if (!t) return null;
+  const now = Date.now();
+  // 🔴 FIX 8: prune cold entries + enforce cap before reading
+  pruneHeatMap(t.heat.transitions, MAX_TRANSITIONS_HEAT, now);
   let best = "";
   let bestScore = 0;
   const prefix = `${currentPath}→`;
-  const now = Date.now();
   for (const [key, rec] of t.heat.transitions) {
     if (key.startsWith(prefix)) {
       const score = decayedScore(rec, now);
@@ -334,9 +367,6 @@ export function predictNextPath(tenantId: string, currentPath: string): string |
       }
     }
   }
-  // 🔴 FIX 8: prune cold entries + enforce cap after reading (reads no longer refresh
-  // lastAccess, so real staleness is visible here).
-  pruneHeatMap(t.heat.transitions, MAX_TRANSITIONS_HEAT, now);
   return best || null;
 }
 
@@ -427,4 +457,8 @@ export function clearBehavioralData(tenantId?: string): void {
   } else {
     _tenants.clear();
   }
+}
+
+export function getTrackedTenantIds(): string[] {
+  return Array.from(_tenants.keys());
 }

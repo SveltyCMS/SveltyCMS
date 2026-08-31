@@ -144,31 +144,72 @@ export class RouteResourceStateMachine {
     return spec;
   }
 
+  private _inflightPrewarms = new Map<string, Promise<void>>();
+
   /**
    * Pre-warms server-side caches for a given target path in background by
    * actually fetching the spec's preload endpoints (same-origin — the spec
    * list is static, not user input). This populates the response cache with
    * real entries instead of only labeling categories as warm.
+   * Single-flight coalesced per origin+lane to avoid parallel fetch storms on hover bursts.
    */
   public async prewarmRouteResources(path: string, origin?: string): Promise<void> {
     const spec = this.classifyRouteSpec(path);
     if (!origin) return;
 
+    const flightKey = `${origin}:${spec.lane}`;
+    const existing = this._inflightPrewarms.get(flightKey);
+    if (existing) return existing;
+
+    const promise = (async () => {
+      try {
+        await Promise.allSettled(
+          spec.preloadEndpoints.map(async (endpoint) => {
+            try {
+              await fetch(new URL(endpoint, origin).toString(), {
+                signal: AbortSignal.timeout(5_000),
+              });
+            } catch {
+              /* best-effort warm */
+            }
+          }),
+        );
+      } catch (err) {
+        logger.debug("[RouteStateMachine] Pre-warm non-blocking warning:", err);
+      } finally {
+        this._inflightPrewarms.delete(flightKey);
+      }
+    })();
+
+    this._inflightPrewarms.set(flightKey, promise);
+    return promise;
+  }
+
+  /**
+   * 🤖 AI-Driven Speculative Pre-Warming:
+   * Uses behavioral learning transitions to predict the user's next target path
+   * and pre-warms the server-side caches and preload endpoints speculatively.
+   * Returns the predicted path if pre-warmed, or null if no prediction exists.
+   */
+  public async speculativePrewarm(
+    currentPath: string,
+    tenantId: string = "global",
+    origin?: string,
+  ): Promise<string | null> {
     try {
-      await Promise.allSettled(
-        spec.preloadEndpoints.map(async (endpoint) => {
-          try {
-            await fetch(new URL(endpoint, origin).toString(), {
-              signal: AbortSignal.timeout(5_000),
-            });
-          } catch {
-            /* best-effort warm */
-          }
-        }),
-      );
+      const { predictNextPath } = await import("@src/services/intelligence/behavioral-learner");
+      const predicted = predictNextPath(tenantId, currentPath);
+      if (predicted && predicted !== currentPath) {
+        if (origin) {
+          // Prewarm in background (non-blocking)
+          this.prewarmRouteResources(predicted, origin).catch(() => {});
+        }
+        return predicted;
+      }
     } catch (err) {
-      logger.debug("[RouteStateMachine] Pre-warm non-blocking warning:", err);
+      logger.debug("[RouteStateMachine] Speculative prewarm error:", err);
     }
+    return null;
   }
 }
 

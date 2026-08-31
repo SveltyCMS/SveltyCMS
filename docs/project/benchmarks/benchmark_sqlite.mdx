@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    20 | 🟢     | -70%    | 0      |
+| **Core**       |     1 | 🟢     | —       | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,28 +62,9 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario                         | Latency | Trend                                       | Budget | Result |
-| -------------------------------- | ------- | ------------------------------------------- | ------ | ------ |
-| **Competitive Workload Replica** | 0.539ms | ⚪ stable at 0.851ms (±0.856ms) (6 runs)    | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.295ms | ⚪ stable at 4.31ms (±4.48ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.468ms | ⚪ stable at 1.54ms (±1.03ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.302ms | ⚪ stable at 4.95ms (±4.47ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.699ms | ⚪ stable at 1.52ms (±1.41ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 3.885ms | ⚪ stable at 7.31ms (±5.77ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.951ms | ⚪ stable at 2.53ms (±2.23ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 9.512ms | ⚪ stable at 14.47ms (±6.57ms) (6 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.793ms | ⚪ stable at 1.03ms (±0.830ms) (6 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 3.319ms | ⚪ stable at 4.28ms (±2.99ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.465ms | ⚪ stable at 0.643ms (±0.725ms) (6 runs)    | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.056ms | ⚪ stable at 2.75ms (±2.76ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.999ms | ⚪ stable at 1.84ms (±1.59ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 5.285ms | ⚪ stable at 9.95ms (±7.42ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.193ms | ⚪ stable at 1.66ms (±0.970ms) (6 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 5.363ms | ⚪ stable at 8.48ms (±7.31ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.527ms | 🟢 faster: 1.61ms → 0.527ms (-67%) (6 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.503ms | 🟢 faster: 7.41ms → 2.50ms (-66%) (6 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.678ms | ⚪ stable at 1.82ms (±1.02ms) (6 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 3.778ms | ⚪ stable at 7.67ms (±3.69ms) (6 runs)      | < 5ms  | 🟢     |
+| Scenario      | Latency | Trend                            | Budget | Result |
+| ------------- | ------- | -------------------------------- | ------ | ------ |
+| **Stability** | 4.140ms | ⚪ established at 4.14ms (1 run) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -108,29 +89,6 @@ xychart-beta
 ```
 
 </details>
-<details>
-<summary>📊 Regression severity matrix (quadrant)</summary>
-
-```mermaid
-quadrantChart
-  title "Regression severity (impact vs delta)"
-  x-axis Low latency impact --> High latency impact
-  y-axis Low delta --> High delta
-  quadrant-1 Monitor
-  quadrant-2 Investigate soon
-  quadrant-3 Acceptable variance
-  quadrant-4 Critical — fix first
-    Competitive Workload Replica: [0.06, 0.53]
-    Competitive Workload Replica: [0.24, 0.67]
-    Competitive Workload Replica: [0.05, 0.95]
-    Competitive Workload Replica: [0.24, 0.77]
-    Competitive Workload Replica: [0.07, 0.78]
-    Competitive Workload Replica: [0.41, 0.67]
-    Competitive Workload Replica: [0.21, 0.33]
-    Competitive Workload Replica: [0.95, 0.49]
-```
-
-</details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
@@ -143,42 +101,23 @@ quadrantChart
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-08-30)
+### Current Run Summary (2026-08-31)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `b692d477-fdb6-4a6e-84f9-45acd1127006` · **Tests invoked:** 1 · **Metrics:** 20 · **DB:** sqlite
+**Run ID:** `a8f737c5-0ee8-429a-b63d-f8ec7890e519` · **Tests invoked:** 1 · **Metrics:** 1 · **DB:** sqlite
 
-| Test                         | Metric                              | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                      |
-| ---------------------------- | ----------------------------------- | -------- | -------- | ---- | ----- | ------------------------------------------- |
-| Competitive Workload Replica | findById (Warm Sequential)          | 0.539    | 0.831    | 1849 | 🟢    | ⚪ stable at 0.851ms (±0.856ms) (6 runs)    |
-| Competitive Workload Replica | findById (Warm Concurrent 8c)       | 2.295    | 3.201    | 3456 | 🟢    | ⚪ stable at 4.31ms (±4.48ms) (6 runs)      |
-| Competitive Workload Replica | findByIdRandom (Warm Sequential)    | 0.468    | 0.689    | 2127 | 🟢    | ⚪ stable at 1.54ms (±1.03ms) (6 runs)      |
-| Competitive Workload Replica | findByIdRandom (Warm Concurrent 8c) | 2.302    | 3.476    | 3441 | 🟢    | ⚪ stable at 4.95ms (±4.47ms) (6 runs)      |
-| Competitive Workload Replica | listFilterSort (Warm Sequential)    | 0.699    | 1.076    | 1426 | 🟢    | ⚪ stable at 1.52ms (±1.41ms) (6 runs)      |
-| Competitive Workload Replica | listFilterSort (Warm Concurrent 8c) | 3.885    | 5.353    | 2025 | 🟢    | ⚪ stable at 7.31ms (±5.77ms) (6 runs)      |
-| Competitive Workload Replica | listLarge (Warm Sequential)         | 1.951    | 3.235    | 511  | 🟢    | ⚪ stable at 2.53ms (±2.23ms) (6 runs)      |
-| Competitive Workload Replica | listLarge (Warm Concurrent 8c)      | 9.512    | 14.540   | 823  | 🟢    | ⚪ stable at 14.47ms (±6.57ms) (6 runs)     |
-| Competitive Workload Replica | listPlain (Warm Sequential)         | 0.793    | 1.762    | 1257 | 🟢    | ⚪ stable at 1.03ms (±0.830ms) (6 runs)     |
-| Competitive Workload Replica | listPlain (Warm Concurrent 8c)      | 3.319    | 4.265    | 2376 | 🟢    | ⚪ stable at 4.28ms (±2.99ms) (6 runs)      |
-| Competitive Workload Replica | findMissing (Warm Sequential)       | 0.465    | 0.743    | 2139 | 🟢    | ⚪ stable at 0.643ms (±0.725ms) (6 runs)    |
-| Competitive Workload Replica | findMissing (Warm Concurrent 8c)    | 2.056    | 3.084    | 3785 | 🟢    | ⚪ stable at 2.75ms (±2.76ms) (6 runs)      |
-| Competitive Workload Replica | create (Warm Sequential)            | 0.999    | 2.050    | 998  | 🟢    | ⚪ stable at 1.84ms (±1.59ms) (6 runs)      |
-| Competitive Workload Replica | create (Warm Concurrent 8c)         | 5.285    | 14.552   | 1500 | 🟢    | ⚪ stable at 9.95ms (±7.42ms) (6 runs)      |
-| Competitive Workload Replica | update (Warm Sequential)            | 1.193    | 2.322    | 836  | 🟢    | ⚪ stable at 1.66ms (±0.970ms) (6 runs)     |
-| Competitive Workload Replica | update (Warm Concurrent 8c)         | 5.363    | 14.560   | 1477 | 🟢    | ⚪ stable at 8.48ms (±7.31ms) (6 runs)      |
-| Competitive Workload Replica | mixed (Warm Sequential)             | 0.678    | 1.527    | 1469 | 🟢    | ⚪ stable at 1.82ms (±1.02ms) (6 runs)      |
-| Competitive Workload Replica | mixed (Warm Concurrent 8c)          | 3.778    | 5.729    | 2088 | 🟢    | ⚪ stable at 7.67ms (±3.69ms) (6 runs)      |
-| Competitive Workload Replica | graphql (Warm Sequential)           | 0.527    | 0.716    | 1888 | ⚪    | 🟢 faster: 1.61ms → 0.527ms (-67%) (6 runs) |
-| Competitive Workload Replica | graphql (Warm Concurrent 8c)        | 2.503    | 3.640    | 3144 | ⚪    | 🟢 faster: 7.41ms → 2.50ms (-66%) (6 runs)  |
+| Test           | Metric               | Avg (ms) | p95 (ms) | RPS | Trend | Detail                           |
+| -------------- | -------------------- | -------- | -------- | --- | ----- | -------------------------------- |
+| Longevity Soak | 0.15h Longevity Soak | 4.140    | 7.870    | 81  | 🟢    | ⚪ established at 4.14ms (1 run) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-08-30)
+### Historical Trends (2026-08-31)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
@@ -197,7 +136,7 @@ quadrantChart
 | CACHE SERVICE (warm)                | 🟢    | `▃▁█▅▁▇▄`          | 4.510ms    |
 | CLIENT JOURNEY (warm)               | 🟢    | `█▁`               | 9.324ms    |
 | COLD START PHASED (cold)            | 🟢    | `▁`                | 2070.865ms |
-| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▃▅▁▆▁█▂`          | 1.193ms    |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▅▁▅▁█▁`          | 0.656ms    |
 | CONCURRENCY MAX (warm)              | 🟢    | `▁█▇`              | 835.712ms  |
 | CONFIG PROMOTION (warm)             | 🟢    | `▁▄▅▄█▃▂`          | 4.627ms    |
 | CONTENT SCALE STRESS (warm)         | 🟢    | `▇▁█▂▆▂`           | 0.706ms    |
@@ -206,17 +145,18 @@ quadrantChart
 | DATABASE PERFORMANCE (warm)         | 🟢    | `▂▂▂▁█▁▁`          | 0.156ms    |
 | ENTRY EDIT HYDRATION (warm)         | 🟢    | `▂▁▅█▂▁█`          | 0.058ms    |
 | FAILURE PROPAGATION (warm)          | 🟢    | `▁▆█▅▇█▅`          | 2.855ms    |
-| GRAPHQL CACHE HIT (warm)            | 🟢    | `█▁▄▁`             | 1.674ms    |
-| GRAPHQL LOCAL SDK (warm)            | 🟢    | `█▁`               | 0.000ms    |
-| GRAPHQL STRESS (warm)               | 🟢    | `█▁▂▃▁▅▆`          | 76.356ms   |
+| GRAPHQL API PERFORMANCE (warm)      | 🟢    | `▁▆▅█▁▁▅`          | 1.764ms    |
+| GRAPHQL CACHE HIT (warm)            | 🟢    | `▃█▃▇▁▃▁`          | 0.642ms    |
+| GRAPHQL LOCAL SDK (warm)            | 🟢    | `█▁█▁`             | 0.000ms    |
+| GRAPHQL STRESS (warm)               | 🟢    | `▁▂▁█▄▄▇`          | 23.828ms   |
 | HOOKS PERFORMANCE (warm)            | 🟢    | `▇▂▂█▂▆▁`          | 0.981ms    |
 | INDEX PRESSURE (warm)               | 🟢    | `▄█▁▅`             | 1.770ms    |
 | LARGE PAYLOAD STREAMING (warm)      | 🟢    | `█▅▆▃▁▇▄`          | 16.614ms   |
-| LOCAL API PERFORMANCE (warm)        | 🟢    | `▁▅▇▇▆██`          | 0.037ms    |
-| LOCAL API THROUGHPUT (warm)         | 🟢    | `▃▅▇█▇▁▂`          | 0.444ms    |
+| LOCAL API PERFORMANCE (warm)        | 🟢    | `▁▁▁▁█▁▁`          | 0.008ms    |
+| LOCAL API THROUGHPUT (warm)         | 🟢    | `▇█▇▁▂▁▁`          | 0.334ms    |
 | LOCAL CMS CRUD (warm)               | 🟢    | `▆▁▅▁▁█▄`          | 0.057ms    |
-| LOCAL SDK VS DIRECT (warm)          | 🟢    | `▇▄██▁▄▅`          | 0.135ms    |
-| LONGEVITY SOAK (warm)               | 🟢    | `▁`                | 6.010ms    |
+| LOCAL SDK VS DIRECT (warm)          | 🟢    | `▄▆▄█▁▄▄`          | 0.149ms    |
+| LONGEVITY SOAK (warm)               | 🟢    | `█▁▆▇▁▅`           | 4.140ms    |
 | MEDIA PERFORMANCE (warm)            | 🟢    | `█▁▅▄▁▄▄`          | 109.651ms  |
 | MEDIA UPLOAD STRESS (warm)          | 🟢    | `▁▂▄█▄▄`           | 170.481ms  |
 | MEMORY STABILITY (warm)             | 🟢    | `▁`                | 0.000ms    |
@@ -228,7 +168,7 @@ quadrantChart
 | PRODUCTION DAY (warm)               | 🟢    | `▁▇█`              | 6.238ms    |
 | REALTIME PERFORMANCE (warm)         | 🟢    | `▁▁█▁▁█▁`          | 0.000ms    |
 | RELATIONAL PERFORMANCE (warm)       | 🟢    | `█▃▁▂▃▁▂`          | 2.207ms    |
-| REST API PERFORMANCE (warm)         | 🟢    | `▁▃██▇▇▄`          | 2.355ms    |
+| REST API PERFORMANCE (warm)         | 🟢    | `█▇▇▅▂▁▁`          | 0.671ms    |
 | REVISION STRESS (warm)              | 🟢    | `▄█▃▇▃▁▂`          | 0.740ms    |
 | RIGHT TO BE FORGOTTEN AUDIT (warm)  | 🟢    | `▁▁▁█▆`            | 2.485ms    |
 | SECURITY AUDIT (warm)               | 🟢    | `▁█▁▁▁▁▁`          | 0.002ms    |
@@ -237,11 +177,10 @@ quadrantChart
 | TELEMETRY PERFORMANCE (warm)        | 🟢    | `█▁▃▁`             | 0.001ms    |
 | TEMPORAL INTEGRITY (warm)           | 🟢    | `▄▁▁▆▄▄█`          | 2.797ms    |
 | TRANSACTION ACID (warm)             | 🟢    | `▁█▁▆`             | 0.337ms    |
-| TRUTH LATENCY (warm)                | 🟢    | `▁▄▁▁█▁▁`          | 0.001ms    |
+| TRUTH LATENCY (warm)                | 🟢    | `▅▁▁█▇▁▁`          | 0.011ms    |
 | WEBSOCKET BROADCAST (warm)          | 🟢    | `▁▁▁█▆`            | 0.497ms    |
 | WIDGET PERFORMANCE (warm)           | 🟢    | `▃▇▁█▇▁█`          | 0.123ms    |
 | CONTENT INCREMENTAL RELOAD (warm)   | ⚪    | `▁▁█▄▂▁█`          | 8.829ms    |
-| GRAPHQL API PERFORMANCE (warm)      | ⚪    | `▄▅▄█▅▁▁`          | 0.364ms    |
 | MIDDLEWARE FLAMEGRAPH (warm)        | ⚪    | `▃▂▁▃▂▂█`          | 3.376ms    |
 | THROTTLING BACKOFF STRESS (warm)    | ⚪    | `▃▁▃▂█▂▇`          | 31.860ms   |
 
@@ -256,7 +195,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- LEDGER_DIMENSION:CORE:START -->
 
 <details id="ledger-dimension-core">
-<summary><strong>Core</strong> · 83 tests</summary>
+<summary><strong>Core</strong> · 84 tests</summary>
 
 <!-- SECTION:API_LATENCY:START -->
 
@@ -313,12 +252,13 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                      SVELTYCMS — SRE TRUTH AUDIT                                      ║
 ║                             File: tests/benchmarks/truth-latency.test.ts                              ║
-║                                       Ran: 2026-08-29 21:30:50                                        ║
+║                                       Ran: 2026-08-31 09:39:32                                        ║
 ║            Validates performance claims by comparing SDK, Middleware, and Real HTTP Stack             ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Logic Baseline               │ Cold:     0.04 ms │ Warm:     0.000 ms │ p95:     0.000 ms │ 481,541 RPS ║
-║ Local SDK (Full)             │ Cold:    23.00 ms │ Warm:     0.005 ms │ p95:     0.011 ms │  36,832 RPS ║
-║ HTTP End-to-End              │ Cold:     5.87 ms │ Warm:     0.436 ms │ p95:     0.516 ms │   2,280 RPS ║
+║ Logic Baseline               │ Cold:     0.04 ms │ Warm:     0.011 ms │ p95:     0.001 ms │  60,351 RPS ║
+║ Local SDK (Full)             │ Cold:     5.87 ms │ Warm:     0.033 ms │ p95:     0.028 ms │  28,341 RPS ║
+║ HTTP End-to-End              │ Cold:    16.94 ms │ Warm:     0.675 ms │ p95:     1.690 ms │   1,475 RPS ║
+║ HTTP Cold (Cache-Busted)     │ Cold:     2.71 ms │ Warm:     0.783 ms │ p95:     1.917 ms │   1,273 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -547,7 +487,7 @@ Throughput dropped 43% — check connection pool saturation or lock contention.
 
 <!-- SECTION:CACHE:START -->
 <details id="section-cache">
-<summary><strong>🏷️ Cache</strong> · 🟢 0.550ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Cache</strong> · 🟢 3.834ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
@@ -559,12 +499,15 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║                             SVELTYCMS — CACHE EVICTION BOUNDARY HARDENING                             ║
-║                          File: tests/benchmarks/cache-eviction-leak.test.ts                           ║
-║                                       Ran: 2026-08-29 21:34:12                                        ║
-║       Validates strict LRU cache pruning rules and memory containment under heavy key flooding.       ║
+║                                  SVELTYCMS — GRAPHQL CACHE HIT AUDIT                                  ║
+║                           File: tests/benchmarks/graphql-cache-hit.test.ts                            ║
+║                                       Ran: 2026-08-31 09:10:24                                        ║
+║        Validates sub-millisecond L1 response cache hits, cache key isolation, and hit headers.        ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache Flooding & Eviction    │ Cold:     0.55 ms │ Warm:     0.002 ms │ p95:     0.002 ms │ 449,910 RPS ║
+║ Q1: Health (Cold Miss)         │        3.834 ms │ p95:        3.834 ms │ RPS:        261 ║
+║ Q1: Health (L1 Hit)            │        0.783 ms │ p95:        1.825 ms │ RPS:      1,277 ║
+║ Q2: Collections (Cold Miss)    │        1.785 ms │ p95:        1.785 ms │ RPS:        560 ║
+║ Q2: Collections (L1 Hit)       │        0.642 ms │ p95:        1.791 ms │ RPS:      1,559 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -697,11 +640,11 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 
 <!-- SECTION:HTTP:START -->
 <details id="section-http">
-<summary><strong>🏷️ HTTP</strong> · 🟢 122.505ms · ↘️ ⚪ stable at 137.22ms (±36.48ms) (5 runs) (2026-08-29 18:01:49) · <a href="../../../tests/benchmarks/media-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ HTTP</strong> · 🟢 0.675ms · ↗️ ⚪ stable at 0.506ms (±1.24ms) (7 runs) (2026-08-31 09:39:44) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.  
-Throughput dropped 13% — check connection pool saturation or lock contention.
+> **Specific to this test**: Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
+**Severe degradation** (+33%) — review recent commits immediately.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -715,7 +658,7 @@ Throughput dropped 13% — check connection pool saturation or lock contention.
 
 <!-- SECTION:LOGIC:START -->
 <details id="section-logic">
-<summary><strong>🏷️ Logic</strong> · 🟢 0.001ms · ➡️ ⚪ stable at 0ms (±0.001ms) (7 runs) (2026-08-29 12:54:16) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ Logic</strong> · 🟢 0.011ms · ➡️ ⚪ stable at 0ms (±0.001ms) (7 runs) (2026-08-31 09:39:44) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -725,24 +668,31 @@ Throughput dropped 13% — check connection pool saturation or lock contention.
 
 <!-- SECTION:SDK:START -->
 <details id="section-sdk">
-<summary><strong>🏷️ SDK</strong> · 🟢 0.370ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/local-cms-crud.test.ts">source</a></summary>
+<summary><strong>🏷️ SDK</strong> · 🟢 0.033ms · ↗️ ⚪ stable at 0.005ms (±0.033ms) (7 runs) (2026-08-31 09:39:44) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+Throughput dropped 77% — check connection pool saturation or lock contention.  
+**Severe degradation** (+560%) — review recent commits immediately.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
 
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║                                  SVELTYCMS — SDK OVERHEAD TELEMETRY                                   ║
-║                         File: tests/benchmarks/local-api-performance.test.ts                          ║
-║                                       Ran: 2026-08-29 21:32:01                                        ║
-║Measures LocalCMS SDK dispatch overhead vs direct adapter calls to verify zero-tax in-process performance.║
+║                              SVELTYCMS — SDK VS DIRECT ADAPTER (SQLITE)                               ║
+║                          File: tests/benchmarks/local-sdk-vs-direct.test.ts                           ║
+║                                       Ran: 2026-08-31 09:11:35                                        ║
+║Measures the exact SDK tax across Create, Find, and Update pathways with isolated GC sweeps and zero-allocation key pools.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Direct Adapter Call          │ Cold:     0.37 ms │ Warm:     0.012 ms │ p95:     0.023 ms │  68,109 RPS ║
-║ LocalCMS Hoisted Call        │ Cold:     0.31 ms │ Warm:     0.010 ms │ p95:     0.017 ms │  75,046 RPS ║
-║ LocalCMS Full Property Path  │ Cold:     0.30 ms │ Warm:     0.010 ms │ p95:     0.015 ms │  75,745 RPS ║
+║ Direct insert                  │        0.171 ms │ p95:        0.171 ms │ RPS:      5,841 ║
+║ SDK create (full)              │        0.256 ms │ p95:        0.256 ms │ RPS:      3,912 ║
+║ Direct findOne                 │        0.018 ms │ p95:        0.018 ms │ RPS:     55,545 ║
+║ SDK find (bypassCache)         │        0.012 ms │ p95:        0.012 ms │ RPS:     85,479 ║
+║ Direct update                  │        0.134 ms │ p95:        0.134 ms │ RPS:      7,483 ║
+║ SDK update (full)              │        0.149 ms │ p95:        0.149 ms │ RPS:      6,722 ║
+║ SDK create (detached)          │        0.337 ms │ p95:        0.337 ms │ RPS:      2,971 ║
+║ SDK update (detached)          │        0.144 ms │ p95:        0.144 ms │ RPS:      6,952 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -814,12 +764,10 @@ Throughput dropped 50% — check connection pool saturation or lock contention.
 
 <!-- SECTION:SYSTEM:START -->
 <details id="section-system">
-<summary><strong>🏷️ System</strong> · 🟢 6.715ms · ↗️ ⚪ stable at 2.82ms (±3.29ms) (3 runs) (2026-08-29 12:58:02) · <a href="../../../tests/benchmarks/seo-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ System</strong> · 🟢 0.671ms · ↘️ ⚪ stable at 1.84ms (±1.65ms) (3 runs) (2026-08-31 09:11:46) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 38% — check connection pool saturation or lock contention.  
-**Severe degradation** (+138%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -833,12 +781,10 @@ Throughput dropped 38% — check connection pool saturation or lock contention.
 
 <!-- SECTION:METADATA:START -->
 <details id="section-metadata">
-<summary><strong>🏷️ Metadata</strong> · ⚪ 3.543ms · ↗️ 🔴 slower: 1.47ms → 3.54ms (+141%) (2 runs) (2026-08-29 12:54:31) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Metadata</strong> · 🟢 1.006ms · ↘️ ⚪ stable at 1.97ms (±2.57ms) (3 runs) (2026-08-31 09:11:47) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 61% — check connection pool saturation or lock contention.  
-**Severe degradation** (+141%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -901,16 +847,9 @@ Throughput dropped 85% — check connection pool saturation or lock contention.
 
 <!-- SECTION:DB:START -->
 <details id="section-db">
-<summary><strong>🏷️ DB</strong> · 🟢 0.006ms · ↘️ ⚪ stable at 0.008ms (±0.006ms) (7 runs) (2026-08-29 21:30:28) · <a href="../../../tests/benchmarks/local-cms-crud.test.ts">source</a></summary>
-<!-- LEDGER_INSIGHT_START -->
-> [!NOTE]
-> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
-<!-- LEDGER_INSIGHT_END -->
-
+<summary><strong>🏷️ DB</strong> · 🟢 0.134ms · ➡️ ⚪ established at 0.134ms (1 run) (2026-08-31 09:11:35) · <a href="../../../tests/benchmarks/local-sdk-vs-direct.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 > ⏳ Pending
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -936,12 +875,10 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 
 <!-- SECTION:STRESS:START -->
 <details id="section-stress">
-<summary><strong>🏷️ Stress</strong> · 🟢 1.700ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-stress.test.ts">source</a></summary>
+<summary><strong>🏷️ Stress</strong> · 🟢 27.607ms · ↘️ ⚪ stable at 66.02ms (±36.97ms) (6 runs) (2026-08-31 09:11:09) · <a href="../../../tests/benchmarks/graphql-stress.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 10% — check connection pool saturation or lock contention.  
-**Severe degradation** (+51%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -976,7 +913,7 @@ Throughput dropped 10% — check connection pool saturation or lock contention.
 
 <!-- SECTION:GRAPHQL__COLD_:START -->
 <details id="section-graphql__cold_">
-<summary><strong>🏷️ GraphQL (cold)</strong> · 🟢 2.437ms · ↘️ ⚪ stable at 9.39ms (±4.89ms) (3 runs) (2026-08-29 21:13:04) · <a href="../../../tests/benchmarks/graphql-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ GraphQL (cold)</strong> · 🟢 2.812ms · ↘️ ⚪ stable at 4.76ms (±6.95ms) (5 runs) (2026-08-31 09:10:49) · <a href="../../../tests/benchmarks/graphql-api-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
@@ -993,7 +930,7 @@ Throughput dropped 10% — check connection pool saturation or lock contention.
 
 <!-- SECTION:GRAPHQL__HOT_:START -->
 <details id="section-graphql__hot_">
-<summary><strong>🏷️ GraphQL (hot)</strong> · ⚪ 1.602ms · ↘️ 🟢 faster: 6.74ms → 1.60ms (-76%) (3 runs) (2026-08-29 21:13:05) · <a href="../../../tests/benchmarks/graphql-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ GraphQL (hot)</strong> · 🟢 1.764ms · ↘️ ⚪ stable at 3.72ms (±5.14ms) (5 runs) (2026-08-31 09:10:50) · <a href="../../../tests/benchmarks/graphql-api-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
@@ -1287,7 +1224,7 @@ Throughput dropped 41% — check connection pool saturation or lock contention.
 
 <!-- SECTION:COLD__DB_:START -->
 <details id="section-cold__db_">
-<summary><strong>🏷️ Cold (DB)</strong> · 🟢 4.539ms · ➡️ ⚪ established at 4.54ms (1 run) (2026-08-28 10:08:22) · <a href="../../../tests/benchmarks/graphql-cache-hit.test.ts">source</a></summary>
+<summary><strong>🏷️ Cold (DB)</strong> · 🟢 1.785ms · ➡️ ⚪ established at 1.78ms (1 run) (2026-08-31 09:10:24) · <a href="../../../tests/benchmarks/graphql-cache-hit.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -1297,7 +1234,7 @@ Throughput dropped 41% — check connection pool saturation or lock contention.
 
 <!-- SECTION:WARM__CACHE_:START -->
 <details id="section-warm__cache_">
-<summary><strong>🏷️ Warm (Cache)</strong> · 🟢 1.674ms · ➡️ ⚪ established at 1.67ms (1 run) (2026-08-28 10:08:22) · <a href="../../../tests/benchmarks/graphql-cache-hit.test.ts">source</a></summary>
+<summary><strong>🏷️ Warm (Cache)</strong> · 🟢 0.642ms · ➡️ ⚪ established at 0.642ms (1 run) (2026-08-31 09:10:24) · <a href="../../../tests/benchmarks/graphql-cache-hit.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -1345,7 +1282,7 @@ Throughput dropped 40% — check connection pool saturation or lock contention.
 
 <!-- SECTION:ADAPTER:START -->
 <details id="section-adapter">
-<summary><strong>🏷️ Adapter</strong> · 🟢 0.374ms · ↘️ ⚪ stable at 0.728ms (±0.667ms) (4 runs) (2026-08-30 08:24:57) · <a href="../../../tests/benchmarks/local-api-throughput.test.ts">source</a></summary>
+<summary><strong>🏷️ Adapter</strong> · 🟢 0.369ms · ↘️ ⚪ stable at 0.573ms (±0.318ms) (5 runs) (2026-08-31 09:11:23) · <a href="../../../tests/benchmarks/local-api-throughput.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
@@ -1357,11 +1294,11 @@ Throughput dropped 40% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                            SVELTYCMS — DIRECT ADAPTER THROUGHPUT (SQLITE)                             ║
 ║                          File: tests/benchmarks/local-api-throughput.test.ts                          ║
-║                                       Ran: 2026-08-30 08:24:57                                        ║
+║                                       Ran: 2026-08-31 09:11:23                                        ║
 ║Measures direct adapter write throughput, read throughput, and percentile latencies with zero HTTP overhead.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Writes (1000 atomic increments) │        0.444 ms │ p95:        0.312 ms │ RPS:     16,005 ║
-║ Reads (1000 point lookups)     │        0.374 ms │ p95:        0.982 ms │ RPS:    119,070 ║
+║ Writes (1000 atomic increments) │        0.334 ms │ p95:        0.343 ms │ RPS:     17,214 ║
+║ Reads (1000 point lookups)     │        0.369 ms │ p95:        0.918 ms │ RPS:    122,078 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -1372,7 +1309,7 @@ Throughput dropped 40% — check connection pool saturation or lock contention.
 
 <!-- SECTION:DETACHED:START -->
 <details id="section-detached">
-<summary><strong>🏷️ DETACHED</strong> · 🟢 0.111ms · ➡️ ⚪ established at 0.111ms (1 run) (2026-08-28 10:22:19) · <a href="../../../tests/benchmarks/local-sdk-vs-direct.test.ts">source</a></summary>
+<summary><strong>🏷️ DETACHED</strong> · 🟢 0.144ms · ➡️ ⚪ established at 0.144ms (1 run) (2026-08-31 09:11:35) · <a href="../../../tests/benchmarks/local-sdk-vs-direct.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -1382,7 +1319,7 @@ Throughput dropped 40% — check connection pool saturation or lock contention.
 
 <!-- SECTION:STABILITY:START -->
 <details id="section-stability">
-<summary><strong>🏷️ memory stability</strong> · 🟢 ⏳ pending · ➡️ ⚪ established at 0ms (1 run) (2026-08-28 10:29:51) · <a href="../../../tests/benchmarks/memory-stability.test.ts">source</a></summary>
+<summary><strong>🏷️ Stability</strong> · 🟢 4.140ms · ➡️ ⚪ established at 4.14ms (1 run) (2026-08-31 10:49:13) · <a href="../../../tests/benchmarks/longevity-soak.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -1816,6 +1753,16 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 </details>
 <!-- SECTION:AI:END -->
 
+<!-- SECTION:HTTP_COLD:START -->
+<details id="section-http_cold">
+<summary><strong>🏷️ HTTP-Cold</strong> · 🟢 0.783ms · ➡️ ⚪ established at 0.783ms (1 run) (2026-08-31 09:39:44) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<!-- LEDGER_TRUTH_START -->
+> ⏳ Pending
+<!-- LEDGER_TRUTH_END -->
+
+</details>
+<!-- SECTION:HTTP_COLD:END -->
+
 </details>
 
 <!-- LEDGER_DIMENSION:CORE:END -->
@@ -2089,7 +2036,7 @@ Throughput dropped 54% — check connection pool saturation or lock contention.
 <!-- SECTION:REST:START -->
 
 <details id="section-rest">
-<summary><strong>🏷️ REST API Performance</strong> · 🟢 1.050ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ REST API Performance</strong> · 🟢 3.020ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -2097,14 +2044,14 @@ Throughput dropped 54% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — ENTERPRISE REST API AUDIT                                 ║
 ║                          File: tests/benchmarks/rest-api-performance.test.ts                          ║
-║                                       Ran: 2026-08-29 21:31:07                                        ║
+║                                       Ran: 2026-08-31 09:11:48                                        ║
 ║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, single read, list, and search.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ System Health Check          │ Cold:     1.05 ms │ Warm:     0.818 ms │ p95:     1.388 ms │   4,584 RPS ║
-║ Collection Schema Metadata   │ Cold:     1.99 ms │ Warm:     1.165 ms │ p95:     1.700 ms │   3,344 RPS ║
-║ Single Document Read         │ Cold:     1.15 ms │ Warm:     1.094 ms │ p95:     1.728 ms │   3,445 RPS ║
-║ Collection Find (List Limit 20) │ Cold:     5.67 ms │ Warm:     1.158 ms │ p95:     1.710 ms │   3,289 RPS ║
-║ Collection Search Query      │ Cold:     4.67 ms │ Warm:     1.191 ms │ p95:     1.674 ms │   3,281 RPS ║
+║ System Health Check          │ Cold:     3.02 ms │ Warm:     0.671 ms │ p95:     2.204 ms │   4,800 RPS ║
+║ Collection Schema Metadata   │ Cold:     4.10 ms │ Warm:     1.006 ms │ p95:     2.865 ms │   3,124 RPS ║
+║ Single Document Read         │ Cold:     1.80 ms │ Warm:     0.855 ms │ p95:     2.049 ms │   4,032 RPS ║
+║ Collection Find (List Limit 20) │ Cold:     6.50 ms │ Warm:     0.956 ms │ p95:     2.358 ms │   3,578 RPS ║
+║ Collection Search Query      │ Cold:     3.92 ms │ Warm:     0.967 ms │ p95:     2.321 ms │   3,428 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2116,7 +2063,7 @@ Throughput dropped 54% — check connection pool saturation or lock contention.
 <!-- SECTION:GRAPHQL:START -->
 
 <details id="section-graphql">
-<summary><strong>🏷️ GraphQL API Performance</strong> · 🟢 2.230ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ GraphQL API Performance</strong> · 🟢 2.360ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-api-performance.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -2124,15 +2071,15 @@ Throughput dropped 54% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — GRAPHQL PERFORMANCE AUDIT                                 ║
 ║                        File: tests/benchmarks/graphql-api-performance.test.ts                         ║
-║                                       Ran: 2026-08-29 21:31:20                                        ║
+║                                       Ran: 2026-08-31 09:10:50                                        ║
 ║Measures GraphQL resolver performance across cold (cache-bypassed) and hot (response-cache hit) execution paths.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: System Health [cold]    │ Cold:     2.23 ms │ Warm:     0.917 ms │ p95:     1.658 ms │   1,003 RPS ║
-║ GQL: System Health [hot]     │ Cold:     1.02 ms │ Warm:     0.835 ms │ p95:     1.556 ms │   1,098 RPS ║
-║ GQL: Collection List [cold]  │ Cold:     1.55 ms │ Warm:     2.796 ms │ p95:     4.108 ms │   1,967 RPS ║
-║ GQL: Collection List [hot]   │ Cold:     0.96 ms │ Warm:     2.627 ms │ p95:     4.041 ms │   2,163 RPS ║
-║ GQL: Parameterized Query [cold] │ Cold:     1.65 ms │ Warm:     3.796 ms │ p95:     5.920 ms │   1,988 RPS ║
-║ GQL: Parameterized Query [hot] │ Cold:     0.88 ms │ Warm:     3.243 ms │ p95:     5.184 ms │   2,286 RPS ║
+║ GQL: System Health [cold]    │ Cold:     2.36 ms │ Warm:     0.489 ms │ p95:     0.969 ms │   1,698 RPS ║
+║ GQL: System Health [hot]     │ Cold:     0.67 ms │ Warm:     0.456 ms │ p95:     0.971 ms │   1,810 RPS ║
+║ GQL: Collection List [cold]  │ Cold:     1.92 ms │ Warm:     2.224 ms │ p95:     4.697 ms │   2,422 RPS ║
+║ GQL: Collection List [hot]   │ Cold:     1.19 ms │ Warm:     1.876 ms │ p95:     4.201 ms │   2,866 RPS ║
+║ GQL: Parameterized Query [cold] │ Cold:     2.56 ms │ Warm:     2.812 ms │ p95:     6.376 ms │   2,451 RPS ║
+║ GQL: Parameterized Query [hot] │ Cold:     0.47 ms │ Warm:     1.764 ms │ p95:     5.237 ms │   3,636 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2327,7 +2274,7 @@ Throughput dropped 66% — check connection pool saturation or lock contention.
 <!-- SECTION:GQL_STRESS:START -->
 
 <details id="section-gql_stress">
-<summary><strong>🏷️ GraphQL Load Stress</strong> · 🟢 1.840ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-stress.test.ts">source</a></summary>
+<summary><strong>🏷️ GraphQL Load Stress</strong> · 🟢 9.040ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/graphql-stress.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -2335,16 +2282,16 @@ Throughput dropped 66% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                SVELTYCMS — GRAPHQL CAPACITY DISCOVERY                                 ║
 ║                             File: tests/benchmarks/graphql-stress.test.ts                             ║
-║                                       Ran: 2026-08-29 21:31:27                                        ║
+║                                       Ran: 2026-08-31 09:11:09                                        ║
 ║                Discovers maximum sustainable GraphQL throughput by ramping concurrency                ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ GQL: 5c Warmup               │ Cold:     1.84 ms │ Warm:     2.487 ms │ p95:     4.779 ms │   1,777 RPS ║
-║ GQL: 10c Light               │ Cold:     1.71 ms │ Warm:     4.078 ms │ p95:     6.750 ms │   2,302 RPS ║
-║ GQL: 20c Moderate            │ Cold:     1.64 ms │ Warm:     8.723 ms │ p95:    13.863 ms │   2,198 RPS ║
-║ GQL: 40c Heavy               │ Cold:     1.47 ms │ Warm:    21.957 ms │ p95:    30.240 ms │   1,791 RPS ║
-║ GQL: 60c Stress              │ Cold:     1.62 ms │ Warm:    35.383 ms │ p95:    62.660 ms │   1,576 RPS ║
-║ GQL: 80c Extreme             │ Cold:     1.75 ms │ Warm:    43.530 ms │ p95:    55.790 ms │   1,804 RPS ║
-║ GQL: 100c Max                │ Cold:     1.78 ms │ Warm:    58.316 ms │ p95:    90.534 ms │   1,675 RPS ║
+║ GQL: 5c Warmup               │ Cold:     9.04 ms │ Warm:     2.337 ms │ p95:     3.951 ms │   2,030 RPS ║
+║ GQL: 10c Light               │ Cold:     2.19 ms │ Warm:     3.991 ms │ p95:     7.288 ms │   2,332 RPS ║
+║ GQL: 20c Moderate            │ Cold:     1.33 ms │ Warm:     4.570 ms │ p95:     9.930 ms │   3,788 RPS ║
+║ GQL: 40c Heavy               │ Cold:     0.96 ms │ Warm:    13.456 ms │ p95:    23.098 ms │   2,925 RPS ║
+║ GQL: 60c Stress              │ Cold:     1.81 ms │ Warm:    13.697 ms │ p95:    26.473 ms │   3,933 RPS ║
+║ GQL: 80c Extreme             │ Cold:     1.30 ms │ Warm:    23.828 ms │ p95:    40.303 ms │   3,242 RPS ║
+║ GQL: 100c Max                │ Cold:     3.51 ms │ Warm:    27.607 ms │ p95:    47.220 ms │   3,411 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2603,19 +2550,19 @@ Throughput dropped 29% — check connection pool saturation or lock contention.
 <!-- SECTION:SOAK:START -->
 
 <details id="section-soak">
-<summary><strong>🏷️ Longevity Soak (Memory Stability)</strong> · 🟢 6.010ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/longevity-soak.test.ts">source</a></summary>
+<summary><strong>🏷️ Longevity Soak (Memory Stability)</strong> · 🟢 4.140ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/longevity-soak.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
 ```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                            SVELTYCMS — LONGEVITY SOAK AUDIT                             ║
-║                      File: tests/benchmarks/longevity-soak.test.ts                      ║
-║                                Ran: 2026-08-28 10:23:55                                 ║
-║Sustained mixed read/write workload over configurable hours with periodic memory/CPU sampling║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ 0.01h Longevity Soak           │        6.010 ms │ p95:        8.460 ms │ RPS:         49 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                   SVELTYCMS — LONGEVITY SOAK AUDIT                                    ║
+║                             File: tests/benchmarks/longevity-soak.test.ts                             ║
+║                                       Ran: 2026-08-31 10:49:13                                        ║
+║     Sustained mixed read/write workload over configurable hours with periodic memory/CPU sampling     ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ 0.15h Longevity Soak           │        4.140 ms │ p95:        7.870 ms │ RPS:         81 ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- LEDGER_TRUTH_END -->

@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:c72bc952-af52-4cd2-85e3-f2d5b7edf5a4",
+  "serialNumber": "urn:uuid:f3346e68-e080-4fd5-88c1-53499243ec59",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-29T17:48:35.578Z",
+    "timestamp": "2026-08-31T13:44:19.391Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -1868,26 +1868,26 @@
     {
       "type": "library",
       "name": "@mcp-b/webmcp-polyfill",
-      "version": "5.0.1",
-      "purl": "pkg:npm/@mcp-b/webmcp-polyfill@5.0.1",
+      "version": "5.1.0",
+      "purl": "pkg:npm/@mcp-b/webmcp-polyfill@5.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-xw/7f0bu4dsqWaGCE4RbB5/nkkbczeIP6NNeatE61Yxfpfp3r2E7pdgHmtYKb3oZ2BxROiM/yWkgiM3Ol0nkjA=="
+          "content": "sha512-KL09hniFssPY8HBO3qzurWPqm+1JYRwV3wx6x2XSySgo+6BL1XHGsHGIoAO7U9zzigv7TA5keNBoZ+3P1jq18g=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@mcp-b/webmcp-types",
-      "version": "5.0.1",
-      "purl": "pkg:npm/@mcp-b/webmcp-types@5.0.1",
+      "version": "5.1.0",
+      "purl": "pkg:npm/@mcp-b/webmcp-types@5.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-UN7GsTrudXoMWxTL6n6451C19r5nsBzU4WLovRC6YVFnOJk3N5qYwmQySAISEi/0fcWkRDcT3OqAee7/jrl1iA=="
+          "content": "sha512-twOKDUr7al60K890HvRcNvoHSfQ2rnGeKJiQs6eUr+Leg+LQ6K+yz3F4K70jykMK1a09ZIgYb3Oc7mAypuKPig=="
         }
       ]
     },
@@ -8914,13 +8914,13 @@
     {
       "type": "library",
       "name": "tsx",
-      "version": "4.23.12",
-      "purl": "pkg:npm/tsx@4.23.12",
+      "version": "4.23.13",
+      "purl": "pkg:npm/tsx@4.23.13",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-FDf4L4sYzKtzWYhU/Xm0AQFdTjdIxNo9ElTf2mxXM6k8YMHXzYUe4yODVaXP4V9uMFbVg8c0qyBccK2OOxb45Q=="
+          "content": "sha512-BL5MGkRln6aDYhb0xbQlEAGw743BaZYWdbWtdJOBriYJboKgUUYCadFp2/FpBBZquBC/ezNBn7wMMPx7FDZUDw=="
         }
       ]
     },

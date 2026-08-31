@@ -31,6 +31,9 @@ export const API_PERMISSIONS: Record<string, string[]> = {
   "api:import-data": ["admin"], // Collection import
   "api:system": ["admin", "editor"], // System status (version, health)
   "api:system/health": ["*"], // Public health check
+  "api:system/prewarm-route": ["*"], // Predictive preload server-side route warming
+  "api:system/penalize-bounce": ["*"], // Client navigation bounce telemetry
+  "api:system/license-status": ["*"], // Client extension license verification
   "api:telemetry": ["admin", "developer", "editor"], // System telemetry
 
   // Admin area - Admin only

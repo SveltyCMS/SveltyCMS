@@ -28,7 +28,6 @@
 		status_unpublish,
 		validation_fix_before_save
 	} from '@src/paraglide/messages';
-	import { getLocale } from '@src/paraglide/runtime';
 	import { collection, collectionValue, mode } from '@src/stores/collection-store.svelte';
 	// Stores
 	import { screen } from '@src/stores/screen-size-store.svelte';
@@ -38,6 +37,7 @@
 
 	// Utils
 	import { logger } from '@utils/logger';
+	import { formatDisplayDate } from '@utils/date';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { showScheduleModal } from '@utils/modal.svelte';
 	import { navigationManager } from '@utils/navigation';
@@ -146,17 +146,14 @@
 		if (!dateStr) {
 			return '-';
 		}
-		try {
-			return new Date(dateStr).toLocaleString(getLocale(), {
-				year: 'numeric',
-				month: 'short',
-				day: '2-digit',
-				hour: '2-digit',
-				minute: '2-digit'
-			});
-		} catch {
-			return '-';
-		}
+		const formatted = formatDisplayDate(dateStr, undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+		return formatted === 'Invalid Date' ? '-' : formatted;
 	}
 
 	let dates = $derived({
@@ -348,7 +345,7 @@
 						{#if scheduleTimestamp}
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">{sidebar_will_publish_on()}</p>
 							<p class="text-xs font-semibold text-tertiary-500 dark:text-primary-500">
-								{new Date(scheduleTimestamp).toLocaleString(getLocale())}
+								{formatDisplayDate(scheduleTimestamp)}
 							</p>
 						{/if}
 						<Button variant="outline"
@@ -407,7 +404,7 @@
 
 				{#if currentMode === 'create'}
 					<div class="mt-3 text-center text-xs text-tertiary-500 dark:text-primary-500">
-						{new Date().toLocaleString(getLocale(), {
+						{formatDisplayDate(Date.now(), undefined, {
 							year: 'numeric',
 							month: 'short',
 							day: 'numeric',

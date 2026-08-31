@@ -99,7 +99,7 @@ Displays real-time system state and individual service health with comprehensive
 	const unhealthyServices = $derived(serviceEntries.filter(([, service]) => service.status === 'unhealthy').length);
 
 	const formattedLastChecked = $derived(
-		formatDisplayDate(lastChecked, 'en', {
+		formatDisplayDate(lastChecked, undefined, {
 			hour: '2-digit',
 			minute: '2-digit',
 			second: '2-digit'

@@ -360,6 +360,51 @@ export function hasNativeCompression(): boolean {
 }
 
 /**
+ * Truly async compression off the V8 main thread using libuv worker thread callbacks.
+ * Essential for background pre-compression (handle-api-requests) so large bodies
+ * never block the event loop.
+ */
+export function compressAsync(
+  data: string | Uint8Array | Buffer,
+  algorithm: CompressionAlgorithm,
+  contentLength?: number,
+): Promise<Uint8Array | null> {
+  if (!zlib) return Promise.resolve(null);
+  const input = Buffer.isBuffer(data)
+    ? data
+    : typeof data === "string"
+      ? Buffer.from(data)
+      : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+  const len = contentLength ?? input.byteLength;
+  const opts = compressionLevel(algorithm, len);
+
+  if (algorithm === "zstd") {
+    return compressZstd(input);
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const cb = (err: Error | null, result: Buffer) => {
+        if (err || !result || result.byteLength >= input.byteLength) {
+          resolve(null);
+        } else {
+          resolve(result);
+        }
+      };
+      if (algorithm === "br") {
+        zlib!.brotliCompress(input, opts as import("node:zlib").BrotliOptions, cb);
+      } else if (algorithm === "gzip") {
+        zlib!.gzip(input, opts as import("node:zlib").ZlibOptions, cb);
+      } else {
+        zlib!.deflate(input, opts as import("node:zlib").ZlibOptions, cb);
+      }
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/**
  * Async zstd compress with CMS dictionary when available.
  * Prefer native node:zlib; fall back to optional @mongodb-js/zstd (level-only, no dict).
  * Used by handle-api-requests for background cache pre-compression.

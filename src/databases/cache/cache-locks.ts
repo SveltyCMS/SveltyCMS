@@ -26,16 +26,37 @@ export class CacheLockManager {
   private activeLocks = new Map<string, string>();
 
   /**
-   * Coalesces concurrent asynchronous operations for the exact same key into a single execution.
+   * Coalesces concurrent asynchronous operations for the exact same key into a single execution
+   * with occupant guard and timeout safety to prevent permanent stalls.
    */
-  async coalesce<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  async coalesce<T>(key: string, fn: () => Promise<T>, timeoutMs = 8000): Promise<T> {
     const existing = this.pendingRequests.get(key);
     if (existing) {
       return existing as Promise<T>;
     }
-    const promise = fn().finally(() => {
-      this.pendingRequests.delete(key);
+
+    let timeoutHandle: any;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(new Error(`[CacheLock] Coalesce timeout after ${timeoutMs}ms for ${key}`));
+      }, timeoutMs);
+      if (typeof timeoutHandle?.unref === "function") timeoutHandle.unref();
     });
+
+    const ref: { current: Promise<T> | null } = { current: null };
+    const executionPromise = (async () => {
+      try {
+        return await fn();
+      } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+        if (ref.current && this.pendingRequests.get(key) === ref.current) {
+          this.pendingRequests.delete(key);
+        }
+      }
+    })();
+
+    const promise = Promise.race([executionPromise, timeoutPromise]);
+    ref.current = promise;
     this.pendingRequests.set(key, promise);
     return promise;
   }
@@ -117,7 +138,7 @@ export class CacheLockManager {
   }
 
   /**
-   * Polls L1 and L2 until the winning process has populated the cache key, or maxWaitMs expires.
+   * Polls L1 and L2 with exponential backoff until the winning process has populated the cache key, or maxWaitMs expires.
    */
   async waitForCache(
     l1: any,
@@ -125,8 +146,10 @@ export class CacheLockManager {
     key: string,
     maxWaitMs: number,
     deserializeFn: (val: any) => any,
+    onHydrate?: (k: string) => void,
   ): Promise<void> {
     const start = Date.now();
+    let delay = 10;
     while (Date.now() - start < maxWaitMs) {
       if (l1.has(key)) break;
 
@@ -136,6 +159,7 @@ export class CacheLockManager {
           if (l2Value) {
             const parsed = deserializeFn(l2Value);
             l1.set(key, parsed);
+            if (onHydrate) onHydrate(key);
             break;
           }
         } catch {
@@ -143,7 +167,8 @@ export class CacheLockManager {
         }
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay = Math.min(delay * 2, 80);
     }
   }
 

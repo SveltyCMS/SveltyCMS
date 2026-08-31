@@ -120,6 +120,7 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/preview",
   "/api/media/share",
   "/api/system/penalize-bounce",
+  "/api/system/prewarm-route",
   "/api/security/csp-report",
   "/api/auth/saml/acs",
   "/api/auth/saml/login",
