@@ -18,6 +18,7 @@ import { versionService } from "@services/core/version-service";
 import { getDatabaseResilience } from "@src/databases/database-resilience";
 import { getSystemStatus } from "@src/databases/resilience-integration";
 import { requireDashboardWidgetLicense } from "./dashboard";
+import { streamingArrayResponse } from "./streaming";
 import { buildLogExport, type LogExportFormat, type LogExportType } from "@src/utils/log-export";
 import * as v from "valibot";
 
@@ -1405,7 +1406,6 @@ export async function handleExportRoutes(
       const result = await cms.auth.listUsers({ tenantId });
       if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
       const items = Array.isArray(result.data) ? result.data : [];
-      const { streamingArrayResponse } = await import("./streaming");
       return streamingArrayResponse(items, items.length);
     }
     return successResponse(event, { success: true, message: "Export started" });
