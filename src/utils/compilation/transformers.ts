@@ -86,8 +86,6 @@ export const widgetTransformer: ts.TransformerFactory<ts.SourceFile> =
           if (
             hasWidgetsAlias &&
             (moduleSpecifier.includes("@src/stores/widget-store.svelte.ts") ||
-              moduleSpecifier.includes("@src/widgets/proxy") ||
-              moduleSpecifier.includes("widgets/proxy") ||
               /widgets/.test(moduleSpecifier))
           ) {
             return [];
@@ -420,10 +418,7 @@ export function createCompositeTransformer(
           node.importClause?.namedBindings &&
           ts.isNamedImports(node.importClause.namedBindings) &&
           node.importClause.namedBindings.elements.some((el) => el.name.text === "widgets") &&
-          (specifier.includes("@src/stores/widget-store.svelte.ts") ||
-            specifier.includes("@src/widgets/proxy") ||
-            specifier.includes("widgets/proxy") ||
-            /widgets/.test(specifier))
+          (specifier.includes("@src/stores/widget-store.svelte.ts") || /widgets/.test(specifier))
         ) {
           return [];
         }

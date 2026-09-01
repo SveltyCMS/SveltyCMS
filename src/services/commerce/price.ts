@@ -59,6 +59,23 @@ export function fractionDigits(currency: string): number {
   return ZERO_DECIMAL.has(currency.toUpperCase()) ? 0 : 2;
 }
 
+/**
+ * Human display of a minor-unit amount with the correct ISO currency symbol.
+ * Pure + locale-aware (`Intl.NumberFormat`) — no server deps, safe in Svelte
+ * components. Zero-decimal currencies (JPY/KRW/…) render without cents.
+ *
+ * @example formatMoney(1999, "EUR") → "€19.99" · formatMoney(1999, "JPY") → "¥1,999"
+ */
+export function formatMoney(amount: number, currency = "EUR"): string {
+  const digits = fractionDigits(currency);
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(amount / 10 ** digits);
+}
+
 /** Round a major-unit number into integer minor units for `currency`. */
 export function roundForCurrency(majorUnits: number, currency: string): Price {
   const digits = fractionDigits(currency);

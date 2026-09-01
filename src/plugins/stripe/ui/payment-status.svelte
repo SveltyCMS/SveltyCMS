@@ -3,12 +3,15 @@
 @component Payment status badge for entry list columns.
 -->
 <script lang="ts">
+	import { formatMoney } from '@src/services/commerce/price';
+
 	interface Props {
 		status?: string;
 		amount?: number;
+		currency?: string;
 	}
 
-	let { status, amount }: Props = $props();
+	let { status, amount, currency = 'EUR' }: Props = $props();
 
 	const config = $derived.by(() => {
 		switch (status) {
@@ -23,9 +26,7 @@
 		}
 	});
 
-	const formattedAmount = $derived(
-		amount ? `$${(amount / 100).toFixed(2)}` : ''
-	);
+	const formattedAmount = $derived(amount != null ? formatMoney(amount, currency) : '');
 </script>
 
 {#if status}

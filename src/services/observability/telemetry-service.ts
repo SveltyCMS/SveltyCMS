@@ -16,7 +16,7 @@ import { createHash } from "node:crypto";
 import os from "node:os";
 import { getPrivateEnv } from "@src/databases/db";
 import { getPrivateSetting } from "@src/services/core/settings-service";
-import { getWidgetsByType } from "@src/widgets/proxy";
+import { getCustomWidgetNames } from "@src/widgets/scanner";
 import { logger } from "@utils/logger";
 import { building, dev } from "$app/env";
 import pkg from "../../../package.json";
@@ -114,7 +114,7 @@ export class TelemetryService {
         // Real widget detection (Custom Only)
         let widgets: string[] = [];
         try {
-          widgets = getWidgetsByType("custom");
+          widgets = getCustomWidgetNames();
         } catch (err) {
           logger.debug("[Telemetry] Failed to collect widget info:", err);
         }

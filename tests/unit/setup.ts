@@ -1070,6 +1070,10 @@ if (isBun && !isBenchmark && ENABLE_MOCKS) {
       getComponentLoader: () => null,
       getWidgetNameFromPath: (p: string) => p.split("/").at(-2) || null,
       widgetNameToFolder,
+      getCustomWidgetNames: () =>
+        Object.keys(customModules)
+          .map((p) => p.split("/").at(-2) || "")
+          .filter(Boolean),
     };
   };
 
@@ -1653,6 +1657,7 @@ moduleMock("@src/widgets/scanner", () => ({
   getComponentLoader: () => null,
   getWidgetNameFromPath: (path: string) => path.split("/").at(-2) || null,
   widgetNameToFolder,
+  getCustomWidgetNames: () => [],
 }));
 
 moduleMock("@node-saml/node-saml", () => ({
