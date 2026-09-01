@@ -36,7 +36,7 @@ Use instead of raw `div.card` with ad-hoc dark: surface classes.
 
 	let {
 		class: className,
-		children,
+		children: content,
 		variant,
 		preset,
 		...rest
@@ -62,11 +62,11 @@ Use instead of raw `div.card` with ad-hoc dark: surface classes.
 {#if useCard}
 	<Card {variant} {preset} class={className}>
 		{#snippet children()}
-			{@render children?.()}
+			{@render content?.()}
 		{/snippet}
 	</Card>
 {:else}
 	<div class={cn('card', className)} style={adminStyles} {...rest}>
-		{@render children?.()}
+		{@render content?.()}
 	</div>
 {/if}
