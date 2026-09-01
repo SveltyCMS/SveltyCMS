@@ -193,6 +193,7 @@ test.describe("Remote URL upload", () => {
 
   test("upload-media page shows local and remote tabs", async ({ page }) => {
     await loginAsAdmin(page);
+    await dismissCookieBanner(page);
     await page.goto("/mediagallery/upload-media", {
       waitUntil: "domcontentloaded",
       timeout: 30_000,
@@ -206,6 +207,7 @@ test.describe("Remote URL upload", () => {
 
   test("remote tab calls uploadRemoteUrls remote query", async ({ page }) => {
     await loginAsAdmin(page);
+    await dismissCookieBanner(page);
     await page.goto("/mediagallery/upload-media", {
       waitUntil: "domcontentloaded",
       timeout: 30_000,
@@ -242,6 +244,7 @@ test.describe("Remote URL upload", () => {
 
   test("rejects empty remote URL submit with warning", async ({ page }) => {
     await loginAsAdmin(page);
+    await dismissCookieBanner(page);
     await page.goto("/mediagallery/upload-media");
     await page.getByTestId("upload-tab-remote").click();
     await page.getByTestId("remote-upload-submit").click();
