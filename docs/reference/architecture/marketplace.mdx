@@ -161,6 +161,18 @@ The Marketplace tab's type filter includes **`dashboard`** — local dashboard w
 
 Dashboard widget packages install into `src/routes/(app)/dashboard/widgets/<folder>/` and appear in the dashboard picker after restart — no registration step. The marketplace hosts community-built plugins, widgets, and dashboard widgets; the scaffolder generates custom code on demand.
 
+### Install → Enable → Activate lifecycle
+
+All three extension kinds are **discovered by the next boot** (Vite glob over the install directory), but discovery is not activation:
+
+| Kind                 | After install (next boot)                                                                                          | Activation                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| **Plugin**           | Registered (visible in Config → Extensions), but **inert** when `enabled: false` — no routes, parts, or migrations | `togglePlugin()` (admin UI or API) lazily merges `index.server`, resolves parts, runs migrations |
+| **Custom widget**    | Factory registered; Input/Display components stay lazy (loaded on first use)                                       | Enabled per collection/status via the widget store                                               |
+| **Dashboard widget** | Manifest listed; package imported only when the user adds it (lazy chunk)                                          | `requiresPlugin` packages stay out of the picker until that plugin is enabled                    |
+
+Consequence for a fresh install: a marketplace plugin ships disabled by default, contributes **no routes/capabilities/migrations** until a tenant enables it, and enabling it does not require a reboot — the activation is fully lazy.
+
 ## Marketplace Client API
 
 ### List plugins

@@ -98,7 +98,9 @@ export const myPlugin: Plugin = {
 };
 ```
 
-Because SveltyCMS features **System Discovery & Autoloading**, there is no need to manually register or import your plugin inside any central files. Simply saving your plugin code inside the `src/plugins/` directory is enough for the CMS to automatically scan, register, and boot your plugin.
+Because SveltyCMS features **System Discovery & Autoloading**, there is no need to manually register or import your plugin inside any central files. Simply saving your plugin code inside the `src/plugins/` directory is enough for the CMS to scan and register it on the next boot.
+
+**Activation is lazy**: the boot only _registers_ every discovered plugin (so it shows in **Config → Extensions**), but **fully activates only enabled plugins** — merging the `index.server` module (hooks/migrations), resolving structured parts (routes, capabilities, sugar types, settings), and running migrations. A plugin that ships with `metadata.enabled: false` (the default for commerce-style optional plugins) stays inert until a tenant enables it in the admin UI or via `pluginRegistry.togglePlugin()` — which then lazily wires the server module, parts, and migrations in the same call. No reboot is required to activate an installed plugin.
 
 ## Plugin Interface & Versioning
 
@@ -345,15 +347,17 @@ All plugin hooks execute within a sandboxed context (`src/plugins/sandbox.ts`) w
 
 ### Per-Tenant Plugin State
 
-Plugins can be enabled/disabled per tenant:
+Plugins can be enabled/disabled per tenant. **Enabling is a lazy activation**: `togglePlugin` merges the plugin's `index.server` module, resolves its structured parts, and runs pending migrations (pass the DB adapter as the 5th argument so migrations can run on first enable):
 
 ```typescript
-// Toggle via registry
-await pluginRegistry.togglePlugin("my-plugin", true, tenantId, userId);
+// Toggle via registry — lazy-activates on enable
+await pluginRegistry.togglePlugin("my-plugin", true, tenantId, userId, dbAdapter);
 
 // Check state
 const state = await pluginRegistry.getPluginState("my-plugin", tenantId);
 ```
+
+The DB adapter argument is optional: without it the plugin is still enabled and parts are resolved, but pending migrations run on the next boot instead of inline.
 
 ### Multi-Tenant Safety (Required)
 
