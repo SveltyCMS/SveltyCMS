@@ -50,6 +50,8 @@ const CORE_WIDGET_PROCESSORS: Record<string, (ctx: WidgetContext) => Promise<any
   RichText: (ctx) => {
     const raw = ctx.data[ctx.field.db_fieldName] || "";
     // Realistic HTML sanitizer / token extraction simulation
+    // codeql[js/incomplete-multi-character-sanitization]: benchmark-only synthetic
+    // workload simulating a RichText tokenizer — never shipped sanitization logic.
     return raw.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "").trim();
   },
   DateTime: (ctx) => {
