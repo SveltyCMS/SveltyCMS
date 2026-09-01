@@ -858,7 +858,7 @@ const ecommerceCollections: CollectionPreset[] = [
       {
         db_fieldName: "downloadable",
         label: "Downloadable",
-        type: "input",
+        type: "boolean",
         widget: "checkbox",
         required: false,
         translated: false,
@@ -873,7 +873,6 @@ const ecommerceCollections: CollectionPreset[] = [
         required: false,
         translated: false,
         helper: "File for downloadable products",
-        default: undefined,
       },
       {
         db_fieldName: "tags",
@@ -883,7 +882,6 @@ const ecommerceCollections: CollectionPreset[] = [
         required: false,
         translated: false,
         helper: "Product tags for filtering and search",
-        default: undefined,
       },
       {
         db_fieldName: "images",
@@ -893,7 +891,6 @@ const ecommerceCollections: CollectionPreset[] = [
         required: false,
         translated: false,
         helper: "Product images/gallery",
-        default: undefined,
       },
       {
         db_fieldName: "categories",
@@ -903,7 +900,6 @@ const ecommerceCollections: CollectionPreset[] = [
         required: false,
         translated: false,
         helper: "Product categories (multi-select)",
-        default: undefined,
         options: ["multiple"],
       },
       {
@@ -1033,7 +1029,7 @@ const ecommerceCollections: CollectionPreset[] = [
       {
         db_fieldName: "approved",
         label: "Approved",
-        type: "input",
+        type: "boolean",
         widget: "checkbox",
         required: false,
         translated: false,
@@ -1096,6 +1092,16 @@ const ecommerceCollections: CollectionPreset[] = [
         helper: "Maximum number of times this coupon can be used",
       },
       {
+        db_fieldName: "usedCount",
+        label: "Used Count",
+        type: "number",
+        widget: "number",
+        required: false,
+        translated: false,
+        helper: "Auto-incremented on order placement (server-managed)",
+        default: 0,
+      },
+      {
         db_fieldName: "expiresAt",
         label: "Expires At",
         type: "input",
@@ -1107,7 +1113,7 @@ const ecommerceCollections: CollectionPreset[] = [
       {
         db_fieldName: "freeShipping",
         label: "Free Shipping",
-        type: "input",
+        type: "boolean",
         widget: "checkbox",
         required: false,
         translated: false,
@@ -1161,7 +1167,7 @@ const ecommerceCollections: CollectionPreset[] = [
       {
         db_fieldName: "shippingTaxable",
         label: "Shipping Taxable",
-        type: "input",
+        type: "boolean",
         widget: "checkbox",
         required: false,
         translated: false,
@@ -1379,6 +1385,24 @@ const ecommerceCollections: CollectionPreset[] = [
         helper: "Order grand total",
       },
       {
+        db_fieldName: "totalCents",
+        label: "Total (cents)",
+        type: "number",
+        widget: "number",
+        required: false,
+        translated: false,
+        helper: "Server-computed grand total in minor units (e.g., 1999 = €19.99)",
+      },
+      {
+        db_fieldName: "currency",
+        label: "Currency",
+        type: "input",
+        widget: "text",
+        required: false,
+        translated: false,
+        helper: "ISO 4217 currency code (server-set, e.g., EUR)",
+      },
+      {
         db_fieldName: "status",
         label: "Status",
         type: "select",
@@ -1399,6 +1423,16 @@ const ecommerceCollections: CollectionPreset[] = [
         helper: "Payment method used (e.g., Stripe, PayPal)",
       },
       {
+        db_fieldName: "inventoryCommitted",
+        label: "Inventory Committed",
+        type: "boolean",
+        widget: "checkbox",
+        required: false,
+        translated: false,
+        helper: "Server flag: stock has been reserved for this order",
+        default: false,
+      },
+      {
         db_fieldName: "couponCode",
         label: "Coupon Code",
         type: "input",
@@ -1406,6 +1440,15 @@ const ecommerceCollections: CollectionPreset[] = [
         required: false,
         translated: false,
         helper: "Coupon code applied to this order",
+      },
+      {
+        db_fieldName: "cartId",
+        label: "Cart Reference",
+        type: "input",
+        widget: "text",
+        required: false,
+        translated: false,
+        helper: "Source cart reference (server-set)",
       },
       {
         db_fieldName: "shippingAddress",

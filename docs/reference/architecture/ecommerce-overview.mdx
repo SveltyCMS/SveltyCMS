@@ -200,16 +200,16 @@ Lookups (tax rates, zones, coupons) happen **before** `computeTotals`. The engin
 
 Enable **E-commerce** in the [Setup Wizard](../../guides/configuration/setup-wizard.mdx). Collections (verified `db_fieldName` values in `src/routes/setup/presets.ts`):
 
-| Collection           | Role                                                                                          |
-| -------------------- | --------------------------------------------------------------------------------------------- |
-| `products`           | Catalog: price, SKU, inventory, **variants** (own SKU / price / inventory), categories, media |
-| `product_categories` | Nested categories                                                                             |
-| `product_reviews`    | Rating + visibility                                                                           |
-| `coupons`            | `percentage`, `fixed_cart`, `fixed_product`, `free_shipping`                                  |
-| `tax_rates`          | `country`, **`state`**, `rate`, `label`, **`shippingTaxable`**                                |
-| `shipping_zones`     | **`name`**, `countries`, `method`, `rate`, **`freeThreshold`**                                |
-| `carts`              | `sessionId`, customer, items, subtotal, coupon, `expiresAt`                                   |
-| `orders`             | Line items, totals, addresses, **status** (see below)                                         |
+| Collection           | Role                                                                                                                                    |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `products`           | Catalog: price, SKU, inventory, **variants** (own SKU / price / inventory), categories, media, `downloadable` flag                      |
+| `product_categories` | Nested categories                                                                                                                       |
+| `product_reviews`    | Rating + visibility (`approved` boolean)                                                                                                |
+| `coupons`            | `percentage`, `fixed_cart`, `fixed_product`, `free_shipping`; server-managed `usedCount`                                                |
+| `tax_rates`          | `country`, **`state`**, `rate`, `label`, **`shippingTaxable`**                                                                          |
+| `shipping_zones`     | **`name`**, `countries`, `method`, `rate`, **`freeThreshold`**                                                                          |
+| `carts`              | `sessionId`, customer, items, subtotal, coupon, `expiresAt`                                                                             |
+| `orders`             | Line items, totals (`total`/`totalCents`/`currency`), addresses, **status** (see below), server-managed `inventoryCommitted` + `cartId` |
 
 Headless storefronts already read catalog via `/api/collections/products` (auth + publication policy apply). Checkout **services** are not on that path yet.
 
