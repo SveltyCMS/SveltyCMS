@@ -233,7 +233,7 @@ export const PRESET_COLLECTIONS: Record<string, Schema[]> = {
         {
           db_fieldName: "excerpt",
           label: "Excerpt",
-          widget: { Name: "Textarea" },
+          widget: { Name: "Input" },
           type: "string",
         },
         {
@@ -265,7 +265,7 @@ export const PRESET_COLLECTIONS: Record<string, Schema[]> = {
         {
           db_fieldName: "seo",
           label: "SEO",
-          widget: { Name: "Seo" },
+          widget: { Name: "SEO" },
           type: "object",
         },
       ],
@@ -291,7 +291,7 @@ export const PRESET_COLLECTIONS: Record<string, Schema[]> = {
         {
           db_fieldName: "description",
           label: "Description",
-          widget: { Name: "Textarea" },
+          widget: { Name: "Input" },
           type: "string",
         },
       ],
@@ -317,7 +317,7 @@ export const PRESET_COLLECTIONS: Record<string, Schema[]> = {
         {
           db_fieldName: "avatar",
           label: "Avatar",
-          widget: { Name: "Media" },
+          widget: { Name: "MediaUpload" },
           type: "string",
         },
       ],
@@ -580,7 +580,7 @@ PRESET_COLLECTIONS.demo = [
       {
         db_fieldName: "data",
         label: "Data",
-        widget: { Name: "JSON" },
+        widget: { Name: "JsonEditor" },
         type: "string",
       },
     ],
