@@ -36,9 +36,16 @@ export const seoResolvers = {
 
       try {
         if (!dbAdapter) return null;
+
+        // Guardian: bound the untrusted URL input before any regex test so a
+        // catastrophic (ReDoS-prone) admin pattern cannot backtrack against an
+        // arbitrarily large string. Real request paths are far below this cap.
+        const input = args.from ?? "";
+        if (input.length > 4096) return null;
+
         // 1. Check exact match
         const result = await dbAdapter.crud.findOne("redirects", {
-          from: args.from,
+          from: input,
           tenantId: activeTenantId,
           active: true,
         } as any);
@@ -57,8 +64,9 @@ export const seoResolvers = {
         if (allRedirects.success && Array.isArray(allRedirects.data)) {
           for (const r of allRedirects.data as any[]) {
             try {
-              const regex = new RegExp(r.from);
-              if (regex.test(args.from)) {
+              const regex = getCompiledRegex(activeTenantId, r.from, r._id ?? r.id);
+              if (regex === null) continue;
+              if (regex.test(input)) {
                 return r;
               }
             } catch {
@@ -75,3 +83,33 @@ export const seoResolvers = {
     },
   },
 };
+
+/**
+ * Compile regex redirect patterns once and cache them per (tenantId, source).
+ * Recompiling `new RegExp(from)` per request, for every regex rule, is pure waste
+ * on a hot path and re-runs the same (potentially catastrophic) compilation.
+ * Invalid patterns are cached as `null` so they are not retried each request.
+ */
+const redirectRegexCache = new Map<string, RegExp | null>();
+
+function getCompiledRegex(tenantId: string, from: string, id: string): RegExp | null {
+  // `from` may be an empty/missing source; a wildcard pattern like "" or ".*"
+  // would match everything — treat as invalid to avoid unbounded matches.
+  if (typeof from !== "string" || from.length === 0) return null;
+  const key = `${tenantId}\u0000${from}\u0000${id ?? ""}`;
+  let regex = redirectRegexCache.get(key);
+  if (regex === undefined) {
+    try {
+      regex = new RegExp(from);
+    } catch {
+      regex = null;
+    }
+    if (redirectRegexCache.size >= 200) {
+      // Simple bounded cache eviction: drop the oldest entry.
+      const oldestKey = redirectRegexCache.keys().next().value;
+      if (oldestKey !== undefined) redirectRegexCache.delete(oldestKey);
+    }
+    redirectRegexCache.set(key, regex);
+  }
+  return regex;
+}

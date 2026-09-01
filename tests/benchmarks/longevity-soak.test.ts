@@ -19,7 +19,6 @@ import {
   exportMetric,
 } from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
-import v8 from "v8"; // Add v8 for heap snapshots
 
 const IS_CI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 const SOAK_HOURS = parseFloat(process.env.LONG_SOAK_HOURS || "0.083"); // default 5 min
