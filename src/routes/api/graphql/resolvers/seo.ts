@@ -7,6 +7,7 @@ import { dbAdapter } from "@src/databases/db";
 import { logger } from "@utils/logger";
 import type { User } from "@src/databases/auth/types";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";
+import { isSafeRedirectRegex } from "@src/routes/(app)/config/redirects/redirects-utils";
 
 interface GraphQLContext {
   tenantId?: string | null;
@@ -37,9 +38,11 @@ export const seoResolvers = {
       try {
         if (!dbAdapter) return null;
 
-        // Guardian: bound the untrusted URL input before any regex test so a
-        // catastrophic (ReDoS-prone) admin pattern cannot backtrack against an
-        // arbitrarily large string. Real request paths are far below this cap.
+        // Defense-in-depth: bound untrusted URL input before any regex test so a
+        // badly-shaped pattern cannot backtrack over an arbitrarily large string.
+        // Note: this bounds POLYNOMIAL blowup only — exponential (ReDoS) patterns
+        // are rejected at save time in validateRedirectFrom (isSafeRedirectRegex),
+        // which is the actual protection for this resolver.
         const input = args.from ?? "";
         if (input.length > 4096) return null;
 
@@ -93,16 +96,25 @@ export const seoResolvers = {
 const redirectRegexCache = new Map<string, RegExp | null>();
 
 function getCompiledRegex(tenantId: string, from: string, id: string): RegExp | null {
-  // `from` may be an empty/missing source; a wildcard pattern like "" or ".*"
-  // would match everything — treat as invalid to avoid unbounded matches.
+  // Empty `from` is rejected because `new RegExp("")` is a valid pattern that
+  // matches EVERY string — an accidental catch-all. An explicit `.*` catch-all
+  // is allowed by design (admin-defined wildcard redirect).
   if (typeof from !== "string" || from.length === 0) return null;
   const key = `${tenantId}\u0000${from}\u0000${id ?? ""}`;
   let regex = redirectRegexCache.get(key);
   if (regex === undefined) {
-    try {
-      regex = new RegExp(from);
-    } catch {
+    if (!isSafeRedirectRegex(from)) {
+      // Defense-in-depth for legacy rules saved before the save-time guard:
+      // skip (and cache-null) catastrophic patterns so a pre-existing ReDoS
+      // pattern in the DB cannot hang the resolver on crafted input.
+      logger.warn(`[Redirect] Skipping unsafe regex pattern (legacy): ${from}`);
       regex = null;
+    } else {
+      try {
+        regex = new RegExp(from);
+      } catch {
+        regex = null;
+      }
     }
     if (redirectRegexCache.size >= 200) {
       // Simple bounded cache eviction: drop the oldest entry.

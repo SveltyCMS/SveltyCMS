@@ -22,6 +22,87 @@ export interface RedirectDraft {
 const ABSOLUTE_URL = /^https?:\/\/.+/i;
 
 /**
+ * Conservative ReDoS guard for regex redirect sources (checked at SAVE time —
+ * the resolver runs on every request with visitor-controlled input and cannot
+ * be made safe against arbitrary admin patterns, so catastrophic patterns must
+ * never enter the database).
+ *
+ * Rejects classic exponential-backtracking families:
+ * - nested quantifiers: `(a+)+`, `([a-z]+)*`, `(a{2,5})+`
+ * - quantified ambiguous alternations: `(a|a)+`, `(a|aa)*`
+ *
+ * Allows non-catastrophic structures: single quantifiers (`^/blog/[0-9]+`),
+ * optional groups (`(a|b)?`, `(a+)?`), plain alternation without quantifier
+ * (`(ab|cd)`). May over-reject a few mathematically-safe patterns (e.g.
+ * disjoint `(a|b)+`) — acceptable for an admin-facing validator.
+ */
+export function isSafeRedirectRegex(pattern: string): boolean {
+  if (!pattern || pattern.length > 512) return false; // empty matches everything; sanity cap on rule size
+  try {
+    new RegExp(pattern); // must compile
+  } catch {
+    return false;
+  }
+  // Mask escapes and character classes so only structural tokens remain.
+  const masked = pattern.replace(/\\./g, "x").replace(/\[[^\]]*\]/g, "x");
+  return !hasDangerousNestedQuantifier(masked);
+}
+
+/**
+ * Stack scan for ReDoS structure: a quantified group (`*`, `+` or `{n,m}`)
+ * that itself contains another quantifier or an alternation — the classic
+ * exponential-backtracking families (`(a+)+`, `(a|a)*`, `((a)+)+`, `(a{2,5})+`).
+ * A group ending in `?` (optional, once) is safe and not flagged. Conservatively
+ * over-rejects a few mathematically-safe patterns (e.g. disjoint `(a|b)+`).
+ */
+function hasDangerousNestedQuantifier(masked: string): boolean {
+  // Stack: does the currently-open group contain a quantifier or alternation?
+  const groupHasRisk: boolean[] = [];
+  let i = 0;
+  while (i < masked.length) {
+    const c = masked[i];
+    if (c === "\\") {
+      i += 2;
+      continue;
+    }
+    if (c === "[") {
+      while (i < masked.length && masked[i] !== "]") i++;
+      i++;
+      continue;
+    }
+    if (c === "(") {
+      groupHasRisk.push(false);
+      i++;
+      continue;
+    }
+    if (c === ")") {
+      const innerHasRisk = groupHasRisk.pop() ?? false;
+      // Group closed: if it contains risk and is itself quantified by *, + or {,
+      // that is a nested quantifier (ReDoS).
+      if (innerHasRisk) {
+        let j = i + 1;
+        while (j < masked.length && /\s/.test(masked[j])) j++;
+        const q = masked[j];
+        if (q === "*" || q === "+" || q === "{") return true;
+      }
+      // A group containing risk marks its parent group as risky too.
+      if (groupHasRisk.length > 0) {
+        groupHasRisk[groupHasRisk.length - 1] =
+          groupHasRisk[groupHasRisk.length - 1] || innerHasRisk;
+      }
+      i++;
+      continue;
+    }
+    // Quantifiers and alternation inside a group mark it risky.
+    if (c === "*" || c === "+" || c === "{" || c === "}" || c === "|" || c === "?") {
+      if (groupHasRisk.length > 0) groupHasRisk[groupHasRisk.length - 1] = true;
+    }
+    i++;
+  }
+  return false;
+}
+
+/**
  * Normalize a path: trim, ensure leading slash for relative paths (unless regex).
  */
 export function normalizeRedirectPath(path: string, isRegex = false): string {
@@ -44,6 +125,9 @@ export function validateRedirectFrom(from: string, isRegex = false): string | nu
   }
   if (value.includes(" ") && !isRegex) {
     return "From path must not contain spaces";
+  }
+  if (isRegex && !isSafeRedirectRegex(value)) {
+    return "Regex pattern is unsafe (nested quantifiers / ambiguous alternations can cause ReDoS)";
   }
   return null;
 }
