@@ -62,9 +62,9 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario      | Latency | Trend                            | Budget | Result |
-| ------------- | ------- | -------------------------------- | ------ | ------ |
-| **Stability** | 4.140ms | ⚪ established at 4.14ms (1 run) | < 5ms  | 🟢     |
+| Scenario              | Latency    | Trend                               | Budget | Result |
+| --------------------- | ---------- | ----------------------------------- | ------ | ------ |
+| **Cold Start Phased** | 1720.176ms | ⚪ established at 1720.18ms (1 run) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -74,8 +74,8 @@ tags:
 | --------------------------------------------------------- | ----- | -------------- | ---------- |
 | api latency (HTTP: findById @ 8c (Cold)) (warm)           | 🟢    | `▁▅█▄`         | 8.690ms    |
 | auth performance (Auth Validation @ 1c) (warm)            | 🟢    | `▁▁▅█`         | 1.220ms    |
-| cold start phased (Cold Start (IDLE → HTTP READY)) (cold) | 🟢    | `▁`            | 2070.865ms |
-| database performance (FIND MANY (limit 50)) (warm)        | 🟢    | `█▂▁▁▁▁▂▇▂▆█▆` | 0.292ms    |
+| cold start phased (Cold Start (IDLE → HTTP READY)) (cold) | 🟢    | `██▁▄`         | 1720.176ms |
+| database performance (FIND MANY (limit 50)) (warm)        | 🟢    | `▁▁▁▁▂▇▂▆█▆▁▁` | 0.088ms    |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
@@ -101,23 +101,23 @@ xychart-beta
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-08-31)
+### Current Run Summary (2026-09-01)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `a8f737c5-0ee8-429a-b63d-f8ec7890e519` · **Tests invoked:** 1 · **Metrics:** 1 · **DB:** sqlite
+**Run ID:** `31237dd7-6f97-46c0-a700-653a92c3f86d` · **Tests invoked:** 1 · **Metrics:** 1 · **DB:** sqlite
 
-| Test           | Metric               | Avg (ms) | p95 (ms) | RPS | Trend | Detail                           |
-| -------------- | -------------------- | -------- | -------- | --- | ----- | -------------------------------- |
-| Longevity Soak | 0.15h Longevity Soak | 4.140    | 7.870    | 81  | 🟢    | ⚪ established at 4.14ms (1 run) |
+| Test              | Metric                         | Avg (ms) | p95 (ms) | RPS | Trend | Detail                                      |
+| ----------------- | ------------------------------ | -------- | -------- | --- | ----- | ------------------------------------------- |
+| Cold Start Phased | Cold Start (IDLE → HTTP READY) | 1720.176 | 3517.547 | 0   | 🟢    | ⚪ stable at 2026.50ms (±688.76ms) (3 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-08-31)
+### Historical Trends (2026-09-01)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
@@ -132,24 +132,24 @@ xychart-beta
 | API LATENCY (warm)                  | 🟢    | `▁▆▃█▄▆▃`          | 4.735ms    |
 | AUTH PERFORMANCE (warm)             | 🟢    | `▁▁▂▂▂█▂`          | 1.381ms    |
 | CACHE HIT RATIO (warm)              | 🟢    | `█▁▅▃▇▁▅`          | 2.233ms    |
-| CACHE PERFORMANCE (warm)            | 🟢    | `▁▁▆█▆█`           | 1.228ms    |
+| CACHE PERFORMANCE (warm)            | 🟢    | `█▇█▁▁▁▁`          | 0.323ms    |
 | CACHE SERVICE (warm)                | 🟢    | `▃▁█▅▁▇▄`          | 4.510ms    |
 | CLIENT JOURNEY (warm)               | 🟢    | `█▁`               | 9.324ms    |
-| COLD START PHASED (cold)            | 🟢    | `▁`                | 2070.865ms |
+| COLD START PHASED (cold)            | 🟢    | `██▁▄`             | 1720.176ms |
 | COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▅▁▅▁█▁`          | 0.656ms    |
 | CONCURRENCY MAX (warm)              | 🟢    | `▁█▇`              | 835.712ms  |
 | CONFIG PROMOTION (warm)             | 🟢    | `▁▄▅▄█▃▂`          | 4.627ms    |
 | CONTENT SCALE STRESS (warm)         | 🟢    | `▇▁█▂▆▂`           | 0.706ms    |
 | CONTENT SCAN (warm)                 | 🟢    | `▃▁▇█▂▂`           | 4.486ms    |
 | DATA RESIDENCY FAILOVER (warm)      | 🟢    | `▁▂▅█▄▅`           | 2.825ms    |
-| DATABASE PERFORMANCE (warm)         | 🟢    | `▂▂▂▁█▁▁`          | 0.156ms    |
+| DATABASE PERFORMANCE (warm)         | 🟢    | `▂▂▂▁█▁▁`          | 0.037ms    |
 | ENTRY EDIT HYDRATION (warm)         | 🟢    | `▂▁▅█▂▁█`          | 0.058ms    |
 | FAILURE PROPAGATION (warm)          | 🟢    | `▁▆█▅▇█▅`          | 2.855ms    |
 | GRAPHQL API PERFORMANCE (warm)      | 🟢    | `▁▆▅█▁▁▅`          | 1.764ms    |
 | GRAPHQL CACHE HIT (warm)            | 🟢    | `▃█▃▇▁▃▁`          | 0.642ms    |
 | GRAPHQL LOCAL SDK (warm)            | 🟢    | `█▁█▁`             | 0.000ms    |
 | GRAPHQL STRESS (warm)               | 🟢    | `▁▂▁█▄▄▇`          | 23.828ms   |
-| HOOKS PERFORMANCE (warm)            | 🟢    | `▇▂▂█▂▆▁`          | 0.981ms    |
+| HOOKS PERFORMANCE (warm)            | 🟢    | `▆▁▅█▂▇▁`          | 0.290ms    |
 | INDEX PRESSURE (warm)               | 🟢    | `▄█▁▅`             | 1.770ms    |
 | LARGE PAYLOAD STREAMING (warm)      | 🟢    | `█▅▆▃▁▇▄`          | 16.614ms   |
 | LOCAL API PERFORMANCE (warm)        | 🟢    | `▁▁▁▁█▁▁`          | 0.008ms    |
@@ -168,7 +168,6 @@ xychart-beta
 | PRODUCTION DAY (warm)               | 🟢    | `▁▇█`              | 6.238ms    |
 | REALTIME PERFORMANCE (warm)         | 🟢    | `▁▁█▁▁█▁`          | 0.000ms    |
 | RELATIONAL PERFORMANCE (warm)       | 🟢    | `█▃▁▂▃▁▂`          | 2.207ms    |
-| REST API PERFORMANCE (warm)         | 🟢    | `█▇▇▅▂▁▁`          | 0.671ms    |
 | REVISION STRESS (warm)              | 🟢    | `▄█▃▇▃▁▂`          | 0.740ms    |
 | RIGHT TO BE FORGOTTEN AUDIT (warm)  | 🟢    | `▁▁▁█▆`            | 2.485ms    |
 | SECURITY AUDIT (warm)               | 🟢    | `▁█▁▁▁▁▁`          | 0.002ms    |
@@ -176,12 +175,13 @@ xychart-beta
 | STATE MACHINE TRANSITION (warm)     | 🟢    | `█▇▇▁▁▂▄`          | 30.898ms   |
 | TELEMETRY PERFORMANCE (warm)        | 🟢    | `█▁▃▁`             | 0.001ms    |
 | TEMPORAL INTEGRITY (warm)           | 🟢    | `▄▁▁▆▄▄█`          | 2.797ms    |
-| TRANSACTION ACID (warm)             | 🟢    | `▁█▁▆`             | 0.337ms    |
-| TRUTH LATENCY (warm)                | 🟢    | `▅▁▁█▇▁▁`          | 0.011ms    |
+| TRANSACTION ACID (warm)             | 🟢    | `█▁▆▁▃▁▃`          | 0.114ms    |
+| TRUTH LATENCY (warm)                | 🟢    | `▇▁▁█▇▁▁`          | 0.000ms    |
 | WEBSOCKET BROADCAST (warm)          | 🟢    | `▁▁▁█▆`            | 0.497ms    |
 | WIDGET PERFORMANCE (warm)           | 🟢    | `▃▇▁█▇▁█`          | 0.123ms    |
 | CONTENT INCREMENTAL RELOAD (warm)   | ⚪    | `▁▁█▄▂▁█`          | 8.829ms    |
 | MIDDLEWARE FLAMEGRAPH (warm)        | ⚪    | `▃▂▁▃▂▂█`          | 3.376ms    |
+| REST API PERFORMANCE (warm)         | ⚪    | `▇▅██▇▄▁`          | 0.641ms    |
 | THROTTLING BACKOFF STRESS (warm)    | ⚪    | `▃▁▃▂█▂▇`          | 31.860ms   |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
@@ -223,19 +223,26 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:COLD_START:START -->
 <details id="section-cold_start">
-<summary><strong>🏷️ cold start phased</strong> · 🟢 2070.865ms · ➡️ ⚪ established at 2070.87ms (1 run) (2026-08-28 09:36:16) · <a href="../../../tests/benchmarks/cold-start-phased.test.ts">source</a></summary>
+<summary><strong>🏷️ cold start phased</strong> · 🟢 1720.176ms · ↘️ ⚪ stable at 2026.50ms (±688.76ms) (3 runs) (2026-09-01 14:12:42) · <a href="../../../tests/benchmarks/cold-start-phased.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 ```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                           SVELTYCMS — PHASED COLD START AUDIT                           ║
-║                    File: tests/benchmarks/cold-start-phased.test.ts                     ║
-║                                Ran: 2026-08-28 09:36:16                                 ║
-║     Measures process spawn, dependency hydration, and first-request TTFB readiness.     ║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Initial Cold Boot (Fresh Process) │     3043.197 ms │ p95:     3043.197 ms │ RPS:          0 ║
-║ Steady-State Respawn (Average) │     2070.865 ms │ p95:     3043.197 ms │ RPS:          0 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                  SVELTYCMS — PHASED COLD START AUDIT                                  ║
+║                           File: tests/benchmarks/cold-start-phased.test.ts                            ║
+║                                       Ran: 2026-09-01 14:12:42                                        ║
+║            Measures process spawn, dependency hydration, and first-request TTFB readiness.            ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Initial Cold Boot (Fresh Process) │     3517.547 ms │ p95:     3517.547 ms │ RPS:          0 ║
+║ Steady-State Respawn (Average) │     1720.176 ms │ p95:     3517.547 ms │ RPS:          0 ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>

@@ -76,13 +76,16 @@ async function ensurePluginEnabled(
   if (!pluginRegistry.isInitialized()) {
     const { initializePlugins } = await import("@src/plugins/index");
     await initializePlugins(db, tenantId);
-  } else if (!pluginRegistry.get("unified-data-hub")) {
+  }
+  // Boot only activates default-enabled plugins; a cold path may leave the
+  // plugin unregistered. Register it so togglePlugin can lazily activate
+  // (resolve parts + migrations) instead of silently no-oping.
+  if (!pluginRegistry.get("unified-data-hub")) {
     const { unifiedDataHubPlugin } = await import("../index");
     await pluginRegistry.register(unifiedDataHubPlugin);
-    await pluginRegistry.runMigrations("unified-data-hub", db, tenantId);
   }
 
-  await pluginRegistry.togglePlugin("unified-data-hub", true, tenantId, userId);
+  await pluginRegistry.togglePlugin("unified-data-hub", true, tenantId, userId, db);
 }
 
 async function seedPostgresHub(
