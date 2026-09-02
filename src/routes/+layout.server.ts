@@ -18,6 +18,8 @@
 import { logger } from "@utils/logger";
 import type { NavigationNode } from "@src/content";
 import { contentSystem, contentStore } from "@src/content/index.server";
+import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 import {
   recordCollectionAccess,
   recordEntryAccess,
@@ -111,11 +113,32 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     // This is critical for the first load after setup.
     await contentSystem.initialize(locals.tenantId);
 
-    navigationStructure = await contentSystem.getNavigationStructureProgressive({
-      maxDepth: 1,
-      tenantId: locals.tenantId,
-    });
     contentVersion = contentSystem.getContentVersion();
+    const tid = locals.tenantId ? String(locals.tenantId) : "global";
+    // 🚀 Version-keyed cache for the progressive nav tree: contentStore is
+    // epoch-consistent (every content mutation bumps contentVersion), so the
+    // tree only changes when the version changes. Mirror the existing
+    // `navigation:tree:*` caching used by getNavigationStructure instead of
+    // rebuilding the tree on every SSR request.
+    const navCacheKey = `navigation:tree:progressive:${tid}:${contentVersion}`;
+    const cachedNav = await cacheService
+      .get<NavigationNode[]>(navCacheKey, locals.tenantId)
+      .catch(() => null);
+    if (cachedNav) {
+      navigationStructure = cachedNav;
+    } else {
+      navigationStructure = contentSystem.getNavigationStructureProgressive({
+        maxDepth: 1,
+        tenantId: locals.tenantId,
+      });
+      void cacheService
+        .set(navCacheKey, navigationStructure, 300, locals.tenantId, CacheCategory.CONTENT, [
+          "navigation",
+          "navigation:tree",
+          `navigation:tree:${tid}`,
+        ])
+        .catch(() => {});
+    }
 
     // Get the redirect URL for the first collection
     firstCollectionRedirectUrl =

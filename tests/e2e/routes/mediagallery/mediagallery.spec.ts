@@ -8,17 +8,20 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test, expect } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 
 async function openMediaGallery(page: import("@playwright/test").Page) {
   await loginAsAdmin(page);
+  await dismissCookieBanner(page);
   await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });
   if (page.url().includes("/login")) {
     await loginAsAdmin(page, "/mediagallery");
+    await dismissCookieBanner(page);
   }
+  await dismissCookieBanner(page);
   await expect(page).toHaveURL(/\/mediagallery/, { timeout: 15_000 });
   await expect(page).not.toHaveURL(/\/login/);
 

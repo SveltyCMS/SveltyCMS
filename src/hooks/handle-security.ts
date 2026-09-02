@@ -24,6 +24,7 @@ import { getClientIp, IS_TEST_MODE } from "@utils/hook-utils";
 import { isAiOrScannerBot, isHoneypotPath } from "@src/services/security/threat-scan";
 import { wafGuard } from "./handle-waf-guard";
 import { PROFILE_WRITE_ENABLED } from "@utils/write-profiler";
+import { isValidSubmissionId, markSubmissionSeen } from "@utils/security/submission-guard";
 
 // ESM-safe dynamic import for graphql
 let graphqlModuleCache: any = null;
@@ -102,12 +103,17 @@ function quickComplexityCheck(query: string): number | null {
   return null;
 }
 
-async function calculateGraphqlComplexity(query: string): Promise<number> {
+interface GraphqlComplexityResult {
+  complexity: number;
+  ast?: unknown;
+}
+
+async function calculateGraphqlComplexity(query: string): Promise<GraphqlComplexityResult> {
   const quickScore = quickComplexityCheck(query);
-  if (quickScore !== null) return quickScore;
+  if (quickScore !== null) return { complexity: quickScore };
 
   const gql = await getGraphQL();
-  if (!gql) return MAX_COMPLEXITY + 1;
+  if (!gql) return { complexity: MAX_COMPLEXITY + 1 };
 
   try {
     const { parse, visit, Kind } = gql;
@@ -136,9 +142,9 @@ async function calculateGraphqlComplexity(query: string): Promise<number> {
         },
       },
     });
-    return complexity;
+    return { complexity, ast };
   } catch {
-    return MAX_COMPLEXITY + 1;
+    return { complexity: MAX_COMPLEXITY + 1 };
   }
 }
 
@@ -219,6 +225,69 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     | undefined;
 
   try {
+    // 🛡️ Double-Submit & Form Replay Guard (Phase 1: Opt-in via _id field or parameter)
+    if (request.method === "POST" && !url.pathname.startsWith("/api/")) {
+      const contentType = request.headers.get("content-type") || "";
+      const isFormSubmit =
+        contentType.includes("application/x-www-form-urlencoded") ||
+        contentType.includes("multipart/form-data");
+
+      if (isFormSubmit) {
+        let submissionId: string | null = url.searchParams.get("_id");
+
+        if (!submissionId && contentType.includes("application/x-www-form-urlencoded")) {
+          const bodyText = await request
+            .clone()
+            .text()
+            .catch(() => "");
+          if (bodyText.includes("_id=")) {
+            try {
+              const params = new URLSearchParams(bodyText);
+              submissionId = params.get("_id");
+            } catch {}
+          }
+        } else if (!submissionId && contentType.includes("multipart/form-data")) {
+          try {
+            const formData = await request
+              .clone()
+              .formData()
+              .catch(() => null);
+            if (formData && formData.has("_id")) {
+              const raw = formData.get("_id");
+              if (typeof raw === "string") submissionId = raw;
+            }
+          } catch {}
+        }
+
+        if (submissionId) {
+          if (!isValidSubmissionId(submissionId)) {
+            metricsService.incrementSecurityViolations(tenantId);
+            logger.warn(
+              `[SubmissionGuard] Invalid submission ID format: ${submissionId} from ${clientIp}`,
+            );
+            return new Response("Invalid form submission token format", {
+              status: 400,
+              headers: { "Content-Type": "text/plain; charset=utf-8" },
+            });
+          }
+
+          if (!markSubmissionSeen(submissionId)) {
+            metricsService.incrementSecurityViolations(tenantId);
+            logger.warn(
+              `[SubmissionGuard] Replay attempt blocked: ${submissionId} from ${clientIp}`,
+            );
+            return new Response("Duplicate form submission rejected", {
+              status: 429,
+              headers: {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Retry-After": "60",
+              },
+            });
+          }
+        }
+      }
+    }
+
     if (url.pathname.startsWith("/api/graphql") && request.method === "POST") {
       const bodyText = await request
         .clone()
@@ -251,15 +320,18 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
       if (typeof body.query === "string") {
         const t0 = PROFILE_WRITE_ENABLED ? performance.now() : 0;
-        const complexity = await calculateGraphqlComplexity(body.query);
+        const result = await calculateGraphqlComplexity(body.query);
+        if (result.ast) {
+          (event.locals as any).__graphqlAst = result.ast;
+        }
         if (PROFILE_WRITE_ENABLED) {
           process.stderr.write(
             `[WRITE-PROFILE] sec:gql-complexity: ${(performance.now() - t0).toFixed(3)}ms\n`,
           );
         }
-        if (complexity > MAX_COMPLEXITY) {
+        if (result.complexity > MAX_COMPLEXITY) {
           metricsService.incrementSecurityViolations(tenantId);
-          logger.warn(`GraphQL Complexity Limit Exceeded: ${complexity}`, {
+          logger.warn(`GraphQL Complexity Limit Exceeded: ${result.complexity}`, {
             ip: clientIp,
           });
           return handleApiError(new AppError("GraphQL Query too complex", 400), event);

@@ -51,6 +51,7 @@ import { RateLimiter } from "@src/hooks/handle-rate-limit";
 import { verifyPending2faToken } from "@src/utils/server/pending-2fa-token.server";
 import { getClientIp } from "@utils/hook-utils";
 import { buildDeviceFingerprint, getTrustedDeviceCookieConfig } from "@src/databases/auth/totp";
+import { recordListQuery } from "@utils/list-query-metrics";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -232,6 +233,40 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
   const { url } = event;
   const raw = url.searchParams.get("raw") === "true";
 
+  const filter: Record<string, any> = {};
+  const role = url.searchParams.get("role");
+  if (role) filter.role = role;
+
+  const blocked = url.searchParams.get("blocked");
+  if (blocked !== null && blocked !== "") {
+    filter.blocked = blocked === "true" || blocked === "1";
+  }
+
+  const rawFilter = url.searchParams.get("filter");
+  if (rawFilter) {
+    try {
+      const parsed = JSON.parse(rawFilter);
+      if (parsed && typeof parsed === "object") {
+        const ALLOWED_USER_FILTER_KEYS = new Set([
+          "role",
+          "blocked",
+          "email",
+          "username",
+          "createdAt",
+          "updatedAt",
+        ]);
+        for (const [k, v] of Object.entries(parsed)) {
+          if (ALLOWED_USER_FILTER_KEYS.has(k)) {
+            filter[k] = v;
+          }
+        }
+      }
+    } catch {
+      /* ignore invalid JSON */
+    }
+  }
+
+  const t0 = performance.now();
   const result = await cms.auth.listUsers({
     tenantId,
     page: Number(url.searchParams.get("page")) || 1,
@@ -239,7 +274,10 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
     search: url.searchParams.get("search") || "",
     sort: url.searchParams.get("sort") || "createdAt",
     order: (url.searchParams.get("order") as "asc" | "desc") || "desc",
+    filter,
   });
+
+  const durationMs = performance.now() - t0;
 
   if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
   const inner = result.data as { data?: unknown; pagination?: unknown } | unknown[] | undefined;
@@ -249,6 +287,14 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
       ? (inner as { data: unknown[] }).data
       : [];
   const safe = items.map((u) => sanitizeUserForResponse(u));
+
+  recordListQuery({
+    source: "UserManagement.list",
+    durationMs,
+    cache: "miss",
+    rowCount: items.length,
+  });
+
   if (raw) return rawResponse(event, safe);
   const pagination = inner && !Array.isArray(inner) ? inner.pagination : undefined;
   return rawResponse(event, { success: true, data: safe, pagination });

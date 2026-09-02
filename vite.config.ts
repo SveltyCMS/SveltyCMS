@@ -1148,8 +1148,8 @@ export default defineConfig(() => {
       rollupOptions: {
         external: SERVER_EXTERNALS,
         treeshake: {
-          moduleSideEffects: "no-external",
-          propertyReadSideEffects: false,
+          moduleSideEffects: "no-external" as const,
+          propertyReadSideEffects: false as const,
         },
         output: {
           // Force the plugin catalog (registration loop) into a shared shell chunk

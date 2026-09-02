@@ -23,6 +23,19 @@ export interface CookieDeleter {
 }
 
 /**
+ * Per-request WeakMap cache: memoizes resolved session cookies on the Request's
+ * cookies instance to eliminate 4-6 repeated lookups across the middleware chain.
+ */
+const _cookieCache = new WeakMap<
+  object,
+  {
+    secure?: string | null;
+    insecure?: string | null;
+    any?: string | null;
+  }
+>();
+
+/**
  * Reads the session cookie according to environment security requirements.
  *
  * - Secure connections: ONLY accept __Host- prefixed cookie (prevents subdomain cookie tossing)
@@ -34,25 +47,45 @@ export function readSessionCookie(
   isSecure?: boolean,
 ): string | undefined {
   if (!cookies || typeof cookies.get !== "function") return undefined;
+
+  const isObj = typeof cookies === "object" && cookies !== null;
+  const modeKey = isSecure === true ? "secure" : isSecure === false ? "insecure" : "any";
+
+  if (isObj) {
+    const entry = _cookieCache.get(cookies as object);
+    if (entry && entry[modeKey] !== undefined) {
+      return entry[modeKey] ?? undefined;
+    }
+  }
+
+  let result: string | undefined;
   if (isSecure === true) {
-    return (
+    result =
       cookies.get(HOST_SESSION_COOKIE_NAME) ||
       cookies.get(SESSION_COOKIE_NAME) ||
-      cookies.get(SECURE_SESSION_COOKIE_NAME)
-    );
-  }
-  if (isSecure === false) {
-    return (
+      cookies.get(SECURE_SESSION_COOKIE_NAME);
+  } else if (isSecure === false) {
+    result =
       cookies.get(SESSION_COOKIE_NAME) ||
       cookies.get(HOST_SESSION_COOKIE_NAME) ||
-      cookies.get(SECURE_SESSION_COOKIE_NAME)
-    );
+      cookies.get(SECURE_SESSION_COOKIE_NAME);
+  } else {
+    result =
+      cookies.get(HOST_SESSION_COOKIE_NAME) ||
+      cookies.get(SESSION_COOKIE_NAME) ||
+      cookies.get(SECURE_SESSION_COOKIE_NAME);
   }
-  return (
-    cookies.get(HOST_SESSION_COOKIE_NAME) ||
-    cookies.get(SESSION_COOKIE_NAME) ||
-    cookies.get(SECURE_SESSION_COOKIE_NAME)
-  );
+
+  if (isObj) {
+    let entry = _cookieCache.get(cookies as object);
+    if (!entry) {
+      entry = {};
+      _cookieCache.set(cookies as object, entry);
+    }
+    entry[modeKey] = result ?? null;
+  }
+
+  return result;
 }
 
 /**
@@ -71,6 +104,9 @@ export function clearAllSessionCookies(
       } = "/",
 ): void {
   if (!cookies || typeof cookies.delete !== "function") return;
+  if (typeof cookies === "object") {
+    _cookieCache.delete(cookies as object);
+  }
   const isString = typeof cookiePathOrOptions === "string";
   const cookiePath = isString ? cookiePathOrOptions : (cookiePathOrOptions?.path ?? "/");
   const isSecureOpt = !isString ? cookiePathOrOptions?.isSecure : undefined;

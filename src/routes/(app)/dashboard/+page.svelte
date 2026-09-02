@@ -50,6 +50,9 @@ import { retryDynamicImport } from "@src/utils/retry-dynamic-import";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Loader from '@components/ui/loader.svelte';
+	import { button_Collections } from '@src/paraglide/messages';
+	import { page } from '$app/state';
+	import { app } from '@src/stores/store.svelte';
 
 const { data }: { data: PageData } = $props();
 
@@ -102,6 +105,84 @@ const widgetRegistry = $derived(
 	pickerListToRegistry((data.availableWidgets ?? []) as DashboardWidgetPickerInfo[]),
 );
 const registryLoaded = true;
+
+// --- Hot-collections quick links (behavioral learner) ---
+const HOT_COLLECTIONS_CHIP_LIMIT = 8;
+
+interface CollectionNavNode {
+	_id: string;
+	children?: CollectionNavNode[];
+	collectionDef?: { _id?: string; slug?: string };
+	name: string;
+	nodeType?: string;
+	path?: string;
+	slug?: string;
+}
+
+function flattenCollectionNodes(nodes: CollectionNavNode[] | undefined): CollectionNavNode[] {
+	if (!nodes) return [];
+	const flat: CollectionNavNode[] = [];
+	const walk = (list: CollectionNavNode[]): void => {
+		for (const node of list) {
+			flat.push(node);
+			if (node.children?.length) walk(node.children);
+		}
+	};
+	walk(nodes);
+	return flat;
+}
+
+function collectionNodeKeys(node: CollectionNavNode): string[] {
+	const keys = new Set<string>();
+	const add = (value: unknown): void => {
+		const s =
+			typeof value === 'string' && value ? value.trim().toLowerCase().replace(/^\/+|\/+$/g, '') : '';
+		if (s) keys.add(s);
+	};
+	add(node._id);
+	add(node.slug);
+	add(node.name);
+	add(node.collectionDef?._id);
+	add(node.collectionDef?.slug);
+	add(node.path);
+	return [...keys];
+}
+
+// Resolve the hottest collections (slug-like ids recorded by the learner) to
+// real collection nodes so chips can carry a label + list URL. Unmappable or
+// duplicate ids are skipped; nothing renders when there is no heat signal.
+const hotCollectionLinks = $derived.by(() => {
+	const hot = data.hotCollections ?? [];
+	if (hot.length === 0) return [];
+	const contentStructure = (
+		page.data as { contentStructure?: CollectionNavNode[] } | undefined
+	)?.contentStructure;
+	const byKey = new Map<string, CollectionNavNode>();
+	for (const node of flattenCollectionNodes(contentStructure)) {
+		for (const key of collectionNodeKeys(node)) {
+			if (!byKey.has(key)) byKey.set(key, node);
+		}
+	}
+	const chips: { href: string; id: string; label: string }[] = [];
+	const seen = new Set<string>();
+	const language = app.contentLanguage || 'en';
+	for (const { id } of hot) {
+		const node = byKey.get(String(id).toLowerCase());
+		if (!node) continue;
+		const nodeId = String(node._id);
+		if (seen.has(nodeId)) continue;
+		seen.add(nodeId);
+		const listPath =
+			node.path && node.path.startsWith('/') ? node.path : `/${node.path || node._id}`;
+		chips.push({
+			href: `/${language}${listPath}`,
+			id: nodeId,
+			label: node.name
+		});
+		if (chips.length >= HOT_COLLECTIONS_CHIP_LIMIT) break;
+	}
+	return chips;
+});
 
 let loadedWidgets = new SvelteMap<string, Component | null>();
 const inflightWidgetLoads = new Set<string>();
@@ -694,6 +775,22 @@ onMount(() => {
 
 	<div bind:this={mainContainerEl} class="relative m-0 w-full p-0" style="touch-action: pan-y;" data-testid="dashboard-main">
 		<section class="w-full px-1 py-4" data-testid="dashboard-grid-section">
+			{#if hotCollectionLinks.length > 0}
+				<div class="w-full px-1 pb-1" data-testid="dashboard-hot-collections">
+					<span class="text-[10px] font-bold uppercase tracking-wider text-surface-500">{button_Collections()}</span>
+					<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+						{#each hotCollectionLinks as link (link.id)}
+							<a
+								href={link.href}
+								data-preload="hover"
+								class="inline-flex items-center gap-1.5 rounded-full border border-surface-500/30 bg-surface-500/10 px-3 py-1 text-xs font-semibold text-surface-600 no-underline transition-colors hover:border-tertiary-500/40 hover:text-tertiary-500 focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:border-surface-500/40 dark:text-surface-400 dark:hover:border-primary-500/40 dark:hover:text-primary-500"
+							>
+								<span class="truncate">{link.label}</span>
+							</a>
+						{/each}
+					</div>
+				</div>
+			{/if}
 			{#if aiLoading}
 				<AdminCard class="flex flex-col items-center justify-center border border-surface-500/30 py-20 dark:border-surface-500/40">
 					<Loader variant="circle" width="size-16" height="size-16" ariaLabel="Generating AI dashboard" />

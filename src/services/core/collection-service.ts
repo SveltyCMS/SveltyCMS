@@ -41,6 +41,7 @@ import { recordListQuery } from "@utils/list-query-metrics";
 import { modifyRequest } from "@utils/modify-request";
 import { isMultiTenantEnabled } from "@utils/tenant";
 import { collectionTableName } from "@src/databases/core/collection-name";
+import { getHotCollections } from "@src/services/intelligence/behavioral-learner";
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { deepClone } from "@utils/native-utils";
@@ -54,6 +55,35 @@ const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter a
 const COLLECTION_QUERY_TTL_MS = 60_000;
 /** Stale window: 5 min — serve stale while revalidating (SWR). */
 const COLLECTION_QUERY_STALE_MS = 300_000;
+/**
+ * Hot window: lists of behaviorally-hot collections keep the same fresh TTL but
+ * are served stale much longer (SWR) — background revalidation absorbs editorial
+ * writes without blocking frequent readers. Cold collections keep the default.
+ */
+const COLLECTION_QUERY_HOT_STALE_MS = 15 * 60_000;
+/** How many top collections count as "hot" for the extended stale window. */
+const HOT_COLLECTIONS_LIMIT = 20;
+/** Memo window for the per-tenant hot set — learner resolved at most once per window. */
+const HOT_COLLECTIONS_MEMO_MS = 10_000;
+const _hotCollectionMemo = new Map<string, { at: number; ids: ReadonlySet<string> }>();
+
+/**
+ * Heat-aware SWR (A4): true when this list key belongs to a currently-hot
+ * collection. The behavioral learner is in-memory, but read calls prune its heat
+ * map — memoizing the id set per tenant keeps the per-request cost to one
+ * Set.has() with no DB or learner work.
+ */
+function isHotCollectionId(collectionId: string, tenantId?: string | null): boolean {
+  const tid = tenantId || "global";
+  const now = Date.now();
+  let memo = _hotCollectionMemo.get(tid);
+  if (!memo || now - memo.at > HOT_COLLECTIONS_MEMO_MS) {
+    const ids = new Set(getHotCollections(tid, HOT_COLLECTIONS_LIMIT).map((c) => c.id));
+    memo = { at: now, ids };
+    _hotCollectionMemo.set(tid, memo);
+  }
+  return memo.ids.has(collectionId);
+}
 
 interface CollectionDataParams {
   bypassCache?: boolean;
@@ -161,13 +191,19 @@ export class CollectionService {
       return finish(await this.loadCollectionData(params, collectionId), "bypass");
     }
 
+    // A4: heat-aware SWR — hot lists serve stale longer (background revalidation),
+    // cold collections keep the default stale window below.
+    const staleTtlMs = isHotCollectionId(collectionId, tenantId)
+      ? COLLECTION_QUERY_HOT_STALE_MS
+      : COLLECTION_QUERY_STALE_MS;
+
     // getOrSetSWR: L1 hit / stale-while-revalidate / single-flight miss
     // Negative Bloom is intentional NO-OP for empty lists (valid empty pages).
     const cached = await cacheService.getOrSetSWR<CollectionDataResult>(
       cacheKey,
       () => this.loadCollectionData(params, collectionId),
       COLLECTION_QUERY_TTL_MS,
-      COLLECTION_QUERY_STALE_MS,
+      staleTtlMs,
       tenantId,
       CacheCategory.COLLECTION,
       tags,

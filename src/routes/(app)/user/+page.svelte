@@ -59,7 +59,10 @@
 	import { getActiveSessions, revokeSession, reauthForSessionManagement } from './user.remote';
 
 	const { data } = $props();
-	const { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
+	const serverUser = $derived(data.user);
+	const isFirstUser = $derived(data.isFirstUser);
+	const isMultiTenant = $derived(data.isMultiTenant);
+	const is2FAEnabledGlobal = $derived(data.is2FAEnabledGlobal);
 
 	type AccountTab = 'identity' | 'security' | 'settings' | 'management';
 	let activeTab = $state<AccountTab>('identity');
@@ -120,7 +123,11 @@
 		permissions:
 			Array.isArray(serverUser?.permissions) && serverUser.permissions.length > 0
 				? (serverUser.permissions as string[])
-				: rolePermissionFallback
+				: rolePermissionFallback.length > 0
+					? rolePermissionFallback
+					: serverUser?.isAdmin
+						? ['system:admin', 'user:read', 'user:write', 'config:settings']
+						: []
 	});
 
 	const canManageUsers = $derived(
@@ -761,6 +768,8 @@
 								<button
 									type="button"
 									onclick={modalEditAvatar}
+									aria-label={userpage_editavatar()}
+									title={userpage_editavatar()}
 									data-testid="edit-avatar-btn"
 									class="size-full rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
 								>

@@ -103,32 +103,64 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   /** Create a Drizzle dynamic table definition using dialect-specific column types. */
   public abstract createDynamicTableDefinition(name: string): any;
 
+  private _rawColsCache = new WeakMap<object, { withData: string[]; withoutData: string[] }>();
+  private _dynamicColListCache = new WeakMap<
+    object,
+    {
+      withData?: { colList: string; columns: string[] };
+      withoutData?: { colList: string; columns: string[] };
+    }
+  >();
+  private _escapedTableNameCache = new WeakMap<object, string>();
+
   /**
    * Stable column list for raw findById SELECTs — base columns + registered
    * materialized columns (sorted extras keep the SQL text stable per schema
    * state; statement caches are cleared on DDL). The `data` blob is included
    * only for full-doc reads.
+   *
+   * 🚀 ZERO-ALLOCATION PATH: Memoized per table instance via WeakMap.
    */
   protected getRawFindByIdCols(table: any, wantsData: boolean): string[] {
-    const base = ["_id", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
-    if (wantsData) base.push("data");
-    let cols: Record<string, unknown> | undefined = this._tableColumnsCache.get(table);
-    if (!cols) {
-      try {
-        const resolved = getTableColumns(table);
-        if (resolved) cols = resolved as any;
-      } catch {
-        /* safe */
+    let cached = this._rawColsCache.get(table);
+    if (!cached) {
+      const baseNoData = ["_id", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
+      const baseWithData = [
+        "_id",
+        "status",
+        "tenantId",
+        "createdAt",
+        "updatedAt",
+        "isDeleted",
+        "data",
+      ];
+      let cols: Record<string, unknown> | undefined = this._tableColumnsCache.get(table);
+      if (!cols) {
+        try {
+          const resolved = getTableColumns(table);
+          if (resolved) cols = resolved as any;
+        } catch {
+          /* safe */
+        }
       }
+      if (cols) {
+        const extras = Object.keys(cols).filter(
+          (c) => !baseWithData.includes(c) && !c.startsWith("Symbol(") && c !== "_",
+        );
+        extras.sort();
+        cached = {
+          withData: [...baseWithData, ...extras],
+          withoutData: [...baseNoData, ...extras],
+        };
+      } else {
+        cached = {
+          withData: baseWithData,
+          withoutData: baseNoData,
+        };
+      }
+      this._rawColsCache.set(table, cached);
     }
-    if (cols) {
-      const extras = Object.keys(cols).filter(
-        (c) => !base.includes(c) && !c.startsWith("Symbol(") && c !== "_",
-      );
-      extras.sort();
-      return [...base, ...extras];
-    }
-    return base;
+    return wantsData ? cached.withData : cached.withoutData;
   }
 
   /** Check whether an error indicates "table does not exist" for this dialect. */
@@ -1050,17 +1082,45 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       const excludeData = this.shouldExcludeData(table, options);
       try {
         if (isDynamic) {
-          const selection = this.getProjectedSelection(table, options);
-          const columns = Object.keys(selection);
-          // 🛡️ Defense-in-depth: quoteIdentifier escapes by quote-doubling, but
-          // the identifiers also pass the strict allow-list so a schema change
-          // can never smuggle a quote/backtick past the raw fragments.
-          const colList = columns
-            .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
-            .join(", ");
+          const hasCustomFields = Array.isArray(options.fields) && options.fields.length > 0;
+          let columns: string[];
+          let colList: string;
+
+          if (!hasCustomFields) {
+            let cachedEntry = this._dynamicColListCache.get(table);
+            if (!cachedEntry) {
+              cachedEntry = {};
+              this._dynamicColListCache.set(table, cachedEntry);
+            }
+            const cacheKey = excludeData ? "withoutData" : "withData";
+            let cached = cachedEntry[cacheKey];
+            if (!cached) {
+              const selection = this.getProjectedSelection(table, options);
+              columns = Object.keys(selection);
+              colList = columns
+                .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
+                .join(", ");
+              cached = { colList, columns };
+              cachedEntry[cacheKey] = cached;
+            }
+            columns = cached.columns;
+            colList = cached.colList;
+          } else {
+            const selection = this.getProjectedSelection(table, options);
+            columns = Object.keys(selection);
+            colList = columns
+              .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
+              .join(", ");
+          }
+
+          let escapedTable = this._escapedTableNameCache.get(table);
+          if (!escapedTable) {
+            escapedTable = this.quoteIdentifier(utils.assertSafeSqlIdentifier(tableName, "table"));
+            this._escapedTableNameCache.set(table, escapedTable);
+          }
 
           let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(
-            this.quoteIdentifier(utils.assertSafeSqlIdentifier(tableName, "table")),
+            escapedTable,
           )} WHERE ${where || sql`1=1`}`;
 
           if (options.sort) {

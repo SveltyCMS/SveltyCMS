@@ -112,6 +112,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     return true;
   }
 
+  private _pgSelectColsCache = new WeakMap<object, { withData?: string; withoutData?: string }>();
+
   /**
    * Raw prepared-SQL findById: postgres.js caches parsed statements by SQL
    * text, so a stable parameterized SELECT skips Drizzle's per-call AST
@@ -765,16 +767,22 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             return false;
           return !this.getColumn(table, String(f));
         });
-      const selectCols = this.getRawFindByIdCols(table, wantsData)
-        .map((c) => {
-          // Drizzle def property names may differ from physical column names
-          // (e.g. plugin_storage: collectionName → `collection`) — map before
-          // quoting or the SELECT throws 42703 and silently falls back to the
-          // slower Drizzle path on EVERY read.
-          const phys = this.getColumn(table, c);
-          return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
-        })
-        .join(", ");
+      let entry = this._pgSelectColsCache.get(table);
+      let selectCols = wantsData ? entry?.withData : entry?.withoutData;
+      if (!selectCols) {
+        selectCols = this.getRawFindByIdCols(table, wantsData)
+          .map((c) => {
+            const phys = this.getColumn(table, c);
+            return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
+          })
+          .join(", ");
+        if (!entry) {
+          entry = {};
+          this._pgSelectColsCache.set(table, entry);
+        }
+        if (wantsData) entry.withData = selectCols;
+        else entry.withoutData = selectCols;
+      }
       // Tagged template (NOT unsafe): postgres.js caches prepared statements by
       // SQL text, so this stable query gets parse-once + bind/execute reuse.
       // Identifiers are inlined via sql.unsafe fragments (stable SQL text);

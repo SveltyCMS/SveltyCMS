@@ -121,6 +121,9 @@ export class AuthNamespace {
 
       const filter: Record<string, any> = {};
       if (tenantId) filter.tenantId = tenantId as DatabaseId;
+      if (options.filter && typeof options.filter === "object") {
+        Object.assign(filter, options.filter);
+      }
       if (search) {
         filter.$or = [
           { email: { $regex: search, $options: "i" } },

@@ -76,6 +76,16 @@ Route-driven sidebar content (no dual collapsible section headers):
 	// Reactive user data
 	const user = $derived(page.data.user);
 	const currentPath = $derived(page.url.pathname);
+
+	// Next-navigation hint computed server-side by the behavioral learner
+	// ((app)/+layout.server.ts). May be null/undefined when there is no signal —
+	// empty string disables smart preloading. Used to tag the one sidebar nav
+	// link whose href matches the predicted path with data-preload="smart".
+	const predictedNextPath = $derived.by(() =>
+		normalizeHref(
+			(page.data as { predictedNextPath?: string | null } | undefined)?.predictedNextPath
+		)
+	);
 	const collections: ContentNode[] = $derived(contentStructure.value || []);
 	let searchQuery = $state('');
 
@@ -167,6 +177,11 @@ Route-driven sidebar content (no dual collapsible section headers):
 	});
 
 	// Helper functions
+	function normalizeHref(path: string | null | undefined): string {
+		if (!path) return '';
+		return path.length > 1 ? path.replace(/\/+$/, '') : path;
+	}
+
 	function isMobile(): boolean {
 		return browser && window.innerWidth < MOBILE_BREAKPOINT;
 	}
@@ -329,6 +344,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 									<a
 										href={item.path}
 										data-sveltekit-preload-data="hover"
+										data-preload={normalizeHref(item.path) === predictedNextPath ? 'smart' : undefined}
 										class="flex flex-1 items-center gap-2 px-2 py-2 text-sm no-underline!"
 										style="color: var(--admin-text-body)"
 										onclick={() => {
@@ -430,6 +446,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 						<a
 							href={item.path}
 							data-sveltekit-preload-data="hover"
+							data-preload={normalizeHref(item.path) === predictedNextPath ? 'smart' : undefined}
 							aria-label={item.label}
 							class="flex items-center gap-2 rounded px-2 py-2 text-sm no-underline! transition-colors hover:bg-surface-200/70 dark:hover:bg-surface-800"
 							style="color: var(--admin-text-body)"

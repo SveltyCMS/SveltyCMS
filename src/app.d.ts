@@ -14,6 +14,10 @@ declare global {
       __setupLogged?: boolean;
       __setupLoginRedirectLogged?: boolean;
       __setupRedirectLogged?: boolean;
+      // Per-request handoff: the API dispatcher already wrote the L1 turbo entry
+      // (with tags) for a stashed-body GET, so handle-api-requests skips its
+      // duplicate write unless a super-admin `?tenantId=` override re-scoped it.
+      __dispatcherTurboWrite?: boolean;
       allTokens: Token[];
       allUsers: User[];
       collections?: unknown;

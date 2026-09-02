@@ -98,6 +98,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   private _insertTemplateCache = new Map<string, { cols: string[]; sqlText: string }>();
   /** table|cols|returning|tenant → UPDATE SQL. */
   private _updateSqlCache = new Map<string, string>();
+  private _sqliteSelectColsCache = new WeakMap<object, string>();
 
   /** Clients whose prepare() is wrapped with a per-SQL statement cache. */
   protected _preparedStatementClients = new Set<any>();
@@ -210,11 +211,17 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             return false;
           return !this.getColumn(table, String(f));
         });
-      const selectCols = wantsData
-        ? "*"
-        : this.getRawFindByIdCols(table, false)
+      let selectCols = "*";
+      if (!wantsData) {
+        let cachedCols = this._sqliteSelectColsCache.get(table);
+        if (!cachedCols) {
+          cachedCols = this.getRawFindByIdCols(table, false)
             .map((c) => `"${c}"`)
             .join(", ");
+          this._sqliteSelectColsCache.set(table, cachedCols);
+        }
+        selectCols = cachedCols;
+      }
       const rawSql = `SELECT ${selectCols} FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
       const rawRow = this.prepareAndExecute(rawSql, "get", String(id), ...tenantParams);
       if (rawRow) {
@@ -1340,7 +1347,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           }
         }
         if (needsCoerce) {
-          bound = Array.from({ length: len });
+          bound = [];
+          bound.length = len;
           for (let i = 0; i < len; i++) {
             const p = params[i];
             if (typeof p === "boolean") bound[i] = p ? 1 : 0;

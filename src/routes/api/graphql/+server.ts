@@ -50,6 +50,10 @@ import {
 } from "@utils/security/publication-policy";
 import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, Schema } from "@src/content/types";
+import {
+  peekReadySchema,
+  schemaCacheEntries,
+} from "@src/services/sdk/namespaces/collections/schema-store";
 
 // GraphQL validation plugin: enforces query depth (max 8), alias count (max 15),
 // and blocks schema introspection in production environments
@@ -70,8 +74,14 @@ function projectGraphqlFields(
 ): Record<string, unknown> {
   if (selections.length === 0) return row;
   const out: Record<string, unknown> = {};
+  const hasData = row.data && typeof row.data === "object";
+  const rowData = hasData ? (row.data as Record<string, unknown>) : null;
   for (const field of selections) {
-    if (field in row) out[field] = row[field];
+    if (field in row) {
+      out[field] = row[field];
+    } else if (rowData && field in rowData) {
+      out[field] = rowData[field];
+    }
   }
   return out;
 }
@@ -97,8 +107,12 @@ async function tryGraphqlFastPath(
   const matched = matchCollectionQuery(query, variables);
   if (!matched) return null;
 
-  // 1. In-memory system queries (contentSystemHealth / allCollections)
-  if (matched.field === "contentSystemHealth" || matched.field === "allCollections") {
+  // 1. In-memory system queries (contentSystemHealth / allCollections / allCollectionStats)
+  if (
+    matched.field === "contentSystemHealth" ||
+    matched.field === "allCollections" ||
+    matched.field === "allCollectionStats"
+  ) {
     const jsonKey = `${matched.field}|${String(ctx.tenantId ?? "global")}|${matched.selections.join(",")}`;
     const cachedJson = fastJsonCache.get(jsonKey);
     if (cachedJson && Date.now() - cachedJson.ts < FAST_JSON_TTL_MS) {
@@ -109,7 +123,7 @@ async function tryGraphqlFastPath(
     if (matched.field === "contentSystemHealth") {
       const health = contentSystem.getHealthStatus() as unknown as Record<string, unknown>;
       payload = { data: { contentSystemHealth: projectGraphqlFields(health, matched.selections) } };
-    } else {
+    } else if (matched.field === "allCollections") {
       const rows = await resolveAllCollections(ctx.tenantId);
       const data =
         matched.selections.length === 0
@@ -118,6 +132,25 @@ async function tryGraphqlFastPath(
               projectGraphqlFields(row as unknown as Record<string, unknown>, matched.selections),
             );
       payload = { data: { allCollections: data } };
+    } else {
+      const collections = await contentSystem.getCollections(ctx.tenantId);
+      const rows = collections.map((col) => ({
+        _id: col._id,
+        name: col.name,
+        icon: col.icon || "mdi:folder",
+        path: col.path || (col.folder ? `${col.folder}/${col.name}` : col.name),
+        fieldCount: (col.fields || []).length,
+        hasRevisions: col.revision || false,
+        hasLivePreview: !!col.livePreview,
+        status: col.status || "active",
+      }));
+      const data =
+        matched.selections.length === 0
+          ? rows
+          : rows.map((row) =>
+              projectGraphqlFields(row as unknown as Record<string, unknown>, matched.selections),
+            );
+      payload = { data: { allCollectionStats: data } };
     }
     const body = JSON.stringify(payload);
     if (fastJsonCache.size >= 64) {
@@ -137,6 +170,29 @@ async function tryGraphqlFastPath(
     if (cleanName === matched.field || c._id === matched.field || c.name === matched.field) {
       targetCollection = c;
       break;
+    }
+  }
+
+  if (!targetCollection) {
+    targetCollection =
+      peekReadySchema(ctx.tenantId as DatabaseId, matched.field) ||
+      peekReadySchema(ctx.tenantId as DatabaseId, matched.field.toLowerCase());
+  }
+
+  if (!targetCollection) {
+    const prefix = `${ctx.tenantId || "global"}:`;
+    for (const [key, schema] of schemaCacheEntries()) {
+      if (key.startsWith(prefix)) {
+        const cleanName = createCleanTypeName({ _id: schema._id, name: schema.name });
+        if (
+          cleanName === matched.field ||
+          schema._id === matched.field ||
+          schema.name === matched.field
+        ) {
+          targetCollection = schema;
+          break;
+        }
+      }
     }
   }
 
@@ -181,9 +237,11 @@ async function tryGraphqlFastPath(
 const securityValidationPlugin = {
   onParse({
     params,
+    context,
     setParsedDocument,
   }: {
     params?: { source?: string; query?: string };
+    context?: { parsedDocument?: DocumentNode; [key: string]: any };
     setParsedDocument?: (doc: any) => void;
   }) {
     const endParse = profileMark("gql:parse");
@@ -192,6 +250,12 @@ const securityValidationPlugin = {
     // the standard error envelope instead of masking it as a 500.
     const query = params?.source || params?.query;
     if (typeof query === "string") {
+      const preParsed = context?.parsedDocument;
+      if (preParsed && typeof setParsedDocument === "function") {
+        setParsedDocument(preParsed);
+        endParse();
+        return;
+      }
       const analysis = analyzeQueryCost(query);
       if (!analysis.allowed) {
         throw new GraphQLError(formatCostError(analysis.cost, 1000), {
@@ -803,6 +867,7 @@ async function handleRequest(event: RequestEvent) {
       tenantId: locals.tenantId,
       dbAdapter: adapter,
       cms,
+      parsedDocument: (locals as any).__graphqlAst as DocumentNode | undefined,
       get loaders() {
         if (!_loaders) {
           _loaders = createLoaders(adapter, (locals.tenantId as any) || null, publicationFilter);

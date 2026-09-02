@@ -68,6 +68,8 @@ Provides an organized interface for navigating hierarchical content structures.
 		order: number;
 		type?: 'category' | 'collection';
 		path?: string;
+		href?: string;
+		preload?: 'hover' | 'viewport' | 'predict' | 'smart';
 		actions?: Array<{
 			icon: string;
 			label: string;
@@ -77,6 +79,12 @@ Provides an organized interface for navigating hierarchical content structures.
 	}
 
 	const userId = $derived(page.data.user?.id || page.data.user?._id || 'guest');
+
+	// Next-navigation hint computed server-side by the behavioral learner
+	const predictedNextPath = $derived.by(() => {
+		const raw = (page.data as { predictedNextPath?: string | null } | undefined)?.predictedNextPath;
+		return raw && raw.length > 1 ? raw.replace(/\/+$/, '') : (raw || '');
+	});
 
 	// Mutable state
 	let search = $state('');
@@ -362,6 +370,11 @@ Provides an organized interface for navigating hierarchical content structures.
 				}
 			];
 
+			const nodePath = isCategory ? undefined : `/${currentLanguage}${node.path || `/${node._id}`}`;
+			const normalizedNodePath = nodePath ? (nodePath.length > 1 ? nodePath.replace(/\/+$/, '') : nodePath) : '';
+			const isPredicted = Boolean(predictedNextPath && normalizedNodePath === predictedNextPath);
+			const preloadStrategy: 'hover' | 'smart' | undefined = isPredicted ? 'smart' : (nodePath ? 'hover' : undefined);
+
 			return {
 				id: node._id,
 				name: label,
@@ -371,7 +384,9 @@ Provides an organized interface for navigating hierarchical content structures.
 				children,
 				icon: node.icon || (isCategory ? 'bi:folder' : 'bi:collection'),
 				badge,
-				path: isCategory ? undefined : `/${currentLanguage}${node.path || `/${node._id}`}`,
+				path: nodePath,
+				href: nodePath,
+				preload: preloadStrategy,
 				depth,
 				order: getEffectiveOrder(node),
 				actions

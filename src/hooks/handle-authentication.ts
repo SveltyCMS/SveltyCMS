@@ -972,6 +972,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           locals.user = user;
           locals.session_id = sessionId as DatabaseId;
           locals.permissions = user.permissions || [];
+          if (user._id) {
+            void cacheService.set(`layout:user:${user._id}`, user, 15, locals.tenantId as string);
+          }
           if (!turboCtx && sessionId) {
             setTurboAuthContext(
               sessionId as string,

@@ -332,23 +332,17 @@ function setCacheEntry(key: string, entry: CacheEntry): void {
   dataCache.set(key, entry);
 }
 
-/** Deterministic JSON stringify — sorted keys prevent cache-key mismatch */
-function deterministicStringify(obj: Record<string, unknown>): string {
-  return JSON.stringify(obj, Object.keys(obj).sort());
-}
-
 function generateCacheKey(query: Record<string, unknown>): string {
-  const normalizedQuery = {
-    collectionId: (query.collectionId as string)?.trim().toLowerCase(),
-    page: query.page || 1,
-    pageSize: query.pageSize || query.limit || 25,
-    contentLanguage: query.contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE,
-    filter: query.filter || "{}",
-    sortField: query.sortField || "createdAt",
-    sortDirection: query.sortDirection || "desc",
-    _langChange: query._langChange || 0,
-  };
-  return deterministicStringify(normalizedQuery);
+  const col = (query.collectionId as string)?.trim().toLowerCase() ?? "";
+  const page = query.page || 1;
+  const size = query.pageSize || query.limit || 25;
+  const lang = query.contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE;
+  const rawFilter = query.filter || "{}";
+  const filter = typeof rawFilter === "string" ? rawFilter : JSON.stringify(rawFilter);
+  const sortF = query.sortField || "createdAt";
+  const sortD = query.sortDirection || "desc";
+  const langC = query._langChange || 0;
+  return `{"_langChange":${langC},"collectionId":"${col}","contentLanguage":"${lang}","filter":${filter.startsWith("{") ? filter : JSON.stringify(filter)},"page":${page},"pageSize":${size},"sortDirection":"${sortD}","sortField":"${sortF}"}`;
 }
 
 function isCacheValid(cacheEntry: CacheEntry): boolean {

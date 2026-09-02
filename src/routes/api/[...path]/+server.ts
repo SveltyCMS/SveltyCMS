@@ -620,10 +620,27 @@ export const _handler = async (event: RequestEvent) => {
       }
 
       if (user) {
-        // Sync L1 turbo cache with tags — instant O(#matched) invalidation on write
-        responseCache.set(turboKey, { body: stashedBody, etag: contentEtag }, 300_000, tenantId, {
-          tags,
-        });
+        // Sync L1 turbo cache with tags — instant O(#matched) invalidation on write.
+        // The authenticated flow returns through handleApiRequests, whose
+        // fire-and-forget task compresses this SAME body exactly once (br+gzip+zstd)
+        // and re-sets the entry with real variants. The `compressed: {}` guard
+        // below suppresses responseCache's internal async br/gzip precompute
+        // (which would otherwise duplicate that work for a dead write); public
+        // routes skip the guard because the dispatcher is their ONLY compressor.
+        const dispatchBytes = Buffer.byteLength(stashedBody, "utf8");
+        const needsVariantGuard =
+          !isPublic && contentType.includes("application/json") && dispatchBytes > 1024;
+        const turboEntryVariantGuard = needsVariantGuard ? { compressed: {} } : {};
+        locals.__dispatcherTurboWrite = true;
+        responseCache.set(
+          turboKey,
+          { body: stashedBody, etag: contentEtag, ...turboEntryVariantGuard },
+          300_000,
+          tenantId,
+          {
+            tags,
+          },
+        );
       }
 
       if (ifNoneMatch === contentEtag || ifNoneMatch === "*") {
@@ -682,9 +699,23 @@ export const _handler = async (event: RequestEvent) => {
       }
 
       // L1 turbo map (sync) + L2 cacheService (async fire-and-forget) with reverse tag index
-      responseCache.set(turboKey, { body: responseBody, etag }, 300_000, tenantId, {
-        tags,
-      });
+      // Authenticated JSON GETs flow back through handleApiRequests, which re-sets
+      // this entry with real compression variants — see the sibling comment above
+      // for the `compressed: {}` guard rationale.
+      const dispatchBytes = Buffer.byteLength(responseBody, "utf8");
+      const needsVariantGuard =
+        !isPublic && contentType.includes("application/json") && dispatchBytes > 1024;
+      const turboEntryVariantGuard = needsVariantGuard ? { compressed: {} } : {};
+      locals.__dispatcherTurboWrite = true;
+      responseCache.set(
+        turboKey,
+        { body: responseBody, etag, ...turboEntryVariantGuard },
+        300_000,
+        tenantId,
+        {
+          tags,
+        },
+      );
     }
 
     // ETag conditional response

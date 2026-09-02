@@ -18,7 +18,6 @@
 
 import { getCorsHeaders } from "@utils/security/cors-utils";
 import { API_CONTENT_SECURITY_POLICY } from "@utils/security/constants";
-import { applySecurityHeaders } from "@utils/hook-utils";
 
 const PERMISSIONS_POLICY = [
   "geolocation=()",
@@ -30,16 +29,31 @@ const PERMISSIONS_POLICY = [
   "web-share=(self)",
 ].join(", ");
 
-const STATIC_COMMON_HEADERS: readonly [string, string][] = [
+// 🚀 PRE-COMPILED DEDUPLICATED STATIC HEADERS
+// Merged at module initialization to eliminate multiple nested loops and redundant .set() calls per request.
+const PRECOMPILED_API_STATIC_HEADERS: readonly [string, string][] = [
+  ["X-Frame-Options", "DENY"],
+  ["X-Content-Type-Options", "nosniff"],
+  ["Referrer-Policy", "strict-origin-when-cross-origin"],
   ["X-XSS-Protection", "1; mode=block"],
   ["X-DNS-Prefetch-Control", "off"],
   ["X-Permitted-Cross-Domain-Policies", "none"],
   ["Permissions-Policy", PERMISSIONS_POLICY],
-];
-
-const STATIC_API_ISOLATION_HEADERS: readonly [string, string][] = [
   ["Cross-Origin-Opener-Policy", "same-origin"],
   ["Cross-Origin-Resource-Policy", "same-origin"],
+];
+
+const PRECOMPILED_PAGE_STATIC_HEADERS: readonly [string, string][] = [
+  ["X-Frame-Options", "DENY"],
+  ["X-Content-Type-Options", "nosniff"],
+  ["Referrer-Policy", "strict-origin-when-cross-origin"],
+  ["Cross-Origin-Opener-Policy", "same-origin"],
+  ["Cross-Origin-Embedder-Policy", "require-corp"],
+  ["X-XSS-Protection", "1; mode=block"],
+  ["X-DNS-Prefetch-Control", "off"],
+  ["X-Permitted-Cross-Domain-Policies", "none"],
+  ["Permissions-Policy", PERMISSIONS_POLICY],
+  ["X-AEO-Enabled", "true"],
 ];
 
 const GRAPHQL_PLAYGROUND_CSP = [
@@ -93,22 +107,17 @@ export function applyAllSecurityHeaders(
   const isPageRoute = !isApi;
   const svelteKitCsp = isPageRoute ? headers.get("Content-Security-Policy") : null;
 
-  applySecurityHeaders(headers, isHttps);
-
-  for (let i = 0; i < STATIC_COMMON_HEADERS.length; i++) {
-    const pair = STATIC_COMMON_HEADERS[i];
+  const staticPairs = isApi ? PRECOMPILED_API_STATIC_HEADERS : PRECOMPILED_PAGE_STATIC_HEADERS;
+  for (let i = 0; i < staticPairs.length; i++) {
+    const pair = staticPairs[i];
     headers.set(pair[0], pair[1]);
   }
 
-  if (isPageRoute) {
-    headers.set("X-AEO-Enabled", "true");
+  if (isHttps) {
+    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
   }
 
   if (isApi) {
-    for (let i = 0; i < STATIC_API_ISOLATION_HEADERS.length; i++) {
-      const pair = STATIC_API_ISOLATION_HEADERS[i];
-      headers.set(pair[0], pair[1]);
-    }
     // Cross-Origin Isolation: use credentialless for media routes to avoid third-party asset breakage
     if (pathname.startsWith("/api/media/") || pathname.includes("/mediagallery")) {
       headers.set("Cross-Origin-Embedder-Policy", "credentialless");

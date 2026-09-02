@@ -207,12 +207,19 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await expect(titleBox, "Title field on entry form").toBeVisible({ timeout: 20_000 });
     await titleBox.click();
     await titleBox.fill("Golden Entry");
-    await page.getByRole("button", { name: /save/i }).first().click();
+    await titleBox.blur();
+    const saveBtn = page.getByRole("button", { name: /save/i }).first();
+    await expect(saveBtn).toBeVisible({ timeout: 15_000 });
+    await expect(saveBtn).toBeEnabled({ timeout: 15_000 });
+    await saveBtn.click();
 
     // Save is async and navigates back to the list only after the write resolves.
-    // Wait for the persistence toast so the following hard navigation cannot race
-    // the in-flight create (the entry would then be missing from the fresh list).
-    await expect(page.getByText(/entry saved/i).first()).toBeVisible({ timeout: 20_000 });
+    await Promise.race([
+      expect(page.getByText(/entry saved/i).first()).toBeVisible({ timeout: 25_000 }),
+      page.waitForURL((url) => !url.searchParams.has("create") && !url.searchParams.has("edit"), {
+        timeout: 25_000,
+      }),
+    ]);
 
     // Assert a data row with status affordance. Retry: a parallel-worker reset or
     // one extra navigation round-trip can leave the freshly saved entry out of the

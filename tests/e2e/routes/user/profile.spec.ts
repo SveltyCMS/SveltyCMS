@@ -181,10 +181,16 @@ test.describe.serial("User Profile Management", () => {
     // Same hydration-race guard as Edit Avatar: the fresh page load renders the
     // pencil button before hydration attaches the onclick, so retry the native
     // click until the avatar modal actually opens.
-    const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
+    const editAvatarBtn = page
+      .getByTestId("edit-avatar-pencil-btn")
+      .or(page.getByTestId("edit-avatar-btn"))
+      .or(page.getByRole("button", { name: /edit avatar/i }))
+      .first();
     const avatarModal = page.locator(".modal-avatar").first();
     await expect(async () => {
-      await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
+      await editAvatarBtn
+        .click({ timeout: 2_000 })
+        .catch(() => editAvatarBtn.evaluate((el: HTMLElement) => el.click()));
       await expect(avatarModal).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 15_000 });
 

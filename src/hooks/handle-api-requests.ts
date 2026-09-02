@@ -62,16 +62,6 @@ function getApiEndpoint(pathname: string | null): string | null {
   return nextSlash === -1 ? path : path.substring(0, nextSlash);
 }
 
-function generateCacheKey(
-  pathname: string,
-  search: string,
-  userId: string,
-  tenantId: string | null,
-): string {
-  const safeTenant = tenantId || "global";
-  return `api:${safeTenant}:${userId}:${pathname}${search}`;
-}
-
 // ─── Request Coalescing (Stampede Prevention) ────────────────────────────────
 // Only ONE request per cacheKey resolves upstream; concurrent identical GETs
 // await the leader's shared cache entry instead of re-entering resolve() → DB.
@@ -190,8 +180,12 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
     const tenantIdString = locals.tenantId ? String(locals.tenantId) : null;
     const isGet = request.method === "GET";
+    // 🚀 SINGLE canonical L2 cache key, shared with the dispatcher's sync L1
+    // probe (src/routes/api/[...path]/+server.ts uses the same builder). The
+    // former `api:{tenant}:{user}:{path}` duplicate namespace stored the SAME
+    // body under a second key scheme — it was only ever read/written here.
     const cacheKey = isGet
-      ? generateCacheKey(url.pathname, url.search, String(locals.user._id), tenantIdString)
+      ? buildUserCacheKey(url.pathname, url.search, getUserCacheId(locals.user))
       : "";
 
     const refresh = isGet && url.searchParams.get("refresh") === "true";
@@ -339,13 +333,34 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                 const currentTenantId = locals.tenantId;
                 const userIdStr = getUserCacheId(locals.user);
                 const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
-                // Sync L1 turbo path (handleTurboGet) — must use same key builder
-                responseCache.set(
-                  turboKey,
-                  { body: responseBody, etag },
-                  API_CACHE_TTL_S * 1000,
-                  currentTenantId,
-                );
+                // Sync L1 turbo path (handleTurboGet) — must use same key builder.
+                // The dispatcher already wrote the SAME `res:` entry (with
+                // collection tags) for every stashed-body GET before this hook
+                // ran — skip the duplicate write. A super-admin `?tenantId=`
+                // override writes the dispatcher entry under a different tenant,
+                // so the hook keeps its own write in that case.
+                const dispatcherTurboWritten =
+                  !url.searchParams.has("tenantId") && locals.__dispatcherTurboWrite === true;
+                const responseBodyBytes = responseBody
+                  ? Buffer.byteLength(responseBody, "utf8")
+                  : 0;
+                if (!dispatcherTurboWritten) {
+                  // `compressed: {}` is a sentinel that suppresses responseCache's
+                  // internal async br/gzip precompute — the fire-and-forget IIFE
+                  // below is the single compressor for this body (br+gzip+zstd),
+                  // so the internal microtask would only re-compress it for a
+                  // dead write.
+                  responseCache.set(
+                    turboKey,
+                    {
+                      body: responseBody,
+                      etag,
+                      ...(responseBodyBytes > 1024 ? { compressed: {} } : {}),
+                    },
+                    API_CACHE_TTL_S * 1000,
+                    currentTenantId,
+                  );
+                }
 
                 const headersSnapshot = Object.fromEntries(finalResponse.headers);
                 (async () => {
@@ -402,7 +417,11 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                       );
                     }
 
-                    const turboPathKey = buildUserCacheKey(url.pathname, url.search, userIdStr);
+                    // 🚀 SINGLE canonical L2 write: `cacheKey` (built above via
+                    // buildUserCacheKey) is the SAME key the dispatcher probes
+                    // with getSync and this hook reads with get(). The former
+                    // duplicate `api:{tenant}:…` write was removed — one body,
+                    // one L2 entry.
                     const cacheEntry = {
                       data: responseData,
                       body: responseBody,
@@ -411,10 +430,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                         : undefined,
                       headers: headersSnapshot,
                     };
-                    await Promise.all([
-                      cacheService.set(cacheKey, cacheEntry, API_CACHE_TTL_S, currentTenantId),
-                      cacheService.set(turboPathKey, cacheEntry, API_CACHE_TTL_S, currentTenantId),
-                    ]);
+                    await cacheService.set(cacheKey, cacheEntry, API_CACHE_TTL_S, currentTenantId);
                   } catch (e) {
                     logger.error(`Background cache compression failed: ${getErrorMessage(e)}`);
                   }
@@ -487,17 +503,16 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
         const apiPathPrefix = url.pathname.includes("/local/")
           ? `/api/local/${apiEndpoint}`
           : `/api/${apiEndpoint}`;
-        const pattern = `api:${tenantIdString || "global"}:${String(locals.user!._id)}:${apiPathPrefix}`;
         // L1 turbo invalidation is synchronous (Map walk) until the first
         // await inside invalidateCollection. Void the promise so L2 pattern
         // scans never sit on the mutation response path; the next GET in this
         // process already sees an empty L1.
         void responseCache.invalidateCollection(apiEndpoint, tenantIdString).catch(() => {});
-        void cacheService.delete(pattern, currentTenantId).catch(() => {});
-        void cacheService.delete(`${pattern}/`, currentTenantId).catch(() => {});
-        // Debounce remaining L2 pattern evictions so write bursts do not
-        // spawn concurrent pattern scans or steal PG connections.
-        schedulePatternClear(`${pattern}*`, currentTenantId);
+        // Debounce L2 pattern evictions so write bursts do not spawn concurrent
+        // pattern scans or steal PG connections. `{apiPathPrefix}*` covers the
+        // canonical dispatcher/hook key (`{path}?search:u:{user}`) across all
+        // users/searches; the legacy `api:{tenant}:{user}:{path}` namespace was
+        // retired (its single writer/reader lived in this hook).
         schedulePatternClear(`${apiPathPrefix}*`, currentTenantId);
       } catch (e) {
         logger.error(`Cache invalidation failed: ${getErrorMessage(e)}`);
@@ -520,6 +535,10 @@ export async function invalidateApiCache(
   const safeTenant = tenantId ? String(tenantId) : "global";
   const baseKey = `api:${safeTenant}:${userId}:${apiPathPrefix}`;
   try {
+    // Canonical dispatcher/hook namespace: `{path}?search:u:{user}` (path-first,
+    // tenant-scoped by cacheService). Clear it across users/searches — the old
+    // user-scoped `api:` pattern below is kept for any legacy leftovers.
+    await cacheService.clearByPattern(`${apiPathPrefix}*`, tenantId ?? undefined);
     await cacheService.clearByPattern(`${baseKey}*`, tenantId ?? undefined);
     await cacheService.delete(baseKey, tenantId ?? undefined);
   } catch (err) {

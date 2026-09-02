@@ -734,14 +734,22 @@ export function getColumnHelper(
  * (mysql-core hides dataType/columnType from the public surface) and accepts
  * both ISO-8601 and MariaDB space-separated datetime strings.
  */
+const _isDateColCache = new WeakMap<object, boolean>();
+
 function coerceDateColumnValue(col: any, val: unknown): unknown {
   if (!col) return val;
-  const cfg = col?.config ?? {};
-  const isDateCol =
-    col?.dataType === "date" ||
-    (typeof col?.columnType === "string" && /(Timestamp|DateTime|Date)$/.test(col.columnType)) ||
-    cfg?.dataType === "date" ||
-    (typeof cfg?.columnType === "string" && /(Timestamp|DateTime|Date)$/.test(cfg.columnType));
+  let isDateCol = typeof col === "object" ? _isDateColCache.get(col) : undefined;
+  if (isDateCol === undefined) {
+    const cfg = col?.config ?? {};
+    isDateCol =
+      col?.dataType === "date" ||
+      (typeof col?.columnType === "string" && /(Timestamp|DateTime|Date)$/.test(col.columnType)) ||
+      cfg?.dataType === "date" ||
+      (typeof cfg?.columnType === "string" && /(Timestamp|DateTime|Date)$/.test(cfg.columnType));
+    if (typeof col === "object") {
+      _isDateColCache.set(col, isDateCol);
+    }
+  }
   if (!isDateCol) return val;
   if (Array.isArray(val)) {
     return val.map((v) => coerceDateColumnValue(col, v));

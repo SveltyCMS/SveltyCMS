@@ -242,27 +242,21 @@ test.describe("2FA enroll with fixture", () => {
     // 2FA lives in the Security tab.
     await openUserTab(page, /^security$/i);
 
-    const twoFaBtn = page.getByRole("button", { name: /Setup|Manage|Enabled/i }).filter({
-      hasText: /Setup|Manage|Enabled/i,
-    });
-    // Prefer Setup for fresh admin
-    const setupBtn = page.getByRole("button", { name: /^Setup$/i });
-    const manageBtn = page.getByRole("button", { name: /Manage|Enabled/i });
-
-    if (await setupBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await setupBtn.click();
-    } else if (await manageBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    const twoFaBtn = page
+      .getByTestId("security-2fa-btn")
+      .or(page.getByRole("button", { name: /Setup|Manage|Enabled/i }))
+      .first();
+    await expect(twoFaBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+    const btnText = (await twoFaBtn.textContent()) || "";
+    if (/manage/i.test(btnText)) {
       // Already enabled — open manage and assert modal content
-      await manageBtn.click();
+      await twoFaBtn.click();
       await expect(page.locator(".modal-2fa").first()).toBeVisible({
         timeout: ACTION_TIMEOUT,
       });
       return;
-    } else {
-      // Section missing despite setting — hard fail (no soft-skip)
-      await expect(page.getByText(/Two-Factor Auth/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
-      await twoFaBtn.first().click();
     }
+    await twoFaBtn.click();
 
     // Use .modal-2fa only — page.getByRole("dialog") also matches cookie consent.
     const modal = page.locator(".modal-2fa").first();

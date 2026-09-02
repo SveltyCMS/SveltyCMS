@@ -143,15 +143,15 @@ function hashObject(obj: Record<string, unknown>): string {
 }
 
 /**
- * Simple string hashing for cache keys
+ * Fast FNV-1a string hashing for cache keys
  */
 function hashString(str: string): string {
-  let hash = 5381;
+  let h = 2166136261;
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) + hash + char;
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
   }
-  return Math.abs(hash).toString(36);
+  return (h >>> 0).toString(36);
 }
 
 /**

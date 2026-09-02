@@ -28,13 +28,13 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 
 ### Next (high leverage — foundations ready)
 
-| Enhancement                      | Status     | Notes                                                                |
-| -------------------------------- | ---------- | -------------------------------------------------------------------- |
-| **Saved views**                  | 🟡 Partial | Entry-list + **website-tokens** wired; users/media still to mirror   |
-| **Column resize + layout prefs** | 🟡 Partial | Entry-list + tokens `layoutKey`; extend media/users                  |
-| **Status / domain facets**       | 🟡 Partial | Collection facets use cached `crud.count`; expand chips UI           |
-| **List metrics**                 | 🟡 Partial | `list-query-metrics` + SSR badge on collections; extend users/tokens |
-| **Filter engine reuse**          | Planned    | Port IR to users/tokens allowlisted fields                           |
+| Enhancement                      | Status     | Notes                                                                                                       |
+| -------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
+| **Saved views**                  | 🟢 Shipped | 100% wired across all list surfaces: Entry-list, website-tokens, users, and media                           |
+| **Column resize + layout prefs** | 🟡 Partial | Entry-list + tokens `layoutKey`; extend media/users                                                         |
+| **Status / domain facets**       | 🟢 Shipped | Collection facets + interactive User Management facet chips (`All`, `Admins`, `Users`, `Active`, `Blocked`) |
+| **List metrics**                 | 🟢 Shipped | `list-query-metrics` + SSR badge on collections, users, and tokens                                          |
+| **Filter engine reuse**          | 🟢 Shipped | Allowlisted field filtering (`role`, `blocked`, `email`, `username`) on users/tokens                        |
 
 ### Planned product UX
 
@@ -44,7 +44,7 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 
 ### Performance & observability
 
-- Virtualization tuning; predictive preload “warm next page”
+- Predictive preload “warm next page” — 🟢 Shipped: sidebar smart-preload of learner-predicted path + dashboard hot-collection chips + heat-aware SWR + Smart Table pagination links with `data-preload="viewport"` (2026-09-02, see [Achievements Log](./achievements-2026.mdx)).
 - List p50/p95 from `list-query-metrics` into benchmark trend notes
 - Negative cache / empty-page policy documentation
 
@@ -72,7 +72,7 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 ## 🚀 Planned
 
 - **OIDC login flow** — **August 2026 progress:** Discovery (auth/token/jwks/logout), JWKS verify for back-channel logout + id_token, `GET /api/auth/oidc-login` + `oidc-callback` (authorization code → local session for existing users). Still open: auto-provision policy, PKCE, IdP UI on login page, full ES256 test matrix.
-- **Admin Session Console (UI)** — API shipped (`GET/DELETE /api/user/sessions?admin=1&userId=X`); Access Management UI for browsing/revoking sessions per user is planned.
+- **Admin Session Console (UI)** — 🟢 Shipped (September 2026): interactive modal for inspecting active user sessions, device/browser categorization, IP addresses, and one-click revocation.
 - **Cross-Source Merge Execution (v3.1 → stable)**
 - **Visual Studio Query Builder**
 - **GraphQL Supergraph / Federation**
@@ -154,3 +154,9 @@ Honest assessment against reference platforms, based on publicly available docum
 **Open follow-ups:** run the Redis matrix variant once (`USE_REDIS=true`). The profile-backed matrix re-run landed **200/200** — see the [Achievements Log](./achievements-2026.mdx) for the pre-profile vs profile measurement.
 
 _Last roadmap sync: 2026-08-23_
+
+## ✅ Shipped (2026-09-02) — moved to the [Achievements Log](./achievements-2026.mdx)
+
+- **Intelligence consumption & predictive navigation** — the behavioral learner now renders confidence-gated (`predictNextPathAdaptive`); `data-preload="smart"` on sidebar navigation and collection tree nodes in `collections.svelte` + `tree-view.svelte`; "Warm next page" viewport preloading on Smart Table pagination controls (`data-preload="viewport"` on next page link via `pagination.svelte`); dashboard hot-collection quick chips; heat-aware SWR in `collection-service.ts` (hot top-20 lists keep the 60 s fresh TTL but serve stale up to 15 min; cold lists unchanged).
+- **Request-pipeline lean** — one canonical L2 cache key shared by hook + dispatcher (duplicate `api:` namespace retired), single-compression guarantee via a `compressed: {}` sentinel (one br+gzip+zstd pass re-sets L1 with real variants), admin sidebar payload cached per (tenant, contentVersion) instead of rebuilt + recursively cloned per SSR, and one per-request session-cookie resolution across authn/authz/turbo/dispatcher.
+- **Smart Table Saved Views** — saved views menu (`SmartTableSavedViewsMenu`) wired into User Management (`admin-area.svelte`) alongside existing entry-list and website-tokens surfaces.

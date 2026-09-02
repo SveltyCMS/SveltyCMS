@@ -1161,6 +1161,7 @@ bulk actions, and predictive preloading.
 			totalItems={totalItems}
 			onUpdatePage={onUpdatePage}
 			onUpdateRowsPerPage={onUpdateRowsPerPage}
+			urlPageParam="page"
 			class="min-h-0 flex-1"
 		>
 			{#snippet emptyAction()}

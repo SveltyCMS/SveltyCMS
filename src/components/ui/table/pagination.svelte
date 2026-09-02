@@ -13,17 +13,22 @@ and first/last navigation used by the admin CMS.
 - `rowsPerPageOptions`
 - `variant` ('simple' | 'cms') — simple = design system; cms = first/last + i18n
 - `onUpdatePage` / `onUpdateRowsPerPage`
+- `urlPageParam` (opt-in) — when set (e.g. "page"), cms prev/next/first/last
+  become real links to the same route with that search param updated so
+  predictive preloading can warm the next list page.
 
 ### Features:
 - auto page count from totalItems
 - mobile + desktop layouts (cms variant)
 - accessible nav + live region
+- URL-driven paging (opt-in `urlPageParam`) with viewport preload warm-next-page
 - full Svelte 5 runes
 -->
 
 <script lang="ts">
 	import Button from '../button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { page } from '$app/state';
 	import {
 		entrylist_items,
 		entrylist_of,
@@ -41,7 +46,12 @@ and first/last navigation used by the admin CMS.
 		variant = 'simple',
 		onchange,
 		onUpdatePage,
-		onUpdateRowsPerPage
+		onUpdateRowsPerPage,
+		/** URL-driven pagination: when set (e.g. "page"), cms prev/next/first/last
+		 *  render as real links to this route with the search param updated, so
+		 *  predictive preloading (data-preload="viewport") can warm the next
+		 *  list page. Consumers whose paging is not URL-backed leave it unset. */
+		urlPageParam = null
 	}: {
 		currentPage?: number;
 		rowsPerPage?: number;
@@ -52,6 +62,7 @@ and first/last navigation used by the admin CMS.
 		onchange?: () => void;
 		onUpdatePage?: (page: number) => void;
 		onUpdateRowsPerPage?: (rows: number) => void;
+		urlPageParam?: string | null;
 	} = $props();
 
 	const computedPagesCount = $derived(
@@ -64,11 +75,11 @@ and first/last navigation used by the admin CMS.
 	const isFirstPage = $derived(currentPage <= 1);
 	const isLastPage = $derived(currentPage >= computedPagesCount);
 
-	function setPage(page: number) {
-		if (page < 1 || page > computedPagesCount || page === currentPage) return;
-		currentPage = page;
+	function setPage(pageNumber: number) {
+		if (pageNumber < 1 || pageNumber > computedPagesCount || pageNumber === currentPage) return;
+		currentPage = pageNumber;
 		onchange?.();
-		onUpdatePage?.(page);
+		onUpdatePage?.(pageNumber);
 	}
 
 	function updateRows(rows: number) {
@@ -80,43 +91,97 @@ and first/last navigation used by the admin CMS.
 
 	const navBtn =
 		'h-8 w-9 rounded-none p-0! min-w-0 text-surface-600 hover:bg-surface-200 dark:text-surface-300 dark:hover:bg-surface-700';
+
+	// ── URL-driven paging (warm-next-page) ───────────────────────────────────
+	// With `urlPageParam` set, first/prev/next/last become real <a> links whose
+	// href updates the page search param on the SAME route. data-preload is
+	// picked up by @utils/predictive-preload: the viewport strategy fires
+	// /api/system/prewarm-route + preloadData() once the footer scrolls near the
+	// viewport, so the next list page is SSR-cached before the click. Plain
+	// left-clicks keep the existing emit → URL/goto flow (so smart-table state
+	// and the URL stay consistent); modifier/middle clicks fall through to the
+	// plain href (new tab / new window).
+	function pageHref(pageNumber: number): string | null {
+		if (!urlPageParam) return null;
+		const next = new URL(page.url.href);
+		if (pageNumber <= 1) next.searchParams.delete(urlPageParam);
+		else next.searchParams.set(urlPageParam, String(pageNumber));
+		return `${next.pathname}${next.search}${next.hash}`;
+	}
+
+	function onAnchorPage(event: MouseEvent, pageNumber: number) {
+		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		event.preventDefault();
+		setPage(pageNumber);
+	}
 </script>
 
 {#if variant === 'cms'}
+	{#snippet pagerLink(p: { pageNumber: number; label: string; icon: string; disabled: boolean; cls?: string; size?: 'sm' | 'md' | 'lg'; viewport?: boolean })}
+		{#if urlPageParam}
+			{#if p.disabled}
+				<span
+					aria-hidden="true"
+					class="{p.cls ?? navBtn} inline-flex cursor-default items-center justify-center opacity-40"
+				>
+					<iconify-icon icon={p.icon} width="20" aria-hidden="true"></iconify-icon>
+				</span>
+			{:else}
+				<a
+					href={pageHref(p.pageNumber)}
+					aria-label={p.label}
+					data-preload={p.viewport ? 'viewport' : undefined}
+					class="{p.cls ?? navBtn} inline-flex items-center justify-center no-underline! focus-visible:ring-2 focus-visible:ring-tertiary-500"
+					onclick={(e) => onAnchorPage(e, p.pageNumber)}
+				>
+					<iconify-icon icon={p.icon} width="20" aria-hidden="true"></iconify-icon>
+				</a>
+			{/if}
+		{:else}
+			<Button
+				variant="ghost"
+				size={p.size}
+				onclick={() => setPage(p.pageNumber)}
+				disabled={p.disabled}
+				type="button"
+				aria-label={p.label}
+				class={p.cls}
+			>
+				<iconify-icon icon={p.icon} width="20" aria-hidden="true"></iconify-icon>
+			</Button>
+		{/if}
+	{/snippet}
+
 	<!-- Mobile -->
 	<div class="flex w-full items-center gap-2 md:hidden">
 		<nav
 			class="inline-flex h-9 shrink-0 items-stretch overflow-hidden rounded-lg border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900"
 			aria-label="Table pagination"
 		>
-			<Button
-				variant="ghost"
-				size="sm"
-				onclick={() => setPage(currentPage - 1)}
-				disabled={isFirstPage}
-				type="button"
-				aria-label="Go to previous page"
-				class="table-pagination-mobile-nav-btn"
-			>
-				<iconify-icon icon="mdi:chevron-left" width="20" aria-hidden="true"></iconify-icon>
-			</Button>
+			{@render pagerLink({
+				pageNumber: currentPage - 1,
+				label: 'Go to previous page',
+				icon: 'mdi:chevron-left',
+				disabled: isFirstPage,
+				size: 'sm',
+				cls: 'table-pagination-mobile-nav-btn',
+				viewport: true
+			})}
 			<span
 				class="flex min-w-12 items-center justify-center border-x border-surface-500/30 px-2 font-mono text-xs font-semibold tabular-nums text-surface-600 dark:border-surface-500/40 dark:text-surface-100"
 				aria-hidden="true"
 			>
 				{currentPage}/{computedPagesCount}
 			</span>
-			<Button
-				variant="ghost"
-				size="sm"
-				onclick={() => setPage(currentPage + 1)}
-				disabled={isLastPage}
-				type="button"
-				aria-label="Go to next page"
-				class="table-pagination-mobile-nav-btn"
-			>
-				<iconify-icon icon="mdi:chevron-right" width="20" aria-hidden="true"></iconify-icon>
-			</Button>
+			{@render pagerLink({
+				pageNumber: currentPage + 1,
+				label: 'Go to next page',
+				icon: 'mdi:chevron-right',
+				disabled: isLastPage,
+				size: 'sm',
+				cls: 'table-pagination-mobile-nav-btn',
+				viewport: true
+			})}
 		</nav>
 
 		<p
@@ -183,28 +248,23 @@ and first/last navigation used by the admin CMS.
 	<nav class="hidden items-center md:flex" aria-label="Table pagination">
 		<div class="inline-flex items-center overflow-hidden rounded-md border border-surface-500/30 dark:border-surface-600">
 			<SystemTooltip title="First Page">
-				<Button
-					variant="ghost"
-					onclick={() => setPage(1)}
-					disabled={isFirstPage}
-					type="button"
-					aria-label="Go to first page"
-					class="{navBtn} border-e border-surface-500/30 dark:border-surface-600"
-				>
-					<iconify-icon icon="material-symbols:first-page" width="20" aria-hidden="true"></iconify-icon>
-				</Button>
+				{@render pagerLink({
+					pageNumber: 1,
+					label: 'Go to first page',
+					icon: 'material-symbols:first-page',
+					disabled: isFirstPage,
+					cls: '{navBtn} border-e border-surface-500/30 dark:border-surface-600'
+				})}
 			</SystemTooltip>
 			<SystemTooltip title="Previous Page">
-				<Button
-					variant="ghost"
-					onclick={() => setPage(currentPage - 1)}
-					disabled={isFirstPage}
-					type="button"
-					aria-label="Go to previous page"
-					class="{navBtn} border-e border-surface-500/30 dark:border-surface-600"
-				>
-					<iconify-icon icon="material-symbols:chevron-left" width="20" aria-hidden="true"></iconify-icon>
-				</Button>
+				{@render pagerLink({
+					pageNumber: currentPage - 1,
+					label: 'Go to previous page',
+					icon: 'material-symbols:chevron-left',
+					disabled: isFirstPage,
+					cls: '{navBtn} border-e border-surface-500/30 dark:border-surface-600',
+					viewport: true
+				})}
 			</SystemTooltip>
 			<SystemTooltip title="Rows per page">
 				<select aria-label="Rows per page"
@@ -221,28 +281,23 @@ and first/last navigation used by the admin CMS.
 				</select>
 			</SystemTooltip>
 			<SystemTooltip title="Next Page">
-				<Button
-					variant="ghost"
-					onclick={() => setPage(currentPage + 1)}
-					disabled={isLastPage}
-					type="button"
-					aria-label="Go to next page"
-					class="{navBtn} border-e border-surface-500/30 dark:border-surface-600"
-				>
-					<iconify-icon icon="material-symbols:chevron-right" width="20" aria-hidden="true"></iconify-icon>
-				</Button>
+				{@render pagerLink({
+					pageNumber: currentPage + 1,
+					label: 'Go to next page',
+					icon: 'material-symbols:chevron-right',
+					disabled: isLastPage,
+					cls: '{navBtn} border-e border-surface-500/30 dark:border-surface-600',
+					viewport: true
+				})}
 			</SystemTooltip>
 			<SystemTooltip title="Last Page">
-				<Button
-					variant="ghost"
-					onclick={() => setPage(computedPagesCount)}
-					disabled={isLastPage}
-					type="button"
-					aria-label="Go to last page"
-					class={navBtn}
-				>
-					<iconify-icon icon="material-symbols:last-page" width="20" aria-hidden="true"></iconify-icon>
-				</Button>
+				{@render pagerLink({
+					pageNumber: computedPagesCount,
+					label: 'Go to last page',
+					icon: 'material-symbols:last-page',
+					disabled: isLastPage,
+					cls: navBtn
+				})}
 			</SystemTooltip>
 		</div>
 	</nav>

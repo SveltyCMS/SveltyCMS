@@ -17,7 +17,7 @@ import {
   buildGraphQLResponseCacheKey,
 } from "@src/services/cache/response-cache";
 import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
-import { readSessionCookie } from "@src/databases/auth/constants";
+import { readSessionCookie, isSecureCookieContext } from "@src/databases/auth/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getRequestFlags } from "@utils/hook-utils";
 import {
@@ -110,7 +110,13 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") return resolve(event);
   if (!isCacheableApiPath(url.pathname)) return resolve(event);
 
-  const sessionId = readSessionCookie(cookies) || null;
+  // Same protocol-derived isSecure as handleAuthentication so every consumer
+  // hits the SAME per-request WeakMap slot inside readSessionCookie — the
+  // session cookie is parsed once per request, not once per hook. The "any"
+  // mode (HOST→plain→__Secure- order) is byte-identical to the secure order on
+  // HTTPS; on HTTP this aligns turbo with the authoritative authn resolution.
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+  const sessionId = readSessionCookie(cookies, isSecure) || null;
 
   if (!sessionId) return resolve(event);
 

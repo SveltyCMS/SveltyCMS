@@ -17,6 +17,7 @@ import { rawResponse, successResponse } from "./base";
 import { AppError } from "@utils/error-handling";
 import { isAdmin } from "@utils/hook-utils";
 import { parsePaginationQueryParams } from "@src/utils/api-params";
+import { recordListQuery } from "@utils/list-query-metrics";
 
 export async function handleTokenRoutes(
   event: RequestEvent,
@@ -64,6 +65,7 @@ export async function handleTokenRoutes(
       10,
     );
 
+    const t0 = performance.now();
     if (isWebsite) {
       const result = await cms.websiteTokens.list({
         tenantId,
@@ -71,6 +73,14 @@ export async function handleTokenRoutes(
         limit,
         sort,
         order,
+      });
+
+      const durationMs = performance.now() - t0;
+      recordListQuery({
+        source: "Tokens.list",
+        durationMs,
+        cache: "miss",
+        rowCount: Array.isArray(result.data) ? result.data.length : 0,
       });
 
       if (raw) {
@@ -91,6 +101,14 @@ export async function handleTokenRoutes(
       limit,
       sort,
       order,
+    });
+
+    const durationMs = performance.now() - t0;
+    recordListQuery({
+      source: "Tokens.list",
+      durationMs,
+      cache: "miss",
+      rowCount: Array.isArray(result.data) ? result.data.length : 0,
     });
 
     if (!result.success) return successResponse(event, result);

@@ -21,7 +21,7 @@ import type {
 import { hasTenantBypass } from "../system-tenant-scope";
 import { eq, isNull } from "drizzle-orm";
 import { assertTenantContext } from "@src/utils/security/safe-query";
-import { normalizeCollectionTableName } from "./collection-name";
+import { normalizeCollectionTableName, collectionTableName } from "./collection-name";
 
 export { isoDateStringToDate, nowISODateString };
 
@@ -164,7 +164,11 @@ export function assertTableRegistryConsistent(table: string): void {
  * data fills only non-column gaps).
  */
 export function getTableMergeSkipKeys(table: string): Set<string> | undefined {
-  return _tableMergeSkipKeys.get(table);
+  return (
+    _tableMergeSkipKeys.get(table) ||
+    _tableMergeSkipKeys.get(collectionTableName(table)) ||
+    (table.startsWith("collection_") ? _tableMergeSkipKeys.get(table.slice(11)) : undefined)
+  );
 }
 
 /**
@@ -173,7 +177,11 @@ export function getTableMergeSkipKeys(table: string): Set<string> | undefined {
  * mode:"boolean" path). Conversion coerces 0/1 → false/true for these.
  */
 export function getTableBooleanColumns(table: string): Set<string> | undefined {
-  return _tableBoolCols.get(table);
+  return (
+    _tableBoolCols.get(table) ||
+    _tableBoolCols.get(collectionTableName(table)) ||
+    (table.startsWith("collection_") ? _tableBoolCols.get(table.slice(11)) : undefined)
+  );
 }
 
 /** Registers a table's known date/JSON columns for zero-overhead conversion under both physical and logical table names. Registrations are ADDITIVE — knowledge only grows (a later registration with materialized/boolean columns augments an earlier base-only one; a later partial registration never shrinks the maps). The five legacy maps are derived from the single TableMeta record. */
@@ -224,14 +232,29 @@ export function registerTableSchema(
   // produces for hyphenated ids (the old prefix-toggle kept the hyphens in
   // the variant key, which never matched the physical table).
   registerKey(normalizeCollectionTableName(table));
+  if (table.startsWith("collection_")) {
+    registerKey(table.slice(11));
+  } else {
+    registerKey(collectionTableName(table));
+  }
 }
 
 export function getTableDateColumns(table: string): string[] {
-  return _tableDateCols.get(table) || [];
+  return (
+    _tableDateCols.get(table) ||
+    _tableDateCols.get(collectionTableName(table)) ||
+    (table.startsWith("collection_") ? _tableDateCols.get(table.slice(11)) : undefined) ||
+    []
+  );
 }
 
 export function getTableJsonColumns(table: string): string[] {
-  return _tableJsonCols.get(table) || [];
+  return (
+    _tableJsonCols.get(table) ||
+    _tableJsonCols.get(collectionTableName(table)) ||
+    (table.startsWith("collection_") ? _tableJsonCols.get(table.slice(11)) : undefined) ||
+    []
+  );
 }
 
 // ============================================================================
@@ -384,7 +407,16 @@ export function convertDatesToISO(
     return row.map((r) => convertDatesToISO(r, options));
   }
 
-  const table = options?.table;
+  const rawTable = options?.table;
+  const table =
+    rawTable &&
+    (_tableDateCols.has(rawTable)
+      ? rawTable
+      : _tableDateCols.has(collectionTableName(rawTable))
+        ? collectionTableName(rawTable)
+        : rawTable.startsWith("collection_") && _tableDateCols.has(rawTable.slice(11))
+          ? rawTable.slice(11)
+          : rawTable);
   const hasSchema = table ? _tableDateCols.has(table) : false;
   const dateCols = hasSchema && table ? getTableDateColumns(table) : null;
   const jsonCols = hasSchema && table ? getTableJsonColumns(table) : null;
@@ -543,13 +575,24 @@ export const convertArrayDatesToISO = (
   },
 ) => {
   if (!rows || rows.length === 0) return [];
-  if (options?.inPlace) {
+  const rawTable = options?.table;
+  const table =
+    rawTable &&
+    (_tableDateCols.has(rawTable)
+      ? rawTable
+      : _tableDateCols.has(collectionTableName(rawTable))
+        ? collectionTableName(rawTable)
+        : rawTable.startsWith("collection_") && _tableDateCols.has(rawTable.slice(11))
+          ? rawTable.slice(11)
+          : rawTable);
+  const resolvedOpts = table !== rawTable ? { ...options, table } : options;
+  if (resolvedOpts?.inPlace) {
     for (let i = 0; i < rows.length; i++) {
-      rows[i] = convertDatesToISO(rows[i], options);
+      rows[i] = convertDatesToISO(rows[i], resolvedOpts);
     }
     return rows;
   }
-  return rows.map((r) => convertDatesToISO(r, options));
+  return rows.map((r) => convertDatesToISO(r, resolvedOpts));
 };
 
 export function convertISOToDates(

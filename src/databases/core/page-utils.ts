@@ -160,6 +160,33 @@ export function encodePageCursor(payload: PageCursorPayload): string {
     return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
 
+  // 🚀 Fast-path: Compact delimited encoding for single-field sorted cursors (avoids JSON.stringify)
+  if (payload.f && payload.id) {
+    const dir = payload.d === "asc" ? "a" : "d";
+    const v = payload.v;
+    let typeTag = "0";
+    let encVal = "";
+    if (typeof v === "string") {
+      typeTag = "s";
+      encVal = encodeURIComponent(v);
+    } else if (typeof v === "number") {
+      typeTag = "n";
+      encVal = String(v);
+    } else if (typeof v === "boolean") {
+      typeTag = "b";
+      encVal = v ? "1" : "0";
+    }
+
+    if (typeTag !== "0" || v === null || v === undefined) {
+      const compact = `k2:${dir}:${payload.f}:${typeTag}:${encVal}:${payload.id}`;
+      if (typeof Buffer !== "undefined") {
+        return Buffer.from(compact, "utf8").toString("base64url");
+      }
+      const b64 = btoa(unescape(encodeURIComponent(compact)));
+      return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+  }
+
   const json = JSON.stringify(payload);
   if (typeof Buffer !== "undefined") {
     return Buffer.from(json, "utf8").toString("base64url");
@@ -188,6 +215,36 @@ export function decodePageCursor(cursor: string | undefined | null): PageCursorP
         const id = raw.slice(secondColon + 1);
         if (id) {
           return { id, d: dirCode === "a" ? "asc" : "desc" };
+        }
+      }
+    }
+
+    if (raw.startsWith("k2:")) {
+      const parts = raw.split(":");
+      if (parts.length >= 6) {
+        const dirCode = parts[1];
+        const f = parts[2];
+        const typeTag = parts[3];
+        const encVal = parts[4];
+        const id = parts.slice(5).join(":");
+        if (id && f) {
+          let v: string | number | boolean | null | undefined = undefined;
+          if (typeTag === "s") {
+            v = decodeURIComponent(encVal);
+          } else if (typeTag === "n") {
+            const num = Number(encVal);
+            v = Number.isNaN(num) ? encVal : num;
+          } else if (typeTag === "b") {
+            v = encVal === "1";
+          } else if (typeTag === "0") {
+            v = null;
+          }
+          return {
+            id,
+            f,
+            v,
+            d: dirCode === "a" ? "asc" : "desc",
+          };
         }
       }
     }

@@ -15,6 +15,20 @@ import { safeParse, type GenericSchema, type InferOutput } from "valibot";
 
 const STATIC_JSON_HEADERS = { "content-type": "application/json" } as const;
 
+/**
+ * Fast byte length calculator: avoids C++ Buffer.byteLength overhead
+ * for standard ASCII JSON strings (the vast majority of API payloads).
+ */
+function getFastByteLength(str: string): number {
+  const len = str.length;
+  for (let i = 0; i < len; i++) {
+    if (str.charCodeAt(i) > 127) {
+      return Buffer.byteLength(str, "utf8");
+    }
+  }
+  return len;
+}
+
 function buildJsonResponse(
   event: RequestEvent,
   data: any,
@@ -42,15 +56,16 @@ function buildJsonResponse(
     (event.locals as any).apiBody = serialized;
   }
 
+  const byteLen = getFastByteLength(serialized);
   const headers: Record<string, string> = extraHeaders
     ? {
         ...STATIC_JSON_HEADERS,
-        "content-length": String(Buffer.byteLength(serialized)),
+        "content-length": String(byteLen),
         ...extraHeaders,
       }
     : {
         ...STATIC_JSON_HEADERS,
-        "content-length": String(Buffer.byteLength(serialized)),
+        "content-length": String(byteLen),
       };
 
   return new Response(serialized, {
@@ -65,19 +80,24 @@ export function successResponse(
   status = 200,
   extraHeaders?: Record<string, string>,
 ) {
-  let body: any;
   if (isDatabaseResult(result)) {
     if (!result.success) {
       return buildJsonResponse(event, result, result.error?.statusCode || 400, extraHeaders);
     }
-    body =
+    // 🚀 ZERO-ALLOCATION FAST-PATH: Bypass wrapper object allocation when meta is absent
+    if (result.meta === undefined && result.data !== undefined) {
+      const serializedData =
+        typeof result.data === "string" ? result.data : (JSON.stringify(result.data) ?? "null");
+      return fastSuccessResponse(event, serializedData, result.data, status, extraHeaders);
+    }
+    const body =
       result.meta !== undefined
         ? { success: true, data: result.data, meta: result.meta }
         : { success: true, data: result.data };
-  } else {
-    body = { success: true, data: result };
+    return buildJsonResponse(event, body, status, extraHeaders);
   }
 
+  const body = { success: true, data: result };
   return buildJsonResponse(event, body, status, extraHeaders);
 }
 
@@ -100,15 +120,16 @@ export function fastSuccessResponse(
     (event.locals as any).apiData = rawData;
     (event.locals as any).apiBody = serialized;
   }
+  const byteLen = getFastByteLength(serialized);
   const headers: Record<string, string> = extraHeaders
     ? {
         ...STATIC_JSON_HEADERS,
-        "content-length": String(Buffer.byteLength(serialized)),
+        "content-length": String(byteLen),
         ...extraHeaders,
       }
     : {
         ...STATIC_JSON_HEADERS,
-        "content-length": String(Buffer.byteLength(serialized)),
+        "content-length": String(byteLen),
       };
 
   return new Response(serialized, {
