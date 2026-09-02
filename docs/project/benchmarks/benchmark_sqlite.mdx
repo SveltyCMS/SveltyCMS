@@ -64,7 +64,7 @@ tags:
 
 | Scenario              | Latency    | Trend                               | Budget | Result |
 | --------------------- | ---------- | ----------------------------------- | ------ | ------ |
-| **Cold Start Phased** | 1300.740ms | ⚪ established at 1300.74ms (1 run) | < 5ms  | 🟢     |
+| **Cold Start Phased** | 1313.280ms | ⚪ established at 1313.28ms (1 run) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -74,7 +74,7 @@ tags:
 | --------------------------------------------------------- | ----- | -------------- | ---------- |
 | api latency (HTTP: findById @ 8c (Cold)) (warm)           | 🟢    | `▁▅█▄`         | 8.690ms    |
 | auth performance (Auth Validation @ 1c) (warm)            | 🟢    | `▁▁▅█`         | 1.220ms    |
-| cold start phased (Cold Start (IDLE → HTTP READY)) (cold) | 🟢    | `██▂▅▁▁`       | 1300.740ms |
+| cold start phased (Cold Start (IDLE → HTTP READY)) (cold) | 🟢    | `██▂▅▁▁▁`      | 1313.280ms |
 | database performance (FIND MANY (limit 50)) (warm)        | 🟢    | `▁▁▁▁▂▇▂▆█▆▁▁` | 0.088ms    |
 
 <details>
@@ -107,11 +107,11 @@ xychart-beta
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `c20b5261-7d8f-4e2c-a29d-e7119746bfc8` · **Tests invoked:** 1 · **Metrics:** 1 · **DB:** sqlite
+**Run ID:** `d09d65c7-c8df-4099-995b-8af1399dd3e6` · **Tests invoked:** 1 · **Metrics:** 1 · **DB:** sqlite
 
 | Test              | Metric                         | Avg (ms) | p95 (ms) | RPS | Trend | Detail                                      |
 | ----------------- | ------------------------------ | -------- | -------- | --- | ----- | ------------------------------------------- |
-| Cold Start Phased | Cold Start (IDLE → HTTP READY) | 1300.740 | 1589.445 | 0   | 🟢    | ⚪ stable at 1720.18ms (±644.39ms) (5 runs) |
+| Cold Start Phased | Cold Start (IDLE → HTTP READY) | 1313.280 | 1618.933 | 0   | 🟢    | ⚪ stable at 1551.14ms (±702.33ms) (6 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
@@ -131,11 +131,11 @@ xychart-beta
 | AI PERFORMANCE (warm)               | 🟢    | `▁▁█▁`             | 0.001ms    |
 | API LATENCY (warm)                  | 🟢    | `▁▆▃█▄▆▃`          | 4.735ms    |
 | AUTH PERFORMANCE (warm)             | 🟢    | `▁▁▂▂▂█▂`          | 1.381ms    |
-| CACHE HIT RATIO (warm)              | 🟢    | `█▁▅▃▇▁▅`          | 2.233ms    |
+| CACHE HIT RATIO (warm)              | 🟢    | `█▄▇▁▂▁▂`          | 0.561ms    |
 | CACHE PERFORMANCE (warm)            | 🟢    | `█▇█▁▁▁▁`          | 0.323ms    |
 | CACHE SERVICE (warm)                | 🟢    | `▃▁█▅▁▇▄`          | 4.510ms    |
 | CLIENT JOURNEY (warm)               | 🟢    | `█▁`               | 9.324ms    |
-| COLD START PHASED (cold)            | 🟢    | `██▂▅▁▁`           | 1300.740ms |
+| COLD START PHASED (cold)            | 🟢    | `██▂▅▁▁▁`          | 1313.280ms |
 | COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▃▁▄▁█▂`          | 0.836ms    |
 | CONCURRENCY MAX (warm)              | 🟢    | `▁█▇`              | 835.712ms  |
 | CONFIG PROMOTION (warm)             | 🟢    | `▁▄▅▄█▃▂`          | 4.627ms    |
@@ -223,7 +223,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:COLD_START:START -->
 <details id="section-cold_start">
-<summary><strong>🏷️ cold start phased</strong> · 🟢 1300.740ms · ↘️ ⚪ stable at 1720.18ms (±644.39ms) (5 runs) (2026-09-02 15:27:31) · <a href="../../../tests/benchmarks/cold-start-phased.test.ts">source</a></summary>
+<summary><strong>🏷️ cold start phased</strong> · 🟢 1313.280ms · ↘️ ⚪ stable at 1551.14ms (±702.33ms) (6 runs) (2026-09-02 15:32:29) · <a href="../../../tests/benchmarks/cold-start-phased.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
@@ -235,11 +235,11 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  SVELTYCMS — PHASED COLD START AUDIT                                  ║
 ║                           File: tests/benchmarks/cold-start-phased.test.ts                            ║
-║                                       Ran: 2026-09-02 15:27:31                                        ║
+║                                       Ran: 2026-09-02 15:32:29                                        ║
 ║            Measures process spawn, dependency hydration, and first-request TTFB readiness.            ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Initial Cold Boot (Fresh Process) │     1589.445 ms │ p95:     1589.445 ms │ RPS:          0 ║
-║ Steady-State Respawn (Average) │     1300.740 ms │ p95:     1589.445 ms │ RPS:          0 ║
+║ Initial Cold Boot (Fresh Process) │     1618.933 ms │ p95:     1618.933 ms │ RPS:          0 ║
+║ Steady-State Respawn (Average) │     1313.280 ms │ p95:     1618.933 ms │ RPS:          0 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -525,19 +525,19 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 
 <!-- SECTION:CACHE_EFFICIENCY:START -->
 <details id="section-cache_efficiency">
-<summary><strong>🏷️ cache hit ratio</strong> · 🟢 0.465ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
+<summary><strong>🏷️ cache hit ratio</strong> · 🟢 0.684ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  SVELTYCMS — CACHE EFFICIENCY AUDIT                                   ║
 ║                            File: tests/benchmarks/cache-hit-ratio.test.ts                             ║
-║                                       Ran: 2026-08-29 21:31:34                                        ║
+║                                       Ran: 2026-09-02 15:32:10                                        ║
 ║           Measures true cold-fill, warm hit ratio, miss penalty, and invalidation latency.            ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache Cold Fill (Miss + Repopulate) │        0.465 ms │ p95:        1.057 ms │ RPS:      2,149 ║
-║ Cache Hit (Warm)             │ Cold:     0.53 ms │ Warm:     0.334 ms │ p95:     0.445 ms │   2,741 RPS ║
-║ Bypass Cache (Direct DB)     │ Cold:     0.60 ms │ Warm:     0.360 ms │ p95:     0.405 ms │   2,759 RPS ║
-║ Cache Invalidation           │ Cold:     1.38 ms │ Warm:     0.621 ms │ p95:     1.355 ms │   1,309 RPS ║
+║ Cache Cold Fill (Miss + Repopulate) │        0.684 ms │ p95:        1.438 ms │ RPS:      1,463 ║
+║ Cache Hit (Warm)             │ Cold:     0.57 ms │ Warm:     0.337 ms │ p95:     0.526 ms │   2,709 RPS ║
+║ Bypass Cache (Direct DB)     │ Cold:     1.31 ms │ Warm:     0.354 ms │ p95:     0.414 ms │   2,802 RPS ║
+║ Cache Invalidation           │ Cold:     1.15 ms │ Warm:     0.561 ms │ p95:     0.685 ms │   1,614 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -1052,11 +1052,10 @@ Throughput dropped 82% — check connection pool saturation or lock contention.
 
 <!-- SECTION:CACHE__MISS_:START -->
 <details id="section-cache__miss_">
-<summary><strong>🏷️ Cache (Miss)</strong> · 🟢 2.555ms · ↗️ ⚪ stable at 2.16ms (±1.31ms) (2 runs) (2026-08-29 12:56:44) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
+<summary><strong>🏷️ Cache (Miss)</strong> · 🟢 0.684ms · ↘️ ⚪ stable at 2.55ms (±1.31ms) (3 runs) (2026-09-02 15:32:10) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 23% — check connection pool saturation or lock contention.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -1070,12 +1069,10 @@ Throughput dropped 23% — check connection pool saturation or lock contention.
 
 <!-- SECTION:CACHE__HIT_:START -->
 <details id="section-cache__hit_">
-<summary><strong>🏷️ Cache (Hit)</strong> · 🟢 1.246ms · ↗️ ⚪ stable at 1.01ms (±0.461ms) (2 runs) (2026-08-29 12:56:44) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
+<summary><strong>🏷️ Cache (Hit)</strong> · ⚪ 0.337ms · ↘️ 🟢 faster: 1.24ms → 0.337ms (-73%) (3 runs) (2026-09-02 15:32:10) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 32% — check connection pool saturation or lock contention.  
-**Severe degradation** (+23%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -1089,12 +1086,10 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 
 <!-- SECTION:DATABASE:START -->
 <details id="section-database">
-<summary><strong>🏷️ Database</strong> · 🟢 1.715ms · ↗️ ⚪ stable at 1.23ms (±0.519ms) (2 runs) (2026-08-29 12:56:44) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
+<summary><strong>🏷️ Database</strong> · ⚪ 0.354ms · ↘️ 🟢 faster: 1.49ms → 0.354ms (-76%) (3 runs) (2026-09-02 15:32:10) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 32% — check connection pool saturation or lock contention.  
-**Severe degradation** (+40%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -1108,12 +1103,10 @@ Throughput dropped 32% — check connection pool saturation or lock contention.
 
 <!-- SECTION:MUTATION:START -->
 <details id="section-mutation">
-<summary><strong>🏷️ Mutation</strong> · 🟢 2.233ms · ↗️ ⚪ stable at 1.77ms (±0.659ms) (2 runs) (2026-08-29 12:56:44) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
+<summary><strong>🏷️ Mutation</strong> · ⚪ 0.561ms · ↘️ 🟢 faster: 2.10ms → 0.561ms (-73%) (3 runs) (2026-09-02 15:32:10) · <a href="../../../tests/benchmarks/cache-hit-ratio.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 30% — check connection pool saturation or lock contention.  
-**Severe degradation** (+26%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->

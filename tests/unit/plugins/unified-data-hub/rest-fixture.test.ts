@@ -25,9 +25,9 @@ describe("WordPress REST fixture", () => {
   });
 
   it("serves paginated posts with flattened title fields", async () => {
-    const port = pickTestPort();
-    const baseUrl = await startWordPressRestFixture({ rowCount: 30, port });
-    expect(getRestFixtureServerPort()).toBe(port);
+    const baseUrl = await startWordPressRestFixture({ rowCount: 30, port: 0 });
+    const boundPort = getRestFixtureServerPort();
+    expect(boundPort).toBeGreaterThan(0);
 
     const reachable = await isWordPressRestFixtureReachable();
     expect(reachable).toBe(true);
