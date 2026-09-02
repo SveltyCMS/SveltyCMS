@@ -22,11 +22,14 @@
 import { createRequire } from "node:module";
 const _require = createRequire(import.meta.url);
 const { createHash: _createHash } = _require("node:crypto");
+const HEX_TABLE = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
 
 function bytesToSha256Hex(bytes: Uint8Array): string {
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  let hex = "";
+  for (let i = 0; i < bytes.length; i++) {
+    hex += HEX_TABLE[bytes[i]];
+  }
+  return hex;
 }
 
 /**
