@@ -74,10 +74,16 @@ The system seeds the database and transitions to `READY` — no manual config fi
 
 SveltyCMS supports **dual runtime targets** out of the box:
 
-| Deployment Target       | Build Command                             | Start Command        | Architecture                                                                                                   |
-| :---------------------- | :---------------------------------------- | :------------------- | :------------------------------------------------------------------------------------------------------------- |
-| **Node.js** _(Default)_ | `bun run build:node` (or `bun run build`) | `node index.cjs`     | `@sveltejs/adapter-node` with mature V8 OpenSSL C++ cryptography and connection pooling.                       |
-| **Bun 1.3 / 1.4**       | `bun run build:bun`                       | `bun build/index.js` | Native `svelte-adapter-bun` targeting **`Bun.serve`** with ~10ms startup and zero `node:http` bridge overhead. |
+| Deployment Target                          | Build Command                             | Start Command        | Best For                                                                          | Architecture                                                                                                      |
+| :----------------------------------------- | :---------------------------------------- | :------------------- | :-------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
+| **Node.js** _(Recommended for Production)_ | `bun run build:node` (or `bun run build`) | `node index.cjs`     | Maximum sustained throughput (4,000+ RPS), low tail latency, long-running servers | `@sveltejs/adapter-node` with V8 TurboFan deep JIT compilation and native connection pooling.                     |
+| **Bun 1.3 / 1.4**                          | `bun run build:bun`                       | `bun build/index.js` | Cold-start sensitive deployments, edge containers, and developer environments     | Native `svelte-adapter-bun` targeting **`Bun.serve`** with sub-10ms startup and zero `node:http` bridge overhead. |
+
+> [!TIP]
+> **Performance Guidance**:
+>
+> - **Production Dedicated Servers**: Deploy on **Node.js 24+** for highest sustained throughput across full-stack JavaScript middleware, sessions, and GraphQL execution.
+> - **Edge / Serverless Containers**: Deploy on **Bun 1.4+** via `Bun.serve` for rapid container provisioning and ultra-low cold start times.
 
 ---
 
