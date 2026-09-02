@@ -166,7 +166,8 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     };
 
     const findByIdRandom = async () => {
-      const targetId = createdIds[cursor++ % idCount] || stableId;
+      const randomIndex = Math.floor(Math.random() * idCount);
+      const targetId = createdIds[randomIndex] || stableId;
       const res = await fetch(`${collectionUrl}/${targetId}`, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await res.arrayBuffer();
@@ -221,8 +222,9 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     };
 
     const update = async () => {
-      const targetId = createdIds[cursor++ % idCount] || stableId;
-      const payload = JSON.stringify({ count: (cursor % 1000) + 1 });
+      const randomIndex = Math.floor(Math.random() * idCount);
+      const targetId = createdIds[randomIndex] || stableId;
+      const payload = JSON.stringify({ count: Math.floor(Math.random() * 1000) + 1 });
       const res = await fetch(`${collectionUrl}/${targetId}`, {
         method: "PATCH",
         headers,
