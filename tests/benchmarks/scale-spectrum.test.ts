@@ -1,9 +1,10 @@
 /**
  * @file tests/benchmarks/scale-spectrum.test.ts
- * @description Stepped Scale-Spectrum Benchmark (1 to 10,000 Entries).
+ * @description Stepped Scale-Spectrum Benchmark (1 to 100,000 Entries).
  * @summary Measures degradation cliffs across PK lookup, list+filter, GraphQL, and write lanes.
  *
- * Steps: 1, 10, 100, 1,000, 5,000, 10,000 rows.
+ * Steps: SQLite (entry) 1→10k; Postgres/Maria/Mongo (scale) 1→100k.
+ * Override via BENCH_STEPS="1,10,100,1000,10000,50000,100000".
  * Features:
  * - Incremental seeding: seeds step-by-step up to the target scale
  * - True uniform random sampling across the current population
@@ -24,14 +25,21 @@ import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import crypto from "node:crypto";
 
-// Configurable target steps; override via BENCH_STEPS="1,10,100,1000,5000,10000"
-const DEFAULT_STEPS = [1, 10, 100, 1000, 5000, 10000];
-const TARGET_STEPS = process.env.BENCH_STEPS
-  ? process.env.BENCH_STEPS.split(",")
+import { seedHttpCollectionBurst } from "./modules/seed-burst";
+
+// SQLite is the entry engine (1→10k). Scale engines go to 100k unless overridden.
+const ENTRY_STEPS = [1, 10, 100, 1000, 5000, 10000];
+const SCALE_STEPS = [1, 10, 100, 1000, 5000, 10000, 50000, 100000];
+function resolveSteps(): number[] {
+  if (process.env.BENCH_STEPS) {
+    return process.env.BENCH_STEPS.split(",")
       .map(Number)
       .filter((n) => n > 0)
-      .sort((a, b) => a - b)
-  : DEFAULT_STEPS;
+      .sort((a, b) => a - b);
+  }
+  return getDbType() === "sqlite" ? ENTRY_STEPS : SCALE_STEPS;
+}
+const TARGET_STEPS = resolveSteps();
 
 const CONCURRENCY = Number(process.env.BENCH_CONCURRENCY) || 8;
 const ITERS_PER_STEP = Number(process.env.BENCH_STEP_ITERS) || 100;
@@ -48,7 +56,7 @@ function seedArticlePayload(i: number, runId: string) {
   };
 }
 
-test("Scale Spectrum Degradation Benchmark (1 to 10,000 Rows)", async () => {
+test("Scale Spectrum Degradation Benchmark (1 to 100,000 Rows)", async () => {
   let stopServer: (() => Promise<void>) | null = null;
   const createdIds: string[] = [];
 
@@ -76,32 +84,15 @@ test("Scale Spectrum Degradation Benchmark (1 to 10,000 Rows)", async () => {
       query: "query { BenchmarkStable(pagination: { limit: 10 }) { _id title count } }",
     });
 
-    // Helper to seed up to a target count
     const seedUpTo = async (targetCount: number) => {
-      const needed = targetCount - createdIds.length;
-      if (needed <= 0) return;
-
-      let nextIndex = createdIds.length;
-      await Promise.all(
-        Array.from({ length: CONCURRENCY }, async () => {
-          while (true) {
-            const i = nextIndex++;
-            if (i >= targetCount) break;
-            try {
-              const res = await fetch(collectionUrl, {
-                method: "POST",
-                headers,
-                body: JSON.stringify(seedArticlePayload(i, runId)),
-              });
-              if (res.ok) {
-                const json = (await res.json()) as { data?: { _id?: string; id?: string } };
-                const id = json?.data?._id || json?.data?.id;
-                if (id) createdIds.push(String(id));
-              }
-            } catch {}
-          }
-        }),
-      );
+      await seedHttpCollectionBurst({
+        url: collectionUrl,
+        headers,
+        count: targetCount,
+        concurrency: CONCURRENCY,
+        payloadAt: (i) => seedArticlePayload(i, runId),
+        existing: createdIds,
+      });
     };
 
     interface StepMetric {
@@ -276,4 +267,4 @@ test("Scale Spectrum Degradation Benchmark (1 to 10,000 Rows)", async () => {
       await stopServer().catch(() => {});
     }
   }
-}, 300_000);
+}, 900_000);

@@ -18,13 +18,17 @@ import type { RequestHandler } from "@sveltejs/kit";
 export const GET: RequestHandler = async ({ url, locals }) => {
   const targetPath = url.searchParams.get("path") || "/dashboard";
   const tenantId = (locals?.tenantId as string) || "global";
+  const user = (locals?.user as { _id?: unknown; id?: unknown } | null) ?? null;
 
-  // Non-blocking background pre-warm — actually fetches the spec's preload
-  // endpoints so the response cache holds real entries.
-  routeResourceStateMachine.prewarmRouteResources(targetPath, url.origin).catch(() => {});
+  // Hovered/target path: await LocalCMS fill so the following click can TURBO-HIT.
+  await routeResourceStateMachine
+    .prewarmRouteResources(targetPath, url.origin, tenantId, user)
+    .catch(() => {});
 
-  // 🤖 AI-Driven Speculative Pre-Warming: also pre-warms predicted next route
-  routeResourceStateMachine.speculativePrewarm(targetPath, tenantId, url.origin).catch(() => {});
+  // Confidence-gated next-path + hot entries stay non-blocking.
+  routeResourceStateMachine
+    .speculativePrewarm(targetPath, tenantId, url.origin, user)
+    .catch(() => {});
 
   const spec = routeResourceStateMachine.classifyRouteSpec(targetPath);
 

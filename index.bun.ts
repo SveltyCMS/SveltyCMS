@@ -56,6 +56,15 @@ async function startBunServer() {
     handler(req, res);
   });
 
+  // Match index.cjs: 60s Node headersTimeout 408s a 100k keep-alive seed
+  // without hitting CMS logs. keepAliveTimeout must stay below headersTimeout.
+  const headerMs = Number(process.env.HTTP_HEADERS_TIMEOUT_MS) || 10 * 60_000;
+  const requestMs = Number(process.env.HTTP_REQUEST_TIMEOUT_MS) || 10 * 60_000;
+  const keepAliveMs = Number(process.env.HTTP_KEEPALIVE_TIMEOUT_MS) || 75_000;
+  server.headersTimeout = headerMs;
+  server.requestTimeout = requestMs;
+  server.keepAliveTimeout = Math.min(keepAliveMs, Math.max(1, headerMs - 1_000));
+
   // Start Yjs collaboration WebSocket server
   let stopYjs: (() => void) | undefined;
   try {

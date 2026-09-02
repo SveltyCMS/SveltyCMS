@@ -12,6 +12,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   handleTurboGet,
   setTurboAuthContext,
+  getTurboAuthContext,
   clearTurboAuthCache,
 } from "@src/hooks/handle-turbo-get";
 import {
@@ -35,6 +36,15 @@ describe("handleTurboGet + response cache", () => {
   beforeEach(async () => {
     clearTurboAuthCache();
     await responseCache.clearLocal();
+  });
+
+  it("slides turbo TTL on getTurboAuthContext so write bursts stay warm", () => {
+    setTurboAuthContext(sessionId, user as any, [], new Uint32Array(0), null);
+    const first = getTurboAuthContext(sessionId);
+    expect(first).not.toBeNull();
+    const second = getTurboAuthContext(sessionId);
+    expect(second).not.toBeNull();
+    expect(second?.user._id).toBe(user._id);
   });
 
   it("falls through to resolve when no session cookie", async () => {

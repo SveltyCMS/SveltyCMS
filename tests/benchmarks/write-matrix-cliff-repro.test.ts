@@ -19,6 +19,7 @@ import {
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import crypto from "node:crypto";
+import { seedHttpCollectionBurst } from "./modules/seed-burst";
 
 const CONCURRENCY = 8;
 const ITERS = 150;
@@ -45,35 +46,21 @@ test("Write Matrix Cliff Reproduction Audit", async () => {
 
     // ── 0. SEEDING ──
     logger.info(`📦 Pre-seeding ${SEED_COUNT} records...`);
-    let seedIdx = 0;
-    await Promise.all(
-      Array.from({ length: CONCURRENCY }, async () => {
-        while (true) {
-          const i = seedIdx++;
-          if (i >= SEED_COUNT) break;
-          const payload = {
-            title: `Article ${i}`,
-            slug: `bench-art-${runId}-${i}`,
-            status: i % 2 === 0 ? "published" : "draft",
-            count: i * 10,
-            publishDate: "2026-01-01T00:00:00.000Z",
-            content: "Benchmark reproduction article body.",
-          };
-          try {
-            const res = await fetch(collectionUrl, {
-              method: "POST",
-              headers,
-              body: JSON.stringify(payload),
-            });
-            if (res.ok) {
-              const json = (await res.json()) as any;
-              const id = json?.data?._id || json?.data?.id;
-              if (id) createdIds.push(String(id));
-            }
-          } catch {}
-        }
+    await seedHttpCollectionBurst({
+      url: collectionUrl,
+      headers,
+      count: SEED_COUNT,
+      concurrency: CONCURRENCY,
+      payloadAt: (i) => ({
+        title: `Article ${i}`,
+        slug: `bench-art-${runId}-${i}`,
+        status: i % 2 === 0 ? "published" : "draft",
+        count: i * 10,
+        publishDate: "2026-01-01T00:00:00.000Z",
+        content: "Benchmark reproduction article body.",
       }),
-    );
+      existing: createdIds,
+    });
     logger.info(`✅ Pre-seeded ${createdIds.length} records.`);
 
     let cursor = 0;

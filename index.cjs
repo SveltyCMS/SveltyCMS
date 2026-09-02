@@ -59,6 +59,17 @@ async function loadApp() {
     handler(req, res);
   });
 
+  // Node 18+ defaults headersTimeout to 60s. A keep-alive write burst that
+  // lasts >60s (100k HTTP creates) can get 408 without invoking the CMS
+  // listener — zero application logs, ~14 dropped in-flight requests.
+  // keepAliveTimeout MUST stay below headersTimeout (Node docs).
+  const headerMs = Number(process.env.HTTP_HEADERS_TIMEOUT_MS) || 10 * 60_000;
+  const requestMs = Number(process.env.HTTP_REQUEST_TIMEOUT_MS) || 10 * 60_000;
+  const keepAliveMs = Number(process.env.HTTP_KEEPALIVE_TIMEOUT_MS) || 75_000;
+  server.headersTimeout = headerMs;
+  server.requestTimeout = requestMs;
+  server.keepAliveTimeout = Math.min(keepAliveMs, Math.max(1, headerMs - 1_000));
+
   // Start standard Yjs collaboration WebSocket server
   console.log("[SveltyCMS] Initializing Yjs WebSocket collaboration server on /ws...");
   let stopYjs;

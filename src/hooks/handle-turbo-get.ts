@@ -78,6 +78,11 @@ export function getTurboAuthContext(sessionId: string): TurboAuthContext | null 
     return null;
   }
 
+  // Slide TTL on every hit so long write bursts (50k–100k seed) never
+  // 401 because the 60s window elapsed since login. Write lane used to
+  // read the Map without sliding, so a 64s create burst died at expiry.
+  ctx.expiresAt = Date.now() + TURBO_AUTH_TTL_MS;
+
   if (turboAuthCache.size >= TURBO_AUTH_CACHE_MAX * 0.8) {
     turboAuthCache.delete(sessionId);
     turboAuthCache.set(sessionId, ctx);

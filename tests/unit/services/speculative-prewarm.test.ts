@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
 
 vi.mock("@src/services/intelligence/behavioral-learner", () => ({
-  predictNextPath: vi.fn((_tenantId: string, currentPath: string) => {
+  predictNextPathAdaptive: vi.fn((_tenantId: string, currentPath: string) => {
     if (currentPath === "/collections/articles") {
       return "/collections/articles/new";
     }
@@ -15,6 +15,7 @@ vi.mock("@src/services/intelligence/behavioral-learner", () => ({
     }
     return null;
   }),
+  getHotEntries: vi.fn(() => []),
 }));
 
 describe("RouteResourceStateMachine - AI Speculative Pre-Warming", () => {
@@ -34,7 +35,12 @@ describe("RouteResourceStateMachine - AI Speculative Pre-Warming", () => {
     );
 
     expect(predicted).toBe("/collections/articles/new");
-    expect(prewarmSpy).toHaveBeenCalledWith("/collections/articles/new", "http://localhost:5173");
+    expect(prewarmSpy).toHaveBeenCalledWith(
+      "/collections/articles/new",
+      "http://localhost:5173",
+      "global",
+      undefined,
+    );
   });
 
   it("returns null and does not trigger prewarm when no prediction exists", async () => {

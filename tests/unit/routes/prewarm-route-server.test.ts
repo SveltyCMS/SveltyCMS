@@ -29,7 +29,7 @@ describe("GET /api/system/prewarm-route", () => {
     expect(data.lane).toBe("dashboard");
     expect(Array.isArray(data.requiredCacheCategories)).toBe(true);
 
-    expect(prewarmSpy).toHaveBeenCalledWith("/dashboard", "http://localhost:5173");
+    expect(prewarmSpy).toHaveBeenCalledWith("/dashboard", "http://localhost:5173", "global", null);
 
     prewarmSpy.mockRestore();
   });

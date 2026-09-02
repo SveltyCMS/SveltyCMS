@@ -99,7 +99,20 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   /** table|cols|returning|tenant → UPDATE SQL. */
   private _updateSqlCache = new Map<string, string>();
   private _sqliteSelectColsCache = new WeakMap<object, string>();
-  private _rawFindByIdSqlCache = new WeakMap<object, { withData: string; withoutData: string }>();
+  /**
+   * Pre-assembled findById SQL (entry engine). Tenant variants bake the
+   * parameterized `AND "tenantId" = ?` clause — values stay bound, never inlined.
+   * Postgres/Maria keep driver-prepared tagged/`execute` paths instead.
+   */
+  private _rawFindByIdSqlCache = new WeakMap<
+    object,
+    {
+      withData: string;
+      withoutData: string;
+      withDataTenant: string;
+      withoutDataTenant: string;
+    }
+  >();
 
   /** Clients whose prepare() is wrapped with a per-SQL statement cache. */
   protected _preparedStatementClients = new Set<any>();
@@ -213,36 +226,34 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           return !this.getColumn(table, String(f));
         });
 
-      let rawSql: string;
-      if (!tenantSql) {
-        let cachedSql = this._rawFindByIdSqlCache.get(table);
-        if (!cachedSql) {
-          let selectWithoutData = this._sqliteSelectColsCache.get(table);
-          if (!selectWithoutData) {
-            selectWithoutData = this.getRawFindByIdCols(table, false)
-              .map((c) => `"${c}"`)
-              .join(", ");
-            this._sqliteSelectColsCache.set(table, selectWithoutData);
-          }
-          cachedSql = {
-            withData: `SELECT * FROM "${tableName}" WHERE "_id" = ? LIMIT 1`,
-            withoutData: `SELECT ${selectWithoutData} FROM "${tableName}" WHERE "_id" = ? LIMIT 1`,
-          };
-          this._rawFindByIdSqlCache.set(table, cachedSql);
+      let cachedSql = this._rawFindByIdSqlCache.get(table);
+      if (!cachedSql) {
+        let selectWithoutData = this._sqliteSelectColsCache.get(table);
+        if (!selectWithoutData) {
+          selectWithoutData = this.getRawFindByIdCols(table, false)
+            .map((c) => `"${c}"`)
+            .join(", ");
+          this._sqliteSelectColsCache.set(table, selectWithoutData);
         }
+        const quoted = `"${tableName}"`;
+        cachedSql = {
+          withData: `SELECT * FROM ${quoted} WHERE "_id" = ? LIMIT 1`,
+          withoutData: `SELECT ${selectWithoutData} FROM ${quoted} WHERE "_id" = ? LIMIT 1`,
+          withDataTenant: `SELECT * FROM ${quoted} WHERE "_id" = ? AND "tenantId" = ? LIMIT 1`,
+          withoutDataTenant: `SELECT ${selectWithoutData} FROM ${quoted} WHERE "_id" = ? AND "tenantId" = ? LIMIT 1`,
+        };
+        this._rawFindByIdSqlCache.set(table, cachedSql);
+      }
+      // Parameterized sqlite tenant clause is stable (` AND "tenantId" = ?`).
+      // Any other fragment falls back to concat so we never bind the wrong SQL.
+      const useTenantCache = tenantSql === ` AND "tenantId" = ?`;
+      let rawSql: string;
+      if (useTenantCache) {
+        rawSql = wantsData ? cachedSql.withDataTenant : cachedSql.withoutDataTenant;
+      } else if (!tenantSql) {
         rawSql = wantsData ? cachedSql.withData : cachedSql.withoutData;
       } else {
-        let selectCols = "*";
-        if (!wantsData) {
-          let cachedCols = this._sqliteSelectColsCache.get(table);
-          if (!cachedCols) {
-            cachedCols = this.getRawFindByIdCols(table, false)
-              .map((c) => `"${c}"`)
-              .join(", ");
-            this._sqliteSelectColsCache.set(table, cachedCols);
-          }
-          selectCols = cachedCols;
-        }
+        const selectCols = wantsData ? "*" : (this._sqliteSelectColsCache.get(table) ?? "*");
         rawSql = `SELECT ${selectCols} FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
       }
 

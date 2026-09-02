@@ -81,8 +81,12 @@ export async function handleSystemRoutes(
         const targetPath = event.url.searchParams.get("path") || "/dashboard";
         const { routeResourceStateMachine } =
           await import("@src/services/core/route-resource-state-machine");
+        const prewarmUser = (event.locals?.user as { _id?: unknown; id?: unknown } | null) ?? null;
         routeResourceStateMachine
-          .prewarmRouteResources(targetPath, event.url.origin)
+          .prewarmRouteResources(targetPath, event.url.origin, tenantId ?? "global", prewarmUser)
+          .catch(() => {});
+        routeResourceStateMachine
+          .speculativePrewarm(targetPath, tenantId ?? "global", event.url.origin, prewarmUser)
           .catch(() => {});
         const spec = routeResourceStateMachine.classifyRouteSpec(targetPath);
         return successResponse(event, {

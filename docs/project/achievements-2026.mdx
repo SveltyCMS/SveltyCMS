@@ -1260,6 +1260,11 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
   - **Status & Role Facet Chips**: Added interactive facet chips above the users table (`All`, `Admins`, `Users`, `Active`, `Blocked`) with sub-millisecond filtering and dynamic state management.
   - **List Query Observability**: Instrumented `recordListQuery` across `/api/user` and `/api/token` and connected `SmartTableMetricsBadge` to user management and token tables for real-time p50/p95 latency and hit-rate telemetry.
   - **Filter Engine Reuse**: Added allowlisted field filtering (`role`, `blocked`, `email`, `username`, `createdAt`) across `auth.ts` and `AuthNamespace.listUsers`.
+- **Adapter-agnostic speculative Turbo fill & 100k write-burst integrity (September 2026)**:
+  - **LocalCMS prewarm**: `/api/system/prewarm-route` fills `responseCache` via LocalCMS (no internal `fetch`) under the same user-scoped Turbo GET key; confidence-gated `predictNextPathAdaptive` plus `getHotEntries`. SQLite-only SQL-string tricks stay on the entry engine; Postgres/Maria keep driver-prepared paths; Mongo keeps lean `findOne`.
+  - **Write-lane TTL slide**: `getTurboAuthContext` now slides expiry on every hit; the collection write lane uses it and **falls through** to full auth instead of 401 when turbo is cold. Node `headersTimeout` on `index.cjs` / `index.bun.ts` is 10 minutes (was 60s 408 with no CMS log). That pair is the class that aborted **14/100k** Postgres seed rows at ~60s.
+  - **Seed integrity**: HTTP seed bursts retry 401/408/429/503/socket drops and fail the run if `created !== requested`. Verified `BENCH_DOCS=100000` competitive replica on PostgreSQL: **100,000/100,000 seeded**, title `POSTGRESQL — 100000 Docs`, 87s wall (self-measured 2026-09-02). Scale-spectrum default is 1→10k on SQLite (entry) and 1→100k on Postgres/Maria/Mongo (`BENCH_STEPS` override).
+  - **Bootstrap skip**: `routeSpec.skipMiddlewares` is honored (`preferences` / `media`) instead of being classified and ignored.
 
 ---
 

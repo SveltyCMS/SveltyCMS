@@ -11,10 +11,119 @@
  * - Precise cache category pre-warming
  * - Memory footprint minimization (e.g. /login runs in < 2MB RAM)
  * - Non-blocking server-side prewarm execution
+ * - LocalCMS turbo fill (no internal HTTP) + confidence-gated next-path
  */
 
 import { CacheCategory } from "@src/databases/cache/types";
 import { logger } from "@utils/logger";
+import { validateId } from "@src/databases/core/id-contract";
+import {
+  responseCache,
+  buildUserResponseCacheKey,
+  generateContentEtag,
+} from "@src/services/cache/response-cache";
+
+/** User identity for user-scoped turbo keys (never share bodies across users — FLAC). */
+export interface PrewarmUser {
+  _id?: unknown;
+  id?: unknown;
+  isAdmin?: boolean;
+  role?: string;
+}
+
+export interface ParsedCollectionRoute {
+  collectionId: string;
+  entryId?: string;
+}
+
+const LOCALE_SEGMENT = /^[a-z]{2,5}(?:-[A-Za-z]+)?$/;
+const APP_RESERVED = new Set([
+  "api",
+  "admin",
+  "dashboard",
+  "config",
+  "login",
+  "setup",
+  "mediagallery",
+  "media",
+  "settings",
+  "user",
+  "plugin",
+  "shop",
+  "cart",
+  "checkout",
+  "account",
+  "share",
+  "health",
+  "graphql",
+  "auth",
+  "system",
+  "collections",
+  "content",
+]);
+
+/**
+ * Map an admin, locale-prefixed, or API path to `{ collectionId, entryId? }`.
+ * Adapter-agnostic: no SQL, no dialect. Returns null for app chrome.
+ */
+export function parseCollectionRoute(path: string): ParsedCollectionRoute | null {
+  if (!path) return null;
+  const q = path.indexOf("?");
+  const clean = q === -1 ? path : path.slice(0, q);
+  const parts = clean.split("/").filter(Boolean);
+  if (parts.length === 0) return null;
+
+  let i = 0;
+  if (parts[i] && LOCALE_SEGMENT.test(parts[i]!) && parts[i] !== "api") i++;
+
+  if (parts[i] === "api" && parts[i + 1] === "collections" && parts[i + 2]) {
+    const collectionId = parts[i + 2]!;
+    const entryId = parts[i + 3];
+    return entryId && validateId(entryId) ? { collectionId, entryId } : { collectionId };
+  }
+
+  if (parts[i] === "collections" && parts[i + 1]) {
+    const collectionId = parts[i + 1]!;
+    const maybeId = parts[i + 2];
+    return maybeId && validateId(maybeId) ? { collectionId, entryId: maybeId } : { collectionId };
+  }
+
+  if (parts[i] === "admin" && parts[i + 1] && !APP_RESERVED.has(parts[i + 1]!)) {
+    const collectionId = parts[i + 1]!;
+    const maybeId = parts[i + 2];
+    return maybeId && validateId(maybeId) ? { collectionId, entryId: maybeId } : { collectionId };
+  }
+
+  const first = parts[i];
+  if (!first || APP_RESERVED.has(first)) return null;
+  const maybeId = parts[i + 1];
+  return maybeId && validateId(maybeId)
+    ? { collectionId: first, entryId: maybeId }
+    : { collectionId: first };
+}
+
+function prewarmUserId(user?: PrewarmUser | null): string | null {
+  if (!user) return null;
+  const id = user._id ?? user.id;
+  return id ? String(id) : null;
+}
+
+function stashTurboEnvelope(
+  pathname: string,
+  search: string,
+  payload: unknown,
+  tenantId: string,
+  userId: string,
+): void {
+  const body = JSON.stringify(payload);
+  const key = buildUserResponseCacheKey(pathname, search, userId);
+  responseCache.set(
+    key,
+    { body, etag: generateContentEtag(body) },
+    300_000,
+    tenantId === "global" ? null : tenantId,
+  );
+}
 
 export type RouteResourceLane =
   | "bootstrap"
@@ -147,33 +256,24 @@ export class RouteResourceStateMachine {
   private _inflightPrewarms = new Map<string, Promise<void>>();
 
   /**
-   * Pre-warms server-side caches for a given target path in background by
-   * actually fetching the spec's preload endpoints (same-origin — the spec
-   * list is static, not user input). This populates the response cache with
-   * real entries instead of only labeling categories as warm.
-   * Single-flight coalesced per origin+lane to avoid parallel fetch storms on hover bursts.
+   * Pre-warms the hovered/target path via LocalCMS (never internal HTTP).
+   * Origin is kept for single-flight coalescing and API compat; it is not fetched.
    */
-  public async prewarmRouteResources(path: string, origin?: string): Promise<void> {
+  public async prewarmRouteResources(
+    path: string,
+    origin?: string,
+    tenantId: string = "global",
+    user?: PrewarmUser | null,
+  ): Promise<void> {
     const spec = this.classifyRouteSpec(path);
-    if (!origin) return;
-
-    const flightKey = `${origin}:${spec.lane}`;
+    const userId = prewarmUserId(user);
+    const flightKey = `${origin || "local"}:${spec.lane}:${tenantId}:${userId || "anon"}`;
     const existing = this._inflightPrewarms.get(flightKey);
     if (existing) return existing;
 
     const promise = (async () => {
       try {
-        await Promise.allSettled(
-          spec.preloadEndpoints.map(async (endpoint) => {
-            try {
-              await fetch(new URL(endpoint, origin).toString(), {
-                signal: AbortSignal.timeout(5_000),
-              });
-            } catch {
-              /* best-effort warm */
-            }
-          }),
-        );
+        await this.fillPredictedTurboCache(path, tenantId, user);
       } catch (err) {
         logger.debug("[RouteStateMachine] Pre-warm non-blocking warning:", err);
       } finally {
@@ -186,26 +286,100 @@ export class RouteResourceStateMachine {
   }
 
   /**
-   * 🤖 AI-Driven Speculative Pre-Warming:
-   * Uses behavioral learning transitions to predict the user's next target path
-   * and pre-warms the server-side caches and preload endpoints speculatively.
-   * Returns the predicted path if pre-warmed, or null if no prediction exists.
+   * Load the collection/entry for `path` through LocalCMS and stash the
+   * `{success,data}` envelope in `responseCache` under the Turbo GET key.
+   * User-scoped only — no user means no turbo write (field-level auth).
+   * Works on all four adapters; the adapter pick is `getDb()`.
+   */
+  public async fillPredictedTurboCache(
+    path: string,
+    tenantId: string = "global",
+    user?: PrewarmUser | null,
+  ): Promise<boolean> {
+    const userId = prewarmUserId(user);
+    if (!userId) return false;
+
+    const parsed = parseCollectionRoute(path);
+    if (!parsed) return false;
+
+    try {
+      const { getDb } = await import("@src/databases/db");
+      const adapter = getDb();
+      if (!adapter) return false;
+
+      const { LocalCMS } = await import("@src/services/sdk");
+      const cms = new LocalCMS(adapter);
+      const opts = { tenantId, user };
+
+      if (parsed.entryId) {
+        const result = await cms.collections.findById(parsed.collectionId, parsed.entryId, opts);
+        if (!result?.success || result.data == null) return false;
+        const item = Array.isArray(result.data) ? result.data[0] : result.data;
+        stashTurboEnvelope(
+          `/api/collections/${parsed.collectionId}/${parsed.entryId}`,
+          "",
+          { success: true, data: item },
+          tenantId,
+          userId,
+        );
+        return true;
+      }
+
+      const list = await cms.collections.find(parsed.collectionId, {
+        ...opts,
+        limit: 20,
+      });
+      if (!list?.success) return false;
+      stashTurboEnvelope(
+        `/api/collections/${parsed.collectionId}`,
+        "?limit=20",
+        { success: true, data: list.data ?? [] },
+        tenantId,
+        userId,
+      );
+      return true;
+    } catch (err) {
+      logger.debug("[RouteStateMachine] LocalCMS turbo fill skipped:", err);
+      return false;
+    }
+  }
+
+  /**
+   * Confidence-gated speculative pre-warm of the *next* path, plus the top
+   * hot entries for this tenant (user-scoped turbo keys).
    */
   public async speculativePrewarm(
     currentPath: string,
     tenantId: string = "global",
     origin?: string,
+    user?: PrewarmUser | null,
   ): Promise<string | null> {
     try {
-      const { predictNextPath } = await import("@src/services/intelligence/behavioral-learner");
-      const predicted = predictNextPath(tenantId, currentPath);
+      const { predictNextPathAdaptive, getHotEntries } =
+        await import("@src/services/intelligence/behavioral-learner");
+      const predicted = predictNextPathAdaptive(tenantId, currentPath);
       if (predicted && predicted !== currentPath) {
         if (origin) {
-          // Prewarm in background (non-blocking)
-          this.prewarmRouteResources(predicted, origin).catch(() => {});
+          this.prewarmRouteResources(predicted, origin, tenantId, user).catch(() => {});
+        } else {
+          this.fillPredictedTurboCache(predicted, tenantId, user).catch(() => {});
         }
-        return predicted;
       }
+
+      const userId = prewarmUserId(user);
+      if (userId) {
+        const hot = getHotEntries(tenantId, 3);
+        for (let i = 0; i < hot.length; i++) {
+          const entry = hot[i]!;
+          this.fillPredictedTurboCache(
+            `/api/collections/${entry.collectionId}/${entry.entryId}`,
+            tenantId,
+            user,
+          ).catch(() => {});
+        }
+      }
+
+      return predicted && predicted !== currentPath ? predicted : null;
     } catch (err) {
       logger.debug("[RouteStateMachine] Speculative prewarm error:", err);
     }

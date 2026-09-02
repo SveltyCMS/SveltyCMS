@@ -7,7 +7,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { RouteResourceStateMachine } from "@src/services/core/route-resource-state-machine";
+import {
+  RouteResourceStateMachine,
+  parseCollectionRoute,
+  routeResourceStateMachine,
+} from "@src/services/core/route-resource-state-machine";
+import { shouldSkipRouteMiddleware } from "@utils/hook-utils";
 
 describe("RouteResourceStateMachine", () => {
   const stateMachine = new RouteResourceStateMachine();
@@ -47,5 +52,46 @@ describe("RouteResourceStateMachine", () => {
     // a busy Linux runner while local runs stay ~2ms).
     const limit = process.env.CI === "true" ? 100 : 50;
     expect(elapsed).toBeLessThan(limit);
+  });
+});
+
+describe("parseCollectionRoute", () => {
+  it("maps API, locale, collections, and admin paths", () => {
+    expect(
+      parseCollectionRoute("/api/collections/posts/550e8400-e29b-41d4-a716-446655440000"),
+    ).toEqual({
+      collectionId: "posts",
+      entryId: "550e8400-e29b-41d4-a716-446655440000",
+    });
+    expect(parseCollectionRoute("/en/collections/posts")).toEqual({
+      collectionId: "posts",
+    });
+    expect(parseCollectionRoute("/admin/posts")).toEqual({ collectionId: "posts" });
+    expect(parseCollectionRoute("/dashboard")).toBeNull();
+    expect(parseCollectionRoute("/api/collections/posts/list")).toEqual({
+      collectionId: "posts",
+    });
+  });
+});
+
+describe("fillPredictedTurboCache", () => {
+  it("does not write a turbo envelope without a user (FLAC)", async () => {
+    const filled = await routeResourceStateMachine.fillPredictedTurboCache(
+      "/api/collections/posts/550e8400-e29b-41d4-a716-446655440000",
+      "global",
+      null,
+    );
+    expect(filled).toBe(false);
+  });
+});
+
+describe("shouldSkipRouteMiddleware", () => {
+  it("honors bootstrap skip lists and ignores empty specs", () => {
+    const spec = new RouteResourceStateMachine().classifyRouteSpec("/login");
+    expect(shouldSkipRouteMiddleware({ routeSpec: spec }, "preferences")).toBe(true);
+    expect(shouldSkipRouteMiddleware({ routeSpec: spec }, "media")).toBe(true);
+    expect(shouldSkipRouteMiddleware({ routeSpec: spec }, "scim")).toBe(true);
+    expect(shouldSkipRouteMiddleware({ routeSpec: { skipMiddlewares: [] } }, "media")).toBe(false);
+    expect(shouldSkipRouteMiddleware({}, "preferences")).toBe(false);
   });
 });

@@ -27,6 +27,7 @@ import {
 import "../unit/bun-preload.ts";
 import { logger } from "@utils/logger";
 import crypto from "node:crypto";
+import { seedHttpCollectionBurst } from "./modules/seed-burst";
 
 const ITERATIONS: Record<string, number> = {
   findById: 500,
@@ -127,30 +128,14 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
 
     // ── HIGH-THROUGHPUT PRE-SEEDING ──────────────────────────────────────
     logger.info(`  → Pre-seeding ${SEED_COUNT} records (${CONCURRENCY} workers)...`);
-    let seedIndex = 0;
-
-    await Promise.all(
-      Array.from({ length: CONCURRENCY }, async () => {
-        while (true) {
-          const i = seedIndex++;
-          if (i >= SEED_COUNT) break;
-          try {
-            const res = await fetch(collectionUrl, {
-              method: "POST",
-              headers,
-              body: JSON.stringify(seedArticlePayload(i, runId)),
-            });
-            if (res.ok) {
-              const json = (await res.json()) as { data?: { _id?: string; id?: string } };
-              const id = json?.data?._id || json?.data?.id;
-              if (id) createdIds.push(String(id));
-            }
-          } catch {
-            // non-fatal
-          }
-        }
-      }),
-    );
+    await seedHttpCollectionBurst({
+      url: collectionUrl,
+      headers,
+      count: SEED_COUNT,
+      concurrency: CONCURRENCY,
+      payloadAt: (i) => seedArticlePayload(i, runId),
+      existing: createdIds,
+    });
     logger.info(`  ✅ Pre-seeded ${createdIds.length}/${SEED_COUNT} records.`);
 
     const stableId = createdIds[0] || "20000000-0000-4000-8000-000000000001";
@@ -501,4 +486,4 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       stopServer = null;
     }
   }
-}, 300_000);
+}, 900_000);

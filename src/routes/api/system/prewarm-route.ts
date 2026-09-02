@@ -10,12 +10,14 @@
 import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
 import { json, type RequestHandler } from "@sveltejs/kit";
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
   const targetPath = url.searchParams.get("path") || "/dashboard";
+  const tenantId = (locals?.tenantId as string) || "global";
+  const user = (locals?.user as { _id?: unknown; id?: unknown } | null) ?? null;
 
-  // Non-blocking background pre-warm — actually fetches the spec's preload
-  // endpoints so the response cache holds real entries.
-  routeResourceStateMachine.prewarmRouteResources(targetPath, url.origin).catch(() => {});
+  routeResourceStateMachine
+    .prewarmRouteResources(targetPath, url.origin, tenantId, user)
+    .catch(() => {});
 
   const spec = routeResourceStateMachine.classifyRouteSpec(targetPath);
 

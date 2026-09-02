@@ -102,6 +102,8 @@ declare global {
       // Tracing and Metrics
       requestStart: number;
       requestId: string;
+      /** Classified by routeResourceStateMachine in hooks.server.ts. */
+      routeSpec?: import("@src/services/core/route-resource-state-machine").RouteResourceSpec;
     }
   }
 
