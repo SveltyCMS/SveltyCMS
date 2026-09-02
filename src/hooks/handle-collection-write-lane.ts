@@ -28,6 +28,7 @@ import { applyAdapterTenantContext } from "@src/databases/tenant-adapter";
 import { successResponse } from "@src/routes/api/[...path]/handlers/base";
 import { responseCache } from "@src/services/cache/response-cache";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
+import { handleRateLimit } from "./handle-rate-limit";
 import type { DatabaseId } from "@src/content/types";
 
 function unwrapWritePayload(raw: unknown): unknown {
@@ -148,7 +149,6 @@ export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
   try {
-    const { handleRateLimit } = await import("./handle-rate-limit");
     return await handleRateLimit({
       event,
       resolve: () => executeWarmCollectionWrite(event),
