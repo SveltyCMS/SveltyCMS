@@ -8,7 +8,15 @@ import { existsSync, readFileSync, readdirSync, promises as fsPromises } from "n
 import { builtinModules } from "node:module";
 import { platform } from "node:os";
 import path from "node:path";
-import adapter from "@sveltejs/adapter-node";
+import nodeAdapter from "@sveltejs/adapter-node";
+import bunAdapter from "svelte-adapter-bun";
+
+// Dual-Adapter (Robert 09-02): process.env.ADAPTER waehlt den Build-Adapter.
+//   ADAPTER=node (default) -> @sveltejs/adapter-node (Node/Passenger/Plesk)
+//   ADAPTER=bun          -> svelte-adapter-bun (Bun.serve, fuer bun build/index.js)
+// Der Competitive-Benchmark (benchmark-repo) baut beide Varianten (ARG ADAPTER)
+// und misst sie unter node vs bun (RUNTIME).
+const adapter = process.env.ADAPTER === "bun" ? bunAdapter : nodeAdapter;
 
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
