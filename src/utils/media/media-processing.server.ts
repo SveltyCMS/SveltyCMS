@@ -53,7 +53,7 @@ export async function hashStream(stream: ReadableStream | Readable): Promise<str
   const hash = createHash("sha256");
   const nodeStream =
     stream instanceof ReadableStream
-      ? Readable.fromWeb(stream as import("node:stream/web").ReadableStream)
+      ? Readable.fromWeb(stream as unknown as import("node:stream/web").ReadableStream)
       : stream;
   return new Promise((resolve, reject) => {
     nodeStream.on("data", (chunk: Buffer) => hash.update(chunk));
