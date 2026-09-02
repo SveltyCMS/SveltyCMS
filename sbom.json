@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:7ee20cc7-caa5-4e90-847f-d8e2d44089d2",
+  "serialNumber": "urn:uuid:fa8a532a-5eab-4c4b-bc58-9e13aa9601b7",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-02T15:46:23.718Z",
+    "timestamp": "2026-09-02T17:30:07.639Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -5729,13 +5729,13 @@
     {
       "type": "library",
       "name": "fast-uri",
-      "version": "4.1.2",
-      "purl": "pkg:npm/fast-uri@4.1.2",
+      "version": "4.1.4",
+      "purl": "pkg:npm/fast-uri@4.1.4",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-TyGmBcbDTZXcb2cj5MV89DrF42DKvb3y5DDUNh95iO+IMeAzMkVSxK1PZRrRIpc9yg8U2GhGdbofNa0LS/a4Bw=="
+          "content": "sha512-dODXrIxlS9JSdgAnhIUKOosKV1oMtU2VtVw87QRaHzyl5jxO290Ii5tEZfCfzfWNHi3jKWwBSdQj0qIyshdZdQ=="
         }
       ]
     },

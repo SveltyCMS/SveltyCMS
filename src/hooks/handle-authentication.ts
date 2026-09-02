@@ -744,6 +744,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
       (locals as any).tenantId = testTenantOverride ?? turboCtx.tenantId ?? locals.tenantId;
+      locals.dbAdapter = dbAdapter;
+      (locals as any).dbAdapterUnscoped = dbAdapter;
       (locals as any).__turboAuth = true;
       return await resolve(event);
     }

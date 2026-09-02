@@ -202,6 +202,21 @@ export function handleApiError(err: unknown, event: RequestEvent) {
     }
   }
 
+  if (!isDev && !issues) {
+    if (status === 401 && code === "UNAUTHORIZED" && message === "Unauthorized") {
+      return new Response('{"success":false,"message":"Unauthorized","code":"UNAUTHORIZED"}', {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (status === 403 && code === "FORBIDDEN" && message === "Forbidden") {
+      return new Response('{"success":false,"message":"Forbidden","code":"FORBIDDEN"}', {
+        status: 403,
+        headers: { "content-type": "application/json" },
+      });
+    }
+  }
+
   const response: ApiErrorResponse = {
     success: false,
     message,

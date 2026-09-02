@@ -51,8 +51,8 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     1 | 🟢     | —       | 0      |
-| **API**        |     0 | ⚪     | —       | 0      |
+| **Core**       |     2 | 🟢     | -41%    | 0      |
+| **API**        |     1 | 🟢     | -41%    | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
 
@@ -62,9 +62,11 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario              | Latency    | Trend                               | Budget | Result |
-| --------------------- | ---------- | ----------------------------------- | ------ | ------ |
-| **Cold Start Phased** | 1313.280ms | ⚪ established at 1313.28ms (1 run) | < 5ms  | 🟢     |
+| Scenario     | Latency | Trend                                    | Budget | Result |
+| ------------ | ------- | ---------------------------------------- | ------ | ------ |
+| **Security** | 0.419ms | ⚪ stable at 0.711ms (±0.881ms) (7 runs) | < 5ms  | 🟢     |
+| **Auth**     | 0.304ms | ⚪ stable at 0.515ms (±0.633ms) (7 runs) | < 5ms  | 🟢     |
+| **Auth**     | 1.398ms | ⚪ stable at 1.78ms (±1.11ms) (7 runs)   | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -73,7 +75,7 @@ tags:
 | Metric                                                    | Trend | Sparkline      | Latest     |
 | --------------------------------------------------------- | ----- | -------------- | ---------- |
 | api latency (HTTP: findById @ 8c (Cold)) (warm)           | 🟢    | `▁▅█▄`         | 8.690ms    |
-| auth performance (Auth Validation @ 1c) (warm)            | 🟢    | `▁▁▅█`         | 1.220ms    |
+| auth performance (Auth Validation @ 1c) (warm)            | 🟢    | `▃▃▆█▁▁▁▁`     | 0.304ms    |
 | cold start phased (Cold Start (IDLE → HTTP READY)) (cold) | 🟢    | `██▂▅▁▁▁`      | 1313.280ms |
 | database performance (FIND MANY (limit 50)) (warm)        | 🟢    | `▁▁▁▁▂▇▂▆█▆▁▁` | 0.088ms    |
 
@@ -86,6 +88,24 @@ xychart-beta
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
+```
+
+</details>
+<details>
+<summary>📊 Regression severity matrix (quadrant)</summary>
+
+```mermaid
+quadrantChart
+  title "Regression severity (impact vs delta)"
+  x-axis Low latency impact --> High latency impact
+  y-axis Low delta --> High delta
+  quadrant-1 Monitor
+  quadrant-2 Investigate soon
+  quadrant-3 Acceptable variance
+  quadrant-4 Critical — fix first
+    Security: [0.30, 0.95]
+    Auth: [0.22, 0.95]
+    Auth: [0.95, 0.53]
 ```
 
 </details>
@@ -107,11 +127,13 @@ xychart-beta
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `d09d65c7-c8df-4099-995b-8af1399dd3e6` · **Tests invoked:** 1 · **Metrics:** 1 · **DB:** sqlite
+**Run ID:** `d312e130-d5a9-4660-923d-f80da713c3cb` · **Tests invoked:** 1 · **Metrics:** 3 · **DB:** sqlite
 
-| Test              | Metric                         | Avg (ms) | p95 (ms) | RPS | Trend | Detail                                      |
-| ----------------- | ------------------------------ | -------- | -------- | --- | ----- | ------------------------------------------- |
-| Cold Start Phased | Cold Start (IDLE → HTTP READY) | 1313.280 | 1618.933 | 0   | 🟢    | ⚪ stable at 1551.14ms (±702.33ms) (6 runs) |
+| Test             | Metric                          | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                   |
+| ---------------- | ------------------------------- | -------- | -------- | ---- | ----- | ---------------------------------------- |
+| Auth Performance | Unauthenticated (401 Fast Path) | 0.419    | 0.560    | 2249 | 🟢    | ⚪ stable at 0.711ms (±0.881ms) (7 runs) |
+| Auth Performance | Auth Validation @ 1c            | 0.304    | 0.393    | 3230 | 🟢    | ⚪ stable at 0.515ms (±0.633ms) (7 runs) |
+| Auth Performance | HTTP Auth Pipeline @ 8c         | 1.398    | 1.852    | 5596 | 🟢    | ⚪ stable at 1.78ms (±1.11ms) (7 runs)   |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
@@ -130,10 +152,10 @@ xychart-beta
 | ADMIN UX VITALITY (warm)            | 🟢    | `▁█▄█`             | 4.044ms    |
 | AI PERFORMANCE (warm)               | 🟢    | `▁▁█▁`             | 0.001ms    |
 | API LATENCY (warm)                  | 🟢    | `▁▆▃█▄▆▃`          | 4.735ms    |
-| AUTH PERFORMANCE (warm)             | 🟢    | `▁▁▂▂▂█▂`          | 1.381ms    |
+| AUTH PERFORMANCE (warm)             | 🟢    | `▂▁█▂▁█▂`          | 0.419ms    |
 | CACHE HIT RATIO (warm)              | 🟢    | `█▄▇▁▂▁▂`          | 0.561ms    |
 | CACHE PERFORMANCE (warm)            | 🟢    | `█▇█▁▁▁▁`          | 0.323ms    |
-| CACHE SERVICE (warm)                | 🟢    | `▃▁█▅▁▇▄`          | 4.510ms    |
+| CACHE SERVICE (warm)                | 🟢    | `▁█▅▁▁▁▂`          | 0.857ms    |
 | CLIENT JOURNEY (warm)               | 🟢    | `█▁`               | 9.324ms    |
 | COLD START PHASED (cold)            | 🟢    | `██▂▅▁▁▁`          | 1313.280ms |
 | COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▃▁▄▁█▂`          | 0.836ms    |
@@ -1120,12 +1142,10 @@ Throughput dropped 82% — check connection pool saturation or lock contention.
 
 <!-- SECTION:AUTH:START -->
 <details id="section-auth">
-<summary><strong>🏷️ Auth</strong> · 🟢 0.930ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/auth-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Auth</strong> · 🟢 1.398ms · ↘️ ⚪ stable at 1.78ms (±1.11ms) (7 runs) (2026-09-02 17:27:46) · <a href="../../../tests/benchmarks/auth-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 59% — check connection pool saturation or lock contention.  
-**Severe degradation** (+198%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -1134,12 +1154,12 @@ Throughput dropped 59% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — AUTHENTICATION TELEMETRY                                  ║
 ║                            File: tests/benchmarks/auth-performance.test.ts                            ║
-║                                       Ran: 2026-08-29 21:31:12                                        ║
+║                                       Ran: 2026-09-02 17:27:46                                        ║
 ║           Evaluates authenticated session resolution, RBAC evaluation, and rejection paths.           ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Unauthenticated (401 Fast Path) │ Cold:     0.93 ms │ Warm:     0.364 ms │ p95:     0.469 ms │   2,566 RPS ║
-║ Auth Validation @ 1c         │ Cold:     1.22 ms │ Warm:     0.343 ms │ p95:     0.454 ms │   2,705 RPS ║
-║ HTTP Auth Pipeline @ 8c      │ Cold:     1.29 ms │ Warm:     1.653 ms │ p95:     2.274 ms │   4,765 RPS ║
+║ Unauthenticated (401 Fast Path) │ Cold:     1.28 ms │ Warm:     0.419 ms │ p95:     0.560 ms │   2,249 RPS ║
+║ Auth Validation @ 1c         │ Cold:     1.63 ms │ Warm:     0.304 ms │ p95:     0.393 ms │   3,230 RPS ║
+║ HTTP Auth Pipeline @ 8c      │ Cold:     0.88 ms │ Warm:     1.398 ms │ p95:     1.852 ms │   5,596 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2000,12 +2020,10 @@ Throughput dropped 14% — check connection pool saturation or lock contention.
 
 <!-- SECTION:SECURITY:START -->
 <details id="section-security">
-<summary><strong>🏷️ Security</strong> · 🟢 0.140ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/security-audit.test.ts">source</a></summary>
+<summary><strong>🏷️ Security</strong> · 🟢 0.419ms · ↘️ ⚪ stable at 0.711ms (±0.881ms) (7 runs) (2026-09-02 17:27:46) · <a href="../../../tests/benchmarks/auth-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 54% — check connection pool saturation or lock contention.  
-**Severe degradation** (+33%) — review recent commits immediately.
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
