@@ -62,9 +62,9 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario      | Latency | Trend                             | Budget | Result |
-| ------------- | ------- | --------------------------------- | ------ | ------ |
-| **Stability** | 0.670ms | ⚪ established at 0.670ms (1 run) | < 5ms  | 🟢     |
+| Scenario              | Latency    | Trend                               | Budget | Result |
+| --------------------- | ---------- | ----------------------------------- | ------ | ------ |
+| **Cold Start Phased** | 1300.740ms | ⚪ established at 1300.74ms (1 run) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -74,7 +74,7 @@ tags:
 | --------------------------------------------------------- | ----- | -------------- | ---------- |
 | api latency (HTTP: findById @ 8c (Cold)) (warm)           | 🟢    | `▁▅█▄`         | 8.690ms    |
 | auth performance (Auth Validation @ 1c) (warm)            | 🟢    | `▁▁▅█`         | 1.220ms    |
-| cold start phased (Cold Start (IDLE → HTTP READY)) (cold) | 🟢    | `██▁▄`         | 1720.176ms |
+| cold start phased (Cold Start (IDLE → HTTP READY)) (cold) | 🟢    | `██▂▅▁▁`       | 1300.740ms |
 | database performance (FIND MANY (limit 50)) (warm)        | 🟢    | `▁▁▁▁▂▇▂▆█▆▁▁` | 0.088ms    |
 
 <details>
@@ -107,11 +107,11 @@ xychart-beta
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `fa6634d4-d1e1-425d-9879-51d4d71f324c` · **Tests invoked:** 1 · **Metrics:** 1 · **DB:** sqlite
+**Run ID:** `c20b5261-7d8f-4e2c-a29d-e7119746bfc8` · **Tests invoked:** 1 · **Metrics:** 1 · **DB:** sqlite
 
-| Test           | Metric               | Avg (ms) | p95 (ms) | RPS | Trend | Detail                            |
-| -------------- | -------------------- | -------- | -------- | --- | ----- | --------------------------------- |
-| Longevity Soak | 0.08h Longevity Soak | 0.670    | 1.090    | 97  | 🟢    | ⚪ established at 0.670ms (1 run) |
+| Test              | Metric                         | Avg (ms) | p95 (ms) | RPS | Trend | Detail                                      |
+| ----------------- | ------------------------------ | -------- | -------- | --- | ----- | ------------------------------------------- |
+| Cold Start Phased | Cold Start (IDLE → HTTP READY) | 1300.740 | 1589.445 | 0   | 🟢    | ⚪ stable at 1720.18ms (±644.39ms) (5 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
@@ -135,7 +135,7 @@ xychart-beta
 | CACHE PERFORMANCE (warm)            | 🟢    | `█▇█▁▁▁▁`          | 0.323ms    |
 | CACHE SERVICE (warm)                | 🟢    | `▃▁█▅▁▇▄`          | 4.510ms    |
 | CLIENT JOURNEY (warm)               | 🟢    | `█▁`               | 9.324ms    |
-| COLD START PHASED (cold)            | 🟢    | `██▁▄`             | 1720.176ms |
+| COLD START PHASED (cold)            | 🟢    | `██▂▅▁▁`           | 1300.740ms |
 | COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▃▁▄▁█▂`          | 0.836ms    |
 | CONCURRENCY MAX (warm)              | 🟢    | `▁█▇`              | 835.712ms  |
 | CONFIG PROMOTION (warm)             | 🟢    | `▁▄▅▄█▃▂`          | 4.627ms    |
@@ -223,7 +223,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:COLD_START:START -->
 <details id="section-cold_start">
-<summary><strong>🏷️ cold start phased</strong> · 🟢 1720.176ms · ↘️ ⚪ stable at 2026.50ms (±688.76ms) (3 runs) (2026-09-01 14:12:42) · <a href="../../../tests/benchmarks/cold-start-phased.test.ts">source</a></summary>
+<summary><strong>🏷️ cold start phased</strong> · 🟢 1300.740ms · ↘️ ⚪ stable at 1720.18ms (±644.39ms) (5 runs) (2026-09-02 15:27:31) · <a href="../../../tests/benchmarks/cold-start-phased.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
@@ -235,11 +235,11 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                  SVELTYCMS — PHASED COLD START AUDIT                                  ║
 ║                           File: tests/benchmarks/cold-start-phased.test.ts                            ║
-║                                       Ran: 2026-09-01 14:12:42                                        ║
+║                                       Ran: 2026-09-02 15:27:31                                        ║
 ║            Measures process spawn, dependency hydration, and first-request TTFB readiness.            ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Initial Cold Boot (Fresh Process) │     3517.547 ms │ p95:     3517.547 ms │ RPS:          0 ║
-║ Steady-State Respawn (Average) │     1720.176 ms │ p95:     3517.547 ms │ RPS:          0 ║
+║ Initial Cold Boot (Fresh Process) │     1589.445 ms │ p95:     1589.445 ms │ RPS:          0 ║
+║ Steady-State Respawn (Average) │     1300.740 ms │ p95:     1589.445 ms │ RPS:          0 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
