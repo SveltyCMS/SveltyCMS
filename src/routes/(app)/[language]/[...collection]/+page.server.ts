@@ -44,9 +44,11 @@ import { contentSystem } from "@src/content/index.server";
 import type { User } from "@src/databases/auth/types";
 import { collectionService } from "@src/services/core/collection-service";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
-import { error, isRedirect, redirect } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
 import { parseCollectionListQuery } from "@utils/collection-query-filters";
 import { logger } from "@utils/logger";
+import { rethrow } from "@utils/error-handling";
+import { summarizeListQueryMetrics } from "@utils/list-query-metrics";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
 
@@ -113,19 +115,26 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
         throw redirect(302, newPath);
       }
     } else {
-      // Path-based lookup (backward compatibility)
-      const collectionPath = `/${collection}`;
+      // Path-based lookup (backward compatibility & collection-prefixed routes)
+      const cleanPath = (collection || "").replace(/^\/+/, "").replace(/^collection\//, "");
+      const collectionPath = `/${cleanPath}`;
       logger.debug(`Loading collection by path: \x1b[34m${collectionPath}\x1b[0m`);
-      currentCollection = contentSystem.getCollection(collectionPath, tenantId);
+      currentCollection =
+        contentSystem.getCollection(collectionPath, tenantId) ||
+        contentSystem.getCollection(cleanPath, tenantId) ||
+        contentSystem.getCollection(`/${collection}`, tenantId);
 
-      // SELF-HEALING: If not found, it might be a stalecontent-managerafter setup
+      // SELF-HEALING: If not found, it might be a stale content-manager after setup
       // Optimization: Skip refresh for "Collections" root, as it will be handled by redirect logic below
       if (!currentCollection && collectionNameOnly?.toLowerCase() !== "collections") {
         logger.warn(
-          `Collection path ${collectionPath} not found. Triggeringcontent-managerrefresh...`,
+          `Collection path ${collectionPath} not found. Triggering content-manager refresh...`,
         );
         await contentSystem.refresh(tenantId);
-        currentCollection = contentSystem.getCollection(collectionPath, tenantId);
+        currentCollection =
+          contentSystem.getCollection(collectionPath, tenantId) ||
+          contentSystem.getCollection(cleanPath, tenantId) ||
+          contentSystem.getCollection(`/${collection}`, tenantId);
       }
     }
 
@@ -198,7 +207,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     }
 
     // In-process list metrics (SSR snapshot for ?debug=table badge)
-    const { summarizeListQueryMetrics } = await import("@utils/list-query-metrics");
     const listMetrics = summarizeListQueryMetrics("CollectionService.getCollectionData");
 
     // =================================================================
@@ -229,10 +237,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
     return returnData;
   } catch (err) {
-    // If it's a redirect (SvelteKit standard behavior), just rethrow it without logging an error
-    if (isRedirect(err)) {
-      throw err;
-    }
+    rethrow(err);
 
     logger.error("Error loading collection page", {
       error: err,

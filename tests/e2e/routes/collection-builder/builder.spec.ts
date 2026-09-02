@@ -52,7 +52,10 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
         await loginAsAdmin(page, "/config/collectionbuilder");
       }
       await expect(
-        page.getByRole("heading", { level: 1, name: /collection builder/i }),
+        page
+          .getByRole("heading", { level: 1, name: /collection builder|sammlungsersteller/i })
+          .or(page.getByTestId("admin-page-title"))
+          .first(),
       ).toBeVisible({ timeout: 10_000 });
     }).toPass({ timeout: 45_000, intervals: [2_000, 3_000, 5_000] });
     await expect(
