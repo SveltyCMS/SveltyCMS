@@ -144,14 +144,12 @@ Features:
 	}
 
 	async function handleRevokeAll() {
-		const confirmed = await showConfirm(
-			'Revoke All Sessions',
-			`Are you sure you want to revoke all active sessions for ${user.username || user.email}? The user will be logged out everywhere.`,
-			{
-				confirmText: 'Revoke All',
-				cancelText: 'Cancel'
-			}
-		);
+		const confirmed = await showConfirm({
+			title: 'Revoke All Sessions',
+			body: `Are you sure you want to revoke all active sessions for ${user.username || user.email}? The user will be logged out everywhere.`,
+			confirmText: 'Revoke All',
+			cancelText: 'Cancel'
+		});
 		if (!confirmed) return;
 
 		revokingAll = true;
@@ -216,7 +214,7 @@ Features:
 	</div>
 
 	<!-- Sessions List -->
-	<div class="flex min-h-[14rem] max-h-96 flex-col gap-2 overflow-y-auto pe-1">
+	<div class="flex min-h-56 max-h-96 flex-col gap-2 overflow-y-auto pe-1">
 		{#if loading}
 			<div class="flex flex-1 items-center justify-center py-8 text-surface-500">
 				<iconify-icon icon="mdi:loading" width="28" class="animate-spin text-primary-500"></iconify-icon>

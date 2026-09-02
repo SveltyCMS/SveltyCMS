@@ -190,12 +190,9 @@ function buildProfile(): HardwareProfile {
 
   // 🧠 DYNAMIC SQLITE MMAP SIZE: scales with available virtual memory.
   let defaultMmapBytes = 268435456;
-  if (totalMemMb < 1500)
-    defaultMmapBytes = 67108864; // 64MB
-  else if (totalMemMb < 3500)
-    defaultMmapBytes = 134217728; // 128MB
-  else if (totalMemMb < 7500)
-    defaultMmapBytes = 268435456; // 256MB
+  if (totalMemMb < 1500) defaultMmapBytes = 67108864; // 64MB
+  else if (totalMemMb < 3500) defaultMmapBytes = 134217728; // 128MB
+  else if (totalMemMb < 7500) defaultMmapBytes = 268435456; // 256MB
   else defaultMmapBytes = 536870912; // 512MB
 
   const sqliteMmapSizeBytes = envInt("SQLITE_MMAP_SIZE") ?? defaultMmapBytes;
