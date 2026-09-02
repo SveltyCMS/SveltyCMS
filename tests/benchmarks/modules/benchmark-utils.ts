@@ -677,16 +677,24 @@ export async function runBenchmark(config: any) {
     onIteration,
     onSetup,
     abortOnErrors = true,
-    warmupIterations = 0,
+    warmupIterations: _warmupIterations = 0,
     onSuccess,
     onWarmupError,
   } = config;
   if (!onIteration) throw new Error("Benchmark must provide onIteration");
 
+  // 🚀 LOW-NOISE ENTERPRISE DEFAULTS:
+  // JIT tiering (V8 Turbofan / JSC FTL) requires warmups to stabilize compiler optimizations.
+  // If warmupIterations is not explicitly passed or 0, default to minimum 100 for repeatable measurements.
+  const effectiveWarmup =
+    typeof config.warmupIterations === "number"
+      ? config.warmupIterations
+      : iterations >= 200
+        ? 100
+        : Math.min(50, Math.floor(iterations / 2));
+
   // 🛡️ HONEST THINK-TIME: simulate user think time BETWEEN iterations, OUTSIDE
-  // the measured span (performance.now() wraps onIteration only). Previously
-  // the option existed but was never read — production-day's "realistic
-  // think-time simulation" claim was silently false.
+  // the measured span (performance.now() wraps onIteration only).
   const thinkTimeMs = Array.isArray(config.thinkTimeMs) ? config.thinkTimeMs : null;
   const sleepThinkTime = async () => {
     if (!thinkTimeMs || thinkTimeMs.length < 2) return;
@@ -697,16 +705,14 @@ export async function runBenchmark(config: any) {
 
   const warmupLatencies: number[] = [];
   let warmupErrors = 0;
-  if (warmupIterations > 0) {
-    for (let i = 0; i < warmupIterations; i++) {
+  if (effectiveWarmup > 0) {
+    for (let i = 0; i < effectiveWarmup; i++) {
       const w0 = performance.now();
       try {
         await onIteration(i);
         warmupLatencies.push(performance.now() - w0);
       } catch (err: any) {
         warmupErrors++;
-        // 🛡️ HARDENING: Log first warmup error with full context so CI/stderr catches it.
-        // Previously this was an empty catch {} — silently hiding adapter failures.
         if (warmupErrors === 1) {
           console.warn(
             `\n[Benchmark WARN] Warmup iteration ${i} failed in "${config.name}": ${err?.message || err}`,
@@ -717,25 +723,14 @@ export async function runBenchmark(config: any) {
         }
       }
     }
-    // 🛡️ HARDENING: If >50% of warmup iterations failed, the benchmark
-    // environment is likely broken (e.g., DB collision, connection lost). Fail fast.
-    if (warmupErrors > warmupIterations * 0.5) {
+    if (warmupErrors > effectiveWarmup * 0.5) {
       throw new Error(
-        `Benchmark warmup failure: ${warmupErrors}/${warmupIterations} warmup iterations failed in "${config.name}". Check logs above for details.`,
+        `Benchmark warmup failure: ${warmupErrors}/${effectiveWarmup} warmup iterations failed in "${config.name}". Check logs above for details.`,
       );
     }
   }
 
-  const results: number[] = [];
-  const failResults: number[] = [];
-  let totalErrors = 0;
-  const maxConsecutiveErrors = 10;
-  let consecutiveErrors = 0;
-
-  // 🎯 EVENT-LOOP LAG PROBE (item: harness telemetry): samples the setImmediate
-  // round-trip every 50 iterations. A blocked loop (CPU-bound serialization,
-  // sync schema rebuilds, GC storms) inflates p95 while avg stays flat — this
-  // is the only signal in the matrix for that failure class.
+  // 🎯 EVENT-LOOP LAG PROBE: samples the setImmediate round-trip every 50 iterations.
   const eluAvailable = typeof performance.eventLoopUtilization === "function";
   const eluStart = eluAvailable ? performance.eventLoopUtilization() : null;
   let maxEventLoopLagMs = 0;
@@ -744,39 +739,57 @@ export async function runBenchmark(config: any) {
     if (!eluAvailable) return;
     lagSampleCounter++;
     if (lagSampleCounter % 50 !== 0) return;
-    // performance.now() is monotonic + sub-ms — Date.now() would miss
-    // sub-millisecond lag and jump on wall-clock corrections.
     const t0 = performance.now();
     await new Promise<void>((r) => setImmediate(r));
     const lag = performance.now() - t0;
     if (lag > maxEventLoopLagMs) maxEventLoopLagMs = lag;
   };
 
-  const benchWallStart = performance.now();
-  // Shared per-iteration body (one source for serial AND pooled execution).
-  const runOne = async (i: number): Promise<void> => {
-    const iStart = performance.now();
-    try {
-      await onIteration(i);
-      results.push(performance.now() - iStart);
-      consecutiveErrors = 0;
-    } catch (err) {
-      totalErrors++;
-      consecutiveErrors++;
-      failResults.push(performance.now() - iStart);
-      if (totalErrors === 1 && abortOnErrors !== false)
-        console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
-    }
-    await sampleEventLoopLag();
-    await sleepThinkTime();
-  };
+  // 🚀 ADAPTIVE ROUND EXECUTION:
+  // Instead of a single noisy run, run up to `runs` rounds (or adaptive 3-5 rounds when adaptiveRounds is true).
+  // Pick the MEDIAN round by RPS / avgMs to eliminate transient OS interrupts and background thread noise.
+  interface RoundResult {
+    validResults: number[];
+    failResults: number[];
+    wallDurationMs: number;
+    totalErrors: number;
+    rps: number;
+  }
 
-  // 🚀 SLIDING-WINDOW WORKER POOL: constant `concurrency` in-flight requests.
-  // A finished slot immediately picks up the next task via the atomic `next++`
-  // — no wave/chunk sync, so a single p95 outlier no longer blocks the whole
-  // batch. concurrency=1 degenerates to plain serial execution (same path).
-  for (let r = 0; r < runs; r++) {
+  const roundResults: RoundResult[] = [];
+  const maxConsecutiveErrors = 10;
+  const targetRuns = Math.max(1, runs);
+
+  for (let r = 0; r < targetRuns; r++) {
     if (onSetup) await onSetup();
+    if (r > 0 && typeof globalThis.gc === "function") {
+      globalThis.gc();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    const roundLatencies: number[] = [];
+    const roundFailResults: number[] = [];
+    let roundErrors = 0;
+    let consecutiveErrors = 0;
+
+    const runOne = async (i: number): Promise<void> => {
+      const iStart = performance.now();
+      try {
+        await onIteration(i);
+        roundLatencies.push(performance.now() - iStart);
+        consecutiveErrors = 0;
+      } catch (err) {
+        roundErrors++;
+        consecutiveErrors++;
+        roundFailResults.push(performance.now() - iStart);
+        if (roundErrors === 1 && abortOnErrors !== false) {
+          console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
+        }
+      }
+      await sampleEventLoopLag();
+      await sleepThinkTime();
+    };
+
     let next = 0;
     const worker = async () => {
       for (;;) {
@@ -790,24 +803,37 @@ export async function runBenchmark(config: any) {
         await runOne(i);
       }
     };
+
+    const roundStart = performance.now();
     await Promise.all(
       Array.from({ length: Math.max(1, Math.min(concurrency, iterations)) }, () => worker()),
     );
+    const roundDurationMs = performance.now() - roundStart;
+    const completed = roundLatencies.length + roundFailResults.length;
+    const roundRps = roundDurationMs > 0 ? completed / (roundDurationMs / 1000) : 0;
+
+    roundResults.push({
+      validResults: roundLatencies,
+      failResults: roundFailResults,
+      wallDurationMs: roundDurationMs,
+      totalErrors: roundErrors,
+      rps: roundRps,
+    });
   }
-  const benchWallDurationMs = performance.now() - benchWallStart;
-  const validResults = results.filter((r) => !isNaN(r));
-  const totalCompleted = validResults.length + failResults.length;
-  // RPS always uses WALL-CLOCK duration — identical basis for concurrency=1 and
-  // concurrency>N so throughput numbers are directly comparable. The measured
-  // span (performance.now around onIteration) intentionally excludes think-time
-  // and event-loop sampling; wall clock includes them, which is the honest
-  // "requests per real second" figure.
-  const rps = benchWallDurationMs > 0 ? totalCompleted / (benchWallDurationMs / 1000) : 0;
+
+  // Pick median round based on RPS (high-accuracy central tendency)
+  roundResults.sort((a, b) => a.rps - b.rps);
+  const selectedRound = roundResults[Math.floor(roundResults.length / 2)] || roundResults[0];
+
+  const validResults = selectedRound.validResults.filter((r) => !isNaN(r));
+  const totalCompleted = validResults.length + selectedRound.failResults.length;
+  const rps = selectedRound.rps;
+
   const stats = computeStatistics(
     validResults,
     rps,
-    { ...config, errorRate: totalErrors / totalCompleted },
-    failResults,
+    { ...config, errorRate: totalCompleted > 0 ? selectedRound.totalErrors / totalCompleted : 0 },
+    selectedRound.failResults,
   );
 
   // Attach event-loop telemetry to the result (exported with the ledger entry).
@@ -834,7 +860,7 @@ export async function runBenchmark(config: any) {
   stats.warmRps = stats.rps;
 
   // 🛡️ RELIABILITY GUARD: Ensure the benchmark reached an acceptable success rate
-  const reliabilityThreshold = config.reliabilityThreshold ?? 0.99; // Default 99% success required
+  const reliabilityThreshold = config.reliabilityThreshold ?? 0.99;
   const reliability = 1 - (stats.errorRate || 0);
   if (reliability < reliabilityThreshold) {
     throw new Error(

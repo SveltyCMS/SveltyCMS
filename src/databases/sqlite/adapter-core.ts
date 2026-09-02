@@ -2021,7 +2021,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     const busyTimeout = rawTimeout && /^\d+$/.test(rawTimeout) ? rawTimeout : "30000";
 
     const rawCheckpoint = process.env.SQLITE_WAL_AUTOCHECKPOINT?.trim();
-    const walCheckpoint = rawCheckpoint && /^\d+$/.test(rawCheckpoint) ? rawCheckpoint : "2000";
+    const walCheckpoint = rawCheckpoint && /^\d+$/.test(rawCheckpoint) ? rawCheckpoint : "4000";
 
     const hw = getHardwareProfile();
     const cacheSizeKb = hw.sqliteCacheSizeKb;
