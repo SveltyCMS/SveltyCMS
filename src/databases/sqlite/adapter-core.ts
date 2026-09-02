@@ -99,6 +99,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   /** table|cols|returning|tenant → UPDATE SQL. */
   private _updateSqlCache = new Map<string, string>();
   private _sqliteSelectColsCache = new WeakMap<object, string>();
+  private _rawFindByIdSqlCache = new WeakMap<object, { withData: string; withoutData: string }>();
 
   /** Clients whose prepare() is wrapped with a per-SQL statement cache. */
   protected _preparedStatementClients = new Set<any>();
@@ -211,18 +212,40 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             return false;
           return !this.getColumn(table, String(f));
         });
-      let selectCols = "*";
-      if (!wantsData) {
-        let cachedCols = this._sqliteSelectColsCache.get(table);
-        if (!cachedCols) {
-          cachedCols = this.getRawFindByIdCols(table, false)
-            .map((c) => `"${c}"`)
-            .join(", ");
-          this._sqliteSelectColsCache.set(table, cachedCols);
+
+      let rawSql: string;
+      if (!tenantSql) {
+        let cachedSql = this._rawFindByIdSqlCache.get(table);
+        if (!cachedSql) {
+          let selectWithoutData = this._sqliteSelectColsCache.get(table);
+          if (!selectWithoutData) {
+            selectWithoutData = this.getRawFindByIdCols(table, false)
+              .map((c) => `"${c}"`)
+              .join(", ");
+            this._sqliteSelectColsCache.set(table, selectWithoutData);
+          }
+          cachedSql = {
+            withData: `SELECT * FROM "${tableName}" WHERE "_id" = ? LIMIT 1`,
+            withoutData: `SELECT ${selectWithoutData} FROM "${tableName}" WHERE "_id" = ? LIMIT 1`,
+          };
+          this._rawFindByIdSqlCache.set(table, cachedSql);
         }
-        selectCols = cachedCols;
+        rawSql = wantsData ? cachedSql.withData : cachedSql.withoutData;
+      } else {
+        let selectCols = "*";
+        if (!wantsData) {
+          let cachedCols = this._sqliteSelectColsCache.get(table);
+          if (!cachedCols) {
+            cachedCols = this.getRawFindByIdCols(table, false)
+              .map((c) => `"${c}"`)
+              .join(", ");
+            this._sqliteSelectColsCache.set(table, cachedCols);
+          }
+          selectCols = cachedCols;
+        }
+        rawSql = `SELECT ${selectCols} FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
       }
-      const rawSql = `SELECT ${selectCols} FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
+
       const rawRow = this.prepareAndExecute(rawSql, "get", String(id), ...tenantParams);
       if (rawRow) {
         if (!wantsData) {
