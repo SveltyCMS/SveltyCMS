@@ -18,6 +18,8 @@ import {
   setupBenchmarkServer,
   stabilize,
   exportMetric,
+  exportResult,
+  printTruthTable,
   getDbType,
   benchmarkAuthHeaders,
 } from "./modules/benchmark-utils";
@@ -99,12 +101,16 @@ test("Scale Spectrum Degradation Benchmark (1 to 100,000 Rows)", async () => {
       step: number;
       findByIdRandomRps: number;
       findByIdRandomAvgMs: number;
+      findByIdRandomP95Ms: number;
       listFilterSortRps: number;
       listFilterSortAvgMs: number;
+      listFilterSortP95Ms: number;
       graphqlRps: number;
       graphqlAvgMs: number;
+      graphqlP95Ms: number;
       createRps: number;
       createAvgMs: number;
+      createP95Ms: number;
     }
 
     const stepMetrics: StepMetric[] = [];
@@ -199,13 +205,24 @@ test("Scale Spectrum Degradation Benchmark (1 to 100,000 Rows)", async () => {
         step,
         findByIdRandomRps: Math.round(resFind.rps),
         findByIdRandomAvgMs: +resFind.avgMs.toFixed(3),
+        findByIdRandomP95Ms: +(resFind.p95Ms ?? resFind.avgMs).toFixed(3),
         listFilterSortRps: Math.round(resList.rps),
         listFilterSortAvgMs: +resList.avgMs.toFixed(3),
+        listFilterSortP95Ms: +(resList.p95Ms ?? resList.avgMs).toFixed(3),
         graphqlRps: Math.round(resGql.rps),
         graphqlAvgMs: +resGql.avgMs.toFixed(3),
+        graphqlP95Ms: +(resGql.p95Ms ?? resGql.avgMs).toFixed(3),
         createRps: Math.round(resCreate.rps),
         createAvgMs: +resCreate.avgMs.toFixed(3),
+        createP95Ms: +(resCreate.p95Ms ?? resCreate.avgMs).toFixed(3),
       });
+
+      // Ledger + history.sqlite (finalizeReport in afterAll). Names are
+      // metric-stable so trends compare the same step over time.
+      await exportResult(resFind);
+      await exportResult(resList);
+      await exportResult(resGql);
+      await exportResult(resCreate);
 
       logger.info(
         `  ↳ ${String(step).padStart(6)} rows: findById ${resFind.rps.toFixed(0)} RPS (${resFind.avgMs.toFixed(2)}ms) | list ${resList.rps.toFixed(0)} RPS (${resList.avgMs.toFixed(2)}ms) | gql ${resGql.rps.toFixed(0)} RPS | write ${resCreate.rps.toFixed(0)} RPS`,
@@ -240,7 +257,8 @@ test("Scale Spectrum Degradation Benchmark (1 to 100,000 Rows)", async () => {
 
     // Degradation factor analysis
     const largest = stepMetrics[stepMetrics.length - 1];
-    if (baseline && largest && baseline !== largest) {
+    if (!largest) throw new Error("Scale spectrum produced no step metrics");
+    if (baseline && baseline !== largest) {
       console.log(
         "\n📊 SCALE DEGRADATION RATIO (1 row vs " + largest.step.toLocaleString() + " rows):",
       );
@@ -262,6 +280,49 @@ test("Scale Spectrum Degradation Benchmark (1 to 100,000 Rows)", async () => {
     exportMetric("scale_spectrum.largest_step", largest.step, "rows");
     exportMetric("scale_spectrum.find_by_id_final_rps", largest.findByIdRandomRps, "req/s");
     exportMetric("scale_spectrum.list_final_rps", largest.listFilterSortRps, "req/s");
+    if (baseline && largest && baseline !== largest) {
+      exportMetric(
+        "scale_spectrum.find_by_id_retention",
+        +(baseline.findByIdRandomAvgMs / largest.findByIdRandomAvgMs).toFixed(3),
+        "x",
+      );
+      exportMetric(
+        "scale_spectrum.list_retention",
+        +(baseline.listFilterSortAvgMs / largest.listFilterSortAvgMs).toFixed(3),
+        "x",
+      );
+    }
+
+    printTruthTable({
+      title: `SCALE SPECTRUM (${dbType} — 1 to ${largest.step.toLocaleString()} Rows)`,
+      shortLabel: "ScaleSpectrum",
+      results: stepMetrics.flatMap((m) => [
+        {
+          name: `findByIdRandom @ ${m.step}`,
+          avgMs: m.findByIdRandomAvgMs,
+          p95Ms: m.findByIdRandomP95Ms,
+          rps: m.findByIdRandomRps,
+        },
+        {
+          name: `listFilterSort @ ${m.step}`,
+          avgMs: m.listFilterSortAvgMs,
+          p95Ms: m.listFilterSortP95Ms,
+          rps: m.listFilterSortRps,
+        },
+        {
+          name: `graphql @ ${m.step}`,
+          avgMs: m.graphqlAvgMs,
+          p95Ms: m.graphqlP95Ms,
+          rps: m.graphqlRps,
+        },
+        {
+          name: `create @ ${m.step}`,
+          avgMs: m.createAvgMs,
+          p95Ms: m.createP95Ms,
+          rps: m.createRps,
+        },
+      ]),
+    });
   } finally {
     if (stopServer) {
       await stopServer().catch(() => {});

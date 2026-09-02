@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     3 | 🟢     | —       | 0      |
+| **Core**       |    32 | 🟢     | —       | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,11 +62,40 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario      | Latency | Trend                             | Budget | Result |
-| ------------- | ------- | --------------------------------- | ------ | ------ |
-| **Baseline**  | 0.953ms | ⚪ established at 0.953ms (1 run) | < 5ms  | 🟢     |
-| **Read Path** | 0.717ms | ⚪ established at 0.717ms (1 run) | < 5ms  | 🟢     |
-| **History**   | 0.435ms | ⚪ established at 0.435ms (1 run) | < 5ms  | 🟢     |
+| Scenario           | Latency | Trend                            | Budget | Result |
+| ------------------ | ------- | -------------------------------- | ------ | ------ |
+| **Scale Spectrum** | 3.168ms | ⚪ established at 3.17ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 3.535ms | ⚪ established at 3.54ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 3.540ms | ⚪ established at 3.54ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.827ms | ⚪ established at 2.83ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.650ms | ⚪ established at 2.65ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.568ms | ⚪ established at 2.57ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 3.241ms | ⚪ established at 3.24ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.210ms | ⚪ established at 2.21ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 4.398ms | ⚪ established at 4.40ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.556ms | ⚪ established at 2.56ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.946ms | ⚪ established at 2.95ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 3.658ms | ⚪ established at 3.66ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 4.588ms | ⚪ established at 4.59ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.262ms | ⚪ established at 2.26ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.543ms | ⚪ established at 2.54ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 1.823ms | ⚪ established at 1.82ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 4.814ms | ⚪ established at 4.81ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 1.993ms | ⚪ established at 1.99ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.481ms | ⚪ established at 2.48ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 1.554ms | ⚪ established at 1.55ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 4.615ms | ⚪ established at 4.62ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.104ms | ⚪ established at 2.10ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.062ms | ⚪ established at 2.06ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 1.526ms | ⚪ established at 1.53ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 4.347ms | ⚪ established at 4.35ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 1.674ms | ⚪ established at 1.67ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.371ms | ⚪ established at 2.37ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 1.573ms | ⚪ established at 1.57ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 4.065ms | ⚪ established at 4.07ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 1.948ms | ⚪ established at 1.95ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 2.517ms | ⚪ established at 2.52ms (1 run) | < 5ms  | 🟢     |
+| **Scale Spectrum** | 1.534ms | ⚪ established at 1.53ms (1 run) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -99,36 +128,66 @@ xychart-beta
 
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-08-29)
+### Current Run Summary (2026-09-02)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `83727781-f69e-4f0f-bfe8-0ca529cdca68` · **Tests invoked:** 1 · **Metrics:** 3 · **DB:** mongodb
+**Run ID:** `25df5a01-9888-4120-afd9-20bbb84750ac` · **Tests invoked:** 1 · **Metrics:** 32 · **DB:** mongodb
 
-| Test            | Metric                         | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                            |
-| --------------- | ------------------------------ | -------- | -------- | ---- | ----- | --------------------------------- |
-| Revision Stress | Clean Document Read (Baseline) | 0.953    | 2.150    | 3751 | 🟢    | ⚪ established at 0.953ms (1 run) |
-| Revision Stress | Latest Read (100 Revisions)    | 0.717    | 1.488    | 5057 | 🟢    | ⚪ established at 0.717ms (1 run) |
-| Revision Stress | History List Retrieval         | 0.435    | 0.612    | 4009 | 🟢    | ⚪ established at 0.435ms (1 run) |
+| Test           | Metric                  | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                           |
+| -------------- | ----------------------- | -------- | -------- | ---- | ----- | -------------------------------- |
+| Scale Spectrum | findByIdRandom @ 1      | 3.168    | 3.931    | 2420 | 🟢    | ⚪ established at 3.17ms (1 run) |
+| Scale Spectrum | listFilterSort @ 1      | 3.535    | 5.752    | 2193 | 🟢    | ⚪ established at 3.54ms (1 run) |
+| Scale Spectrum | graphql @ 1             | 3.540    | 4.071    | 2179 | 🟢    | ⚪ established at 3.54ms (1 run) |
+| Scale Spectrum | create @ 1              | 2.827    | 3.277    | 1370 | 🟢    | ⚪ established at 2.83ms (1 run) |
+| Scale Spectrum | findByIdRandom @ 10     | 2.650    | 4.159    | 2922 | 🟢    | ⚪ established at 2.65ms (1 run) |
+| Scale Spectrum | listFilterSort @ 10     | 2.568    | 2.943    | 3005 | 🟢    | ⚪ established at 2.57ms (1 run) |
+| Scale Spectrum | graphql @ 10            | 3.241    | 5.576    | 2382 | 🟢    | ⚪ established at 3.24ms (1 run) |
+| Scale Spectrum | create @ 10             | 2.210    | 2.677    | 1780 | 🟢    | ⚪ established at 2.21ms (1 run) |
+| Scale Spectrum | findByIdRandom @ 100    | 4.398    | 8.397    | 1759 | 🟢    | ⚪ established at 4.40ms (1 run) |
+| Scale Spectrum | listFilterSort @ 100    | 2.556    | 3.240    | 3015 | 🟢    | ⚪ established at 2.56ms (1 run) |
+| Scale Spectrum | graphql @ 100           | 2.946    | 4.094    | 2614 | 🟢    | ⚪ established at 2.95ms (1 run) |
+| Scale Spectrum | create @ 100            | 3.658    | 8.792    | 1082 | 🟢    | ⚪ established at 3.66ms (1 run) |
+| Scale Spectrum | findByIdRandom @ 1000   | 4.588    | 5.549    | 1711 | 🟢    | ⚪ established at 4.59ms (1 run) |
+| Scale Spectrum | listFilterSort @ 1000   | 2.262    | 2.996    | 3405 | 🟢    | ⚪ established at 2.26ms (1 run) |
+| Scale Spectrum | graphql @ 1000          | 2.543    | 3.201    | 3034 | 🟢    | ⚪ established at 2.54ms (1 run) |
+| Scale Spectrum | create @ 1000           | 1.823    | 2.097    | 1969 | 🟢    | ⚪ established at 1.82ms (1 run) |
+| Scale Spectrum | findByIdRandom @ 5000   | 4.814    | 7.959    | 1627 | 🟢    | ⚪ established at 4.81ms (1 run) |
+| Scale Spectrum | listFilterSort @ 5000   | 1.993    | 2.383    | 3878 | 🟢    | ⚪ established at 1.99ms (1 run) |
+| Scale Spectrum | graphql @ 5000          | 2.481    | 5.470    | 3079 | 🟢    | ⚪ established at 2.48ms (1 run) |
+| Scale Spectrum | create @ 5000           | 1.554    | 1.795    | 2521 | 🟢    | ⚪ established at 1.55ms (1 run) |
+| Scale Spectrum | findByIdRandom @ 10000  | 4.615    | 6.074    | 1686 | 🟢    | ⚪ established at 4.62ms (1 run) |
+| Scale Spectrum | listFilterSort @ 10000  | 2.104    | 5.201    | 3686 | 🟢    | ⚪ established at 2.10ms (1 run) |
+| Scale Spectrum | graphql @ 10000         | 2.062    | 2.300    | 3745 | 🟢    | ⚪ established at 2.06ms (1 run) |
+| Scale Spectrum | create @ 10000          | 1.526    | 1.907    | 2560 | 🟢    | ⚪ established at 1.53ms (1 run) |
+| Scale Spectrum | findByIdRandom @ 50000  | 4.347    | 4.813    | 1784 | 🟢    | ⚪ established at 4.35ms (1 run) |
+| Scale Spectrum | listFilterSort @ 50000  | 1.674    | 1.818    | 4604 | 🟢    | ⚪ established at 1.67ms (1 run) |
+| Scale Spectrum | graphql @ 50000         | 2.371    | 5.336    | 3271 | 🟢    | ⚪ established at 2.37ms (1 run) |
+| Scale Spectrum | create @ 50000          | 1.573    | 1.790    | 2490 | 🟢    | ⚪ established at 1.57ms (1 run) |
+| Scale Spectrum | findByIdRandom @ 100000 | 4.065    | 4.495    | 1905 | 🟢    | ⚪ established at 4.07ms (1 run) |
+| Scale Spectrum | listFilterSort @ 100000 | 1.948    | 4.163    | 3971 | 🟢    | ⚪ established at 1.95ms (1 run) |
+| Scale Spectrum | graphql @ 100000        | 2.517    | 9.051    | 3085 | 🟢    | ⚪ established at 2.52ms (1 run) |
+| Scale Spectrum | create @ 100000         | 1.534    | 1.860    | 2521 | 🟢    | ⚪ established at 1.53ms (1 run) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-08-29)
+### Historical Trends (2026-09-02)
 
 > **Scope:** Sparklines only — full run tables live in `history.sqlite` (link below). Runs = sparkline bar count.
 
 **Detail:** [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite) · `SELECT test_id, phase, avg_ms, p95_ms, rps, timestamp FROM runs WHERE db_type='mongodb' AND redis=0 ORDER BY timestamp DESC`
 
-**Series:** 2 · **DB:** mongodb
+**Series:** 3 · **DB:** mongodb
 
 | Metric                              | Trend | Sparkline (last 7) | Latest  |
 | ----------------------------------- | ----- | ------------------ | ------- |
 | COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `█▁▁▁▁██`          | 9.482ms |
 | REVISION STRESS (warm)              | 🟢    | `█▁▅█▂▅`           | 0.717ms |
+| SCALE SPECTRUM (warm)               | 🟢    | `▆▅▄▄▂▁█`          | 2.517ms |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
 

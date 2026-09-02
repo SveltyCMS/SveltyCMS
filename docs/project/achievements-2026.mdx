@@ -1261,9 +1261,22 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
   - **List Query Observability**: Instrumented `recordListQuery` across `/api/user` and `/api/token` and connected `SmartTableMetricsBadge` to user management and token tables for real-time p50/p95 latency and hit-rate telemetry.
   - **Filter Engine Reuse**: Added allowlisted field filtering (`role`, `blocked`, `email`, `username`, `createdAt`) across `auth.ts` and `AuthNamespace.listUsers`.
 - **Adapter-agnostic speculative Turbo fill & 100k write-burst integrity (September 2026)**:
-  - **LocalCMS prewarm**: `/api/system/prewarm-route` fills `responseCache` via LocalCMS (no internal `fetch`) under the same user-scoped Turbo GET key; confidence-gated `predictNextPathAdaptive` plus `getHotEntries`. SQLite-only SQL-string tricks stay on the entry engine; Postgres/Maria keep driver-prepared paths; Mongo keeps lean `findOne`.
-  - **Write-lane TTL slide**: `getTurboAuthContext` now slides expiry on every hit; the collection write lane uses it and **falls through** to full auth instead of 401 when turbo is cold. Node `headersTimeout` on `index.cjs` / `index.bun.ts` is 10 minutes (was 60s 408 with no CMS log). That pair is the class that aborted **14/100k** Postgres seed rows at ~60s.
-  - **Seed integrity**: HTTP seed bursts retry 401/408/429/503/socket drops and fail the run if `created !== requested`. Verified `BENCH_DOCS=100000` competitive replica on PostgreSQL: **100,000/100,000 seeded**, title `POSTGRESQL — 100000 Docs`, 87s wall (self-measured 2026-09-02). Scale-spectrum default is 1→10k on SQLite (entry) and 1→100k on Postgres/Maria/Mongo (`BENCH_STEPS` override).
+  - **Functional loop (measured)**: hover/predict/viewport/smart → `GET /api/system/prewarm-route` → LocalCMS `findById`/`find` (all 4 adapters) → `{success,data}` stringified once → `responseCache.buffer` (`Uint8Array`) → next collection GET returns `X-Cache: TURBO-HIT` (zero DB, no per-request `JSON.stringify`). Proven by `tests/benchmarks/speculative-turbo-hit.test.ts`.
+  - **What this is not**: no frozen radix trie / O(1) segment-offset dispatch (`classifyRouteSpec` is a 15-entry exact Map + `startsWith` + 1024 LRU). Prediction is `predictNextPathAdaptive` (**≥5 samples and 30% accuracy**, not an 82% example). Extinction is 0.8 on non-chosen alternatives at navigation time, not a 10s timer. Transition cap is **10,000 per tenant** (prediction-stats cap is 5,000). Turbo GET still goes through SvelteKit `Response` + security headers — JSON/GC cost is gone; there is no raw TCP-socket bypass.
+  - **Write-lane TTL slide**: `getTurboAuthContext` slides expiry on every hit; the collection write lane falls through to full auth instead of 401 when turbo is cold. Node `headersTimeout` on `index.cjs` / `index.bun.ts` is 10 minutes (was 60s 408 with no CMS log). That pair aborted **14/100k** Postgres seed rows at ~60s.
+  - **Seed integrity**: HTTP seed bursts retry 401/408/429/503/socket drops and fail if `created !== requested`. Verified `BENCH_DOCS=100000` competitive replica on PostgreSQL: **100,000/100,000 seeded**, 87s wall (self-measured 2026-09-02).
+  - **Scale-spectrum ledger (executed)**: `exportResult` per step + `printTruthTable`; `BENCHMARK_RECORD=1` wrote `history.sqlite` (`test_id=scale-spectrum`) and MDX ledgers. Self-measured 2026-09-02, 1-row vs largest-step retention:
+
+    | Engine         | Steps  |        findByIdRandom |    listFilterSort |           GraphQL |            Create |
+    | -------------- | ------ | --------------------: | ----------------: | ----------------: | ----------------: |
+    | SQLite (entry) | 1→10k  | 2271→1581 RPS (0.70×) | 2444→4602 (1.89×) | 2047→3873 (1.89×) | 1474→2540 (1.73×) |
+    | PostgreSQL     | 1→100k |     2379→1372 (0.57×) | 2185→4410 (2.03×) | 1923→3294 (1.71×) | 1084→1482 (1.40×) |
+    | MariaDB        | 1→100k |     2303→1366 (0.60×) | 2124→4329 (2.04×) | 2098→4021 (1.91×) | 1132→1002 (0.90×) |
+    | MongoDB        | 1→100k |     2420→1905 (0.78×) | 2193→3971 (1.81×) | 2179→3085 (1.41×) | 1370→2521 (1.84×) |
+
+    LIMIT/PK paths stay flat-to-faster with N. Random PK retains 57–78% at 100k (B-tree depth + cache misses), not an O(N) collapse. MariaDB create at 100k is the only write dip (0.90×).
+
+  - **SQLite `mixed` trend (not a new cliff)**: ledger 🔴 +34% seq / +45% con vs the 7-run mean (~0.43 / 1.89 ms). This session's **pre-change** baseline was already 0.47 / 2.80 ms; post-change re-runs sit at 0.58 / 2.74–3.47 ms. Mixed is write-growing (1/10 creates) and runs last after 300 creates + 300 updates, so it is noisier than isolated lanes. Not treated as a product regression.
   - **Bootstrap skip**: `routeSpec.skipMiddlewares` is honored (`preferences` / `media`) instead of being classified and ignored.
 
 ---

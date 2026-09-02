@@ -7,11 +7,11 @@
  * cache categories, pre-warm endpoints, and memory bypass rules to optimize server hardware.
  *
  * ### Features:
- * - Microsecond route profiling (< 10µs)
+ * - Exact-path Map + startsWith classify (1024-entry LRU) — not a radix trie
  * - Precise cache category pre-warming
  * - Memory footprint minimization (e.g. /login runs in < 2MB RAM)
- * - Non-blocking server-side prewarm execution
  * - LocalCMS turbo fill (no internal HTTP) + confidence-gated next-path
+ * - `parseCollectionRoute` splits paths only on the background prewarm path
  */
 
 import { CacheCategory } from "@src/databases/cache/types";
