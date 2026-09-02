@@ -136,6 +136,13 @@ The **`routeResourceStateMachine`** connects directly with the **Behavioral Lear
 
 The L1 cache is a local `LRUCache` instance (not Redis). Redis is the optional L2 layer for distributed deployments. This means even without Redis, the cache system is fully operational with sub-µs L1 hits. In enterprise multi-node deployments with PostgreSQL, MariaDB, or MongoDB, Redis acts as the cluster synchronizer and persistent L2 layer.
 
+#### L1 Memory Containment & Bounded Footprint
+
+- **Byte Budget (`maxSize`)**: Defaults to **128 MB** (configurable via `CACHE_L1_MAX_BYTES`). Prevents unbounded heap growth regardless of total entry count.
+- **Entry Cap (`max`)**: Defaults to **200,000** (configurable via `CACHE_L1_MAX_ENTRIES`).
+- **Single-Entry Ceiling (`maxEntrySize`)**: Defaults to **16 MB** (configurable via `CACHE_L1_MAX_ENTRY_BYTES`), preventing oversized individual payloads from evicting hot cache entries.
+- **$O(1)$ Size Estimator**: Accurately sizes pre-stringified response bodies and employs a flat overhead estimate for structured objects without recursive traversal overhead.
+
 ### Content System: L0 + L1 + L2 (Three Tiers)
 
 The content scanner adds a **process-local L0** on top of the dual-layer cache:

@@ -17,6 +17,9 @@ tags:
 
 # Write Path: Cold vs. Warm
 
+> [!NOTE]
+> **Methodology**: All performance numbers and cold-vs-warm measurements are self-measured via reproducible benchmark suites (`bun test tests/benchmarks/`). This documentation describes SveltyCMS internal mechanisms in compliance with EU Directive 2006/114/EC.
+
 This document maps the **complete content write path** (`create` / `update`) for a collection **with or without content**, explains the **boot prewarm** that removes the one-time first-write lazy-init cost, and answers how a write verifies that the data was **100% persisted**.
 
 All code references below are from `src/services/sdk/namespaces/collections-namespace.ts`, `src/services/sdk/namespaces/collections/write-pipeline.ts`, `src/services/sdk/namespaces/collections/post-write.ts`, `src/content/prewarm.ts`, `src/databases/core/sql-adapter-core.ts`, and `src/content/content-utils.ts`.
@@ -75,12 +78,12 @@ The `persist` → `schedulePostWrite` boundary is the critical line (`collection
 
 The cold penalty is **lazy per-collection initialisation** that would otherwise run on the first write:
 
-| Step | Cold (first write) | Warm (after prewarm or a prior write) |
-| :--- | :--- | :--- |
-| `schemaOf()` | Cache miss → `resolveSchema()` fetches from content system (+ hyphen/underscore alternates) | `_schemaCache` hit (`schema-store.ts`) |
-| `getModelResilient()` (inside widget pipeline) | Not in `collectionModelCache` → **DB-backed** `collection.getModel()`; on miss `createModel()` then retry | `collectionModelCache` (WeakMap) hit |
-| `getOrCompilePrepPlan()` | Not in `prepPlanCache` → compiles sanitize/truncate/array field lists | `prepPlanCache` (WeakMap) hit |
-| Measured cold cost | **~10ms** (update), ~2ms (create) | **~0.27ms** (update) |
+| Step                                           | Cold (first write)                                                                                        | Warm (after prewarm or a prior write)  |
+| :--------------------------------------------- | :-------------------------------------------------------------------------------------------------------- | :------------------------------------- |
+| `schemaOf()`                                   | Cache miss → `resolveSchema()` fetches from content system (+ hyphen/underscore alternates)               | `_schemaCache` hit (`schema-store.ts`) |
+| `getModelResilient()` (inside widget pipeline) | Not in `collectionModelCache` → **DB-backed** `collection.getModel()`; on miss `createModel()` then retry | `collectionModelCache` (WeakMap) hit   |
+| `getOrCompilePrepPlan()`                       | Not in `prepPlanCache` → compiles sanitize/truncate/array field lists                                     | `prepPlanCache` (WeakMap) hit          |
+| Measured cold cost                             | **~10ms** (update), ~2ms (create)                                                                         | **~0.27ms** (update)                   |
 
 The prewarm (`src/content/prewarm.ts`) moves all three initialisations to **boot** for every collection of a tenant. It is `getModelResilient` + `getOrCompilePrepPlan` + `resolveSchema` pre-population — **purely additive**: performs no writes, no side effects, never blocks boot, never throws into the init path (`index.server.ts` hook `@140-153`, fire-and-forget with a `logger.warn` fallback).
 
@@ -109,3 +112,7 @@ The prewarm (`src/content/prewarm.ts`) moves all three initialisations to **boot
 - [Performance Architecture](./performance-architecture.mdx)
 - [Database Documentation Hub](./index.mdx)
 - [Competitive Benchmarks](../../project/benchmarks/index.mdx)
+
+---
+
+_Compliance Disclaimer: Based on publicly available documentation as of September 2026. [EU Directive 2006/114/EC]_

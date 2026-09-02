@@ -95,10 +95,40 @@ export class CacheService {
   private _coopCounters = new Map<string, { value: number }>();
 
   constructor() {
+    // The L1 was bounded only by entry count (500k). A read-heavy workload on a
+    // large collection caches ~one entry per distinct document, so the cache
+    // could grow to hundreds of MB of heap before the count cap ever engaged —
+    // pure runtime RAM with no ceiling. `maxSize` adds a hard byte budget so the
+    // L1's memory footprint is bounded regardless of entry count; whichever cap
+    // (entries or bytes) is hit first drives eviction. Both are env-tunable so an
+    // operator can trade memory for hit-rate without a rebuild. `sizeCalculation`
+    // is a deliberately cheap O(1) estimate — no deep object walk on the hot set
+    // path; it approximates the retained bytes closely enough to bound RAM.
     this.l1 = new LRUCache<string, any>({
-      max: 500000,
+      max: Number(process.env.CACHE_L1_MAX_ENTRIES) || 200000,
+      maxSize: Number(process.env.CACHE_L1_MAX_BYTES) || 128 * 1024 * 1024,
+      // A single value larger than this is not cached (a safe no-op in
+      // lru-cache v11 — never throws) so one pathological entry can't evict the
+      // whole L1. Set generously above any normal cached JSON/response body.
+      maxEntrySize: Number(process.env.CACHE_L1_MAX_ENTRY_BYTES) || 16 * 1024 * 1024,
+      sizeCalculation: (value: unknown, key: string) => {
+        // 2 bytes/char (UTF-16) + a flat per-entry overhead for the LRU node,
+        // tag bookkeeping and key. Cached response bodies are pre-stringified
+        // under `.body`, so we size those exactly; other structured values get a
+        // conservative flat estimate rather than an expensive recursive walk.
+        let size = (typeof key === "string" ? key.length * 2 : 16) + 64;
+        if (typeof value === "string") {
+          size += value.length * 2;
+        } else if (value && typeof value === "object") {
+          const body = (value as { body?: unknown }).body;
+          size += typeof body === "string" ? body.length * 2 : 512;
+        } else {
+          size += 16;
+        }
+        return size > 0 ? size : 1;
+      },
       ttl: 1000 * 60 * 5,
-      dispose: (_value: any, key: string) => {
+      dispose: (_value: unknown, key: string) => {
         this.cleanupTagsForKey(key);
         this.removeFromPrefixMap(key);
       },

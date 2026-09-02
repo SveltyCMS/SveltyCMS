@@ -39,20 +39,22 @@ export async function hashFileContent(buffer: ArrayBuffer | Buffer): Promise<str
   if (!buffer || buffer.byteLength === 0) throw error(400, "Cannot hash empty buffer");
   try {
     const arr = buffer instanceof Buffer ? buffer : new Uint8Array(buffer);
-    const hash = createHash("sha256")
-      .update(arr as any)
-      .digest("hex");
+    const hash = createHash("sha256").update(arr).digest("hex");
     logger.debug("File hashed", { size: buffer.byteLength, hash: hash.slice(0, 12) });
     return hash;
-  } catch (err: any) {
-    logger.error("Hashing failed", { size: buffer.byteLength, error: err.message });
-    throw error(500, `Hashing error: ${err.message}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error("Hashing failed", { size: buffer.byteLength, error: msg });
+    throw error(500, `Hashing error: ${msg}`);
   }
 }
 
 export async function hashStream(stream: ReadableStream | Readable): Promise<string> {
   const hash = createHash("sha256");
-  const nodeStream = stream instanceof ReadableStream ? Readable.fromWeb(stream as any) : stream;
+  const nodeStream =
+    stream instanceof ReadableStream
+      ? Readable.fromWeb(stream as import("node:stream/web").ReadableStream)
+      : stream;
   return new Promise((resolve, reject) => {
     nodeStream.on("data", (chunk: Buffer) => hash.update(chunk));
     nodeStream.on("end", () => resolve(hash.digest("hex")));

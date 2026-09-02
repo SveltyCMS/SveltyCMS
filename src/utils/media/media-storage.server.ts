@@ -13,7 +13,7 @@ import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
-import { writeFileSync, readFileSync, unlinkSync } from "node:fs";
+import { writeFile, readFile, unlink } from "node:fs/promises";
 import { logger } from "@utils/logger";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { getStorageAdapter, getConfig } from "./storage-adapters";
@@ -273,7 +273,7 @@ export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | nu
   const tempInput = path.join(os.tmpdir(), `ffmpeg-input-${crypto.randomUUID()}.mp4`);
   const tempOutput = path.join(os.tmpdir(), `ffmpeg-output-${crypto.randomUUID()}.jpg`);
   try {
-    writeFileSync(tempInput, buffer);
+    await writeFile(tempInput, buffer);
     // Capture frame at 1s mark
     await spawnAsync("ffmpeg", [
       "-ss",
@@ -287,18 +287,18 @@ export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | nu
       tempOutput,
       "-y",
     ]);
-    return readFileSync(tempOutput);
+    return await readFile(tempOutput);
   } catch (err) {
     logger.error("Error capturing video thumbnail", { error: err });
     return null;
   } finally {
     try {
-      unlinkSync(tempInput);
+      await unlink(tempInput);
     } catch {
       /* ignore */
     }
     try {
-      unlinkSync(tempOutput);
+      await unlink(tempOutput);
     } catch {
       /* ignore */
     }
@@ -317,7 +317,7 @@ export async function generatePdfThumbnail(buffer: Buffer): Promise<Buffer | nul
   const tempInput = path.join(os.tmpdir(), `pdf-input-${crypto.randomUUID()}.pdf`);
   const tempOutput = path.join(os.tmpdir(), `pdf-output-${crypto.randomUUID()}.jpg`);
   try {
-    writeFileSync(tempInput, buffer);
+    await writeFile(tempInput, buffer);
     // Use ImageMagick (magick) to extract the first page [0] at 150 DPI
     // -background white -flatten handles transparency
     await spawnAsync("magick", [
@@ -333,7 +333,7 @@ export async function generatePdfThumbnail(buffer: Buffer): Promise<Buffer | nul
       "90",
       tempOutput,
     ]);
-    return readFileSync(tempOutput);
+    return await readFile(tempOutput);
   } catch (err) {
     const isMagickMissing =
       err instanceof Error &&
@@ -348,12 +348,12 @@ export async function generatePdfThumbnail(buffer: Buffer): Promise<Buffer | nul
     return null;
   } finally {
     try {
-      unlinkSync(tempInput);
+      await unlink(tempInput);
     } catch {
       /* ignore */
     }
     try {
-      unlinkSync(tempOutput);
+      await unlink(tempOutput);
     } catch {
       /* ignore */
     }

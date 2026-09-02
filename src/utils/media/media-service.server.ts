@@ -463,7 +463,7 @@ export class MediaService {
           return;
         }
         if (variants.length > 0 && uploadResult.data) {
-          const recordId = (uploadResult.data as any)._id;
+          const recordId = (uploadResult.data as { _id?: DatabaseId })._id;
           if (recordId) {
             await this.db.crud.update(
               "media_items",

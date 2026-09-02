@@ -1,7 +1,26 @@
+---
+path: "docs/project/write-path-prewarm-enhancement.md"
+title: "Write-Path Prewarm: Create/Update/Mixed Enhancement"
+description: "Analysis and implementation details of the boot-time write path prewarm for cold-start latency elimination."
+order: 99
+icon: "mdi:lightning-bolt"
+author: "SveltyCMS Team"
+created: "2026-08-25"
+updated: "2026-08-25"
+tags:
+  - "database"
+  - "write-path"
+  - "performance"
+  - "prewarm"
+---
+
 # Write-Path Prewarm: Create/Update/Mixed Enhancement
 
 **Datum:** 2026-08-25 · **Branches:** `next` (live) · **Commits:** `2781ad69c` (Prewarm) + `8293e1000` (Benchmark-Doc)
 **Status:** ✅ Gemerged & gepusht — ein frischer Pull von `next` misst die Verbesserung.
+
+> [!NOTE]
+> **Methodology**: All performance values are self-measured via reproducible benchmark suites (`bun test tests/benchmarks/`) on SQLite standalone.
 
 ---
 
@@ -15,6 +34,7 @@ Beim Testen der Schreib-Operationen (create / update / mixed) zeigte sich ein **
 - Erst danach lief das eigentliche SQL. **Der zweite, dritte … Write** profitierte von den `WeakMap`-Caches und war daher deutlich schneller.
 
 **Messung (Standalone-Server, SQLite, vor dem Fix):**
+
 - `handler:namespace.update` **kalt:** **10.05 ms** · **warm:** **0.271 ms**
 
 Das ist **kein Bug**, sondern ein reiner Cold-Start-Effekt: Der erste Request trug die Initialisierung, alle folgenden nicht. Ziel der Optimierung: die Init-Kosten aus dem ersten Write **herausziehen** und in den **Boot** verlagern, sodass jeder Write bereits warm ist.
@@ -61,17 +81,17 @@ Ablauf: Prewarm-Fix committen → `bun run build` → Benchmark → `docs/projec
 
 ### Frisch gemessene Werte (2026-08-25, gegen Commit `8293e1000`)
 
-| Workload            | Avg (ms) | p95 (ms) | RPS  |
-|---------------------|:--------:|:--------:|:----:|
-| **create**           | 7.509    | 9.844    | **1044** |
-| **update**           | 7.681    | 12.735   | **1024** |
-| **mixed (50/50)**    | 5.556    | 10.432   | **1297** |
-| findById             | 2.257    | 4.077    | 1979  |
-| listPlain            | 1.953    | 4.061    | 2468  |
-| listLarge            | 1.925    | 3.776    | 2537  |
-| listFilterSort       | 1.587    | 2.791    | 2862  |
-| findMissing          | 1.297    | 2.235    | 3702  |
-| GraphQL Collection   | 5.599    | 7.904    | 1395  |
+| Workload           | Avg (ms) | p95 (ms) |   RPS    |
+| ------------------ | :------: | :------: | :------: |
+| **create**         |  7.509   |  9.844   | **1044** |
+| **update**         |  7.681   |  12.735  | **1024** |
+| **mixed (50/50)**  |  5.556   |  10.432  | **1297** |
+| findById           |  2.257   |  4.077   |   1979   |
+| listPlain          |  1.953   |  4.061   |   2468   |
+| listLarge          |  1.925   |  3.776   |   2537   |
+| listFilterSort     |  1.587   |  2.791   |   2862   |
+| findMissing        |  1.297   |  2.235   |   3702   |
+| GraphQL Collection |  5.599   |  7.904   |   1395   |
 
 > **Einordnung:** Gegenüber dem zuletzt **auf `next` gespeicherten** Lauf (create 965 · update 1092 · mixed 1293 RPS) ist **create +8 %** und **mixed +l5 %** gestiegen; update ist im Rahmen der Single-Run-Streuung. Es wurde **nur 1 Lauf** ausgeführt ("established at 1 run"), daher sind die Zahlen ein belastbarer **Momentaufnahmen-Wert, kein 3-Run-Mittel**. Die **Kalt-Start-Kosten** (10.05 ms → warm) sind nachweislich eliminiert, weil alle Writes jetzt gegen vorgemermte Caches laufen.
 
@@ -90,8 +110,9 @@ Ablauf: Prewarm-Fix committen → `bun run build` → Benchmark → `docs/projec
 - **`docs/project/benchmarks/benchmark_sqlite.mdx`** (frischer Lauf) ist auf `next` ✓
 
 **Pre-Commit / Pre-Push Qualitäts-Gates — alle grün:**
+
 - Pre-Commit: **6/6** (Database-Safety, Format, Lint-staged, Risk-Audit, Unit-Tests 416 Files/3667 Tests, SBOM)
-- Pre-Push: **8/8** (Build 4 Adapter, Bundle-Gate, Quality-Gate, `bun audit` → *No vulnerabilities found*, Secret-Use, Tenant-Isolation, SQLite-Integration)
+- Pre-Push: **8/8** (Build 4 Adapter, Bundle-Gate, Quality-Gate, `bun audit` → _No vulnerabilities found_, Secret-Use, Tenant-Isolation, SQLite-Integration)
 - **Kein `--no-verify`**, keine Hooks bypass.
 
 ---
