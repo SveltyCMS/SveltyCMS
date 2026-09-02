@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    20 | 🟢     | -74%    | 0      |
+| **Core**       |     1 | 🟢     | —       | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,28 +62,9 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario                         | Latency | Trend                                    | Budget | Result |
-| -------------------------------- | ------- | ---------------------------------------- | ------ | ------ |
-| **Competitive Workload Replica** | 0.474ms | ⚪ stable at 0.539ms (±1.17ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.136ms | ⚪ stable at 2.29ms (±5.41ms) (7 runs)   | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.423ms | ⚪ stable at 0.555ms (±1.62ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.967ms | ⚪ stable at 2.30ms (±5.72ms) (7 runs)   | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.471ms | ⚪ stable at 0.699ms (±1.79ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.111ms | ⚪ stable at 3.86ms (±7.64ms) (7 runs)   | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.532ms | ⚪ stable at 1.75ms (±1.39ms) (7 runs)   | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.458ms | ⚪ stable at 9.51ms (±15.45ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.426ms | ⚪ stable at 0.737ms (±1.19ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.825ms | ⚪ stable at 3.32ms (±4.58ms) (7 runs)   | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.441ms | ⚪ stable at 0.356ms (±0.940ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.693ms | ⚪ stable at 1.92ms (±3.67ms) (7 runs)   | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.923ms | ⚪ stable at 0.946ms (±2.04ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 5.064ms | ⚪ stable at 5.29ms (±10.50ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.836ms | ⚪ stable at 0.946ms (±1.78ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 4.459ms | ⚪ stable at 5.36ms (±10.00ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.523ms | ⚪ stable at 0.545ms (±1.13ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.268ms | ⚪ stable at 2.50ms (±5.55ms) (7 runs)   | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.537ms | ⚪ stable at 0.697ms (±1.58ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.262ms | ⚪ stable at 3.37ms (±7.09ms) (7 runs)   | < 5ms  | 🟢     |
+| Scenario      | Latency | Trend                             | Budget | Result |
+| ------------- | ------- | --------------------------------- | ------ | ------ |
+| **Stability** | 0.670ms | ⚪ established at 0.670ms (1 run) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -108,29 +89,6 @@ xychart-beta
 ```
 
 </details>
-<details>
-<summary>📊 Regression severity matrix (quadrant)</summary>
-
-```mermaid
-quadrantChart
-  title "Regression severity (impact vs delta)"
-  x-axis Low latency impact --> High latency impact
-  y-axis Low delta --> High delta
-  quadrant-1 Monitor
-  quadrant-2 Investigate soon
-  quadrant-3 Acceptable variance
-  quadrant-4 Critical — fix first
-    Competitive Workload Replica: [0.11, 0.16]
-    Competitive Workload Replica: [0.09, 0.32]
-    Competitive Workload Replica: [0.44, 0.20]
-    Competitive Workload Replica: [0.11, 0.44]
-    Competitive Workload Replica: [0.47, 0.61]
-    Competitive Workload Replica: [0.12, 0.94]
-    Competitive Workload Replica: [0.55, 0.95]
-    Competitive Workload Replica: [0.10, 0.57]
-```
-
-</details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
@@ -149,30 +107,11 @@ quadrantChart
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `395fed2d-590b-4bfb-8443-44a3f122edb9` · **Tests invoked:** 1 · **Metrics:** 20 · **DB:** sqlite
+**Run ID:** `fa6634d4-d1e1-425d-9879-51d4d71f324c` · **Tests invoked:** 1 · **Metrics:** 1 · **DB:** sqlite
 
-| Test                         | Metric                              | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                   |
-| ---------------------------- | ----------------------------------- | -------- | -------- | ---- | ----- | ---------------------------------------- |
-| Competitive Workload Replica | findById (Warm Sequential)          | 0.474    | 1.029    | 2099 | 🟢    | ⚪ stable at 0.539ms (±1.17ms) (7 runs)  |
-| Competitive Workload Replica | findById (Warm Concurrent 8c)       | 2.136    | 4.436    | 3721 | 🟢    | ⚪ stable at 2.29ms (±5.41ms) (7 runs)   |
-| Competitive Workload Replica | findByIdRandom (Warm Sequential)    | 0.423    | 0.677    | 2355 | 🟢    | ⚪ stable at 0.555ms (±1.62ms) (7 runs)  |
-| Competitive Workload Replica | findByIdRandom (Warm Concurrent 8c) | 1.967    | 3.124    | 3993 | 🟢    | ⚪ stable at 2.30ms (±5.72ms) (7 runs)   |
-| Competitive Workload Replica | listFilterSort (Warm Sequential)    | 0.471    | 0.762    | 2115 | 🟢    | ⚪ stable at 0.699ms (±1.79ms) (7 runs)  |
-| Competitive Workload Replica | listFilterSort (Warm Concurrent 8c) | 2.111    | 3.618    | 3712 | 🟢    | ⚪ stable at 3.86ms (±7.64ms) (7 runs)   |
-| Competitive Workload Replica | listLarge (Warm Sequential)         | 0.532    | 0.816    | 1874 | 🟢    | ⚪ stable at 1.75ms (±1.39ms) (7 runs)   |
-| Competitive Workload Replica | listLarge (Warm Concurrent 8c)      | 2.458    | 3.655    | 3198 | 🟢    | ⚪ stable at 9.51ms (±15.45ms) (7 runs)  |
-| Competitive Workload Replica | listPlain (Warm Sequential)         | 0.426    | 0.740    | 2338 | 🟢    | ⚪ stable at 0.737ms (±1.19ms) (7 runs)  |
-| Competitive Workload Replica | listPlain (Warm Concurrent 8c)      | 1.825    | 2.841    | 4320 | 🟢    | ⚪ stable at 3.32ms (±4.58ms) (7 runs)   |
-| Competitive Workload Replica | findMissing (Warm Sequential)       | 0.441    | 0.754    | 2260 | 🟢    | ⚪ stable at 0.356ms (±0.940ms) (7 runs) |
-| Competitive Workload Replica | findMissing (Warm Concurrent 8c)    | 1.693    | 2.810    | 4620 | 🟢    | ⚪ stable at 1.92ms (±3.67ms) (7 runs)   |
-| Competitive Workload Replica | create (Warm Sequential)            | 0.923    | 2.006    | 1081 | 🟢    | ⚪ stable at 0.946ms (±2.04ms) (7 runs)  |
-| Competitive Workload Replica | create (Warm Concurrent 8c)         | 5.064    | 18.913   | 1553 | 🟢    | ⚪ stable at 5.29ms (±10.50ms) (7 runs)  |
-| Competitive Workload Replica | update (Warm Sequential)            | 0.836    | 1.913    | 1194 | 🟢    | ⚪ stable at 0.946ms (±1.78ms) (7 runs)  |
-| Competitive Workload Replica | update (Warm Concurrent 8c)         | 4.459    | 12.696   | 1780 | 🟢    | ⚪ stable at 5.36ms (±10.00ms) (7 runs)  |
-| Competitive Workload Replica | graphql (Warm Sequential)           | 0.523    | 0.990    | 1906 | 🟢    | ⚪ stable at 0.545ms (±1.13ms) (7 runs)  |
-| Competitive Workload Replica | graphql (Warm Concurrent 8c)        | 2.268    | 3.239    | 3490 | 🟢    | ⚪ stable at 2.50ms (±5.55ms) (7 runs)   |
-| Competitive Workload Replica | mixed (Warm Sequential)             | 0.537    | 0.907    | 1842 | 🟢    | ⚪ stable at 0.697ms (±1.58ms) (7 runs)  |
-| Competitive Workload Replica | mixed (Warm Concurrent 8c)          | 2.262    | 3.540    | 3456 | 🟢    | ⚪ stable at 3.37ms (±7.09ms) (7 runs)   |
+| Test           | Metric               | Avg (ms) | p95 (ms) | RPS | Trend | Detail                            |
+| -------------- | -------------------- | -------- | -------- | --- | ----- | --------------------------------- |
+| Longevity Soak | 0.08h Longevity Soak | 0.670    | 1.090    | 97  | 🟢    | ⚪ established at 0.670ms (1 run) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
@@ -217,7 +156,7 @@ quadrantChart
 | LOCAL API THROUGHPUT (warm)         | 🟢    | `▇█▇▁▂▁▁`          | 0.334ms    |
 | LOCAL CMS CRUD (warm)               | 🟢    | `▆▁▅▁▁█▄`          | 0.057ms    |
 | LOCAL SDK VS DIRECT (warm)          | 🟢    | `▄▆▄█▁▄▄`          | 0.149ms    |
-| LONGEVITY SOAK (warm)               | 🟢    | `█▁▆▇▁▅`           | 4.140ms    |
+| LONGEVITY SOAK (warm)               | 🟢    | `█▃▆█▃▆▁`          | 0.670ms    |
 | MEDIA PERFORMANCE (warm)            | 🟢    | `█▁▅▄▁▄▄`          | 109.651ms  |
 | MEDIA UPLOAD STRESS (warm)          | 🟢    | `▁▂▄█▄▄`           | 170.481ms  |
 | MEMORY STABILITY (warm)             | 🟢    | `▁▁`               | 0.000ms    |
@@ -1387,7 +1326,7 @@ Throughput dropped 40% — check connection pool saturation or lock contention.
 
 <!-- SECTION:STABILITY:START -->
 <details id="section-stability">
-<summary><strong>🏷️ memory stability</strong> · 🟢 ⏳ pending · ➡️ ⚪ established at 0ms (1 run) (2026-09-02 11:56:58) · <a href="../../../tests/benchmarks/memory-stability.test.ts">source</a></summary>
+<summary><strong>🏷️ Stability</strong> · 🟢 0.670ms · ➡️ ⚪ established at 0.670ms (1 run) (2026-09-02 15:03:26) · <a href="../../../tests/benchmarks/longevity-soak.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 > ⏳ Pending
 <!-- LEDGER_TRUTH_END -->
@@ -2618,7 +2557,7 @@ Throughput dropped 29% — check connection pool saturation or lock contention.
 <!-- SECTION:SOAK:START -->
 
 <details id="section-soak">
-<summary><strong>🏷️ Longevity Soak (Memory Stability)</strong> · 🟢 4.140ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/longevity-soak.test.ts">source</a></summary>
+<summary><strong>🏷️ Longevity Soak (Memory Stability)</strong> · 🟢 0.670ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/longevity-soak.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -2626,10 +2565,10 @@ Throughput dropped 29% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                   SVELTYCMS — LONGEVITY SOAK AUDIT                                    ║
 ║                             File: tests/benchmarks/longevity-soak.test.ts                             ║
-║                                       Ran: 2026-08-31 10:49:13                                        ║
+║                                       Ran: 2026-09-02 15:03:26                                        ║
 ║     Sustained mixed read/write workload over configurable hours with periodic memory/CPU sampling     ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ 0.15h Longevity Soak           │        4.140 ms │ p95:        7.870 ms │ RPS:         81 ║
+║ 0.08h Longevity Soak           │        0.670 ms │ p95:        1.090 ms │ RPS:         97 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
