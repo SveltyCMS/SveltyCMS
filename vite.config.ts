@@ -800,6 +800,21 @@ function adapterNodeBuildPatchPlugin(): Plugin {
             }
           }
         }
+
+        // Patch svelte-adapter-bun handler if present (WS handler made optional)
+        const bunHandlerPath = path.resolve(CWD, "build/handler.js");
+        if (existsSync(bunHandlerPath)) {
+          let code = readFileSync(bunHandlerPath, "utf8");
+          const wsPattern = /(?:const|var)\s+websocket\s*=\s*server\.websocket\(\);/;
+          if (wsPattern.test(code)) {
+            code = code.replace(
+              wsPattern,
+              "const websocket = typeof server.websocket === 'function' ? server.websocket() : null;",
+            );
+            await fsPromises.writeFile(bunHandlerPath, code);
+            log.info(`patched svelte-adapter-bun handler (${path.relative(CWD, bunHandlerPath)})`);
+          }
+        }
       },
     },
   };
