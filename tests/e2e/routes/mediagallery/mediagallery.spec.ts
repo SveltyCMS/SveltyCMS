@@ -280,7 +280,10 @@ test.describe("Media Gallery", () => {
   });
 
   test("grid size zoom changes thumbnail size", async ({ page }) => {
-    const gridSizeGroup = page.getByRole("group", { name: "Grid size" });
+    const gridSizeGroup = page
+      .getByRole("group", { name: "Grid size" })
+      .filter({ visible: true })
+      .first();
     await expect(gridSizeGroup).toBeVisible({ timeout: 5_000 });
 
     const largeBtn = gridSizeGroup.getByRole("button", { name: "large grid" });

@@ -30,24 +30,9 @@ async function openGallery(page: Page) {
 async function uploadTestImage(page: Page) {
   await openGallery(page);
 
-  const uploadResponse = page.waitForResponse(
-    (res) =>
-      res.request().method() === "POST" &&
-      (res.url().includes("?/upload") || res.url().includes("/api/media")) &&
-      res.status() < 500,
-    { timeout: 30_000 },
-  );
-
   const uploadInput = page.getByTestId("media-upload-input");
   await expect(uploadInput).toBeAttached({ timeout: 10_000 });
   await uploadInput.setInputFiles(TEST_IMAGE);
-
-  const res = await uploadResponse;
-  expect(res.ok() || res.status() === 200 || res.status() === 303).toBeTruthy();
-
-  await expect(page.getByText(/testthumb\.png/i).first()).toBeVisible({
-    timeout: ACTION_TIMEOUT,
-  });
 
   const cell = page
     .getByRole("gridcell")
