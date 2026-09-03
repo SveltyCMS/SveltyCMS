@@ -116,7 +116,7 @@ const cancelChanges = () => {
 	<p class="error">{error}</p>
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Admin Role Management:</h3>
-	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
+	<p class="mb-4 justify-center text-center text-sm text-[var(--admin-text-muted)]">
 		Please select a new role for the administrator from the dropdown below. Your changes will take effect after you click "Save Changes".
 	</p>
 	<div class="wrapper my-4">

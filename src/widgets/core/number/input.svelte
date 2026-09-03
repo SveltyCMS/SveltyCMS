@@ -1,16 +1,10 @@
 <!--
-@file src/widgets/custom/Number/Input.svelte
+@file src/widgets/core/number/input.svelte
 @component
 **Number Widget Component**
 
 @example
-<Number field={{ label: "Price", db_fieldName: "price", required: true, min: 0, required={field?.required as boolean | undefined}
-				readonly={field?.readonly as boolean | undefined}
-				disabled={field?.disabled as boolean | undefined}
-				min={field?.min as number | undefined}
-				max={field?.max as number | undefined}
-				step={(field?.step as number) || 1}
-				class="input w-full flex-1 rounded-none text-black dark:text-primary-500"00 }} />
+<Number field={{ label: "Price", db_fieldName: "price", required: true, min: 0 }} />
 
 ### Props
 - `field`: FieldType

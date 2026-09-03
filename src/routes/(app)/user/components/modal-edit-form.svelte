@@ -361,7 +361,7 @@ import { logger } from "@utils/logger";
 										role="radio"
 										aria-checked={editForm.data.role === r._id}
 										tabindex={editForm.data.role === r._id ? 0 : -1}
-										class="chip {editForm.data.role === r._id ? 'preset-filled-tertiary-500' : 'preset-ghost-secondary-500'}"
+										class="{editForm.data.role === r._id ? 'preset-filled-tertiary-500' : 'preset-ghost-secondary-500'}"
 										onclick={() => (editForm.data.role = r._id)}
 										onkeydown={(e: KeyboardEvent) => {
 											if (['ArrowRight', 'ArrowDown'].includes(e.key)) {
@@ -391,7 +391,7 @@ import { logger } from "@utils/logger";
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-start">Role</div>
 					<div class="flex-auto">
-						<div class="rounded bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+						<div class="rounded bg-surface-500/10 p-3 text-sm text-[var(--admin-text-muted)] dark:bg-surface-800 dark:text-surface-400">
 							<div class="flex items-center">
 								<iconify-icon icon="mdi:information" width={16} class="me-2 shrink-0"></iconify-icon>
 								<div>
@@ -422,6 +422,6 @@ import { logger } from "@utils/logger";
 		</div>
 
 		<!-- Save -->
-		<Button variant="tertiary" type="submit" form="change_user_form" class="dark:">{button_save()}</Button>
+		<Button variant="tertiary" type="submit" form="change_user_form">{button_save()}</Button>
 	</footer>
 </div>

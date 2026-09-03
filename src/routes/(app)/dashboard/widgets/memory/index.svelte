@@ -101,12 +101,12 @@ export const widgetMeta = {
 								<span class="relative inline-flex rounded-full h-2.5 w-2.5 {mem.level === 'high' ? 'bg-error-500' : mem.level === 'medium' ? 'bg-warning-500' : 'bg-success-500'}"></span>
 							</div>
 							<span class="font-bold tabular-nums text-sm">{mem.percent.toFixed(1)}%</span>
-							<span class="text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider text-[10px]">RAM</span>
+							<span class="text-[var(--admin-text-muted)] font-semibold uppercase tracking-wider text-[10px]">RAM</span>
 						</div>
 						<div class="flex items-center gap-2 text-end">
-							<span class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{mem.usedGB.toFixed(1)} / {mem.totalGB.toFixed(0)} GB</span>
+							<span class="font-semibold text-surface-600 dark:text-surface-400 tabular-nums">{mem.usedGB.toFixed(1)} / {mem.totalGB.toFixed(0)} GB</span>
 							{#if mem.swapPercent !== null}
-								<span class="text-gray-400 dark:text-gray-500">| Swap: <span class="font-semibold text-gray-600 dark:text-gray-400">{mem.swapPercent.toFixed(0)}%</span></span>
+								<span class="text-[var(--admin-text-muted)]">| Swap: <span class="font-semibold text-[var(--admin-text-muted)]">{mem.swapPercent.toFixed(0)}%</span></span>
 							{/if}
 						</div>
 					</div>
@@ -120,13 +120,13 @@ export const widgetMeta = {
 							</div>
 							<div>
 								<span class="text-3xl font-semibold tabular-nums tracking-tighter">{mem.percent.toFixed(1)}</span>
-								<span class="text-xl font-medium text-gray-400">%</span>
+								<span class="text-xl font-medium text-[var(--admin-text-muted)]">%</span>
 							</div>
-							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Used</span>
+							<span class="text-sm {'text-[var(--admin-text-muted)]'}">Used</span>
 						</div>
 
 						<div class="text-end">
-							<div class="text-sm font-medium tabular-nums">{mem.freeGB.toFixed(1)} GB <span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">free</span></div>
+							<div class="text-sm font-medium tabular-nums">{mem.freeGB.toFixed(1)} GB <span class="text-xs {'text-[var(--admin-text-muted)]'}">free</span></div>
 						</div>
 					</div>
 
@@ -191,10 +191,10 @@ export const widgetMeta = {
 
 							<!-- Center Content -->
 							<div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-								<span class="text-3xl font-semibold tabular-nums {theme === 'dark' ? 'text-white' : 'text-gray-900'}">
+								<span class="text-3xl font-semibold tabular-nums {'text-[var(--admin-text-body)]'}">
 									{mem.percent.toFixed(0)}
 								</span>
-								<span class="text-[9px] font-bold tracking-widest uppercase {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">RAM USED</span>
+								<span class="text-[9px] font-bold tracking-widest uppercase {'text-[var(--admin-text-muted)]'}">RAM USED</span>
 							</div>
 						</div>
 					</div>
@@ -203,18 +203,18 @@ export const widgetMeta = {
 					<div class="space-y-4">
 						<div class="grid {size.w === 1 ? 'grid-cols-2' : 'grid-cols-3'} gap-4 text-center text-sm">
 							<div>
-								<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</div>
+								<div class={'text-[var(--admin-text-muted)]'}>Total</div>
 								<div class="font-semibold tabular-nums mt-0.5">{mem.totalGB.toFixed(1)} GB</div>
 							</div>
 							<div>
-								<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Used</div>
+								<div class={'text-[var(--admin-text-muted)]'}>Used</div>
 								<div class="font-semibold tabular-nums mt-0.5 {mem.level === 'high' ? 'text-error-500' : mem.level === 'medium' ? 'text-warning-500' : 'text-success-500'}">
 									{mem.usedGB.toFixed(1)} GB
 								</div>
 							</div>
 							{#if size.w > 1}
 								<div>
-									<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Free</div>
+									<div class={'text-[var(--admin-text-muted)]'}>Free</div>
 									<div class="font-semibold tabular-nums mt-0.5">{mem.freeGB.toFixed(1)} GB</div>
 								</div>
 							{/if}
@@ -222,23 +222,23 @@ export const widgetMeta = {
 
 						<!-- Compact Swap Stats sub-section -->
 						{#if mem.swapPercent !== null}
-							<div class="border-t pt-2.5 {theme === 'dark' ? 'border-gray-800' : 'border-gray-150'}">
-								<div class="flex justify-between text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1">
+							<div class="border-t pt-2.5 {'border-[var(--admin-border-subtle)]'}">
+								<div class="flex justify-between text-xs font-semibold text-[var(--admin-text-muted)] mb-1.5 px-1">
 									<span>Swap Memory</span>
 									<span class="tabular-nums">{mem.swapPercent.toFixed(0)}% Used</span>
 								</div>
 								<div class="grid grid-cols-3 gap-2 text-center text-xs">
 									<div>
-										<div class="text-[10px] text-gray-400 dark:text-gray-500">Total</div>
-										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">{mem.swapTotalGB.toFixed(1)} GB</div>
+										<div class="text-[10px] text-[var(--admin-text-muted)]">Total</div>
+										<div class="font-medium text-[var(--admin-text-muted)] tabular-nums">{mem.swapTotalGB.toFixed(1)} GB</div>
 									</div>
 									<div>
-										<div class="text-[10px] text-gray-400 dark:text-gray-500">Used</div>
-										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">{mem.swapUsedGB.toFixed(1)} GB</div>
+										<div class="text-[10px] text-[var(--admin-text-muted)]">Used</div>
+										<div class="font-medium text-[var(--admin-text-muted)] tabular-nums">{mem.swapUsedGB.toFixed(1)} GB</div>
 									</div>
 									<div>
-										<div class="text-[10px] text-gray-400 dark:text-gray-500">Free</div>
-										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">{mem.swapFreeGB.toFixed(1)} GB</div>
+										<div class="text-[10px] text-[var(--admin-text-muted)]">Free</div>
+										<div class="font-medium text-[var(--admin-text-muted)] tabular-nums">{mem.swapFreeGB.toFixed(1)} GB</div>
 									</div>
 								</div>
 							</div>
@@ -250,8 +250,8 @@ export const widgetMeta = {
 			<div class="flex h-full flex-col items-center justify-center space-y-3" role="status" aria-live="polite">
 				<div class="h-8 w-8 animate-spin rounded-full border-2 border-success-500 border-t-transparent"></div>
 				<div class="text-center">
-					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading memory metrics</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
+					<div class="text-sm font-medium {'text-[var(--admin-text-body)]'}">Loading memory metrics</div>
+					<div class="text-xs {'text-[var(--admin-text-muted)]'}">Please wait...</div>
 				</div>
 			</div>
 		{/if}

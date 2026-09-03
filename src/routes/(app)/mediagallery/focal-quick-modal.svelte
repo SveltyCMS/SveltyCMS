@@ -259,7 +259,7 @@ const imageUrl = $derived(
 
 				<div class="flex gap-2">
 					<Button variant="outline" onclick={handleClose} aria-keyshortcuts="Escape">Cancel</Button>
-					<Button variant="tertiary" onclick={handleSave} aria-keyshortcuts="mod+s" class="dark:">
+					<Button variant="tertiary" onclick={handleSave} aria-keyshortcuts="mod+s">
 						<iconify-icon icon="mdi:check" width="18"></iconify-icon>
 						<span>Save</span>
 					</Button>

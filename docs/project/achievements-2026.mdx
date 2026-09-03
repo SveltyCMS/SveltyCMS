@@ -1164,7 +1164,8 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **Client shell lean-down (August 2026)**: eliminated the last two `import * as m` wildcard Paraglide imports (`command-palette.svelte`, `modal.svelte.ts`) that forced the full 968-message catalog into the eager `(app)` shell. Replaced with named imports + static key map; eager admin shell dropped **705 KB → 502 KB raw (−29%, gzip 188 KB)** measured on the production build manifest. `scripts/check-bundle-size.ts` now detects the real admin-shell node (`nodes/N.js`) instead of only `layout*.js` files, so TipTap/email-preview leaks into the shell fail CI.
 - **Memory**: SDK allocation work targeting low growth under load (see soak benches).
 - **Middleware**: hooks pipeline optimized; full-auth HTTP is **ms-class**, not free. August 2026 hardening sprint measured **0.583 ms avg / 0.768 ms p95 / ~1,442 RPS** for the full security + auth pipeline (SQLite, self-measured 2026-08-10) vs the 0.856 ms July 31 baseline.
-- **Widgets**: `ComponentLoader` / tree-shakeable loaders.
+- **Widgets**: `ComponentLoader` / tree-shakeable loaders. Dedicated Slug input/display pillars (`src/widgets/core/slug/input.svelte` + `display.svelte`) instead of reusing the generic Input widget.
+- **Compiled RTL locale (September 2026)**: Arabic (`ar`) added beside `en`/`de` in `project.inlang/settings.json` + `src/messages/ar.json`. Admin `dir` still comes from `getTextDirection()` (`ar` is already in the RTL set).
 - **DB parity**: MongoDB, MariaDB, PostgreSQL, SQLite as production adapters.
 
 - **Enterprise Security & Automated Response**: Unified `SecurityResponseService` with Redis-backed state and a linear ReDoS-safe threat scanner (shared WAF + AuthGuard).

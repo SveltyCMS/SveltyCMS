@@ -353,8 +353,13 @@
 		{/if}
 
 		{#if !app.headerActionButton}
-			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="rounded-full p-0! min-w-0">
-				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
+			<Button
+				variant="ghost"
+				onclick={cancel}
+				aria-label="Close editor"
+				class="flex h-9 w-9 shrink-0 items-center justify-center p-0! text-surface-600 hover:bg-error-500/10 hover:text-error-500 dark:text-surface-400"
+			>
+				<iconify-icon icon="mdi:close" width="20" aria-hidden="true"></iconify-icon>
 			</Button>
 		{/if}
 	</div>

@@ -89,7 +89,7 @@ export const widgetMeta = {
 							<div class="h-2 w-2 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-warning-500' : 'bg-success-500'}"></div>
 							<span class="font-bold tabular-nums">{cpu.current.toFixed(1)}%</span>
 						</div>
-						<span class="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">avg: {cpu.average.toFixed(1)}%</span>
+						<span class="text-[10px] text-[var(--admin-text-muted)] tabular-nums">avg: {cpu.average.toFixed(1)}%</span>
 					</div>
 				{:else}
 					<!-- Header Stats -->
@@ -100,16 +100,16 @@ export const widgetMeta = {
 								<div class="absolute inset-0 h-3 w-3 rounded-full {cpu.level === 'high' ? 'bg-error-500' : cpu.level === 'medium' ? 'bg-warning-500' : 'bg-success-500'} animate-ping opacity-75"></div>
 							</div>
 							<span class="text-xl font-semibold tabular-nums">{cpu.current.toFixed(1)}%</span>
-							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">now</span>
+							<span class="text-sm {'text-[var(--admin-text-muted)]'}">now</span>
 						</div>
 
 						<div class="text-end">
-							<div class="text-sm font-medium tabular-nums">{cpu.average.toFixed(1)}% <span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">avg</span></div>
+							<div class="text-sm font-medium tabular-nums">{cpu.average.toFixed(1)}% <span class="text-xs {'text-[var(--admin-text-muted)]'}">avg</span></div>
 						</div>
 					</div>
 
 					<!-- Progress Bar -->
-					<div class="relative h-2 overflow-hidden rounded-full {theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}">
+					<div class="relative h-2 overflow-hidden rounded-full {'bg-surface-500/20 dark:bg-surface-700'}">
 						<div
 							class="h-full rounded-full transition-all duration-700 ease-out"
 							class:bg-error-500={cpu.level === 'high'}
@@ -129,7 +129,7 @@ export const widgetMeta = {
 					>
 						{#if size.h !== 1}
 							<!-- Grid -->
-							<g class="stroke-gray-200/60 dark:stroke-gray-800/60">
+							<g class="stroke-surface-500/30 dark:stroke-surface-500/40">
 								<line x1="0" y1="37.5" x2="300" y2="37.5" stroke-dasharray="3 2"/>
 								<line x1="0" y1="75" x2="300" y2="75" stroke-dasharray="3 2"/>
 								<line x1="0" y1="112.5" x2="300" y2="112.5" stroke-dasharray="3 2"/>
@@ -180,21 +180,21 @@ export const widgetMeta = {
 						{const val = cpu.usage[activeIndex]}
 						{const time = new Date(cpu.timestamps[activeIndex]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 						<div
-							class="absolute pointer-events-none z-20 px-3 py-2 text-xs rounded border shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-gray-200 dark:border-gray-700"
+							class="absolute pointer-events-none z-20 px-3 py-2 text-xs rounded border shadow-xl bg-[color-mix(in_srgb,var(--admin-bg-card)_95%,transparent)] backdrop-blur-md border-[var(--admin-border-default)]"
 							style="left: {Math.max(20, Math.min(points[activeIndex].x - 45, 220))}px; top: {points[activeIndex].y - 58}px;"
 						>
-							<div class="font-mono font-semibold text-lg leading-none tabular-nums text-gray-900 dark:text-white">
+							<div class="font-mono font-semibold text-lg leading-none tabular-nums text-[var(--admin-text-body)]">
 								{val.toFixed(1)}%
 							</div>
-							<div class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{time}</div>
+							<div class="text-[10px] text-[var(--admin-text-muted)] mt-0.5">{time}</div>
 						</div>
 					{/if}
 				</div>
 
 				<!-- Footer Info -->
 				{#if size.h !== 1 && (size.w >= 2 || size.h >= 2)}
-					<div class="flex justify-between text-xs pt-1 {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} border-t border-gray-100/50 dark:border-gray-800/50">
-						<span>Cores: <span class="font-medium text-gray-700 dark:text-gray-300">{data?.cpuInfo?.cores?.count ?? '—'}</span></span>
+					<div class="flex justify-between text-xs pt-1 {'text-[var(--admin-text-muted)]'} border-t border-surface-500/30 dark:border-surface-500/40/50">
+						<span>Cores: <span class="font-medium text-surface-600 dark:text-surface-400">{data?.cpuInfo?.cores?.count ?? '—'}</span></span>
 						<span class="text-end truncate max-w-85">
 							{data?.cpuInfo?.cores?.perCore?.[0]?.model?.split(' ').slice(0, 3).join(' ') ?? 'Unknown'}
 						</span>
@@ -206,7 +206,7 @@ export const widgetMeta = {
 			<div class="flex h-full items-center justify-center">
 				<div class="flex flex-col items-center gap-3">
 					<div class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"></div>
-					<p class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Fetching CPU metrics...</p>
+					<p class="text-sm {'text-[var(--admin-text-muted)]'}">Fetching CPU metrics...</p>
 				</div>
 			</div>
 		{/if}

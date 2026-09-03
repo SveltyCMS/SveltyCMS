@@ -93,9 +93,9 @@ export const widgetMeta = {
 
 	function getRoleColor(role: string): string {
 		switch (role) {
-			case 'admin': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300';
+			case 'admin': return 'bg-tertiary-500/10 text-tertiary-600 dark:bg-tertiary-900/20 dark:text-tertiary-400';
 			case 'editor': return 'bg-tertiary-500/10 text-tertiary-600 dark:bg-tertiary-900/20 dark:text-tertiary-400';
-			case 'viewer': return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
+			case 'viewer': return 'bg-surface-500/10 text-[var(--admin-text-muted)] dark:bg-surface-700 dark:text-surface-400';
 			default: return 'bg-surface-500/10 text-surface-600 dark:bg-surface-700 dark:text-surface-400';
 		}
 	}

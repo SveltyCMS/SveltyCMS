@@ -90,6 +90,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	let search = $state('');
 	let debouncedSearch = $state('');
 	let isSearching = $state(false);
+	let compactSearchOpen = $state(false);
 	let expandedNodes = new SvelteSet<string>();
 
 	let favorites = $state<string[]>([]);
@@ -750,17 +751,32 @@ Provides an organized interface for navigating hierarchical content structures.
 		</div>
 	{:else}
 		<div class="flex flex-col items-center gap-2">
+			{#if compactSearchOpen}
+				<div class="w-full px-0.5">
+					<Input
+						id="collections-search-compact"
+						type="search"
+						bind:value={search}
+						placeholder="Search…"
+						pre={searchIcon as Snippet}
+						post={clearIcon as Snippet}
+						inputClass="w-full text-xs"
+						aria-label="Search collections"
+					/>
+				</div>
+			{:else}
 			<SystemTooltip title="Search Collections" positioning={{ placement: 'right' }}>
 				<Button
 					variant="ghost"
 					type="button"
-					onclick={() => ui.toggle('leftSidebar', 'full')}
+					onclick={() => (compactSearchOpen = true)}
 					aria-label="Search collections"
 					class="flex h-9 w-9 items-center justify-center rounded-lg p-0! min-w-0 hover:bg-surface-200 dark:hover:bg-surface-800"
 				>
 					<iconify-icon icon="ic:outline-search" width="20"></iconify-icon>
 				</Button>
 			</SystemTooltip>
+			{/if}
 
 			<SystemTooltip title="Go to Collection Builder" positioning={{ placement: 'right' }}>
 				<a
@@ -774,8 +790,8 @@ Provides an organized interface for navigating hierarchical content structures.
 		</div>
 	{/if}
 
-	<!-- Custom Order Banner -->
-	{#if orderOverrides.size > 0}
+	<!-- Custom Order Banner (full sidebar only — compact is 120px) -->
+	{#if isFullSidebar && orderOverrides.size > 0}
 		<div class="flex items-center justify-between rounded bg-tertiary-500/10 px-3 py-1.5 text-xs text-tertiary-600 dark:text-tertiary-400">
 			<span>Custom order active</span>
 			<Button variant="ghost" type="button" size="sm" onclick={resetCustomOrder} class="text-xs px-2">

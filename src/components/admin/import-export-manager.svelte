@@ -12,6 +12,8 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import Alert from '@components/ui/alert.svelte';
 	// Types
 
 	import Progress from '@components/ui/progress.svelte';
@@ -340,8 +342,8 @@
 <div class="import-export-manager">
 	<div class="mb-6 flex items-center justify-between">
 		<div>
-			<h2 class="text-2xl font-bold text-gray-900 dark:text-white">Data Import & Export</h2>
-			<p class="mt-1 text-gray-600 dark:text-gray-400">Backup and restore your collection data</p>
+			<h2 class="text-2xl font-bold text-[var(--admin-text-body)]">Data Import & Export</h2>
+			<p class="mt-1 text-[var(--admin-text-muted)]">Backup and restore your collection data</p>
 		</div>
 
 		<div class="flex gap-3">
@@ -350,7 +352,7 @@
 				Export Data
 			</Button>
 
-			<Button variant="primary" onclick={() => (showImportModal = true)} disabled={loading} aria-label="Import data" class="dark:">
+			<Button variant="primary" onclick={() => (showImportModal = true)} disabled={loading} aria-label="Import data">
 				<iconify-icon icon="mdi:import" width={24}></iconify-icon>
 				Import Data
 			</Button>
@@ -358,24 +360,24 @@
 	</div>
 
 	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-		<div class="rounded border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+		<AdminCard class="p-6">
 			<div class="mb-4 flex items-center">
 				<div class="preset-filled-tertiary-500 inline-flex items-center justify-center rounded-full me-3"><iconify-icon icon="mdi:database-export" width={24}></iconify-icon></div>
 				<div>
-					<h3 class="font-semibold text-gray-900 dark:text-white">Export All Data</h3>
-					<p class="text-sm text-gray-600 dark:text-gray-400">Export all collections to file</p>
+					<h3 class="font-semibold text-[var(--admin-text-body)]">Export All Data</h3>
+					<p class="text-sm text-[var(--admin-text-muted)]">Export all collections to file</p>
 				</div>
 			</div>
 
 			<Button variant="outline" onclick={exportAllData} disabled={loading} aria-label="Export all collections" class="mt-4 w-full">Export Everything</Button>
-		</div>
+		</AdminCard>
 
-		<div class="rounded border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+		<AdminCard class="p-6">
 			<div class="mb-4 flex items-center">
 				<div class="preset-filled-tertiary-500 dark:preset-filled-primary-500 inline-flex items-center justify-center rounded-full me-3"><iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon></div>
 				<div>
-					<h3 class="font-semibold text-gray-900 dark:text-white">Collections</h3>
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<h3 class="font-semibold text-[var(--admin-text-body)]">Collections</h3>
+					<p class="text-sm text-[var(--admin-text-muted)]">
 						<span class="font-semibold text-tertiary-500 dark:text-primary-500">{collections.length}</span>
 						collections available
 					</p>
@@ -393,7 +395,7 @@
 					<p class="text-xs text-surface-600 dark:text-surface-400">...and {collections.length - 3} more</p>
 				{/if}
 			</div>
-		</div>
+		</AdminCard>
 	</div>
 
 	{#if loading && (exportProgress > 0 || importProgress > 0)}
@@ -408,27 +410,27 @@
 
 	{#if exportUrl}
 		<div class="mb-6">
-			<div class="alert preset-filled-success-500">
-				<div class="flex items-center justify-between">
+			<Alert variant="success">
+				<div class="flex items-center justify-between gap-3">
 					<span>Export completed successfully!</span>
 					<Button variant="outline" onclick={downloadExport} aria-label="Download export file">
 						<iconify-icon icon="mdi:download" width={24}></iconify-icon>
 						Download
 					</Button>
 				</div>
-			</div>
+			</Alert>
 		</div>
 	{/if}
 </div>
 
 {#if showExportModal}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-[var(--admin-bg-backdrop)]"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="export-modal-title"
 	>
-		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-[var(--admin-bg-card)] shadow-xl">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 id="export-modal-title" class="text-lg font-semibold">Export Collections</h3>
 				<Button variant="outline" onclick={() => (showExportModal = false)} aria-label="Close export modal" class="p-0! min-w-0">
@@ -449,7 +451,7 @@
 						</div>
 					</div>
 
-					<div class="max-h-48 overflow-y-auto rounded border border-gray-200 p-3 dark:border-gray-700">
+					<div class="max-h-48 overflow-y-auto rounded border border-[var(--admin-border-default)] p-3 dark:border-surface-500/40">
 						{#each collections as collection (collection.id)}
 							<label class="flex cursor-pointer items-center gap-3 py-2">
 								<Checkbox checked={exportOptions.collections.includes(String(collection.id))} onchange={() => toggleCollectionSelection(String(collection.id))} />
@@ -458,7 +460,7 @@
 									{collection.label}
 
 									{#if collection.description}
-										<span class="ms-2 text-sm text-gray-500">{collection.description}</span>
+										<span class="ms-2 text-sm text-[var(--admin-text-muted)]">{collection.description}</span>
 									{/if}
 								</div>
 							</label>
@@ -479,8 +481,7 @@
 				<Button variant="outline" onclick={() => (showExportModal = false)} aria-label="Cancel export">Cancel</Button>
 				<Button variant="tertiary" aria-label="Export selected collections"
 					onclick={exportSelectedCollections}
-					disabled={loading || exportOptions.collections.length === 0}
-				 class="dark:">
+					disabled={loading || exportOptions.collections.length === 0}>
 					Export Selected
 				</Button>
 			</div>
@@ -490,12 +491,12 @@
 
 {#if showImportModal}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-[var(--admin-bg-backdrop)]"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="import-modal-title"
 	>
-		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800">
+		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded bg-[var(--admin-bg-card)] shadow-xl">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 id="import-modal-title" class="text-lg font-semibold">Import Collections</h3>
 				<Button variant="outline" onclick={() => (showImportModal = false)} aria-label="Close import modal" class="p-0! min-w-0">
@@ -505,8 +506,8 @@
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
 				<div>
 					<label for="import-file" class="mb-2 block text-sm font-medium">Select File</label>
-					<input id="import-file" type="file" bind:files={importFiles} accept=".json,.csv" class="block w-full text-sm text-gray-500 file:mr-4 file:rounded file:border-0 file:bg-tertiary-500/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-tertiary-600 hover:file:bg-tertiary-500/10" />
-					<p class="mt-1 text-xs text-gray-500">Supported formats: JSON, CSV</p>
+					<input id="import-file" type="file" bind:files={importFiles} accept=".json,.csv" class="block w-full text-sm text-[var(--admin-text-muted)] file:mr-4 file:rounded file:border-0 file:bg-tertiary-500/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-tertiary-600 hover:file:bg-tertiary-500/10" />
+					<p class="mt-1 text-xs text-[var(--admin-text-muted)]">Supported formats: JSON, CSV</p>
 				</div>
 
 				<div>
@@ -526,15 +527,15 @@
 
 			<div class="flex justify-end gap-3 border-t bg-surface-500/10 p-6 dark:bg-surface-700">
 				<Button variant="outline" onclick={() => (showImportModal = false)} aria-label="Cancel import">Cancel</Button>
-				<Button variant="tertiary" onclick={handleImport} disabled={loading || !importFiles} aria-label="Import data from file" class="dark:">Import Data</Button>
+				<Button variant="tertiary" onclick={handleImport} disabled={loading || !importFiles} aria-label="Import data from file">Import Data</Button>
 			</div>
 		</div>
 	</div>
 {/if}
 
 {#if showResultsModal && importResult}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded bg-surface-500/10 shadow-xl dark:bg-surface-800">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-[var(--admin-bg-backdrop)]">
+		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded bg-[var(--admin-bg-card)] shadow-xl">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Results</h3>
 				<Button variant="outline" onclick={() => (showResultsModal = false)} aria-label="Close results" size="sm">
@@ -544,20 +545,20 @@
 			</div>
 			<div class="max-h-[calc(80vh-140px)] overflow-y-auto p-6">
 				<div class="space-y-6">
-					<div class="rounded bg-gray-50 p-4 dark:bg-gray-800">
+					<div class="rounded bg-surface-500/10 p-4 dark:bg-surface-800">
 						<h3 class="mb-3 font-semibold">Import Summary</h3>
 						<div class="grid grid-cols-3 gap-4 text-center">
 							<div>
 								<div class="text-2xl font-bold text-tertiary-500 dark:text-primary-500">{importResult.totalImported}</div>
-								<div class="text-sm text-gray-600">Imported</div>
+								<div class="text-sm text-[var(--admin-text-muted)]">Imported</div>
 							</div>
 							<div>
-								<div class="text-waring-500 text-2xl font-bold">{importResult.totalSkipped}</div>
-								<div class="text-sm text-gray-600">Skipped</div>
+								<div class="text-warning-500 text-2xl font-bold">{importResult.totalSkipped}</div>
+								<div class="text-sm text-[var(--admin-text-muted)]">Skipped</div>
 							</div>
 							<div>
 								<div class="text-2xl font-bold text-error-500">{importResult.totalErrors}</div>
-								<div class="text-sm text-gray-600">Errors</div>
+								<div class="text-sm text-[var(--admin-text-muted)]">Errors</div>
 							</div>
 						</div>
 					</div>
@@ -566,12 +567,12 @@
 						<h3 class="mb-3 font-semibold">Collection Details</h3>
 						<div class="max-h-64 space-y-3 overflow-y-auto">
 							{#each importResult.results as result (result.collection)}
-								<div class="rounded border border-gray-200 p-3 dark:border-gray-700">
+								<div class="rounded border border-[var(--admin-border-default)] p-3 dark:border-surface-500/40">
 									<div class="mb-2 flex items-center justify-between">
 										<h4 class="font-medium">{result.collection}</h4>
 										<div class="flex gap-4 text-sm">
 											<span class="text-tertiary-500 dark:text-primary-500">+{result.imported}</span>
-											<span class="text-waring-500">~{result.skipped}</span>
+											<span class="text-warning-500">~{result.skipped}</span>
 											<span class="text-error-500">!{result.errors.length}</span>
 										</div>
 									</div>
@@ -582,10 +583,10 @@
 												<summary class="cursor-pointer text-error-600">{result.errors.length} errors</summary>
 												<div class="mt-2 space-y-1">
 													{#each result.errors.slice(0, 5) as error (error.index)}
-														<div class="text-xs text-gray-600">Line {error.index + 1}: {error.error}</div>
+														<div class="text-xs text-[var(--admin-text-muted)]">Line {error.index + 1}: {error.error}</div>
 													{/each}
 													{#if result.errors.length > 5}
-														<div class="text-xs text-gray-500">...and {result.errors.length - 5} more errors</div>
+														<div class="text-xs text-[var(--admin-text-muted)]">...and {result.errors.length - 5} more errors</div>
 													{/if}
 												</div>
 											</details>

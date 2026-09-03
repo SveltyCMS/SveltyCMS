@@ -221,6 +221,6 @@
 			<iconify-icon icon="mdi:message-text" width="16" class="me-2"></iconify-icon>
 			Give Feedback
 		</Button>
-		<Button variant="tertiary" onclick={close} aria-label="close-dialog" class="dark:">Close Dialog</Button>
+		<Button variant="tertiary" onclick={close} aria-label="close-dialog">Close Dialog</Button>
 	</div>
 </div>

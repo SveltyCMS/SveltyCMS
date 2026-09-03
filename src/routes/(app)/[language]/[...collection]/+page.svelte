@@ -524,7 +524,7 @@ beforeNavigate(async ({ cancel, to }) => {
 			/>
 		{/key}
 	{:else if ['edit', 'create'].includes(collections.mode)}
-		<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)] space-y-6">
+		<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)] space-y-4">
             {#if collections.mode === 'edit' && collections.activeValue?._id}
                 <WorkflowActions
                     collectionId={collections.active._id!}

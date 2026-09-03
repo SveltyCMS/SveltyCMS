@@ -1,19 +1,10 @@
 <!--
-@file src/widgets/custom/PhoneNumber/Input.svelte
+@file src/widgets/custom/phone-number/input.svelte
 @component
 **PhoneNumber Widget Component**
 
 @example
-<PhoneNumber field={{ label: "Phon				placeholder={typeof field?.placeholder === 'string' && field?.placeholder.trim() !== '' ? field.placeholder : '+1234567890'}
-		required={field?.required as boolean | undefined}
-		readonly={field?.readonly as boolean | undefined}
-		disabled={field?.disabled as boolean | undefined}
-		pattern={field?.pattern as string | undefined}
-		class="input w-full flex-1 rounded-none text-black dark:text-primary-500"ired={field?.required as boolean | undefined}
-				readonly={field?.readonly as boolean | undefined}
-				disabled={field?.disabled as boolean | undefined}
-				pattern={field?.pattern as string | undefined}
-				class="input w-full flex-1 rounded-none text-black dark:text-primary-500"b_fieldName: "phone", required: true }} />
+<PhoneNumber field={{ label: "Phone", db_fieldName: "phone", required: true }} />
 
 ### Props
 - `field`: FieldType

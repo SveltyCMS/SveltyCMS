@@ -271,7 +271,7 @@
 </script>
 
 {#if showSidebar || showCollectionsHere}
-	<div class="flex h-full flex-col justify-between px-3 py-4">
+	<div class="flex h-full flex-col px-3 py-4">
 		<!-- Collections tree (when theme moves it to end sidebar) -->
 		{#if showCollectionsHere}
 			<div class="mb-3">
@@ -283,6 +283,7 @@
 		{/if}
 
 		{#if showSidebar}
+		<div class="flex min-h-0 flex-1 flex-col">
 		<!-- Special "Next" button for Menu wizard -->
 		{#if app.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
 			<Button variant="tertiary" type="button" onclick={nextAction!} class="w-full gap-2 shadow-lg">
@@ -291,7 +292,7 @@
 			</Button>
 		{:else}
 			<!-- Main actions -->
-			<header class="flex flex-col gap-3">
+			<header class="flex shrink-0 flex-col gap-3">
 				<Button variant="primary"
 					type="button"
 					onclick={save}
@@ -336,7 +337,7 @@
 
 			<Slot name="entry_edit_sidebar" props={{ collection, currentEntry }} />
 
-			<main class="mt-6 flex w-full flex-col gap-4 text-start">
+			<main class="mt-6 flex min-h-0 w-full flex-1 flex-col gap-4 overflow-y-auto text-start">
 				<div class="border-b border-surface-500/30 pb-2 dark:border-surface-600">
 					<h3 class="text-center text-sm font-bold uppercase tracking-wide text-tertiary-500 dark:text-primary-500">{siedabar_publish_options()}</h3>
 				</div>
@@ -390,7 +391,7 @@
 				</div>
 			</main>
 
-			<footer class="mt-6 border-t border-surface-500/30 pt-4 dark:border-surface-600">
+			<footer class="mt-auto shrink-0 border-t border-surface-500/30 bg-white pt-3 dark:border-surface-600 dark:bg-surface-800">
 				<div class="space-y-2 text-xs">
 					<div class="flex items-center justify-between">
 						<span class="font-medium capitalize">Created:</span>
@@ -415,6 +416,7 @@
 				{/if}
 			</footer>
 			{/if}
+		</div>
 		{/if}
 	</div>
 {/if}

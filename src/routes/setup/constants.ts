@@ -19,7 +19,7 @@
  * Fallback system/interface languages (DOCUMENTATION ONLY - see seed.ts)
  * Actual source: project.inlang/settings.json → seed.ts → database → publicEnv.LOCALES
  */
-export const DEFAULT_SYSTEM_LANGUAGES = ["en", "de"] as const;
+export const DEFAULT_SYSTEM_LANGUAGES = ["en", "de", "ar"] as const;
 
 /**
  * Fallback base locale (DOCUMENTATION ONLY - see seed.ts)
@@ -31,7 +31,7 @@ export const DEFAULT_BASE_LOCALE = "en" as const;
  * Fallback content languages (DOCUMENTATION ONLY - see seed.ts)
  * Actual source: project.inlang/settings.json → seed.ts → database
  */
-export const DEFAULT_CONTENT_LANGUAGES = ["en", "de"] as const;
+export const DEFAULT_CONTENT_LANGUAGES = ["en", "de", "ar"] as const;
 
 /**
  * Fallback content language (DOCUMENTATION ONLY - see seed.ts)

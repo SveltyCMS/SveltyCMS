@@ -40,8 +40,7 @@ const cForm = "space-y-4";
 			<Button variant="outline" type="button" onclick={() => close?.(null)} disabled={isSubmitting}> Cancel </Button>
 			<Button variant="tertiary"
 				type="submit"
-				disabled={isSubmitting || selectedPreset === 'blank'}
-			 class="dark:">
+				disabled={isSubmitting || selectedPreset === 'blank'}>
 				Load Preset
 			</Button>
 		</footer>

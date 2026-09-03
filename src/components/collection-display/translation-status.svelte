@@ -420,12 +420,12 @@ FIXES:
 	});
 </script>
 
-<div class="translation-status-container relative mt-1 inline-block text-start">
+<div class="translation-status-container relative inline-block text-start">
 	<Dropdown position="bottom-start" class={showProgress && !isViewMode ? 'w-72' : 'w-56'}>
 		{#snippet trigger()}
 			<Button variant="ghost"
 				aria-label="Toggle language menu"
-			 class="rounded-full flex w-full items-center gap-1 p-1.5 transition-all hover:scale-105">
+			 class="flex h-9 items-center gap-1 rounded-md px-3 py-1.5 text-sm transition-all {!isViewMode ? 'bg-success-500 text-white hover:bg-success-500 hover:brightness-100' : 'hover:bg-surface-500/10'}">
 				<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
 				<span class="font-medium hidden md:inline">{getLanguageName(currentLanguage)}</span>
 				<iconify-icon icon="mdi:chevron-down" class="h-5 w-5 transition-transform duration-200" aria-hidden="true"></iconify-icon>

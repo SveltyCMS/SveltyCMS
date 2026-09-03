@@ -27,6 +27,7 @@
 <script lang="ts">
 	import Badge from '@components/ui/badge.svelte';
 	import Input from '@components/ui/input.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
@@ -87,6 +88,7 @@
 	// Get validation state from store
 	// Define fieldName using getFieldName utility
 	let fieldName = $derived(getFieldName(field));
+	const textareaRows = $derived(Number((field as { rows?: number }).rows) || 0);
 	let validationError = $derived(validationStore.getError(fieldName));
 	let isValidating = $state(false);
 	let isTouched = $state(false);
@@ -239,7 +241,7 @@
 	export const WidgetData = async () => value;
 </script>
 
-<div class="relative mb-4 min-h-10 w-full">
+<div class="relative mb-0 min-h-10 w-full">
 	<SystemTooltip title={validationError || ''} wFull={true}>
 		<div class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0" role="group">
 			{#if field?.prefix}
@@ -251,6 +253,29 @@
 				</div>
 			{/if}
 
+			{#if textareaRows > 1}
+			<Textarea
+				aria-label={field.label || fieldName || 'Text input'}
+				value={safeValue}
+				oninput={(e) => {
+					updateValue((e.currentTarget as HTMLTextAreaElement).value);
+					handleInput();
+				}}
+				onblur={handleBlur}
+				name={field?.db_fieldName}
+				id={field?.db_fieldName}
+				rows={textareaRows}
+				placeholder={(field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName) as string | undefined}
+				required={field?.required as boolean | undefined}
+				disabled={field?.disabled as boolean | undefined}
+				readonly={field?.readonly as boolean | undefined}
+				textareaClass="h-auto min-h-32 w-full flex-1 rounded-none border-0 bg-white py-2 font-mono text-xs text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-primary-500 {validationError
+					? 'bg-error-500-10!'
+					: ''}"
+				aria-invalid={!!validationError}
+				data-testid="text-input"
+			/>
+			{:else}
 			<Input
 				type="text"
 				aria-label={field.label || fieldName || 'Text input'}
@@ -278,10 +303,11 @@
 				aria-required={field?.required}
 				data-testid="text-input"
 			/>
+			{/if}
 
 			<!-- suffix and count -->
 			{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
-				<div class="flex items-center bg-surface-500/10 px-2 dark:bg-surface-800" role="status" aria-live="polite">
+				<div class="flex items-center bg-white px-2 dark:bg-surface-900" role="status" aria-live="polite">
 					{#if field?.count || field?.minLength || field?.maxLength}
 						<Badge variant={badgeVariant} class="me-1" aria-label="Character count">
 							{#if field?.count && field?.minLength && field?.maxLength}
