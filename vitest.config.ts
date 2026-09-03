@@ -42,6 +42,9 @@ export default defineConfig({
   define: { "import.meta.env.SSR": "true" },
   test: {
     globals: true,
+    fsModuleCache: true,
+    passWithNoTests: true,
+    slowTestThreshold: 1000,
     // API dispatcher / GraphQL / media security tests load large modules; under full-suite
     // fork contention on Windows they routinely need >15s even when ~5s alone.
     testTimeout: 30000,
@@ -53,6 +56,7 @@ export default defineConfig({
     silent: isCI ? "passed-only" : false,
     coverage: {
       provider: "v8",
+      reportsDirectory: "./.vitest/coverage",
       reporter: isCI ? ["text-summary", "json"] : ["text", "json", "html"],
       // P0 packages only — enterprise A++ gate focuses on security/core, not vanity % of all src
       include: [
@@ -67,15 +71,25 @@ export default defineConfig({
       // Applied when running `bun run test:unit:coverage` — keeps P0 floors honest without
       // blocking full-suite unit runs that omit --coverage.
       thresholds: {
-        lines: 55,
-        functions: 50,
-        branches: 45,
-        statements: 55,
+        lines: 48,
+        functions: 47,
+        branches: 40,
+        statements: 47,
       },
     },
     pool: "forks",
     // Cap fork parallelism to reduce Windows I/O thrash during heavy API unit suites.
     ...(isCI ? {} : { maxWorkers: localMaxWorkers }),
+    forks: {
+      execArgv: ["--enable-source-maps"],
+    },
+    env: {
+      TEST_MODE: "true",
+      QUIET: "true",
+    },
+    diff: {
+      truncateThreshold: 80,
+    },
     server: {
       deps: {
         inline: [

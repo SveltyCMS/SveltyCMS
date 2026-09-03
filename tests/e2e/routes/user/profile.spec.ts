@@ -138,7 +138,10 @@ test.describe.serial("User Profile Management", () => {
     // a native DOM click. SSR renders the pencil button before Svelte attaches
     // its onclick, so a single dispatch can be a silent no-op — drive the modal
     // open with an outcome-based retry instead.
-    const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
+    const editAvatarBtn = page
+      .getByTestId("edit-avatar-pencil-btn")
+      .or(page.getByTestId("edit-avatar-btn"))
+      .first();
     const avatarModal = page.locator(".modal-avatar").first();
     await expect(async () => {
       await editAvatarBtn.evaluate((el: HTMLElement) => el.click());

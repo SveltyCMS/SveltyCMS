@@ -47,6 +47,14 @@ let _started = false;
 // ─── Core Logic ────────────────────────────────────────────────────────────
 
 async function preload(href: string): Promise<void> {
+  // 🛡️ NETWORK CONSTRAINTS: respect Save-Data header and slow cellular connections
+  if (typeof navigator !== "undefined") {
+    const conn = (navigator as any).connection;
+    if (conn?.saveData || conn?.effectiveType === "slow-2g" || conn?.effectiveType === "2g") {
+      return;
+    }
+  }
+
   // 🛡️ HARDENING: reject any URI-scheme link (case-insensitive) — `javascript:`, `data:`, `vbscript:`, etc.
   // Only same-origin relative or absolute http(s) URLs are preloadable.
   if (!href) return;

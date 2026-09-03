@@ -91,10 +91,14 @@ bun run test:doctor
 bun run test:doctor --list          # map only
 bun run test:doctor --unit-only     # skip integration
 
-# 1. White-box unit (Vitest)
+# 1. White-box unit (Vitest 5)
 bun run test:unit
+bun run test:watch            # interactive TDD watch mode
+bun run test:ui               # Vitest 5 visual web UI with trace viewer
+bun run test:changed          # smart incremental testing on git changes
+bun run test:security         # focused hooks security suite
+bun run test:unit:coverage    # P0 gate coverage (outputs to .vitest/coverage)
 bun run check
-bun run test:security               # focused hooks security suite
 
 # 2. Black-box integration (SQLite; harness starts preview + private.test.ts)
 #    Prefers an existing build/; otherwise builds with COMPILE_ALL_ADAPTERS

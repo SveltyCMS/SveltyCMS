@@ -44,7 +44,7 @@ tags:
 
 | Layer                       | Confidence    | What it proves                                                                                                         | How to run                                                              |
 | --------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| **Unit** (Vitest)           | **A++**       | 428 files / **3778+ tests** — auth, lanes/turbo cache, CacheService, page gates, widgets, security, field write guards | `bun run test:unit` · coverage: `test:unit:coverage`                    |
+| **Unit** (Vitest 5)         | **A++**       | 454 files / **3900+ tests** — auth, lanes/turbo cache, CacheService, page gates, widgets, security, field write guards | `bun run test:unit` · coverage: `test:unit:coverage`                    |
 | **Security regression**     | **A++**       | Hooks + RBAC defense-in-depth + full `risk:audit` (security-risk, secrets, slop, OSV) on pre-commit                    | `bun run test:security` · `bun run risk:audit`                          |
 | **Integration** (black-box) | **A++**       | ~65 files / **~617 tests** SQLite local; multi-adapter matrix in CI; lane headers + session page-load canaries         | `bun run test:integration` (SQLite) · `bun run test:matrix` (all 4 DBs) |
 | **E2E** (Playwright)        | **A++**       | ~44 specs — browser goldens / P0 journeys; hooks-lane smoke; CI-parity preview :4173                                   | `bun run test:e2e` (not Vite). Dev-only: `test:e2e:dev`                 |
@@ -54,7 +54,7 @@ tags:
 
 | Tier               | Command               | Time     | Coverage (approx., drifts — trust CI)                                   |
 | ------------------ | --------------------- | -------- | ----------------------------------------------------------------------- |
-| **Pre-commit**     | git commit / hooks    | ~40–60s  | Unit (3530) + `risk:audit` + format/lint + SBOM when lock changes       |
+| **Pre-commit**     | git commit / hooks    | ~40–60s  | Unit (3900+) + `risk:audit` + format/lint + SBOM when lock changes      |
 | **Pre-push**       | `bun run gate`        | ~5–8min  | Build 4 adapters + backdoor/bundle gates + tenant + SQLite integ (~617) |
 | **Pre-CI** (local) | `bun run test:matrix` | ~8–15min | All 4 DBs via Docker profiles                                           |
 | **CI**             | GitHub Actions        | ~30min   | Whitebox + build + db-tests matrix + E2E + benchmarks                   |

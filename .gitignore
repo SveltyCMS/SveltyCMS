@@ -80,8 +80,10 @@ yarn-error.log*
 tests/test-results/
 tests/playwright-report/
 /playwright/.cache/
-/error-screenshot.png
 *e2e-output*.txt
+.vitest/
+coverage/
+
 
 # Rust
 /indexes

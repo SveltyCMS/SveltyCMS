@@ -9,12 +9,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
+import { seedCookieConsent } from "../../helpers/cookie-consent";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 const ACTION_TIMEOUT = 25_000;
 
 async function openGallery(page: Page) {
+  await seedCookieConsent(page);
   await loginAsAdmin(page);
   await page.goto("/mediagallery", { waitUntil: "domcontentloaded", timeout: 30_000 });
   await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible({

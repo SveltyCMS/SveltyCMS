@@ -131,6 +131,24 @@ bun run test:security
 
 **Used by**: Manual; covered by full unit suite on pre-commit.
 
+### Vitest 5 Developer Workflows (package scripts)
+
+Vitest 5 introduces high-performance developer ergonomics and smart change execution:
+
+```bash
+bun run test:watch                     # Interactive TDD watch mode with instant HMR
+bun run test:ui                        # Launches Vitest 5 Web UI with visual trace viewer
+bun run test:changed                   # Smart: evaluates git diff and runs only impacted suites
+bun run test:repeat 5 <test-path>      # Stress-test concurrency, rate limits, and flaky tests
+bun run test:unit:coverage             # Enterprise P0 coverage gate (outputs to .vitest/coverage)
+```
+
+**Features enabled**:
+
+- `fsModuleCache: true`: Filesystem caching of transformed modules for sub-second test turnaround.
+- Top-level `forks: { execArgv: ["--enable-source-maps"] }`: Accurate TypeScript stack traces across forks.
+- Isolated output directory: Reports and coverage stored in `.vitest/` (ignored by git).
+
 ---
 
 ## Security Scripts
