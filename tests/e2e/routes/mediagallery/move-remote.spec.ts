@@ -8,8 +8,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
-import { seedCookieConsent } from "../../helpers/cookie-consent";
+import { loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
@@ -25,7 +25,7 @@ async function openGallery(page: Page) {
   // This spec runs with a blank storageState (see test.use below), so the GDPR
   // banner can still be present/overlapping the sidebar drop targets even after
   // loginAsAdmin — dismiss it so later drags/clicks aren't intercepted by it.
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
 }
 
 async function createFolder(page: Page, name: string) {
@@ -195,7 +195,7 @@ test.describe("Remote URL upload", () => {
 
   test("upload-media page shows local and remote tabs", async ({ page }) => {
     await loginAsAdmin(page);
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
     await page.goto("/mediagallery/upload-media", {
       waitUntil: "domcontentloaded",
       timeout: 30_000,
@@ -209,7 +209,7 @@ test.describe("Remote URL upload", () => {
 
   test("remote tab calls uploadRemoteUrls remote query", async ({ page }) => {
     await loginAsAdmin(page);
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
     await page.goto("/mediagallery/upload-media", {
       waitUntil: "domcontentloaded",
       timeout: 30_000,
@@ -246,7 +246,7 @@ test.describe("Remote URL upload", () => {
 
   test("rejects empty remote URL submit with warning", async ({ page }) => {
     await loginAsAdmin(page);
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
     await page.goto("/mediagallery/upload-media");
     await page.getByTestId("upload-tab-remote").click();
     await page.getByTestId("remote-upload-submit").click();

@@ -8,8 +8,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test, expect } from "@playwright/test";
-import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
-import { seedCookieConsent } from "../../helpers/cookie-consent";
+import { loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
@@ -17,13 +17,13 @@ const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 async function openMediaGallery(page: import("@playwright/test").Page) {
   await seedCookieConsent(page);
   await loginAsAdmin(page);
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
   await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });
   if (page.url().includes("/login")) {
     await loginAsAdmin(page, "/mediagallery");
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
   }
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
   await expect(page).toHaveURL(/\/mediagallery/, { timeout: 15_000 });
   await expect(page).not.toHaveURL(/\/login/);
 

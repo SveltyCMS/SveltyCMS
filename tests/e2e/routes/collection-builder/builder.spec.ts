@@ -19,7 +19,6 @@
 
 import { expect, test } from "@playwright/test";
 import { resetAndSeedDatabase } from "../../helpers/api";
-import { dismissCookieBanner } from "../../helpers/auth";
 import {
   addInputField,
   collectionSlugCandidates,
@@ -30,7 +29,7 @@ import {
   uniqueCollectionFixture,
 } from "../../helpers/collection-builder-flow";
 import { dismissCookieBannerIfPresent } from "../../helpers/stable";
-import { seedCookieConsent } from "../../helpers/cookie-consent";
+import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 
 test.describe.configure({ mode: "serial", timeout: 120_000 });
 
@@ -38,7 +37,7 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
   test.beforeEach(async ({ page }) => {
     await seedCookieConsent(page);
     await resetAndSeedDatabase(page);
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
     await dismissCookieBannerIfPresent(page);
   });
 

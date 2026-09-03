@@ -7,7 +7,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test, expect, type Page } from "@playwright/test";
-import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieConsent } from "../../helpers/cookie-consent";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
@@ -24,7 +25,7 @@ async function openGallery(page: Page) {
       .or(page.getByRole("heading", { name: /media/i }))
       .first(),
   ).toBeVisible({ timeout: 30_000 });
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
 }
 
 async function uploadTestImage(page: Page) {

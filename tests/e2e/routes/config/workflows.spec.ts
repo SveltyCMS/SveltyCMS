@@ -4,8 +4,9 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
-import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin } from "../../helpers/auth";
 import { deleteWorkflow, seedWorkflow } from "../../helpers/api";
+import { dismissCookieConsent } from "../../helpers/cookie-consent";
 import { dismissCookieBannerIfPresent, waitForAdminShell } from "../../helpers/stable";
 
 const ACTION_TIMEOUT = 25_000;
@@ -16,7 +17,7 @@ async function goWorkflows(page: Page) {
   if (page.url().includes("/login")) {
     await loginAsAdmin(page, "/config/workflows");
   }
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
   await dismissCookieBannerIfPresent(page);
   await waitForAdminShell(page, ACTION_TIMEOUT);
   await expect(page.getByTestId("workflows-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
@@ -57,7 +58,7 @@ test.describe("Config Workflows", () => {
    */
   test("golden: seed-workflow → GET by collectionId → builder usable", async ({ page }) => {
     await loginAsAdmin(page);
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
     const stamp = Date.now().toString(36);
     const collectionId = `e2e_workflow_${stamp}`;
     const seeded = await seedWorkflow(page, { collectionId });

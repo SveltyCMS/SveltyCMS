@@ -93,6 +93,7 @@
     "check": "bun run format --check && oxlint --deny-warnings --ignore-pattern 'src/types/**' && bun run scripts/check-dead-classes.ts && bun run scripts/check-design-tokens.mjs && bun run scripts/consolidate-shades.mjs --check && bun run scripts/check-lockfile-sync.ts",
     "check:classes": "bun run scripts/check-dead-classes.ts",
     "check:design": "bun run scripts/check-design-tokens.mjs",
+    "check:deprecated": "bun run scripts/check-deprecated.ts",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "bun run test:unit",
     "test:unit": "svelte-kit sync && vitest run",

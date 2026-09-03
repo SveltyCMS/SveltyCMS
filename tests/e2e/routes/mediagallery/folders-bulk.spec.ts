@@ -8,8 +8,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
-import { seedCookieConsent } from "../../helpers/cookie-consent";
+import { loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
@@ -30,7 +30,7 @@ async function openGallery(page: Page) {
     .or(page.getByTestId("media-grid"))
     .or(page.getByTestId("admin-page-shell-title"));
   await expect(shell.first()).toBeVisible({ timeout: 30_000 });
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
 }
 
 async function uploadImage(page: Page, filePath = TEST_IMAGE) {

@@ -16,13 +16,8 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { getCurrentTOTPCode } from "../../../../src/databases/auth/totp";
-import {
-  ADMIN_CREDENTIALS,
-  dismissCookieBanner,
-  loginAsAdmin,
-  loginAsEditor,
-  TEST_PASSWORD,
-} from "../../helpers/auth";
+import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor, TEST_PASSWORD } from "../../helpers/auth";
+import { dismissCookieConsent } from "../../helpers/cookie-consent";
 import { prepareTestUser, seedBulkUsers, setTestSetting, TEST_API_SECRET } from "../../helpers/api";
 import { TEST_API_HEADERS } from "../../helpers/api";
 import { openUserManagement, openUserSettings, openUserTab } from "../../helpers/user-page";
@@ -145,7 +140,7 @@ test.describe("GDPR privacy flows", () => {
     await page.getByTestId("privacy-data-btn").click();
     // Scope to the native <dialog> — the cookie-consent banner is a <div role="dialog">
     // and can co-exist on first visits, breaking getByRole("dialog") strict mode.
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
     const dialog = page.locator("dialog[open]");
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
@@ -190,7 +185,7 @@ test.describe("GDPR privacy flows", () => {
     await page.getByTestId("privacy-data-btn").click();
     // Scope to the native <dialog> — the cookie-consent banner is a <div role="dialog">
     // and can co-exist on first visits, breaking getByRole("dialog") strict mode.
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
     const dialog = page.locator("dialog[open]");
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
@@ -466,7 +461,7 @@ test.describe("Sessions and multi-tenant column", () => {
     // Open the User Management tab with the same click-and-confirm guard used by
     // the other tab-driven specs: the tab is SSR-rendered before hydration
     // attaches its onclick, so a bare click can be a silent no-op.
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
     const managementTab = page.getByRole("tab", { name: /user management/i });
     await expect(managementTab).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(async () => {
