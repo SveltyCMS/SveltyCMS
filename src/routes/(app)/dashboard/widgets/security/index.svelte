@@ -29,6 +29,7 @@ export const widgetMeta = {
 
 		import type { WidgetSize } from '@src/content/types';
 		import BaseWidget from '../../base-widget.svelte';
+		import { formatTime } from '@utils/format-date';
 
 	const {
 		label = 'Security Monitor',
@@ -272,7 +273,7 @@ export const widgetMeta = {
 												</div>
 												<div class="text-[10px] text-surface-500 dark:text-surface-400 mt-1 flex justify-between">
 													<span>{incident.indicatorCount} indicators</span>
-													<span>{new Date(incident.timestamp).toLocaleTimeString()}</span>
+													<span>{formatTime(incident.timestamp)}</span>
 												</div>
 											</div>
 										{/each}

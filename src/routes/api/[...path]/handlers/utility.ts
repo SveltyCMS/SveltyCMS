@@ -12,7 +12,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { AppError } from "@utils/error-handling";
+import { AppError, raise } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -128,7 +128,7 @@ export async function handleUtilityRoutes(
         throw new AppError(`Unknown config_sync action: "${action}". Valid actions: import.`, 400);
       }
 
-      throw new AppError("Method not allowed", 405);
+      raise(405, "Method not allowed");
     }
 
     // ── Email Service ──
@@ -153,11 +153,11 @@ export async function handleUtilityRoutes(
 
       if (request.method === "POST" && method === "install") {
         if (!user?.isAdmin && user?.role !== "admin") {
-          throw new AppError("Admin access required to install marketplace items", 403);
+          raise(403, "Admin access required to install marketplace items");
         }
         const body = await request.json().catch(() => ({}));
         const itemId = typeof body?.itemId === "string" ? body.itemId : "";
-        if (!itemId) throw new AppError("itemId is required", 400);
+        if (!itemId) raise(400, "itemId is required");
 
         const installed = await service.installTheme(itemId);
         return successResponse(event, installed);
@@ -174,14 +174,11 @@ export async function handleUtilityRoutes(
       return handleTrashRoutes(event, cms, tenantId, method);
     }
 
-    throw new AppError(
-      `Utility endpoint /api/${namespace}${method ? "/" + method : ""} not implemented`,
-      404,
-    );
+    raise(404, `Utility endpoint /api/${namespace}${method ? "/" + method : ""} not implemented`);
   } catch (err: any) {
     logger.error(`[UtilityRoute Error] ${segments.join("/")}:`, err);
     if (err instanceof AppError) throw err;
-    throw new AppError(err.message || "Utility operation failed", 500);
+    raise(500, err.message || "Utility operation failed");
   }
 }
 
@@ -193,9 +190,9 @@ async function handleOpenApiSpec(event: RequestEvent, tenantId: DatabaseId, url:
 
   // AI Reconnaissance Blinding: only authenticated admins can view the full spec
   if (!event.locals.isAdmin && !(event.locals as any).__testBypass) {
-    throw new AppError(
-      "Full OpenAPI specification is restricted to administrative roles to prevent automated reconnaissance.",
+    raise(
       403,
+      "Full OpenAPI specification is restricted to administrative roles to prevent automated reconnaissance.",
     );
   }
 
@@ -254,10 +251,10 @@ async function handleCacheRoutes(
 async function handleSendMail(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
   const body = await event.request.json().catch(() => ({}));
   if (!body.to || !body.subject) {
-    throw new AppError("Missing required fields: to, subject", 400);
+    raise(400, "Missing required fields: to, subject");
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.to)) {
-    throw new AppError("Invalid email address", 400);
+    raise(400, "Invalid email address");
   }
 
   try {
@@ -271,7 +268,7 @@ async function handleSendMail(event: RequestEvent, cms: LocalCMS, tenantId: Data
     });
 
     if (!result?.success) {
-      throw new AppError(result?.message || "Email send failed", 500);
+      raise(500, result?.message || "Email send failed");
     }
     return successResponse(event, {
       success: true,
@@ -279,14 +276,14 @@ async function handleSendMail(event: RequestEvent, cms: LocalCMS, tenantId: Data
     });
   } catch (err: any) {
     if (err instanceof AppError) throw err;
-    throw new AppError(`Email send failed: ${err.message}`, 500, "EMAIL_SEND_ERROR");
+    raise(500, `Email send failed: ${err.message}`, "EMAIL_SEND_ERROR");
   }
 }
 
 // ─── Debug Handler ───────────────────────────────────────────────────────────
 
 async function handleDebug(event: RequestEvent, tenantId: DatabaseId, user: any) {
-  if (!event.locals.isAdmin) throw new AppError("Access denied", 403);
+  if (!event.locals.isAdmin) raise(403, "Access denied");
 
   return successResponse(event, {
     timestamp: new Date().toISOString(),
@@ -351,7 +348,7 @@ async function handleTrashRoutes(
   if (request.method === "POST" && method === "restore") {
     const { collectionId, entryId } = await request.json().catch(() => ({}));
     if (!collectionId || !entryId) {
-      throw new AppError("Missing collectionId or entryId", 400);
+      raise(400, "Missing collectionId or entryId");
     }
     // 🐛 FIX (BUG-01): canonical physical name — replaces the manual
     // hyphen-stripping prefix (fragile duplicate of collectionTableName).
@@ -359,9 +356,9 @@ async function handleTrashRoutes(
     const result = await cms.db.crud.restore(collectionName, entryId as DatabaseId, {
       tenantId: tenantId as DatabaseId,
     });
-    if (!result.success) throw new AppError(result.message || "Failed to restore item", 500);
+    if (!result.success) raise(500, result.message || "Failed to restore item");
     return successResponse(event, { success: true, restored: true });
   }
 
-  throw new AppError(`Trash action '${method}' not implemented`, 404);
+  raise(404, `Trash action '${method}' not implemented`);
 }

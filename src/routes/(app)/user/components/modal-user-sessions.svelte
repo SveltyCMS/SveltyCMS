@@ -21,6 +21,7 @@ Features:
 	import type { User } from '@src/databases/auth/types';
 	import { page } from '$app/state';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import { formatDateTime } from '@utils/format-date';
 
 	interface SessionItem {
 		_id: string;
@@ -84,18 +85,17 @@ Features:
 
 	function formatTime(val?: string | Date): string {
 		if (!val) return 'Recently';
-		try {
-			const d = new Date(val);
-			if (isNaN(d.getTime())) return String(val);
-			return d.toLocaleString(undefined, {
+		return formatDateTime(
+			val,
+			{
 				month: 'short',
 				day: 'numeric',
 				hour: '2-digit',
 				minute: '2-digit'
-			});
-		} catch {
-			return String(val);
-		}
+			},
+			undefined,
+			String(val)
+		);
 	}
 
 	async function loadSessions() {

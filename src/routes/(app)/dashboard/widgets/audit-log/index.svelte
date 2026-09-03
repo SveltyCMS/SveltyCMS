@@ -37,6 +37,7 @@ export const widgetMeta = {
 
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import { formatTime as formatTimeUtil } from '@utils/format-date';
 
 	interface AuditEntry {
 		_id?: string;
@@ -63,7 +64,7 @@ export const widgetMeta = {
 	const isCompact = $derived(size.h === 1);
 
 	function formatTime(iso: string): string {
-		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		return formatTimeUtil(iso, { hour: '2-digit', minute: '2-digit' });
 	}
 
 	function actorName(email: string | undefined = undefined): string {

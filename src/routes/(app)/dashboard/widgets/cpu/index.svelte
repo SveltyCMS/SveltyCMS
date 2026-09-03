@@ -27,6 +27,7 @@ export const widgetMeta = {
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import { formatTime } from '@utils/format-date';
 
 	const {
 		label = 'CPU Usage',
@@ -178,7 +179,7 @@ export const widgetMeta = {
 					<!-- Tooltip (Only in rich layout) -->
 					{#if size.h !== 1 && activeIndex !== null && points[activeIndex]}
 						{const val = cpu.usage[activeIndex]}
-						{const time = new Date(cpu.timestamps[activeIndex]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+						{const time = formatTime(cpu.timestamps[activeIndex], { hour: '2-digit', minute: '2-digit' })}
 						<div
 							class="absolute pointer-events-none z-20 px-3 py-2 text-xs rounded border shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-gray-200 dark:border-gray-700"
 							style="left: {Math.max(20, Math.min(points[activeIndex].x - 45, 220))}px; top: {points[activeIndex].y - 58}px;"

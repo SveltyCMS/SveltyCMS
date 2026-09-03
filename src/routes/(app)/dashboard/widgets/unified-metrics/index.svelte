@@ -40,6 +40,7 @@ export const widgetMeta = {
 
 		import type { WidgetSize } from '@src/content/types';
 		import BaseWidget from '../../base-widget.svelte';
+		import { formatNumber } from '@utils/format-date';
 
 	interface UnifiedMetrics {
 		requests: { total: number; errors: number; errorRate: number; avgResponseTime: number };
@@ -219,7 +220,7 @@ export const widgetMeta = {
 							<div>
 								<h5 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400">Requests</h5>
 								<div class="grid grid-cols-3 gap-2 text-center">
-									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums">{m.requests.total.toLocaleString()}</div><div class="text-[10px] text-surface-500">Total</div></div>
+									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums">{formatNumber(m.requests.total)}</div><div class="text-[10px] text-surface-500">Total</div></div>
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-error-500">{m.requests.errors}</div><div class="text-[10px] text-surface-500">Errors</div></div>
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800"><div class="font-mono text-sm font-semibold tabular-nums text-warning-500">{m.performance.slowRequests}</div><div class="text-[10px] text-surface-500">Slow</div></div>
 								</div>

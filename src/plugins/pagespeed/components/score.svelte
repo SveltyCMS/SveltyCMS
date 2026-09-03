@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+	import { formatDate } from '@utils/format-date';
 	interface Props {
 		score?: number; // 0-100
 		fcp?: number;
@@ -23,7 +24,7 @@
 		return 'bg-error-500/10 text-error-600 border-error-500/30'; // 0-49: Poor
 	});
 
-	const formattedDate = $derived(fetchedAt ? new Date(fetchedAt).toLocaleDateString() : 'Never');
+	const formattedDate = $derived(fetchedAt ? formatDate(fetchedAt) : 'Never');
 </script>
 
 <div class="flex items-center gap-2">

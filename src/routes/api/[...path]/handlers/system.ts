@@ -1515,6 +1515,9 @@ export async function handleSystemVirtualFolderRoutes(
       if (!Array.isArray(orderUpdates)) {
         throw new AppError("orderUpdates array is required for reordering", 400);
       }
+      if (orderUpdates.length > 100) {
+        throw new AppError("orderUpdates exceeds maximum limit of 100 items", 400);
+      }
 
       for (const update of orderUpdates) {
         const folderId = update.folderId;

@@ -46,6 +46,7 @@
 	import { fade } from 'svelte/transition';
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { formatDateTime } from '@utils/format-date';
 	import AdminArea from './components/admin-area.svelte';
 	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
 	import '@src/stores/store.svelte.ts';
@@ -317,13 +318,7 @@
 	function sessionWhen(session: SessionRow): string {
 		const raw = session.lastAccess || session.createdAt;
 		if (!raw) return '';
-		try {
-			const d = new Date(raw);
-			if (Number.isNaN(d.getTime())) return '';
-			return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-		} catch {
-			return '';
-		}
+		return formatDateTime(raw, { dateStyle: 'medium', timeStyle: 'short' });
 	}
 
 	function sessionWhenMs(session: SessionRow): number {

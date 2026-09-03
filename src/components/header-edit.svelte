@@ -31,6 +31,7 @@
 	import Button from '@components/ui/button.svelte';
 	import TranslationStatus from '@src/components/collection-display/translation-status.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
+	import { formatDateTime } from '@utils/format-date';
 	import type { CollectionEntry } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
@@ -404,7 +405,7 @@
 				<p class="text-tertiary-500 dark:text-primary-500">Last updated by: {getDisplayName(currentEntry?.updatedBy)}</p>
 			{/if}
 			{#if scheduleTimestamp}
-				<p class="text-tertiary-500 dark:text-primary-500">Will publish on: {new Date(scheduleTimestamp).toLocaleString()}</p>
+				<p class="text-tertiary-500 dark:text-primary-500">Will publish on: {formatDateTime(scheduleTimestamp)}</p>
 			{/if}
 		</div>
 	</div>

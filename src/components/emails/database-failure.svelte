@@ -10,6 +10,7 @@
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
 	import { dev } from '$app/env';
+	import { formatDateTime } from '@utils/format-date';
 
 	interface Props {
 		error?: {
@@ -122,7 +123,7 @@
 						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Timestamp:</Text>
 					</Column>
 					<Column style="width: 60%; padding: 8px 0; vertical-align: top;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{new Date(timestamp).toLocaleString()}</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{formatDateTime(timestamp, languageTag)}</Text>
 					</Column>
 				</Row>
 			</Section>
@@ -174,7 +175,7 @@
 						<Text style="color: #6b7280; font-size: 14px; margin: 0;">Last Failure:</Text>
 					</Column>
 					<Column style="width: 40%; padding: 8px 0;">
-						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{new Date(metrics.lastFailureTime).toLocaleString()}</Text>
+						<Text style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0;">{formatDateTime(metrics.lastFailureTime, languageTag)}</Text>
 					</Column>
 				</Row>
 			</Section>

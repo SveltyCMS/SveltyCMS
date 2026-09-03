@@ -22,7 +22,7 @@
 - No direct DB access outside adapters — use `dbAdapter.crud.*`, `dbAdapter.auth.*`, etc. Never `mongoose.model(...).find()`.
 - **`LocalCMS` in `.server.ts`** for server-to-server calls — never `fetch()` internal `/api` routes (bypasses firewalls/rate-limit/serialization, 10–50× faster).
 - Scope everything by `tenantId`.
-- Dates: use `ISODateString` + `@utils/date` helpers — `nowISODateString()` (never `new Date().toISOString()`), wrap Drizzle Date columns in `isoDateStringToDate()`, read back through `toISOString()`.
+- Dates: use `ISODateString` + `@utils/date` helpers — `nowISODateString()` (never `new Date().toISOString()`), wrap Drizzle Date columns in `isoDateStringToDate()`, read back through `toISOString()`. For UI/display formatting, use `formatDate()`, `formatDateTime()`, `formatTime()` from `@utils/format-date` (or `@utils/date`) with `systemLanguage` from layout data to prevent SSR/hydration mismatches (never unpinned `toLocaleDateString()`/`toLocaleString()`).
 - **Explicit physical column selection** (`new Set(["_id", "path", …])`) for core tables (`content_nodes`, `audit_logs`) — prevents ghost-column bugs in minified production chunks.
 
 ### Errors & logging
@@ -38,7 +38,7 @@
 - **Status-shade contract**: one shade per role per ramp (`error`, `success`, `warning`, `tertiary`, `primary`, `secondary`, `surface`) — `{hue}-500` fill, `{hue}-500`/`-400` text, `{hue}-500/10` wash (+`-900/20` dark), `{hue}-500/30–40` borders. NEVER reintroduce `bg-{hue}-50/100` washes, `text-{hue}-700/800` emphasis, `dark:text-{hue}-200/300`, or legacy Tailwind hues (`red`→`error`, `blue`→`tertiary`, `green`→`success`, `amber`→`warning`). Drift guard runs in `bun run check` (`consolidate-shades.mjs --check`); repair: `bun run scripts/consolidate-shades.mjs`. Full table + exceptions: `docs/contributing/style-guide-gui.mdx`.
 - **Motion**: use `@utils/admin-transitions` (`adminPage`, `adminFade`, `adminStagger`, `adminSlide`) — reduced-motion safe (0ms under `prefers-reduced-motion`). No per-page `in:fly`/`in:scale` one-offs; animate only `transform` + `opacity`.
 - **Accessibility** (WCAG 2.2 AA / ATAG 2.0, forward-aligned WCAG 3.0): accessible name on every interactive element; token-based `:focus-visible` rings (≥3:1, both modes); respect reduced motion & high contrast; `cursor: pointer` only on links, never buttons. See `docs/contributing/accessibility.mdx`.
-- **Admin UI**: every `(app)` page uses `<AdminPageShell>` + `<AdminCard>`; prefer native `<Button>`, `<Badge>`, `<Input>`, `<Select>`, `<Textarea>` over raw `class="btn"`/`"badge"`/`"input"`; never mix component CSS classes; attributes go on the opening tag (stray attribute text renders as visible content). See `docs/contributing/style-guide-gui.mdx`.
+- **Admin UI**: every `(app)` page uses `<AdminPageShell>` + `<AdminCard>`; prefer native `<Button>`, `<Badge>`, `<Input>`, `<Select>`, `<Textarea>` over raw `class="btn"`/`"badge"`/`"input"`; never mix component CSS classes; attributes go on the opening tag (stray attribute text renders as visible content); use `$props.id()` for DOM/ARIA IDs. See `docs/contributing/style-guide-gui.mdx`.
 - **Responsive**: every route works at mobile (<768px), tablet (768–1023px), desktop (≥1024px) — `sm/md/lg:` variants, `screen` store for JS, `overflow-x-auto` for wide tables, touch targets ≥40px.
 
 ## 2. Security (scanner-enforced, never bypass)
@@ -67,7 +67,7 @@ All public-facing documentation, marketing, and competitive comparisons MUST com
 ## 3. AI Agent Best Practices
 
 1. **Tree-shaking** — named exports only; avoid side-effect imports.
-2. **Svelte 5 runes** — `$state()` deep reactivity, `$derived()` for computed, `$effect()` for side effects (no state writes inside), `$state.raw`/`$state.snapshot`/`$state.eager` as appropriate; no legacy stores.
+2. **Svelte 5 runes** — `$state()` deep reactivity, `$derived()` for computed, `$effect()` for side effects (no state writes inside), `$state.raw`/`$state.snapshot`/`$state.eager` as appropriate; `$props.id()` for deterministic DOM/ARIA IDs across SSR and hydration (never `crypto.randomUUID()` in render/prop defaults); no legacy stores.
 3. **SvelteKit 3 (RC)** — `$app/env` (not `$app/environment`); `Handle`/`HandleServerError` from `@sveltejs/kit/hooks`; `handleError` reads `error.status`; `goto()` renames (`replace`, `refreshAll`, `reset: false`); `$app/state` runes; external redirects need `{ external: true }`; static imports for boot-time services (Rolldown cyclic-chunk caveat). Config: `vite.config.ts` uses `resolve.alias` with absolute paths (`path.resolve`) + matching `tsconfig.json` `paths`; `tsconfig.json` extends `$app/tsconfig` and lists `types: ["$app/types", ...]`.
 4. **SSR-first** — prioritize server rendering for critical paths; prefer SvelteKit Server Functions in `+page.server.ts` over standalone API routes; respect the `hooks.server.ts` pipeline and the `@stores/system` state machine.
 5. **Testing discipline (Vitest)** — never `bun:test`; `vi.mock` leaks need matching restore mocks; mock only boundaries (DB, network, FS, IdP) — never partial-stub `node:crypto`/`error-handling`; prefer real CMS core (`raise`, `page-guards`, `getAuthenticatedUser`); integration stays on the real SQLite stack.

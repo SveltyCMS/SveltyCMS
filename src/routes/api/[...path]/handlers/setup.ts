@@ -11,7 +11,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { AppError, isAppError } from "@utils/error-handling";
+import { AppError, isAppError, raise } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -86,7 +86,7 @@ export async function handleSetupRoutes(
         return request.method === "POST" ? handleReinitialize(event, cms) : notAllowed();
 
       default:
-        throw new AppError(`Setup action '${action}' not implemented`, 404);
+        raise(404, `Setup action '${action}' not implemented`);
     }
   } catch (err: any) {
     // Expected AppErrors (setup already complete, etc.) should not log noisy traces
@@ -94,7 +94,7 @@ export async function handleSetupRoutes(
       logger.error(`[SetupRoute Error] ${action}:`, err);
     }
     if (isAppError(err)) throw err;
-    throw new AppError(err.message || "Setup operation failed", 500);
+    raise(500, err.message || "Setup operation failed");
   }
 }
 

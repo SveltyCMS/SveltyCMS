@@ -21,7 +21,7 @@
 <script lang="ts">
   import { toast } from '@src/stores/toast.svelte';
   import { logger } from '@utils/logger';
-  import { clientJsonHeaders } from '@utils/security/client-csrf';
+  import { formatNumber, formatTime } from '@utils/format-date';
   import { fade, slide } from 'svelte/transition';
   import AdminCard from '@components/admin-card.svelte';
   import AdminPageShell from '@components/admin-page-shell.svelte';
@@ -314,7 +314,7 @@
   }
 
   function addLog(level: string, message: string) {
-    importLog = [...importLog, { time: new Date().toLocaleTimeString(), level, message }];
+    importLog = [...importLog, { time: formatTime(new Date()), level, message }];
   }
 
   // ============================================================================
@@ -455,7 +455,7 @@
                       {formatLabels[detectedFormat] || detectedFormat}
                     </span>
                     {#if estimatedCount > 0}
-                      <span class="ms-2 text-xs text-surface-500">~{estimatedCount.toLocaleString()} entries</span>
+                      <span class="ms-2 text-xs text-surface-500">~{formatNumber(estimatedCount)} entries</span>
                     {/if}
                   {/if}
                 </div>
@@ -585,7 +585,7 @@
           <div>
             <h3 class="text-xl font-semibold text-surface-900 dark:text-white">Validate Before Import</h3>
             <p class="mt-2 text-sm text-surface-500 max-w-md mx-auto">
-              Dry run validates {estimatedCount.toLocaleString()} entries without writing to the database.
+              Dry run validates {formatNumber(estimatedCount)} entries without writing to the database.
               {availableContentTypes.length > 0 ? ` Checking ${selectedContentTypes.size} content type(s).` : ''}
             </p>
           </div>
@@ -614,7 +614,7 @@
               {importResult ? 'Import Complete!' : 'Ready to Import'}
             </h3>
             <p class="mt-1 text-sm text-surface-500">
-              {estimatedCount.toLocaleString()} entries → {targetCollection || 'detecting…'}
+              {formatNumber(estimatedCount)} entries → {targetCollection || 'detecting…'}
             </p>
           </div>
 
@@ -626,7 +626,7 @@
             </div>
             <Progress value={importPercent} max={100} aria-label="Import progress" />
             {#if importCurrent > 0}
-              <p class="text-xs text-surface-500">{importCurrent.toLocaleString()} / {importTotal.toLocaleString()}</p>
+              <p class="text-xs text-surface-500">{formatNumber(importCurrent)} / {formatNumber(importTotal)}</p>
             {/if}
           </div>
 

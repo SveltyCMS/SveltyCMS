@@ -659,10 +659,7 @@ export async function handleOidcLoginCallback(
     throw new AppError("Auth adapter createSession unavailable", 500);
   }
   const userAgent = event.request.headers.get("user-agent") || undefined;
-  const ipAddress =
-    event.getClientAddress?.() ||
-    event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    undefined;
+  const ipAddress = getClientIp(event);
   // SESSION_DEVICE_POLICY: single-per-device (default) / single-per-user / allow-multiple
   const devicePolicy = String(
     getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
@@ -1351,6 +1348,14 @@ export async function handleUserSpecificRoutes(
     if (ids.length === 0 && body.action !== "invalid_action") {
       // Empty id list is a client error for mutating batch ops
       throw new AppError("userIds must be a non-empty array", 400, "INVALID_BATCH_IDS");
+    }
+    const MAX_USER_BATCH_SIZE = 100;
+    if (ids.length > MAX_USER_BATCH_SIZE) {
+      throw new AppError(
+        `Batch size exceeds maximum limit of ${MAX_USER_BATCH_SIZE}`,
+        400,
+        "INVALID_BATCH_SIZE",
+      );
     }
     const result = await cms.auth.batchAction(ids, body.action, { tenantId });
     if (!result.success) {

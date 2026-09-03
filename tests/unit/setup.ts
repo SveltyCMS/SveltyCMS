@@ -1339,6 +1339,7 @@ setGlobal("mockLogger", mockLogger);
 
 const mockAuditLog = {
   log: mock(() => Promise.resolve()),
+  logEvent: mock(() => Promise.resolve()),
   getLogs: mock(() => Promise.resolve([])),
 };
 const mockDbAdapter = {
@@ -1578,6 +1579,8 @@ moduleMock("@src/services/security/audit-service", () => {
     SUSPICIOUS_ACTIVITY: "suspicious_activity",
     WEBHOOK_TRIGGERED: "webhook_triggered",
     WORKFLOW_TRANSITION: "workflow_transition",
+    ROLE_MUTATED: "role_mutated",
+    ROLE_DELETED: "role_deleted",
   };
   return {
     auditLogService: mockAuditLog,

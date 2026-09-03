@@ -30,6 +30,7 @@ import { tick, untrack } from "svelte";
   import { logger } from "@utils/logger";
   import { clientJsonHeaders } from "@utils/security/client-csrf";
   import { getFieldName } from "@utils/schema/field-utils";
+  import { formatDateTime, formatDate } from "@utils/format-date";
 
   // Auth & Page data
   import { page } from "$app/state";
@@ -133,7 +134,7 @@ import { tick, untrack } from "svelte";
   const revisionOptions = $derived(
     revisions.map((revision: any) => ({
       value: revision._id,
-      label: `${new Date(revision.revision_at).toLocaleString()} by ${revision.revision_by.substring(0, 8)}...`,
+      label: `${formatDateTime(revision.revision_at)} by ${revision.revision_by.substring(0, 8)}...`,
     }))
   );
 
@@ -903,9 +904,7 @@ import { tick, untrack } from "svelte";
                     oldData={selectedRevision.data}
                     newData={currentCollectionValue}
                     fields={derivedFields}
-                    oldLabel="Revision ({new Date(
-                      selectedRevision.revision_at,
-                    ).toLocaleDateString()})"
+                    oldLabel={`Revision (${formatDate(selectedRevision.revision_at)})`}
                     newLabel="Current Content"
                     close={() => (isDiffModalOpen = false)}
                   />

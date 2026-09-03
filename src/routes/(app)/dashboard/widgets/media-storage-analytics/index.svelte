@@ -25,6 +25,7 @@ export const widgetMeta = {
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import { formatNumber } from '@utils/format-date';
 
 	interface MediaAnalytics {
 		total: {
@@ -102,7 +103,7 @@ export const widgetMeta = {
 					<div class="text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100">
 						{analytics.total.formattedSize}
 					</div>
-					<div class="text-xs text-surface-500">{analytics.total.files.toLocaleString()} files</div>
+					<div class="text-xs text-surface-500">{formatNumber(analytics.total.files)} files</div>
 				</div>
 				<div class="shrink-0 text-end">
 					<div class="text-xs font-semibold uppercase tracking-wide text-surface-500">Quota</div>
@@ -119,7 +120,7 @@ export const widgetMeta = {
 						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
 							{analytics.total.formattedSize}
 						</div>
-						<div class="mt-0.5 text-xs text-surface-500">{analytics.total.files.toLocaleString()} files</div>
+						<div class="mt-0.5 text-xs text-surface-500">{formatNumber(analytics.total.files)} files</div>
 					</div>
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
 						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">Quota Used</div>

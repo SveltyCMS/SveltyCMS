@@ -14,6 +14,7 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import { formatDateTime } from '@utils/format-date';
 	// Type guards for template and logic
 	function isToken(row: User | Token): row is Token {
 		return !!row && 'token' in row && typeof row.token === 'string';
@@ -508,15 +509,7 @@
 		if (value === null || value === undefined || value === '') {
 			return '-';
 		}
-		try {
-			const d = value instanceof Date ? value : new Date(String(value));
-			if (Number.isNaN(d.getTime())) {
-				return '-';
-			}
-			return d.toLocaleString();
-		} catch {
-			return '-';
-		}
+		return formatDateTime(value as any, undefined, undefined, '-');
 	}
 
 	// Toggle user blocked status - always show confirmation modal (like Multibutton)

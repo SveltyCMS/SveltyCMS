@@ -32,6 +32,7 @@ Part of the Three Pillars Architecture for widget system.
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { app, validationStore } from '@src/stores/store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
+	import { formatDate } from '@utils/format-date';
 	import type { FieldType } from './';
 
 	interface Props {
@@ -107,13 +108,13 @@ Part of the Three Pillars Architecture for widget system.
 
 				// Validate min date constraint
 				if (field.minDate && selectedDate < new Date(field.minDate as string | Date)) {
-					validationStore.setError(fieldName, `Date must be on or after ${new Date(field.minDate as string | Date).toLocaleDateString()}`);
+					validationStore.setError(fieldName, `Date must be on or after ${formatDate(field.minDate as string | Date)}`);
 					return;
 				}
 
 				// Validate max date constraint
 				if (field.maxDate && selectedDate > new Date(field.maxDate as string | Date)) {
-					validationStore.setError(fieldName, `Date must be on or before ${new Date(field.maxDate as string | Date).toLocaleDateString()}`);
+					validationStore.setError(fieldName, `Date must be on or before ${formatDate(field.maxDate as string | Date)}`);
 					return;
 				}
 

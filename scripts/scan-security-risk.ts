@@ -43,6 +43,7 @@
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import ts from "typescript";
 
 export interface RiskViolation {
   path: string;
@@ -240,6 +241,36 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
         message:
           "DOM XSS sink — use textContent or Svelte templating instead of raw HTML assignment",
         severity: "warning",
+      });
+    }
+
+    // ── IP spoofing (error): raw x-forwarded-for header lookup in server code
+    if (isServerFile && !relPath.includes("hook-utils.ts") && !relPath.includes("threat-scan.ts")) {
+      if (
+        /(?:headers\.(?:get|has)\s*\(\s*["']x-forwarded-for["']|headers\[["']x-forwarded-for["']\]|getHeader\([^)]*["']x-forwarded-for["']\))/i.test(
+          line,
+        )
+      ) {
+        violations.push({
+          path: relPath,
+          line: i + 1,
+          category: "ip-spoofing-x-forwarded-for",
+          message:
+            "Raw x-forwarded-for header lookup detected — use getClientIp(event) from @utils/hook-utils to prevent IP spoofing bypasses",
+          severity: "error",
+        });
+      }
+    }
+
+    // ── Blocking Redis keys() command (error)
+    if (/\bredis\.keys\s*\(/.test(line)) {
+      violations.push({
+        path: relPath,
+        line: i + 1,
+        category: "blocking-redis-keys",
+        message:
+          "redis.keys() blocks the single-threaded Redis event loop — use scanIterator() or bounded scanning",
+        severity: "error",
       });
     }
   }
@@ -685,6 +716,54 @@ export function scanSvelteKitRisk(relPath: string, content: string): RiskViolati
   return violations;
 }
 
+/**
+ * Context-aware AST security analysis using the TypeScript compiler API.
+ * Catches complex patterns that line-based regex cannot reliably analyze.
+ */
+export function scanAstRisk(relPath: string, content: string): RiskViolation[] {
+  const violations: RiskViolation[] = [];
+  const normPath = relPath.replace(/\\/g, "/");
+  const isApiHandler = normPath.includes("routes/api/");
+  if (!isApiHandler || !normPath.endsWith(".ts")) return violations;
+
+  let sourceFile: ts.SourceFile;
+  try {
+    sourceFile = ts.createSourceFile(relPath, content, ts.ScriptTarget.Latest, true);
+  } catch {
+    return violations;
+  }
+
+  function visit(node: ts.Node) {
+    // ── Rule: Unbounded Batch Action Blocks
+    // Detects `if (action === "batch")` or `if (method === "batch")` in API handlers
+    // and asserts that a batch size ceiling (MAX_.*BATCH or .length > N) is enforced.
+    if (ts.isIfStatement(node)) {
+      const condText = node.expression.getText(sourceFile);
+      if (/action\s*===?\s*["']batch["']|method\s*===?\s*["']batch["']/.test(condText)) {
+        const blockText = node.thenStatement.getText(sourceFile);
+        const hasUpperLimit =
+          /\.length\s*>\s*\d+|\.length\s*>=\s*\d+|MAX_.*BATCH|INVALID_BATCH_SIZE/.test(blockText);
+        if (!hasUpperLimit) {
+          const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+          violations.push({
+            path: relPath,
+            line: line + 1,
+            category: "batch-size-unbounded",
+            message:
+              "Batch action block lacks an upper-bound array length check (e.g. ids.length > MAX_BATCH_SIZE) — vulnerable to payload exhaustion DoS",
+            severity: "error",
+          });
+        }
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return violations;
+}
+
 function collectFiles(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
@@ -712,6 +791,7 @@ function main() {
     violations.push(...scanDbRisk(rel, content));
     violations.push(...scanGlobalRisk(rel, content));
     violations.push(...scanSvelteKitRisk(rel, content));
+    violations.push(...scanAstRisk(rel, content));
   }
 
   const errors = violations.filter((v) => v.severity === "error");

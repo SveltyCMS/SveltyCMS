@@ -14,7 +14,7 @@
  * - Background job dispatching for large backups/restores
  */
 
-import { AppError } from "@utils/error-handling";
+import { raise } from "@utils/error-handling";
 import { type RequestEvent } from "@sveltejs/kit";
 import { successResponse, errorResponse } from "./base";
 import type { DatabaseId } from "@src/content/types";
@@ -162,8 +162,8 @@ export async function handleBackupRoutes(
     return successResponse(event, result);
   }
 
-  throw new AppError(
-    `Backup action "${action || "(none)"}" with method ${request.method} is not implemented`,
+  raise(
     404,
+    `Backup action "${action || "(none)"}" with method ${request.method} is not implemented`,
   );
 }

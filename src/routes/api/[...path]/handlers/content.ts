@@ -12,7 +12,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { AppError } from "@utils/error-handling";
+import { AppError, raise } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -87,11 +87,11 @@ export async function handleContentRoutes(
       return handleGraphqlRoutes(event);
     }
 
-    throw new AppError(`Content endpoint /api/${segments.join("/")} not implemented`, 404);
+    raise(404, `Content endpoint /api/${segments.join("/")} not implemented`);
   } catch (err: any) {
     logger.error(`[ContentRoute Error] ${segments.join("/")}:`, err);
     if (err instanceof AppError) throw err;
-    throw new AppError(err.message || "Content operation failed", 500);
+    raise(500, err.message || "Content operation failed");
   }
 }
 

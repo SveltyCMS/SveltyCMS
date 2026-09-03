@@ -92,6 +92,8 @@ declare global {
       permissions: string[];
       roles: Role[];
       session_id?: DatabaseId;
+      /** Authentication Method References for the current session (e.g. ["pwd","mfa"]). */
+      sessionAmr?: string[];
       tenantId?: DatabaseId | null;
       theme: Theme | null;
       user: User | null;

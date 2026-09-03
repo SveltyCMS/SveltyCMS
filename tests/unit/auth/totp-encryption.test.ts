@@ -11,13 +11,17 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 const ENCRYPTION_KEY = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4";
 const OLD_ENV = { ...process.env };
 
+import { resetTotpEncryptionKeyCache } from "@src/databases/auth/totp";
+
 describe("TOTP Secret Encryption", () => {
   beforeEach(() => {
     process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
+    resetTotpEncryptionKeyCache();
   });
 
   afterEach(() => {
     process.env = { ...OLD_ENV };
+    resetTotpEncryptionKeyCache();
   });
 
   it("should encrypt a TOTP secret and produce a non-plaintext string", async () => {

@@ -10,6 +10,7 @@ import type { AutomationFlow } from "@src/services/background/automation/types";
 import { AUTOMATION_EVENTS } from "@src/services/background/automation/types";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { showConfirm } from "@utils/modal.svelte";
+import { formatDate } from "@utils/format-date";
 import { onMount } from "svelte";
 import { slide } from "svelte/transition";
 	import Badge from '@components/ui/badge.svelte';
@@ -177,7 +178,7 @@ function timeAgo(dateStr: string | undefined) {
 	if (diff < 60) return "Just now";
 	if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
 	if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-	return date.toLocaleDateString();
+	return formatDate(date);
 }
 
 onMount(loadFlows);

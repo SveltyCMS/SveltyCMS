@@ -16,6 +16,7 @@ export const widgetMeta = {
 <script lang="ts">
 	import { getClientLicenseStatus } from '@utils/client-license-cache';
 	import type { LicenseStatus } from '@utils/license-manager';
+	import { formatDateTime, formatNumber } from '@utils/format-date';
 
 	let licenseStatus = $state<LicenseStatus | null>(null);
 
@@ -188,7 +189,7 @@ export const widgetMeta = {
 							</div>
 
 							{#if errorHistory.length > 1}
-								<div class="w-[110px] h-[32px] overflow-visible pb-1 pe-1 shrink-0">
+								<div class="w-27.5 h-8 overflow-visible pb-1 pe-1 shrink-0">
 									<svg viewBox="0 0 110 24" class="w-full h-full overflow-visible">
 										<path
 											d={linePath}
@@ -235,7 +236,7 @@ export const widgetMeta = {
 							<h4 class="text-xs font-semibold text-surface-500 uppercase tracking-wider px-1">Requests</h4>
 							<div class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800">
 								<span class="text-surface-600 dark:text-surface-400">Total</span>
-								<span class="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100">{metrics.requests.total.toLocaleString()}</span>
+								<span class="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(metrics.requests.total)}</span>
 							</div>
 							<div class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800">
 								<span class="text-surface-600 dark:text-surface-400">Errors</span>
@@ -274,7 +275,7 @@ export const widgetMeta = {
 					{#if metrics.lastReset}
 						<div class="flex justify-between items-center text-[10px] text-surface-400 dark:text-surface-500 pt-2 border-t border-gray-150 dark:border-gray-850 px-1">
 							<span>Metrics tracked since</span>
-							<span class="font-mono font-medium">{new Date(metrics.lastReset).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+							<span class="font-mono font-medium">{formatDateTime(metrics.lastReset, { dateStyle: 'short', timeStyle: 'short' })}</span>
 						</div>
 					{/if}
 				{/if}

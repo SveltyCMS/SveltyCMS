@@ -41,7 +41,8 @@ interface WsSocket {
 // reconnect cleanly instead of hanging until the adapter force-kicks them.
 const activeConnections = new Set<WsSocket>();
 
-export function open(ws: WsSocket) {
+export function open(ws: WsSocket, clientIp?: string) {
+  if (clientIp) (ws as any).clientIp = clientIp;
   activeConnections.add(ws);
 }
 
@@ -80,13 +81,39 @@ export interface WsUpgradeContext {
   cookies?: { get(name: string): string | undefined };
   request?: Request;
   headers?: Headers | Record<string, string | string[] | undefined>;
-  req?: { headers?: Record<string, string | string[] | undefined> };
+  req?: {
+    headers?: Record<string, string | string[] | undefined>;
+    socket?: { remoteAddress?: string };
+  };
+  socket?: { remoteAddress?: string };
+  getClientAddress?: () => string;
 }
 
 interface WsAuthResult {
   profile: User;
   tenantId: string;
   connectedAt: number;
+  clientIp?: string;
+}
+
+/**
+ * Safely resolves verified peer address without trusting spoofable X-Forwarded-For headers.
+ * Never defaults to "127.0.0.1" (which would grant unauthorized rate limit exemption).
+ */
+function getWsClientIp(ctx: WsUpgradeContext): string {
+  if (typeof ctx.getClientAddress === "function") {
+    try {
+      const ip = ctx.getClientAddress();
+      if (ip) return ip;
+    } catch {
+      /* ignore */
+    }
+  }
+  const sock = ctx.socket || (ctx.req as any)?.socket || (ctx.request as any)?.socket;
+  if (sock?.remoteAddress) {
+    return sock.remoteAddress;
+  }
+  return "unknown";
 }
 
 // ==================== HELPERS ====================
@@ -194,7 +221,7 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
     if (sessionId) {
       const resolved = await resolveSessionForWebSocket(sessionId, {
         tenantId: tenantId as DatabaseId,
-        clientIp: getHeader(ctx, "x-forwarded-for")?.split(",")[0]?.trim() || null,
+        clientIp: getWsClientIp(ctx),
         userAgent: getHeader(ctx, "user-agent") || null,
       });
       if (resolved.ok) {
@@ -216,7 +243,8 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
     }
 
     // ==================== WEBSOCKET RATE LIMITING ====================
-    const clientIp = getHeader(ctx, "x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
+    // 🛡️ Resolve peer address via transport only — never trust raw X-Forwarded-For headers.
+    const clientIp = getWsClientIp(ctx);
     const wsRateLimitPrefix =
       process.env.RATE_LIMITER_WEBSOCKETS_REDIS_PREFIX || "svelty:ws:ratelimit:";
     const rawMax =
@@ -225,7 +253,12 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
       "100";
     const maxConnsPerIp = parseInt(String(rawMax), 10);
 
-    if (!isAuthorizedTest && clientIp !== "127.0.0.1" && clientIp !== "localhost") {
+    const isLocalExempt =
+      isAuthorizedTest ||
+      (process.env.NODE_ENV !== "production" &&
+        (clientIp === "127.0.0.1" || clientIp === "::1" || clientIp === "localhost"));
+
+    if (!isLocalExempt) {
       const activeFromIp = Array.from(activeConnections).filter(
         (ws) => (ws as any).clientIp === clientIp,
       ).length;
@@ -261,6 +294,7 @@ export async function upgrade(ctx: WsUpgradeContext): Promise<WsAuthResult | fal
       profile,
       tenantId: tenantId || "default",
       connectedAt: Date.now(),
+      clientIp,
     };
   } catch (err) {
     logger.error("[WS Upgrade] Unexpected error during handshake", err);

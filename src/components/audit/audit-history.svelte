@@ -14,6 +14,7 @@
 	import { queryAuditLogs, verifyAuditChain } from '@src/routes/(app)/audit-history.remote';
 	import { collectionValue } from '@src/stores/collection-store.svelte';
 	import Button from '@components/ui/button.svelte';
+	import { formatDateTime } from '@utils/format-date';
 
 	interface AuditLogEntry {
 		_id?: string;
@@ -114,17 +115,18 @@
 	/** Format a timestamp for display */
 	function formatTimestamp(ts: string | undefined): string {
 		if (!ts) return '-';
-		try {
-			return new Date(ts).toLocaleString(undefined, {
+		return formatDateTime(
+			ts,
+			{
 				year: 'numeric',
 				month: 'short',
 				day: '2-digit',
 				hour: '2-digit',
 				minute: '2-digit',
-			});
-		} catch {
-			return ts;
-		}
+			},
+			undefined,
+			ts,
+		);
 	}
 
 	/** Truncate long strings for display */

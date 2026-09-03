@@ -70,6 +70,7 @@ export type {
 import {
   hashPassword as cryptoHashPassword,
   verifyPassword as cryptoVerifyPassword,
+  verifyDummyPassword as cryptoVerifyDummyPassword,
 } from "@utils/security/crypto";
 // Import for internal use
 import { SESSION_COOKIE_NAME, getSessionCookieName, sessionTtlMs } from "./constants";
@@ -373,6 +374,7 @@ export class Auth {
       userAgent?: string;
       deviceId?: string;
       ipAddress?: string;
+      amr?: string[];
     },
     options?: BaseQueryOptions,
   ): Promise<Session> {
@@ -460,6 +462,31 @@ export class Auth {
     }
 
     return session;
+  }
+
+  /**
+   * Updates the Authentication Method References (AMR) on an active session.
+   * Invalidates cached session contexts to immediately reflect elevation (e.g. trusted_device vs mfa).
+   */
+  async updateSessionAmr(
+    sessionId: DatabaseId,
+    amr: string[],
+    options?: BaseQueryOptions,
+  ): Promise<void> {
+    const rawSession = await this.db.auth.getSessionTokenData(sessionId);
+    if (rawSession?.success && rawSession.data) {
+      const sessionData = rawSession.data as any;
+      sessionData.amr = amr;
+      if (this.db.auth.updateSession) {
+        await this.db.auth.updateSession(sessionId, { amr }, options).catch(() => {});
+      }
+      const user = await this.getUserById(sessionData.user_id, options);
+      if (user) {
+        await this.sessionStore.set(sessionId, user, sessionData.expires);
+      }
+      const { invalidateSessionCache } = await import("@src/hooks/handle-authentication");
+      invalidateSessionCache(String(sessionId), options?.tenantId ?? sessionData.tenantId ?? null);
+    }
   }
 
   /**
@@ -807,7 +834,12 @@ export class Auth {
     password: string,
     tenantId?: DatabaseId | null,
     options?: { bypassTenantCheck?: boolean },
-    sessionMeta?: { userAgent?: string; deviceId?: string; ipAddress?: string },
+    sessionMeta?: {
+      userAgent?: string;
+      deviceId?: string;
+      ipAddress?: string;
+      amr?: string[];
+    },
   ): Promise<{ user: User; sessionId: DatabaseId } | null> {
     try {
       const user = await this.getUserByEmail({ email, tenantId }, options);
@@ -908,6 +940,7 @@ export class Auth {
           userAgent: sessionMeta?.userAgent,
           deviceId: sessionMeta?.deviceId,
           ipAddress: sessionMeta?.ipAddress,
+          amr: sessionMeta?.amr ?? ["pwd"],
         },
         options,
       );
@@ -1244,4 +1277,11 @@ export async function hashPassword(password: string): Promise<string> {
  */
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
   return cryptoVerifyPassword(hash, password);
+}
+
+/**
+ * SECURITY: Timing-safe dummy password verification to neutralize user enumeration (CWE-208)
+ */
+export async function verifyDummyPassword(password: string): Promise<boolean> {
+  return cryptoVerifyDummyPassword(password);
 }

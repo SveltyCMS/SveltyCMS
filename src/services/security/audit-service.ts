@@ -50,6 +50,8 @@ export enum AuditEventType {
   API_KEY_REVOKED = "api_key_revoked",
   MAGIC_LINK_REQUESTED = "magic_link_requested",
   MAGIC_LINK_SUCCESS = "magic_link_success",
+  ROLE_MUTATED = "role_mutated",
+  ROLE_DELETED = "role_deleted",
 }
 
 export interface AuditLogEntry extends BaseEntity {

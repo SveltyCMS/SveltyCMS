@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { formatDateTime } from "@utils/format-date";
 
 // ---------------------------------------------------------------------------
 // Replicated inline functions from admin-area.svelte
@@ -56,15 +57,7 @@ function formatDate(value: unknown): string {
   if (value === null || value === undefined || value === "") {
     return "-";
   }
-  try {
-    const d = value instanceof Date ? value : new Date(String(value));
-    if (Number.isNaN(d.getTime())) {
-      return "-";
-    }
-    return d.toLocaleString();
-  } catch {
-    return "-";
-  }
+  return formatDateTime(value as any, undefined, undefined, "-");
 }
 
 // ---------------------------------------------------------------------------

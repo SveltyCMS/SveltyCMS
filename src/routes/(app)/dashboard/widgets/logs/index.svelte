@@ -41,6 +41,7 @@ export const widgetMeta = {
 import type { WidgetSize } from '@src/content/types';
 import BaseWidget from '../../base-widget.svelte';
 import Select from '@components/ui/select.svelte';
+import { formatTime } from '@utils/format-date';
 
 interface LogEntry {
 		timestamp: string;
@@ -108,7 +109,7 @@ interface LogEntry {
 	}
 
 	function fmtTime(iso: string): string {
-		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+		return formatTime(iso, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 	}
 
 	function filterLogs(logs: LogEntry[]): LogEntry[] {

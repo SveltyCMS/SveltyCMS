@@ -39,6 +39,7 @@ export const widgetMeta = {
 
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import { formatTime } from '@utils/format-date';
 
 	interface OnlineUser {
 		id: string;
@@ -268,7 +269,7 @@ export const widgetMeta = {
 							<!-- Time -->
 							<div class="shrink-0 text-end text-[11px] font-medium text-surface-400 dark:text-surface-500">
 								{user.onlineTime
-									? new Date(user.onlineTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+									? formatTime(user.onlineTime, { hour: '2-digit', minute: '2-digit' })
 									: '—'}
 							</div>
 						</div>

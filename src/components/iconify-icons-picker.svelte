@@ -34,6 +34,7 @@ Advanced icon picker with search, pagination, and favorites.
 	import { onDestroy, onMount } from 'svelte';
 	import { quintOut } from 'svelte/easing';
 	import { fade, scale, slide } from 'svelte/transition';
+	import { formatNumber } from '@utils/format-date';
 
 	// Constants
 	const DEBOUNCE_MS = 300;
@@ -723,7 +724,7 @@ Advanced icon picker with search, pagination, and favorites.
 							? [{ value: DEFAULT_LIBRARY, label: 'Loading libraries...' }]
 							: sortedLibraries.map(([prefix, library]) => ({
 									value: prefix,
-									label: `${library.name} (${prefix}) — ${library.total.toLocaleString()} icons`
+									label: `${library.name} (${prefix}) — ${formatNumber(library.total)} icons`
 								}))}
 					/>
 				</div>

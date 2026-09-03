@@ -18,7 +18,7 @@
 const planStore = new Map<string, { plan: any; createdAt: number }>();
 const PLAN_STORE_TTL = 30 * 60 * 1000; // 30 minutes
 
-import { AppError } from "@utils/error-handling";
+import { raise } from "@utils/error-handling";
 import { type RequestEvent } from "@sveltejs/kit";
 import { successResponse } from "./base";
 import type { DatabaseId } from "@src/content/types";
@@ -50,9 +50,9 @@ export async function handleConfigRoutes(
   if (!action && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
     if (body?.action !== "import") {
-      throw new AppError(
-        "Unknown legacy config_sync action. Use POST /api/config/plan followed by POST /api/config/apply.",
+      raise(
         400,
+        "Unknown legacy config_sync action. Use POST /api/config/plan followed by POST /api/config/apply.",
         "DEPRECATED_ACTION",
       );
     }
@@ -204,32 +204,24 @@ export async function handleConfigRoutes(
     const body = await request.json().catch(() => ({}));
 
     if (!body.planId) {
-      throw new AppError("planId is required to apply a configuration plan", 400);
+      raise(400, "planId is required to apply a configuration plan", "BAD_REQUEST");
     }
 
     // Verify plan exists and hasn't expired
     const stored = planStore.get(body.planId);
     if (!stored) {
-      throw new AppError(
-        "Plan not found or expired. Create a new plan before applying.",
-        400,
-        "PLAN_NOT_FOUND",
-      );
+      raise(400, "Plan not found or expired. Create a new plan before applying.", "PLAN_NOT_FOUND");
     }
     if (Date.now() - stored.createdAt > PLAN_STORE_TTL) {
       planStore.delete(body.planId);
-      throw new AppError(
-        "Plan has expired. Create a new plan before applying.",
-        400,
-        "PLAN_EXPIRED",
-      );
+      raise(400, "Plan has expired. Create a new plan before applying.", "PLAN_EXPIRED");
     }
 
     // Verify destructive operations are confirmed
     if (stored.plan.requiresConfirmation && !body.confirmed) {
-      throw new AppError(
-        "This plan contains destructive operations. Set confirmed: true to proceed.",
+      raise(
         400,
+        "This plan contains destructive operations. Set confirmed: true to proceed.",
         "CONFIRMATION_REQUIRED",
       );
     }
@@ -241,9 +233,9 @@ export async function handleConfigRoutes(
     if (currentStatus.status === "in_sync" && stored.plan.operations.length > 0) {
       // Target changed since plan was created — warn but allow if confirmed
       if (!body.confirmed) {
-        throw new AppError(
-          "Configuration has changed since the plan was created. Set confirmed: true to proceed.",
+        raise(
           400,
+          "Configuration has changed since the plan was created. Set confirmed: true to proceed.",
           "TARGET_CHANGED",
         );
       }
@@ -265,14 +257,12 @@ export async function handleConfigRoutes(
   // ── GET /api/config/history ────────────────────────────────────────────
   if (action === "history" && request.method === "GET") {
     // TODO: Persist and retrieve operation history from audit logs
-    return successResponse(event, {
-      history: [],
-      message: "Operation history is not yet persisted.",
-    });
+    raise(501, "Operation history is not yet persisted.", "NOT_IMPLEMENTED");
   }
 
-  throw new AppError(
-    `Config action "${action || "(none)"}" with method ${request.method} is not implemented`,
+  raise(
     404,
+    `Config action "${action || "(none)"}" with method ${request.method} is not implemented`,
+    "NOT_FOUND",
   );
 }

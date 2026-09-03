@@ -6,7 +6,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { scanDbRisk, scanGlobalRisk, scanSvelteKitRisk } from "../../../scripts/scan-security-risk";
+import {
+  scanDbRisk,
+  scanGlobalRisk,
+  scanSvelteKitRisk,
+  scanAstRisk,
+} from "../../../scripts/scan-security-risk";
 
 describe("scanDbRisk — SQL value interpolation (SQLi class)", () => {
   it("flags interpolated values inside quoted SQL strings", () => {
@@ -473,5 +478,67 @@ describe("scanGlobalRisk — code fragmentation detection", () => {
     const fixed = "const node = { path: getSchemaPath(schema) };";
     const violations = scanGlobalRisk("services/custom-tree.ts", fixed);
     expect(violations.some((v) => v.category === "collection-path-fragmentation")).toBe(false);
+  });
+
+  it("flags raw x-forwarded-for header lookup in server code", () => {
+    const vulnerable = 'const clientIp = event.request.headers.get("x-forwarded-for");';
+    const violations = scanGlobalRisk("routes/api/[...path]/handlers/custom.ts", vulnerable);
+    expect(
+      violations.some(
+        (v) => v.category === "ip-spoofing-x-forwarded-for" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes canonical getClientIp calls", () => {
+    const fixed = "const clientIp = getClientIp(event);";
+    const violations = scanGlobalRisk("routes/api/[...path]/handlers/custom.ts", fixed);
+    expect(violations.some((v) => v.category === "ip-spoofing-x-forwarded-for")).toBe(false);
+  });
+
+  it("flags blocking redis.keys() calls", () => {
+    const vulnerable = 'const keys = await redis.keys("svelty:sec:*");';
+    const violations = scanGlobalRisk("routes/api/[...path]/handlers/custom.ts", vulnerable);
+    expect(
+      violations.some((v) => v.category === "blocking-redis-keys" && v.severity === "error"),
+    ).toBe(true);
+  });
+
+  it("passes scanIterator usage", () => {
+    const fixed = 'for await (const key of redis.scanIterator({ MATCH: "svelty:sec:*" })) {}';
+    const violations = scanGlobalRisk("routes/api/[...path]/handlers/custom.ts", fixed);
+    expect(violations.some((v) => v.category === "blocking-redis-keys")).toBe(false);
+  });
+});
+
+describe("scanAstRisk — AST batch size upper bound check", () => {
+  it("flags unbounded batch action block in API handler", () => {
+    const vulnerable = [
+      "export async function handle(event) {",
+      '  if (action === "batch") {',
+      "    for (const id of body.ids) {",
+      "      await deleteItem(id);",
+      "    }",
+      "  }",
+      "}",
+    ].join("\n");
+    const violations = scanAstRisk("src/routes/api/custom/handler.ts", vulnerable);
+    expect(
+      violations.some((v) => v.category === "batch-size-unbounded" && v.severity === "error"),
+    ).toBe(true);
+  });
+
+  it("passes batch action block with upper bound check", () => {
+    const fixed = [
+      "export async function handle(event) {",
+      '  if (action === "batch") {',
+      "    const MAX_BATCH_SIZE = 100;",
+      '    if (ids.length > MAX_BATCH_SIZE) throw new AppError("Too large", 400);',
+      "    await deleteMany(ids);",
+      "  }",
+      "}",
+    ].join("\n");
+    const violations = scanAstRisk("src/routes/api/custom/handler.ts", fixed);
+    expect(violations.some((v) => v.category === "batch-size-unbounded")).toBe(false);
   });
 });

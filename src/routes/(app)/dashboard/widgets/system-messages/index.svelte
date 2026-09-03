@@ -27,6 +27,7 @@ export const widgetMeta = {
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import { formatDate } from '@utils/format-date';
 
 	interface SysMessage {
 		id?: string;
@@ -105,7 +106,7 @@ export const widgetMeta = {
 		if (diffMin < 1) return 'Just now';
 		if (diffMin < 60) return `${diffMin}m ago`;
 		if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h ago`;
-		return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+		return formatDate(d, { month: 'short', day: 'numeric' });
 	}
 
 	function hasLink(text: string): boolean {

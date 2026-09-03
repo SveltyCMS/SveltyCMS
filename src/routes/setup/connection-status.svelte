@@ -9,6 +9,7 @@ Features:
 -->
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import { formatNumber } from '@utils/format-date';
 	import {
 		setup_connection_authenticated,
 		setup_connection_connecting,
@@ -255,7 +256,7 @@ Features:
 							{/if}
 							{#if result.stats.objects !== undefined}
 								<div class="flex justify-between">
-									<span>{setup_connection_stats_objects({ count: result.stats.objects.toLocaleString() })}</span>
+									<span>{setup_connection_stats_objects({ count: formatNumber(result.stats.objects) })}</span>
 								</div>
 							{/if}
 							{#if result.stats.dataSize !== undefined}
