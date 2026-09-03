@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:link-variant"
 author: "SveltyCMS Team"
 created: "2025-10-01"
-updated: "2026-03-27"
+updated: "2026-09-01"
 tags:
   - "widget"
   - "slug"
@@ -21,6 +21,7 @@ The `Slug` widget is designed for creating URL-safe identifiers (slugs). It auto
 ## Features
 
 - **Automatic Normalization**: Converts input to lowercase and removes non-URL-safe characters.
+- **Dedicated editor UI**: `input.svelte` live-slugifies as you type, auto-fills from `targetField` (usually `title`) until the user edits, and offers a Generate action. Collection lists use `display.svelte` for a compact `/path` preview.
 - **Uniqueness Control**: Supports global or tenant-scoped uniqueness.
 - **Multi-Tenancy**: Allows the same slug to exist across different tenants when scoped.
 - **Validation**: Enforces URL-safe regex patterns (`a-z0-9-_`).

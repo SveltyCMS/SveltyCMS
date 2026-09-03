@@ -113,10 +113,10 @@ One-click activation sets the active admin theme. Dismissible via "Skip".
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 	        {#each presets as preset (preset.id)}
 	          <div
-	            class="group relative flex flex-col items-center gap-3 rounded-lg border-2 border-surface-500/30 dark:border-surface-500/40 p-5 text-start transition-all duration-200 hover:border-tertiary-500 dark:hover:border-primary-500 hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-surface-900/50"
+			class="group relative flex flex-col items-center gap-3 rounded-lg border-2 border-[var(--admin-border-default)] p-5 text-start transition-all duration-200 hover:border-tertiary-500 dark:hover:border-primary-500 bg-[var(--admin-bg-card)]"
 	          >
 	            <!-- Preset accent dot -->
-	            <div class="h-3 w-3 rounded-full {preset.accent} ring-2 {preset.ring} ring-offset-2 ring-offset-white dark:ring-offset-surface-900"></div>
+	            <div class="h-3 w-3 rounded-full {preset.accent} ring-2 {preset.ring} ring-offset-2 ring-offset-[var(--admin-bg-card)]"></div>
 
 	            <iconify-icon icon={preset.icon} width="28" class="text-tertiary-500 dark:text-primary-500 group-hover:scale-110 transition-transform"></iconify-icon>
 

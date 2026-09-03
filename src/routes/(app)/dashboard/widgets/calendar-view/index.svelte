@@ -53,8 +53,8 @@
 	}
 </script>
 
-<div class="card p-5 bg-white dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4">
-	<div class="flex items-center justify-between border-b border-surface-100 dark:border-surface-500/40 pb-3">
+<div class="card p-5 bg-[var(--admin-bg-card)] border border-surface-500/30 dark:border-surface-500/40 rounded-2xl shadow-sm space-y-4">
+	<div class="flex items-center justify-between border-b border-[var(--admin-border-subtle)] pb-3">
 		<div class="flex items-center gap-2">
 			<iconify-icon icon="mdi:calendar-month-outline" width="20" class="text-warning-500"></iconify-icon>
 			<h3 class="font-bold text-sm text-surface-900 dark:text-white">Admin Calendar View</h3>

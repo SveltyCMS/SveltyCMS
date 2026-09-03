@@ -256,7 +256,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	}
 </script>
 
-<div class="modal-example-form space-y-4 text-black dark:text-white p-4">
+<div class="modal-example-form space-y-4 text-[var(--admin-text-body)] p-4">
 	{#if createdToken}
 		<div class="card p-6 space-y-4 preset-tonal-success border border-success-500/30 shadow-lg">
 			<h3 class="text-xl font-bold text-success-600 dark:text-success-400">Invitation Token Created</h3>
@@ -317,9 +317,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 								<Button
 									variant="outline"
 									type="button"
-									class="chip {tokenForm.data.role === r._id
+									class="{tokenForm.data.role === r._id
 										? 'preset-filled-tertiary-500 dark:preset-filled-primary-500'
-										: 'bg-surface-200 dark:bg-surface-500/10 text-black dark:text-black opacity-60'}"
+										: 'bg-surface-500/10 text-[var(--admin-text-muted)] opacity-60'}"
 									onclick={() => (tokenForm.data.role = r._id)}
 								>
 									{#if tokenForm.data.role === r._id}
@@ -329,7 +329,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 								</Button>
 							{/each}
 						{:else}
-							<div class="text-sm text-gray-500 italic">No roles available.</div>
+							<div class="text-sm text-[var(--admin-text-muted)] italic">No roles available.</div>
 						{/if}
 					</div>
 				</div>
@@ -367,7 +367,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				</div>
 
 				<!-- Save -->
-				<Button variant="tertiary" type="submit" form="token-form" class="dark: px-10">
+				<Button variant="tertiary" type="submit" form="token-form" class="px-10">
 					{tokenForm.submitting ? '...' : button_save()}
 				</Button>
 			</footer>

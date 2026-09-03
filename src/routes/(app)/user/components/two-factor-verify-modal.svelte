@@ -3,11 +3,7 @@
 @component
 **Two-Factor Authentication Verification Modal**
 
-This modal			class="input text-center font-mono tracking-wider"
-			class:text-2xl={!useBackupCode}
-			class:text-lg={useBackupCode}
-			maxlength={useBackupCode ? 10 : 6}
-			autocomplete="off"les verification of 2FA codes for various operations like disabling 2FA.
+This modal handles verification of 2FA codes for various operations like disabling 2FA.
 
 @example
 <TwoFactorVerifyModal title="Verify 2FA" description="Enter your code..." />
@@ -184,7 +180,7 @@ This modal			class="input text-center font-mono tracking-wider"
 		<Button variant="tertiary"
 			onclick={submitCode}
 			disabled={!code.trim() || isVerifying || (!useBackupCode && code.length !== 6) || (useBackupCode && code.length < 8)}
-		 class="dark: flex-1">
+		 class="flex-1">
 			{#if isVerifying}
 				<iconify-icon icon="mdi:loading" width="20" class="me-2 animate-spin"></iconify-icon>
 				{twofa_verifying()}

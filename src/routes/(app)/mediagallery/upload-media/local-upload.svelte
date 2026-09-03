@@ -473,7 +473,7 @@ async function uploadLocalFiles() {
 		<!-- Actions Footer -->
 		<div class="flex items-center justify-between border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
 			<Button variant="outline" type="button" onclick={handleCancel}>Cancel</Button>
-			<Button variant="tertiary" type="button" onclick={uploadLocalFiles} disabled={isUploading} class="dark:">
+			<Button variant="tertiary" type="button" onclick={uploadLocalFiles} disabled={isUploading}>
 				{#if isUploading}
 					<iconify-icon icon="eos-icons:loading" width={24} class="animate-spin"></iconify-icon>
 					<span class="truncate">Uploading... {uploadProgress}%</span>

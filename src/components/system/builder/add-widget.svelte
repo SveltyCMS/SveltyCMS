@@ -92,8 +92,8 @@
 		<div class="flex-col items-center justify-center overflow-auto">
 			<p class="text-wxl mb-3 text-center">Define your <span class="text-tertiary-500 dark:text-primary-500">{selected_widget}</span></p>
 			<div class="w-100 mx-2 mb-2 flex justify-between gap-2">
-				<Button variant="tertiary" onclick={handleSave} class="dark:">Save {selected_widget} Widget</Button>
-				<Button variant="outline" onclick={handleWidgetCancel} class="dark:">Cancel</Button>
+				<Button variant="tertiary" onclick={handleSave}>Save {selected_widget} Widget</Button>
+				<Button variant="outline" onclick={handleWidgetCancel}>Cancel</Button>
 			</div>
 
 			{#if guiSchema}

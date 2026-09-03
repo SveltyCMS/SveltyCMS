@@ -49,7 +49,6 @@
 		<Button
 			variant="tertiary"
 			onclick={onConfirm}
-			class="dark:"
 			data-testid="modal-confirm"
 		>
 			{buttonTextConfirm}

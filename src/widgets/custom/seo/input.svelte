@@ -15,6 +15,7 @@ import { logger } from "@utils/logger";
 
 	import { tokenTarget } from '@src/services/token/token-target';
 	import type { SeoWidgetData } from '.';
+	import Button from '@components/ui/button.svelte';
 	import Tabs from '@components/ui/tabs';
 	import SeoAnalysisPanel from './components/seo-analysis-panel.svelte';
 	import SeoField from './components/seo-field.svelte';
@@ -24,11 +25,22 @@ import { logger } from "@utils/logger";
 	// Logic
 	import { analyzeSeo } from './seo-analyzer';
 	import { collections } from '@src/stores/collection-store.svelte';
+	import type { FieldInstance } from '@src/content/types';
+	import type { SeoAnalysisResult } from './seo-types';
+	import {
+		buildPreviewUrl,
+		isSeoPayload,
+		normalizeSeoBindValue,
+		parseFocusKeywords,
+		readEntryBody,
+		readLocalizedString,
+		seoFeatureList
+	} from './seo-serp';
 
 	interface Props {
-		field: any;
+		field: FieldInstance;
 		validationError?: string | null;
-		value?: Record<string, SeoWidgetData>;
+		value?: SeoWidgetData | Record<string, SeoWidgetData> | null;
 	}
 
 	let { field, value = $bindable(), validationError: _validationError }: Props = $props();
@@ -36,8 +48,8 @@ import { logger } from "@utils/logger";
 	// --- State ---
 	let activeTab = $state<'basic' | 'social' | 'advanced'>('basic');
 	let seoPreviewMobile = $state(false);
-	let analysisResults: any = $state(null);
-	let showAnalysis = $state(false); // Collapsible analysis panel
+	let analysisResults: SeoAnalysisResult | null = $state(null);
+	let showAnalysis = $state(false);
 	let isAnalyzing = $state(false);
 
 	// License State
@@ -50,12 +62,26 @@ import { logger } from "@utils/logger";
 
 	// Multi-language handling
 	let availableLanguages = $state<string[]>([]);
-	const lang = $derived((app.contentLanguage || 'en') as any);
-	const langData = $derived(value?.[lang]);
+	const lang = $derived(app.contentLanguage || 'en');
+	// Flatten `{ en: payload }` (and double-wraps) onto the locale slot the form binds.
+	$effect.pre(() => {
+		if (!isSeoPayload(value)) {
+			value = normalizeSeoBindValue(value, lang) as SeoWidgetData;
+		}
+	});
+	const langData = $derived(
+		(isSeoPayload(value) ? value : normalizeSeoBindValue(value, lang)) as SeoWidgetData
+	);
 
-	// Optimized features lookup
-	const enabledFeatures = $derived(new Set((field as any).defaults?.features || []));
+	const enabledFeatures = $derived(new Set(seoFeatureList(field)));
 	const hasFeature = (f: string) => enabledFeatures.has(f);
+
+	const entrySlug = $derived(readLocalizedString(collections.activeValue?.slug, lang));
+	const previewUrl = $derived(
+		buildPreviewUrl(publicEnv.HOST_PROD || '', langData?.canonicalUrl || '', entrySlug)
+	);
+	const focusKeywords = $derived(parseFocusKeywords(langData?.focusKeyword || ''));
+	const entryBody = $derived(readEntryBody(collections.activeValue));
 
 	// Pre-compute translation percentages
 	const translationStats = $derived.by(() => {
@@ -63,8 +89,9 @@ import { logger } from "@utils/logger";
 		const stats: Record<string, number> = {};
 		const fields: Array<keyof SeoWidgetData> = ['title', 'description', 'focusKeyword', 'ogTitle', 'ogDescription', 'twitterTitle', 'twitterDescription', 'schemaMarkup'];
 
+		const localeMap = value as Record<string, SeoWidgetData | undefined> | null;
 		for (const f of fields) {
-			const populated = availableLanguages.filter(l => value && value[l]?.[f]?.trim()).length;
+			const populated = availableLanguages.filter((l) => localeMap?.[l]?.[f]?.trim()).length;
 			stats[f] = Math.round((populated / availableLanguages.length) * 100);
 		}
 		return stats;
@@ -72,26 +99,8 @@ import { logger } from "@utils/logger";
 
 	// --- Lifecycle ---
 	onMount(() => {
-		// Initialize value structure if missing
-		if (!value) {
-			value = {};
-		}
-		if (!value[lang]) {
-			value[lang] = {
-				title: '',
-				description: '',
-				focusKeyword: '',
-				robotsMeta: 'index, follow',
-				canonicalUrl: '',
-				ogTitle: '',
-				ogDescription: '',
-				ogImage: '',
-				twitterCard: 'summary_large_image',
-				twitterTitle: '',
-				twitterDescription: '',
-				twitterImage: '',
-				schemaMarkup: ''
-			} as SeoWidgetData;
+		if (!isSeoPayload(value)) {
+			value = normalizeSeoBindValue(value, lang) as SeoWidgetData;
 		}
 
 		// Get available languages from config/store if possible
@@ -128,6 +137,7 @@ import { logger } from "@utils/logger";
 		void langData.focusKeyword;
 		void langData.canonicalUrl;
 		void langData.robotsMeta;
+		void entryBody;
 
 		// Debounce slightly to avoid rapid updates
 		const timeout = setTimeout(() => {
@@ -143,11 +153,8 @@ import { logger } from "@utils/logger";
 		if (!langData) return;
 		isAnalyzing = true;
 
-		const activeValue = collections.activeValue as any;
-		const contentBody = String(activeValue?.content || activeValue?.body || '');
-
 		try {
-			analysisResults = await analyzeSeo(langData, contentBody);
+			analysisResults = await analyzeSeo(langData, entryBody);
 		} catch (e) {
 			logger.error('SEO Analysis failed', e);
 		} finally {
@@ -158,44 +165,49 @@ import { logger } from "@utils/logger";
 	// --- Actions ---
 	const updateField = (fieldName: keyof SeoWidgetData, newVal: string) => {
 		if (!langData) return;
-		(langData as any)[fieldName] = newVal;
+		if (fieldName === 'twitterCard') {
+			if (newVal === 'summary' || newVal === 'summary_large_image') {
+				langData.twitterCard = newVal;
+			}
+			return;
+		}
+		langData[fieldName] = newVal;
 	};
 
 	const isTranslated = $derived(!!field.translated);
 	const placeholder = '{"@context": "https://schema.org", "@type": "Article", ...}';
 </script>
 
-<div class="space-y-4 relative">
+<div class="@container relative space-y-4">
 	{#if !isCheckingLicense}
 		{#if !licenseStatus.hasLicense && licenseStatus.active && licenseStatus.daysRemaining !== null}
-						<div class="alert bg-warning-500/10 text-warning-600 dark:text-warning-400 flex items-center justify-between p-4 rounded-lg">
+						<div class="flex items-center justify-between gap-3 rounded-lg border border-warning-500/30 bg-warning-500/10 p-3 text-warning-500 dark:bg-warning-900/20">
 				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
-					<span><strong>Premium Trial Active:</strong> You have {licenseStatus.daysRemaining} days start to test the Advanced, Social, and Schema SEO features.</span>
+					<iconify-icon icon="mdi:clock-alert-outline" width="22" aria-hidden="true"></iconify-icon>
+					<span class="text-sm"><strong>Premium trial active:</strong> {licenseStatus.daysRemaining} days left to try Social, Advanced, and Schema features.</span>
 				</div>
-				<a href="https://marketplace.sveltycms.com" target="_blank" class="preset-filled-warning-500 rounded text-sm px-3 py-1 font-medium shadow-xs">Get License</a>
+				<Button variant="warning" href="https://marketplace.sveltycms.com" target="_blank" class="shrink-0 text-sm">Get License</Button>
 			</div>
 		{/if}
 	{/if}
-	<!-- Top Area: Preview & Analysis -->
-	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-		<!-- Left: Preview (Main) -->
-		<div class="lg:col-span-2 space-y-4">
+	<!-- Preview + Analysis — container query so it columns inside the form, not the viewport -->
+	<div class="grid grid-cols-1 items-start gap-4 @min-[40rem]:grid-cols-2">
+		<div class="min-w-0 rounded-lg border border-surface-500/30 bg-white/60 px-6 py-5 dark:border-surface-500/40 dark:bg-surface-900/50">
 			<SeoPreview
 				title={langData?.title || ''}
 				description={langData?.description || ''}
-				hostUrl={`${publicEnv.HOST_PROD}/${langData?.canonicalUrl || ''}`}
+				hostUrl={previewUrl}
+				keywords={focusKeywords}
 				bind:SeoPreviewToggle={seoPreviewMobile}
 			/>
 		</div>
 
-		<!-- Right: Analysis Panel -->
-		<div class="lg:col-span-1">
+		<div class="min-w-0">
 			<SeoAnalysisPanel
 				analysisResult={analysisResults}
 				{isAnalyzing}
 				bind:expanded={showAnalysis}
-				content={typeof (collections.activeValue as any)?.content === 'string' ? (collections.activeValue as any).content : (typeof (collections.activeValue as any)?.body === 'string' ? (collections.activeValue as any).body : '')}
+				content={entryBody}
 				currentId={String(collections.activeValue?._id || '')}
 				collectionId={String(collections.active?._id || '')}
 			/>
@@ -203,7 +215,7 @@ import { logger } from "@utils/logger";
 	</div>
 
 	<!-- Bottom Area: Tabs & Inputs -->
-	<div class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden">
+	<div class="card relative overflow-hidden bg-white/50 px-6 py-5 dark:bg-surface-900/50 backdrop-blur-sm">
 
 		{#if !isCheckingLicense && !licenseStatus.active}
 						<div class="absolute inset-0 z-10 bg-surface-500/10 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-lg">
@@ -211,7 +223,7 @@ import { logger } from "@utils/logger";
 					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"></iconify-icon>
 					<h3 class="h3 font-bold mb-2">Premium SEO Locked</h3>
 					<p class="mb-4">Your 14-day trial has expired. To continue using the Social, Advanced, Schema, and AI features, please purchase a license.</p>
-					<a href="https://marketplace.sveltycms.com" target="_blank" class="preset-filled-error-500 w-full text-center py-2 px-4 rounded font-medium shadow-xs">Purchase License</a>
+					<Button variant="error" href="https://marketplace.sveltycms.com" target="_blank" class="w-full">Purchase License</Button>
 				</div>
 			</div>
 		{/if}
@@ -229,51 +241,56 @@ import { logger } from "@utils/logger";
 
 			{#if langData}
 				<Tabs.Content value="basic" class="mt-4 space-y-4">
-
+					<p class="text-xs text-surface-400">These fields control the search snippet above. Canonical URL on the Advanced tab overrides the path shown in the preview.</p>
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<SeoField
 						id="seo-title"
-						label="Title"
+						label="SEO title"
 						value={langData.title}
 						{field}
 						{lang}
-						translated={isTranslated}
+						translated={isTranslated && availableLanguages.length > 1}
 						translationPct={translationStats.title || 0}
 						onUpdate={(v: string) => updateField('title', v)}
 						maxLength={60}
 						optimalMin={50}
 						optimalMax={60}
+						measureKind="title"
 						placeholder="Page Title"
+						hint="Aim for 50–60 characters. Put the focus keyword near the start."
 					/>
 
 					<SeoField
+						id="seo-focusKeyword"
+						label="Focus keyword"
+						value={langData.focusKeyword}
+						{field}
+						{lang}
+						translated={isTranslated && availableLanguages.length > 1}
+						translationPct={translationStats.focusKeyword || 0}
+						onUpdate={(v: string) => updateField('focusKeyword', v)}
+						placeholder="Main keyword"
+						hint="The phrase this page should rank for. Highlighted in the heatmap."
+					/>
+					</div>
+
+					<SeoField
 						id="seo-description"
-						label="Description"
+						label="Meta description"
 						type="textarea"
 						value={langData.description}
 						{field}
 						{lang}
-						translated={isTranslated}
+						translated={isTranslated && availableLanguages.length > 1}
 						translationPct={translationStats.description || 0}
 						onUpdate={(v: string) => updateField('description', v)}
 						maxLength={160}
 						optimalMin={150}
 						optimalMax={160}
+						measureKind="description"
 						placeholder="Page Description"
+						hint="Aim for 150–160 characters. Include a clear reason to click."
 					/>
-
-					<SeoField
-						id="seo-focusKeyword"
-						label="Focus Keyword"
-						value={langData.focusKeyword}
-						{field}
-						{lang}
-						translated={isTranslated}
-						translationPct={translationStats.focusKeyword || 0}
-						onUpdate={(v: string) => updateField('focusKeyword', v)}
-						placeholder="Main keyword"
-					>
-						<!-- Example of using slot for extra icon if needed --></SeoField
-					>
 				</Tabs.Content>
 
 				{#if hasFeature('social')}
@@ -288,7 +305,7 @@ import { logger } from "@utils/logger";
 								value={langData.ogTitle || ''}
 								{field}
 								{lang}
-								translated={isTranslated}
+								translated={isTranslated && availableLanguages.length > 1}
 								translationPct={translationStats.ogTitle || 0}
 								onUpdate={(v: string) => updateField('ogTitle', v)}
 								placeholder="Open Graph Title (same as Title if empty)"
@@ -301,7 +318,7 @@ import { logger } from "@utils/logger";
 								value={langData.ogDescription || ''}
 								{field}
 								{lang}
-								translated={isTranslated}
+								translated={isTranslated && availableLanguages.length > 1}
 								translationPct={translationStats.ogDescription || 0}
 								onUpdate={(v: string) => updateField('ogDescription', v)}
 								placeholder="Open Graph Description"
@@ -317,7 +334,7 @@ import { logger } from "@utils/logger";
 								value={langData.twitterTitle || ''}
 								{field}
 								{lang}
-								translated={isTranslated}
+								translated={isTranslated && availableLanguages.length > 1}
 								translationPct={translationStats.twitterTitle || 0}
 								onUpdate={(v: string) => updateField('twitterTitle', v)}
 								placeholder="Twitter Title"
@@ -330,7 +347,7 @@ import { logger } from "@utils/logger";
 								value={langData.twitterDescription || ''}
 								{field}
 								{lang}
-								translated={isTranslated}
+								translated={isTranslated && availableLanguages.length > 1}
 								translationPct={translationStats.twitterDescription || 0}
 								onUpdate={(v: string) => updateField('twitterDescription', v)}
 								placeholder="Twitter Description"
@@ -359,7 +376,7 @@ import { logger } from "@utils/logger";
 						value={langData.robotsMeta || ''}
 						{field}
 						{lang}
-						translated={isTranslated}
+						translated={isTranslated && availableLanguages.length > 1}
 						translationPct={translationStats.robotsMeta || 0}
 						onUpdate={(v: string) => updateField('robotsMeta', v)}
 						placeholder="index, follow"
@@ -375,7 +392,7 @@ import { logger } from "@utils/logger";
 						value={langData.canonicalUrl || ''}
 						{field}
 						{lang}
-						translated={isTranslated}
+						translated={isTranslated && availableLanguages.length > 1}
 						translationPct={translationStats.canonicalUrl || 0}
 						onUpdate={(v: string) => updateField('canonicalUrl', v)}
 						placeholder="https://example.com/slug"
@@ -401,7 +418,7 @@ import { logger } from "@utils/logger";
 							{/if}
 						</div>
 						<div class="relative">
-							<textarea aria-label="SEO description"
+							<textarea aria-label="Schema.org JSON-LD"
 								id="seo-schemaMarkup"
 								class="textarea font-mono text-xs"
 								rows="10"

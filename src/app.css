@@ -8,6 +8,7 @@
 
 @source "../src/**/*.svelte";
 @source "../src/**/*.html";
+@source inline("col-span-12 sm:col-span-{1,2,3,4,5,6,7,8,9,10,11,12}");
 
 /* ------------------------------------------------------------------------
    SAFELIST — classes built by string concatenation at runtime
@@ -419,6 +420,19 @@
     font-family: var(--font-display, var(--font-sans));
     letter-spacing: -0.02em;
     text-wrap: balance;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  select:not(:disabled),
+  label[for],
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]:not(:disabled),
+  [aria-expanded] {
+    cursor: pointer;
   }
 }
 

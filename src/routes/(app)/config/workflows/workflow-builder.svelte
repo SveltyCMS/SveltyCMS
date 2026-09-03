@@ -142,7 +142,7 @@ function selectNode(id: string) {
 		<Button variant="surface" onclick={addState} data-testid="workflow-add-state">+ Add State</Button>
 		<Button variant="surface" onclick={addTransition} data-testid="workflow-add-transition">+ Add Transition</Button>
 		<StickyActions>
-			<Button variant="tertiary" onclick={saveWorkflow} class="dark:" data-testid="workflow-save">Save Workflow</Button>
+			<Button variant="tertiary" onclick={saveWorkflow} data-testid="workflow-save">Save Workflow</Button>
 		</StickyActions>
 	{/snippet}
 

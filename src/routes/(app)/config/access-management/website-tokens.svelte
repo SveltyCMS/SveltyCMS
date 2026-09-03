@@ -533,7 +533,7 @@ $effect(() => {
 			</div>
 
 			<div class="mt-4 flex justify-end">
-				<Button variant="tertiary" onclick={generateToken} class="dark:" leadingIcon="mdi:key-plus">
+				<Button variant="tertiary" onclick={generateToken} leadingIcon="mdi:key-plus">
 					Generate Token
 				</Button>
 			</div>
@@ -599,7 +599,7 @@ $effect(() => {
 											displayTableHeaders = displayTableHeaders.map((h: TableHeader) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
 											selectAllColumns = displayTableHeaders.every((h: TableHeader) => h.visible);
 										}}
-									 class="chip w-100 me-2 flex items-center justify-center">
+									 class="w-100 me-2 flex items-center justify-center">
 										{#if header.visible}
 											<span><iconify-icon icon="fa:check" width={24}></iconify-icon></span>
 										{/if}

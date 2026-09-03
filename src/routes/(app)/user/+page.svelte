@@ -1368,17 +1368,19 @@
 									>
 										Apply appearance
 									</Button>
-									<a
+									<Button
+										variant="outline"
+										size="sm"
 										href="/config/design-system?tab=overrides"
 										data-testid="open-appearance-settings-btn"
 										aria-label="Open Design System My Overrides"
 										data-sveltekit-preload-data="hover"
 										data-preload="hover"
-										class="btn preset-outlined-surface-500 relative inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-(--admin-radius-button,0.25rem) px-3 text-xs font-bold tracking-tight transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500"
+										class="flex-1"
 									>
 										<iconify-icon icon="mdi:compass-outline" width={14} class="me-1" aria-hidden="true"></iconify-icon>
 										Design System
-									</a>
+									</Button>
 								</div>
 							</div>
 

@@ -721,15 +721,14 @@ onMount(() => {
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
 						aria-label="Add Widget"
-						data-testid="dashboard-add-widget"
-					 class="dark:">
+						data-testid="dashboard-add-widget">
 						<iconify-icon icon="mdi:plus" width={18} class="me-2"></iconify-icon>
 						Add Widget
 					</Button>
 				{/if}
 				{#if dropdownOpen}
 					<div
-						class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
+						class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded border border-[var(--admin-border-default)] bg-[var(--admin-bg-card)] shadow-2xl"
 						role="menu"
 						data-testid="dashboard-widget-menu"
 					>
@@ -764,7 +763,7 @@ onMount(() => {
 									{/if}
 								</Button>
 							{:else}
-								<div class="px-4 py-2 text-sm text-gray-500">No widgets found.</div>
+								<div class="px-4 py-2 text-sm text-surface-500">No widgets found.</div>
 							{/each}
 						</div>
 					</div>

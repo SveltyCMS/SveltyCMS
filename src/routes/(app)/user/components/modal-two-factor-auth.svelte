@@ -427,7 +427,7 @@ This component provides a user interface for managing 2FA settings:
 		<!-- Action buttons -->
 		{#if !is2FAEnabled && setupData}
 			<!-- Verify button when setting up -->
-			<Button variant="tertiary" onclick={verify2FA} disabled={isLoading || !verificationCode || verificationCode.length !== 6} class="dark:">
+			<Button variant="tertiary" onclick={verify2FA} disabled={isLoading || !verificationCode || verificationCode.length !== 6}>
 				{#if isLoading}
 					<div class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
 					{twofa_verifying()}

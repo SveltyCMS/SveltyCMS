@@ -165,7 +165,7 @@ export async function persistCollectionContentNodes(
 // EXPORTED DEFAULTS - Loaded from project.inlang/settings.json
 // ============================================================================
 
-export const DEFAULT_SYSTEM_LANGUAGES = inlangSettings.locales || ["en", "de"];
+export const DEFAULT_SYSTEM_LANGUAGES = inlangSettings.locales || ["en", "de", "ar"];
 export const DEFAULT_BASE_LOCALE = inlangSettings.baseLocale || "en";
 export const DEFAULT_CONTENT_LANGUAGES = DEFAULT_SYSTEM_LANGUAGES;
 export const DEFAULT_CONTENT_LANGUAGE = DEFAULT_BASE_LOCALE;

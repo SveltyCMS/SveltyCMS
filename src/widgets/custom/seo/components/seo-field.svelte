@@ -1,23 +1,60 @@
+<!--
+@file src/widgets/custom/seo/components/seo-field.svelte
+@component
+**SEO field with character and SERP pixel guidance**
+
+Accessible meta input used by the SEO widget for title, description, and related fields.
+
+@props
+- `id` {string} - Control id
+- `label` {string} - Visible label
+- `value` {string} - Field value
+- `hint` {string} - Recommended-length helper under the control
+- `maxLength` {number} - Hard character budget (matches widget validation)
+- `optimalMin` / `optimalMax` {number} - Green range
+- `measureKind` {'title' | 'description'} - Enables desktop/mobile pixel counters
+- `translated` {boolean} - Show language badge
+- `onUpdate` {function} - Persist value into SeoData
+
+#### Features
+- Character count with optimal / short / over-limit status
+- Optional SERP pixel width vs desktop and mobile budgets
+- Token insert affordance on hover/focus
+- Backward-compatible: extra props are optional so existing callers keep working
+-->
+
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 	import type { FieldInstance } from '@src/content/types';
-	import type { Locale } from '@src/paraglide/runtime';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-
-	// Lucide Icons
+	import {
+		measureSerpWidth,
+		SERP_DESC_DESKTOP_PX,
+		SERP_DESC_MOBILE_PX,
+		SERP_TITLE_DESKTOP_PX,
+		SERP_TITLE_MOBILE_PX,
+		type SerpSnippetKind
+	} from '../seo-serp';
+	import {
+		widget_seo_suggestioncharacter,
+		widget_seo_suggestionwidthdesktop,
+		widget_seo_suggestionwidthmobile
+	} from '@src/paraglide/messages';
 
 	import type { Snippet } from 'svelte';
 
 	interface Props {
 		field: FieldInstance;
+		hint?: string;
 		icon?: Snippet;
 		id: string;
 		label: string;
-		lang: Locale | 'default';
+		lang: string;
 		maxLength?: number;
+		measureKind?: SerpSnippetKind;
 		onUpdate: (value: string) => void;
 		optimalMax?: number;
 		optimalMin?: number;
@@ -44,10 +81,11 @@
 		translationPct = 0,
 		field,
 		onUpdate,
-		icon
+		icon,
+		hint = '',
+		measureKind
 	}: Props = $props();
 
-	// Element references
 	let inputRef = $state<HTMLInputElement | HTMLTextAreaElement | undefined>();
 
 	$effect(() => {
@@ -64,33 +102,82 @@
 		return () => inst.destroy();
 	});
 
-	// Reactive — recalculates whenever value/maxLength/optimalMin/optimalMax change
+	const lengthStatus = $derived.by(() => {
+		if (!maxLength) {
+			return 'none' as const;
+		}
+		if (value.length > maxLength) {
+			return 'over' as const;
+		}
+		if (value.length === 0) {
+			return 'empty' as const;
+		}
+		if (value.length >= optimalMin && value.length <= optimalMax) {
+			return 'optimal' as const;
+		}
+		return 'short' as const;
+	});
+
 	const lengthClass = $derived(
-		maxLength && value.length > maxLength
+		lengthStatus === 'over'
 			? 'text-error-500'
-			: value.length >= optimalMin && value.length <= optimalMax
+			: lengthStatus === 'optimal'
 				? 'text-success-500'
-				: 'text-surface-400 dark:text-surface-400'
+				: lengthStatus === 'short'
+					? 'text-warning-500'
+					: 'text-surface-400 dark:text-surface-400'
 	);
+
+	const statusText = $derived(
+		lengthStatus === 'over'
+			? 'Too long for typical search results'
+			: lengthStatus === 'optimal'
+				? 'Optimal length'
+				: lengthStatus === 'short'
+					? 'A bit short'
+					: ''
+	);
+
+	const barClass = $derived(
+		lengthStatus === 'over'
+			? 'bg-error-500'
+			: lengthStatus === 'optimal'
+				? 'bg-success-500'
+				: lengthStatus === 'short'
+					? 'bg-warning-500'
+					: 'bg-surface-400'
+	);
+
+	const barWidth = $derived(
+		maxLength ? Math.min(100, Math.round((value.length / maxLength) * 100)) : 0
+	);
+
+	const pixelWidth = $derived(measureKind ? measureSerpWidth(value || '', measureKind) : 0);
+	const desktopPx = $derived(
+		measureKind === 'title' ? SERP_TITLE_DESKTOP_PX : measureKind === 'description' ? SERP_DESC_DESKTOP_PX : 0
+	);
+	const mobilePx = $derived(
+		measureKind === 'title' ? SERP_TITLE_MOBILE_PX : measureKind === 'description' ? SERP_DESC_MOBILE_PX : 0
+	);
+
+	const hintId = $derived(hint ? `${id}-hint` : undefined);
+	const statusId = $derived(statusText ? `${id}-status` : undefined);
+	const describedBy = $derived([hintId, statusId].filter(Boolean).join(' ') || undefined);
 </script>
 
-<div class="space-y-2">
-	<div class="flex items-center justify-between mb-1">
+<div class="group space-y-1">
+	<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-1">
 		<div class="flex items-center gap-2">
-			<label for={id} class="font-bold text-sm cursor-pointer dark:text-surface-50">{label}</label>
+			<label for={id} class="font-medium text-sm cursor-pointer dark:text-surface-50">{label}</label>
 			{@render icon?.()}
-			<SystemTooltip title={placeholder}>
-				<span class="text-surface-400 dark:text-surface-400 cursor-help">
-					<iconify-icon icon="mdi:information-outline" width={16}></iconify-icon>
-				</span>
-			</SystemTooltip>
 		</div>
 
-		<div class="flex items-center gap-3 text-xs">
+		<div class="flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-[11px] sm:text-xs">
 			<SystemTooltip title="Insert Token">
-				<Button variant="outline"
+				<Button variant="ghost"
 					type="button"
 					aria-label="Insert Token"
+					class="min-w-0 p-1! opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100"
 					onclick={() => inputRef?.focus()}
 				>
 					<iconify-icon icon="mdi:code-braces" width={16} class="dark:text-primary-500"></iconify-icon>
@@ -98,16 +185,26 @@
 			</SystemTooltip>
 
 			{#if maxLength}
-				<!-- Identical output for both types — no branch needed -->
-				<span class={lengthClass}>({value.length}/{maxLength})</span>
+				<span class={lengthClass}>
+					{widget_seo_suggestioncharacter()}
+					{value.length}/{maxLength}
+				</span>
+			{/if}
+
+			{#if measureKind && desktopPx && mobilePx}
+				<span class={lengthClass}>
+					{widget_seo_suggestionwidthdesktop()}
+					{pixelWidth}/{desktopPx}px
+					{widget_seo_suggestionwidthmobile()}
+					{pixelWidth}/{mobilePx}px
+				</span>
 			{/if}
 
 			{#if translated}
-				<div class="flex items-center gap-1 text-xs">
-					<iconify-icon icon="bi:translate" width={16}></iconify-icon>
-					<span class="font-medium text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
-					<span class="font-medium text-error-500">({translationPct}%)</span>
-				</div>
+				<span class="font-semibold uppercase text-tertiary-500 dark:text-primary-500">{lang.toUpperCase()}</span>
+				{#if translationPct > 0}
+					<span class="text-surface-400">({translationPct}%)</span>
+				{/if}
 			{/if}
 		</div>
 	</div>
@@ -115,18 +212,18 @@
 	<div class="relative">
 		{#if type === 'textarea'}
 			<Textarea
-				aria-label="Textarea"
 				{id}
 				class="space-y-0"
 				textareaClass="pe-12 resize-y"
 				{rows}
 				{placeholder}
 				bind:value
+				aria-describedby={describedBy}
 				oninput={(e) => onUpdate((e.currentTarget as HTMLTextAreaElement).value)}
+				onchange={(e) => onUpdate((e.currentTarget as HTMLTextAreaElement).value)}
 			/>
 		{:else}
 			<Input
-				aria-label="Input"
 				bind:inputRef={inputRef as HTMLInputElement}
 				{id}
 				type="text"
@@ -134,8 +231,23 @@
 				inputClass="pe-12"
 				{placeholder}
 				bind:value
+				aria-describedby={describedBy}
 				oninput={(e) => onUpdate((e.currentTarget as HTMLInputElement).value)}
+				onchange={(e) => onUpdate((e.currentTarget as HTMLInputElement).value)}
 			/>
 		{/if}
 	</div>
+
+	{#if maxLength}
+		<div class="h-1 overflow-hidden rounded-full bg-surface-500/20" aria-hidden="true">
+			<div class="h-full rounded-full transition-[width] {barClass}" style="width: {barWidth}%"></div>
+		</div>
+	{/if}
+
+	{#if statusText}
+		<p id={statusId} class="text-xs {lengthClass}" aria-live="polite">{statusText}</p>
+	{/if}
+	{#if hint}
+		<p id={hintId} class="text-xs text-surface-400 dark:text-surface-400">{hint}</p>
+	{/if}
 </div>

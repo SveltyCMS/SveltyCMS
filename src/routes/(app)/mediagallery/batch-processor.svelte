@@ -139,7 +139,7 @@ async function runBatch() {
 					onclick={runBatch}
 					disabled={isProcessing}
 					loading={isProcessing}
-					class="dark: w-full gap-2 shadow-xl"
+					class="w-full gap-2 shadow-xl"
 				>
 					{#if !isProcessing}
 						<iconify-icon icon="mdi:play-circle" width="20"></iconify-icon>

@@ -127,7 +127,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-required={required}
 				data-testid={data_testid}
 				class={cn(
-					'peer block w-full appearance-none rounded border bg-surface-500/10 dark:bg-surface-900 transition-all',
+					'peer block w-full appearance-none rounded border bg-white dark:bg-surface-900 transition-all',
 					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,
@@ -195,7 +195,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-required={required}
 				data-testid={data_testid}
 				class={cn(
-					'block w-full appearance-none rounded border bg-surface-500/10 dark:bg-surface-900 transition-all',
+					'block w-full appearance-none rounded border bg-white dark:bg-surface-900 transition-all',
 					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,

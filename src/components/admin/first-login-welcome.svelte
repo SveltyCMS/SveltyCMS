@@ -160,8 +160,8 @@
 			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-tertiary-500/10 dark:bg-tertiary-900">
 				<iconify-icon icon="mdi:rocket-launch" width={40} class="text-tertiary-600 dark:text-tertiary-400" aria-hidden="true"></iconify-icon>
 			</div>
-			<h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">Congratulations, {user?.username || 'Admin'}!</h2>
-			<p class="text-gray-600 dark:text-gray-400">Your SveltyCMS installation is ready. Let's get you started with the essential features.</p>
+			<h2 class="mb-2 text-2xl font-bold text-[var(--admin-text-body)]">Congratulations, {user?.username || 'Admin'}!</h2>
+			<p class="text-[var(--admin-text-muted)]">Your SveltyCMS installation is ready. Let's get you started with the essential features.</p>
 		</div>
 
 		<!-- Progress Indicator -->
@@ -171,10 +171,10 @@
 					<Button aria-label="Go to step {index + 1}: {step.title}"
 						variant="ghost"
 						class="h-3 w-3 rounded-full transition-colors duration-200 {index === currentStep
-							? 'bg-tertiary-600'
+							? 'bg-tertiary-500'
 							: step.completed
 								? 'bg-success-500'
-								: 'bg-gray-300 dark:bg-gray-600'}"
+								: 'bg-surface-300 dark:bg-surface-600'}"
 						onclick={() => (currentStep = index)}
 					></Button>
 				{/each}
@@ -186,11 +186,11 @@
 			{const step = welcomeSteps[currentStep]}
 			<div class="step-content">
 				<div class="mb-6 text-center">
-					<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
-						<iconify-icon icon={step.icon} width="32" class="text-gray-600 dark:text-gray-400" aria-hidden="true"></iconify-icon>
+					<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-500/10 dark:bg-surface-800">
+						<iconify-icon icon={step.icon} width="32" class="text-[var(--admin-text-muted)]" aria-hidden="true"></iconify-icon>
 					</div>
-					<h3 class="mb-2 text-xl font-semibold text-gray-900 dark:text-white">{step.title}</h3>
-					<p class="mx-auto max-w-md text-gray-600 dark:text-gray-400">{step.description}</p>
+					<h3 class="mb-2 text-xl font-semibold text-[var(--admin-text-body)]">{step.title}</h3>
+					<p class="mx-auto max-w-md text-[var(--admin-text-muted)]">{step.description}</p>
 				</div>
 
 				<!-- Step Action -->
@@ -224,32 +224,32 @@
 		<!-- Quick Stats -->
 		<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
 			<div
-				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
+				class="rounded border border-surface-500/30 bg-surface-500/10 p-4 text-center dark:border-surface-500/40 dark:bg-surface-800"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
 				<div class="text-2xl font-bold text-success-600">✓</div>
-				<div class="text-sm text-gray-600 dark:text-gray-400">Setup Complete</div>
+				<div class="text-sm text-[var(--admin-text-muted)]">Setup Complete</div>
 			</div>
 			<div
-				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
+				class="rounded border border-surface-500/30 bg-surface-500/10 p-4 text-center dark:border-surface-500/40 dark:bg-surface-800"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
 				<div class="text-2xl font-bold text-tertiary-600">0</div>
-				<div class="text-sm text-gray-600 dark:text-gray-400">Collections</div>
+				<div class="text-sm text-[var(--admin-text-muted)]">Collections</div>
 			</div>
 			<div
-				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
+				class="rounded border border-surface-500/30 bg-surface-500/10 p-4 text-center dark:border-surface-500/40 dark:bg-surface-800"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
-				<div class="text-2xl font-bold text-purple-600">1</div>
-				<div class="text-sm text-gray-600 dark:text-gray-400">Admin User</div>
+				<div class="text-2xl font-bold text-tertiary-500">1</div>
+				<div class="text-sm text-[var(--admin-text-muted)]">Admin User</div>
 			</div>
 			<div
-				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
+				class="rounded border border-surface-500/30 bg-surface-500/10 p-4 text-center dark:border-surface-500/40 dark:bg-surface-800"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
 				<div class="text-2xl font-bold text-warning-600">∞</div>
-				<div class="text-sm text-gray-600 dark:text-gray-400">Possibilities</div>
+				<div class="text-sm text-[var(--admin-text-muted)]">Possibilities</div>
 			</div>
 		</div>
 	</div>
@@ -283,7 +283,7 @@
 
 <!-- Import/Export Overlay -->
 {#if showImportExport}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-[var(--admin-bg-backdrop)] p-4">
 		<div
 			class="max-h-[90vh] w-full max-w-6xl overflow-hidden border border-surface-500/30 bg-surface-500/10 shadow-xl dark:border-surface-500/40 dark:bg-surface-800"
 			style="border-radius: var(--admin-radius-card, 0.75rem);"
@@ -298,7 +298,7 @@
 			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6"><ImportExportManager /></div>
 
 			<div class="flex items-center justify-between border-t bg-surface-500/10 p-6 dark:bg-surface-700">
-				<div class="text-sm text-gray-600 dark:text-gray-400">
+				<div class="text-sm text-[var(--admin-text-muted)]">
 					<iconify-icon icon="mdi:shield-check" width={16} class="me-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>

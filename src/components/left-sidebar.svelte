@@ -270,11 +270,11 @@ Route-driven sidebar content (no dual collapsible section headers):
 		</a>
 	{:else}
 		<div class="flex min-h-12 shrink-0 items-center justify-start gap-2 pt-2">
-			<Button variant="ghost"
+			<Button variant="transparent"
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Close Sidebar"
-			 class="p-0! min-w-0 preset-outlined-surface-500">
+			 class="p-0! min-w-0">
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</Button>
 
@@ -290,19 +290,19 @@ Route-driven sidebar content (no dual collapsible section headers):
 		positioning={{ placement: 'right-end' }}
 		triggerClass="absolute top-3 z-20 ltr:-end-4 rtl:-start-4"
 	>
-		<Button variant="ghost"
+		<Button variant="transparent"
 			type="button"
 			onclick={toggleSidebar}
 			aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
 			aria-expanded={isSidebarFull}
-			class="flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0! min-w-0 dark:border-white"
+			class="flex h-8 w-8 items-center justify-center rounded-full! border-0 bg-transparent p-0! min-w-0 shadow-none hover:bg-surface-500/10"
 		>
 			<iconify-icon
-				icon="bi:arrow-left-circle-fill"
-				width="34"
-				class="rounded-full bg-surface-500 text-white transition-transform dark:bg-white dark:text-surface-600 {isSidebarFull
-					? 'rotate-0 rtl:rotate-180'
-					: 'rotate-180 rtl:rotate-0'}"
+				icon="bi:chevron-right"
+				width="22"
+				class="text-surface-600 transition-transform dark:text-white {isSidebarFull
+					? 'rotate-180 rtl:rotate-0'
+					: 'rotate-0 rtl:rotate-180'}"
 			></iconify-icon>
 			</Button>
 		</SystemTooltip>

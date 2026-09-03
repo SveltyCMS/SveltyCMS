@@ -527,7 +527,7 @@ afterNavigate(() => {
 				<!-- Desktop / tablet: inline sidebar (inside flex flow) -->
 				{#if !screen.isMobile && ui.state.leftSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh border-e bg-surface-500/10 px-2! text-center transition-[width] duration-300 ease-in-out dark:border-surface-500/40 dark:bg-surface-900 overflow-visible"
+						class="max-h-dvh border-e border-surface-500/20 bg-surface-500/10 px-1 text-center transition-[width] duration-300 ease-in-out dark:border-surface-500/40 dark:bg-surface-900 overflow-visible"
 						style="width: {ui.state.leftSidebar === 'full' ? 'var(--admin-sidebar-width, 240px)' : 'var(--admin-sidebar-compact-width, 120px)'}"
 						aria-label="Left sidebar navigation"
 					>

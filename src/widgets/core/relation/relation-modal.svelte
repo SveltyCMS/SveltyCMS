@@ -134,7 +134,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 		</div>
 		<div class="hidden sm:flex items-center gap-2">
 			{#if selected.size > 0}
-				<span class="chip preset-tonal-tertiary" transition:slide={{ axis: 'x', duration: 200 }}>
+				<span class="preset-tonal-tertiary rounded-full px-2 py-0.5 text-xs" transition:slide={{ axis: 'x', duration: 200 }}>
 					{selected.size} selected
 				</span>
 			{/if}
@@ -218,8 +218,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 		<div class="flex items-center gap-3">
 			<Button variant="tertiary"
 				type="button"
-				onclick={handleSave}
-			 class="dark:">
+				onclick={handleSave}>
 				<iconify-icon icon="mdi:check" class="me-1"></iconify-icon>
 				{button_save()}
 			</Button>

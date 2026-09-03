@@ -5,6 +5,7 @@
 
 ### Features:
 - **Widget Rendering**: Automatically loads and renders appropriate widgets for each field.
+- **Sectioned editor**: Groups fields into labeled, collapsible cards (Details, Hero, Content, …) with a two-column grid for compact widgets.
 - **Reactivity**: Binds form data to the `collectionValue` store with real-time sync.
 - **Revision History**: Displays entry revisions with compare and revert functionality.
 - **Validation**: Performs field-level validation based on schema constraints.
@@ -30,6 +31,12 @@ import { tick, untrack } from "svelte";
   import { logger } from "@utils/logger";
   import { clientJsonHeaders } from "@utils/security/client-csrf";
   import { getFieldName } from "@utils/schema/field-utils";
+  import {
+    canonicalizeWidgetName,
+    formFieldColSpan,
+    groupEntryFields,
+    type FormSectionField,
+  } from "@src/utils/form-sections";
 
   // Auth & Page data
   import { page } from "$app/state";
@@ -107,6 +114,38 @@ import { tick, untrack } from "svelte";
     const name = field.widget?.Name;
     if (!name) return undefined;
     return (widgetFunctions[name] as { Icon?: string } | undefined)?.Icon;
+  }
+
+  function widgetNameOf(field: { widget?: { Name?: string } | string }): string {
+    if (typeof field.widget === "string") return canonicalizeWidgetName(field.widget);
+    return canonicalizeWidgetName(field.widget?.Name || "Input");
+  }
+
+  function supportsTokenInsert(widgetName: string): boolean {
+    switch (widgetName) {
+      case "Input":
+      case "Email":
+      case "Slug":
+      case "RichText":
+      case "Markdown":
+      case "PhoneNumber":
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /** Hide the field label when the section heading already names the same thing (SEO / SEO). */
+  function showFieldLabel(field: FormSectionField, section: { key: string; label: string }): boolean {
+    const widget = widgetNameOf(field);
+    if (widget === "SEO") return false;
+    const label = String(field.label || field.db_fieldName || "")
+      .trim()
+      .toLowerCase();
+    const sectionLabel = String(section.label || "")
+      .trim()
+      .toLowerCase();
+    return Boolean(label) && label !== sectionLabel;
   }
 
   // --- 1. RECEIVE DATA AS PROPS ---
@@ -265,11 +304,18 @@ import { tick, untrack } from "svelte";
       return null;
     }
     const widgetName =
-      field.widget?.Name || field.widget?.__widgetName || field.type || "Input";
+      typeof field.widget === "string"
+        ? canonicalizeWidgetName(field.widget)
+        : canonicalizeWidgetName(
+            field.widget?.Name || field.widget?.__widgetName || field.type || "Input",
+          );
     return {
       ...field,
       db_fieldName: field.db_fieldName || getFieldName(field, true),
-      widget: { ...field.widget, Name: widgetName },
+      widget: {
+        ...(typeof field.widget === "object" && field.widget ? field.widget : {}),
+        Name: widgetName,
+      },
       permissions: field.permissions || {},
     };
   }
@@ -286,6 +332,20 @@ import { tick, untrack } from "svelte";
         return !rolePermissions || rolePermissions.read !== false;
       }),
   );
+
+  let formSections = $derived(groupEntryFields(filteredFields as FormSectionField[]));
+  let collapsedSectionKeys = $state(new Set<string>());
+
+  function isSectionCollapsed(key: string): boolean {
+    return collapsedSectionKeys.has(key);
+  }
+
+  function toggleSection(key: string) {
+    const next = new Set(collapsedSectionKeys);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    collapsedSectionKeys = next;
+  }
 
   /** Field-level store patch — avoids full-object JSON.stringify on every keystroke. */
   function syncFieldToStore(fieldName: string) {
@@ -592,7 +652,161 @@ import { tick, untrack } from "svelte";
     <p class="text-surface-500">Initializing widgets...</p>
   </div>
 {:else}
-  <div class="mb-2 flex items-center justify-between w-full px-4 py-2 rounded-t-container bg-surface-500/10 dark:bg-surface-800/70 border border-surface-500/30 dark:border-surface-500/40 text-sm">
+  {#snippet fieldCell(field, section)}
+            {#if field.widget}
+              {@const fieldIcon = resolveFieldIcon(field)}
+              {@const widgetName = widgetNameOf(field)}
+              {@const hideLabel = !showFieldLabel(field, section)}
+              {@const showLocaleBadge = Boolean(field.translated) && availableLanguages.length > 1}
+              <div class="group w-full min-w-0 text-start">
+                {#if !hideLabel}
+                <div
+                  class="mb-1.5 flex min-h-8 items-center justify-between gap-2 text-start field-label"
+                >
+                  <!-- Field label: icon + name + * + help -->
+                  <div class="flex min-w-0 items-center gap-1.5">
+                    {#if fieldIcon && widgetName !== "SEO"}
+                      <iconify-icon
+                        icon={fieldIcon}
+                        width="16"
+                        class="shrink-0 text-tertiary-500 dark:text-primary-500"
+                        aria-hidden="true"
+                      ></iconify-icon>
+                    {/if}
+                    <p class="inline-block text-sm font-medium">
+                      {field.label || field.db_fieldName}
+                      {#if field.required}
+                        <span class="text-error-500">*</span>
+                      {/if}
+                    </p>
+                    {#if field.helper}
+                      <SystemTooltip
+                        title={field.helper}
+                        positioning={{ placement: "top" }}
+                      >
+                        <iconify-icon
+                          icon="mdi:help-circle-outline"
+                          width="14"
+                          aria-hidden="true"
+                        ></iconify-icon>
+                      </SystemTooltip>
+                    {/if}
+                  </div>
+                  <div class="flex shrink-0 items-center gap-1">
+                    {#if supportsTokenInsert(widgetName)}
+                    <SystemTooltip title="Insert Token">
+                      <Button variant="ghost"
+                        type="button"
+                        class="min-w-0 p-1! opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100"
+                        onclick={(e: MouseEvent) => openTokenPicker(field, e)}
+                        aria-label="Insert token into {field.label}"
+                      >
+                        <iconify-icon
+                          icon="mdi:code-braces"
+                          width="16"
+                          class="font-bold text-tertiary-500 dark:text-primary-500"
+                        ></iconify-icon>
+                      </Button>
+                    </SystemTooltip>
+                    {/if}
+                    <!-- Per-field locale: only when more than one content language exists -->
+                    {#if showLocaleBadge}
+                      {@const fieldName = getFieldName(field, false)}
+                      {@const currentFieldLocale = (() => {
+                        return fieldLocaleOverrides.get(fieldName) ?? currentContentLanguage;
+                      })()}
+                      {@const sourceLocale = contentLanguage.value as Locale}
+                      {@const isTranslating = aiTranslatingFields.has(fieldName)}
+                      <div class="flex items-center gap-0.5">
+                        <Button
+                          variant="ghost"
+                          class="flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold uppercase text-tertiary-500 dark:text-primary-500 hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
+                          onclick={() => cycleFieldLocale(fieldName, currentFieldLocale)}
+                          aria-label="Switch locale for {field.label || fieldName}. Current: {currentFieldLocale.toUpperCase()}"
+                        >
+                          <span>{currentFieldLocale.toUpperCase()}</span>
+                        </Button>
+                        {#if currentFieldLocale !== sourceLocale}
+                          <Button
+                            variant="ghost"
+                            class="flex items-center gap-0.5 rounded-full px-1 py-0.5 text-xs hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
+                            style="color: var(--color-tertiary-500)"
+                            onclick={() => aiTranslateField(field, fieldName, sourceLocale, currentFieldLocale)}
+                            disabled={isTranslating}
+                            aria-label="AI translate {field.label || fieldName} from {sourceLocale.toUpperCase()} to {currentFieldLocale.toUpperCase()}"
+                          >
+                          			  {#if isTranslating}
+                          			    <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                          			  {:else}
+                          			    <iconify-icon icon="mdi:auto-fix" width="14" aria-hidden="true"></iconify-icon>
+                          			  {/if}
+                          </Button>
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+                {/if}
+
+                {#if field.widget}
+                  {@const loadedWidget = getCachedWidgetInputLoader(widgetName, widgetFunctions)}
+
+                  {#if loadedWidget}
+                    {@const fieldName = getFieldName(field, false)}
+                    {#if field.translated}
+                      <!-- Per-field localization: determine locale (pure read —
+                           mutating the $state map during render is a reactivity loop) -->
+                      {@const fieldLocale = (() => {
+                        return fieldLocaleOverrides.get(fieldName) ?? currentContentLanguage;
+                      })()}
+                      <!-- Legacy plain-string values are normalized on entry load
+                           in normalizeTranslatedValues() — never write state from
+                           inside a template expression (forbidden: causes
+                           effect_update_depth_exceeded). -->
+                      {#key fieldName + ":" + fieldLocale}
+                        <!-- Render-guard: the record may not exist yet on the
+                             first render after fields register (normalization
+                             runs in an effect, which is post-render). A chain
+                             into an uninitialized record would throw
+                             "Cannot read properties of undefined". The widget
+                             mounts one flush later once the record is filled. -->
+                        {#if isLocaleRecord(currentCollectionValue[fieldName])}
+                          <!-- Widget remounts when per-field locale changes -->
+                          <WidgetLoader
+                            loader={loadedWidget}
+                            field={{ ...field, translated: false }}
+                            WidgetData={{}}
+                            bind:value={currentCollectionValue[fieldName][fieldLocale]}
+                            onFieldSync={() => syncFieldToStore(fieldName)}
+                            {tenantId}
+                            collectionName={collection.value?.name}
+                          />
+                        {/if}
+                      {/key}
+                    {:else}
+                      <WidgetLoader
+                        loader={loadedWidget}
+                        {field}
+                        WidgetData={{}}
+                        bind:value={currentCollectionValue[fieldName]}
+                        onFieldSync={() => syncFieldToStore(fieldName)}
+                        {tenantId}
+                        collectionName={collection.value?.name}
+                      />
+                    {/if}
+                  {:else if widgets.loading}
+                    <div class="h-10 w-full animate-pulse rounded bg-surface-500/10"></div>
+                  {:else}
+                    <p class="text-error-500">
+                      {Fields_no_widgets_found({ name: widgetName })}
+                    </p>
+                  {/if}
+                {/if}
+              </div>
+            {/if}
+  {/snippet}
+
+  <div class="mb-0 flex w-full items-center gap-2 border-b border-surface-500/30 bg-surface-500/10 px-4 py-2.5 text-sm dark:border-surface-500/40 dark:bg-surface-800/70">
     <div class="flex items-center gap-2">
       <iconify-icon icon={collection.value?.icon || "mdi:folder-outline"} width="18" class="text-primary-500"></iconify-icon>
       <span class="font-semibold text-primary-600 dark:text-primary-400">{collection.value?.name || "Collection"}</span>
@@ -610,7 +824,7 @@ import { tick, untrack } from "svelte";
   <Tabs
     value={localTabSet}
     onValueChange={(e) => (localTabSet = e.value)}
-    class="flex flex-1 flex-col items-center"
+    class="flex w-full flex-1 flex-col items-stretch"
   >
     <Tabs.List
       class="flex justify-between md:justify-around rounded-tl-container rounded-tr-container border-b border-tertiary-500 dark:border-primary-500 w-full"
@@ -682,180 +896,56 @@ import { tick, untrack } from "svelte";
       <div class="mb-2 text-center text-xs text-error-500">
         {form_required()}
       </div>
-      <div
-        class="rounded border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900"
-      >
-        <div
-          class="flex flex-wrap items-center justify-center gap-1 overflow-auto"
-        >
-          {#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
-            {#if field.widget}
-              {@const fieldIcon = resolveFieldIcon(field)}
-              <div
-                class="mx-auto text-center {!field?.width
-                  ? 'w-full '
-                  : 'max-md:w-full!'}"
-                style={"min-width:min(300px,100%);" +
-                  (field.width
-                    ? `width:calc(${(field.width / 12) * 100}% - 0.5rem)`
-                    : "")}
+      <div class="flex w-full flex-col gap-4 px-4 sm:px-5" data-testid="entry-form-sections">
+        {#each formSections as section (section.id)}
+          {@const sectionCollapsed = isSectionCollapsed(section.key)}
+          <AdminCard
+            class="w-full overflow-hidden p-0"
+            data-testid="form-section"
+            data-section-key={section.key}
+            aria-label={section.label}
+          >
+            {#if section.showHeading}
+              <button
+                type="button"
+                class="form-section-toggle"
+                style="padding: 12px 24px;"
+                onclick={() => toggleSection(section.key)}
+                aria-expanded={!sectionCollapsed}
+                aria-controls="form-section-{section.key}"
+                data-testid="form-section-toggle"
               >
-                <div
-                  class="flex items-center justify-between gap-2 px-1.25 text-start field-label"
-                >
-                  <!-- Field label -->
-                  <div class="flex items-center gap-2">
-                    <p class="inline-block font-semibold capitalize">
-                      {field.label || field.db_fieldName}
-                      {#if field.required}
-                        <span class="text-error-500">*</span>
-                      {/if}
-                    </p>
-                    {#if field.helper}
-                      <SystemTooltip
-                        title={field.helper}
-                        positioning={{ placement: "top" }}
-                      >
-                        <iconify-icon
-                          icon="mdi:help-circle-outline"
-                          width="14"
-                          aria-hidden="true"
-                        ></iconify-icon>
-                      </SystemTooltip>
-                    {/if}
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <SystemTooltip title="Insert Token">
-                      <Button variant="outline"
-                        type="button"
-                        onclick={(e: MouseEvent) => openTokenPicker(field, e)}
-                        aria-label="Insert token into {field.label}"
-                      >
-                        <iconify-icon
-                          icon="mdi:code-braces"
-                          width="16"
-                          class="font-bold text-tertiary-500 dark:text-primary-500"
-                        ></iconify-icon>
-                      </Button>
-                    </SystemTooltip>
-                    <!-- Per-Field Locale Badge + AI Translate -->
-                    {#if field.translated}
-                      {@const fieldName = getFieldName(field, false)}
-                      {@const currentFieldLocale = (() => {
-                        // Per-field override, or the global content language.
-                        // Pure read — mutating the $state map here (inside a
-                        // derived during render) is a reactivity loop.
-                        return fieldLocaleOverrides.get(fieldName) ?? currentContentLanguage;
-                      })()}
-                      {@const sourceLocale = contentLanguage.value as Locale}
-                      {@const isTranslating = aiTranslatingFields.has(fieldName)}
-                      <div class="flex items-center gap-1">
-                        <!-- Locale badge / switcher -->
-                        <Button
-                          variant="ghost"
-                          class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
-                          style="background: var(--color-surface-200, #e5e7eb); color: var(--color-tertiary-500, #6b7280)"
-                          onclick={() => cycleFieldLocale(fieldName, currentFieldLocale)}
-                          aria-label="Switch locale for {field.label || fieldName}. Current: {currentFieldLocale.toUpperCase()}"
-                        >
-                          <iconify-icon icon="bi:translate" width="14" aria-hidden="true"></iconify-icon>
-                          <span class="text-tertiary-600 dark:text-primary-500">{currentFieldLocale.toUpperCase()}</span>
-                          {#if availableLanguages.length > 1}
-                            <iconify-icon icon="mdi:chevron-down" width="10" aria-hidden="true"></iconify-icon>
-                          {/if}
-                        </Button>
-                        <!-- AI Translate button -->
-                        {#if availableLanguages.length > 1 && currentFieldLocale !== sourceLocale}
-                          <Button
-                            variant="ghost"
-                            class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
-                            style="color: var(--color-tertiary-500)"
-                            onclick={() => aiTranslateField(field, fieldName, sourceLocale, currentFieldLocale)}
-                            disabled={isTranslating}
-                            aria-label="AI translate {field.label || fieldName} from {sourceLocale.toUpperCase()} to {currentFieldLocale.toUpperCase()}"
-                          >
-                          			  {#if isTranslating}
-                          			    <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-                          			  {:else}
-                          			    <iconify-icon icon="mdi:auto-fix" width="14" aria-hidden="true"></iconify-icon>
-                          			  {/if}
-                          </Button>
-                        {/if}
-                      </div>
-                    {/if}
-                    <!-- Icon: field override → widget definition Icon → registry Icon -->
-                    {#if fieldIcon}
-                      <iconify-icon
-                        icon={fieldIcon}
-                        width="20"
-                        class="text-tertiary-500 dark:text-primary-500"
-                        aria-hidden="true"
-                      ></iconify-icon>
-                    {/if}
-                  </div>
-                </div>
-
-                {#if field.widget}
-                  {const widgetName = field.widget.Name || "Input"}
-
-                  {const loadedWidget = getCachedWidgetInputLoader(widgetName, widgetFunctions)}
-
-                  {#if loadedWidget}
-                    {const fieldName = getFieldName(field, false)}
-                    {#if field.translated}
-                      <!-- Per-field localization: determine locale (pure read —
-                           mutating the $state map during render is a reactivity loop) -->
-                      {@const fieldLocale = (() => {
-                        return fieldLocaleOverrides.get(fieldName) ?? currentContentLanguage;
-                      })()}
-                      <!-- Legacy plain-string values are normalized on entry load
-                           in normalizeTranslatedValues() — never write state from
-                           inside a template expression (forbidden: causes
-                           effect_update_depth_exceeded). -->
-                      {#key fieldName + ":" + fieldLocale}
-                        <!-- Render-guard: the record may not exist yet on the
-                             first render after fields register (normalization
-                             runs in an effect, which is post-render). A chain
-                             into an uninitialized record would throw
-                             "Cannot read properties of undefined". The widget
-                             mounts one flush later once the record is filled. -->
-                        {#if isLocaleRecord(currentCollectionValue[fieldName])}
-                          <!-- Widget remounts when per-field locale changes -->
-                          <WidgetLoader
-                            loader={loadedWidget}
-                            field={{ ...field, translated: false }}
-                            WidgetData={{}}
-                            bind:value={currentCollectionValue[fieldName][fieldLocale]}
-                            onFieldSync={() => syncFieldToStore(fieldName)}
-                            {tenantId}
-                            collectionName={collection.value?.name}
-                          />
-                        {/if}
-                      {/key}
-                    {:else}
-                      <WidgetLoader
-                        loader={loadedWidget}
-                        {field}
-                        WidgetData={{}}
-                        bind:value={currentCollectionValue[fieldName]}
-                        onFieldSync={() => syncFieldToStore(fieldName)}
-                        {tenantId}
-                        collectionName={collection.value?.name}
-                      />
-                    {/if}
-                  {:else if widgets.loading}
-                    <div class="h-10 w-full animate-pulse rounded bg-surface-500/10"></div>
-                  {:else}
-                    <p class="text-error-500">
-                      {Fields_no_widgets_found({ name: widgetName })}
-                    </p>
-                  {/if}
-                  <!-- --- END PERFORMANCE FIX --- -->
-                {/if}
-              </div>
+                <span class="form-section-title">
+                  <span class="form-section-icon-wrap">
+                    <iconify-icon icon={section.icon} width="18" height="18" aria-hidden="true"></iconify-icon>
+                  </span>
+                  <span class="form-section-label">{section.label}</span>
+                </span>
+                <span class="form-section-icon-wrap">
+                  <iconify-icon
+                    icon={sectionCollapsed ? "mdi:chevron-down" : "mdi:chevron-up"}
+                    width="20"
+                    height="20"
+                    aria-hidden="true"
+                  ></iconify-icon>
+                </span>
+              </button>
             {/if}
-          {/each}
-        </div>
+            <div
+              id="form-section-{section.key}"
+              class="form-section-body grid w-full grid-cols-12 {sectionCollapsed ? 'hidden' : ''}"
+              style="padding: 20px 24px 24px;"
+              hidden={sectionCollapsed}
+            >
+              {#each section.fields as field (field.db_fieldName || field.name || field.label)}
+                {@const span = section.fields.length === 1 ? 12 : formFieldColSpan(field)}
+                <div class="form-field-cell min-w-0 w-full" style="--field-cols: {span}">
+                  {@render fieldCell(field, section)}
+                </div>
+              {/each}
+            </div>
+          </AdminCard>
+        {/each}
       </div>
     </Tabs.Content>
     <Tabs.Content value="1" class="w-full">
@@ -875,7 +965,7 @@ import { tick, untrack } from "svelte";
             <Button variant="tertiary"
               onclick={handleRevert}
               disabled={!selectedRevision?.data}
-             aria-label="Revert revision" class="dark:">
+             aria-label="Revert revision">
               <iconify-icon icon="mdi:restore" class="me-1"></iconify-icon>
               {applayout_version()}
             </Button>
@@ -1051,3 +1141,84 @@ import { tick, untrack } from "svelte";
     {/each}
   </Tabs>
 {/if}
+
+<style>
+  :global([data-testid="form-section"].card) {
+    padding: 0 !important;
+  }
+
+  .form-section-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 12px 24px;
+    border: 0;
+    border-bottom: 1px solid color-mix(in oklab, var(--color-surface-500, #78716c) 22%, transparent);
+    background-color: color-mix(in oklab, var(--color-surface-500, #78716c) 14%, transparent);
+    text-align: start;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .form-section-toggle:hover {
+    background-color: color-mix(in oklab, var(--color-surface-500, #78716c) 22%, transparent);
+  }
+
+  :global(.dark) .form-section-toggle {
+    background-color: color-mix(in oklab, var(--color-surface-500, #78716c) 22%, transparent);
+  }
+
+  :global(.dark) .form-section-toggle:hover {
+    background-color: color-mix(in oklab, var(--color-surface-500, #78716c) 32%, transparent);
+  }
+
+  .form-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .form-section-label {
+    display: flex;
+    align-items: center;
+    line-height: 1;
+  }
+
+  .form-section-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    line-height: 0;
+  }
+
+  .form-section-icon-wrap :global(iconify-icon) {
+    display: block;
+    width: 18px;
+    height: 18px;
+    line-height: 0;
+  }
+
+  .form-section-body {
+    box-sizing: border-box;
+    padding: 20px 24px 24px;
+    gap: 20px 24px;
+  }
+
+  .form-field-cell {
+    grid-column: 1 / -1;
+  }
+  @media (min-width: 640px) {
+    .form-field-cell {
+      grid-column: span var(--field-cols) / span var(--field-cols);
+    }
+  }
+</style>

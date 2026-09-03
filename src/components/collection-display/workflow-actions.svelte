@@ -109,7 +109,7 @@ const availableTransitions = $derived.by(() => {
         {#if !instance}
              <div class="p-4 rounded bg-surface-500/10 dark:bg-surface-500/10 text-center border-2 border-dashed border-surface-500/30 dark:border-surface-500/40">
                 <p class="text-xs italic opacity-40 mb-2">No active workflow instance for this entry.</p>
-                <Button variant="tertiary" onclick={() => triggerTransition(workflow?.states.find(s => s.isInitial)?.id || '')} size="sm" class="dark:">
+                <Button variant="tertiary" onclick={() => triggerTransition(workflow?.states.find(s => s.isInitial)?.id || '')} size="sm">
                                     Start Workflow
                 </Button>
              </div>
