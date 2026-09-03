@@ -31,6 +31,7 @@ import {
 
 // Static ESM binding for hot domain handlers (collections, content, auth, system, tokens, media, dashboard)
 // eliminates dynamic import resolution overhead entirely on 95%+ of API traffic.
+import { isChunkedExportResponse } from "./handlers/streaming";
 import * as collectionsHandler from "./handlers/collections";
 import * as contentHandler from "./handlers/content";
 import * as authHandler from "./handlers/auth";
@@ -596,13 +597,17 @@ export const _handler = async (event: RequestEvent) => {
   // Skip ETag for streaming responses (SSE) and non-200 responses
   const contentType = response.headers.get("content-type") || "";
   const isStreaming = contentType.includes("text/event-stream");
+  const isChunkedExport = isChunkedExportResponse(response);
 
   // ⚡ CONTENT-BASED ETag: Computed from the actual response body.
   // Warms responseCache L1 from stashed apiBody so handleTurboGet can HIT next request.
-  if (request.method === "GET" && response.status === 200 && !isStreaming) {
+  if (request.method === "GET" && response.status === 200 && !isStreaming && !isChunkedExport) {
     const stashedBody = (locals as any).apiBody as string | undefined;
     if (stashedBody) {
-      const contentEtag = generateContentEtag(stashedBody);
+      const existingEtag = response.headers.get("etag") || response.headers.get("ETag") || "";
+      const contentEtag = existingEtag.startsWith('W/"cv1|')
+        ? existingEtag
+        : generateContentEtag(stashedBody);
       const ifNoneMatch = request.headers.get("if-none-match");
       const userIdStr = getUserCacheId(user);
       const turboKey = buildUserResponseCacheKey(url.pathname, url.search, userIdStr);
@@ -650,20 +655,22 @@ export const _handler = async (event: RequestEvent) => {
             ETag: contentEtag,
             "Cache-Control": "private, must-revalidate",
             "X-API-Version": "1",
-            "X-Cache": "CONTENT-304",
+            "X-Cache": existingEtag.startsWith('W/"cv1|') ? "COL-304" : "CONTENT-304",
           },
         });
       }
 
       response.headers.set("ETag", contentEtag);
       response.headers.set("X-API-Version", "1");
-      response.headers.set("X-Cache", "CONTENT-ETAG");
+      if (!existingEtag.startsWith('W/"cv1|')) {
+        response.headers.set("X-Cache", "CONTENT-ETAG");
+      }
       return response;
     }
   }
 
   // Cache successful GET responses AND compute ETag — read body ONCE for both
-  if (request.method === "GET" && response.status === 200 && !isStreaming) {
+  if (request.method === "GET" && response.status === 200 && !isStreaming && !isChunkedExport) {
     const pathStr = url.pathname;
     const isCacheable =
       pathStr.includes("/api/collections") ||

@@ -16,6 +16,10 @@ import {
   buildUserResponseCacheKey,
   buildGraphQLResponseCacheKey,
 } from "@src/services/cache/response-cache";
+import {
+  collectionEtagMatches,
+  tryCollectionNotModified,
+} from "@src/services/cache/collection-etag";
 import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
 import { readSessionCookie, isSecureCookieContext } from "@src/databases/auth/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
@@ -163,6 +167,31 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     pathKey = buildUserResponseCacheKey(url.pathname, url.search, userId);
   }
 
+  const ifNoneMatchEarly =
+    request.headers.get("If-None-Match") || request.headers.get("if-none-match");
+  const bypassEtag =
+    url.searchParams.get("refresh") === "true" ||
+    url.searchParams.get("nocache") === "true" ||
+    url.searchParams.get("bypassCache") === "true";
+  if (ifNoneMatchEarly && url.pathname.startsWith("/api/collections/") && !bypassEtag) {
+    const notModified = tryCollectionNotModified({
+      pathname: url.pathname,
+      search: url.search,
+      ifNoneMatch: ifNoneMatchEarly,
+      tenantId: cacheTenant,
+      userCacheId: userId ? String(userId) : "",
+    });
+    if (notModified) {
+      applyAllSecurityHeaders(
+        notModified.headers,
+        url.protocol === "https:",
+        request.headers.get("Origin") || null,
+        url.pathname,
+      );
+      return notModified;
+    }
+  }
+
   const resEntry = responseCache.get(pathKey, cacheTenant);
 
   if (!resEntry || !resEntry.body) return resolve(event);
@@ -184,7 +213,12 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   if (resEntry.etag) {
     responseHeaders.set("ETag", resEntry.etag);
     const ifNoneMatch = request.headers.get("If-None-Match");
-    if (ifNoneMatch && (ifNoneMatch === resEntry.etag || ifNoneMatch === `W/${resEntry.etag}`)) {
+    if (
+      ifNoneMatch &&
+      (ifNoneMatch === resEntry.etag ||
+        ifNoneMatch === `W/${resEntry.etag}` ||
+        collectionEtagMatches(ifNoneMatch, resEntry.etag))
+    ) {
       return new Response(null, {
         status: 304,
         headers: responseHeaders,

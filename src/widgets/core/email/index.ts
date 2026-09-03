@@ -77,6 +77,7 @@ const EmailWidget = createWidget<EmailProps>({
     db_fieldName: { widget: "Input", required: false },
     required: { widget: "Toggles", required: false },
     placeholder: { widget: "Input", required: false },
+    encrypt: { widget: "Toggles", required: false },
   },
 
   // GraphQL schema for email input

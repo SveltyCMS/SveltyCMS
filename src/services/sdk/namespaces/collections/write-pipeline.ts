@@ -12,6 +12,7 @@
  * - applyWidgetPipeline: collectionModelCache lookup + resilient model resolve
  *   + modifyRequest (XSS already applied in prepareWritePayload when skipSanitize)
  * - writeTouchesActiveWidgets: skip async pipeline when payload has no widget fields
+ * - encryptWritePayload: AES-256-GCM field encryption for `encrypt: true` fields
  */
 
 import {
@@ -28,6 +29,10 @@ import { sanitizeObject } from "@utils/security/input-sanitizer";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { FieldInstance, Schema } from "@src/content/types";
 import { collectionModelCache, getModelResilient, type SchemaHotFlags } from "./schema-store";
+import {
+  encryptDocumentFields,
+  type FieldEncryptionContext,
+} from "@utils/security/field-encryption";
 
 /** Structural schema view accepted by the content prep/validation helpers. */
 export type PrepFieldSchema = {
@@ -169,6 +174,21 @@ export function prepareWritePayload(
   }
 
   return entryData;
+}
+
+/**
+ * Encrypt `encrypt: true` fields in place after sanitization/widgets and
+ * before adapter persist. Zero-cost when the schema has no encrypted fields.
+ */
+export async function encryptWritePayload(
+  data: any,
+  hot: SchemaHotFlags,
+  context: FieldEncryptionContext,
+): Promise<any> {
+  if (!hot._hasEncryptedFields || !hot._encryptedFieldNames?.length) return data;
+  if (!data || typeof data !== "object") return data;
+  await encryptDocumentFields(data as Record<string, unknown>, hot._encryptedFieldNames, context);
+  return data;
 }
 
 /**

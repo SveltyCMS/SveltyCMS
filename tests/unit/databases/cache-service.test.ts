@@ -238,4 +238,26 @@ describe("CacheService (Whitebox)", () => {
       expect(await service.get(longKey)).toBe("ok");
     });
   });
+
+  describe("collection epoch (weak ETag generation)", () => {
+    it("starts at 0 and increments on bump", () => {
+      expect(service.getCollectionEpoch("posts", "t1")).toBe(0);
+      expect(service.bumpCollectionEpoch("posts", "t1")).toBe(1);
+      expect(service.bumpCollectionEpoch("posts", "t1")).toBe(2);
+      expect(service.getCollectionEpoch("posts", "t1")).toBe(2);
+    });
+
+    it("isolates epochs per tenant", () => {
+      service.bumpCollectionEpoch("posts", "alpha");
+      expect(service.getCollectionEpoch("posts", "alpha")).toBe(1);
+      expect(service.getCollectionEpoch("posts", "beta")).toBe(0);
+    });
+
+    it("persists the epoch so a cold in-memory map can hydrate", async () => {
+      service.bumpCollectionEpoch("articles", "t1");
+      expect(service.getSync("col-epoch:articles", "t1")).toBe(1);
+      service.collectionEpochs.clear();
+      expect(service.getCollectionEpoch("articles", "t1")).toBe(1);
+    });
+  });
 });

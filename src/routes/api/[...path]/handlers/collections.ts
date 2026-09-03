@@ -9,6 +9,8 @@
  * - Cross-collection search with pagination
  * - Revision history retrieval
  * - Streaming JSON responses for large datasets (>500 items)
+ * - Weak collection-generation ETags (`W/"cv1|…"`) with If-None-Match 304
+ * - Cursor-streamed NDJSON / CSV / JSON export (`GET …/export`)
  */
 
 import { AppError } from "@utils/error-handling";
@@ -21,14 +23,30 @@ import { collectionTableName } from "@src/databases/core/collection-name";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import { successResponse, rawResponse } from "./base";
-import { streamingJsonResponse } from "./streaming";
+import { streamingExportResponse, streamingJsonResponse } from "./streaming";
+import {
+  collectExportColumns,
+  exportFileExtension,
+  parseExportFormat,
+  sanitizeExportBasename,
+  utcDateStamp,
+} from "@utils/export-encode";
 import { setCollectionOrder } from "@utils/collection-order.server";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import { parseCollectionQueryParams } from "@utils/api-params";
+import { getUserCacheId } from "@utils/hook-utils";
+import {
+  collectionEtagResponseHeaders,
+  currentCollectionWeakEtag,
+  tryCollectionNotModified,
+} from "@src/services/cache/collection-etag";
 
 /** Maximum number of items allowed in a single bulk operation to prevent memory exhaustion. */
 const MAX_BULK_ITEMS = 1000;
+/** Default / cap for streamed collection exports (cursor-backed, not fully buffered). */
+const DEFAULT_EXPORT_LIMIT = 100_000;
+const MAX_EXPORT_LIMIT = 1_000_000;
 
 /**
  * Admin list/edit clients historically wrapped writes as `{ data, tenantId }`.
@@ -76,29 +94,30 @@ function extractEntryIds(payload: unknown): string[] {
 }
 
 /**
- * Sets a lightweight weak-ETag token on event.locals based on entry timestamps.
- * The gateway uses this to serve 304 responses without cloning the response body.
+ * Weak collection-generation ETag for a find/entry GET. Returns a 304 Response
+ * when If-None-Match matches the current epoch + representation hash.
  */
-function setApiDataHash(event: RequestEvent, data: any) {
-  if (!data) return;
-  if (!Array.isArray(data)) {
-    const single = data.data !== undefined ? data.data : data;
-    if (single && !Array.isArray(single)) {
-      if (single.updatedAt) {
-        (event.locals as any).apiDataHash = single.updatedAt;
-        return;
-      }
-    }
-  }
-  const entries = Array.isArray(data) ? data : data.data ? data.data : null;
-  if (!Array.isArray(entries) || entries.length === 0) return;
-
-  let maxTs = "";
-  for (let i = 0; i < entries.length; i++) {
-    const entry = entries[i];
-    if (entry?.updatedAt && entry.updatedAt > maxTs) maxTs = entry.updatedAt;
-  }
-  (event.locals as any).apiDataHash = maxTs || `count:${entries.length}`;
+function collectionConditionalGet(
+  event: RequestEvent,
+  collectionId: string,
+  bypassCache?: boolean,
+): Response | string | null {
+  const notModified = tryCollectionNotModified({
+    pathname: event.url.pathname,
+    search: event.url.search,
+    ifNoneMatch: event.request.headers.get("if-none-match"),
+    tenantId: event.locals.tenantId ? String(event.locals.tenantId) : null,
+    userCacheId: getUserCacheId(event.locals.user),
+    bypass: bypassCache === true,
+  });
+  if (notModified) return notModified;
+  return currentCollectionWeakEtag({
+    collectionId,
+    tenantId: event.locals.tenantId ? String(event.locals.tenantId) : null,
+    pathname: event.url.pathname,
+    search: event.url.search,
+    userCacheId: getUserCacheId(event.locals.user),
+  });
 }
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
@@ -190,6 +209,11 @@ async function handleGetRoutes(
     return handleCollectionList(event, cms, tenantId, url);
   }
 
+  // Streamed collection export (NDJSON / CSV / JSON) — must run before entry lookup
+  if (entryId === "export") {
+    return handleCollectionExport(event, cms, tenantId, user, collectionId, url);
+  }
+
   // Get single entry
   if (entryId) {
     return handleCollectionEntry(event, cms, tenantId, user, collectionId, entryId);
@@ -270,7 +294,6 @@ export async function handleCollectionList(
     includeFields,
     includeStats,
   });
-  setApiDataHash(event, result);
   return url.searchParams.get("raw") === "true"
     ? rawResponse(event, result)
     : successResponse(event, result);
@@ -285,6 +308,10 @@ export async function handleCollectionFind(
   url: URL,
 ) {
   const params = parseCollectionQueryParams(url.searchParams);
+  const bypassEtag = params.bypassCache || url.searchParams.get("refresh") === "true";
+
+  const conditional = collectionConditionalGet(event, collectionId, bypassEtag);
+  if (conditional instanceof Response) return conditional;
 
   // Streaming for large datasets or explicit stream requests
   const isLargeRequest = params.limit > 500;
@@ -325,8 +352,64 @@ export async function handleCollectionFind(
     populate: params.populate,
     fields: params.fields,
   });
-  setApiDataHash(event, result);
-  return successResponse(event, result);
+  return successResponse(
+    event,
+    result,
+    200,
+    typeof conditional === "string" ? collectionEtagResponseHeaders(conditional) : undefined,
+  );
+}
+
+/**
+ * Cursor-streamed collection export. NDJSON/CSV encode one record at a time;
+ * JSON uses the existing chunked array stream. Never buffers the full result.
+ */
+export async function handleCollectionExport(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  url: URL,
+) {
+  const params = parseCollectionQueryParams(url.searchParams);
+  const format = parseExportFormat(url.searchParams.get("format"));
+  const rawLimit = url.searchParams.get("limit");
+  const parsedLimit = rawLimit ? Number(rawLimit) : DEFAULT_EXPORT_LIMIT;
+  const limit = Math.min(
+    Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : DEFAULT_EXPORT_LIMIT),
+    MAX_EXPORT_LIMIT,
+  );
+
+  const iterator = await cms.collections.findStreaming(collectionId, {
+    tenantId,
+    user,
+    limit,
+    offset: params.offset,
+    sortField: params.sortField,
+    sortDirection: params.sortDirection,
+    filter: params.filter,
+    publicationFilter: params.publicationFilter,
+  });
+
+  const filename = `${sanitizeExportBasename(collectionId)}-${utcDateStamp()}.${exportFileExtension(format)}`;
+
+  if (format === "json") {
+    const res = streamingJsonResponse(iterator, undefined, { maxItems: limit });
+    res.headers.set("Content-Disposition", `attachment; filename="${filename}"`);
+    res.headers.set("Cache-Control", "no-store");
+    res.headers.set("X-Export-Format", "json");
+    return res;
+  }
+
+  const schema = await cms.collections.getSchema(collectionId, tenantId);
+  const columns = collectExportColumns(schema?.fields);
+  return streamingExportResponse(iterator, {
+    format,
+    filename,
+    columns,
+    maxItems: limit,
+  });
 }
 
 export async function handleCollectionEntry(
@@ -338,6 +421,9 @@ export async function handleCollectionEntry(
   entryId: string,
 ) {
   const params = parseCollectionQueryParams(event.url.searchParams);
+  const bypassEtag = params.bypassCache || event.url.searchParams.get("refresh") === "true";
+  const conditional = collectionConditionalGet(event, collectionId, bypassEtag);
+  if (conditional instanceof Response) return conditional;
   const result = await cms.collections.findById(collectionId, entryId, {
     tenantId,
     user,
@@ -345,8 +431,12 @@ export async function handleCollectionEntry(
     bypassCache: params.bypassCache,
     populate: params.populate,
   });
-  setApiDataHash(event, result);
-  return successResponse(event, result);
+  return successResponse(
+    event,
+    result,
+    200,
+    typeof conditional === "string" ? collectionEtagResponseHeaders(conditional) : undefined,
+  );
 }
 
 // ─── Write Handlers ──────────────────────────────────────────────────────────

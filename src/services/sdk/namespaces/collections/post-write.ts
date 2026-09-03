@@ -114,6 +114,10 @@ export function invalidateCache(
   // 1. Clear L1 (In-Memory) Cache synchronously (0ms) — scoped to this collection keyspace
   if (!opts?.skipRequestCacheClear) {
     evictRequestCache(schema._id as string, tenantId as string);
+    // Same tick: bump collection generation so weak ETags 304-miss on the next GET.
+    if (schema._id) {
+      cacheService.bumpCollectionEpoch(schema._id as string, tenantId as string | null | undefined);
+    }
   }
 
   // 2. Tick-debounced L2 tag clears.

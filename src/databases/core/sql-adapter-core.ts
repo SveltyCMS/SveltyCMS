@@ -1277,25 +1277,34 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q as any, options);
-      let builder = this.getDrizzleInstance(options)
-        .select(this.getPhysicalSelection(table))
-        .from(table)
-        .where(where);
-      builder = this.applyOrderBy(builder, table, options);
-      if (options.limit) builder = builder.limit(options.limit);
-      if (options.offset) builder = builder.offset(options.offset);
+      const db = this.getDrizzleInstance(options);
+      const selection = this.getPhysicalSelection(table);
+      const convertOpts = { ...this.convertDatesOptions, table: collection };
+      const applyOrderBy = this.applyOrderBy.bind(this);
+      const pageSize = 500;
+      const startOffset = options.offset ?? 0;
+      const maxRows = options.limit ?? Number.MAX_SAFE_INTEGER;
 
-      const results = await builder;
-      const data = utils.convertDatesToISO(results, {
-        ...this.convertDatesOptions,
-        table: collection,
-      }) as T[];
-
-      const generator = async function* () {
-        for (const item of data) {
-          yield item;
+      async function* generator() {
+        let offset = startOffset;
+        let yielded = 0;
+        while (yielded < maxRows) {
+          const take = Math.min(pageSize, maxRows - yielded);
+          let pageQuery = db.select(selection).from(table).where(where);
+          pageQuery = applyOrderBy(pageQuery, table, options);
+          pageQuery = pageQuery.limit(take).offset(offset);
+          const results = await pageQuery;
+          if (!results || results.length === 0) break;
+          const data = utils.convertDatesToISO(results, convertOpts) as T[];
+          for (let i = 0; i < data.length; i++) {
+            yield data[i];
+          }
+          yielded += data.length;
+          offset += data.length;
+          if (data.length < take) break;
         }
-      };
+      }
+
       return generator() as AsyncIterable<T>;
     }, "STREAM_MANY_FAILED");
   }

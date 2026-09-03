@@ -329,6 +329,7 @@ class ResponseCacheService {
     collectionName: string,
     tenantId?: string | null,
   ): Promise<void> {
+    cacheService.bumpCollectionEpoch(collectionName, tenantId);
     this.invalidateLocal(collectionName, tenantId);
     await cacheService.clearByTags(
       [`res:${collectionName}`, "res:graphql", `collection:${collectionName}`],

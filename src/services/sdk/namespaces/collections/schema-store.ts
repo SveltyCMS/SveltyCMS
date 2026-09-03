@@ -29,6 +29,17 @@ export type ContentSystem = typeof serverContentSystem;
 /** Widgets whose modifyRequest is folded into prepareWritePayload (no async pipeline). */
 const INLINE_MODIFY_WIDGETS = new Set(["DateTime"]);
 
+/** System columns that must never be encrypted (identity, stamps, publication). */
+const NON_ENCRYPTABLE_FIELDS = new Set([
+  "_id",
+  "tenantId",
+  "createdAt",
+  "updatedAt",
+  "createdBy",
+  "updatedBy",
+  "status",
+]);
+
 /** Hot-path flags cached on schema objects after first inspection. */
 export type SchemaHotFlags = {
   _hasActiveWidgets?: boolean;
@@ -44,6 +55,10 @@ export type SchemaHotFlags = {
   _numberFields?: NumberFieldPlan[];
   /** db_fieldName of widgets that still need the async modifyRequest pipeline. */
   _activeWidgetFieldNames?: string[];
+  /** True when at least one field is flagged `encrypt: true`. */
+  _hasEncryptedFields?: boolean;
+  /** db_fieldName of fields stored as AES-256-GCM envelopes. */
+  _encryptedFieldNames?: string[];
 };
 
 const _schemaCache = new LRUCache<string, Schema>({ max: 500 });
@@ -110,6 +125,7 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   const activeWidgetFieldNames: string[] = [];
   const dateTimeFieldNames: string[] = [];
   const numberFields: NumberFieldPlan[] = [];
+  const encryptedFieldNames: string[] = [];
   let hasNumberFields = false;
   let hasSanitizableFields = false;
   let hasConstrainedFields = false;
@@ -118,6 +134,9 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   for (const f of fields) {
     const widgetName = f.widget?.Name;
     const dbName = (f as { db_fieldName?: string }).db_fieldName;
+    if (f.encrypt === true && dbName && !NON_ENCRYPTABLE_FIELDS.has(dbName)) {
+      encryptedFieldNames.push(dbName);
+    }
     if (widgetName === "DateTime") {
       hasDateTimeFields = true;
       if (dbName) dateTimeFieldNames.push(dbName);
@@ -162,6 +181,8 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   s._hasSanitizableFields = hasSanitizableFields;
   s._hasHooks = Boolean(schema.hooks?.beforeValidate || schema.hooks?.afterValidate);
   s._hasConstrainedFields = hasConstrainedFields;
+  s._hasEncryptedFields = encryptedFieldNames.length > 0;
+  s._encryptedFieldNames = encryptedFieldNames;
   return s;
 }
 

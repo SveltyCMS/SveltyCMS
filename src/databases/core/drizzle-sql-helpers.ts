@@ -155,6 +155,8 @@ export function isScalarMaterializableField(field: any): boolean {
  */
 export function shouldMaterializeField(field: any): boolean {
   if (!field || typeof field !== "object") return false;
+  // AES-GCM ciphertext is non-deterministic — unique/index columns cannot match plaintext.
+  if (field.encrypt === true) return false;
   const needsColumn = field.indexed || field.unique || field.materialize === true;
   if (!needsColumn) return false;
   // Explicit opt-in still requires a scalar shape — an object/array widget

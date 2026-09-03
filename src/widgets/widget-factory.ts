@@ -65,6 +65,8 @@ export type FieldConfig<TProps extends WidgetProps = WidgetProps> = {
   label?: string;
   db_fieldName?: string;
   permissions?: Partial<Record<"read" | "write", string[]>>;
+  /** Persist this field as AES-256-GCM ciphertext at rest. */
+  encrypt?: boolean;
   [key: string]: unknown;
 } & TProps;
 

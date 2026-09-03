@@ -53,7 +53,7 @@ SveltyCMS security architecture includes:
 
 > Self-assessed (August 2026). Gaps: 3rd-party pentest, WebAuthn passkey UI polish, adaptive/risk-based auth policy engine, distributed SSO realm sessions. OIDC login/callback/RP-logout are implemented (`sso-session.ts`). DOMPurify CVEs mitigated by explicit configs.
 
-> **August 18, 2026 Security & Risk Audit Execution**: Verified via `bun run risk:audit` (5/5 checks passed: 0 findings over 2,904 files, zero secret misuse, zero Svelte/XSS slop warnings, 0 CVEs in GitHub Advisory DB, 0 OSV.dev vulnerabilities across 873 packages) and `bun run test:security` (249/249 defense-in-depth security tests passed). Full cookie invalidation flag parity (`SameSite`, `Secure`, `HttpOnly`, `COOKIE_PATH`), database transaction non-fatal read isolation (`rollback: false`), and HTTP client disconnect stream teardown verified across all 4 database adapters.
+> **September 2026 Security & Risk Audit Execution**: Verified via `bun run risk:audit` (5/5 checks passed: 0 findings over 2,964 files, zero secret misuse, zero Svelte/XSS slop warnings, 0 CVEs in GitHub Advisory DB, 0 OSV.dev vulnerabilities across 847 packages) and `bun run test:security`. Hardened defenses include: timing-attack defense on login (CWE-208 via `verifyDummyPassword` against `DUMMY_ARGON2_HASH`), context-aware AST batch-size bounds verification (`batch-size-unbounded`), reverse-proxy spoof-proof client IP resolution (`getClientIp`), non-blocking Redis `scanIterator`, and deterministic SSR hydration via Svelte 5 `$props.id()`.
 
 ---
 
@@ -87,6 +87,8 @@ SveltyCMS security architecture includes:
   - AES-256-GCM encryption
   - Secure token generation
   - Timing attack prevention
+
+- **[Field-Level Encryption at Rest](/docs/reference/security/field-level-encryption.mdx)** - Native `encrypt: true` collection fields, AES-256-GCM envelopes (`v1:iv:tag:ciphertext`), transparent write/read pipeline
 
 - **[Quantum Security](/docs/reference/security/quantum-security.mdx)** - Future-proof security measures against quantum computing threats
 

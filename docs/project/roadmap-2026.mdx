@@ -71,6 +71,9 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 
 ## 🚀 Planned
 
+- **Native field-level encryption at rest** — 🟢 Shipped (September 2026): `encrypt: true` on collection fields, AES-256-GCM `v1:iv:tag:ciphertext` envelopes in the write/read pipelines. See [Achievements Log](./achievements-2026.mdx).
+- **HTTP ETag & 304 for collection reads** — 🟢 Shipped (September 2026): weak collection-generation ETags and DB-free `If-None-Match` 304 on `GET /api/collections/{id}`. See [Collections API](../reference/api/collections.mdx).
+- **Streamed collection exports** — 🟢 Shipped (September 2026): cursor/page-backed NDJSON/CSV/JSON export at `GET /api/collections/{id}/export`. See [Collections API](../reference/api/collections.mdx).
 - **OIDC login flow** — **August 2026 progress:** Discovery (auth/token/jwks/logout), JWKS verify for back-channel logout + id_token, `GET /api/auth/oidc-login` + `oidc-callback` (authorization code → local session for existing users). Still open: auto-provision policy, PKCE, IdP UI on login page, full ES256 test matrix.
 - **Admin Session Console (UI)** — 🟢 Shipped (September 2026): interactive modal for inspecting active user sessions, device/browser categorization, IP addresses, and one-click revocation.
 - **Cross-Source Merge Execution (v3.1 → stable)**

@@ -175,8 +175,8 @@ module under `src/services/sdk/namespaces/collections/`:
 | Module              | Responsibility                                                                                                                                                |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `schema-store.ts`   | Schema LRU cache (lowercased keys), hot-path flags, model cache (WeakMap, never on schema)                                                                    |
-| `read-pipeline.ts`  | Tenant+publication query building, find cache keys (FNV-1a), L1→L2 read-through cache                                                                         |
-| `write-pipeline.ts` | Single-pass field prep → hooks → numeric gate → `assertWriteAllowed`; widget pipeline                                                                         |
+| `read-pipeline.ts`  | Tenant+publication query building, find cache keys (FNV-1a), L1→L2 read-through cache; `decryptReadResult` for `encrypt: true`                                |
+| `write-pipeline.ts` | Single-pass field prep → hooks → numeric gate → `assertWriteAllowed`; widget pipeline; AES-256-GCM encrypt for `encrypt: true`                                |
 | `post-write.ts`     | Post-write side effects: outbox batch, tick-debounced invalidation (collection + API patterns only — **not** `cms:content_structure`), workflow/pub-sub/hooks |
 | `request-cache.ts`  | L1 request cache (bounded LRU) + scoped keyspace index for eviction                                                                                           |
 | `lazy-services.ts`  | Memoized dynamic imports (workflow, response-cache, pub-sub, outbox, token engine, …)                                                                         |

@@ -359,7 +359,7 @@ export class MongoCollectionMethods {
               continue;
             }
 
-            if (fieldObj.unique && !fieldObj.disableUnique) {
+            if (fieldObj.unique && !fieldObj.disableUnique && !fieldObj.encrypt) {
               if (fieldObj.tenantScopedUnique || schema.tenantScopedUnique) {
                 indexes.push({
                   fields: { tenantId: 1, [fieldKey]: 1 },
@@ -373,7 +373,10 @@ export class MongoCollectionMethods {
               }
             }
 
-            if (fieldObj.indexed || fieldObj.searchable || fieldObj.sortable) {
+            if (
+              !fieldObj.encrypt &&
+              (fieldObj.indexed || fieldObj.searchable || fieldObj.sortable)
+            ) {
               indexes.push({ fields: { [fieldKey]: 1 } });
             }
 

@@ -104,6 +104,30 @@ describe("handleTurboGet + response cache", () => {
     expect(await res.text()).toBe("auth-only");
   });
 
+  it("returns COL-304 without resolve when If-None-Match matches collection epoch", async () => {
+    setTurboAuthContext(sessionId, user as any, [], new Uint32Array(0), null);
+    const { currentCollectionWeakEtag } = await import("@src/services/cache/collection-etag");
+    const etag = currentCollectionWeakEtag({
+      collectionId: "posts",
+      tenantId: null,
+      pathname: "/api/collections/posts",
+      search: "",
+      userCacheId: user._id,
+    });
+
+    const resolve = vi.fn(async () => new Response("should-not-hit-db"));
+    const event = createMockEvent("/api/collections/posts", {
+      method: "GET",
+      sessionCookie: sessionId,
+      headers: { "If-None-Match": etag },
+    });
+    const res = await handleTurboGet({ event, resolve } as any);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(res.status).toBe(304);
+    expect(res.headers.get("X-Cache")).toBe("COL-304");
+    expect(res.headers.get("ETag")).toBe(etag);
+  });
+
   it("skips turbo on POST mutations", async () => {
     setTurboAuthContext(sessionId, user as any, [], new Uint32Array(0), null);
     const resolve = vi.fn(async () => new Response("write"));

@@ -16,7 +16,9 @@ tags:
 
 # Field-Level Access Control (FLAC)
 
-SveltyCMS implements field-level security in **two layers**:
+SveltyCMS implements field-level security in **two layers**, plus optional
+**at-rest encryption** for designated fields (`encrypt: true` — see
+[Field-Level Encryption](./field-level-encryption.mdx)):
 
 1. **Schema-based FLAC utilities** (`src/utils/field-access.ts`): `canAccessField` / `enforceFieldAccess` evaluate per-field `permissions` (`visibility`, `requiredAuth`, `readRoles`, `writeRoles`) declared in the Collection Builder.
 2. **`FIELD_PERMISSIONS` response filter** (August 2026): a cached settings-level policy (`{collection: {role: [readable fields]}}`) applied to API read responses in `handle-token-resolution`.

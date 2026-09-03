@@ -308,7 +308,7 @@ export function getSearchableFieldNames(collection: Schema | null | undefined): 
       const name = (fieldObj.name || fieldObj.path || fieldObj.key || fieldObj.db_fieldName) as
         | string
         | null;
-      if (typeof name === "string" && name) names.push(name);
+      if (typeof name === "string" && name && fieldObj.encrypt !== true) names.push(name);
     }
   }
   names.push("_id", "status", "createdBy", "updatedBy");

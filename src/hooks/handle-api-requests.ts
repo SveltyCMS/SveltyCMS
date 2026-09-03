@@ -35,6 +35,10 @@ import {
   generateContentEtag,
 } from "@src/services/cache/response-cache";
 import {
+  collectionEtagMatches,
+  tryCollectionNotModified,
+} from "@src/services/cache/collection-etag";
+import {
   negotiateEncoding,
   compressAsync,
   compressZstd,
@@ -82,7 +86,11 @@ const MAX_INFLIGHT_GETS = 64;
 function serveCachedEntry(cached: any, request: Request): Response {
   const ifNoneMatch = request.headers.get("if-none-match");
   const cachedEtag = cached.headers?.["etag"] || cached.headers?.["ETag"];
-  if (cachedEtag && ifNoneMatch === cachedEtag) {
+  if (
+    cachedEtag &&
+    ifNoneMatch &&
+    (ifNoneMatch === cachedEtag || collectionEtagMatches(ifNoneMatch, cachedEtag))
+  ) {
     return new Response(null, {
       status: 304,
       headers: { etag: cachedEtag, "X-Cache": "HIT", Vary: "Accept-Encoding" },
@@ -196,6 +204,19 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     const bypassCache = refresh || nocache;
 
     if (isGet) {
+      if (!bypassCache) {
+        const col304 = tryCollectionNotModified({
+          pathname: url.pathname,
+          search: url.search,
+          ifNoneMatch: request.headers.get("if-none-match"),
+          tenantId: tenantIdString,
+          userCacheId: getUserCacheId(locals.user),
+        });
+        if (col304) {
+          metricsService.recordApiCacheHit();
+          return col304;
+        }
+      }
       if (!bypassCache && locals.user?._id) {
         try {
           const cached = await cacheService.get<any>(cacheKey, locals.tenantId);

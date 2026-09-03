@@ -37,6 +37,7 @@ const MarkdownWidget = createWidget<MarkdownProps>({
     required: { widget: "Toggles" },
     translated: { widget: "Toggles" },
     placeholder: { widget: "Input" },
+    encrypt: { widget: "Toggles" },
   },
 
   jsonRender: true,

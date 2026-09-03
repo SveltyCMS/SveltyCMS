@@ -50,7 +50,10 @@ export type KnownAppErrorCode =
   | "METHOD_NOT_ALLOWED"
   | "INTERNAL_ERROR"
   | "INTERNAL_SERVER_ERROR"
-  | "UNEXPECTED_SYSTEM_ERROR";
+  | "UNEXPECTED_SYSTEM_ERROR"
+  | "FIELD_ENCRYPTION_UNAVAILABLE"
+  | "FIELD_ENCRYPTION_FAILED"
+  | "ENCRYPTED_FIELD_NOT_QUERYABLE";
 
 export type AppErrorCode = KnownAppErrorCode | (string & {});
 

@@ -35,6 +35,8 @@ export interface WidgetProps extends Record<string, unknown> {
   helper?: string;
   permissions?: Record<string, unknown>;
   placeholder?: string;
+  /** Persist this field as AES-256-GCM ciphertext at rest. */
+  encrypt?: boolean;
   [key: string]: any;
 }
 

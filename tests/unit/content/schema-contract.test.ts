@@ -42,6 +42,19 @@ describe("assertCompiledSchema", () => {
     const result = assertCompiledSchema(null, "/tmp/bad.js");
     expect(result.ok).toBe(false);
   });
+
+  it("warns when encrypt:true is combined with unique:true", () => {
+    const result = assertCompiledSchema(
+      {
+        name: "Contacts",
+        fields: [{ db_fieldName: "ssn", encrypt: true, unique: true }],
+      },
+      "/tmp/contacts.js",
+    );
+    expect(result.ok).toBe(true);
+    expect(result.errors.some((e) => /encrypt:true and unique:true/i.test(e))).toBe(true);
+    expect(result.errors.some((e) => /non-deterministic IV/i.test(e))).toBe(true);
+  });
 });
 
 describe("structureFingerprint", () => {

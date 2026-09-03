@@ -61,6 +61,7 @@ const PhoneNumberWidget = createWidget<PhoneNumberProps>({
       required: false,
       helper: "Optional: Custom regex for validation.",
     },
+    encrypt: { widget: "Toggles", required: false },
   },
 });
 

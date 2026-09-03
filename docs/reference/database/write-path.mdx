@@ -46,6 +46,8 @@ flowchart TD
         P["prepareWritePayload()<br/>prepareCollectionFields + stamps + hooks + write guard"]
         WP{"hot._hasActiveWidgets?"}
         W["applyWidgetPipeline()<br/>collectionModelCache + modifyRequest"]
+        ENC{"hot._hasEncryptedFields?"}
+        E["AES-256-GCM encrypt<br/>v1:iv:tag:ciphertext"]
         PO["persistWithOutbox()<br/>write() → dbAdapter.crud.insert/update"]
         SPW["schedulePostWrite()<br/>FIRE-AND-FORGET (not awaited)"]
         L1["L1 evictRequestCache()<br/>synchronous"]
@@ -61,8 +63,11 @@ flowchart TD
     HF --> P
     P --> WP
     WP -->|yes| W
-    W --> PO
-    WP -->|no| PO
+    W --> ENC
+    WP -->|no| ENC
+    ENC -->|yes| E
+    E --> PO
+    ENC -->|no| PO
     PO --> SPW
     SPW --> L1
     L1 --> L2

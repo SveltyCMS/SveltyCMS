@@ -14,6 +14,10 @@ vi.mock("@src/databases/cache/cache-service", () => ({
     clearByTags: vi.fn().mockResolvedValue(undefined),
     clearByPattern: vi.fn().mockResolvedValue(undefined),
     set: vi.fn().mockResolvedValue(undefined),
+    // Required since epoch persistence was added to invalidateCache (post-write.ts:119).
+    // bumpCollectionEpoch increments the collection generation so weak ETags 304-miss
+    // on the next GET — missing it causes a TypeError at runtime.
+    bumpCollectionEpoch: vi.fn().mockReturnValue(1),
   },
 }));
 
@@ -32,6 +36,7 @@ describe("collections post-write invalidation", () => {
   beforeEach(() => {
     vi.mocked(cacheService.clearByTags).mockClear();
     vi.mocked(cacheService.clearByPattern).mockClear();
+    vi.mocked(cacheService.bumpCollectionEpoch).mockClear();
   });
 
   async function flushInvalidation(): Promise<void> {
@@ -54,6 +59,8 @@ describe("collections post-write invalidation", () => {
     // No O(#docs) pattern scan for the collection namespace on the write path.
     const patterns = vi.mocked(cacheService.clearByPattern).mock.calls.map((c) => String(c[0]));
     expect(patterns.some((p) => p.startsWith("collection:"))).toBe(false);
+    // Epoch must be bumped synchronously so weak ETags 304-miss on the next GET.
+    expect(cacheService.bumpCollectionEpoch).toHaveBeenCalledWith("Posts", "tenant-a");
   });
 
   it("surgically clears ONLY the written doc's per-id tag", async () => {

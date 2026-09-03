@@ -100,6 +100,16 @@ describe("create-smart-filter pure helpers", () => {
       } as any);
       expect(rich.safeForFiltering).toBe(false);
     });
+
+    it("marks encrypt:true fields as unsafe for filtering", () => {
+      const def = fieldToFilterDefinition({
+        label: "SSN",
+        db_fieldName: "ssn",
+        encrypt: true,
+        widget: { Name: "Input" },
+      } as any);
+      expect(def.safeForFiltering).toBe(false);
+    });
   });
 
   describe("buildFilterDefinitions", () => {

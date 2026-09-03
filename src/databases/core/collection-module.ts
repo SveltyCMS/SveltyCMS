@@ -130,6 +130,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
       }
 
       for (const field of fields) {
+        if (field.encrypt) continue;
         if (field.unique || field.indexed) {
           const fieldName = assertSafeSqlIdentifier(field.db_fieldName || field.label, "field");
           const indexName = assertSafeSqlIdentifier(`idx_${id}_${fieldName}`, "index");

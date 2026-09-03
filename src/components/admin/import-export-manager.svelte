@@ -5,7 +5,7 @@
 ### Features:
 - Export all collections data or individual collections
 - Import data with validation and error reporting
-- Support for JSON and CSV formats
+- Support for JSON, NDJSON, and CSV streamed downloads
 - Progress tracking and detailed results
 - File upload and download handling
 -->
@@ -24,12 +24,13 @@
 	import { getCollections } from '@utils/api';
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import { utcDateStamp } from '@utils/export-encode';
 	// Native UI Components
 	import { toast } from '@src/stores/toast.svelte.ts';
 
 	interface ExportOptions {
 		collections: string[];
-		format: 'json' | 'csv';
+		format: 'json' | 'csv' | 'ndjson';
 		includeMetadata: boolean;
 		limit?: number;
 	}
@@ -66,7 +67,6 @@
 		limit: undefined
 	});
 	let exportProgress = $state(0);
-	let exportUrl = $state('');
 	let exportLimitString = $state('');
 
 	// Import state
@@ -131,29 +131,54 @@
 		}
 	}
 
+	function exportExtension(format: ExportOptions['format']): string {
+		if (format === 'csv') return 'csv';
+		if (format === 'ndjson') return 'ndjson';
+		return 'json';
+	}
+
+	function exportFilename(collectionId: string): string {
+		return `${collectionId}-${utcDateStamp()}.${exportExtension(exportOptions.format)}`;
+	}
+
+	function triggerCollectionExportDownload(collectionId: string): void {
+		const params = new URLSearchParams({ format: exportOptions.format });
+		if (exportOptions.limit) params.set('limit', String(exportOptions.limit));
+		const url = `/api/collections/${encodeURIComponent(collectionId)}/export?${params}`;
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = exportFilename(collectionId);
+		a.rel = 'noopener';
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+	}
+
+	function delay(ms: number): Promise<void> {
+		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	async function downloadCollectionExports(ids: string[]): Promise<void> {
+		for (let i = 0; i < ids.length; i++) {
+			triggerCollectionExportDownload(ids[i]);
+			exportProgress = Math.round(((i + 1) / ids.length) * 100);
+			// Browsers often drop back-to-back <a download> clicks; space them out.
+			if (i < ids.length - 1) await delay(150);
+		}
+	}
+
 	// --- Export Functions ---
 	async function exportAllData() {
+		const ids = collections.map((c) => String(c.id)).filter(Boolean);
+		if (ids.length === 0) {
+			showAlertMessage('No collections available to export', 'warning');
+			return;
+		}
 		try {
 			loading = true;
 			exportProgress = 0;
-
-			const progressInterval = setInterval(() => {
-				exportProgress = Math.min(exportProgress + 10, 90);
-			}, 200);
-
-			const response = await fetch('/api/exportData', {
-				method: 'GET'
-			});
-
-			clearInterval(progressInterval);
-			exportProgress = 100;
-
-			if (response.ok) {
-				showAlertMessage('Data export completed successfully', 'success');
-			} else {
-				const error = await response.text();
-				showAlertMessage(`Export failed: ${error}`, 'error');
-			}
+			await downloadCollectionExports(ids);
+			showAlertMessage(`Started streamed export of ${ids.length} collections`, 'success');
 		} catch (error) {
 			logger.error('Export error:', error);
 			showAlertMessage('Export failed', 'error');
@@ -172,42 +197,11 @@
 		try {
 			loading = true;
 			exportProgress = 0;
-
-			const progressInterval = setInterval(() => {
-				exportProgress = Math.min(exportProgress + 10, 90);
-			}, 100);
-
-			// Export each collection individually
-			const exportData: Record<string, any> = {};
-
-			for (let i = 0; i < exportOptions.collections.length; i++) {
-				const collectionId = exportOptions.collections[i];
-
-				const params = new URLSearchParams({
-					format: 'json',
-					...(exportOptions.limit && { limit: exportOptions.limit.toString() })
-				});
-
-				const response = await fetch(`/api/collections/${collectionId}/export?${params}`);
-
-				if (response.ok) {
-					const data = await response.json();
-					exportData[collectionId] = data.data;
-				} else {
-					logger.error(`Failed to export collection ${collectionId}`);
-				}
-			}
-
-			clearInterval(progressInterval);
-			exportProgress = 100;
-
-			// Create download
-			const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-				type: 'application/json'
-			});
-			exportUrl = URL.createObjectURL(blob);
-
-			showAlertMessage(`Successfully exported ${exportOptions.collections.length} collections`, 'success');
+			await downloadCollectionExports(exportOptions.collections);
+			showAlertMessage(
+				`Started streamed export of ${exportOptions.collections.length} collections`,
+				'success'
+			);
 		} catch (error) {
 			logger.error('Export error:', error);
 			showAlertMessage('Export failed', 'error');
@@ -287,19 +281,6 @@
 			toast.warning(message);
 		} else {
 			toast.info(message);
-		}
-	}
-
-	function downloadExport() {
-		if (exportUrl) {
-			const a = document.createElement('a');
-			a.href = exportUrl;
-			a.download = `collections-export-${new Date().toISOString().split('T')[0]}.json`;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(exportUrl);
-			exportUrl = '';
 		}
 	}
 
@@ -406,19 +387,6 @@
 		</div>
 	{/if}
 
-	{#if exportUrl}
-		<div class="mb-6">
-			<div class="alert preset-filled-success-500">
-				<div class="flex items-center justify-between">
-					<span>Export completed successfully!</span>
-					<Button variant="outline" onclick={downloadExport} aria-label="Download export file">
-						<iconify-icon icon="mdi:download" width={24}></iconify-icon>
-						Download
-					</Button>
-				</div>
-			</div>
-		</div>
-	{/if}
 </div>
 
 {#if showExportModal}
@@ -437,7 +405,7 @@
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
 				<div>
-					<Select id="export-format" bind:value={exportOptions.format} label="Export Format" options={[{value: 'json', label: 'JSON'}, {value: 'csv', label: 'CSV'}]} />
+					<Select id="export-format" bind:value={exportOptions.format} label="Export Format" options={[{value: 'json', label: 'JSON'}, {value: 'ndjson', label: 'NDJSON'}, {value: 'csv', label: 'CSV'}]} />
 				</div>
 
 				<div>

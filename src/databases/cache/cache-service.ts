@@ -47,6 +47,13 @@ export const CATEGORY_TTL_SECONDS: Record<string, number> = {
   general: 300, // 5 min   — fallback
 };
 
+/** How long collection-generation epochs live in L1/L2 (weak ETag 304). */
+export const COLLECTION_EPOCH_TTL_S = 7 * 24 * 3600;
+
+function collectionEpochCacheKey(collection: string): string {
+  return `col-epoch:${collection}`;
+}
+
 export class CacheService {
   private l1: LRUCache<string, any>;
   private l2: any = null;
@@ -570,13 +577,29 @@ export class CacheService {
 
   getCollectionEpoch(collection: string, tenantId?: string | null): number {
     const key = `${this.normalizeTenantId(tenantId)}:${collection}`;
-    return this.collectionEpochs.get(key) || 0;
+    const local = this.collectionEpochs.get(key);
+    if (local && local > 0) return local;
+    const persisted = this.getSync<number>(collectionEpochCacheKey(collection), tenantId);
+    if (typeof persisted === "number" && persisted > 0) {
+      this.collectionEpochs.set(key, persisted);
+      return persisted;
+    }
+    return 0;
   }
 
   bumpCollectionEpoch(collection: string, tenantId?: string | null): number {
     const key = `${this.normalizeTenantId(tenantId)}:${collection}`;
-    const next = (this.collectionEpochs.get(key) || 0) + 1;
+    const next = this.getCollectionEpoch(collection, tenantId) + 1;
     this.collectionEpochs.set(key, next);
+    // Sync L1 + fire-and-forget L2 so other processes can hydrate on miss.
+    // Untagged so invalidateCollection's collection-tag clear cannot drop the epoch.
+    void this.set(
+      collectionEpochCacheKey(collection),
+      next,
+      COLLECTION_EPOCH_TTL_S,
+      tenantId,
+      CacheCategory.COLLECTION,
+    );
     return next;
   }
 

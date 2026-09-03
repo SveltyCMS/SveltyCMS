@@ -239,6 +239,14 @@ export interface FieldInstance {
   /** Maximum allowed length for string field values (default: 255). */
   maxLength?: number;
 
+  /**
+   * When true, the write pipeline stores an AES-256-GCM envelope
+   * (`v1:iv:tag:ciphertext`) and the read pipeline decrypts for authorized
+   * callers. Incompatible with `unique` / filter / sort — ciphertext is
+   * non-deterministic.
+   */
+  encrypt?: boolean;
+
   // Functions
   validate?: (value: FieldValue) => boolean | Promise<boolean>;
   /** A reference to the widget's immutable definition. */
