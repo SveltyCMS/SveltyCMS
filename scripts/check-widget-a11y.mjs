@@ -43,6 +43,9 @@ const FORM_CONTROLS = new Set(["input", "textarea", "select"]);
  * Yield complete class-attribute values (quoted or backtick templates) with
  * their start offsets. Svelte `{...}` expressions inside double-quoted attrs
  * and `${...}` inside backtick templates are treated as plain content.
+ *
+ * @param {string} text - .svelte source
+ * @yields {{ content: string, start: number }} attribute value + quote offset
  */
 function* classAttrs(text) {
   const re = /(?<![A-Za-z0-9_])class\s*=/g;
@@ -75,7 +78,13 @@ function* classAttrs(text) {
   }
 }
 
-/** Nearest open tag owning an attribute offset, or null inside a comment. */
+/**
+ * Nearest open tag owning an attribute offset, or null inside a comment.
+ *
+ * @param {string} text - .svelte source
+ * @param {number} attrStart - offset of the class attribute value
+ * @returns {string | null} tag name of the owning element
+ */
 function ownerTag(text, attrStart) {
   const before = text.slice(0, attrStart);
   const lastCommentOpen = before.lastIndexOf("<!--");
@@ -87,7 +96,13 @@ function ownerTag(text, attrStart) {
   return tags[tags.length - 1][1];
 }
 
-/** 1-based line/column for an offset. */
+/**
+ * 1-based line/column for an offset.
+ *
+ * @param {string} text - source
+ * @param {number} offset - character offset
+ * @returns {{ line: number, col: number }}
+ */
 function lineCol(text, offset) {
   const lines = text.slice(0, offset).split("\n");
   return { line: lines.length, col: lines[lines.length - 1].length + 1 };
@@ -133,6 +148,13 @@ export function auditWidgetA11y(text, label = "<snippet>") {
   return findings;
 }
 
+/**
+ * Recursively collect .svelte files under a directory.
+ *
+ * @param {string} dir - directory to walk
+ * @param {string[]} out - accumulator
+ * @returns {string[]} file paths
+ */
 function walk(dir, out) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
@@ -146,6 +168,7 @@ function main() {
   const root = fileURLToPath(new URL("..", import.meta.url));
   const files = ROOT_DIRS.flatMap((dir) => walk(join(root, dir), []));
   let findingsTotal = 0;
+  /** @type {Record<string, number>} */
   const byRule = { A: 0, B: 0 };
   for (const file of files) {
     const text = readFileSync(file, "utf8");
