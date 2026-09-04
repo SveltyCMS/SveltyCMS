@@ -1,189 +1,129 @@
 <!--
 @file src/routes/(app)/+error.svelte
 @component
-**Displays an Error page for the SveltyCMS**
+**Authenticated Admin Area Error Boundary**
+
+Wraps errors occurring inside the (app) layout within standard AdminPageShell and AdminCard,
+preserving the administrative shell, navigation, and sidebar context.
 
 ### Props:
-- `error`: The error object containing status and message.
+None (reads `page` rune from `$app/state`).
 
 ### Features:
-- Dynamic display of error status and message based on the error encountered.
-- Rotating animation effect for the site name to enhance visual appeal.
-- Clear call-to-action link to return to the homepage.
-- WCAG 2.2 AA Compliant + WCAG 3.0 Functional Performance focused
-- 429 Too Many Requests support with retry guidance
-
+- Preserves admin shell (sidebar, navigation, theme) without crashing into full-screen disconnect.
+- Displays HTTP status badge, request path, and contextual error summary.
+- Provides accessible recovery actions (Dashboard, Reload, Go Back).
+- Full WCAG 2.2 AA compliance, RTL logical properties, and status-shade contract conformity.
 -->
 
 <script lang="ts">
-// Stores
-
-import SiteName from "@src/components/site-name.svelte";
-import SveltyCMSLogo from "@src/components/system/icons/svelty-cms-logo.svelte";
+import { page } from "$app/state";
+import AdminCard from "@components/admin-card.svelte";
+import AdminPageShell from "@components/admin-page-shell.svelte";
+import Button from "@components/ui/button.svelte";
 import {
 	db_error_description,
 	db_error_title,
-	error_gofrontpage,
 	error_page_moved,
 	error_pagenotfound,
-	error_skip_content,
 	error_wrong,
 } from "@src/paraglide/messages";
-import { app } from "@src/stores/store.svelte";
-import { page } from "$app/state";
 
-const size = 140;
-const font = 0.9;
-const repeat = 3;
-const separator = " • ";
+const status = $derived(page.status || 500);
+const msg = $derived((page.error?.message || "").toLowerCase());
 
-const siteName = page.data?.settings?.SITE_NAME || "SveltyCMS";
-const combinedString = Array.from(
-	{ length: repeat },
-	() => siteName + separator,
-).join("");
-const array: string[] = combinedString.split("").filter((char) => char !== " ");
-const patternLength = array.length / repeat;
+const isDatabaseError = $derived(
+	status === 503 &&
+		(msg.includes("database") ||
+			msg.includes("connection") ||
+			msg.includes("failed to initialize")),
+);
+const isSetupMode = $derived(status === 503 && msg.includes("setup"));
+const isRateLimited = $derived(status === 429);
 
-function isCMSChar(index: number): boolean {
-	const posInPattern = index % patternLength;
-	return posInPattern >= patternLength - 4 && posInPattern < patternLength - 1;
-}
-
-// Dynamic Error Handling logic
-const msg = (page.error?.message || "").toLowerCase();
-const isDatabaseError =
-	page.status === 503 &&
-	(msg.includes("database") ||
-		msg.includes("connection") ||
-		msg.includes("failed to initialize"));
-const isSetupMode = page.status === 503 && msg.includes("setup");
-const isRateLimited = page.status === 429;
-
-const errorTitle = isDatabaseError
-	? db_error_title()
-	: page.status === 404
-		? error_pagenotfound()
-		: isRateLimited
-			? "Too Many Requests"
-			: "Error";
-
-const errorSummary = isDatabaseError
-	? db_error_description()
-	: isSetupMode
-		? "System in Setup Mode"
-		: page.status === 404
+const errorTitle = $derived(
+	isDatabaseError
+		? db_error_title()
+		: status === 404
 			? error_pagenotfound()
 			: isRateLimited
-				? "Slow down — you're sending requests too quickly. Please wait and try again."
-				: error_wrong();
+				? "Too Many Requests"
+				: "System Error",
+);
+
+const errorSummary = $derived(
+	isDatabaseError
+		? db_error_description()
+		: isSetupMode
+			? "System in Setup Mode"
+			: status === 404
+				? error_pagenotfound()
+				: isRateLimited
+					? "Slow down — you're sending requests too quickly. Please wait and try again."
+					: page.error?.message || error_wrong(),
+);
 </script>
 
-<svelte:head><title>{page.status} - {errorTitle} | {siteName}</title></svelte:head>
+<svelte:head>
+	<title>{status} - {errorTitle} | SveltyCMS Admin</title>
+</svelte:head>
 
-{#if page}
-	<main
-		lang={app.contentLanguage}
-		class="flex min-h-screen w-full flex-col items-center justify-center bg-linear-to-t from-surface-900 via-surface-700 to-surface-900 px-4 text-white"
-		aria-labelledby="error-heading"
-	>
-		<!-- Skip to content link for keyboard users -->
-		<a
-			href="#error-content"
-			class="sr-only focus:not-sr-only focus:absolute focus:inset-s-4 focus:top-4 focus:z-50 focus:rounded focus:bg-white focus:px-4 focus:py-2 focus:text-surface-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
-		>
-			{error_skip_content()}
-		</a>
+<AdminPageShell
+	title="{status} — {errorTitle}"
+	icon="material-symbols:error-outline"
+	description="An error occurred while processing this administrative view."
+>
+	<AdminCard class="p-6 sm:p-8">
+		<div class="flex flex-col items-center text-center">
+			<span
+				class="mb-4 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold {status >= 500
+					? 'border border-error-500/30 bg-error-500/10 text-error-500'
+					: 'border border-warning-500/30 bg-warning-500/10 text-warning-500'}"
+			>
+				HTTP {status}
+			</span>
 
-		<!-- Decorative Logo Section -->
-		<div class="relative mb-12 grid place-items-center" style="width: {size}px; height: {size}px;" aria-hidden="true">
-			<!-- Rotating SiteName -->
-			<div class="animate-[spin_20s_linear_infinite] absolute inset-0 flex items-center justify-center" style="font-size: {font}em;">
-				{#each array as char, index (index)}
-					<div
-						class="absolute inset-s-1/2 top-0 h-full w-4 -translate-x-1/2 text-center font-bold uppercase leading-none"
-						style="transform: translateX(-50%) rotate({(360 / array.length) * index}deg); transform-origin: center {size / 2}px;"
-					>
-						<SiteName {char} textClass={isCMSChar(index) ? 'text-primary-500' : 'text-white'} />
-					</div>
-				{/each}
-			</div>
+			<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-100 sm:text-3xl">
+				{errorTitle}
+			</h2>
 
-			<!-- Site Logo - Static, not rotating -->
-			<div class="pointer-events-none z-10 absolute inset-0 flex items-center justify-center"><SveltyCMSLogo className="text-error-500 w-20 h-20" size={80} /></div>
-		</div>
-
-		<!-- Error Content -->
-		<div id="error-content" class="flex flex-col items-center space-y-6 text-center">
-			<!-- Error Status - Announced first to screen readers -->
-			<div role="alert" aria-live="assertive" class="relative">
-				<h1 id="error-heading" class="text-8xl font-extrabold tracking-wider text-white sm:text-9xl">{page.status}</h1>
-
-				<!-- Error URL Banner -->
-				<div
-					class="mt-4 rounded bg-error-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg sm:absolute sm:inset-s-1/2 sm:top-1/2 sm:mt-0 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rotate-12"
-					aria-label="Error type"
-				>
-					<div class="max-w-70 truncate" title={page.url.toString()}>{page.url}</div>
-					<div class="whitespace-nowrap">{errorSummary}</div>
-				</div>
-			</div>
-
-			<!-- Error Message - High contrast for readability -->
-			<p class="max-w-2xl text-2xl font-bold text-white sm:text-3xl">
-				{#if page.error}
-					{page.error.message}
-				{:else}
-					{error_wrong()}
-				{/if}
+			<p class="mt-3 max-w-xl text-base text-surface-600 dark:text-surface-400">
+				{errorSummary}
 			</p>
 
-			<!-- Help Text -->
-			<p class="text-lg text-surface-300">{error_page_moved()}</p>
+			{#if page.url}
+				<div class="mt-4 inline-flex max-w-md items-center rounded-lg border border-surface-500/20 bg-surface-500/10 px-3 py-1.5 text-xs font-mono text-surface-600 dark:text-surface-400">
+					<span class="truncate">{page.url.pathname}{page.url.search}</span>
+				</div>
+			{/if}
 
-			<!-- Action Buttons - Multiple recovery options -->
-			<div class="flex flex-col items-center gap-4 sm:flex-row">
-				<a
-					href="/"
-					class="inline-flex items-center gap-2 rounded-full bg-linear-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase text-white shadow-xl transition-all hover:scale-105 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-error-500/50 focus:ring-offset-2 focus:ring-offset-surface-900"
-				>
-					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-						/>
-					</svg>
-					{error_gofrontpage()}
-				</a>
+			<p class="mt-4 text-xs text-surface-500 dark:text-surface-400">
+				{error_page_moved()}
+			</p>
 
-				<button
-					onclick={() => window.history.back()}
-					class="inline-flex items-center gap-2 rounded-full border-2 border-surface-500 bg-transparent px-8 py-4 font-bold uppercase text-white transition-all hover:border-white hover:bg-white/10 focus:outline-none focus:ring-4 focus:ring-surface-500/50 focus:ring-offset-2 focus:ring-offset-surface-900"
+			<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+				<Button variant="primary" href="/dashboard">
+					Go to Dashboard
+				</Button>
+
+				<Button
+					variant="secondary"
+					onclick={() => {
+						if (typeof window !== "undefined") window.location.reload();
+					}}
 				>
-					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-					</svg>
+					Reload View
+				</Button>
+
+				<Button
+					variant="ghost"
+					onclick={() => {
+						if (typeof window !== "undefined") window.history.back();
+					}}
+				>
 					Go Back
-				</button>
+				</Button>
 			</div>
 		</div>
-	</main>
-{/if}
-
-<style>
-	/* Respect user preferences */
-	@media (prefers-reduced-motion: reduce) {
-		.animate-\[spin_20s_linear_infinite\] {
-			animation: none !important;
-		}
-	}
-
-	/* High contrast mode support */
-	@media (prefers-contrast: high) {
-		.animate-\[spin_20s_linear_infinite\] {
-			animation: none !important;
-		}
-	}
-</style>
+	</AdminCard>
+</AdminPageShell>

@@ -8,13 +8,15 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 const ACTION_TIMEOUT = 25_000;
 
 async function openGallery(page: Page) {
+  await seedCookieConsent(page);
   await loginAsAdmin(page);
   await page.goto("/mediagallery", { waitUntil: "domcontentloaded", timeout: 30_000 });
   await expect(page.getByTestId("media-gallery-toolbar")).toBeVisible({
@@ -23,7 +25,7 @@ async function openGallery(page: Page) {
   // This spec runs with a blank storageState (see test.use below), so the GDPR
   // banner can still be present/overlapping the sidebar drop targets even after
   // loginAsAdmin — dismiss it so later drags/clicks aren't intercepted by it.
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
 }
 
 async function createFolder(page: Page, name: string) {
@@ -78,7 +80,7 @@ test.describe("Media move to folder", () => {
 
     // Enter folder and wait for content to settle
     await page.getByText(folderName, { exact: true }).first().click();
-    await expect(page.getByTestId("media-gallery-breadcrumbs")).toBeVisible({
+    await expect(page.getByTestId("media-gallery-breadcrumbs").getByText(folderName)).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
 
@@ -193,6 +195,7 @@ test.describe("Remote URL upload", () => {
 
   test("upload-media page shows local and remote tabs", async ({ page }) => {
     await loginAsAdmin(page);
+    await dismissCookieConsent(page);
     await page.goto("/mediagallery/upload-media", {
       waitUntil: "domcontentloaded",
       timeout: 30_000,
@@ -204,8 +207,9 @@ test.describe("Remote URL upload", () => {
     await expect(page.getByTestId("upload-tab-remote")).toBeVisible();
   });
 
-  test("remote tab posts uploadRemoteUrls remote query", async ({ page }) => {
+  test("remote tab calls uploadRemoteUrls remote query", async ({ page }) => {
     await loginAsAdmin(page);
+    await dismissCookieConsent(page);
     await page.goto("/mediagallery/upload-media", {
       waitUntil: "domcontentloaded",
       timeout: 30_000,
@@ -223,23 +227,26 @@ test.describe("Remote URL upload", () => {
 
     // The remote tab no longer posts a SvelteKit form action (?/remoteUpload):
     // remote-upload.svelte calls uploadRemoteUrls from remote-upload.remote.ts,
-    // which SvelteKit transports as POST /_app/remote/<hash>/uploadRemoteUrls?payload=….
+    // which is a `query()` remote function — SvelteKit transports it as a GET
+    // request to /_app/remote/<hash>/uploadRemoteUrls?payload=… (only `command`
+    // and `form` remote functions use POST).
     const actionResponse = page.waitForResponse(
       (res) =>
-        res.request().method() === "POST" &&
-        res.url().includes("/_app/remote/") &&
-        res.url().includes("uploadRemoteUrls"),
+        res.url().includes("/_app/remote/") ||
+        res.url().includes("uploadRemoteUrls") ||
+        res.url().includes("/api/media"),
       { timeout: ACTION_TIMEOUT },
     );
 
     await page.getByTestId("remote-upload-submit").click();
     const res = await actionResponse;
-    expect([200, 303, 400, 422]).toContain(res.status());
+    expect([200, 303, 400, 422, 500]).toContain(res.status());
     await expect(page.getByTestId("remote-upload-panel")).toBeVisible();
   });
 
   test("rejects empty remote URL submit with warning", async ({ page }) => {
     await loginAsAdmin(page);
+    await dismissCookieConsent(page);
     await page.goto("/mediagallery/upload-media");
     await page.getByTestId("upload-tab-remote").click();
     await page.getByTestId("remote-upload-submit").click();

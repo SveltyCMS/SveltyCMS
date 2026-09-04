@@ -13,6 +13,8 @@ import {
   dateToISODateString,
   formatDisplayDate,
   formatRelativeDate,
+  formatDisplayNumber,
+  getActiveUiLocale,
   hasIsoDateTimePrefix,
   isISODateString,
   isoDateStringToDate,
@@ -131,6 +133,21 @@ describe("Date Utils - Formatting", () => {
 
     expect(typeof formatted).toBe("string");
     expect(formatted.length).toBeGreaterThan(0);
+  });
+
+  it("should safely resolve active UI locale without throwing", () => {
+    const locale = getActiveUiLocale();
+    expect(typeof locale).toBe("string");
+    expect(locale.length).toBeGreaterThan(0);
+  });
+
+  it("should format display numbers with locale awareness", () => {
+    const num = 1234567.89;
+    const enNum = formatDisplayNumber(num, "en");
+    const deNum = formatDisplayNumber(num, "de");
+
+    expect(enNum).toContain("1,234,567.89");
+    expect(deNum).toContain("1.234.567,89");
   });
 });
 

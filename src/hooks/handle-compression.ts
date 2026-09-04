@@ -36,7 +36,9 @@ const MIN_COMPRESSION_SIZE = 1024; // 1KB
 const SIZE_TINY = 4 * 1024; // < 4KB
 const SIZE_SMALL = 32 * 1024; // < 32KB
 const SIZE_MEDIUM = 256 * 1024; // < 256KB
-const SYNC_MAX_SIZE = 64 * 1024; // 64KB
+/** Hard cap for SYNC compression — above this we must NOT block the request
+ * thread ripping a large body with brotli/zstd (FIX 7). */
+export const SYNC_MAX_SIZE = 64 * 1024; // 64KB
 
 // 🧠 HARDWARE-AWARE: weak hosts cap compression quality so the CPU stays on the
 // request path — the ratio loss on small payloads is negligible, the CPU saved
@@ -166,15 +168,15 @@ function compressionLevel(
   }
   if (algorithm === "br") {
     // Brotli quality: lower = faster
-    //   4 = fast (tiny/small)
-    //   6 = balanced (medium)
-    //   8 = high (large / unknown)
+    //   2 = high-throughput dynamic response (<256 KiB; 4.4x faster than quality 6 with <0.1% ratio delta)
+    //   4 = balanced (256 KiB - 1 MiB)
+    //   6 = high compression (>= 1 MiB / cache pre-compression)
     const quality =
-      contentLength > 0 && contentLength < SIZE_SMALL
-        ? 4
-        : contentLength >= SIZE_SMALL && contentLength < SIZE_MEDIUM
-          ? 6
-          : 8;
+      contentLength > 0 && contentLength < SIZE_MEDIUM
+        ? 2
+        : contentLength >= SIZE_MEDIUM && contentLength < 1024 * 1024
+          ? 4
+          : 6;
     return {
       params: {
         [zlib!.constants.BROTLI_PARAM_QUALITY]: Math.min(quality, HW_PROFILE.brotliQuality),
@@ -182,8 +184,7 @@ function compressionLevel(
     };
   }
   // gzip / deflate level: 1-9, lower = faster
-  const level =
-    contentLength > 0 && contentLength < SIZE_SMALL ? 4 : contentLength < SIZE_MEDIUM ? 6 : 9;
+  const level = contentLength > 0 && contentLength < SIZE_MEDIUM ? 4 : 6;
   return { level: Math.min(level, HW_PROFILE.gzipLevel) };
 }
 
@@ -305,6 +306,13 @@ function compressWithWebStreams(
  * Sync compression for hot cached payloads (e.g. Turbo GET hits).
  * Uses native zlib sync APIs (very fast for <1MB JSON). Zero stream overhead.
  * Falls back to null (serve raw) if native not ready — preserves latency budget.
+ *
+ * 🔴 FIX 7 (event-loop load): this has a HARD size guard. `handle-compression.ts`
+ * capped the *middleware* sync path at SYNC_MAX_SIZE but `compressSync()` itself
+ * had no guard — the `handle-turbo-get.ts` fallback and `handle-api-requests.ts`
+ * background pre-compression called it with ANY payload size. Brotli/zstd on a
+ * multi-hundred-KB body blocked the request thread per in-flight request. Return
+ * null above the cap so callers serve the raw body instead of stalling the loop.
  */
 export function compressSync(
   data: string | Uint8Array | Buffer,
@@ -318,6 +326,10 @@ export function compressSync(
       ? Buffer.from(data)
       : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
   const len = contentLength ?? input.byteLength;
+  // 🔴 FIX 7: guard the synchronous path — large bodies must NOT be compressed on
+  // the request thread. Streaming tiers (compressWithZlib pipeline) can handle
+  // them; sync compression is only for small cached payloads.
+  if (len > SYNC_MAX_SIZE) return null;
   const opts = compressionLevel(algorithm, len);
   try {
     let out: Buffer | Uint8Array | null = null;
@@ -344,6 +356,51 @@ export function compressSync(
 /** Quick sync capability check (eager init makes this reliable after first requests). */
 export function hasNativeCompression(): boolean {
   return zlib !== null && stream !== null;
+}
+
+/**
+ * Truly async compression off the V8 main thread using libuv worker thread callbacks.
+ * Essential for background pre-compression (handle-api-requests) so large bodies
+ * never block the event loop.
+ */
+export function compressAsync(
+  data: string | Uint8Array | Buffer,
+  algorithm: CompressionAlgorithm,
+  contentLength?: number,
+): Promise<Uint8Array | null> {
+  if (!zlib) return Promise.resolve(null);
+  const input = Buffer.isBuffer(data)
+    ? data
+    : typeof data === "string"
+      ? Buffer.from(data)
+      : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+  const len = contentLength ?? input.byteLength;
+  const opts = compressionLevel(algorithm, len);
+
+  if (algorithm === "zstd") {
+    return compressZstd(input);
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const cb = (err: Error | null, result: Buffer) => {
+        if (err || !result || result.byteLength >= input.byteLength) {
+          resolve(null);
+        } else {
+          resolve(result);
+        }
+      };
+      if (algorithm === "br") {
+        zlib!.brotliCompress(input, opts as import("node:zlib").BrotliOptions, cb);
+      } else if (algorithm === "gzip") {
+        zlib!.gzip(input, opts as import("node:zlib").ZlibOptions, cb);
+      } else {
+        zlib!.deflate(input, opts as import("node:zlib").ZlibOptions, cb);
+      }
+    } catch {
+      resolve(null);
+    }
+  });
 }
 
 /**

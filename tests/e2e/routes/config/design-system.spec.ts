@@ -1,18 +1,32 @@
 /**
  * @file tests/e2e/routes/config/design-system.spec.ts
  * @description E2E for /config/design-system (sole Appearance + Live Preview workspace).
+ *
+ * The GDPR cookie banner (role=dialog, z-9999) intercepts clicks on the save
+ * button when it renders, so consent is pre-seeded before any navigation.
+ * Navigation also verifies the post-login URL and re-authenticates on a
+ * redirect to /login (stale storageState), matching appearance.spec.ts.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { seedCookieConsent } from "../../helpers/cookie-consent";
+
+async function openWorkspace(page: Page, tab: string): Promise<void> {
+  // Pre-seed consent so the GDPR banner never renders and intercepts clicks.
+  await seedCookieConsent(page);
+  await loginAsAdmin(page);
+  await page.goto(`/config/design-system?tab=${tab}`, { waitUntil: "domcontentloaded" });
+  if (page.url().includes("/login")) {
+    await loginAsAdmin(page, `/config/design-system?tab=${tab}`);
+  }
+  await expect(page).toHaveURL(/\/config\/design-system/, { timeout: 15_000 });
+  await expect(page).not.toHaveURL(/\/login/);
+}
 
 test.describe("Design System workspace", () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
-  });
-
   test("loads Design System with tabs", async ({ page }) => {
-    await page.goto("/config/design-system");
+    await openWorkspace(page, "overrides");
     await expect(page.getByRole("heading", { level: 1, name: /design system/i })).toBeVisible({
       timeout: 15_000,
     });
@@ -23,32 +37,36 @@ test.describe("Design System workspace", () => {
   });
 
   test("live preview tab shows playground", async ({ page }) => {
-    await page.goto("/config/design-system?tab=preview");
+    await openWorkspace(page, "preview");
     await expect(page.getByTestId("design-system-preview")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(/playground controls/i)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(/semantic palettes/i)).toBeVisible({ timeout: 10_000 });
   });
 
   test("density control updates preview context", async ({ page }) => {
-    await page.goto("/config/design-system?tab=preview");
+    await openWorkspace(page, "preview");
     await expect(page.getByTestId("design-system-preview")).toBeVisible({ timeout: 10_000 });
-    await page.getByLabel(/^density$/i).selectOption("compact");
+
+    const densitySelect = page.getByLabel(/^density$/i);
+    await expect(densitySelect).toBeVisible({ timeout: 10_000 });
+    await densitySelect.selectOption("compact");
+    await expect(densitySelect).toHaveValue("compact");
     await expect(page.getByText(/structural tokens/i)).toBeVisible({ timeout: 10_000 });
   });
 
   test("overrides tab is deep-linkable", async ({ page }) => {
-    await page.goto("/config/design-system?tab=overrides");
+    await openWorkspace(page, "overrides");
     await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({ timeout: 10_000 });
   });
 
   test("palette studio is on Palette & Import tab", async ({ page }) => {
-    await page.goto("/config/design-system?tab=presets");
+    await openWorkspace(page, "presets");
     await expect(page.getByTestId("palette-studio")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("palette-studio-apply")).toBeVisible();
   });
 
   test("my overrides density persists across reload", async ({ page }) => {
-    await page.goto("/config/design-system?tab=overrides");
+    await openWorkspace(page, "overrides");
     await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({ timeout: 10_000 });
 
     const densityOptions = [
@@ -71,12 +89,19 @@ test.describe("Design System workspace", () => {
       await page.getByTestId("appearance-save-overrides").click();
       await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 10_000 });
 
-      // Full reload — the preference must come back from server data, not localStorage.
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({ timeout: 10_000 });
-      await expect(page.getByLabel(/^density$/i)).toHaveValue(target.value, {
-        timeout: 10_000,
-      });
+      // Full reload — the preference must come back from server data, not
+      // localStorage. Retry via toPass: the save is awaited before the toast,
+      // but a fresh load re-serializes user prefs and may briefly lag.
+      await expect(async () => {
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await page.goto("/config/design-system?tab=overrides", { waitUntil: "domcontentloaded" });
+        await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({
+          timeout: 10_000,
+        });
+        await expect(page.getByLabel(/^density$/i)).toHaveValue(target.value, {
+          timeout: 10_000,
+        });
+      }).toPass({ timeout: 25_000 });
     } finally {
       // Restore the previous preference so the seeded admin stays deterministic.
       try {

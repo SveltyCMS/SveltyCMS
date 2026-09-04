@@ -40,10 +40,11 @@ type Props = Omit<HTMLAttributes<HTMLDivElement>, 'value' | 'onchange'> & {
 	onchange?: (value: any) => void;
 };
 
+const uid = $props.id();
 let {
 		options = [],
 		value = $bindable(),
-		name = crypto.randomUUID(),
+		name = uid,
 		disabled = false,
 		rounded = 'var(--admin-radius-input, 0.375rem)',
 		class: className,

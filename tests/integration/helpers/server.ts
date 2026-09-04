@@ -178,6 +178,8 @@ export async function safeFetch(
           decompressMsg.includes("Zstd")
         ) {
           process.stderr.write(`[safeFetch] Decompression error at ${url} — returning 502\n`);
+          // codeql[js/stack-trace-exposure]: integration-harness-only helper (never shipped);
+          // the detail is the decompression error message for local debugging of zstd bodies.
           return new Response(
             JSON.stringify({ error: "Decompression failed", detail: decompressMsg }),
             {

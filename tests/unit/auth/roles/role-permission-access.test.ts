@@ -1,0 +1,475 @@
+/**
+ * @file tests/unit/auth/roles/role-permission-access.test.ts
+ * @description Tests for role and permission management in the Auth system
+ *
+ * This test file validates:
+ * - Role-based permission checking
+ * - Admin privilege handling
+ * - Action-based permissions
+ * - Permission utility functions
+ *
+ * Uses mocked roles and permission functions for isolated testing.
+ * Tests the permission checking logic that works with database-stored roles.
+ *
+ * **DOES NOT require a running application** - all dependencies are mocked via:
+ * - tests/unit/bun-preload.ts (preloaded via bunfig.toml)
+ * - Mock roles defined in this file
+ *
+ * This allows the tests to run in CI/CD environments (like GitHub Actions)
+ * without needing a database connection or running server.
+ */
+
+import {
+  COLLECTION_BUILDER_PERMISSION_ID,
+  getAllPermissions,
+  hasCollectionBuilderPermission,
+  hasPermissionByAction,
+  hasPermissionWithRoles,
+  invalidatePermissionCache,
+  isAdminRoleWithRoles,
+  registerPermission,
+} from "@src/databases/auth/permissions";
+import type { Role, User } from "@src/databases/auth/types";
+import { PermissionAction, PermissionType } from "@src/databases/auth/types";
+import type { DatabaseId, ISODateString } from "@src/content/types";
+
+// Mock roles that would be in database
+const mockRoles: Role[] = [
+  {
+    _id: "admin" as DatabaseId,
+    name: "Admin",
+    description: "Administrator with full access",
+    permissions: [], // Admins get all permissions via isAdmin flag
+    isAdmin: true,
+  },
+  {
+    _id: "editor" as DatabaseId,
+    name: "Editor",
+    description: "Can create and edit content",
+    permissions: ["collection:read", "collection:write", "collection:create"],
+    isAdmin: false,
+  },
+  {
+    _id: "viewer" as DatabaseId,
+    name: "Viewer",
+    description: "Can only view content",
+    permissions: ["collection:read"],
+    isAdmin: false,
+  },
+  {
+    _id: "developer" as DatabaseId,
+    name: "Developer",
+    description: "Can manage collections via Collection Builder",
+    permissions: [COLLECTION_BUILDER_PERMISSION_ID],
+    isAdmin: false,
+  },
+];
+
+describe("Role and Permission Access Management", () => {
+  beforeEach(() => {
+    // Reset the permission result cache so cached grants/denies never leak
+    // between tests now that hasPermissionWithRoles consults it.
+    invalidatePermissionCache();
+
+    // Register test permissions
+    registerPermission({
+      _id: "collection:create" as DatabaseId,
+      name: "Create Content",
+      action: PermissionAction.CREATE,
+      type: PermissionType.COLLECTION,
+    });
+    registerPermission({
+      _id: "collection:read" as DatabaseId,
+      name: "Read Content",
+      action: PermissionAction.READ,
+      type: PermissionType.COLLECTION,
+    });
+    registerPermission({
+      _id: "collection:delete" as DatabaseId,
+      name: "Delete Content",
+      action: PermissionAction.DELETE,
+      type: PermissionType.COLLECTION,
+    });
+  });
+
+  test("Check user permissions with roles", () => {
+    const editorUser: User = {
+      _id: "user1" as DatabaseId,
+      email: "editor@example.com",
+      role: "editor",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    // Editor can create and read content
+    const canCreate = hasPermissionWithRoles(editorUser, "collection:create", mockRoles);
+    expect(canCreate).toBe(true);
+
+    const canRead = hasPermissionWithRoles(editorUser, "collection:read", mockRoles);
+    expect(canRead).toBe(true);
+
+    // Editor cannot delete content
+    const canDelete = hasPermissionWithRoles(editorUser, "collection:delete", mockRoles);
+    expect(canDelete).toBe(false);
+  });
+
+  test("Admin role has all permissions", () => {
+    const adminUser: User = {
+      _id: "admin1" as DatabaseId,
+      email: "admin@example.com",
+      role: "admin",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    // Admin should have all permissions regardless of what's in permissions array
+    const canCreate = hasPermissionByAction(
+      adminUser,
+      PermissionAction.CREATE,
+      PermissionType.COLLECTION,
+      undefined,
+      mockRoles,
+    );
+    expect(canCreate).toBe(true);
+
+    const canDelete = hasPermissionByAction(
+      adminUser,
+      PermissionAction.DELETE,
+      PermissionType.COLLECTION,
+      undefined,
+      mockRoles,
+    );
+    expect(canDelete).toBe(true);
+
+    const canDoAnything = hasPermissionWithRoles(adminUser, "any:action", mockRoles);
+    expect(canDoAnything).toBe(true);
+  });
+
+  test("Permission checking by action and type", () => {
+    const editorUser: User = {
+      _id: "user1" as DatabaseId,
+      email: "editor@example.com",
+      role: "editor",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    const canCreate = hasPermissionByAction(
+      editorUser,
+      PermissionAction.CREATE,
+      PermissionType.COLLECTION,
+      undefined,
+      mockRoles,
+    );
+    expect(canCreate).toBe(true);
+
+    const canDelete = hasPermissionByAction(
+      editorUser,
+      PermissionAction.DELETE,
+      PermissionType.COLLECTION,
+      undefined,
+      mockRoles,
+    );
+    expect(canDelete).toBe(false);
+  });
+
+  test("fails closed when no roles are supplied (no global fallback)", () => {
+    // The former `__ROLES_CACHE__` global fallback was removed — callers must
+    // supply roles, otherwise the check denies instead of consulting a cache
+    // that could hold stale permissions.
+    const editorUser: User = {
+      _id: "user1" as DatabaseId,
+      email: "editor@example.com",
+      role: "editor",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    const canCreate = hasPermissionByAction(
+      editorUser,
+      PermissionAction.CREATE,
+      PermissionType.COLLECTION,
+    );
+    expect(canCreate).toBe(false);
+
+    // Even an admin cannot be resolved without roles — fail closed.
+    const canAdmin = hasPermissionByAction(
+      { ...editorUser, role: "admin" },
+      PermissionAction.CREATE,
+      PermissionType.COLLECTION,
+    );
+    expect(canAdmin).toBe(false);
+  });
+
+  describe("Permission result caching", () => {
+    test("serves cached results within the TTL window and refreshes after invalidation", () => {
+      const editorUser: User = {
+        _id: "cache-user-1" as DatabaseId,
+        email: "editor@example.com",
+        role: "editor",
+        permissions: [],
+        createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+        updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+      };
+
+      expect(hasPermissionWithRoles(editorUser, "collection:read", mockRoles)).toBe(true);
+
+      // Simulate a role permission removal (fresh role objects, as a DB refetch returns —
+      // note: no `__bitset` memoization property, unlike spreading the original role)
+      const revokedRoles = mockRoles.map((r) =>
+        r._id === "editor"
+          ? {
+              _id: r._id,
+              name: r.name,
+              description: r.description,
+              permissions: [],
+              isAdmin: false,
+            }
+          : r,
+      );
+
+      // Still granted — served from the 5-minute result cache
+      expect(hasPermissionWithRoles(editorUser, "collection:read", revokedRoles)).toBe(true);
+
+      invalidatePermissionCache();
+      expect(hasPermissionWithRoles(editorUser, "collection:read", revokedRoles)).toBe(false);
+    });
+
+    test("per-user invalidation clears only that user's entries", () => {
+      const makeUser = (id: string): User => ({
+        _id: id as DatabaseId,
+        email: `${id}@example.com`,
+        role: "editor",
+        permissions: [],
+        createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+        updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+      });
+      const userA = makeUser("cache-user-a");
+      const userB = makeUser("cache-user-b");
+
+      expect(hasPermissionWithRoles(userA, "collection:read", mockRoles)).toBe(true);
+      expect(hasPermissionWithRoles(userB, "collection:read", mockRoles)).toBe(true);
+
+      const revokedRoles = mockRoles.map((r) =>
+        r._id === "editor"
+          ? {
+              _id: r._id,
+              name: r.name,
+              description: r.description,
+              permissions: [],
+              isAdmin: false,
+            }
+          : r,
+      );
+
+      invalidatePermissionCache(userA._id as string);
+
+      // A re-evaluates (denied), B still served from cache (granted)
+      expect(hasPermissionWithRoles(userA, "collection:read", revokedRoles)).toBe(false);
+      expect(hasPermissionWithRoles(userB, "collection:read", revokedRoles)).toBe(true);
+    });
+  });
+
+  test("Admin role detection", () => {
+    const adminUser: User = {
+      _id: "admin1" as DatabaseId,
+      email: "admin@example.com",
+      role: "admin",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    const editorUser: User = {
+      _id: "user1" as DatabaseId,
+      email: "editor@example.com",
+      role: "editor",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    expect(isAdminRoleWithRoles(adminUser.role, mockRoles)).toBe(true);
+    expect(isAdminRoleWithRoles(editorUser.role, mockRoles)).toBe(false);
+  });
+
+  test("Viewer has limited permissions", () => {
+    const viewerUser: User = {
+      _id: "user2" as DatabaseId,
+      email: "viewer@example.com",
+      role: "viewer",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    // Viewer can read
+    const canRead = hasPermissionWithRoles(viewerUser, "collection:read", mockRoles);
+    expect(canRead).toBe(true);
+
+    // Viewer cannot write or create
+    const canWrite = hasPermissionWithRoles(viewerUser, "collection:write", mockRoles);
+    expect(canWrite).toBe(false);
+
+    const canCreate = hasPermissionWithRoles(viewerUser, "collection:create", mockRoles);
+    expect(canCreate).toBe(false);
+  });
+
+  test("Permission registry functions", () => {
+    const allPermissions = getAllPermissions();
+    expect(allPermissions.length).toBeGreaterThan(0);
+
+    // Check that our registered permissions are in the registry
+    const hasContentCreate = allPermissions.some(
+      (p: { _id: string }) => p._id === "collection:create",
+    );
+    expect(hasContentCreate).toBe(true);
+  });
+
+  test("hasCollectionBuilderPermission grants admin and config:collectionbuilder", () => {
+    const adminUser: User = {
+      _id: "admin1" as DatabaseId,
+      email: "admin@example.com",
+      role: "admin",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+    const developerUser: User = {
+      _id: "dev1" as DatabaseId,
+      email: "dev@example.com",
+      role: "developer",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+    const editorUser: User = {
+      _id: "editor1" as DatabaseId,
+      email: "editor@example.com",
+      role: "editor",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    expect(hasCollectionBuilderPermission(adminUser, mockRoles, true)).toBe(true);
+    expect(hasCollectionBuilderPermission(developerUser, mockRoles)).toBe(true);
+    expect(hasCollectionBuilderPermission(editorUser, mockRoles)).toBe(false);
+    expect(hasCollectionBuilderPermission(null, mockRoles)).toBe(false);
+  });
+
+  test("Dynamic permission registration auto-resizes bitsets and preserves access", () => {
+    const customRole: Role = {
+      _id: "custom_plugin_role" as DatabaseId,
+      name: "CustomPluginRole",
+      permissions: ["custom:dynamic_action_1"],
+      isAdmin: false,
+    };
+
+    // Pre-cache bitset before dynamic permission registration
+    const user: User = {
+      _id: "plugin_user_1" as DatabaseId,
+      email: "plugin@example.com",
+      role: "custom_plugin_role",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    // Register a new dynamic plugin permission
+    registerPermission({
+      _id: "custom:dynamic_action_1" as DatabaseId,
+      name: "Custom Action 1",
+      action: PermissionAction.READ,
+      type: PermissionType.PLUGIN,
+    });
+
+    // Verify permission is granted without stale bitset denial
+    const canDoDynamic = hasPermissionWithRoles(user, "custom:dynamic_action_1", [customRole]);
+    expect(canDoDynamic).toBe(true);
+  });
+
+  test("Direct user-level permission overrides grant access even when role lacks permission", () => {
+    const restrictedUser: User = {
+      _id: "user_override_1" as DatabaseId,
+      email: "override@example.com",
+      role: "viewer", // viewer only has collection:read
+      permissions: ["collection:delete"], // direct override
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    // Has collection:read from role
+    expect(hasPermissionWithRoles(restrictedUser, "collection:read", mockRoles)).toBe(true);
+    // Has collection:delete from direct user override
+    expect(hasPermissionWithRoles(restrictedUser, "collection:delete", mockRoles)).toBe(true);
+    // Denied collection:create (neither role nor user override has it)
+    expect(hasPermissionWithRoles(restrictedUser, "collection:create", mockRoles)).toBe(false);
+  });
+
+  test("Multi-word boundary scaling (>32 and >64 permissions) correctly evaluates across Uint32Array words", () => {
+    // Register 75 dynamic permissions to cross word boundaries (Word 0: 0-31, Word 1: 32-63, Word 2: 64-95)
+    const targetPermWord1 = "plugin:permission_word_1_test_35";
+    const targetPermWord2 = "plugin:permission_word_2_test_70";
+    const ungrantedPerm = "plugin:permission_ungranted_test_72";
+
+    for (let i = 1; i <= 75; i++) {
+      registerPermission({
+        _id: `plugin:permission_word_test_${i}` as DatabaseId,
+        name: `Dynamic Plugin Permission ${i}`,
+        action: PermissionAction.READ,
+        type: PermissionType.PLUGIN,
+      });
+    }
+
+    registerPermission({
+      _id: targetPermWord1 as DatabaseId,
+      name: "Target Permission Word 1",
+      action: PermissionAction.READ,
+      type: PermissionType.PLUGIN,
+    });
+
+    registerPermission({
+      _id: targetPermWord2 as DatabaseId,
+      name: "Target Permission Word 2",
+      action: PermissionAction.READ,
+      type: PermissionType.PLUGIN,
+    });
+
+    registerPermission({
+      _id: ungrantedPerm as DatabaseId,
+      name: "Ungranted Permission Word 2",
+      action: PermissionAction.READ,
+      type: PermissionType.PLUGIN,
+    });
+
+    const scaledRole: Role = {
+      _id: "scaled_enterprise_role" as DatabaseId,
+      name: "ScaledEnterpriseRole",
+      permissions: [targetPermWord1, targetPermWord2, "collection:read"],
+      isAdmin: false,
+    };
+
+    const user: User = {
+      _id: "scaled_user_1" as DatabaseId,
+      email: "scaled@example.com",
+      role: "scaled_enterprise_role",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    // Word 0 check
+    expect(hasPermissionWithRoles(user, "collection:read", [scaledRole])).toBe(true);
+    // Word 1 check (>32 bit index)
+    expect(hasPermissionWithRoles(user, targetPermWord1, [scaledRole])).toBe(true);
+    // Word 2 check (>64 bit index)
+    expect(hasPermissionWithRoles(user, targetPermWord2, [scaledRole])).toBe(true);
+    // Ungranted check in Word 2 -> must be false (no bit collisions)
+    expect(hasPermissionWithRoles(user, ungrantedPerm, [scaledRole])).toBe(false);
+  });
+});

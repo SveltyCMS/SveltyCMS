@@ -53,6 +53,17 @@ export function isSystemReady(): boolean {
     return true;
   }
   const s = getOverallState();
+  // 🔴 FIX 9 (readiness gate): the boot cache-warming subsystem runs in the background
+  // (non-blocking boot). While its service status is still `initializing`, a freshly
+  // deployed pod is NOT ready for production traffic — the smart pre-warm hasn't finished
+  // so first requests would hit a cold cache. `cacheWarming` defaults to `skipped` when no
+  // boot warm-up runs (setup/tests/watch-only), so this only delays readiness during a real
+  // rolling-deploy boot. Implemented via the service status, not the overallState string,
+  // because `WARMING` is a legit post-boot state (widgets/themes settling) that must stay ready.
+  const warmState = getSystemState().services.cacheWarming?.status;
+  if (warmState === "initializing") {
+    return false;
+  }
   return s === "READY" || s === "WARMED" || s === "WARMING" || s === "DEGRADED";
 }
 
@@ -157,7 +168,7 @@ function transitionServiceState(
     state.services[serviceName] = {
       status: "initializing",
       message: "Auto-registered during transition",
-      metrics: structuredClone(initialServiceMetrics),
+      metrics: { ...initialServiceMetrics },
     };
   }
 
@@ -538,6 +549,11 @@ function deriveOverallState(services: SystemStateStore["services"]): SystemState
   }
 
   // 7. If critical services are healthy but some non-critical services are still initializing (WARMING)
+  // 🔴 FIX 9 (readiness gate): `cacheWarming` (boot pre-warm) is a non-critical service backed
+  // by a status that flips initializing → healthy when the cache-warming subsystem completes.
+  // Holding the whole system in WARMING (not READY/WARMED) until it settles means the
+  // load-balancer readiness probe (ready = isSystemReady()) won't send real production
+  // traffic to a freshly-deployed pod before its smart pre-warm has finished.
   const anyInitializing = allServices.some(
     (service) => services[service].status === "initializing",
   );
@@ -565,7 +581,8 @@ export function isServiceHealthy(serviceName: ServiceName): boolean {
 export function resetSystemState(): void {
   logger.info("Resetting system state to IDLE");
   system.set({
-    ...structuredClone(initialState),
+    ...initialState,
+    services: { ...initialState.services },
     lastStateChange: Date.now(),
   });
 }

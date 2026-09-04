@@ -7,8 +7,8 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
-	import { app } from '@src/stores/store.svelte';
-	import { sanitizeHtml } from '@utils/sanitize-html';
+	import { locale } from '@src/stores/locale-store.svelte';
+	import { parseMarkdown } from './parse-markdown';
 	import type { FieldType } from './index';
 
 	interface Props {
@@ -18,7 +18,7 @@
 
 	let { field, value = $bindable(null) }: Props = $props();
 
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : 'en');
+	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : 'en');
 
 	let rawText = $state('');
 	let previewMode = $state<'split' | 'edit' | 'preview'>('split');
@@ -37,21 +37,6 @@
 		} else {
 			value = rawText;
 		}
-	}
-
-	// Simple MD parser (Regex-based for demo, replace with 'marked' for production)
-	function parseMD(md: string) {
-		if (!md) return '';
-		const html = md
-			.replace(/^# (.*$)/gim, '<h1>$1</h1>')
-			.replace(/^## (.*$)/gim, '<h2>$1</h2>')
-			.replace(/^### (.*$)/gim, '<h3>$1</h3>')
-			.replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-			.replace(/\*(.*)\*/gim, '<em>$1</em>')
-			.replace(/!\[(.*?)\]\((.*?)\)/gim, "<img alt='$1' src='$2' />")
-			.replace(/\[(.*?)\]\((.*?)\)/gim, "<a href='$2'>$1</a>")
-			.replace(/^\n/gim, '<br />');
-		return sanitizeHtml(html);
 	}
 </script>
 
@@ -82,7 +67,7 @@
 		{#if previewMode !== 'edit'}
 			<div class="flex-1 p-4 overflow-y-auto bg-white dark:bg-surface-900 prose dark:prose-invert max-w-none border-s border-surface-500/30 dark:border-surface-500/40">
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html parseMD(rawText)}
+				{@html parseMarkdown(rawText)}
 			</div>
 		{/if}
 	</div>

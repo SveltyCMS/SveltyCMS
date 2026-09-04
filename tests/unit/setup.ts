@@ -7,6 +7,10 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 import { CORE_WIDGETS, CUSTOM_WIDGETS } from "./widgets/widget-constants";
 import { widgetNameToFolder } from "@src/widgets/widget-naming";
+// `Bun` exists only under the Bun runtime, which makes it the reliable signal.
+// `BUN_TEST` cannot gate this: bunfig preloads tests/unit/bun-preload.ts, whose
+// static `import "./setup"` is evaluated BEFORE its `process.env.BUN_TEST = "true"`
+// line (ESM import hoisting) — and Bun itself does not set BUN_TEST on Windows.
 const isBun = typeof Bun !== "undefined";
 
 // 🚀 CRITICAL: Detect benchmark mode early
@@ -1070,6 +1074,10 @@ if (isBun && !isBenchmark && ENABLE_MOCKS) {
       getComponentLoader: () => null,
       getWidgetNameFromPath: (p: string) => p.split("/").at(-2) || null,
       widgetNameToFolder,
+      getCustomWidgetNames: () =>
+        Object.keys(customModules)
+          .map((p) => p.split("/").at(-2) || "")
+          .filter(Boolean),
     };
   };
 
@@ -1250,6 +1258,9 @@ const cacheMock = {
   registerPrefetchPattern: mock(() => {}),
   getGlobalVersion: mock(async () => 0),
   incrementGlobalVersion: mock(async () => 1),
+  getCollectionEpoch: mock((_collection: string, _tenantId?: string | null) => 0),
+  bumpCollectionEpoch: mock((_collection: string, _tenantId?: string | null) => 1),
+  setForRandomAccess: mock((_key: string, _value: unknown, _tenantId?: string | null) => {}),
 };
 setGlobal("cacheService", cacheMock);
 // Whitebox suites that exercise the real CacheService (not cacheMock):
@@ -1333,6 +1344,7 @@ setGlobal("mockLogger", mockLogger);
 
 const mockAuditLog = {
   log: mock(() => Promise.resolve()),
+  logEvent: mock(() => Promise.resolve()),
   getLogs: mock(() => Promise.resolve([])),
 };
 const mockDbAdapter = {
@@ -1572,6 +1584,8 @@ moduleMock("@src/services/security/audit-service", () => {
     SUSPICIOUS_ACTIVITY: "suspicious_activity",
     WEBHOOK_TRIGGERED: "webhook_triggered",
     WORKFLOW_TRANSITION: "workflow_transition",
+    ROLE_MUTATED: "role_mutated",
+    ROLE_DELETED: "role_deleted",
   };
   return {
     auditLogService: mockAuditLog,
@@ -1651,6 +1665,7 @@ moduleMock("@src/widgets/scanner", () => ({
   getComponentLoader: () => null,
   getWidgetNameFromPath: (path: string) => path.split("/").at(-2) || null,
   widgetNameToFolder,
+  getCustomWidgetNames: () => [],
 }));
 
 moduleMock("@node-saml/node-saml", () => ({

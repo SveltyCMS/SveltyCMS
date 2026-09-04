@@ -24,6 +24,7 @@
   import { debounce } from "@utils/debounce";
   import { refreshAll } from '$app/navigation';
   import { clientJsonHeaders } from "@utils/security/client-csrf";
+  import { formatDate, formatDateTime } from "@utils/format-date";
 
   // Props
   let {
@@ -153,7 +154,7 @@
   const versionOptions = $derived(
     (file?.versions || []).map((ver: { version: number; size: number; createdAt: string }) => ({
       value: String(ver.version),
-      label: `v${ver.version} · ${formatBytes(ver.size)} · ${new Date(ver.createdAt).toLocaleDateString()}`,
+      label: `v${ver.version} · ${formatBytes(ver.size)} · ${formatDate(ver.createdAt)}`,
     })),
   );
 
@@ -728,11 +729,11 @@
               </div>
               <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
                 <dt class="text-surface-500 dark:text-surface-400">Created</dt>
-                <dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">{new Date(file.createdAt).toLocaleString()}</dd>
+                <dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">{formatDateTime(file.createdAt)}</dd>
               </div>
               <div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
                 <dt class="text-surface-500 dark:text-surface-400">Updated</dt>
-                <dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">{new Date(file.updatedAt).toLocaleString()}</dd>
+                <dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">{formatDateTime(file.updatedAt)}</dd>
               </div>
             </dl>
           </div>
@@ -904,7 +905,7 @@
                   <Badge variant="primary" size="sm">Active</Badge>
                   <div class="min-w-0">
                     <p class="truncate text-xs font-semibold text-surface-600 dark:text-surface-100">{file.filename}</p>
-                    <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">Current · {formatBytes(file.size)} · {new Date(file.updatedAt).toLocaleString()}</p>
+                    <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">Current · {formatBytes(file.size)} · {formatDateTime(file.updatedAt)}</p>
                   </div>
                 </div>
               </div>
@@ -916,7 +917,7 @@
                     <div class="min-w-0">
                       <p class="truncate text-xs font-semibold text-surface-600 dark:text-surface-100" title={ver.filename}>{ver.filename}</p>
                       <p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">
-                        {formatBytes(ver.size)} · {new Date(ver.createdAt).toLocaleString()}
+                        {formatBytes(ver.size)} · {formatDateTime(ver.createdAt)}
                         {#if ver.createdBy}
                           · {ver.createdBy}
                         {/if}
@@ -1094,7 +1095,7 @@
 
                   {#if link.expiry}
                     <div class="font-mono text-[10px] text-surface-500 dark:text-surface-400">
-                      Expires: {new Date(link.expiry).toLocaleString()}
+                      Expires: {formatDateTime(link.expiry)}
                     </div>
                   {/if}
                 </div>

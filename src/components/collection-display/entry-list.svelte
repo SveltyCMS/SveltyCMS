@@ -1,4 +1,6 @@
 <!--
+import { ui } from '@src/stores/ui-store.svelte';
+import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte';
 @file src/components/collection-display/entry-list.svelte
 @description
 High-performance data table for managing collection entries.
@@ -46,7 +48,8 @@ bulk actions, and predictive preloading.
 -->
 
 <script module lang="ts">
-	import Button from '@components/ui/button.svelte';
+
+import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte';	import Button from '@components/ui/button.svelte';
 	export type SortOrder = 0 | 1 | -1; // Strict type for sort order
 </script>
 
@@ -79,7 +82,6 @@ bulk actions, and predictive preloading.
 	// Config
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
-	import { app } from '@src/stores/store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import Sanitize from '@src/utils/sanitize.svelte';
 	// Utils
@@ -614,8 +616,8 @@ bulk actions, and predictive preloading.
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	const currentStates = $derived.by(() => ({
-		language: app.contentLanguage,
-		systemLanguage: app.systemLanguage,
+		language: contentLanguage.value,
+		systemLanguage: systemLanguage.value,
 		mode: mode.value,
 		collection: collection.value,
 		screenSize: screen.size
@@ -1161,6 +1163,7 @@ bulk actions, and predictive preloading.
 			totalItems={totalItems}
 			onUpdatePage={onUpdatePage}
 			onUpdateRowsPerPage={onUpdateRowsPerPage}
+			urlPageParam="page"
 			class="min-h-0 flex-1"
 		>
 			{#snippet emptyAction()}
@@ -1342,14 +1345,14 @@ bulk actions, and predictive preloading.
 												{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
 													<div class="flex flex-col text-xs">
 														<div class="font-semibold">
-															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, 'en', {
+															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, undefined, {
 																year: 'numeric',
 																month: 'short',
 																day: 'numeric'
 															})}
 														</div>
 														<div class="text-surface-500 dark:text-surface-400">
-															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, 'en', {
+															{formatDisplayDate((entry as any)[(header as TableHeader).name || ''] as string, undefined, {
 																hour: '2-digit',
 																minute: '2-digit',
 																second: '2-digit',

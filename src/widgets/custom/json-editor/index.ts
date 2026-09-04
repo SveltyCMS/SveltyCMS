@@ -18,6 +18,7 @@ export interface JsonEditorProps {
 
 const JsonEditorWidget = createWidget<JsonEditorProps>({
   Name: "JsonEditor",
+  version: "1.0.0",
   Icon: "mdi:json",
   Description: "Structured JSON data editor with syntax highlighting.",
   inputComponentPath: "/src/widgets/custom/json-editor/input.svelte",

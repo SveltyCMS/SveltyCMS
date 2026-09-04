@@ -7,7 +7,7 @@ Allows users to add text, arrows, rectangles, and circles to images.
 -->
 
 <script lang="ts">
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import AnnotateControls from './controls.svelte';
 	import AnnotateControlsMobile from './controls-mobile.svelte';

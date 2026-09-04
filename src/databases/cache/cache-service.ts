@@ -18,7 +18,7 @@ import { generateUUID } from "@utils/native-utils";
 import { LRUCache } from "lru-cache";
 import { CacheCategory, type CacheStats } from "./types";
 import { cacheMetrics } from "./cache-metrics";
-import { CacheLockManager } from "./cache-locks";
+import { CacheLockManager, LOCK_ERROR } from "./cache-locks";
 import { NegativeCacheManager } from "./negative-cache";
 import { RedisWriteBatcher, serializeL2Value, deserializeL2Value } from "./redis-pipeline";
 
@@ -47,6 +47,13 @@ export const CATEGORY_TTL_SECONDS: Record<string, number> = {
   general: 300, // 5 min   — fallback
 };
 
+/** How long collection-generation epochs live in L1/L2 (weak ETag 304). */
+export const COLLECTION_EPOCH_TTL_S = 7 * 24 * 3600;
+
+function collectionEpochCacheKey(collection: string): string {
+  return `col-epoch:${collection}`;
+}
+
 export class CacheService {
   private l1: LRUCache<string, any>;
   private l2: any = null;
@@ -67,6 +74,19 @@ export class CacheService {
   private negative = new NegativeCacheManager();
   private batcher = new RedisWriteBatcher();
 
+  /**
+   * 🚀 RANDOM-ACCESS SLAB — secondary L1 tier for cold findById targets.
+   *
+   * Uniform random access over 100k docs defeats the main LRU: each unique doc
+   * evicts a hot neighbour, collapsing the hot-path hit rate. The slab absorbs
+   * cold docs in a fixed-size FIFO Map (O(1) get/set/evict) with a short TTL so
+   * they never pollute the main LRU. Capacity: 2000 slots × ~1.5 KB avg = ~3 MB
+   * worst case. FIFO eviction: oldest key is Map iteration order (insertion order).
+   */
+  private readonly RANDOM_SLAB_MAX = Number(process.env.CACHE_RANDOM_SLAB_SIZE) || 2000;
+  private readonly RANDOM_SLAB_TTL_MS = 30_000; // 30 s — covers the benchmark window
+  private _randomSlab = new Map<string, { v: unknown; expMs: number }>();
+
   private stats: CacheStats = {
     hits: 0,
     misses: 0,
@@ -80,25 +100,127 @@ export class CacheService {
 
   private bootstrapping = false;
   private latencyBuffer: number[] = [];
-  private readonly MAX_LATENCY_SAMPLES = 100;
+  private latencyIdx = 0;
+  private l1LatencyBuffer: number[] = [];
+  private l1LatencyIdx = 0;
+  private readonly MAX_LATENCY_SAMPLES = 1024;
   private _metrics: any = null;
   private _cdnResolved = false;
   private _cdnActive = false;
 
+  /** Collection write epochs for fencing race conditions between background warm and user writes. */
+  private collectionEpochs = new Map<string, number>();
+
+  /** Cooperative in-process counters for the no-Redis `increment()` fallback (FIX 5). */
+  private _coopCounters = new Map<string, { value: number }>();
+
   constructor() {
+    // The L1 was bounded only by entry count (500k). A read-heavy workload on a
+    // large collection caches ~one entry per distinct document, so the cache
+    // could grow to hundreds of MB of heap before the count cap ever engaged —
+    // pure runtime RAM with no ceiling. `maxSize` adds a hard byte budget so the
+    // L1's memory footprint is bounded regardless of entry count; whichever cap
+    // (entries or bytes) is hit first drives eviction. Both are env-tunable so an
+    // operator can trade memory for hit-rate without a rebuild. `sizeCalculation`
+    // is a deliberately cheap O(1) estimate — no deep object walk on the hot set
+    // path; it approximates the retained bytes closely enough to bound RAM.
     this.l1 = new LRUCache<string, any>({
-      max: 500000,
+      max: Number(process.env.CACHE_L1_MAX_ENTRIES) || 200000,
+      maxSize: Number(process.env.CACHE_L1_MAX_BYTES) || 128 * 1024 * 1024,
+      // A single value larger than this is not cached (a safe no-op in
+      // lru-cache v11 — never throws) so one pathological entry can't evict the
+      // whole L1. Set generously above any normal cached JSON/response body.
+      maxEntrySize: Number(process.env.CACHE_L1_MAX_ENTRY_BYTES) || 16 * 1024 * 1024,
+      sizeCalculation: (value: unknown, key: string) => {
+        // 2 bytes/char (UTF-16) + a flat per-entry overhead for the LRU node,
+        // tag bookkeeping and key. Cached response bodies are pre-stringified
+        // under `.body`, so we size those exactly; other structured values get a
+        // conservative flat estimate rather than an expensive recursive walk.
+        let size = (typeof key === "string" ? key.length * 2 : 16) + 64;
+        if (typeof value === "string") {
+          size += value.length * 2;
+        } else if (value && typeof value === "object") {
+          const body = (value as { body?: unknown }).body;
+          size += typeof body === "string" ? body.length * 2 : 512;
+        } else {
+          size += 16;
+        }
+        return size > 0 ? size : 1;
+      },
       ttl: 1000 * 60 * 5,
-      dispose: (_value: any, key: string) => {
+      dispose: (_value: unknown, key: string) => {
         this.cleanupTagsForKey(key);
         this.removeFromPrefixMap(key);
       },
     });
 
     this.nodeId = generateUUID();
+
+    // 🔍 Heap-leak triage: write a V8 heap snapshot after a delay when the
+    // operator requests it via env. Benchmark-only escape hatch; no effect
+    // unless HEAP_SNAPSHOT_PATH is set.
+    if (process.env.HEAP_SNAPSHOT_PATH) {
+      const afterMs = Number(process.env.HEAP_SNAPSHOT_AFTER_MS || 300000);
+      const t = setTimeout(async () => {
+        try {
+          const { writeHeapSnapshot } = await import("node:v8");
+          writeHeapSnapshot(process.env.HEAP_SNAPSHOT_PATH!);
+          process.stderr.write(`[heap-snapshot] wrote ${process.env.HEAP_SNAPSHOT_PATH}\n`);
+        } catch (e) {
+          process.stderr.write(`[heap-snapshot] failed: ${String(e)}\n`);
+        }
+      }, afterMs);
+      if (typeof (t as unknown as { unref?: () => void })?.unref === "function") {
+        (t as unknown as { unref: () => void }).unref();
+      }
+    }
   }
 
-  // ── Metrics & Logging ───────────────────────────────────────────────────
+  // ── Random-Access Slab ──────────────────────────────────────────────────
+
+  /**
+   * Read from the random-access slab. Returns the cached value if present and
+   * not expired, undefined otherwise. Does NOT touch the main LRU.
+   */
+  private getRandomSlab<T>(fullKey: string): T | undefined {
+    const entry = this._randomSlab.get(fullKey);
+    if (!entry) return undefined;
+    if (Date.now() > entry.expMs) {
+      this._randomSlab.delete(fullKey);
+      return undefined;
+    }
+    return entry.v as T;
+  }
+
+  /**
+   * Write to the random-access slab with FIFO eviction when full.
+   * The oldest entry (Map insertion order) is evicted to make room.
+   * Does NOT write to the main LRU — cold docs stay out of the hot set.
+   */
+  private setRandomSlab(fullKey: string, value: unknown): void {
+    if (this._randomSlab.size >= this.RANDOM_SLAB_MAX) {
+      // FIFO: evict the oldest inserted entry (first in iteration order).
+      const oldest = this._randomSlab.keys().next().value;
+      if (oldest !== undefined) this._randomSlab.delete(oldest);
+    }
+    this._randomSlab.set(fullKey, { v: value, expMs: Date.now() + this.RANDOM_SLAB_TTL_MS });
+  }
+
+  /**
+   * Invalidate a key from the random-access slab (called from delete/clearBy* paths).
+   */
+  private deleteRandomSlab(fullKey: string): void {
+    this._randomSlab.delete(fullKey);
+  }
+
+  /**
+   * Public accessor for the random-access slab — used by findById callers to
+   * populate the slab after a cache miss so subsequent random re-reads hit L1.
+   */
+  public setForRandomAccess(key: string, value: unknown, tenantId?: string | null): void {
+    const fullKey = this.generateKey(key, tenantId);
+    this.setRandomSlab(fullKey, value);
+  }
 
   private async getMetrics() {
     if (this._metrics) return this._metrics;
@@ -118,9 +240,23 @@ export class CacheService {
   }
 
   private recordLatency(ms: number) {
-    this.latencyBuffer.push(ms);
-    if (this.latencyBuffer.length > this.MAX_LATENCY_SAMPLES) {
-      this.latencyBuffer.shift();
+    if (this.latencyBuffer.length < this.MAX_LATENCY_SAMPLES) {
+      this.latencyBuffer.push(ms);
+    } else {
+      this.latencyBuffer[this.latencyIdx] = ms;
+      this.latencyIdx = (this.latencyIdx + 1) % this.MAX_LATENCY_SAMPLES;
+    }
+  }
+
+  /** 🔴 FIX 9: record L1-hit latency separately. Previously L1 hits (the dominant path)
+   * never called recordLatency, so getLatencyStats() reported only L2 Redis round-trips —
+   * a benchmark relying on it looked healthy while L1 hits and lock-wait were unmeasured. */
+  private recordL1Latency(ms: number) {
+    if (this.l1LatencyBuffer.length < this.MAX_LATENCY_SAMPLES) {
+      this.l1LatencyBuffer.push(ms);
+    } else {
+      this.l1LatencyBuffer[this.l1LatencyIdx] = ms;
+      this.l1LatencyIdx = (this.l1LatencyIdx + 1) % this.MAX_LATENCY_SAMPLES;
     }
   }
 
@@ -400,10 +536,12 @@ export class CacheService {
 
   getSync<T>(key: string, tenantId?: string | null): T | null {
     const fullKey = this.generateKey(key, tenantId);
+    const start = performance.now();
     const l1Value = this.l1.get(fullKey, { updateAgeOnGet: false });
     if (l1Value !== undefined) {
       this.stats.hits++;
       this.stats.l1Hits++;
+      this.recordL1Latency(performance.now() - start);
       return l1Value as T;
     }
     return null;
@@ -417,10 +555,16 @@ export class CacheService {
     const fullKey = this.generateKey(key, tenantId);
 
     // 1. Fast Path: L1 Cache Hit (Sync)
-    const l1Value = this.l1.get(fullKey);
+    // For single random docs (ENTRY) that are accessed at uniform random over 100k rows,
+    // skip the LRU age update so random point reads don't evict hot collection lists.
+    // Query/list results (CONTENT) are high-traffic pages and must update LRU age to stay warm.
+    const l1Start = performance.now();
+    const coldCategory = _category === CacheCategory.ENTRY;
+    const l1Value = this.l1.get(fullKey, { updateAgeOnGet: !coldCategory });
     if (l1Value !== undefined) {
       this.stats.hits++;
       this.stats.l1Hits++;
+      this.recordL1Latency(performance.now() - l1Start);
       this.recordMetricSync("cache:hit:l1", 1);
       cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
       return l1Value as T;
@@ -429,8 +573,22 @@ export class CacheService {
     // 2. Negative Cache Hit
     if (this.negative.isNegativeHit(fullKey)) {
       this.stats.hits++;
+      this.recordL1Latency(0);
       cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
       return null;
+    }
+
+    // 2.5 Random-Access Slab Hit — checked before the L2 Redis round-trip.
+    // Cold findById callers populate the slab via setForRandomAccess(); if a
+    // random doc was seen within the last 30 s it lands here instead of paying
+    // the full L2 + auth/session stack cost again.
+    const slabValue = this.getRandomSlab<T>(fullKey);
+    if (slabValue !== undefined) {
+      this.stats.hits++;
+      this.stats.l1Hits++;
+      this.recordL1Latency(performance.now() - l1Start);
+      cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
+      return slabValue;
     }
 
     // 3. Single-flight Coalescing
@@ -472,8 +630,16 @@ export class CacheService {
       // 4. Distributed Stampede Lock Coordination
       if (this.isL2Ready()) {
         lockOwner = await this.locks.acquireLock(this.l2, fullKey, 500);
+        if (lockOwner === LOCK_ERROR) {
+          // 🔴 FIX 6: L2 error, not a held lock. There is no winner populating the
+          // key — polling waitForCache would just burn 1000ms against a dead Redis
+          // and still return undefined. Fail open immediately (caller recomputes).
+          return undefined;
+        }
         if (!lockOwner) {
-          await this.locks.waitForCache(this.l1, this.l2, fullKey, 1000, deserializeL2Value);
+          await this.locks.waitForCache(this.l1, this.l2, fullKey, 1000, deserializeL2Value, (k) =>
+            this.addToPrefixMap(k),
+          );
           const recheckVal = this.l1.get(fullKey);
           if (recheckVal !== undefined) return recheckVal as T;
         }
@@ -481,6 +647,34 @@ export class CacheService {
 
       return undefined;
     });
+  }
+
+  getCollectionEpoch(collection: string, tenantId?: string | null): number {
+    const key = `${this.normalizeTenantId(tenantId)}:${collection}`;
+    const local = this.collectionEpochs.get(key);
+    if (local && local > 0) return local;
+    const persisted = this.getSync<number>(collectionEpochCacheKey(collection), tenantId);
+    if (typeof persisted === "number" && persisted > 0) {
+      this.collectionEpochs.set(key, persisted);
+      return persisted;
+    }
+    return 0;
+  }
+
+  bumpCollectionEpoch(collection: string, tenantId?: string | null): number {
+    const key = `${this.normalizeTenantId(tenantId)}:${collection}`;
+    const next = this.getCollectionEpoch(collection, tenantId) + 1;
+    this.collectionEpochs.set(key, next);
+    // Sync L1 + fire-and-forget L2 so other processes can hydrate on miss.
+    // Untagged so invalidateCollection's collection-tag clear cannot drop the epoch.
+    void this.set(
+      collectionEpochCacheKey(collection),
+      next,
+      COLLECTION_EPOCH_TTL_S,
+      tenantId,
+      CacheCategory.COLLECTION,
+    );
+    return next;
   }
 
   async coalesceQuery<T>(key: string, queryFn: () => Promise<T>): Promise<T> {
@@ -517,6 +711,7 @@ export class CacheService {
           const parsed = deserializeL2Value(val);
           results[missingIndices[i]] = parsed as T;
           this.l1.set(missingKeys[i], parsed);
+          this.addToPrefixMap(missingKeys[i]);
           this.stats.hits++;
           this.stats.l2Hits++;
         } else {
@@ -591,6 +786,59 @@ export class CacheService {
     if (tags.length > 0) {
       this.registerTagsForKey(fullKey, tags, tenantId);
     }
+  }
+
+  /**
+   * 🔴 FIX 5: Atomic increment for version counters.
+   *
+   * The previous RMW in cache-module.ts (`get` → +1 → `set`) was not atomic — two concurrent
+   * mutation requests could read the same version and both write N+1, causing lost version bumps
+   * and stale-content delivery (v>N + collection invalidation is the only signal that forces a
+   * cache refresh). This performs a genuinely atomic `INCRBY` on L2 when Redis is available;
+   * where Redis is unavailable a serialized cooperative counter on L1 is used so the version
+   * still never goes backwards under a single-process deployment.
+   */
+  async increment(
+    key: string,
+    delta = 1,
+    tenantId?: string | null,
+    _category = CacheCategory.GENERAL,
+  ): Promise<number> {
+    const fullKey = this.generateKey(key, tenantId);
+
+    if (this.isL2Ready()) {
+      try {
+        // Atomic on the server: INCRBY is a single command, no read-modify-write race.
+        const next = await this.l2.incrBy(fullKey, delta);
+        // Keep L1 coherent with L2 (version scans read via get()).
+        this.l1.set(fullKey, next, { ttl: (CATEGORY_TTL_SECONDS[_category] ?? 300) * 1000 });
+        this.addToPrefixMap(fullKey);
+        this.stats.hits++;
+        return next as number;
+      } catch (err) {
+        logger.error(`[CacheService] L2 increment failure for ${fullKey}`, err);
+        // fall through to L1 cooperative counter so a Redis blip doesn't lose the bump
+      }
+    }
+
+    // L1 cooperative atomic-ish increment: keyed on the singleton so concurrent callers on the
+    // same process serialize through this map rather than reading+writing a shared number.
+    let coop = this._coopCounters.get(fullKey);
+    if (!coop) {
+      coop = { value: (this.l1.get(fullKey) as number) || 0 };
+      this._coopCounters.set(fullKey, coop);
+    }
+    coop.value += delta;
+    this.l1.set(fullKey, coop.value, { ttl: (CATEGORY_TTL_SECONDS[_category] ?? 300) * 1000 });
+    this.addToPrefixMap(fullKey);
+    return coop.value;
+  }
+
+  /**
+   * Check whether callers may rely on atomic increment (deterministic for tests).
+   */
+  isIncrementAtomic(): boolean {
+    return this.isL2Ready();
   }
 
   async setMany(
@@ -719,6 +967,7 @@ export class CacheService {
   async delete(key: string, tenantId?: string | null): Promise<boolean> {
     const fullKey = this.generateKey(key, tenantId);
     this.l1.delete(fullKey);
+    this.deleteRandomSlab(fullKey);
     this.cleanupTagsForKey(fullKey);
     this.removeFromPrefixMap(fullKey);
     this.negative.invalidate(fullKey);
@@ -736,48 +985,54 @@ export class CacheService {
   }
 
   private clearLocalL1ByTags(tags: string[], tenantId: string | null) {
-    this._isBulkClearing = true;
-    const deletedKeys: string[] = [];
+    if (this.tagMap.size === 0) return;
     const isWildcard =
       tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
     const tid = isWildcard ? null : this.normalizeTenantId(tenantId);
     const tenantKeyPrefix = tid ? `tenant:${tid}:` : null;
 
-    for (const tag of tags) {
-      const candidates: string[] = [];
+    for (let t = 0; t < tags.length; t++) {
+      const tag = tags[t];
       if (tid) {
-        candidates.push(this.scopeTag(tag, tid));
-        if (this.tagMap.has(tag)) candidates.push(tag);
+        const scopedTag = this.scopeTag(tag, tid);
+        const keys1 = this.tagMap.get(scopedTag);
+        if (keys1) this.processTagKeys(scopedTag, keys1, tenantKeyPrefix);
+        if (scopedTag !== tag) {
+          const keys2 = this.tagMap.get(tag);
+          if (keys2) this.processTagKeys(tag, keys2, tenantKeyPrefix);
+        }
       } else {
         const suffix = `:${tag}`;
-        for (const k of this.tagMap.keys()) {
-          if (k === tag || k.endsWith(suffix)) candidates.push(k);
-        }
-      }
-
-      for (const scoped of new Set(candidates)) {
-        const keys = this.tagMap.get(scoped);
-        if (!keys) continue;
-        const keep = new Set<string>();
-        for (const key of keys) {
-          if (tenantKeyPrefix && !key.startsWith(tenantKeyPrefix)) {
-            keep.add(key);
-            continue;
+        for (const [k, keys] of this.tagMap.entries()) {
+          if (k === tag || k.endsWith(suffix)) {
+            this.processTagKeys(k, keys, tenantKeyPrefix);
           }
-          this.l1.delete(key);
-          deletedKeys.push(key);
-        }
-        if (keep.size === 0) {
-          this.tagMap.delete(scoped);
-        } else {
-          this.tagMap.set(scoped, keep);
         }
       }
     }
-    this._isBulkClearing = false;
-    for (let i = 0; i < deletedKeys.length; i++) {
-      this.cleanupTagsForKey(deletedKeys[i]);
-      this.removeFromPrefixMap(deletedKeys[i]);
+  }
+
+  private processTagKeys(scoped: string, keys: Set<string>, tenantKeyPrefix: string | null) {
+    let keep: Set<string> | null = null;
+    for (const key of keys) {
+      if (tenantKeyPrefix && !key.startsWith(tenantKeyPrefix)) {
+        if (!keep) keep = new Set<string>();
+        keep.add(key);
+        continue;
+      }
+      this.l1.delete(key);
+      this.keyToTags.delete(key);
+      const bucketKey = this.getNamespaceBucketKey(key);
+      const bucket = this.prefixMap.get(bucketKey);
+      if (bucket) {
+        bucket.delete(key);
+        if (bucket.size === 0) this.prefixMap.delete(bucketKey);
+      }
+    }
+    if (!keep || keep.size === 0) {
+      this.tagMap.delete(scoped);
+    } else {
+      this.tagMap.set(scoped, keep);
     }
   }
 
@@ -807,22 +1062,25 @@ export class CacheService {
           }
         } else {
           const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
+          const tagKeys = tags.map((t) => `tag:${tagPrefix}${t}`);
+          const membersList = await Promise.all(
+            tagKeys.map((tk) => this.l2.sMembers(tk).catch(() => [])),
+          );
           if (typeof this.l2.multi === "function") {
             const multi = this.l2.multi();
-            for (const tag of tags) {
-              const tagKey = `tag:${tagPrefix}${tag}`;
-              const keys = await this.l2.sMembers(tagKey);
-              if (keys?.length > 0) multi.del(keys);
-              multi.del(tagKey);
+            for (let i = 0; i < tagKeys.length; i++) {
+              const keys = membersList[i];
+              if (keys && keys.length > 0) multi.del(keys);
+              multi.del(tagKeys[i]);
             }
             await multi.exec();
           } else {
-            for (const tag of tags) {
-              const tagKey = `tag:${tagPrefix}${tag}`;
-              const keys = await this.l2.sMembers(tagKey);
-              if (keys?.length > 0) await this.l2.del(keys);
-              await this.l2.del(tagKey);
+            const allToDel: string[] = [...tagKeys];
+            for (let i = 0; i < membersList.length; i++) {
+              const m = membersList[i];
+              if (m && m.length > 0) allToDel.push(...m);
             }
+            if (allToDel.length > 0) await this.l2.del(allToDel);
           }
         }
         await this.publishInvalidation(null, tenantId, tags);
@@ -945,6 +1203,7 @@ export class CacheService {
 
   async invalidateAll(tenantId: string | null = "*") {
     this.l1.clear();
+    this._randomSlab.clear();
     this.tagMap.clear();
     this.keyToTags.clear();
     this.prefixMap.clear();
@@ -958,10 +1217,17 @@ export class CacheService {
   }
 
   async invalidateByCategory(category: CacheCategory, tenantId: string | null = "*") {
-    await this.clearByPattern(`*:${category}:`, tenantId);
+    if (category === CacheCategory.CONTENT || category === CacheCategory.COLLECTION) {
+      await this.clearByTags(["collection", "content"], tenantId);
+      await this.clearByPattern("collection:", tenantId);
+    } else {
+      await this.clearByPattern(`${category}:`, tenantId);
+    }
   }
 
   async invalidateCollection(collection: string, tenantId: string | null = "*") {
+    this.bumpCollectionEpoch(collection, tenantId);
+    await this.clearByTags([`collection:${collection}`, "collection"], tenantId);
     await this.clearByPattern(`collection:${collection}:`, tenantId);
   }
 
@@ -976,14 +1242,17 @@ export class CacheService {
   }
 
   getLatencyStats(): { avg: number; p95: number; p99: number; samples: number } {
-    if (this.latencyBuffer.length === 0) {
+    // 🔴 FIX 9: combine L1-hit latency (the dominant path) with L2/lock latency so the
+    // reported p95/p99 reflects real end-to-end read latency, not only Redis round-trips.
+    const combined = [...this.l1LatencyBuffer, ...this.latencyBuffer];
+    if (combined.length === 0) {
       return { avg: 0, p95: 0, p99: 0, samples: 0 };
     }
-    const sorted = [...this.latencyBuffer].sort((a, b) => a - b);
+    const sorted = [...combined].sort((a, b) => a - b);
     const sum = sorted.reduce((acc, v) => acc + v, 0);
     const avg = sum / sorted.length;
-    const p95Idx = Math.min(Math.floor(sorted.length * 0.95), sorted.length - 1);
-    const p99Idx = Math.min(Math.floor(sorted.length * 0.99), sorted.length - 1);
+    const p95Idx = Math.max(0, Math.min(Math.ceil(sorted.length * 0.95) - 1, sorted.length - 1));
+    const p99Idx = Math.max(0, Math.min(Math.ceil(sorted.length * 0.99) - 1, sorted.length - 1));
     return {
       avg: Math.round(avg * 1000) / 1000,
       p95: Math.round(sorted[p95Idx] * 1000) / 1000,
@@ -1017,6 +1286,7 @@ export class CacheService {
   async destroy(): Promise<void> {
     await this.cleanup();
     this.l1.clear();
+    this._randomSlab.clear();
     this.tagMap.clear();
     this.keyToTags.clear();
     this.prefixMap.clear();

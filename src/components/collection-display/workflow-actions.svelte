@@ -13,6 +13,7 @@ import type { WorkflowDefinition, WorkflowInstance } from "@src/types/workflow-t
 	import AdminCard from '@components/admin-card.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
+	import { formatDate } from '@utils/format-date';
 
 interface Props {
     collectionId: string;
@@ -157,7 +158,7 @@ const availableTransitions = $derived.by(() => {
                             {#each instance.history.slice(-3).reverse() as log, i (i)}
                                 <div class="text-[10px] flex items-center justify-between opacity-60">
                                     <span>{workflow.states.find(s => s.id === log.fromState)?.label} ➔ {workflow.states.find(s => s.id === log.toState)?.label}</span>
-                                    <span>{new Date(log.timestamp).toLocaleDateString()}</span>
+                                    <span>{formatDate(log.timestamp)}</span>
                                 </div>
                             {/each}
                         {/if}

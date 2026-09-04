@@ -17,6 +17,7 @@ import { sendMail } from "@utils/email.server";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
 import { normalizeEmail } from "@utils/normalize-email";
+import { verifyDummyPassword } from "@utils/security/crypto";
 
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 
@@ -93,6 +94,9 @@ export async function sendMagicLinkForEmail(
         .catch(() => {
           logger.warn(`[DEVELOPMENT/NO-SMTP] Magic Link for ${user.email}: ${magicLink}`);
         });
+    } else {
+      // 🛡️ TIMING DEFENSE (CWE-208): prevent email enumeration via response timing
+      await verifyDummyPassword("dummy-password");
     }
   } catch {
     // uniform response — no account enumeration

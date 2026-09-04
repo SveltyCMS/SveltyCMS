@@ -32,22 +32,23 @@ The Authentication API handles the complete lifecycle of a user identity within 
 
 ## ⚡ Quick Reference
 
-| Feature           | HTTP Endpoint                | Method      | Permission Required |
-| :---------------- | :--------------------------- | :---------- | :------------------ |
-| **Login**         | `/api/auth/login`            | `POST`      | **Public**          |
-| **Logout**        | `/api/auth/logout`           | `POST`      | **Authenticated**   |
-| **OIDC Login**    | `/api/auth/oidc-login`       | `GET`       | **Public**          |
-| **OIDC Callback** | `/api/auth/oidc-callback`    | `GET`       | **Public**          |
-| **OIDC Logout**   | `/api/auth/oidc-logout`      | `GET, POST` | **Public**          |
-| **Current User**  | `/api/auth`                  | `GET`       | **Authenticated**   |
-| **List Users**    | `/api/user`                  | `GET`       | `manage:user`       |
-| **Create User**   | `/api/auth/create-user`      | `POST`      | `manage:user`       |
-| **API Keys**      | `/api/api-keys`              | `GET`       | **Authenticated**   |
-| **Create Key**    | `/api/api-keys`              | `POST`      | **Authenticated**   |
-| **Revoke Key**    | `/api/api-keys/{id}`         | `DELETE`    | Owner or Admin      |
-| **Magic Link**    | `auth.remote.ts` (remote fn) | `POST`      | **Public**          |
-| **Passkey Auth**  | `auth.remote.ts` (remote fn) | `POST`      | **Public**          |
-| **Passkey Reg**   | `auth.remote.ts` (remote fn) | `POST`      | **Authenticated**   |
+| Feature           | HTTP Endpoint                | Method      | Permission Required     |
+| :---------------- | :--------------------------- | :---------- | :---------------------- |
+| **Login**         | `/api/auth/login`            | `POST`      | **Public**              |
+| **Logout**        | `/api/auth/logout`           | `POST`      | **Authenticated**       |
+| **OIDC Login**    | `/api/auth/oidc-login`       | `GET`       | **Public**              |
+| **OIDC Callback** | `/api/auth/oidc-callback`    | `GET`       | **Public**              |
+| **OIDC Logout**   | `/api/auth/oidc-logout`      | `GET, POST` | **Public**              |
+| **SSO Providers** | `/api/auth/sso-providers`    | `GET, POST` | `manage:system` (Admin) |
+| **Current User**  | `/api/auth`                  | `GET`       | **Authenticated**       |
+| **List Users**    | `/api/user`                  | `GET`       | `manage:user`           |
+| **Create User**   | `/api/auth/create-user`      | `POST`      | `manage:user`           |
+| **API Keys**      | `/api/api-keys`              | `GET`       | **Authenticated**       |
+| **Create Key**    | `/api/api-keys`              | `POST`      | **Authenticated**       |
+| **Revoke Key**    | `/api/api-keys/{id}`         | `DELETE`    | Owner or Admin          |
+| **Magic Link**    | `auth.remote.ts` (remote fn) | `POST`      | **Public**              |
+| **Passkey Auth**  | `auth.remote.ts` (remote fn) | `POST`      | **Public**              |
+| **Passkey Reg**   | `auth.remote.ts` (remote fn) | `POST`      | **Authenticated**       |
 
 | **2FA Status** | `/api/auth/2fa/status` | `GET` | **Authenticated** |
 | **2FA Setup** | `/api/auth/2fa/setup` | `POST` | **Authenticated** |
@@ -200,9 +201,9 @@ Implementation: `src/databases/auth/sso-session.ts` · handlers in `handlers/aut
 
 **Flow**:
 1. Load providers from settings; 404 if `provider` unknown
-2. Generate `state` + `nonce` (CSPRNG); store in short-lived HttpOnly cookie `oidc_login_state` (10 min, `SameSite=Lax`)
+2. Generate RFC 7636 PKCE `code_verifier` (32-byte CSPRNG) and `code_challenge` (`BASE64URL(SHA256(verifier))`), along with CSRF `state` + `nonce`; store in short-lived HttpOnly cookie `oidc_login_state` (10 min, `SameSite=Lax`)
 3. OIDC discovery (`/.well-known/openid-configuration`) populates authorize/token/jwks/end_session when not set manually
-4. **302** redirect to OP `authorization_endpoint` (`openid profile email` by default)
+4. **302** redirect to OP `authorization_endpoint` with `code_challenge`, `code_challenge_method=S256`, `state`, `nonce`, and scopes (`openid profile email` by default)
 
 **Callback** — `GET /api/auth/oidc-callback`
 
@@ -213,13 +214,45 @@ Implementation: `src/databases/auth/sso-session.ts` · handlers in `handlers/aut
 | `error` | No | OP error → 400 |
 
 **Flow**:
-1. Validate `state` against cookie; clear cookie
-2. Exchange `code` at token endpoint (`client_id` / `client_secret` from provider config)
+1. Validate `state` against cookie; retrieve `code_verifier`; clear cookie
+2. Exchange `code` at token endpoint sending `code_verifier` (RFC 7636 PKCE verification)
 3. Verify `id_token` signature via **JWKS** (RS256/ES256; 1h JWKS cache). Without `jwks_uri`, only structural claim checks
 4. Resolve email from `email` or `preferred_username` claims
-5. Look up existing local user by email (no silent JIT create on this path — create user or invite first)
+5. **Just-In-Time (JIT) Auto-Provisioning & Role Sync**:
+   - If user does not exist locally and JIT is enabled (`jitProvisioning !== false`), automatically create the user account.
+   - Resolve target role using configured **Claim-to-Role Mapping** rules (e.g. evaluating the `groups` or `roles` claim against defined patterns), falling back to `defaultRole` (or `"user"`).
+   - If user already exists and `syncRolesOnLogin` is enabled, synchronize their local role with their updated directory groups.
 6. `auth.createSession({ user_id, tenantId, expires })` + session cookie (`getSessionCookieName`)
 7. Attach SSO metadata (`id_token_hint`, provider) for RP logout
+
+### SSO Providers Management
+
+**Endpoint**: `GET /api/auth/sso-providers`, `POST /api/auth/sso-providers`
+
+**Access Control**:
+- `GET`: Returns public provider metadata (`PublicSsoProvider[]`) for unauthenticated or non-admin callers (safe for login buttons). Returns full configs with client secrets masked (`••••••••`) for authenticated admins.
+- `POST`: Restricted to **Administrators** (`isAdmin === true`). Validates provider configurations, preserves existing secrets when placeholder `••••••••` is passed, and persists to encrypted system preferences.
+
+**Provider Configuration Schema (`SsoProviderConfig`)**:
+
+| Field | Type | Description |
+| :---- | :--- | :---------- |
+| `id` | `string` | Unique provider key (e.g. `google`, `azure-ad`, `okta`, `auth0`) |
+| `name` | `string` | Display label for login buttons (e.g. "Google Workspace") |
+| `icon` | `string` | Iconify identifier (e.g. `flat-color-icons:google`, `logos:okta`) |
+| `issuer` | `string` | OIDC issuer URL (used for discovery) |
+| `clientId` | `string` | Client ID registered with the identity provider |
+| `clientSecret` | `string` | Client Secret (stored securely, masked as `••••••••` in API reads) |
+| `allowedRedirectUris` | `string[]` | Allowed redirect URIs for login and RP-initiated logout |
+| `authorizationEndpoint` | `string?` | Optional override for authorize endpoint |
+| `tokenEndpoint` | `string?` | Optional override for token exchange endpoint |
+| `jwksUri` | `string?` | Optional override for JWKS certificate endpoint |
+| `endSessionEndpoint` | `string?` | Optional override for federated logout endpoint |
+| `scopes` | `string[]` | OAuth scopes requested (default `["openid", "profile", "email"]`) |
+| `jitProvisioning` | `boolean` | Enable Just-In-Time auto-provisioning for new users (default `true`) |
+| `defaultRole` | `string` | Default role assigned to new JIT accounts (default `"user"`) |
+| `roleMapping` | `object` | `{ claimField: string, rules: { claimValue: string, role: string }[] }` |
+| `syncRolesOnLogin` | `boolean` | Re-evaluate and synchronize roles on subsequent logins |
 
 ### RP-Initiated Logout
 
@@ -238,24 +271,12 @@ Implementation: `src/databases/auth/sso-session.ts` · handlers in `handlers/aut
 3. If the OP has an `end_session_endpoint` (config or discovery), the browser is redirected there for federated logout
 4. On success, the browser lands at `post_logout_redirect_uri` (if provided and valid)
 
-### Provider configuration
-
-SSO providers are registered via the `SSO_PROVIDERS` system setting (JSON array of `SsoProviderConfig`):
-
-| Field | Purpose |
-| :---- | :------ |
-| `id`, `issuer` | Provider key + OIDC issuer URL |
-| `clientId`, `clientSecret` | Authorization-code client credentials |
-| `allowedRedirectUris` | Allowlist for logout (and callback) redirect URIs; supports `*` suffix |
-| `authorizationEndpoint`, `tokenEndpoint`, `jwksUri`, `endSessionEndpoint` | Optional overrides; filled from discovery when omitted |
-| `scopes` | Default `openid profile email` |
-
 **Security**:
-- Login CSRF via HttpOnly `state` cookie; `nonce` bound into authorize request
+- RFC 7636 PKCE with `S256` SHA-256 method on all authorization code exchanges
+- Login CSRF mitigated via short-lived HttpOnly `state` cookie; `nonce` bound into authorize request
 - `post_logout_redirect_uri` validated against provider allowlist
-- Secrets never returned to the client; JWKS fetch timeouts (5s)
-- Non-SSO sessions fall through to standard logout
-- Multiple OIDC providers supported simultaneously
+- Client secrets never returned in plaintext to the browser; JWKS fetch timeouts (5s)
+- Multiple OIDC identity providers supported concurrently alongside SAML 2.0 and WebAuthn/Passkeys
 
 ---
 

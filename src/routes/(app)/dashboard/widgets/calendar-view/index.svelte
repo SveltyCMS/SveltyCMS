@@ -25,6 +25,7 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import { formatDate } from '@utils/format-date';
 
 	let selectedDate = $state(new Date());
 	let events = $state<{ dateStr: string; title: string; type: string }[]>([
@@ -40,7 +41,7 @@
 
 	let currentYear = $derived(selectedDate.getFullYear());
 	let currentMonth = $derived(selectedDate.getMonth());
-	let monthName = $derived(selectedDate.toLocaleString('default', { month: 'long' }));
+	let monthName = $derived(formatDate(selectedDate, { month: 'long' }));
 	let daysInMonth = $derived(getDaysInMonth(currentYear, currentMonth));
 	let firstDayIndex = $derived(new Date(currentYear, currentMonth, 1).getDay());
 

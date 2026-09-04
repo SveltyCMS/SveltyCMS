@@ -42,6 +42,7 @@ const createValidationSchema = (field: DateTimeProps) => {
 // Create the widget definition using the factory.
 const DateTimeWidget = createWidget<DateTimeProps>({
   Name: "DateTime",
+  version: "1.0.0",
   Icon: "mdi:calendar-clock",
   Description: widget_date_description(),
 

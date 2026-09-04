@@ -54,6 +54,7 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const NumberWidget = createWidget<NumberProps>({
   Name: "Number",
+  version: "1.0.0",
   Icon: "mdi:numeric",
   Description: widget_number_description(),
   inputComponentPath: "/src/widgets/custom/number/input.svelte",

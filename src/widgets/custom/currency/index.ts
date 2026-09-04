@@ -56,6 +56,7 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const CurrencyWidget = createWidget<CurrencyProps>({
   Name: "Currency",
+  version: "1.0.0",
   Icon: "mdi:currency-usd",
   Description: widget_currency_description(),
   inputComponentPath: "/src/widgets/custom/currency/input.svelte",

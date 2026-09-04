@@ -5,7 +5,7 @@ Watermark tool with full text and image watermark support.
 -->
 <script lang="ts">
 import { logger } from "@utils/logger";
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import WatermarkControls from './controls.svelte';
 	import WatermarkControlsMobile from './controls-mobile.svelte';

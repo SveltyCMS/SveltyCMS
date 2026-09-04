@@ -33,6 +33,7 @@ import type {
   ContentStructureNamespace,
 } from "./namespaces/data-operations";
 import type { VirtualCollectionsNamespace } from "./namespaces/virtual-collections-namespace";
+import type { WorkflowNamespace } from "./namespaces/workflow-namespace";
 import { traceSpan } from "@utils/context";
 import { defineLazyNamespace } from "@src/databases/core/proxy-utils";
 
@@ -97,6 +98,7 @@ export class LocalCMS {
   public readonly contentSync!: ContentSyncNamespace;
   public readonly contentStructure!: ContentStructureNamespace;
   public readonly pluginStorage!: PluginStorageNamespace;
+  public readonly workflow!: WorkflowNamespace;
 
   /**
    * Access the underlying database adapter directly.
@@ -254,6 +256,11 @@ export class LocalCMS {
     defineLazyNamespace(this, "pluginStorage", async () => {
       const { PluginStorageNamespace } = await import("./namespaces/misc-namespaces");
       return instrumentNamespace("pluginStorage", new PluginStorageNamespace(this._dbAdapter));
+    });
+
+    defineLazyNamespace(this, "workflow", async () => {
+      const { WorkflowNamespace } = await import("./namespaces/workflow-namespace");
+      return instrumentNamespace("workflow", new WorkflowNamespace(this._dbAdapter));
     });
   }
 

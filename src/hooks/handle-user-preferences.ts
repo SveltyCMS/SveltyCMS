@@ -16,7 +16,7 @@ import type { Locale } from "@src/paraglide/runtime";
 import { locales } from "@src/paraglide/runtime";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { logger } from "@utils/logger";
-import { getRequestFlags } from "@utils/hook-utils";
+import { getRequestFlags, shouldSkipRouteMiddleware } from "@utils/hook-utils";
 
 // --- UTILITY FUNCTIONS ---
 
@@ -34,6 +34,9 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
   if (pathname.startsWith("/api/")) return resolve(event);
 
   const { cookies, locals } = event;
+
+  // Bootstrap / login / setup: route spec skips preference cookie+theme work.
+  if (shouldSkipRouteMiddleware(locals, "preferences")) return resolve(event);
 
   // 🧪 TERMINAL BYPASS: Verified benchmarks skip UI preference sync
   if ((locals as any).__testBypass) return resolve(event);

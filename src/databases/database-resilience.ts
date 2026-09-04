@@ -703,44 +703,42 @@ export async function preWarmConnectionPool(
   let warmed = 0;
 
   try {
-    // Acquire and immediately release connections to prime the pool
-    const warmupPromises: Promise<void>[] = [];
+    // Acquire and immediately release connections to prime the pool.
+    // Build lazy task factories — never invoke at push-time so that the
+    // concurrency cap below actually throttles DB connection acquisitions.
+    const warmupTasks: (() => Promise<void>)[] = [];
     for (let i = 0; i < poolSize; i++) {
-      warmupPromises.push(
-        (async () => {
-          try {
-            // MongoDB: try acquire via the native driver
-            if (adapter.client?.startSession) {
-              const session = adapter.client.startSession();
-              await session.end();
-              warmed++;
-              return;
-            }
-            // PostgreSQL/MariaDB: try pool.query or raw SQL
-            if (typeof adapter.sql !== "undefined") {
-              await adapter.sql`SELECT 1`;
-              warmed++;
-              return;
-            }
-            // Generic: try execute if available
-            if (typeof adapter.execute === "function") {
-              await adapter.execute({ sql: "SELECT 1", params: [] });
-              warmed++;
-            }
-          } catch {
-            // Individual warmup failure is non-fatal — the pool will still work
+      warmupTasks.push(async () => {
+        try {
+          // MongoDB: try acquire via the native driver
+          if (adapter.client?.startSession) {
+            const session = adapter.client.startSession();
+            await session.end();
+            warmed++;
+            return;
           }
-        })(),
-      );
+          // PostgreSQL/MariaDB: try pool.query or raw SQL
+          if (typeof adapter.sql !== "undefined") {
+            await adapter.sql`SELECT 1`;
+            warmed++;
+            return;
+          }
+          // Generic: try execute if available
+          if (typeof adapter.execute === "function") {
+            await adapter.execute({ sql: "SELECT 1", params: [] });
+            warmed++;
+          }
+        } catch {
+          // Individual warmup failure is non-fatal — the pool will still work
+        }
+      });
     }
 
-    // Run up to 4 concurrently to avoid overwhelming the DB
-    const chunks = [];
-    for (let i = 0; i < warmupPromises.length; i += 4) {
-      chunks.push(warmupPromises.slice(i, i + 4));
-    }
-    for (const chunk of chunks) {
-      await Promise.all(chunk);
+    // Run up to 4 concurrently to avoid overwhelming the DB on cold start
+    const CONCURRENCY_LIMIT = 4;
+    for (let i = 0; i < warmupTasks.length; i += CONCURRENCY_LIMIT) {
+      const chunk = warmupTasks.slice(i, i + CONCURRENCY_LIMIT);
+      await Promise.all(chunk.map((task) => task()));
     }
 
     const elapsed = performance.now() - start;

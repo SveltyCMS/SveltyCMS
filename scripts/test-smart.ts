@@ -293,7 +293,7 @@ const SUITE_RULES: SuiteRule[] = [
       "src/routes/api/[...path]/handlers/*.ts",
     ],
     command:
-      "bun x vitest run tests/unit/hooks/authorization.test.ts tests/unit/auth/role-permission-access.test.ts",
+      "bun x vitest run tests/unit/hooks/authorization.test.ts tests/unit/auth/roles/role-permission-access.test.ts",
   },
   {
     label: "Middleware & Setup",

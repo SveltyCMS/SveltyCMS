@@ -1,19 +1,31 @@
 /**
  * @file src/services/outbox/outbox-service.ts
  * @description
- * Transactional Outbox Service ensuring that events (webhooks, audit logs,
- * automation triggers) are emitted atomically with the database state
- * changes that caused them.
+ * Webhook Delivery Queue.
  *
- * ### Why a Transactional Outbox?
- * Without it, if a DB write succeeds but event emission fails, the event is
- * lost. Conversely, if the DB write fails after event emission, the event is
- * orphaned. The outbox writes events to the SAME database transaction as the
- * data change, then a separate background process reads and delivers them.
+ * A durable, retryable delivery queue that fans content events out to webhooks
+ * (and internal pub/sub listeners). Events are enqueued from the write path via
+ * `enqueueBuffered` — a synchronous, in-memory push with a trailing debounce and
+ * bounded chunked flush, so a content write is NEVER delayed by (and never shares
+ * a DB statement with) webhook persistence.
+ *
+ * ### Why a queue (not a synchronous fan-out)?
+ * Webhook delivery is best-effort and must never sit on the content write's
+ * critical path: if a webhook endpoint is slow/down, the content write still
+ * completes. The queue decouples "record the intent" from "deliver the intent",
+ * with exponential backoff for retries.
+ *
+ * ### Honest scope
+ * This is NOT a transactional outbox — there is no atomic same-transaction write
+ * of the content row and the delivery row. The buffered path (the production hot
+ * path) is fire-and-forget: a crash between the content commit and the queue
+ * flush can drop the delivery intent. The `emit({ transaction })` branch exists
+ * ONLY to satisfy the testing API's transactional-rollback contract
+ * (`testing.ts` → `outbox-rollback`); it is not part of the production write path.
  *
  * ### Features:
- * - transaction-aware write: uses the same `transaction` from BaseQueryOptions
- * - background polling with configurable interval
+ * - buffered, non-blocking enqueue (`enqueueBuffered`)
+ * - trailing 25ms debounce + 50-item chunked flush (bounded DB statement size)
  * - exponential backoff for failed deliveries (updatedAt + 2^attempts, capped)
  * - tenant-scoped event isolation
  * - integration with webhook delivery pipeline
@@ -132,12 +144,11 @@ class OutboxServiceImpl {
   private emitFlushInFlight: Promise<void> | null = null;
 
   /**
-   * Emit an event to the outbox.
+   * Emit an event to the delivery queue.
    *
-   * When called inside a database transaction, pass `options.transaction` so the
-   * event is written on the same connection and rolls back with the data change.
-   * Outside a transaction, events are coalesced into bulk inserts so concurrent
-   * content writes are not serialized 1:1 with outbox rows on SQLite.
+   * The production write path uses the buffered fast path (no DB access). The
+   * `options.transaction` branch is retained ONLY for the testing API's
+   * transactional-rollback contract — it is not part of the hot write path.
    */
   public async emit(
     eventType: string,
@@ -296,6 +307,9 @@ class OutboxServiceImpl {
     this.emitFlushInFlight = (async () => {
       const db = getDb();
       if (!db || batch.length === 0) return;
+      // Count of events durably committed so a mid-flush failure re-queues ONLY
+      // the uncommitted tail — never duplicates already-persisted chunks.
+      let committed = 0;
       try {
         // Stamp deferred _ids now — emit() skips crypto on the write path.
         for (const ev of batch) {
@@ -305,23 +319,28 @@ class OutboxServiceImpl {
         // capability (scheduler domain) writing across tenants in one batch.
         const { withSystemScope } = await import("@src/databases/system-tenant-scope");
         const systemScope = withSystemScope("scheduler");
-        if (typeof db.crud.insertMany === "function") {
+        // Bounded statement size (max 50 events per INSERT) so a saturated flush
+        // never starves the connection pool — each chunk is a short-lived
+        // statement that returns its slot to PostgreSQL/MariaDB between awaits.
+        const CHUNK_SIZE = 50;
+
+        for (let i = 0; i < batch.length; i += CHUNK_SIZE) {
+          const chunk = batch.slice(i, i + CHUNK_SIZE);
           await db.crud.insertMany(
             this.collectionName,
-            batch as any[],
+            chunk as any[],
             { ...systemScope, skipReturning: true } as any,
           );
-        } else {
-          for (const event of batch) {
-            await db.crud.insert(this.collectionName, event as any, systemScope as any);
-          }
+          committed = i + chunk.length;
         }
         logger.debug(`[Outbox] Bulk-flushed ${batch.length} event(s)`);
       } catch (error: any) {
         logger.error(`[Outbox] Bulk flush failed (${batch.length} events):`, error);
-        // Best-effort re-queue (cap to avoid unbounded growth under sustained failure)
-        if (this.emitBuffer.length < OUTBOX_BUFFER_HARD_MAX * 4) {
-          this.emitBuffer.unshift(...batch);
+        // Best-effort re-queue of the UNCOMMITTED tail only (cap to avoid
+        // unbounded growth under sustained failure) — committed chunks stay
+        // persisted and are picked up by the poller, never re-inserted.
+        if (committed < batch.length && this.emitBuffer.length < OUTBOX_BUFFER_HARD_MAX * 4) {
+          this.emitBuffer.unshift(...batch.slice(committed));
         }
       } finally {
         this.emitFlushInFlight = null;

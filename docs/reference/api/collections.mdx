@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-04-12"
+updated: "2026-09-03"
 tags:
   - "api"
   - "collections"
@@ -30,6 +30,7 @@ The Collections API provides standard CRUD (Create, Read, Update, Delete) operat
 | **Create Entry** | `/api/collections/{id}`            | `POST`   | `collections:create` |
 | **Update Entry** | `/api/collections/{colId}/{entId}` | `PATCH`  | `collections:update` |
 | **Delete Entry** | `/api/collections/{colId}/{entId}` | `DELETE` | `collections:delete` |
+| **Export**       | `/api/collections/{id}/export`     | `GET`    | `collections:read`   |
 
 ---
 
@@ -54,6 +55,21 @@ To fetch entries from a specific collection, use the ID-based endpoint.
 **Endpoint**: `GET /api/collections/{collectionId}`  
 **Advanced Filtering**: See the [Content & Search Reference](./content.mdx) for deep query syntax.
 
+### Conditional revalidation (ETag / 304)
+
+Collection find and entry GET responses include a **weak collection-generation ETag**:
+
+```
+ETag: W/"cv1|{tenant}|{collection}|{epoch}|{reprHash}"
+Cache-Control: private, must-revalidate
+```
+
+`epoch` is a per-collection generation counter bumped on every write (same tick as L1 cache eviction). `reprHash` is an FNV-1a digest of path + query string + user id, so filter/sort/pagination and per-user publication/FLAC views do not cross-validate.
+
+Headless clients (Next.js ISR, Astro, SvelteKit, mobile) should send the value back as `If-None-Match`. When the generation and representation still match, the API returns **`304 Not Modified`** with an empty body **before** the collections handler runs — no database query and no JSON serialization. `?refresh=true`, `?nocache=true`, and `?bypassCache=true` skip the 304.
+
+This is a **self-described** control in SveltyCMS core (September 2026). It is not a CDN product and not an independent benchmark against other CMS HTTP caches.
+
 ### Modifying Content
 
 SveltyCMS enforces schema validation (via Valibot) on every write operation.
@@ -62,6 +78,25 @@ SveltyCMS enforces schema validation (via Valibot) on every write operation.
 - **Update**: `PATCH /api/collections/{collectionId}/{entryId}`
 
 **Soft Deletion**: By default, the `DELETE` method moves entries to the Trash. Permanent deletion requires the `?permanent=true` query parameter.
+
+### Streamed export
+
+**Endpoint**: `GET /api/collections/{collectionId}/export`
+
+Streams entries from the database cursor (Mongo) or paged SQL reads (SQLite / MariaDB; PostgreSQL uses a driver cursor). The Node process does **not** buffer the full result set.
+
+| Query               | Values                        | Default    |
+| :------------------ | :---------------------------- | :--------- |
+| `format`            | `json`, `ndjson`, `csv`       | `json`     |
+| `limit`             | 1–1,000,000                   | 100,000    |
+| `filter`            | same as collection find       |            |
+| `publicationFilter` | `published` / `draft` / `all` | per caller |
+
+- **NDJSON**: `application/x-ndjson` — one JSON object per line
+- **CSV**: RFC 4180, header from system columns + schema `db_fieldName`
+- **JSON**: chunked `{"success":true,"data":[…]}` array (same envelope as list streaming)
+
+Responses include `Content-Disposition: attachment` and `Cache-Control: no-store`. Encrypted fields are decrypted for authorized callers (same as find). This is a **self-described** control (September 2026), not a same-harness measurement against other CMS export tools.
 
 ---
 

@@ -55,7 +55,34 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **UI**: Added "Access Denied" feedback logic in `admin-area.svelte` to handle 403 status codes.
 
-### 4. August 2026 Lean-Code Security Assessment & Audit Remediation
+### 4. September 2026 Enterprise Security & Performance Hardening
+
+**Assessment Outcome**: Enhanced **A++ Enterprise Security** with constant-time cryptographic normalization, AST-level batch size verification, and reverse-proxy spoof-proofing.
+
+#### Hardened Defenses & Fixes (September 2026) {#september-2026-hardened-defenses}
+
+1. **Timing-Attack Defense on Login (CWE-208)**: Neutralized user enumeration by executing `verifyDummyPassword()` against a pre-computed Argon2id hash (`DUMMY_ARGON2_HASH`) in `AuthNamespace.login` whenever a user is not found. Response latency for invalid accounts matches valid-user password hashing (~50–80ms).
+2. **Reverse Proxy IP Spoofing Elimination**: Enforced `getClientIp(event)` across all authentication hooks, password reset flows, audit logging, and WebSocket rate limits. Direct access to raw `X-Forwarded-For` headers is blocked and scanner-enforced via `scripts/scan-security-risk.ts`.
+3. **AST Batch Payload Guard (`batch-size-unbounded`)**: Added context-aware AST security analysis in `scripts/scan-security-risk.ts` using the TypeScript Compiler API. Inspects all API handlers for batch processing and asserts an upper-bound length assertion (`<= 100`) to prevent memory exhaustion and event loop starvation.
+4. **Non-Blocking Redis Key Scanning**: Replaced synchronous, blocking `redis.keys()` in dashboard metrics with non-blocking `redis.scanIterator()` and bounded counts, protecting Redis event-loop throughput under high load.
+5. **Deterministic SSR Hydration & Localization**: Replaced render-time `crypto.randomUUID()` in UI primitives with Svelte 5's `$props.id()` rune, and consolidated 52+ unpinned date/number formatting call sites into `@utils/format-date` with scanner enforcement (`slop-scanner.ts`).
+6. **API Error Handling Uniformity**: Migrated all remaining handlers in `src/routes/api/[...path]/handlers/` to the canonical `raise(status, message, code)` pattern.
+
+**Tests**: `tests/unit/auth/timing-defense.test.ts`, `tests/unit/scripts/scan-security-risk.test.ts`, `tests/unit/scripts/slop-scanner.test.ts`, `tests/unit/hooks/ws-ratelimit.test.ts`, `tests/unit/utils/format-date.test.ts`.
+
+### 6. Native Field-Level Encryption at Rest (September 2026)
+
+**Control**: Collection fields flagged `encrypt: true` are stored as AES-256-GCM envelopes (`v1:iv:tag:ciphertext`) using `ENCRYPTION_KEY`. Writes fail closed without the key. Tamper / AAD mismatch decrypts that field to `null`. Filter/sort on encrypted fields returns `400 ENCRYPTED_FIELD_NOT_QUERYABLE`.
+
+**Tests**: `tests/unit/utils/field-encryption.test.ts`, `tests/unit/services/field-encryption-pipeline.test.ts`, `tests/unit/content/schema-contract.test.ts` (encrypt+unique warning).
+
+### 7. Collection Weak ETags & DB-free 304 (September 2026)
+
+**Control**: Collection find/entry GET responses carry `W/"cv1|{tenant}|{collection}|{epoch}|{reprHash}"`. Matching `If-None-Match` returns 304 before the handler (no DB). Epoch bumps on write; repr hash includes user id so publication/FLAC views do not cross-validate. `refresh` / `nocache` / `bypassCache` skip the 304.
+
+**Tests**: `tests/unit/services/collection-etag.test.ts`.
+
+### 5. August 2026 Lean-Code Security Assessment & Audit Remediation
 
 **Assessment Outcome**: Maintained **A++ Security Grade** with self-healing isolation.
 
@@ -74,7 +101,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
    - Capped variant matrix generation to 500 combinations to prevent Cartesian DoS attacks.
    - Protocol-validated `trackingUrl` (only `https?://` allowed).
 
-**Tests**: `tests/unit/security/safe-redirect.test.ts`, `tests/unit/plugins/commerce.test.ts`, `tests/unit/databases/escape-like.test.ts`, `tests/unit/auth/session-cookies.test.ts`.
+**Tests**: `tests/unit/security/safe-redirect.test.ts`, `tests/unit/plugins/commerce.test.ts`, `tests/unit/databases/escape-like.test.ts`, `tests/unit/auth/sessions/session-cookies.test.ts`.
 
 ### 5. April 2026 Security Assessment & Hardening
 
@@ -220,7 +247,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 ### Pen-Test Hardening Batch (August 2026)
 
-External penetration-test findings closed with regression coverage in `tests/unit/security/login-hardening.test.ts`, `tests/unit/api/auth-2fa.test.ts`, `tests/unit/auth/totp-encryption.test.ts`, and `tests/unit/security/egress-guard.test.ts`:
+External penetration-test findings closed with regression coverage in `tests/unit/security/login-hardening.test.ts`, `tests/unit/api/auth-2fa.test.ts`, `tests/unit/auth/totp/totp-encryption.test.ts`, and `tests/unit/security/egress-guard.test.ts`:
 
 - **Passwordless API login blocked (Critical)** — `AuthNamespace.login` requires a password and `handleLogin` validates the body with `loginFormSchema`; email-only bodies return 401 without a session.
 - **Passwordless 2FA verify closed (High)** — `verify2FA` (form + API) accepts the TOTP code only together with a short-lived signed pending-2FA token minted after a successful password login, plus per-client rate limiting.
@@ -264,19 +291,19 @@ SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test 
 | Timing attack resistance | `tests/unit/utils/security.test.ts` | ✅ |
 
 | OAuth/Google signup | `tests/e2e/oauth-signup-firstuser.spec.ts` | ✅ |
-| SAML authentication | `tests/unit/auth/saml.test.ts` | ✅ |
+| SAML authentication | `tests/unit/auth/sso/saml.test.ts` | ✅ |
 
 ---
 
 ## Authorization & Access Control
 
-| Feature                          | Test Location                                    | Status |
-| -------------------------------- | ------------------------------------------------ | ------ |
-| Role-based access control (RBAC) | `tests/unit/hooks/authorization.test.ts`         | ✅     |
-| Permission checking              | `tests/unit/auth/role-permission-access.test.ts` | ✅     |
-| Public route access              | `tests/unit/hooks/authorization.test.ts`         | ✅     |
-| Protected route redirect         | `tests/unit/hooks/authorization.test.ts`         | ✅     |
-| Admin-only endpoints             | `tests/integration/api/token.test.ts`            | ✅     |
+| Feature                          | Test Location                                          | Status |
+| -------------------------------- | ------------------------------------------------------ | ------ |
+| Role-based access control (RBAC) | `tests/unit/hooks/authorization.test.ts`               | ✅     |
+| Permission checking              | `tests/unit/auth/roles/role-permission-access.test.ts` | ✅     |
+| Public route access              | `tests/unit/hooks/authorization.test.ts`               | ✅     |
+| Protected route redirect         | `tests/unit/hooks/authorization.test.ts`               | ✅     |
+| Admin-only endpoints             | `tests/integration/api/token.test.ts`                  | ✅     |
 
 | Unauthorized access blocked | `tests/integration/api/collections.test.ts` | ✅ |
 | Plugin sandbox isolation | `tests/unit/plugins/sandbox.test.ts` | ✅ |

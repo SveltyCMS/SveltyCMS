@@ -26,6 +26,7 @@
 import { logger } from "@utils/logger";
 import { browser } from "$app/env";
 import { preloadData } from "$app/navigation";
+import { shouldSkipPreload } from "./connection-detector";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -47,6 +48,9 @@ let _started = false;
 // ─── Core Logic ────────────────────────────────────────────────────────────
 
 async function preload(href: string): Promise<void> {
+  // 🛡️ NETWORK CONSTRAINTS: respect Save-Data header, slow cellular connections, or offline state
+  if (shouldSkipPreload()) return;
+
   // 🛡️ HARDENING: reject any URI-scheme link (case-insensitive) — `javascript:`, `data:`, `vbscript:`, etc.
   // Only same-origin relative or absolute http(s) URLs are preloadable.
   if (!href) return;

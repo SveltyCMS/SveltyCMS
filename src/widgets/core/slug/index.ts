@@ -89,6 +89,7 @@ export const createValidationSchema = (
 // Create the widget definition using the factory.
 const SlugWidget = createWidget<SlugProps>({
   Name: "Slug",
+  version: "1.0.0",
   Icon: "mdi:link-variant",
   Description: "URL-friendly identifier generated from text content.",
   inputComponentPath: "/src/widgets/core/input/input.svelte",

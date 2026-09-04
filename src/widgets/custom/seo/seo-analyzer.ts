@@ -39,8 +39,12 @@ export class SeoAnalyzer {
     do {
       previous = input;
       // Remove <script>...</script> blocks (with any attributes and malformed end tags)
+      // codeql[js/incomplete-multi-character-sanitization]: intentional — the loop below
+      // re-applies both strips until no more tags remain (nested/malformed safe) and the
+      // final [<>] removal catches partial tags; output feeds SEO text analysis, never HTML.
       input = input.replace(/<script[\s\S]*?>[\s\S]*?<\/script[^>]*>/gi, "");
       // Remove all other HTML tags
+      // codeql[js/incomplete-multi-character-sanitization]: iterative strip (see above).
       input = input.replace(/<[^>]*>/gi, "");
     } while (input !== previous);
 

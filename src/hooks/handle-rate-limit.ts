@@ -269,6 +269,9 @@ if (typeof setInterval !== "undefined" && !globalWithLimiter[LIMITER_CLEANUP_KEY
       }
     }
   }, CLEANUP_INTERVAL_MS);
+  if (typeof (globalWithLimiter[LIMITER_CLEANUP_KEY] as any)?.unref === "function") {
+    (globalWithLimiter[LIMITER_CLEANUP_KEY] as any).unref();
+  }
 }
 
 /**

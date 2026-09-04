@@ -86,7 +86,7 @@ Renders a currency selector and a number input side-by-side.
 				allowEmptySelection
 				size="sm"
 				disabled={(field as any).readonly}
-				class="w-auto [&_select]:cursor-pointer [&_select]:border-0 [&_select]:bg-transparent [&_select]:py-2 [&_select]:ps-3 [&_select]:pe-8 [&_select]:text-sm [&_select]:font-medium [&_select]:shadow-none [&_select]:focus:ring-0"
+				class="w-auto [&_select]:border-0 [&_select]:bg-transparent [&_select]:py-2 [&_select]:ps-3 [&_select]:pe-8 [&_select]:text-sm [&_select]:font-medium [&_select]:shadow-none [&_select]:focus:ring-0"
 				onchange={handleUpdate}
 			/>
 		</div>

@@ -17,25 +17,4 @@
  * - zero dependencies — usable in any .svelte or .ts module
  */
 
-import type { ComponentType } from "svelte";
-
-/**
- * What a lazy component loader resolves to: a module with `default`, or the
- * component itself. `{#await}` consumers narrow via `Component.default`.
- */
-export type LazyComponent = { default: ComponentType } | ComponentType;
-
-/** Wrap a lazy component loader so it returns a stable promise per call. */
-export function memoizeLazyLoader<T = unknown>(loader: () => Promise<T>): () => Promise<T> {
-  let promise: Promise<T> | null = null;
-  return () => {
-    if (!promise) {
-      promise = loader().catch((error: unknown) => {
-        // Allow a later retry after a failed dynamic import.
-        promise = null;
-        throw error;
-      });
-    }
-    return promise;
-  };
-}
+export { lazyModule, memoizeLazyLoader, type LazyComponent } from "./lazy-module";

@@ -11,26 +11,25 @@ export const widgetMeta = {
 	description: "Advanced security threat monitoring and incident response",
 	defaultSize: { w: 2, h: 3 },
 };
-
-	let licenseStatus = $state<{ active?: boolean; hasLicense?: boolean; daysRemaining?: number | null } | null>(null);
-
-	$effect(() => {
-		fetch('/api/system/license-status?type=dashboard&id=security')
-			.then((res) => res.json())
-			.then((data) => {
-				licenseStatus = data;
-			})
-			.catch(() => {
-				licenseStatus = { active: false, hasLicense: false, daysRemaining: 0 };
-			});
-		});
-
-		const isLicensed = $derived(licenseStatus?.active || licenseStatus?.hasLicense || false);
-	</script>
+</script>
 
 	<script lang="ts">
+	import { getClientLicenseStatus } from '@utils/client-license-cache';
+	import type { LicenseStatus } from '@utils/license-manager';
+
+	let licenseStatus = $state<LicenseStatus | null>(null);
+
+	$effect(() => {
+		getClientLicenseStatus('dashboard', 'security').then((status) => {
+			licenseStatus = status;
+		});
+	});
+
+	const isLicensed = $derived(Boolean(licenseStatus?.hasLicense));
+
 		import type { WidgetSize } from '@src/content/types';
 		import BaseWidget from '../../base-widget.svelte';
+		import { formatTime } from '@utils/format-date';
 
 	const {
 		label = 'Security Monitor',
@@ -274,7 +273,7 @@ export const widgetMeta = {
 												</div>
 												<div class="text-[10px] text-surface-500 dark:text-surface-400 mt-1 flex justify-between">
 													<span>{incident.indicatorCount} indicators</span>
-													<span>{new Date(incident.timestamp).toLocaleTimeString()}</span>
+													<span>{formatTime(incident.timestamp)}</span>
 												</div>
 											</div>
 										{/each}

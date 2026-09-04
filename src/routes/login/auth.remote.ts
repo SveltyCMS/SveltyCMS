@@ -32,7 +32,8 @@ import type { ISODateString, DatabaseId } from "@src/content/types";
 import type { RequestEvent } from "@sveltejs/kit";
 import { RateLimiter } from "@src/hooks/handle-rate-limit";
 import { command, query, getRequestEvent } from "$app/server";
-import { isSecureCookieContext } from "@src/databases/auth/constants";
+import { isSecureCookieContext, sessionTtlMs } from "@src/databases/auth/constants";
+import { dateToISODateString } from "@src/utils/date";
 import { pluginRegistry } from "@src/plugins";
 import {
   buildDeviceFingerprint,
@@ -40,6 +41,7 @@ import {
   getTrustedDeviceCookieConfig,
 } from "@src/databases/auth/totp";
 import type { AuthHookEvent } from "@src/plugins/types";
+import { verifyDummyPassword } from "@utils/security/crypto";
 
 function isSecureConnection(event: RequestEvent): boolean {
   return isSecureCookieContext(event.url.protocol, event.url.hostname);
@@ -224,12 +226,33 @@ export const verify2FA = command(
     const user = await auth.getUserById(userId);
     if (!user) return { success: false, message: "User not found." };
 
-    const sc = auth.createSessionCookie(userId as any as DatabaseId, isSecureConnection(event));
+    const ip = getClientIp(event);
+    const ua = event.request.headers.get("user-agent") || "";
+    const expiresAt = dateToISODateString(
+      new Date(Date.now() + sessionTtlMs(getPrivateSettingSync("SESSION_TTL_HOURS"))),
+    );
+    const session = await auth.createSession({
+      user_id: user._id,
+      expires: expiresAt,
+      tenantId: user.tenantId ?? null,
+      userAgent: ua,
+      ipAddress: ip,
+      amr: ["pwd", "mfa"],
+    });
+
+    const sc = auth.createSessionCookie(session._id, isSecureConnection(event));
     try {
       event.cookies.set(sc.name, sc.value, {
         ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
+    } catch {}
+    try {
+      const { primeSessionMemoryCache } = await import("@src/hooks/handle-authentication");
+      primeSessionMemoryCache(session._id, user, event.locals.tenantId ?? user.tenantId ?? null, [
+        "pwd",
+        "mfa",
+      ]);
     } catch {}
 
     // Set trusted-device cookie if token was generated
@@ -421,10 +444,7 @@ async function signInInternal(event: RequestEvent, input: any) {
   if (isToken) {
     const tu = await auth.checkUser({ email: e }, { bypassTenantCheck: true });
     if (!tu) {
-      const { verify } = await import("argon2");
-      await verify("$argon2id$dummy", p).catch(() => {
-        logger.debug("Argon2id dummy verify for timing defense failed silently");
-      });
+      await verifyDummyPassword(p);
       return { success: false, message: "Invalid credentials." };
     }
     const tr = await auth.consumeToken(p, tu._id);
@@ -470,7 +490,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       // Plugin can force 2FA even if user doesn't have it enabled
       const requires2FA = user.is2FAEnabled || authHookResult?.requires2FA;
 
-      // ── Trusted Device Check ───────────────────────────────────────────
+      let usedTrustedDevice = false;
       if (requires2FA && !authHookResult?.requires2FA) {
         const trustedCookie = event.cookies.get("__Host-2fa-trusted-device");
         if (trustedCookie) {
@@ -482,6 +502,7 @@ async function signInInternal(event: RequestEvent, input: any) {
           const trustedUserId = await verifyTrustedDeviceToken(trustedCookie, currentFingerprint);
           if (trustedUserId === String(user._id)) {
             logger.debug("Skipping 2FA for trusted device", { userId: user._id });
+            usedTrustedDevice = true;
             // Fall through to cookie issuance
           } else {
             return {
@@ -511,6 +532,9 @@ async function signInInternal(event: RequestEvent, input: any) {
         };
       }
       ok = true;
+      if (usedTrustedDevice && ar.sessionId) {
+        await auth.updateSessionAmr(ar.sessionId, ["pwd", "trusted_device"]).catch(() => {});
+      }
       const sc = auth.createSessionCookie(ar.sessionId!, isSecureConnection(event));
       try {
         event.cookies.set(sc.name, sc.value, {
@@ -527,16 +551,14 @@ async function signInInternal(event: RequestEvent, input: any) {
           ar.sessionId!,
           user,
           event.locals.tenantId ?? user.tenantId ?? null,
+          usedTrustedDevice ? ["pwd", "trusted_device"] : ["pwd"],
         );
         // Also force setup state to COMPLETE so handleAuthentication doesn't short-circuit
         const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
         invalidateSetupCache(false, true);
       } catch {}
     } else {
-      const { verify, hash } = await import("argon2");
-      await verify(await hash("dummy-password-for-timing-defense"), p).catch(() => {
-        logger.debug("Argon2id dummy hash-verify for timing defense failed silently");
-      });
+      await verifyDummyPassword(p);
     }
   }
 
@@ -784,6 +806,9 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
       }).catch(() => {
         logger.warn(`[DEVELOPMENT/NO-SMTP] Password Reset Link for ${user.email}: ${resetLink}`);
       });
+    } else {
+      // 🛡️ TIMING DEFENSE (CWE-208): prevent email enumeration via response timing
+      await verifyDummyPassword("dummy-password");
     }
   } catch {}
 
@@ -819,8 +844,10 @@ async function resetPWInternal(event: RequestEvent, input: any) {
   const { password: p, token: t, email: e } = result.output;
 
   const user = await auth.checkUser({ email: e });
-  if (!user?._id)
+  if (!user?._id) {
+    await verifyDummyPassword(p || "dummy-password");
     return { success: false, message: "Invalid reset link.", code: "TOKEN_NOT_FOUND" };
+  }
   const v = await auth.consumeToken(t, user._id, "password_reset");
   if (!v.status) {
     return {

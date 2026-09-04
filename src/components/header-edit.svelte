@@ -1,5 +1,5 @@
 <!--
- @file  src/components/header-edit.svelte
+@file src/components/header-edit.svelte
  @component
  **HeaderEdit component**
  The HeaderEdit component manages the collection entry header for both "edit" and "view" modes.
@@ -28,19 +28,21 @@
 -->
 
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
+
+import { ui } from '@src/stores/ui-store.svelte';
+import { contentLanguage } from '@src/stores/locale-store.svelte';
+import { validationStore } from '@src/stores/validation-store.svelte';
+import Button from '@components/ui/button.svelte';
 	import TranslationStatus from '@src/components/collection-display/translation-status.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
+	import { formatDateTime } from '@utils/format-date';
 	import type { CollectionEntry } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
 	import { status_publish, status_unpublish, validation_fix_before_save } from '@src/paraglide/messages';
-	import { collection, collectionValue, mode, setCollectionValue } from '@src/stores/collection-store.svelte';
+	import { collection, collectionValue, mode, setCollectionValue, collections } from '@src/stores/collection-store.svelte';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
-	import { statusStore } from '@src/stores/status-store.svelte';
-	import { app, dataChangeStore, validationStore } from '@src/stores/store.svelte';
-	import { ui } from '@src/stores/ui-store.svelte';
 	import { createEntry, invalidateCollectionCache } from '@utils/api';
 	import { deleteCurrentEntry, saveEntry } from '@utils/entry-actions';
 	// --- Derived from page & stores ---
@@ -66,7 +68,7 @@
 	let isDesktop = $derived(screen.isDesktop);
 
 	let isFormValid = $derived(validationStore.isValid);
-	let hasChanges = $derived(dataChangeStore.hasChanges);
+	let hasChanges = $derived(collections.hasChanges);
 
 	let canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
 	let canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
@@ -74,32 +76,32 @@
 
 	// --- Local mutable state ---
 	let showMore = $state(false);
-	let previousLanguage = $state(app.contentLanguage);
-	let previousTabSet = $state(app.tabSetState);
+	let previousLanguage = $state(contentLanguage.value);
+	let previousTabSet = $state(ui.wizard.tabSetState);
 	let tempData = $state<Record<string, CollectionEntry>>({});
 
 	// Schedule (not used in current logic – kept if needed later)
 	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
 
 	// Status toggle state & disable logic
-	let publishToggle = $derived(statusStore.isPublish);
+	let publishToggle = $derived(collections.isPublish);
 	let disableStatusToggle = $derived(
 		(currentMode === 'create' && ui.isRightSidebarVisible) ||
 			(currentMode === 'edit' && ui.isRightSidebarVisible && isDesktop) ||
-			statusStore.isLoading
+			collections.isStatusLoading
 	);
 
 	// Next button visibility (menu wizard)
 	let showNextButton = $derived(
-		app.shouldShowNextButton && currentMode === 'create' && (currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu')
+		ui.wizard.shouldShowNextButton && currentMode === 'create' && (currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu')
 	);
 
 	// --- Effects ---
 	$effect(() => {
-		if (app.tabSetState !== previousTabSet) {
+		if (ui.wizard.tabSetState !== previousTabSet) {
 			untrack(() => {
 				tempData[previousLanguage] = { ...currentEntry };
-				previousTabSet = app.tabSetState;
+				previousTabSet = ui.wizard.tabSetState;
 			});
 		}
 	});
@@ -139,7 +141,7 @@
 
 	// --- Actions ---
 	async function toggleStatus(newValue: boolean): Promise<void> {
-		await statusStore.toggleStatus(newValue, 'HeaderEdit');
+		await collections.toggleStatus(newValue, 'HeaderEdit');
 	}
 
 	function openSchedule(): void {
@@ -204,7 +206,7 @@
 			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = scheduleTimestamp;
 		} else {
-			dataToSave.status = statusStore.getStatusForSave();
+			dataToSave.status = collections.getStatusForSave();
 			dataToSave._scheduled = undefined;
 		}
 
@@ -270,8 +272,8 @@
 	// Menu wizard next action
 	function next(): void {
 		logger.debug('[HeaderEdit] Next clicked');
-		if (app.saveLayerStore) {
-			app.saveLayerStore();
+		if (ui.wizard.saveLayerStore) {
+			ui.wizard.saveLayerStore();
 		} else {
 			// Fallback if needed
 			save();
@@ -352,7 +354,7 @@
 			<TranslationStatus />
 		{/if}
 
-		{#if !app.headerActionButton}
+		{#if !ui.wizard.headerActionButton}
 			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="rounded-full p-0! min-w-0">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</Button>
@@ -404,7 +406,7 @@
 				<p class="text-tertiary-500 dark:text-primary-500">Last updated by: {getDisplayName(currentEntry?.updatedBy)}</p>
 			{/if}
 			{#if scheduleTimestamp}
-				<p class="text-tertiary-500 dark:text-primary-500">Will publish on: {new Date(scheduleTimestamp).toLocaleString()}</p>
+				<p class="text-tertiary-500 dark:text-primary-500">Will publish on: {formatDateTime(scheduleTimestamp)}</p>
 			{/if}
 		</div>
 	</div>

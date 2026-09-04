@@ -18,9 +18,6 @@
 import { logger } from "@utils/logger";
 import { WIDGET_COMPONENT_ROOTS, folderFromWidgetPath, widgetNameToFolder } from "./widget-naming";
 
-// Re-export for call sites that already import from scanner
-export { widgetNameToFolder } from "./widget-naming";
-
 // 1. Vite/SvelteKit Native Scanning
 export const coreModules: Record<string, any> = {};
 export const customModules: Record<string, any> = {};
@@ -120,11 +117,19 @@ function initBunFallback() {
 // Initialize fallback
 initBunFallback();
 
-export const allWidgetModules = {
-  ...coreModules,
-  ...customModules,
-  ...marketplaceModules,
-};
+/**
+ * Kebab-case folder names of all custom widget modules.
+ * Derived from the already-loaded glob keys — no factory invocation.
+ * Used by telemetry/diagnostics only.
+ */
+export function getCustomWidgetNames(): string[] {
+  const names: string[] = [];
+  for (const path of Object.keys(customModules)) {
+    const folder = folderFromWidgetPath(path);
+    if (folder) names.push(folder);
+  }
+  return names;
+}
 
 /** `${folder}:${input|display}` → glob loader. Built once, O(1) thereafter. */
 let componentIndex: Map<string, () => Promise<{ default: unknown }>> | null = null;
@@ -176,11 +181,4 @@ export function getComponentLoader(
   }
 
   return null;
-}
-
-/**
- * Extracts widget folder from file path (`…/phone-number/index.ts` → `phone-number`)
- */
-export function getWidgetNameFromPath(path: string): string | null {
-  return folderFromWidgetPath(path);
 }

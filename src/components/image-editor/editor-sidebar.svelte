@@ -13,7 +13,7 @@ Active tool uses a soft rounded square highlight only.
 <script lang="ts">
 	import Slot from '@components/system/slot.svelte';
 	import { onMount, tick } from 'svelte';
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { type EditorWidget, editorWidgets } from './widgets/registry';
 
 	const {

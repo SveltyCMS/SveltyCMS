@@ -16,8 +16,12 @@ import {
   buildUserResponseCacheKey,
   buildGraphQLResponseCacheKey,
 } from "@src/services/cache/response-cache";
+import {
+  collectionEtagMatches,
+  tryCollectionNotModified,
+} from "@src/services/cache/collection-etag";
 import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
-import { readSessionCookie } from "@src/databases/auth/constants";
+import { readSessionCookie, isSecureCookieContext } from "@src/databases/auth/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getRequestFlags } from "@utils/hook-utils";
 import {
@@ -78,6 +82,11 @@ export function getTurboAuthContext(sessionId: string): TurboAuthContext | null 
     return null;
   }
 
+  // Slide TTL on every hit so long write bursts (50k–100k seed) never
+  // 401 because the 60s window elapsed since login. Write lane used to
+  // read the Map without sliding, so a 64s create burst died at expiry.
+  ctx.expiresAt = Date.now() + TURBO_AUTH_TTL_MS;
+
   if (turboAuthCache.size >= TURBO_AUTH_CACHE_MAX * 0.8) {
     turboAuthCache.delete(sessionId);
     turboAuthCache.set(sessionId, ctx);
@@ -110,7 +119,13 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") return resolve(event);
   if (!isCacheableApiPath(url.pathname)) return resolve(event);
 
-  const sessionId = readSessionCookie(cookies) || null;
+  // Same protocol-derived isSecure as handleAuthentication so every consumer
+  // hits the SAME per-request WeakMap slot inside readSessionCookie — the
+  // session cookie is parsed once per request, not once per hook. The "any"
+  // mode (HOST→plain→__Secure- order) is byte-identical to the secure order on
+  // HTTPS; on HTTP this aligns turbo with the authoritative authn resolution.
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+  const sessionId = readSessionCookie(cookies, isSecure) || null;
 
   if (!sessionId) return resolve(event);
 
@@ -152,6 +167,31 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     pathKey = buildUserResponseCacheKey(url.pathname, url.search, userId);
   }
 
+  const ifNoneMatchEarly =
+    request.headers.get("If-None-Match") || request.headers.get("if-none-match");
+  const bypassEtag =
+    url.searchParams.get("refresh") === "true" ||
+    url.searchParams.get("nocache") === "true" ||
+    url.searchParams.get("bypassCache") === "true";
+  if (ifNoneMatchEarly && url.pathname.startsWith("/api/collections/") && !bypassEtag) {
+    const notModified = tryCollectionNotModified({
+      pathname: url.pathname,
+      search: url.search,
+      ifNoneMatch: ifNoneMatchEarly,
+      tenantId: cacheTenant,
+      userCacheId: userId ? String(userId) : "",
+    });
+    if (notModified) {
+      applyAllSecurityHeaders(
+        notModified.headers,
+        url.protocol === "https:",
+        request.headers.get("Origin") || null,
+        url.pathname,
+      );
+      return notModified;
+    }
+  }
+
   const resEntry = responseCache.get(pathKey, cacheTenant);
 
   if (!resEntry || !resEntry.body) return resolve(event);
@@ -173,7 +213,12 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   if (resEntry.etag) {
     responseHeaders.set("ETag", resEntry.etag);
     const ifNoneMatch = request.headers.get("If-None-Match");
-    if (ifNoneMatch && (ifNoneMatch === resEntry.etag || ifNoneMatch === `W/${resEntry.etag}`)) {
+    if (
+      ifNoneMatch &&
+      (ifNoneMatch === resEntry.etag ||
+        ifNoneMatch === `W/${resEntry.etag}` ||
+        collectionEtagMatches(ifNoneMatch, resEntry.etag))
+    ) {
       return new Response(null, {
         status: 304,
         headers: responseHeaders,

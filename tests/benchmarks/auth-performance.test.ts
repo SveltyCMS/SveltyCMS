@@ -77,7 +77,6 @@ async function runAuthAudit() {
         const res = await fetch(targetUrl, {
           method: "GET",
           headers: unauthHeaders,
-          signal: AbortSignal.timeout(10000),
         });
         if (res.status !== 401 && res.status !== 403) {
           throw new Error(`Expected 401/403 rejection, got HTTP ${res.status}`);
@@ -105,7 +104,6 @@ async function runAuthAudit() {
         const res = await fetch(targetUrl, {
           method: "GET",
           headers: authHeaders,
-          signal: AbortSignal.timeout(10000),
         });
         if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
         await res.arrayBuffer().catch(() => {});
@@ -131,7 +129,6 @@ async function runAuthAudit() {
         const res = await fetch(targetUrl, {
           method: "GET",
           headers: authHeaders,
-          signal: AbortSignal.timeout(10000),
         });
         if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
         await res.arrayBuffer().catch(() => {});

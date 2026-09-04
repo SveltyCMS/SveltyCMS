@@ -1693,12 +1693,23 @@ export async function handleTestingRoutes(
       try {
         const { pluginRegistry } = await import("@src/plugins");
         const enabled = params.enabled !== false;
+        // Pass the live adapter so lazy activation (togglePlugin) can run the
+        // plugin's pending migrations on first enable — boot no longer runs
+        // migrations for default-disabled plugins.
+        let dbAdapter: unknown;
+        try {
+          const { getDb } = await import("@src/databases/db");
+          dbAdapter = getDb();
+        } catch {
+          dbAdapter = undefined;
+        }
         const ok = await pluginRegistry.togglePlugin(
           pluginId,
           enabled,
           String(tenantId),
           // Never accept client-supplied userId for audit attribution via testing API
           "system",
+          dbAdapter as never,
         );
         if (!ok) {
           return rawResponse(

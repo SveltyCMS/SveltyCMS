@@ -151,6 +151,7 @@
 </script>
 
 <div
+	data-testid="admin-page-title"
 	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between ps-5 pe-2 pt-2 backdrop-blur-sm
 		{compact || description ? 'min-h-12 gap-3 pb-2 sm:ps-6 sm:pe-3' : 'min-h-12 gap-4'}"
 	style="background-color: color-mix(in srgb, var(--admin-bg-page, var(--color-surface-50)) 95%, transparent); color: var(--admin-text-body, var(--color-surface-900)); {borderless ? '' : 'border-bottom: 1px solid color-mix(in srgb, var(--admin-border-default, var(--color-surface-200)) 80%, transparent);'}"

@@ -19,7 +19,6 @@
 
 import { expect, test } from "@playwright/test";
 import { resetAndSeedDatabase } from "../../helpers/api";
-import { dismissCookieBanner } from "../../helpers/auth";
 import {
   addInputField,
   collectionSlugCandidates,
@@ -30,13 +29,15 @@ import {
   uniqueCollectionFixture,
 } from "../../helpers/collection-builder-flow";
 import { dismissCookieBannerIfPresent } from "../../helpers/stable";
+import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 
 test.describe.configure({ mode: "serial", timeout: 120_000 });
 
 test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
   test.beforeEach(async ({ page }) => {
+    await seedCookieConsent(page);
     await resetAndSeedDatabase(page);
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
     await dismissCookieBannerIfPresent(page);
   });
 
@@ -45,26 +46,20 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
    * Matches ADR: minimal testids, no soft-skip.
    */
   test("shell: page title and new collection control", async ({ page }) => {
-    await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
-    // 30s budget (matches the golden test): the first SSR after a DB reset may
-    // re-initialize the content system before the board renders.
-    await expect(page.getByRole("heading", { level: 1, name: /collection builder/i }))
-      .toBeVisible({
-        timeout: 30_000,
-      })
-      .catch(async (err) => {
-        // CI diagnostics: the public annotations carry this message, so a
-        // Linux-only render failure becomes debuggable without the artifacts.
-        const url = page.url();
-        const body =
-          (await page
-            .locator("body")
-            .innerText()
-            .catch(() => "<body unavailable>")) || "";
-        throw new Error(
-          `[E2E-DIAG] collectionbuilder heading never rendered\nURL: ${url}\nBody (first 1200 chars):\n${String(body).slice(0, 1200)}\n\nOriginal error: ${(err as Error).message}`,
-        );
-      });
+    await expect(async () => {
+      await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+      if (page.url().includes("/login")) {
+        const { loginAsAdmin } = await import("../../helpers/auth");
+        await loginAsAdmin(page, "/config/collectionbuilder");
+      }
+      await expect(
+        page
+          .getByRole("heading", { level: 1, name: /collection builder|sammlungsersteller/i })
+          .or(page.getByTestId("page-title"))
+          .or(page.getByTestId("admin-page-title"))
+          .first(),
+      ).toBeVisible({ timeout: 10_000 });
+    }).toPass({ timeout: 45_000, intervals: [2_000, 3_000, 5_000] });
     await expect(
       page
         .getByTestId("collection-builder-board")
@@ -214,18 +209,32 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await expect(titleBox, "Title field on entry form").toBeVisible({ timeout: 20_000 });
     await titleBox.click();
     await titleBox.fill("Golden Entry");
-    await page.getByRole("button", { name: /save/i }).first().click();
+    await titleBox.blur();
+    const saveBtn = page.getByRole("button", { name: /save/i }).first();
+    await expect(saveBtn).toBeVisible({ timeout: 15_000 });
+    await expect(saveBtn).toBeEnabled({ timeout: 15_000 });
+    await saveBtn.click();
 
-    // Re-open entry list view to assert table row
-    await openCollectionEntries(page, fixture.slug);
+    // Save is async and navigates back to the list only after the write resolves.
+    await Promise.race([
+      expect(page.getByText(/entry saved/i).first()).toBeVisible({ timeout: 25_000 }),
+      page.waitForURL((url) => !url.searchParams.has("create") && !url.searchParams.has("edit"), {
+        timeout: 25_000,
+      }),
+    ]);
 
-    // List may truncate cell text — assert a data row with status affordance
-    await expect(
-      page
-        .getByRole("row")
-        .filter({ hasText: /unpublish|publish|draft|golden entry/i })
-        .first(),
-    ).toBeVisible({ timeout: 20_000 });
+    // Assert a data row with status affordance. Retry: a parallel-worker reset or
+    // one extra navigation round-trip can leave the freshly saved entry out of the
+    // first SSR render, so re-navigate inside the retry to force a fresh list read.
+    await expect(async () => {
+      await openCollectionEntries(page, fixture.slug);
+      await expect(
+        page
+          .getByRole("row")
+          .filter({ hasText: /unpublish|publish|draft|golden entry/i })
+          .first(),
+      ).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 30_000, intervals: [1_500, 2_500, 4_000] });
 
     // API is source of truth — try product path + hyphen/underscore variants
     const apiIds = collectionSlugCandidates(fixture.slug);

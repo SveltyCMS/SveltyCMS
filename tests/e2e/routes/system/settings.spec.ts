@@ -23,25 +23,17 @@ async function goSettings(page: Page, group = "cache") {
     await loginAsAdmin(page, `/config/system-settings?group=${group}`);
   }
   await expect(page).toHaveURL(/\/config\/system-settings/, { timeout: ACTION_TIMEOUT });
-  await expect(page).not.toHaveURL(/\/login/);
+  await expect(page).not.toHaveURL(/\/login/, { timeout: ACTION_TIMEOUT });
 
-  const title = page.getByTestId("page-title");
-  if (await title.isVisible({ timeout: ACTION_TIMEOUT }).catch(() => false)) {
-    await expect(title).toContainText(/system settings/i);
-  } else {
-    await expect(page.getByRole("heading", { name: /system settings/i }).first()).toBeVisible({
-      timeout: 8_000,
-    });
-  }
+  await expect(
+    page
+      .getByTestId("page-title")
+      .or(page.getByRole("heading", { name: /system settings/i }).first())
+      .first(),
+  ).toBeVisible({ timeout: ACTION_TIMEOUT });
 
   const shell = page.getByTestId("system-settings-page");
-  if (!(await shell.isVisible({ timeout: ACTION_TIMEOUT }).catch(() => false))) {
-    const body = await page
-      .locator("body")
-      .innerText()
-      .catch(() => "");
-    throw new Error(`System settings shell missing at ${page.url()} body=${body.slice(0, 400)}`);
-  }
+  await expect(shell).toBeVisible({ timeout: ACTION_TIMEOUT });
 }
 
 test.describe.configure({ mode: "serial" });
@@ -221,11 +213,13 @@ test.describe("System Settings shell", () => {
 
   test("gdpr group loads special panel", async ({ page }) => {
     await goSettings(page, "gdpr");
-    await expect(page.getByTestId("settings-panel-gdpr")).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect(page.getByText(/gdpr|privacy|export|anonymiz/i).first()).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
+    const panel = page.getByTestId("settings-panel-gdpr");
+    await expect(panel).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // The GDPR group renders a bespoke panel (not the generic field form) —
+    // assert its two compliance cards instead of a page-wide text match that
+    // can resolve to the sidebar's group name.
+    await expect(
+      panel.getByRole("heading", { name: /data portability|right to erasure/i }).first(),
+    ).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });

@@ -51,7 +51,7 @@ Custom widgets (`src/widgets/custom/`) and marketplace packages (`src/widgets/ma
 | `phone-number`  | `phone-number` | ❌ Name not PascalCase         |
 | `phone-number`  | `Phone`        | ❌ Name does not map to folder |
 
-Helpers live in `src/widgets/widget-naming.ts`. Registration (store, proxy, `WidgetRegistryService`) **fails closed** for custom/marketplace when naming is invalid, so loaders never look for the wrong path.
+Helpers live in `src/widgets/widget-naming.ts`. Registration (widget store, `widgetRegistryService`) **fails closed** for custom/marketplace when naming is invalid, so loaders never look for the wrong path.
 
 ### Scaffold
 

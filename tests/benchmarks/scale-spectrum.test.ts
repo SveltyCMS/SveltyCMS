@@ -1,0 +1,331 @@
+/**
+ * @file tests/benchmarks/scale-spectrum.test.ts
+ * @description Stepped Scale-Spectrum Benchmark (1 to 100,000 Entries).
+ * @summary Measures degradation cliffs across PK lookup, list+filter, GraphQL, and write lanes.
+ *
+ * Steps: SQLite (entry) 1→10k; Postgres/Maria/Mongo (scale) 1→100k.
+ * Override via BENCH_STEPS="1,10,100,1000,10000,50000,100000".
+ * Features:
+ * - Incremental seeding: seeds step-by-step up to the target scale
+ * - True uniform random sampling across the current population
+ * - Measures 4 critical routes at each step: findByIdRandom, listFilterSort, graphql, create
+ * - Computes latency growth and degradation factor vs 1-row baseline
+ */
+
+import {
+  test,
+  runBenchmark,
+  setupBenchmarkServer,
+  stabilize,
+  exportMetric,
+  exportResult,
+  printTruthTable,
+  getDbType,
+  benchmarkAuthHeaders,
+} from "./modules/benchmark-utils";
+import "../unit/bun-preload.ts";
+import { logger } from "@utils/logger";
+import crypto from "node:crypto";
+
+import { seedHttpCollectionBurst } from "./modules/seed-burst";
+
+// SQLite is the entry engine (1→10k). Scale engines go to 100k unless overridden.
+const ENTRY_STEPS = [1, 10, 100, 1000, 5000, 10000];
+const SCALE_STEPS = [1, 10, 100, 1000, 5000, 10000, 50000, 100000];
+function resolveSteps(): number[] {
+  if (process.env.BENCH_STEPS) {
+    return process.env.BENCH_STEPS.split(",")
+      .map(Number)
+      .filter((n) => n > 0)
+      .sort((a, b) => a - b);
+  }
+  return getDbType() === "sqlite" ? ENTRY_STEPS : SCALE_STEPS;
+}
+const TARGET_STEPS = resolveSteps();
+
+const CONCURRENCY = Number(process.env.BENCH_CONCURRENCY) || 8;
+const ITERS_PER_STEP = Number(process.env.BENCH_STEP_ITERS) || 100;
+const WARMUP_ITERS = 20;
+
+function seedArticlePayload(i: number, runId: string) {
+  return {
+    title: `Scaling headless CMS for enterprise — Entry ${i}`,
+    slug: `scale-article-${runId}-${i}`,
+    status: i % 3 === 0 ? "draft" : "published",
+    count: i * 10,
+    publishDate: "2026-01-01T00:00:00.000Z",
+    content: `# Entry ${i}\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. `.repeat(6),
+  };
+}
+
+test("Scale Spectrum Degradation Benchmark (1 to 100,000 Rows)", async () => {
+  let stopServer: (() => Promise<void>) | null = null;
+  const createdIds: string[] = [];
+
+  try {
+    const dbType = getDbType().toUpperCase();
+    logger.info(
+      `🚀 Starting Scale Spectrum Audit on ${dbType} across steps: ${TARGET_STEPS.join(", ")}...`,
+    );
+
+    const serverInfo = await setupBenchmarkServer();
+    stopServer = serverInfo.stop;
+    const baseUrl = serverInfo.baseUrl;
+
+    const headers: Record<string, string> = {
+      ...benchmarkAuthHeaders(),
+      "content-type": "application/json",
+      "x-test-security": "true",
+      connection: "keep-alive",
+    };
+
+    const runId = crypto.randomUUID().slice(0, 8);
+    const collectionUrl = `${baseUrl}/api/collections/BenchmarkStable`;
+    const gqlUrl = `${baseUrl}/api/graphql`;
+    const gqlBody = JSON.stringify({
+      query: "query { BenchmarkStable(pagination: { limit: 10 }) { _id title count } }",
+    });
+
+    const seedUpTo = async (targetCount: number) => {
+      await seedHttpCollectionBurst({
+        url: collectionUrl,
+        headers,
+        count: targetCount,
+        concurrency: CONCURRENCY,
+        payloadAt: (i) => seedArticlePayload(i, runId),
+        existing: createdIds,
+      });
+    };
+
+    interface StepMetric {
+      step: number;
+      findByIdRandomRps: number;
+      findByIdRandomAvgMs: number;
+      findByIdRandomP95Ms: number;
+      listFilterSortRps: number;
+      listFilterSortAvgMs: number;
+      listFilterSortP95Ms: number;
+      graphqlRps: number;
+      graphqlAvgMs: number;
+      graphqlP95Ms: number;
+      createRps: number;
+      createAvgMs: number;
+      createP95Ms: number;
+    }
+
+    const stepMetrics: StepMetric[] = [];
+    let createCursor = 0;
+
+    for (const step of TARGET_STEPS) {
+      logger.info(`\n📊 [SCALE STEP: ${step.toLocaleString()} rows] Seeding and measuring...`);
+      await seedUpTo(step);
+      await stabilize(200);
+
+      const idCount = createdIds.length || 1;
+      const stableId = createdIds[0] || "20000000-0000-4000-8000-000000000001";
+
+      // 1. Uniform Random PK Lookup
+      const findByIdRandom = async () => {
+        const randomIndex = Math.floor(Math.random() * idCount);
+        const targetId = createdIds[randomIndex] || stableId;
+        const res = await fetch(`${collectionUrl}/${targetId}`, { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await res.arrayBuffer();
+      };
+
+      // 2. Filtered & Sorted List Query
+      const filterQuery = encodeURIComponent(JSON.stringify({ status: "published" }));
+      const listFilterUrl = `${collectionUrl}?limit=20&filter=${filterQuery}&sort=-count`;
+      const listFilterSort = async () => {
+        const res = await fetch(listFilterUrl, { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await res.arrayBuffer();
+      };
+
+      // 3. GraphQL Root Resolver Query
+      const graphql = async () => {
+        const res = await fetch(gqlUrl, { method: "POST", headers, body: gqlBody });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await res.arrayBuffer();
+      };
+
+      // 4. Create Write-Lane Mutation
+      const create = async () => {
+        const seq = createCursor++;
+        const payload = JSON.stringify({
+          title: `Write bench entry ${seq}`,
+          slug: `scale-bench-write-${runId}-${seq}`,
+          status: "draft",
+          count: seq,
+          publishDate: "2026-01-01T00:00:00.000Z",
+          content: "Scale spectrum test entry.",
+        });
+        const res = await fetch(collectionUrl, { method: "POST", headers, body: payload });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await res.arrayBuffer();
+      };
+
+      const resFind = await runBenchmark({
+        name: `findByIdRandom @ ${step}`,
+        iterations: ITERS_PER_STEP,
+        warmupIterations: WARMUP_ITERS,
+        concurrency: CONCURRENCY,
+        onIteration: findByIdRandom,
+        silent: true,
+      });
+
+      const resList = await runBenchmark({
+        name: `listFilterSort @ ${step}`,
+        iterations: ITERS_PER_STEP,
+        warmupIterations: WARMUP_ITERS,
+        concurrency: CONCURRENCY,
+        onIteration: listFilterSort,
+        silent: true,
+      });
+
+      const resGql = await runBenchmark({
+        name: `graphql @ ${step}`,
+        iterations: ITERS_PER_STEP,
+        warmupIterations: WARMUP_ITERS,
+        concurrency: CONCURRENCY,
+        onIteration: graphql,
+        silent: true,
+      });
+
+      const resCreate = await runBenchmark({
+        name: `create @ ${step}`,
+        iterations: Math.min(ITERS_PER_STEP, 50),
+        warmupIterations: 10,
+        concurrency: Math.min(CONCURRENCY, 4),
+        onIteration: create,
+        silent: true,
+      });
+
+      stepMetrics.push({
+        step,
+        findByIdRandomRps: Math.round(resFind.rps),
+        findByIdRandomAvgMs: +resFind.avgMs.toFixed(3),
+        findByIdRandomP95Ms: +(resFind.p95Ms ?? resFind.avgMs).toFixed(3),
+        listFilterSortRps: Math.round(resList.rps),
+        listFilterSortAvgMs: +resList.avgMs.toFixed(3),
+        listFilterSortP95Ms: +(resList.p95Ms ?? resList.avgMs).toFixed(3),
+        graphqlRps: Math.round(resGql.rps),
+        graphqlAvgMs: +resGql.avgMs.toFixed(3),
+        graphqlP95Ms: +(resGql.p95Ms ?? resGql.avgMs).toFixed(3),
+        createRps: Math.round(resCreate.rps),
+        createAvgMs: +resCreate.avgMs.toFixed(3),
+        createP95Ms: +(resCreate.p95Ms ?? resCreate.avgMs).toFixed(3),
+      });
+
+      // Ledger + history.sqlite (finalizeReport in afterAll). Names are
+      // metric-stable so trends compare the same step over time.
+      await exportResult(resFind);
+      await exportResult(resList);
+      await exportResult(resGql);
+      await exportResult(resCreate);
+
+      logger.info(
+        `  ↳ ${String(step).padStart(6)} rows: findById ${resFind.rps.toFixed(0)} RPS (${resFind.avgMs.toFixed(2)}ms) | list ${resList.rps.toFixed(0)} RPS (${resList.avgMs.toFixed(2)}ms) | gql ${resGql.rps.toFixed(0)} RPS | write ${resCreate.rps.toFixed(0)} RPS`,
+      );
+    }
+
+    // ── SUMMARY TRUTH TABLE & CLIFF REPORT ─────────────────────────────────
+    console.log("\n" + "═".repeat(98));
+    console.log(
+      ` SCALE SPECTRUM DEGRADATION MATRIX (${dbType} — 1 to ${TARGET_STEPS[TARGET_STEPS.length - 1]} Rows)`,
+    );
+    console.log("═".repeat(98));
+    console.log(
+      " Scale       │ findByIdRandom        │ listFilterSort        │ GraphQL               │ Create (Write Lane) ",
+    );
+    console.log("─".repeat(98));
+
+    const baseline = stepMetrics[0];
+
+    for (const m of stepMetrics) {
+      const stepStr = `${m.step.toLocaleString()} rows`.padEnd(11);
+      const findStr =
+        `${String(m.findByIdRandomRps).padStart(5)} RPS (${m.findByIdRandomAvgMs}ms)`.padEnd(21);
+      const listStr =
+        `${String(m.listFilterSortRps).padStart(5)} RPS (${m.listFilterSortAvgMs}ms)`.padEnd(21);
+      const gqlStr = `${String(m.graphqlRps).padStart(5)} RPS (${m.graphqlAvgMs}ms)`.padEnd(21);
+      const createStr = `${String(m.createRps).padStart(5)} RPS (${m.createAvgMs}ms)`;
+
+      console.log(` ${stepStr} │ ${findStr} │ ${listStr} │ ${gqlStr} │ ${createStr}`);
+    }
+    console.log("═".repeat(98));
+
+    // Degradation factor analysis
+    const largest = stepMetrics[stepMetrics.length - 1];
+    if (!largest) throw new Error("Scale spectrum produced no step metrics");
+    if (baseline && baseline !== largest) {
+      console.log(
+        "\n📊 SCALE DEGRADATION RATIO (1 row vs " + largest.step.toLocaleString() + " rows):",
+      );
+      console.log(
+        `  • findByIdRandom: ${(baseline.findByIdRandomAvgMs / largest.findByIdRandomAvgMs).toFixed(2)}x throughput retention (${baseline.findByIdRandomRps} → ${largest.findByIdRandomRps} RPS)`,
+      );
+      console.log(
+        `  • listFilterSort: ${(baseline.listFilterSortAvgMs / largest.listFilterSortAvgMs).toFixed(2)}x throughput retention (${baseline.listFilterSortRps} → ${largest.listFilterSortRps} RPS)`,
+      );
+      console.log(
+        `  • GraphQL:        ${(baseline.graphqlAvgMs / largest.graphqlAvgMs).toFixed(2)}x throughput retention (${baseline.graphqlRps} → ${largest.graphqlRps} RPS)`,
+      );
+      console.log(
+        `  • Create (Write): ${(baseline.createAvgMs / largest.createAvgMs).toFixed(2)}x throughput retention (${baseline.createRps} → ${largest.createRps} RPS)`,
+      );
+      console.log("═".repeat(98) + "\n");
+    }
+
+    exportMetric("scale_spectrum.largest_step", largest.step, "rows");
+    exportMetric("scale_spectrum.find_by_id_final_rps", largest.findByIdRandomRps, "req/s");
+    exportMetric("scale_spectrum.list_final_rps", largest.listFilterSortRps, "req/s");
+    if (baseline && largest && baseline !== largest) {
+      exportMetric(
+        "scale_spectrum.find_by_id_retention",
+        +(baseline.findByIdRandomAvgMs / largest.findByIdRandomAvgMs).toFixed(3),
+        "x",
+      );
+      exportMetric(
+        "scale_spectrum.list_retention",
+        +(baseline.listFilterSortAvgMs / largest.listFilterSortAvgMs).toFixed(3),
+        "x",
+      );
+    }
+
+    printTruthTable({
+      title: `SCALE SPECTRUM (${dbType} — 1 to ${largest.step.toLocaleString()} Rows)`,
+      shortLabel: "ScaleSpectrum",
+      results: stepMetrics.flatMap((m) => [
+        {
+          name: `findByIdRandom @ ${m.step}`,
+          avgMs: m.findByIdRandomAvgMs,
+          p95Ms: m.findByIdRandomP95Ms,
+          rps: m.findByIdRandomRps,
+        },
+        {
+          name: `listFilterSort @ ${m.step}`,
+          avgMs: m.listFilterSortAvgMs,
+          p95Ms: m.listFilterSortP95Ms,
+          rps: m.listFilterSortRps,
+        },
+        {
+          name: `graphql @ ${m.step}`,
+          avgMs: m.graphqlAvgMs,
+          p95Ms: m.graphqlP95Ms,
+          rps: m.graphqlRps,
+        },
+        {
+          name: `create @ ${m.step}`,
+          avgMs: m.createAvgMs,
+          p95Ms: m.createP95Ms,
+          rps: m.createRps,
+        },
+      ]),
+    });
+  } finally {
+    if (stopServer) {
+      await stopServer().catch(() => {});
+    }
+  }
+}, 900_000);

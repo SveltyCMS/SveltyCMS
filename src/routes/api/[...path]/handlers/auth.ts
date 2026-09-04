@@ -51,6 +51,7 @@ import { RateLimiter } from "@src/hooks/handle-rate-limit";
 import { verifyPending2faToken } from "@src/utils/server/pending-2fa-token.server";
 import { getClientIp } from "@utils/hook-utils";
 import { buildDeviceFingerprint, getTrustedDeviceCookieConfig } from "@src/databases/auth/totp";
+import { recordListQuery } from "@utils/list-query-metrics";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -131,10 +132,14 @@ export async function handleAuthUserRoutes(
           ? handleOidcLogout(event, cms, tenantId, cookies)
           : notAllowed();
       case "oidc-login":
-        return reqMethod === "GET" ? handleOidcLoginStart(event) : notAllowed();
+        return reqMethod === "GET" ? handleOidcLoginStart(event, tenantId) : notAllowed();
       case "oidc-callback":
         return reqMethod === "GET"
           ? handleOidcLoginCallback(event, cms, tenantId, cookies)
+          : notAllowed();
+      case "sso-providers":
+        return reqMethod === "GET" || reqMethod === "POST"
+          ? handleSsoProvidersRoute(event, cms, tenantId, user)
           : notAllowed();
       case "frontchannel-logout":
         return reqMethod === "GET" ? handleFrontChannelLogoutRoute(event) : notAllowed();
@@ -232,6 +237,40 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
   const { url } = event;
   const raw = url.searchParams.get("raw") === "true";
 
+  const filter: Record<string, any> = {};
+  const role = url.searchParams.get("role");
+  if (role) filter.role = role;
+
+  const blocked = url.searchParams.get("blocked");
+  if (blocked !== null && blocked !== "") {
+    filter.blocked = blocked === "true" || blocked === "1";
+  }
+
+  const rawFilter = url.searchParams.get("filter");
+  if (rawFilter) {
+    try {
+      const parsed = JSON.parse(rawFilter);
+      if (parsed && typeof parsed === "object") {
+        const ALLOWED_USER_FILTER_KEYS = new Set([
+          "role",
+          "blocked",
+          "email",
+          "username",
+          "createdAt",
+          "updatedAt",
+        ]);
+        for (const [k, v] of Object.entries(parsed)) {
+          if (ALLOWED_USER_FILTER_KEYS.has(k)) {
+            filter[k] = v;
+          }
+        }
+      }
+    } catch {
+      /* ignore invalid JSON */
+    }
+  }
+
+  const t0 = performance.now();
   const result = await cms.auth.listUsers({
     tenantId,
     page: Number(url.searchParams.get("page")) || 1,
@@ -239,7 +278,10 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
     search: url.searchParams.get("search") || "",
     sort: url.searchParams.get("sort") || "createdAt",
     order: (url.searchParams.get("order") as "asc" | "desc") || "desc",
+    filter,
   });
+
+  const durationMs = performance.now() - t0;
 
   if (!result.success) throw new AppError(result.message || "Failed to list users", 500);
   const inner = result.data as { data?: unknown; pagination?: unknown } | unknown[] | undefined;
@@ -249,6 +291,14 @@ export async function handleListUsers(event: RequestEvent, cms: LocalCMS, tenant
       ? (inner as { data: unknown[] }).data
       : [];
   const safe = items.map((u) => sanitizeUserForResponse(u));
+
+  recordListQuery({
+    source: "UserManagement.list",
+    durationMs,
+    cache: "miss",
+    rowCount: items.length,
+  });
+
   if (raw) return rawResponse(event, safe);
   const pagination = inner && !Array.isArray(inner) ? inner.pagination : undefined;
   return rawResponse(event, { success: true, data: safe, pagination });
@@ -513,13 +563,13 @@ export async function handleOidcLogout(
  * Start OIDC authorization-code login: redirect to OP authorize endpoint.
  * Query: provider (required), redirect_uri (optional — defaults to /api/auth/oidc-callback)
  */
-export async function handleOidcLoginStart(event: RequestEvent) {
+export async function handleOidcLoginStart(event: RequestEvent, tenantId?: DatabaseId) {
   const providerId = event.url.searchParams.get("provider") || "";
   if (!providerId) throw new AppError("provider query param is required", 400);
 
-  const { buildOidcAuthorizationUrl, getSsoProvider, loadSsoProvidersFromSettings } =
+  const { buildOidcAuthorizationUrl, getSsoProvider, loadSsoProvidersFromSettings, generatePkce } =
     await import("@src/databases/auth/sso-session");
-  loadSsoProvidersFromSettings();
+  await loadSsoProvidersFromSettings(tenantId as string);
   if (!getSsoProvider(providerId)) {
     throw new AppError(`Unknown OIDC provider: ${providerId}`, 404);
   }
@@ -529,20 +579,27 @@ export async function handleOidcLoginStart(event: RequestEvent) {
     event.url.searchParams.get("redirect_uri") || `${origin}/api/auth/oidc-callback`;
   const state = globalThis.crypto.randomUUID();
   const nonce = globalThis.crypto.randomUUID();
+  const { codeVerifier, codeChallenge } = generatePkce();
 
-  // Short-lived cookie for CSRF state (HttpOnly)
-  event.cookies.set("oidc_login_state", JSON.stringify({ state, nonce, providerId, redirectUri }), {
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: event.url.protocol === "https:",
-    maxAge: 600,
-  });
+  // Short-lived cookie for CSRF state and PKCE (HttpOnly)
+  event.cookies.set(
+    "oidc_login_state",
+    JSON.stringify({ state, nonce, providerId, redirectUri, codeVerifier }),
+    {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: event.url.protocol === "https:",
+      maxAge: 600,
+    },
+  );
 
   const built = await buildOidcAuthorizationUrl(providerId, {
     redirectUri,
     state,
     nonce,
+    codeChallenge,
+    codeChallengeMethod: "S256",
   });
   if (!built.success) throw new AppError(built.message, 400);
 
@@ -567,7 +624,13 @@ export async function handleOidcLoginCallback(
   if (err) throw new AppError(`OIDC error: ${err}`, 400);
   if (!code || !state) throw new AppError("code and state are required", 400);
 
-  let stored: { state: string; nonce: string; providerId: string; redirectUri: string };
+  let stored: {
+    state: string;
+    nonce: string;
+    providerId: string;
+    redirectUri: string;
+    codeVerifier?: string;
+  };
   try {
     stored = JSON.parse(cookies.get("oidc_login_state") || "{}");
   } catch {
@@ -578,13 +641,32 @@ export async function handleOidcLoginCallback(
     throw new AppError("OIDC state mismatch", 400);
   }
 
-  const { exchangeOidcCode, setSsoSessionMetadata } =
-    await import("@src/databases/auth/sso-session");
+  const {
+    exchangeOidcCode,
+    setSsoSessionMetadata,
+    getSsoProvider,
+    resolveJitRole,
+    loadSsoProvidersFromSettings,
+  } = await import("@src/databases/auth/sso-session");
+  await loadSsoProvidersFromSettings(tenantId as string);
+
   const exchanged = await exchangeOidcCode(stored.providerId, {
     code,
     redirectUri: stored.redirectUri,
+    codeVerifier: stored.codeVerifier,
   });
   if (!exchanged.success) throw new AppError(exchanged.message, 401);
+
+  // 🔐 OIDC Core 3.1.3.7: the nonce we sent in the authorize request must be
+  // echoed in the verified id_token — binds the token to this login attempt
+  // (replay protection on top of state + PKCE).
+  if (
+    stored.nonce &&
+    exchanged.payload &&
+    (exchanged.payload.nonce as string | undefined) !== stored.nonce
+  ) {
+    throw new AppError("OIDC nonce mismatch", 400);
+  }
 
   const email =
     (exchanged.payload?.email as string) || (exchanged.payload?.preferred_username as string) || "";
@@ -596,27 +678,61 @@ export async function handleOidcLoginCallback(
     });
   }
 
+  const provider = getSsoProvider(stored.providerId);
+  const targetRole = provider ? resolveJitRole(exchanged.payload || {}, provider) : "user";
+
   const userRes = await cms.auth.getUserByEmail(email, { tenantId });
-  const user = userRes?.success ? userRes.data : null;
+  let user = userRes?.success ? userRes.data : null;
+
+  const auth = (await import("@src/databases/db")).getDb()?.auth;
+  if (!auth?.createSession) {
+    throw new AppError("Auth adapter createSession unavailable", 500);
+  }
+
   if (!user?._id) {
-    throw new AppError(
-      `No local user for ${email}. Create the user or enable invite-based provisioning.`,
-      403,
+    if (provider?.jitProvisioning === false) {
+      throw new AppError(
+        `No local user for ${email}. JIT provisioning is disabled for ${stored.providerId}.`,
+        403,
+      );
+    }
+    const username =
+      (exchanged.payload?.name as string) ||
+      (exchanged.payload?.preferred_username as string) ||
+      email.split("@")[0];
+
+    const createRes = await auth.createUser(
+      {
+        email,
+        username,
+        role: targetRole,
+        permissions: [],
+        isRegistered: true,
+        lastAuthMethod: stored.providerId,
+      },
+      { bypassTenantCheck: true },
     );
+
+    if (!createRes?.success || !createRes.data) {
+      throw new AppError("Failed to auto-provision JIT user", 500);
+    }
+    user = createRes.data;
+  } else if (provider?.syncRolesOnLogin && user.role !== targetRole) {
+    if (typeof auth.updateUserAttributes === "function") {
+      await auth.updateUserAttributes(
+        user._id as any,
+        { role: targetRole },
+        { bypassTenantCheck: true },
+      );
+      user.role = targetRole;
+    }
   }
 
   // Create session via adapter Auth (user_id contract used by relational/mongo auth).
   // One session per user per device: reuse an existing non-rotated session from
   // this device (exact user-agent match), mirroring AuthNamespace.login dedup.
-  const auth = (await import("@src/databases/db")).getDb()?.auth;
-  if (!auth?.createSession) {
-    throw new AppError("Auth adapter createSession unavailable", 500);
-  }
   const userAgent = event.request.headers.get("user-agent") || undefined;
-  const ipAddress =
-    event.getClientAddress?.() ||
-    event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    undefined;
+  const ipAddress = getClientIp(event);
   // SESSION_DEVICE_POLICY: single-per-device (default) / single-per-user / allow-multiple
   const devicePolicy = String(
     getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
@@ -694,6 +810,96 @@ export async function handleOidcLoginCallback(
     status: 302,
     headers: { Location: "/dashboard" },
   });
+}
+
+/**
+ * Manage SSO Providers:
+ * - GET: returns public metadata (or full configs if admin)
+ * - POST: updates SSO providers in settings (admin only)
+ */
+export async function handleSsoProvidersRoute(
+  event: RequestEvent,
+  _cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+) {
+  const reqMethod = event.request.method.toUpperCase();
+  const {
+    getAllSsoProviders,
+    getPublicSsoProviders,
+    loadSsoProvidersFromSettings,
+    saveSsoProviders,
+  } = await import("@src/databases/auth/sso-session");
+
+  await loadSsoProvidersFromSettings(tenantId as string);
+
+  if (reqMethod === "GET") {
+    if (isAdmin(user)) {
+      const providers = getAllSsoProviders().map((p) => ({
+        ...p,
+        clientSecret: p.clientSecret ? "••••••••" : "",
+      }));
+      return successResponse(event, providers);
+    }
+    return successResponse(event, getPublicSsoProviders());
+  }
+
+  if (reqMethod === "POST") {
+    if (!isAdmin(user)) {
+      throw new AppError("Forbidden: Admin access required to manage SSO providers", 403);
+    }
+
+    const body = await event.request.json().catch(() => null);
+    if (!Array.isArray(body)) {
+      throw new AppError("Payload must be an array of SSO provider configs", 400);
+    }
+
+    const currentProviders = getAllSsoProviders();
+    const currentMap = new Map(currentProviders.map((p) => [p.id, p]));
+
+    const validatedProviders = body.map((p: any) => {
+      if (!p.id || !p.issuer) {
+        throw new AppError("Each provider requires an id and issuer", 400);
+      }
+      const existing = currentMap.get(p.id);
+      let secret = p.clientSecret;
+      const isRedactedSecret =
+        typeof secret === "string" &&
+        secret.length === 8 &&
+        Array.from(secret).every((character) => character.codePointAt(0) === 8226);
+      if (isRedactedSecret && existing?.clientSecret) {
+        secret = existing.clientSecret;
+      }
+      return {
+        id: String(p.id).trim().toLowerCase(),
+        name: p.name ? String(p.name).trim() : undefined,
+        icon: p.icon ? String(p.icon).trim() : undefined,
+        issuer: String(p.issuer).trim(),
+        allowedRedirectUris: Array.isArray(p.allowedRedirectUris)
+          ? p.allowedRedirectUris.map(String)
+          : [],
+        endSessionEndpoint: p.endSessionEndpoint ? String(p.endSessionEndpoint).trim() : undefined,
+        clientId: p.clientId ? String(p.clientId).trim() : undefined,
+        clientSecret: secret ? String(secret).trim() : undefined,
+        authorizationEndpoint: p.authorizationEndpoint
+          ? String(p.authorizationEndpoint).trim()
+          : undefined,
+        tokenEndpoint: p.tokenEndpoint ? String(p.tokenEndpoint).trim() : undefined,
+        jwksUri: p.jwksUri ? String(p.jwksUri).trim() : undefined,
+        scopes: Array.isArray(p.scopes) ? p.scopes.map(String) : ["openid", "profile", "email"],
+        jitProvisioning: p.jitProvisioning !== false,
+        defaultRole: p.defaultRole || "user",
+        roleMapping: p.roleMapping || { claimField: "groups", rules: [] },
+        syncRolesOnLogin: p.syncRolesOnLogin === true,
+      };
+    });
+
+    await saveSsoProviders(validatedProviders, tenantId as string);
+    logger.info(`[SSO] Updated ${validatedProviders.length} SSO providers`);
+    return successResponse(event, { count: validatedProviders.length });
+  }
+
+  return new Response("Method Not Allowed", { status: 405 });
 }
 
 /**
@@ -1305,6 +1511,14 @@ export async function handleUserSpecificRoutes(
     if (ids.length === 0 && body.action !== "invalid_action") {
       // Empty id list is a client error for mutating batch ops
       throw new AppError("userIds must be a non-empty array", 400, "INVALID_BATCH_IDS");
+    }
+    const MAX_USER_BATCH_SIZE = 100;
+    if (ids.length > MAX_USER_BATCH_SIZE) {
+      throw new AppError(
+        `Batch size exceeds maximum limit of ${MAX_USER_BATCH_SIZE}`,
+        400,
+        "INVALID_BATCH_SIZE",
+      );
     }
     const result = await cms.auth.batchAction(ids, body.action, { tenantId });
     if (!result.success) {

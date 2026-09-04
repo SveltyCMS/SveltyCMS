@@ -48,7 +48,7 @@ const compileAliases: Record<string, string> = Object.fromEntries(
 );
 
 // ─── Transformer version — bump on ANY transformer logic change ─────────
-const TRANSFORMER_VERSION = 5;
+const TRANSFORMER_VERSION = 6;
 
 // ─── Manifest metadata keys ─────────────────────────────────────────────
 const MANIFEST_ORDER_KEY = "collectionOrder";

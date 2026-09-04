@@ -940,6 +940,14 @@ export async function handleMediaBulkDownload(
 ) {
   const ids = event.url.searchParams.getAll("id");
   if (!ids.length) throw new AppError("Target selection download collection list empty", 400);
+  const MAX_BULK_DOWNLOAD_IDS = 100;
+  if (ids.length > MAX_BULK_DOWNLOAD_IDS) {
+    throw new AppError(
+      `Maximum ${MAX_BULK_DOWNLOAD_IDS} files allowed per download request`,
+      400,
+      "INVALID_BATCH_SIZE",
+    );
+  }
 
   const files: any[] = [];
   if (cms.db.crud.findMany) {

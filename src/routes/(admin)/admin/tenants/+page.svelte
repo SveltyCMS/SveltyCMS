@@ -20,6 +20,7 @@ import AdminCard from '@components/admin-card.svelte';
 import AdminPageShell from '@components/admin-page-shell.svelte';
 import Badge from '@components/ui/badge.svelte';
 import Button from '@components/ui/button.svelte';
+import { formatDate } from '@utils/format-date';
 import {
 	SMART_TABLE,
 	SMART_TABLE_ROW_HOVER,
@@ -110,7 +111,7 @@ function formatBytes(bytes: number, decimals = 2) {
 							</td>
 							<td class="{SMART_TABLE_TD} text-start! px-4!">{tenant.usage.collectionsCount} / {tenant.quota.maxCollections}</td>
 							<td class="{SMART_TABLE_TD} text-start! px-4! text-xs font-bold uppercase opacity-70">{tenant.plan}</td>
-							<td class="{SMART_TABLE_TD} text-start! px-4!">{new Date(tenant.createdAt).toLocaleDateString()}</td>
+							<td class="{SMART_TABLE_TD} text-start! px-4!">{formatDate(tenant.createdAt)}</td>
 							<td class="{SMART_TABLE_TD} text-end! px-4!">
 								<Button
 									variant={tenant.status === 'active' ? 'outline' : 'primary'}

@@ -151,13 +151,27 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
       await cacheService.initialize(config);
       updateServiceHealth("cache", "healthy", "Cache service online");
 
-      // Warm critical paths on startup in background if setup complete
+      // Warm critical paths on startup in background if setup complete.
+      // 🔴 FIX 9 (readiness gate): the boot cache-warming is non-blocking by design, but we
+      // now expose a `cacheWarming` service status so the load-balancer readiness probe can
+      // hold traffic until the smart pre-warm completes. We set it to `initializing` before
+      // firing, then `healthy` (or a non-blocking note) on settle — NOT awaited, so the boot
+      // itself stays fast, but the probe knows warming is still in flight.
       const { isSetupComplete } = await import("../utils/server/setup-check");
       if (isSetupComplete()) {
+        startServiceInitialization("cacheWarming");
         const { cacheWarmingService } = await import("./cache/cache-warming-service");
-        cacheWarmingService.initialize(adapter).catch((err) => {
-          logger.trace("Cache warming failed:", err);
-        });
+        cacheWarmingService
+          .initialize(adapter)
+          .then(() => {
+            updateServiceHealth("cacheWarming", "healthy", "Cache warming complete");
+          })
+          .catch((err) => {
+            logger.trace("Cache warming failed:", err);
+            // Non-fatal: warming is best-effort. Mark healthy so readiness is released —
+            // a cold cache is recoverable, an infinitely-unready pod is not.
+            updateServiceHealth("cacheWarming", "healthy", "Cache warming skipped (non-fatal)");
+          });
       }
     },
   });

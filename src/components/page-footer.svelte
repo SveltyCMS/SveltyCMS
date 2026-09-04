@@ -13,6 +13,7 @@
 <script lang="ts">
 	import { collections } from '@src/stores/collection-store.svelte';
 	import { page } from '$app/state';
+	import { formatDateTime } from '@utils/format-date';
 
 	const { user } = page.data;
 
@@ -26,7 +27,7 @@
 	// Convert ISO date string to formatted date
 	const dates = $derived({
 		created: activeEntry?.createdAt
-			? new Date(activeEntry.createdAt).toLocaleDateString('en-US', {
+			? formatDateTime(activeEntry.createdAt, {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -35,7 +36,7 @@
 				})
 			: '-',
 		updated: activeEntry?.updatedAt
-			? new Date(activeEntry.updatedAt).toLocaleDateString('en-US', {
+			? formatDateTime(activeEntry.updatedAt, {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',

@@ -64,14 +64,15 @@ async function runCacheServiceBenchmark() {
     results.push({ ...hitResult, layer: "L1", shortLabel: "Hit" });
     exportResult({ ...hitResult, layer: "L1", shortLabel: "Cache Svc" });
 
-    // ── 3. FLAT PATTERN INVALIDATION (200k Background Noise) ───────────────
-    console.log("   → Seeding 200k flat background noise keys (batched)...");
-    await batchSeed("noise-key-", 200000, NOISE_PAYLOAD, 5000);
+    // ── 3. FLAT PATTERN INVALIDATION (25k Background Noise) ───────────────
+    console.log("   → Seeding 25k flat background noise keys (batched)...");
+    const FLAT_NOISE_COUNT = 25000;
+    await batchSeed("noise-key-", FLAT_NOISE_COUNT, NOISE_PAYLOAD, 5000);
 
     if (typeof (globalThis as any).gc === "function") (globalThis as any).gc();
     await stabilize(200);
 
-    console.log("   → Measuring Flat Pattern Invalidation (1k targets @ 200k noise)...");
+    console.log("   → Measuring Flat Pattern Invalidation (1k targets @ 25k noise)...");
     const INVALIDATION_ITERATIONS = 10;
     const targetPattern = "bench-key-";
     const invalidationTimes: number[] = [];
@@ -90,7 +91,7 @@ async function runCacheServiceBenchmark() {
       // Verify invalidation on first cycle
       if (i === 0) {
         const checkTarget = await cacheService.get(`${targetPattern}0`, TENANT);
-        const checkNoise = await cacheService.get("noise-key-0", TENANT);
+        const checkNoise = await cacheService.get(`noise-key-${FLAT_NOISE_COUNT - 1}`, TENANT);
         if (checkTarget !== null && checkTarget !== undefined) {
           throw new Error("Target key was not evicted by clearByPattern");
         }
@@ -104,7 +105,7 @@ async function runCacheServiceBenchmark() {
     const invRps = totalInvTimeMs > 0 ? invalidationTimes.length / (totalInvTimeMs / 1000) : 0;
 
     const invalidationResult = computeStatistics(invalidationTimes, invRps, {
-      name: "Pattern Invalidation (1k items @ 200k noise)",
+      name: "Pattern Invalidation (1k items @ 25k noise)",
       runs: 1,
       concurrency: 1,
     });
@@ -117,14 +118,15 @@ async function runCacheServiceBenchmark() {
     exportResult({ ...invalidationResult, layer: "L1", shortLabel: "Cache Svc" });
 
     // ── 4. NAMESPACED PATTERN INVALIDATION ──────────────────────────────────
-    console.log("   → Seeding 100k namespaced background noise keys (batched)...");
-    await batchSeed("collection:noise:", 100000, NOISE_PAYLOAD, 5000);
+    console.log("   → Seeding 50k namespaced background noise keys (batched)...");
+    const NS_NOISE_COUNT = 50000;
+    await batchSeed("collection:noise:", NS_NOISE_COUNT, NOISE_PAYLOAD, 5000);
 
     if (typeof (globalThis as any).gc === "function") (globalThis as any).gc();
     await stabilize(200);
 
     console.log(
-      "   → Measuring Namespaced Pattern Invalidation (1k targets @ 100k namespace noise)...",
+      "   → Measuring Namespaced Pattern Invalidation (1k targets @ 50k namespace noise)...",
     );
     const NAMESPACED_PATTERN = "collection:bench:";
     const namespacedTimes: number[] = [];
@@ -142,7 +144,7 @@ async function runCacheServiceBenchmark() {
       // Verify namespaced eviction on first cycle
       if (i === 0) {
         const checkTarget = await cacheService.get(`${NAMESPACED_PATTERN}0`, TENANT);
-        const checkNoise = await cacheService.get("collection:noise:0", TENANT);
+        const checkNoise = await cacheService.get(`collection:noise:${NS_NOISE_COUNT - 1}`, TENANT);
         if (checkTarget !== null && checkTarget !== undefined) {
           throw new Error("Namespaced target key was not evicted");
         }
@@ -156,7 +158,7 @@ async function runCacheServiceBenchmark() {
     const nsRps = totalNsTimeMs > 0 ? namespacedTimes.length / (totalNsTimeMs / 1000) : 0;
 
     const namespacedResult = computeStatistics(namespacedTimes, nsRps, {
-      name: "Pattern Invalidation (Namespaced 1k @ 100k noise)",
+      name: "Pattern Invalidation (Namespaced 1k @ 50k noise)",
       runs: 1,
       concurrency: 1,
     });

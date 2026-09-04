@@ -21,6 +21,7 @@ interface ComparableField {
   label?: string;
   required?: boolean;
   unique?: boolean;
+  encrypt?: boolean;
   widget?: {
     Name?: string;
     [key: string]: unknown;
@@ -178,6 +179,23 @@ export function compareSchemas(oldSchema: Schema | null, newSchema: Schema): Bre
           dataLoss: false,
           message: `Field "${fieldName}" now requires unique values - existing duplicates will cause errors`,
           suggestion: `Remove duplicates in "${fieldName}" before applying this change`,
+        });
+      }
+
+      // ⚠️ Unique + encrypt conflict: AES-256-GCM uses a random IV so the same
+      // plaintext always produces different ciphertext. A unique index on an
+      // encrypted field is therefore meaningless — it will only prevent storing
+      // the *exact same ciphertext envelope* (vanishingly unlikely), not duplicate
+      // *plaintext* values.
+      if (newField.unique && newField.encrypt === true) {
+        changes.push({
+          type: "unique_added",
+          fieldName,
+          oldValue: oldField?.unique,
+          newValue: true,
+          dataLoss: false,
+          message: `Field "${fieldName}" has both "unique" and "encrypt: true" — unique indexes on AES-256-GCM ciphertext do not enforce plaintext uniqueness`,
+          suggestion: `Remove "unique" from "${fieldName}" or use application-level uniqueness checking instead`,
         });
       }
     } else {

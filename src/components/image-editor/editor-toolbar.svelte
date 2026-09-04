@@ -7,7 +7,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 -->
 <script lang="ts">
 	import { fade } from 'svelte/transition';
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import Slot from '@src/components/system/slot.svelte';
 
 	let {

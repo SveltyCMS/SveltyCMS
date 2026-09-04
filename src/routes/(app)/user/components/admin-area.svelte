@@ -14,6 +14,7 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import { formatDateTime } from '@utils/format-date';
 	// Type guards for template and logic
 	function isToken(row: User | Token): row is Token {
 		return !!row && 'token' in row && typeof row.token === 'string';
@@ -63,6 +64,8 @@
 		type TableDensity
 	} from '@components/ui/smart-table';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
+	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
+	import type { SmartTableSavedView } from '@utils/smart-table-saved-views';
 	// Types
 	import { type Role as RoleType, type Token, type User } from '@src/databases/auth/types';
 	import { isAdmin } from '@src/databases/auth/constants';
@@ -89,7 +92,7 @@
 		username
 	} from '@src/paraglide/messages';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
-	import { normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
+	import { normalizeAvatarUrl } from '@utils/avatar';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	// Stores
 	import { logger } from '@utils/logger';
@@ -99,6 +102,8 @@
 	import { page } from '$app/state';
 	import Multibutton from './multibutton.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
+	import ModalUserSessions from './modal-user-sessions.svelte';
+	import SmartTableMetricsBadge from '@components/ui/smart-table/smart-table-metrics-badge.svelte';
 
 	type TableDataType = (User | Token) & Record<string, unknown>;
 
@@ -120,6 +125,43 @@
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	let selectAllColumns = $state(true);
+
+	const viewsScope = $derived(showUserList ? 'users' : 'tokens');
+
+	let activeFacet = $state<'all' | 'admin' | 'user' | 'active' | 'blocked'>('all');
+
+	function selectFacet(facet: 'all' | 'admin' | 'user' | 'active' | 'blocked') {
+		activeFacet = facet;
+		smartTable.pagination.currentPage = 1;
+		fetchData().catch((err) => logger.error('Facet change error:', err));
+	}
+
+	function openUserSessions(targetUser: User) {
+		modalState.trigger(
+			ModalUserSessions as any,
+			{ user: targetUser },
+			() => {}
+		);
+	}
+
+	function getSavedViewSnapshot(): Omit<SmartTableSavedView, 'id' | 'createdAt' | 'updatedAt' | 'name'> {
+		return {
+			filters: { activeFacet },
+			search: globalSearchValue,
+			sort: smartTable.sort,
+			pageSize: smartTable.pagination.pageSize
+		};
+	}
+
+	function applySavedView(view: SmartTableSavedView) {
+		if (view.search != null) globalSearchValue = view.search;
+		if (view.sort?.sortedBy) smartTable.setSort(view.sort.sortedBy, { emit: false });
+		if (view.pageSize) smartTable.setPageSize(view.pageSize, { emit: false });
+		if (view.filters && typeof view.filters === 'object' && 'activeFacet' in view.filters) {
+			activeFacet = (view.filters as Record<string, any>).activeFacet;
+		}
+		fetchData().catch(() => {});
+	}
 
 	function getAdminRowId(row: TableDataType): string {
 		if (isToken(row)) return String(row.token ?? '');
@@ -162,6 +204,15 @@
 				}
 				if (globalSearchValue) {
 					params.set('search', globalSearchValue);
+				}
+				if (showUserList && activeFacet !== 'all') {
+					if (activeFacet === 'admin' || activeFacet === 'user') {
+						params.set('role', activeFacet);
+					} else if (activeFacet === 'active') {
+						params.set('blocked', 'false');
+					} else if (activeFacet === 'blocked') {
+						params.set('blocked', 'true');
+					}
 				}
 
 				try {
@@ -458,15 +509,7 @@
 		if (value === null || value === undefined || value === '') {
 			return '-';
 		}
-		try {
-			const d = value instanceof Date ? value : new Date(String(value));
-			if (Number.isNaN(d.getTime())) {
-				return '-';
-			}
-			return d.toLocaleString();
-		} catch {
-			return '-';
-		}
+		return formatDateTime(value as any, undefined, undefined, '-');
 	}
 
 	// Toggle user blocked status - always show confirmation modal (like Multibutton)
@@ -701,7 +744,15 @@
 
 		<!-- Toolbar -->
 		<div class={SMART_TABLE_TOOLBAR}>
-			<div class="order-3 sm:order-2"><TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density /></div>
+			<div class="order-3 flex items-center gap-2 sm:order-2">
+				<TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
+				<SmartTableSavedViewsMenu
+					scope={viewsScope}
+					getSnapshot={getSavedViewSnapshot}
+					onApply={applySavedView}
+				/>
+				<SmartTableMetricsBadge source={showUserList ? 'UserManagement.list' : 'Tokens.list'} />
+			</div>
 
 			<div class="order-2 flex items-center justify-center sm:order-3">
 				<Multibutton
@@ -713,6 +764,52 @@
 				/>
 			</div>
 		</div>
+
+		{#if showUserList}
+			<!-- Facet Chips -->
+			<div class="flex flex-wrap items-center gap-1.5 px-3 py-1.5 text-xs">
+				<button
+					type="button"
+					onclick={() => selectFacet('all')}
+					class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet === 'all' ? 'bg-primary-500 text-white' : 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+				>
+					<span>All</span>
+					<span class="opacity-70">({systemUserCount})</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => selectFacet('admin')}
+					class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet === 'admin' ? 'bg-primary-500 text-white' : 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+				>
+					<iconify-icon icon="mdi:shield-crown-outline" width="14" class="text-tertiary-500 dark:text-primary-400"></iconify-icon>
+					<span>Admins</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => selectFacet('user')}
+					class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet === 'user' ? 'bg-primary-500 text-white' : 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+				>
+					<iconify-icon icon="mdi:account-outline" width="14"></iconify-icon>
+					<span>Users</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => selectFacet('active')}
+					class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet === 'active' ? 'bg-primary-500 text-white' : 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+				>
+					<span class="size-1.5 rounded-full bg-success-500"></span>
+					<span>Active</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => selectFacet('blocked')}
+					class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet === 'blocked' ? 'bg-primary-500 text-white' : 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+				>
+					<span class="size-1.5 rounded-full bg-error-500"></span>
+					<span>Blocked</span>
+				</button>
+			</div>
+		{/if}
 
 		{#if columnShow && (tableData?.length || filterShow)}
 			<div class={SMART_TABLE_COLUMN_MANAGER}>
@@ -871,8 +968,8 @@
 												{roles}
 											/>
 										{:else if header.key === '_id'}
-											<!-- User ID with clipboard functionality -->
-											<div class="flex items-center justify-center gap-2">
+											<!-- User ID with clipboard functionality and active sessions modal -->
+											<div class="flex items-center justify-center gap-1.5">
 												<span class="font-mono text-sm">{isUser(row) ? row._id : isToken(row) ? row._id : '-'}</span>
 												<SystemTooltip title="Copy User ID to clipboard">
 													<Button
@@ -895,6 +992,22 @@
 														<iconify-icon icon="oui:copy-clipboard" width={18}></iconify-icon>
 													</Button>
 												</SystemTooltip>
+												{#if showUserList && isUser(row)}
+													<SystemTooltip title="Manage Active Sessions">
+														<Button
+															variant="ghost"
+															type="button"
+															aria-label="Manage active sessions"
+															onclick={(event: MouseEvent) => {
+																event.stopPropagation();
+																openUserSessions(row);
+															}}
+															class="p-0! min-w-0 preset-ghost text-primary-500 hover:text-primary-600 dark:text-primary-400"
+														>
+															<iconify-icon icon="mdi:devices" width={18}></iconify-icon>
+														</Button>
+													</SystemTooltip>
+												{/if}
 											</div>
 										{:else if header.key === 'token'}
 											<!-- Token with clipboard functionality -->

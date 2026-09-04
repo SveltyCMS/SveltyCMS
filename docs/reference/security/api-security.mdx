@@ -122,9 +122,14 @@ If a token's owner is deleted (`tenantId: null`), the system isolates the token 
 
 Every Bearer-token request is verified against the environment's `tenantId`. Mismatched tokens are rejected with 403 and an audit log event.
 
-### 4.3 Batch Operation Guard
+### 4.3 Batch Operation Guard & Upper-Bound Limits
 
-`batch-module.ts` rejects coalesced operations containing mixed tenant IDs — preventing cross-tenant data leakage in shared-DB deployments.
+To prevent memory exhaustion and DoS attacks through oversized payloads:
+
+- **Mixed-Tenant Rejection**: `batch-module.ts` rejects coalesced operations containing mixed tenant IDs — preventing cross-tenant data leakage in shared-DB deployments.
+- **Batch Size Ceiling**: All batch endpoints (`/api/tokens/batch`, `/api/users/batch`, `/api/media/download`, `/api/system/order`) enforce an upper-bound cap (`ids.length <= 100`). Exceeding this limit returns an immediate 400 validation error.
+- **Single-Query Batch Operations**: Batch token deletion uses single round-trip database queries (`DELETE ... WHERE id IN (...)` / `deleteMany`), eliminating N+1 sequential database round-trips.
+- **AST Scanner Guard (`batch-size-unbounded`)**: Static security analysis in `scripts/scan-security-risk.ts` scans all API handlers using the TypeScript compiler AST to ensure every batch block enforces a length cap assertion before processing.
 
 ---
 

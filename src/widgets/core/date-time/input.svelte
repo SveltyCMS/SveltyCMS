@@ -30,8 +30,10 @@ Part of the Three Pillars Architecture for widget system.
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { app, validationStore } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
+	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
+	import { formatDate } from '@utils/format-date';
 	import type { FieldType } from './';
 
 	interface Props {
@@ -57,7 +59,7 @@ Part of the Three Pillars Architecture for widget system.
 
 	// Convert ISO string to YYYY-MM-DD format for native input
 
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 	const safeValue = $derived(field.translated ? ((value as Record<string, string>)?.[LANGUAGE] ?? '') : ((value as string) ?? ''));
 
 	const inputValue = $derived.by(() => {
@@ -107,13 +109,13 @@ Part of the Three Pillars Architecture for widget system.
 
 				// Validate min date constraint
 				if (field.minDate && selectedDate < new Date(field.minDate as string | Date)) {
-					validationStore.setError(fieldName, `Date must be on or after ${new Date(field.minDate as string | Date).toLocaleDateString()}`);
+					validationStore.setError(fieldName, `Date must be on or after ${formatDate(field.minDate as string | Date)}`);
 					return;
 				}
 
 				// Validate max date constraint
 				if (field.maxDate && selectedDate > new Date(field.maxDate as string | Date)) {
-					validationStore.setError(fieldName, `Date must be on or before ${new Date(field.maxDate as string | Date).toLocaleDateString()}`);
+					validationStore.setError(fieldName, `Date must be on or before ${formatDate(field.maxDate as string | Date)}`);
 					return;
 				}
 

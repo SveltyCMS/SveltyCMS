@@ -18,10 +18,18 @@ export class NegativeCacheManager {
   private negativeBloom: BloomFilter;
   private negativeInvalidated: Set<string>;
   private rotationTimer: any = null;
+  /** 🔴 FIX 7: hard cap on the invalidation-tracking Set so it can never grow
+   * unbounded between 5-minute rotations. `cacheService.set()` calls
+   * `negative.invalidate()` for EVERY write app-wide, and the pre-warming cycle
+   * adds a recurring 4-minute burst of writes (out of phase with the 5-minute
+   * rotation). Without a cap this Set held arbitrarily many live strings under
+   * real write throughput. */
+  private readonly maxInvalidatedEntries: number;
 
-  constructor() {
+  constructor(maxInvalidatedEntries = 10_000) {
     this.negativeBloom = new BloomFilter(100000, 0.01);
     this.negativeInvalidated = new Set<string>();
+    this.maxInvalidatedEntries = maxInvalidatedEntries;
     this.startRotation();
   }
 
@@ -42,9 +50,19 @@ export class NegativeCacheManager {
 
   /**
    * Invalidates a key from negative cache when an item is created or updated.
+   * 🔴 FIX 7: enforces the size cap — when `negativeInvalidated` reaches the cap
+   * it is reset and only the current key is retained, so the just-written key
+   * is still correctly treated as non-negative while the rest of the (short-
+   * lived) override entries are released. Dropping older override entries is
+   * safe: worst case a key re-enters the Bloom filter and triggers a single
+   * extra DB query for the next request — never stale data or memory growth.
    */
   invalidate(fullKey: string): void {
     this.negativeInvalidated.add(fullKey);
+    if (this.negativeInvalidated.size > this.maxInvalidatedEntries) {
+      this.negativeInvalidated.clear();
+      this.negativeInvalidated.add(fullKey);
+    }
   }
 
   /**

@@ -4,6 +4,7 @@
  * @summary Measures direct adapter write throughput, read throughput, and percentile latencies with zero HTTP overhead.
  */
 
+import { randomUUID } from "node:crypto";
 import {
   test,
   setupBenchmarkServer,
@@ -20,6 +21,12 @@ const WRITE_DOCS = 100;
 const WRITES_PER_DOC = 10;
 const READ_COLLECTIONS = 10;
 const DOCS_PER_COLLECTION = 100;
+// 🛡️ DEDICATED COLLECTION: never reuse `BenchmarkStable` here — other matrix
+// tests (temporal-integrity) depend on its schema keeping a `publishDate`
+// DateTime field. Re-provisioning it with a reduced schema (title + count) in
+// this adapter-level benchmark silently strips that field for every later run,
+// causing a deterministic "publishDate not persisted" contract failure.
+const WRITE_COLLECTION = "bench_throughput";
 
 let stopServer: (() => Promise<void>) | null = null;
 
@@ -70,8 +77,8 @@ async function run() {
     console.log("   ═══ PHASE 1: ATOMIC WRITES ═══");
     await db.collection
       .createModel({
-        _id: "BenchmarkStable",
-        name: "BenchmarkStable",
+        _id: WRITE_COLLECTION,
+        name: WRITE_COLLECTION,
         fields: [
           { db_fieldName: "title", widget: { Name: "Input" }, type: "string" },
           { db_fieldName: "count", widget: { Name: "Input" }, type: "number" },
@@ -94,7 +101,7 @@ async function run() {
           tenantId: T,
         });
       }
-      await db.crud.insertMany("BenchmarkStable", docs, GLOBAL_TENANT_OPTS);
+      await db.crud.insertMany(WRITE_COLLECTION, docs, GLOBAL_TENANT_OPTS);
     }
 
     const totalWrites = WRITE_DOCS * WRITES_PER_DOC;
@@ -120,7 +127,7 @@ async function run() {
             (async () => {
               const tStart = performance.now();
               const res = await db.crud.atomicIncrement(
-                "BenchmarkStable",
+                WRITE_COLLECTION,
                 docId,
                 "count",
                 1,
@@ -149,11 +156,14 @@ async function run() {
     console.log("\n   ═══ PHASE 2: PARALLEL READS ═══");
 
     // Provision multi-collection read tree
+    const docIdsByCollection: string[][] = [];
     await Promise.all(
       readCols.map(async (name, c) => {
         await db.collection.createModel({ _id: name, name, fields: [] }).catch(() => {});
-        const docs = Array.from({ length: DOCS_PER_COLLECTION }, (_, i) => ({
-          _id: `rd-${c}-${i}`,
+        const ids = Array.from({ length: DOCS_PER_COLLECTION }, () => randomUUID());
+        docIdsByCollection[c] = ids;
+        const docs = ids.map((id, i) => ({
+          _id: id,
           title: `R${c}-${i}`,
           tenantId: T,
         }));
@@ -179,7 +189,7 @@ async function run() {
 
         for (let k = i; k < batchLimit; k++) {
           const currentReadSlot = readIdx++;
-          const filter = { _id: `rd-${c}-${k}` };
+          const filter = { _id: docIdsByCollection[c]![k] };
 
           wavePromises.push(
             (async () => {

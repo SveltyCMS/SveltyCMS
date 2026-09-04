@@ -21,9 +21,9 @@ This document details how we have implemented the best A++ security for the Svel
 
 ## Security Improvements
 
-### 1. Audit Log IP Resolution
+### 1. Audit Log & Rate Limiting IP Resolution
 
-Audit logs reliably resolve the client IP address using `X-Forwarded-For` / `X-Real-IP` request headers in all authentication flows (login, password reset, and password forgotten). Additionally, the session record itself captures the IP address and User-Agent at creation time for the Active Devices feature (see Session & Device Tracking below).
+Client IP address resolution is centralized through `getClientIp(event)` (`src/utils/security/client-ip.ts`) across all authentication, rate limiting, and audit logging flows. Rather than trusting raw `X-Forwarded-For` request headers directly (which is vulnerable to client-side IP spoofing), `getClientIp` enforces reverse-proxy boundary verification. Scanner rule `ip-spoofing-x-forwarded-for` in `scripts/scan-security-risk.ts` enforces this across the entire server codebase. Additionally, session records capture the resolved IP address and User-Agent at creation time for Active Device tracking.
 
 ### 2. OAuth State HMAC Verification
 
@@ -52,7 +52,7 @@ Accounts are locked for 15 minutes after 5 consecutive failed login attempts. Th
 - **Lockout check**: Before password verification, `lockoutUntil` is checked. Active lockouts return 403 with remaining time.
 - **Failed attempt tracking**: Each failed attempt increments `failedAttempts`. At 5 failures, `lockoutUntil` is set to `now + 15 minutes`.
 - **Auto-reset**: Lockout state is cleared on successful login or when the lockout expires.
-- **Consistent error messages**: Both "user not found" and "wrong password" return identical `"Invalid credentials"` to prevent user enumeration.
+- **Consistent error messages & timing-safe normalization (CWE-208)**: Both "user not found" and "wrong password" return identical `"Invalid credentials"`. Furthermore, when a user is not found, `AuthNamespace.login` executes `verifyDummyPassword` against a static Argon2id hash (`DUMMY_ARGON2_HASH`), ensuring identical response latency (~50–80ms) and preventing email enumeration via timing side-channels.
 
 ### 7. Password-Reset Token Expiry (Diagnosable)
 

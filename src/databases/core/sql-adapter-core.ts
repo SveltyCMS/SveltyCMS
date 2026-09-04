@@ -103,32 +103,64 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   /** Create a Drizzle dynamic table definition using dialect-specific column types. */
   public abstract createDynamicTableDefinition(name: string): any;
 
+  private _rawColsCache = new WeakMap<object, { withData: string[]; withoutData: string[] }>();
+  private _dynamicColListCache = new WeakMap<
+    object,
+    {
+      withData?: { colList: string; columns: string[] };
+      withoutData?: { colList: string; columns: string[] };
+    }
+  >();
+  private _escapedTableNameCache = new WeakMap<object, string>();
+
   /**
    * Stable column list for raw findById SELECTs — base columns + registered
    * materialized columns (sorted extras keep the SQL text stable per schema
    * state; statement caches are cleared on DDL). The `data` blob is included
    * only for full-doc reads.
+   *
+   * 🚀 ZERO-ALLOCATION PATH: Memoized per table instance via WeakMap.
    */
   protected getRawFindByIdCols(table: any, wantsData: boolean): string[] {
-    const base = ["_id", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
-    if (wantsData) base.push("data");
-    let cols: Record<string, unknown> | undefined = this._tableColumnsCache.get(table);
-    if (!cols) {
-      try {
-        const resolved = getTableColumns(table);
-        if (resolved) cols = resolved as any;
-      } catch {
-        /* safe */
+    let cached = this._rawColsCache.get(table);
+    if (!cached) {
+      const baseNoData = ["_id", "status", "tenantId", "createdAt", "updatedAt", "isDeleted"];
+      const baseWithData = [
+        "_id",
+        "status",
+        "tenantId",
+        "createdAt",
+        "updatedAt",
+        "isDeleted",
+        "data",
+      ];
+      let cols: Record<string, unknown> | undefined = this._tableColumnsCache.get(table);
+      if (!cols) {
+        try {
+          const resolved = getTableColumns(table);
+          if (resolved) cols = resolved as any;
+        } catch {
+          /* safe */
+        }
       }
+      if (cols) {
+        const extras = Object.keys(cols).filter(
+          (c) => !baseWithData.includes(c) && !c.startsWith("Symbol(") && c !== "_",
+        );
+        extras.sort();
+        cached = {
+          withData: [...baseWithData, ...extras],
+          withoutData: [...baseNoData, ...extras],
+        };
+      } else {
+        cached = {
+          withData: baseWithData,
+          withoutData: baseNoData,
+        };
+      }
+      this._rawColsCache.set(table, cached);
     }
-    if (cols) {
-      const extras = Object.keys(cols).filter(
-        (c) => !base.includes(c) && !c.startsWith("Symbol(") && c !== "_",
-      );
-      extras.sort();
-      return [...base, ...extras];
-    }
-    return base;
+    return wantsData ? cached.withData : cached.withoutData;
   }
 
   /** Check whether an error indicates "table does not exist" for this dialect. */
@@ -197,6 +229,55 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // Instance-level cache to skip even the Map.has() call after first registration
   protected _registeredSchemas = new Set<string>();
 
+  protected _insertDefaultsPlanCache = new WeakMap<
+    object,
+    Array<{
+      name: string;
+      def?: unknown;
+      isBooleanDef?: boolean;
+      defaultFn?: () => unknown;
+      isTimestamp?: boolean;
+    }>
+  >();
+
+  protected getInsertDefaultsPlan(tableCols: Record<string, any>) {
+    let plan = this._insertDefaultsPlanCache.get(tableCols);
+    if (plan) return plan;
+
+    plan = [];
+    for (const name in tableCols) {
+      if (!Object.hasOwn(tableCols, name)) continue;
+      const col = tableCols[name] as {
+        default?: unknown;
+        defaultFn?: () => unknown;
+      };
+      const def = col.default;
+      const isTimestamp = name === "createdAt" || name === "updatedAt";
+      if (
+        def !== undefined &&
+        (typeof def !== "object" || Object.getPrototypeOf(def) === Object.prototype)
+      ) {
+        plan.push({
+          name,
+          def,
+          isBooleanDef: typeof def === "boolean",
+        });
+      } else if (typeof col.defaultFn === "function") {
+        plan.push({
+          name,
+          defaultFn: col.defaultFn,
+        });
+      } else if (isTimestamp) {
+        plan.push({
+          name,
+          isTimestamp: true,
+        });
+      }
+    }
+    this._insertDefaultsPlanCache.set(tableCols, plan);
+    return plan;
+  }
+
   /**
    * Reconstruct the inserted row from prepared values + column defaults.
    * Sparse: omit columns with neither a value nor a client-side default so
@@ -216,33 +297,24 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     const cached = this._tableColumnsCache.get(table);
     const tableCols = cached ?? getTableColumns(table);
     if (!cached && tableCols) this._tableColumnsCache.set(table, tableCols);
-    let now: Date | string | undefined;
-    const stamp = () => {
-      if (now === undefined) now = this.writeNow();
-      return now;
-    };
-    for (const name in tableCols) {
-      if (!Object.hasOwn(tableCols, name)) continue;
-      if (result[name] !== undefined) continue;
-      const col = tableCols[name] as {
-        default?: unknown;
-        defaultFn?: () => unknown;
-      };
-      const def = col.default;
-      // Plain literal defaults (string/boolean/number/{}) apply client-side;
-      // SQL expression defaults (CURRENT_TIMESTAMP, gen_random_uuid) can't be
-      // evaluated here — timestamps fall through to `now`, others stay omitted.
-      if (
-        def !== undefined &&
-        (typeof def !== "object" || Object.getPrototypeOf(def) === Object.prototype)
-      ) {
-        // MariaDB TINYINT(1) reads back as 0/1 — keep insert responses
-        // identical to what a subsequent read returns.
-        result[name] = opts?.intBooleans && typeof def === "boolean" ? (def ? 1 : 0) : def;
-      } else if (typeof col.defaultFn === "function") {
-        result[name] = col.defaultFn();
-      } else if (name === "createdAt" || name === "updatedAt") {
-        result[name] = stamp();
+
+    if (tableCols) {
+      const plan = this.getInsertDefaultsPlan(tableCols);
+      let now: Date | string | undefined;
+      const stamp = () => (now ??= this.writeNow());
+
+      for (let i = 0; i < plan.length; i++) {
+        const item = plan[i];
+        const name = item.name;
+        if (result[name] !== undefined) continue;
+
+        if (item.isTimestamp) {
+          result[name] = stamp();
+        } else if (item.defaultFn) {
+          result[name] = item.defaultFn();
+        } else if (item.def !== undefined) {
+          result[name] = opts?.intBooleans && item.isBooleanDef ? (item.def ? 1 : 0) : item.def;
+        }
       }
     }
     return result;
@@ -712,6 +784,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     // key per write. Null when schemaCols is unavailable → original fallback.
     const dateKeys = schemaCols ? this.getDateColumnKeys(schemaCols) : null;
 
+    const hasDataCol = schemaCols?.["data"] || getCol(table, "data");
+    const dynamicData: Record<string, unknown> = {};
+    let hasDynamicKeys = false;
+
     for (const k in data) {
       if (!Object.hasOwn(data, k)) continue;
       if (k === "_id" || k === "id") continue;
@@ -721,7 +797,6 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       const isPhysical = schemaCols?.[k] || getCol(table, k);
 
       if (isPhysical) {
-        if ((k === "_id" || k === "id") && id) continue;
         if (data[k] !== undefined) {
           let val = data[k];
           // Convert numeric timestamps or ISO date strings to Date objects for
@@ -779,6 +854,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           }
           values[k] = val;
         }
+      } else if (hasDataCol && k !== "tenantId" && k !== "createdAt" && k !== "updatedAt") {
+        dynamicData[k] = data[k];
+        hasDynamicKeys = true;
       }
     }
 
@@ -826,26 +904,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       values.locale = data.locale;
     }
 
-    if (getCol(table, "data")) {
-      const dynamicData: any = {};
-      let hasDynamicKeys = false;
-      for (const k in data) {
-        if (!Object.hasOwn(data, k)) continue;
-        if (k === "_id" || k === "id" || k === "tenantId" || k === "createdAt" || k === "updatedAt")
-          continue;
-        // 🚀 ROW-STORE HYBRID: fields backed by a physical column live in the
-        // column — the `data` blob keeps only dynamic (non-column) fields.
-        if (schemaCols?.[k] || getCol(table, k)) continue;
-        dynamicData[k] = data[k];
-        hasDynamicKeys = true;
-      }
-      // On partial updates, only write the `data` column if the caller provided dynamic keys or explicit `data`
-      if (!isUpdate || hasDynamicKeys || "data" in data) {
-        if (this.shouldJsonSerializeInPrepare) {
-          values.data = JSON.stringify(dynamicData) || "{}";
-        } else {
-          values.data = dynamicData;
-        }
+    if (hasDataCol && (!isUpdate || hasDynamicKeys || "data" in data)) {
+      if (this.shouldJsonSerializeInPrepare) {
+        values.data = JSON.stringify(dynamicData) || "{}";
+      } else {
+        values.data = dynamicData;
       }
     }
 
@@ -1019,17 +1082,45 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       const excludeData = this.shouldExcludeData(table, options);
       try {
         if (isDynamic) {
-          const selection = this.getProjectedSelection(table, options);
-          const columns = Object.keys(selection);
-          // 🛡️ Defense-in-depth: quoteIdentifier escapes by quote-doubling, but
-          // the identifiers also pass the strict allow-list so a schema change
-          // can never smuggle a quote/backtick past the raw fragments.
-          const colList = columns
-            .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
-            .join(", ");
+          const hasCustomFields = Array.isArray(options.fields) && options.fields.length > 0;
+          let columns: string[];
+          let colList: string;
+
+          if (!hasCustomFields) {
+            let cachedEntry = this._dynamicColListCache.get(table);
+            if (!cachedEntry) {
+              cachedEntry = {};
+              this._dynamicColListCache.set(table, cachedEntry);
+            }
+            const cacheKey = excludeData ? "withoutData" : "withData";
+            let cached = cachedEntry[cacheKey];
+            if (!cached) {
+              const selection = this.getProjectedSelection(table, options);
+              columns = Object.keys(selection);
+              colList = columns
+                .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
+                .join(", ");
+              cached = { colList, columns };
+              cachedEntry[cacheKey] = cached;
+            }
+            columns = cached.columns;
+            colList = cached.colList;
+          } else {
+            const selection = this.getProjectedSelection(table, options);
+            columns = Object.keys(selection);
+            colList = columns
+              .map((c) => this.quoteIdentifier(utils.assertSafeSqlIdentifier(c, "column")))
+              .join(", ");
+          }
+
+          let escapedTable = this._escapedTableNameCache.get(table);
+          if (!escapedTable) {
+            escapedTable = this.quoteIdentifier(utils.assertSafeSqlIdentifier(tableName, "table"));
+            this._escapedTableNameCache.set(table, escapedTable);
+          }
 
           let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(
-            this.quoteIdentifier(utils.assertSafeSqlIdentifier(tableName, "table")),
+            escapedTable,
           )} WHERE ${where || sql`1=1`}`;
 
           if (options.sort) {
@@ -1186,25 +1277,34 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
       const where = this.mapQuery(table, q as any, options);
-      let builder = this.getDrizzleInstance(options)
-        .select(this.getPhysicalSelection(table))
-        .from(table)
-        .where(where);
-      builder = this.applyOrderBy(builder, table, options);
-      if (options.limit) builder = builder.limit(options.limit);
-      if (options.offset) builder = builder.offset(options.offset);
+      const db = this.getDrizzleInstance(options);
+      const selection = this.getPhysicalSelection(table);
+      const convertOpts = { ...this.convertDatesOptions, table: collection };
+      const applyOrderBy = this.applyOrderBy.bind(this);
+      const pageSize = 500;
+      const startOffset = options.offset ?? 0;
+      const maxRows = options.limit ?? Number.MAX_SAFE_INTEGER;
 
-      const results = await builder;
-      const data = utils.convertDatesToISO(results, {
-        ...this.convertDatesOptions,
-        table: collection,
-      }) as T[];
-
-      const generator = async function* () {
-        for (const item of data) {
-          yield item;
+      async function* generator() {
+        let offset = startOffset;
+        let yielded = 0;
+        while (yielded < maxRows) {
+          const take = Math.min(pageSize, maxRows - yielded);
+          let pageQuery = db.select(selection).from(table).where(where);
+          pageQuery = applyOrderBy(pageQuery, table, options);
+          pageQuery = pageQuery.limit(take).offset(offset);
+          const results = await pageQuery;
+          if (!results || results.length === 0) break;
+          const data = utils.convertDatesToISO(results, convertOpts) as T[];
+          for (let i = 0; i < data.length; i++) {
+            yield data[i];
+          }
+          yielded += data.length;
+          offset += data.length;
+          if (data.length < take) break;
         }
-      };
+      }
+
       return generator() as AsyncIterable<T>;
     }, "STREAM_MANY_FAILED");
   }

@@ -20,7 +20,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 
 <script lang="ts">
 import { logger } from "@utils/logger";
-    import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+    import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
     import type { MediaImage, WatermarkOptions } from '@src/utils/media/media-models';
     import { onMount, setContext } from 'svelte';
     import Editor from './editor.svelte';

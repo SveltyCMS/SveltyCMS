@@ -156,11 +156,21 @@ function initRotationRateLimiter() {
   return rotationRateLimiter;
 }
 
+/**
+ * 🚀 Pre-warms the authentication lazy promises, settings caches, and rate limiters at system startup.
+ */
+export function prewarmAuthenticationHotPaths(): void {
+  getCachedSettings();
+  initRotationRateLimiter();
+  void getSessionManagerLazy().catch(() => {});
+}
+
 // --- IN-MEMORY SESSION CACHE WITH WEAKREF-BASED CLEANUP ---
 
 interface SessionCacheEntry {
   timestamp: number;
   user: User;
+  amr?: string[];
 }
 
 /**
@@ -171,7 +181,7 @@ interface SessionCacheEntry {
  *               the caller must NOT delete the session cookie on this status
  */
 export type SessionResolution =
-  | { status: "ok"; user: User }
+  | { status: "ok"; user: User; amr?: string[] }
   | { status: "invalid" }
   | { status: "transient" };
 
@@ -351,7 +361,7 @@ async function getUserFromSession(
     // NOTE: cached users are snapshots — a NEW block is detected via cache
     // invalidation on block/unblock/delete (batchAction purge), after which the
     // next request re-validates against the DB and hits the blocked check below.
-    return { status: "ok", user: memCached.user };
+    return { status: "ok", user: memCached.user, amr: memCached.amr };
   }
 
   // Fallback to checking the default SessionStore (holds active in-memory/Redis sessions)
@@ -484,13 +494,15 @@ async function getUserFromSession(
             `[Auth] Session validated: ${sessionId.slice(0, 8)}... → user ${maskEmail((user as any).email)}`,
           );
           const safeUser = toSafeSessionUser(user);
-          const sessionData: SessionCacheEntry = { user: safeUser, timestamp: now };
+          const rawSession = sessionResult.data as any;
+          const amr: string[] = rawSession.amr ?? (rawSession.has2fa ? ["pwd", "mfa"] : ["pwd"]);
+          const sessionData: SessionCacheEntry = { user: safeUser, timestamp: now, amr };
           setSessionInCache(sessionId, sessionData);
           const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
           await cacheService
             .set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId as any)
             .catch((err: any) => logger.warn(`Session cache set failed: ${err.message}`));
-          return { status: "ok", user: safeUser };
+          return { status: "ok", user: safeUser, amr };
         } else {
           // Definitive: User not found in DB
           logger.debug(`[Auth] User not found in DB: ${sessionResult.data.user_id}`);
@@ -586,10 +598,7 @@ async function handleSessionRotation(
       tenantId: event.locals.tenantId as DatabaseId,
       userAgent: event.request.headers.get("user-agent") || undefined,
       deviceId: event.request.headers.get("x-device-id") || undefined,
-      ipAddress:
-        event.getClientAddress?.() ||
-        event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        undefined,
+      ipAddress: getClientIp(event),
     });
 
     if (newSession && newSession._id !== oldSessionId) {
@@ -735,6 +744,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
       (locals as any).tenantId = testTenantOverride ?? turboCtx.tenantId ?? locals.tenantId;
+      locals.dbAdapter = dbAdapter;
+      (locals as any).dbAdapterUnscoped = dbAdapter;
       (locals as any).__turboAuth = true;
       return await resolve(event);
     }
@@ -960,7 +971,11 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           }
           locals.user = user;
           locals.session_id = sessionId as DatabaseId;
+          locals.sessionAmr = resolution.amr;
           locals.permissions = user.permissions || [];
+          if (user._id) {
+            void cacheService.set(`layout:user:${user._id}`, user, 15, locals.tenantId as string);
+          }
           if (!turboCtx && sessionId) {
             setTurboAuthContext(
               sessionId as string,
@@ -1365,6 +1380,7 @@ export function primeSessionMemoryCache(
   sessionId: string,
   user: User,
   tenantId?: DatabaseId | null,
+  amr?: string[],
 ): void {
   // Targeted negative-entry removal (the session is now known-valid) — never
   // clear the whole negative cache for one session.
@@ -1372,7 +1388,7 @@ export function primeSessionMemoryCache(
   // Credential-free snapshot — the in-memory cache must never hold password
   // hashes, TOTP secrets, backup codes, or reset/refresh tokens.
   const safeUser = toSafeSessionUser(user);
-  const entry: SessionCacheEntry = { user: safeUser, timestamp: Date.now() };
+  const entry: SessionCacheEntry = { user: safeUser, timestamp: Date.now(), amr };
   setSessionInCache(sessionId, entry);
   const resolvedTenant = tenantId ?? (safeUser as User).tenantId ?? null;
   setTurboAuthContext(sessionId, safeUser, [], new Uint32Array(1), resolvedTenant);

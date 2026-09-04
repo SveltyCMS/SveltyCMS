@@ -128,7 +128,11 @@ async function runMediaAudit() {
     await stabilize(150);
 
     console.log("   → 2. Measuring HTTP Multipart Upload & Processing Pipeline...");
-    let httpSeq = 0;
+    // Seed out of the SDK range so the HTTP phase produces unique buffers —
+    // byte-identical buffers would hash-collide with the SDK uploads and hit
+    // the media dedup branch (crud.update without a real insert), which is not
+    // what this phase claims to measure.
+    let httpSeq = 1_000_000;
     const uploadHeaders: Record<string, string> = {
       ...benchmarkAuthHeaders(),
       Origin: baseUrl,

@@ -7,7 +7,7 @@
 <script lang="ts">
 	import Select from '@components/ui/select.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import type { SelectOption } from './types';
 
 	interface Props {
@@ -18,7 +18,7 @@
 
 	let { field, value = $bindable(), error }: Props = $props();
 
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Local state to bind the select to
 	let localValue = $state<string>('');

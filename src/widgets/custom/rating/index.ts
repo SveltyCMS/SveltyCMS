@@ -54,6 +54,7 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const RatingWidget = createWidget<RatingProps>({
   Name: "Rating",
+  version: "1.0.0",
   Icon: "material-symbols:star-outline",
   Description: widget_rating_description(),
   inputComponentPath: "/src/widgets/custom/rating/input.svelte",

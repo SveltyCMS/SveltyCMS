@@ -45,7 +45,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     );
 
     return json(status);
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.error(`License check failed for ${type}/${id} (tenant: ${tenantId}):`, err);
     return json({ active: false, reason: "Internal validation error" }, { status: 500 });
   }

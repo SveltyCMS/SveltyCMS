@@ -13,7 +13,7 @@ import type { Handle } from "@sveltejs/kit/hooks";
 import { getDbInitPromise, dbAdapter, isDbConnected } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
 import { contentSystem, ensureContentInitialized } from "@src/content/index.server";
-import { getRequestFlags } from "@utils/hook-utils";
+import { getRequestFlags, shouldSkipRouteMiddleware } from "@utils/hook-utils";
 import { logger } from "@utils/logger";
 import { getSetupState, SetupState } from "@utils/server/setup-check";
 
@@ -67,6 +67,13 @@ export const handleLocalContext: Handle = async ({ event, resolve }) => {
   (locals as any).__setupConfigExists = setupState !== SetupState.MISSING_CONFIG;
 
   if (setupState !== SetupState.COMPLETE) {
+    return resolve(event);
+  }
+
+  // Bootstrap / login / setup: skip content-system + media tenant init.
+  // LocalCMS is already bound above; collection schemas stay cold until a
+  // content route needs them (the RAM claim on the bootstrap lane).
+  if (shouldSkipRouteMiddleware(locals, "media")) {
     return resolve(event);
   }
 

@@ -167,6 +167,8 @@ See [Design System & Admin Theme Settings](../guides/configuration/admin-theme-s
 ## Accessibility
 
 - Interactive controls need accessible names
+- Deterministic unique IDs for ARIA/controls pairing: use Svelte 5's `$props.id()` rune (`const uid = $props.id()`), never `crypto.randomUUID()` at render time which creates SSR/hydration ID mismatches
+- Localized date/time display: use `formatDate()`, `formatDateTime()`, `formatTime()` from `@utils/format-date` or `@utils/date` passing `systemLanguage` to avoid hydration text flash
 - Prefer logical Tailwind properties (`ps-`, `pe-`) for RTL
 - Respect theme **Reduced Motion** and **High Contrast**
 - Keyboard focus is visible in both modes (`focus-visible` rings use theme tokens, never `outline: none`)
@@ -175,6 +177,8 @@ See [Design System & Admin Theme Settings](../guides/configuration/admin-theme-s
 
 - ❌ Parallel global token systems that collide with `surface-*` palettes
 - ❌ Hand-rolled page shells instead of `AdminPageShell`
+- ❌ `crypto.randomUUID()` inside component scripts or prop defaults for DOM/ARIA IDs — use `$props.id()` rune
+- ❌ Unpinned `date.toLocaleDateString()` / `date.toLocaleString()` without explicit locale — use `@utils/format-date` helpers
 - ❌ Soft-skipping E2E because lists are empty — seed fixtures instead
 - ❌ `rgb(var(--color-*) / a)` on palette tokens — silently invalid; use `color-mix()`
 - ❌ Per-page transition one-offs — use `adminPage` / `adminStagger` from `@utils/admin-transitions`

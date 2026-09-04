@@ -32,6 +32,7 @@ const GROUP_VALIDATION_SCHEMA = object({});
 // Create the widget definition using the factory.
 const GroupWidget = createWidget<GroupProps>({
   Name: "Group",
+  version: "1.0.0",
   Icon: "mdi:folder-outline",
   Description: "Group related fields together",
 

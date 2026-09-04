@@ -201,6 +201,9 @@ export function startSystemMonitor(): void {
       collectSnapshot();
     } catch {}
   }, SAMPLE_INTERVAL_MS);
+  if (typeof (_interval as any)?.unref === "function") {
+    (_interval as any).unref();
+  }
 
   _started = true;
   logger.info("[SystemMonitor] Hardware-aware monitoring active");

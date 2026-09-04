@@ -87,6 +87,27 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
   }
 }
 
+/**
+ * Static pre-computed Argon2id hash for timing-attack normalization (CWE-208).
+ * Ensures constant-time responses on invalid login attempts.
+ */
+export const DUMMY_ARGON2_HASH =
+  "$argon2id$v=19$m=65536,p=4,t=3$punB3mzTQn8lO0gv2NyhzA$LAUqIF+QTNuFGt9Gj3EsKsKuupHl6NIrkGTqhG79gFE";
+
+/**
+ * Executes a constant-time Argon2id password verification against a dummy hash.
+ * Used when a user is not found to prevent user enumeration via timing discrepancies.
+ */
+export async function verifyDummyPassword(password: string): Promise<boolean> {
+  try {
+    const argon2 = await _loadArgon2();
+    await argon2.verify(DUMMY_ARGON2_HASH, Buffer.from(password || "dummy-password", "utf8"));
+  } catch {
+    // Expected mismatch against dummy hash
+  }
+  return false;
+}
+
 // --- Token & Hash Utilities ---
 
 /**
@@ -114,6 +135,7 @@ export const AES256_HKDF_INFO = {
   pluginSettings: "sveltycms-plugin-settings",
   totpSecret: "sveltycms-totp-secret",
   backupArtifact: "sveltycms-backup-artifact",
+  fieldAtRest: "sveltycms-field-at-rest",
 } as const;
 
 const HEX_AES_KEY_RE = /^[0-9a-fA-F]{64}$/;

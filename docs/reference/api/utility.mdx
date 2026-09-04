@@ -28,20 +28,22 @@ The Utilities API provides a set of essential maintenance and support services t
 
 ## ⚡ Quick Reference
 
-| Feature                 | HTTP Endpoint              | Method | Admin Only |
-| :---------------------- | :------------------------- | :----- | :--------: |
-| **OpenAPI Spec**        | `/api/openapi.json`        | `GET`  |     ✅     |
-| **Swagger UI**          | `/api/docs`                | `GET`  |     —      |
-| **Cache Clear**         | `/api/cache/clear`         | `POST` |     ✅     |
-| **Cache Stats**         | `/api/cache/stats`         | `GET`  |     ✅     |
-| **Trash List**          | `/api/trash`               | `GET`  |     ✅     |
-| **Restore Entry**       | `/api/trash/restore`       | `POST` |     ✅     |
-| **Send Email**          | `/api/send-mail`           | `POST` |     ✅     |
-| **Version Check**       | `/api/version-check`       | `GET`  |     ✅     |
-| ~~**Config Sync**~~     | `/api/config_sync`         | `GET`  |     ✅     |
-| **Debug / Diagnostics** | `/api/debug`               | `GET`  |     ✅     |
-| **Marketplace catalog** | `/api/marketplace`         | `GET`  |     ✅     |
-| **Marketplace install** | `/api/marketplace/install` | `POST` |     ✅     |
+| Feature                  | HTTP Endpoint               | Method | Admin Only |
+| :----------------------- | :-------------------------- | :----- | :--------: |
+| **OpenAPI Spec**         | `/api/openapi.json`         | `GET`  |     ✅     |
+| **Swagger UI**           | `/api/docs`                 | `GET`  |     —      |
+| **Cache Clear**          | `/api/cache/clear`          | `POST` |     ✅     |
+| **Cache Stats**          | `/api/cache/stats`          | `GET`  |     ✅     |
+| **Trash List**           | `/api/trash`                | `GET`  |     ✅     |
+| **Restore Entry**        | `/api/trash/restore`        | `POST` |     ✅     |
+| **Send Email**           | `/api/send-mail`            | `POST` |     ✅     |
+| **Version Check**        | `/api/version-check`        | `GET`  |     ✅     |
+| ~~**Config Sync**~~      | `/api/config_sync`          | `GET`  |     ✅     |
+| **Debug / Diagnostics**  | `/api/debug`                | `GET`  |     ✅     |
+| **Marketplace catalog**  | `/api/marketplace`          | `GET`  |     ✅     |
+| **Marketplace install**  | `/api/marketplace/install`  | `POST` |     ✅     |
+| **Remote Video Meta**    | `/api/remote-video`         | `POST` |  — (Auth)  |
+| **SEO Link Suggestions** | `/api/seo/link-suggestions` | `POST` |  — (Auth)  |
 
 ---
 
@@ -176,26 +178,91 @@ Today installs themes via `adminThemeService`; remote one-click package install 
 
 ---
 
-## 6. The Mechanics
+## 6. Remote Media & SEO Tools
+
+### Remote Video Metadata
+
+Fetches metadata for third-party video providers (YouTube, Vimeo) with server-side SSRF validation and safe egress URL filtering.
+
+**Endpoint**: `POST /api/remote-video`  
+**Payload**:
+
+```json
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+}
+```
+
+**Response** (`data`):
+
+```json
+{
+  "provider": "youtube",
+  "videoId": "dQw4w9WgXcQ",
+  "title": "Video Title",
+  "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+}
+```
+
+### SEO Link Suggestions
+
+Provides fast internal linking recommendations for content editors by analyzing content text and keyword frequency across published entries within the active tenant.
+
+**Endpoint**: `POST /api/seo/link-suggestions`  
+**Payload**:
+
+```json
+{
+  "content": "<p>Article text containing keywords...</p>",
+  "collectionId": "posts",
+  "currentId": "entry-123",
+  "focusKeyword": "sveltycms"
+}
+```
+
+**Response** (`data`):
+
+```json
+{
+  "suggestions": [
+    {
+      "title": "Getting Started with SveltyCMS",
+      "url": "/posts/getting-started",
+      "score": 2.5,
+      "collection": "Posts"
+    }
+  ]
+}
+```
+
+---
+
+## 7. The Mechanics
 
 ### Utility Dispatcher
 
-The `utility.ts` handler manages a wide range of disparate system helper tasks. It acts as the primary interface for scheduled maintenance jobs and cross-system communication.
+The `utility.ts` handler manages a wide range of disparate system helper tasks. It acts as the primary interface for scheduled maintenance jobs, cross-system communication, and editor assistive tooling.
 
 ```mermaid
 graph LR
-    A[Utility API] --> B[CacheService]
-    A --> C[Trash / ContentSystem]
-    A --> D[Email / SystemNamespace]
+    A["Utility API ([...path])"] --> B[CacheService]
+    A --> C["Trash / ContentSystem"]
+    A --> D["Email / SystemNamespace"]
     A --> E[ApiSpecService]
     A --> F[VersionCheckService]
     A --> G[Debug / Diagnostics]
     A --> H[MarketplaceService]
+    A --> I[Remote Video SSRF]
+    A --> J[SEO Link Engine]
 ```
 
 ### Access Control
 
-All utility namespaces are absent from the `ENDPOINT_PERMISSIONS` mapping in the API dispatcher, causing the framework to **fail-closed**: non-admin users receive `403 Forbidden`. Individual handlers (e.g., OpenAPI, Debug) perform additional defense-in-depth `isAdmin` checks.
+All utility namespaces are gated via the dispatcher's centralized `ENDPOINT_PERMISSIONS` mapping:
+
+- Sensitive maintenance endpoints (`cache`, `trash`, `debug`, `send-mail`, `openapi.json`) require administrative privileges or fail closed with `403 Forbidden`.
+- Editor tools (`remote-video`, `seo`) require authenticated roles with corresponding read permissions (`media:read`, `collection:read`).
+- Individual handlers perform defense-in-depth authorization checks.
 
 ---
 

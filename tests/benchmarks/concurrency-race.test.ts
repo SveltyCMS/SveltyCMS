@@ -45,8 +45,17 @@ async function runConcurrencyAudit() {
     // ── 1. DETERMINISTIC SETUP & INITIAL STATE RESET ──────────────────────────
     const checkRes = await fetch(`${targetUrl}?bypassCache=true`, { headers });
 
-    if (checkRes.status === 404) {
+    if (!checkRes.ok) {
       await checkRes.arrayBuffer().catch(() => {});
+      throw new Error(`Unexpected status checking entry state: ${checkRes.status}`);
+    }
+
+    // GET returns 200 with `data:null` when the entry is missing — do not rely
+    // on a 404, which would silently skip re-creation and leave PATCH hitting
+    // a non-existent row.
+    const checkBody = (await checkRes.json()) as { data?: unknown };
+
+    if (!checkBody?.data) {
       const createRes = await fetch(collectionUrl, {
         method: "POST",
         headers,
@@ -56,8 +65,7 @@ async function runConcurrencyAudit() {
         throw new Error(`Failed to create target entry: ${await createRes.text()}`);
       }
       await createRes.arrayBuffer().catch(() => {});
-    } else if (checkRes.ok) {
-      await checkRes.arrayBuffer().catch(() => {});
+    } else {
       // Reset counter to 0 explicitly
       const resetRes = await fetch(targetUrl, {
         method: "PATCH",
@@ -66,9 +74,6 @@ async function runConcurrencyAudit() {
       });
       if (!resetRes.ok) throw new Error(`Failed to reset count: ${await resetRes.text()}`);
       await resetRes.arrayBuffer().catch(() => {});
-    } else {
-      await checkRes.arrayBuffer().catch(() => {});
-      throw new Error(`Unexpected status checking entry state: ${checkRes.status}`);
     }
 
     await forceRefreshServer(baseUrl);

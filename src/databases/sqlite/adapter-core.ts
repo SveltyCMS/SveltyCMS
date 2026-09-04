@@ -98,6 +98,21 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   private _insertTemplateCache = new Map<string, { cols: string[]; sqlText: string }>();
   /** table|cols|returning|tenant → UPDATE SQL. */
   private _updateSqlCache = new Map<string, string>();
+  private _sqliteSelectColsCache = new WeakMap<object, string>();
+  /**
+   * Pre-assembled findById SQL (entry engine). Tenant variants bake the
+   * parameterized `AND "tenantId" = ?` clause — values stay bound, never inlined.
+   * Postgres/Maria keep driver-prepared tagged/`execute` paths instead.
+   */
+  private _rawFindByIdSqlCache = new WeakMap<
+    object,
+    {
+      withData: string;
+      withoutData: string;
+      withDataTenant: string;
+      withoutDataTenant: string;
+    }
+  >();
 
   /** Clients whose prepare() is wrapped with a per-SQL statement cache. */
   protected _preparedStatementClients = new Set<any>();
@@ -210,12 +225,38 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
             return false;
           return !this.getColumn(table, String(f));
         });
-      const selectCols = wantsData
-        ? "*"
-        : this.getRawFindByIdCols(table, false)
+
+      let cachedSql = this._rawFindByIdSqlCache.get(table);
+      if (!cachedSql) {
+        let selectWithoutData = this._sqliteSelectColsCache.get(table);
+        if (!selectWithoutData) {
+          selectWithoutData = this.getRawFindByIdCols(table, false)
             .map((c) => `"${c}"`)
             .join(", ");
-      const rawSql = `SELECT ${selectCols} FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
+          this._sqliteSelectColsCache.set(table, selectWithoutData);
+        }
+        const quoted = `"${tableName}"`;
+        cachedSql = {
+          withData: `SELECT * FROM ${quoted} WHERE "_id" = ? LIMIT 1`,
+          withoutData: `SELECT ${selectWithoutData} FROM ${quoted} WHERE "_id" = ? LIMIT 1`,
+          withDataTenant: `SELECT * FROM ${quoted} WHERE "_id" = ? AND "tenantId" = ? LIMIT 1`,
+          withoutDataTenant: `SELECT ${selectWithoutData} FROM ${quoted} WHERE "_id" = ? AND "tenantId" = ? LIMIT 1`,
+        };
+        this._rawFindByIdSqlCache.set(table, cachedSql);
+      }
+      // Parameterized sqlite tenant clause is stable (` AND "tenantId" = ?`).
+      // Any other fragment falls back to concat so we never bind the wrong SQL.
+      const useTenantCache = tenantSql === ` AND "tenantId" = ?`;
+      let rawSql: string;
+      if (useTenantCache) {
+        rawSql = wantsData ? cachedSql.withDataTenant : cachedSql.withoutDataTenant;
+      } else if (!tenantSql) {
+        rawSql = wantsData ? cachedSql.withData : cachedSql.withoutData;
+      } else {
+        const selectCols = wantsData ? "*" : (this._sqliteSelectColsCache.get(table) ?? "*");
+        rawSql = `SELECT ${selectCols} FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
+      }
+
       const rawRow = this.prepareAndExecute(rawSql, "get", String(id), ...tenantParams);
       if (rawRow) {
         if (!wantsData) {
@@ -1340,7 +1381,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           }
         }
         if (needsCoerce) {
-          bound = Array.from({ length: len });
+          bound = [];
+          bound.length = len;
           for (let i = 0; i < len; i++) {
             const p = params[i];
             if (typeof p === "boolean") bound[i] = p ? 1 : 0;
@@ -1626,8 +1668,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   // --------------------------------------------------------------------------
 
   public async createModel(schemaData: any, force = false): Promise<void> {
-    const tableName = schemaData._id || schemaData.id;
-    if (!tableName) throw new Error("Schema must have an _id");
+    const tableName = schemaData._id || schemaData.id || schemaData.name || schemaData.slug;
+    if (!tableName) throw new Error("Schema must have an _id or name");
     const normalizedName = tableName.replace(/-/g, "");
 
     // 🚀 FAST PATH: table already provisioned in this process — skip all DDL.
@@ -2013,7 +2055,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     const busyTimeout = rawTimeout && /^\d+$/.test(rawTimeout) ? rawTimeout : "30000";
 
     const rawCheckpoint = process.env.SQLITE_WAL_AUTOCHECKPOINT?.trim();
-    const walCheckpoint = rawCheckpoint && /^\d+$/.test(rawCheckpoint) ? rawCheckpoint : "2000";
+    const walCheckpoint = rawCheckpoint && /^\d+$/.test(rawCheckpoint) ? rawCheckpoint : "4000";
 
     const hw = getHardwareProfile();
     const cacheSizeKb = hw.sqliteCacheSizeKb;

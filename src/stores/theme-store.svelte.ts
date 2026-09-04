@@ -7,6 +7,7 @@
 
 import type { ISODateString } from "@src/content/types";
 import type { Theme } from "@src/databases/db-interface";
+import type { UserThemePreferences } from "@utils/theme-merge";
 import { nowISODateString } from "@src/utils/date";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
 import { logger } from "@utils/logger";
@@ -346,3 +347,39 @@ export function startAutoRefresh() {
 export function stopAutoRefresh() {
   state.autoRefreshEnabled = false;
 }
+
+// --- 7. Optimistic User Theme/Layout Preferences ---
+class UserThemePrefsStore {
+  #optimistic = $state<UserThemePreferences | null>(null);
+
+  /** Apply preferences immediately (before/while server revalidates) */
+  apply(prefs: UserThemePreferences): void {
+    const base = this.#optimistic ?? {};
+    const next: UserThemePreferences = { ...base, ...prefs };
+    if (prefs.layoutState !== undefined) {
+      next.layoutState = { ...prefs.layoutState };
+    }
+    this.#optimistic = next;
+  }
+
+  /** Clear optimistic overlay — server data becomes authoritative */
+  release(): void {
+    this.#optimistic = null;
+  }
+
+  /** Merge optimistic overlay on top of server-stored preferences */
+  getEffective(serverPrefs?: UserThemePreferences | null): UserThemePreferences | undefined {
+    if (!serverPrefs && !this.#optimistic) return undefined;
+    if (!this.#optimistic) return serverPrefs ?? undefined;
+    return {
+      ...serverPrefs,
+      ...this.#optimistic,
+      layoutState: {
+        ...serverPrefs?.layoutState,
+        ...this.#optimistic.layoutState,
+      },
+    };
+  }
+}
+
+export const userThemePrefs = new UserThemePrefsStore();

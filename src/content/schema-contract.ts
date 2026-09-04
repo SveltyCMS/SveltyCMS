@@ -10,6 +10,7 @@
  * - object shape with `fields` array
  * - name / _id presence (auto-fill from path when missing)
  * - unique `db_fieldName` / `name` among fields
+ * - encrypt:true + unique:true → soft warning (AES-256-GCM IV is non-deterministic)
  * - empty fields → soft warning (draft), not hard fail
  */
 
@@ -56,6 +57,8 @@ export const FieldWidgetSchema = looseObject({
   icon: optional(string()),
   type: optional(string()),
   helper: optional(string()),
+  encrypt: optional(boolean()),
+  unique: optional(boolean()),
   widget: optional(union([string(), WidgetConfigSchema, unknown()])),
 });
 
@@ -203,6 +206,13 @@ export function assertCompiledSchema(moduleData: unknown, filePath: string): Sch
       };
     }
     fieldNames.add(name);
+
+    const rec = field as { encrypt?: boolean; unique?: boolean };
+    if (rec.encrypt && rec.unique) {
+      errors.push(
+        `Field "${name}" has encrypt:true and unique:true — unique indexes cannot apply to AES-256-GCM ciphertext (non-deterministic IV) and are ignored`,
+      );
+    }
   }
 
   // Soft warnings still ok:true — hard failures already returned

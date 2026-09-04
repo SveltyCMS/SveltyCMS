@@ -9,42 +9,36 @@
 
 import { SvelteSet } from "svelte/reactivity";
 
-// --- AppStore language accessors (owned by store.svelte.ts, re-exported here) ---
-// These are thin accessors — the actual state lives in the AppStore class in store.svelte.ts
-// to avoid a circular dependency during migration.
+class LocaleStore {
+  systemLanguage = $state("en");
+  contentLanguage = $state("en");
+}
 
-let _systemLanguage = $state("en");
-let _contentLanguage = $state("en");
+export const locale = new LocaleStore();
 
 export const systemLanguage = {
   get value() {
-    return _systemLanguage;
+    return locale.systemLanguage;
   },
   set value(v: string) {
-    _systemLanguage = v;
+    locale.systemLanguage = v;
   },
   set(v: string) {
-    _systemLanguage = v;
+    locale.systemLanguage = v;
   },
 };
 
 export const contentLanguage = {
   get value() {
-    return _contentLanguage;
+    return locale.contentLanguage;
   },
   set value(v: string) {
-    _contentLanguage = v;
+    locale.contentLanguage = v;
   },
   set(v: string) {
-    _contentLanguage = v;
+    locale.contentLanguage = v;
   },
 };
-
-/** @internal — synced from AppStore by store.svelte.ts module init */
-export function _syncLanguageState(sys: string, content: string) {
-  _systemLanguage = sys;
-  _contentLanguage = content;
-}
 
 // --- Translation Progress ---
 let _transProgress = $state<any>(null);

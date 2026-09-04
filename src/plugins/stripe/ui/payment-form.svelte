@@ -7,6 +7,7 @@ charges order grandTotal (F1). Display amount is optional UI only.
 	import { onMount } from 'svelte';
 	import Button from '@components/ui/button.svelte';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import { formatMoney } from '@src/services/commerce/price';
 
 	interface Props {
 		orderId: string;
@@ -108,7 +109,7 @@ charges order grandTotal (F1). Display amount is optional UI only.
 
 	const display = $derived(
 		typeof displayAmount === 'number'
-			? `${(displayAmount / 100).toFixed(2)} ${displayCurrency.toUpperCase()}`
+			? formatMoney(displayAmount, displayCurrency)
 			: ''
 	);
 </script>

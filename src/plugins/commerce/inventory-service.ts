@@ -9,6 +9,7 @@
 
 import { raise } from "@utils/error-handling";
 import { nowISODateString } from "@utils/date";
+import { recordWriteAccess } from "@src/services/intelligence/behavioral-learner";
 import type { CartLine } from "./cart-service";
 import type { CommerceRow, CommerceStore } from "./store";
 
@@ -79,6 +80,7 @@ export async function decrementStock(
       inventoryCommitted: true,
       updatedAt: nowISODateString(),
     });
+    recordWriteAccess(String(store.tenantId || "global"), "orders", orderRef);
   }
   return alerts;
 }

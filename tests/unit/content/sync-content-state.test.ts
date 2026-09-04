@@ -252,7 +252,9 @@ describe("syncContentState", () => {
 
       expect(upsertSpy).toHaveBeenCalled();
       expect(fullReloadSpy).not.toHaveBeenCalled();
-      expect(sseSpy).toHaveBeenCalledWith("global");
+      // FIX 3: gui-save mutates collection STRUCTURE so notifyContentUpdate must be
+      // called with invalidateSchema:true (clears the real _schemaCache LRU).
+      expect(sseSpy).toHaveBeenCalledWith("global", { invalidateSchema: true });
       expect(result.metrics).toBeDefined();
       expect(result.changedIds).toContain("cat-1");
     });

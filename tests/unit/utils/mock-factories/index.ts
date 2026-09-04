@@ -4,6 +4,7 @@
  */
 
 import type { User } from "@src/databases/auth/types";
+import { vi } from "vitest";
 
 /**
  * Creates a mock user object for testing.
@@ -61,26 +62,7 @@ export function createMockTenant(overrides: any = {}) {
  * Creates a mock DB Adapter stub layout.
  */
 export function createDbAdapterStub() {
-  const vi = (globalThis as any).vi;
-  const mockFn = vi
-    ? vi.fn
-    : (impl?: any) => {
-        const fn = (...args: any[]) => {
-          if ((fn as any).implementation) {
-            return (fn as any).implementation(...args);
-          }
-          return impl ? impl(...args) : undefined;
-        };
-        (fn as any).mockResolvedValue = (val: any) => {
-          (fn as any).implementation = () => Promise.resolve(val);
-          return fn;
-        };
-        (fn as any).mockReturnValue = (val: any) => {
-          (fn as any).implementation = () => val;
-          return fn;
-        };
-        return fn;
-      };
+  const mockFn = vi.fn;
 
   return {
     crud: {

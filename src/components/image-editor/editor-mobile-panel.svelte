@@ -4,7 +4,7 @@
 Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 -->
 <script lang="ts">
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { getAdjustmentConfig } from './widgets/fine-tune/adjustments';
 	import EditorMobileToolRail from './editor-mobile-tool-rail.svelte';
 

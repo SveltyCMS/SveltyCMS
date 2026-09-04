@@ -42,12 +42,24 @@ export const contentRuntime = {
 
 // ─── Path security ───────────────────────────────────────────────────────────
 
+let _pathBases: { compiledBase: string; collectionsBase: string } | null = null;
+
+/** Lazily resolved confinement roots — never recomputed per schema file. */
+function getPathBases(): { compiledBase: string; collectionsBase: string } {
+  if (!_pathBases) {
+    const cwd = path.resolve(process.cwd());
+    _pathBases = {
+      compiledBase: path.join(cwd, ".compiledCollections").toLowerCase(),
+      collectionsBase: path.join(cwd, "config", "collections").toLowerCase(),
+    };
+  }
+  return _pathBases;
+}
+
 /** Validates that a schema file path is safe to load (no traversal, correct extension). */
 export function isSafeCollectionPath(fullPath: string): boolean {
   const resolved = path.resolve(fullPath).toLowerCase();
-  const cwd = path.resolve(process.cwd()).toLowerCase();
-  const compiledBase = path.join(cwd, ".compiledCollections").toLowerCase();
-  const collectionsBase = path.join(cwd, "config", "collections").toLowerCase();
+  const { compiledBase, collectionsBase } = getPathBases();
 
   if (resolved.startsWith(compiledBase) && resolved.endsWith(".js")) {
     return true;
@@ -69,6 +81,9 @@ async function getWidgetsProxy() {
 
   const widgetsMap = await widgetRegistryService.getAllWidgets();
   const base = Object.fromEntries(widgetsMap.entries());
+  // Case-insensitive lookup map — avoids Object.entries().find() per proxy miss.
+  const lowerMap = new Map<string, any>();
+  for (const [key, value] of Object.entries(base)) lowerMap.set(key.toLowerCase(), value);
 
   widgetsProxy = new Proxy(base, {
     get(target, prop: string | symbol) {
@@ -77,9 +92,8 @@ async function getWidgetsProxy() {
         return undefined;
       }
       if (prop in target) return target[prop];
-      const lower = prop.toLowerCase();
-      const match = Object.entries(target).find(([k]) => k.toLowerCase() === lower);
-      if (match) return match[1];
+      const match = lowerMap.get(prop.toLowerCase());
+      if (match) return match;
       return createFallbackWidget(prop);
     },
   });
@@ -146,7 +160,12 @@ export async function loadSchemaNative(
   if (!existsSync(fullPath)) return null;
 
   try {
-    (globalThis as any).widgets = await getWidgetsProxy();
+    // Install the widgets proxy exactly once — compiled modules resolve bare
+    // `widgets.*` through the global, so a per-file await + global write would
+    // add one promise hop per schema at boot for zero benefit.
+    if ((globalThis as any).widgets !== widgetsProxy) {
+      (globalThis as any).widgets = await getWidgetsProxy();
+    }
 
     const urlObj = pathToFileURL(fullPath);
     const version = mtimeMs ?? Date.now();
@@ -184,7 +203,7 @@ interface Task {
   mtimeMs?: number;
   resolve: (result: { schema?: any; error?: string }) => void;
   reject: (err: Error) => void;
-  timer: ReturnType<typeof setTimeout>;
+  timer: ReturnType<typeof setTimeout> | null;
 }
 
 class ModuleWorkerPool {
@@ -321,7 +340,8 @@ class ModuleWorkerPool {
     // failure.
 
     const onMessage = (msg: any) => {
-      clearTimeout(task.timer);
+      if (task.timer) clearTimeout(task.timer);
+      task.timer = null;
       worker.worker.off("message", onMessage);
       worker.busy = false;
       worker.lastUsedAt = Date.now();
@@ -380,7 +400,9 @@ class ModuleWorkerPool {
         mtimeMs,
         resolve,
         reject,
-        timer: setTimeout(() => {}, TASK_TIMEOUT_MS),
+        // Set (not armed) in executeTask — no dummy no-op timer may linger for
+        // TASK_TIMEOUT_MS per queued task after the real timeout is installed.
+        timer: null,
       };
 
       this.queue.push(task);
@@ -477,19 +499,25 @@ export async function loadSchema(
 /** Generates a stable hash for change detection. */
 export function generateSchemaHash(schema: Schema): string {
   try {
-    const relevant = {
-      name: schema.name,
-      fieldsCount: schema.fields?.length ?? 0,
-      fieldSignatures: schema.fields?.map((f: any) => ({
-        name: f.db_fieldName || f.name,
-        type: f.widget?.Name || f.type,
-        required: !!f.required,
-      })),
-    };
+    const fields = schema.fields;
+    const count = fields?.length ?? 0;
+    // Single-pass string build — avoids per-field object + JSON.stringify
+    // allocations for every compiled schema at boot.
+    let str = `${schema.name ?? ""}|${count}`;
+    for (let i = 0; i < count; i++) {
+      const f = fields[i] as
+        | {
+            db_fieldName?: string;
+            name?: string;
+            widget?: { Name?: string };
+            type?: string;
+            required?: boolean;
+          }
+        | undefined;
+      str += `|${f?.db_fieldName || f?.name || ""}|${f?.widget?.Name || f?.type || ""}|${f?.required ? 1 : 0}`;
+    }
 
-    const str = JSON.stringify(relevant);
     let hash = 0;
-
     for (let i = 0; i < str.length; i++) {
       hash = (hash << 5) - hash + str.charCodeAt(i);
       hash |= 0;

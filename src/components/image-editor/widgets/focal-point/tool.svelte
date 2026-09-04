@@ -8,7 +8,7 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 -->
 
 <script lang="ts">
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import FocalPointControls from './controls.svelte';
 	import FocalPointControlsMobile from './controls-mobile.svelte';

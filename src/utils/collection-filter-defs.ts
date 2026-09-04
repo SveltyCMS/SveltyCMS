@@ -154,7 +154,7 @@ export function fieldToFilterDefinition(
     type,
     options,
     widgetName: widgetName || undefined,
-    safeForFiltering: id.length > 0 && !isUnsafeFilterWidget(widgetName),
+    safeForFiltering: id.length > 0 && !isUnsafeFilterWidget(widgetName) && field.encrypt !== true,
   };
 }
 

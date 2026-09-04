@@ -17,7 +17,7 @@
  * - Federation error envelope
  */
 
-import { AppError } from "@utils/error-handling";
+import { AppError, raise } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -33,12 +33,12 @@ async function parseWriteBody(request: Request): Promise<Record<string, unknown>
   try {
     const body = await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) {
-      throw new AppError("Invalid JSON body", 400, "VALIDATION_ERROR");
+      raise(400, "Invalid JSON body", "VALIDATION_ERROR");
     }
     return body as Record<string, unknown>;
   } catch (err) {
     if (err instanceof AppError) throw err;
-    throw new AppError("Invalid JSON body", 400, "VALIDATION_ERROR");
+    raise(400, "Invalid JSON body", "VALIDATION_ERROR");
   }
 }
 
@@ -84,7 +84,7 @@ export async function handleVirtualCollectionsRoutes(
     }
 
     if (method !== "GET") {
-      throw new AppError("Method not allowed", 405, "METHOD_NOT_ALLOWED");
+      raise(405, "Method not allowed", "METHOD_NOT_ALLOWED");
     }
 
     // GET /api/virtual-collections/health/:connectorId
@@ -167,11 +167,11 @@ export async function handleVirtualCollectionsRoutes(
     return response;
   } catch (err) {
     if (err instanceof FederationError) {
-      throw new AppError(err.message, err.status, err.code);
+      raise(err.status, err.message, err.code);
     }
     // SDK methods throw plain Error when plugin is not enabled (e.g. assertEnabled)
     if (err instanceof Error && err.message?.includes("not enabled")) {
-      throw new AppError(err.message, 503, "PLUGIN_NOT_ENABLED");
+      raise(503, err.message, "PLUGIN_NOT_ENABLED");
     }
     throw err;
   }

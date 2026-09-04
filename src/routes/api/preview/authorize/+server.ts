@@ -6,13 +6,14 @@
 import { previewService } from "@src/services/content/preview-service";
 import type { CollectionEntry, Schema } from "@src/content/types";
 import { requireEditableWebsiteLicense } from "@src/plugins/editable-website/license-gate.server";
-import { error, json } from "@sveltejs/kit";
+import { json } from "@sveltejs/kit";
+import { raise } from "@utils/error-handling";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   const user = locals.user;
   if (!user || (user as { isAnonymous?: boolean }).isAnonymous) {
-    throw error(401, "Authentication required for preview authorization");
+    raise(401, "Authentication required for preview authorization");
   }
 
   await requireEditableWebsiteLicense();
@@ -28,12 +29,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   try {
     body = await request.json();
   } catch {
-    throw error(400, "Invalid JSON body");
+    raise(400, "Invalid JSON body");
   }
 
   const { schema, entry, contentLanguage = "en", tenantId, previewTargetUrl } = body;
   if (!schema || !entry) {
-    throw error(400, "schema and entry are required");
+    raise(400, "schema and entry are required");
   }
 
   const previewUrl = previewService.generatePreviewUrl(
@@ -46,7 +47,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   );
 
   if (!previewUrl) {
-    throw error(503, "Preview unavailable — configure PREVIEW_SECRET in system settings");
+    raise(503, "Preview unavailable — configure PREVIEW_SECRET in system settings");
   }
 
   return json({ previewUrl });

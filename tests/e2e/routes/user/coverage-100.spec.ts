@@ -16,13 +16,8 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { getCurrentTOTPCode } from "../../../../src/databases/auth/totp";
-import {
-  ADMIN_CREDENTIALS,
-  dismissCookieBanner,
-  loginAsAdmin,
-  loginAsEditor,
-  TEST_PASSWORD,
-} from "../../helpers/auth";
+import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor, TEST_PASSWORD } from "../../helpers/auth";
+import { dismissCookieConsent } from "../../helpers/cookie-consent";
 import { prepareTestUser, seedBulkUsers, setTestSetting, TEST_API_SECRET } from "../../helpers/api";
 import { TEST_API_HEADERS } from "../../helpers/api";
 import { openUserManagement, openUserSettings, openUserTab } from "../../helpers/user-page";
@@ -145,7 +140,7 @@ test.describe("GDPR privacy flows", () => {
     await page.getByTestId("privacy-data-btn").click();
     // Scope to the native <dialog> — the cookie-consent banner is a <div role="dialog">
     // and can co-exist on first visits, breaking getByRole("dialog") strict mode.
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
     const dialog = page.locator("dialog[open]");
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
@@ -190,7 +185,7 @@ test.describe("GDPR privacy flows", () => {
     await page.getByTestId("privacy-data-btn").click();
     // Scope to the native <dialog> — the cookie-consent banner is a <div role="dialog">
     // and can co-exist on first visits, breaking getByRole("dialog") strict mode.
-    await dismissCookieBanner(page);
+    await dismissCookieConsent(page);
     const dialog = page.locator("dialog[open]");
     await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
 
@@ -242,31 +237,34 @@ test.describe("2FA enroll with fixture", () => {
     // 2FA lives in the Security tab.
     await openUserTab(page, /^security$/i);
 
-    const twoFaBtn = page.getByRole("button", { name: /Setup|Manage|Enabled/i }).filter({
-      hasText: /Setup|Manage|Enabled/i,
-    });
-    // Prefer Setup for fresh admin
-    const setupBtn = page.getByRole("button", { name: /^Setup$/i });
-    const manageBtn = page.getByRole("button", { name: /Manage|Enabled/i });
-
-    if (await setupBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await setupBtn.click();
-    } else if (await manageBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    const twoFaBtn = page
+      .getByTestId("security-2fa-btn")
+      .or(page.getByRole("button", { name: /Setup|Manage|Enabled/i }))
+      .first();
+    await expect(twoFaBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+    const modal = page.locator(".modal-2fa").first();
+    const btnText = (await twoFaBtn.textContent()) || "";
+    if (/manage/i.test(btnText)) {
       // Already enabled — open manage and assert modal content
-      await manageBtn.click();
-      await expect(page.locator(".modal-2fa").first()).toBeVisible({
-        timeout: ACTION_TIMEOUT,
-      });
+      await expect(async () => {
+        if (await modal.isVisible().catch(() => false)) return;
+        await twoFaBtn
+          .click({ timeout: 2_000 })
+          .catch(() => twoFaBtn.evaluate((el: HTMLElement) => el.click()));
+        await expect(modal).toBeVisible({ timeout: 3_000 });
+      }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
       return;
-    } else {
-      // Section missing despite setting — hard fail (no soft-skip)
-      await expect(page.getByText(/Two-Factor Auth/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
-      await twoFaBtn.first().click();
     }
 
     // Use .modal-2fa only — page.getByRole("dialog") also matches cookie consent.
-    const modal = page.locator(".modal-2fa").first();
-    await expect(modal).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // Retry click until the modal opens (handles Svelte 5 hydration click drop).
+    await expect(async () => {
+      if (await modal.isVisible().catch(() => false)) return;
+      await twoFaBtn
+        .click({ timeout: 2_000 })
+        .catch(() => twoFaBtn.evaluate((el: HTMLElement) => el.click()));
+      await expect(modal).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
 
     // The setup secret renders once /api/auth/2fa/setup resolves. The modal can
     // surface a transient setup error (shared SQLite write contention under
@@ -302,11 +300,21 @@ test.describe("2FA enroll with fixture", () => {
     await codeInput.fill(totp);
 
     const verifyBtn = modal.getByRole("button", { name: /verify|enable|confirm/i }).first();
+    // The verify button stays disabled until the 6-digit code has hydrated into
+    // the bound state. Wait for the enabled state so the click is never swallowed
+    // by a transient disabled render (the same hydration race as the avatar modal).
+    await expect(verifyBtn).toBeEnabled({ timeout: ACTION_TIMEOUT });
     await verifyBtn.click();
 
-    await expect(page.getByText(/enabled|success/i).first()).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
+    // Prefer the scoped success toast over a page-wide text sweep: the Security
+    // panel's "Enabled" status text also matches /enabled/i once refreshAll
+    // promotes the user, so a global getByText can be ambiguous/strict-flaky.
+    await expect(
+      page
+        .getByTestId("app-toast")
+        .filter({ hasText: /enabled|success/i })
+        .first(),
+    ).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });
 
@@ -458,7 +466,28 @@ test.describe("Sessions and multi-tenant column", () => {
   test("tenant column hidden when multi-tenant is off", async ({ page }) => {
     await loginAsAdmin(page, "/user");
     await goToUser(page);
-    await openUserManagement(page);
+
+    // Open the User Management tab with the same click-and-confirm guard used by
+    // the other tab-driven specs: the tab is SSR-rendered before hydration
+    // attaches its onclick, so a bare click can be a silent no-op.
+    await dismissCookieConsent(page);
+    const managementTab = page.getByRole("tab", { name: /user management/i });
+    await expect(managementTab).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(async () => {
+      if ((await managementTab.getAttribute("aria-selected")) !== "true") {
+        await managementTab.click({ timeout: ACTION_TIMEOUT });
+      }
+      await expect(managementTab).toHaveAttribute("aria-selected", "true", {
+        timeout: 2_000,
+      });
+    }).toPass({ timeout: ACTION_TIMEOUT });
+    await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // The users table renders as an empty-state until the /api/user fetch
+    // resolves; wait for a real table header before asserting the header set,
+    // so the assertion proves the rendered table hides the tenant column (rather
+    // than passing vacuously against a table that never mounted).
+    await expect(page.locator("thead th").first()).toBeVisible({ timeout: ACTION_TIMEOUT });
     // Column header "Tenant ID" should not appear in default single-tenant
     const tenantHeader = page.locator("thead th").filter({ hasText: /tenant id/i });
     await expect(tenantHeader).toHaveCount(0);

@@ -86,6 +86,7 @@ Configure the widget in your collection schema:
 | `prefix`       | Input              | Visual text to display before input              |          |
 | `suffix`       | Input              | Visual text to display after input               |          |
 | `count`        | Input              | Expected character count (shows distinct visual) |          |
+| `encrypt`      | Toggles            | Store AES-256-GCM ciphertext at rest             |          |
 
 ---
 
@@ -116,6 +117,21 @@ The storage format depends on the `translated` setting.
 ---
 
 ## Usage Examples
+
+### Encrypted Sensitive Field
+
+Store API credentials, national IDs, or private notes as AES-256-GCM ciphertext.
+The admin UI still shows plaintext; the database stores only a `v1:iv:tag:ciphertext` envelope.
+
+```typescript
+{
+  widget: InputWidget,
+  label: "National ID",
+  db_fieldName: "ssn",
+  translated: false,
+  encrypt: true,
+}
+```
 
 ### Basic Title Field
 

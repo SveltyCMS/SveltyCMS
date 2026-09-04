@@ -10,7 +10,8 @@
  * - schema-store.ts   — schema LRU, hot flags, benchmark fallbacks, model cache
  * - read-pipeline.ts  — filter normalization, tenant/publication query build,
  *   find cache keys, read-through cache
- * - write-pipeline.ts — field prep, schema hooks, write guard, widget pipeline
+ * - write-pipeline.ts — field prep, schema hooks, write guard, widget pipeline,
+ *                       AES-256-GCM encrypt:true at rest
  * - post-write.ts     — L1/L2 invalidation, outbox batching, plugin hooks
  *
  * ### Features:
@@ -38,7 +39,7 @@ import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
 import type { FieldInstance, Schema } from "@src/content/types";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
-import { copyDataWithFreshRowIds } from "@src/utils/data/copy-data-with-fresh-ids";
+import { copyDataWithFreshRowIds } from "@utils/data-utils";
 import { resolvePopulatedRelations } from "./populate-resolver";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import { decodePageCursor, mergeKeysetFilter } from "@src/databases/core/page-utils";
@@ -70,17 +71,22 @@ import {
   setCachedSchema,
 } from "./collections/schema-store";
 import {
+  assertEncryptedFieldsNotQueried,
   buildFindCacheKey,
   buildTenantQuery,
+  decryptReadResult,
+  decryptReadStream,
   normalizeRelationshipFilter,
   readThroughCache,
 } from "./collections/read-pipeline";
 import {
   applyWidgetPipeline,
+  encryptWritePayload,
   prepareWritePayload,
   writeTouchesActiveWidgets,
   type PrepFieldSchema,
 } from "./collections/write-pipeline";
+import type { FieldEncryptionContext } from "@utils/security/field-encryption";
 import {
   invalidateCache,
   persistWithOutbox,
@@ -88,11 +94,22 @@ import {
   shouldSkipWriteSideEffects,
   triggerLifecycleHook,
 } from "./collections/post-write";
+import { scheduleDefaultListWarm } from "./collections/list-warm";
 
 type ContentSystem = typeof serverContentSystem;
 
 function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
   return !!value && typeof (value as { then?: unknown }).then === "function";
+}
+
+function fieldEncryptionContext(
+  schema: Schema,
+  tenantId: DatabaseId | null | undefined,
+): FieldEncryptionContext {
+  return {
+    collectionId: String(schema._id ?? schema.name ?? ""),
+    tenantId: tenantId != null && String(tenantId).length > 0 ? String(tenantId) : "global",
+  };
 }
 
 /** Searchable field names — hoisted so the per-item filter loop shares one array. */
@@ -401,6 +418,7 @@ export class CollectionsNamespace {
       if (!collection) return [];
 
       try {
+        assertEncryptedFieldsNotQueried(baseFilter, ensureSchemaHotFlags(collection));
         const result = await this._dbAdapter.crud.findMany(
           this.getCollectionName(collection._id as string),
           baseFilter,
@@ -411,10 +429,17 @@ export class CollectionsNamespace {
         );
 
         if (result.success && result.data) {
-          let items = Array.isArray(result.data) ? result.data : [];
+          const hot = ensureSchemaHotFlags(collection);
+          const decrypted = await decryptReadResult(
+            { success: true, data: result.data },
+            hot,
+            fieldEncryptionContext(collection, tenantId),
+            { clone: true },
+          );
+          let items = Array.isArray(decrypted.data) ? decrypted.data : [];
           if (query) {
             const lowerQuery = query.toLowerCase();
-            items = items.filter((item) => {
+            items = items.filter((item: Record<string, unknown>) => {
               return SEARCHABLE_FIELDS.some((field) => {
                 const value = (item as any)[field];
                 return typeof value === "string" && value.toLowerCase().includes(lowerQuery);
@@ -495,6 +520,14 @@ export class CollectionsNamespace {
       options.publicationFilter,
     );
 
+    const hot = ensureSchemaHotFlags(schema);
+    const encCtx = fieldEncryptionContext(schema, tenantId);
+    assertEncryptedFieldsNotQueried(
+      query,
+      hot,
+      options.sortField || (Array.isArray(options.sort) ? options.sort?.[0]?.[0] : undefined),
+    );
+
     // Id lookup (optional tenant + scalar status from publication clamp):
     // one findOne on the adapter ultra path, `{ data: T[] }` envelope.
     if (!decodedCursor && !offset && !options.fields && !options.populate) {
@@ -508,7 +541,6 @@ export class CollectionsNamespace {
         const row =
           one?.success && one.data ? (Array.isArray(one.data) ? one.data[0] : one.data) : null;
         if (row) {
-          const hot = ensureSchemaHotFlags(schema);
           if (hot._hasActiveWidgets) {
             const payload = [row];
             await applyWidgetPipeline(schema, payload, {
@@ -528,7 +560,8 @@ export class CollectionsNamespace {
           };
           (schema as any)._collectionMeta = (row as any)._collection;
         }
-        return { success: true, data: row ? [row] : [] };
+        const envelope = { success: true, data: row ? [row] : [] };
+        return decryptReadResult(envelope, hot, encCtx, { clone: true });
       }
     }
 
@@ -567,7 +600,7 @@ export class CollectionsNamespace {
           schema._id as string,
           tenantId,
         );
-        return cacheHit.payload;
+        return decryptReadResult(cacheHit.payload, hot, encCtx, { clone: true });
       }
     }
 
@@ -585,7 +618,6 @@ export class CollectionsNamespace {
       : await fetchFromDb();
 
     if (result.success && result.data) {
-      const hot = ensureSchemaHotFlags(schema);
       if (hot._hasActiveWidgets) {
         await applyWidgetPipeline(schema, result.data as unknown as EntryData[], {
           dbAdapter: this._dbAdapter,
@@ -652,7 +684,7 @@ export class CollectionsNamespace {
       } catch {}
     }
 
-    return result;
+    return decryptReadResult(result, hot, encCtx, { clone: true });
   }
 
   async findStreaming(
@@ -672,9 +704,13 @@ export class CollectionsNamespace {
     // Shared getSchema path — findStreaming previously bypassed the schema cache
     // via cs.getCollectionById, causing duplicate resolution per stream.
     const schema = await this.schemaOf(collectionId, tenantId);
+    const hot = ensureSchemaHotFlags(schema);
+    const encCtx = fieldEncryptionContext(schema, tenantId);
+    const normalizedStreamFilter = normalizeRelationshipFilter({ ...options.filter });
+    assertEncryptedFieldsNotQueried(normalizedStreamFilter, hot, options.sortField);
 
     const { query } = buildTenantQuery(
-      normalizeRelationshipFilter({ ...options.filter }),
+      normalizedStreamFilter,
       tenantId,
       { user: options.user, system: options.system },
       options.publicationFilter,
@@ -699,7 +735,7 @@ export class CollectionsNamespace {
 
     const collectionModel = await getModelResilient(this._dbAdapter, schema);
 
-    return modifyStream(streamResult.data as unknown as AsyncIterable<EntryData>, {
+    const stream = modifyStream(streamResult.data as unknown as AsyncIterable<EntryData>, {
       collection: collectionModel,
       fields: schema.fields as FieldInstance[],
       user: user || ({ _id: "system", role: "admin" } as any),
@@ -709,6 +745,7 @@ export class CollectionsNamespace {
       skipValidation: options.skipValidation,
       action: "find",
     });
+    return decryptReadStream(stream, hot, encCtx);
   }
 
   async count(
@@ -724,6 +761,7 @@ export class CollectionsNamespace {
     const { tenantId, filter = {} } = options;
     const schema = await this.schemaOf(collectionId, tenantId);
     const normalizedFilter = normalizeRelationshipFilter(filter);
+    assertEncryptedFieldsNotQueried(normalizedFilter, ensureSchemaHotFlags(schema));
 
     const { query } = buildTenantQuery(
       normalizedFilter,
@@ -828,6 +866,13 @@ export class CollectionsNamespace {
       });
     }
 
+    if (hot._hasEncryptedFields) {
+      const encCtx = fieldEncryptionContext(schema, tenantId);
+      for (let i = 0; i < entries.length; i++) {
+        await encryptWritePayload(entries[i], hot, encCtx);
+      }
+    }
+
     let result;
     if (this._dbAdapter.batch && typeof this._dbAdapter.batch.bulkInsert === "function") {
       result = await this._dbAdapter.batch.bulkInsert(
@@ -905,21 +950,26 @@ export class CollectionsNamespace {
     }
 
     const now = nowISODateString();
+    const hot = ensureSchemaHotFlags(schema);
+    const encCtx = fieldEncryptionContext(schema, tenantId);
 
-    const formattedUpdates = updates.map((u) => {
+    const formattedUpdates = [];
+    for (const u of updates) {
       const raw = (u.data ?? {}) as Record<string, unknown>;
       const patched = isShallowPatch(raw)
         ? raw
         : (copyDataWithFreshRowIds(raw) as Record<string, unknown>);
-      return {
-        id: u.id as DatabaseId,
-        data: {
-          ...patched,
-          updatedBy: user?._id,
-          updatedAt: now,
-        },
+      const data = {
+        ...patched,
+        updatedBy: user?._id,
+        updatedAt: now,
       };
-    });
+      await encryptWritePayload(data, hot, encCtx);
+      formattedUpdates.push({
+        id: u.id as DatabaseId,
+        data,
+      });
+    }
 
     const table = this.getCollectionName(schema._id as string);
     let result;
@@ -989,9 +1039,15 @@ export class CollectionsNamespace {
       { tenantId: tenantId as DatabaseId, limit: ids.length },
     );
     // Normalize to the SDK envelope so callers can always read `.data`.
-    return result?.success
+    const envelope = result?.success
       ? result
       : { success: false, data: [], message: (result as any)?.message };
+    return decryptReadResult(
+      envelope,
+      ensureSchemaHotFlags(schema),
+      fieldEncryptionContext(schema, tenantId),
+      { clone: true },
+    );
   }
 
   async findById(collectionId: string, entryId: string, options: LocalApiOptions = {}) {
@@ -1016,7 +1072,12 @@ export class CollectionsNamespace {
     const skipRequestCache = bypassCache || options.bypassRequestCache;
 
     if (!skipRequestCache && hasRequestCache(cacheKey)) {
-      return getRequestCache(cacheKey);
+      return decryptReadResult(
+        getRequestCache(cacheKey),
+        ensureSchemaHotFlags(schema),
+        fieldEncryptionContext(schema, tenantId),
+        { clone: true },
+      );
     }
 
     // 🚀 SYNC L1 HIT: Use synchronous L1 check instead of async L2 get.
@@ -1026,7 +1087,12 @@ export class CollectionsNamespace {
       const syncCached = cacheService.getSync?.<any>(cacheKey, (tenantId || undefined) as string);
       if (syncCached !== undefined && syncCached !== null) {
         CollectionsNamespace.setRequestCache(cacheKey, syncCached, schema._id as string, tenantId);
-        return syncCached;
+        return decryptReadResult(
+          syncCached,
+          ensureSchemaHotFlags(schema),
+          fieldEncryptionContext(schema, tenantId),
+          { clone: true },
+        );
       }
     }
 
@@ -1126,7 +1192,12 @@ export class CollectionsNamespace {
       }
     }
 
-    return finalResult;
+    return decryptReadResult(
+      finalResult,
+      ensureSchemaHotFlags(schema),
+      fieldEncryptionContext(schema, tenantId),
+      { clone: true },
+    );
   }
 
   async create(collectionId: string, data: any, options: LocalApiOptions = {}) {
@@ -1151,6 +1222,18 @@ export class CollectionsNamespace {
     if (isThenable(entryData)) entryData = await entryData;
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
+
+    // 🚪 Publication gate: workflows with gatePublication block direct
+    // publishing of brand-new entries (no instance exists yet — the workflow
+    // must approve before publish). System writes bypass the gate.
+    if (!system && (data as { status?: string } | null)?.status === "publish") {
+      const workflowService = await getWorkflowServiceLazy();
+      await workflowService.assertPublishAllowed(
+        schema._id as string,
+        (tenantId as string | undefined) ?? undefined,
+        effectiveUser,
+      );
+    }
 
     let finalData = triggerLifecycleHook(
       this._dbAdapter,
@@ -1183,6 +1266,8 @@ export class CollectionsNamespace {
     m2?.();
 
     const collectionName = this.getCollectionName(schema._id as string);
+    const encCtx = fieldEncryptionContext(schema, tenantId);
+    finalData = await encryptWritePayload(finalData, hot, encCtx);
     const m3 = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await persistWithOutbox(
       "create",
@@ -1201,6 +1286,7 @@ export class CollectionsNamespace {
     m3?.();
     m1?.();
 
+    const decryptedCreate = await decryptReadResult(result, hot, encCtx, { clone: true });
     if (result && result.success && result.data) {
       const createdId = result.data!._id as string;
       // ⚡ Response-path: never await side effects — concurrent create RPS depends on this
@@ -1211,13 +1297,18 @@ export class CollectionsNamespace {
         collectionId,
         tenantId,
         createdId,
-        result.data,
+        decryptedCreate?.data ?? result.data,
         effectiveUser,
         options,
       );
+      if (!shouldSkipWriteSideEffects(options)) {
+        scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
+          this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+        );
+      }
     }
 
-    return result;
+    return decryptedCreate;
   }
 
   async update(collectionId: string, entryId: string, data: any, options: LocalApiOptions = {}) {
@@ -1242,6 +1333,19 @@ export class CollectionsNamespace {
     if (isThenable(updateData)) updateData = await updateData;
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
+
+    // 🚪 Publication gate: workflows with gatePublication only allow status
+    // "publish" while the entry's workflow instance is in a final state.
+    // System writes (scheduled publishing, sync, imports) bypass the gate.
+    if (!system && (data as { status?: string } | null)?.status === "publish") {
+      const workflowService = await getWorkflowServiceLazy();
+      await workflowService.assertPublishAllowed(
+        schema._id as string,
+        (tenantId as string | undefined) ?? undefined,
+        effectiveUser,
+        entryId,
+      );
+    }
 
     let finalData = triggerLifecycleHook(
       this._dbAdapter,
@@ -1271,6 +1375,28 @@ export class CollectionsNamespace {
     }
     m2u?.();
 
+    // 🛡️ REVISION TRACKING: for revision-enabled collections, snapshot the entry
+    // BEFORE the write so the update can persist the previous version. Best-effort
+    // — a failed snapshot must never fail the update itself.
+    const revisionEnabled = schema.revision === true && !options.skipSideEffects;
+    let previousSnapshot: any = null;
+    if (revisionEnabled) {
+      try {
+        const prev = await this._dbAdapter.crud.findOne(
+          this.getCollectionName(schema._id as string),
+          { _id: entryId } as any,
+          { tenantId: tenantId as DatabaseId },
+        );
+        if (prev.success && prev.data) {
+          previousSnapshot = prev.data;
+        }
+      } catch {
+        /* best-effort */
+      }
+    }
+
+    const encCtx = fieldEncryptionContext(schema, tenantId);
+    finalData = await encryptWritePayload(finalData, hot, encCtx);
     const m3u = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
     const result = await persistWithOutbox(
       "update",
@@ -1291,7 +1417,12 @@ export class CollectionsNamespace {
     m3u?.();
     m1u?.();
 
+    const decryptedUpdate = await decryptReadResult(result, hot, encCtx, { clone: true });
     if (result && result.success && result.data) {
+      // 🛡️ REVISION TRACKING: persist the pre-write snapshot (fire-and-forget).
+      if (revisionEnabled && previousSnapshot) {
+        void this.recordRevision(entryId, previousSnapshot, effectiveUser, tenantId);
+      }
       // ⚡ Response-path: never await side effects — concurrent update RPS depends on this
       schedulePostWrite(
         this._dbAdapter,
@@ -1300,13 +1431,50 @@ export class CollectionsNamespace {
         collectionId,
         tenantId,
         entryId,
-        result.data,
+        decryptedUpdate?.data ?? result.data,
         effectiveUser,
         options,
       );
+      if (!shouldSkipWriteSideEffects(options)) {
+        scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
+          this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+        );
+      }
     }
 
-    return result;
+    return decryptedUpdate;
+  }
+
+  /**
+   * Persist a revision snapshot for a revision-enabled collection update.
+   * Fire-and-forget — revision history must never block or fail the write path.
+   * The version is derived from the latest existing revision (+1).
+   */
+  private async recordRevision(
+    entryId: string,
+    previousData: any,
+    user: any,
+    tenantId: DatabaseId | null | undefined,
+  ): Promise<void> {
+    try {
+      const history = await this._dbAdapter.content.revisions.getHistory(entryId as DatabaseId, {
+        page: 1,
+        pageSize: 1,
+      });
+      const items = history.success ? history.data.items : [];
+      const latestVersion = items.length > 0 ? items[0].version : 0;
+      await this._dbAdapter.content.revisions.create({
+        contentId: entryId as DatabaseId,
+        authorId: (user?._id || "system") as DatabaseId,
+        data: previousData,
+        version: latestVersion + 1,
+        tenantId: tenantId ?? undefined,
+      });
+    } catch (err) {
+      logger.debug(
+        `[Revisions] Failed to record revision for ${entryId}: ${(err as Error)?.message ?? err}`,
+      );
+    }
   }
 
   async delete(collectionId: string, entryId: string, options: LocalApiOptions = {}) {
@@ -1348,6 +1516,11 @@ export class CollectionsNamespace {
         effectiveUser,
         options,
       );
+      if (!shouldSkipWriteSideEffects(options)) {
+        scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
+          this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+        );
+      }
     }
 
     return result;

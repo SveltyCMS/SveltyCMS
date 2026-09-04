@@ -317,6 +317,9 @@ class JobQueueService {
         }
       }
     }, intervalMs);
+    if (typeof (this.pollInterval as any)?.unref === "function") {
+      (this.pollInterval as any).unref();
+    }
   }
 
   /**

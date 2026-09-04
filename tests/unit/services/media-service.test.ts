@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { MediaService } from "@src/utils/media/media-service.server";
+import type { DatabaseId } from "@src/content/types";
 
 // Mock dependencies
 vi.mock("sharp", () => ({
@@ -137,6 +138,47 @@ describe("MediaService (Whitebox)", () => {
 
     it("should fallback to document for unknown application/ types", () => {
       expect(mediaService.getMediaType("application/x-executable")).toBe("document");
+    });
+  });
+
+  describe("Deduplication & Multi-Tenancy", () => {
+    it("scopes deduplication hash lookups and updates by tenantId", async () => {
+      const existingRecord = {
+        _id: "media-existing-1",
+        path: "old/path.jpg",
+        folderId: "root",
+        hash: "sha256-abc",
+      };
+
+      vi.spyOn(mediaService.files as any, "getByHash").mockResolvedValue({
+        success: true,
+        data: existingRecord,
+      });
+
+      (mockDbAdapter.crud.update as any).mockResolvedValue({
+        success: true,
+        data: existingRecord,
+      });
+
+      const file = new File([Buffer.from("fake-img")], "test.jpg", { type: "image/jpeg" });
+      const res = await mediaService.saveMedia(
+        file,
+        "user-1",
+        "public",
+        "tenant-delta" as DatabaseId,
+        "new-folder",
+      );
+
+      expect(mediaService.files.getByHash).toHaveBeenCalledWith(expect.any(String), {
+        tenantId: "tenant-delta" as DatabaseId,
+      });
+      expect(mockDbAdapter.crud.update).toHaveBeenCalledWith(
+        "media_items",
+        "media-existing-1",
+        expect.anything(),
+        { tenantId: "tenant-delta" as DatabaseId },
+      );
+      expect(res.success).toBe(true);
     });
   });
 });

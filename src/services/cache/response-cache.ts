@@ -18,7 +18,7 @@ export interface CachedResponseEntry {
   body: string;
   etag: string;
   buffer?: Uint8Array;
-  /** Pre-computed compression variants (br/gzip/zstd) for TURBO-HIT serving. */
+  /** Pre-computed compression variants (br/gzip) for TURBO-HIT serving. */
   compressed?: Record<string, Uint8Array>;
   /** L1/L2 expiration timestamp in ms — persisted so promoted entries expire too. */
   expiresAt?: number;
@@ -185,6 +185,9 @@ class ResponseCacheService {
 
     const entry = cacheService.getSync<CachedResponseEntry>(`res:${key}`, tenantId);
     if (entry && !this.isExpired(entry)) {
+      if (!entry.buffer && textEncoder && entry.body) {
+        entry.buffer = textEncoder.encode(entry.body);
+      }
       this.enforceL1Capacity();
       this.localL1.set(fullKey, entry);
       return entry;
@@ -204,6 +207,9 @@ class ResponseCacheService {
 
     const entry = await cacheService.get<CachedResponseEntry>(`res:${key}`, tenantId);
     if (entry && !this.isExpired(entry)) {
+      if (!entry.buffer && textEncoder && entry.body) {
+        entry.buffer = textEncoder.encode(entry.body);
+      }
       this.enforceL1Capacity();
       this.localL1.set(this.buildKey(key, tenantId), entry);
       return entry;
@@ -222,10 +228,32 @@ class ResponseCacheService {
     opts?: { skipSharedL1?: boolean; tags?: string[] },
   ): void {
     const fullKey = this.buildKey(key, tenantId);
-    if (!entry.buffer && textEncoder) {
+    if (!entry.buffer && textEncoder && entry.body) {
       entry.buffer = textEncoder.encode(entry.body);
     }
     entry.expiresAt = Date.now() + ttlMs;
+
+    // Asynchronously pre-compute compression variants for TURBO-HIT serving (>1KB)
+    if (!entry.compressed && entry.body && entry.body.length > 1024) {
+      queueMicrotask(async () => {
+        try {
+          const { compressAsync, hasNativeCompression } =
+            await import("@src/hooks/handle-compression");
+          if (hasNativeCompression()) {
+            const rawBody = entry.body;
+            const size = rawBody.length;
+            const gzip = await compressAsync(rawBody, "gzip", size).catch(() => null);
+            const br = await compressAsync(rawBody, "br", size).catch(() => null);
+            if (gzip || br) {
+              entry.compressed = {
+                ...(gzip ? { gzip } : {}),
+                ...(br ? { br } : {}),
+              };
+            }
+          }
+        } catch {}
+      });
+    }
 
     this.enforceL1Capacity();
     this.localL1.set(fullKey, entry);
@@ -241,9 +269,15 @@ class ResponseCacheService {
     if (key.includes("graphql") || key.includes("/api/graphql")) {
       tags.push("res:graphql");
     }
+    const compressedToPersist = entry.compressed ? { ...entry.compressed } : undefined;
     void cacheService.set(
       `res:${key}`,
-      { body: entry.body, etag: entry.etag, expiresAt: entry.expiresAt },
+      {
+        body: entry.body,
+        etag: entry.etag,
+        expiresAt: entry.expiresAt,
+        ...(compressedToPersist ? { compressed: compressedToPersist } : {}),
+      },
       ttlSec,
       tenantId,
       undefined,
@@ -276,6 +310,18 @@ class ResponseCacheService {
   }
 
   /**
+   * Synchronous in-memory purge of cached response tuples for a collection.
+   */
+  public invalidateLocal(collectionName: string, tenantId?: string | null): void {
+    const prefix = `${tenantId || "default"}:`;
+    for (const k of this.localL1.keys()) {
+      if (k.startsWith(prefix) && (k.includes(collectionName) || k.includes("graphql"))) {
+        this.localL1.delete(k);
+      }
+    }
+  }
+
+  /**
    * Invalidate response cache entries associated with a specific collection
    * mutation — scoped to the given tenant only.
    */
@@ -283,17 +329,12 @@ class ResponseCacheService {
     collectionName: string,
     tenantId?: string | null,
   ): Promise<void> {
-    const prefix = `${tenantId || "default"}:`;
-    for (const k of this.localL1.keys()) {
-      if (k.startsWith(prefix) && (k.includes(collectionName) || k.includes("graphql"))) {
-        this.localL1.delete(k);
-      }
-    }
+    cacheService.bumpCollectionEpoch(collectionName, tenantId);
+    this.invalidateLocal(collectionName, tenantId);
     await cacheService.clearByTags(
       [`res:${collectionName}`, "res:graphql", `collection:${collectionName}`],
       tenantId || undefined,
     );
-    await cacheService.clearByPattern(`res:*${collectionName}*`, tenantId || undefined);
   }
 
   /**

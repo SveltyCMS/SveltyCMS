@@ -20,7 +20,7 @@ import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
-import { turboAuthCache } from "./handle-turbo-get";
+import { getTurboAuthContext } from "./handle-turbo-get";
 import { wafGuard } from "./handle-waf-guard";
 import { dbAdapter } from "@src/databases/db";
 import { LocalCMS } from "@src/services/sdk";
@@ -28,6 +28,7 @@ import { applyAdapterTenantContext } from "@src/databases/tenant-adapter";
 import { successResponse } from "@src/routes/api/[...path]/handlers/base";
 import { responseCache } from "@src/services/cache/response-cache";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
+import { handleRateLimit } from "./handle-rate-limit";
 import type { DatabaseId } from "@src/content/types";
 
 function unwrapWritePayload(raw: unknown): unknown {
@@ -73,11 +74,11 @@ function hasWarmSession(event: RequestEvent): boolean {
   const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
   const sessionId = readSessionCookie(event.cookies, isSecure);
   if (!sessionId) return false;
-  const turbo = turboAuthCache.get(sessionId);
-  return !!(turbo && Date.now() < turbo.expiresAt);
+  // Slide TTL — must use getTurboAuthContext, not a raw Map get.
+  return getTurboAuthContext(sessionId) !== null;
 }
 
-async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response> {
+async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response | null> {
   const { request, url, cookies, locals } = event;
   const wafCheck = wafGuard.inspectEvent(event);
   if (wafCheck.blocked) {
@@ -91,9 +92,12 @@ async function executeWarmCollectionWrite(event: RequestEvent): Promise<Response
   }
 
   const sessionId = readSessionCookie(cookies, isSecure);
-  const turbo = sessionId ? turboAuthCache.get(sessionId) : undefined;
-  if (!turbo || Date.now() >= turbo.expiresAt) {
-    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  const turbo = sessionId ? getTurboAuthContext(sessionId) : null;
+  // Expired turbo → fall through to the full auth pipeline (session cookie
+  // is still valid). A 401 here is what aborted 14/100k seed rows at ~60s
+  // with no application log — the request never reached create().
+  if (!turbo) {
+    return null;
   }
 
   locals.user = turbo.user;
@@ -148,10 +152,12 @@ export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
   try {
-    const { handleRateLimit } = await import("./handle-rate-limit");
     return await handleRateLimit({
       event,
-      resolve: () => executeWarmCollectionWrite(event),
+      resolve: async () => {
+        const written = await executeWarmCollectionWrite(event);
+        return written ?? resolve(event);
+      },
     });
   } catch (err) {
     if (event.url.pathname.startsWith("/api/")) return handleApiError(err, event);

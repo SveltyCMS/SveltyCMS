@@ -24,7 +24,7 @@ Displays real-time system state and individual service health with comprehensive
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import { systemState } from '@src/stores/system/state.svelte.ts';
 	import type { ServiceHealth, SystemState } from '@src/stores/system/types';
-	import { formatDisplayDate } from '@utils/date';
+	import { formatDisplayDate, formatTime } from '@utils/date';
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -99,7 +99,7 @@ Displays real-time system state and individual service health with comprehensive
 	const unhealthyServices = $derived(serviceEntries.filter(([, service]) => service.status === 'unhealthy').length);
 
 	const formattedLastChecked = $derived(
-		formatDisplayDate(lastChecked, 'en', {
+		formatDisplayDate(lastChecked, undefined, {
 			hour: '2-digit',
 			minute: '2-digit',
 			second: '2-digit'
@@ -479,7 +479,7 @@ Displays real-time system state and individual service health with comprehensive
 							{#if service.lastChecked}
 								<p class="mt-1 text-[10px] opacity-50">
 									<span class="font-semibold">Last checked:</span>
-									{new Date(service.lastChecked).toLocaleTimeString()}
+									{formatTime(service.lastChecked)}
 								</p>
 							{/if}
 						</div>

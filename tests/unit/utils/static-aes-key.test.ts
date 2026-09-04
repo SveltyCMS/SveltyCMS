@@ -78,6 +78,12 @@ describe("resolveStaticAesKey", () => {
     const totp = resolveStaticAesKey(cryptoMod, ENV_KEY_MATERIAL, AES256_HKDF_INFO.totpSecret);
     expect(plugin.primary.equals(totp.primary)).toBe(false);
   });
+
+  it("domain-separates field-at-rest keys from TOTP for the same env key", () => {
+    const field = resolveStaticAesKey(cryptoMod, ENV_KEY_MATERIAL, AES256_HKDF_INFO.fieldAtRest);
+    const totp = resolveStaticAesKey(cryptoMod, ENV_KEY_MATERIAL, AES256_HKDF_INFO.totpSecret);
+    expect(field.primary.equals(totp.primary)).toBe(false);
+  });
 });
 
 describe("aesGcmDecryptWithKeys", () => {

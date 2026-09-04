@@ -84,7 +84,13 @@ export function createCommerceStore(cms: LocalCMS, tenantId: DatabaseId): Commer
     async update(collection, id, data) {
       const existing = await this.findOne(collection, { _id: id });
       if (!existing) return;
-      await cms.collections.update(collection, id, withTenant(tenantId, data), ctx);
+      // Content collections store schema fields in a single `data` JSON column
+      // and the adapter's UPDATE treats the payload as the complete document —
+      // a partial patch would silently drop unmentioned fields (e.g. the cart
+      // sessionId, breaking findOne({ sessionId }) on the next request).
+      // Merge the existing row so patches behave as read-modify-write.
+      const { _collection, data: _data, ...rest } = existing as any;
+      await cms.collections.update(collection, id, withTenant(tenantId, { ...rest, ...data }), ctx);
     },
 
     async delete(collection, id) {

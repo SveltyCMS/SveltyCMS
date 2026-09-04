@@ -36,7 +36,8 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
-	import { app, validationStore } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
+	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { minLength, optional, parse, pipe, regex, string } from 'valibot';
@@ -52,7 +53,7 @@
 		error?: string | null;
 	} = $props();
 
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : 'en');
+	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : 'en');
 	const fieldName = $derived(getFieldName(field));
 	let inputRef = $state<HTMLInputElement | null>(null);
 

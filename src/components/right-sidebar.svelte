@@ -12,7 +12,10 @@
 -->
 
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
+
+import { ui } from '@src/stores/ui-store.svelte';
+import { validationStore } from '@src/stores/validation-store.svelte';
+import Button from '@components/ui/button.svelte';
 	// Components
 	import Toggle from '@components/ui/toggle.svelte';
 	import { StatusTypes } from '@src/content/types';
@@ -28,16 +31,13 @@
 		status_unpublish,
 		validation_fix_before_save
 	} from '@src/paraglide/messages';
-	import { getLocale } from '@src/paraglide/runtime';
-	import { collection, collectionValue, mode } from '@src/stores/collection-store.svelte';
+	import { collection, collectionValue, mode, collections } from '@src/stores/collection-store.svelte';
 	// Stores
 	import { screen } from '@src/stores/screen-size-store.svelte';
-	import { statusStore } from '@src/stores/status-store.svelte';
-	import { app, dataChangeStore, validationStore } from '@src/stores/store.svelte';
-	import { ui } from '@src/stores/ui-store.svelte';
 
 	// Utils
 	import { logger } from '@utils/logger';
+	import { formatDisplayDate } from '@utils/date';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { showScheduleModal } from '@utils/modal.svelte';
 	import { navigationManager } from '@utils/navigation';
@@ -67,7 +67,7 @@
 	let currentEntry = $derived(collectionValue.value as Entry | null);
 
 	let isFormValid = $derived(validationStore.isValid);
-	let hasChanges = $derived(dataChangeStore.hasChanges);
+	let hasChanges = $derived(collections.hasChanges);
 
 	let canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
 	let canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
@@ -88,7 +88,7 @@
 	let shouldDisableStatusToggle = $derived(
 		(currentMode === 'create' && !ui.isRightSidebarVisible) ||
 			(currentMode === 'edit' && !ui.isRightSidebarVisible && !screen.isDesktop) ||
-			statusStore.isLoading
+			collections.isStatusLoading
 	);
 
 	let isMenuCollection = $derived(currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu');
@@ -100,11 +100,11 @@
 	$effect(() => {
 		// Logic: If it's the Menu collection in create mode, we ENABLE the Next button.
 		if (isMenuCollection && currentMode === 'create') {
-			app.shouldShowNextButton = true;
-			// If app.saveLayerStore is explicitly set (by widget?), use it.
-			nextAction = app.saveLayerStore;
+			ui.wizard.shouldShowNextButton = true;
+			// If ui.wizard.saveLayerStore is explicitly set (by widget?), use it.
+			nextAction = ui.wizard.saveLayerStore;
 		} else {
-			app.shouldShowNextButton = false;
+			ui.wizard.shouldShowNextButton = false;
 			nextAction = null;
 		}
 	});
@@ -146,17 +146,14 @@
 		if (!dateStr) {
 			return '-';
 		}
-		try {
-			return new Date(dateStr).toLocaleString(getLocale(), {
-				year: 'numeric',
-				month: 'short',
-				day: '2-digit',
-				hour: '2-digit',
-				minute: '2-digit'
-			});
-		} catch {
-			return '-';
-		}
+		const formatted = formatDisplayDate(dateStr, undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+		return formatted === 'Invalid Date' ? '-' : formatted;
 	}
 
 	let dates = $derived({
@@ -174,7 +171,7 @@
 	}
 
 	async function toggleStatus(newValue: boolean): Promise<boolean> {
-		return await statusStore.toggleStatus(newValue, 'RightSidebar');
+		return await collections.toggleStatus(newValue, 'RightSidebar');
 	}
 
 	function openSchedule() {
@@ -244,7 +241,7 @@
 			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = scheduleTimestamp;
 		} else {
-			dataToSave.status = statusStore.getStatusForSave();
+			dataToSave.status = collections.getStatusForSave();
 			dataToSave._scheduled = undefined;
 		}
 
@@ -287,7 +284,7 @@
 
 		{#if showSidebar}
 		<!-- Special "Next" button for Menu wizard -->
-		{#if app.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
+		{#if ui.wizard.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
 			<Button variant="tertiary" type="button" onclick={nextAction!} class="w-full gap-2 shadow-lg">
 				<iconify-icon icon="carbon:next-filled" width="20"></iconify-icon>
 				{button_next()}
@@ -308,9 +305,9 @@
 
 				<div class="gradient-secondary w-full gap-2 rounded p-2 shadow-md">
 					<Toggle
-						value={statusStore.isPublish}
-						label={statusStore.isPublish ? status_publish() : status_unpublish()}
-						labelColor={statusStore.isPublish ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500'}
+						value={collections.isPublish}
+						label={collections.isPublish ? status_publish() : status_unpublish()}
+						labelColor={collections.isPublish ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
 						disabled={shouldDisableStatusToggle}
@@ -348,7 +345,7 @@
 						{#if scheduleTimestamp}
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">{sidebar_will_publish_on()}</p>
 							<p class="text-xs font-semibold text-tertiary-500 dark:text-primary-500">
-								{new Date(scheduleTimestamp).toLocaleString(getLocale())}
+								{formatDisplayDate(scheduleTimestamp)}
 							</p>
 						{/if}
 						<Button variant="outline"
@@ -407,7 +404,7 @@
 
 				{#if currentMode === 'create'}
 					<div class="mt-3 text-center text-xs text-tertiary-500 dark:text-primary-500">
-						{new Date().toLocaleString(getLocale(), {
+						{formatDisplayDate(Date.now(), undefined, {
 							year: 'numeric',
 							month: 'short',
 							day: 'numeric',

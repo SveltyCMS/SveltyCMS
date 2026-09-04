@@ -16,7 +16,7 @@ Shows authored guidance content, widget documentation, and usage tips.
 
 <script lang="ts">
   import Button from '@components/ui/button.svelte';
-  import { helpStore } from "@src/stores/help-store.svelte.ts";
+  import { helpStore } from "./help-state.svelte";
   import { slide } from "svelte/transition";
 
   let { open = false }: { open?: boolean } = $props();

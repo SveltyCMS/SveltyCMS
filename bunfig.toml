@@ -1,3 +1,6 @@
+[install]
+backend = "copyfile"
+
 [test]
 # Global preload for Bun test environments
 preload = ["./tests/unit/bun-preload.ts"]

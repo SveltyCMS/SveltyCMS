@@ -68,6 +68,8 @@ export interface HardwareProfile {
    * (possibly co-hosted) DB server, so the app must not drown it in sockets.
    */
   dbPoolSize: number;
+  /** Minimum pre-warmed idle DB connections in pool. */
+  dbPoolMin: number;
   /** MongoDB `minPoolSize` — pre-spawned connections (scaled down on weak boxes). */
   mongoMinPool: number;
   /** Module-loader worker pool size. */
@@ -188,12 +190,9 @@ function buildProfile(): HardwareProfile {
 
   // 🧠 DYNAMIC SQLITE MMAP SIZE: scales with available virtual memory.
   let defaultMmapBytes = 268435456;
-  if (totalMemMb < 1500)
-    defaultMmapBytes = 67108864; // 64MB
-  else if (totalMemMb < 3500)
-    defaultMmapBytes = 134217728; // 128MB
-  else if (totalMemMb < 7500)
-    defaultMmapBytes = 268435456; // 256MB
+  if (totalMemMb < 1500) defaultMmapBytes = 67108864; // 64MB
+  else if (totalMemMb < 3500) defaultMmapBytes = 134217728; // 128MB
+  else if (totalMemMb < 7500) defaultMmapBytes = 268435456; // 256MB
   else defaultMmapBytes = 536870912; // 512MB
 
   const sqliteMmapSizeBytes = envInt("SQLITE_MMAP_SIZE") ?? defaultMmapBytes;
@@ -241,6 +240,12 @@ function buildProfile(): HardwareProfile {
       envInt("DB_POOL_SIZE") ?? Math.max(4, budgetCores * 2),
       MIN_DB_POOL,
       MAX_DB_POOL,
+    ),
+    dbPoolMin: clamp(
+      envInt("DB_POOL_MIN") ??
+        (tier === "huge" ? 5 : tier === "large" ? 3 : tier === "medium" ? 2 : 1),
+      1,
+      10,
     ),
     // Mongo pre-spawns min connections — a quarter of the budget, capped small.
     mongoMinPool: clamp(envInt("MONGO_MIN_POOL_SIZE") ?? Math.ceil(budgetCores / 4), 1, 10),

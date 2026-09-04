@@ -59,6 +59,7 @@ export const stripePlugin = definePlugin({
         props: {
           status: "paymentStatus",
           amount: "paymentAmount",
+          currency: "paymentCurrency",
         },
       },
     ],

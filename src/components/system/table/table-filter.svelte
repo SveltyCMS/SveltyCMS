@@ -42,7 +42,6 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		table_search_placeholder,
 		table_search_toggle
 	} from '@src/paraglide/messages';
-	import { app } from '@src/stores/store.svelte';
 	// Logger
 	import { logger } from '@utils/logger';
 	// Using iconify-icon web component

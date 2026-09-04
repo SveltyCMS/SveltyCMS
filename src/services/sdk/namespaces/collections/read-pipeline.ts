@@ -11,6 +11,8 @@
  * - sync FNV-1a query hashing (no WASM/async tax on list queries)
  * - pre-compiled projection tokens (bounded LRU) for cache-key interpolation
  * - request-cache → sync L2 → async L2 read-through with payload wrapping
+ * - decryptReadResult: AES-256-GCM field decryption after DB/cache fetch
+ * - assertEncryptedFieldsNotQueried: reject filter/sort on encrypted fields
  */
 
 import { isEmptyQueryFilter, type PageCursorPayload } from "@src/databases/core/page-utils";
@@ -25,6 +27,12 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { getRequestCache, hasRequestCache, setRequestCache } from "./request-cache";
 import { serializeQueryShape } from "@utils/fast-json";
+import { AppError } from "@utils/error-handling";
+import {
+  decryptDocumentFields,
+  type FieldEncryptionContext,
+} from "@utils/security/field-encryption";
+import type { SchemaHotFlags } from "./schema-store";
 
 /**
  * Normalize relationship-style filters into Mongo-ish operators.
@@ -320,4 +328,144 @@ export async function readThroughCache(
   }
 
   return { hit: false };
+}
+
+function shallowCloneDoc(doc: unknown): unknown {
+  if (!doc || typeof doc !== "object") return doc;
+  return { ...(doc as Record<string, unknown>) };
+}
+
+async function decryptOneDoc(
+  doc: unknown,
+  fieldNames: readonly string[],
+  context: FieldEncryptionContext,
+): Promise<unknown> {
+  if (!doc || typeof doc !== "object") return doc;
+  await decryptDocumentFields(doc as Record<string, unknown>, fieldNames, context);
+  return doc;
+}
+
+/**
+ * Decrypt `encrypt: true` fields on an SDK `{ success, data }` envelope (or a
+ * bare document / array). When `clone` is true (default), the source is not
+ * mutated — required so L1/L2 caches keep ciphertext.
+ */
+export async function decryptReadResult(
+  result: any,
+  hot: SchemaHotFlags,
+  context: FieldEncryptionContext,
+  opts?: { clone?: boolean },
+): Promise<any> {
+  if (!hot._hasEncryptedFields || !hot._encryptedFieldNames?.length) return result;
+  if (!result) return result;
+
+  const fieldNames = hot._encryptedFieldNames;
+  const clone = opts?.clone !== false;
+
+  const decryptData = async (data: unknown): Promise<unknown> => {
+    if (Array.isArray(data)) {
+      const out = clone ? data.map(shallowCloneDoc) : data;
+      for (let i = 0; i < out.length; i++) {
+        out[i] = await decryptOneDoc(out[i], fieldNames, context);
+      }
+      return out;
+    }
+    const doc = clone ? shallowCloneDoc(data) : data;
+    return decryptOneDoc(doc, fieldNames, context);
+  };
+
+  if (typeof result === "object" && "success" in result && "data" in result) {
+    if (result.data == null) return result;
+    const data = await decryptData(result.data);
+    return clone ? { ...result, data } : result;
+  }
+
+  return decryptData(result);
+}
+
+/**
+ * Memoized per-schema encrypted-field sets.
+ *
+ * Schema objects are memoized singletons (schema-store cache), so the Set is
+ * built once per schema instead of on every find()/count()/findStreaming()
+ * call. A WeakMap keeps the sets off the schema object itself — schemas get
+ * structuredClone'd into SvelteKit load data, and a Set property would
+ * serialize as `{}` in schema API responses.
+ */
+const encryptedFieldSets = new WeakMap<object, ReadonlySet<string>>();
+
+function getEncryptedFieldSet(hot: SchemaHotFlags): ReadonlySet<string> | null {
+  const names = hot._encryptedFieldNames;
+  if (!names || names.length === 0) return null;
+  let set = encryptedFieldSets.get(hot as object);
+  if (!set) {
+    set = new Set(names);
+    encryptedFieldSets.set(hot as object, set);
+  }
+  return set;
+}
+
+/**
+ * Encrypted fields cannot be filtered or sorted: AES-256-GCM IVs are random,
+ * so equality on plaintext never matches stored ciphertext.
+ */
+export function assertEncryptedFieldsNotQueried(
+  filter: any,
+  hot: SchemaHotFlags,
+  sortField?: string,
+): void {
+  const names = getEncryptedFieldSet(hot);
+  if (!names) return;
+
+  if (sortField && names.has(sortField)) {
+    throw new AppError(
+      `Cannot sort by encrypted field "${sortField}".`,
+      400,
+      "ENCRYPTED_FIELD_NOT_QUERYABLE",
+    );
+  }
+
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) walk(node[i]);
+      return;
+    }
+    const rec = node as Record<string, unknown>;
+    for (const key in rec) {
+      if (!Object.hasOwn(rec, key)) continue;
+      if (key.startsWith("$")) {
+        walk(rec[key]);
+        continue;
+      }
+      if (names.has(key)) {
+        throw new AppError(
+          `Cannot filter on encrypted field "${key}".`,
+          400,
+          "ENCRYPTED_FIELD_NOT_QUERYABLE",
+        );
+      }
+    }
+  };
+
+  walk(filter);
+}
+
+/**
+ * Decrypt each document yielded by a collection stream (findStreaming).
+ */
+export async function* decryptReadStream(
+  source: AsyncIterable<any>,
+  hot: SchemaHotFlags,
+  context: FieldEncryptionContext,
+): AsyncIterable<any> {
+  if (!hot._hasEncryptedFields || !hot._encryptedFieldNames?.length) {
+    yield* source;
+    return;
+  }
+  const fieldNames = hot._encryptedFieldNames;
+  for await (const doc of source) {
+    const clone = shallowCloneDoc(doc);
+    yield await decryptOneDoc(clone, fieldNames, context);
+  }
 }

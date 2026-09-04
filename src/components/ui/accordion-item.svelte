@@ -33,8 +33,9 @@ interface Props {
 	children: import('svelte').Snippet;
 }
 
+const uid = $props.id();
 let {
-	id = crypto.randomUUID(),
+	id = uid,
 	title,
 	icon,
 	disabled = false,

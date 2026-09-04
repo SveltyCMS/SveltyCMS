@@ -4,8 +4,9 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
-import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
+import { dismissCookieConsent } from "../../helpers/cookie-consent";
 import { dismissCookieBannerIfPresent, waitForAdminShell } from "../../helpers/stable";
 
 const ACTION_TIMEOUT = 20_000;
@@ -20,7 +21,7 @@ async function goRedirects(page: Page) {
     await loginAsAdmin(page, "/config/redirects");
   }
   // Prefer full stamp + accept (auth helper); fall back to stable helper
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
   await dismissCookieBannerIfPresent(page);
   await waitForAdminShell(page, ACTION_TIMEOUT);
   await expect(page.getByTestId("page-title")).toContainText(/redirect/i, {

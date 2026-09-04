@@ -40,6 +40,29 @@ export const IS_TEST_MODE = (() => {
 /** Mutation verbs that must run CSRF + cache invalidation. */
 export const MUTATION_HTTP_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+/**
+ * Route-resource skip names declared on `RouteResourceSpec.skipMiddlewares`.
+ * Hooks self-skip via `shouldSkipRouteMiddleware` — pipelines are cached, so
+ * the sequence cannot drop handlers per request.
+ */
+export type SkipMiddlewareName = "media" | "preferences" | "scim" | "collaboration";
+
+/**
+ * True when `event.locals.routeSpec` lists this middleware as skippable
+ * (bootstrap/login/setup lanes). O(n) over a 2–4 item array.
+ */
+export function shouldSkipRouteMiddleware(
+  locals: { routeSpec?: { skipMiddlewares?: readonly string[] } } | null | undefined,
+  name: SkipMiddlewareName,
+): boolean {
+  const list = locals?.routeSpec?.skipMiddlewares;
+  if (!list || list.length === 0) return false;
+  for (let i = 0; i < list.length; i++) {
+    if (list[i] === name) return true;
+  }
+  return false;
+}
+
 /** Body-bearing verbs (field-write guard, payload size limit). */
 export const WRITE_HTTP_METHODS = new Set(["POST", "PUT", "PATCH"]);
 
@@ -115,11 +138,13 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/api/auth/oidc-logout",
   "/api/auth/oidc-login",
   "/api/auth/oidc-callback",
+  "/api/auth/sso-providers",
   "/api/auth/frontchannel-logout",
   "/api/auth/backchannel-logout",
   "/api/preview",
   "/api/media/share",
   "/api/system/penalize-bounce",
+  "/api/system/prewarm-route",
   "/api/security/csp-report",
   "/api/auth/saml/acs",
   "/api/auth/saml/login",

@@ -18,7 +18,9 @@ Provides an organized interface for navigating hierarchical content structures.
 -->
 
 <script lang="ts">
-	import AdminCard from '@components/admin-card.svelte';
+
+import { contentLanguage } from '@src/stores/locale-store.svelte';
+			import AdminCard from '@components/admin-card.svelte';
 			import Button from '@components/ui/button.svelte';
 			import Input from '@components/ui/input.svelte';
 			import Loader from '@components/ui/loader.svelte';
@@ -29,7 +31,6 @@ Provides an organized interface for navigating hierarchical content structures.
 	import { type StatusType, StatusTypes } from '@src/content/types';
 	import { collection, contentStructure, setContentStructure } from '@src/stores/collection-store.svelte.ts';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
-	import { app } from '@src/stores/store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
@@ -68,6 +69,8 @@ Provides an organized interface for navigating hierarchical content structures.
 		order: number;
 		type?: 'category' | 'collection';
 		path?: string;
+		href?: string;
+		preload?: 'hover' | 'viewport' | 'predict' | 'smart';
 		actions?: Array<{
 			icon: string;
 			label: string;
@@ -77,6 +80,12 @@ Provides an organized interface for navigating hierarchical content structures.
 	}
 
 	const userId = $derived(page.data.user?.id || page.data.user?._id || 'guest');
+
+	// Next-navigation hint computed server-side by the behavioral learner
+	const predictedNextPath = $derived.by(() => {
+		const raw = (page.data as { predictedNextPath?: string | null } | undefined)?.predictedNextPath;
+		return raw && raw.length > 1 ? raw.replace(/\/+$/, '') : (raw || '');
+	});
 
 	// Mutable state
 	let search = $state('');
@@ -247,7 +256,7 @@ Provides an organized interface for navigating hierarchical content structures.
 
 	// Derived UI & data
 	let isFullSidebar = $derived(ui.state.leftSidebar === 'full');
-	let currentLanguage = $derived(app.contentLanguage);
+	let currentLanguage = $derived(contentLanguage.value);
 	let selectedId = $derived(collection.value?._id ?? null);
 	let activeWidgetList = $derived(widgets.activeWidgets);
 	let structure = $derived(contentStructure.value ?? []);
@@ -362,6 +371,11 @@ Provides an organized interface for navigating hierarchical content structures.
 				}
 			];
 
+			const nodePath = isCategory ? undefined : `/${currentLanguage}${node.path || `/${node._id}`}`;
+			const normalizedNodePath = nodePath ? (nodePath.length > 1 ? nodePath.replace(/\/+$/, '') : nodePath) : '';
+			const isPredicted = Boolean(predictedNextPath && normalizedNodePath === predictedNextPath);
+			const preloadStrategy: 'hover' | 'smart' | undefined = isPredicted ? 'smart' : (nodePath ? 'hover' : undefined);
+
 			return {
 				id: node._id,
 				name: label,
@@ -371,7 +385,9 @@ Provides an organized interface for navigating hierarchical content structures.
 				children,
 				icon: node.icon || (isCategory ? 'bi:folder' : 'bi:collection'),
 				badge,
-				path: isCategory ? undefined : `/${currentLanguage}${node.path || `/${node._id}`}`,
+				path: nodePath,
+				href: nodePath,
+				preload: preloadStrategy,
 				depth,
 				order: getEffectiveOrder(node),
 				actions
@@ -652,7 +668,7 @@ Provides an organized interface for navigating hierarchical content structures.
 		}
 		const same = selectedId === node._id;
 		modeTransitionGuard.setMode('view');
-		app.shouldShowNextButton = true;
+		ui.wizard.shouldShowNextButton = true;
 
 		document.dispatchEvent(new CustomEvent('clearEntryListCache', {
 			detail: { resetState: true, reason: 'collection-switch' }

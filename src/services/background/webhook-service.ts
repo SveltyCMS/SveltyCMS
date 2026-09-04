@@ -168,6 +168,11 @@ export class WebhookService {
       // Enforce tenantId (defense in depth)
       const sanitized = webhooks.map((w) => ({ ...w, tenantId: tid }));
 
+      if (this.webhooksCache.size >= 500) {
+        const oldestKey = this.webhooksCache.keys().next().value;
+        if (oldestKey) this.webhooksCache.delete(oldestKey);
+      }
+
       this.webhooksCache.set(tid, {
         data: sanitized,
         timestamp: Date.now(),

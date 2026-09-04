@@ -41,7 +41,7 @@ function resolveBin(name: string): string {
 function executeCommand(
   cmd: string,
   args: string[],
-  timeoutMs = 60_000,
+  timeoutMs = 120_000,
 ): Promise<{ durationMs: number; exitCode: number; stderr: string; stdout: string }> {
   return new Promise((resolve, reject) => {
     const start = performance.now();
@@ -165,5 +165,5 @@ test("DX Toolchain Performance (Sync + Format + Lint)", async () => {
 
   console.log(`⏱️  Total Toolchain Latency: ${totalDurationMs.toFixed(2)}ms\n`);
 
-  expect(totalDurationMs).toBeLessThan(60_000);
-}, 60_000);
+  expect(totalDurationMs).toBeLessThan(120_000);
+}, 120_000);

@@ -73,6 +73,7 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const RichTextWidget = createWidget<RichTextProps>({
   Name: "RichText",
+  version: "1.0.0",
   Icon: "mdi:format-pilcrow-arrow-right",
   Description: widget_richText_description(),
 
@@ -100,6 +101,18 @@ const RichTextWidget = createWidget<RichTextProps>({
       }
     `,
   }),
+
+  // Collection Builder configuration tab fields.
+  // `encrypt: true` stores the entire { title, content } object as an
+  // AES-256-GCM envelope (JSON-encoded before encryption, same as Input).
+  GuiSchema: {
+    label: { widget: "Input", required: true },
+    db_fieldName: { widget: "Input", required: false },
+    required: { widget: "Toggles", required: false },
+    translated: { widget: "Toggles", required: false },
+    helper: { widget: "Input", required: false },
+    encrypt: { widget: "Toggles", required: false },
+  },
 
   jsonRender: true,
 });

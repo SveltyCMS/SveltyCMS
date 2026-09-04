@@ -17,10 +17,13 @@
 import { goto, preloadData } from "$app/navigation";
 import { page } from "$app/state";
 import type { ReadonlyURLSearchParams } from "$app/state";
-import { setCollectionValue, type ModeType } from "@src/stores/collection-store.svelte";
+import {
+  setCollectionValue,
+  collections,
+  type ModeType,
+} from "@src/stores/collection-store.svelte";
 import { globalLoadingStore, loadingOperations } from "@src/stores/loading-store.svelte.ts";
 import { modeTransitionGuard } from "@stores/mode-transition-guard.svelte";
-import { dataChangeStore } from "@src/stores/store.svelte.ts";
 import { logger } from "./logger";
 
 const IS_BROWSER = typeof window !== "undefined";
@@ -181,7 +184,7 @@ class NavigationManager {
    */
   async toList(options?: { invalidate?: boolean }): Promise<void> {
     await this.executeNavigation("toList", async () => {
-      dataChangeStore.reset();
+      collections.resetChanges();
       setCollectionValue({});
 
       if (!(await modeTransitionGuard.transitionTo("view"))) return;

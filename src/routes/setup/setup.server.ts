@@ -547,7 +547,13 @@ export async function completeSetup(
     try {
       const { pluginRegistry } = await import("@src/plugins/registry");
       const adminUserId = String((session as { user_id?: string }).user_id || "");
-      await pluginRegistry.togglePlugin("editable-website", true, "default", adminUserId);
+      await pluginRegistry.togglePlugin(
+        "editable-website",
+        true,
+        "default",
+        adminUserId,
+        dbAdapter,
+      );
       logger.info(
         "[Setup] Auto-enabled Editable Website plugin for Website Starter (trial active)",
       );
@@ -651,6 +657,7 @@ export async function testEmailConnection(cfg: {
       connectionTimeout: 10000,
     });
     await t.sendMail({
+      from: cfg.from || cfg.user,
       to: cfg.testEmail,
       subject: "SveltyCMS Email Test",
       text: "Test email from SveltyCMS setup wizard.",

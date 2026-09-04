@@ -38,6 +38,7 @@ import {
 } from "@src/stores/loading-store.svelte.ts";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { showConfirm } from "@utils/modal.svelte";
+import { formatDate } from "@utils/format-date";
 import { onMount, untrack } from "svelte";
 import { flip } from "svelte/animate";
 import { SvelteDate, SvelteURLSearchParams } from "svelte/reactivity";
@@ -712,12 +713,12 @@ $effect(() => {
 												</div>
 											</div>
 										{:else if header.key === 'createdAt'}
-											{new Date(token.createdAt).toLocaleDateString()}
+											{formatDate(token.createdAt)}
 										{:else if header.key === 'expiresAt'}
 											{#if token.expiresAt}
 												{const daysLeft = Math.ceil((new Date(token.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}
 												<span class={daysLeft < 7 && daysLeft > 0 ? 'text-warning-500 font-bold' : daysLeft <= 0 ? 'text-error-500 font-bold' : ''}>
-													{new Date(token.expiresAt).toLocaleDateString()}
+													{formatDate(token.expiresAt)}
 													{#if daysLeft < 0}
 														(Expired)
 													{/if}

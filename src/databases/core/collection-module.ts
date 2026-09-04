@@ -68,9 +68,13 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
   }
 
   async createModel(schemaData: Schema): Promise<void> {
-    const id = schemaData._id;
+    const id =
+      schemaData._id ||
+      (schemaData as any).id ||
+      (schemaData as any).name ||
+      (schemaData as any).slug;
     if (!id) {
-      throw new Error("Schema must have an _id");
+      throw new Error("Schema must have an _id or name");
     }
 
     // 🚀 USE AGNOSTIC CORE: Standardized table creation with quoted identifiers
@@ -130,6 +134,7 @@ export class CollectionModule extends DatabaseModule<ISqlAdapter> implements ICo
       }
 
       for (const field of fields) {
+        if (field.encrypt) continue;
         if (field.unique || field.indexed) {
           const fieldName = assertSafeSqlIdentifier(field.db_fieldName || field.label, "field");
           const indexName = assertSafeSqlIdentifier(`idx_${id}_${fieldName}`, "index");

@@ -13,7 +13,7 @@
 import { AuthGuardService } from "@src/services/security/auth-guard";
 import { isAdmin, getRequestFlags, isPublicRoute } from "@utils/hook-utils";
 import { SetupState } from "@utils/server/setup-check";
-import { readSessionCookie } from "@src/databases/auth/constants";
+import { readSessionCookie, isSecureCookieContext } from "@src/databases/auth/constants";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import {
@@ -67,6 +67,69 @@ function findMatchingRole(roles: Role[], targetRole: unknown): Role | undefined 
   return roles.find(
     (r: Role) => String(r._id).toLowerCase() === targetStr || r.name?.toLowerCase() === targetStr,
   );
+}
+
+/**
+ * Enforces per-role MFA requirement. If the user's assigned role requires MFA
+ * and the user has not completed 2FA setup, gates access to protected resources.
+ */
+export function checkMfaRequirement(
+  user: any,
+  userRole: Role | undefined,
+  pathname: string,
+  isApi: boolean,
+  sessionAmr?: string[],
+): void {
+  if (userRole?.mfaRequired) {
+    const isMfaExemptPath =
+      pathname.startsWith("/user") ||
+      pathname.startsWith("/api/auth/2fa") ||
+      pathname === "/logout" ||
+      pathname.startsWith("/api/auth/logout") ||
+      pathname.startsWith("/api/auth/session");
+
+    if (isMfaExemptPath) return;
+
+    if (!user?.is2FAEnabled) {
+      logger.warn(
+        `[Authz] MFA required for role "${userRole.name || userRole._id}". User ${user?.email} not enrolled.`,
+      );
+      if (isApi) {
+        throw new AppError(
+          "Multi-Factor Authentication enrollment is required for your role.",
+          403,
+          "MFA_REQUIRED",
+        );
+      }
+      throw redirect(302, "/user?tab=security&mfa=required");
+    }
+
+    // 🛡️ TRUSTED-DEVICE SESSION ELEVATION (2026):
+    // If the role strictly mandates MFA and the session used a trusted-device bypass (amr: ["pwd", "trusted_device"])
+    // without entering an interactive second factor (missing "mfa"), lift device trust to session MFA level
+    // by requiring a step-up challenge on high-privilege administrative / mutation paths.
+    if (sessionAmr && sessionAmr.includes("trusted_device") && !sessionAmr.includes("mfa")) {
+      const isHighPrivilegeOperation =
+        pathname.startsWith("/api/system") ||
+        pathname.startsWith("/api/user/roles") ||
+        pathname.startsWith("/api/collections/delete") ||
+        pathname.startsWith("/api/audit");
+
+      if (isHighPrivilegeOperation) {
+        logger.warn(
+          `[Authz] Step-up MFA required for high-privilege path "${pathname}". Session AMR is trusted_device-only.`,
+        );
+        if (isApi) {
+          throw new AppError(
+            "Step-up Multi-Factor Authentication is required for this operation.",
+            403,
+            "STEP_UP_MFA_REQUIRED",
+          );
+        }
+        throw redirect(302, "/user?tab=security&stepup=required");
+      }
+    }
+  }
 }
 
 // Cache stampede mitigation: in-flight promise deduplication
@@ -128,6 +191,12 @@ async function getCachedUserCount(
       await cacheService.set(
         `userCount:${key}`,
         cacheData,
+        USER_COUNT_CACHE_TTL_S,
+        tenantId ?? undefined,
+      );
+      void cacheService.set(
+        `layout:userCount:${key}`,
+        count,
         USER_COUNT_CACHE_TTL_S,
         tenantId ?? undefined,
       );
@@ -288,6 +357,8 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     } else {
       event.locals.roles = (user as any).roles || event.locals.roles || [];
     }
+    const adminRole = findMatchingRole(event.locals.roles || [], user.role);
+    checkMfaRequirement(user, adminRole, pathname, isApi, event.locals.sessionAmr);
     _populateTurboAuth(event, user, event.locals.roles || []);
     return await resolve(event);
   }
@@ -314,6 +385,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
     const activeRoles = event.locals.roles || [];
     if (user) {
       const userRole = findMatchingRole(activeRoles, user.role);
+      checkMfaRequirement(user, userRole, pathname, isApi, event.locals.sessionAmr);
       const isAdminUser = !!userRole?.isAdmin || isAdmin(user);
       (user as any).isAdmin = isAdminUser;
       locals.isAdmin = isAdminUser;
@@ -337,7 +409,19 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 function _populateTurboAuth(event: RequestEvent, user: any, roles: Role[]): void {
   try {
-    const sessionId = readSessionCookie(event.cookies);
+    // handleAuthentication already resolved + validated the SAME cookie earlier
+    // in this request's pipeline and stored the id on locals — prefer it over a
+    // second cookie parse. The fallback keeps flows that reached here without
+    // the session branch (e.g. API-key auth) byte-identical to the old behavior,
+    // and passes the protocol-derived isSecure so all cookie readers share one
+    // per-request parse slot.
+    const resolvedSessionId = event.locals.session_id
+      ? String(event.locals.session_id)
+      : readSessionCookie(
+          event.cookies,
+          isSecureCookieContext(event.url.protocol, event.url.hostname),
+        );
+    const sessionId = resolvedSessionId || null;
     if (!sessionId) return;
     let bitset: Uint32Array;
     if (roles.length > 0) {

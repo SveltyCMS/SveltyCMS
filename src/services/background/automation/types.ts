@@ -43,7 +43,9 @@ export type AutomationEvent =
   | "migration.failed"
   // Content sync events
   | "content.sync.started"
-  | "content.sync.completed";
+  | "content.sync.completed"
+  // Workflow events
+  | "workflow:transitioned";
 
 /** All available automation events with metadata for the GUI */
 export const AUTOMATION_EVENTS: {
@@ -200,6 +202,12 @@ export const AUTOMATION_EVENTS: {
     event: "content.sync.completed",
     label: "Content Sync Completed",
     icon: "mdi:sync-check",
+    category: "content",
+  },
+  {
+    event: "workflow:transitioned",
+    label: "Workflow Transitioned",
+    icon: "mdi:state-machine",
     category: "content",
   },
 ];

@@ -14,9 +14,10 @@ import { type RequestEvent } from "@sveltejs/kit";
 import { type LocalCMS } from "@src/services/sdk";
 import { type DatabaseId } from "@src/databases/db-interface";
 import { rawResponse, successResponse } from "./base";
-import { AppError } from "@utils/error-handling";
-import { isAdmin } from "@utils/hook-utils";
+import { raise } from "@utils/error-handling";
+import { getClientIp, isAdmin } from "@utils/hook-utils";
 import { parsePaginationQueryParams } from "@src/utils/api-params";
+import { recordListQuery } from "@utils/list-query-metrics";
 
 export async function handleTokenRoutes(
   event: RequestEvent,
@@ -56,7 +57,7 @@ export async function handleTokenRoutes(
     // UUID/role-name role rather than the literal "admin", so the old
     // `role !== "admin"` string compare wrongly 403'd them.
     if (!locals.user || !(locals.isAdmin || isAdmin(locals.user))) {
-      throw new AppError("Forbidden", 403, "FORBIDDEN");
+      raise(403, "Forbidden", "FORBIDDEN");
     }
     const isWebsite = segments[0] === "website-tokens";
     const { page, limit, search, sort, order, raw } = parsePaginationQueryParams(
@@ -64,6 +65,7 @@ export async function handleTokenRoutes(
       10,
     );
 
+    const t0 = performance.now();
     if (isWebsite) {
       const result = await cms.websiteTokens.list({
         tenantId,
@@ -71,6 +73,14 @@ export async function handleTokenRoutes(
         limit,
         sort,
         order,
+      });
+
+      const durationMs = performance.now() - t0;
+      recordListQuery({
+        source: "Tokens.list",
+        durationMs,
+        cache: "miss",
+        rowCount: Array.isArray(result.data) ? result.data.length : 0,
       });
 
       if (raw) {
@@ -93,6 +103,14 @@ export async function handleTokenRoutes(
       order,
     });
 
+    const durationMs = performance.now() - t0;
+    recordListQuery({
+      source: "Tokens.list",
+      durationMs,
+      cache: "miss",
+      rowCount: result.success && Array.isArray(result.data) ? result.data.length : 0,
+    });
+
     if (!result.success) return successResponse(event, result);
 
     if (raw) {
@@ -108,7 +126,7 @@ export async function handleTokenRoutes(
 
   // GET /api/token/validate-token/:tokenId or /api/token/:tokenId -> Public validation
   if (request.method === "GET" && action === "validate-token") {
-    if (!tokenId) throw new AppError("Token ID is required", 400, "BAD_REQUEST");
+    if (!tokenId) raise(400, "Token ID is required", "BAD_REQUEST");
 
     // Try validating using the auth system
     const validateRes = await cms.auth.validateToken(tokenId, {
@@ -124,15 +142,15 @@ export async function handleTokenRoutes(
       });
     }
 
-    throw new AppError("Token not found or invalid", 404, "NOT_FOUND");
+    raise(404, "Token not found or invalid", "NOT_FOUND");
   }
 
   // All other methods require authentication
-  if (!locals.user) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  if (!locals.user) raise(401, "Authentication required", "UNAUTHORIZED");
 
   const isWebsite = segments[0] === "website-tokens";
   if (isWebsite && !(locals.isAdmin || isAdmin(locals.user))) {
-    throw new AppError("Forbidden", 403, "FORBIDDEN");
+    raise(403, "Forbidden", "FORBIDDEN");
   }
 
   if (request.method === "POST") {
@@ -141,23 +159,18 @@ export async function handleTokenRoutes(
     if (action === "create-token") {
       // Rate limit password reset token creation (1 per 60s per IP)
       if (body.type === "reset") {
-        const clientIp =
-          event.request.headers.get("x-forwarded-for") || event.getClientAddress?.() || "unknown";
+        const clientIp = getClientIp(event);
         const resetKey = `rate:reset:${clientIp}`;
         const { cacheService } = await import("@src/databases/cache/cache-service");
         const recent = await cacheService.get(resetKey);
         if (recent) {
-          throw new AppError(
-            "Password reset already requested. Please wait 60 seconds.",
-            429,
-            "RATE_LIMITED",
-          );
+          raise(429, "Password reset already requested. Please wait 60 seconds.", "RATE_LIMITED");
         }
         await cacheService.set(resetKey, "1", 60);
       }
 
       if (isWebsite) {
-        if (!body.name) throw new AppError("Name is required", 400, "VALIDATION_FAILED");
+        if (!body.name) raise(400, "Name is required", "VALIDATION_FAILED");
         // Allow the client to override tenantId (null = global scope)
         const tokenTenantId = body.tenantId !== undefined ? body.tenantId : tenantId;
         const result = await cms.websiteTokens.create({
@@ -177,7 +190,7 @@ export async function handleTokenRoutes(
         tenantId,
       });
       if (!(result as any).success)
-        throw new AppError((result as any).message || "Failed to create token", 400, "BAD_REQUEST");
+        raise(400, (result as any).message || "Failed to create token", "BAD_REQUEST");
 
       // Test expects { success: true, token: { value: ... } }
       return rawResponse(event, {
@@ -190,37 +203,39 @@ export async function handleTokenRoutes(
       const ids = body.ids || body.tokenIds;
       const op = body.op || body.action;
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
-        throw new AppError("Array of IDs required", 400, "INVALID_BATCH_IDS");
+        raise(400, "Array of IDs required", "INVALID_BATCH_IDS");
+      }
+
+      const MAX_BATCH_SIZE = 100;
+      if (ids.length > MAX_BATCH_SIZE) {
+        raise(400, `Batch size exceeds maximum limit of ${MAX_BATCH_SIZE}`, "INVALID_BATCH_SIZE");
       }
 
       switch (op) {
         case "delete": {
-          const results = [];
-          for (const id of ids) {
-            if (isWebsite) {
-              results.push(await cms.websiteTokens.delete(String(id), { tenantId }));
-            } else {
-              results.push(await cms.auth.tokens.delete(String(id), { tenantId }));
-            }
+          if (isWebsite) {
+            const res = await cms.websiteTokens.deleteMany(ids.map(String), { tenantId });
+            return successResponse(event, { deletedCount: res.deletedCount ?? ids.length });
           }
-          return successResponse(event, { deletedCount: results.length });
+          const res = await cms.auth.tokens.deleteMany(ids.map(String), { tenantId });
+          const deletedCount =
+            (res as any)?.data?.deletedCount ?? (res as any)?.deletedCount ?? ids.length;
+          return successResponse(event, { deletedCount });
         }
         case "block":
-          if (isWebsite)
-            throw new AppError("Block not supported for website tokens", 400, "BAD_REQUEST");
+          if (isWebsite) raise(400, "Block not supported for website tokens", "BAD_REQUEST");
           return successResponse(event, await cms.auth.tokens.block(ids, { tenantId }));
         case "unblock":
-          if (isWebsite)
-            throw new AppError("Unblock not supported for website tokens", 400, "BAD_REQUEST");
+          if (isWebsite) raise(400, "Unblock not supported for website tokens", "BAD_REQUEST");
           return successResponse(event, await cms.auth.tokens.unblock(ids, { tenantId }));
         default:
-          throw new AppError(`Unsupported batch operation: ${op}`, 400, "INVALID_BATCH_ACTION");
+          raise(400, `Unsupported batch operation: ${op}`, "INVALID_BATCH_ACTION");
       }
     }
   }
 
   if (request.method === "DELETE" && action === "delete") {
-    if (!tokenId) throw new AppError("Token ID is required", 400, "BAD_REQUEST");
+    if (!tokenId) raise(400, "Token ID is required", "BAD_REQUEST");
     if (isWebsite) {
       return successResponse(event, await cms.websiteTokens.delete(tokenId, { tenantId }));
     }
@@ -228,7 +243,7 @@ export async function handleTokenRoutes(
   }
 
   if (request.method === "PUT" && action === "update") {
-    if (!tokenId) throw new AppError("Token ID is required", 400);
+    if (!tokenId) raise(400, "Token ID is required");
     const body = await request.json().catch(() => ({}));
     const updateData = body.newTokenData || body.data || body;
 
@@ -237,18 +252,18 @@ export async function handleTokenRoutes(
       const result = await cms.websiteTokens.update(tokenId, updateData, {
         tenantId,
       });
-      if (!result) throw new AppError("Website token not found", 404);
+      if (!result) raise(404, "Website token not found");
       return successResponse(event, result);
     }
 
     const result = await cms.auth.tokens.update(tokenId, updateData, {
       tenantId,
     });
-    if (!result) throw new AppError("Token not found", 404);
+    if (!result) raise(404, "Token not found");
     return successResponse(event, result);
   }
 
-  throw new AppError(`Method ${request.method} or action ${action} not implemented`, 404);
+  raise(404, `Method ${request.method} or action ${action} not implemented`);
 }
 
 function scrubApiKey(key: any) {
@@ -283,11 +298,11 @@ export async function handleApiKeyRoutes(
 
   await getDbInitPromise();
   if (!auth) {
-    throw new AppError("Authentication system unavailable", 503, "SERVICE_UNAVAILABLE");
+    raise(503, "Authentication system unavailable", "SERVICE_UNAVAILABLE");
   }
 
   if (!locals.user) {
-    throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+    raise(401, "Unauthorized", "UNAUTHORIZED");
   }
 
   const userIsAdmin = !!(locals.isAdmin || isAdmin(locals.user));
@@ -310,7 +325,7 @@ export async function handleApiKeyRoutes(
 
     const result = await auth!.listApiKeys(filter, { limit, skip });
     if (!result.success) {
-      throw new AppError(result.message || "Failed to list API keys", 500);
+      raise(500, result.message || "Failed to list API keys");
     }
 
     return rawResponse(event, {
@@ -322,7 +337,7 @@ export async function handleApiKeyRoutes(
 
   if (request.method === "POST" && !keyId) {
     if (!userIsAdmin && !locals.user._id) {
-      throw new AppError("Forbidden", 403, "FORBIDDEN");
+      raise(403, "Forbidden", "FORBIDDEN");
     }
 
     const body = await validateRequestBody(event, schema);
@@ -346,7 +361,7 @@ export async function handleApiKeyRoutes(
     );
 
     if (!createResult.success || !createResult.data) {
-      throw new AppError(createResult.message || "Failed to create API key", 500);
+      raise(500, createResult.message || "Failed to create API key");
     }
 
     return rawResponse(
@@ -366,20 +381,20 @@ export async function handleApiKeyRoutes(
   if (request.method === "DELETE" && keyId) {
     const existing = await auth!.getApiKeyById(keyId, dbOptions);
     if (!existing.success || !existing.data) {
-      throw new AppError("API key not found", 404, "NOT_FOUND");
+      raise(404, "API key not found", "NOT_FOUND");
     }
 
     if (!userIsAdmin && existing.data.userId !== locals.user._id) {
-      throw new AppError("Forbidden", 403, "FORBIDDEN");
+      raise(403, "Forbidden", "FORBIDDEN");
     }
 
     const result = await auth!.revokeApiKey(keyId, dbOptions);
     if (!result.success) {
-      throw new AppError(result.message || "Failed to revoke API key", 500);
+      raise(500, result.message || "Failed to revoke API key");
     }
 
     return successResponse(event, { revoked: true });
   }
 
-  throw new AppError(`Method ${request.method} not allowed for /api/api-keys`, 405);
+  raise(405, `Method ${request.method} not allowed for /api/api-keys`);
 }

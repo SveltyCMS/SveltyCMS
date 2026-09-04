@@ -15,7 +15,30 @@ import { safeParse, type GenericSchema, type InferOutput } from "valibot";
 
 const STATIC_JSON_HEADERS = { "content-type": "application/json" } as const;
 
-function buildJsonResponse(event: RequestEvent, data: any, status = 200): Response {
+/**
+ * Fast byte length calculator: avoids C++ Buffer.byteLength overhead
+ * for small ASCII JSON strings, while using SIMD-accelerated Buffer.byteLength
+ * for larger payloads (>= 1KB) to avoid JS loop overhead on huge data loads.
+ */
+function getFastByteLength(str: string): number {
+  const len = str.length;
+  if (len >= 1024) {
+    return Buffer.byteLength(str, "utf8");
+  }
+  for (let i = 0; i < len; i++) {
+    if (str.charCodeAt(i) > 127) {
+      return Buffer.byteLength(str, "utf8");
+    }
+  }
+  return len;
+}
+
+function buildJsonResponse(
+  event: RequestEvent,
+  data: any,
+  status = 200,
+  extraHeaders?: Record<string, string>,
+): Response {
   let serialized = "";
   if (typeof data === "string") {
     serialized = data;
@@ -37,30 +60,50 @@ function buildJsonResponse(event: RequestEvent, data: any, status = 200): Respon
     (event.locals as any).apiBody = serialized;
   }
 
+  const byteLen = getFastByteLength(serialized);
+  const headers: Record<string, string> = extraHeaders
+    ? {
+        ...STATIC_JSON_HEADERS,
+        "content-length": String(byteLen),
+        ...extraHeaders,
+      }
+    : {
+        ...STATIC_JSON_HEADERS,
+        "content-length": String(byteLen),
+      };
+
   return new Response(serialized, {
     status,
-    headers: {
-      ...STATIC_JSON_HEADERS,
-      // Lets handleCompression honor MIN_COMPRESSION_SIZE. Without this, Node
-      // fetch's Accept-Encoding: gzip compresses every tiny create/update body
-      // on the event loop (the 1 KiB threshold never fires).
-      "content-length": String(Buffer.byteLength(serialized)),
-    },
+    headers,
   });
 }
 
-export function successResponse(event: RequestEvent, result: any, status = 200) {
-  let body: any;
+export function successResponse(
+  event: RequestEvent,
+  result: any,
+  status = 200,
+  extraHeaders?: Record<string, string>,
+) {
   if (isDatabaseResult(result)) {
     if (!result.success) {
-      return buildJsonResponse(event, result, result.error?.statusCode || 400);
+      return buildJsonResponse(event, result, result.error?.statusCode || 400, extraHeaders);
     }
-    body = { success: true, data: result.data, meta: result.meta };
-  } else {
-    body = { success: true, data: result };
+    // Pre-serialized string fast path
+    if (typeof result.data === "string") {
+      return fastSuccessResponse(event, result.data, result.data, status, extraHeaders);
+    }
+    // 🚀 SINGLE-PASS V8 SERIALIZATION:
+    // Serializing the envelope in a single pass eliminates intermediate string allocation
+    // and concatenation overhead on large payloads (e.g. 100+ documents / 225KB+).
+    const body =
+      result.meta !== undefined
+        ? { success: true, data: result.data, meta: result.meta }
+        : { success: true, data: result.data };
+    return buildJsonResponse(event, body, status, extraHeaders);
   }
 
-  return buildJsonResponse(event, body, status);
+  const body = { success: true, data: result };
+  return buildJsonResponse(event, body, status, extraHeaders);
 }
 
 /**
@@ -72,6 +115,7 @@ export function fastSuccessResponse(
   serializedData: string,
   rawData?: any,
   status = 200,
+  extraHeaders?: Record<string, string>,
 ): Response {
   const serialized = `{"success":true,"data":${serializedData}}`;
   if (event?.locals) {
@@ -81,12 +125,21 @@ export function fastSuccessResponse(
     (event.locals as any).apiData = rawData;
     (event.locals as any).apiBody = serialized;
   }
+  const byteLen = getFastByteLength(serialized);
+  const headers: Record<string, string> = extraHeaders
+    ? {
+        ...STATIC_JSON_HEADERS,
+        "content-length": String(byteLen),
+        ...extraHeaders,
+      }
+    : {
+        ...STATIC_JSON_HEADERS,
+        "content-length": String(byteLen),
+      };
+
   return new Response(serialized, {
     status,
-    headers: {
-      ...STATIC_JSON_HEADERS,
-      "content-length": String(Buffer.byteLength(serialized)),
-    },
+    headers,
   });
 }
 

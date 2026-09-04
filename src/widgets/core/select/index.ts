@@ -34,6 +34,7 @@ const validationSchema = (field: FieldInstance & SelectProps) => {
 // Create the widget definition using the factory.
 const SelectWidget = createWidget<SelectProps>({
   Name: "Select",
+  version: "1.0.0",
   Icon: "mdi:form-select",
   Description: widget_radio_description(), // Reusing radio description for now
 

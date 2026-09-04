@@ -6,7 +6,7 @@ order: 31
 icon: "mdi:brain"
 author: "SveltyCMS Team"
 created: "2026-06-20"
-updated: "2026-06-20"
+updated: "2026-09-02"
 tags:
   - "ai"
   - "learning"
@@ -68,15 +68,14 @@ flowchart TD
 
 ## Design Principles
 
-| Principle                | Implementation                                                                             |
-| ------------------------ | ------------------------------------------------------------------------------------------ |
-| **Zero client overhead** | All tracking happens in `+layout.server.ts` — no browser JS, no cookies, no fingerprinting |
-| **Privacy-first**        | Tenant-scoped, no PII, data never leaves the server, no external analytics services        |
-| **Decay-weighted**       | Exponential decay with 24h half-life — recent activity counts more than stale data         |
-| **Sub-microsecond**      | In-memory `Map` operations only — no per-request I/O, no database queries                  |
-
-| **Self-pruning** | Scores below 0.01 are filtered out — dead entries don't accumulate |
-| **Survives restarts** | Auto-persisted to cache layer every 15 minutes, restored on startup |
+| Principle                | Implementation                                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| **Zero client overhead** | All tracking happens in `+layout.server.ts` — no browser JS, no cookies, no fingerprinting                              |
+| **Privacy-first**        | Tenant-scoped, no PII, data never leaves the server, no external analytics services                                     |
+| **Decay-weighted**       | Exponential decay with 24h half-life — recent activity counts more than stale data                                      |
+| **Sub-microsecond**      | In-memory `Map` operations only — no per-request I/O, no database queries                                               |
+| **Self-pruning**         | Score &lt; 0.01 dropped; caps: 5k collections, 20k entries, **10k transitions**/tenant, 1k tenants, 5k prediction-stats |
+| **Survives restarts**    | Auto-persisted to cache layer every 15 minutes, restored on startup                                                     |
 
 ---
 

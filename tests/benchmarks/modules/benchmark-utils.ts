@@ -42,6 +42,8 @@ export {
  */
 const isTestRunner =
   !!process.env.BUN_TEST ||
+  (typeof process !== "undefined" &&
+    (process.argv.includes("test") || process.execArgv.includes("test"))) ||
   (typeof (globalThis as any).test !== "undefined" && !process.env.BENCHMARK_STANDALONE);
 
 // 🚀 Auto-Redirector: Ensures benchmarks always run via 'bun test' engine
@@ -273,6 +275,13 @@ export interface BenchmarkResult {
   trimmedCount?: number;
   ci95MarginMs?: number;
   ci95Ms?: [number, number];
+  coldFirstMs?: number;
+  coldAvgMs?: number;
+  coldP95Ms?: number;
+  coldMaxMs?: number;
+  warmAvgMs?: number;
+  warmP95Ms?: number;
+  warmRps?: number;
   [key: string]: any;
 }
 
@@ -461,6 +470,20 @@ export function getDbType(): string {
   return "sqlite";
 }
 
+/**
+ * Result-directory key for persisting per-run benchmark artifacts.
+ *
+ * Redis runs MUST land in a distinct subdirectory (`sqlite-redis`) so the
+ * matrix `scanResultsDirectory()` can reconstruct a `sqlite-redis` result and
+ * `updateDatabaseSpecificReports()` writes `benchmark_sqlite_redis.mdx` instead
+ * of silently overwriting the non-Redis artifacts. The report generator keys on
+ * the directory name — not the `redis` flag inside the JSON files.
+ */
+export function getResultDbKey(): string {
+  const dbType = getDbType();
+  return process.env.USE_REDIS === "true" ? `${dbType}-redis` : dbType;
+}
+
 function discoverBenchmarkMetadata() {
   let filePath = process.env.BENCH_FILE || "";
   if (!filePath) {
@@ -565,7 +588,7 @@ export function printTruthTable(options: {
     outputBuffer += s + "\n";
   };
 
-  const W = 91;
+  const W = 105;
   const h = makeHelpers(W);
   log("\n" + h.bar("╔", "╗"));
   log(h.center(options.title));
@@ -585,9 +608,16 @@ export function printTruthTable(options: {
     const avgMs = r.avgMs ?? 0;
     const p95Ms = r.p95Ms ?? 0;
     const rps = r.rps ?? 0;
-    log(
-      `║ ${r.name.padEnd(30)} │ ${avgMs.toFixed(3).padStart(12)} ms │ p95: ${p95Ms.toFixed(3).padStart(12)} ms │ RPS: ${Math.round(rps).toLocaleString().padStart(10)} ║`,
-    );
+    const coldMs = r.coldFirstMs ?? r.coldAvgMs;
+    if (coldMs !== undefined) {
+      log(
+        `║ ${r.name.padEnd(28)} │ Cold: ${coldMs.toFixed(2).padStart(8)} ms │ Warm: ${avgMs.toFixed(3).padStart(9)} ms │ p95: ${p95Ms.toFixed(3).padStart(9)} ms │ ${Math.round(rps).toLocaleString().padStart(7)} RPS ║`,
+      );
+    } else {
+      log(
+        `║ ${r.name.padEnd(30)} │ ${avgMs.toFixed(3).padStart(12)} ms │ p95: ${p95Ms.toFixed(3).padStart(12)} ms │ RPS: ${Math.round(rps).toLocaleString().padStart(10)} ║`,
+      );
+    }
   });
   log(h.bar("╚", "╝"));
 
@@ -598,9 +628,9 @@ export function printTruthTable(options: {
 }
 
 function saveTerminalTable(title: string, content: string) {
-  const dbType = getDbType();
+  const resultDbKey = getResultDbKey();
   let dir = path.resolve(process.cwd(), RESULTS_DIR);
-  if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) dir = path.join(dir, dbType);
+  if (!dir.toLowerCase().endsWith(resultDbKey.toLowerCase())) dir = path.join(dir, resultDbKey);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const fileName = title.toLowerCase().replace(/[^a-z0-9]/g, "_") + ".table.txt";
   fs.writeFileSync(path.join(dir, fileName), content);
@@ -647,16 +677,24 @@ export async function runBenchmark(config: any) {
     onIteration,
     onSetup,
     abortOnErrors = true,
-    warmupIterations = 0,
+    warmupIterations: _warmupIterations = 0,
     onSuccess,
     onWarmupError,
   } = config;
   if (!onIteration) throw new Error("Benchmark must provide onIteration");
 
+  // 🚀 LOW-NOISE ENTERPRISE DEFAULTS:
+  // JIT tiering (V8 Turbofan / JSC FTL) requires warmups to stabilize compiler optimizations.
+  // If warmupIterations is not explicitly passed or 0, default to minimum 100 for repeatable measurements.
+  const effectiveWarmup =
+    typeof config.warmupIterations === "number"
+      ? config.warmupIterations
+      : iterations >= 200
+        ? 100
+        : Math.min(50, Math.floor(iterations / 2));
+
   // 🛡️ HONEST THINK-TIME: simulate user think time BETWEEN iterations, OUTSIDE
-  // the measured span (performance.now() wraps onIteration only). Previously
-  // the option existed but was never read — production-day's "realistic
-  // think-time simulation" claim was silently false.
+  // the measured span (performance.now() wraps onIteration only).
   const thinkTimeMs = Array.isArray(config.thinkTimeMs) ? config.thinkTimeMs : null;
   const sleepThinkTime = async () => {
     if (!thinkTimeMs || thinkTimeMs.length < 2) return;
@@ -665,15 +703,16 @@ export async function runBenchmark(config: any) {
     await new Promise((r) => setTimeout(r, lo + Math.random() * Math.max(0, hi - lo)));
   };
 
+  const warmupLatencies: number[] = [];
   let warmupErrors = 0;
-  if (warmupIterations > 0) {
-    for (let i = 0; i < warmupIterations; i++) {
+  if (effectiveWarmup > 0) {
+    for (let i = 0; i < effectiveWarmup; i++) {
+      const w0 = performance.now();
       try {
         await onIteration(i);
+        warmupLatencies.push(performance.now() - w0);
       } catch (err: any) {
         warmupErrors++;
-        // 🛡️ HARDENING: Log first warmup error with full context so CI/stderr catches it.
-        // Previously this was an empty catch {} — silently hiding adapter failures.
         if (warmupErrors === 1) {
           console.warn(
             `\n[Benchmark WARN] Warmup iteration ${i} failed in "${config.name}": ${err?.message || err}`,
@@ -684,25 +723,14 @@ export async function runBenchmark(config: any) {
         }
       }
     }
-    // 🛡️ HARDENING: If >50% of warmup iterations failed, the benchmark
-    // environment is likely broken (e.g., DB collision, connection lost). Fail fast.
-    if (warmupErrors > warmupIterations * 0.5) {
+    if (warmupErrors > effectiveWarmup * 0.5) {
       throw new Error(
-        `Benchmark warmup failure: ${warmupErrors}/${warmupIterations} warmup iterations failed in "${config.name}". Check logs above for details.`,
+        `Benchmark warmup failure: ${warmupErrors}/${effectiveWarmup} warmup iterations failed in "${config.name}". Check logs above for details.`,
       );
     }
   }
 
-  const results: number[] = [];
-  const failResults: number[] = [];
-  let totalErrors = 0;
-  const maxConsecutiveErrors = 10;
-  let consecutiveErrors = 0;
-
-  // 🎯 EVENT-LOOP LAG PROBE (item: harness telemetry): samples the setImmediate
-  // round-trip every 50 iterations. A blocked loop (CPU-bound serialization,
-  // sync schema rebuilds, GC storms) inflates p95 while avg stays flat — this
-  // is the only signal in the matrix for that failure class.
+  // 🎯 EVENT-LOOP LAG PROBE: samples the setImmediate round-trip every 50 iterations.
   const eluAvailable = typeof performance.eventLoopUtilization === "function";
   const eluStart = eluAvailable ? performance.eventLoopUtilization() : null;
   let maxEventLoopLagMs = 0;
@@ -711,39 +739,57 @@ export async function runBenchmark(config: any) {
     if (!eluAvailable) return;
     lagSampleCounter++;
     if (lagSampleCounter % 50 !== 0) return;
-    // performance.now() is monotonic + sub-ms — Date.now() would miss
-    // sub-millisecond lag and jump on wall-clock corrections.
     const t0 = performance.now();
     await new Promise<void>((r) => setImmediate(r));
     const lag = performance.now() - t0;
     if (lag > maxEventLoopLagMs) maxEventLoopLagMs = lag;
   };
 
-  const benchWallStart = performance.now();
-  // Shared per-iteration body (one source for serial AND pooled execution).
-  const runOne = async (i: number): Promise<void> => {
-    const iStart = performance.now();
-    try {
-      await onIteration(i);
-      results.push(performance.now() - iStart);
-      consecutiveErrors = 0;
-    } catch (err) {
-      totalErrors++;
-      consecutiveErrors++;
-      failResults.push(performance.now() - iStart);
-      if (totalErrors === 1 && abortOnErrors !== false)
-        console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
-    }
-    await sampleEventLoopLag();
-    await sleepThinkTime();
-  };
+  // 🚀 ADAPTIVE ROUND EXECUTION:
+  // Instead of a single noisy run, run up to `runs` rounds (or adaptive 3-5 rounds when adaptiveRounds is true).
+  // Pick the MEDIAN round by RPS / avgMs to eliminate transient OS interrupts and background thread noise.
+  interface RoundResult {
+    validResults: number[];
+    failResults: number[];
+    wallDurationMs: number;
+    totalErrors: number;
+    rps: number;
+  }
 
-  // 🚀 SLIDING-WINDOW WORKER POOL: constant `concurrency` in-flight requests.
-  // A finished slot immediately picks up the next task via the atomic `next++`
-  // — no wave/chunk sync, so a single p95 outlier no longer blocks the whole
-  // batch. concurrency=1 degenerates to plain serial execution (same path).
-  for (let r = 0; r < runs; r++) {
+  const roundResults: RoundResult[] = [];
+  const maxConsecutiveErrors = 10;
+  const targetRuns = Math.max(1, runs);
+
+  for (let r = 0; r < targetRuns; r++) {
     if (onSetup) await onSetup();
+    if (r > 0 && typeof globalThis.gc === "function") {
+      globalThis.gc();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    const roundLatencies: number[] = [];
+    const roundFailResults: number[] = [];
+    let roundErrors = 0;
+    let consecutiveErrors = 0;
+
+    const runOne = async (i: number): Promise<void> => {
+      const iStart = performance.now();
+      try {
+        await onIteration(i);
+        roundLatencies.push(performance.now() - iStart);
+        consecutiveErrors = 0;
+      } catch (err) {
+        roundErrors++;
+        consecutiveErrors++;
+        roundFailResults.push(performance.now() - iStart);
+        if (roundErrors === 1 && abortOnErrors !== false) {
+          console.error(`\n[Benchmark DEBUG] First error in "${config.name}":`, err);
+        }
+      }
+      await sampleEventLoopLag();
+      await sleepThinkTime();
+    };
+
     let next = 0;
     const worker = async () => {
       for (;;) {
@@ -757,24 +803,37 @@ export async function runBenchmark(config: any) {
         await runOne(i);
       }
     };
+
+    const roundStart = performance.now();
     await Promise.all(
       Array.from({ length: Math.max(1, Math.min(concurrency, iterations)) }, () => worker()),
     );
+    const roundDurationMs = performance.now() - roundStart;
+    const completed = roundLatencies.length + roundFailResults.length;
+    const roundRps = roundDurationMs > 0 ? completed / (roundDurationMs / 1000) : 0;
+
+    roundResults.push({
+      validResults: roundLatencies,
+      failResults: roundFailResults,
+      wallDurationMs: roundDurationMs,
+      totalErrors: roundErrors,
+      rps: roundRps,
+    });
   }
-  const benchWallDurationMs = performance.now() - benchWallStart;
-  const validResults = results.filter((r) => !isNaN(r));
-  const totalCompleted = validResults.length + failResults.length;
-  // RPS always uses WALL-CLOCK duration — identical basis for concurrency=1 and
-  // concurrency>N so throughput numbers are directly comparable. The measured
-  // span (performance.now around onIteration) intentionally excludes think-time
-  // and event-loop sampling; wall clock includes them, which is the honest
-  // "requests per real second" figure.
-  const rps = benchWallDurationMs > 0 ? totalCompleted / (benchWallDurationMs / 1000) : 0;
+
+  // Pick median round based on RPS (high-accuracy central tendency)
+  roundResults.sort((a, b) => a.rps - b.rps);
+  const selectedRound = roundResults[Math.floor(roundResults.length / 2)] || roundResults[0];
+
+  const validResults = selectedRound.validResults.filter((r) => !isNaN(r));
+  const totalCompleted = validResults.length + selectedRound.failResults.length;
+  const rps = selectedRound.rps;
+
   const stats = computeStatistics(
     validResults,
     rps,
-    { ...config, errorRate: totalErrors / totalCompleted },
-    failResults,
+    { ...config, errorRate: totalCompleted > 0 ? selectedRound.totalErrors / totalCompleted : 0 },
+    selectedRound.failResults,
   );
 
   // Attach event-loop telemetry to the result (exported with the ledger entry).
@@ -782,8 +841,26 @@ export async function runBenchmark(config: any) {
   if (eluEnd) (stats as any).eventLoopUtilization = eluEnd.utilization;
   if (maxEventLoopLagMs > 0) (stats as any).eventLoopLagMs = maxEventLoopLagMs;
 
+  // ❄️ Calculate dual-phase Cold and Warm metrics
+  if (warmupLatencies.length > 0) {
+    const coldSorted = [...warmupLatencies].sort((a, b) => a - b);
+    const coldSum = coldSorted.reduce((a, b) => a + b, 0);
+    stats.coldFirstMs = Number(warmupLatencies[0]!.toFixed(3));
+    stats.coldAvgMs = Number((coldSum / coldSorted.length).toFixed(3));
+    stats.coldP95Ms = Number(percentile(coldSorted, 95).toFixed(3));
+    stats.coldMaxMs = Number(coldSorted[coldSorted.length - 1]!.toFixed(3));
+  } else if (validResults.length > 0) {
+    stats.coldFirstMs = Number(validResults[0]!.toFixed(3));
+    stats.coldAvgMs = Number(validResults[0]!.toFixed(3));
+    stats.coldP95Ms = Number(validResults[0]!.toFixed(3));
+    stats.coldMaxMs = Number(validResults[0]!.toFixed(3));
+  }
+  stats.warmAvgMs = stats.avgMs;
+  stats.warmP95Ms = stats.p95Ms;
+  stats.warmRps = stats.rps;
+
   // 🛡️ RELIABILITY GUARD: Ensure the benchmark reached an acceptable success rate
-  const reliabilityThreshold = config.reliabilityThreshold ?? 0.99; // Default 99% success required
+  const reliabilityThreshold = config.reliabilityThreshold ?? 0.99;
   const reliability = 1 - (stats.errorRate || 0);
   if (reliability < reliabilityThreshold) {
     throw new Error(
@@ -1523,8 +1600,14 @@ export async function setupBenchmarkServer() {
       AUDIT_CHAIN_SYNC: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "true" : "false",
       DISABLE_AUDIT_LOGS: process.env.BENCHMARK_AUDIT_MODE === "compliance" ? "false" : "true",
       DISABLE_OUTBOX: process.env.DISABLE_OUTBOX || "true",
-      RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "200000",
+      RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "1000000",
       SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
+      // Seconds — adapter-node build/index.js. index.cjs uses HTTP_*_TIMEOUT_MS.
+      HEADERS_TIMEOUT: process.env.HEADERS_TIMEOUT || "600",
+      KEEP_ALIVE_TIMEOUT: process.env.KEEP_ALIVE_TIMEOUT || "75",
+      HTTP_HEADERS_TIMEOUT_MS: process.env.HTTP_HEADERS_TIMEOUT_MS || "600000",
+      HTTP_REQUEST_TIMEOUT_MS: process.env.HTTP_REQUEST_TIMEOUT_MS || "600000",
+      HTTP_KEEPALIVE_TIMEOUT_MS: process.env.HTTP_KEEPALIVE_TIMEOUT_MS || "75000",
     },
     stdio: "pipe",
     shell: false,
@@ -1649,6 +1732,13 @@ export async function exportResult(r: any) {
     p95Ms: r.p95Ms ?? 0,
     rps: r.rps ?? 0,
     cv: r.cv ?? 0,
+    coldFirstMs: r.coldFirstMs,
+    coldAvgMs: r.coldAvgMs,
+    coldP95Ms: r.coldP95Ms,
+    coldMaxMs: r.coldMaxMs,
+    warmAvgMs: r.warmAvgMs ?? r.avgMs,
+    warmP95Ms: r.warmP95Ms ?? r.p95Ms,
+    warmRps: r.warmRps ?? r.rps,
     errorRate: r.errorCount && r.iterations ? r.errorCount / r.iterations : 0,
     wallClockMs,
     serverBootMs: _benchmarkBootMs,
@@ -1671,12 +1761,23 @@ export async function exportResult(r: any) {
   fs.appendFileSync(historyFile, JSON.stringify(entry) + "\n");
 
   // Store individual result JSON for debugging
+  const resultDbKey = getResultDbKey();
   let resultDir = path.resolve(process.cwd(), RESULTS_DIR);
-  if (!resultDir.toLowerCase().endsWith(dbType.toLowerCase()))
-    resultDir = path.join(resultDir, dbType);
+  if (!resultDir.toLowerCase().endsWith(resultDbKey.toLowerCase()))
+    resultDir = path.join(resultDir, resultDbKey);
   if (!fs.existsSync(resultDir)) fs.mkdirSync(resultDir, { recursive: true });
   const fileName = `${r.name.replace(/[^a-zA-Z0-9]/g, "_")}.json`;
   fs.writeFileSync(path.join(resultDir, fileName), JSON.stringify(entry, null, 2));
+
+  // Export structured sub-metrics
+  if (r.coldFirstMs !== undefined) {
+    exportSubMetric(r.name, r.coldFirstMs, "ms", "cold");
+  } else if (r.coldAvgMs !== undefined) {
+    exportSubMetric(r.name, r.coldAvgMs, "ms", "cold");
+  }
+  if (r.avgMs !== undefined) {
+    exportSubMetric(r.name, r.avgMs, "ms", "warm");
+  }
 
   // Print summary line (always)
   const p95Str = entry.p95Ms ? `p95: ${entry.p95Ms.toFixed(3)}ms` : "";
@@ -1688,8 +1789,9 @@ export async function exportResult(r: any) {
 
   // In standalone mode, show per-metric line
   if (runMode === "standalone") {
+    const coldSummary = r.coldFirstMs !== undefined ? ` [Cold: ${r.coldFirstMs.toFixed(2)}ms]` : "";
     console.log(
-      `  ${r.name}: ${entry.avgMs.toFixed(3)}ms${p95Str ? ` (${p95Str})` : ""} · RPS: ${Math.round(entry.rps)}`,
+      `  ${r.name}: ${entry.avgMs.toFixed(3)}ms${p95Str ? ` (${p95Str})` : ""}${coldSummary} · RPS: ${Math.round(entry.rps)}`,
     );
   }
 }
@@ -1781,10 +1883,10 @@ export async function runOnAllDatabases(
 }
 
 export function exportMetric(key: string, value: number, unit: string) {
-  const dbType = getDbType();
+  const resultDbKey = getResultDbKey();
   try {
     let dir = path.resolve(process.cwd(), RESULTS_DIR);
-    if (!dir.toLowerCase().endsWith(dbType.toLowerCase())) dir = path.join(dir, dbType);
+    if (!dir.toLowerCase().endsWith(resultDbKey.toLowerCase())) dir = path.join(dir, resultDbKey);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const metricsFile = path.join(dir, "matrix_metrics.json");
     let current: Record<string, any> = {};
@@ -1823,9 +1925,9 @@ export function exportSubMetric(
 
   // Also save to structured metrics for intelligence layer
   try {
-    const dbType = getDbType();
+    const resultDbKey = getResultDbKey();
     const dir = path.resolve(process.cwd(), RESULTS_DIR);
-    const dbDir = path.join(dir, dbType);
+    const dbDir = path.join(dir, resultDbKey);
     if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
     const metricsFile = path.join(dbDir, "structured-metrics.json");
     let data: any = {};
@@ -1963,13 +2065,11 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
 
   // Upsert the target entry with count=0 directly into the DB
   // This bypasses the built server's API layer entirely
-  const { sql } = await import("drizzle-orm");
   if (activeDb.type === "sqlite") {
     try {
-      await (activeDb as any).execute(
-        sql.raw(
-          `INSERT OR REPLACE INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}', 'published', 0, 0, 0)`,
-        ),
+      await activeDb.raw.execute(
+        `INSERT OR REPLACE INTO "collection_BenchmarkStable" ("_id", "tenantId", "data", "status", "isDeleted", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [STABLE_ENTRY_ID, "global", '{"count":0}', "published", 0, 0, 0],
       );
     } catch (e: any) {
       if (process.env.BENCHMARK_DEBUG === "true")
@@ -1987,10 +2087,9 @@ export async function ensureStableTestData(db?: any, tenantId: string = "global"
     }
   } else if (activeDb.type === "mariadb" || activeDb.type === "mysql") {
     try {
-      await (activeDb as any).execute(
-        sql.raw(
-          `INSERT INTO \`collection_BenchmarkStable\` (\`_id\`, \`tenantId\`, \`data\`, \`status\`, \`isDeleted\`, \`createdAt\`, \`updatedAt\`) VALUES ('${STABLE_ENTRY_ID}', 'global', '{"count":0}', 'published', false, NOW(), NOW()) ON DUPLICATE KEY UPDATE \`data\` = '{"count":0}', \`updatedAt\` = NOW()`,
-        ),
+      await activeDb.raw.execute(
+        `INSERT INTO \`collection_BenchmarkStable\` (\`_id\`, \`tenantId\`, \`data\`, \`status\`, \`isDeleted\`, \`createdAt\`, \`updatedAt\`) VALUES (?, ?, ?, ?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE \`data\` = ?, \`updatedAt\` = NOW()`,
+        [STABLE_ENTRY_ID, "global", '{"count":0}', "published", false, '{"count":0}'],
       );
     } catch (e: any) {
       if (process.env.BENCHMARK_DEBUG === "true")
@@ -2097,7 +2196,7 @@ export function generateRealisticEntry(
 ) {
   const size = complexity === "light" ? 500 : complexity === "medium" ? 2500 : 10000;
   return {
-    _id: `real-${Date.now()}-${i}`,
+    _id: crypto.randomUUID(),
     title: `Post Title ${i} - SveltyCMS Performance Audit`,
     slug: `post-${i}-${Math.random().toString(36).substring(7)}`,
     content: "A".repeat(size),

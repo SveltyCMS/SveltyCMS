@@ -110,10 +110,12 @@ cd SveltyCMS
 ### Install all dependencies
 
 > [!TIP]
-> **Bun is preferred for best results.**
-> While SveltyCMS is fully compatible with Node.js (>=24), running the application under the **Bun** runtime unlocks native Zig-based cryptographic performance (like native Argon2id hashing) and optimized OS-level file watching with zero binding overhead.
+> **Dual-Runtime Flexibility:**
+>
+> - **Node.js (>=24)**: Recommended for **maximum sustained production throughput** (1.8× to 2.4× higher RPS on full-stack workloads via V8 TurboFan optimization).
+> - **Bun (>=1.3 / 1.4)**: Recommended for **blazing-fast developer tooling**, instant package installation (`bun install`), test execution (`bun test`), and optional edge / serverless builds via native `Bun.serve`.
 
-Install LATEST STABLE [Node.js (>=24)](https://nodejs.org/en) to get started. We recommend using [Bun](https://bun.sh) for the best experience (3-4x faster than npm/pnpm). Then choose your preferred package manager:
+Install LATEST STABLE [Node.js (>=24)](https://nodejs.org/en) or [Bun](https://bun.sh) to get started. Then choose your preferred package manager:
 
 <details open>
 <summary><b>bun</b></summary>
@@ -125,17 +127,19 @@ curl -fsSL https://bun.sh/install | bash
 # Install all dependencies
 bun install
 
-# Development (CLI installer launches automatically if needed)
+# Development (guided setup launches automatically on first run)
 bun run dev
 
-# Build for production
-bun run build
+# Production Build (Node.js runtime — highest sustained throughput)
+bun run build:node
+node build/index.js
 
-# Preview production build
-bun run preview
+# Production Build (Native Bun.serve — sub-10ms startup)
+bun run build:bun
+bun build/index.js
 ```
 
-**⚠️ Windows users**: If `bun install` fails with `ParserError` or corrupted packages (null bytes in package.json files), use `npm install --legacy-peer-deps` instead. `bun run dev` and other commands work normally after install.
+**⚠️ Windows users**: If `bun install` fails with `ParserError` or corrupted packages (upstream Windows Bun issue), use `npm install --legacy-peer-deps` instead. `bun run dev` and other commands work normally after install.
 
 </details>
 

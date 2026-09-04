@@ -83,6 +83,12 @@ SveltyCMS uses a two-algorithm approach for maximum security:
 - ⚡ **Hardware-accelerated** - Modern CPUs have AES-NI instructions
 - 🌍 **Industry standard** - NIST approved, widely audited
 
+**Field-level encryption at rest (September 2026):** collection fields flagged
+`encrypt: true` are encrypted in `write-pipeline.ts` and decrypted in
+`read-pipeline.ts` using a `v1:iv:tag:ciphertext` AES-256-GCM envelope bound
+with AAD (`tenantId:collectionId:fieldName`). See
+[Field-Level Encryption](../security/field-level-encryption.mdx).
+
 **Configuration:**
 
 ```

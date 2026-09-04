@@ -112,6 +112,7 @@ const validationSchema = (field: any) => {
 // Create the widget definition using the factory.
 const SeoWidget = createWidget({
   Name: "SEO",
+  version: "1.0.0",
   Icon: "tabler:seo",
   Description: widget_seo_description(),
   inputComponentPath: "/src/widgets/custom/Seo/input.svelte",

@@ -5,7 +5,7 @@
 import { AppError, getErrorMessage, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
-import { verifyPassword } from "@utils/security/crypto";
+import { verifyPassword, verifyDummyPassword } from "@utils/security/crypto";
 import { isMultiTenantEnabled, withTenant } from "@utils/tenant";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { getAllPermissions, invalidatePermissionCache } from "@src/databases/auth/permissions";
@@ -58,6 +58,8 @@ interface UserOptions extends LocalApiOptions {
   search?: string;
   sort?: string;
   order?: "asc" | "desc";
+  /** Extra equality filters merged over tenantId (e.g. role/blocked from the admin user table). */
+  filter?: Record<string, unknown>;
 }
 
 interface UserUpdateOptions extends LocalApiOptions {
@@ -121,6 +123,9 @@ export class AuthNamespace {
 
       const filter: Record<string, any> = {};
       if (tenantId) filter.tenantId = tenantId as DatabaseId;
+      if (options.filter && typeof options.filter === "object") {
+        Object.assign(filter, options.filter);
+      }
       if (search) {
         filter.$or = [
           { email: { $regex: search, $options: "i" } },
@@ -356,6 +361,9 @@ export class AuthNamespace {
 
       const result = await auth.getUserByEmail(userLookup);
       if (!result.success || !result.data) {
+        // 🛡️ TIMING DEFENSE (CWE-208): verify against dummy Argon2id hash so response
+        // latency matches valid-user verification, neutralizing email enumeration.
+        await verifyDummyPassword(password || "dummy-password");
         logger.debug("Login failed: User not found", { userLookup });
         throw new AppError("Invalid credentials", 401);
       }
@@ -576,6 +584,12 @@ export class AuthNamespace {
       const existingRoleIds = new Set(existingRoles.map((r) => r._id));
       const incomingRoleIds = new Set(roles.map((r: Role) => r._id));
 
+      const actor = {
+        id: (user?._id as DatabaseId) ?? null,
+        email: user?.email ?? "system",
+        role: user?.role,
+      };
+
       await withTenant(
         tenantId as DatabaseId | null,
         async () => {
@@ -584,6 +598,20 @@ export class AuthNamespace {
               await auth.deleteRole(existingRole._id as DatabaseId, {
                 tenantId: tenantId as DatabaseId,
               });
+              auditLogService
+                .log(
+                  `Role deleted: ${existingRole.name || existingRole._id}`,
+                  actor,
+                  { type: "role", id: existingRole._id as DatabaseId },
+                  AuditEventType.ROLE_DELETED,
+                  "high",
+                  {
+                    roleName: existingRole.name,
+                    permissionsCount: existingRole.permissions?.length ?? 0,
+                  },
+                  tenantId as DatabaseId | null,
+                )
+                .catch(() => {});
             }
           }
 
@@ -610,8 +638,38 @@ export class AuthNamespace {
               await auth.updateRole(role._id as DatabaseId, roleData, {
                 tenantId: tenantId as DatabaseId,
               });
+              auditLogService
+                .log(
+                  `Role updated: ${roleData.name || roleData._id}`,
+                  actor,
+                  { type: "role", id: roleData._id as DatabaseId },
+                  AuditEventType.ROLE_MUTATED,
+                  "medium",
+                  {
+                    roleName: roleData.name,
+                    permissionsCount: roleData.permissions?.length ?? 0,
+                    operation: "update",
+                  },
+                  tenantId as DatabaseId | null,
+                )
+                .catch(() => {});
             } else {
               await auth.createRole(roleData);
+              auditLogService
+                .log(
+                  `Role created: ${roleData.name || roleData._id}`,
+                  actor,
+                  { type: "role", id: roleData._id as DatabaseId },
+                  AuditEventType.ROLE_MUTATED,
+                  "medium",
+                  {
+                    roleName: roleData.name,
+                    permissionsCount: roleData.permissions?.length ?? 0,
+                    operation: "create",
+                  },
+                  tenantId as DatabaseId | null,
+                )
+                .catch(() => {});
             }
           }
         },
@@ -952,6 +1010,50 @@ export class TokensNamespace {
     );
   }
 
+  async deleteMany(tokenIds: string[], options: LocalApiOptions = {}) {
+    const { tenantId } = options;
+    if (!tokenIds || tokenIds.length === 0) {
+      return {
+        success: true,
+        data: { deletedCount: 0 },
+        message: "No tokens provided",
+      } as DatabaseResult<any>;
+    }
+    return withTenant(
+      tenantId ?? null,
+      async () => {
+        const tokenResults = await Promise.all(
+          tokenIds.map((id) => this.findToken(id, tenantId as DatabaseId)),
+        );
+        const resolvedIds: DatabaseId[] = [];
+        for (const res of tokenResults) {
+          if (res.success && res.data?._id) {
+            resolvedIds.push(res.data._id as DatabaseId);
+          }
+        }
+
+        if (resolvedIds.length === 0) {
+          return {
+            success: true,
+            data: { deletedCount: 0 },
+            message: "No tokens found",
+          } as DatabaseResult<any>;
+        }
+
+        const deleteRes = await this._dbAdapter.auth.deleteTokens(resolvedIds, {
+          tenantId: tenantId as DatabaseId,
+        });
+        if (!deleteRes.success) return deleteRes;
+        return {
+          success: true,
+          data: deleteRes.data,
+          message: `${deleteRes.data?.deletedCount ?? resolvedIds.length} tokens deleted`,
+        } as DatabaseResult<any>;
+      },
+      { collection: "tokens" },
+    );
+  }
+
   async block(tokenIds: string[], options: LocalApiOptions = {}) {
     const { tenantId } = options;
     return withTenant(
@@ -991,12 +1093,7 @@ export class TokensNamespace {
   }
 
   async batchAction(tokenIds: string[], action: string, tenantId?: DatabaseId) {
-    if (action === "delete") {
-      for (const id of tokenIds) {
-        await this.delete(id, { tenantId });
-      }
-      return { success: true, data: { deletedCount: tokenIds.length } };
-    }
+    if (action === "delete") return this.deleteMany(tokenIds, { tenantId });
     if (action === "block") return this.block(tokenIds, { tenantId });
     if (action === "unblock") return this.unblock(tokenIds, { tenantId });
     throw new AppError(`Unknown batch action: ${action}`, 400);

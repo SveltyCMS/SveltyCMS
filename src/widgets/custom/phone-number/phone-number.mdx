@@ -57,18 +57,20 @@ widgets.PhoneNumber({
   db_fieldName: "office_phone",
   pattern: "^\\+49\\d{10}$", // Enforce German format
   placeholder: "+491234567890",
+  encrypt: true,
 });
 ```
 
 ## ⚙️ Configuration
 
-| Option        | Type      | Default       | Description                     |
-| ------------- | --------- | ------------- | ------------------------------- |
-| `label`       | `string`  | -             | Field display label (Required)  |
-| `required`    | `boolean` | `false`       | Whether the field is mandatory  |
-| `pattern`     | `string`  | E.164 Regex   | Custom regex validation pattern |
-| `placeholder` | `string`  | `+1234567890` | Input placeholder text          |
-| `icon`        | `string`  | -             | Iconify icon name               |
+| Option        | Type      | Default       | Description                          |
+| ------------- | --------- | ------------- | ------------------------------------ |
+| `label`       | `string`  | -             | Field display label (Required)       |
+| `required`    | `boolean` | `false`       | Whether the field is mandatory       |
+| `pattern`     | `string`  | E.164 Regex   | Custom regex validation pattern      |
+| `placeholder` | `string`  | `+1234567890` | Input placeholder text               |
+| `icon`        | `string`  | -             | Iconify icon name                    |
+| `encrypt`     | `boolean` | `false`       | Store AES-256-GCM ciphertext at rest |
 
 ## ♿ Accessibility
 

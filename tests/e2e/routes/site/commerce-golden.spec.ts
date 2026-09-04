@@ -17,10 +17,11 @@ const RUN_STAMP = Date.now().toString(36);
 const PRODUCT_TITLE = "E2E Golden Sneaker";
 const PRODUCT_SKU = "E2E-GOLD-001";
 const PRODUCT_PRICE = "49.00";
-// In TEST_MODE every request carries x-test-worker-index and handleAuthentication
-// forces locals.tenantId to `test-worker-<index>` — the commerce plugin state,
-// collection schema AND product rows must all live under that same tenant.
-const TEST_TENANT = `test-worker-${process.env.TEST_WORKER_INDEX || "0"}`;
+// `x-test-worker-index` gives the request DB-worker isolation, but the E2E
+// harness runs MULTI_TENANT=false, so `requireCommerceTenantId` resolves the
+// guest (and the testing API) tenant to `global`. Seed plugin state + product
+// rows under that same tenant or the /shop and /cart reads find nothing.
+const COMMERCE_TENANT = "global";
 
 /** Post an /api/testing action; fail hard on non-OK or unsuccessful bodies. */
 async function postTesting(
@@ -29,7 +30,7 @@ async function postTesting(
   data: Record<string, unknown> = {},
 ) {
   const res = await request.post("/api/testing", {
-    headers: TEST_API_HEADERS,
+    headers: { ...TEST_API_HEADERS, "x-test-tenant-id": COMMERCE_TENANT },
     data: { action, ...data },
   });
   const text = await res.text();
@@ -117,7 +118,7 @@ test.describe("Guest commerce golden journey", () => {
       `create-collection carts: ${JSON.stringify(cartCol).slice(0, 300)}`,
     ).toBe(true);
 
-    // 3. One published product under the test worker's tenant.
+    // 3. One published product under the commerce (global) tenant.
     const insert = await postTesting(request, "insert", {
       collectionId: "products",
       data: {
@@ -130,7 +131,7 @@ test.describe("Guest commerce golden journey", () => {
         lowStockThreshold: 5,
         tags: ["featured"],
         status: "publish",
-        tenantId: TEST_TENANT,
+        tenantId: COMMERCE_TENANT,
       },
     });
     expect(insert.success, `insert product: ${JSON.stringify(insert).slice(0, 300)}`).toBe(true);
@@ -164,6 +165,7 @@ test.describe("Guest commerce golden journey", () => {
     await addBtn.click();
     const res = await cartRes;
     expect(res.ok(), `POST /api/commerce/cart status=${res.status()}`).toBeTruthy();
+    await expect(page.getByRole("status")).toContainText(/added to cart/i, { timeout: 15_000 });
 
     await page.goto("/cart", { waitUntil: "domcontentloaded" });
     await dismissCookieBannerIfPresent(page);

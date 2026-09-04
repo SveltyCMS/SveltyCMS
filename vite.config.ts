@@ -8,7 +8,15 @@ import { existsSync, readFileSync, readdirSync, promises as fsPromises } from "n
 import { builtinModules } from "node:module";
 import { platform } from "node:os";
 import path from "node:path";
-import adapter from "@sveltejs/adapter-node";
+import nodeAdapter from "@sveltejs/adapter-node";
+import bunAdapter from "svelte-adapter-bun";
+
+// Dual-Adapter (Robert 09-02): process.env.ADAPTER waehlt den Build-Adapter.
+//   ADAPTER=node (default) -> @sveltejs/adapter-node (Node/Passenger/Plesk)
+//   ADAPTER=bun          -> svelte-adapter-bun (Bun.serve, fuer bun build/index.js)
+// Der Competitive-Benchmark (benchmark-repo) baut beide Varianten (ARG ADAPTER)
+// und misst sie unter node vs bun (RUNTIME).
+const adapter = process.env.ADAPTER === "bun" ? bunAdapter : nodeAdapter;
 
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
@@ -327,23 +335,46 @@ function databaseAdapterStripperPlugin(): Plugin {
     sqlite: ["mongodb", "mariadb", "postgresql"],
   };
   const toStrip = map[activeDbType] || [];
-  const toStripPatterns = toStrip.map((db) => `/databases/${db}/`);
+  const adapterEntryFiles: Record<string, string> = {
+    sqlite: "sqlite/sqlite-adapter",
+    postgresql: "postgresql/postgres-adapter",
+    mariadb: "mariadb/mariadb-adapter",
+    mongodb: "mongodb/mongo-db-adapter",
+  };
+  const adapterClassNames: Record<string, string> = {
+    sqlite: "SQLiteAdapter",
+    postgresql: "PostgreSQLAdapter",
+    mariadb: "MariaDBAdapter",
+    mongodb: "MongoDBAdapter",
+  };
 
   return {
     name: "database-adapter-stripper",
     enforce: "pre",
     async resolveId(id, _importer, options) {
-      // Only strip from client builds — SSR needs real adapter exports
-      if (options?.ssr) return null;
       const resolved = await this.resolve(id, undefined, { ...options, skipSelf: true });
       const nid = (resolved?.id || id).replace(/\\/g, "/");
-      for (let i = 0; i < toStripPatterns.length; i++) {
-        if (nid.includes(toStripPatterns[i])) return "\0virtual:db-stub";
+      for (let i = 0; i < toStrip.length; i++) {
+        const dbName = toStrip[i];
+        const entryPattern = adapterEntryFiles[dbName];
+        if (
+          (options?.ssr && entryPattern && nid.includes(entryPattern)) ||
+          (!options?.ssr && nid.includes(`/databases/${dbName}/`))
+        ) {
+          return `\0virtual:db-stub:${dbName}`;
+        }
       }
       return null;
     },
     load(id) {
-      if (id === "\0virtual:db-stub") return { code: "export default{};", map: null };
+      if (id.startsWith("\0virtual:db-stub")) {
+        const dbName = id.split(":")[2] || "unknown";
+        const className = adapterClassNames[dbName] || "DatabaseAdapter";
+        return {
+          code: `export class ${className} { constructor() { throw new Error("Adapter '${dbName}' was stripped in this single-DB production build. Set COMPILE_ALL_ADAPTERS=true or configure DB_TYPE to build with this engine."); } } export default {};`,
+          map: null,
+        };
+      }
       return null;
     },
   };
@@ -792,6 +823,21 @@ function adapterNodeBuildPatchPlugin(): Plugin {
             }
           }
         }
+
+        // Patch svelte-adapter-bun handler if present (WS handler made optional)
+        const bunHandlerPath = path.resolve(CWD, "build/handler.js");
+        if (existsSync(bunHandlerPath)) {
+          let code = readFileSync(bunHandlerPath, "utf8");
+          const wsPattern = /(?:const|var)\s+websocket\s*=\s*server\.websocket\(\);/;
+          if (wsPattern.test(code)) {
+            code = code.replace(
+              wsPattern,
+              "const websocket = typeof server.websocket === 'function' ? server.websocket() : null;",
+            );
+            await fsPromises.writeFile(bunHandlerPath, code);
+            log.info(`patched svelte-adapter-bun handler (${path.relative(CWD, bunHandlerPath)})`);
+          }
+        }
       },
     },
   };
@@ -1101,6 +1147,10 @@ export default defineConfig(() => {
       checks: { pluginTimings: false },
       rollupOptions: {
         external: SERVER_EXTERNALS,
+        treeshake: {
+          moduleSideEffects: "no-external" as const,
+          propertyReadSideEffects: false as const,
+        },
         output: {
           // Force the plugin catalog (registration loop) into a shared shell chunk
           // for the SSR build. NOTE: SvelteKit's CLIENT environment sets its own

@@ -199,6 +199,10 @@ async function ensureFullMiddleware() {
   handleSystemState = state.handleSystemState;
   handleTestIsolation = isolation.handleTestIsolation;
 
+  if (typeof auth.prewarmAuthenticationHotPaths === "function") {
+    auth.prewarmAuthenticationHotPaths();
+  }
+
   fullMiddlewareInitialized = true;
   // 🛡️ Invalidate any pipeline cached before the real handlers were loaded:
   // a first request racing the async module load would otherwise be served
@@ -342,13 +346,59 @@ if (!building) {
           logger.debug("[System] Lazy write-path modules pre-warmed");
         }
 
-        // 🚀 Pre-build both cached middleware pipelines so the first request
-        // skips the sequence() assembly (and any remaining ensureFullMiddleware
-        // await). Safe: getPipeline guards fullMiddlewareInitialized internally.
+        // 🚀 Pre-build and JIT-warm all cached middleware pipelines so the first request
+        // skips the sequence() assembly, module loading and V8 JIT warm-up stalls.
+        // Safe: getPipeline guards fullMiddlewareInitialized internally.
         try {
-          await getPipeline(RequestLane.API_READ);
-          await getPipeline(RequestLane.APP_SSR);
-          logger.debug("[System] Middleware pipelines pre-built");
+          const [pRead, pWrite, pSSR] = await Promise.all([
+            getPipeline(RequestLane.API_READ),
+            getPipeline(RequestLane.API_WRITE),
+            getPipeline(RequestLane.APP_SSR),
+          ]);
+
+          // Synthetic warmup request to prime V8 / JSC compilation & closures
+          const dummyUrl = new URL("http://localhost/api/system/health");
+          const dummyEvent = {
+            url: dummyUrl,
+            request: new Request(dummyUrl, {
+              headers: { "x-internal-warmup": "1" },
+            }),
+            locals: { lane: RequestLane.API_READ, tenantId: "global" } as any,
+            cookies: { get: () => undefined, set: () => {}, delete: () => {} } as any,
+            params: {},
+            route: { id: "/api/system/health" },
+            isDataRequest: false,
+            isSubRequest: false,
+            platform: undefined,
+            fetch: globalThis.fetch,
+            getClientAddress: () => "127.0.0.1",
+            setHeaders: () => {},
+          } as unknown as import("@sveltejs/kit").RequestEvent;
+
+          void Promise.allSettled([
+            pRead({ event: dummyEvent, resolve: async () => new Response("ok") }),
+            pWrite({
+              event: {
+                ...dummyEvent,
+                request: new Request(dummyUrl, {
+                  method: "POST",
+                  headers: { "x-internal-warmup": "1" },
+                }),
+                locals: { lane: RequestLane.API_WRITE, tenantId: "global" } as any,
+              } as any,
+              resolve: async () => new Response("ok"),
+            }),
+            pSSR({
+              event: {
+                ...dummyEvent,
+                url: new URL("http://localhost/"),
+                locals: { lane: RequestLane.APP_SSR, tenantId: "global" } as any,
+              } as any,
+              resolve: async () => new Response("ok"),
+            }),
+          ]);
+
+          logger.debug("[System] Middleware pipelines pre-built and JIT-warmed");
         } catch (err) {
           logger.warn("[System] Pipeline pre-build failed (non-fatal):", err);
         }
@@ -913,6 +963,16 @@ export const handleError: HandleServerError = async (input) => {
     status,
     stack: error instanceof Error ? error.stack : undefined,
   });
+
+  const isDevOrTest =
+    process.env.TEST_MODE === "true" ||
+    process.env.PLAYWRIGHT_TEST === "true" ||
+    process.env.NODE_ENV !== "production";
+
+  return {
+    message: isDevOrTest ? message || "Internal Error" : "Internal Error",
+    code,
+  };
 };
 
 // --- Utility Functions for External Use ---

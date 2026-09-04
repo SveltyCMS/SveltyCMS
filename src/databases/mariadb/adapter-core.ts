@@ -66,6 +66,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
   private _db: MySql2Database<typeof schema> | null = null;
   public activeDatabaseName: string = "unknown";
   private _transactionModule?: import("./transaction-module").TransactionModule;
+  private _mariaSelectColsCache = new WeakMap<
+    object,
+    { withData?: string; withoutData?: string }
+  >();
 
   // --------------------------------------------------------------------------
   // Abstract hook implementations
@@ -148,9 +152,19 @@ export abstract class AdapterCore extends SqlAdapterCore {
             return false;
           return !this.getColumn(table, String(f));
         });
-      const selectCols = this.getRawFindByIdCols(table, wantsData)
-        .map((c) => `\`${c}\``)
-        .join(", ");
+      let entry = this._mariaSelectColsCache.get(table);
+      let selectCols = wantsData ? entry?.withData : entry?.withoutData;
+      if (!selectCols) {
+        selectCols = this.getRawFindByIdCols(table, wantsData)
+          .map((c) => `\`${c}\``)
+          .join(", ");
+        if (!entry) {
+          entry = {};
+          this._mariaSelectColsCache.set(table, entry);
+        }
+        if (wantsData) entry.withData = selectCols;
+        else entry.withoutData = selectCols;
+      }
       // Defense-in-depth: tableName derives from getTable (already allow-listed),
       // but assert again at the raw-SQL site so the invariant is local.
       const rawSql = `SELECT ${selectCols} FROM \`${utils.assertSafeSqlIdentifier(
@@ -304,12 +318,12 @@ export abstract class AdapterCore extends SqlAdapterCore {
       let poolConfig: any;
 
       if (typeof finalConnection === "string") {
+        const hw = getHardwareProfile();
         poolConfig = {
           uri: finalConnection,
-          connectionLimit:
-            Number(process.env.DATABASE_MAX_CONNECTIONS) || getHardwareProfile().dbPoolSize,
+          connectionLimit: Number(process.env.DATABASE_MAX_CONNECTIONS) || hw.dbPoolSize,
           connectTimeout: 30000,
-          maxIdle: 10,
+          maxIdle: Math.max(hw.dbPoolMin, 2),
           idleTimeout: 60000,
           charset: "utf8mb4",
         };
@@ -326,7 +340,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
             getHardwareProfile().dbPoolSize,
           connectTimeout: 30000,
           waitForConnections: true,
-          maxIdle: 10,
+          maxIdle: Math.max(getHardwareProfile().dbPoolMin, 2),
           idleTimeout: 60000,
           queueLimit: 0,
           enableKeepAlive: true,
@@ -1370,8 +1384,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
   // --------------------------------------------------------------------------
 
   public async createModel(schemaData: any, force = false): Promise<void> {
-    const tableName = schemaData._id || schemaData.id;
-    if (!tableName) throw new Error("Schema must have an _id");
+    const tableName = schemaData._id || schemaData.id || schemaData.name || schemaData.slug;
+    if (!tableName) throw new Error("Schema must have an _id or name");
 
     const normalizedName = tableName.replace(/-/g, "");
 

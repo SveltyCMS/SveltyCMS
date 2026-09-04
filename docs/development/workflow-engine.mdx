@@ -58,11 +58,67 @@ Once active, the workflow replaces the standard "Publish" dropdown in the entry 
 
 ## 🔒 Governance & Security
 
-### Role-Based Transitions
+### Multi-Stage Review Pipeline
 
-Restrict who can trigger specific transitions.
+SveltyCMS supports non-binary editorial review pipelines beyond standard draft/published toggles:
 
-- **Example**: Only users with the `Legal` role can transition content from `Legal Review` to `Ready for Publish`.
+```
+[Draft] ──> [In Review] ──> [Approved] ──> [Scheduled] ──> [Published]
+   │             │               │                              │
+   └──<──────────┴───────<───────┴──────────────<───────────────┴──> [Archived]
+```
+
+Standard editorial stages include:
+
+- `draft`: Initial authoring and scratch editing.
+- `in_review`: Submitted for editorial or peer review.
+- `approved`: Formally approved by editors/legal.
+- `scheduled`: Queued for automated time-delayed release.
+- `published`: Live in production and exposed to public readers.
+- `archived`: Deprecated or unlisted historical content.
+
+### Role-Based Transition Gates
+
+Stage changes are gated through the `workflow:transition` RBAC permission and stage-specific role constraints:
+
+- Authors can submit content from `draft` $\to$ `in_review`.
+- Only Senior Editors or Legal reviewers can transition from `in_review` $\to$ `approved`.
+- Publishers can transition from `approved` $\to$ `published`.
+
+### Immutable Audit Trail & Editorial Comments
+
+Every transition automatically creates an audit history record:
+
+```typescript
+interface WorkflowHistoryEntry {
+  transitionId: string;
+  fromState: string;
+  toState: string;
+  performedBy: string; // User ID
+  performedAt: ISODateString;
+  comment?: string; // Editorial review feedback
+}
+```
+
+History can be inspected in the UI or retrieved programmatically:
+
+```typescript
+const history = await cms.workflow.getHistory("articles", "entry_123");
+```
+
+### Programmatic SDK Transition
+
+Workflows can be advanced programmatically via the `LocalCMS` SDK:
+
+```typescript
+const result = await cms.workflow.transition({
+  collectionId: "articles",
+  entryId: "entry_123",
+  targetState: "approved",
+  comment: "Legal review completed, approved for release.",
+  user: currentUser,
+});
+```
 
 ### Signed Approval Links
 

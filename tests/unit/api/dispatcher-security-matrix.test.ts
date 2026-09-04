@@ -259,6 +259,15 @@ describe("Dispatcher security matrix (real +server)", () => {
           roles: editorNoPerms,
           expectedNotStatus: [401, 403],
         },
+        {
+          name: "editor denied seo suggestions without permission",
+          method: "POST",
+          path: "seo/link-suggestions",
+          body: { content: "test" },
+          user: editor,
+          roles: editorNoPerms,
+          expectedStatus: 403,
+        },
       ]);
     });
   });

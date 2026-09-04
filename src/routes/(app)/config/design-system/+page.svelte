@@ -43,9 +43,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
     type AdminLockedSettings,
     type UserThemePreferences,
   } from "@utils/theme-merge";
-  import { getThemeContext } from "@components/ui/theme-context.svelte";
-  import type { AdminTheme } from "@components/ui/theme-context.svelte";
-  import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte.ts";
+  import { getThemeContext, type AdminTheme } from "@components/ui/theme-context.svelte";
+  import { userThemePrefs } from "@src/stores/theme-store.svelte";
   import { ui } from "@src/stores/ui-store.svelte.ts";
   import {
     USER_LAYOUT_PREF_KEYS,
@@ -122,6 +121,23 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
       footer: readLayoutPref("footer"),
     })),
   );
+
+  $effect(() => {
+    if (userPrefs) {
+      if (userPrefs.density !== undefined && myDensity !== userPrefs.density) {
+        myDensity = userPrefs.density || "";
+      }
+      if (userPrefs.variant !== undefined && myVariant !== userPrefs.variant) {
+        myVariant = userPrefs.variant || "";
+      }
+      if (userPrefs.reducedMotion !== undefined && myReducedMotion !== userPrefs.reducedMotion) {
+        myReducedMotion = userPrefs.reducedMotion ?? false;
+      }
+      if (userPrefs.highContrast !== undefined && myHighContrast !== userPrefs.highContrast) {
+        myHighContrast = userPrefs.highContrast ?? false;
+      }
+    }
+  });
 
   const layoutLocked = $derived(isPreferenceLocked(loadedTheme?.lockedSettings, "layoutState"));
 

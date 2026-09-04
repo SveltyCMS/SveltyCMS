@@ -15,7 +15,7 @@
  * - Content Versioning is cached
  */
 
-import { contentSystem } from "@src/content/index.server";
+import { contentSystem, contentStore } from "@src/content/index.server";
 import { auth } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { DEFAULT_THEME } from "@src/databases/theme-manager";
@@ -25,12 +25,14 @@ import { getPrivateSetting } from "@src/services/core/settings-service";
 import { getCollectionOrder } from "@utils/collection-order.server";
 import {
   predictNextPath,
+  predictNextPathAdaptive,
   recordCollectionAccess,
   recordNavigation,
   reinforceTransition,
   applyExtinction,
 } from "@src/services/intelligence/behavioral-learner";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 import {
   LAYOUT_CACHE_TTL_S,
   getFreshLayoutUser,
@@ -120,48 +122,63 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       }
     }
 
-    // Predictive prefetch: guess the most likely next page (< 0.05ms, non-blocking)
-    const predictedNextPath = predictNextPath(tenantId || "global", url.pathname);
+    // Predictive prefetch: guess the most likely next page (< 0.05ms, non-blocking, confidence-gated)
+    const predictedNextPath = predictNextPathAdaptive(tenantId || "global", url.pathname);
 
     // Start initialization but don't await generic content loading for the main thread
     // This prevents the "blank white page" issue
     const contentPromise = contentSystem.initialize(tenantId).then(() => {
-      return Promise.all([
-        contentSystem.getNavigationStructure(tenantId),
-        contentSystem.collections.getSmartFirst(tenantId),
-      ]);
+      return contentSystem.collections.getSmartFirst(tenantId);
     });
 
     // SvelteKit 3 requires serializable load returns — raw Promises in the
     // return serialize to HTTP 500 ("Failed to serialize promise") whenever
     // they are still pending under load (production build). Resolve here and
     // hand down plain data.
-    const [, firstCollection] = await contentPromise;
+    const firstCollection = await contentPromise;
     let safeContentStructure: unknown[] = [];
-    try {
-      // Persisted structure is the single source of truth for order/hierarchy.
-      // The in-memory snapshot can lag a just-completed save (or be re-derived
-      // by a background reconcile), and this value is pushed straight into the
-      // sidebar/builder store on every `invalidate("app:content")` — serving
-      // memory here rolled the UI back to the pre-save order right after saving.
-      const persisted = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
-      const nodes =
-        Array.isArray(persisted) && persisted.length > 0
-          ? persisted
-          : await contentSystem.getContentStructure(tenantId);
-      const stringIdNodes = ((nodes ?? []) as Array<Record<string, unknown>>).map((node) => ({
-        ...node,
-        _id:
-          (node._id as { toString?: () => string } | null | undefined)?.toString?.() ??
-          String(node._id),
-        ...(node.parentId ? { parentId: String(node.parentId) } : {}),
-      }));
-      // Deep-clean before returning: widget factories leak function values
-      // (validationSchema) into the structure, and SvelteKit 3 rejects any
-      // function in a load return (HTTP 500 "Cannot stringify a function").
-      safeContentStructure = stripNonSerializable(stringIdNodes) as unknown[];
-    } catch {
-      /* non-fatal — sidebar renders empty */
+    // 🚀 Version-keyed cache for the serialized sidebar payload: contentStore is
+    // epoch-consistent (every content mutation bumps contentVersion), so the
+    // structure only changes when the version does. This replaces the previous
+    // per-request full tree rebuild + deep walk (stripNonSerializable) with one
+    // build per (tenant, version) — same invariants as `navigation:tree:*`.
+    const contentTid = tenantId || "global";
+    const structureCacheKey = `layout:contentStructure:${contentTid}:${contentStore.contentVersion}`;
+    const cachedStructure =
+      cacheService.getSync<unknown[]>(structureCacheKey, tenantId) ??
+      (await cacheService.get<unknown[]>(structureCacheKey, tenantId).catch(() => null));
+    if (cachedStructure) {
+      safeContentStructure = cachedStructure;
+    } else {
+      try {
+        // Persisted structure remains the source of truth for order/hierarchy.
+        // The in-memory snapshot can lag a just-completed collection-builder save.
+        const persisted = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+        const nodes =
+          Array.isArray(persisted) && persisted.length > 0
+            ? persisted
+            : await contentSystem.getContentStructure(tenantId);
+        const stringIdNodes = ((nodes ?? []) as Array<Record<string, unknown>>).map((node) => ({
+          ...node,
+          _id:
+            (node._id as { toString?: () => string } | null | undefined)?.toString?.() ??
+            String(node._id),
+          ...(node.parentId ? { parentId: String(node.parentId) } : {}),
+        }));
+        // Deep-clean before returning: widget factories leak function values
+        // (validationSchema) into the structure, and SvelteKit 3 rejects any
+        // function in a load return (HTTP 500 "Cannot stringify a function").
+        safeContentStructure = stripNonSerializable(stringIdNodes) as unknown[];
+        void cacheService
+          .set(structureCacheKey, safeContentStructure, 300, tenantId, CacheCategory.CONTENT, [
+            "navigation",
+            "layout:contentStructure",
+            `layout:contentStructure:${contentTid}`,
+          ])
+          .catch(() => {});
+      } catch {
+        /* non-fatal — sidebar renders empty */
+      }
     }
 
     // Parallelize critical layout queries with short-lived L1 cache
@@ -173,6 +190,15 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       (async () => {
         const cached = cacheService.getSync<number>(userCountKey, tenantId);
         if (cached !== null) return cached;
+        const key = tenantId ? String(tenantId) : "global";
+        const authzCached = cacheService.getSync<{ count: number; timestamp: number }>(
+          `userCount:${key}`,
+          tenantId,
+        );
+        if (authzCached && typeof authzCached.count === "number") {
+          void cacheService.set(userCountKey, authzCached.count, LAYOUT_CACHE_TTL_S, tenantId);
+          return authzCached.count;
+        }
         try {
           const count = (await auth?.getUserCount?.({}, { tenantId: tenantId as DatabaseId })) ?? 1;
           void cacheService.set(userCountKey, count, LAYOUT_CACHE_TTL_S, tenantId);

@@ -8,12 +8,20 @@ import type { DatabaseAdapter, Theme, DatabaseId } from "@src/databases/db-inter
 
 declare global {
   namespace App {
+    interface Error {
+      message: string;
+      code?: string;
+    }
     interface Locals {
       // Setup hook caching
       __setupConfigExists?: boolean;
       __setupLogged?: boolean;
       __setupLoginRedirectLogged?: boolean;
       __setupRedirectLogged?: boolean;
+      // Per-request handoff: the API dispatcher already wrote the L1 turbo entry
+      // (with tags) for a stashed-body GET, so handle-api-requests skips its
+      // duplicate write unless a super-admin `?tenantId=` override re-scoped it.
+      __dispatcherTurboWrite?: boolean;
       allTokens: Token[];
       allUsers: User[];
       collections?: unknown;
@@ -88,6 +96,8 @@ declare global {
       permissions: string[];
       roles: Role[];
       session_id?: DatabaseId;
+      /** Authentication Method References for the current session (e.g. ["pwd","mfa"]). */
+      sessionAmr?: string[];
       tenantId?: DatabaseId | null;
       theme: Theme | null;
       user: User | null;
@@ -98,6 +108,8 @@ declare global {
       // Tracing and Metrics
       requestStart: number;
       requestId: string;
+      /** Classified by routeResourceStateMachine in hooks.server.ts. */
+      routeSpec?: import("@src/services/core/route-resource-state-machine").RouteResourceSpec;
     }
   }
 

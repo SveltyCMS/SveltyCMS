@@ -54,7 +54,7 @@ async function loadSuppressions() {
   }
 }
 
-interface Violation {
+export interface Violation {
   file: string;
   line: number;
   category: string;
@@ -302,6 +302,35 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
     report(relPath, 0, "svelte5-legacy", "Legacy svelte/store import — migrate to runes", "error");
   }
 
+  // === Svelte 5 SSR / Hydration ID & Date Localization safety ===
+  if (relPath.endsWith(".svelte")) {
+    for (const m of content.matchAll(
+      /(?:\$derived\s*\(\s*`[^`]*\$\{\s*crypto\.randomUUID\(\)[^}]*\}`|let\s*\{[^}]*=\s*crypto\.randomUUID\(\)[^}]*\}\s*=\s*\$props)/g,
+    )) {
+      const lineNo = content.substring(0, m.index!).split("\n").length;
+      report(
+        relPath,
+        lineNo,
+        "ssr-hydration",
+        "crypto.randomUUID() used for ID at render/prop level causes SSR/hydration mismatch — use Svelte 5 $props.id() rune instead",
+        "error",
+      );
+    }
+
+    for (const m of content.matchAll(
+      /\.(?:toLocaleDateString|toLocaleTimeString|toLocaleString)\s*\(\s*(?:undefined)?\s*\)/g,
+    )) {
+      const lineNo = content.substring(0, m.index!).split("\n").length;
+      report(
+        relPath,
+        lineNo,
+        "date-localization",
+        "Unpinned toLocaleDateString/toLocaleString causes SSR/client hydration mismatch — use formatDate, formatDateTime, or formatTime from @utils/format-date",
+        "warning",
+      );
+    }
+  }
+
   // === @apply directive misuse (Tailwind v4: only in base layer) ===
   if (!relPath.includes("app.css") && /\/\*[\s\S]*?\*\//.test(content)) {
     // Only flag @apply outside of app.css (the approved base-layer file)
@@ -342,7 +371,7 @@ async function scanSvelteFile(relPath: string, content: string, shouldFix: boole
   for (const m of contentNoCodeBlocks.matchAll(/\{@html\s+((?:[^{}]|\{[^{}]*\})+)\}/g)) {
     const expr = m[1].trim();
     if (
-      !/sanitize|DOMPurify|escape|safeHtml|marked|he\.|parseMD|getDisplayValue|getStatusText|getFieldComponentHtml/i.test(
+      !/sanitize|DOMPurify|escape|safeHtml|marked|he\.|parseMD|parseMarkdown|getDisplayValue|getStatusText|getFieldComponentHtml/i.test(
         expr,
       )
     ) {
@@ -416,6 +445,13 @@ function checkDuplicateContent(relPath: string, content: string) {
   } else {
     contentCache.set(norm, [relPath]);
   }
+}
+
+/** Exported for unit tests */
+export async function scanSvelteContent(relPath: string, content: string): Promise<Violation[]> {
+  const startLen = violations.length;
+  await scanSvelteFile(relPath, content, false);
+  return violations.slice(startLen);
 }
 
 // ---------------------------------------------------------------------------
@@ -799,7 +835,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("Scanner crashed:", err);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error("Scanner crashed:", err);
+    process.exit(1);
+  });
+}

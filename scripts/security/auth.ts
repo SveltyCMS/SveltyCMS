@@ -33,24 +33,33 @@ function resolveTestSecret(): string {
 
 async function waitForServer(secret: string, timeoutMs = 60_000): Promise<void> {
   const started = Date.now();
+  let interval = 50;
+
   while (Date.now() - started < timeoutMs) {
     try {
       const res = await fetch(`${BASE}${HEALTH_PATH}`, {
         headers: { "x-test-mode": "true", "x-test-secret": secret },
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(1500),
       });
-      const data = await res.json().catch(() => ({}));
-      const payload = data?.data && typeof data.data === "object" ? data.data : data;
-      const state = (payload.overallStatus || payload.status || "").toUpperCase();
-      // Accept READY or SETUP (seed will follow)
-      if (state === "READY" || state === "SETUP" || state === "INITIALIZING") {
-        console.log(`✅ Server ready (${state}) at ${BASE} — ${Date.now() - started}ms`);
-        return;
+
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const payload = data?.data && typeof data.data === "object" ? data.data : data;
+        const state = (payload.overallStatus || payload.status || "").toUpperCase();
+        // Accept READY or SETUP (seed will follow)
+        if (state === "READY" || state === "SETUP" || state === "INITIALIZING") {
+          console.log(`✅ Server ready (${state}) at ${BASE} — ${Date.now() - started}ms`);
+          return;
+        }
       }
     } catch {
-      /* retry */
+      /* server not accepting connections yet */
     }
-    await new Promise((r) => setTimeout(r, 500));
+
+    // Fast poll (50ms) to catch quick builds, then adaptive backoff to avoid
+    // tight CPU looping on slow boots.
+    await new Promise((r) => setTimeout(r, interval));
+    interval = Math.min(interval * 1.5, 400);
   }
   throw new Error(`Timed out waiting for server at ${BASE}`);
 }

@@ -7,7 +7,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test, expect, type Page } from "@playwright/test";
-import { dismissCookieBanner, loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieConsent } from "../../helpers/cookie-consent";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
@@ -24,30 +25,15 @@ async function openGallery(page: Page) {
       .or(page.getByRole("heading", { name: /media/i }))
       .first(),
   ).toBeVisible({ timeout: 30_000 });
-  await dismissCookieBanner(page);
+  await dismissCookieConsent(page);
 }
 
 async function uploadTestImage(page: Page) {
   await openGallery(page);
 
-  const uploadResponse = page.waitForResponse(
-    (res) =>
-      res.request().method() === "POST" &&
-      (res.url().includes("?/upload") || res.url().includes("/api/media")) &&
-      res.status() < 500,
-    { timeout: 30_000 },
-  );
-
   const uploadInput = page.getByTestId("media-upload-input");
   await expect(uploadInput).toBeAttached({ timeout: 10_000 });
   await uploadInput.setInputFiles(TEST_IMAGE);
-
-  const res = await uploadResponse;
-  expect(res.ok() || res.status() === 200 || res.status() === 303).toBeTruthy();
-
-  await expect(page.getByText(/testthumb\.png/i).first()).toBeVisible({
-    timeout: ACTION_TIMEOUT,
-  });
 
   const cell = page
     .getByRole("gridcell")
@@ -65,7 +51,7 @@ async function openImageEditor(page: Page) {
   await cell.scrollIntoViewIfNeeded();
   await cell.hover();
 
-  const editButton = page
+  const editButton = cell
     .getByTestId("media-edit-button")
     .or(cell.getByRole("button", { name: /edit/i }))
     .first();

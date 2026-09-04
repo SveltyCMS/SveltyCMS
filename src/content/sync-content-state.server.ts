@@ -612,9 +612,13 @@ async function applyGuiStructureSave(
     logger.warn(`[ContentSync] Response cache invalidation skipped: ${String(err)}`);
   }
 
-  // Broadcast SSE event so other tabs/clients learn about the GUI change
+  // Broadcast SSE event so other tabs/clients learn about the GUI change.
+  // 🔴 FIX 3: `applyGuiStructureSave` is ONLY invoked for collection-STRUCTURE (schema)
+  // mutations (gui-save / collection-save), so the schema cache must always be invalidated.
+  // Passing `invalidateSchema:true` makes notifyContentUpdate call invalidateSchemaCache(),
+  // which now also clears the real `_schemaCache` LRU (see Fix 3) that peekReadySchema reads.
   const { notifyContentUpdate } = await import("./engine.server");
-  await notifyContentUpdate(tenantId);
+  await notifyContentUpdate(tenantId, { invalidateSchema: true });
 
   return updated;
 }

@@ -9,7 +9,7 @@
 
 	import { usertoken_button, usertoken_email, usertoken_role, usertoken_token, usertoken_valid } from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
 	import { dev } from '$app/env';
 
@@ -22,7 +22,7 @@
 		tokenLink?: string;
 	}
 
-	const { email = '', role = '', token = '', tokenLink = '', expiresInLabel = '', languageTag = app.systemLanguage }: Props = $props();
+	const { email = '', role = '', token = '', tokenLink = '', expiresInLabel = '', languageTag = locale.systemLanguage }: Props = $props();
 
 	// Use production host logo if available, otherwise fall back to GitHub
 	const logoSrc = publicEnv?.HOST_PROD

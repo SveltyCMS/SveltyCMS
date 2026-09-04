@@ -304,13 +304,17 @@ export class MongoCrudMethods<T extends BaseEntity> {
         }),
       );
 
-      const cursor = this.model
+      let streamQuery = this.model
         .find(secureQuery, options.fields?.join(" ") || "")
         .sort((options.sort as any) || {})
         .skip(options.offset ?? 0)
-        .limit(options.limit || 1000)
-        .lean()
-        .cursor();
+        .lean();
+      // No silent 1000-row cap — exports and scans must stream until exhausted
+      // unless the caller passed an explicit limit.
+      if (typeof options.limit === "number" && options.limit > 0) {
+        streamQuery = streamQuery.limit(options.limit);
+      }
+      const cursor = streamQuery.cursor();
 
       const mapDates = (doc: any) => this.mapDates(doc) as T;
       const generator = async function* () {

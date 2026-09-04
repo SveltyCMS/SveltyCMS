@@ -14,6 +14,7 @@
  * - Integrates with existing session rotation and invalidation
  */
 
+import { createHash, randomBytes } from "node:crypto";
 import { logger } from "@utils/logger";
 import { getUntypedSetting } from "@src/services/core/settings-service";
 import { validateEgressUrl, safeFetch } from "@src/utils/egress-guard";
@@ -21,9 +22,18 @@ import type { DatabaseId } from "@src/content/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+export interface RoleMappingRule {
+  claimValue: string;
+  role: string;
+}
+
 export interface SsoProviderConfig {
-  /** OIDC provider identifier (e.g., "google", "azure-ad", "auth0") */
+  /** OIDC provider identifier (e.g., "google", "azure-ad", "okta", "auth0") */
   id: string;
+  /** Display name (e.g. "Google Workspace", "Microsoft Entra ID", "Okta") */
+  name?: string;
+  /** Iconify icon identifier */
+  icon?: string;
   /** OIDC issuer URL */
   issuer: string;
   /** Allowed post_logout_redirect_uri patterns (supports wildcard * suffix) */
@@ -42,6 +52,62 @@ export interface SsoProviderConfig {
   jwksUri?: string;
   /** Scopes for authorization code flow (default openid profile email) */
   scopes?: string[];
+  /** Just-In-Time (JIT) provisioning enabled (default true) */
+  jitProvisioning?: boolean;
+  /** Default role assigned to newly provisioned users (default "user") */
+  defaultRole?: string;
+  /** JIT role mapping rules from claims or groups */
+  roleMapping?: {
+    claimField?: string; // e.g. "groups" or "roles"
+    rules?: RoleMappingRule[];
+  };
+  /** Whether to synchronize roles on every login */
+  syncRolesOnLogin?: boolean;
+}
+
+/** Public metadata safe to expose to client login screens */
+export interface PublicSsoProvider {
+  id: string;
+  name: string;
+  icon: string;
+  authUrl: string;
+}
+
+/**
+ * Generate PKCE code_verifier and code_challenge (RFC 7636).
+ */
+export function generatePkce(): { codeVerifier: string; codeChallenge: string } {
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  return { codeVerifier: verifier, codeChallenge: challenge };
+}
+
+/**
+ * Resolves local CMS role for an incoming user from OIDC claims based on provider JIT rules.
+ */
+export function resolveJitRole(claims: Record<string, unknown>, config: SsoProviderConfig): string {
+  const defaultRole = config.defaultRole || "user";
+  if (!config.roleMapping?.rules || config.roleMapping.rules.length === 0) {
+    return defaultRole;
+  }
+
+  const claimField = config.roleMapping.claimField || "groups";
+  const claimVal = claims[claimField];
+
+  // Claims can be array (e.g. groups: ["Admins", "Devs"]) or string
+  const userValues = Array.isArray(claimVal)
+    ? claimVal.map(String)
+    : typeof claimVal === "string"
+      ? [claimVal]
+      : [];
+
+  for (const rule of config.roleMapping.rules) {
+    if (userValues.includes(rule.claimValue)) {
+      return rule.role;
+    }
+  }
+
+  return defaultRole;
 }
 
 export interface SsoSessionMetadata {
@@ -79,21 +145,77 @@ export function getAllSsoProviders(): SsoProviderConfig[] {
   return [...ssoProviders.values()];
 }
 
+/** Known provider icon mappings for client display */
+const DEFAULT_PROVIDER_ICONS: Record<string, string> = {
+  google: "flat-color-icons:google",
+  github: "mdi:github",
+  microsoft: "logos:microsoft-icon",
+  "azure-ad": "logos:microsoft-icon",
+  azure: "logos:microsoft-icon",
+  okta: "logos:okta",
+  auth0: "logos:auth0-icon",
+  keycloak: "mdi:shield-key-outline",
+};
+
+export function getPublicSsoProviders(): PublicSsoProvider[] {
+  return [...ssoProviders.values()].map((p) => ({
+    id: p.id,
+    name: p.name || p.id.charAt(0).toUpperCase() + p.id.slice(1),
+    icon: p.icon || DEFAULT_PROVIDER_ICONS[p.id.toLowerCase()] || "mdi:shield-key-outline",
+    authUrl: `/api/auth/oidc-login?provider=${encodeURIComponent(p.id)}`,
+  }));
+}
+
 /**
  * Load SSO providers from system settings.
  * Settings key: SSO_PROVIDERS — JSON array of SsoProviderConfig objects.
  */
-export function loadSsoProvidersFromSettings(): void {
+export async function loadSsoProvidersFromSettings(
+  tenantId?: string,
+): Promise<SsoProviderConfig[]> {
   try {
-    const raw = getUntypedSetting("SSO_PROVIDERS");
-    if (!raw) return;
-    const providers: SsoProviderConfig[] = typeof raw === "string" ? JSON.parse(raw) : raw;
-    for (const p of providers) {
-      registerSsoProvider(p);
+    const raw = await getUntypedSetting("SSO_PROVIDERS", "private", tenantId);
+    if (!raw) return getAllSsoProviders();
+    const providers: SsoProviderConfig[] =
+      typeof raw === "string" ? JSON.parse(raw) : (raw as SsoProviderConfig[]);
+    if (Array.isArray(providers)) {
+      for (const p of providers) {
+        registerSsoProvider(p);
+      }
     }
   } catch (err) {
     logger.warn("[SSO] Failed to load SSO providers from settings:", err);
   }
+  return getAllSsoProviders();
+}
+
+/**
+ * Persist SSO providers to system preferences and refresh memory cache.
+ */
+export async function saveSsoProviders(
+  providers: SsoProviderConfig[],
+  tenantId?: string,
+): Promise<void> {
+  const { dbAdapter } = await import("@src/databases/db");
+  if (dbAdapter?.system.preferences) {
+    await dbAdapter.system.preferences.set("SSO_PROVIDERS", JSON.stringify(providers), {
+      scope: "system",
+      tenantId: (tenantId || "global") as any,
+    });
+    const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
+    invalidateSettingsCache(tenantId || "global");
+  }
+  ssoProviders.clear();
+  for (const p of providers) {
+    registerSsoProvider(p);
+  }
+}
+
+/**
+ * Clear in-memory registered providers (useful in tests).
+ */
+export function clearSsoProviders(): void {
+  ssoProviders.clear();
 }
 
 // ─── Session metadata ──────────────────────────────────────────────────────
@@ -431,7 +553,13 @@ export async function verifyJwtWithProviderJwks(
  */
 export async function buildOidcAuthorizationUrl(
   providerId: string,
-  opts: { redirectUri: string; state: string; nonce?: string },
+  opts: {
+    redirectUri: string;
+    state: string;
+    nonce?: string;
+    codeChallenge?: string;
+    codeChallengeMethod?: string;
+  },
 ): Promise<{ success: true; url: string } | { success: false; message: string }> {
   const provider = ssoProviders.get(providerId);
   if (!provider) return { success: false, message: "Unknown provider" };
@@ -449,6 +577,10 @@ export async function buildOidcAuthorizationUrl(
   url.searchParams.set("scope", scopes);
   url.searchParams.set("state", opts.state);
   if (opts.nonce) url.searchParams.set("nonce", opts.nonce);
+  if (opts.codeChallenge) {
+    url.searchParams.set("code_challenge", opts.codeChallenge);
+    url.searchParams.set("code_challenge_method", opts.codeChallengeMethod || "S256");
+  }
   return { success: true, url: url.toString() };
 }
 
@@ -457,7 +589,7 @@ export async function buildOidcAuthorizationUrl(
  */
 export async function exchangeOidcCode(
   providerId: string,
-  opts: { code: string; redirectUri: string },
+  opts: { code: string; redirectUri: string; codeVerifier?: string },
 ): Promise<
   | { success: true; idToken?: string; accessToken?: string; payload?: Record<string, unknown> }
   | { success: false; message: string }
@@ -477,6 +609,7 @@ export async function exchangeOidcCode(
       client_id: provider.clientId,
     });
     if (provider.clientSecret) body.set("client_secret", provider.clientSecret);
+    if (opts.codeVerifier) body.set("code_verifier", opts.codeVerifier);
 
     // 🛡️ SSRF: tokenEndpoint is admin-configured/discovered — egress-guarded.
     const allowHttp = process.env.NODE_ENV === "development";

@@ -50,6 +50,10 @@ import {
 } from "@utils/security/publication-policy";
 import { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, Schema } from "@src/content/types";
+import {
+  peekReadySchema,
+  schemaCacheEntries,
+} from "@src/services/sdk/namespaces/collections/schema-store";
 
 // GraphQL validation plugin: enforces query depth (max 8), alias count (max 15),
 // and blocks schema introspection in production environments
@@ -70,8 +74,14 @@ function projectGraphqlFields(
 ): Record<string, unknown> {
   if (selections.length === 0) return row;
   const out: Record<string, unknown> = {};
+  const hasData = row.data && typeof row.data === "object";
+  const rowData = hasData ? (row.data as Record<string, unknown>) : null;
   for (const field of selections) {
-    if (field in row) out[field] = row[field];
+    if (field in row) {
+      out[field] = row[field];
+    } else if (rowData && field in rowData) {
+      out[field] = rowData[field];
+    }
   }
   return out;
 }
@@ -97,8 +107,12 @@ async function tryGraphqlFastPath(
   const matched = matchCollectionQuery(query, variables);
   if (!matched) return null;
 
-  // 1. In-memory system queries (contentSystemHealth / allCollections)
-  if (matched.field === "contentSystemHealth" || matched.field === "allCollections") {
+  // 1. In-memory system queries (contentSystemHealth / allCollections / allCollectionStats)
+  if (
+    matched.field === "contentSystemHealth" ||
+    matched.field === "allCollections" ||
+    matched.field === "allCollectionStats"
+  ) {
     const jsonKey = `${matched.field}|${String(ctx.tenantId ?? "global")}|${matched.selections.join(",")}`;
     const cachedJson = fastJsonCache.get(jsonKey);
     if (cachedJson && Date.now() - cachedJson.ts < FAST_JSON_TTL_MS) {
@@ -109,7 +123,7 @@ async function tryGraphqlFastPath(
     if (matched.field === "contentSystemHealth") {
       const health = contentSystem.getHealthStatus() as unknown as Record<string, unknown>;
       payload = { data: { contentSystemHealth: projectGraphqlFields(health, matched.selections) } };
-    } else {
+    } else if (matched.field === "allCollections") {
       const rows = await resolveAllCollections(ctx.tenantId);
       const data =
         matched.selections.length === 0
@@ -118,6 +132,28 @@ async function tryGraphqlFastPath(
               projectGraphqlFields(row as unknown as Record<string, unknown>, matched.selections),
             );
       payload = { data: { allCollections: data } };
+    } else {
+      const collections = await contentSystem.getCollections(ctx.tenantId);
+      const rows = collections.map((col) => {
+        const folder = (col as { folder?: string }).folder;
+        return {
+          _id: col._id,
+          name: col.name,
+          icon: col.icon || "mdi:folder",
+          path: col.path || (folder ? `${folder}/${col.name}` : col.name),
+          fieldCount: (col.fields || []).length,
+          hasRevisions: col.revision || false,
+          hasLivePreview: !!col.livePreview,
+          status: col.status || "active",
+        };
+      });
+      const data =
+        matched.selections.length === 0
+          ? rows
+          : rows.map((row) =>
+              projectGraphqlFields(row as unknown as Record<string, unknown>, matched.selections),
+            );
+      payload = { data: { allCollectionStats: data } };
     }
     const body = JSON.stringify(payload);
     if (fastJsonCache.size >= 64) {
@@ -137,6 +173,29 @@ async function tryGraphqlFastPath(
     if (cleanName === matched.field || c._id === matched.field || c.name === matched.field) {
       targetCollection = c;
       break;
+    }
+  }
+
+  if (!targetCollection) {
+    targetCollection =
+      peekReadySchema(ctx.tenantId as DatabaseId, matched.field) ||
+      peekReadySchema(ctx.tenantId as DatabaseId, matched.field.toLowerCase());
+  }
+
+  if (!targetCollection) {
+    const prefix = `${ctx.tenantId || "global"}:`;
+    for (const [key, schema] of schemaCacheEntries()) {
+      if (key.startsWith(prefix)) {
+        const cleanName = createCleanTypeName({ _id: schema._id, name: schema.name });
+        if (
+          cleanName === matched.field ||
+          schema._id === matched.field ||
+          schema.name === matched.field
+        ) {
+          targetCollection = schema;
+          break;
+        }
+      }
     }
   }
 
@@ -181,9 +240,11 @@ async function tryGraphqlFastPath(
 const securityValidationPlugin = {
   onParse({
     params,
+    context,
     setParsedDocument,
   }: {
     params?: { source?: string; query?: string };
+    context?: { parsedDocument?: DocumentNode; [key: string]: any };
     setParsedDocument?: (doc: any) => void;
   }) {
     const endParse = profileMark("gql:parse");
@@ -192,6 +253,12 @@ const securityValidationPlugin = {
     // the standard error envelope instead of masking it as a 500.
     const query = params?.source || params?.query;
     if (typeof query === "string") {
+      const preParsed = context?.parsedDocument;
+      if (preParsed && typeof setParsedDocument === "function") {
+        setParsedDocument(preParsed);
+        endParse();
+        return;
+      }
       const analysis = analyzeQueryCost(query);
       if (!analysis.allowed) {
         throw new GraphQLError(formatCostError(analysis.cost, 1000), {
@@ -293,7 +360,6 @@ import {
 } from "./resolvers/data-operations";
 import { createLoaders } from "./loaders";
 
-import { apiHandler } from "@utils/api-handler";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { withMutableHeaders } from "@utils/hook-utils";
@@ -569,15 +635,17 @@ export async function _refreshSchema(dbAdapter: any, tenantId?: string | null) {
 }
 
 let sharedCMS: LocalCMS | null = null;
+import { cacheService } from "@src/databases/cache/cache-service";
 
 async function handleRequest(event: RequestEvent) {
-  const { locals, request } = event;
+  const request = event.request;
+  const locals = event.locals;
+  const url = event.url;
 
   if (!locals.user) {
     throw new AppError("Unauthorized: Login required for GraphQL", 401);
   }
 
-  const url = event.url;
   const publicationFilterParam = url.searchParams.get("publicationFilter");
   const publicationFilterHeader = request.headers.get("x-publication-filter");
   const publicationFilter = resolvePublicationFilter(
@@ -588,6 +656,8 @@ async function handleRequest(event: RequestEvent) {
   let query = "";
   let variables: any = {};
   let bodyText = "";
+  let apqHash: string | null = null;
+  let parsedBody: Record<string, any> | null = null;
 
   if (request.method === "POST") {
     const bodyFromSecurity = (locals as any).__graphqlBodyText;
@@ -598,14 +668,23 @@ async function handleRequest(event: RequestEvent) {
 
     const parsedFromSecurity = (locals as any).__graphqlParsedBody;
     if (parsedFromSecurity && typeof parsedFromSecurity === "object") {
+      parsedBody = parsedFromSecurity;
       query = parsedFromSecurity?.query || "";
       variables = parsedFromSecurity?.variables || {};
     } else {
       try {
-        const body = JSON.parse(bodyText);
-        query = body?.query || "";
-        variables = body?.variables || {};
+        parsedBody = JSON.parse(bodyText);
+        query = parsedBody?.query || "";
+        variables = parsedBody?.variables || {};
       } catch {}
+    }
+
+    if (parsedBody?.extensions?.persistedQuery?.sha256Hash) {
+      apqHash = String(parsedBody.extensions.persistedQuery.sha256Hash);
+    } else if (parsedBody?.extensions?.persistedQuery?.hash) {
+      apqHash = String(parsedBody.extensions.persistedQuery.hash);
+    } else if (parsedBody?.hash) {
+      apqHash = String(parsedBody.hash);
     }
   } else if (request.method === "GET") {
     query = url.searchParams.get("query") || "";
@@ -614,6 +693,55 @@ async function handleRequest(event: RequestEvent) {
       try {
         variables = JSON.parse(varsParam);
       } catch {}
+    }
+
+    const extensionsParam = url.searchParams.get("extensions");
+    if (extensionsParam) {
+      try {
+        const ext = JSON.parse(extensionsParam);
+        if (ext?.persistedQuery?.sha256Hash) apqHash = String(ext.persistedQuery.sha256Hash);
+        else if (ext?.persistedQuery?.hash) apqHash = String(ext.persistedQuery.hash);
+      } catch {}
+    }
+    if (!apqHash) {
+      apqHash = url.searchParams.get("hash") || url.searchParams.get("sha256Hash") || null;
+    }
+  }
+
+  // 🚀 AUTOMATIC PERSISTED QUERIES (APQ): Resolve or register query via APQ hash
+  if (apqHash) {
+    const tenant = (locals.tenantId as string) || "global";
+    if (!query) {
+      // Lookup registered query from L1/L2 Redis
+      const cachedQuery =
+        cacheService.getSync<string>(`apq:${apqHash}`, tenant) ||
+        (await cacheService.get<string>(`apq:${apqHash}`, tenant).catch(() => null));
+
+      if (cachedQuery) {
+        query = cachedQuery;
+      } else {
+        // Return standard GraphQL APQ protocol error
+        return new Response(
+          JSON.stringify({
+            errors: [
+              {
+                message: "PersistedQueryNotFound",
+                extensions: { code: "PERSISTED_QUERY_NOT_FOUND" },
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+    } else {
+      // Register incoming query with its APQ hash across L1/L2 Redis (7 days TTL)
+      await cacheService.set(`apq:${apqHash}`, query, 7 * 24 * 3600, tenant, undefined, [
+        "graphql",
+        "apq",
+      ]);
     }
   }
 
@@ -629,22 +757,43 @@ async function handleRequest(event: RequestEvent) {
   if (cacheKey) {
     const cached = responseCache.get(cacheKey, locals.tenantId as string);
     if (cached) {
-      const payload = cached.buffer || cached.body;
       metricsService.recordGraphqlResponseHit(locals.tenantId as string);
+      const acceptEncoding = request.headers.get("Accept-Encoding") || "";
+      const rawBody = cached.body;
+      const payloadSize = cached.buffer
+        ? cached.buffer.byteLength
+        : Buffer.byteLength(rawBody, "utf-8");
+
+      const responseHeaders = new Headers({
+        "Content-Type": "application/json",
+        ETag: cached.etag,
+        "X-Cache": "HIT",
+        "Cache-Control": "private, no-store",
+        Vary: "Accept-Encoding, Cookie",
+      });
+
+      // 🚀 Zero-CPU Binary Byte Serving: serve pre-compressed chunk if supported
+      if (cached.compressed && payloadSize > 1024) {
+        if (acceptEncoding.includes("br") && cached.compressed.br) {
+          responseHeaders.set("Content-Encoding", "br");
+          return new Response(cached.compressed.br as BodyInit, {
+            status: 200,
+            headers: responseHeaders,
+          });
+        }
+        if (acceptEncoding.includes("gzip") && cached.compressed.gzip) {
+          responseHeaders.set("Content-Encoding", "gzip");
+          return new Response(cached.compressed.gzip as BodyInit, {
+            status: 200,
+            headers: responseHeaders,
+          });
+        }
+      }
+
+      const payload = cached.buffer || rawBody;
       return new Response(payload as any, {
         status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ETag: cached.etag,
-          "X-Cache": "HIT",
-          // 🛡️ HARDENING: the L1 cache is user-keyed. A CDN/proxy MUST NOT
-          // replay one user's privileged GraphQL response to another client,
-          // so the response is private, no-store (previously `public,
-          // s-maxage=60, stale-while-revalidate=86400` — a shared-cache
-          // cross-tenant replay window).
-          "Cache-Control": "private, no-store",
-          Vary: "Cookie",
-        },
+        headers: responseHeaders,
       });
     }
   }
@@ -721,6 +870,7 @@ async function handleRequest(event: RequestEvent) {
       tenantId: locals.tenantId,
       dbAdapter: adapter,
       cms,
+      parsedDocument: (locals as any).__graphqlAst as DocumentNode | undefined,
       get loaders() {
         if (!_loaders) {
           _loaders = createLoaders(adapter, (locals.tenantId as any) || null, publicationFilter);
@@ -735,9 +885,12 @@ async function handleRequest(event: RequestEvent) {
 
     // 🚀 SKIP REQUEST CLONING: Pass the original request for GET, create minimal
     // Request only for POST (Yoga needs the body, but we already have bodyText)
+    const yogaBody =
+      bodyText && bodyText.includes('"query"') ? bodyText : JSON.stringify({ query, variables });
+
     const yogaRequest =
       request.method === "POST"
-        ? new Request(request.url, { method: "POST", headers: request.headers, body: bodyText })
+        ? new Request(request.url, { method: "POST", headers: request.headers, body: yogaBody })
         : request;
 
     const handleYogaRequest = () => yogaApp.handleRequest(yogaRequest, buildYogaContext());
@@ -784,5 +937,5 @@ async function handleRequest(event: RequestEvent) {
   }
 }
 
-export const GET = apiHandler(handleRequest);
-export const POST = apiHandler(handleRequest);
+export const GET = handleRequest;
+export const POST = handleRequest;

@@ -33,6 +33,22 @@ export interface UIState {
 }
 
 /**
+ * Transient editor-wizard state (Menu collection builder "Next" flow).
+ * Formerly fields on the removed legacy AppStore — colocated here as the
+ * shell-visibility domain store.
+ */
+export interface EditorWizardState {
+  /** Show the wizard "Next" button in the entry header/sidebar. */
+  shouldShowNextButton: boolean;
+  /** Optional override handler invoked by the Next button. */
+  saveLayerStore: (() => void | Promise<void>) | null;
+  /** Collection-builder tab index (multi-step widget forms). */
+  tabSetState: number | null;
+  /** Custom header action button override (falsy = default Cancel button). */
+  headerActionButton: unknown;
+}
+
+/**
  * UIStore - Manages UI element visibility based on screen size and mode
  */
 class UIStore {
@@ -45,6 +61,14 @@ class UIStore {
     header: "hidden",
     footer: "hidden",
     chatPanel: "hidden",
+  });
+
+  /** Editor-wizard transient state (Menu builder Next flow). */
+  wizard = $state<EditorWizardState>({
+    shouldShowNextButton: false,
+    saveLayerStore: null,
+    tabSetState: null,
+    headerActionButton: null,
   });
 
   // Route context for special layouts

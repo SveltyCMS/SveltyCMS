@@ -24,8 +24,20 @@ export const widgetMeta = {
 </script>
 
 <script lang="ts">
+	import { getClientLicenseStatus } from '@utils/client-license-cache';
+	import type { LicenseStatus } from '@utils/license-manager';
+
+	let licenseStatus = $state<LicenseStatus | null>(null);
+
+	$effect(() => {
+		getClientLicenseStatus('dashboard', 'audit-log').then((status) => {
+			licenseStatus = status;
+		});
+	});
+
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import { formatTime as formatTimeUtil } from '@utils/format-date';
 
 	interface AuditEntry {
 		_id?: string;
@@ -52,7 +64,7 @@ export const widgetMeta = {
 	const isCompact = $derived(size.h === 1);
 
 	function formatTime(iso: string): string {
-		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		return formatTimeUtil(iso, { hour: '2-digit', minute: '2-digit' });
 	}
 
 	function actorName(email: string | undefined = undefined): string {
@@ -89,21 +101,8 @@ export const widgetMeta = {
 			: 'bg-error-500/10 text-error-600 dark:bg-error-900/20 dark:text-error-400';
 	}
 
-	let licenseStatus = $state<{ active?: boolean; hasLicense?: boolean; daysRemaining?: number | null } | null>(null);
-
-	$effect(() => {
-		fetch('/api/system/license-status?type=dashboard&id=audit-log')
-			.then((res) => res.json())
-			.then((data) => {
-				licenseStatus = data;
-			})
-			.catch(() => {
-				licenseStatus = { active: false, hasLicense: false, daysRemaining: 0 };
-			});
-		});
-
-		const isLicensed = $derived(licenseStatus?.active || licenseStatus?.hasLicense || false);
-	</script>
+	const isLicensed = $derived(licenseStatus?.active || licenseStatus?.hasLicense || false);
+</script>
 
 	<BaseWidget
 	{label}

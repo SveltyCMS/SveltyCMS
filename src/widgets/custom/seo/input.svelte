@@ -8,7 +8,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 import { logger } from "@utils/logger";
 	import { publicEnv } from '@src/stores/global-settings.svelte.ts';
 	// Stores & Props
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import { onMount } from 'svelte';
 
 	// Lucide Icons
@@ -50,7 +50,7 @@ import { logger } from "@utils/logger";
 
 	// Multi-language handling
 	let availableLanguages = $state<string[]>([]);
-	const lang = $derived((app.contentLanguage || 'en') as any);
+	const lang = $derived((locale.contentLanguage || 'en') as any);
 	const langData = $derived(value?.[lang]);
 
 	// Optimized features lookup
@@ -389,7 +389,7 @@ import { logger } from "@utils/logger";
 					<div class="space-y-2">
 						<div class="flex items-center justify-between mb-1">
 							<div class="flex items-center gap-2">
-								<label for="seo-schemaMarkup" class="font-bold text-sm cursor-pointer">Schema.org JSON-LD</label>
+								<label for="seo-schemaMarkup" class="font-bold text-sm">Schema.org JSON-LD</label>
 								<iconify-icon icon="mdi:code-json" width="24"></iconify-icon>
 							</div>
 							{#if isTranslated}

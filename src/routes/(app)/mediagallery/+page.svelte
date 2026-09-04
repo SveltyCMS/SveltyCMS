@@ -50,6 +50,8 @@ import { SvelteSet } from "svelte/reactivity";
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
+	import type { SmartTableSavedView } from '@utils/smart-table-saved-views';
 
 let { data }: { data: PageData } = $props();
 
@@ -81,6 +83,32 @@ let gridSize = $state<"tiny" | "small" | "medium" | "large">("small");
 	/** Breadcrumbs accept drops on every viewport — mobile drags the same way */
 	const breadcrumbDropEnabled = $derived(isMediaDragActive);
 	let isMovingMedia = $state(false);
+
+	function getMediaSavedViewSnapshot(): Omit<SmartTableSavedView, 'id' | 'createdAt' | 'updatedAt' | 'name'> {
+		return {
+			filters: {
+				type: selectedMediaType,
+				jsonPath: jsonPathFilter,
+				view,
+				gridSize
+			},
+			search: globalSearchValue,
+			sort: { sortedBy: sortBy, isSorted: 1 as const },
+			pageSize: 10
+		};
+	}
+
+	function applyMediaSavedView(saved: SmartTableSavedView) {
+		if (saved.search !== undefined) globalSearchValue = saved.search;
+		if (saved.sort?.sortedBy) sortBy = saved.sort.sortedBy;
+		if (saved.filters) {
+			const f = saved.filters as Record<string, any>;
+			if (f.type) selectedMediaType = f.type;
+			if (f.jsonPath !== undefined) jsonPathFilter = f.jsonPath;
+			if (f.view === 'grid' || f.view === 'table') view = f.view;
+			if (f.gridSize) gridSize = f.gridSize;
+		}
+	}
 
 	// Mobile: surface the sidebar folder tree for the duration of the drag.
 	useMediaDragSidebar(() => isMediaDragActive);
@@ -965,6 +993,11 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 									{isSelectionMode ? 'Done' : 'Select'}
 								</Button>
 							{/if}
+							<SmartTableSavedViewsMenu
+								scope="media"
+								getSnapshot={getMediaSavedViewSnapshot}
+								onApply={applyMediaSavedView}
+							/>
 						</div>
 					</div>
 				{/if}
@@ -1081,6 +1114,11 @@ async function handleDeleteImage(file: MediaBase | MediaImage) {
 						{isSelectionMode ? 'Exit Selection' : 'Select'}
 					</Button>
 				{/if}
+				<SmartTableSavedViewsMenu
+					scope="media"
+					getSnapshot={getMediaSavedViewSnapshot}
+					onApply={applyMediaSavedView}
+				/>
 			</div>
 
 		</div>

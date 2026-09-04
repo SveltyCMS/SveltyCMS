@@ -27,11 +27,12 @@ import type { Schema } from "@src/content/types";
 import type { LocalApiOptions } from "../types";
 import { evictRequestCache } from "./request-cache";
 import {
+  getResponseCacheLazy,
   getOutboxLazy,
   getPubSubLazy,
-  getResponseCacheLazy,
   getWorkflowServiceLazy,
 } from "./lazy-services";
+import { recordWriteAccess } from "@src/services/intelligence/behavioral-learner";
 
 /** True when the caller explicitly opted out of write side effects — no outbox, workflow, plugin afterSave, or L2 fan-out. */
 export function shouldSkipWriteSideEffects(options: LocalApiOptions): boolean {
@@ -87,6 +88,13 @@ let _pendingInvalidationDirty = new Set<string>();
  * of every cached per-id entry — the fix for the O(#docs) write cliff at scale.
  */
 const _pendingInvalidationIds = new Map<string, Set<string>>();
+/** Set free-list — recycles per-tick id Sets instead of re-allocating one per coalesced write burst. */
+const _idSetPool: Set<string>[] = [];
+const acquireIdSet = (): Set<string> => _idSetPool.pop() ?? new Set<string>();
+const releaseIdSet = (ids: Set<string>): void => {
+  ids.clear();
+  _idSetPool.push(ids);
+};
 
 /**
  * Invalidate L1 (synchronous, scoped) + L2 (tick-debounced, coalesced).
@@ -106,6 +114,10 @@ export function invalidateCache(
   // 1. Clear L1 (In-Memory) Cache synchronously (0ms) — scoped to this collection keyspace
   if (!opts?.skipRequestCacheClear) {
     evictRequestCache(schema._id as string, tenantId as string);
+    // Same tick: bump collection generation so weak ETags 304-miss on the next GET.
+    if (schema._id) {
+      cacheService.bumpCollectionEpoch(schema._id as string, tenantId as string | null | undefined);
+    }
   }
 
   // 2. Tick-debounced L2 tag clears.
@@ -116,7 +128,7 @@ export function invalidateCache(
   if (schemaId && (opts?.writtenId || opts?.writtenIds?.length)) {
     let ids = _pendingInvalidationIds.get(requestKey);
     if (!ids) {
-      ids = new Set<string>();
+      ids = acquireIdSet();
       _pendingInvalidationIds.set(requestKey, ids);
     }
     if (opts.writtenId) ids.add(opts.writtenId);
@@ -135,23 +147,24 @@ export function invalidateCache(
     try {
       const responseCache = await getResponseCacheLazy();
       if (schemaId) {
-        // Collection-wide caches (list/query + count): O(#matched keys), not
-        // O(#docs) — per-id reads are tagged doc:<coll>:<id>, not collection:*.
-        void cacheService
-          .clearByTags([`collection:${schemaId}`, `count:${schemaId}`], tenantKey)
-          .catch(() => {});
-        // Surgical: clear ONLY the per-id caches of documents written this tick.
+        // Consolidated tick invalidation: list/count + response cache + per-doc surgical tags in ONE pass.
+        const tagsToClear = [
+          `collection:${schemaId}`,
+          `count:${schemaId}`,
+          `res:${schemaId}`,
+          "res:graphql",
+        ];
         if (ids && ids.size > 0) {
-          const docTags: string[] = [];
-          for (const id of ids) docTags.push(`doc:${schemaId}:${id}`);
-          void cacheService.clearByTags(docTags, tenantKey).catch(() => {});
+          for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
         }
-        void responseCache.invalidateCollection(schemaId, tenantKey).catch(() => {});
+        void cacheService.clearByTags(tagsToClear, tenantKey).catch(() => {});
+        responseCache.invalidateLocal(schemaId, tenantKey);
       } else {
         void responseCache.invalidateAll(tenantKey).catch(() => {});
       }
     } catch {
     } finally {
+      if (ids) releaseIdSet(ids);
       _pendingInvalidationTasks.delete(requestKey);
       if (_pendingInvalidationDirty.has(requestKey)) {
         _pendingInvalidationDirty.delete(requestKey);
@@ -191,6 +204,10 @@ export function schedulePostWrite(
   // workflow/pubsub work, so save-then-read can't race a stale cached list.
   // Pass the written id so its per-id cache is cleared surgically (doc:<coll>:<id>).
   invalidateCache(schema, tenantId, { skipRequestCacheClear: true, writtenId: id });
+
+  if (action === "create" || action === "update") {
+    recordWriteAccess(tid || "global", schemaId, id);
+  }
 
   const hookName = action === "create" || action === "update" ? "afterSave" : "afterDelete";
   const hasPluginHook = pluginRegistry.hasAnyHook(hookName);

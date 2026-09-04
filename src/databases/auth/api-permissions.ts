@@ -31,6 +31,9 @@ export const API_PERMISSIONS: Record<string, string[]> = {
   "api:import-data": ["admin"], // Collection import
   "api:system": ["admin", "editor"], // System status (version, health)
   "api:system/health": ["*"], // Public health check
+  "api:system/prewarm-route": ["*"], // Predictive preload server-side route warming
+  "api:system/penalize-bounce": ["*"], // Client navigation bounce telemetry
+  "api:system/license-status": ["*"], // Client extension license verification
   "api:telemetry": ["admin", "developer", "editor"], // System telemetry
 
   // Admin area - Admin only
@@ -66,6 +69,8 @@ export const API_PERMISSIONS: Record<string, string[]> = {
   // Content Structure - Admin and Editor
   "api:content-structure": ["admin", "editor"], // Content structure management
   "api:content": ["admin", "editor"], // Content version and management
+  "api:seo": ["admin", "editor"], // Internal link suggestions and SEO tools
+  "api:chat": ["admin", "editor"], // AI Assistant and collaboration chat
 
   // Theme Management - Admin and Editor (content creators need themes)
   "api:theme": ["admin", "editor"], // Theme management

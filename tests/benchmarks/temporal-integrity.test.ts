@@ -101,13 +101,32 @@ async function runTemporalAudit() {
     const db = getDb();
 
     if (db) {
+      // 🛡️ FULL SCHEMA: keep `publishDate` (DateTime) declared for the PATCH
+      // normalization contract, but preserve the other physical fields too — a
+      // reduced schema here would drop `count`/`slug`/etc. from the shared DB
+      // registry and break later matrix tests (same isolation bug class as
+      // local-api-throughput's old BenchmarkStable re-provision).
       await db.collection
         .createModel({
           _id: COLLECTION_ID,
           name: COLLECTION_ID,
           fields: [
-            { db_fieldName: "title", type: "string" },
-            { db_fieldName: "publishDate", type: "datetime" },
+            { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
+            { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
+            { db_fieldName: "slug", label: "Slug", widget: { Name: "Input" }, type: "string" },
+            {
+              db_fieldName: "content",
+              label: "Content",
+              widget: { Name: "RichText" },
+              type: "string",
+            },
+            { db_fieldName: "count", label: "Count", widget: { Name: "Input" }, type: "number" },
+            {
+              db_fieldName: "publishDate",
+              label: "Publish Date",
+              widget: { Name: "DateTime" },
+              type: "string",
+            },
           ],
         } as any)
         .catch(() => {});

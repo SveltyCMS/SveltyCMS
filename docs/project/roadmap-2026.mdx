@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-08-23"
+updated: "2026-09-04"
 tags:
   - "roadmap"
   - "todo"
@@ -28,13 +28,13 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 
 ### Next (high leverage — foundations ready)
 
-| Enhancement                      | Status     | Notes                                                                |
-| -------------------------------- | ---------- | -------------------------------------------------------------------- |
-| **Saved views**                  | 🟡 Partial | Entry-list + **website-tokens** wired; users/media still to mirror   |
-| **Column resize + layout prefs** | 🟡 Partial | Entry-list + tokens `layoutKey`; extend media/users                  |
-| **Status / domain facets**       | 🟡 Partial | Collection facets use cached `crud.count`; expand chips UI           |
-| **List metrics**                 | 🟡 Partial | `list-query-metrics` + SSR badge on collections; extend users/tokens |
-| **Filter engine reuse**          | Planned    | Port IR to users/tokens allowlisted fields                           |
+| Enhancement                      | Status     | Notes                                                                                                       |
+| -------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
+| **Saved views**                  | 🟢 Shipped | 100% wired across all list surfaces: Entry-list, website-tokens, users, and media                           |
+| **Column resize + layout prefs** | 🟡 Partial | Entry-list + tokens `layoutKey`; extend media/users                                                         |
+| **Status / domain facets**       | 🟢 Shipped | Collection facets + interactive User Management facet chips (`All`, `Admins`, `Users`, `Active`, `Blocked`) |
+| **List metrics**                 | 🟢 Shipped | `list-query-metrics` + SSR badge on collections, users, and tokens                                          |
+| **Filter engine reuse**          | 🟢 Shipped | Allowlisted field filtering (`role`, `blocked`, `email`, `username`) on users/tokens                        |
 
 ### Planned product UX
 
@@ -44,7 +44,7 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 
 ### Performance & observability
 
-- Virtualization tuning; predictive preload “warm next page”
+- Predictive preload “warm next page” — 🟢 Shipped: sidebar smart-preload of learner-predicted path + dashboard hot-collection chips + heat-aware SWR + Smart Table pagination links with `data-preload="viewport"` (2026-09-02, see [Achievements Log](./achievements-2026.mdx)).
 - List p50/p95 from `list-query-metrics` into benchmark trend notes
 - Negative cache / empty-page policy documentation
 
@@ -59,6 +59,10 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 
 ## 🏗️ In Progress
 
+- 🟢 **Enterprise Multi-Stage Review Workflows (Shipped September 2026)** — Full content lifecycle finite state machine (`WorkflowService`), RBAC-gated stage transitions (`workflow:transition`), audit history logging, collection binding, and visual state editor at `/config/workflows`. Editors execute transitions with optional review comments directly inside the content view via `<WorkflowActions>`. Documented in [Achievements Log](./achievements-2026.mdx).
+- 🟢 **Visual Polymorphic Block Builder (Shipped September 2026)** — Component-driven page layout widget (`src/widgets/custom/block-builder/`) with 8 production presets (Hero, Text & Prose, Media Showcase, Call to Action, Features Grid, Quote/Testimonial, FAQ, Rich Text), Valibot schema validation, keyboard-accessible reordering, duplicate/delete operations, and headless JSON export. Documented in [Achievements Log](./achievements-2026.mdx).
+- 🟢 **In-App Developer & API Playground (Shipped September 2026)** — Unified developer console at `/config/api` inside `<AdminPageShell>`, providing live REST execution against the OpenAPI 3.1 specification, interactive GraphQL query testing against `/api/graphql`, and multi-language client code generation (cURL, TypeScript fetch, Python requests, zero-latency SvelteKit `LocalCMS`). Documented in [Achievements Log](./achievements-2026.mdx).
+- 🟢 **Enterprise OIDC / SSO Polish (Shipped September 2026)** — RFC 7636 PKCE (S256) on the authorization-code flow, Just-In-Time auto-provisioning with claim→role mapping (`resolveJitRole`), branded IdP login buttons on `/login`, and the SSO & OIDC management console in Access Management (`/api/auth/sso-providers`). Documented in [Achievements Log](./achievements-2026.mdx).
 - 🏗️ **AI-Assisted Builder (Phase 0 shipped 2026-08-20)** — `src/services/ai-builder/` gateway skeleton: `gateway.ts` (ordered backend failover via the existing Ollama `aiService` + per-user sliding-window quotas), `prompts.ts` (`<user_data>` passive-reference injection shield), `validator.ts` (Valibot structured-output validation + widget-registry awareness + reserved `db_fieldName` blocking), `diff.ts` (proposal-vs-schema diff), `collection-designer.ts` (design/refine). API namespace `ai-builder` registered in the existing fail-closed dispatcher (`ENDPOINT_PERMISSIONS: system:settings`, admin-gated handler): `POST /api/ai-builder/design-collection` and `refine-collection` live; `approve-collection` returns 501 until Phase 1 (schema write via AST path). See [AI-Assisted Builder Design](../development/ai-builder-design.mdx).
 - 🏗️ **CollectionsNamespace consolidation (2026-08)** — `src/services/sdk/namespaces/collections-namespace.ts` split from a ~2,100-line monolith into a thin orchestrator + single-purpose modules (`schema-store`, `read-pipeline`, `write-pipeline`, `post-write`, `request-cache`, `lazy-services`). Write field prep is now ONE schema walk + ONE clone via `prepareCollectionFields()` in `content-utils.ts` (previously 3 walks / up to 3 clones); create/update share `applySchemaHookPipeline`; `collectionTableName()` centralizes physical table naming (namespace + handlers); dead code removed (`emitOutboxEvent`, `modifyRequest` passthrough). **Adapter naming reconciled**: SQL `getTable`/`createIndexes`/`registerTableSchema` and Mongo `normalizeCollectionName`/`createModel` now all derive from `normalizeCollectionTableName()` — fixes hyphenated-id index/model-registry mismatches (see [Performance Architecture](../reference/database/performance-architecture.mdx)). **Hot-path follow-on (2026-08-21):** field-cached widget transforms, `createdAt` insert-only on SQL+Mongo, mutation L1 sync / L2 fire-and-forget, `validateSession` JOIN, zero boot settling delay, `globalThis` cache/webhook/automation singletons. Security invariants preserved: publication clamping, tenant injection, sanitization, `assertWriteAllowed`, best-effort side effects. See [Local SDK vs HTTP/GraphQL API](../development/local-vs-http-api.mdx). Pending: re-run `local-cms-crud` / `local-sdk-vs-direct` benchmarks to refresh trend labels.
 
@@ -71,8 +75,6 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 
 ## 🚀 Planned
 
-- **OIDC login flow** — **August 2026 progress:** Discovery (auth/token/jwks/logout), JWKS verify for back-channel logout + id_token, `GET /api/auth/oidc-login` + `oidc-callback` (authorization code → local session for existing users). Still open: auto-provision policy, PKCE, IdP UI on login page, full ES256 test matrix.
-- **Admin Session Console (UI)** — API shipped (`GET/DELETE /api/user/sessions?admin=1&userId=X`); Access Management UI for browsing/revoking sessions per user is planned.
 - **Cross-Source Merge Execution (v3.1 → stable)**
 - **Visual Studio Query Builder**
 - **GraphQL Supergraph / Federation**
@@ -88,14 +90,14 @@ This document is the **living roadmap** — in-progress and planned work. Comple
 
 Honest assessment against reference platforms, based on publicly available documentation as of 2026-08-04. Closure paths link to the roadmap items above; shipped items are tracked in the [Achievements Log](./achievements-2026.mdx).
 
-| Capability                               | Reference platforms (public docs)                                                      | Our current state                                                                                                                                               | Gap & closure path                                                                                                                                                              |
-| :--------------------------------------- | :------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Distributed SSO realm sessions**       | Keycloak documents realm-wide session clustering and cross-application SSO propagation | Single-instance session store (L1/L2 + DB); OIDC login flow in progress; SAML and all three OIDC logout mechanisms shipped                                      | No cross-application session propagation yet. Closure: OIDC login page + PKCE (roadmap P1); distributed session clustering with the managed-cloud / Docker enterprise pack (P2) |
-| **Adaptive / risk-based authentication** | Keycloak documents conditional authentication flows (step-up, risk-based)              | Static lockout, TTL/idle controls, step-up re-auth for session management                                                                                       | No policy engine for adaptive challenges. Closure: roadmap candidate; the shipped log-only anomaly detection feeds future alerting                                              |
-| **Module ecosystem depth**               | Drupal's public module directory lists tens of thousands of modules                    | Plugin `page` part, widgets, and dashboard widget packages provide first-class admin extension points                                                           | Catalog is young. Closure: marketplace in-app catalog + one-click install (P1); ecosystem launch items on the roadmap                                                           |
-| **Field-level write guards**             | Directus documents per-field read/write policy per role                                | Read-side response filtering shipped (`FIELD_PERMISSIONS`); filter/search FLAC shipped (`canAccessField`); mutation enforcement active via `assertWriteAllowed` | **Shipped**: Full read + write field permission enforcement active across SDK and API pipelines                                                                                 |
-| **Passkey UI polish**                    | WebAuthn/passkeys widely deployed in consumer-grade UX                                 | WebAuthn/passkey support exists; UI polish pending                                                                                                              | Small, contained; tracked in the security scorecard                                                                                                                             |
-| **Independent verification**             | Enterprise platforms publish third-party pentest / audit reports                       | 0 CVEs on record (NVD / GitHub Advisory DB, self-checked); internal scanners enforced in CI                                                                     | No third-party pentest yet. Closure: engage a pentest lab before enterprise GA                                                                                                  |
+| Capability                               | Reference platforms (public docs)                                                      | Our current state                                                                                                                                               | Gap & closure path                                                                                                                         |
+| :--------------------------------------- | :------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| - **Distributed SSO realm sessions**     | Keycloak documents realm-wide session clustering and cross-application SSO propagation | Single-instance session store (L1/L2 + DB); OIDC login (PKCE S256 + JIT provisioning) and SAML plus all three OIDC logout mechanisms shipped                    | No cross-application session propagation yet. Closure: distributed session clustering with the managed-cloud / Docker enterprise pack (P2) |
+| **Adaptive / risk-based authentication** | Keycloak documents conditional authentication flows (step-up, risk-based)              | Static lockout, TTL/idle controls, step-up re-auth for session management                                                                                       | No policy engine for adaptive challenges. Closure: roadmap candidate; the shipped log-only anomaly detection feeds future alerting         |
+| **Module ecosystem depth**               | Drupal's public module directory lists tens of thousands of modules                    | Plugin `page` part, widgets, and dashboard widget packages provide first-class admin extension points                                                           | Catalog is young. Closure: marketplace in-app catalog + one-click install (P1); ecosystem launch items on the roadmap                      |
+| **Field-level write guards**             | Directus documents per-field read/write policy per role                                | Read-side response filtering shipped (`FIELD_PERMISSIONS`); filter/search FLAC shipped (`canAccessField`); mutation enforcement active via `assertWriteAllowed` | **Shipped**: Full read + write field permission enforcement active across SDK and API pipelines                                            |
+| **Passkey UI polish**                    | WebAuthn/passkeys widely deployed in consumer-grade UX                                 | WebAuthn/passkey support exists; UI polish pending                                                                                                              | Small, contained; tracked in the security scorecard                                                                                        |
+| **Independent verification**             | Enterprise platforms publish third-party pentest / audit reports                       | 0 CVEs on record (NVD / GitHub Advisory DB, self-checked); internal scanners enforced in CI                                                                     | No third-party pentest yet. Closure: engage a pentest lab before enterprise GA                                                             |
 
 **Strategic non-goals (explicit):** matching WordPress/PHP's install base or module count is not a design target — the extension surface is deliberately typed and tree-shaken (plugins, widgets, dashboard packages) rather than a generic runtime hook bus.
 
@@ -140,11 +142,11 @@ Honest assessment against reference platforms, based on publicly available docum
 
 ## Priority for implementers (current)
 
-| Priority | Work                                                                   |
-| -------- | ---------------------------------------------------------------------- |
-| **P0**   | Finish list surfaces on `findPage`/metrics; saved views on users/media |
-| **P1**   | Marketplace install path; OIDC login page + PKCE; published adapters   |
-| **P2**   | Docker/Terraform, managed cloud                                        |
+| Priority | Work                                                                                    |
+| -------- | --------------------------------------------------------------------------------------- |
+| **P0**   | Scale-spectrum ledger recorded (SQLite 1→10k; PG/Maria/Mongo 1→100k) — see achievements |
+| **P1**   | Marketplace install path; published adapters                                            |
+| **P2**   | Docker/Terraform, managed cloud                                                         |
 
 ## ✅ Shipped (2026-08-23) — moved to the [Achievements Log](./achievements-2026.mdx)
 
@@ -154,3 +156,18 @@ Honest assessment against reference platforms, based on publicly available docum
 **Open follow-ups:** run the Redis matrix variant once (`USE_REDIS=true`). The profile-backed matrix re-run landed **200/200** — see the [Achievements Log](./achievements-2026.mdx) for the pre-profile vs profile measurement.
 
 _Last roadmap sync: 2026-08-23_
+
+## ✅ Shipped (2026-09-02) — moved to the [Achievements Log](./achievements-2026.mdx)
+
+- **Intelligence consumption & predictive navigation** — the behavioral learner now renders confidence-gated (`predictNextPathAdaptive`); `data-preload="smart"` on sidebar navigation and collection tree nodes in `collections.svelte` + `tree-view.svelte`; "Warm next page" viewport preloading on Smart Table pagination controls (`data-preload="viewport"` on next page link via `pagination.svelte`); dashboard hot-collection quick chips; heat-aware SWR in `collection-service.ts` (hot top-20 lists keep the 60 s fresh TTL but serve stale up to 15 min; cold lists unchanged).
+- **Request-pipeline lean** — one canonical L2 cache key shared by hook + dispatcher (duplicate `api:` namespace retired), single-compression guarantee via a `compressed: {}` sentinel (one br+gzip+zstd pass re-sets L1 with real variants), admin sidebar payload cached per (tenant, contentVersion) instead of rebuilt + recursively cloned per SSR, and one per-request session-cookie resolution across authn/authz/turbo/dispatcher.
+- **Smart Table Saved Views** — saved views menu (`SmartTableSavedViewsMenu`) wired into User Management (`admin-area.svelte`) alongside existing entry-list and website-tokens surfaces.
+
+## ✅ Shipped (2026-09-04) — moved to the [Achievements Log](./achievements-2026.mdx)
+
+- **Store architecture modernization & runes consolidation** — global store directory reduced from 28 files down to 18 single-purpose domain singletons; legacy monolithic `store.svelte.ts` singleton and compatibility bridges eliminated; satellite state (`status-store`, `data-change-store`, `user-prefs-overlay`) absorbed into `collection-store` and `theme-store`; single-consumer stores colocated directly into feature directories (`consent-store`, `settings-state`, `dashboard-preferences`, `image-editor-store`, `help-state`); all 72 widget inputs, displays, and routes decoupled to direct domain stores.
+- **Point-lookup slab & hot-path serialization** — `randomAccessSlab` FIFO cache (2,000 slots, 30s TTL) for high-frequency point lookups (`findByIdRandom` warm lift +196%, matching hot-path `findById`); `updateAgeOnGet: false` on ENTRY/CONTENT lookups to eliminate LRU reordering overhead; pattern invalidation latency reduced −87% (4.11ms → 0.53ms, +676% RPS); single-pass O(N) array serialization in `serializeArrayFast` (`fast-json.ts`) eliminating GC pressure under `listLarge`; hardware-profile connection pool floor elevated to 32 on 8c+ hosts; transactional SMTP connection pool hardening (`maxRecipients: 1`, `maxMessages: Infinity`, `connectionTimeout: 10s`, `socketTimeout: 30s`).
+- **Interactive Admin Session Console (UI)** — session management modal (`modal-user-sessions.svelte` + `DELETE /api/user/sessions`) inside User Management; concurrent session inspection per user with client metadata (OS, browser, IP address, active session badge) and one-click remote session revocation with instant cache invalidation.
+- **Native field-level encryption at rest** — `encrypt: true` on collection fields, AES-256-GCM `v1:iv:tag:ciphertext` envelopes in write/read pipelines with HKDF key derivation and AAD binding (`tenantId:collectionId:fieldName`).
+- **HTTP ETag & DB-free 304 for collection reads** — weak collection-generation ETags and DB-free `If-None-Match` 304 on `GET /api/collections/{id}`.
+- **Streamed collection exports** — cursor/page-backed NDJSON/CSV/JSON streaming export at `GET /api/collections/{id}/export` with backpressure.

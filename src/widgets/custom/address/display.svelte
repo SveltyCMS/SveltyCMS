@@ -26,7 +26,7 @@ Renders: "Main St 123, 12345 Berlin, Germany"
 
 <script lang="ts">
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import type { FieldType } from './';
 	import { countryStore } from './country-store.svelte';
 	import type { AddressData } from './types';
@@ -48,7 +48,7 @@ Renders: "Main St 123, 12345 Berlin, Germany"
 
 		if (field.translated && typeof value === 'object') {
 			// Multilingual mode: Try current content language, fallback to default
-			const lang = app.contentLanguage;
+			const lang = locale.contentLanguage;
 			const defaultLang = (publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en').toLowerCase();
 			return ((value as Record<string, AddressData>)[lang] || (value as Record<string, AddressData>)[defaultLang] || Object.values(value)[0]) as
 				| AddressData
@@ -60,7 +60,7 @@ Renders: "Main St 123, 12345 Berlin, Germany"
 	});
 
 	// UI Language for country name translation
-	const uiLang = $derived(app.systemLanguage);
+	const uiLang = $derived(locale.systemLanguage);
 </script>
 
 {#if safeValue?.street}

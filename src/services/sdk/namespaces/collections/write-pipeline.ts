@@ -12,11 +12,12 @@
  * - applyWidgetPipeline: collectionModelCache lookup + resilient model resolve
  *   + modifyRequest (XSS already applied in prepareWritePayload when skipSanitize)
  * - writeTouchesActiveWidgets: skip async pipeline when payload has no widget fields
+ * - encryptWritePayload: AES-256-GCM field encryption for `encrypt: true` fields
  */
 
 import {
   prepareCollectionFields,
-  validateNumericFields,
+  validateNumberFieldPlans,
   type CollectionFieldPrepFlags,
 } from "@src/content/content-utils";
 import { applySchemaHookPipeline } from "@src/content/schema-hooks";
@@ -24,10 +25,14 @@ import { modifyRequest, type EntryData } from "@utils/modify-request";
 import { AppError } from "@utils/error-handling";
 import { hasIsoDateTimePrefix, nowISODateString, toISOString } from "@src/utils/date";
 import { assertWriteAllowed } from "@src/services/security/field-permission-service";
+import { sanitizeObject } from "@utils/security/input-sanitizer";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { FieldInstance, Schema } from "@src/content/types";
 import { collectionModelCache, getModelResilient, type SchemaHotFlags } from "./schema-store";
-import { sanitizeObject } from "@utils/security/input-sanitizer";
+import {
+  encryptDocumentFields,
+  type FieldEncryptionContext,
+} from "@utils/security/field-encryption";
 
 /** Structural schema view accepted by the content prep/validation helpers. */
 export type PrepFieldSchema = {
@@ -68,14 +73,26 @@ export function prepareWritePayload(
 ): any {
   const { user, system, operation, tenantId, entryId } = opts;
 
-  const prepFlags: CollectionFieldPrepFlags = {
-    sanitize: hot._hasSanitizableFields,
-    constraints: hot._hasConstrainedFields,
-  };
-  let entryData = prepareCollectionFields(data, schema as PrepFieldSchema, prepFlags);
-
-  if (entryData === data) {
+  let entryData: any;
+  if (hot._hasSanitizableFields === true || hot._hasConstrainedFields === true) {
+    // Sanitize + constraints pass — single walk over schema.fields, lazy clone.
+    const prepFlags: CollectionFieldPrepFlags = {
+      sanitize: hot._hasSanitizableFields,
+      constraints: hot._hasConstrainedFields,
+    };
+    entryData = prepareCollectionFields(data, schema as PrepFieldSchema, prepFlags);
+    if (entryData === data) entryData = { ...data };
+  } else {
+    // Fast path: no sanitizable/constrained fields → one shallow copy for the
+    // stamps below. Never mutate the caller's payload (the widget pipeline and
+    // adapters write through this object).
     entryData = { ...data };
+  }
+
+  // Sanitize the payload tree against XSS when sanitizable fields or extra dynamic fields exist.
+  // Zero-allocation fast path returns entryData by reference when no XSS vector is present.
+  if (hot._hasSanitizableFields !== false) {
+    entryData = sanitizeObject(entryData);
   }
 
   if (operation === "create") {
@@ -87,18 +104,11 @@ export function prepareWritePayload(
     entryData.updatedAt = nowISODateString();
   }
 
-  // XSS pass lives here so create/update can skip the async widget pipeline
-  // when no widget actually needs modifyRequest (DateTime is inlined below).
-  if (hot._hasSanitizableFields !== false) {
-    entryData = sanitizeObject(entryData);
-  }
-
-  if (hot._hasDateTimeFields && Array.isArray(schema.fields)) {
-    for (let i = 0; i < schema.fields.length; i++) {
-      const field = schema.fields[i] as FieldInstance;
-      if (field.widget?.Name !== "DateTime") continue;
-      const name = (field as { db_fieldName?: string }).db_fieldName;
-      if (!name || !Object.hasOwn(entryData, name)) continue;
+  const dateTimeFieldNames = hot._dateTimeFieldNames;
+  if (dateTimeFieldNames && dateTimeFieldNames.length > 0) {
+    for (let i = 0; i < dateTimeFieldNames.length; i++) {
+      const name = dateTimeFieldNames[i];
+      if (!Object.hasOwn(entryData, name)) continue;
       const val = entryData[name];
       if (val === undefined || val === null || val === "") continue;
       // Skip only when the value is ALREADY the canonical `toISOString()`
@@ -130,9 +140,10 @@ export function prepareWritePayload(
       tenantId: tenantId as string | undefined,
       userId: user?._id as string | undefined,
     };
-    const validate = hot._hasNumberFields
-      ? (doc: Record<string, unknown>) => validateNumericFields(doc, schema as PrepFieldSchema)
-      : undefined;
+    const validate =
+      hot._hasNumberFields && hot._numberFields
+        ? (doc: Record<string, unknown>) => validateNumberFieldPlans(doc, hot._numberFields!)
+        : undefined;
     return applySchemaHookPipeline(schema.hooks, entryData, hookCtx, validate, {
       createError: fieldValidationError,
     }).then(async (prepared) => {
@@ -147,8 +158,8 @@ export function prepareWritePayload(
     });
   }
 
-  if (hot._hasNumberFields) {
-    const rangeErrors = validateNumericFields(entryData, schema as PrepFieldSchema);
+  if (hot._hasNumberFields && hot._numberFields) {
+    const rangeErrors = validateNumberFieldPlans(entryData, hot._numberFields);
     if (rangeErrors.length > 0) {
       throw fieldValidationError(rangeErrors);
     }
@@ -163,6 +174,21 @@ export function prepareWritePayload(
   }
 
   return entryData;
+}
+
+/**
+ * Encrypt `encrypt: true` fields in place after sanitization/widgets and
+ * before adapter persist. Zero-cost when the schema has no encrypted fields.
+ */
+export async function encryptWritePayload(
+  data: any,
+  hot: SchemaHotFlags,
+  context: FieldEncryptionContext,
+): Promise<any> {
+  if (!hot._hasEncryptedFields || !hot._encryptedFieldNames?.length) return data;
+  if (!data || typeof data !== "object") return data;
+  await encryptDocumentFields(data as Record<string, unknown>, hot._encryptedFieldNames, context);
+  return data;
 }
 
 /**

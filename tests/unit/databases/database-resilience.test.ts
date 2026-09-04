@@ -113,4 +113,31 @@ describe("Database Resilience (real db.ts)", () => {
       realDb.resetDbInitPromise();
     }
   });
+
+  it("preWarmConnectionPool respects max concurrency limit of 4", async () => {
+    const { preWarmConnectionPool } = await import(
+      "@src/databases/database-resilience?bun-unmock=" + Date.now()
+    );
+
+    let activeConnections = 0;
+    let peakConcurrency = 0;
+
+    const mockAdapter = {
+      type: "postgres",
+      sql: async () => {
+        activeConnections++;
+        peakConcurrency = Math.max(peakConcurrency, activeConnections);
+        // Add artificial delay to assert parallel in-flight concurrency
+        await new Promise((r) => setTimeout(r, 20));
+        activeConnections--;
+        return [{ ok: 1 }];
+      },
+    };
+
+    await preWarmConnectionPool(mockAdapter, 10);
+
+    expect(peakConcurrency).toBeLessThanOrEqual(4);
+    expect(peakConcurrency).toBeGreaterThan(0);
+    expect(activeConnections).toBe(0);
+  });
 });

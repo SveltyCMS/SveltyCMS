@@ -15,10 +15,14 @@ import { logger } from "@utils/logger";
 import { isSetupComplete } from "../../utils/setup-check-fast";
 import { cacheService } from "./cache-service";
 import { CacheCategory } from "./types";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
+import {
+  getHotCollections,
+  getHotEntries,
+  getTrackedTenantIds,
+} from "@src/services/intelligence/behavioral-learner";
 
 export class CacheWarmingService {
-  private lastReconcile = 0;
-
   /**
    * Strategically warms critical paths on startup or re-initialization.
    */
@@ -27,38 +31,56 @@ export class CacheWarmingService {
     const start = performance.now();
 
     try {
-      const { withSystemScope } = await import("../system-tenant-scope");
       const systemScope = withSystemScope("bootstrap");
       let hasRedirectsCollection = false;
-      // 1. Warm Core Schemas (Required for all collection loads)
-      if (db?.collection?.listSchemas) {
+      // 🔴 FIX 1 (cross-tenant + dead work): the previous code wrote
+      // `cacheService.set("schema:${schema.name}", ..., /* tenantId */ null, ...)`.
+      // (a) That key is NOT read by any consumer — the real schema cache read by
+      //     `peekReadySchema()`/`resolveSchema()` is `_schemaCache` in
+      //     schema-store.ts, keyed `${tenant||"global"}:${collectionId.toLowerCase()}` and
+      //     populated via `prewarmCollectionSchemas()`. These writes were pure dead work.
+      // (b) tenantId hardcoded to `null` collapsed every tenant's schema sharing a name
+      //     into the single `tenant:default:schema:<name>` slot (e.g. Tenant A's "posts"
+      //     overwrote Tenant B's "posts") = cross-tenant cache pollution.
+      // Correct behavior: warm the REAL, tenant-scoped schema cache so identical collection
+      // names across tenants never collide and the entries are actually read.
+      const { prewarmCollectionSchemas } =
+        await import("@src/services/sdk/namespaces/collections/schema-store");
+      if (db?.collection?.listSchemas && typeof prewarmCollectionSchemas === "function") {
         const schemas = await db.collection.listSchemas(null, systemScope);
-        if (schemas.success && schemas.data) {
+        if (schemas.success && Array.isArray(schemas.data)) {
           for (const schema of schemas.data) {
             if (schema.name === "redirects") {
               hasRedirectsCollection = true;
             }
-            // 🚀 Pre-encode: cache the serialized JSON string so cache hits
-            // bypass JSON.stringify() entirely — direct stream to response.
-            const preEncoded = JSON.stringify(schema);
-            await cacheService.set(
-              `schema:${schema.name}`,
-              preEncoded,
-              3600,
-              null,
-              CacheCategory.SCHEMA,
-            );
+            const schemaTenant = (schema as { tenantId?: string | null }).tenantId ?? null;
+            try {
+              // Keys by `${schemaTenant||global}:${_id}`, so tenant isolation is preserved.
+              prewarmCollectionSchemas([schema], db, schemaTenant);
+            } catch {
+              // Partial/fieldless schema — non-fatal; resolveSchema covers the miss.
+            }
           }
         }
       }
 
-      // 2. Warm Default Theme
+      // 🔴 FIX 2 (dead work): the previous code wrote `cacheService.set("active_theme", ...)` —
+      // a key NO read path consumes (ThemeManager/getTheme read `theme:${tenant||"global"}` /
+      // adapter `theme:active:<tenant>`). The "active_theme" write was pure dead load that also
+      // gave false confidence via the "✨ Cache Warming Complete" log. Write the key that is
+      // actually read by theme-manager.ts (`theme:${tenant||"global"}`).
       if (db?.system?.themes?.getActive) {
         const theme = await db.system.themes.getActive(systemScope);
         if (theme.success && theme.data) {
-          // 🚀 Pre-encode: cache serialized theme so reads never touch DB
-          const preEncodedTheme = JSON.stringify(theme.data);
-          await cacheService.set("active_theme", preEncodedTheme, 3600, null, CacheCategory.THEME);
+          const themeTenant = (theme.data as { tenantId?: string | null }).tenantId ?? "global";
+          await cacheService.set(
+            `theme:${themeTenant}`,
+            theme.data,
+            3600,
+            themeTenant,
+            CacheCategory.THEME,
+            ["theme", `theme:${themeTenant}`],
+          );
         }
       }
 
@@ -70,14 +92,11 @@ export class CacheWarmingService {
           const redirects = await db.crud.find("redirects", {}, { limit: 100, ...systemScope });
           if (redirects.success && redirects.data) {
             for (const r of redirects.data) {
-              const preEncodedRedirect = JSON.stringify(r);
-              await cacheService.set(
+              const rTenant = r.tenantId ?? "global";
+              await cacheService.set(`redirect:${r.from}`, r, 3600, rTenant, CacheCategory.API, [
+                "redirect",
                 `redirect:${r.from}`,
-                preEncodedRedirect,
-                3600,
-                r.tenantId,
-                CacheCategory.API,
-              );
+              ]);
             }
           }
         } catch (err: any) {
@@ -113,12 +132,7 @@ export class CacheWarmingService {
     }
 
     try {
-      const { withSystemScope } = await import("../system-tenant-scope");
-      // System warming reads across tenants (behavioral data is global); the cache
-      // keys below are tenant-scoped via the tenantId arg, so no cross-tenant bleed.
       const systemScope = withSystemScope("cache-warming");
-      const { getHotCollections, getHotEntries } =
-        await import("@src/services/intelligence/behavioral-learner");
 
       const hotCollections = getHotCollections(tenantId, 10);
       const hotEntries = getHotEntries(tenantId, 20);
@@ -131,45 +145,116 @@ export class CacheWarmingService {
         `🧠 [PredictiveCache] Pre-warming cache from Behavioral Learner for tenant "${tenantId}"`,
       );
 
-      // 1. Warm hot collections (per-collection error isolation — missing tables must not cascade)
-      await Promise.allSettled(
-        hotCollections.map(async ({ id }) => {
-          if (db?.crud?.find) {
-            try {
-              await cacheService.getOrSetSWR(
-                `collection:${id}:list`,
-                () => db.crud.find(id, {}, { limit: 20, skipMeta: true, ...systemScope }),
-                300_000, // 5 min TTL
-                1_800_000, // 30 min stale SWR window
-                tenantId,
-              );
-            } catch {
-              logger.trace(
-                `[PredictiveCache] Skipping collection "${id}" — table may not exist yet`,
-              );
+      // 1. Warm hot collections in throttled chunks with collection epoch fences
+      const CHUNK_SIZE = 3;
+      for (let i = 0; i < hotCollections.length; i += CHUNK_SIZE) {
+        const chunk = hotCollections.slice(i, i + CHUNK_SIZE);
+        await Promise.allSettled(
+          chunk.map(async ({ id }) => {
+            if (db?.crud?.find) {
+              try {
+                const epoch = cacheService.getCollectionEpoch(id, tenantId);
+                const res = await db.crud.find(
+                  id,
+                  {},
+                  { limit: 50, skipMeta: true, ...systemScope },
+                );
+                // If a mutation occurred while find was in-flight, discard stale snapshot
+                if (cacheService.getCollectionEpoch(id, tenantId) !== epoch) {
+                  return;
+                }
+                if (res?.success && res.data) {
+                  const listData = Array.isArray(res.data) ? res.data : [];
+                  const payload = { success: true, data: listData };
+                  const defaultKey = `collection:${id}:find:default_50:published`;
+                  const defaultKeyAll = `collection:${id}:find:default_50`;
+                  const tags = ["collection", `collection:${id}`];
+                  await cacheService.set(
+                    defaultKey,
+                    payload,
+                    300,
+                    tenantId,
+                    CacheCategory.COLLECTION,
+                    tags,
+                  );
+                  await cacheService.set(
+                    defaultKeyAll,
+                    payload,
+                    300,
+                    tenantId,
+                    CacheCategory.COLLECTION,
+                    tags,
+                  );
+                }
+              } catch {
+                logger.trace(
+                  `[PredictiveCache] Skipping collection "${id}" — table may not exist yet`,
+                );
+              }
             }
-          }
-        }),
-      );
+          }),
+        );
+        // Yield event loop between chunks
+        await new Promise((r) => setTimeout(r, 0));
+      }
 
-      // 2. Warm hot entries (per-entry error isolation)
-      await Promise.allSettled(
-        hotEntries.map(async ({ collectionId, entryId }) => {
-          if (db?.crud?.findOne) {
-            try {
-              await cacheService.getOrSetSWR(
-                `entry:${collectionId}:${entryId}`,
-                () => db.crud.findOne({ _id: entryId }, { tenantId, ...systemScope }),
-                300_000,
-                1_800_000,
-                tenantId,
-              );
-            } catch {
-              logger.trace(`[PredictiveCache] Skipping entry "${entryId}" in "${collectionId}"`);
+      // 2. Warm hot entries in throttled chunks
+      for (let i = 0; i < hotEntries.length; i += CHUNK_SIZE) {
+        const chunk = hotEntries.slice(i, i + CHUNK_SIZE);
+        await Promise.allSettled(
+          chunk.map(async ({ collectionId, entryId }) => {
+            if (db?.crud?.findOne) {
+              try {
+                const epoch = cacheService.getCollectionEpoch(collectionId, tenantId);
+                const docRes = await db.crud.findOne(
+                  collectionId,
+                  { _id: entryId },
+                  { tenantId, ...systemScope },
+                );
+                if (cacheService.getCollectionEpoch(collectionId, tenantId) !== epoch) {
+                  return;
+                }
+                if (docRes?.success && docRes.data) {
+                  const item = Array.isArray(docRes.data) ? docRes.data[0] : docRes.data;
+                  const payload = { success: true, data: item };
+                  const listPayload = { success: true, data: [item] };
+                  const keyPublished = `collection:${collectionId}:${entryId}:published`;
+                  const keyAll = `collection:${collectionId}:${entryId}`;
+                  const keyFindId = `collection:${collectionId}:find:id:${entryId}`;
+                  const tags = ["collection", `collection:${collectionId}`, `doc:${entryId}`];
+                  await cacheService.set(
+                    keyPublished,
+                    payload,
+                    300,
+                    tenantId,
+                    CacheCategory.COLLECTION,
+                    tags,
+                  );
+                  await cacheService.set(
+                    keyAll,
+                    payload,
+                    300,
+                    tenantId,
+                    CacheCategory.COLLECTION,
+                    tags,
+                  );
+                  await cacheService.set(
+                    keyFindId,
+                    listPayload,
+                    300,
+                    tenantId,
+                    CacheCategory.COLLECTION,
+                    tags,
+                  );
+                }
+              } catch {
+                logger.trace(`[PredictiveCache] Skipping entry "${entryId}" in "${collectionId}"`);
+              }
             }
-          }
-        }),
-      );
+          }),
+        );
+        await new Promise((r) => setTimeout(r, 0));
+      }
 
       return true;
     } catch (err: any) {
@@ -180,19 +265,19 @@ export class CacheWarmingService {
 
   /**
    * 🧠 ENTERPRISE: Predictive Telemetry Warming
-   * Warms the cache from in-memory behavioral learning data.
-   *
-   * Note: the audit-log aggregation fallback was removed (2026-07). Collection reads
-   * are NOT audited (sub-5ms persistence target — see AGENTS.md), so `eventType:
-   * "collection_find"` never existed in audit_logs and the old `$group` on
-   * `$targetId` could not produce collection names anyway. The behavioral learner
-   * (getHotCollections/getHotEntries) is the single source of truth for hot paths.
+   * Warms the cache from in-memory behavioral learning data across all tracked tenants.
    */
   async warmFromTelemetry(db: any) {
-    const tenantId = "global"; // Default tenant context for system warming
+    const tenantIds = getTrackedTenantIds();
+    const targets = tenantIds.length > 0 ? tenantIds : ["global"];
 
-    const warmed = await this.warmFromBehavioralLearning(tenantId, db);
-    if (warmed) {
+    let anyWarmed = false;
+    for (const tenantId of targets) {
+      const warmed = await this.warmFromBehavioralLearning(tenantId, db);
+      if (warmed) anyWarmed = true;
+    }
+
+    if (anyWarmed) {
       logger.debug("🧠 [PredictiveCache] Pre-warming complete using Behavioral Learner data.");
       return;
     }
@@ -201,6 +286,9 @@ export class CacheWarmingService {
       "[PredictiveCache] Behavioral maps empty — telemetry warming skipped (records accumulate after first page loads).",
     );
   }
+
+  private _rewarmTimer: ReturnType<typeof setInterval> | null = null;
+  private _isWarming = false;
 
   /**
    * Compatibility wrapper for initialization hook.
@@ -214,60 +302,27 @@ export class CacheWarmingService {
     // 🚀 PERIODIC RE-WARM: keep L1 hot for quiet servers.
     // unref() so this timer never prevents clean process exit.
     const REWARM_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
-    const timer = setInterval(() => {
-      this.warmCriticalPaths(db).catch((err) =>
-        logger.trace("[CacheWarming] Periodic re-warm failed (non-fatal):", err),
-      );
+    if (this._rewarmTimer) clearInterval(this._rewarmTimer);
+    this._rewarmTimer = setInterval(() => {
+      if (this._isWarming) return;
+      this._isWarming = true;
+      this.warmCriticalPaths(db)
+        .catch((err) => logger.trace("[CacheWarming] Periodic re-warm failed (non-fatal):", err))
+        .finally(() => {
+          this._isWarming = false;
+        });
     }, REWARM_INTERVAL_MS);
-    if (typeof (timer as any).unref === "function") (timer as any).unref();
+    if (typeof (this._rewarmTimer as any)?.unref === "function") {
+      (this._rewarmTimer as any).unref();
+    }
 
     return result;
   }
 
-  /**
-   * Structural reconciliation - ensures cache matches database structure.
-   * This implements the "Self-Healing Cache 2.0" pattern.
-   */
-  async reconcile(db: any) {
-    const now = Date.now();
-    if (now - this.lastReconcile < 300000) return; // Only reconcile every 5 minutes max
-
-    this.lastReconcile = now;
-    logger.debug("🔎 Running Cache Structural Reconciliation...");
-
-    try {
-      // 1. Check Content Version Consistency
-      const cachedVersion = await cacheService.get("system:content_version");
-      const dbVersion = await db.system.preferences.get("system:content_version");
-
-      if (dbVersion.success && dbVersion.data && cachedVersion !== dbVersion.data) {
-        logger.warn(
-          `[Reconcile] Content version mismatch (DB: ${dbVersion.data}, Cache: ${cachedVersion}). Triggering selective invalidation.`,
-        );
-        await cacheService.invalidateByCategory(CacheCategory.CONTENT);
-        await cacheService.set("system:content_version", dbVersion.data, 0);
-      }
-
-      // 2. Structural Count Verification for critical collections
-      const criticalCollections = ["system_content_structure", "auth_users", "media"];
-      for (const coll of criticalCollections) {
-        const countRes = await db.crud.count(coll);
-        if (countRes.success) {
-          // If counts are wildly different or missing from cache, we might need to invalidate
-          // For now, we just ensure the count metadata exists
-          await cacheService.set(
-            `meta:count:${coll}`,
-            countRes.data,
-            600,
-            null,
-            CacheCategory.SYSTEM,
-          );
-        }
-      }
-
-      logger.debug("✅ Cache Structural Reconciliation Finished.");
-    } catch (err) {
-      logger.error("Cache reconciliation failed", err);
+  stop(): void {
+    if (this._rewarmTimer) {
+      clearInterval(this._rewarmTimer);
+      this._rewarmTimer = null;
     }
   }
 }

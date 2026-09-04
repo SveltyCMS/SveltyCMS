@@ -132,7 +132,22 @@ test.describe("P0 — Non-admin /user profile", () => {
   test("admin still sees AdminArea", async ({ page }) => {
     await loginAsAdmin(page, "/user");
     await goToUserPage(page);
-    await openUserManagement(page);
+
+    // The management tab is SSR-rendered before Svelte hydrates its onclick, so a
+    // single click can be a silent no-op (same hydration race the avatar modal
+    // guards against). Click-and-confirm aria-selected until the tab actually
+    // activates — deterministic instead of a one-shot click + opaque timeout.
+    const managementTab = page.getByRole("tab", { name: /user management/i });
+    await expect(managementTab).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(async () => {
+      if ((await managementTab.getAttribute("aria-selected")) !== "true") {
+        await managementTab.click({ timeout: ACTION_TIMEOUT });
+      }
+      await expect(managementTab).toHaveAttribute("aria-selected", "true", {
+        timeout: 2_000,
+      });
+    }).toPass({ timeout: ACTION_TIMEOUT });
+
     await expect(page.getByTestId("user-admin-area")).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });

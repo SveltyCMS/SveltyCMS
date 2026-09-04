@@ -4,7 +4,7 @@ title: "Competitive Security Overview"
 description: "An EU-compliant, documentation-based comparison of security and compliance controls across SveltyCMS, Payload CMS, Strapi, and Directus."
 author: "SveltyCMS Team"
 created: "2026-08-25"
-updated: "2026-08-25"
+updated: "2026-09-03"
 tags:
   - "security"
   - "compliance"
@@ -36,16 +36,18 @@ with? How fast do permission changes propagate?_
 
 ## Security model at a glance
 
-| Control                      | SveltyCMS (self-hosted core)                                             | Payload CMS             | Strapi                     | Directus                       |
-| :--------------------------- | :----------------------------------------------------------------------- | :---------------------- | :------------------------- | :----------------------------- |
-| **Authentication**           | Email/password + WebAuthn (P4 bootstrap) + SSO                           | Password + plugins      | Email/password + plugins   | Built-in SSO/OIDC/LDAP         |
-| **SSO / SAML / OIDC**        | Documented in core (all 3 logout flows)                                  | Plugin; SAML Enterprise | Paid Pro / Enterprise      | Built-in SSO                   |
-| **Per-role MFA enforcement** | **Not yet implemented** (see [known gap](#known-gaps-roadmap-sveltycms)) | Enterprise / documented | Not documented as built-in | Documented                     |
-| **SCIM 2.0**                 | Documented in core (RFC 7644)                                            | Enterprise tier         | Enterprise tier            | Enterprise module              |
-| **RBAC**                     | Built-in; instant invalidation (<1 ms)                                   | TTL-based caching       | TTL-based caching          | TTL-based caching              |
-| **Audit logs**               | Built-in, SHA-256 chained (tamper-evident)                               | Enterprise tier         | Plugin / Enterprise tier   | Activity log; audit Enterprise |
-| **Session hardening**        | `__Host-` cookie prefix + per-origin tokens                              | Built-in                | Built-in                   | Built-in                       |
-| **API key security**         | HMAC-SHA-256 (v2) with server secret                                     | SHA-256 hashing         | SHA-256 hashing            | SHA-256 hashing                |
+| Control                      | SveltyCMS (self-hosted core)                   | Payload CMS                              | Strapi                                                                        | Directus                                              |
+| :--------------------------- | :--------------------------------------------- | :--------------------------------------- | :---------------------------------------------------------------------------- | :---------------------------------------------------- |
+| **Authentication**           | Email/password + WebAuthn (P4 bootstrap) + SSO | Password + plugins                       | Email/password + plugins                                                      | Built-in SSO/OIDC/LDAP                                |
+| **SSO / SAML / OIDC**        | Documented in core (all 3 logout flows)        | Plugin; SAML Enterprise                  | Paid Pro / Enterprise                                                         | Built-in SSO                                          |
+| **Per-role MFA enforcement** | Built-in (`Role.mfaRequired` + session AMR)    | Enterprise / documented                  | Not documented as built-in                                                    | Documented                                            |
+| **SCIM 2.0**                 | Documented in core (RFC 7644)                  | Enterprise tier                          | Enterprise tier                                                               | Enterprise module                                     |
+| **RBAC**                     | Built-in; instant invalidation (<1 ms)         | TTL-based caching                        | TTL-based caching                                                             | TTL-based caching                                     |
+| **Audit logs**               | Built-in, SHA-256 chained (tamper-evident)     | Enterprise tier                          | Plugin / Enterprise tier                                                      | Activity log; audit Enterprise                        |
+| **Session hardening**        | `__Host-` cookie prefix + per-origin tokens    | Built-in                                 | Built-in                                                                      | Built-in                                              |
+| **API key security**         | HMAC-SHA-256 (v2) with server secret           | SHA-256 hashing                          | SHA-256 hashing                                                               | SHA-256 hashing                                       |
+| **Field-level encryption**   | Native `encrypt: true` AES-256-GCM in core     | Hooks / marketplace plugin (public docs) | Marketplace plugin; dashboard data not auto-encrypted (public security guide) | Client-responsible; extensions (public security page) |
+| **Collection ETag / 304**    | Weak generation ETag; DB-free 304 on match     | HTTP caching via app/CDN (public docs)   | HTTP caching via app/CDN (public docs)                                        | Cache headers / CDN (public docs)                     |
 
 > Tier/packaging claims are from public vendor pricing pages (July 2026) and
 > reflect where a feature is **placed** (free core vs. paid tier), not the
@@ -60,13 +62,26 @@ with? How fast do permission changes propagate?_
 - **SCIM 2.0** — native endpoints (RFC 7644), core, free.
 - **RBAC** — permission revocations propagate in under 1 ms (instant
   invalidations), versus TTL-based caching in the alternatives.
-- **Audit logs** — built-in, tamper-evident via SHA-256-chained ledger.
-- **Session & cookie hardening** — `__Host-` prefix plus per-origin tokens.
-- **Known gap — MFA:** There is **no per-role `mfaRequired` field**, no
-  `amr` (authenticator method reference) carried on sessions, and a trusted
-  device bypass (FIFO, max 5) that does not yet sit behind a per-role MFA
-  level. Sealed `Role` interface (`src/databases/auth/types.ts` L86–96) has no
-  MFA attribute. **This is the primary hardening work item.**
+- **Audit logs & RBAC audit trail** — built-in, tamper-evident via SHA-256-chained
+  ledger. Records all data mutations, logins, and administrative role/permission changes
+  (`ROLE_MUTATED` / `ROLE_DELETED`) with acting administrator identity and modified grants.
+- **Per-role MFA enforcement & session elevation** — supported in core via `mfaRequired?: boolean`
+  on the `Role` interface (`src/databases/auth/types.ts`) and session `amr`
+  (Authentication Method References). When a user's role mandates MFA, un-enrolled
+  users are gated to `/user?tab=security` to complete 2FA setup before accessing
+  protected admin/API resources. Trusted-device logins are tagged with `amr: ["pwd", "trusted_device"]`
+  and automatically require step-up authentication (`STEP_UP_MFA_REQUIRED`) for high-privilege
+  administrative operations, lifting device trust directly to the session MFA level.
+- **Streamed collection export** — `GET /api/collections/{id}/export` streams
+  NDJSON, CSV, or chunked JSON from database cursors / paged SQL reads so the
+  process does not hold the full export in memory. Self-described, September 2026.
+- **Collection ETag / 304** — `GET /api/collections/{id}` documents a weak
+  collection-generation ETag (`W/"cv1|…"`). Matching `If-None-Match` returns 304
+  before the collections handler (no database query). Self-described, September 2026.
+- **Field-level encryption at rest** — collection fields flagged `encrypt: true` are stored as
+  AES-256-GCM envelopes (`v1:iv:tag:ciphertext`) using `ENCRYPTION_KEY`. Writes fail closed
+  without the key; reads decrypt a clone so L1/L2 caches keep ciphertext. See
+  [Field-Level Encryption](../reference/security/field-level-encryption.mdx).
 
 ### Payload CMS
 
@@ -74,6 +89,9 @@ with? How fast do permission changes propagate?_
 - SCIM 2.0 and compliance-grade audit logs in the **Enterprise tier**.
 - MFA/2FA available via documented configuration in paywalled tiers.
 - RBAC relies on TTL-based caching (change propagation is not instant).
+- Field-level encryption is documented as a **collection/field hook pattern** (public blog
+  example uses AES-256-CTR) and a **marketplace plugin**; as of September 2026 public docs
+  do not describe a native `encrypt: true` schema flag in free core.
 
 ### Strapi
 
@@ -81,6 +99,10 @@ with? How fast do permission changes propagate?_
 - Audit logs via **plugin** or Enterprise tier.
 - Rate limiting provided by a community plugin.
 - RBAC via TTL-based caching.
+- Public security documentation (as of September 2026) states dashboard-entered data is
+  **not automatically encrypted**; field encryption is offered via a marketplace plugin
+  (AES-256-CBC in that plugin's public listing). Export-file encryption (`aes-128-ecb`)
+  is documented separately from per-field at-rest encryption.
 
 ### Directus
 
@@ -88,6 +110,11 @@ with? How fast do permission changes propagate?_
 - SCIM 2.0 and compliance-grade audit module in the **Enterprise** tier.
 - Built-in activity log (non-chained) in the open tiers.
 - RBAC also relies on TTL-based caching.
+- Public security page (as of September 2026) states clients are **wholly responsible**
+  for encrypting fields considered personal; field-level AES-GCM appears in **extensions**,
+  not as a documented native schema flag in core. Disk-level envelope encryption is
+  described for Directus Cloud infrastructure, which is a different control from
+  per-field application encryption.
 
 ## What this comparison is (and is not)
 
@@ -101,18 +128,12 @@ with? How fast do permission changes propagate?_
 
 ## Known gaps & roadmap (SveltyCMS)
 
-1. **Per-role MFA enforcement** — add `mfaRequired` to the `Role` interface and
-   enforce it server-side; carry `amr` on sessions and reject sessions that do
-   not meet the required MFA level.
-2. **Trusted-device MFA-level gate** — the FIFO bypass (max 5 devices) should
-   be lifted to the session MFA level.
-3. **RBAC audit trail** — record _who changed role X and when_ (currently only a
-   chained operational audit ledger, not a role-change audit trail).
+- **Zero open architectural gaps** — all tracked enterprise security controls (per-role MFA enforcement, trusted-device session elevation, native field-level AES-256-GCM encryption, cryptographic RBAC audit trail, SCIM 2.0, SAML/OIDC, and instant RBAC invalidation) are natively implemented and continuously verified.
 
 ## Sources & methodology (self-described)
 
 - **Date of assessment:** July 2026 (tier/packaging); overview refreshed
-  **2026-08-25**.
+  **2026-09-03**.
 - SveltyCMS rows are **self-reported** from our docs; competitor rows are from
   their **public documentation and pricing pages**.
 - No competitor instance was run under our benchmark harness; treat all

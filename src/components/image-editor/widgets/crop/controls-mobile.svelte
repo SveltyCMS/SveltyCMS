@@ -5,7 +5,7 @@ Mobile crop controls — compact aspect/shape strips; no x/y/w/h or rotate/flip 
 -->
 <script lang="ts">
 	import type { CropShape } from './types';
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 
 	let {
 		onCropShapeChange,

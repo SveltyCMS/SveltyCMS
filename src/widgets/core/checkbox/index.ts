@@ -32,6 +32,7 @@ const CHECKBOX_VALIDATION_SCHEMA = boolean("Must be a boolean.");
 // Create the widget definition using the factory.
 const CheckboxWidget = createWidget<CheckboxProps>({
   Name: "Checkbox",
+  version: "1.0.0",
   Icon: "tabler:checkbox",
   Description: widget_checkbox_description(),
 

@@ -1387,6 +1387,7 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       { name: "collectionId", type: varchar(255), notNull: true },
       { name: "name", type: varchar(255), notNull: true },
       { name: "description", type: text() },
+      { name: "gatePublication", type: boolCol(), notNull: pgMaria, default: dFalse() },
       {
         name: "states",
         type: jsonCol(),
@@ -1415,6 +1416,7 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       { name: "entryId", type: varchar(36), notNull: true },
       { name: "collectionId", type: varchar(255), notNull: true },
       { name: "currentState", type: varchar(100), notNull: true },
+      { name: "assigneeId", type: varchar(36) },
       {
         name: "history",
         type: jsonCol(),

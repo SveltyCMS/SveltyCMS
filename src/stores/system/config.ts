@@ -3,7 +3,12 @@
  * @description Configuration and initial state for the system state machine.
  */
 
-import type { AnomalyThresholds, ServicePerformanceMetrics, SystemStateStore } from "./types";
+import type {
+  AnomalyThresholds,
+  ServiceName,
+  ServicePerformanceMetrics,
+  SystemStateStore,
+} from "./types";
 
 // --- Core Constants ---
 export const DEFAULT_SYSTEM_READY_TIMEOUT = 10_000; // 10 seconds
@@ -12,7 +17,7 @@ export const MAX_STATE_TRANSITIONS_TO_KEEP = 50; // Max history for state transi
 
 // --- Service Baseline Performance ---
 // Used for intelligent timeout calculations on first run.
-export const SERVICE_BASELINE_TIMES = {
+export const SERVICE_BASELINE_TIMES: Record<ServiceName, number> = {
   database: 500, // DB connection is usually fast
   auth: 50, // Auth initialization is nearly instant
   cache: 200, // Cache setup
@@ -21,6 +26,7 @@ export const SERVICE_BASELINE_TIMES = {
   themeManager: 200, // Theme loading
   widgets: 150, // Widget store initialization
   search: 250, // Search indexing
+  cacheWarming: 100, // Cache warming initialization
 } as const;
 
 // --- Default Anomaly Thresholds ---
@@ -96,6 +102,14 @@ export const initialState: SystemStateStore = {
     search: {
       status: "initializing",
       message: "Not initialized",
+      metrics: structuredClone(initialServiceMetrics),
+    },
+    cacheWarming: {
+      // 🔴 FIX 9 (readiness gate): default to "skipped" so tests / non-db-init boots
+      // (setup phase, watch-only, etc.) are NOT blocked by a warming service that never
+      // starts. Only the real db-init boot flips it to "initializing" → "healthy".
+      status: "skipped",
+      message: "Not warmed (no boot warm-up)",
       metrics: structuredClone(initialServiceMetrics),
     },
   },

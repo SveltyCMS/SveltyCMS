@@ -11,10 +11,6 @@ import {
   stopWordPressRestFixture,
 } from "@plugins/unified-data-hub/server/rest-fixture";
 
-function pickTestPort(): number {
-  return 30_000 + Math.floor(Math.random() * 20_000);
-}
-
 describe("WordPress REST fixture", () => {
   beforeEach(async () => {
     await stopWordPressRestFixture();
@@ -25,9 +21,9 @@ describe("WordPress REST fixture", () => {
   });
 
   it("serves paginated posts with flattened title fields", async () => {
-    const port = pickTestPort();
-    const baseUrl = await startWordPressRestFixture({ rowCount: 30, port });
-    expect(getRestFixtureServerPort()).toBe(port);
+    const baseUrl = await startWordPressRestFixture({ rowCount: 30, port: 0 });
+    const boundPort = getRestFixtureServerPort();
+    expect(boundPort).toBeGreaterThan(0);
 
     const reachable = await isWordPressRestFixtureReachable();
     expect(reachable).toBe(true);
@@ -70,7 +66,7 @@ describe("WordPress REST fixture", () => {
   });
 
   it("reuses the same server on repeated start calls", async () => {
-    const first = await startWordPressRestFixture({ rowCount: 5, port: pickTestPort() });
+    const first = await startWordPressRestFixture({ rowCount: 5, port: 0 });
     const second = await startWordPressRestFixture({ rowCount: 12 });
     expect(first).toBe(second);
 

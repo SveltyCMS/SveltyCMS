@@ -463,7 +463,7 @@ export class MediaService {
           return;
         }
         if (variants.length > 0 && uploadResult.data) {
-          const recordId = (uploadResult.data as any)._id;
+          const recordId = (uploadResult.data as { _id?: DatabaseId })._id;
           if (recordId) {
             await this.db.crud.update(
               "media_items",
@@ -567,12 +567,20 @@ export class MediaService {
           if (record.path !== relPath) patch.path = relPath;
           if (folderId !== record.folderId) patch.folderId = folderId;
           if (Object.keys(patch).length > 0) {
-            await this.db.crud.update(
+            const updateResult = await this.db.crud.update(
               "media_items",
               record._id,
               patch as unknown as EntityUpdate<DbMediaItem>,
+              { tenantId: tenantId ?? undefined },
             );
-            Object.assign(record, patch);
+            if (!updateResult.success) {
+              logger.warn(
+                "[Media] Dedup-path metadata update failed",
+                updateResult.error ?? updateResult.message,
+              );
+            } else {
+              Object.assign(record, patch);
+            }
           }
           return {
             success: true,
@@ -663,12 +671,20 @@ export class MediaService {
           if (record.path !== relPath) patch.path = relPath;
           if (folderId !== record.folderId) patch.folderId = folderId;
           if (Object.keys(patch).length > 0) {
-            await this.db.crud.update(
+            const updateResult = await this.db.crud.update(
               "media_items",
               record._id,
               patch as unknown as EntityUpdate<DbMediaItem>,
+              { tenantId: tenantId ?? undefined },
             );
-            Object.assign(record, patch);
+            if (!updateResult.success) {
+              logger.warn(
+                "[Media] Dedup-path metadata update failed",
+                updateResult.error ?? updateResult.message,
+              );
+            } else {
+              Object.assign(record, patch);
+            }
           }
           return {
             success: true,
@@ -779,12 +795,20 @@ export class MediaService {
           if (record.path !== relPath) patch.path = relPath;
           if (folderId !== record.folderId) patch.folderId = folderId;
           if (Object.keys(patch).length > 0) {
-            await this.db.crud.update(
+            const updateResult = await this.db.crud.update(
               "media_items",
               record._id,
               patch as unknown as EntityUpdate<DbMediaItem>,
+              { tenantId: tenantId ?? undefined },
             );
-            Object.assign(record, patch);
+            if (!updateResult.success) {
+              logger.warn(
+                "[Media] Dedup-path metadata update failed",
+                updateResult.error ?? updateResult.message,
+              );
+            } else {
+              Object.assign(record, patch);
+            }
           }
           return {
             success: true,

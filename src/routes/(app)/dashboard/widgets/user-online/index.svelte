@@ -23,24 +23,23 @@ export const widgetMeta = {
 	description: "Currently active users with role indicators",
 	defaultSize: { w: 1, h: 2 },
 };
-
-	let licenseStatus = $state<{ active?: boolean; hasLicense?: boolean; daysRemaining?: number | null } | null>(null);
-
-	$effect(() => {
-		fetch('/api/system/license-status?type=dashboard&id=user-online')
-			.then((res) => res.json())
-			.then((data) => {
-				licenseStatus = data;
-			})
-			.catch(() => {
-				licenseStatus = { active: false, hasLicense: false, daysRemaining: 0 };
-			});
-	});
 </script>
 
 <script lang="ts">
+	import { getClientLicenseStatus } from '@utils/client-license-cache';
+	import type { LicenseStatus } from '@utils/license-manager';
+
+	let licenseStatus = $state<LicenseStatus | null>(null);
+
+	$effect(() => {
+		getClientLicenseStatus('dashboard', 'user-online').then((status) => {
+			licenseStatus = status;
+		});
+	});
+
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import { formatTime } from '@utils/format-date';
 
 	interface OnlineUser {
 		id: string;
@@ -270,7 +269,7 @@ export const widgetMeta = {
 							<!-- Time -->
 							<div class="shrink-0 text-end text-[11px] font-medium text-surface-400 dark:text-surface-500">
 								{user.onlineTime
-									? new Date(user.onlineTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+									? formatTime(user.onlineTime, { hour: '2-digit', minute: '2-digit' })
 									: '—'}
 							</div>
 						</div>

@@ -60,6 +60,7 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const EmailWidget = createWidget<EmailProps>({
   Name: "Email",
+  version: "1.0.0",
   Icon: "ic:outline-email",
   Description: widget_email_description(),
   inputComponentPath: "/src/widgets/core/email/input.svelte",
@@ -77,6 +78,7 @@ const EmailWidget = createWidget<EmailProps>({
     db_fieldName: { widget: "Input", required: false },
     required: { widget: "Toggles", required: false },
     placeholder: { widget: "Input", required: false },
+    encrypt: { widget: "Toggles", required: false },
   },
 
   // GraphQL schema for email input

@@ -62,8 +62,6 @@ import {
 	globalLoadingStore,
 	loadingOperations,
 } from "@src/stores/loading-store.svelte";
-// Native UI Components v4
-import { app } from "@src/stores/store.svelte.ts";
 import { toast } from "@src/stores/toast.svelte.ts";
 // Theme management
 import {

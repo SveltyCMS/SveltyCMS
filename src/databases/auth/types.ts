@@ -94,6 +94,7 @@ export interface Role {
   isDeleted?: boolean; // Soft delete flag
   name: string; // Name of the role
   permissions: string[]; // Array of permission IDs associated with the role
+  mfaRequired?: boolean; // When true, users with this role MUST have 2FA/MFA enrolled and verified
   tenantId?: DatabaseId | null; // Optional tenant identifier for multi-tenant installations
   createdAt?: ISODateString; // When the role was created
   updatedAt?: ISODateString; // When the role was last updated
@@ -131,6 +132,7 @@ export interface Session {
   deviceId?: string; // Stable per-device id (client-generated, localStorage) — precise device grouping
   ipAddress?: string; // IP address captured at session creation (security auditing)
   lastActiveAt?: ISODateString; // Last time this session was actively used
+  amr?: string[]; // Authentication Method References (e.g. ["pwd"], ["pwd", "mfa"], ["webauthn"])
 }
 
 // Token Interface

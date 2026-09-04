@@ -72,6 +72,13 @@ export function isValidTenantId(tenantId: string | null | undefined): boolean {
 /**
  * Derives tenant ID from hostname.
  */
+/** Subdomain prefixes that never resolve to a tenant (module-level, hot path). */
+const RESERVED_SUBDOMAINS = new Set(["www", "app", "api", "cdn", "static"]);
+
+/**
+ * Resolve the tenant id from a request hostname (called 4-5× per request by
+ * the auth, rate-limit, redirect and security hooks — keep allocation-free).
+ */
 export function getTenantIdFromHostname(hostname: string, multiTenant = true): string | null {
   if (!multiTenant) return null;
 
@@ -79,10 +86,9 @@ export function getTenantIdFromHostname(hostname: string, multiTenant = true): s
   if (/^(localhost|127\.0\.0\.1|192\.168\.)/.test(hostname)) return "default";
 
   const parts = hostname.split(".");
-  const reserved = new Set(["www", "app", "api", "cdn", "static"]);
 
   // Must be a subdomain (e.g., tenant.domain.com)
-  if (parts.length > 2 && !reserved.has(parts[0])) {
+  if (parts.length > 2 && !RESERVED_SUBDOMAINS.has(parts[0])) {
     return parts[0].toLowerCase();
   }
   return null;

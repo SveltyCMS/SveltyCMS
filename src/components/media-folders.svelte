@@ -167,7 +167,7 @@ Uses the same shared TreeView as collections:
 		const root: FolderNode = {
 			id: 'root',
 			name: media_root_title(),
-			path: '/',
+			path: '/mediagallery',
 			icon: 'mdi:home-outline',
 			nodeType: 'folder',
 			type: 'folder',
@@ -192,7 +192,7 @@ Uses the same shared TreeView as collections:
 			map.set(f.id, {
 				id: f.id,
 				name: f.name,
-				path: f.path,
+				path: `/mediagallery?folderId=${f.id}`,
 				parentId: f.parentId,
 				order: f.order,
 				icon: 'mdi:folder-outline',

@@ -26,6 +26,7 @@ export const widgetMeta = {
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import { formatTime, formatNumber } from '@utils/format-date';
 
 	interface TenantAnalytics {
 		storage: {
@@ -60,12 +61,12 @@ export const widgetMeta = {
 
 	function statValue(val: number | undefined | null, suffix = ''): string {
 		if (val == null) return '—';
-		return val.toLocaleString() + suffix;
+		return formatNumber(val) + suffix;
 	}
 
 	function formatTimestamp(iso: string): string {
 		if (!iso) return '';
-		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		return formatTime(iso, { hour: '2-digit', minute: '2-digit' });
 	}
 
 	// Quota — assume 1GB default max for display purposes

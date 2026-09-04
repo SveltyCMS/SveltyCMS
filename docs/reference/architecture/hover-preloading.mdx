@@ -6,7 +6,7 @@ category: architecture
 order: 6
 author: "SveltyCMS Team"
 created: "2025-12-16"
-updated: "2026-06-20"
+updated: "2026-09-02"
 tags:
   - "architecture"
   - "performance"
@@ -127,6 +127,12 @@ sequenceDiagram
 | CPU cost               | 0               | <0.1%        | Negligible             |
 
 **Why it beats hover**: Hover waits for the user to arrive. Predict preloads while they're en route. For table rows in a grid, the user's cursor trajectory is predictable — the physics cone catches the target row 50-100ms before the cursor arrives.
+
+### Server prewarm (what actually happens)
+
+`GET /api/system/prewarm-route?path=…` runs **LocalCMS** `findById`/`find` (all four adapters — never an internal HTTP hop), stringifies `{success,data}` once, and stores a `Uint8Array` on `responseCache`. The next matching authenticated GET is `X-Cache: TURBO-HIT` (zero DB, no per-request JSON).
+
+Route classification is an exact-path Map plus `startsWith` (1024-entry LRU), **not** a frozen radix trie. Adaptive prediction requires **≥5 samples and 30% accuracy** before it fires. Extinction is 0.8 on non-chosen alternatives at navigation time. Transition heat is capped at **10,000 path-pairs per tenant**.
 
 ---
 

@@ -10,11 +10,17 @@ import type { PageServerLoad } from "./$types";
 import { adminThemeService } from "@src/services/core/admin-theme-service";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { getFreshLayoutUser } from "@utils/server/layout-caches.server";
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
-    const user = getAuthenticatedUser(locals);
+    const sessionUser = getAuthenticatedUser(locals);
     const { isAdmin, tenantId } = locals;
+    const user =
+      (await getFreshLayoutUser(
+        sessionUser,
+        tenantId as import("@src/databases/db-interface").DatabaseId,
+      )) ?? sessionUser;
 
     // All authenticated users can access design system settings
     // Admin-only sections (Themes, Advanced) are hidden in the UI

@@ -188,11 +188,19 @@ export class PluginRegistry implements IPluginService {
   }
 
   // Run migrations for all registered plugins
-  async runAllMigrations(dbAdapter: IDBAdapter, tenantId: string): Promise<DatabaseResult<void>> {
+  async runAllMigrations(
+    dbAdapter: IDBAdapter,
+    tenantId: string,
+    pluginIds?: Iterable<string>,
+  ): Promise<DatabaseResult<void>> {
     try {
-      logger.debug("🚀 Running all pending plugin migrations...");
+      const ids = pluginIds ? new Set(pluginIds) : null;
+      logger.debug(
+        `🚀 Running pending plugin migrations (${ids ? `${ids.size} enabled` : "all registered"})...`,
+      );
 
       for (const pluginId of this.plugins.keys()) {
+        if (ids && !ids.has(pluginId)) continue;
         const result = await this.runMigrations(pluginId, dbAdapter, tenantId);
         if (!result.success) {
           logger.error(`Migration failed for plugin ${pluginId}`, {
@@ -433,7 +441,58 @@ export class PluginRegistry implements IPluginService {
       return false;
     }
 
+    // Lazy activation: boot only loads default-enabled plugins, so enabling a
+    // disabled plugin here must also wire its server module, parts, and
+    // migrations — otherwise the plugin stays enabled-but-inert until reboot.
+    if (enabled) {
+      await this.activatePlugin(pluginId, tenantId, dbAdapter);
+    }
+
     return await this.settingsService.setPluginState(pluginId, tenantId, enabled, userId);
+  }
+
+  /**
+   * Wire a plugin that was previously inactive: merge its `index.server`
+   * hooks/migrations, resolve structured parts (routes, capabilities, sugar
+   * types, settings), and run pending migrations. Idempotent — safe to re-run
+   * when a plugin is toggled on more than once.
+   */
+  private async activatePlugin(
+    pluginId: string,
+    tenantId: string,
+    dbAdapter?: IDBAdapter,
+  ): Promise<void> {
+    const plugin = this.plugins.get(pluginId)?.plugin;
+    if (!plugin) {
+      logger.warn(`[PluginRegistry] Cannot activate unknown plugin "${pluginId}"`);
+      return;
+    }
+
+    // Merge server module (hooks/migrations) if not already merged at boot.
+    if (!plugin.hooks || !plugin.migrations || plugin.migrations.length === 0) {
+      try {
+        const serverMod = await import(`./${pluginId}/index.server`);
+        if (serverMod.hooks) {
+          plugin.hooks = { ...plugin.hooks, ...serverMod.hooks };
+        }
+        if ((!plugin.migrations || plugin.migrations.length === 0) && serverMod.migrations) {
+          plugin.migrations = serverMod.migrations;
+        }
+      } catch {
+        /* UI-only plugin — no index.server.ts */
+      }
+    }
+
+    this.resolveParts(plugin);
+
+    if (dbAdapter) {
+      const result = await this.runMigrations(pluginId, dbAdapter, tenantId);
+      if (!result.success) {
+        logger.error(`[PluginRegistry] Lazy migration failed for "${pluginId}"`, {
+          error: result.error,
+        });
+      }
+    }
   }
 
   // Mark registry as initialized

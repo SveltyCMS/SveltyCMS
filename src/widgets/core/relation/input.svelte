@@ -28,7 +28,7 @@ Interactive selector with "Select" button and clear functionality
 
 <script lang="ts">
 import { logger } from "@utils/logger";
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import { showModal } from '@utils/modal.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
@@ -47,7 +47,7 @@ import { logger } from "@utils/logger";
 
 	// Local state for the resolved entry's display text.
 	let selectedEntries = $state<Record<string, any>[]>([]);
-	const lang = $derived(app.contentLanguage);
+	const lang = $derived(locale.contentLanguage);
 
 	// Stub function for fetching entry data - implement with your API
 	// Fetches full entry data for display preview.

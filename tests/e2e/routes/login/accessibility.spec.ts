@@ -64,16 +64,22 @@ test.describe("Universal Accessibility Audits", () => {
     await page.context().clearCookies();
     await page.goto("/login");
     // Click Sign In to reveal the signin form (hidden behind chooser by default)
-    const signInIcon = page.getByTestId("signin-icon");
-    if (await signInIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await signInIcon.click({ force: true });
-    } else {
-      await page
-        .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
-        .first()
-        .click({ force: true });
-    }
-    await page.getByTestId("signin-email").waitFor({ state: "visible" });
+    await expect(async () => {
+      const email = page.getByTestId("signin-email");
+      if (await email.isVisible().catch(() => false)) return;
+      const icon = page.getByTestId("signin-icon");
+      if (await icon.isVisible().catch(() => false)) {
+        await icon.click();
+      } else {
+        const fallback = page
+          .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
+          .first();
+        if (await fallback.isVisible().catch(() => false)) {
+          await fallback.click();
+        }
+      }
+      await expect(email).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000, intervals: [500, 1_000, 2_000] });
 
     // The sign-in form is wrapped in transition:fade — auditing mid-animation
     // reports phantom color-contrast violations (opacity < 1 blends the text
@@ -160,16 +166,22 @@ test.describe("Universal Accessibility Audits", () => {
     await page.context().clearCookies();
     await page.goto("/login");
     // Click Sign In to reveal the signin form (hidden behind chooser by default)
-    const signInIcon = page.getByTestId("signin-icon");
-    if (await signInIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await signInIcon.click({ force: true });
-    } else {
-      await page
-        .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
-        .first()
-        .click({ force: true });
-    }
-    await page.getByTestId("signin-email").waitFor({ state: "visible" });
+    await expect(async () => {
+      const email = page.getByTestId("signin-email");
+      if (await email.isVisible().catch(() => false)) return;
+      const icon = page.getByTestId("signin-icon");
+      if (await icon.isVisible().catch(() => false)) {
+        await icon.click();
+      } else {
+        const fallback = page
+          .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
+          .first();
+        if (await fallback.isVisible().catch(() => false)) {
+          await fallback.click();
+        }
+      }
+      await expect(email).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000, intervals: [500, 1_000, 2_000] });
 
     // Check that we can move focus using Tab key
     const emailField = page.getByTestId("signin-email");

@@ -14,6 +14,14 @@
  * - fully generic: infers the resolved module type from the loader
  */
 
+import type { ComponentType } from "svelte";
+
+/**
+ * What a lazy component loader resolves to: a module with `default`, or the
+ * component itself. `{#await}` consumers narrow via `Component.default`.
+ */
+export type LazyComponent = { default: ComponentType } | ComponentType;
+
 /**
  * Create a memoized lazy resolver.
  * The loader is invoked on first call; subsequent calls return the same
@@ -31,3 +39,9 @@ export function lazyModule<T>(loader: () => Promise<T>): () => Promise<T> {
     return cached;
   };
 }
+
+/**
+ * Alias for lazyModule specialized for lazy component loading.
+ * Guarantees a stable promise per component identity for `{#await}` blocks.
+ */
+export const memoizeLazyLoader = lazyModule;

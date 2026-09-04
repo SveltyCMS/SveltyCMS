@@ -9,6 +9,7 @@ import { onMount } from "svelte";
 import { invalidate } from "$app/navigation";
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+	import { formatTime, formatDateTime } from '@utils/format-date';
 
 let { data } = $props();
 const system = $derived(data.system as any);
@@ -204,7 +205,7 @@ function formatUptime(seconds: number): string {
                                 <p class="text-sm font-bold">{inc.type}</p>
                                 <p class="text-xs opacity-50">{inc.message}</p>
                             </div>
-                            <span class="text-xs opacity-30">{new Date(inc.timestamp).toLocaleTimeString()}</span>
+                            <span class="text-xs opacity-30">{formatTime(inc.timestamp)}</span>
                         </div>
                     {/each}
                 {:else}
@@ -262,7 +263,7 @@ function formatUptime(seconds: number): string {
                     <tbody>
                         {#each data.auditLogs as log (log._id)}
                             <tr class="border-b border-surface-100 dark:border-surface-500/40 text-xs hover:bg-surface-500/10 dark:hover:bg-surface-850">
-                                <td class="py-2.5 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
+                                <td class="py-2.5 whitespace-nowrap">{formatDateTime(log.timestamp)}</td>
                                 <td class="py-2.5 whitespace-nowrap font-medium">{log.actorEmail || 'system'}</td>
                                 <td class="py-2.5 whitespace-nowrap">
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-tertiary-500/10 text-tertiary-600 dark:text-primary-500">

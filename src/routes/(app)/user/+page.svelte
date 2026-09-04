@@ -26,8 +26,8 @@
 	import Tabs from '@components/ui/tabs.svelte';
 	import Slot from '@src/components/system/slot.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { userThemePrefs } from '@src/stores/theme-store.svelte';
 	import { updateUserThemePrefs } from '../config/design-system/appearance-api';
-	import { userThemePrefs } from '@src/stores/user-prefs-overlay.svelte.ts';
 	import { isAdmin } from '@src/databases/auth/constants';
 	import {
 		button_delete,
@@ -41,14 +41,14 @@
 		userpage_editavatar,
 		userpage_title
 	} from '@src/paraglide/messages';
-	import { normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
+	import { normalizeAvatarUrl } from '@utils/avatar';
 	import { onMount, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { formatDateTime } from '@utils/format-date';
 	import AdminArea from './components/admin-area.svelte';
 	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
-	import '@src/stores/store.svelte.ts';
 	import { setCollection } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { globalSearch } from '@utils/global-search-index.svelte';
@@ -59,7 +59,10 @@
 	import { getActiveSessions, revokeSession, reauthForSessionManagement } from './user.remote';
 
 	const { data } = $props();
-	const { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
+	const serverUser = $derived(data.user);
+	const isFirstUser = $derived(data.isFirstUser);
+	const isMultiTenant = $derived(data.isMultiTenant);
+	const is2FAEnabledGlobal = $derived(data.is2FAEnabledGlobal);
 
 	type AccountTab = 'identity' | 'security' | 'settings' | 'management';
 	let activeTab = $state<AccountTab>('identity');
@@ -120,7 +123,11 @@
 		permissions:
 			Array.isArray(serverUser?.permissions) && serverUser.permissions.length > 0
 				? (serverUser.permissions as string[])
-				: rolePermissionFallback
+				: rolePermissionFallback.length > 0
+					? rolePermissionFallback
+					: serverUser?.isAdmin
+						? ['system:admin', 'user:read', 'user:write', 'config:settings']
+						: []
 	});
 
 	const canManageUsers = $derived(
@@ -310,13 +317,7 @@
 	function sessionWhen(session: SessionRow): string {
 		const raw = session.lastAccess || session.createdAt;
 		if (!raw) return '';
-		try {
-			const d = new Date(raw);
-			if (Number.isNaN(d.getTime())) return '';
-			return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-		} catch {
-			return '';
-		}
+		return formatDateTime(raw, { dateStyle: 'medium', timeStyle: 'short' });
 	}
 
 	function sessionWhenMs(session: SessionRow): number {
@@ -761,6 +762,8 @@
 								<button
 									type="button"
 									onclick={modalEditAvatar}
+									aria-label={userpage_editavatar()}
+									title={userpage_editavatar()}
 									data-testid="edit-avatar-btn"
 									class="size-full rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
 								>

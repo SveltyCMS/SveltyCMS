@@ -113,19 +113,20 @@ class ContentStore {
   }
 
   getCollection(id: string, tenantId?: string | null): Schema | undefined {
-    if (tenantId) {
-      return this._findCollectionInList(this.getCollections(tenantId), id);
-    }
+    const found = this._findCollectionInList(this.getCollections(tenantId), id);
+    if (found) return found;
 
     let schema = this._schemas.get(id);
     if (schema) return schema;
 
     const cleanId = id.replace(/^\/+/, "").toLowerCase();
     const stripped = cleanId.replace(/^collection\//, "");
+    const normalized = stripped.replace(/[-_]/g, "");
     const aliasId =
       this._schemaAliasIndex.get(cleanId) ||
       this._schemaAliasIndex.get(stripped) ||
-      this._schemaAliasIndex.get(id.toLowerCase());
+      this._schemaAliasIndex.get(id.toLowerCase()) ||
+      this._schemaAliasIndex.get(normalized);
     if (aliasId) {
       schema = this._schemas.get(aliasId);
       if (schema) return schema;
@@ -135,7 +136,25 @@ class ContentStore {
     schema = Array.from(this._schemas.values()).find((s) => {
       const sId = ((s._id as string) || s.name || "").replace(/^\/+/, "").toLowerCase();
       const sPath = (s.path || "").replace(/^\/+/, "").toLowerCase();
-      return sId === cleanId || sPath === cleanId || sId === stripped || sPath === stripped;
+      const sPathStripped = sPath.replace(/^collection\//, "");
+      const sName = String(s.name || "").toLowerCase();
+      const sSlug = String((s as { slug?: string }).slug || "").toLowerCase();
+      return (
+        sId === cleanId ||
+        sId === stripped ||
+        sId.replace(/[-_]/g, "") === normalized ||
+        sPath === cleanId ||
+        sPath === stripped ||
+        sPathStripped === cleanId ||
+        sPathStripped === stripped ||
+        sPathStripped.replace(/[-_]/g, "") === normalized ||
+        sName === cleanId ||
+        sName === stripped ||
+        sName.replace(/[-_]/g, "") === normalized ||
+        sSlug === cleanId ||
+        sSlug === stripped ||
+        sSlug.replace(/[-_]/g, "") === normalized
+      );
     });
     if (schema?._id) {
       this._indexSchemaAliases(schema);
@@ -276,17 +295,28 @@ class ContentStore {
   private _findCollectionInList(collections: Schema[], id: string): Schema | undefined {
     const cleanId = id.replace(/^\/+/, "").toLowerCase();
     const stripped = cleanId.replace(/^collection\//, "");
+    const normalized = stripped.replace(/[-_]/g, "");
     return collections.find((schema) => {
       const schemaId = getSchemaKey(schema);
+      const name = String(schema.name || "").toLowerCase();
       const path = (schema.path || "").replace(/^\/+/, "").toLowerCase();
+      const pathStripped = path.replace(/^collection\//, "");
       const slug = String((schema as { slug?: string }).slug || "").toLowerCase();
       return (
         schemaId === cleanId ||
         schemaId === stripped ||
+        schemaId.replace(/[-_]/g, "") === normalized ||
+        name === cleanId ||
+        name === stripped ||
+        name.replace(/[-_]/g, "") === normalized ||
         path === cleanId ||
         path === stripped ||
+        pathStripped === cleanId ||
+        pathStripped === stripped ||
+        pathStripped.replace(/[-_]/g, "") === normalized ||
         slug === cleanId ||
-        slug === stripped
+        slug === stripped ||
+        slug.replace(/[-_]/g, "") === normalized
       );
     });
   }

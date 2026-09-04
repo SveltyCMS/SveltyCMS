@@ -10,6 +10,9 @@ import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { ADMIN_CREDENTIALS, TEST_API_HEADERS } from "../../helpers/api";
 import { loginAsAdmin } from "../../helpers/auth";
+import { dismissCookieConsent } from "../../helpers/cookie-consent";
+import { confirmModal } from "../../helpers/confirm-modal";
+import { expectToast } from "../../helpers/stable";
 import { openUserManagement } from "../../helpers/user-page";
 
 /**
@@ -79,8 +82,17 @@ test.describe.serial("User Profile Management", () => {
     // where Playwright treats clipped nodes as not visible even though they are in the DOM.
     await expect(page.getByTestId("page-title")).toBeVisible({ timeout: 15_000 });
 
-    // Click the Settings tab to reveal appearance controls
-    await page.getByRole("tab", { name: /settings/i }).click();
+    // Click the Settings tab (retry until active — the tab is SSR-rendered before
+    // hydration attaches its onclick, so a one-shot click can be a silent no-op).
+    await dismissCookieConsent(page);
+    const settingsTab = page.getByRole("tab", { name: /settings/i });
+    await expect(settingsTab).toBeVisible({ timeout: 15_000 });
+    await expect(async () => {
+      if ((await settingsTab.getAttribute("aria-selected")) !== "true") {
+        await settingsTab.click({ timeout: 10_000 });
+      }
+      await expect(settingsTab).toHaveAttribute("aria-selected", "true", { timeout: 2_000 });
+    }).toPass({ timeout: 15_000 });
     await expect(page.getByTestId("user-settings-panel")).toBeVisible({ timeout: 10_000 });
 
     // Compact density/card strip on Settings
@@ -126,7 +138,10 @@ test.describe.serial("User Profile Management", () => {
     // a native DOM click. SSR renders the pencil button before Svelte attaches
     // its onclick, so a single dispatch can be a silent no-op — drive the modal
     // open with an outcome-based retry instead.
-    const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
+    const editAvatarBtn = page
+      .getByTestId("edit-avatar-pencil-btn")
+      .or(page.getByTestId("edit-avatar-btn"))
+      .first();
     const avatarModal = page.locator(".modal-avatar").first();
     await expect(async () => {
       await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
@@ -169,27 +184,58 @@ test.describe.serial("User Profile Management", () => {
     // Same hydration-race guard as Edit Avatar: the fresh page load renders the
     // pencil button before hydration attaches the onclick, so retry the native
     // click until the avatar modal actually opens.
-    const editAvatarBtn = page.getByRole("button", { name: "Edit Avatar" });
+    const editAvatarBtn = page
+      .getByTestId("edit-avatar-pencil-btn")
+      .or(page.getByTestId("edit-avatar-btn"))
+      .or(page.getByRole("button", { name: /edit avatar/i }))
+      .first();
     const avatarModal = page.locator(".modal-avatar").first();
     await expect(async () => {
-      await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
+      await editAvatarBtn
+        .click({ timeout: 2_000 })
+        .catch(() => editAvatarBtn.evaluate((el: HTMLElement) => el.click()));
       await expect(avatarModal).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 15_000 });
 
-    const deleteBtn = avatarModal.getByRole("button", { name: "Delete Avatar" });
+    let deleteBtn = avatarModal.getByRole("button", { name: "Delete Avatar" });
+    if (!(await deleteBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
+      // Seed an avatar so the delete flow can be verified (e.g. on test retry)
+      const fileInput = page.locator('input[type="file"]');
+      await expect(fileInput).toBeAttached({ timeout: 5_000 });
+      await fileInput.setInputFiles(AVATAR_PATH);
+      const saveBtn = page.getByRole("button", { name: /^save$/i });
+      await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
+      await saveBtn.click();
+      const confirmBtn = page.getByRole("button", { name: /confirm/i });
+      if (await confirmBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+        await confirmBtn.click();
+      }
+      await expect(page.getByText(/avatar updated successfully/i).first()).toBeVisible({
+        timeout: 15_000,
+      });
+      // Re-open modal to delete
+      await expect(async () => {
+        await editAvatarBtn
+          .click({ timeout: 2_000 })
+          .catch(() => editAvatarBtn.evaluate((el: HTMLElement) => el.click()));
+        await expect(avatarModal).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 15_000 });
+      deleteBtn = avatarModal.getByRole("button", { name: "Delete Avatar" });
+    }
+
     await expect(deleteBtn).toBeVisible({ timeout: 10_000 });
     await deleteBtn.click();
 
-    // Confirmation dialog appears — wait for it (AGENTS.md pitfall #13: the
-    // portal render gap means the dialog shell can be visible before content).
-    const confirmBtn = page.getByRole("button", { name: /confirm/i });
-    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
-    await confirmBtn.click();
+    // Confirmation dialog appears — use the stable testid-backed confirm helper
+    // (AGENTS.md pitfall #13: the portal render gap means the dialog shell can be
+    // visible before content; a page-wide /confirm/i can also collide with other
+    // "Confirm" buttons).
+    await confirmModal(page);
 
     // Assertion: a custom avatar is gone — the success toast "Avatar Deleted"
     // appears and the profile avatar returns to the default initials state. Scope
-    // via the avatar button (sidebar + table avatars also expose role=img).
-    await expect(page.getByText(/Avatar Deleted/i)).toBeVisible({ timeout: 10_000 });
+    // the toast via the shared toast/role=alert locator, then the avatar button.
+    await expectToast(page, /avatar deleted/i);
     const profileAvatar = page.getByTestId("edit-avatar-btn").getByRole("img").first();
     await expect(profileAvatar).toBeVisible();
   });

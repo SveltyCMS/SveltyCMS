@@ -61,7 +61,8 @@ reveal after position calculation prevents layout flash.
 	let floatingEl = $state<HTMLElement | null>(null);
 	let arrowEl = $state<HTMLElement | null>(null);
 	let hasFocusableDescendant = $state(false);
-	const tooltipId = `tooltip-${crypto.randomUUID().slice(0, 8)}`;
+	const uid = $props.id();
+	const tooltipId = `tooltip-${uid}`;
 
 	const placement = $derived(positioning.placement ?? "top");
 	const gutter = $derived(positioning.gutter ?? 8);

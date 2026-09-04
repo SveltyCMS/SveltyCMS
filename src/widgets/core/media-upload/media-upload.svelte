@@ -39,7 +39,7 @@ functionality for image editing and basic file information display.
 	} from '@src/paraglide/messages';
 	import { collectionValue } from '@src/stores/collection-store.svelte.ts';
 	// Stores
-	import { validationStore } from '@src/stores/store.svelte.ts';
+	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { isoDateStringToDate } from '@utils/date';
 	import { logger } from '@utils/logger';
 	import { updateMediaMetadata } from '@utils/media/media-utils';

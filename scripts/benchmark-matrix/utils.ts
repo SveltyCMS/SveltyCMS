@@ -4,6 +4,7 @@
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { Database } from "bun:sqlite";
 
 export const MIN_RUNS_FOR_TREND = 3;
 
@@ -22,26 +23,44 @@ export function extractMetrics(
   return result;
 }
 
-// ── History Loading ───────────────────────────────────────────────────────────
+// ── History Loading ───────────────────────────────────────────────────────
+
+// Reusable read-only handle — eliminates the per-call open/close (and the
+// redundant file-handle/journal churn) when 30+ metrics × 4 DBs each consult
+// the same history file during a single matrix report.
+let _historyDbInstance: Database | null = null;
+const _historyPath = join(process.cwd(), "tests", "benchmarks", "results", "history.sqlite");
+
+function getHistoryDb(): Database | null {
+  if (_historyDbInstance) return _historyDbInstance;
+  if (!existsSync(_historyPath)) return null;
+  try {
+    _historyDbInstance = new Database(_historyPath, { readonly: true });
+    return _historyDbInstance;
+  } catch {
+    return null;
+  }
+}
 
 export function loadMetricHistory(dbKey: string, metric: string): number[] {
-  try {
-    const historyPath = join(process.cwd(), "tests", "benchmarks", "results", "history.sqlite");
-    if (!existsSync(historyPath)) return [];
+  const db = getHistoryDb();
+  if (!db) return [];
 
-    // Read from the SQLite history DB
-    const Database = require("better-sqlite3");
-    const db = new Database(historyPath, { readonly: true });
+  try {
     const rows = db
-      .prepare(
+      .query(
         `SELECT json_extract(metrics_json, '$.' || ? || '.p95Ms') as val
          FROM runs WHERE db_key = ? AND status = 'SUCCESS'
          ORDER BY timestamp DESC LIMIT 20`,
       )
       .all(metric, dbKey) as { val: number | null }[];
-    db.close();
 
-    return rows.map((r) => r.val).filter((v): v is number => v != null && v > 0);
+    const out: number[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const v = rows[i]?.val;
+      if (v != null && v > 0) out.push(v);
+    }
+    return out;
   } catch {
     return [];
   }
@@ -57,19 +76,38 @@ export function linearRegression(values: number[]): {
   const n = values.length;
   if (n < 2) return { slope: 0, intercept: values[0] || 0, r2: 0 };
 
-  const indices = values.map((_, i) => i);
-  const sumX = indices.reduce((a, b) => a + b, 0);
-  const sumY = values.reduce((a, b) => a + b, 0);
-  const sumXY = indices.reduce((sum, x, i) => sum + x * values[i], 0);
-  const sumX2 = indices.reduce((sum, x) => sum + x * x, 0);
-  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  // Single pass over the series to accumulate ∑x, ∑y, ∑xy, ∑x².
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumX2 = 0;
+  for (let i = 0; i < n; i++) {
+    const y = values[i];
+    sumX += i;
+    sumY += y;
+    sumXY += i * y;
+    sumX2 += i * i;
+  }
+
+  const denominator = n * sumX2 - sumX * sumX;
+  if (denominator === 0) return { slope: 0, intercept: sumY / n, r2: 0 };
+
+  const slope = (n * sumXY - sumX * sumY) / denominator;
   const intercept = (sumY - slope * sumX) / n;
-
   const meanY = sumY / n;
-  const ssRes = values.reduce((sum, y, i) => sum + (y - (slope * i + intercept)) ** 2, 0);
-  const ssTot = values.reduce((sum, y) => sum + (y - meanY) ** 2, 0);
-  const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
 
+  let ssRes = 0;
+  let ssTot = 0;
+  for (let i = 0; i < n; i++) {
+    const y = values[i];
+    const pred = slope * i + intercept;
+    const diffRes = y - pred;
+    const diffTot = y - meanY;
+    ssRes += diffRes * diffRes;
+    ssTot += diffTot * diffTot;
+  }
+
+  const r2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
   return { slope, intercept, r2 };
 }
 
@@ -175,14 +213,27 @@ export function checkBudget(metrics: Record<string, number>, coldStartMs: number
 
 export async function freePort(port: number): Promise<void> {
   try {
-    const { execSync } = await import("node:child_process");
+    // Argument-array exec (no shell string interpolation) — `port` is bounded
+    // to a numeric local port and never passed through a shell.
+    const { execFileSync } = await import("node:child_process");
     if (process.platform === "win32") {
-      execSync(`netstat -ano | findstr :${port}`, { stdio: "pipe" });
+      const out = execFileSync("netstat", ["-ano", "-p", "tcp"], { encoding: "utf8" });
+      const line = out.split(/\r?\n/).find((l) => new RegExp(`:${port}\\s+.*LISTENING`).test(l));
+      const pid = line?.trim().split(/\s+/).pop();
+      if (pid && /^\d+$/.test(pid)) {
+        execFileSync("taskkill", ["/PID", pid, "/F"], { stdio: "pipe" });
+      }
     } else {
-      execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null`, { stdio: "pipe" });
+      const out = execFileSync("lsof", ["-ti", `:${port}`], { encoding: "utf8" });
+      for (const pid of out
+        .trim()
+        .split(/\s+/)
+        .filter((p) => /^\d+$/.test(p))) {
+        execFileSync("kill", ["-TERM", pid], { stdio: "pipe" });
+      }
     }
   } catch {
-    // Port is free or we couldn't free it
+    // Port is free, or the OS refused the kill — never fail the caller.
   }
 }
 

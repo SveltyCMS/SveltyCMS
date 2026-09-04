@@ -14,7 +14,7 @@ Sidebar navigation for System Settings
 	import { getSettingGroupsByRole } from '@src/routes/(app)/config/system-settings/settings-groups';
 	import { isAdmin as checkIsAdmin } from '@src/databases/auth/constants';
 	// Stores
-	import { groupsNeedingConfig } from '@src/stores/settings-config-state.svelte';
+	import { groupsNeedingConfig } from '@src/routes/(app)/config/system-settings/settings-state.svelte';
 	import { page } from '$app/state';
 
 	// Props

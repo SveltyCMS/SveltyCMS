@@ -12,13 +12,26 @@
  * `formatDisplayDate` and `formatRelativeDate` accept a `locale` parameter.
  * Pass the app's current content language explicitly:
  * ```ts
- * import { app } from '@src/stores/store.svelte';
- * formatDisplayDate(date, app.contentLanguage);
+ * import { locale } from '@src/stores/locale-store.svelte';
+ * formatDisplayDate(date, locale.contentLanguage);
  * ```
  * This keeps date.ts free of store imports, making it safe to use server-side.
  */
 
 import type { ISODateString } from "../content/types";
+import { getLocale } from "@src/paraglide/runtime";
+import { formatDate, formatDateTime, formatTime, formatNumber, resolveLocale } from "./format-date";
+
+/**
+ * Safely resolves the active UI locale from Paraglide without throwing in test/worker contexts.
+ */
+export function getActiveUiLocale(): string {
+  try {
+    return getLocale() || "en";
+  } catch {
+    return "en";
+  }
+}
 
 // --- ISO Date Utilities (Merged from date-utils.ts) ---
 
@@ -256,8 +269,7 @@ export function formatDateString(
   }
 }
 
-// 🛡️ Intl formatter caches — avoids repeated instantiation on high-frequency calls
-const dateTimeFormatCache = new Map<string, Intl.DateTimeFormat>();
+// 🛡️ Intl relative time formatter cache
 const relativeTimeFormatCache = new Map<string, Intl.RelativeTimeFormat>();
 
 export const DEFAULT_DISPLAY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
@@ -271,48 +283,32 @@ export const DEFAULT_DISPLAY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 
 /**
  * Format date for localized display.
- * Pass the app's content language explicitly: `app.contentLanguage` from `@src/stores/store.svelte`.
+ * Delegates to centralized, SSR-safe `formatDateTime` from `@utils/format-date`.
  */
 export function formatDisplayDate(
   dateInput: Date | number | string,
-  locale = "en",
+  locale?: string,
   options: Intl.DateTimeFormatOptions = DEFAULT_DISPLAY_DATE_OPTIONS,
 ): string {
-  try {
-    const date = new Date(
-      typeof dateInput === "number" ? (dateInput > 1e12 ? dateInput : dateInput * 1000) : dateInput,
-    );
-    if (Number.isNaN(date.getTime())) return "Invalid Date";
-    const cacheKey =
-      options === DEFAULT_DISPLAY_DATE_OPTIONS
-        ? `${locale}:default`
-        : `${locale}:${JSON.stringify(options)}`;
-    let formatter = dateTimeFormatCache.get(cacheKey);
-    if (!formatter) {
-      formatter = new Intl.DateTimeFormat(locale, options);
-      dateTimeFormatCache.set(cacheKey, formatter);
-    }
-    return formatter.format(date);
-  } catch {
-    return "Invalid Date";
-  }
+  return formatDateTime(dateInput, options, locale);
 }
 
 /**
  * Relative date formatting (e.g. "2 hours ago").
- * Pass the app's content language explicitly: `app.contentLanguage` from `@src/stores/store.svelte`.
+ * Defaults to the active UI language from Paraglide (`getLocale()`) if not specified.
  */
-export function formatRelativeDate(dateInput: Date | number | string, locale = "en"): string {
+export function formatRelativeDate(dateInput: Date | number | string, locale?: string): string {
+  const effectiveLocale = locale || getActiveUiLocale();
   try {
     const date = new Date(
       typeof dateInput === "number" ? (dateInput > 1e12 ? dateInput : dateInput * 1000) : dateInput,
     );
     if (Number.isNaN(date.getTime())) return "Invalid Date";
 
-    let formatter = relativeTimeFormatCache.get(locale);
+    let formatter = relativeTimeFormatCache.get(effectiveLocale);
     if (!formatter) {
-      formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-      relativeTimeFormatCache.set(locale, formatter);
+      formatter = new Intl.RelativeTimeFormat(effectiveLocale, { numeric: "auto" });
+      relativeTimeFormatCache.set(effectiveLocale, formatter);
     }
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 
@@ -325,6 +321,18 @@ export function formatRelativeDate(dateInput: Date | number | string, locale = "
   } catch {
     return "Invalid Date";
   }
+}
+
+/**
+ * Number formatting with memoized Intl.NumberFormat instances.
+ * Delegates to centralized `formatNumber` from `@utils/format-date`.
+ */
+export function formatDisplayNumber(
+  num: number,
+  locale?: string,
+  options?: Intl.NumberFormatOptions,
+): string {
+  return formatNumber(num, options, locale);
 }
 
 // --- Calculators & Parsers ---
@@ -378,3 +386,5 @@ export function formatIsoDuration(isoDuration: string | undefined): string | und
 }
 
 export const getCurrentDate = () => formatDateString(new Date(), "yyyy-MM-dd");
+
+export { formatDate, formatDateTime, formatTime, formatNumber, resolveLocale };

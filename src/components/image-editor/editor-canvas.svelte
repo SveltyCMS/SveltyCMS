@@ -12,7 +12,7 @@ for the image editor canvas with reactive rendering.
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import type { Snippet } from 'svelte';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';

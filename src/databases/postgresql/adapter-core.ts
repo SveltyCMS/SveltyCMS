@@ -39,8 +39,9 @@ import { generateUUID } from "@src/utils/native-utils";
 
 /** Bind a JS value for postgres.js prepared params. Objects/arrays become JSON text so the driver does not emit PG array literals. */
 function bindPgParam(v: unknown, asJson: boolean): unknown {
+  if (v === undefined) return null;
   if (v instanceof Date) return v.toISOString();
-  if (asJson) return v === null || v === undefined ? null : JSON.stringify(v);
+  if (asJson) return v === null ? null : JSON.stringify(v);
   if (v !== null && typeof v === "object") return JSON.stringify(v);
   return v;
 }
@@ -110,6 +111,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   protected get useDynamicSqlInFindMany(): boolean {
     return true;
   }
+
+  private _pgSelectColsCache = new WeakMap<object, { withData?: string; withoutData?: string }>();
 
   /**
    * Raw prepared-SQL findById: postgres.js caches parsed statements by SQL
@@ -764,16 +767,22 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             return false;
           return !this.getColumn(table, String(f));
         });
-      const selectCols = this.getRawFindByIdCols(table, wantsData)
-        .map((c) => {
-          // Drizzle def property names may differ from physical column names
-          // (e.g. plugin_storage: collectionName → `collection`) — map before
-          // quoting or the SELECT throws 42703 and silently falls back to the
-          // slower Drizzle path on EVERY read.
-          const phys = this.getColumn(table, c);
-          return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
-        })
-        .join(", ");
+      let entry = this._pgSelectColsCache.get(table);
+      let selectCols = wantsData ? entry?.withData : entry?.withoutData;
+      if (!selectCols) {
+        selectCols = this.getRawFindByIdCols(table, wantsData)
+          .map((c) => {
+            const phys = this.getColumn(table, c);
+            return `"${utils.assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
+          })
+          .join(", ");
+        if (!entry) {
+          entry = {};
+          this._pgSelectColsCache.set(table, entry);
+        }
+        if (wantsData) entry.withData = selectCols;
+        else entry.withoutData = selectCols;
+      }
       // Tagged template (NOT unsafe): postgres.js caches prepared statements by
       // SQL text, so this stable query gets parse-once + bind/execute reuse.
       // Identifiers are inlined via sql.unsafe fragments (stable SQL text);
@@ -1017,6 +1026,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }
 
         const url = new URL(effectiveConnection);
+        const hw = getHardwareProfile();
+        // 🚀 POOL FLOOR: raise to 32 on medium+ hosts so the pool never saturates
+        // before 32 concurrent workers (findById peaks at 16c, drops −19% at 32c
+        // — classic pool-exhaustion signature). Single/small hosts keep 20 to
+        // avoid drowning a co-located DB server. `DATABASE_MAX_CONNECTIONS` env
+        // always wins.
+        const poolFloor = hw.tier === "single" || hw.tier === "small" ? 20 : 32;
         options = {
           host: url.hostname,
           port: Number(url.port || 5432),
@@ -1028,9 +1044,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onnotice: () => {},
           onclose,
           transform: { undefined: null },
-          max:
-            Number(process.env.DATABASE_MAX_CONNECTIONS) ||
-            Math.max(20, getHardwareProfile().dbPoolSize),
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || Math.max(poolFloor, hw.dbPoolSize),
           connect_timeout: 10,
           prepare: effectivePrepare,
           idle_timeout: 30,
@@ -1047,6 +1061,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       } else {
         const c = (finalConnection || {}) as any;
         const usePrepared = (c.prepare ?? process.env.DATABASE_PREPARE ?? "true") !== "false";
+        const hw2 = getHardwareProfile();
+        const poolFloor2 = hw2.tier === "single" || hw2.tier === "small" ? 20 : 32;
 
         options = {
           host: c.host || c.DB_HOST || "127.0.0.1",
@@ -1056,7 +1072,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           database: c.database || c.DB_NAME,
           max:
             Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) ||
-            Math.max(20, getHardwareProfile().dbPoolSize),
+            Math.max(poolFloor2, hw2.dbPoolSize),
           connect_timeout: Number(c.connect_timeout || 10),
           ssl: c.ssl || false,
           onnotice: () => {},
@@ -1441,8 +1457,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   // --------------------------------------------------------------------------
 
   public async createModel(schemaData: any, force = false): Promise<void> {
-    const tableName = schemaData._id || schemaData.id;
-    if (!tableName) throw new Error("Schema must have an _id");
+    const tableName = schemaData._id || schemaData.id || schemaData.name || schemaData.slug;
+    if (!tableName) throw new Error("Schema must have an _id or name");
 
     const normalizedName = tableName.replace(/-/g, "");
 

@@ -12,7 +12,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { AppError } from "@utils/error-handling";
+import { AppError, raise } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -128,7 +128,7 @@ export async function handleUtilityRoutes(
         throw new AppError(`Unknown config_sync action: "${action}". Valid actions: import.`, 400);
       }
 
-      throw new AppError("Method not allowed", 405);
+      raise(405, "Method not allowed");
     }
 
     // ── Email Service ──
@@ -153,11 +153,11 @@ export async function handleUtilityRoutes(
 
       if (request.method === "POST" && method === "install") {
         if (!user?.isAdmin && user?.role !== "admin") {
-          throw new AppError("Admin access required to install marketplace items", 403);
+          raise(403, "Admin access required to install marketplace items");
         }
         const body = await request.json().catch(() => ({}));
         const itemId = typeof body?.itemId === "string" ? body.itemId : "";
-        if (!itemId) throw new AppError("itemId is required", 400);
+        if (!itemId) raise(400, "itemId is required");
 
         const installed = await service.installTheme(itemId);
         return successResponse(event, installed);
@@ -174,14 +174,29 @@ export async function handleUtilityRoutes(
       return handleTrashRoutes(event, cms, tenantId, method);
     }
 
-    throw new AppError(
-      `Utility endpoint /api/${namespace}${method ? "/" + method : ""} not implemented`,
-      404,
-    );
-  } catch (err: any) {
+    // ── Remote Video Metadata ──
+    if (
+      (namespace === "remote-video" || namespace === "remoteVideo") &&
+      request.method === "POST"
+    ) {
+      return handleRemoteVideo(event);
+    }
+
+    // ── SEO Link Suggestions ──
+    if (
+      namespace === "seo" &&
+      (method === "link-suggestions" || !method) &&
+      request.method === "POST"
+    ) {
+      return handleLinkSuggestions(event, cms, tenantId);
+    }
+
+    raise(404, `Utility endpoint /api/${namespace}${method ? "/" + method : ""} not implemented`);
+  } catch (err: unknown) {
     logger.error(`[UtilityRoute Error] ${segments.join("/")}:`, err);
     if (err instanceof AppError) throw err;
-    throw new AppError(err.message || "Utility operation failed", 500);
+    const msg = err instanceof Error ? err.message : "Utility operation failed";
+    raise(500, msg);
   }
 }
 
@@ -193,9 +208,9 @@ async function handleOpenApiSpec(event: RequestEvent, tenantId: DatabaseId, url:
 
   // AI Reconnaissance Blinding: only authenticated admins can view the full spec
   if (!event.locals.isAdmin && !(event.locals as any).__testBypass) {
-    throw new AppError(
-      "Full OpenAPI specification is restricted to administrative roles to prevent automated reconnaissance.",
+    raise(
       403,
+      "Full OpenAPI specification is restricted to administrative roles to prevent automated reconnaissance.",
     );
   }
 
@@ -254,10 +269,10 @@ async function handleCacheRoutes(
 async function handleSendMail(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
   const body = await event.request.json().catch(() => ({}));
   if (!body.to || !body.subject) {
-    throw new AppError("Missing required fields: to, subject", 400);
+    raise(400, "Missing required fields: to, subject");
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.to)) {
-    throw new AppError("Invalid email address", 400);
+    raise(400, "Invalid email address");
   }
 
   try {
@@ -271,7 +286,7 @@ async function handleSendMail(event: RequestEvent, cms: LocalCMS, tenantId: Data
     });
 
     if (!result?.success) {
-      throw new AppError(result?.message || "Email send failed", 500);
+      raise(500, result?.message || "Email send failed");
     }
     return successResponse(event, {
       success: true,
@@ -279,14 +294,14 @@ async function handleSendMail(event: RequestEvent, cms: LocalCMS, tenantId: Data
     });
   } catch (err: any) {
     if (err instanceof AppError) throw err;
-    throw new AppError(`Email send failed: ${err.message}`, 500, "EMAIL_SEND_ERROR");
+    raise(500, `Email send failed: ${err.message}`, "EMAIL_SEND_ERROR");
   }
 }
 
 // ─── Debug Handler ───────────────────────────────────────────────────────────
 
 async function handleDebug(event: RequestEvent, tenantId: DatabaseId, user: any) {
-  if (!event.locals.isAdmin) throw new AppError("Access denied", 403);
+  if (!event.locals.isAdmin) raise(403, "Access denied");
 
   return successResponse(event, {
     timestamp: new Date().toISOString(),
@@ -351,7 +366,7 @@ async function handleTrashRoutes(
   if (request.method === "POST" && method === "restore") {
     const { collectionId, entryId } = await request.json().catch(() => ({}));
     if (!collectionId || !entryId) {
-      throw new AppError("Missing collectionId or entryId", 400);
+      raise(400, "Missing collectionId or entryId");
     }
     // 🐛 FIX (BUG-01): canonical physical name — replaces the manual
     // hyphen-stripping prefix (fragile duplicate of collectionTableName).
@@ -359,9 +374,174 @@ async function handleTrashRoutes(
     const result = await cms.db.crud.restore(collectionName, entryId as DatabaseId, {
       tenantId: tenantId as DatabaseId,
     });
-    if (!result.success) throw new AppError(result.message || "Failed to restore item", 500);
+    if (!result.success) raise(500, result.message || "Failed to restore item");
     return successResponse(event, { success: true, restored: true });
   }
 
-  throw new AppError(`Trash action '${method}' not implemented`, 404);
+  raise(404, `Trash action '${method}' not implemented`);
+}
+
+// ── Lazy-loaded remote-video module ──
+let _videoModule: typeof import("@widgets/custom/remote-video/video.server") | null = null;
+
+/** Fetches remote video metadata (YouTube, Vimeo, etc.) with platform validation. */
+async function handleRemoteVideo(event: RequestEvent) {
+  const { request, locals } = event;
+  if (!locals.user) {
+    raise(401, "Unauthorized");
+  }
+
+  const body = await request.json().catch(() => null);
+  if (!body || !body.url) {
+    raise(400, "URL required in valid JSON body");
+  }
+  const { url, allowedPlatforms } = body;
+
+  if (!_videoModule) {
+    _videoModule = await import("@widgets/custom/remote-video/video.server");
+  }
+  const { getRemoteVideoData, detectPlatform } = _videoModule;
+
+  const parsed = detectPlatform(url);
+  if (!parsed) {
+    raise(400, "Invalid or unsupported video URL");
+  }
+
+  if (
+    allowedPlatforms &&
+    allowedPlatforms.length > 0 &&
+    !allowedPlatforms.includes(parsed.platform)
+  ) {
+    raise(403, `Platform '${parsed.platform}' is not allowed for this field.`);
+  }
+
+  const data = await getRemoteVideoData(url);
+  if (!data) {
+    raise(404, "Could not fetch video metadata. Please check the URL and try again.");
+  }
+
+  return successResponse(event, data);
+}
+
+/** High-performance internal link suggestions based on content keywords. */
+async function handleLinkSuggestions(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
+  const { request, locals } = event;
+  if (!locals.user) {
+    raise(401, "Unauthorized");
+  }
+  if (!cms?.db) {
+    raise(500, "Database adapter not initialized");
+  }
+
+  const dbAdapter = cms.db;
+  const body = await request.json().catch(() => ({}));
+  const { content, currentId, collectionId, focusKeyword } = body;
+  if (!content && !focusKeyword) {
+    return rawResponse(event, { success: true, suggestions: [] });
+  }
+
+  const searchKeywords: string[] = [];
+  if (focusKeyword && typeof focusKeyword === "string") {
+    searchKeywords.push(focusKeyword.toLowerCase());
+  }
+
+  if (content && typeof content === "string") {
+    const words = content.toLowerCase().match(/\b\w{4,}\b/g) || [];
+    const freq: Record<string, number> = {};
+
+    for (const word of words) {
+      if (word.startsWith("lt") || word.startsWith("gt") || word.startsWith("p")) continue;
+      freq[word] = (freq[word] || 0) + 1;
+    }
+
+    const contentKeywords = Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([word]) => word);
+
+    for (const kw of contentKeywords) {
+      if (!searchKeywords.includes(kw)) searchKeywords.push(kw);
+    }
+  }
+
+  const keywordsToSearch = searchKeywords.slice(0, 2);
+  if (keywordsToSearch.length === 0) {
+    return rawResponse(event, { success: true, suggestions: [] });
+  }
+
+  const { contentSystem } = await import("@src/content/index.server");
+  const allCollections = await contentSystem.getCollections(tenantId as string);
+  const targetCollectionIds = new Set(["posts", "pages", "articles", "news", "blog", collectionId]);
+
+  const searchCollections = allCollections.filter(
+    (c) => c._id && targetCollectionIds.has(c._id as string),
+  );
+
+  if (searchCollections.length === 0 && collectionId) {
+    const fallbackCol = allCollections.find((c) => c._id === collectionId);
+    if (fallbackCol) searchCollections.push(fallbackCol);
+  }
+
+  const suggestions: Array<{
+    title: string;
+    url: string;
+    score: number;
+    collection: string;
+  }> = [];
+
+  const searchPromises: Promise<void>[] = [];
+
+  for (const col of searchCollections) {
+    const colId = col._id as string;
+    const colName = col.name || colId;
+
+    for (const keyword of keywordsToSearch) {
+      const queryPromise = (async () => {
+        try {
+          const qb = dbAdapter.queryBuilder(colId);
+          const result = await qb
+            .search(keyword, ["title", "content"] as any)
+            .where({
+              status: "publish",
+              tenantId: (tenantId as string) || "default",
+            } as any)
+            .limit(5)
+            .execute();
+
+          if (result.success && Array.isArray(result.data)) {
+            for (const entry of result.data as any[]) {
+              if (entry._id === currentId) continue;
+
+              let score = 1.0;
+              if (keyword === focusKeyword?.toLowerCase()) score += 0.5;
+              if (entry.isCornerstone) score += 1.0;
+
+              suggestions.push({
+                title: entry.title || entry.name || entry.slug,
+                url: `/${colId}/${entry.slug}`,
+                score,
+                collection: colName,
+              });
+            }
+          }
+        } catch (err) {
+          logger.warn(`Error searching collection ${colId} for keyword "${keyword}":`, err);
+        }
+      })();
+
+      searchPromises.push(queryPromise);
+    }
+  }
+
+  await Promise.all(searchPromises);
+
+  const uniqueSuggestions = Array.from(
+    new Map(suggestions.sort((a, b) => b.score - a.score).map((s) => [s.url, s])).values(),
+  ).slice(0, 8);
+
+  return rawResponse(event, {
+    success: true,
+    suggestions: uniqueSuggestions,
+    data: { suggestions: uniqueSuggestions },
+  });
 }

@@ -4,6 +4,7 @@
  *
  * Features:
  * - Streaming JSON arrays (lower TTFB, reduced memory for large responses)
+ * - NDJSON / CSV cursor exports (chunked, backpressure-aware)
  * - Backpressure-aware chunking with configurable safety limits
  * - Graceful error handling — sends partial data + error marker on failure
  * - Client disconnect detection via AbortSignal
@@ -11,6 +12,13 @@
  */
 
 import { logger } from "@utils/logger";
+import {
+  csvRowFromRecord,
+  encodeCsvHeader,
+  encodeNdjsonLine,
+  exportContentType,
+  type CollectionExportFormat,
+} from "@utils/export-encode";
 // ─── Streaming JSON Response ─────────────────────────────────────────────────
 
 const SHARED_TEXT_ENCODER = new TextEncoder();
@@ -191,7 +199,99 @@ export function streamingRawJsonResponse(
   });
 }
 
-// ─── Server-Sent Events (SSE) ────────────────────────────────────────────────
+const NEWLINE_CHUNK = SHARED_TEXT_ENCODER.encode("\n");
+
+async function yieldForBackpressure(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+): Promise<void> {
+  if (controller.desiredSize !== null && controller.desiredSize <= 0) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+}
+
+export interface StreamingExportOptions {
+  format: CollectionExportFormat;
+  filename: string;
+  columns?: readonly string[];
+  maxItems?: number;
+  enableBackpressure?: boolean;
+}
+
+/**
+ * Stream collection entries as NDJSON or CSV from a DB cursor / async iterable.
+ * Does not buffer the full result set — each record is encoded and enqueued.
+ */
+/** True when the dispatcher must not buffer the body to compute an ETag. */
+export function isChunkedExportResponse(response: Response): boolean {
+  const contentType = response.headers.get("content-type") || "";
+  return (
+    !!response.headers.get("x-export-format") ||
+    contentType.includes("ndjson") ||
+    contentType.includes("text/csv") ||
+    (response.headers.get("content-disposition") || "").includes("attachment")
+  );
+}
+
+export function streamingExportResponse(
+  iterator: AsyncIterable<any> | any[],
+  options: StreamingExportOptions,
+): Response {
+  const {
+    format,
+    filename,
+    columns = [],
+    maxItems = Infinity,
+    enableBackpressure = true,
+  } = options;
+  const isCsv = format === "csv";
+  let itemCount = 0;
+  let isClosed = false;
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        if (isCsv) {
+          controller.enqueue(SHARED_TEXT_ENCODER.encode(encodeCsvHeader(columns)));
+        }
+
+        for await (const item of iterator as AsyncIterable<any>) {
+          if (isClosed || itemCount >= maxItems) break;
+          const record =
+            item && typeof item === "object" ? (item as Record<string, unknown>) : { value: item };
+          const line = isCsv ? csvRowFromRecord(record, columns) : encodeNdjsonLine(record);
+          controller.enqueue(SHARED_TEXT_ENCODER.encode(line));
+          itemCount++;
+          if (enableBackpressure) await yieldForBackpressure(controller);
+        }
+
+        if (!isCsv && itemCount === 0) {
+          controller.enqueue(NEWLINE_CHUNK);
+        }
+      } catch (err) {
+        logger.error("[StreamingExport] Error during export stream:", err);
+      } finally {
+        if (!isClosed) {
+          controller.close();
+          isClosed = true;
+        }
+      }
+    },
+    cancel() {
+      isClosed = true;
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": exportContentType(format),
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Transfer-Encoding": "chunked",
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "no-store",
+      "X-Export-Format": format,
+    },
+  });
+}
 
 /**
  * Options for creating an SSE stream.
@@ -233,6 +333,8 @@ export function sseStreamingResponse(
     async start(controller) {
       const encoder = new TextEncoder();
 
+      let keepAlive: ReturnType<typeof setInterval> | null = null;
+
       // Send retry interval
       controller.enqueue(encoder.encode(`retry: ${retry}\n`));
 
@@ -244,23 +346,26 @@ export function sseStreamingResponse(
       );
 
       // Keep-alive timer
-      const keepAlive = setInterval(() => {
+      keepAlive = setInterval(() => {
         if (isClosed) {
-          clearInterval(keepAlive);
+          if (keepAlive) clearInterval(keepAlive);
           return;
         }
         try {
           controller.enqueue(encoder.encode(": keep-alive\n\n"));
         } catch {
           isClosed = true;
-          clearInterval(keepAlive);
+          if (keepAlive) clearInterval(keepAlive);
         }
       }, keepAliveMs);
+      if (typeof (keepAlive as any)?.unref === "function") {
+        (keepAlive as any).unref();
+      }
 
       // AbortSignal — client disconnection
       const onAbort = () => {
         isClosed = true;
-        clearInterval(keepAlive);
+        if (keepAlive) clearInterval(keepAlive);
         try {
           controller.close();
         } catch {
@@ -290,7 +395,7 @@ export function sseStreamingResponse(
           /* already closed */
         }
       } finally {
-        clearInterval(keepAlive);
+        if (keepAlive) clearInterval(keepAlive);
         signal?.removeEventListener("abort", onAbort);
         if (!isClosed) {
           controller.close();

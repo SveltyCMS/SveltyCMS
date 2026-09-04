@@ -678,6 +678,7 @@ export const workflowDefinitions = sqliteTable(
     collectionId: text("collectionId", { length: 255 }).notNull(),
     name: text("name", { length: 255 }).notNull(),
     description: text("description"),
+    gatePublication: integer("gatePublication", { mode: "boolean" }).notNull().default(false),
     states: text("states")
       .notNull()
       .default("[]" as any),
@@ -706,6 +707,7 @@ export const workflowInstances = sqliteTable(
     entryId: text("entryId", { length: 36 }).notNull(),
     collectionId: text("collectionId", { length: 255 }).notNull(),
     currentState: text("currentState", { length: 255 }).notNull(),
+    assigneeId: text("assigneeId", { length: 36 }),
     history: text("history")
       .notNull()
       .default("[]" as any),

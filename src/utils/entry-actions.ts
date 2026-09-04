@@ -38,6 +38,7 @@ import {
 } from "./api";
 import { entryMessages } from "./entry-actions-messages";
 import { logger } from "./logger";
+import { formatDate } from "@utils/format-date";
 
 // Helper function to update entry status
 async function updateStatus(collectionId: string, entryId: string, status: string) {
@@ -433,7 +434,7 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
         scheduledDate: scheduledDate.toISOString(),
       });
       toast.success({
-        description: entryMessages.entryScheduled(scheduledDate.toLocaleDateString()),
+        description: entryMessages.entryScheduled(formatDate(scheduledDate)),
       });
     } catch (e) {
       toast.error({
@@ -454,7 +455,7 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
             scheduledAction: action,
           });
           toast.success({
-            description: entryMessages.entryScheduled(date.toLocaleDateString()),
+            description: entryMessages.entryScheduled(formatDate(date)),
           });
         } catch (e) {
           toast.error({

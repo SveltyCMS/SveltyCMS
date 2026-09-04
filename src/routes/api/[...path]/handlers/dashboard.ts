@@ -715,8 +715,15 @@ async function getBlockedIpsCount(_tenantId: string | null): Promise<number> {
   const redis = cacheService.getRedisClient();
   if (redis && redis.isOpen) {
     try {
-      const keys = await redis.keys("svelty:sec:block:*");
-      return keys.length;
+      if (typeof redis.scanIterator === "function") {
+        let count = 0;
+        for await (const _ of redis.scanIterator({ MATCH: "svelty:sec:block:*", COUNT: 100 })) {
+          count++;
+          if (count >= 1000) break;
+        }
+        return count;
+      }
+      return 0;
     } catch {
       return 0;
     }
@@ -736,8 +743,15 @@ async function getThrottledIpsCount(_tenantId: string | null): Promise<number> {
   const redis = cacheService.getRedisClient();
   if (redis && redis.isOpen) {
     try {
-      const keys = await redis.keys("svelty:sec:throttle:*");
-      return keys.length;
+      if (typeof redis.scanIterator === "function") {
+        let count = 0;
+        for await (const _ of redis.scanIterator({ MATCH: "svelty:sec:throttle:*", COUNT: 100 })) {
+          count++;
+          if (count >= 1000) break;
+        }
+        return count;
+      }
+      return 0;
     } catch {
       return 0;
     }

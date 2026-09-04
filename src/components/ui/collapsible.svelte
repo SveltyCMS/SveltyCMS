@@ -53,7 +53,8 @@ onMount(() => {
 	return () => mq.removeEventListener('change', handler);
 });
 
-const contentId = $derived(`collapsible-${crypto.randomUUID()}`);
+const uid = $props.id();
+const contentId = `collapsible-${uid}`;
 const slideDuration = $derived(prefersReducedMotion ? 0 : 200);
 
 function toggle() {

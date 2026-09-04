@@ -19,7 +19,7 @@ import { logger } from "@utils/logger";
 	import Input from '@components/ui/input.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
 	// Stores
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import type { Editor } from '@tiptap/core';
 	import { getLocale } from '@src/paraglide/runtime';
 	import { getTextDirection } from '@utils/string';
@@ -42,7 +42,7 @@ import { logger } from "@utils/logger";
 		error?: string | null;
 	} = $props();
 
-	const lang = $derived(field.translated ? app.contentLanguage : 'default');
+	const lang = $derived(field.translated ? locale.contentLanguage : 'default');
 
 	// Editor text direction follows the content language for translated fields
 	// (ar/he/fa/ur…) and the active UI locale for untranslated fields.
@@ -665,7 +665,7 @@ import { logger } from "@utils/logger";
 													<div class="mb-2 grid grid-cols-5 gap-1">
 														{#each ['#000000', '#4b5563', '#9ca3af', '#ffffff', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'] as color (color)}
 															<button
-																class="w-8 h-8 rounded-full border border-surface-500/30 dark:border-surface-600 transition-transform hover:scale-110 focus:scale-110 focus:outline-none"
+																class="w-8 h-8 rounded-full border border-surface-500/30 dark:border-surface-600 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
 																style="background-color: {color};"
 																onclick={(e) => {
 																	e.stopPropagation();
@@ -679,7 +679,7 @@ import { logger } from "@utils/logger";
 													</div>
 
 													<div class="relative pt-2 border-t border-surface-500/30 dark:border-surface-500/40">
-														<div class="relative w-full h-8 group overflow-hidden rounded cursor-pointer">
+														<div class="relative w-full h-8 group overflow-hidden rounded">
 															<div
 																class="absolute inset-0 flex items-center justify-center bg-linear-to-r from-error-500 via-success-500 to-tertiary-500 opacity-90 group-hover:opacity-100 transition-opacity"
 															>
@@ -687,7 +687,7 @@ import { logger } from "@utils/logger";
 															</div>
 															<input aria-label="Link URL"
 										type="color"
-																class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+																class="absolute inset-0 w-full h-full opacity-0"
 																onchange={handleColorChange}
 																onclick={(e) => e.stopPropagation()}
 																title="Custom Color"
@@ -776,7 +776,7 @@ import { logger } from "@utils/logger";
 		bind:this={element}
 		dir={editorDir}
 		onclick={() => editor?.chain().focus().run()}
-		class="prose dark:prose-invert max-w-none px-6 py-4 min-h-96 focus:outline-none leading-relaxed cursor-text {showSource ? 'hidden' : ''}"
+		class="prose dark:prose-invert max-w-none px-6 py-4 min-h-96 leading-relaxed cursor-text {showSource ? 'hidden' : ''}"
 	>
 		<!-- Tiptap content -->
 	</div>
@@ -821,7 +821,6 @@ import { logger } from "@utils/logger";
 			height: 100%;
 			min-height: inherit;
 			text-align: start;
-			outline: none;
 		}
 		/* Ensure the editor fills the container and is clickable everywhere */
 		:global(.ProseMirror > *:first-child) {

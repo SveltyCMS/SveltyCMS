@@ -598,6 +598,37 @@ export class WebsiteTokensNamespace extends BaseNamespace {
       { collection: "websiteTokens" },
     );
   }
+
+  async deleteMany(tokenIds: string[], options: LocalApiOptions = {}) {
+    const { tenantId } = options;
+    if (!tokenIds || tokenIds.length === 0) {
+      return { deletedCount: 0 };
+    }
+    return withTenant(
+      tenantId ?? null,
+      async () => {
+        const websiteTokens = this._dbAdapter.system.websiteTokens as any;
+        const { invalidateWebsiteTokenAuth } =
+          await import("@src/databases/auth/credential-auth-cache");
+        let deletedCount = 0;
+        await Promise.all(
+          tokenIds.map(async (tokenId) => {
+            const existing = await websiteTokens.getById(tokenId as any, tenantId ?? undefined);
+            const storedHash =
+              existing?.success && existing.data?.token ? String(existing.data.token) : null;
+            const result = await websiteTokens.delete(tokenId as any, tenantId ?? undefined);
+            if (result.success) {
+              deletedCount++;
+              await invalidateWebsiteTokenAuth(tokenId, tenantId ?? undefined, storedHash);
+            }
+          }),
+        );
+        return { deletedCount };
+      },
+      { collection: "websiteTokens" },
+    );
+  }
+
   async update(tokenId: string, data: any, options: LocalApiOptions = {}) {
     const { tenantId } = options;
     return withTenant(

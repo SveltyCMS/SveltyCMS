@@ -112,6 +112,9 @@ search filtering, and RTL support.
         }>;
         onClick?: () => void;
         metadata?: any;
+        href?: string;
+        path?: string;
+        preload?: 'hover' | 'viewport' | 'predict' | 'smart';
         [key: string]: any;
     }
 
@@ -609,9 +612,13 @@ search filtering, and RTL support.
             <div class="absolute -top-0.5 inset-s-0 inset-e-0 h-0.5 bg-tertiary-500 dark:bg-primary-500 z-10 rounded-full" transition:scale={{ duration: transitionDuration }}></div>
         {/if}
 
-        <div
+        <svelte:element
+            this={node.href || node.path ? 'a' : 'div'}
+            href={node.href || node.path}
+            data-preload={node.preload}
+            data-sveltekit-preload-data={node.href || node.path ? 'hover' : undefined}
             class={cn(
-                'flex w-full group focus:outline-none justify-start text-start cursor-pointer select-none',
+                'flex w-full group focus:outline-none justify-start text-start cursor-pointer select-none no-underline text-inherit',
                 isMedia
                     ? cn(
                         'rounded-none border-0 bg-transparent px-0 shadow-none transition-colors',
@@ -727,7 +734,7 @@ search filtering, and RTL support.
 	                    {node.badge?.count ?? ''}
 	                </Badge>
 	            {/if}
-        </div>
+        </svelte:element>
 
         <!-- Per-node Action Buttons -->
         {#if node.actions && node.actions.length > 0 && computedDensity !== 'compact'}

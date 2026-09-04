@@ -24,7 +24,7 @@ Renders a color input with label, helper, and validation
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { parse, pipe, regex, string, optional } from 'valibot';
@@ -40,7 +40,7 @@ Renders a color input with label, helper, and validation
 		error?: string | null;
 	} = $props();
 
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Derived current color value
 	const colorValue = $derived.by(() => {
@@ -88,7 +88,7 @@ Renders a color input with label, helper, and validation
 				value={colorValue}
 				id={fieldName + '-color'}
 				oninput={(e) => updateColor(e.currentTarget.value)}
-				class="absolute -inset-2 h-[150%] w-[150%] cursor-pointer border-none bg-transparent p-0"
+				class="absolute -inset-2 h-[150%] w-[150%] border-none bg-transparent p-0"
 			/>
 		</div>
 

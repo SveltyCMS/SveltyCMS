@@ -47,6 +47,9 @@ empty/loading, and pagination stay consistent.
 		rowsPerPageOptions = [10, 25, 50, 100, 500],
 		onUpdatePage,
 		onUpdateRowsPerPage,
+		/** URL-driven paging: forwarded to Pagination (see pagination.svelte).
+		 *  Set to e.g. "page" when this table's route SSR-honors the search param. */
+		urlPageParam = null,
 		scrollClass = '',
 		class: className = '',
 		toolbar,
@@ -67,6 +70,7 @@ empty/loading, and pagination stay consistent.
 		rowsPerPageOptions?: number[];
 		onUpdatePage?: (page: number) => void;
 		onUpdateRowsPerPage?: (rows: number) => void;
+		urlPageParam?: string | null;
 		scrollClass?: string;
 		class?: string;
 		toolbar?: Snippet;
@@ -105,6 +109,7 @@ empty/loading, and pagination stay consistent.
 				{totalItems}
 				{rowsPerPageOptions}
 				variant="cms"
+				{urlPageParam}
 				{onUpdatePage}
 				{onUpdateRowsPerPage}
 			/>

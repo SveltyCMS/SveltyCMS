@@ -86,7 +86,7 @@ Renders a group of fields, allowing for nested data structures.
 			aria-expanded={!isCollapsed}
 			aria-controls="{fieldName}-content"
 			class="flex w-full items-center justify-between p-3 {variant.header} {(field as any).collapsible
-				? 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5'
+				? 'hover:bg-black/5 dark:hover:bg-white/5'
 				: ''}"
 		>
 			<h4 class="text-base font-semibold">{(field as any).groupTitle || field.label}</h4>

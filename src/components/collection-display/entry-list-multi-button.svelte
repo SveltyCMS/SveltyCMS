@@ -42,7 +42,6 @@
 		entrylist_multibutton_viewing_active,
 		entrylist_multibutton_viewing_archived
 	} from '@src/paraglide/messages';
-	import { app } from '@src/stores/store.svelte';
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { onDestroy, onMount } from 'svelte';

@@ -129,12 +129,44 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
     allResults.push({
       ...httpRes,
       layer: "HTTP",
-      proves: "Full Production Stack",
+      proves: "Full Production Stack (Cache HIT)",
+    });
+
+    // 3b. HTTP Cold (Cache-Busted) — a genuine uncached DB read. A unique
+    // `cachebust` query param per iteration yields a distinct cache key, so
+    // neither the L2 cache nor the L1 turbo map can serve a HIT. This isolates
+    // the honest "uncached production hit" floor (DB + middleware +
+    // serialization) from the warm cache-HIT number above.
+    let coldBustSeq = 0;
+    const httpColdRes = await runBenchmark({
+      name: "HTTP Cold (Cache-Busted)",
+      iterations: ITERATIONS,
+      warmupIterations: 0,
+      runs: 1,
+      silent: true,
+      measureMemory: true,
+      onIteration: async () => {
+        coldBustSeq++;
+        const res = await fetch(
+          `${apiBaseUrl}/api/collections/${STABLE_COLLECTION}/${STABLE_ENTRY_ID}?cachebust=${coldBustSeq}`,
+          {
+            method: "GET",
+            headers: requestHeaders,
+          },
+        );
+        if (!res.ok) throw new Error(`HTTP Cold failed: ${res.status}`);
+        await res.arrayBuffer();
+      },
+    });
+    allResults.push({
+      ...httpColdRes,
+      layer: "HTTP-Cold",
+      proves: "Uncached DB Read + Middleware",
     });
 
     printTruthTable({
       title: "SVELTYCMS — SRE TRUTH AUDIT",
-      subtitle: "3-Layer Production Reality Model",
+      subtitle: "4-Layer Production Reality Model",
       results: allResults,
     });
 
@@ -145,7 +177,13 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
         unit: "ms",
       },
       { key: "SDK Engine Latency", val: allResults[1].avgMs, unit: "ms" },
-      { key: "E2E HTTP Latency", val: allResults[2].avgMs, unit: "ms" },
+      { key: "HTTP Warm (Cache HIT)", val: allResults[2].avgMs, unit: "ms" },
+      { key: "HTTP Cold (Cache Miss)", val: allResults[3].avgMs, unit: "ms" },
+      {
+        key: "Cache Speedup (Cold ÷ Warm)",
+        val: `${(allResults[3].avgMs / Math.max(allResults[2].avgMs, 0.01)).toFixed(1)}×`,
+        unit: "",
+      },
       {
         key: "Peak HTTP Throughput",
         val: Math.round(allResults[2].rps),
@@ -210,6 +248,8 @@ test("Enterprise Truth Audit: SRE Connectivity Model", async () => {
 
     exportMetric("truth.http.p95", httpRes.p95Ms, "ms");
     exportMetric("api.latency.http", httpRes.p95Ms, "ms");
+    exportMetric("truth.http.cold.avg", httpColdRes.avgMs, "ms");
+    exportMetric("truth.http.cold.p95", httpColdRes.p95Ms, "ms");
     exportMetric("truth.sdk.avg", sdkRes.avgMs, "ms");
     exportMetric("rest.collections.rps", httpRes.rps, "req/s");
 

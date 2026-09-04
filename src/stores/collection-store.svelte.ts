@@ -11,7 +11,10 @@
  * - Holding the `activeValue` (Svelte 5 $state) for forms.
  * - Guarding against redundant content structure updates (Circuit Breaker).
  */
-import type { ContentNode, Schema, WidgetFieldPermissions } from "@src/content/types";
+import type { ContentNode, Schema, StatusType, WidgetFieldPermissions } from "@src/content/types";
+import { StatusTypes } from "@src/content/types";
+import { updateEntryStatus } from "@src/utils/api";
+import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
 
 /** Cheap FNV-1a fingerprint — avoids JSON.stringify of large ContentNode trees (client-safe). */
@@ -83,6 +86,135 @@ class CollectionState {
 
   get activeName() {
     return this.active?.name;
+  }
+
+  // --- Status & Publishing State ---
+  isStatusLoading = $state(false);
+  private lastStatusToggleTime = 0;
+
+  get isPublish(): boolean {
+    if (this.activeValue?.status) {
+      return this.activeValue.status === StatusTypes.publish;
+    }
+    const collectionStatus = this.active?.status;
+    const defaultStatus = collectionStatus || StatusTypes.unpublish;
+    return defaultStatus === StatusTypes.publish;
+  }
+
+  get currentStatus(): StatusType {
+    if (this.activeValue?.status) {
+      return this.activeValue.status as StatusType;
+    }
+    const collectionStatus = this.active?.status;
+    return (collectionStatus || StatusTypes.unpublish) as StatusType;
+  }
+
+  getStatusForSave(): StatusType {
+    return this.currentStatus;
+  }
+
+  setStatusLocal(status: StatusType): void {
+    logger.debug(`[CollectionState] Setting status locally to ${status}`);
+    this.setCollectionValue({
+      ...this.activeValue,
+      status,
+    });
+  }
+
+  hasStatus(status: StatusType): boolean {
+    return this.currentStatus === status;
+  }
+
+  get isScheduled(): boolean {
+    return this.currentStatus === StatusTypes.schedule && !!this.activeValue?._scheduled;
+  }
+
+  async toggleStatus(newValue: boolean, componentName = "Component"): Promise<boolean> {
+    if (newValue === this.isPublish) {
+      logger.debug(`[CollectionState] Status already ${newValue ? "published" : "unpublished"}`);
+      return true;
+    }
+    if (this.isStatusLoading) {
+      logger.warn("[CollectionState] Status toggle already in progress");
+      return false;
+    }
+    const now = Date.now();
+    if (now - this.lastStatusToggleTime < 500) {
+      logger.debug("[CollectionState] Throttling rapid status toggle");
+      return false;
+    }
+
+    this.isStatusLoading = true;
+    this.lastStatusToggleTime = now;
+
+    const newStatus = newValue ? StatusTypes.publish : StatusTypes.unpublish;
+    logger.debug(`[CollectionState] Toggling status to ${newStatus} (from ${componentName})`);
+
+    try {
+      if (this.activeValue?._id && this.active?._id) {
+        const result = await updateEntryStatus(
+          String(this.active._id),
+          String(this.activeValue._id),
+          newStatus,
+        );
+
+        if (result.success) {
+          this.setCollectionValue({
+            ...this.activeValue,
+            status: newStatus,
+            _scheduled: undefined,
+          });
+          toast.success(
+            newValue ? "Entry published successfully" : "Entry unpublished successfully",
+          );
+          return true;
+        }
+        toast.error(result.error || `Failed to ${newStatus} entry`);
+        return false;
+      }
+
+      this.setCollectionValue({
+        ...this.activeValue,
+        status: newStatus,
+      });
+      logger.debug(`[CollectionState] Status set to ${newStatus} (unsaved entry)`);
+      return true;
+    } catch (e) {
+      const error = e as Error;
+      toast.error(`Error updating status: ${error.message}`);
+      logger.error(`[CollectionState] Error in ${componentName}:`, error);
+      return false;
+    } finally {
+      this.isStatusLoading = false;
+    }
+  }
+
+  // --- Change Tracking State ---
+  hasChanges = $state(false);
+  initialDataSnapshot = $state("");
+
+  setHasChanges(v: boolean) {
+    this.hasChanges = v;
+  }
+
+  setInitialSnapshot(data: Record<string, unknown>) {
+    this.initialDataSnapshot = JSON.stringify(data);
+    this.hasChanges = false;
+  }
+
+  compareWithCurrent(currentData: Record<string, unknown>): boolean {
+    if (!this.initialDataSnapshot) return false;
+    const currentSnapshot = JSON.stringify(currentData);
+    const changed = currentSnapshot !== this.initialDataSnapshot;
+    if (this.hasChanges !== changed) {
+      this.hasChanges = changed;
+    }
+    return changed;
+  }
+
+  resetChanges() {
+    this.hasChanges = false;
+    this.initialDataSnapshot = "";
   }
 
   // --- Actions ---

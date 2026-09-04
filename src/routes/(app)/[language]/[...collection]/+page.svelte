@@ -17,6 +17,9 @@ This page dynamically switches between List views and Field editors based on the
 - Save or Cancel edits (triggers auto-save/draft logic).
 -->
 <script lang="ts">
+
+import { contentLanguage } from '@src/stores/locale-store.svelte';
+import { validationStore } from '@src/stores/validation-store.svelte';
 import EntryList from "@src/components/collection-display/entry-list.svelte";
 import Fields from "@src/components/collection-display/fields.svelte";
 import WorkflowActions from "@src/components/collection-display/workflow-actions.svelte";
@@ -24,7 +27,6 @@ import type { Schema } from "@src/content/types";
 import { collections } from "@src/stores/collection-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte";
 
-import { app, validationStore } from "@src/stores/store.svelte.ts";
 import { logger } from "@utils/logger";
 import { parseURLToMode } from "@utils/navigation";
 import { toast } from "@src/stores/toast.svelte.ts";
@@ -112,9 +114,9 @@ $effect(() => {
 	if (serverContentLanguage) {
 		untrack(() => {
 			if (serverContentLanguage !== lastServerLanguage) {
-				if (app.contentLanguage !== serverContentLanguage) {
+				if (contentLanguage.value !== serverContentLanguage) {
 					logger.debug("[+page.svelte] Syncing language:", serverContentLanguage);
-					app.contentLanguage = serverContentLanguage as any;
+					contentLanguage.value = serverContentLanguage as any;
 				}
 				lastServerLanguage = serverContentLanguage;
 			}

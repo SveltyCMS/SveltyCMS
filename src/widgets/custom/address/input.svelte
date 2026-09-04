@@ -33,7 +33,8 @@ import { logger } from "@utils/logger";
 		import Select from '@components/ui/select.svelte';
 		import { publicEnv } from '@src/stores/global-settings.svelte';
 	/* global google */
-	import { app, validationStore } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
+	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { onMount } from 'svelte';
@@ -58,8 +59,8 @@ import { logger } from "@utils/logger";
 	const showCoordinates = $derived((field as any).defaults?.showCoordinates ?? false);
 
 	// Language Handling
-	const DATA_LANGUAGE = $derived(field.translated ? app.contentLanguage : (publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en').toLowerCase());
-	const UI_LANGUAGE = $derived(app.systemLanguage);
+	const DATA_LANGUAGE = $derived(field.translated ? locale.contentLanguage : (publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en').toLowerCase());
+	const UI_LANGUAGE = $derived(locale.systemLanguage);
 
 	let safeValue = $derived.by(() => {
 		if (field.translated && value && typeof value === 'object') {

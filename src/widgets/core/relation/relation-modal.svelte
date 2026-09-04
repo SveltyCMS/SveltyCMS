@@ -15,7 +15,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import { slide, fade } from 'svelte/transition';
+	import { adminFade, adminSlide } from '@utils/admin-transitions';
 	import { modalState } from '@utils/modal.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import { button_cancel, button_save } from '@src/paraglide/messages';
@@ -125,7 +125,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 	}
 </script>
 
-<div class="relation-modal flex flex-col gap-6 p-2 text-surface-900 dark:text-white max-h-[80vh] w-full max-w-2xl overflow-hidden" in:fade={{ duration: 200 }}>
+<div class="relation-modal flex flex-col gap-6 p-2 text-surface-900 dark:text-white max-h-[80vh] w-full max-w-2xl overflow-hidden" in:adminFade={{ duration: 200 }}>
 	<!-- Header -->
 	<header class="flex items-center justify-between border-b border-surface-500/20 pb-4">
 		<div class="flex flex-col gap-1">
@@ -134,7 +134,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 		</div>
 		<div class="hidden sm:flex items-center gap-2">
 			{#if selected.size > 0}
-				<span class="chip preset-tonal-tertiary" transition:slide={{ axis: 'x', duration: 200 }}>
+				<span class="chip preset-tonal-tertiary" transition:adminSlide={{ duration: 200, distance: 24 }}>
 					{selected.size} selected
 				</span>
 			{/if}
@@ -156,7 +156,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 	<!-- List -->
 	<div class="list-container relative flex-1 min-h-75 overflow-y-auto rounded border border-surface-500/20 bg-surface-500/50 p-2 dark:bg-surface-900/50">
 		{#if loading}
-			<div class="flex h-full items-center justify-center py-12" in:fade>
+			<div class="flex h-full items-center justify-center py-12" in:adminFade>
 				<div class="flex flex-col items-center gap-4">
 					<iconify-icon icon="line-md:loading-twotone-loop" width="48" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<span class="text-sm font-medium animate-pulse">Fetching collection data...</span>
@@ -185,14 +185,14 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 					{const isSelected = selected.has(idStr)}
 					<Button variant="outline">
 						type="button"
-						class="flex w-full items-center gap-3 rounded p-3 text-start transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800 focus:ring-2 focus:ring-primary-500"
+						class="flex w-full items-center gap-3 rounded p-3 text-start transition-all duration-200 hover:bg-surface-200 dark:hover:bg-surface-800 focus-visible:ring-2 focus-visible:ring-primary-500"
 						class:bg-tertiary-500={isSelected} class:dark:bg-primary-500={isSelected}
 						class:text-white={isSelected}
 						onclick={() => toggleSelection(idStr)}
 					>
 						<div class="flex h-6 w-6 items-center justify-center rounded border border-surface-500/30 bg-white/10">
 							{#if isSelected}
-								<iconify-icon icon="fa:check" width="14" transition:fade></iconify-icon>
+								<iconify-icon icon="fa:check" width="14" transition:adminFade></iconify-icon>
 							{/if}
 						</div>
 						
