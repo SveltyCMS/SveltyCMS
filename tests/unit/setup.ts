@@ -7,7 +7,11 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 import { CORE_WIDGETS, CUSTOM_WIDGETS } from "./widgets/widget-constants";
 import { widgetNameToFolder } from "@src/widgets/widget-naming";
-const isBun = typeof Bun !== "undefined" && process.env.BUN_TEST === "true";
+// `Bun` exists only under the Bun runtime, which makes it the reliable signal.
+// `BUN_TEST` cannot gate this: bunfig preloads tests/unit/bun-preload.ts, whose
+// static `import "./setup"` is evaluated BEFORE its `process.env.BUN_TEST = "true"`
+// line (ESM import hoisting) — and Bun itself does not set BUN_TEST on Windows.
+const isBun = typeof Bun !== "undefined";
 
 // 🚀 CRITICAL: Detect benchmark mode early
 const currentTest = process.argv.find(
