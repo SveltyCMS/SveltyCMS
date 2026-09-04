@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import type { PriceValue } from './types';
 
 	let { value }: { value: PriceValue | null | undefined } = $props();
 
-	const lang = $derived(app.systemLanguage);
+	const lang = $derived(locale.systemLanguage);
 
 	const formattedPrice = $derived.by(() => {
 		if (!value || typeof value.amount !== 'number') return '–';

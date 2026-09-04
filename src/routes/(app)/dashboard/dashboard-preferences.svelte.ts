@@ -1,5 +1,5 @@
 /**
- * @file src/stores/dashboard-preferences.svelte.ts
+ * @file src/routes/(app)/dashboard/dashboard-preferences.svelte.ts
  * @description Dashboard widget layout preferences with server persistence (Svelte 5 runes)
  *
  * Features:

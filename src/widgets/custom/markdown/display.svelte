@@ -5,7 +5,7 @@
 -->
 
 	<script lang="ts">
-		import { app } from '@src/stores/store.svelte';
+		import { locale } from '@src/stores/locale-store.svelte';
 		import { parseMarkdown } from './parse-markdown';
 		import type { FieldType } from './index';
 
@@ -16,7 +16,7 @@
 
 	let { field, value = null }: Props = $props();
 
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : 'en');
+	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : 'en');
 	const rawText = $derived(field.translated ? (value?.[LANGUAGE] || '') : (value || ''));
 </script>
 

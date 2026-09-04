@@ -52,6 +52,7 @@ const createValidationSchema = (field: DateRangeProps) => {
 // Create the widget definition using the factory.
 const DateRangeWidget = createWidget<DateRangeProps>({
   Name: "DateRange",
+  version: "1.0.0",
   Icon: "mdi:calendar-range",
   Description: widget_dateRange_description(),
 

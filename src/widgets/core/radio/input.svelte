@@ -28,7 +28,7 @@ Renders radio group with options from field.options array
 
 <script lang="ts">
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 
 	import type { FieldType } from './';
 
@@ -49,7 +49,7 @@ Renders radio group with options from field.options array
 	} = $props();
 
 	const fieldId = $derived(field.db_fieldName);
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Local state to bind the radio group to
 	let localValue = $state<string | number | null>(null);
@@ -101,7 +101,7 @@ Renders radio group with options from field.options array
 		<!-- Radio options -->
 		<div class="flex flex-col gap-y-2">
 			{#each field.options || [] as option (option.value)}
-				<label class="flex cursor-pointer items-center gap-2 text-base text-surface-600 dark:text-surface-50">
+				<label class="flex items-center gap-2 text-base text-surface-600 dark:text-surface-50">
 					<input aria-label="Radio value"
 						type="radio"
 						name={field.db_fieldName}
@@ -109,7 +109,7 @@ Renders radio group with options from field.options array
 						value={option.value}
 						onchange={() => updateParent(option.value)}
 						aria-checked={localValue === option.value}
-						class={field.color ? `accent-${field.color}` : ''}
+						class="focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
 						style={field.color ? `accent-color: ${field.color}` : ''}
 					/>
 					<span>{option.label}</span>

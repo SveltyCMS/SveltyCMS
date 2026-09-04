@@ -7,7 +7,7 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import { parseMarkdown } from './parse-markdown';
 	import type { FieldType } from './index';
 
@@ -18,7 +18,7 @@
 
 	let { field, value = $bindable(null) }: Props = $props();
 
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : 'en');
+	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : 'en');
 
 	let rawText = $state('');
 	let previewMode = $state<'split' | 'edit' | 'preview'>('split');

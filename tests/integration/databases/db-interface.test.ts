@@ -25,10 +25,6 @@ vi.mock("@src/stores/screen-size-store.svelte", () => ({
   screenSize: { isMobile: false, isTablet: false, isDesktop: true },
 }));
 vi.mock("@src/stores/toast.svelte", () => ({ toast: { show: () => {} } }));
-vi.mock("@src/stores/store.svelte", () => ({
-  appStore: { isMobile: false },
-  app: { isMobile: false },
-}));
 vi.mock("@src/stores/widget-store.svelte", () => ({
   widgets: { initialize: () => {} },
 }));

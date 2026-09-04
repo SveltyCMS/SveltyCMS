@@ -39,6 +39,7 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const PhoneNumberWidget = createWidget<PhoneNumberProps>({
   Name: "PhoneNumber",
+  version: "1.0.0",
   Icon: "ic:baseline-phone-in-talk",
   Description: widget_phoneNumber_description(),
   inputComponentPath: "/src/widgets/custom/phone-number/input.svelte",

@@ -24,7 +24,7 @@ FIXES:
 	import type { Locale } from '@src/paraglide/runtime';
 	import { collection, collectionValue, mode } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { contentLanguage, translationProgress } from '@src/stores/store.svelte';
+	import { contentLanguage, translationProgress } from '@src/stores/locale-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
 	import { getFieldName } from '@utils/schema/field-utils';

@@ -4,7 +4,7 @@
 Bottom circular tool rail for mobile editor.
 -->
 <script lang="ts">
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { type EditorWidget, editorWidgets } from './widgets/registry';
 
 	let {

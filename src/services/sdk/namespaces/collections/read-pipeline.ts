@@ -384,6 +384,28 @@ export async function decryptReadResult(
 }
 
 /**
+ * Memoized per-schema encrypted-field sets.
+ *
+ * Schema objects are memoized singletons (schema-store cache), so the Set is
+ * built once per schema instead of on every find()/count()/findStreaming()
+ * call. A WeakMap keeps the sets off the schema object itself — schemas get
+ * structuredClone'd into SvelteKit load data, and a Set property would
+ * serialize as `{}` in schema API responses.
+ */
+const encryptedFieldSets = new WeakMap<object, ReadonlySet<string>>();
+
+function getEncryptedFieldSet(hot: SchemaHotFlags): ReadonlySet<string> | null {
+  const names = hot._encryptedFieldNames;
+  if (!names || names.length === 0) return null;
+  let set = encryptedFieldSets.get(hot as object);
+  if (!set) {
+    set = new Set(names);
+    encryptedFieldSets.set(hot as object, set);
+  }
+  return set;
+}
+
+/**
  * Encrypted fields cannot be filtered or sorted: AES-256-GCM IVs are random,
  * so equality on plaintext never matches stored ciphertext.
  */
@@ -392,8 +414,8 @@ export function assertEncryptedFieldsNotQueried(
   hot: SchemaHotFlags,
   sortField?: string,
 ): void {
-  if (!hot._hasEncryptedFields || !hot._encryptedFieldNames?.length) return;
-  const names = new Set(hot._encryptedFieldNames);
+  const names = getEncryptedFieldSet(hot);
+  if (!names) return;
 
   if (sortField && names.has(sortField)) {
     throw new AppError(

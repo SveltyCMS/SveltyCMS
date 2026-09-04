@@ -73,6 +73,7 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const RichTextWidget = createWidget<RichTextProps>({
   Name: "RichText",
+  version: "1.0.0",
   Icon: "mdi:format-pilcrow-arrow-right",
   Description: widget_richText_description(),
 

@@ -24,7 +24,7 @@ Renders a checkbox with label, color, size, and helper text from field props
 - **Screen Reader Support**: Proper ARIA attributes and semantic markup
 -->
 <script lang="ts">
-	import { validationStore } from '@src/stores/store.svelte';
+	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import type { FieldType } from '.';
 
@@ -55,7 +55,7 @@ Renders a checkbox with label, color, size, and helper text from field props
 
 <div class="mb-4">
 	<div class="flex flex-col gap-y-2">
-		<label class="flex cursor-pointer items-center gap-2 text-base text-surface-600 dark:text-surface-50">
+		<label class="flex items-center gap-2 text-base text-surface-600 dark:text-surface-50">
 			<input aria-label="Checkbox"
 				type="checkbox"
 				id={field.db_fieldName}
@@ -63,7 +63,7 @@ Renders a checkbox with label, color, size, and helper text from field props
 				required={field.required}
 				checked={!!value}
 				onchange={handleChange}
-				class={`h-5 w-5 cursor-pointer rounded border-gray-300 transition-colors duration-200 focus:ring-2 focus:ring-offset-2 ${field.color ? `accent-${field.color}` : ''} ${field.size === 'sm' ? 'h-4 w-4' : field.size === 'lg' ? 'h-6 w-6' : ''}`}
+				class={`h-5 w-5 rounded border-gray-300 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${field.size === 'sm' ? 'h-4 w-4' : field.size === 'lg' ? 'h-6 w-6' : ''}`}
 				aria-describedby={field.helper ? `${field.db_fieldName}-helper` : undefined}
 				style={field.color ? `accent-color: ${field.color}` : ''}
 			/>

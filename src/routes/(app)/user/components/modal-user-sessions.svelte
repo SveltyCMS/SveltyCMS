@@ -17,7 +17,7 @@ Features:
 	import Avatar from '@components/ui/avatar.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { showConfirm } from '@utils/modal.svelte';
-	import { normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
+	import { normalizeAvatarUrl } from '@utils/avatar';
 	import type { User } from '@src/databases/auth/types';
 	import { page } from '$app/state';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';

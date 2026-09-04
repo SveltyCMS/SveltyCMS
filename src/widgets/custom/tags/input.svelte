@@ -6,7 +6,7 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import { validationStore } from '@src/stores/store.svelte';
+	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { parse } from 'valibot';

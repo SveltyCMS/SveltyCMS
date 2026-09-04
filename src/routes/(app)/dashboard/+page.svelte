@@ -39,7 +39,7 @@ import type { Spec } from "json-render-svelte";
 import type { PageData } from "./$types";
 import type { DashboardWidgetPickerInfo } from "./widget-runtime";
 
-import { systemPreferences } from "@src/stores/dashboard-preferences.svelte.ts";
+import { systemPreferences } from "./dashboard-preferences.svelte";
 import { themeStore } from "@src/stores/theme-store.svelte.ts";
 
 import { logger } from "@utils/logger";
@@ -52,7 +52,6 @@ import { retryDynamicImport } from "@src/utils/retry-dynamic-import";
 	import Loader from '@components/ui/loader.svelte';
 	import { button_Collections } from '@src/paraglide/messages';
 	import { page } from '$app/state';
-	import { app } from '@src/stores/store.svelte';
 
 const { data }: { data: PageData } = $props();
 

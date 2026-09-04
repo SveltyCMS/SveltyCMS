@@ -36,11 +36,9 @@
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
 	import { status_publish, status_unpublish, validation_fix_before_save } from '@src/paraglide/messages';
-	import { collection, collectionValue, mode, setCollectionValue } from '@src/stores/collection-store.svelte';
+	import { collection, collectionValue, mode, setCollectionValue, collections } from '@src/stores/collection-store.svelte';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
-	import { statusStore } from '@src/stores/status-store.svelte';
-	import { app, dataChangeStore, validationStore } from '@src/stores/store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
 	import { createEntry, invalidateCollectionCache } from '@utils/api';
 	import { deleteCurrentEntry, saveEntry } from '@utils/entry-actions';
@@ -67,7 +65,7 @@
 	let isDesktop = $derived(screen.isDesktop);
 
 	let isFormValid = $derived(validationStore.isValid);
-	let hasChanges = $derived(dataChangeStore.hasChanges);
+	let hasChanges = $derived(collections.hasChanges);
 
 	let canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
 	let canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
@@ -83,11 +81,11 @@
 	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
 
 	// Status toggle state & disable logic
-	let publishToggle = $derived(statusStore.isPublish);
+	let publishToggle = $derived(collections.isPublish);
 	let disableStatusToggle = $derived(
 		(currentMode === 'create' && ui.isRightSidebarVisible) ||
 			(currentMode === 'edit' && ui.isRightSidebarVisible && isDesktop) ||
-			statusStore.isLoading
+			collections.isStatusLoading
 	);
 
 	// Next button visibility (menu wizard)
@@ -140,7 +138,7 @@
 
 	// --- Actions ---
 	async function toggleStatus(newValue: boolean): Promise<void> {
-		await statusStore.toggleStatus(newValue, 'HeaderEdit');
+		await collections.toggleStatus(newValue, 'HeaderEdit');
 	}
 
 	function openSchedule(): void {

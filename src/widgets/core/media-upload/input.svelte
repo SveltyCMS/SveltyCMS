@@ -303,7 +303,7 @@
 				>
 					<button
 						type="button"
-						class="block w-full cursor-pointer text-start"
+						class="block w-full text-start"
 						onclick={openMediaLibrary}
 						aria-label={`Change media for ${file.name}`}
 					>
@@ -332,7 +332,7 @@
 						<button
 							type="button"
 							onclick={(e) => { e.stopPropagation(); aspectPreviewFile = file; }}
-							class="absolute inset-e-1 top-7 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
+							class="absolute inset-e-1 top-7 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
 							aria-label={`Preview aspect ratios for ${file.name}`}
 							title="Aspect Ratio Preview"
 						>
@@ -342,7 +342,7 @@
 					<button
 						type="button"
 						onclick={() => removeFile(file._id)}
-						class="absolute inset-e-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
+						class="absolute inset-e-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border-none bg-surface-900/50 text-white transition-colors hover:bg-surface-900/75"
 						aria-label="Remove"
 						title="Remove"
 					>
@@ -356,7 +356,7 @@
 	<button
 		type="button"
 		onclick={openMediaLibrary}
-		class="w-full cursor-pointer rounded border-none bg-surface-500/10 p-3 text-start transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
+		class="w-full rounded border-none bg-surface-500/10 p-3 text-start transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
 	>
 		<span class="block text-center font-medium">
 			{selectedFiles.length > 0 ? field.placeholder || 'Change Media' : field.placeholder || '+ Add Media'}

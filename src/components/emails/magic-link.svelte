@@ -8,7 +8,7 @@
 	// @ts-nocheck
 
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from '@better-svelte-email/components';
 	import { dev } from '$app/env';
 
@@ -19,7 +19,7 @@
 		magicLink: string;
 	}
 
-	const { email = '', magicLink, expiresInMinutes = 15, languageTag = app.systemLanguage }: Props = $props();
+	const { email = '', magicLink, expiresInMinutes = 15, languageTag = locale.systemLanguage }: Props = $props();
 
 	// Use production host logo if available, otherwise fall back to GitHub
 	const logoSrc = publicEnv?.HOST_PROD

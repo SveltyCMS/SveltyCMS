@@ -60,6 +60,7 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const EmailWidget = createWidget<EmailProps>({
   Name: "Email",
+  version: "1.0.0",
   Icon: "ic:outline-email",
   Description: widget_email_description(),
   inputComponentPath: "/src/widgets/core/email/input.svelte",

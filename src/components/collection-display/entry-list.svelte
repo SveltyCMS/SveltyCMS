@@ -79,7 +79,6 @@ bulk actions, and predictive preloading.
 	// Config
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
-	import { app } from '@src/stores/store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import Sanitize from '@src/utils/sanitize.svelte';
 	// Utils

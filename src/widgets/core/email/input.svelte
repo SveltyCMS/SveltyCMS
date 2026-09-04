@@ -23,7 +23,8 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import { app, validationStore } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
+	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { email as emailValidator, minLength, optional, parse, pipe, string } from 'valibot';
@@ -39,7 +40,7 @@
 		error?: string | null;
 	} = $props();
 
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : 'en');
+	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : 'en');
 	const fieldName = $derived(getFieldName(field));
 
 	const safeValue = $derived.by(() => {

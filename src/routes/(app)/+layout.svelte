@@ -37,7 +37,6 @@ import {
 	loadingOperations,
 } from "@src/stores/loading-store.svelte.ts";
 import { screen } from "@src/stores/screen-size-store.svelte";
-import { app } from "@src/stores/store.svelte";
 import { initializeDarkMode } from "@src/stores/theme-store.svelte.ts";
 import { ui } from "@src/stores/ui-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
@@ -58,7 +57,7 @@ import {
 	uiStateToLayoutPrefs,
 } from "@utils/layout-state-prefs";
 import { clientJsonHeaders } from "@utils/security/client-csrf";
-import { userThemePrefs } from "@src/stores/user-prefs-overlay.svelte";
+import { userThemePrefs } from "@src/stores/theme-store.svelte";
 import { floatingNavStore } from "@src/stores/floating-nav-store.svelte";
 	import { onMount, untrack } from "svelte";
 	import { fade } from "svelte/transition";

@@ -25,7 +25,6 @@ export const widgetMeta = {
 <script lang="ts">
 	import type { WidgetSize } from '@src/content/types';
 	import { formatRelativeDate } from '@utils/date';
-	import { app } from '@src/stores/store.svelte';
 	import BaseWidget from '../../base-widget.svelte';
 
 	interface ContentItem {

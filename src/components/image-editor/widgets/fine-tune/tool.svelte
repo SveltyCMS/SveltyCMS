@@ -6,7 +6,7 @@
 Orchestrates the filter modules using svelte-canvas compatible state.
 -->
 <script lang="ts">
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import {
 		type Adjustments,
 		DEFAULT_ADJUSTMENTS,

@@ -46,7 +46,6 @@ import {
 	publicEnv,
 } from "@src/stores/global-settings.svelte";
 // Stores
-import { app, systemLanguage } from "@src/stores/store.svelte";
 import { getLanguageName } from "@utils/language-utils";
 // SvelteKit
 // Components

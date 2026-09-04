@@ -30,7 +30,8 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import { tokenTarget } from '@src/services/token/token-target';
-	import { app, validationStore } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
+	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { handleWidgetValidation } from '@widgets/widget-error-handler';
 	import { maxValue, minValue, nullable, number as numberSchema, parse, pipe } from 'valibot';
@@ -46,7 +47,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 		error?: string | null;
 	} = $props();
 
-	const lang = $derived(app.systemLanguage);
+	const lang = $derived(locale.systemLanguage);
 	const currencyCode = $derived(field.currencyCode || 'EUR');
 
 	const formatter = $derived(

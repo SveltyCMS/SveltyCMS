@@ -22,7 +22,7 @@
     cookie_necessary_title,
     cookie_privacy_policy,
   } from "@src/paraglide/messages";
-  import { consentStore } from "@src/stores/consent-store.svelte";
+  import { consentStore } from "./consent-store.svelte";
   import { fade, slide } from "svelte/transition";
 
   // Banner and detail visibility state

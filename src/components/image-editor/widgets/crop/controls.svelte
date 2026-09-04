@@ -5,7 +5,7 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 -->
 <script lang="ts">
 	import type { CropShape } from './types';
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 
 	// `crop` and `onCropChange` props are still passed by tool.svelte but only consumed by
 	// the temporarily hidden numeric inputs — uncomment them together with that block.

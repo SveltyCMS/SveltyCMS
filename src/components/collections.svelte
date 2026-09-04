@@ -29,7 +29,6 @@ Provides an organized interface for navigating hierarchical content structures.
 	import { type StatusType, StatusTypes } from '@src/content/types';
 	import { collection, contentStructure, setContentStructure } from '@src/stores/collection-store.svelte.ts';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
-	import { app } from '@src/stores/store.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { ui } from '@src/stores/ui-store.svelte.ts';

@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { normalizeAvatarUrl } from "@src/stores/user-store.svelte";
+import { normalizeAvatarUrl } from "@utils/avatar";
 
 describe("normalizeAvatarUrl", () => {
   // ---------------------------------------------------------------------------

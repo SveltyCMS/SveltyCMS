@@ -9,7 +9,7 @@
  * - Use standardized error codes
  */
 
-import { validationStore } from "@src/stores/store.svelte";
+import { validationStore } from "@src/stores/validation-store.svelte";
 import { getErrorMessage } from "@utils/error-handling";
 import type { BaseIssue } from "valibot";
 

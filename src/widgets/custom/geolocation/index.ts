@@ -21,6 +21,7 @@ export const createValidationSchema = (field: FieldInstance & GeolocationProps) 
 
 const GeolocationWidget = createWidget<GeolocationProps>({
   Name: "Geolocation",
+  version: "1.0.0",
   Icon: "mdi:map-marker-radius",
   Description: "GeoJSON Point selector for spatial data and maps.",
   inputComponentPath: "/src/widgets/custom/geolocation/input.svelte",

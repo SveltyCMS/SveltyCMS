@@ -28,11 +28,9 @@
 		status_unpublish,
 		validation_fix_before_save
 	} from '@src/paraglide/messages';
-	import { collection, collectionValue, mode } from '@src/stores/collection-store.svelte';
+	import { collection, collectionValue, mode, collections } from '@src/stores/collection-store.svelte';
 	// Stores
 	import { screen } from '@src/stores/screen-size-store.svelte';
-	import { statusStore } from '@src/stores/status-store.svelte';
-	import { app, dataChangeStore, validationStore } from '@src/stores/store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
 
 	// Utils
@@ -67,7 +65,7 @@
 	let currentEntry = $derived(collectionValue.value as Entry | null);
 
 	let isFormValid = $derived(validationStore.isValid);
-	let hasChanges = $derived(dataChangeStore.hasChanges);
+	let hasChanges = $derived(collections.hasChanges);
 
 	let canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
 	let canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
@@ -88,7 +86,7 @@
 	let shouldDisableStatusToggle = $derived(
 		(currentMode === 'create' && !ui.isRightSidebarVisible) ||
 			(currentMode === 'edit' && !ui.isRightSidebarVisible && !screen.isDesktop) ||
-			statusStore.isLoading
+			collections.isStatusLoading
 	);
 
 	let isMenuCollection = $derived(currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu');
@@ -241,7 +239,7 @@
 			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = scheduleTimestamp;
 		} else {
-			dataToSave.status = statusStore.getStatusForSave();
+			dataToSave.status = collections.getStatusForSave();
 			dataToSave._scheduled = undefined;
 		}
 

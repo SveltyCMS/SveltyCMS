@@ -34,6 +34,7 @@ const MEGA_MENU_VALIDATION_SCHEMA = array(MENU_ITEM_SCHEMA);
 // Create the widget definition using the factory.
 const MegaMenuWidget = createWidget({
   Name: "MegaMenu",
+  version: "1.0.0",
   Icon: "mdi:menu",
   Description: widget_megaMenu_description(),
 

@@ -36,7 +36,7 @@ Interactive menu builder with add/edit/reorder capabilities
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import { app } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
 	import { showModal } from '@utils/modal.svelte';
 	import type { FieldType } from './';
 	// biome-ignore lint/correctness/noUnusedImports: used for recursive rendering in template
@@ -207,7 +207,7 @@ Interactive menu builder with add/edit/reorder capabilities
 		value = [...(value || [])]; // Trigger reactivity
 	}
 
-	const lang = $derived(app.contentLanguage);
+	const lang = $derived(locale.contentLanguage);
 </script>
 
 <div class="space-y-4">

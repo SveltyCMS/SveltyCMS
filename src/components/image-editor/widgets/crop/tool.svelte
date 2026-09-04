@@ -7,7 +7,7 @@ Viewport-fixed crop frame: drag inside pans the image behind the frame;
 handles resize the frame in screen space. Image-space crop syncs on release.
 -->
 <script lang="ts">
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import CropControls from './controls.svelte';
 	import CropControlsMobile from './controls-mobile.svelte';

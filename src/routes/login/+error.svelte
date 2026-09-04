@@ -28,7 +28,6 @@ import {
 	error_skip_content,
 	error_wrong,
 } from "@src/paraglide/messages";
-import { app } from "@src/stores/store.svelte";
 import { page } from "$app/state";
 
 const size = 140;

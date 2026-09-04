@@ -14,7 +14,7 @@ import {
 } from "@src/stores/collection-store.svelte";
 import { ui } from "@src/stores/ui-store.svelte";
 import { useContent } from "@src/content";
-import { validationStore } from "@src/stores/store.svelte.ts";
+import { validationStore } from "@src/stores/validation-store.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { widgetStoreActions } from "@src/stores/widget-store.svelte.ts";
 import { logger } from "@utils/logger";

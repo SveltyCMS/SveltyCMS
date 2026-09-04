@@ -1,9 +1,10 @@
 /**
- * @file src/stores/user-store.svelte.ts
- * @description User-related utilities.
+ * @file src/utils/avatar.ts
+ * @description Avatar URL normalization utility function.
  *
- * Avatar URL: use `$derived(data.user?.avatar ?? '/Default_User.svg')` from page data.
- * This file only exports the normalizeAvatarUrl utility function.
+ * Features:
+ * - Normalizes data URIs, relative media paths, and absolute URLs to standard CMS asset paths
+ * - Fallbacks gracefully to /Default_User.svg for empty/null values
  */
 
 export function normalizeAvatarUrl(url: string | null | undefined): string {

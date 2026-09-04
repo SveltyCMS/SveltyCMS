@@ -20,7 +20,6 @@ import type { Locale } from "@src/paraglide/runtime";
 // Stores
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
-import { app } from "@src/stores/store.svelte";
 import { type Cookies, error, redirect } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { saveAvatarImage } from "@utils/media/media-storage.server";

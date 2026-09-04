@@ -23,7 +23,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		usermodaluser_edittitle
 	} from '@src/paraglide/messages';
 	// Stores
-	import { app } from '@src/stores/store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';

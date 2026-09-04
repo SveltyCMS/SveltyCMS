@@ -49,6 +49,7 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const AddressWidget = createWidget<AddressProps>({
   Name: "Address",
+  version: "1.0.0",
   Icon: "mdi:home-map-marker",
   Description: widget_address_description(),
   inputComponentPath: "/src/widgets/custom/address/input.svelte",

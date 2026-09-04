@@ -7,7 +7,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 -->
 
 <script lang="ts">
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { logger } from '@utils/logger';
 	import { onDestroy, onMount } from 'svelte';
 	import { registerHotkey } from '@src/utils/hotkeys';

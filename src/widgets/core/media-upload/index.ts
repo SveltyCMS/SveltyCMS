@@ -60,6 +60,7 @@ export const createValidationSchema = (
 // Create the widget definition using the factory.
 const MediaWidget = createWidget<MediaProps>({
   Name: "MediaUpload",
+  version: "1.0.0",
   Icon: "mdi:image-multiple",
   Description: widget_media_description(),
   inputComponentPath: "/src/widgets/custom/media-upload/input.svelte",

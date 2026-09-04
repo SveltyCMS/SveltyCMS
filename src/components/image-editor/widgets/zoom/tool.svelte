@@ -7,7 +7,7 @@ Provides zoom functionality for the image editor using svelte-canvas compatible 
 -->
 
 <script lang="ts">
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import ZoomControls from './controls.svelte';
 
 	// --- Svelte 5 State ---

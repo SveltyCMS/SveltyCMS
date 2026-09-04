@@ -1,5 +1,5 @@
 /**
- * @file src/stores/image-editor-store.svelte.ts
+ * @file src/components/image-editor/image-editor-store.svelte.ts
  * @description Manages the image editor state and history
  */
 

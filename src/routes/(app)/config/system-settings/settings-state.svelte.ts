@@ -1,5 +1,5 @@
 /**
- * @file src/stores/settings-config-state.svelte.ts
+ * @file src/routes/(app)/config/system-settings/settings-state.svelte.ts
  * @description Tracks which settings groups need configuration (empty required fields)
  */
 

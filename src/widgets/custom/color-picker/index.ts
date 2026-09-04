@@ -40,6 +40,7 @@ const validationSchema = (field: FieldInstance) => {
 // Create the widget definition using the factory.
 const ColorPickerWidget = createWidget<ColorPickerProps>({
   Name: "ColorPicker",
+  version: "1.0.0",
   Icon: "ic:outline-colorize",
   Description: widget_colorPicker_description(),
   inputComponentPath: "/src/widgets/custom/color-picker/input.svelte",

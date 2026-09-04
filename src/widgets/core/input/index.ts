@@ -83,6 +83,7 @@ export const createValidationSchema = (
 // Create the widget definition using the factory.
 const InputWidget = createWidget<InputProps>({
   Name: "Input",
+  version: "1.0.0",
   Icon: "mdi:form-textbox",
   Description: widget_text_description(),
   inputComponentPath: "/src/widgets/core/input/input.svelte",

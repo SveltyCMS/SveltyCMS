@@ -39,7 +39,6 @@
 	} from '@src/paraglide/messages';
 	import { locales as availableLocales, getLocale } from '@src/paraglide/runtime';
 	import { setupStore } from '@src/stores/setup-store.svelte.ts';
-	import { app } from '@src/stores/store.svelte';
 	// Utils
 	import { getLanguageName } from '@utils/language-utils';
 	import { modalState } from '@utils/modal.svelte';

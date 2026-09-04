@@ -4,7 +4,7 @@
 Compact mobile top chrome — three-zone grid layout, pill groups, circular Done CTA.
 -->
 <script lang="ts">
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 
 	let {
 		onclose = () => {},

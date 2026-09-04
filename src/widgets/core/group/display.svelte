@@ -97,7 +97,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 			<Button variant="outline">
 				type="button"
 				class="flex w-full items-center justify-between p-3 transition-colors duration-200 {variant.header} {field.collapsible
-					? 'cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:hover:bg-gray-700'
+					? 'hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:hover:bg-gray-700'
 					: ''}"
 				aria-expanded={!isCollapsed.value}
 				aria-controls={`${fieldName}-content`}

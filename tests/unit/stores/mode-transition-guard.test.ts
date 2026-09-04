@@ -19,10 +19,7 @@ vi.mock("@src/stores/collection-store.svelte", () => ({
     },
   },
   setMode: mockSetMode,
-}));
-
-vi.mock("@src/stores/store.svelte", () => ({
-  dataChangeStore: {
+  collections: {
     get hasChanges() {
       return mockDataChangeStore.hasChanges;
     },

@@ -1,5 +1,5 @@
 /**
- * @file src/stores/help-store.svelte.ts
+ * @file src/components/system/help-state.svelte.ts
  * @description Contextual help store for author briefs.
  * Provides reactive state for the help panel, current field context,
  * and authored guidance content.

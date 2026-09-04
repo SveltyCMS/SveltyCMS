@@ -77,7 +77,7 @@
 <div class="space-y-2">
 	<div class="flex items-center justify-between mb-1">
 		<div class="flex items-center gap-2">
-			<label for={id} class="font-bold text-sm cursor-pointer dark:text-surface-50">{label}</label>
+			<label for={id} class="font-bold text-sm dark:text-surface-50">{label}</label>
 			{@render icon?.()}
 			<SystemTooltip title={placeholder}>
 				<span class="text-surface-400 dark:text-surface-400 cursor-help">

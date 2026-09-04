@@ -14,8 +14,7 @@
  * - Graceful force-reset to 'view' from unexpected states
  */
 import { logger } from "@utils/logger";
-import { mode, setMode as _setMode } from "./collection-store.svelte";
-import { dataChangeStore } from "./store.svelte";
+import { mode, setMode as _setMode, collections } from "./collection-store.svelte";
 
 type Mode = "view" | "edit" | "create" | "modify" | "media";
 
@@ -121,7 +120,7 @@ class ModeStateMachine {
     // However, this validation is strict.
     // If the user clicks "Cancel", we discard changes first, THEN transition.
     // So this check is correct: if changes exist, we block.
-    return !dataChangeStore.hasChanges;
+    return !collections.hasChanges;
   }
 }
 

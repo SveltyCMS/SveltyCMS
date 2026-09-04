@@ -12,8 +12,8 @@
  * `formatDisplayDate` and `formatRelativeDate` accept a `locale` parameter.
  * Pass the app's current content language explicitly:
  * ```ts
- * import { app } from '@src/stores/store.svelte';
- * formatDisplayDate(date, app.contentLanguage);
+ * import { locale } from '@src/stores/locale-store.svelte';
+ * formatDisplayDate(date, locale.contentLanguage);
  * ```
  * This keeps date.ts free of store imports, making it safe to use server-side.
  */

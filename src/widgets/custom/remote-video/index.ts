@@ -85,6 +85,7 @@ const validationSchema = REMOTE_VIDEO_DATA_SCHEMA;
 // Create the widget definition using the factory.
 const RemoteVideoWidget = createWidget({
   Name: "RemoteVideo",
+  version: "1.0.0",
   Icon: "mdi:video-vintage",
   Description: widget_remoteVideo_description(),
   inputComponentPath: "/src/widgets/custom/remote-video/input.svelte",

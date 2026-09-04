@@ -1,6 +1,6 @@
 /**
- * @file src/stores/consent-store.svelte.ts
- * @description Global store for managing user consent preferences (GDPR).
+ * @file src/plugins/cookie-consent/consent-store.svelte.ts
+ * @description Plugin store for managing user consent preferences (GDPR).
  * Uses Svelte 5 runes for fine-grained reactivity.
  */
 import { logger } from "@utils/logger";

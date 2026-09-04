@@ -90,7 +90,7 @@
     "prepush": "bash .githooks/pre-push",
     "-- CHECK & TEST ---------------------------------------": "",
     "format": "oxfmt",
-    "check": "bun run format --check && oxlint --deny-warnings --ignore-pattern 'src/types/**' && bun run scripts/check-dead-classes.ts && bun run scripts/check-design-tokens.mjs && bun run scripts/consolidate-shades.mjs --check && bun run scripts/check-lockfile-sync.ts",
+    "check": "bun run format --check && oxlint --deny-warnings --ignore-pattern 'src/types/**' && bun run scripts/check-dead-classes.ts && bun run scripts/check-design-tokens.mjs && bun run scripts/consolidate-shades.mjs --check && bun run scripts/check-widget-a11y.mjs && bun run scripts/check-lockfile-sync.ts",
     "check:classes": "bun run scripts/check-dead-classes.ts",
     "check:design": "bun run scripts/check-design-tokens.mjs",
     "check:deprecated": "bun run scripts/check-deprecated.ts",

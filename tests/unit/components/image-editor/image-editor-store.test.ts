@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/stores/image-editor-store.test.ts
+ * @file tests/unit/components/image-editor/image-editor-store.test.ts
  * @description Unit tests for the ImageEditorStore — undo/redo, snapshots,
  *              tool switching, compareSliderPosition, zoom clamping, and reset.
  *
@@ -8,7 +8,7 @@
  * rather than direct .canUndoState/.canRedoState reads.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { imageEditorStore } from "@stores/image-editor-store.svelte";
+import { imageEditorStore } from "@components/image-editor/image-editor-store.svelte";
 
 describe("ImageEditorStore", () => {
   beforeEach(() => {

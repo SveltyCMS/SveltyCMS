@@ -4,7 +4,7 @@
 Blur tool with interactive rectangular redaction regions.
 -->
 <script lang="ts">
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { Layer } from 'svelte-canvas';
 	import BlurControls from './controls.svelte';
 	import BlurControlsMobile from './controls-mobile.svelte';

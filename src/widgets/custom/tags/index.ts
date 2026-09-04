@@ -44,6 +44,7 @@ export const createValidationSchema = (field: any) => {
 // Create the widget definition
 const TagsWidget = createWidget<TagsProps>({
   Name: "Tags",
+  version: "1.0.0",
   Icon: "mdi:tag-multiple",
   Description: "Chip-based multi-tag entry system with auto-complete.",
   inputComponentPath: "/src/widgets/custom/tags/input.svelte",

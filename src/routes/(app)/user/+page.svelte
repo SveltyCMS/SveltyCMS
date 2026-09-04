@@ -26,8 +26,7 @@
 	import Tabs from '@components/ui/tabs.svelte';
 	import Slot from '@src/components/system/slot.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import { updateUserThemePrefs } from '../config/design-system/appearance-api';
-	import { userThemePrefs } from '@src/stores/user-prefs-overlay.svelte.ts';
+	import { userThemePrefs } from '@src/stores/theme-store.svelte';
 	import { isAdmin } from '@src/databases/auth/constants';
 	import {
 		button_delete,
@@ -41,7 +40,7 @@
 		userpage_editavatar,
 		userpage_title
 	} from '@src/paraglide/messages';
-	import { normalizeAvatarUrl } from '@src/stores/store.svelte.ts';
+	import { normalizeAvatarUrl } from '@utils/avatar';
 	import { onMount, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { refreshAll } from '$app/navigation';
@@ -49,7 +48,6 @@
 	import { formatDateTime } from '@utils/format-date';
 	import AdminArea from './components/admin-area.svelte';
 	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
-	import '@src/stores/store.svelte.ts';
 	import { setCollection } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { globalSearch } from '@utils/global-search-index.svelte';

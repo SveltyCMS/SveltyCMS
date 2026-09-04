@@ -33,7 +33,8 @@ Part of the Three Pillars Architecture for widget system.
 	import Textarea from '@components/ui/textarea.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { app, validationStore } from '@src/stores/store.svelte';
+	import { locale } from '@src/stores/locale-store.svelte';
+	import { validationStore } from '@src/stores/validation-store.svelte';
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { debounce } from '@utils/debounce';
@@ -55,7 +56,7 @@ Part of the Three Pillars Architecture for widget system.
 		error?: string | null;
 	} = $props();
 
-	const LANGUAGE = $derived(field.translated ? app.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
+	const LANGUAGE = $derived(field.translated ? locale.contentLanguage : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Local state for the URL input.
 	let urlInput = $state('');

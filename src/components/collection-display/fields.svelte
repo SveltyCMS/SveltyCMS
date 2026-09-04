@@ -52,14 +52,10 @@ import { tick, untrack } from "svelte";
     collection,
     collectionValue,
     setCollectionValue,
+    collections,
   } from "@src/stores/collection-store.svelte";
-  import { publicEnv } from "@src/stores/global-settings.svelte";
-  import {
-    contentLanguage,
-    dataChangeStore,
-    translationProgress,
-    validationStore,
-  } from "@src/stores/store.svelte.ts";
+  import { contentLanguage, translationProgress } from "@src/stores/locale-store.svelte";
+  import { validationStore } from "@src/stores/validation-store.svelte";
   import { toast } from "@src/stores/toast.svelte.ts";
   import { widgets } from "@src/stores/widget-store.svelte";
   import { collaborationService } from "@src/services/collaboration/collaboration-service.svelte";
@@ -293,7 +289,7 @@ import { tick, untrack } from "svelte";
     const base = (collectionValue.value as Record<string, any>) || {};
     const patch = { ...base, [fieldName]: currentCollectionValue[fieldName] };
     setCollectionValue(patch);
-    dataChangeStore.compareWithCurrent(patch);
+    collections.compareWithCurrent(patch);
     if (collaborationService.isCollaborative) {
       collaborationService.updateField(fieldName, currentCollectionValue[fieldName]);
     }
@@ -311,13 +307,13 @@ import { tick, untrack } from "svelte";
     if (globalId && globalId !== lastEntryId) {
       currentCollectionValue = applyTranslatedDefaults({ ...global } as Record<string, any>);
       lastEntryId = globalId;
-      dataChangeStore.setInitialSnapshot(global as Record<string, any>);
+      collections.setInitialSnapshot(global as Record<string, any>);
       return;
     }
 
     if (!(globalId || lastEntryId) && global && Object.keys(global).length > 0) {
       currentCollectionValue = applyTranslatedDefaults({ ...global } as Record<string, any>);
-      dataChangeStore.setInitialSnapshot(global as Record<string, any>);
+      collections.setInitialSnapshot(global as Record<string, any>);
     }
   });
 
@@ -540,7 +536,7 @@ import { tick, untrack } from "svelte";
 
       currentCollectionValue = { ...currentCollectionValue, ...merged };
       setCollectionValue({ ...(collectionValue.value as Record<string, unknown>), ...merged });
-      dataChangeStore.compareWithCurrent({
+      collections.compareWithCurrent({
         ...(collectionValue.value as Record<string, unknown>),
         ...merged,
       });

@@ -12,35 +12,34 @@
 let navigationManager: any;
 let mode: any;
 let globalLoadingStore: any;
-let dataChangeStore: any;
+let collections: any;
 
 beforeAll(async () => {
   // Rely on bun-preload.ts for runes and modules
   const NAV_MOD = await import("@src/utils/navigation");
   const COL_STORE = await import("@src/stores/collection-store.svelte");
   const LOAD_STORE = await import("@src/stores/loading-store.svelte");
-  const STORE = await import("@src/stores/store.svelte");
 
   navigationManager = NAV_MOD.navigationManager;
   mode = COL_STORE.mode;
   globalLoadingStore = LOAD_STORE.globalLoadingStore;
-  dataChangeStore = STORE.dataChangeStore;
+  collections = COL_STORE.collections;
 });
 
 describe("NavigationManager", () => {
   beforeEach(() => {
-    if (dataChangeStore) dataChangeStore.reset();
+    if (collections) collections.resetChanges();
   });
 
   it("should navigate to list view and clear state", async () => {
     // Setup
-    dataChangeStore.setHasChanges(true);
+    collections.setHasChanges(true);
 
     // Execute
     await navigationManager.toList();
 
     // Assertions
-    expect(dataChangeStore.hasChanges).toBe(false);
+    expect(collections.hasChanges).toBe(false);
     expect(mode.value).toBe("view");
   });
 
@@ -50,7 +49,7 @@ describe("NavigationManager", () => {
 
     await Promise.all([p1, p2]);
     // Behavior check
-    expect(dataChangeStore.hasChanges).toBe(false);
+    expect(collections.hasChanges).toBe(false);
   });
 
   it("should set loading state during navigation", async () => {

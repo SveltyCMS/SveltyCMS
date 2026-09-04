@@ -4,7 +4,7 @@
 Contextual transform shortcuts — sits below top toolbar, above canvas (mobile only).
 -->
 <script lang="ts">
-	import { imageEditorStore } from '@src/stores/image-editor-store.svelte';
+	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 
 	const storeState = imageEditorStore.state;
 	const activeTool = $derived(imageEditorStore.state.activeState);
