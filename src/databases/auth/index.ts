@@ -15,6 +15,7 @@ import type {
   DatabaseResult,
   BaseQueryOptions,
   PaginationOptions,
+  IAuthAdapter,
 } from "@src/databases/db-interface";
 // Import global settings service for DB-based configuration
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
@@ -473,8 +474,17 @@ export class Auth {
     if (rawSession?.success && rawSession.data) {
       const sessionData = rawSession.data as any;
       sessionData.amr = amr;
-      if (this.db.auth.updateSession) {
-        await this.db.auth.updateSession(sessionId, { amr }, options).catch(() => {});
+      // updateSession is adapter-optional (IAuthAdapter has no such method) —
+      // widen once so the runtime guard type-checks.
+      const authWithSessionPatch = this.db.auth as IAuthAdapter & {
+        updateSession?: (
+          sessionId: DatabaseId,
+          patch: Record<string, unknown>,
+          options?: unknown,
+        ) => Promise<unknown>;
+      };
+      if (authWithSessionPatch.updateSession) {
+        await authWithSessionPatch.updateSession(sessionId, { amr }, options).catch(() => {});
       }
       const user = await this.getUserById(sessionData.user_id, options);
       if (user) {

@@ -172,6 +172,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     showPasskey: false,
     showMagicLink: false,
     hasExistingOAuthUsers: false,
+    ssoProviders: [] as import("@src/databases/auth/sso-session").PublicSsoProvider[],
     isOpenSignup,
     loginForm: {},
     forgotForm: {},
@@ -431,6 +432,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
     const pkgVersion = pkg.version;
     const loginBranding = await loadLoginBranding(locals.tenantId);
 
+    const { loadSsoProvidersFromSettings, getPublicSsoProviders } =
+      await import("@src/databases/auth/sso-session");
+    await loadSsoProvidersFromSettings(locals.tenantId as string);
+    const ssoProviders = getPublicSsoProviders();
+
     return {
       ...errorDefaults,
       demoMode,
@@ -441,6 +447,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       showPasskey,
       showMagicLink,
       hasExistingOAuthUsers: false,
+      ssoProviders,
       firstCollectionPath: "/config/collectionbuilder",
       pkgVersion,
       loginBranding,

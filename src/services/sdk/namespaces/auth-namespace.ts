@@ -58,6 +58,8 @@ interface UserOptions extends LocalApiOptions {
   search?: string;
   sort?: string;
   order?: "asc" | "desc";
+  /** Extra equality filters merged over tenantId (e.g. role/blocked from the admin user table). */
+  filter?: Record<string, unknown>;
 }
 
 interface UserUpdateOptions extends LocalApiOptions {

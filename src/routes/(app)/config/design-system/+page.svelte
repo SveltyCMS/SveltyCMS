@@ -43,7 +43,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
     type AdminLockedSettings,
     type UserThemePreferences,
   } from "@utils/theme-merge";
-  import { getThemeContext } from "@components/ui/theme-context.svelte";
+  import { getThemeContext, type AdminTheme } from "@components/ui/theme-context.svelte";
   import { userThemePrefs } from "@src/stores/theme-store.svelte";
   import { ui } from "@src/stores/ui-store.svelte.ts";
   import {

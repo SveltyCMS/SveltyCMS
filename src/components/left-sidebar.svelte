@@ -1,4 +1,6 @@
 <!--
+import { ui } from '@src/stores/ui-store.svelte';
+import { systemLanguage } from '@src/stores/locale-store.svelte';
 @file src/components/left-sidebar.svelte
 
 @component
@@ -19,7 +21,9 @@ Route-driven sidebar content (no dual collapsible section headers):
 -->
 
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
+
+import { systemLanguage } from '@src/stores/locale-store.svelte';
+import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	// Native UI Components
 	import Dropdown from "@components/ui/dropdown.svelte";
@@ -187,7 +191,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage): void {
-		app.systemLanguage = lang;
+		systemLanguage.value = lang;
 		systemLanguage.set(lang as Locale);
 		languageTag = lang as Locale;
 		searchQuery = '';

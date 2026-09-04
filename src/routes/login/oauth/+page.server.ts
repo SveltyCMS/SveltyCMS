@@ -27,6 +27,13 @@ import { saveAvatarImage } from "@utils/media/media-storage.server";
 import { OAuth2Client } from "google-auth-library";
 import type { Actions, PageServerLoad } from "./$types";
 
+/**
+ * Per-request language carry for the OAuth callback (the legacy global `app`
+ * bridge was removed with store.svelte.ts). Email templates for a freshly
+ * provisioned Google user are sent in the locale Google reported.
+ */
+let _oauthUserLanguage = "en";
+
 // Types
 interface GoogleUserInfo {
   email?: string | null;
@@ -45,7 +52,7 @@ async function sendWelcomeEmail(
   request: Request,
 ) {
   try {
-    const userLanguage = app.systemLanguage || "en";
+    const userLanguage = _oauthUserLanguage || "en";
     const hostProd = publicEnv.HOST_PROD;
     const siteName = publicEnv.SITE_NAME;
     const emailProps = {
@@ -169,7 +176,7 @@ async function handleGoogleUser(
     const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || "en"]) as Locale[];
     const locale = googleUser.locale as Locale;
     if (supportedLocales.includes(locale)) {
-      app.systemLanguage = locale;
+      _oauthUserLanguage = locale;
     }
   }
 

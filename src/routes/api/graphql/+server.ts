@@ -134,16 +134,19 @@ async function tryGraphqlFastPath(
       payload = { data: { allCollections: data } };
     } else {
       const collections = await contentSystem.getCollections(ctx.tenantId);
-      const rows = collections.map((col) => ({
-        _id: col._id,
-        name: col.name,
-        icon: col.icon || "mdi:folder",
-        path: col.path || (col.folder ? `${col.folder}/${col.name}` : col.name),
-        fieldCount: (col.fields || []).length,
-        hasRevisions: col.revision || false,
-        hasLivePreview: !!col.livePreview,
-        status: col.status || "active",
-      }));
+      const rows = collections.map((col) => {
+        const folder = (col as { folder?: string }).folder;
+        return {
+          _id: col._id,
+          name: col.name,
+          icon: col.icon || "mdi:folder",
+          path: col.path || (folder ? `${folder}/${col.name}` : col.name),
+          fieldCount: (col.fields || []).length,
+          hasRevisions: col.revision || false,
+          hasLivePreview: !!col.livePreview,
+          status: col.status || "active",
+        };
+      });
       const data =
         matched.selections.length === 0
           ? rows

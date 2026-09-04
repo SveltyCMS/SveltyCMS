@@ -506,7 +506,36 @@ export const seoPlugin: Plugin = {
 3. **Custom Validation**: Implement Valibot schemas in widget `index.ts` for type-specific validation
 4. **Error Messages**: Provide clear, user-friendly validation messages
 5. **Permissions**: Use `permissions` field config to control access per role
-6. **Token Support**: Use `TokenPicker` for dynamic content like slugs, dates, metadata
+
+---
+
+## 🧩 Visual Polymorphic Block Builder Widget {#visual-polymorphic-block-builder-widget}
+
+The **Block Builder Widget** (`src/widgets/custom/block-builder/`) provides visual page-building capabilities directly inside SveltyCMS collection schemas. Instead of rigid, flat form fields, authors assemble modular, responsive page layouts out of polymorphic, reusable content blocks.
+
+### 3-Pillar Widget Architecture
+
+1. **Definition (`index.ts`)**:
+   - Factory `createWidget()` conforming to the standard `GuiField` contract.
+   - Strict Valibot validation schema (`blockBuilderSchema`) enforcing required block identifiers, titles, and variant data structures.
+   - Built-in block preset registry:
+     - `hero`: Title, subtitle, primary CTA label, CTA URL, background image URL, alignment (`left`, `center`, `right`).
+     - `features`: Feature list with item titles, descriptions, and Iconify icon identifiers.
+     - `cta`: Call-to-action title, description, button label, button URL, style variant (`primary`, `secondary`, `outline`).
+     - `testimonials`: Quotes, author names, roles/companies, and avatar image URLs.
+     - `faq`: Interactive question-and-answer pairs.
+     - `rich-text`: Formatted HTML or Markdown body content.
+
+2. **Input Component (`input.svelte`)**:
+   - Interactive block inserter drawer with preset icons and human-friendly descriptions.
+   - Move-up and move-down block reordering with keyboard and click accessibility.
+   - Collapsible cards allowing editors to manage complex long-form pages without visual clutter.
+   - In-line type-specific field editors bound directly to the active collection document state.
+   - Per-block clone/duplicate and delete actions with confirmation safeguards.
+   - Status badge displaying total block count and real-time schema validation feedback.
+
+3. **Display Component (`display.svelte`)**:
+   - Compact table cell preview rendering total block count badges and colored type chips for quick scannability in collection list views.
 
 ---
 

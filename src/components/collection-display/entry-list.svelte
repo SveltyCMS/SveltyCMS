@@ -1,4 +1,6 @@
 <!--
+import { ui } from '@src/stores/ui-store.svelte';
+import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte';
 @file src/components/collection-display/entry-list.svelte
 @description
 High-performance data table for managing collection entries.
@@ -46,7 +48,8 @@ bulk actions, and predictive preloading.
 -->
 
 <script module lang="ts">
-	import Button from '@components/ui/button.svelte';
+
+import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte';	import Button from '@components/ui/button.svelte';
 	export type SortOrder = 0 | 1 | -1; // Strict type for sort order
 </script>
 
@@ -613,8 +616,8 @@ bulk actions, and predictive preloading.
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	const currentStates = $derived.by(() => ({
-		language: app.contentLanguage,
-		systemLanguage: app.systemLanguage,
+		language: contentLanguage.value,
+		systemLanguage: systemLanguage.value,
 		mode: mode.value,
 		collection: collection.value,
 		screenSize: screen.size

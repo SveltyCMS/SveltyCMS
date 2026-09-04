@@ -180,6 +180,12 @@ beforeNavigate(({ cancel }) => {
 						<span class={currentTab === '3' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>Website Tokens</span>
 					</div>
 				</Tabs.Trigger>
+				<Tabs.Trigger value="4" class="flex-1" data-testid="access-tab-sso" aria-current={currentTab === '4' ? 'page' : undefined}>
+					<div class="flex items-center justify-center gap-1 py-4">
+						<iconify-icon icon="mdi:shield-key-outline" width={24}></iconify-icon>
+						<span class={currentTab === '4' ? 'text-secondary-500 dark:text-tertiary-500 font-bold' : ''}>SSO & OIDC</span>
+					</div>
+				</Tabs.Trigger>
 			</Tabs.List>
 			</div>
 
@@ -223,6 +229,17 @@ beforeNavigate(({ cancel }) => {
 							<p class="text-sm text-surface-500">Loading website tokens…</p>
 						{:then mod}
 							<mod.default permissions={page.data.permissions} />
+						{/await}
+					{/if}
+				</div>
+			</Tabs.Content>
+			<Tabs.Content value="4">
+				<div class="p-2">
+					{#if currentTab === '4'}
+						{#await import("./sso-providers.svelte")}
+							<p class="text-sm text-surface-500">Loading SSO providers…</p>
+						{:then mod}
+							<mod.default availableRoles={rolesData} />
 						{/await}
 					{/if}
 				</div>

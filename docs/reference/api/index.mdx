@@ -24,14 +24,15 @@ SveltyCMS provides a comprehensive programmatic surface for building custom fron
 
 ## ⚡ Core Access Patterns
 
-| Pattern                                                        | Context                          | Latency     | Best For                            |
-| -------------------------------------------------------------- | -------------------------------- | ----------- | ----------------------------------- |
-| [🎯 **Remote Functions**](#remote-functions-2026-architecture) | **Client→Server** (`.server.ts`) | **Typed**   | Auth, Setup, User profile forms     |
-| [⚡ **Local SDK**](../../development/local-vs-http-api.mdx)    | **Server-side** (`.server.ts`)   | **0–5ms**   | Native SvelteKit, high-throughput   |
-| [🌐 **REST API**](./collections.mdx)                           | **External** (Mobile, Apps)      | 50–150ms    | Simple CRUD & Integrations          |
-| [📊 **GraphQL API**](./graphql.mdx)                            | **Frontend** (React, Vue, SPA)   | 50–200ms    | Complex data fetching               |
-| [🔌 **GraphQL Subscriptions**](./graphql-subscriptions.mdx)    | **Real-time** (WebSocket)        | **<50ms**   | Live updates, collaborative editing |
-| [📖 **OpenAPI Spec**](../../development/openapi-spec.mdx)      | **Documentation & SDKs**         | **Unified** | Fastest automated client generation |
+| Pattern                                                        | Context                            | Latency      | Best For                            |
+| -------------------------------------------------------------- | ---------------------------------- | ------------ | ----------------------------------- |
+| [🎯 **Remote Functions**](#remote-functions-2026-architecture) | **Client→Server** (`.server.ts`)   | **Typed**    | Auth, Setup, User profile forms     |
+| [⚡ **Local SDK**](../../development/local-vs-http-api.mdx)    | **Server-side** (`.server.ts`)     | **0–5ms**    | Native SvelteKit, high-throughput   |
+| [🌐 **REST API**](./collections.mdx)                           | **External** (Mobile, Apps)        | 50–150ms     | Simple CRUD & Integrations          |
+| [📊 **GraphQL API**](./graphql.mdx)                            | **Frontend** (React, Vue, SPA)     | 50–200ms     | Complex data fetching               |
+| [🔌 **GraphQL Subscriptions**](./graphql-subscriptions.mdx)    | **Real-time** (WebSocket)          | **<50ms**    | Live updates, collaborative editing |
+| [📖 **OpenAPI Spec**](../../development/openapi-spec.mdx)      | **Documentation & SDKs**           | **Unified**  | Fastest automated client generation |
+| [🎮 **Developer & API Playground**](#developer-playground)     | **In-App Console** (`/config/api`) | **Realtime** | Interactive testing & code gen      |
 
 ---
 
@@ -41,7 +42,7 @@ SveltyCMS uses **SvelteKit Remote Functions** (`.server.ts` files) for type-safe
 
 ### File Structure
 
-````text
+```text
 src/routes/
 ├── login/
 │   ├── +page.server.ts     ← load, OAuth redirects, 2FA, resetSetup
@@ -52,7 +53,7 @@ src/routes/
 └── (app)/user/
     ├── +page.server.ts     ← load
     └── user.server.ts      ← uploadAvatar, updateUserProfile, createToken, exportUserData, anonymizeAccount
-```text
+```
 
 ### Enterprise Gains (Measured)
 
@@ -129,23 +130,51 @@ APIs for configuration promotion, content transfer, migrations, importers, backu
 
 ---
 
+## 🎮 In-App Developer & API Playground {#developer-playground}
+
+SveltyCMS provides an integrated **Developer & API Playground** located at `/config/api` (accessible to administrators and users with the `developer` role).
+
+### Key Capabilities
+
+1. **REST API Explorer**:
+   - Live synchronization with the unified OpenAPI 3.1 specification (`/api/openapi.json`).
+   - Dynamic path, method, and parameter selectors with schema auto-completion.
+   - Live execution against the active server with formatted JSON output, status codes, and latency metrics.
+
+2. **GraphQL IDE**:
+   - Interactive query, mutation, and subscription editor.
+   - Built-in schema introspection against `/api/graphql`.
+   - Variables panel with JSON validation.
+
+3. **Multi-Language Code Generator**:
+   Every selected endpoint dynamically generates copy-paste ready client code across four language ecosystems:
+   - **TypeScript / JavaScript**: Native `fetch()` client with typed headers and error handling.
+   - **Python**: `requests` client with session configuration.
+   - **cURL**: Command-line invocation with Bearer auth headers.
+   - **SvelteKit `LocalCMS`**: Zero-latency, zero-serialization internal server function (`.server.ts`) call pattern bypassing HTTP overhead.
+
+4. **Multi-Tenant & Security Context**:
+   - Allows switching active `tenantId` to test isolation rules.
+   - Configurable bearer token authentication or session cookie binding.
+
+---
+
 ## 📡 Response Strategy
 
 All REST endpoints follow a unified response shape:
 
 ### Success (200 / 201)
 
-```
+```json
 { "success": true, "data": { ... } }
-```text
+```
 
 ### Error (4xx / 5xx)
 
-```
+```json
 { "success": false, "error": "UNAUTHORIZED", "message": "Invalid Bearer token." }
-```text
+```
 
 ---
 
 **Next Steps**: Start with the [Collections Reference](./collections.mdx) for data fetching. For real-time updates, see [Content & Search](./content.mdx). For type-safe client-server calls, use [Remote Functions](#remote-functions-2026-architecture).
-````

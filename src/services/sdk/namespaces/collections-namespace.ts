@@ -439,7 +439,7 @@ export class CollectionsNamespace {
           let items = Array.isArray(decrypted.data) ? decrypted.data : [];
           if (query) {
             const lowerQuery = query.toLowerCase();
-            items = items.filter((item) => {
+            items = items.filter((item: Record<string, unknown>) => {
               return SEARCHABLE_FIELDS.some((field) => {
                 const value = (item as any)[field];
                 return typeof value === "string" && value.toLowerCase().includes(lowerQuery);
@@ -1223,6 +1223,18 @@ export class CollectionsNamespace {
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
+    // 🚪 Publication gate: workflows with gatePublication block direct
+    // publishing of brand-new entries (no instance exists yet — the workflow
+    // must approve before publish). System writes bypass the gate.
+    if (!system && (data as { status?: string } | null)?.status === "publish") {
+      const workflowService = await getWorkflowServiceLazy();
+      await workflowService.assertPublishAllowed(
+        schema._id as string,
+        (tenantId as string | undefined) ?? undefined,
+        effectiveUser,
+      );
+    }
+
     let finalData = triggerLifecycleHook(
       this._dbAdapter,
       "beforeSave",
@@ -1321,6 +1333,19 @@ export class CollectionsNamespace {
     if (isThenable(updateData)) updateData = await updateData;
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
+
+    // 🚪 Publication gate: workflows with gatePublication only allow status
+    // "publish" while the entry's workflow instance is in a final state.
+    // System writes (scheduled publishing, sync, imports) bypass the gate.
+    if (!system && (data as { status?: string } | null)?.status === "publish") {
+      const workflowService = await getWorkflowServiceLazy();
+      await workflowService.assertPublishAllowed(
+        schema._id as string,
+        (tenantId as string | undefined) ?? undefined,
+        effectiveUser,
+        entryId,
+      );
+    }
 
     let finalData = triggerLifecycleHook(
       this._dbAdapter,

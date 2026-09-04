@@ -18,7 +18,9 @@ Provides an organized interface for navigating hierarchical content structures.
 -->
 
 <script lang="ts">
-	import AdminCard from '@components/admin-card.svelte';
+
+import { contentLanguage } from '@src/stores/locale-store.svelte';
+			import AdminCard from '@components/admin-card.svelte';
 			import Button from '@components/ui/button.svelte';
 			import Input from '@components/ui/input.svelte';
 			import Loader from '@components/ui/loader.svelte';
@@ -254,7 +256,7 @@ Provides an organized interface for navigating hierarchical content structures.
 
 	// Derived UI & data
 	let isFullSidebar = $derived(ui.state.leftSidebar === 'full');
-	let currentLanguage = $derived(app.contentLanguage);
+	let currentLanguage = $derived(contentLanguage.value);
 	let selectedId = $derived(collection.value?._id ?? null);
 	let activeWidgetList = $derived(widgets.activeWidgets);
 	let structure = $derived(contentStructure.value ?? []);
@@ -666,7 +668,7 @@ Provides an organized interface for navigating hierarchical content structures.
 		}
 		const same = selectedId === node._id;
 		modeTransitionGuard.setMode('view');
-		app.shouldShowNextButton = true;
+		ui.wizard.shouldShowNextButton = true;
 
 		document.dispatchEvent(new CustomEvent('clearEntryListCache', {
 			detail: { resetState: true, reason: 'collection-switch' }

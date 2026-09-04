@@ -1,0 +1,90 @@
+---
+path: "src/widgets/custom/block-builder/block-builder.mdx"
+title: "Visual Block Builder Widget"
+description: "Documentation for the polymorphic Block Builder widget enabling modular landing pages and component-driven page design."
+order: 11
+icon: "mdi:view-dashboard-outline"
+author: "admin"
+created: "2026-09-04"
+updated: "2026-09-04"
+tags:
+  - "widgets"
+  - "custom"
+  - "block-builder"
+  - "page-layouts"
+---
+
+# Visual Block Builder Widget
+
+The **Visual Block Builder** enables editorial teams to construct rich, responsive, and dynamic page layouts using a modular component palette. Unlike traditional fixed form schemas or homogeneous repeaters, the Block Builder is **polymorphic** — each item in the layout can be an entirely different component type with its own tailored schema.
+
+## 🚀 Features
+
+- **Polymorphic Block Architecture**: Freely mix and match disparate content blocks (Hero, Text, Media, Call to Action, Feature Grids, Testimonials).
+- **Built-in Presets**: Ships with pre-configured, production-ready block templates out of the box.
+- **Accessible Reordering**: Keyboard-navigable up/down controls and touch-friendly controls.
+- **Workflow State Integration**: Collapse, duplicate, and manage block visibility seamlessly.
+- **Valibot Schema Validation**: Guarantees valid JSON payloads with configurable min/max block boundaries.
+- **Framework-Agnostic Headless Output**: Clean JSON array output directly consumable in Astro, Next.js, Nuxt, SvelteKit, and native mobile apps.
+
+## 📦 Usage
+
+### Adding to a Collection Schema
+
+In your collection definition (e.g., `Pages.ts` or `LandingPages.ts`):
+
+```typescript
+import { createCollection } from "@src/content/types";
+import BlockBuilder from "@src/widgets/custom/block-builder";
+
+export default createCollection({
+  name: "Landing Pages",
+  fields: [
+    {
+      name: "title",
+      widget: "Input",
+      required: true,
+    },
+    {
+      name: "slug",
+      widget: "Slug",
+      required: true,
+    },
+    {
+      name: "layout",
+      widget: "BlockBuilder",
+      required: true,
+      min: 1,
+      max: 20,
+    },
+  ],
+});
+```
+
+### Headless Frontend Consumption
+
+When querying content via `LocalCMS`, REST API (`GET /api/content/...`), or GraphQL, the block builder field returns an array of structured block objects:
+
+```json
+[
+  {
+    "_id": "blk_hero_01",
+    "_type": "hero",
+    "data": {
+      "headline": "Empower your content workflows",
+      "subheading": "Next-generation headless CMS architecture.",
+      "buttonText": "Get Started",
+      "buttonUrl": "/signup"
+    }
+  },
+  {
+    "_id": "blk_features_02",
+    "_type": "features",
+    "data": {
+      "title": "Why SveltyCMS",
+      "feature1_title": "Sub-2ms Persistence",
+      "feature1_desc": "Ultra-fast multi-engine database abstraction."
+    }
+  }
+]
+```

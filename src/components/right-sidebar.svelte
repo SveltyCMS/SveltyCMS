@@ -12,7 +12,10 @@
 -->
 
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
+
+import { ui } from '@src/stores/ui-store.svelte';
+import { validationStore } from '@src/stores/validation-store.svelte';
+import Button from '@components/ui/button.svelte';
 	// Components
 	import Toggle from '@components/ui/toggle.svelte';
 	import { StatusTypes } from '@src/content/types';
@@ -31,7 +34,6 @@
 	import { collection, collectionValue, mode, collections } from '@src/stores/collection-store.svelte';
 	// Stores
 	import { screen } from '@src/stores/screen-size-store.svelte';
-	import { ui } from '@src/stores/ui-store.svelte';
 
 	// Utils
 	import { logger } from '@utils/logger';
@@ -98,11 +100,11 @@
 	$effect(() => {
 		// Logic: If it's the Menu collection in create mode, we ENABLE the Next button.
 		if (isMenuCollection && currentMode === 'create') {
-			app.shouldShowNextButton = true;
-			// If app.saveLayerStore is explicitly set (by widget?), use it.
-			nextAction = app.saveLayerStore;
+			ui.wizard.shouldShowNextButton = true;
+			// If ui.wizard.saveLayerStore is explicitly set (by widget?), use it.
+			nextAction = ui.wizard.saveLayerStore;
 		} else {
-			app.shouldShowNextButton = false;
+			ui.wizard.shouldShowNextButton = false;
 			nextAction = null;
 		}
 	});
@@ -169,7 +171,7 @@
 	}
 
 	async function toggleStatus(newValue: boolean): Promise<boolean> {
-		return await statusStore.toggleStatus(newValue, 'RightSidebar');
+		return await collections.toggleStatus(newValue, 'RightSidebar');
 	}
 
 	function openSchedule() {
@@ -282,7 +284,7 @@
 
 		{#if showSidebar}
 		<!-- Special "Next" button for Menu wizard -->
-		{#if app.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
+		{#if ui.wizard.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
 			<Button variant="tertiary" type="button" onclick={nextAction!} class="w-full gap-2 shadow-lg">
 				<iconify-icon icon="carbon:next-filled" width="20"></iconify-icon>
 				{button_next()}
@@ -303,9 +305,9 @@
 
 				<div class="gradient-secondary w-full gap-2 rounded p-2 shadow-md">
 					<Toggle
-						value={statusStore.isPublish}
-						label={statusStore.isPublish ? status_publish() : status_unpublish()}
-						labelColor={statusStore.isPublish ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500'}
+						value={collections.isPublish}
+						label={collections.isPublish ? status_publish() : status_unpublish()}
+						labelColor={collections.isPublish ? 'text-tertiary-500 dark:text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
 						disabled={shouldDisableStatusToggle}

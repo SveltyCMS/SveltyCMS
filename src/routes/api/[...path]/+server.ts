@@ -279,6 +279,9 @@ export function _checkEndpointPermission(
       action === "login" ||
       action === "logout" ||
       action === "oidc-logout" ||
+      action === "oidc-login" ||
+      action === "oidc-callback" ||
+      action === "sso-providers" ||
       action === "frontchannel-logout" ||
       action === "backchannel-logout" ||
       action === "saml" ||

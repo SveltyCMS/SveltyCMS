@@ -91,6 +91,7 @@ const pageData = $derived(page.data as PageData);
 const hasAdminUser = $derived(pageData?.hasAdminUser ?? false);
 const showGoogleOAuth = $derived(pageData?.showGoogleOAuth ?? false);
 const showGithubOAuth = $derived(pageData?.showGithubOAuth ?? false);
+const ssoProviders = $derived(pageData?.ssoProviders || []);
 const hasExistingOAuthUsers = $derived(pageData?.hasExistingOAuthUsers ?? false);
 
 // isOpenSignup: true whenever demoMode is active (multiTenant OR single-tenant).
@@ -481,7 +482,7 @@ $effect(() => {
 						<span class="text-xs text-error-500">{inviteError}</span>
 					{/if}
 
-					{#if !showGoogleOAuth && !showGithubOAuth}
+					{#if !showGoogleOAuth && !showGithubOAuth && ssoProviders.length === 0}
 						<!-- Email SignIn only -->
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 							<Button
@@ -536,6 +537,17 @@ $effect(() => {
 										<iconify-icon icon="mdi:github" width={24}></iconify-icon>
 									</Button>
 								{/if}
+
+								{#each ssoProviders as provider (provider.id)}
+									<a
+										href={provider.authUrl}
+										data-preload="hover"
+										aria-label={`Sign up with ${provider.name}`}
+										class="w-10 h-10 p-0 flex items-center justify-center rounded-full border border-surface-500/30 hover:bg-surface-500/20 text-surface-900 dark:text-surface-100 transition-colors"
+									>
+										<iconify-icon icon={provider.icon} width={22}></iconify-icon>
+									</a>
+								{/each}
 							</div>
 						</div>
 

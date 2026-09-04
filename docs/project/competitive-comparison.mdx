@@ -32,17 +32,19 @@ This page follows EU Directive 2006/114/EC and German UWG §6 requirements for c
 
 What differs in **public product packaging** and **our self-measured stack** (not a ranking of which vendor is “best”):
 
-| Decision factor            | SveltyCMS (self-hosted core)                              | Payload CMS                                              | Strapi                            | Directus                              |
-| :------------------------- | :-------------------------------------------------------- | :------------------------------------------------------- | :-------------------------------- | :------------------------------------ |
-| **SSO / SAML / OIDC**      | Documented in core                                        | Plugin / Enterprise SAML (public docs)                   | Pro / Enterprise (public pricing) | Built-in (OIDC / LDAP / SAML)         |
-| **SCIM 2.0**               | Documented in core                                        | Enterprise (public docs)                                 | Enterprise (public docs)          | Enterprise module (public docs)       |
-| **Audit logs**             | Crypto-chained logs in core (self-described)              | Enterprise (public docs)                                 | Plugin / Enterprise (public docs) | Activity log; audit module Enterprise |
-| **Multi-tenancy**          | Native `tenantId` isolation in core                       | Not documented as built-in (as of July 2026 public docs) | Not documented as built-in        | Enterprise plan (public docs)         |
-| **Cold start**             | **&lt; 1s** progressive init (**our** measure, Bun/local) | ~3–5s (figures from public write-ups; not same harness)  | ~4–8s (public write-ups)          | ~3–6s (public write-ups)              |
-| **Admin UI runtime model** | Svelte 5 compile (no React VDOM in admin)                 | React VDOM                                               | React admin                       | Vue reactivity                        |
-| **i18n**                   | Paraglide compile-time                                    | i18next runtime                                          | Plugin runtime                    | vue-i18n runtime                      |
-| **Out-of-the-box API**     | REST + GraphQL + OpenAPI 3.1                              | REST + GraphQL                                           | REST + GraphQL                    | REST + GraphQL                        |
-| **Multi-environment sync** | Hybrid TS schemas + 4 safety modes + PII-safe sync (core) | Code-first schemas + DB migrations                       | Data transfer CLI / plugins       | CLI schema sync (`d6s sync`) (v12.3)  |
+| Decision factor            | SveltyCMS (self-hosted core)                              | Payload CMS                                                | Strapi                                                        | Directus                              |
+| :------------------------- | :-------------------------------------------------------- | :--------------------------------------------------------- | :------------------------------------------------------------ | :------------------------------------ |
+| **SSO / SAML / OIDC**      | Documented in core                                        | Plugin / Enterprise SAML (public docs)                     | Pro / Enterprise (public pricing)                             | Built-in (OIDC / LDAP / SAML)         |
+| **SCIM 2.0**               | Documented in core                                        | Enterprise (public docs)                                   | Enterprise (public docs)                                      | Enterprise module (public docs)       |
+| **Audit logs**             | Crypto-chained logs in core (self-described)              | Enterprise (public docs)                                   | Plugin / Enterprise (public docs)                             | Activity log; audit module Enterprise |
+| **Multi-tenancy**          | Native `tenantId` isolation in core                       | Not documented as built-in (as of July 2026 public docs)   | Not documented as built-in                                    | Enterprise plan (public docs)         |
+| **Cold start**             | **&lt; 1s** progressive init (**our** measure, Bun/local) | ~3–5s (figures from public write-ups; not same harness)    | ~4–8s (public write-ups)                                      | ~3–6s (public write-ups)              |
+| **Admin UI runtime model** | Svelte 5 compile (no React VDOM in admin)                 | React VDOM                                                 | React admin                                                   | Vue reactivity                        |
+| **i18n**                   | Paraglide compile-time                                    | i18next runtime                                            | Plugin runtime                                                | vue-i18n runtime                      |
+| **Out-of-the-box API**     | REST + GraphQL + OpenAPI 3.1                              | REST + GraphQL                                             | REST + GraphQL                                                | REST + GraphQL                        |
+| **Developer Tools**        | In-app OpenAPI + GraphQL Playground in core               | Separate Swagger / GraphQL plugins                         | Separate Swagger / GraphQL plugins                            | Built-in GraphQL / REST app           |
+| **Editorial Workflows**    | Multi-stage FSM + RBAC review gates in core               | Draft/Publish in Community; Workflows in Enterprise (docs) | Draft/Publish in Community; Workflows in Enterprise (pricing) | Custom status flows in core           |
+| **Multi-environment sync** | Hybrid TS schemas + 4 safety modes + PII-safe sync (core) | Code-first schemas + DB migrations                         | Data transfer CLI / plugins                                   | CLI schema sync (`d6s sync`) (v12.3)  |
 
 > Competitor cold-start numbers are **not** measured with our suite. Treat them as orientation only. Verify current tiers on each vendor’s pricing page.
 
@@ -50,17 +52,20 @@ What differs in **public product packaging** and **our self-measured stack** (no
 
 A meaningful difference in this comparison is where enterprise-grade capabilities sit. In SveltyCMS they are part of the free core; in several alternatives they are offered only in paid tiers. The table below compares like for like — the capabilities themselves, and where each platform places them.
 
-| Capability                  | Typical placement in alternatives                             | In SveltyCMS               |
-| :-------------------------- | :------------------------------------------------------------ | :------------------------- |
-| SSO / SAML / OIDC           | Paid tiers (Strapi, Payload); built-in (Directus)             | **Included in core, free** |
-| SCIM 2.0 provisioning       | Paid tiers / enterprise modules (Payload, Strapi, Directus)   | **Included in core, free** |
-| Compliance-grade audit logs | Enterprise tiers (Payload, Directus); plugin-based (Strapi)   | **Included in core, free** |
-| Multi-tenancy               | Custom implementation or enterprise plans                     | **Included in core, free** |
-| Secure media sharing        | Plugin-based or separate tooling                              | **Included in core, free** |
-| DAM analytics               | Plugins / enterprise modules                                  | **Included in core, free** |
-| Field-level encryption      | Hooks / marketplace plugins (public docs as of Sept 2026)     | **Included in core, free** |
-| Collection ETag / 304       | App- or CDN-level HTTP caching (public docs as of Sept 2026)  | **Included in core, free** |
-| Streamed collection export  | REST/CLI export (often fully buffered; public docs Sept 2026) | **Included in core, free** |
+| Capability                   | Typical placement in alternatives                             | In SveltyCMS               |
+| :--------------------------- | :------------------------------------------------------------ | :------------------------- |
+| SSO / SAML / OIDC            | Paid tiers (Strapi, Payload); built-in (Directus)             | **Included in core, free** |
+| SCIM 2.0 provisioning        | Paid tiers / enterprise modules (Payload, Strapi, Directus)   | **Included in core, free** |
+| Compliance-grade audit logs  | Enterprise tiers (Payload, Directus); plugin-based (Strapi)   | **Included in core, free** |
+| Multi-stage review workflows | Enterprise tiers (Strapi, Contentful, Sanity; public docs)    | **Included in core, free** |
+| Developer & API Playground   | External tooling / separate plugins (public docs Sept 2026)   | **Included in core, free** |
+| Polymorphic Block Builder    | Core/custom components or paid blocks (public docs Sept 2026) | **Included in core, free** |
+| Multi-tenancy                | Custom implementation or enterprise plans                     | **Included in core, free** |
+| Secure media sharing         | Plugin-based or separate tooling                              | **Included in core, free** |
+| DAM analytics                | Plugins / enterprise modules                                  | **Included in core, free** |
+| Field-level encryption       | Hooks / marketplace plugins (public docs as of Sept 2026)     | **Included in core, free** |
+| Collection ETag / 304        | App- or CDN-level HTTP caching (public docs as of Sept 2026)  | **Included in core, free** |
+| Streamed collection export   | REST/CLI export (often fully buffered; public docs Sept 2026) | **Included in core, free** |
 
 Whether a capability is “free core” vs “paid tier” is a **packaging** difference on public pricing pages — not proof of implementation quality. Always re-check each vendor’s current tier matrix.
 

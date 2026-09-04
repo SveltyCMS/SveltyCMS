@@ -114,6 +114,13 @@ const isInteractiveCard = $derived(active === undefined);
 const cardTabIndex = $derived(isInteractiveCard ? 0 : -1);
 const pageData = page.data as PageData;
 
+// Generated PageData unions (OptionalUnion) drop the ssoProviders key — read it
+// through an intersection like the loginBranding cast in login/+page.svelte.
+type SsoProvider = import("@src/databases/auth/sso-session").PublicSsoProvider;
+const ssoProviders = $derived(
+	(pageData as PageData & { ssoProviders?: SsoProvider[] }).ssoProviders,
+);
+
 // Use page.url (reactive) instead of a static window.location.href snapshot.
 const currentUrl = $derived(browser ? page.url : null);
 
@@ -762,9 +769,9 @@ $effect(() => {
 									{form_signin()}
 								</Button>
 
-								{#if allowedMethods.hasOAuth}
+								{#if allowedMethods.hasOAuth || pageData.showGoogleOAuth || pageData.showGithubOAuth || (ssoProviders && ssoProviders.length > 0)}
 								<div class="animate-fade-in w-full sm:w-auto">
-									<OauthLogin showGoogleOAuth={pageData.showGoogleOAuth} showGithubOAuth={pageData.showGithubOAuth} {firstCollectionPath} />
+									<OauthLogin showGoogleOAuth={pageData.showGoogleOAuth} showGithubOAuth={pageData.showGithubOAuth} ssoProviders={ssoProviders} {firstCollectionPath} />
 								</div>
 								{/if}
 							</div>

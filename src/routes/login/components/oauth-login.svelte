@@ -6,25 +6,30 @@
 ### Props
 - `showGoogleOAuth`: boolean — whether to render the Google OAuth button (controlled by parent/server)
 - `showGithubOAuth`: boolean — whether to render the GitHub OAuth button (controlled by parent/server)
+- `ssoProviders`: PublicSsoProvider[] — active enterprise SSO/OIDC providers (Google, Okta, Azure, Auth0, Keycloak)
 - `firstCollectionPath`: string — passed from parent; avoids a server round-trip on hover
 
 ### Features:
 - Prefetches first collection on hover for instant navigation post-auth
 - Accessible Google sign-in button with <span> (not <p>) inside <Button variant="outline">
+- Dynamic branded enterprise SSO buttons with official icons and preloading
 -->
 
 <script lang="ts">
 import { logger } from "@utils/logger";
 import { preloadData } from "$app/navigation";
-	import Button from '@components/ui/button.svelte';
+import Button from '@components/ui/button.svelte';
+import type { PublicSsoProvider } from "@src/databases/auth/sso-session";
 
 const {
 	showGoogleOAuth = true,
 	showGithubOAuth = true,
+	ssoProviders = [],
 	firstCollectionPath = "",
 }: {
 	showGoogleOAuth?: boolean;
 	showGithubOAuth?: boolean;
+	ssoProviders?: PublicSsoProvider[];
 	firstCollectionPath?: string;
 } = $props();
 
@@ -46,12 +51,6 @@ async function prefetchFirstCollection() {
 }
 </script>
 
-<!--
-	The parent (SignIn / SignUp) already gates showOAuth on the
-	USE_GOOGLE_OAUTH env var via pageData.showOAuth, so double-checking
-	it here is unnecessary. Using <span> instead of <p> because <p> is a
-	block element and invalid inside an inline context like <Button variant="outline">.
--->
 <div class="flex flex-col gap-2 w-full sm:w-auto">
 	{#if showGoogleOAuth}
 		<form
@@ -90,4 +89,17 @@ async function prefetchFirstCollection() {
 			</Button>
 		</form>
 	{/if}
+
+	{#each ssoProviders as provider (provider.id)}
+		<a
+			href={provider.authUrl}
+			data-preload="hover"
+			onmouseenter={prefetchFirstCollection}
+			class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md border border-surface-500/30 bg-surface-500/10 hover:bg-surface-500/20 text-surface-900 dark:text-surface-100 transition-colors shadow-xs"
+			aria-label={`Sign in with ${provider.name}`}
+		>
+			<iconify-icon icon={provider.icon} width={22} aria-hidden="true"></iconify-icon>
+			<span>Sign in with {provider.name}</span>
+		</a>
+	{/each}
 </div>

@@ -1,10 +1,12 @@
 <!--
+import { ui } from '@src/stores/ui-store.svelte';
 @files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionWidget/Widget.svelte
 @component
 **The Widget component is used to display the widget form used in the CollectionWidget component**
 -->
 <script lang="ts">
-import {
+
+import { ui } from '@src/stores/ui-store.svelte';import {
 	button_edit,
 	button_previous,
 	button_save,
@@ -284,7 +286,7 @@ async function handleCollectionSave() {
 			<Button variant="tertiary" onclick={() => modalSelectWidget()}>{collection_widgetfield_addFields()} </Button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<Button variant="secondary" type="button" onclick={() => (app.tabSetState = 1)} class="mt-2 justify-end">{button_previous()}</Button>
+			<Button variant="secondary" type="button" onclick={() => (ui.wizard.tabSetState = 1)} class="mt-2 justify-end">{button_previous()}</Button>
 			<Button variant="tertiary"
 				type="button"
 				onclick={handleCollectionSave}

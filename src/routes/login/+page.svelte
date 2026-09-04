@@ -46,6 +46,7 @@ import {
 	publicEnv,
 } from "@src/stores/global-settings.svelte";
 // Stores
+import { systemLanguage } from "@src/stores/locale-store.svelte";
 import { getLanguageName } from "@utils/language-utils";
 // SvelteKit
 // Components
@@ -154,8 +155,7 @@ const currentLanguage = $derived(
 function handleLanguageSelection(lang: string) {
 	clearTimeout(debounceTimeout);
 	debounceTimeout = setTimeout(() => {
-		// Set cookie via store (bridge to ParaglideJS)
-		app.systemLanguage = lang;
+		// Persist via locale store (legacy `app` bridge was removed with store.svelte.ts)
 		systemLanguage.set(lang as (typeof systemLanguage)["value"]);
 		isDropdownOpen = false;
 		searchQuery = "";

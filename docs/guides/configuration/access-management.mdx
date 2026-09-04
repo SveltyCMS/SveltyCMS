@@ -122,8 +122,83 @@ Tokens nearing expiration (less than 7 days) are highlighted in the management t
 
 ---
 
+## 🛡️ Enterprise SSO & OIDC Identity Providers
+
+SveltyCMS includes native **Single Sign-On (SSO)** support for **OpenID Connect (OIDC)** and **SAML 2.0**, accessible directly from **Config > Access Management** (Tab 4: _SSO & OIDC_).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User / Employee
+    participant Browser as Browser Client
+    participant CMS as SveltyCMS RP
+    participant IdP as Identity Provider (OIDC OP)
+
+    User->>Browser: Click "Sign in with Google / Okta / Entra ID"
+    Browser->>CMS: GET /api/auth/oidc-login?provider={id}
+    CMS->>CMS: Generate RFC 7636 PKCE (code_verifier + S256 code_challenge) + CSRF state
+    CMS-->>Browser: 302 Redirect to IdP authorization endpoint (with code_challenge)
+    Browser->>IdP: Authenticate & Consent
+    IdP-->>Browser: 302 Redirect to /api/auth/oidc-callback?code=...&state=...
+    Browser->>CMS: GET /api/auth/oidc-callback
+    CMS->>CMS: Verify CSRF state & retrieve code_verifier from HttpOnly cookie
+    CMS->>IdP: POST /token (code + code_verifier)
+    IdP-->>CMS: ID Token + Access Token
+    CMS->>CMS: Validate ID Token signature via JWKS & resolve claims
+    CMS->>CMS: JIT Provision User or map role via Claim-to-Role Rules
+    CMS-->>Browser: Set secure session cookie & 302 Redirect to /dashboard
+```
+
+### Pre-Configured Provider Presets
+
+The SSO configuration panel provides 1-click presets for popular enterprise identity providers:
+
+- **Google Workspace**: `https://accounts.google.com`
+- **Microsoft Entra ID (Azure AD)**: `https://login.microsoftonline.com/{tenantId}/v2.0`
+- **Okta**: `https://{yourOktaDomain}.okta.com`
+- **Auth0**: `https://{yourDomain}.auth0.com`
+- **Keycloak**: `https://{keycloakDomain}/realms/{realm}`
+- **Generic OIDC**: Any standard OpenID Connect compliant identity provider.
+
+### Automated OIDC Discovery
+
+When specifying an issuer URL, clicking **Verify Discovery** automatically queries the identity provider's `/.well-known/openid-configuration` document and configures:
+
+- Authorization Endpoint
+- Token Endpoint
+- JWKS URI (for RS256/ES256 cryptographic signature validation)
+- End Session Endpoint (for RP-Initiated federated logout)
+
+### RFC 7636 PKCE Hardening
+
+All OIDC login transactions strictly implement **RFC 7636 PKCE (Proof Key for Code Exchange)** using the `S256` SHA-256 method:
+
+1. SveltyCMS generates a cryptographically random 32-byte `code_verifier`.
+2. Computes the base64url-encoded SHA-256 `code_challenge`.
+3. Stores the verifier in a secure, short-lived HttpOnly cookie (`oidc_login_state`).
+4. Sends the `code_challenge` and `code_challenge_method=S256` to the authorization server.
+5. Exchanges the authorization code along with the verifier, immunizing against authorization code injection or interception attacks.
+
+### Just-In-Time (JIT) Auto-Provisioning
+
+When enabled, users logging in via SSO for the first time are automatically provisioned in SveltyCMS without requiring pre-registration or manual administrative invites.
+
+- **Default Role**: Newly provisioned accounts are assigned a configurable default role (e.g. `viewer` or `author`).
+- **Claim-to-Role Mapping**: Define fine-grained mapping rules based on JWT claims (e.g. `groups`, `roles`, or `department`):
+  - `groups: CMS-Admins` $\to$ `admin`
+  - `groups: Content-Editors` $\to$ `editor`
+  - `groups: Contributors` $\to$ `author`
+- **Role Sync on Login**: When toggled, the user's role is automatically updated on subsequent logins if group memberships change in the corporate directory.
+
+### Credential Protection
+
+SSO provider settings are persisted in encrypted system preferences. Client secrets are never returned to client applications in plaintext (`••••••••` masking) and are verified through RBAC-gated endpoints requiring administrator privileges.
+
+---
+
 ## Related
 
+- [Authentication API Reference](../../reference/api/auth.mdx)
 - [Getting Started](../../getting-started.mdx)
 - [Architecture Overview](../../reference/architecture/index.mdx)
 - [Security Overview](../../reference/security/index.mdx)

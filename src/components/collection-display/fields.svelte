@@ -55,6 +55,7 @@ import { tick, untrack } from "svelte";
     collections,
   } from "@src/stores/collection-store.svelte";
   import { contentLanguage, translationProgress } from "@src/stores/locale-store.svelte";
+  import { publicEnv } from "@src/stores/global-settings.svelte";
   import { validationStore } from "@src/stores/validation-store.svelte";
   import { toast } from "@src/stores/toast.svelte.ts";
   import { widgets } from "@src/stores/widget-store.svelte";

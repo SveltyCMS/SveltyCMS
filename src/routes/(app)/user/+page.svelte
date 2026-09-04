@@ -27,6 +27,7 @@
 	import Slot from '@src/components/system/slot.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { userThemePrefs } from '@src/stores/theme-store.svelte';
+	import { updateUserThemePrefs } from '../config/design-system/appearance-api';
 	import { isAdmin } from '@src/databases/auth/constants';
 	import {
 		button_delete,

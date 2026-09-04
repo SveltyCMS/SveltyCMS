@@ -870,15 +870,30 @@ export async function handleWorkflowRoutes(
   const { workflowService } = await import("@src/services/background/workflow-service");
   const tid = tenantId ? String(tenantId) : undefined;
 
-  // PATCH = entry state transition (content ops, not definition CRUD)
+  // PATCH = entry state transition OR assignee assignment (content ops, not definition CRUD)
   if (request.method === "PATCH") {
     const body = await request.json().catch(() => ({}));
     const entryId = body.entryId as string | undefined;
     const targetStateId = body.targetStateId as string | undefined;
-    if (!entryId || !targetStateId) {
-      throw new AppError("entryId and targetStateId are required", 400);
+    if (!entryId) {
+      throw new AppError("entryId is required", 400);
     }
     const roles = Array.isArray((user as any)?.roles) ? (user as any).roles : [];
+
+    // Assignee handoff: PATCH with assigneeId and no targetStateId.
+    if (body.assigneeId && !targetStateId) {
+      const assigned = await workflowService.assign(
+        entryId,
+        body.assigneeId as string,
+        user as any,
+        tid,
+      );
+      return successResponse(event, assigned);
+    }
+
+    if (!targetStateId) {
+      throw new AppError("targetStateId or assigneeId is required", 400);
+    }
     const instance = await workflowService.transition(
       entryId,
       targetStateId,
@@ -886,6 +901,7 @@ export async function handleWorkflowRoutes(
       roles,
       tid,
       body.comment as string | undefined,
+      body.assigneeId as string | undefined,
     );
     return successResponse(event, instance);
   }

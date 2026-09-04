@@ -38,6 +38,7 @@ import {
 } from "@src/stores/loading-store.svelte.ts";
 import { screen } from "@src/stores/screen-size-store.svelte";
 import { initializeDarkMode } from "@src/stores/theme-store.svelte.ts";
+import { locale } from "@src/stores/locale-store.svelte";
 import { ui } from "@src/stores/ui-store.svelte";
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import Portal from "@components/ui/portal.svelte";
@@ -359,7 +360,7 @@ $effect(() => {
 
 // Effect: Handle system language changes
 $effect(() => {
-	const lang = app.systemLanguage;
+	const lang = locale.systemLanguage;
 	if (!lang) {
 		return;
 	}

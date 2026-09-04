@@ -1,5 +1,5 @@
 <!--
- @file  src/components/header-edit.svelte
+@file src/components/header-edit.svelte
  @component
  **HeaderEdit component**
  The HeaderEdit component manages the collection entry header for both "edit" and "view" modes.
@@ -28,7 +28,11 @@
 -->
 
 <script lang="ts">
-	import Button from '@components/ui/button.svelte';
+
+import { ui } from '@src/stores/ui-store.svelte';
+import { contentLanguage } from '@src/stores/locale-store.svelte';
+import { validationStore } from '@src/stores/validation-store.svelte';
+import Button from '@components/ui/button.svelte';
 	import TranslationStatus from '@src/components/collection-display/translation-status.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
 	import { formatDateTime } from '@utils/format-date';
@@ -39,7 +43,6 @@
 	import { collection, collectionValue, mode, setCollectionValue, collections } from '@src/stores/collection-store.svelte';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
-	import { ui } from '@src/stores/ui-store.svelte';
 	import { createEntry, invalidateCollectionCache } from '@utils/api';
 	import { deleteCurrentEntry, saveEntry } from '@utils/entry-actions';
 	// --- Derived from page & stores ---
@@ -73,8 +76,8 @@
 
 	// --- Local mutable state ---
 	let showMore = $state(false);
-	let previousLanguage = $state(app.contentLanguage);
-	let previousTabSet = $state(app.tabSetState);
+	let previousLanguage = $state(contentLanguage.value);
+	let previousTabSet = $state(ui.wizard.tabSetState);
 	let tempData = $state<Record<string, CollectionEntry>>({});
 
 	// Schedule (not used in current logic – kept if needed later)
@@ -90,15 +93,15 @@
 
 	// Next button visibility (menu wizard)
 	let showNextButton = $derived(
-		app.shouldShowNextButton && currentMode === 'create' && (currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu')
+		ui.wizard.shouldShowNextButton && currentMode === 'create' && (currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu')
 	);
 
 	// --- Effects ---
 	$effect(() => {
-		if (app.tabSetState !== previousTabSet) {
+		if (ui.wizard.tabSetState !== previousTabSet) {
 			untrack(() => {
 				tempData[previousLanguage] = { ...currentEntry };
-				previousTabSet = app.tabSetState;
+				previousTabSet = ui.wizard.tabSetState;
 			});
 		}
 	});
@@ -203,7 +206,7 @@
 			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = scheduleTimestamp;
 		} else {
-			dataToSave.status = statusStore.getStatusForSave();
+			dataToSave.status = collections.getStatusForSave();
 			dataToSave._scheduled = undefined;
 		}
 
@@ -269,8 +272,8 @@
 	// Menu wizard next action
 	function next(): void {
 		logger.debug('[HeaderEdit] Next clicked');
-		if (app.saveLayerStore) {
-			app.saveLayerStore();
+		if (ui.wizard.saveLayerStore) {
+			ui.wizard.saveLayerStore();
 		} else {
 			// Fallback if needed
 			save();
@@ -351,7 +354,7 @@
 			<TranslationStatus />
 		{/if}
 
-		{#if !app.headerActionButton}
+		{#if !ui.wizard.headerActionButton}
 			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="rounded-full p-0! min-w-0">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</Button>

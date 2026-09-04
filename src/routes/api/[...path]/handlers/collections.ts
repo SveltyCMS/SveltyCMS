@@ -365,7 +365,7 @@ export async function handleCollectionFind(
  * JSON uses the existing chunked array stream. Never buffers the full result.
  */
 export async function handleCollectionExport(
-  event: RequestEvent,
+  _event: RequestEvent,
   cms: LocalCMS,
   tenantId: DatabaseId,
   user: any,
@@ -403,7 +403,13 @@ export async function handleCollectionExport(
   }
 
   const schema = await cms.collections.getSchema(collectionId, tenantId);
-  const columns = collectExportColumns(schema?.fields);
+  // FieldDefinition includes polymorphic widget placeholders without a
+  // db_fieldName — collectExportColumns skips them via optional chaining.
+  const columns = collectExportColumns(
+    schema?.fields?.map((f) => ({
+      db_fieldName: (f as { db_fieldName?: string } | null | undefined)?.db_fieldName,
+    })),
+  );
   return streamingExportResponse(iterator, {
     format,
     filename,

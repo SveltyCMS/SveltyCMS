@@ -344,6 +344,8 @@ async function runPostgresLegacyTails(sql: postgres.Sql): Promise<void> {
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP WITH TIME ZONE`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS "source" VARCHAR(50) NOT NULL DEFAULT 'filesystem'`,
     `ALTER TABLE system_virtual_folders ADD COLUMN IF NOT EXISTS "position" INT NOT NULL DEFAULT 0`,
+    `ALTER TABLE workflow_definitions ADD COLUMN IF NOT EXISTS "gatePublication" BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE workflow_instances ADD COLUMN IF NOT EXISTS "assigneeId" VARCHAR(36)`,
   ];
   try {
     for (const alter of alters) {
@@ -456,6 +458,8 @@ async function runMariaDbLegacyTails(connection: mysql.Pool): Promise<void> {
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE content_nodes ADD COLUMN IF NOT EXISTS deletedAt DATETIME`,
     `ALTER TABLE system_virtual_folders ADD COLUMN IF NOT EXISTS position INT NOT NULL DEFAULT 0`,
+    `ALTER TABLE workflow_definitions ADD COLUMN IF NOT EXISTS gatePublication BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE workflow_instances ADD COLUMN IF NOT EXISTS assigneeId VARCHAR(36)`,
   ];
   try {
     for (const alter of alters) {
@@ -592,6 +596,11 @@ async function runSqliteTails(db: unknown): Promise<void> {
   executeSqlite(db, `ALTER TABLE "content_nodes" ADD COLUMN "deletedAt" INTEGER`);
   executeSqlite(db, `ALTER TABLE "content_nodes" ADD COLUMN "source" TEXT DEFAULT 'filesystem'`);
   executeSqlite(db, `ALTER TABLE "system_virtual_folders" ADD COLUMN "position" INTEGER DEFAULT 0`);
+  executeSqlite(
+    db,
+    `ALTER TABLE "workflow_definitions" ADD COLUMN "gatePublication" INTEGER DEFAULT 0`,
+  );
+  executeSqlite(db, `ALTER TABLE "workflow_instances" ADD COLUMN "assigneeId" TEXT`);
 
   // 🚀 MIGRATION: Rename 'security' to 'password' if needed
   try {
