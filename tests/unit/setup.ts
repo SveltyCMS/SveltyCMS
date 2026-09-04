@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 import { CORE_WIDGETS, CUSTOM_WIDGETS } from "./widgets/widget-constants";
 import { widgetNameToFolder } from "@src/widgets/widget-naming";
-const isBun = typeof Bun !== "undefined";
+const isBun = typeof Bun !== "undefined" && process.env.BUN_TEST === "true";
 
 // 🚀 CRITICAL: Detect benchmark mode early
 const currentTest = process.argv.find(

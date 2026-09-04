@@ -8,13 +8,14 @@
  * into every widget call argument (previously skipped by the schema
  * injection early-return).
  */
+// @ts-ignore virtual widget manager export for collection compilation
 import { widgets } from "@widgets/widget-manager.svelte";
 import { slugify } from "./helpers";
 import type { Schema } from "@src/content/types";
 
 export const schema: Schema = {
   icon: "mdi:post",
-  status: "published",
+  status: "publish",
   description: "Widget regression fixture",
   slug: "posts",
   fields: [
