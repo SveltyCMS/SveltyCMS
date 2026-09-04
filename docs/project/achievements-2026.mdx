@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-08-23"
+updated: "2026-09-04"
 tags:
   - "achievements"
   - "log"
@@ -85,6 +85,22 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
 - **Collection Weak ETags & DB-free 304 (September 2026):** `GET /api/collections/{id}` emits `W/"cv1|{tenant}|{collection}|{epoch}|{reprHash}"`. `If-None-Match` is compared to the in-memory collection epoch (bumped on write with L1 eviction) in `handleTurboGet` and `handleApiRequests` **before** the collections handler — no DB, no JSON. Representation hash covers path, query, and user id. Tests: `tests/unit/services/collection-etag.test.ts`. Docs: [Collections API](../reference/api/collections.mdx).
 
 - **Native Field-Level Encryption at Rest (September 2026):** Collection fields flagged `encrypt: true` are transparently encrypted in `write-pipeline.ts` and decrypted in `read-pipeline.ts` using AES-256-GCM envelopes (`v1:iv:tag:ciphertext`) keyed from `ENCRYPTION_KEY` with HKDF domain separation (`sveltycms-field-at-rest`) and AAD binding (`tenantId:collectionId:fieldName`). Physical adapters store only ciphertext; L1/L2 caches keep ciphertext (decrypt clones on the way out). Filter/sort on encrypted fields fail closed (`ENCRYPTED_FIELD_NOT_QUERYABLE`). Unique indexes and SQL materialization are skipped. Tests: `tests/unit/utils/field-encryption.test.ts`, `tests/unit/services/field-encryption-pipeline.test.ts`. Docs: [Field-Level Encryption](../reference/security/field-level-encryption.mdx).
+
+- **Interactive Admin Session Console (September 2026):** Shipped a comprehensive user session management modal (`modal-user-sessions.svelte` and `DELETE /api/user/sessions`) inside User Management. Administrators can inspect concurrent active sessions per user account, complete with client metadata (OS, browser type, IP address, and current active session indicator) and execute one-click remote session revocation with instantaneous authorization cache invalidation. Tests: `tests/unit/auth/session-manager.test.ts`.
+
+- **Point-Lookup Slab & Hot-Path Serialization (September 2026):**
+  - **Random-Access Slab**: Implemented a dedicated 2,000-slot FIFO cache (`randomAccessSlab`, 30s TTL) for high-frequency point lookups, elevating `findByIdRandom` throughput by +196% to match the hot-path `findById` baseline.
+  - **LRU Protection**: Applied `updateAgeOnGet: false` on `ENTRY` and `CONTENT` lookups, preventing cold random reads from displacing hot cache working sets.
+  - **Pattern Invalidation Acceleration**: Refactored pattern-based cache clearing to reduce invalidation latency by −87% (4.11ms → 0.53ms), achieving +676% RPS in mutation benchmarks.
+  - **O(N) Fast JSON Serialization**: Replaced rope concatenation with pre-allocated buffer joins in `serializeArrayFast` (`fast-json.ts`), eliminating GC pressure during `listLarge` queries.
+  - **Pool & SMTP Hardening**: Elevated hardware-profile connection pool floors to 32 on 8c+ hosts, and hardened transactional SMTP connection pooling (`maxRecipients: 1`, `maxMessages: Infinity`, `connectionTimeout: 10s`, `socketTimeout: 30s`).
+
+- **Store Architecture Modernization & Svelte 5 Runes Consolidation (September 2026):**
+  - **Lean Store Footprint**: Consolidated the global store directory from 28 files down to 18 single-purpose domain singletons.
+  - **Monolith Elimination**: Removed the legacy `store.svelte.ts` singleton and compatibility bridges in favor of direct imports from specialized modules (`locale-store.svelte`, `validation-store.svelte`, `toast.svelte`).
+  - **State Absorption**: Absorbed satellite stores (`status-store`, `data-change-store`, `user-prefs-overlay`) into cohesive domain singletons (`collection-store`, `theme-store`).
+  - **Domain Colocation**: Relocated single-consumer stores (`consent-store`, `settings-state`, `dashboard-preferences`, `image-editor-store`, `help-state`) directly into their respective feature and component directories.
+  - **Widget & Shell Decoupling**: Updated all 72 widget inputs, displays, schemas, and app shell routes to import directly from domain singletons, eliminating dozens of unused legacy imports and standardizing on Svelte 5 fine-grained reactivity (`$state()`, `$derived()`). Tests: `tests/unit/stores/`, `tests/unit/components/image-editor/`.
 
 - **Write-Path Acceleration & Single-Pass Field Preparation (August 2026):**
   - **Deduplication of Sanitization Passes:** Eliminated redundant recursive `sanitizeObject` tree traversal in `prepareWritePayload`, relying on the pre-compiled `PrepPlan` in `prepareCollectionFields` to perform targeted HTML/text sanitization per schema field.
