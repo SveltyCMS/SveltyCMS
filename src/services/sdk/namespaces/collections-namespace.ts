@@ -94,6 +94,7 @@ import {
   shouldSkipWriteSideEffects,
   triggerLifecycleHook,
 } from "./collections/post-write";
+import { scheduleDefaultListWarm } from "./collections/list-warm";
 
 type ContentSystem = typeof serverContentSystem;
 
@@ -1288,6 +1289,11 @@ export class CollectionsNamespace {
         effectiveUser,
         options,
       );
+      if (!shouldSkipWriteSideEffects(options)) {
+        scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
+          this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+        );
+      }
     }
 
     return decryptedCreate;
@@ -1404,6 +1410,11 @@ export class CollectionsNamespace {
         effectiveUser,
         options,
       );
+      if (!shouldSkipWriteSideEffects(options)) {
+        scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
+          this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+        );
+      }
     }
 
     return decryptedUpdate;
@@ -1480,6 +1491,11 @@ export class CollectionsNamespace {
         effectiveUser,
         options,
       );
+      if (!shouldSkipWriteSideEffects(options)) {
+        scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
+          this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+        );
+      }
     }
 
     return result;
