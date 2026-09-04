@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    20 | 🟢     | +44%    | 0      |
+| **Core**       |     2 | 🟢     | -70%    | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,28 +62,10 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario                         | Latency | Trend                                        | Budget | Result |
-| -------------------------------- | ------- | -------------------------------------------- | ------ | ------ |
-| **Competitive Workload Replica** | 0.351ms | ⚪ stable at 0.364ms (±0.058ms) (7 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.710ms | ⚪ stable at 1.77ms (±0.225ms) (7 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.354ms | ⚪ stable at 0.370ms (±0.216ms) (7 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.803ms | ⚪ stable at 1.69ms (±0.332ms) (7 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.451ms | ⚪ stable at 0.416ms (±0.079ms) (7 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.169ms | ⚪ stable at 1.98ms (±0.266ms) (7 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.524ms | ⚪ stable at 0.489ms (±0.157ms) (7 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.222ms | 🔴 slower: 1.98ms → 2.22ms (+12%) (7 runs)   | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.370ms | ⚪ stable at 0.334ms (±0.042ms) (7 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.751ms | ⚪ stable at 1.55ms (±0.323ms) (7 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.328ms | ⚪ stable at 0.302ms (±0.028ms) (7 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.536ms | ⚪ stable at 1.39ms (±0.315ms) (7 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.639ms | ⚪ stable at 0.634ms (±0.098ms) (7 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 3.813ms | ⚪ stable at 3.81ms (±0.300ms) (7 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.687ms | 🔴 slower: 0.618ms → 0.687ms (+11%) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 3.695ms | ⚪ stable at 3.85ms (±0.318ms) (7 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.430ms | ⚪ stable at 0.432ms (±0.098ms) (7 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 2.107ms | ⚪ stable at 2.21ms (±0.172ms) (7 runs)      | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.534ms | ⚪ stable at 0.441ms (±0.192ms) (7 runs)     | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 3.075ms | ⚪ stable at 2.14ms (±1.67ms) (7 runs)       | < 5ms  | 🟢     |
+| Scenario  | Latency | Trend                                  | Budget | Result |
+| --------- | ------- | -------------------------------------- | ------ | ------ |
+| **HTTP**  | 2.396ms | ⚪ stable at 7.91ms (±6.15ms) (6 runs) | < 5ms  | 🟢     |
+| **TURBO** | 1.368ms | ⚪ stable at 3.68ms (±3.55ms) (6 runs) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -91,7 +73,7 @@ tags:
 
 | Metric                                                    | Trend | Sparkline      | Latest     |
 | --------------------------------------------------------- | ----- | -------------- | ---------- |
-| api latency (HTTP: findById @ 8c (Cold)) (warm)           | 🟢    | `▅▆█▆▁▁`       | 3.053ms    |
+| api latency (HTTP: findById @ 8c (Cold)) (warm)           | 🟢    | `▅▆█▆▁▂▁`      | 2.396ms    |
 | auth performance (Auth Validation @ 1c) (warm)            | 🟢    | `▃▃▆█▁▁▁▁▁▁▁▁` | 0.319ms    |
 | cold start phased (Cold Start (IDLE → HTTP READY)) (cold) | 🟢    | `██▂▅▁▁▁▂`     | 1402.841ms |
 | database performance (FIND MANY (limit 50)) (warm)        | 🟢    | `▁▁▂▇▃▆█▆▁▁▁▁` | 0.089ms    |
@@ -120,14 +102,8 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    Competitive Workload Replica: [0.15, 0.19]
-    Competitive Workload Replica: [0.71, 0.22]
-    Competitive Workload Replica: [0.72, 0.28]
-    Competitive Workload Replica: [0.12, 0.25]
-    Competitive Workload Replica: [0.57, 0.29]
-    Competitive Workload Replica: [0.11, 0.20]
-    Competitive Workload Replica: [0.50, 0.24]
-    Competitive Workload Replica: [0.22, 0.26]
+    HTTP: [0.95, 0.95]
+    TURBO: [0.57, 0.90]
 ```
 
 </details>
@@ -149,30 +125,12 @@ quadrantChart
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `3087c07c-6eee-45ce-bcfe-1826c377b673` · **Tests invoked:** 1 · **Metrics:** 20 · **DB:** sqlite
+**Run ID:** `93b83281-3ab1-403e-b5af-8f4e7b9acbd5` · **Tests invoked:** 1 · **Metrics:** 2 · **DB:** sqlite
 
-| Test                         | Metric                              | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                       |
-| ---------------------------- | ----------------------------------- | -------- | -------- | ---- | ----- | -------------------------------------------- |
-| Competitive Workload Replica | findById (Warm Sequential)          | 0.351    | 0.423    | 2839 | 🟢    | ⚪ stable at 0.364ms (±0.058ms) (7 runs)     |
-| Competitive Workload Replica | findById (Warm Concurrent 8c)       | 1.710    | 1.983    | 4643 | 🟢    | ⚪ stable at 1.77ms (±0.225ms) (7 runs)      |
-| Competitive Workload Replica | findByIdRandom (Warm Sequential)    | 0.354    | 0.434    | 2816 | 🟢    | ⚪ stable at 0.370ms (±0.216ms) (7 runs)     |
-| Competitive Workload Replica | findByIdRandom (Warm Concurrent 8c) | 1.803    | 2.207    | 4404 | 🟢    | ⚪ stable at 1.69ms (±0.332ms) (7 runs)      |
-| Competitive Workload Replica | listFilterSort (Warm Sequential)    | 0.451    | 0.553    | 2212 | 🟢    | ⚪ stable at 0.416ms (±0.079ms) (7 runs)     |
-| Competitive Workload Replica | listFilterSort (Warm Concurrent 8c) | 2.169    | 2.536    | 3626 | 🟢    | ⚪ stable at 1.98ms (±0.266ms) (7 runs)      |
-| Competitive Workload Replica | listLarge (Warm Sequential)         | 0.524    | 0.649    | 1904 | 🟢    | ⚪ stable at 0.489ms (±0.157ms) (7 runs)     |
-| Competitive Workload Replica | listPlain (Warm Sequential)         | 0.370    | 0.469    | 2695 | 🟢    | ⚪ stable at 0.334ms (±0.042ms) (7 runs)     |
-| Competitive Workload Replica | listPlain (Warm Concurrent 8c)      | 1.751    | 2.310    | 4487 | 🟢    | ⚪ stable at 1.55ms (±0.323ms) (7 runs)      |
-| Competitive Workload Replica | findMissing (Warm Sequential)       | 0.328    | 0.405    | 3038 | 🟢    | ⚪ stable at 0.302ms (±0.028ms) (7 runs)     |
-| Competitive Workload Replica | findMissing (Warm Concurrent 8c)    | 1.536    | 1.871    | 5125 | 🟢    | ⚪ stable at 1.39ms (±0.315ms) (7 runs)      |
-| Competitive Workload Replica | create (Warm Sequential)            | 0.639    | 0.667    | 1561 | 🟢    | ⚪ stable at 0.634ms (±0.098ms) (7 runs)     |
-| Competitive Workload Replica | create (Warm Concurrent 8c)         | 3.813    | 6.619    | 2076 | 🟢    | ⚪ stable at 3.81ms (±0.300ms) (7 runs)      |
-| Competitive Workload Replica | update (Warm Concurrent 8c)         | 3.695    | 5.114    | 2148 | 🟢    | ⚪ stable at 3.85ms (±0.318ms) (7 runs)      |
-| Competitive Workload Replica | graphql (Warm Sequential)           | 0.430    | 0.485    | 2319 | 🟢    | ⚪ stable at 0.432ms (±0.098ms) (7 runs)     |
-| Competitive Workload Replica | graphql (Warm Concurrent 8c)        | 2.107    | 2.384    | 3731 | 🟢    | ⚪ stable at 2.21ms (±0.172ms) (7 runs)      |
-| Competitive Workload Replica | mixed (Warm Sequential)             | 0.534    | 0.945    | 1869 | 🟢    | ⚪ stable at 0.441ms (±0.192ms) (7 runs)     |
-| Competitive Workload Replica | mixed (Warm Concurrent 8c)          | 3.075    | 3.792    | 2552 | 🟢    | ⚪ stable at 2.14ms (±1.67ms) (7 runs)       |
-| Competitive Workload Replica | listLarge (Warm Concurrent 8c)      | 2.222    | 2.975    | 3538 | ⚪    | 🔴 slower: 1.98ms → 2.22ms (+12%) (7 runs)   |
-| Competitive Workload Replica | update (Warm Sequential)            | 0.687    | 0.738    | 1452 | ⚪    | 🔴 slower: 0.618ms → 0.687ms (+11%) (7 runs) |
+| Test        | Metric                               | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                 |
+| ----------- | ------------------------------------ | -------- | -------- | ---- | ----- | -------------------------------------- |
+| Api Latency | HTTP: findById @ 8c (Cold)           | 2.396    | 4.079    | 3049 | 🟢    | ⚪ stable at 7.91ms (±6.15ms) (6 runs) |
+| Api Latency | HTTP: findById TURBO-HIT @ 8c (Warm) | 1.368    | 1.817    | 5478 | 🟢    | ⚪ stable at 3.68ms (±3.55ms) (6 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
@@ -190,7 +148,7 @@ quadrantChart
 | ----------------------------------- | ----- | ------------------ | ---------- |
 | ADMIN UX VITALITY (warm)            | 🟢    | `▁█▄█`             | 4.044ms    |
 | AI PERFORMANCE (warm)               | 🟢    | `▁▁█▁`             | 0.001ms    |
-| API LATENCY (warm)                  | 🟢    | `▆█▄▂▁▃▁`          | 1.521ms    |
+| API LATENCY (warm)                  | 🟢    | `█▄▁▅▁▃▁`          | 1.368ms    |
 | AUTH PERFORMANCE (warm)             | 🟢    | `▂▁▇▂▂▁█`          | 1.645ms    |
 | CACHE HIT RATIO (warm)              | 🟢    | `▄▁▃▁█▁▄`          | 0.595ms    |
 | CACHE PERFORMANCE (warm)            | 🟢    | `▃▁▃▂▃█▇`          | 0.376ms    |
@@ -221,6 +179,7 @@ quadrantChart
 | MEDIA PERFORMANCE (warm)            | 🟢    | `█▁▅▄▁▄▄`          | 109.651ms  |
 | MEDIA UPLOAD STRESS (warm)          | 🟢    | `▁▂▄█▄▄`           | 170.481ms  |
 | MEMORY STABILITY (warm)             | 🟢    | `▁▁`               | 0.000ms    |
+| MIDDLEWARE FLAMEGRAPH (warm)        | 🟢    | `▇▄▁▅▄▄█`          | 1.082ms    |
 | MIGRATION SCALE (warm)              | 🟢    | `▁▄▁▁█▁▁`          | 4.044ms    |
 | MIXED WORKLOAD (warm)               | 🟢    | `▂█▃▁`             | 2.094ms    |
 | MULTI TENANT PERFORMANCE (warm)     | 🟢    | `▁██`              | 6.059ms    |
@@ -243,7 +202,6 @@ quadrantChart
 | WEBSOCKET BROADCAST (warm)          | 🟢    | `▁▁▁█▆`            | 0.497ms    |
 | WIDGET PERFORMANCE (warm)           | 🟢    | `▃▇▁█▇▁█`          | 0.123ms    |
 | CONTENT INCREMENTAL RELOAD (warm)   | ⚪    | `▁▁█▄▂▁█`          | 8.829ms    |
-| MIDDLEWARE FLAMEGRAPH (warm)        | ⚪    | `▃▂▁▃▂▂█`          | 3.376ms    |
 | THROTTLING BACKOFF STRESS (warm)    | ⚪    | `▃▁▃▂█▂▇`          | 31.860ms   |
 
 <!-- SUMMARY_HISTORY_END --><!-- SUMMARY_END -->
@@ -262,7 +220,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- SECTION:API_LATENCY:START -->
 
 <details id="section-api_latency">
-<summary><strong>🏷️ API LAYER LATENCY</strong> · 🟢 4.660ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/api-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ API LAYER LATENCY</strong> · 🟢 4.800ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/api-latency.test.ts">source</a></summary>
 
 <!-- LEDGER_TRUTH_START -->
 
@@ -270,11 +228,11 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                     SVELTYCMS — API LAYER LATENCY                                     ║
 ║                              File: tests/benchmarks/api-latency.test.ts                               ║
-║                                       Ran: 2026-09-02 18:32:00                                        ║
+║                                       Ran: 2026-09-04 14:48:14                                        ║
 ║              Cold full-pipeline findById + warm TURBO-HIT path after responseCache fill.              ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ HTTP: findById @ 8c (Cold)   │ Cold:     4.66 ms │ Warm:     3.053 ms │ p95:     4.864 ms │   2,517 RPS ║
-║ HTTP: findById TURBO-HIT @ 8c (Warm) │ Cold:     0.45 ms │ Warm:     1.521 ms │ p95:     1.869 ms │   5,044 RPS ║
+║ HTTP: findById @ 8c (Cold)   │ Cold:     4.80 ms │ Warm:     2.396 ms │ p95:     4.079 ms │   3,049 RPS ║
+║ HTTP: findById TURBO-HIT @ 8c (Warm) │ Cold:     0.45 ms │ Warm:     1.368 ms │ p95:     1.817 ms │   5,478 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -694,7 +652,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 
 <!-- SECTION:HTTP:START -->
 <details id="section-http">
-<summary><strong>🏷️ HTTP</strong> · 🟢 0.422ms · ↘️ ⚪ stable at 0.463ms (±0.244ms) (7 runs) (2026-09-02 19:39:10) · <a href="../../../tests/benchmarks/truth-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ HTTP</strong> · 🟢 2.396ms · ↘️ ⚪ stable at 7.91ms (±6.15ms) (6 runs) (2026-09-04 14:48:14) · <a href="../../../tests/benchmarks/api-latency.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
@@ -774,24 +732,31 @@ Throughput dropped 95% — check connection pool saturation or lock contention.
 
 <!-- SECTION:MIDDLEWARE:START -->
 <details id="section-middleware">
-<summary><strong>🏷️ Middleware</strong> · 🟢 0.618ms · ➡️ ⚪ stable at 0.645ms (±1.35ms) (7 runs) (2026-09-03 21:19:07) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Middleware</strong> · ⚪ 1.082ms · ↘️ 🟢 faster: 2.78ms → 1.08ms (-61%) (6 runs) (2026-09-04 14:47:59) · <a href="../../../tests/benchmarks/middleware-flamegraph.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 ```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                         MIDDLEWARE FLAMEGRAPH PROFILER (SQLITE)                         ║
-║                  File: tests/benchmarks/middleware-flamegraph.test.ts                   ║
-║                                Ran: 2026-08-28 10:30:57                                 ║
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                MIDDLEWARE FLAMEGRAPH PROFILER (SQLITE)                                ║
+║                         File: tests/benchmarks/middleware-flamegraph.test.ts                          ║
+║                                       Ran: 2026-09-04 14:47:59                                        ║
 ║Measures isolated microsecond cost and incremental deltas of each middleware stage from edge to database.║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ Stage 0: Raw Socket Baseline (Static Asset) │        1.227 ms │ p95:        2.512 ms │ RPS:      2,954 ║
-║ Stage 1: System State + Turbo Pipeline │        0.991 ms │ p95:        2.425 ms │ RPS:      3,157 ║
-║ Stage 2: WAF Security Inspection │        0.578 ms │ p95:        1.756 ms │ RPS:      5,732 ║
-║ Stage 3: Token Auth Gating     │        1.196 ms │ p95:        2.409 ms │ RPS:      3,008 ║
-║ Stage 4: Collection Schema Resolution │        1.134 ms │ p95:        2.318 ms │ RPS:      3,164 ║
-║ Stage 5: Full REST Single Document │        1.014 ms │ p95:        2.179 ms │ RPS:      3,485 ║
-║ Stage 6: GraphQL Single Query (JIT) │        3.376 ms │ p95:        5.097 ms │ RPS:      1,148 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Stage 0: Raw Socket Baseline (Static Asset) │ Cold:     2.47 ms │ Warm:     0.959 ms │ p95:     1.919 ms │   3,735 RPS ║
+║ Stage 1: System State + Turbo Pipeline │ Cold:     1.28 ms │ Warm:     0.688 ms │ p95:     1.207 ms │   5,347 RPS ║
+║ Stage 2: WAF Security Inspection │ Cold:     0.98 ms │ Warm:     0.419 ms │ p95:     1.193 ms │   8,073 RPS ║
+║ Stage 3: Token Auth Gating   │ Cold:     3.60 ms │ Warm:     0.838 ms │ p95:     1.047 ms │   4,596 RPS ║
+║ Stage 4: Collection Schema Resolution │ Cold:     2.68 ms │ Warm:     0.720 ms │ p95:     1.095 ms │   5,120 RPS ║
+║ Stage 5: Full REST Single Document │ Cold:     1.58 ms │ Warm:     0.687 ms │ p95:     0.810 ms │   5,495 RPS ║
+║ Stage 6: GraphQL Single Query (JIT) │ Cold:     2.45 ms │ Warm:     1.082 ms │ p95:     1.212 ms │   3,654 RPS ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -890,7 +855,7 @@ Throughput dropped 95% — check connection pool saturation or lock contention.
 
 <!-- SECTION:TURBO:START -->
 <details id="section-turbo">
-<summary><strong>🏷️ TURBO</strong> · 🟢 1.521ms · ↘️ ⚪ stable at 4.74ms (±2.44ms) (5 runs) (2026-09-02 18:32:00) · <a href="../../../tests/benchmarks/api-latency.test.ts">source</a></summary>
+<summary><strong>🏷️ TURBO</strong> · 🟢 1.368ms · ↘️ ⚪ stable at 3.68ms (±3.55ms) (6 runs) (2026-09-04 14:48:14) · <a href="../../../tests/benchmarks/api-latency.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
