@@ -112,6 +112,13 @@ export async function applyUserAttributeUpdate(
     /* server cache helper unavailable */
   }
 
+  try {
+    const { invalidateTurboAuthForUser } = await import("@src/hooks.server");
+    invalidateTurboAuthForUser(resolvedId);
+  } catch {
+    /* turbo auth cache helper unavailable */
+  }
+
   const currentSessionId =
     (event.locals.session_id as DatabaseId | undefined) ??
     readSessionCookie(event.cookies, event.url.protocol === "https:");

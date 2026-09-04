@@ -39,7 +39,7 @@ import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
 import type { FieldInstance, Schema } from "@src/content/types";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
-import { copyDataWithFreshRowIds } from "@src/utils/data/copy-data-with-fresh-ids";
+import { copyDataWithFreshRowIds } from "@utils/data-utils";
 import { resolvePopulatedRelations } from "./populate-resolver";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import { decodePageCursor, mergeKeysetFilter } from "@src/databases/core/page-utils";

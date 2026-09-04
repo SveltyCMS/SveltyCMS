@@ -59,3 +59,53 @@ describe("RemoteVideo Widget - Validation", () => {
     expect(safeParse(schema, missingTitle).success).toBe(false);
   });
 });
+
+describe("RemoteVideo API - handleUtilityRoutes", () => {
+  it("should require authentication", async () => {
+    const { handleUtilityRoutes } = await import("@src/routes/api/[...path]/handlers/utility");
+    const fakeEvent = {
+      request: new Request("http://localhost/api/remote-video", {
+        method: "POST",
+        body: JSON.stringify({ url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }),
+      }),
+      locals: { user: null },
+      url: new URL("http://localhost/api/remote-video"),
+    } as any;
+
+    await expect(
+      handleUtilityRoutes(fakeEvent, {} as any, "test-tenant" as any, ["remote-video"]),
+    ).rejects.toThrow("Unauthorized");
+  });
+
+  it("should reject invalid video URLs", async () => {
+    const { handleUtilityRoutes } = await import("@src/routes/api/[...path]/handlers/utility");
+    const fakeEvent = {
+      request: new Request("http://localhost/api/remote-video", {
+        method: "POST",
+        body: JSON.stringify({ url: "https://example.com/not-a-video" }),
+      }),
+      locals: { user: { _id: "admin-1", role: "admin" } },
+      url: new URL("http://localhost/api/remote-video"),
+    } as any;
+
+    await expect(
+      handleUtilityRoutes(fakeEvent, {} as any, "test-tenant" as any, ["remote-video"]),
+    ).rejects.toThrow("Invalid or unsupported video URL");
+  });
+
+  it("should support legacy camelCase route alias remoteVideo", async () => {
+    const { handleUtilityRoutes } = await import("@src/routes/api/[...path]/handlers/utility");
+    const fakeEvent = {
+      request: new Request("http://localhost/api/remoteVideo", {
+        method: "POST",
+        body: JSON.stringify({ url: "https://example.com/not-a-video" }),
+      }),
+      locals: { user: { _id: "admin-1", role: "admin" } },
+      url: new URL("http://localhost/api/remoteVideo"),
+    } as any;
+
+    await expect(
+      handleUtilityRoutes(fakeEvent, {} as any, "test-tenant" as any, ["remoteVideo"]),
+    ).rejects.toThrow("Invalid or unsupported video URL");
+  });
+});

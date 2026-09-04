@@ -71,9 +71,10 @@ export class MongoCollectionMethods {
   }
 
   async createModel(schema: Schema, force = false): Promise<void> {
-    const collectionId = schema._id;
+    const collectionId =
+      schema._id || (schema as any).id || (schema as any).name || (schema as any).slug;
     if (!collectionId) {
-      throw new Error("Schema must have an _id field");
+      throw new Error("Schema must have an _id or name field");
     }
 
     const modelName = normalizeCollectionTableName(collectionId);

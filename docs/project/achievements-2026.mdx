@@ -1285,6 +1285,20 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
   - **SQLite `mixed` trend (not a new cliff)**: ledger 🔴 +34% seq / +45% con vs the 7-run mean (~0.43 / 1.89 ms). This session's **pre-change** baseline was already 0.47 / 2.80 ms; post-change re-runs sit at 0.58 / 2.74–3.47 ms. Mixed is write-growing (1/10 creates) and runs last after 300 creates + 300 updates, so it is noisier than isolated lanes. Not treated as a product regression.
   - **Bootstrap skip**: `routeSpec.skipMiddlewares` is honored (`preferences` / `media`) instead of being classified and ignored.
 
+- **Point-lookup slab & hot-path serialization (September 2026)**:
+  - **Random-access slab cache**: Implemented dedicated 2,000-slot FIFO cache (`randomAccessSlab`, 30s TTL) for point lookups, automatically invalidated on node/collection mutations. Boosted warm `findByIdRandom` from 1,488 RPS to **4,404 RPS (+196% cold-to-warm boost)**, bringing random point-reads to parity with sequential `findById` (4,643 RPS).
+  - **LRU lock contention elimination**: Disabled `updateAgeOnGet` on `ENTRY` and `CONTENT` categories in `cache-service.ts`, removing unnecessary LRU reorder lock overhead on read-heavy hot paths.
+  - **Pattern invalidation acceleration**: Invalidation latency reduced by −87% (**4.11ms → 0.53ms, +676% RPS**, 243 → 1,884 RPS).
+  - **Single-pass O(N) array serialization**: Refactored `serializeArrayFast` in `src/utils/fast-json.ts` into a single-pass join (`[${out.join(",")}]`), avoiding multi-slice concatenation and GC overhead on large array payloads (`listLarge` reaching 3,538 RPS in SQLite replica).
+  - **High-concurrency pool floor**: Increased base connection pool floor from 20 to 32 on 8c+ hardware profiles (`src/databases/postgresql/adapter-core.ts`), preventing connection pool starvation under 32 concurrent clients.
+  - **Transactional mail pool hardening**: Enforced `maxRecipients: 1`, `maxMessages: Infinity`, `connectionTimeout: 10_000`, and `socketTimeout: 30_000` on pooled Nodemailer transports (`src/utils/email.server.ts`), guaranteeing forward-compatibility with Nodemailer 10.0.0.
+- **Lean Architecture, Route Centralization & Storage Deduplication (September 2026)**:
+  - **Catch-All Gatekeeper Centralization**: Eliminated rogue standalone API routes (`/api/seo/link-suggestions`, `/api/chat`, `/api/remoteVideo`), consolidating their logic into the central dispatcher (`src/routes/api/[...path]/+server.ts`) and `handlers/utility.ts`. All endpoints now strictly enforce central `ENDPOINT_PERMISSIONS`, fail-closed defaults, and RBAC matrix validation.
+  - **Storage & Connection Pool Deduplication**: Re-architected `src/utils/temp-store.ts` to delegate directly to `cacheService` (`CacheCategory.SESSION`), eliminating duplicate Redis client instances, redundant pool allocations, and manual Map fallbacks.
+  - **Dead Code & Micro-File Pruning**: Eliminated ~1,200 LOC of dead code across 12 obsolete files (`file-uploading.ts`, `security.worker.ts`, `fs-mock.ts`, `path-mock.ts`, `response-headers.ts`, `field-selection.ts`, `memory-optimizer.svelte.ts`, `schema-diff.ts`, `server-utils.ts`, `system-integrity.ts`, `migration-manager.ts`, `lazy-rune.ts`), eliminating micro-file fragmentation and legacy bridges.
+  - **Shared Logic & Security Hardening**: Consolidated email normalization with Unicode NFC normalization against homoglyph attacks; unified database connection string parsing in Setup with `@utils/connection-parser`; wired client `Save-Data` and connection quality detection into `@utils/predictive-preload`.
+  - **AGENTS.md Contract Compliance**: Enforced `raise()` error handling contract across preview endpoints and eliminated `catch (err: any)` in favor of typed `catch (err: unknown)` with safe stringification.
+
 ---
 
 **References:**

@@ -20,6 +20,7 @@
 
 import type { ISODateString } from "../content/types";
 import { getLocale } from "@src/paraglide/runtime";
+import { formatDate, formatDateTime, formatTime, formatNumber, resolveLocale } from "./format-date";
 
 /**
  * Safely resolves the active UI locale from Paraglide without throwing in test/worker contexts.
@@ -268,10 +269,8 @@ export function formatDateString(
   }
 }
 
-// 🛡️ Intl formatter caches — avoids repeated instantiation on high-frequency calls
-const dateTimeFormatCache = new Map<string, Intl.DateTimeFormat>();
+// 🛡️ Intl relative time formatter cache
 const relativeTimeFormatCache = new Map<string, Intl.RelativeTimeFormat>();
-const numberFormatCache = new Map<string, Intl.NumberFormat>();
 
 export const DEFAULT_DISPLAY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   year: "numeric",
@@ -284,33 +283,14 @@ export const DEFAULT_DISPLAY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 
 /**
  * Format date for localized display.
- * Defaults to the active UI language from Paraglide (`getLocale()`) if not specified.
- * Pass an explicit locale if formatting according to content language.
+ * Delegates to centralized, SSR-safe `formatDateTime` from `@utils/format-date`.
  */
 export function formatDisplayDate(
   dateInput: Date | number | string,
   locale?: string,
   options: Intl.DateTimeFormatOptions = DEFAULT_DISPLAY_DATE_OPTIONS,
 ): string {
-  const effectiveLocale = locale || getActiveUiLocale();
-  try {
-    const date = new Date(
-      typeof dateInput === "number" ? (dateInput > 1e12 ? dateInput : dateInput * 1000) : dateInput,
-    );
-    if (Number.isNaN(date.getTime())) return "Invalid Date";
-    const cacheKey =
-      options === DEFAULT_DISPLAY_DATE_OPTIONS
-        ? `${effectiveLocale}:default`
-        : `${effectiveLocale}:${JSON.stringify(options)}`;
-    let formatter = dateTimeFormatCache.get(cacheKey);
-    if (!formatter) {
-      formatter = new Intl.DateTimeFormat(effectiveLocale, options);
-      dateTimeFormatCache.set(cacheKey, formatter);
-    }
-    return formatter.format(date);
-  } catch {
-    return "Invalid Date";
-  }
+  return formatDateTime(dateInput, options, locale);
 }
 
 /**
@@ -345,25 +325,14 @@ export function formatRelativeDate(dateInput: Date | number | string, locale?: s
 
 /**
  * Number formatting with memoized Intl.NumberFormat instances.
- * Defaults to active UI locale.
+ * Delegates to centralized `formatNumber` from `@utils/format-date`.
  */
 export function formatDisplayNumber(
   num: number,
   locale?: string,
   options?: Intl.NumberFormatOptions,
 ): string {
-  const effectiveLocale = locale || getActiveUiLocale();
-  try {
-    const cacheKey = options ? `${effectiveLocale}:${JSON.stringify(options)}` : effectiveLocale;
-    let formatter = numberFormatCache.get(cacheKey);
-    if (!formatter) {
-      formatter = new Intl.NumberFormat(effectiveLocale, options);
-      numberFormatCache.set(cacheKey, formatter);
-    }
-    return formatter.format(num);
-  } catch {
-    return String(num);
-  }
+  return formatNumber(num, options, locale);
 }
 
 // --- Calculators & Parsers ---
@@ -418,4 +387,4 @@ export function formatIsoDuration(isoDuration: string | undefined): string | und
 
 export const getCurrentDate = () => formatDateString(new Date(), "yyyy-MM-dd");
 
-export { formatDate, formatDateTime, formatTime, formatNumber, resolveLocale } from "./format-date";
+export { formatDate, formatDateTime, formatTime, formatNumber, resolveLocale };

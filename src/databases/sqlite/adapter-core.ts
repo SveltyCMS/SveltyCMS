@@ -1668,8 +1668,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   // --------------------------------------------------------------------------
 
   public async createModel(schemaData: any, force = false): Promise<void> {
-    const tableName = schemaData._id || schemaData.id;
-    if (!tableName) throw new Error("Schema must have an _id");
+    const tableName = schemaData._id || schemaData.id || schemaData.name || schemaData.slug;
+    if (!tableName) throw new Error("Schema must have an _id or name");
     const normalizedName = tableName.replace(/-/g, "");
 
     // 🚀 FAST PATH: table already provisioned in this process — skip all DDL.

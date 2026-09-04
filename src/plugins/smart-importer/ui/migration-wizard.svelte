@@ -611,7 +611,7 @@
         <div class="space-y-6">
           <div class="text-center">
             <h3 class="text-xl font-semibold text-surface-900 dark:text-white">
-              {importResult ? 'Import Complete!' : 'Ready to Import'}
+              {importResult ? 'Migration Complete' : 'Ready to Import'}
             </h3>
             <p class="mt-1 text-sm text-surface-500">
               {formatNumber(estimatedCount)} entries → {targetCollection || 'detecting…'}

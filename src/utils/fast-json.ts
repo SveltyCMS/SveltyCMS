@@ -108,16 +108,19 @@ export function serializeContentNodeSafe(n: Record<string, any>): string {
 
 /**
  * Zero-intermediate-array joining for item lists.
+ *
+ * Uses a pre-allocated string array + single Array.join() instead of O(N²)
+ * string concatenation. V8 optimizes Array.join to a single-pass rope concat,
+ * eliminating N intermediate string allocations on the hot serialization path
+ * (critical for listLarge at 100 items × ~5 KB each = 500 KB per response).
  */
 export function serializeArrayFast<T>(items: T[], serializer: (item: T) => string): string {
   if (!Array.isArray(items) || items.length === 0) return "[]";
-  let result = "[";
+  const parts: string[] = Array.from({ length: items.length });
   for (let i = 0; i < items.length; i++) {
-    if (i > 0) result += ",";
-    result += serializer(items[i]);
+    parts[i] = serializer(items[i]);
   }
-  result += "]";
-  return result;
+  return `[${parts.join(",")}]`;
 }
 
 /**

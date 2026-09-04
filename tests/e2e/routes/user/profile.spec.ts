@@ -197,7 +197,32 @@ test.describe.serial("User Profile Management", () => {
       await expect(avatarModal).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 15_000 });
 
-    const deleteBtn = avatarModal.getByRole("button", { name: "Delete Avatar" });
+    let deleteBtn = avatarModal.getByRole("button", { name: "Delete Avatar" });
+    if (!(await deleteBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
+      // Seed an avatar so the delete flow can be verified (e.g. on test retry)
+      const fileInput = page.locator('input[type="file"]');
+      await expect(fileInput).toBeAttached({ timeout: 5_000 });
+      await fileInput.setInputFiles(AVATAR_PATH);
+      const saveBtn = page.getByRole("button", { name: /^save$/i });
+      await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
+      await saveBtn.click();
+      const confirmBtn = page.getByRole("button", { name: /confirm/i });
+      if (await confirmBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+        await confirmBtn.click();
+      }
+      await expect(page.getByText(/avatar updated successfully/i).first()).toBeVisible({
+        timeout: 15_000,
+      });
+      // Re-open modal to delete
+      await expect(async () => {
+        await editAvatarBtn
+          .click({ timeout: 2_000 })
+          .catch(() => editAvatarBtn.evaluate((el: HTMLElement) => el.click()));
+        await expect(avatarModal).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 15_000 });
+      deleteBtn = avatarModal.getByRole("button", { name: "Delete Avatar" });
+    }
+
     await expect(deleteBtn).toBeVisible({ timeout: 10_000 });
     await deleteBtn.click();
 

@@ -1026,6 +1026,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }
 
         const url = new URL(effectiveConnection);
+        const hw = getHardwareProfile();
+        // 🚀 POOL FLOOR: raise to 32 on medium+ hosts so the pool never saturates
+        // before 32 concurrent workers (findById peaks at 16c, drops −19% at 32c
+        // — classic pool-exhaustion signature). Single/small hosts keep 20 to
+        // avoid drowning a co-located DB server. `DATABASE_MAX_CONNECTIONS` env
+        // always wins.
+        const poolFloor = hw.tier === "single" || hw.tier === "small" ? 20 : 32;
         options = {
           host: url.hostname,
           port: Number(url.port || 5432),
@@ -1037,9 +1044,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onnotice: () => {},
           onclose,
           transform: { undefined: null },
-          max:
-            Number(process.env.DATABASE_MAX_CONNECTIONS) ||
-            Math.max(20, getHardwareProfile().dbPoolSize),
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || Math.max(poolFloor, hw.dbPoolSize),
           connect_timeout: 10,
           prepare: effectivePrepare,
           idle_timeout: 30,
@@ -1056,6 +1061,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       } else {
         const c = (finalConnection || {}) as any;
         const usePrepared = (c.prepare ?? process.env.DATABASE_PREPARE ?? "true") !== "false";
+        const hw2 = getHardwareProfile();
+        const poolFloor2 = hw2.tier === "single" || hw2.tier === "small" ? 20 : 32;
 
         options = {
           host: c.host || c.DB_HOST || "127.0.0.1",
@@ -1065,7 +1072,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           database: c.database || c.DB_NAME,
           max:
             Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) ||
-            Math.max(20, getHardwareProfile().dbPoolSize),
+            Math.max(poolFloor2, hw2.dbPoolSize),
           connect_timeout: Number(c.connect_timeout || 10),
           ssl: c.ssl || false,
           onnotice: () => {},
@@ -1450,8 +1457,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   // --------------------------------------------------------------------------
 
   public async createModel(schemaData: any, force = false): Promise<void> {
-    const tableName = schemaData._id || schemaData.id;
-    if (!tableName) throw new Error("Schema must have an _id");
+    const tableName = schemaData._id || schemaData.id || schemaData.name || schemaData.slug;
+    if (!tableName) throw new Error("Schema must have an _id or name");
 
     const normalizedName = tableName.replace(/-/g, "");
 

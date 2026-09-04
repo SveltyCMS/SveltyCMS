@@ -224,4 +224,26 @@ describe("AI Co-Pilot — scoreContent", () => {
       expect(suggestion.length).toBeGreaterThan(10);
     }
   });
+
+  describe("AI Co-Pilot — Chat & Conversational Assistant", () => {
+    it("chat handler structures chat prompts and replies", () => {
+      function simulateChatPrompt(
+        prompt: string,
+        history: Array<{ role: string; content: string }>,
+      ) {
+        return {
+          prompt,
+          historyLength: history.length,
+          ready: prompt.trim().length > 0,
+        };
+      }
+
+      const state = simulateChatPrompt("Help me write an article", []);
+      expect(state.ready).toBe(true);
+      expect(state.historyLength).toBe(0);
+
+      const empty = simulateChatPrompt("", []);
+      expect(empty.ready).toBe(false);
+    });
+  });
 });

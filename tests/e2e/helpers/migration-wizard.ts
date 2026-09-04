@@ -105,9 +105,18 @@ export async function runMigrationImport(page: Page) {
   await workspace(page)
     .getByRole("button", { name: /start import/i })
     .click();
-  await expect(workspace(page).getByRole("heading", { name: /migration complete/i })).toBeVisible({
+  await expect(
+    workspace(page).getByRole("heading", { name: /migration complete|import complete/i }),
+  ).toBeVisible({
     timeout: 60_000,
   });
+  const viewResultsBtn = workspace(page).getByRole("button", { name: /view results/i });
+  if (await viewResultsBtn.isVisible().catch(() => false)) {
+    await viewResultsBtn.click();
+    await expect(workspace(page).getByRole("heading", { name: /migration complete/i })).toBeVisible(
+      { timeout: 10_000 },
+    );
+  }
 }
 
 /** Assert imported entry exists via authenticated collections API */

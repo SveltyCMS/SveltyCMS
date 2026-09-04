@@ -69,6 +69,8 @@ export const API_PERMISSIONS: Record<string, string[]> = {
   // Content Structure - Admin and Editor
   "api:content-structure": ["admin", "editor"], // Content structure management
   "api:content": ["admin", "editor"], // Content version and management
+  "api:seo": ["admin", "editor"], // Internal link suggestions and SEO tools
+  "api:chat": ["admin", "editor"], // AI Assistant and collaboration chat
 
   // Theme Management - Admin and Editor (content creators need themes)
   "api:theme": ["admin", "editor"], // Theme management

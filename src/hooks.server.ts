@@ -963,6 +963,16 @@ export const handleError: HandleServerError = async (input) => {
     status,
     stack: error instanceof Error ? error.stack : undefined,
   });
+
+  const isDevOrTest =
+    process.env.TEST_MODE === "true" ||
+    process.env.PLAYWRIGHT_TEST === "true" ||
+    process.env.NODE_ENV !== "production";
+
+  return {
+    message: isDevOrTest ? message || "Internal Error" : "Internal Error",
+    code,
+  };
 };
 
 // --- Utility Functions for External Use ---

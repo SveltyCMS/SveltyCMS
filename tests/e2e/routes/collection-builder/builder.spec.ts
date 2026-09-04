@@ -55,6 +55,7 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
       await expect(
         page
           .getByRole("heading", { level: 1, name: /collection builder|sammlungsersteller/i })
+          .or(page.getByTestId("page-title"))
           .or(page.getByTestId("admin-page-title"))
           .first(),
       ).toBeVisible({ timeout: 10_000 });

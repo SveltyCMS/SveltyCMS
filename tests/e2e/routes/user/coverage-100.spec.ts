@@ -242,20 +242,29 @@ test.describe("2FA enroll with fixture", () => {
       .or(page.getByRole("button", { name: /Setup|Manage|Enabled/i }))
       .first();
     await expect(twoFaBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+    const modal = page.locator(".modal-2fa").first();
     const btnText = (await twoFaBtn.textContent()) || "";
     if (/manage/i.test(btnText)) {
       // Already enabled — open manage and assert modal content
-      await twoFaBtn.click();
-      await expect(page.locator(".modal-2fa").first()).toBeVisible({
-        timeout: ACTION_TIMEOUT,
-      });
+      await expect(async () => {
+        if (await modal.isVisible().catch(() => false)) return;
+        await twoFaBtn
+          .click({ timeout: 2_000 })
+          .catch(() => twoFaBtn.evaluate((el: HTMLElement) => el.click()));
+        await expect(modal).toBeVisible({ timeout: 3_000 });
+      }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
       return;
     }
-    await twoFaBtn.click();
 
     // Use .modal-2fa only — page.getByRole("dialog") also matches cookie consent.
-    const modal = page.locator(".modal-2fa").first();
-    await expect(modal).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // Retry click until the modal opens (handles Svelte 5 hydration click drop).
+    await expect(async () => {
+      if (await modal.isVisible().catch(() => false)) return;
+      await twoFaBtn
+        .click({ timeout: 2_000 })
+        .catch(() => twoFaBtn.evaluate((el: HTMLElement) => el.click()));
+      await expect(modal).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
 
     // The setup secret renders once /api/auth/2fa/setup resolves. The modal can
     // surface a transient setup error (shared SQLite write contention under

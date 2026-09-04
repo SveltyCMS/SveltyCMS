@@ -74,11 +74,7 @@ import {
 } from "@utils/security/crypto";
 // Import for internal use
 import { SESSION_COOKIE_NAME, getSessionCookieName, sessionTtlMs } from "./constants";
-
-/** Normalize email to lowercase for consistent lookups */
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
+import { normalizeEmail } from "@utils/normalize-email";
 
 // Main Auth class
 export class Auth {

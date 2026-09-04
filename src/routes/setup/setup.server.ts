@@ -657,6 +657,7 @@ export async function testEmailConnection(cfg: {
       connectionTimeout: 10000,
     });
     await t.sendMail({
+      from: cfg.from || cfg.user,
       to: cfg.testEmail,
       subject: "SveltyCMS Email Test",
       text: "Test email from SveltyCMS setup wizard.",

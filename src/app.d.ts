@@ -8,6 +8,10 @@ import type { DatabaseAdapter, Theme, DatabaseId } from "@src/databases/db-inter
 
 declare global {
   namespace App {
+    interface Error {
+      message: string;
+      code?: string;
+    }
     interface Locals {
       // Setup hook caching
       __setupConfigExists?: boolean;

@@ -4,7 +4,8 @@
  */
 
 import { previewService } from "@src/services/content/preview-service";
-import { error, redirect } from "@sveltejs/kit";
+import { redirect } from "@sveltejs/kit";
+import { raise } from "@utils/error-handling";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ url, cookies }) => {
@@ -12,12 +13,12 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
   const slug = url.searchParams.get("slug") || "/";
 
   if (!previewToken) {
-    throw error(400, "Missing preview_token");
+    raise(400, "Missing preview_token");
   }
 
   const validated = previewService.validateToken(previewToken);
   if (!validated.valid) {
-    throw error(401, "Invalid or expired preview token");
+    raise(401, "Invalid or expired preview token");
   }
 
   const isSecure = url.protocol === "https:";
@@ -47,7 +48,7 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
     slug.startsWith("/\\") ||
     slug.includes("\\")
   ) {
-    throw error(400, "Invalid preview target");
+    raise(400, "Invalid preview target");
   }
   const target = slug.startsWith("/") ? slug : `/${slug}`;
   throw redirect(307, `${target}?preview_token=${encodeURIComponent(previewToken)}`);

@@ -80,7 +80,7 @@ test.describe("Media move to folder", () => {
 
     // Enter folder and wait for content to settle
     await page.getByText(folderName, { exact: true }).first().click();
-    await expect(page.getByTestId("media-gallery-breadcrumbs")).toBeVisible({
+    await expect(page.getByTestId("media-gallery-breadcrumbs").getByText(folderName)).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
 

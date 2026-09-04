@@ -113,10 +113,8 @@ class ContentStore {
   }
 
   getCollection(id: string, tenantId?: string | null): Schema | undefined {
-    if (tenantId) {
-      const found = this._findCollectionInList(this.getCollections(tenantId), id);
-      if (found) return found;
-    }
+    const found = this._findCollectionInList(this.getCollections(tenantId), id);
+    if (found) return found;
 
     let schema = this._schemas.get(id);
     if (schema) return schema;

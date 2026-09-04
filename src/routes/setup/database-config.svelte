@@ -46,6 +46,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import { dbConfigSchema } from '@utils/schemas';
 	import { logger } from '@utils/logger';
 	import { showConfirm } from '@utils/modal.svelte';
+	import { parseConnectionString } from '@utils/connection-parser';
 	import { safeParse } from 'valibot';
 
 	// Popup settings (click to toggle)
@@ -124,53 +125,29 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	}); // Handle field blur to mark as touched
 	function handleBlur(fieldName: string) {
 		touchedFields.add(fieldName);
-	} // Parse MongoDB connection string (Atlas or standard)
-	function parseMongoConnectionString(
-		connStr: string
-	): { host: string; user: string; password: string; database?: string } | null {
-		try {
-			// Built-in URL parser is more robust for MongoDB URIs
-			const url = new URL(connStr.replace('mongodb+srv://', 'http://').replace('mongodb://', 'http://'));
-
-			const user = url.username ? decodeURIComponent(url.username) : '';
-			const password = url.password ? decodeURIComponent(url.password) : '';
-			const host = url.host;
-			const database = url.pathname.slice(1);
-
-			return {
-				host,
-				user,
-				password: password === '<db_password>' || password === '<password>' ? '' : password,
-				database: database || ''
-			};
-		} catch (error) {
-			logger.error('Error parsing connection string:', error);
-			return null;
-		}
 	}
 
 	// Handle paste event to detect connection strings
 	function handleHostPaste(event: ClipboardEvent) {
 		const pastedText = event.clipboardData?.getData('text') || '';
+		const parsed = parseConnectionString(pastedText);
 
-		if (pastedText.startsWith('mongodb://') || pastedText.startsWith('mongodb+srv://')) {
+		if (parsed) {
 			event.preventDefault();
-			const parsed = parseMongoConnectionString(pastedText);
+			dbConfig.type = parsed.type;
+			dbConfig.host = parsed.host;
+			dbConfig.user = parsed.user;
+			dbConfig.password = parsed.password;
 
-			if (parsed) {
-				// Update dbConfig with parsed values
-				dbConfig.type = pastedText.startsWith('mongodb+srv://') ? 'mongodb+srv' : 'mongodb';
-				dbConfig.host = parsed.host;
-				dbConfig.user = parsed.user;
-				dbConfig.password = parsed.password;
-
-				if (parsed.database) {
-					dbConfig.name = parsed.database;
-				}
-
-				// Clear any previous test errors
-				clearDbTestError();
+			if (parsed.database) {
+				dbConfig.name = parsed.database;
 			}
+			if (parsed.port) {
+				dbConfig.port = Number(parsed.port);
+			}
+
+			// Clear any previous test errors
+			clearDbTestError();
 		}
 	}
 

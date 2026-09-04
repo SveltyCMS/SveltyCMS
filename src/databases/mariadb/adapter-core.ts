@@ -1384,8 +1384,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
   // --------------------------------------------------------------------------
 
   public async createModel(schemaData: any, force = false): Promise<void> {
-    const tableName = schemaData._id || schemaData.id;
-    if (!tableName) throw new Error("Schema must have an _id");
+    const tableName = schemaData._id || schemaData.id || schemaData.name || schemaData.slug;
+    if (!tableName) throw new Error("Schema must have an _id or name");
 
     const normalizedName = tableName.replace(/-/g, "");
 

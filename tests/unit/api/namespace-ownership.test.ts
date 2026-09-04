@@ -87,6 +87,10 @@ const HANDLER_FN: Record<string, string> = {
   gdpr: "handleGdprRoutes",
   commerce: "handleCommerceRoutes",
   stripe: "handleStripeRoutes",
+  "remote-video": "handleUtilityRoutes",
+  remoteVideo: "handleUtilityRoutes",
+  seo: "handleUtilityRoutes",
+  chat: "handleAiRoutes",
 };
 
 /**
@@ -255,6 +259,7 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
     "tests/integration/api/config-admin-surface.test.ts",
   ],
   ai: ["tests/unit/api/ai-security.test.ts", "tests/unit/api/ai-copilot.test.ts"],
+  chat: ["tests/unit/api/ai-security.test.ts", "tests/unit/api/ai-copilot.test.ts"],
   "ai-builder": ["tests/unit/api/ai-builder.test.ts"],
   importer: ["tests/unit/api/export-import-security.test.ts"],
   export: ["tests/unit/api/export-import-security.test.ts"],
@@ -294,6 +299,9 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
   ],
   debug: ["tests/unit/api/dispatcher-security-matrix.test.ts"],
   "openapi.json": ["tests/unit/api/openapi.test.ts", "tests/integration/api/openapi.test.ts"],
+  "remote-video": ["tests/unit/widgets/custom/remote-video.test.ts"],
+  remoteVideo: ["tests/unit/widgets/custom/remote-video.test.ts"],
+  seo: ["tests/unit/api/dispatcher-security-matrix.test.ts"],
 
   // Enterprise
   scim: ["tests/unit/api/scim.test.ts", "tests/unit/api/dispatcher-security-matrix.test.ts"],

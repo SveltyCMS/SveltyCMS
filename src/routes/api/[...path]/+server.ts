@@ -112,6 +112,8 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   "version-check": { handler: "utility", fn: "handleUtilityRoutes" },
   "send-mail": { handler: "utility", fn: "handleUtilityRoutes" },
   trash: { handler: "utility", fn: "handleUtilityRoutes" },
+  "remote-video": { handler: "utility", fn: "handleUtilityRoutes" },
+  remoteVideo: { handler: "utility", fn: "handleUtilityRoutes" },
   debug: { handler: "utility", fn: "handleUtilityRoutes" },
   "openapi.json": { handler: "utility", fn: "handleUtilityRoutes" },
   database: { handler: "system", fn: "handleDatabaseRoutes" },
@@ -147,6 +149,8 @@ const NAMESPACE_CONFIG: Record<string, { handler: string; fn: string }> = {
   gdpr: { handler: "auth", fn: "handleGdprRoutes" },
   commerce: { handler: "commerce", fn: "handleCommerceRoutes" },
   stripe: { handler: "commerce", fn: "handleStripeRoutes" },
+  seo: { handler: "utility", fn: "handleUtilityRoutes" },
+  chat: { handler: "system", fn: "handleAiRoutes" },
 
   // Deprecated Aliases
   "import-data": { handler: "content-transfer", fn: "handleImporterRoutes" },
@@ -208,6 +212,8 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   database: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
   logs: "system:admin",
   "api-keys": (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
+  "remote-video": "collection:read",
+  remoteVideo: "collection:read",
 
   // Data Operations permissions
   config: (method: string) => (method === "POST" ? "config:write" : "config:read"),
@@ -231,6 +237,8 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   gdpr: (method: string) => (isReadMethod(method) ? "user:read" : "user:write"),
   commerce: (method: string) => (isReadMethod(method) ? "collections:read" : "collections:write"),
   stripe: (method: string) => (isReadMethod(method) ? "collections:read" : "collections:write"),
+  seo: "collection:read",
+  chat: "system:settings",
 };
 
 /**

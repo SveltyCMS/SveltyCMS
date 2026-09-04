@@ -364,7 +364,7 @@ export class CollectionService {
     // happy path (only runs on query failure).
     if (!entriesResult.success || !countResult.success) {
       try {
-        await dbAdapter.collection.createModel(collection);
+        await dbAdapter.collection.createModel({ _id: collectionId, ...collection });
       } catch (healError) {
         logger.warn(`[CollectionService] Physical model heal failed for ${collectionId}`, {
           healError,

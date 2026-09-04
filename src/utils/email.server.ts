@@ -8,6 +8,12 @@
  * - SMTP connection pooling (config-hash singleton, pool: true, max 5 connections)
  * - Email regex validation before any DB/network operations
  * - Credential-safe error logging (never logs err object, only message)
+ *
+ * ### Hardening (audit 2026-09, nodemailer 10.x):
+ * - `maxRecipients: 1` — enforces transactional-only semantics; prevents accidental bulk sends
+ * - `connectionTimeout: 10_000` — TCP connect timeout so hung SMTP never leaks pool slots
+ * - `socketTimeout: 30_000` — idle socket timeout; drops stale connections before they error
+ * - `maxMessages: Infinity` — keeps pool connections alive for the process lifetime (no per-message reconnect)
  */
 
 import { AppError } from "@utils/error-handling";
@@ -200,6 +206,18 @@ export async function sendMail({
       auth: { user: smtpUser, pass: smtpPass },
       pool: true,
       maxConnections: 5,
+      // ── nodemailer 10.x hardening ────────────────────────────────────
+      // Enforce transactional-only: never accidentally send bulk mail from
+      // the per-user template transport.
+      maxRecipients: 1,
+      // Keep pool connections alive for the process lifetime — no per-message
+      // TCP reconnect overhead.
+      maxMessages: Infinity,
+      // TCP-level timeouts: prevent a hung or slow SMTP server from holding a
+      // connection indefinitely and leaking pool slots.
+      connectionTimeout: 10_000, // ms to establish TCP + SMTP greeting
+      socketTimeout: 30_000, // ms idle before closing an open socket
+      // ─────────────────────────────────────────────────────────────────
       tls: { rejectUnauthorized: process.env.NODE_ENV !== "development" },
       debug: process.env.NODE_ENV === "development",
     } as TransportOptions);

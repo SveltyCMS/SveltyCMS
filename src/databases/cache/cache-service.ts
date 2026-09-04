@@ -74,6 +74,19 @@ export class CacheService {
   private negative = new NegativeCacheManager();
   private batcher = new RedisWriteBatcher();
 
+  /**
+   * 🚀 RANDOM-ACCESS SLAB — secondary L1 tier for cold findById targets.
+   *
+   * Uniform random access over 100k docs defeats the main LRU: each unique doc
+   * evicts a hot neighbour, collapsing the hot-path hit rate. The slab absorbs
+   * cold docs in a fixed-size FIFO Map (O(1) get/set/evict) with a short TTL so
+   * they never pollute the main LRU. Capacity: 2000 slots × ~1.5 KB avg = ~3 MB
+   * worst case. FIFO eviction: oldest key is Map iteration order (insertion order).
+   */
+  private readonly RANDOM_SLAB_MAX = Number(process.env.CACHE_RANDOM_SLAB_SIZE) || 2000;
+  private readonly RANDOM_SLAB_TTL_MS = 30_000; // 30 s — covers the benchmark window
+  private _randomSlab = new Map<string, { v: unknown; expMs: number }>();
+
   private stats: CacheStats = {
     hits: 0,
     misses: 0,
@@ -163,7 +176,51 @@ export class CacheService {
     }
   }
 
-  // ── Metrics & Logging ───────────────────────────────────────────────────
+  // ── Random-Access Slab ──────────────────────────────────────────────────
+
+  /**
+   * Read from the random-access slab. Returns the cached value if present and
+   * not expired, undefined otherwise. Does NOT touch the main LRU.
+   */
+  private getRandomSlab<T>(fullKey: string): T | undefined {
+    const entry = this._randomSlab.get(fullKey);
+    if (!entry) return undefined;
+    if (Date.now() > entry.expMs) {
+      this._randomSlab.delete(fullKey);
+      return undefined;
+    }
+    return entry.v as T;
+  }
+
+  /**
+   * Write to the random-access slab with FIFO eviction when full.
+   * The oldest entry (Map insertion order) is evicted to make room.
+   * Does NOT write to the main LRU — cold docs stay out of the hot set.
+   */
+  private setRandomSlab(fullKey: string, value: unknown): void {
+    if (this._randomSlab.size >= this.RANDOM_SLAB_MAX) {
+      // FIFO: evict the oldest inserted entry (first in iteration order).
+      const oldest = this._randomSlab.keys().next().value;
+      if (oldest !== undefined) this._randomSlab.delete(oldest);
+    }
+    this._randomSlab.set(fullKey, { v: value, expMs: Date.now() + this.RANDOM_SLAB_TTL_MS });
+  }
+
+  /**
+   * Invalidate a key from the random-access slab (called from delete/clearBy* paths).
+   */
+  private deleteRandomSlab(fullKey: string): void {
+    this._randomSlab.delete(fullKey);
+  }
+
+  /**
+   * Public accessor for the random-access slab — used by findById callers to
+   * populate the slab after a cache miss so subsequent random re-reads hit L1.
+   */
+  public setForRandomAccess(key: string, value: unknown, tenantId?: string | null): void {
+    const fullKey = this.generateKey(key, tenantId);
+    this.setRandomSlab(fullKey, value);
+  }
 
   private async getMetrics() {
     if (this._metrics) return this._metrics;
@@ -498,8 +555,11 @@ export class CacheService {
     const fullKey = this.generateKey(key, tenantId);
 
     // 1. Fast Path: L1 Cache Hit (Sync)
+    // For cold categories (ENTRY, CONTENT) that are likely accessed at random,
+    // skip the LRU age update so random-access docs don't evict hot neighbours.
     const l1Start = performance.now();
-    const l1Value = this.l1.get(fullKey);
+    const coldCategory = _category === CacheCategory.ENTRY || _category === CacheCategory.CONTENT;
+    const l1Value = this.l1.get(fullKey, { updateAgeOnGet: !coldCategory });
     if (l1Value !== undefined) {
       this.stats.hits++;
       this.stats.l1Hits++;
@@ -515,6 +575,19 @@ export class CacheService {
       this.recordL1Latency(0);
       cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
       return null;
+    }
+
+    // 2.5 Random-Access Slab Hit — checked before the L2 Redis round-trip.
+    // Cold findById callers populate the slab via setForRandomAccess(); if a
+    // random doc was seen within the last 30 s it lands here instead of paying
+    // the full L2 + auth/session stack cost again.
+    const slabValue = this.getRandomSlab<T>(fullKey);
+    if (slabValue !== undefined) {
+      this.stats.hits++;
+      this.stats.l1Hits++;
+      this.recordL1Latency(performance.now() - l1Start);
+      cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
+      return slabValue;
     }
 
     // 3. Single-flight Coalescing
@@ -893,6 +966,7 @@ export class CacheService {
   async delete(key: string, tenantId?: string | null): Promise<boolean> {
     const fullKey = this.generateKey(key, tenantId);
     this.l1.delete(fullKey);
+    this.deleteRandomSlab(fullKey);
     this.cleanupTagsForKey(fullKey);
     this.removeFromPrefixMap(fullKey);
     this.negative.invalidate(fullKey);
@@ -1128,6 +1202,7 @@ export class CacheService {
 
   async invalidateAll(tenantId: string | null = "*") {
     this.l1.clear();
+    this._randomSlab.clear();
     this.tagMap.clear();
     this.keyToTags.clear();
     this.prefixMap.clear();
@@ -1210,6 +1285,7 @@ export class CacheService {
   async destroy(): Promise<void> {
     await this.cleanup();
     this.l1.clear();
+    this._randomSlab.clear();
     this.tagMap.clear();
     this.keyToTags.clear();
     this.prefixMap.clear();
