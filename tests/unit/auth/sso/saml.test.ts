@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/saml.test.ts
+ * @file tests/unit/auth/sso/saml.test.ts
  * @description SAML Authentication Service Unit Tests (Dual Bun/Vitest Runner Support)
  *
  * Tests:

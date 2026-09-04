@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/totp-pure.test.ts
+ * @file tests/unit/auth/totp/totp-pure.test.ts
  * @description Pure unit test suite for RFC 6238 TOTP two-factor authentication functions.
  *
  * Features tested:

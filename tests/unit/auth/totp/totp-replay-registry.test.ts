@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/totp-replay-registry.test.ts
+ * @file tests/unit/auth/totp/totp-replay-registry.test.ts
  * @description Unit tests for TOTP replay attack prevention registry
  */
 

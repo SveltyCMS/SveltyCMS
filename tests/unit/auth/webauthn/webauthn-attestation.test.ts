@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/webauthn-attestation.test.ts
+ * @file tests/unit/auth/webauthn/webauthn-attestation.test.ts
  * @description Unit tests for WebAuthn attestation parsing and signature verification.
  */
 

@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/rbac-audit-trail.test.ts
+ * @file tests/unit/auth/roles/rbac-audit-trail.test.ts
  * @description Unit tests for cryptographic RBAC audit trail (ROLE_MUTATED / ROLE_DELETED).
  */
 

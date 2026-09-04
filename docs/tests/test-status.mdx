@@ -175,15 +175,15 @@ Details: [git-workflow.mdx](./git-workflow.mdx)
 
 ### Session & RBAC hardening (2026-08-04)
 
-|                 |                                                                                                                                                                                                                                                                                                                          |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Status**      | **Shipped** — three hardening rounds; full unit suite green (3073)                                                                                                                                                                                                                                                       |
-| **Product**     | Device policy (`single-per-device` / `single-per-user` / `allow-multiple`), `SESSION_TTL_HOURS`, `SESSION_IDLE_HOURS`, block propagation purge, credential-free session snapshots, log-only IP/UA anomaly detection, `SESSION_MAX_PER_USER` LRU cap, step-up re-auth for cross-session revoke, admin session console API |
-| **Unit**        | `tests/unit/auth/auth-lockout.test.ts` (device policy, TTL, max sessions) · `tests/unit/auth/session-user.test.ts` (snapshot stripping, store hygiene, anomaly evaluation) · `tests/unit/hooks/authentication.test.ts` (stripping, warm-cache, anomaly) · `tests/unit/api/user.test.ts` (reauth proof, admin console)    |
-| **Integration** | Covered by existing auth integration suites (session create/revoke/rotate)                                                                                                                                                                                                                                               |
-| **Bench**       | `tests/benchmarks/hooks-performance.test.ts` — full auth pipeline **0.612 ± 0.010 ms** (3-run mean, ~1,363 RPS) vs 0.856 ms July baseline (~29% faster)                                                                                                                                                                  |
-| **Docs**        | [login-security](../reference/security/login-security.mdx) · [cache-system](../reference/architecture/cache-system.mdx) · [hook-test-coverage](./hook-test-coverage.mdx) · [roadmap](../project/roadmap-2026.mdx)                                                                                                        |
-| **Open**        | Admin session console **UI** (Access Management); browser golden for revoke flow; anomaly → alerting integration                                                                                                                                                                                                         |
+|                 |                                                                                                                                                                                                                                                                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Status**      | **Shipped** — three hardening rounds; full unit suite green (3073)                                                                                                                                                                                                                                                             |
+| **Product**     | Device policy (`single-per-device` / `single-per-user` / `allow-multiple`), `SESSION_TTL_HOURS`, `SESSION_IDLE_HOURS`, block propagation purge, credential-free session snapshots, log-only IP/UA anomaly detection, `SESSION_MAX_PER_USER` LRU cap, step-up re-auth for cross-session revoke, admin session console API       |
+| **Unit**        | `tests/unit/auth/auth-lockout.test.ts` (device policy, TTL, max sessions) · `tests/unit/auth/sessions/session-user.test.ts` (snapshot stripping, store hygiene, anomaly evaluation) · `tests/unit/hooks/authentication.test.ts` (stripping, warm-cache, anomaly) · `tests/unit/api/user.test.ts` (reauth proof, admin console) |
+| **Integration** | Covered by existing auth integration suites (session create/revoke/rotate)                                                                                                                                                                                                                                                     |
+| **Bench**       | `tests/benchmarks/hooks-performance.test.ts` — full auth pipeline **0.612 ± 0.010 ms** (3-run mean, ~1,363 RPS) vs 0.856 ms July baseline (~29% faster)                                                                                                                                                                        |
+| **Docs**        | [login-security](../reference/security/login-security.mdx) · [cache-system](../reference/architecture/cache-system.mdx) · [hook-test-coverage](./hook-test-coverage.mdx) · [roadmap](../project/roadmap-2026.mdx)                                                                                                              |
+| **Open**        | Admin session console **UI** (Access Management); browser golden for revoke flow; anomaly → alerting integration                                                                                                                                                                                                               |
 
 ### ContentSync / compilation / Collection Builder (2026-07-31)
 
@@ -323,7 +323,7 @@ Details: [git-workflow.mdx](./git-workflow.mdx)
 |             |                                                                                                                                                                                                                                             |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Status**  | **35 new unit tests** — AES-256-GCM TOTP encryption (round-trip, tamper detection, legacy compat), trusted device tokens (gen/verify/reject), `afterAuthenticate` hook (deny/requires2FA/fail-open/skip disabled), configurable TOTP window |
-| **Unit**    | `tests/unit/auth/totp-encryption.test.ts` (20 tests), `tests/unit/plugins/registry-auth-hooks.test.ts` (15 tests)                                                                                                                           |
+| **Unit**    | `tests/unit/auth/totp/totp-encryption.test.ts` (20 tests), `tests/unit/plugins/registry-auth-hooks.test.ts` (15 tests)                                                                                                                      |
 | **Product** | TOTP secrets encrypted at rest; pending setup state (resumable enrollment); `__Host-2fa-trusted-device` cookie; plugin auth hooks in `signInInternal`                                                                                       |
 | **Docs**    | [auth.mdx](../reference/api/auth.mdx) · [authentication-system.mdx](../reference/security/authentication-system.mdx) · [plugin architecture](../development/plugins/architecture.mdx)                                                       |
 
@@ -409,7 +409,7 @@ bun run scripts/run-integration.ts --no-build tests/integration/api/webhooks.tes
 bun run test:unit -- tests/unit/services/field-write-guard.test.ts tests/unit/services/field-permission-service.test.ts
 
 # Ultra-smart unit slice (auth, boundary, queue/redirects remotes)
-bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/client-import-boundary.test.ts tests/unit/api/testing-login-cookie-contract.test.ts tests/unit/utils/page-guards.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts tests/unit/routes/queue-remote-admin.test.ts tests/unit/routes/queue-actions.server.test.ts tests/unit/routes/redirects-remote-admin.test.ts tests/unit/api/namespace-ownership.test.ts
+bun run test:unit -- tests/unit/auth/sessions/session-cookies.test.ts tests/unit/live/client-import-boundary.test.ts tests/unit/api/testing-login-cookie-contract.test.ts tests/unit/utils/page-guards.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts tests/unit/routes/queue-remote-admin.test.ts tests/unit/routes/queue-actions.server.test.ts tests/unit/routes/redirects-remote-admin.test.ts tests/unit/api/namespace-ownership.test.ts
 
 # Databases whitebox + Auth lockout (real CacheService / Auth / boot)
 bun test tests/unit/databases/ tests/unit/auth/auth-lockout.test.ts
@@ -419,7 +419,7 @@ bun test tests/unit/core/page-utils.test.ts tests/unit/core/count-cache.test.ts
 bun test --timeout 300000 tests/integration/databases/find-page-count-contract.test.ts
 
 # 2FA encryption + trusted devices + plugin auth hooks (35 tests)
-bun test tests/unit/auth/totp-encryption.test.ts tests/unit/plugins/registry-auth-hooks.test.ts
+bun test tests/unit/auth/totp/totp-encryption.test.ts tests/unit/plugins/registry-auth-hooks.test.ts
 
 # ContentSync / compile / schema contract / builder soft-HMR slice
 bun run test:unit -- tests/unit/content/sync-content-state.test.ts tests/unit/content/collection-save-sync.test.ts tests/unit/content/schema-contract.test.ts tests/unit/compilation/compile-manifest.test.ts tests/unit/stores/collection-store-reactive.test.ts tests/unit/collectionbuilder/

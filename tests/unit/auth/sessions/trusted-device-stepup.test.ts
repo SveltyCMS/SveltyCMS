@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/trusted-device-stepup.test.ts
+ * @file tests/unit/auth/sessions/trusted-device-stepup.test.ts
  * @description Unit tests for trusted-device session elevation and step-up MFA enforcement.
  */
 

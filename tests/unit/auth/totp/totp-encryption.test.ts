@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/totp-encryption.test.ts
+ * @file tests/unit/auth/totp/totp-encryption.test.ts
  * @description Unit tests for TOTP secret encryption/decryption, trusted device tokens,
  *              and backward compatibility with legacy plaintext secrets.
  */
@@ -60,10 +60,14 @@ describe("TOTP Secret Encryption", () => {
   });
 
   it("should decrypt to null for tampered ciphertext", async () => {
-    const { encryptTotpSecret, decryptTotpSecret } = await import("@src/databases/auth/totp");
+    process.env.ENCRYPTION_KEY = ENCRYPTION_KEY;
+    const { encryptTotpSecret, decryptTotpSecret, resetTotpEncryptionKeyCache } =
+      await import("@src/databases/auth/totp");
+    resetTotpEncryptionKeyCache();
     const original = "JBSWY3DPEHPK3PXP";
 
     const encrypted = await encryptTotpSecret(original);
+    expect(encrypted).not.toBe(original);
     // Tamper with the ciphertext by flipping a byte in the middle
     const tampered = encrypted.substring(0, 20) + "X" + encrypted.substring(21);
 

@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/session-manager.test.ts
+ * @file tests/unit/auth/sessions/session-manager.test.ts
  * @description Unit test suite for SveltyCMS session persistence manager.
  *
  * Features tested:
@@ -17,7 +17,7 @@ import {
   getDefaultSessionManager,
   InMemorySessionManager,
 } from "@src/databases/auth/session-manager";
-import { createMockUser } from "../utils/mock-factories";
+import { createMockUser } from "../../utils/mock-factories";
 
 describe("Session Manager (Unit Suite)", () => {
   it("stores, retrieves, and deletes sessions in memory", async () => {

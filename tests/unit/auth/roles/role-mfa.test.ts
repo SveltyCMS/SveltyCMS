@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/role-mfa.test.ts
+ * @file tests/unit/auth/roles/role-mfa.test.ts
  * @description Unit tests for per-role MFA enforcement (mfaRequired) and session AMR tracking.
  */
 

@@ -44,15 +44,15 @@ tags:
 
 ### P0 — Core (must stay green on **all** DB adapters)
 
-| Domain                              | Unit                                      | Integration                                                             |
-| ----------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------- |
-| Auth login / session                | `tests/unit/auth/session-cookies.test.ts` | `session-page-load.test.ts`, `user.test.ts`, `auth-lockout`, `contract` |
-| User CRUD + batch                   | page-server / permission helpers          | `user.test.ts`, `user-extended`                                         |
-| Collections content                 | content / dispatcher edges                | `collections.test.ts`, contract                                         |
-| Media write/delete                  | media unit + permissions                  | `media.test.ts`                                                         |
-| Setup post-complete gate            | setup hooks                               | `setup-actions.test.ts`                                                 |
-| Fail-closed unknown API             | namespace ownership + dispatcher matrix   | security negatives / contract                                           |
-| Multi-tenant isolation (when MT on) | tenant unit                               | isolation + contract                                                    |
+| Domain                              | Unit                                               | Integration                                                             |
+| ----------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------- |
+| Auth login / session                | `tests/unit/auth/sessions/session-cookies.test.ts` | `session-page-load.test.ts`, `user.test.ts`, `auth-lockout`, `contract` |
+| User CRUD + batch                   | page-server / permission helpers                   | `user.test.ts`, `user-extended`                                         |
+| Collections content                 | content / dispatcher edges                         | `collections.test.ts`, contract                                         |
+| Media write/delete                  | media unit + permissions                           | `media.test.ts`                                                         |
+| Setup post-complete gate            | setup hooks                                        | `setup-actions.test.ts`                                                 |
+| Fail-closed unknown API             | namespace ownership + dispatcher matrix            | security negatives / contract                                           |
+| Multi-tenant isolation (when MT on) | tenant unit                                        | isolation + contract                                                    |
 
 Critical test manifest: `tests/critical-test-paths.ts` (manifest + validation combined; `validate-p0-coverage.ts` is a ghost reference — the `critical-test-paths.ts` file is the single source of truth)
 
@@ -89,7 +89,7 @@ redirects / queue mutations use **SvelteKit remotes** (no REST) — unit `requir
 
 | Suite                    | Path                                                      | Proves                                                                                             |
 | ------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Session cookies          | `tests/unit/auth/session-cookies.test.ts`                 | Loopback never Secure/\_\_Host-; name + read order                                                 |
+| Session cookies          | `tests/unit/auth/sessions/session-cookies.test.ts`        | Loopback never Secure/\_\_Host-; name + read order                                                 |
 | Client import boundary   | `tests/unit/live/client-import-boundary.test.ts`          | **Exhaustive** walk of client roots for `node:*` / ollama / event-bus / ai-service static imports  |
 | Testing login dual-write | `tests/unit/api/testing-login-cookie-contract.test.ts`    | `/api/testing` login Set-Cookie + x-test-session-id                                                |
 | Page guards              | `tests/unit/utils/page-guards.test.ts`                    | getAuthenticatedUser / requirePagePermission fail-closed                                           |
@@ -107,7 +107,7 @@ redirects / queue mutations use **SvelteKit remotes** (no REST) — unit `requir
 Run unit slice:
 
 ```bash
-bun run test:unit -- tests/unit/auth/session-cookies.test.ts tests/unit/live/client-import-boundary.test.ts tests/unit/utils/page-guards.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts tests/unit/api/testing-login-cookie-contract.test.ts
+bun run test:unit -- tests/unit/auth/sessions/session-cookies.test.ts tests/unit/live/client-import-boundary.test.ts tests/unit/utils/page-guards.test.ts tests/unit/routes/collectionbuilder-page-server.test.ts tests/unit/api/testing-login-cookie-contract.test.ts
 ```
 
 Run integration (server must be up via runner):

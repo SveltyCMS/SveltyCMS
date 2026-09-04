@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/session-user.test.ts
+ * @file tests/unit/auth/sessions/session-user.test.ts
  * @description Whitebox proofs for credential-free session snapshots and
  * session-context anomaly evaluation.
  *

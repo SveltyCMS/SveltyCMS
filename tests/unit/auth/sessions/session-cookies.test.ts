@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/session-cookies.test.ts
+ * @file tests/unit/auth/sessions/session-cookies.test.ts
  * @description Ultra-smart session cookie contracts for agnostic / loopback / HTTPS deploys.
  *
  * Guards the class of bugs where Secure/__Host- cookies over http://127.0.0.1

@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/auth/webauthn-cbor.test.ts
+ * @file tests/unit/auth/webauthn/webauthn-cbor.test.ts
  * @description Unit tests for CBOR decoder
  */
 import { describe, expect, it } from "vitest";

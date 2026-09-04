@@ -1,5 +1,5 @@
 /**
- * @file tests/unit/role-permission-access.test.ts
+ * @file tests/unit/auth/roles/role-permission-access.test.ts
  * @description Tests for role and permission management in the Auth system
  *
  * This test file validates:

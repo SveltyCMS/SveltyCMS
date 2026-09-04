@@ -101,7 +101,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
    - Capped variant matrix generation to 500 combinations to prevent Cartesian DoS attacks.
    - Protocol-validated `trackingUrl` (only `https?://` allowed).
 
-**Tests**: `tests/unit/security/safe-redirect.test.ts`, `tests/unit/plugins/commerce.test.ts`, `tests/unit/databases/escape-like.test.ts`, `tests/unit/auth/session-cookies.test.ts`.
+**Tests**: `tests/unit/security/safe-redirect.test.ts`, `tests/unit/plugins/commerce.test.ts`, `tests/unit/databases/escape-like.test.ts`, `tests/unit/auth/sessions/session-cookies.test.ts`.
 
 ### 5. April 2026 Security Assessment & Hardening
 
@@ -247,7 +247,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 ### Pen-Test Hardening Batch (August 2026)
 
-External penetration-test findings closed with regression coverage in `tests/unit/security/login-hardening.test.ts`, `tests/unit/api/auth-2fa.test.ts`, `tests/unit/auth/totp-encryption.test.ts`, and `tests/unit/security/egress-guard.test.ts`:
+External penetration-test findings closed with regression coverage in `tests/unit/security/login-hardening.test.ts`, `tests/unit/api/auth-2fa.test.ts`, `tests/unit/auth/totp/totp-encryption.test.ts`, and `tests/unit/security/egress-guard.test.ts`:
 
 - **Passwordless API login blocked (Critical)** — `AuthNamespace.login` requires a password and `handleLogin` validates the body with `loginFormSchema`; email-only bodies return 401 without a session.
 - **Passwordless 2FA verify closed (High)** — `verify2FA` (form + API) accepts the TOTP code only together with a short-lived signed pending-2FA token minted after a successful password login, plus per-client rate limiting.
@@ -291,19 +291,19 @@ SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test 
 | Timing attack resistance | `tests/unit/utils/security.test.ts` | ✅ |
 
 | OAuth/Google signup | `tests/e2e/oauth-signup-firstuser.spec.ts` | ✅ |
-| SAML authentication | `tests/unit/auth/saml.test.ts` | ✅ |
+| SAML authentication | `tests/unit/auth/sso/saml.test.ts` | ✅ |
 
 ---
 
 ## Authorization & Access Control
 
-| Feature                          | Test Location                                    | Status |
-| -------------------------------- | ------------------------------------------------ | ------ |
-| Role-based access control (RBAC) | `tests/unit/hooks/authorization.test.ts`         | ✅     |
-| Permission checking              | `tests/unit/auth/role-permission-access.test.ts` | ✅     |
-| Public route access              | `tests/unit/hooks/authorization.test.ts`         | ✅     |
-| Protected route redirect         | `tests/unit/hooks/authorization.test.ts`         | ✅     |
-| Admin-only endpoints             | `tests/integration/api/token.test.ts`            | ✅     |
+| Feature                          | Test Location                                          | Status |
+| -------------------------------- | ------------------------------------------------------ | ------ |
+| Role-based access control (RBAC) | `tests/unit/hooks/authorization.test.ts`               | ✅     |
+| Permission checking              | `tests/unit/auth/roles/role-permission-access.test.ts` | ✅     |
+| Public route access              | `tests/unit/hooks/authorization.test.ts`               | ✅     |
+| Protected route redirect         | `tests/unit/hooks/authorization.test.ts`               | ✅     |
+| Admin-only endpoints             | `tests/integration/api/token.test.ts`                  | ✅     |
 
 | Unauthorized access blocked | `tests/integration/api/collections.test.ts` | ✅ |
 | Plugin sandbox isolation | `tests/unit/plugins/sandbox.test.ts` | ✅ |
