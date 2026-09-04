@@ -8,6 +8,10 @@
  * ### Transformer version history
  * v5 — Deterministic widget UUIDs, scoped schema injection, safe .js extensions,
  *       alias→extension fallthrough, declaration-position widget guard.
+ * v6 — Widget UUID injection moved to the first-argument object literal (fires
+ *       for both bare `widgets.X({...})` and `globalThis.widgets.X({...})`);
+ *       composite now descends after schema _id/tenantId injection so passes
+ *       nested under exported schema objects (widget calls in `fields`) run.
  */
 
 import * as ts from "typescript";
@@ -50,6 +54,30 @@ function makeUuidFactory(sourceFileName: string) {
       hex.slice(20, 32),
     ].join("-");
   };
+}
+
+// ─── Widget factory call detection (shared) ────────────────────────────
+/** True when the call is `widgets.X(...)` or `globalThis.widgets.X(...)`. */
+function isWidgetFactoryCall(call: ts.CallExpression): boolean {
+  const callee = call.expression;
+  if (!ts.isPropertyAccessExpression(callee)) return false;
+  const base = callee.expression;
+  if (ts.isIdentifier(base)) return base.text === "widgets";
+  return (
+    ts.isPropertyAccessExpression(base) &&
+    ts.isIdentifier(base.expression) &&
+    base.expression.text === "globalThis" &&
+    ts.isIdentifier(base.name) &&
+    base.name.text === "widgets"
+  );
+}
+
+/** True when an object literal already carries a `uuid` property. */
+function hasUuidProperty(obj: ts.ObjectLiteralExpression): boolean {
+  return obj.properties.some(
+    (prop) =>
+      ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === "uuid",
+  );
 }
 
 // ─── Guard: is this identifier a declaration name (don't rewrite)? ──────
@@ -101,41 +129,28 @@ export const widgetTransformer: ts.TransformerFactory<ts.SourceFile> =
         );
       }
 
-      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
-        const isWidgetCall =
-          ts.isPropertyAccessExpression(node.expression.expression) &&
-          ts.isIdentifier(node.expression.expression.expression) &&
-          node.expression.expression.expression.text === "globalThis" &&
-          ts.isIdentifier(node.expression.expression.name) &&
-          node.expression.expression.name.text === "widgets";
-        if (
-          isWidgetCall &&
-          node.arguments.length > 0 &&
-          ts.isObjectLiteralExpression(node.arguments[0])
-        ) {
-          const objectLiteral = node.arguments[0];
-          const hasUuid = objectLiteral.properties.some(
-            (prop) =>
-              ts.isPropertyAssignment(prop) &&
-              ts.isIdentifier(prop.name) &&
-              prop.name.text === "uuid",
-          );
-          if (!hasUuid) {
-            const uuidProperty = ts.factory.createPropertyAssignment(
-              "uuid",
-              ts.factory.createStringLiteral(getUuid()),
-            );
-            const updatedProperties = [uuidProperty, ...objectLiteral.properties];
-            const updatedObjectLiteral = ts.factory.updateObjectLiteralExpression(
-              objectLiteral,
-              updatedProperties,
-            );
-            return ts.factory.updateCallExpression(node, node.expression, node.typeArguments, [
-              updatedObjectLiteral,
-              ...node.arguments.slice(1),
-            ]);
-          }
-        }
+      // Widget call argument UUID injection (deterministic, hash-derived).
+      // Fires on the FIRST-ARGUMENT object literal of a widget factory call
+      // (`widgets.X({...})` or pre-written `globalThis.widgets.X({...})`), never
+      // on the call node itself: in this pre-order traversal the callee
+      // identifier is still bare `widgets` when the call is visited, so a
+      // call-level check can never observe the rewritten `globalThis.widgets`.
+      // Injecting on the argument lets the framework rebuild the call with the
+      // enriched object; descend afterwards so nested widget calls (groups,
+      // repeaters) are processed too.
+      if (
+        ts.isObjectLiteralExpression(node) &&
+        node.parent &&
+        ts.isCallExpression(node.parent) &&
+        node.parent.arguments[0] === node &&
+        isWidgetFactoryCall(node.parent) &&
+        !hasUuidProperty(node)
+      ) {
+        const withUuid = ts.factory.updateObjectLiteralExpression(node, [
+          ts.factory.createPropertyAssignment("uuid", ts.factory.createStringLiteral(getUuid())),
+          ...node.properties,
+        ]);
+        return ts.visitEachChild(withUuid, visitor, context);
       }
 
       return ts.visitEachChild(node, visitor, context);
@@ -539,42 +554,36 @@ export function createCompositeTransformer(
               ...obj.properties,
             ]);
           }
-          return obj;
+          // 🐛 v6: DESCEND after injection. Returning the updated object here
+          // without visiting its children skipped every later pass for content
+          // nested under an exported schema (fields arrays hold the widget
+          // factory calls): `widgets` identifiers stayed bare and no widget-call
+          // UUID was ever injected for the canonical collection shape.
+          return ts.visitEachChild(obj, visitor, context);
         }
       }
 
-      // ── Widget call UUID injection (deterministic) ───────────────
-      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
-        const e = node.expression;
-        if (
-          ts.isPropertyAccessExpression(e.expression) &&
-          ts.isIdentifier(e.expression.expression) &&
-          e.expression.expression.text === "globalThis" &&
-          ts.isIdentifier(e.expression.name) &&
-          e.expression.name.text === "widgets" &&
-          node.arguments.length > 0 &&
-          ts.isObjectLiteralExpression(node.arguments[0])
-        ) {
-          const obj = node.arguments[0];
-          if (
-            !obj.properties.some(
-              (p) =>
-                ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === "uuid",
-            )
-          ) {
-            const updatedObj = ts.factory.updateObjectLiteralExpression(obj, [
-              ts.factory.createPropertyAssignment(
-                "uuid",
-                ts.factory.createStringLiteral(getUuid()),
-              ),
-              ...obj.properties,
-            ]);
-            return ts.factory.updateCallExpression(node, node.expression, node.typeArguments, [
-              updatedObj,
-              ...node.arguments.slice(1),
-            ]);
-          }
-        }
+      // ── Widget call argument UUID injection (deterministic) ────────
+      // Fires on the FIRST-ARGUMENT object literal of `widgets.X({...})` or
+      // `globalThis.widgets.X({...})` — never on the call node: in this
+      // pre-order traversal the callee identifier is still bare `widgets` when
+      // the call is visited, so a call-level check cannot observe the rewritten
+      // `globalThis.widgets`. Injecting on the argument lets the framework
+      // rebuild the call with the enriched object; descend afterwards so nested
+      // widget calls (groups, repeaters) are processed too.
+      if (
+        ts.isObjectLiteralExpression(node) &&
+        node.parent &&
+        ts.isCallExpression(node.parent) &&
+        node.parent.arguments[0] === node &&
+        isWidgetFactoryCall(node.parent) &&
+        !hasUuidProperty(node)
+      ) {
+        const withUuid = ts.factory.updateObjectLiteralExpression(node, [
+          ts.factory.createPropertyAssignment("uuid", ts.factory.createStringLiteral(getUuid())),
+          ...node.properties,
+        ]);
+        return ts.visitEachChild(withUuid, visitor, context);
       }
 
       return ts.visitEachChild(node, visitor, context);
