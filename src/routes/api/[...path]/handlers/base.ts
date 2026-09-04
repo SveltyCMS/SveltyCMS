@@ -17,10 +17,14 @@ const STATIC_JSON_HEADERS = { "content-type": "application/json" } as const;
 
 /**
  * Fast byte length calculator: avoids C++ Buffer.byteLength overhead
- * for standard ASCII JSON strings (the vast majority of API payloads).
+ * for small ASCII JSON strings, while using SIMD-accelerated Buffer.byteLength
+ * for larger payloads (>= 1KB) to avoid JS loop overhead on huge data loads.
  */
 function getFastByteLength(str: string): number {
   const len = str.length;
+  if (len >= 1024) {
+    return Buffer.byteLength(str, "utf8");
+  }
   for (let i = 0; i < len; i++) {
     if (str.charCodeAt(i) > 127) {
       return Buffer.byteLength(str, "utf8");
@@ -84,12 +88,13 @@ export function successResponse(
     if (!result.success) {
       return buildJsonResponse(event, result, result.error?.statusCode || 400, extraHeaders);
     }
-    // 🚀 ZERO-ALLOCATION FAST-PATH: Bypass wrapper object allocation when meta is absent
-    if (result.meta === undefined && result.data !== undefined) {
-      const serializedData =
-        typeof result.data === "string" ? result.data : (JSON.stringify(result.data) ?? "null");
-      return fastSuccessResponse(event, serializedData, result.data, status, extraHeaders);
+    // Pre-serialized string fast path
+    if (typeof result.data === "string") {
+      return fastSuccessResponse(event, result.data, result.data, status, extraHeaders);
     }
+    // 🚀 SINGLE-PASS V8 SERIALIZATION:
+    // Serializing the envelope in a single pass eliminates intermediate string allocation
+    // and concatenation overhead on large payloads (e.g. 100+ documents / 225KB+).
     const body =
       result.meta !== undefined
         ? { success: true, data: result.data, meta: result.meta }

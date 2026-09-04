@@ -10,6 +10,20 @@ async function loadApp() {
   // production deployment (uploads/imports >512KB failed with "Bad Request").
   process.env.BODY_SIZE_LIMIT = "104857600"; // 100MB
 
+  // ⚡ HARDWARE-CONCURRENT LIBUV THREADPOOL:
+  // Node.js initializes libuv threadpool once when the first async I/O / crypto / zlib
+  // runs. Setting it here before loading the handler ensures all available host cores
+  // (up to 32) are ready for concurrent compression and DB/crypto tasks.
+  if (!process.env.UV_THREADPOOL_SIZE) {
+    try {
+      const os = require("node:os");
+      const cpus = os.cpus()?.length || 4;
+      process.env.UV_THREADPOOL_SIZE = String(Math.min(32, Math.max(4, cpus)));
+    } catch {
+      process.env.UV_THREADPOOL_SIZE = "16";
+    }
+  }
+
   // Import the SvelteKit handler
   const { handler } = await import("./build/handler.js");
   const http = await import("node:http");

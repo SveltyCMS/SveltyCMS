@@ -555,10 +555,11 @@ export class CacheService {
     const fullKey = this.generateKey(key, tenantId);
 
     // 1. Fast Path: L1 Cache Hit (Sync)
-    // For cold categories (ENTRY, CONTENT) that are likely accessed at random,
-    // skip the LRU age update so random-access docs don't evict hot neighbours.
+    // For single random docs (ENTRY) that are accessed at uniform random over 100k rows,
+    // skip the LRU age update so random point reads don't evict hot collection lists.
+    // Query/list results (CONTENT) are high-traffic pages and must update LRU age to stay warm.
     const l1Start = performance.now();
-    const coldCategory = _category === CacheCategory.ENTRY || _category === CacheCategory.CONTENT;
+    const coldCategory = _category === CacheCategory.ENTRY;
     const l1Value = this.l1.get(fullKey, { updateAgeOnGet: !coldCategory });
     if (l1Value !== undefined) {
       this.stats.hits++;

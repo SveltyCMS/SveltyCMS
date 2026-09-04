@@ -15,6 +15,17 @@ async function startBunServer() {
   // 🛡️ Set body size limit before loading SvelteKit handler
   process.env.BODY_SIZE_LIMIT = process.env.BODY_SIZE_LIMIT || "104857600"; // 100MB
 
+  // ⚡ HARDWARE-CONCURRENT LIBUV THREADPOOL:
+  if (!process.env.UV_THREADPOOL_SIZE) {
+    try {
+      const os = await import("node:os");
+      const cpus = os.cpus()?.length || 4;
+      process.env.UV_THREADPOOL_SIZE = String(Math.min(32, Math.max(4, cpus)));
+    } catch {
+      process.env.UV_THREADPOOL_SIZE = "16";
+    }
+  }
+
   const host = process.env.HOST || "0.0.0.0";
   const port = Number(process.env.PORT) || 4173;
 
