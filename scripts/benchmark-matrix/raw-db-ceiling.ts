@@ -1282,7 +1282,11 @@ function fmtNum(n: number): string {
   return String(Math.round(n));
 }
 
-function printTable(engine: string, scaleResults: Map<number, OpSample[]>) {
+function printTable(
+  engine: string,
+  scaleResults: Map<number, OpSample[]>,
+  floorSamples?: Map<string, OpSample>,
+) {
   const scales = [...scaleResults.keys()].sort((a, b) => a - b);
   const s1 = scales[0];
   const s2 = scales[1] ?? scales[0];
@@ -1305,15 +1309,32 @@ function printTable(engine: string, scaleResults: Map<number, OpSample[]>) {
       const delta = a.rps > 0 ? b.rps / a.rps : 0;
       const cmsKey = op === "insert" ? "create" : op;
       const cms = c === 8 ? getCmsBoard(engine)[cmsKey] : undefined;
-      const cmsStr = cms
-        ? `${String(cms).padStart(4)} RPS (${Math.round((cms / b.rps) * 100)}% of ceil)`
-        : "—";
+      // 🎯 HONEST YARDSTICK: over HTTP the binding ceiling is the raw HTTP
+      // floor (driver + transport + JSON framing) — the in-process driver
+      // ceiling is only reachable via LocalCMS/SDK records. Prefer floor % for
+      // HTTP-layer CMS records; fall back to ceil % for SDK/DB-layer records.
+      let cmsStr = "—";
+      if (cms) {
+        const { layers } = getCmsBoardEntry(engine);
+        const layer = layers[cmsKey] || "default";
+        const comparable = layer === "HTTP" || layer === "env-override";
+        const floor = comparable ? floorSamples?.get(cmsKey) : undefined;
+        const vsFloor = comparable && floor && floor.rps > 0;
+        const pct = vsFloor
+          ? Math.round((cms / floor!.rps) * 100)
+          : Math.round((cms / b.rps) * 100);
+        cmsStr = `${String(cms).padStart(4)} RPS (${pct}% of ${vsFloor ? "HTTP floor" : "driver ceil"})`;
+      }
       console.log(
         `│ ${OP_LABELS[op].padEnd(21)}  ${String(c).padStart(3)}  ${fmtNum(a.rps).padStart(6)}  ${fmtMs(a.avgMs).padStart(8)}  ${fmtNum(b.rps).padStart(6)}  ${fmtMs(b.avgMs).padStart(8)}  ${(delta >= 1 ? "+" : "") + delta.toFixed(2)}×  ${cmsStr}`,
       );
     }
   }
   console.log(`└────────────────────────────────────────────────────────────────────────────────`);
+  console.log(
+    `  CMS yardstick: % of HTTP floor when a floor sample + HTTP-layer CMS record exist (the ` +
+      `honest middleware tax); % of driver ceil otherwise (SDK/DB-layer records).`,
+  );
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -1370,7 +1391,7 @@ async function startRawHttpServer(
   };
 }
 
-async function benchRawHttpFloor(engine: Engine): Promise<void> {
+async function benchRawHttpFloor(engine: Engine): Promise<Map<string, OpSample>> {
   if (typeof engine.rawOp !== "function") return;
   const { port, close } = await startRawHttpServer(engine);
   const base = `http://127.0.0.1:${port}`;
@@ -1407,6 +1428,7 @@ async function benchRawHttpFloor(engine: Engine): Promise<void> {
     );
   }
   console.log(`└─────────────────────────────────────────────────────────────────────────`);
+  return floorSamples;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -1455,9 +1477,11 @@ async function main() {
         const samples = await engine.bench();
         scaleResults.set(scale, samples);
       }
-      printTable(engine.name, scaleResults);
-      // Honest comparison: the same ops behind bare HTTP (driver + JSON only).
-      await benchRawHttpFloor(engine);
+      // Measure the bare-HTTP floor FIRST so the ceiling table can cite
+      // "% of HTTP floor" (the honest yardstick) instead of the unreachable
+      // in-process driver % for HTTP-layer CMS records.
+      const floorSamples = await benchRawHttpFloor(engine);
+      printTable(engine.name, scaleResults, floorSamples);
     } catch (err: any) {
       console.error(`\n❌ ${engine.name} FAILED: ${err?.message || err}`);
       if (process.env.RAW_CEILING_DEBUG === "true") console.error(err?.stack);
@@ -1470,8 +1494,8 @@ async function main() {
     `\n✅ Done. ΔRPS = 100k RPS ÷ 1k RPS (1.0 = latency-neutral; <1 = degrades at scale).`,
   );
   console.log(
-    `   Engine ceiling = in-process driver (unreachable over HTTP). Raw HTTP floor = driver + ` +
-      `HTTP + JSON framing — CMS/floor % is the honest middleware tax.`,
+    `   Engine ceiling = in-process driver (unreachable over HTTP; reachable via LocalCMS).` +
+      ` Raw HTTP floor = driver + HTTP + JSON framing — CMS/floor % is the honest middleware tax.`,
   );
   console.log(
     `   CMS column: freshest recorded benchmark (tests/benchmarks/results/, ≤30 days, ` +
