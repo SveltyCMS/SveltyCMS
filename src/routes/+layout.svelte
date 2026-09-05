@@ -222,7 +222,19 @@ $effect(() => {
 			if (page.data.navigationStructure) {
 				if (page.data.navigationStructure !== lastAppliedNavigationStructure) {
 					lastAppliedNavigationStructure = page.data.navigationStructure;
-					applyRemoteContentStructure(page.data.navigationStructure);
+					// `navigationStructure` is the LAZY nav tree (maxDepth 1 — deeper nodes are
+					// omitted and only flagged via `hasChildren`). The collection store holds the
+					// COMPLETE FLAT node list, which is what the Collection Builder board and the
+					// sidebar tree rebuild their hierarchy from. Feeding them the truncated tree
+					// dropped every nested node, so a collection dragged into a category vanished
+					// on refresh. `contentNodes` is the full flat list from the same load; fall
+					// back to the nav tree only when it is absent (e.g. login/setup routes).
+					const flatNodes = page.data.contentNodes;
+					applyRemoteContentStructure(
+						Array.isArray(flatNodes) && flatNodes.length > 0
+							? flatNodes
+							: page.data.navigationStructure,
+					);
 					// Initialize the modern content system with hydration data
 					initializeContent(page.data as any);
 				}
