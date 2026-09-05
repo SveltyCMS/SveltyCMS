@@ -355,6 +355,7 @@ search filtering, and RTL support.
         if (node.disabled) return;
 
         const hasKids = !!(node.children && node.children.length > 0);
+        const canExpand = hasKids || canNestInto(node);
         const isMediaRoot = variant === 'media' && node.id === 'root';
 
         if (isMediaRoot) {
@@ -368,7 +369,7 @@ search filtering, and RTL support.
             return;
         }
 
-        if (hasKids) {
+        if (canExpand) {
             const opening = !expandedIds.has(node.id);
             setNodeExpanded(node.id, opening);
             if (opening) handleExpand?.(node);
@@ -414,7 +415,7 @@ search filtering, and RTL support.
                 break;
             case 'ArrowRight':
                 event.preventDefault();
-                if (node.children && node.children.length > 0 && !expandedIds.has(node.id)) {
+                if (canNestInto(node) && !expandedIds.has(node.id)) {
                     setNodeExpanded(node.id, true);
                     handleExpand?.(node);
                 } else if (node.children && idx < v.length - 1) {
@@ -563,7 +564,7 @@ search filtering, and RTL support.
     {@const showBadge = shouldShowBadge(node)}
     {@const isMedia = variant === 'media'}
     {@const isRoot = depth === 0 && node.id === 'root'}
-    {@const showChevron = hasChildren}
+    {@const showChevron = hasChildren || canNestInto(node)}
     {@const mediaIconTone = 'text-surface-300 dark:text-surface-400'}
     {@const mediaRootText = 'text-surface-200 dark:text-surface-400'}
     {@const mediaFolderText = 'text-surface-400 dark:text-surface-400'}
@@ -587,7 +588,7 @@ search filtering, and RTL support.
         role="treeitem"
         id={`treenode-${node.id}`}
         tabindex={isFocused || (selectedId === node.id) || (focusedNodeId === null && depth === 0) ? 0 : -1}
-        aria-expanded={hasChildren ? expanded : undefined}
+        aria-expanded={showChevron ? expanded : undefined}
         aria-selected={isSelected}
         aria-level={depth + 1}
         aria-setsize={-1}

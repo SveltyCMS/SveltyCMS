@@ -340,7 +340,8 @@ contentStructureSchema.statics = {
 
   /**
    * Persists a full or partial content structure reorder.
-   * This method updates parentId, order, and path atomically.
+   * This method updates hierarchy fields atomically. Collection paths are
+   * stable schema identifiers and must not change during reparenting.
    */
   async reorderStructure(
     items: ContentStructureReorderItem[],
@@ -361,7 +362,6 @@ contentStructureSchema.statics = {
               $set: {
                 parentId: item.parentId,
                 order: item.order,
-                path: item.path,
               },
             },
           },

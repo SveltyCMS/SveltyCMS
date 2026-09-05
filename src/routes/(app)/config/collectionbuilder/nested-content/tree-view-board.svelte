@@ -42,12 +42,15 @@ import type { ContentNode, DatabaseId } from "@databases/db-interface";
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { tick } from "svelte";
-import { draggable, droppable, dndState } from "@thisux/sveltednd";
+import { droppable, dndState } from "@thisux/sveltednd";
 import type { DragDropState } from "@thisux/sveltednd";
+import { liftAndCarry } from "@utils/media/media-lift-drag";
+import { suppressNativeDragGhost } from "@utils/media/media-dnd";
 import { SvelteSet } from "svelte/reactivity";
 import { screen } from "@src/stores/screen-size-store.svelte.ts";
 // Components
 import TreeViewNode from "./tree-view-node.svelte";
+import TreeDragPreview from "./tree-drag-preview.svelte";
 import Button from "@components/ui/button.svelte";
 import FloatingInput from "@components/ui/floating-input.svelte";
 
@@ -943,7 +946,11 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 			</p>
 		</div>
 	{:else}
-		<div role="group">
+		<div
+			role="group"
+			aria-label="Content Organization Tree"
+		>
+			<TreeDragPreview />
 			{#each treeRoots as item (item.id)}
 				{@render treeNode(item, 0)}
 			{/each}
@@ -969,16 +976,14 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 			class:line-before={lineFor(item.id) === "before"}
 			class:line-after={lineFor(item.id) === "after"}
 			class:drag-source={dndState.isDragging && dragSourceId === item.id}
-			use:draggable={{
+			use:liftAndCarry={{
 				container: "tree",
 				dragData: { itemId: item.id },
 				disabled: !!searchText,
 				interactive: INTERACTIVE,
-				// Touch devices drag from the grip only, so a swipe on the row still
-				// scrolls the list. Pointer devices can drag the row anywhere.
-				handle: screen.isDesktop ? undefined : ".drag-handle",
 				callbacks: { onDragStart: () => handleDragStart(item), onDragEnd: endDrag },
 			}}
+			ondragstart={suppressNativeDragGhost}
 			ondragover={(e: DragEvent) => handleRowDragOver(item, e)}
 			use:droppable={{
 				container: `node:${item.id}`,
@@ -1119,18 +1124,5 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 
 	.collection-builder-tree.is-dragging {
 		user-select: none;
-	}
-
-	/* The draggable action sets `touch-action: none` inline on every row, which
-	   would make the list unscrollable on touch. Give the row back vertical
-	   panning and keep the drag opt-out on the grip only. */
-	@media (hover: none) {
-		.tree-row {
-			touch-action: pan-y !important;
-		}
-
-		.tree-row :global(.drag-handle) {
-			touch-action: none;
-		}
 	}
 </style>

@@ -62,8 +62,8 @@ const containerClass = $derived(
 	isCategory && isSelectedCategory
 		? `${base} bg-primary-500/20 dark:bg-primary-600/25 border-primary-500`
 		: isCategory
-			? `${base} bg-tertiary-500/10 border-s-4 border-s-tertiary-500 border-tertiary-500/30 hover:border-tertiary-500`
-			: `${base} bg-surface-500/10 dark:bg-surface-700 border-s-4 border-s-primary-500 border-surface-500/40 hover:border-surface-500`,
+			? `${base} bg-tertiary-500/10 border-tertiary-500/30 hover:border-tertiary-500`
+			: `${base} bg-surface-500/10 dark:bg-surface-700 border-surface-500/40 hover:border-surface-500`,
 );
 
 const iconClass = $derived(isCategory ? "text-tertiary-500" : "text-error-500");

@@ -8,7 +8,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const bulkUpdate = vi.fn().mockResolvedValue({ success: true });
-const deleteMany = vi.fn().mockResolvedValue({ success: true });
+const deleteMany = vi
+  .fn()
+  .mockImplementation((paths: string[]) =>
+    Promise.resolve({ success: true, data: { deletedCount: paths.length } }),
+  );
 const updateVersion = vi.fn();
 
 vi.mock("@src/databases/db", () => ({

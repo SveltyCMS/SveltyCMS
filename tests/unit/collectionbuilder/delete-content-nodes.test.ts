@@ -46,7 +46,11 @@ function makeEvent(tenantId: string | null = "global"): RequestEvent {
 describe("deleteContentNodes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    deleteByIds.mockResolvedValue({ found: true, paths: ["/temp-cat"] });
+    deleteByIds.mockResolvedValue({
+      found: true,
+      paths: ["/temp-cat"],
+      result: { contentStructure: [] },
+    });
   });
 
   it("delegates deletes through LocalCMS contentStructure.deleteByIds", async () => {
@@ -87,7 +91,11 @@ describe("deleteContentNodes", () => {
   });
 
   it("handles multiple IDs in a single delete call", async () => {
-    deleteByIds.mockResolvedValue({ found: true, paths: ["/a", "/b", "/c"] });
+    deleteByIds.mockResolvedValue({
+      found: true,
+      paths: ["/a", "/b", "/c"],
+      result: { contentStructure: [] },
+    });
 
     const { deleteContentNodes } =
       await import("@src/routes/(app)/config/collectionbuilder/collectionbuilder.server");

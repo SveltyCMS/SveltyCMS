@@ -14,7 +14,11 @@ import type { ContentNodeOperation } from "@src/content/types";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
-import { executeGuiStructureSave, getCollectionBuilderCms } from "./collectionbuilder-local.server";
+import {
+  executeGuiStructureSave,
+  getCollectionBuilderCms,
+  serializeStructureNodes,
+} from "./collectionbuilder-local.server";
 import { parseIdList, parseOperations } from "./collectionbuilder-utils";
 
 /** @deprecated Use `ContentNodeOperation` from `@src/content/types` */
@@ -58,7 +62,10 @@ export async function deleteContentNodes(event: RequestEvent, ids: string[]) {
     const cms = await getCollectionBuilderCms(tenantId);
     const result = await cms.contentStructure.deleteByIds(parsed, { tenantId });
     if (!result.found) return fail(404, { message: "No matching nodes found" });
-    return { success: true };
+    return {
+      success: true,
+      contentStructure: serializeStructureNodes(result.result.contentStructure ?? []),
+    };
   } catch (err) {
     logger.error("Error deleting nodes:", err);
     return fail(500, { message: "Failed to delete" });

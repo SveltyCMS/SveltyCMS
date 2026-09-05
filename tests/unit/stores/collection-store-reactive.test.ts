@@ -21,7 +21,7 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
     collections.active = null;
     collections.activeValue = {};
     collections.all = {};
-    collections.contentStructure = [];
+    collections.setContentStructure([]);
     collections.selectedEntries = [];
   });
 
@@ -88,6 +88,24 @@ describe("CollectionStore — Reactive Getters (snapshot fix)", () => {
       // Setting the same structure again should be a no-op (fingerprint circuit-breaker)
       collections.setContentStructure([...nodes]);
       expect(collections.contentStructure).toBe(structureAfterFirst);
+    });
+
+    it("rejects a stale remote echo until it confirms the pending draft", () => {
+      const firstChange = [
+        { _id: "one", name: "One", nodeType: "collection", order: 0 },
+        { _id: "two", name: "Two", nodeType: "collection", order: 1 },
+      ] as never[];
+      const latestDraft = [
+        { _id: "one", name: "One", nodeType: "collection", order: 1 },
+        { _id: "two", name: "Two", nodeType: "collection", order: 0 },
+      ] as never[];
+
+      collections.setDraftContentStructure(latestDraft);
+
+      expect(collections.applyRemoteContentStructure(firstChange)).toBe(false);
+      expect(collections.contentStructure).toBe(latestDraft);
+      expect(collections.applyRemoteContentStructure(latestDraft)).toBe(true);
+      expect(collections.contentStructure).toBe(latestDraft);
     });
 
     it("should track total as a number", () => {

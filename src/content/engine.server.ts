@@ -1162,6 +1162,11 @@ export const contentService = {
               "[ContentService] deleteMany failed for structure nodes",
           );
         }
+        if ((deleteResult.data?.deletedCount ?? 0) !== pathsToDelete.length) {
+          throw new Error(
+            `[ContentService] Expected to delete ${pathsToDelete.length} structure nodes, deleted ${deleteResult.data?.deletedCount ?? 0}`,
+          );
+        }
       }
     }
     contentStore.updateVersion();

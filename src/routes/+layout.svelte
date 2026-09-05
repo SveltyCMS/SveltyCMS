@@ -192,7 +192,7 @@ $effect(() => {
 // Initialization
 // ============================================================================
 
-import { setContentStructure } from "@src/stores/collection-store.svelte";
+import { applyRemoteContentStructure } from "@src/stores/collection-store.svelte";
 import { initializeContent } from "@src/content";
 	import Button from '@components/ui/button.svelte';
 
@@ -222,7 +222,7 @@ $effect(() => {
 			if (page.data.navigationStructure) {
 				if (page.data.navigationStructure !== lastAppliedNavigationStructure) {
 					lastAppliedNavigationStructure = page.data.navigationStructure;
-					setContentStructure(page.data.navigationStructure);
+					applyRemoteContentStructure(page.data.navigationStructure);
 					// Initialize the modern content system with hydration data
 					initializeContent(page.data as any);
 				}
