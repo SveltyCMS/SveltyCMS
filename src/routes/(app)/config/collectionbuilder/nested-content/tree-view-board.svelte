@@ -16,15 +16,14 @@ targets, so nothing appears or resizes when a drag starts:
 1. **Sort** — drop on the top/bottom half of a row inserts before/after it, as a
    sibling *at that row's level*. This is also how you move an item OUT of a
    category: drop it on the half of any row that lives at the level you want.
-2. **Nest** — sorting is the default everywhere; nesting has to be earned. The
-   pointer must be in the MIDDLE band of a category row (the outer `SORT_EDGE`
-   of its height always means "sort beside") AND come to rest there for
-   `DWELL_MS`; any travel past `DWELL_MOVE_TOLERANCE` restarts the countdown.
-   Only then does the category highlight amber and spring open, and a release
-   drops INSIDE it, appended last. Both conditions exist so that crossing a
-   category on the way to a position above or below it — or pausing at its edge
-   to aim — stays plain same-level sorting. This also covers empty categories,
-   so no placeholder drop zone is needed.
+2. **Nest** — the pointer in the MIDDLE band of a category row (the outer
+   `SORT_EDGE` of its height always means "sort beside") highlights it amber and
+   springs it open immediately, and a release drops INSIDE it, appended last.
+   Position within the row is the only thing that decides nest-vs-sort, which is
+   exactly the rule the sidebar tree (`tree-view.svelte`) uses. Reserving the
+   edges for sorting is what lets you still reorder past a category without
+   falling into it. This also covers empty categories, so no placeholder drop
+   zone is needed.
 
 Why this shape: sveltednd derives `dropPosition` from the droppable node's own
 bounding rect (`clientY < top + height/2`). So each droppable must wrap the row
@@ -33,9 +32,9 @@ expanded branch. Children therefore render as a *sibling* of the row, which also
 means no droppable is ever nested inside another droppable and a single gesture
 can only ever fire one `onDrop`.
 
-"Inside" is not a position sveltednd reports, so it is derived from dwell time on
-`onDragEnter` rather than from cursor geometry. That needs no pointer coordinates,
-which matters because `pointermove` does not fire during an HTML5 drag.
+"Inside" is not a position sveltednd reports, so it is derived from the cursor's
+offset within the row on the native `dragover` event — that event carries
+`clientX/Y` and keeps firing during an HTML5 drag, which `pointermove` does not.
 -->
 <script lang="ts">
 import type { ContentNode, DatabaseId } from "@databases/db-interface";
@@ -92,23 +91,13 @@ let {
 	onSelectCategory,
 }: Props = $props();
 
-/** How long a category must be hovered before it becomes a "drop inside" target. */
-const DWELL_MS = 500;
-
 /**
- * Fraction of a category row's height reserved at each edge for sorting.
- * Only the middle band can start a nest, so reordering past a category never
- * turns into a drop inside it.
+ * Fraction of a category row's height reserved at each edge for sorting; the
+ * middle band nests. Matches the sidebar tree (`tree-view.svelte`) so the two
+ * trees feel identical: position within the row is the ONLY thing that decides
+ * nest-vs-sort, and it responds immediately — no hold, no timers.
  */
-const SORT_EDGE = 0.3;
-
-/**
- * Pointer travel (px) that counts as "still moving". Movement beyond this
- * restarts the dwell countdown, so activation requires the pointer to come to
- * REST over a category — merely crossing one on the way somewhere else can
- * never open it, however slowly you pass.
- */
-const DWELL_MOVE_TOLERANCE = 6;
+const SORT_EDGE = 0.25;
 
 // --- Core state ---
 let searchText = $state("");
@@ -133,14 +122,9 @@ let lastStructureKey = $state(0);
 let sourceNodesById = new Map<string, ContentNode>();
 
 // --- Drag state ---
-/** Category currently dwelled on; dropping now nests inside it. */
-let dwellTargetId = $state<string | null>(null);
-let dwellTimer: ReturnType<typeof setTimeout> | null = null;
-/** Row the dwell timer is currently counting for, so re-entry doesn't restart it. */
-let dwellArmedFor: string | null = null;
+/** Category the pointer is over the middle of; dropping now nests inside it. */
+let nestTargetId = $state<string | null>(null);
 /** Pointer position the countdown was anchored at, to measure travel against. */
-let dwellAnchorX = 0;
-let dwellAnchorY = 0;
 
 /**
  * Row being dragged, set one frame AFTER dragstart. Chrome snapshots the source
@@ -160,7 +144,7 @@ let dragSourceId = $state<string | null>(null);
 function lineFor(id: string): "before" | "after" | null {
 	if (!dndState.isDragging) return null;
 	if (dndState.targetContainer !== `node:${id}`) return null;
-	if (dwellTargetId === id) return null; // nesting, not sorting
+	if (nestTargetId === id) return null; // nesting, not sorting
 	return dndState.dropPosition ?? null;
 }
 
@@ -172,7 +156,6 @@ let typeaheadBuffer = "";
 let typeaheadTimeout: ReturnType<typeof setTimeout> | null = null;
 
 $effect(() => () => {
-	if (dwellTimer) clearTimeout(dwellTimer);
 	if (typeaheadTimeout) clearTimeout(typeaheadTimeout);
 });
 
@@ -460,64 +443,35 @@ function draggedIdOf(state: DragDropState<unknown>): string | null {
 	return payload?.itemId ?? null;
 }
 
-function cancelDwell() {
-	if (dwellTimer) {
-		clearTimeout(dwellTimer);
-		dwellTimer = null;
-	}
-}
-
-/** Stop counting toward a nest on `item`, and drop the highlight if it is showing. */
-function disarmDwell(item: TreeNode) {
-	if (dwellArmedFor !== item.id) return;
-	cancelDwell();
-	dwellArmedFor = null;
-	if (dwellTargetId === item.id) dwellTargetId = null;
-}
-
-/** (Re)start the countdown toward nesting into `item`, anchored at the pointer. */
-function restartDwell(item: TreeNode, x: number, y: number) {
-	cancelDwell();
-	dwellAnchorX = x;
-	dwellAnchorY = y;
-
-	const draggedId = draggedIdOf(dndState);
-	if (!draggedId || isSelfOrDescendant(draggedId, item.id)) {
-		dwellArmedFor = null;
-		return;
-	}
-
-	dwellArmedFor = item.id;
-	dwellTimer = setTimeout(() => {
-		dwellTimer = null;
-		dwellTargetId = item.id;
-		// Spring open so the user can keep drilling into nested categories.
-		expandedNodes.add(item.id);
-	}, DWELL_MS);
+/** Clear the nest highlight if it is currently showing for `item`. */
+function clearNestTarget(item: TreeNode) {
+	if (nestTargetId === item.id) nestTargetId = null;
 }
 
 /**
  * Decide whether the pointer is asking to nest into this category or to sort
- * beside it. Sorting is the default; nesting must be earned.
+ * beside it, from pointer position alone — the same rule the sidebar tree uses:
  *
- * Two independent conditions must both hold before a category activates:
+ * - outer `SORT_EDGE` of the row (top/bottom) → sort beside it
+ * - middle band of a category → nest inside it, immediately
  *
- * 1. The pointer is in the row's middle band — the outer `SORT_EDGE` of its
- *    height always means "sort beside", so reordering past a category (e.g.
- *    dropping a collection below a trailing category to make it last) can never
- *    become a drop inside it.
- * 2. The pointer has come to REST there for `DWELL_MS`. Any travel beyond
- *    `DWELL_MOVE_TOLERANCE` restarts the countdown, so sweeping across a
- *    category on the way to a position above or below it never opens it.
+ * There is no hold-to-nest: an intent that depends on holding still is invisible
+ * until it fires, and made nesting feel unresponsive. Keeping the edges reserved
+ * for sorting is what still lets you reorder past a category without falling in.
  *
  * The native `dragover` event is used because it carries `clientX/Y` (sveltednd's
- * own callback only passes its state object) and, unlike `pointermove`, it does
- * keep firing throughout an HTML5 drag — including while the pointer is still,
- * which is what lets the countdown complete.
+ * own callback only passes its state object) and, unlike `pointermove`, it keeps
+ * firing throughout an HTML5 drag.
  */
 function handleRowDragOver(item: TreeNode, event: DragEvent) {
 	if (item.nodeType !== "category") {
-		disarmDwell(item);
+		clearNestTarget(item);
+		return;
+	}
+
+	const draggedId = draggedIdOf(dndState);
+	if (!draggedId || isSelfOrDescendant(draggedId, item.id)) {
+		clearNestTarget(item);
 		return;
 	}
 
@@ -526,27 +480,21 @@ function handleRowDragOver(item: TreeNode, event: DragEvent) {
 
 	const offset = (event.clientY - rect.top) / rect.height;
 	if (offset <= SORT_EDGE || offset >= 1 - SORT_EDGE) {
-		disarmDwell(item);
+		clearNestTarget(item);
 		return;
 	}
 
-	// Already active: hold it steady so a small tremor doesn't flip back to sorting.
-	if (dwellTargetId === item.id) return;
-
-	const travelled = Math.hypot(event.clientX - dwellAnchorX, event.clientY - dwellAnchorY);
-	if (dwellArmedFor === item.id && travelled <= DWELL_MOVE_TOLERANCE) return; // resting — let it run
-
-	restartDwell(item, event.clientX, event.clientY);
+	nestTargetId = item.id;
+	// Spring open so the user can keep drilling into nested categories.
+	expandedNodes.add(item.id);
 }
 
 function handleRowDragLeave(item: TreeNode) {
-	disarmDwell(item);
+	clearNestTarget(item);
 }
 
 function endDrag() {
-	cancelDwell();
-	dwellArmedFor = null;
-	dwellTargetId = null;
+	nestTargetId = null;
 	dragSourceId = null;
 }
 
@@ -611,11 +559,11 @@ function moveNode(draggedId: string, parentId: string | null, index: number) {
 	announce(`Moved ${node.name} to ${destination ?? "top level"}`);
 }
 
-/** Drop on a row: nest when that row is the dwelled category, otherwise sort beside it. */
+/** Drop on a row: nest when the pointer is in that category's middle band, otherwise sort beside it. */
 function handleRowDrop(item: TreeNode, state: DragDropState<unknown>) {
 	const draggedId = draggedIdOf(state);
 	const position = state.dropPosition;
-	const nestInto = dwellTargetId === item.id;
+	const nestInto = nestTargetId === item.id;
 	endDrag();
 
 	if (!draggedId || draggedId === item.id) return;
@@ -972,7 +920,7 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 		     this element's own midpoint, so it must never contain the subtree. -->
 		<div
 			class="tree-row"
-			class:nest-target={dndState.isDragging && dwellTargetId === item.id}
+			class:nest-target={dndState.isDragging && nestTargetId === item.id}
 			class:line-before={lineFor(item.id) === "before"}
 			class:line-after={lineFor(item.id) === "after"}
 			class:drag-source={dndState.isDragging && dragSourceId === item.id}
@@ -1087,7 +1035,7 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 		bottom: -3px;
 	}
 
-	/* Dwelled category: "release here to put it inside". Warning/amber on purpose
+	/* Nest target: "release here to put it inside". Warning/amber on purpose
 	   — a category's own border is tertiary blue, so a blue highlight read as
 	   ordinary chrome rather than an active drop target. Static, no animation. */
 	.tree-row.nest-target {
