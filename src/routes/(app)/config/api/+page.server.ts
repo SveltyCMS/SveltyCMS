@@ -12,14 +12,14 @@ import { isAppError, raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { contentSystem } from "@src/content/index.server";
+import { isAdmin as isAdminUser } from "@src/databases/auth/constants";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
     const user = getAuthenticatedUser(locals);
-    const isAdmin = locals.isAdmin === true;
-    const isDeveloper =
-      user.role === "developer" || user.role === "admin" || user.role === "super-admin" || isAdmin;
+    const isAdmin = isAdminUser(user);
+    const isDeveloper = user.role === "developer" || isAdmin;
 
     if (!isDeveloper) {
       logger.warn(`User ${user._id} denied access to API Playground (developer or admin required)`);

@@ -241,6 +241,7 @@ class CollectionState {
   }
 
   private lastStructureHash = "";
+  private pendingStructureHash: string | null = null;
 
   /**
    * Monotonic counter bumped on every applied structure change. Lets an async
@@ -251,8 +252,31 @@ class CollectionState {
   structureRevision = 0;
 
   setContentStructure(newContentStructure: ContentNode[]) {
+    this.pendingStructureHash = null;
+    this.applyContentStructure(newContentStructure);
+  }
+
+  setDraftContentStructure(newContentStructure: ContentNode[]) {
+    this.pendingStructureHash = structureFingerprint(newContentStructure);
+    this.applyContentStructure(newContentStructure);
+  }
+
+  applyRemoteContentStructure(newContentStructure: ContentNode[]): boolean {
+    const incomingHash = structureFingerprint(newContentStructure);
+    if (this.pendingStructureHash && incomingHash !== this.pendingStructureHash) {
+      logger.debug("CollectionState: ignored stale remote structure while draft is pending");
+      return false;
+    }
+    if (incomingHash === this.pendingStructureHash) {
+      this.pendingStructureHash = null;
+    }
+    this.applyContentStructure(newContentStructure, incomingHash);
+    return true;
+  }
+
+  private applyContentStructure(newContentStructure: ContentNode[], hash?: string) {
     // Prevent redundant syncs that trigger reactivity loops
-    const currentHash = structureFingerprint(newContentStructure);
+    const currentHash = hash ?? structureFingerprint(newContentStructure);
     if (currentHash === this.lastStructureHash) return;
     this.lastStructureHash = currentHash;
 
@@ -403,6 +427,10 @@ export const setCollectionValue = (v: Record<string, unknown>) => collections.se
 export const setModifyEntry = (v: (status?: keyof typeof statusMap) => Promise<void>) =>
   collections.setModifyEntry(v);
 export const setContentStructure = (v: ContentNode[]) => collections.setContentStructure(v);
+export const setDraftContentStructure = (v: ContentNode[]) =>
+  collections.setDraftContentStructure(v);
+export const applyRemoteContentStructure = (v: ContentNode[]) =>
+  collections.applyRemoteContentStructure(v);
 /** Current structure revision — see `CollectionState.structureRevision`. */
 export const getStructureRevision = () => collections.structureRevision;
 export const setTargetWidget = (v: Widget) => collections.setTargetWidget(v);

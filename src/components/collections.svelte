@@ -29,7 +29,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
 	import { type StatusType, StatusTypes } from '@src/content/types';
-	import { collection, contentStructure, setContentStructure } from '@src/stores/collection-store.svelte.ts';
+	import { applyRemoteContentStructure, collection, contentStructure, setDraftContentStructure } from '@src/stores/collection-store.svelte.ts';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { pinnedStore } from '@src/stores/pinned-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -546,28 +546,8 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			});
 		}
 
-		// Rebuild id-based paths from roots (stable for DB / builder)
-		const childrenByParent = new Map<string | null, ExtendedContentNode[]>();
-		for (const n of byId.values()) {
-			const p = n.parentId != null ? String(n.parentId) : null;
-			if (!childrenByParent.has(p)) childrenByParent.set(p, []);
-			childrenByParent.get(p)!.push(n);
-		}
-		const walkPaths = (parentId: string | null, parentPath: string) => {
-			const kids = [...(childrenByParent.get(parentId) ?? [])].sort(
-				(a, b) => (a.order ?? 0) - (b.order ?? 0),
-			);
-			for (const kid of kids) {
-				const id = String(kid._id);
-				kid.path = parentPath ? `${parentPath}.${id}` : id;
-				byId.set(id, kid);
-				walkPaths(id, kid.path);
-			}
-		};
-		walkPaths(null, '');
-
 		const nextStructure = Array.from(byId.values());
-		setContentStructure(nextStructure as ContentNode[]);
+		setDraftContentStructure(nextStructure as ContentNode[]);
 
 		void persistStructure(nextStructure);
 		persistOrder();
@@ -604,7 +584,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 				// Stale-response guard: a newer reorder was issued while this was in flight.
 				if (requestId !== _structureRequestId) return;
 				if (Array.isArray(updated)) {
-					setContentStructure(updated);
+					applyRemoteContentStructure(updated);
 				}
 			} catch (err) {
 				logger.error('[Collections] Structure reorder failed', err);

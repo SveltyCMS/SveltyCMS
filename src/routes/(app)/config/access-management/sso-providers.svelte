@@ -314,7 +314,7 @@ async function submitAllProviders(newProviders: SsoProviderConfig[]) {
 			<div>
 				<span class="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-2">Quick Presets</span>
 				<div class="flex flex-wrap gap-2">
-					{#each PRESET_PROVIDERS as preset}
+					{#each PRESET_PROVIDERS as preset (preset.id)}
 						<button
 							type="button"
 							onclick={() => applyPreset(preset)}
@@ -445,7 +445,7 @@ async function submitAllProviders(newProviders: SsoProviderConfig[]) {
 						<p class="text-xs text-surface-500">Automatically register new CMS users upon successful SSO login and map their IdP claims to local roles.</p>
 					</div>
 					<label class="flex items-center gap-2 cursor-pointer">
-						<input type="checkbox" bind:checked={formJitProvisioning} class="rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500" />
+						<input type="checkbox" bind:checked={formJitProvisioning} aria-label="Enable JIT provisioning" class="rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500" />
 						<span class="text-xs font-medium text-surface-600 dark:text-surface-400">Enable JIT Provisioning</span>
 					</label>
 				</div>
@@ -474,7 +474,7 @@ async function submitAllProviders(newProviders: SsoProviderConfig[]) {
 
 						<div class="flex items-center pt-5">
 							<label class="flex items-center gap-2 cursor-pointer">
-								<input type="checkbox" bind:checked={formSyncRolesOnLogin} class="rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500" />
+								<input type="checkbox" bind:checked={formSyncRolesOnLogin} aria-label="Synchronize roles on each login" class="rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500" />
 								<span class="text-xs text-surface-600 dark:text-surface-400">Synchronize roles on each login</span>
 							</label>
 						</div>
@@ -501,7 +501,7 @@ async function submitAllProviders(newProviders: SsoProviderConfig[]) {
 							</p>
 						{:else}
 							<div class="space-y-2">
-								{#each formRules as rule, i}
+								{#each formRules as rule, i (rule)}
 									<div class="flex items-center gap-3 p-2 rounded bg-surface-500/10 border border-surface-500/20">
 										<div class="flex-1">
 											<Input

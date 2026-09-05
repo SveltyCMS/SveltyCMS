@@ -309,7 +309,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 						>
 							System Version
 						</button>
-						{#each data.collections.slice(0, 3) as col}
+						{#each data.collections.slice(0, 3) as col (col.id)}
 							<button
 								type="button"
 								onclick={() => { restMethod = "GET"; restEndpoint = `/api/content/${col.id}`; }}
@@ -572,7 +572,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 			<!-- Generated Snippet Display -->
 			<div class="relative rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100">
-				<div class="absolute top-3 right-3">
+				<div class="absolute top-3 end-3">
 					<Button
 						variant="secondary"
 						size="sm"

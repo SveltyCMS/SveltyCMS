@@ -87,7 +87,7 @@ function guardNumeric(value: number, fallback: number): number {
  * slop:suppress — handler names come from the hardcoded shared constant.
  */
 const SVG_HANDLER_RE = new RegExp(
-  `(?:\\s|(?<=<[a-z][a-z0-9]*)\\/|(?<=>)\\/|(?<=["'])\\/?)(${HANDLER_NAME_PATTERN})\\s*=\\s*(?:'[^']*'|"[^"]*"|[^\\s>]+)`,
+  `(?:\\s+|\\/?\\b)(${HANDLER_NAME_PATTERN})\\s*=\\s*(?:'[^']*'|"[^"]*"|[^\\s>]+)`,
   "gi",
 );
 

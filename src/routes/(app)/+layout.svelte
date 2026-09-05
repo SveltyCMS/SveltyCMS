@@ -30,6 +30,7 @@ import { isAdmin } from "@src/databases/auth/constants";
 import type { ContentNode } from "@src/content/types";
 // Stores
 import {
+	applyRemoteContentStructure,
 	setMode,
 } from "@src/stores/collection-store.svelte.ts";
 import {
@@ -377,11 +378,10 @@ $effect(() => {
 // 🔥 SYNC: Connect content structure to global stores for sidebar/navigation reactivity
 // (contentStructure is now plain data — the layout server resolves it before returning)
 $effect(() => {
-	untrack(() => {
-		import("@src/stores/collection-store.svelte").then(({ setContentStructure }) => {
-			setContentStructure(data.contentStructure);
-		});
-	});
+	// Apply layout data synchronously. A delayed dynamic import could resolve after
+	// the Collection Builder published a newer DnD draft and overwrite only the
+	// sidebar with the older layout snapshot.
+	applyRemoteContentStructure(data.contentStructure);
 });
 
 // =============================================

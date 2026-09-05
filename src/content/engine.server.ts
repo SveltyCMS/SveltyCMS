@@ -1111,7 +1111,12 @@ export const contentService = {
 
   async reorderNodes(items: any[], tenantId?: string | null): Promise<void> {
     const db = await (await import("@src/databases/db")).getDb();
-    await db!.content.nodes.reorderStructure(items);
+    const result = await db!.content.nodes.reorderStructure(items);
+    // Never swallow a failed reorder: callers read the structure straight back and
+    // return it to the client, so a silent failure ships a stale order as "saved".
+    if (result && result.success === false) {
+      throw new Error(result.message || "Failed to persist content structure reorder");
+    }
     if (tenantId) logger.debug("Reordering nodes for tenant", { tenantId });
   },
 
@@ -1155,6 +1160,11 @@ export const contentService = {
             deleteResult.message ||
               deleteResult.error?.message ||
               "[ContentService] deleteMany failed for structure nodes",
+          );
+        }
+        if ((deleteResult.data?.deletedCount ?? 0) !== pathsToDelete.length) {
+          throw new Error(
+            `[ContentService] Expected to delete ${pathsToDelete.length} structure nodes, deleted ${deleteResult.data?.deletedCount ?? 0}`,
           );
         }
       }

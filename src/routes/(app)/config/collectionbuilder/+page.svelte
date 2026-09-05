@@ -39,6 +39,7 @@ import type { ContentNode, DatabaseId } from "@src/databases/db-interface";
 import { nowISODateString } from "@src/utils/date";
 import { hasDuplicateSiblingName } from "@src/content";
 import { getDescendantIds } from "./collectionbuilder-utils";
+import { rethrow } from "@utils/error-handling";
 import {
     button_save,
     collection_add,
@@ -51,6 +52,7 @@ import TreeViewBoard from "@src/routes/(app)/config/collectionbuilder/nested-con
 import {
     contentStructure,
     setCollectionValue,
+    setDraftContentStructure,
     setContentStructure,
 } from '@src/stores/collection-store.svelte';
 import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
@@ -66,10 +68,9 @@ import AdminCard from "@components/admin-card.svelte";
 import { logger } from "@utils/logger";
 import { modalState } from "@utils/modal.svelte";
 import { showConfirm } from "@utils/modal.svelte";
-import { afterNavigate, goto, invalidate } from "$app/navigation";
+import { goto, invalidate } from "$app/navigation";
 import { registerHotkey } from "@src/utils/hotkeys";
-import { onMount } from "svelte";
-import { page } from "$app/state";
+import { onMount, untrack } from "svelte";
 
 onMount(() => {
     registerHotkey(
@@ -120,151 +121,94 @@ interface CategoryModalResponse {
 const { data } = $props();
 useContent();
 
-let currentConfig: ContentNode[] = $state([]);
-let nodesToSave: Record<string, NodeOperation> = $state({});
+// Both values are replaced immutably so each drag produces one detached draft.
+let currentConfig: ContentNode[] = $state.raw([]);
+let nodesToSave: Record<string, NodeOperation> = $state.raw({});
 let isLoading = $state(false);
+let draftRevision = 0;
 /** Single category selected for "add collection" (only one at a time). */
 let selectedCategoryId = $state<string | null>(null);
-/** When true, next effect run must not overwrite currentConfig with data (we just applied save response). */
-let skipNextSyncFromData = false;
-/** Allow one sync from data when we land on the page; reset on navigate to avoid effect_update_depth_exceeded. */
-let allowSyncFromData = $state(true);
-/** Incremented on save success so TreeViewBoard rebuilds from server order. */
+/** Incremented when immediate category operations intentionally adopt a server structure. */
 let treeVersion = $state(0);
 
-afterNavigate(() => {
-    if (
-        page.url.pathname.startsWith("/config/collectionbuilder") &&
-        !page.url.pathname.includes("/edit")
-    ) {
-        allowSyncFromData = true;
-    }
-});
-
-import { untrack } from "svelte";
-
-/**
- * Hash of the last server snapshot this component consumed.
- * `data.contentStructure` only changes when THIS page's load re-runs (navigation);
- * `invalidate("app:content")` refreshes layout data only. Without this guard the
- * load-time snapshot gets re-applied on top of newer local/sidebar reorders and
- * rolls the tree back to the order it had when the page was opened.
- */
-let lastServerStructureHash = "";
+let initializedFromPageData = false;
 
 $effect(() => {
-    // Only dependency: the server snapshot. Local state (currentConfig / nodesToSave)
-    // is read untracked so a local reorder can never re-trigger this sync.
     const structure = data.contentStructure as unknown as ContentNode[];
+    if (initializedFromPageData || !structure) return;
 
-    untrack(() => {
-        if (!structure) return;
-
-        const serverHash = JSON.stringify(structure);
-
-        if (skipNextSyncFromData) {
-            // We just applied the save response — swallow its echo, but remember it.
-            skipNextSyncFromData = false;
-            lastServerStructureHash = serverHash;
-            return;
-        }
-
-        // Nothing new from the server → local state is the newer one. Never roll it back.
-        if (serverHash === lastServerStructureHash) return;
-
-        if (!allowSyncFromData || Object.keys(nodesToSave).length > 0) {
-            // Unsaved local changes win; mark the snapshot consumed so it can
-            // never be resurrected later on top of them.
-            lastServerStructureHash = serverHash;
-            return;
-        }
-
-        lastServerStructureHash = serverHash;
-        if (serverHash === JSON.stringify(currentConfig)) return;
-
-        allowSyncFromData = false;
-        currentConfig = structure;
-
-        // Keep sidebar in sync: it reads from contentStructure store, so update it when we load fresh data from DB
-        setContentStructure(structure);
-    });
+    // Page data seeds the editor once. From this point until unmount, the local
+    // draft is the sole authority and only writes outward to the sidebar.
+    initializedFromPageData = true;
+    currentConfig = structure;
+    setContentStructure(structure);
 });
 
 $effect(() => {
     const sharedStructure = contentStructure.value as ContentNode[];
-    if (!sharedStructure?.length || Object.keys(nodesToSave).length > 0) return;
+    if (!initializedFromPageData || !sharedStructure?.length) return;
 
-    const sharedIds = new Set(sharedStructure.map((node) => node._id?.toString()));
-    const currentIds = new Set(currentConfig.map((node) => node._id?.toString()));
-    if (
-        sharedIds.size !== currentIds.size ||
-        [...currentIds].some((id) => !sharedIds.has(id))
-    ) {
-        return;
-    }
+    const hierarchySignature = (nodes: ContentNode[]) =>
+        nodes
+            .map((node) =>
+                `${String(node._id)}:${String(node.parentId ?? "")}:${node.order ?? 0}`,
+            )
+            .sort()
+            .join("|");
 
-    const sharedHash = JSON.stringify(
-        sharedStructure.map((node) => ({
-            id: node._id?.toString(),
-            name: node.name,
-            nodeType: node.nodeType,
-            parentId: node.parentId?.toString(),
-            order: node.order ?? 0,
-            path: node.path ?? "",
-        })),
-    );
-    const currentHash = JSON.stringify(
-        currentConfig.map((node) => ({
-            id: node._id?.toString(),
-            name: node.name,
-            nodeType: node.nodeType,
-            parentId: node.parentId?.toString(),
-            order: node.order ?? 0,
-            path: node.path ?? "",
-        })),
-    );
+    if (hierarchySignature(sharedStructure) === hierarchySignature(currentConfig)) return;
 
-    if (sharedHash === currentHash) return;
-    currentConfig = sharedStructure;
+    // The shared store rejects stale layout/SSE responses while a local draft is
+    // pending, so a different structure here is a legitimate sidebar edit.
+    currentConfig = $state.snapshot(sharedStructure) as ContentNode[];
     treeVersion++;
 });
 
 async function handleNodeUpdate(updatedNodes: ContentNode[]) {
     logger.debug("[CollectionBuilder] Hierarchy updated via DnD");
-    currentConfig = updatedNodes;
+    const nextStructure = $state.snapshot(updatedNodes) as ContentNode[];
+    draftRevision++;
+    currentConfig = nextStructure;
 
     // Keep left sidebar (and any other contentStructure consumers) in sync immediately.
     // Previously only save/delete called setContentStructure — DnD left the sidebar stale.
-    untrack(() => {
-        setContentStructure(updatedNodes);
-    });
+    setDraftContentStructure(nextStructure);
 
-    // Stage all nodes: keep existing 'create' so duplicated collections get their files created on save
-    updatedNodes.forEach((node) => {
+    // Stage all nodes as one detached snapshot. The save request and visible
+    // draft now refer to the same DnD revision instead of accumulating mutable
+    // node references across several drag events.
+    const freshOps: Record<string, NodeOperation> = {};
+    for (const node of nextStructure) {
         const id = node._id.toString();
-        const existing = nodesToSave[id];
-        const keepCreate = existing?.type === "create";
+        const keepCreate = nodesToSave[id]?.type === "create";
+
+        // `nextStructure` is already a detached snapshot, so pending operations
+        // cannot retain proxies owned by an earlier drag.
         const normalized =
             node.nodeType === "category" && !node.source
                 ? { ...node, source: "builder" as const }
                 : node;
-        nodesToSave[id] = {
+
+        freshOps[id] = {
             type: keepCreate ? "create" : "move",
             node: normalized,
         };
-    });
+    }
+    nodesToSave = freshOps;
 }
 
 async function doDelete(idsToDelete: string[]) {
     try {
         const { deleteContentNodes } = await import("./collectionbuilder.remote");
         const result = await deleteContentNodes(idsToDelete);
-        if ("success" in result && result.success) {
+        if ("success" in result && result.success && result.contentStructure) {
             const idSet = new SvelteSet(idsToDelete);
-            currentConfig = currentConfig.filter(
-                (n) => !idSet.has(n._id?.toString() ?? ""),
-            );
-            setContentStructure(currentConfig);
+            const confirmedStructure = result.contentStructure as unknown as ContentNode[];
+            if (confirmedStructure.some((node) => idSet.has(node._id?.toString() ?? ""))) {
+                throw new Error("Delete was not confirmed by the persisted structure");
+            }
+            currentConfig = confirmedStructure;
+            setDraftContentStructure(confirmedStructure);
             // Invalidate layout so edit/create page sidebar gets fresh structure (no deleted items)
             await invalidate("app:content");
             toast.success(
@@ -371,11 +315,12 @@ function handleDuplicateNode(node: Partial<ContentNode>) {
             createdAt: now,
         };
         currentConfig = [...currentConfig, newNode];
-        setContentStructure(currentConfig);
-        nodesToSave[newNode._id?.toString() ?? ""] = {
-            type: "create",
-            node: newNode,
+        setDraftContentStructure(currentConfig);
+        nodesToSave = {
+            ...nodesToSave,
+            [newNode._id?.toString() ?? ""]: { type: "create", node: newNode },
         };
+        draftRevision++;
         toast.success("Category duplicated. Click Save to persist.");
         return;
     }
@@ -420,17 +365,24 @@ function handleDuplicateNode(node: Partial<ContentNode>) {
     };
 
     currentConfig = [...currentConfig, newNode];
-    setContentStructure(currentConfig);
-    nodesToSave[newId.toString()] = { type: "create", node: newNode };
+    setDraftContentStructure(currentConfig);
+    nodesToSave = {
+        ...nodesToSave,
+        [newId.toString()]: { type: "create", node: newNode },
+    };
+    draftRevision++;
     toast.success("Item duplicated. Click Save to persist change.");
 }
 
 async function handleSave() {
-    const items = Object.values(nodesToSave);
+    const items = $state.snapshot(Object.values(nodesToSave)) as NodeOperation[];
     if (items.length === 0) {
         toast.info("No changes to save.");
         return;
     }
+
+    const submittedStructure = $state.snapshot(currentConfig) as ContentNode[];
+    const submittedRevision = draftRevision;
 
     try {
         isLoading = true;
@@ -439,13 +391,31 @@ async function handleSave() {
         const result = await saveContentStructure(items as any);
 
         if ("success" in result && result.success && result.contentStructure) {
-            toast.success("Organization updated successfully");
-            currentConfig = result.contentStructure as unknown as ContentNode[];
-            setContentStructure(currentConfig);
-            treeVersion++;
-            skipNextSyncFromData = true;
-            nodesToSave = {};
-            await invalidate("app:content");
+            const userChangedDraftDuringSave = draftRevision !== submittedRevision;
+
+            if (!userChangedDraftDuringSave) {
+                currentConfig = submittedStructure;
+                setDraftContentStructure(submittedStructure);
+
+                try {
+                    await invalidate("app:content");
+                } catch (error) {
+                    rethrow(error);
+                    logger.debug("[CollectionBuilder] Post-save layout refresh failed", error);
+                }
+
+                // Layout invalidation may refresh the shared sidebar store. The
+                // builder draft remains authoritative for this mounted editor.
+                currentConfig = submittedStructure;
+                setDraftContentStructure(submittedStructure);
+                nodesToSave = {};
+                toast.success("Organization updated successfully");
+            } else {
+                // A later drag happened while the request was in flight. The
+                // submitted revision saved successfully; the newer draft remains.
+                setDraftContentStructure(currentConfig);
+                toast.success("Organization updated; newer changes remain unsaved.");
+            }
         } else {
             const message = (result as any).message ?? "Failed to save";
             logger.error("Error saving categories:", message);
@@ -576,9 +546,8 @@ function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = u
 
                     if ("success" in result && result.success && result.contentStructure) {
                         currentConfig = result.contentStructure as unknown as ContentNode[];
-                        setContentStructure(currentConfig);
+                        setDraftContentStructure(currentConfig);
                         treeVersion++;
-                        skipNextSyncFromData = true;
                         toast.success(`Category "${nameTrimmed}" updated successfully`);
                         await invalidate("app:content");
                     } else {
@@ -620,9 +589,8 @@ function modalAddCategory(existingCategory: Partial<ContentNode> | undefined = u
 
                     if ("success" in result && result.success && result.contentStructure) {
                         currentConfig = result.contentStructure as unknown as ContentNode[];
-                        setContentStructure(currentConfig);
+                        setDraftContentStructure(currentConfig);
                         treeVersion++;
-                        skipNextSyncFromData = true;
                         toast.success(`Category "${nameTrimmed}" created successfully`);
                         await invalidate("app:content");
                     } else {

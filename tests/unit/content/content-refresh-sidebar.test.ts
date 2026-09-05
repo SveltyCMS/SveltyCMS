@@ -38,7 +38,7 @@ describe("contentSystem.refresh sidebar bridge", () => {
     const syncSpy = vi.spyOn(contentStore, "sync");
 
     const collectionStore = await import("@src/stores/collection-store.svelte");
-    const structureSpy = vi.spyOn(collectionStore, "setContentStructure");
+    const structureSpy = vi.spyOn(collectionStore, "applyRemoteContentStructure");
 
     const { contentSystem } = await import("@src/content/index");
     await contentSystem.refresh("global");

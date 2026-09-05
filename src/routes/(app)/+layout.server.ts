@@ -125,17 +125,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
     // Predictive prefetch: guess the most likely next page (< 0.05ms, non-blocking, confidence-gated)
     const predictedNextPath = predictNextPathAdaptive(tenantId || "global", url.pathname);
 
-    // Start initialization but don't await generic content loading for the main thread
-    // This prevents the "blank white page" issue
-    const contentPromise = contentSystem.initialize(tenantId).then(() => {
-      return contentSystem.collections.getSmartFirst(tenantId);
-    });
-
-    // SvelteKit 3 requires serializable load returns — raw Promises in the
-    // return serialize to HTTP 500 ("Failed to serialize promise") whenever
-    // they are still pending under load (production build). Resolve here and
-    // hand down plain data.
-    const firstCollection = await contentPromise;
+    await contentSystem.initialize(tenantId);
     let safeContentStructure: unknown[] = [];
     // 🚀 Version-keyed cache for the serialized sidebar payload: contentStore is
     // epoch-consistent (every content mutation bumps contentVersion), so the
@@ -151,7 +141,13 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       safeContentStructure = cachedStructure;
     } else {
       try {
-        const nodes = await contentSystem.getContentStructure(tenantId);
+        // Persisted structure remains the source of truth for order/hierarchy.
+        // The in-memory snapshot can lag a just-completed collection-builder save.
+        const persisted = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
+        const nodes =
+          Array.isArray(persisted) && persisted.length > 0
+            ? persisted
+            : await contentSystem.getContentStructure(tenantId);
         const stringIdNodes = ((nodes ?? []) as Array<Record<string, unknown>>).map((node) => ({
           ...node,
           _id:
@@ -246,7 +242,6 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       predictedNextPath,
       streamed: {}, // SvelteKit streaming marker
       pluginStates,
-      firstCollection,
     };
   } catch (err: any) {
     // NEVER hard-500 the entire admin shell — media/dashboard/config pages all depend on this layout.
@@ -283,7 +278,6 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       predictedNextPath: null,
       streamed: {},
       pluginStates: {} as Record<string, boolean>,
-      firstCollection: null,
       layoutError: createLayoutError(err, "Failed to load application data"),
     };
   }

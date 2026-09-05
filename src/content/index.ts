@@ -165,7 +165,7 @@ export const contentSystem = {
         contentStore.sync(nodes);
         // Also sync the sidebar's collection store so the Collections tree
         // reflects SSE-driven updates without requiring a page navigation
-        store.setContentStructure(nodes);
+        store.applyRemoteContentStructure(nodes);
       }
     } catch (err) {
       logger.warn("[contentSystem] Client refresh failed:", err);

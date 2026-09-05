@@ -12,6 +12,7 @@ import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import { hasPermissionWithRoles, registerPermission } from "@src/databases/auth/permissions";
+import { isAdmin } from "@src/databases/auth/constants";
 import { eventBus } from "./automation/event-bus";
 
 // Register workflow permission
@@ -27,7 +28,7 @@ const getDbAdapter = async () => (await import("@src/databases/db")).dbAdapter a
 
 /** Admins/super-admins keep an explicit override over gates and assignee locks. */
 function isAdminActor(user: User): boolean {
-  return user?.isAdmin === true || user?.role === "admin" || user?.role === "super-admin";
+  return isAdmin(user);
 }
 
 /**
@@ -66,7 +67,7 @@ export class WorkflowService {
     const dbAdapter = await getDbAdapter();
 
     // Ensure only admins can manage workflows
-    if (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin") {
+    if (!isAdminActor(user)) {
       throw new AppError("Only admins can manage workflows", 403, "FORBIDDEN");
     }
 
@@ -126,7 +127,7 @@ export class WorkflowService {
    */
   public async deleteWorkflow(workflowId: string, user: User, tenantId?: string): Promise<void> {
     const dbAdapter = await getDbAdapter();
-    if (!user.isAdmin && user.role !== "admin" && user.role !== "super-admin") {
+    if (!isAdminActor(user)) {
       throw new AppError("Only admins can delete workflows", 403, "FORBIDDEN");
     }
 

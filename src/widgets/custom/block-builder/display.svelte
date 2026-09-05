@@ -27,7 +27,7 @@
 		<Badge variant="primary" size="sm">
 			{blockCount} {blockCount === 1 ? "block" : "blocks"}
 		</Badge>
-		{#each previewTypes as type}
+		{#each previewTypes as type (type)}
 			<span class="rounded bg-surface-500/10 px-1.5 py-0.5 text-xs font-mono uppercase tracking-wider text-surface-500">
 				{type}
 			</span>

@@ -503,6 +503,8 @@ export class RelationalContentModule implements IContentAdapter {
         path: string;
       }>,
     ): Promise<DatabaseResult<void>> => {
+      // Reparenting changes hierarchy only. `path` identifies the collection
+      // schema and rewriting it can make the collection disappear on refresh.
       // Cold path (admin drag-drop structural reorder): transaction wrapping
       // eliminates per-item commit overhead while keeping the code simple.
       return this.adapter.transaction(
@@ -542,7 +544,6 @@ export class RelationalContentModule implements IContentAdapter {
               .set({
                 parentId: item.parentId,
                 position: item.order,
-                path: item.path,
                 ...(nextData !== undefined ? { data: nextData } : {}),
               })
               .where(eq(this.schema.contentNodes._id, item.id));

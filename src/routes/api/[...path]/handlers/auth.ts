@@ -863,7 +863,11 @@ export async function handleSsoProvidersRoute(
       }
       const existing = currentMap.get(p.id);
       let secret = p.clientSecret;
-      if (secret === "••••••••" && existing?.clientSecret) {
+      const isRedactedSecret =
+        typeof secret === "string" &&
+        secret.length === 8 &&
+        Array.from(secret).every((character) => character.codePointAt(0) === 8226);
+      if (isRedactedSecret && existing?.clientSecret) {
         secret = existing.clientSecret;
       }
       return {
