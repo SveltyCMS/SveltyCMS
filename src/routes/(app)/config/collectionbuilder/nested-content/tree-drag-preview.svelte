@@ -23,11 +23,27 @@
 
   const visible = $derived((isActive && hasPointer && !dismissed) || returning);
 
-  function trackPointer(clientX: number, clientY: number) {
+  // Latest pointer position, committed to reactive state at most once per frame.
+  // `pointermove` can fire faster than the display refreshes (and on touch it is
+  // coalesced into bursts), so writing $state per event re-rendered the chip
+  // several times for a single painted frame — wasted work on mobile CPUs.
+  let rafId: number | null = null;
+  let nextX = 0;
+  let nextY = 0;
+
+  function commitPointer() {
+    rafId = null;
     if (returning) return;
     hasPointer = true;
-    cursorX = clientX;
-    cursorY = clientY;
+    cursorX = nextX;
+    cursorY = nextY;
+  }
+
+  function trackPointer(clientX: number, clientY: number) {
+    if (returning) return;
+    nextX = clientX;
+    nextY = clientY;
+    rafId ??= requestAnimationFrame(commitPointer);
   }
 
   function handlePointerMove(e: PointerEvent) { trackPointer(e.clientX, e.clientY); }
@@ -79,6 +95,10 @@
       document.removeEventListener("pointermove", handlePointerMove);
       document.removeEventListener("dragover", handleDragOver);
       if (returnTimer) clearTimeout(returnTimer);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
     };
   });
 
@@ -96,7 +116,7 @@
       aria-hidden="true"
     >
       <div
-        class="absolute top-0 start-0 flex items-center gap-2 bg-surface-500/10 dark:bg-surface-700 border-s-4 border-s-primary-500 border-surface-500/40 p-2 rounded shadow-lg backdrop-blur min-w-[150px]"
+        class="absolute top-0 start-0 flex items-center gap-2 bg-surface-500/10 dark:bg-surface-700 border-s-4 border-s-primary-500 border-surface-500/40 p-2 rounded shadow-lg min-w-[150px] will-change-transform"
         {style}
       >
         <span class="truncate font-medium">{snapName}</span>

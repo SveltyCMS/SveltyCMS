@@ -459,11 +459,11 @@ function clearNestTarget(item: TreeNode) {
  * until it fires, and made nesting feel unresponsive. Keeping the edges reserved
  * for sorting is what still lets you reorder past a category without falling in.
  *
- * The native `dragover` event is used because it carries `clientX/Y` (sveltednd's
- * own callback only passes its state object) and, unlike `pointermove`, it keeps
- * firing throughout an HTML5 drag.
+ * `row` is the `.tree-row` rect, never the `.tree-item` rect — the latter spans
+ * the whole expanded branch, so its middle band would sit somewhere down in the
+ * children and nesting would trigger over the wrong rows.
  */
-function handleRowDragOver(item: TreeNode, event: DragEvent) {
+function applyNestZone(item: TreeNode, clientY: number, row: DOMRect) {
 	if (item.nodeType !== "category") {
 		clearNestTarget(item);
 		return;
@@ -475,19 +475,64 @@ function handleRowDragOver(item: TreeNode, event: DragEvent) {
 		return;
 	}
 
-	const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-	if (rect.height === 0) return;
+	if (row.height === 0) return;
 
-	const offset = (event.clientY - rect.top) / rect.height;
+	const offset = (clientY - row.top) / row.height;
 	if (offset <= SORT_EDGE || offset >= 1 - SORT_EDGE) {
 		clearNestTarget(item);
 		return;
 	}
 
+	if (nestTargetId === item.id) return; // already active — nothing to change
+
 	nestTargetId = item.id;
 	// Spring open so the user can keep drilling into nested categories.
 	expandedNodes.add(item.id);
 }
+
+/**
+ * Desktop path. The native `dragover` event carries `clientX/Y` (sveltednd's own
+ * callback only passes its state object) and keeps firing throughout an HTML5
+ * drag, unlike `pointermove`.
+ */
+function handleRowDragOver(item: TreeNode, event: DragEvent) {
+	applyNestZone(item, event.clientY, (event.currentTarget as HTMLElement).getBoundingClientRect());
+}
+
+/**
+ * Touch path. A touch drag is NOT an HTML5 drag: sveltednd drives it from
+ * `pointermove`/`pointerup` and never fires `dragover`, so `handleRowDragOver`
+ * above simply never ran on mobile. That left `nestTargetId` permanently null —
+ * the library's own before/after indicator still worked, so dropping onto a
+ * category could only ever sort beside it, never nest inside it.
+ *
+ * One document-level listener resolves the row under the pointer rather than one
+ * listener per row, so cost stays flat as the tree grows.
+ */
+function handleDocumentPointerMove(event: PointerEvent) {
+	if (!dndState.isDragging) return;
+
+	const under = document.elementFromPoint(event.clientX, event.clientY);
+	const row = under instanceof Element ? under.closest(".tree-row") : null;
+	if (!row) {
+		nestTargetId = null;
+		return;
+	}
+
+	const id = row.parentElement?.getAttribute("data-item-id");
+	const item = id ? findNode(treeRoots, id) : null;
+	if (!item) {
+		nestTargetId = null;
+		return;
+	}
+
+	applyNestZone(item, event.clientY, row.getBoundingClientRect());
+}
+
+$effect(() => {
+	document.addEventListener("pointermove", handleDocumentPointerMove, { passive: true });
+	return () => document.removeEventListener("pointermove", handleDocumentPointerMove);
+});
 
 function handleRowDragLeave(item: TreeNode) {
 	clearNestTarget(item);
