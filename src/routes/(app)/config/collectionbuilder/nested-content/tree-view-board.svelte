@@ -105,6 +105,20 @@ let treeRoots = $state<TreeNode[]>([]);
 let expandedNodes = $state(new SvelteSet<string>());
 let initialized = $state(false);
 
+const treeStats = $derived.by(() => {
+	let collections = 0;
+	let categories = 0;
+	const walk = (nodes: TreeNode[]) => {
+		for (const n of nodes) {
+			if (n.nodeType === "category") categories++;
+			else collections++;
+			if (n.children.length) walk(n.children);
+		}
+	};
+	walk(treeRoots);
+	return { collections, categories };
+});
+
 /**
  * Hash of the tree we last handed to `onNodeUpdate`. While this is set we ignore
  * incoming `contentNodes` that don't match it, so an in-flight save can't be
@@ -410,7 +424,7 @@ function toContentNodes(items: TreeViewItem[]): ContentNode[] {
 			nodeType: item.nodeType ?? original?.nodeType,
 			slug: item.slug ?? original?.slug,
 			description: item.description ?? original?.description,
-			path: item.path,
+			path: item.path || original?.path || "",
 			order: item.order ?? 0,
 			// null (not undefined) so the server actually clears the parent for root items.
 			parentId: item.parent != null ? (item.parent as DatabaseId) : null,
@@ -530,6 +544,7 @@ function handleDocumentPointerMove(event: PointerEvent) {
 }
 
 $effect(() => {
+	if (!dndState.isDragging) return;
 	document.addEventListener("pointermove", handleDocumentPointerMove, { passive: true });
 	return () => document.removeEventListener("pointermove", handleDocumentPointerMove);
 });
@@ -912,6 +927,15 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 				<span class="ms-1 uppercase text-xs font-bold">Collapse All</span>
 			</Button>
 		</SystemTooltip>
+		{#if treeRoots.length > 0}
+			<div class="hidden sm:flex items-center px-2 py-1 rounded bg-surface-500/10 text-xs font-medium text-surface-600 dark:text-surface-400">
+				<span>{treeStats.collections} {treeStats.collections === 1 ? 'collection' : 'collections'}</span>
+				{#if treeStats.categories > 0}
+					<span class="mx-1.5 opacity-40">·</span>
+					<span>{treeStats.categories} {treeStats.categories === 1 ? 'category' : 'categories'}</span>
+				{/if}
+			</div>
+		{/if}
 	</div>
 </div>
 
@@ -943,7 +967,7 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 			role="group"
 			aria-label="Content Organization Tree"
 		>
-			<TreeDragPreview />
+			<TreeDragPreview nestTargetName={nestTargetId ? findNode(treeRoots, nestTargetId)?.name : null} />
 			{#each treeRoots as item (item.id)}
 				{@render treeNode(item, 0)}
 			{/each}

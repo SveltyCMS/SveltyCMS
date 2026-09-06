@@ -98,11 +98,17 @@ export async function dismissOpenDialogs(page: Page): Promise<void> {
 
 /** Switch editor to Widgets tab and wait for the field canvas. */
 export async function goToWidgetsTab(page: Page): Promise<void> {
-  const widgetsTab = page.getByTestId("tab-widgets");
-  await expect(widgetsTab).toBeVisible({ timeout: 15_000 });
-  const selected = await widgetsTab.getAttribute("aria-selected").catch(() => null);
-  if (selected !== "true") {
-    await stableClick(widgetsTab, 15_000);
+  const defineNext = page.getByTestId("collection-define-next");
+  if (await defineNext.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await expect(defineNext).toBeEnabled({ timeout: 10_000 });
+    await defineNext.click();
+  } else {
+    const widgetsTab = page.getByTestId("tab-widgets");
+    await expect(widgetsTab).toBeVisible({ timeout: 15_000 });
+    const selected = await widgetsTab.getAttribute("aria-selected").catch(() => null);
+    if (selected !== "true") {
+      await stableClick(widgetsTab, 15_000);
+    }
   }
   // Canvas or add control proves the tab panel mounted
   await expect(
@@ -257,10 +263,16 @@ export async function addInputField(
 export async function createPersistedCategory(page: Page, name: string): Promise<void> {
   const addCategory = page.getByTestId("add-category-button").first();
   await expect(addCategory).toBeVisible({ timeout: 15_000 });
-  await stableClick(addCategory, 10_000);
 
   const nameInput = page.getByTestId("category-name-input");
-  await expect(nameInput).toBeVisible({ timeout: 10_000 });
+  // Guard against SSR hydration race where early click is a silent no-op before Svelte hydrates onclick
+  await expect(async () => {
+    if (!(await nameInput.isVisible())) {
+      await addCategory.click({ timeout: 3_000 });
+    }
+    await expect(nameInput).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+
   await nameInput.fill(name);
 
   const saveBtn = page.getByTestId("category-save-button");

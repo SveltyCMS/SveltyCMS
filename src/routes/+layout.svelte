@@ -54,6 +54,7 @@ import ToastContainer from "@src/components/toast-container.svelte";
 		setLocale,
 		getTextDirection,
 	} from "@src/paraglide/runtime";
+import { locale } from "@src/stores/locale-store.svelte";
 import CookieConsent from "@src/plugins/cookie-consent/cookie-consent.svelte";
 import { initWebMCP } from "@src/plugins/webmcp/init";
 // Global Settings
@@ -263,9 +264,9 @@ onMount(() => {
 	if (
 		urlLocale &&
 		availableLocales.includes(urlLocale as any) &&
-		app.systemLanguage !== urlLocale
+		locale.systemLanguage !== urlLocale
 	) {
-		app.systemLanguage = urlLocale as any;
+		locale.systemLanguage = urlLocale as any;
 		currentLocale = urlLocale;
 	}
 
@@ -351,7 +352,7 @@ $effect(() => {
 			return;
 		}
 
-		const desired = app.systemLanguage;
+		const desired = locale.systemLanguage;
 		const current = untrack(() => currentLocale);
 
 		// Only update if there's an actual change

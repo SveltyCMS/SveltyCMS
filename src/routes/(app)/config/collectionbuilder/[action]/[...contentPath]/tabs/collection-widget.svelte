@@ -26,6 +26,8 @@ import ModalWidgetForm from "./collection-widget/modal-widget-form.svelte";
 import Button from "@src/components/ui/button.svelte";
 import Card from "@src/components/ui/card.svelte";
 import FloatingInput from "@components/ui/floating-input.svelte";
+import { generateCollectionTypeScript } from "../../../collection-code-generator";
+import { inferWidgetFromFieldName, type InferredWidgetResult } from "../../../smart-inference";
 
 type WidgetListItem = FieldInstance & { id: number; _dragId: string };
 
@@ -389,55 +391,274 @@ const remoteFiltered = $derived(
 			(w.description || "").toLowerCase().includes(sidebarSearch.toLowerCase()),
 	),
 );
+
+// ── Smart Quick-Add & Code Split-View ──
+let viewMode = $state<"canvas" | "split" | "code">("canvas");
+let quickAddInput = $state("");
+let copied = $state(false);
+
+const inferredWidget = $derived.by<InferredWidgetResult | null>(() => {
+	const raw = quickAddInput.trim();
+	if (!raw) return null;
+	const existingKeys = Object.keys(availableWidgets || {});
+	return inferWidgetFromFieldName(raw, existingKeys);
+});
+
+const generatedCode = $derived(
+	generateCollectionTypeScript(collection.value || {}, items),
+);
+
+async function copyCode() {
+	try {
+		await navigator.clipboard.writeText(generatedCode);
+		copied = true;
+		toast.success("TypeScript schema copied to clipboard");
+		setTimeout(() => {
+			copied = false;
+		}, 2000);
+	} catch {
+		toast.error("Failed to copy code");
+	}
+}
+
+async function handleQuickAdd() {
+	if (!inferredWidget) return;
+	const target = inferredWidget;
+	quickAddInput = "";
+
+	await widgetStoreActions.initializeWidgets();
+	const resolvedKey =
+		getWidgetFunction(target.widgetKey)
+			? target.widgetKey
+			: Object.keys(widgets.widgetFunctions || {}).find(
+					(k) => k.toLowerCase() === target.widgetKey.toLowerCase(),
+				) || "input";
+
+	const existing = new SvelteSet(
+		items.map((i) => i.db_fieldName).filter(Boolean) as string[],
+	);
+	let dbName = target.db_fieldName;
+	let n = 0;
+	while (existing.has(dbName)) dbName = `${target.db_fieldName}_${++n}`;
+
+	const newDragId = crypto.randomUUID().slice(0, 8);
+	const newIndex = items.length;
+	dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
+
+	const newWidget: WidgetListItem = {
+		id: newIndex + 1,
+		_dragId: newDragId,
+		label: target.label,
+		db_fieldName: dbName,
+		icon: target.icon,
+		required: false,
+		widget: {
+			Name: resolvedKey.charAt(0).toUpperCase() + resolvedKey.slice(1),
+			key: resolvedKey,
+			...(target.defaults),
+		} as any,
+	};
+
+	items = [...items, newWidget];
+	updateStore();
+	toast.success(`Added ${target.label} (${target.displayName})`);
+}
 </script>
+
+{#snippet codePane(fullWidth = false)}
+	<div
+		class="flex min-h-0 min-w-0 flex-1 flex-col {fullWidth ? 'w-full' : 'border-surface-500/30 dark:border-surface-500/40 lg:border-s'}"
+		data-testid="collection-code-pane"
+	>
+		<!-- Header -->
+		<div
+			class="flex shrink-0 flex-wrap items-center gap-3 border-b border-surface-500/30 bg-surface-500/10 px-4 py-3 dark:border-surface-500/40 dark:bg-surface-900 sm:px-6"
+		>
+			<div class="flex items-center gap-2 text-sm font-semibold text-surface-600 dark:text-surface-400">
+				<iconify-icon icon="mdi:code-json" width="20" class="text-tertiary-500"></iconify-icon>
+				<span class="font-mono text-xs font-bold text-surface-900 dark:text-surface-100">
+					config/collections/{(collection.value?.name || 'collection').toLowerCase().replace(/\s+/g, '_')}.ts
+				</span>
+				<span class="inline-flex items-center gap-1 rounded-full bg-success-500/10 px-2 py-0.5 text-[10px] font-semibold text-success-500 dark:bg-success-500/20">
+					<span class="h-1.5 w-1.5 rounded-full bg-success-500 animate-pulse"></span>
+					Live Parity
+				</span>
+			</div>
+
+			<!-- View mode switcher if in fullWidth code view -->
+			{#if fullWidth}
+				<div class="flex items-center rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-500/10 ms-2" role="group" aria-label="View Mode">
+					<button
+						type="button"
+						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'canvas' ? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold' : 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-200'}"
+						onclick={() => (viewMode = 'canvas')}
+						data-testid="code-view-mode-canvas"
+					>
+						Canvas
+					</button>
+					<button
+						type="button"
+						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'split' ? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold' : 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-200'}"
+						onclick={() => (viewMode = 'split')}
+						data-testid="code-view-mode-split"
+					>
+						Split View
+					</button>
+					<button
+						type="button"
+						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'code' ? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold' : 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-200'}"
+						onclick={() => (viewMode = 'code')}
+						data-testid="code-view-mode-code"
+					>
+						TypeScript
+					</button>
+				</div>
+			{/if}
+
+			<div class="ms-auto flex items-center gap-2">
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={copyCode}
+					leadingIcon={copied ? "mdi:check" : "mdi:content-copy"}
+					data-testid="copy-ts-code-button"
+				>
+					{copied ? "Copied!" : "Copy Code"}
+				</Button>
+			</div>
+		</div>
+
+		<!-- Code Display Area -->
+		<div class="min-h-0 flex-1 overflow-auto bg-surface-500/10 p-4 font-mono text-xs text-surface-200 selection:bg-primary-500/30">
+			<pre class="leading-relaxed whitespace-pre font-mono"><code>{generatedCode}</code></pre>
+		</div>
+
+		<!-- Footer -->
+		<div class="shrink-0 border-t border-surface-500/30 bg-surface-500/10 px-4 py-2 text-[11px] text-surface-400 dark:border-surface-500/40 dark:bg-surface-900/60 flex items-center justify-between">
+			<span>⚡ Real-time TypeScript schema parity with <code>compilation/compile.ts</code></span>
+			<span class="font-mono text-[10px] opacity-70">{items.length} fields defined</span>
+		</div>
+	</div>
+{/snippet}
 
 <div
 	class="flex h-full min-h-112 w-full flex-col lg:flex-row"
 	data-testid="collection-widgets-tab"
 >
-	<!-- ═══ LEFT: Field canvas ═══ -->
-	<div
-		class="flex min-h-0 min-w-0 flex-1 flex-col border-surface-500/30 dark:border-surface-500/40 lg:border-e"
-	>
+	{#if viewMode === "code"}
+		{@render codePane(true)}
+	{:else}
+		<!-- ═══ LEFT: Field canvas (visible in canvas & split modes) ═══ -->
 		<div
-			class="flex shrink-0 flex-wrap items-center gap-3 border-b border-surface-500/30 bg-surface-500/10 px-4 py-3 dark:border-surface-500/40 dark:bg-surface-900 sm:px-6"
+			class="flex min-h-0 min-w-0 flex-1 flex-col border-surface-500/30 dark:border-surface-500/40 lg:border-e"
 		>
-			<div class="flex items-center gap-2 text-sm font-semibold text-surface-600 dark:text-surface-400">
-				<iconify-icon icon="mdi:widgets" width="20" class="text-primary-500"></iconify-icon>
-				<span
-					>{items.length}
-					{items.length === 1 ? "Widget" : "Widgets"}</span
-				>
-			</div>
-			<p class="hidden text-xs text-surface-500 sm:block">
-				Drag to reorder · Drop widgets from the palette · Edit / clone / delete on each row
-			</p>
-			<div class="ms-auto">
-				<Button
-					variant="primary"
-					size="sm"
-					onclick={addField}
-					leadingIcon="mdi:plus"
-					data-testid="add-field-button"
-				>
-					Add Widget
-				</Button>
-			</div>
-		</div>
-
-		<div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 			<div
-				use:droppable={{
-					container: "widget-fields",
-					callbacks: { onDrop: handleFieldDrop },
-					direction: "vertical",
-					attributes: { dragOverClass: "ring-2 ring-primary-500/40 bg-primary-500/10" },
-				}}
-				class="mx-auto min-h-50 max-w-4xl space-y-3 rounded-xl p-1"
-				data-testid="widget-fields-list"
-				role="list"
-				aria-label="Widget fields list"
+				class="flex shrink-0 flex-wrap items-center gap-3 border-b border-surface-500/30 bg-surface-500/10 px-4 py-3 dark:border-surface-500/40 dark:bg-surface-900 sm:px-6"
 			>
+				<div class="flex items-center gap-2 text-sm font-semibold text-surface-600 dark:text-surface-400">
+					<iconify-icon icon="mdi:widgets" width="20" class="text-primary-500"></iconify-icon>
+					<span
+						>{items.length}
+						{items.length === 1 ? "Widget" : "Widgets"}</span
+					>
+				</div>
+
+				<!-- View Mode Switcher -->
+				<div class="flex items-center rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-500/10 ms-2" role="group" aria-label="View Mode">
+					<button
+						type="button"
+						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'canvas' ? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold' : 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-200'}"
+						onclick={() => (viewMode = 'canvas')}
+						data-testid="view-mode-canvas"
+					>
+						Canvas
+					</button>
+					<button
+						type="button"
+						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'split' ? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold' : 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-200'}"
+						onclick={() => (viewMode = 'split')}
+						data-testid="view-mode-split"
+					>
+						Split View
+					</button>
+					<button
+						type="button"
+						class="px-2.5 py-1 text-xs font-medium rounded transition-colors {viewMode === 'code' ? 'bg-white dark:bg-surface-800 shadow-xs text-primary-500 font-bold' : 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-200'}"
+						onclick={() => (viewMode = 'code')}
+						data-testid="view-mode-code"
+					>
+						TypeScript
+					</button>
+				</div>
+
+				<div class="ms-auto flex items-center gap-2">
+					<Button
+						variant="primary"
+						size="sm"
+						onclick={addField}
+						leadingIcon="mdi:plus"
+						data-testid="add-field-button"
+					>
+						Add Widget
+					</Button>
+				</div>
+			</div>
+
+			<div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+				<!-- Quick Add Bar -->
+				<div class="mx-auto mb-4 max-w-4xl rounded-xl border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/20">
+					<div class="flex items-center gap-2">
+						<div class="relative flex-1">
+							<input aria-label="Quick-Add field names"
+								type="text"
+								bind:value={quickAddInput}
+								onkeydown={(e) => {
+									if (e.key === 'Enter') {
+										e.preventDefault();
+										handleQuickAdd();
+									}
+								}}
+								placeholder="⚡ Quick-Add: type 'email', 'price', 'cover_photo', 'tags', 'bio' and hit Enter..."
+								class="w-full rounded-lg border border-surface-500/30 bg-white px-3.5 py-2 text-xs sm:text-sm text-surface-900 placeholder:text-surface-400 focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-800 dark:text-white"
+								data-testid="quick-add-field-input"
+							/>
+						</div>
+						<Button
+							variant="primary"
+							size="sm"
+							disabled={!inferredWidget}
+							onclick={handleQuickAdd}
+							leadingIcon="mdi:plus"
+							data-testid="quick-add-field-button"
+						>
+							Add Field
+						</Button>
+					</div>
+					{#if inferredWidget}
+						<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+							<span class="text-surface-500">Inferred:</span>
+							<span class="inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2.5 py-0.5 font-medium text-primary-500 dark:bg-primary-500/20">
+								<iconify-icon icon={inferredWidget.icon} width="14"></iconify-icon>
+								{inferredWidget.displayName}
+								<span class="opacity-60">({inferredWidget.db_fieldName})</span>
+							</span>
+							<span class="text-surface-400 ms-auto hidden sm:inline">Press Enter ↵ to add</span>
+						</div>
+					{/if}
+				</div>
+
+				<div
+					use:droppable={{
+						container: "widget-fields",
+						callbacks: { onDrop: handleFieldDrop },
+						direction: "vertical",
+						attributes: { dragOverClass: "ring-2 ring-primary-500/40 bg-primary-500/10" },
+					}}
+					class="mx-auto min-h-50 max-w-4xl space-y-3 rounded-xl p-1"
+					data-testid="widget-fields-list"
+					role="list"
+					aria-label="Widget fields list"
+				>
 				{#each items as item (item._dragId)}
 					<div
 						use:draggable={{
@@ -579,8 +800,11 @@ const remoteFiltered = $derived(
 		</div>
 	</div>
 
-	<!-- ═══ RIGHT: Palette ═══ -->
-	<aside
+	{#if viewMode === "split"}
+		{@render codePane(false)}
+	{:else}
+		<!-- ═══ RIGHT: Palette ═══ -->
+		<aside
 		class="flex w-full shrink-0 flex-col border-t border-surface-500/30 bg-surface-500/80 dark:border-surface-500/40 dark:bg-surface-900/50 lg:w-80 lg:border-t-0 xl:w-96"
 		data-testid="widget-palette"
 	>
@@ -721,4 +945,6 @@ const remoteFiltered = $derived(
 			</a>
 		</div>
 	</aside>
+	{/if}
+{/if}
 </div>

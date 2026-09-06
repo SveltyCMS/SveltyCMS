@@ -19,7 +19,7 @@ tags:
 
 # Collection Builder Guide
 
-n> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
 ## Overview
 
@@ -115,10 +115,12 @@ flowchart TB
 
 The Collection Builder has two main views:
 
-1. **Category Board View** (`/config/collectionbuilder`)
-   - Visual board showing collection categories
-   - Drag-and-drop organization
-   - Create new categories and collections
+1. **Category Tree View** (`/config/collectionbuilder`)
+   - Hierarchical tree showing categories, child counts, and nested collections
+   - Real-time drag-and-drop nesting with floating target preview (`↳ Inside {category}`)
+   - Full keyboard reordering support (`Alt + Up/Down`) with roving tabindex
+   - Live statistics counter (`X collections · Y categories`)
+   - Create, duplicate, edit, and delete categories and collections
 
 2. **Collection Editor View** (`/config/collectionbuilder/[action]/[collectionPath]`)
    - Edit or create individual collections
@@ -129,44 +131,50 @@ The Collection Builder has two main views:
 
 ### Understanding Categories
 
-Collections are organized into **categories** for better organization and management:
+Collections are organized into **categories** for structured hierarchy and navigation:
 
-- **Category**: A folder-like container for related collections
-- **Nested Structure**: Categories and collections can be nested
-- **Drag-and-Drop**: Rearrange categories and collections visually
-- **Visual Organization**: Each category has a name and icon
+- **Category**: A folder container for related collections and subcategories
+- **Nested Structure**: Multi-level nesting with expandable tree nodes
+- **Drag-and-Drop**: Nest collections inside categories or reorder them at any level
+- **Live Visual Feedback**: Dynamic drag preview shows real-time nesting targets
+- **Keyboard Reordering**: Move nodes up and down without a mouse using `Alt + Arrow` keys
 
 ### Creating Categories
 
 **Step-by-Step**:
 
 1. Navigate to `/config/collectionbuilder`
-2. Click **"Add Category"** button
+2. Click **"Add Category"** button in the header toolbar
 3. Fill in category details:
    - **Name**: Unique category name (e.g., "Blog", "Products", "Pages")
    - **Icon**: Select an icon from IconPicker
-4. Click **"Submit"** to create
-5. Category appears as a new column in the board
+4. Click **"Save Category"** to create
+5. Category appears immediately in the hierarchy with live status badges
 
 ### Editing Categories
 
 **To Edit**:
 
-1. Click on a category to open edit modal
+1. Click the edit (pencil) icon on any category node
 2. Modify:
    - Category name
    - Category icon
-3. Save changes
-4. Updates appear immediately in the board
+3. Click **"Save Category"**
+4. Updates appear immediately in the tree view
 
 ### Moving Collections Between Categories
 
 **Drag-and-Drop**:
 
-1. Click and hold a collection card
-2. Drag to desired category column
-3. Drop to move
-4. Click **"Save"** button to persist changes
+1. Grab the drag handle (`⋮⋮`) or click and hold a collection card
+2. Drag over the desired category (the preview card displays `↳ Inside {target}`)
+3. Release to drop into the category
+4. Hierarchy persists automatically to database and manifest
+
+**Keyboard**:
+
+1. Focus the collection node using `Tab` / Arrow keys
+2. Press `Alt + Up` or `Alt + Down` to reorder within the hierarchy
 
 ## Collection Management
 
@@ -396,6 +404,49 @@ Field-level access control:
 2. Confirm deletion
 3. Field removed from collection
 4. Click **"Save"** to persist
+
+### Smart Type Inference & Quick-Add Bar
+
+For rapid schema design without tedious modal clicking, the Collection Widgets tab includes an enterprise **Quick-Add Bar**:
+
+- **Instant Natural-Language Heuristics**: Type common field names such as `email`, `price`, `cover_image`, `tags`, `is_published`, `author_id`, `rating`, `birth_date`, or `bio`.
+- **Automatic Widget Detection**:
+  - `email`, `mail` → **Email** input widget with pre-configured validation regex
+  - `price`, `cost`, `total`, `amount` → **Currency / Number** widget with formatted step increment
+  - `photo`, `image`, `avatar`, `thumbnail`, `cover` → **MediaUpload** widget restricted to images
+  - `description`, `content`, `body`, `bio` → **RichText** or **Textarea** WYSIWYG widget
+  - `tags`, `categories`, `labels` → **Array / Tags** widget
+  - `is_*`, `has_*`, `enable_*`, `active` → **Boolean** toggle widget
+  - `*_id`, `*_ref`, `parent` → **Relation** widget automatically linked to target collections
+  - `date`, `birthday`, `created_at` → **Date / DateTime** picker widget
+- **Keyboard Execution**: Hit `Enter ↵` to immediately create, configure, and add the inferred field to the active canvas.
+
+### Live Visual Canvas ↔ TypeScript Code Split-View
+
+SveltyCMS delivers bidirectional awareness between visual GUI configuration and code:
+
+- **Mode Switcher**: Toggle seamlessly between:
+  - **Canvas**: Focused visual drag-and-drop builder with widget palette.
+  - **Split View**: Side-by-side display with Visual Canvas on the left and Live TypeScript Schema on the right.
+  - **TypeScript**: Full-screen code view for reviewing the generated `config/collections/{name}.ts` definition.
+- **Real-Time Synchronized Code**: As fields are reordered, added, or modified in the canvas, the generated TypeScript schema updates reactively without saving to disk.
+- **One-Click Clipboard Export**: Copy production-ready `defineCollection({ ... })` TypeScript code directly into version control.
+- **Full Engine Parity**: The client-side generator mirrors `compilation/compile.ts` to ensure 100% parity with server-compiled ASTs.
+
+### Database Introspection & Schema Ingestion (DDL & JSON)
+
+You can reverse-engineer existing database structures and APIs directly into SveltyCMS collections:
+
+- **SQL DDL Reverse-Engineering**:
+  - Paste standard `CREATE TABLE` statements from PostgreSQL, MySQL, MariaDB, or SQLite.
+  - Automatically parses column names, data types, nullability, and primary keys.
+  - Maps relational foreign keys (`REFERENCES other_table(id)`) to **Relation** widgets with target collection presets.
+  - Maps `ENUM(...)` constraints to pre-populated **Select** dropdown options.
+  - Maps text, timestamp, boolean, JSON, and numeric types into their canonical SveltyCMS widgets.
+- **JSON Sample Ingestion**:
+  - Paste any JSON object or array of documents from existing REST/GraphQL endpoints.
+  - Analyzes value types, date patterns, image URLs, and array structures to synthesize full collection schemas.
+- **Instant Collection Bootstrapping**: Ingested schemas populate the collection builder form and widget canvas in one click.
 
 ### Saving Collections
 

@@ -36,10 +36,11 @@
  */
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const DRY = process.argv.includes("--dry");
 const CHECK = process.argv.includes("--check");
-const ROOT = new URL("../src", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const ROOT = fileURLToPath(new URL("../src", import.meta.url));
 
 const EXCLUDED = new Set([
   "highlighted-text.svelte",

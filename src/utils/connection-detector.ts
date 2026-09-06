@@ -26,18 +26,20 @@ interface NavigatorConnection {
 type ConnectionQuality = "slow-2g" | "2g" | "3g" | "4g" | "unknown";
 
 class ConnectionState {
-  effectiveType = $state<ConnectionQuality>("unknown");
-  downlink = $state<number>(0);
-  rtt = $state<number>(0);
-  saveData = $state<boolean>(false);
-  isOnline = $state<boolean>(true);
-  initialized = $state<boolean>(false);
+  effectiveType: ConnectionQuality = "unknown";
+  downlink: number = 0;
+  rtt: number = 0;
+  saveData: boolean = false;
+  isOnline: boolean = true;
+  initialized: boolean = false;
 
-  isSlow = $derived(
-    this.effectiveType === "slow-2g" || this.effectiveType === "2g" || this.saveData,
-  );
+  get isSlow(): boolean {
+    return this.effectiveType === "slow-2g" || this.effectiveType === "2g" || this.saveData;
+  }
 
-  isDegraded = $derived(this.isSlow || this.rtt > 400);
+  get isDegraded(): boolean {
+    return this.isSlow || this.rtt > 400;
+  }
 
   /** 🛡️ Hardened: Idempotent initialization with cleanup capability */
   init() {

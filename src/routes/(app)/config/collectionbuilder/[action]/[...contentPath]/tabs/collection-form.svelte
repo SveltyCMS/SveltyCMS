@@ -20,26 +20,26 @@ import Card from "@src/components/ui/card.svelte";
 let { data = $bindable(null), syncKey = "" } = $props();
 
 let searchQuery = $state("");
-let selectedIcon = $state(data?.icon || "");
+let selectedIcon = $state(data?.icon || collection.value?.icon || "bi:collection");
 
 let name = $state(data?.name ?? "");
 let description = $state(data?.description ?? "");
-let lastSyncedKey = $state<string | null>(null);
+let lastSyncedKey = $state<string | null>(syncKey);
 
 // Sync from route-loaded data when target changes
 $effect(() => {
-	const fromData = data;
-	const fromStore = collection.value;
 	const currentSyncKey = syncKey;
 
-	if (fromData && currentSyncKey && currentSyncKey !== lastSyncedKey) {
+	if (currentSyncKey && currentSyncKey !== lastSyncedKey) {
 		lastSyncedKey = currentSyncKey;
-		name = fromData.name ?? "";
-		description = fromData.description ?? "";
+		const fromData = untrack(() => data);
+		const fromStore = untrack(() => collection.value);
+		name = fromData?.name ?? "";
+		description = fromData?.description ?? "";
 		const iconValue =
 			(fromData?.icon != null && String(fromData.icon).trim()) ||
 			(fromStore?.icon != null && String(fromStore.icon).trim()) ||
-			"";
+			"bi:collection";
 		selectedIcon = iconValue;
 	}
 });
@@ -54,21 +54,11 @@ const DB_NAME = $derived(
 		: ""
 );
 
-// Update collection store when icon changes
-$effect(() => {
-	const currentIcon = selectedIcon;
-	untrack(() => {
-		if (collection.value && currentIcon !== collection.value.icon) {
-			setCollection({ ...collection.value, icon: currentIcon });
-		}
-	});
-});
-
 // Sync all fields into the collection store (include slug for save action)
 $effect(() => {
 	const currentName = name;
 	const currentDescription = description;
-	const currentIcon = selectedIcon;
+	const currentIcon = selectedIcon || "bi:collection";
 	const currentSlug = DB_NAME
 		? currentName
 				.toLowerCase()
@@ -77,21 +67,27 @@ $effect(() => {
 		: "";
 
 	untrack(() => {
-		if (!collection.value) return;
+		const base = collection.value ?? {
+			name: "",
+			icon: "bi:collection",
+			status: "unpublish",
+			fields: [],
+			slug: "",
+		};
 		if (
-			collection.value.name === currentName &&
-			collection.value.description === currentDescription &&
-			collection.value.icon === currentIcon &&
-			collection.value.slug === currentSlug
+			base.name === currentName &&
+			base.description === currentDescription &&
+			base.icon === currentIcon &&
+			base.slug === currentSlug
 		)
 			return;
 
 		setCollection({
-			...collection.value,
+			...base,
 			name: currentName,
 			description: currentDescription,
-			icon: currentIcon || "bi:collection",
-			slug: currentSlug || collection.value.slug,
+			icon: currentIcon,
+			slug: currentSlug || base.slug,
 		});
 	});
 });

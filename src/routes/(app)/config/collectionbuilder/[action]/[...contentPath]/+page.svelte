@@ -44,7 +44,7 @@ function createDraftCollection(contentPath: string | undefined = undefined): Sch
 	const urlName = contentPath
 		? contentPath.split("/").filter(Boolean).pop()
 		: "";
-	const defaultName = urlName && urlName !== "new" ? urlName : "new";
+	const defaultName = urlName && urlName !== "new" ? urlName : "";
 
 	return {
 		name: defaultName,
@@ -66,6 +66,19 @@ const editorSyncKey = $derived(
 		? `edit:${String(data.collection?._id ?? data.collection?.path ?? page.params.contentPath ?? "")}`
 		: `new:${String(page.params.contentPath ?? "")}`,
 );
+
+// Synchronous initial setup so child components mount with a valid collection store
+if (action === "edit" && data.collection) {
+	setCollection(data.collection);
+	originalName = String(data.collection.name || "");
+} else if (action === "new") {
+	if (!collection.value || !collection.value.name) {
+		const draftCollection = createDraftCollection(page.params.contentPath);
+		setCollection(draftCollection);
+	}
+	originalName = collection.value?.name ? String(collection.value.name) : "";
+}
+lastCollectionSyncKey = editorSyncKey;
 
 // ── Tab / wizard progress ──
 let activeTab = $state("define");
@@ -443,7 +456,7 @@ $effect(() => {
 	>
 		<Tabs
 			tabs={editorTabs}
-			activeTab={activeTab}
+			bind:activeTab={activeTab}
 			onTabChange={(tabId: string) => goToTab(tabId)}
 			variant="underline"
 		/>
@@ -460,7 +473,7 @@ $effect(() => {
 			>
 				{#if activeTab === 'define'}
 					<div class="animate-in fade-in slide-in-from-bottom-4 duration-500" role="tabpanel" id="tabpanel-define" aria-labelledby="tab-define">
-						<CollectionForm data={collection.value} syncKey={editorSyncKey} />
+						<CollectionForm bind:data={collection.value} syncKey={editorSyncKey} />
 						<div class="mt-8 flex justify-end gap-2 border-t border-surface-500/30 pt-6 dark:border-surface-500/40">
 							<Button
 								variant="primary"

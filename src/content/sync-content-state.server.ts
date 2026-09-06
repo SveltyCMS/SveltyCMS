@@ -595,15 +595,21 @@ async function applyGuiStructureSave(
     normalized.filter((op) => op.type === "delete").map((op) => op.node.path),
   );
   const collectionFilesToDelete: string[] = [];
+  const compiledFilesToDelete: string[] = [];
   if (deletedPaths.size > 0) {
     const current = (await contentService.getContentStructureFromDatabase(
       "flat",
       tenantId,
       _adapter,
     )) as ContentNode[];
+    const compiledBase = getCompiledCollectionsPath(tenantId);
     for (const node of current) {
       if (node.nodeType === "collection" && deletedPaths.has(node.path ?? "")) {
         collectionFilesToDelete.push(getCollectionFilePath(node.name, tenantId));
+        if (node.name) {
+          const safeName = path.basename(node.name, ".ts");
+          compiledFilesToDelete.push(path.join(compiledBase, `${safeName}.js`));
+        }
       }
     }
   }
@@ -611,6 +617,11 @@ async function applyGuiStructureSave(
   await contentService.upsertContentNodes(normalized, tenantId, _adapter);
   for (const collectionFile of collectionFilesToDelete) {
     await fs.unlink(collectionFile).catch((error: unknown) => {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    });
+  }
+  for (const compiledFile of compiledFilesToDelete) {
+    await fs.unlink(compiledFile).catch((error: unknown) => {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     });
   }

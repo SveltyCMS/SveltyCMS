@@ -24,6 +24,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	} from '@src/paraglide/messages';
 	// Stores
 	import { toast } from '@src/stores/toast.svelte.ts';
+	import { app } from '@src/stores/ui-store.svelte.ts';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
 	// Svelte core

@@ -43,6 +43,7 @@ What differs in **public product packaging** and **our self-measured stack** (no
 | **i18n**                   | Paraglide compile-time                                    | i18next runtime                                            | Plugin runtime                                                | vue-i18n runtime                      |
 | **Out-of-the-box API**     | REST + GraphQL + OpenAPI 3.1                              | REST + GraphQL                                             | REST + GraphQL                                                | REST + GraphQL                        |
 | **Developer Tools**        | In-app OpenAPI + GraphQL Playground in core               | Separate Swagger / GraphQL plugins                         | Separate Swagger / GraphQL plugins                            | Built-in GraphQL / REST app           |
+| **Schema Authoring**       | Visual GUI + Live Split-View + SQL Ingestion + Code-First | Code-first TS files only (public docs)                     | Visual Content-Type Builder (GUI only)                        | Visual Data Model Builder on SQL      |
 | **Editorial Workflows**    | Multi-stage FSM + RBAC review gates in core               | Draft/Publish in Community; Workflows in Enterprise (docs) | Draft/Publish in Community; Workflows in Enterprise (pricing) | Custom status flows in core           |
 | **Multi-environment sync** | Hybrid TS schemas + 4 safety modes + PII-safe sync (core) | Code-first schemas + DB migrations                         | Data transfer CLI / plugins                                   | CLI schema sync (`d6s sync`) (v12.3)  |
 
@@ -60,6 +61,8 @@ A meaningful difference in this comparison is where enterprise-grade capabilitie
 | Multi-stage review workflows | Enterprise tiers (Strapi, Contentful, Sanity; public docs)    | **Included in core, free** |
 | Developer & API Playground   | External tooling / separate plugins (public docs Sept 2026)   | **Included in core, free** |
 | Polymorphic Block Builder    | Core/custom components or paid blocks (public docs Sept 2026) | **Included in core, free** |
+| Visual Schema Split-View     | Separate / partial implementations (public docs Sept 2026)    | **Included in core, free** |
+| Database DDL/Schema Ingest   | Custom migration scripts / manual SQL (public docs Sept 2026) | **Included in core, free** |
 | Multi-tenancy                | Custom implementation or enterprise plans                     | **Included in core, free** |
 | Secure media sharing         | Plugin-based or separate tooling                              | **Included in core, free** |
 | DAM analytics                | Plugins / enterprise modules                                  | **Included in core, free** |

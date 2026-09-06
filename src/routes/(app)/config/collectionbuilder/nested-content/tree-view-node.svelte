@@ -1,5 +1,5 @@
 <!--
-@files src/routes/(app)/config/collectionbuilder/NestedContent/TreeViewNode.svelte
+@file src/routes/(app)/config/collectionbuilder/nested-content/tree-view-node.svelte
 @component
 **Enhanced TreeView Node with improved design and drag & drop support**
 
@@ -21,7 +21,7 @@ import type { TreeViewItem } from "./tree-view-board.svelte";
 
 interface Props {
 	isOpen?: boolean;
-	item: TreeViewItem & { hasChildren?: boolean };
+	item: TreeViewItem & { hasChildren?: boolean; children?: TreeViewItem[] };
 	/** When true, this category is the one selected for "add collection" (visual highlight). */
 	isSelectedCategory?: boolean;
 	onDelete?: (item: TreeViewItem) => void;
@@ -52,6 +52,7 @@ const icon = $derived(
 	item.icon || (item.nodeType === "category" ? "bi:folder" : "bi:collection"),
 );
 const isCategory = $derived(item.nodeType === "category");
+const childCount = $derived(Array.isArray(item.children) ? item.children.length : 0);
 
 // Visual hierarchy only. No transitions or transforms: the row must stay
 // geometrically still so drag targeting is predictable.
@@ -129,9 +130,12 @@ function handleKeyDown(e: KeyboardEvent) {
 		<div class="flex items-center gap-1 sm:gap-2 flex-wrap">
 			<span class="font-bold text-xs sm:text-base leading-none truncate max-w-37.5 sm:max-w-95" title={name}>{name}</span>
 			{#if isCategory}
-				<Badge variant="primary" size="sm" rounded={false} class="bg-tertiary-600 text-white shadow-sm">Category</Badge>
+				<Badge variant="tertiary" size="sm" rounded={false}>Category</Badge>
+				<span class="text-xs text-surface-500 dark:text-surface-400 font-medium">
+					{childCount} {childCount === 1 ? 'item' : 'items'}
+				</span>
 			{:else}
-				<Badge variant="error" size="sm" rounded={false} class="bg-error-600 text-white shadow-sm">Collection</Badge>
+				<Badge variant="error" size="sm" rounded={false}>Collection</Badge>
 			{/if}
 
 			<!-- Slug - Hidden on mobile to save space -->

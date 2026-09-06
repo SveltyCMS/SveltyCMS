@@ -1,6 +1,24 @@
+<!--
+@file src/routes/(app)/config/collectionbuilder/nested-content/tree-drag-preview.svelte
+@component
+**Portalled drag preview chip following pointer for Collection Builder tree DnD**
+
+Features:
+- Lightweight portalled preview tracking client cursor
+- Viewport-anchored coordinates (RTL and LTR safe)
+- rAF-throttled position updates
+- Return-animation on drop cancellation
+- Real-time nesting target indicator
+-->
 <script lang="ts">
   import Portal from "@components/ui/portal.svelte";
   import { dndState } from "@thisux/sveltednd";
+
+  interface Props {
+    nestTargetName?: string | null;
+  }
+
+  let { nestTargetName = null }: Props = $props();
 
   const RETURN_MS = 200;
 
@@ -112,14 +130,17 @@
 {#if visible}
   <Portal>
     <div
-      class="fixed inset-0 pointer-events-none z-[9999]"
+      class="fixed inset-0 pointer-events-none z-9999"
       aria-hidden="true"
     >
       <div
-        class="absolute top-0 start-0 flex items-center gap-2 bg-surface-500/10 dark:bg-surface-700 border-s-4 border-s-primary-500 border-surface-500/40 p-2 rounded shadow-lg min-w-[150px] will-change-transform"
+        class="absolute top-0 start-0 flex flex-col justify-center gap-0.5 bg-surface-500/10 dark:bg-surface-800 border border-surface-500/30 border-s-4 border-s-primary-500 px-3 py-2 rounded shadow-lg min-w-37.5 max-w-65 will-change-transform"
         {style}
       >
-        <span class="truncate font-medium">{snapName}</span>
+        <span class="truncate font-medium text-sm text-surface-900 dark:text-surface-100">{snapName}</span>
+        {#if nestTargetName}
+          <span class="truncate text-[11px] font-semibold text-warning-500 dark:text-warning-400">↳ Inside {nestTargetName}</span>
+        {/if}
       </div>
     </div>
   </Portal>

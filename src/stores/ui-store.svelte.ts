@@ -87,6 +87,8 @@ class UIStore {
   isCommandBarVisible = $state(false);
   // Sticky action bar: pages set their action buttons here
   stickyActionContent = $state<import("svelte").Snippet | null>(null);
+  /** Selected action in multibutton/table-icons ('create' | 'delete' | 'publish' | etc.) */
+  listboxValueState = $state<string>("create");
 
   /** Open/close the Gin-style global search (Alt+G / Mod+K). */
   toggleGlobalSearch(force?: boolean): void {
@@ -330,3 +332,13 @@ export const uiStateManager = {
 };
 
 export const setRouteContext = ui.setRouteContext.bind(ui);
+
+/** Compatibility bridge for cross-component action state (table-icons, entry-list-multi-button, multibutton) */
+export const app = {
+  get listboxValueState() {
+    return ui.listboxValueState;
+  },
+  set listboxValueState(v: string) {
+    ui.listboxValueState = v;
+  },
+};

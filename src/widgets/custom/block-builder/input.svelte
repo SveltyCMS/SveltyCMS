@@ -303,7 +303,7 @@
 				{#if !block.collapsed}
 					<div transition:slide={{ duration: 150 }} class="p-4 space-y-3">
 						{#if meta.fields && meta.fields.length > 0}
-							{#each meta.fields as fieldDef}
+							{#each meta.fields as fieldDef (fieldDef.name)}
 								<div class="space-y-1">
 									<label
 										for={`field_${block._id}_${fieldDef.name}`}
@@ -329,7 +329,7 @@
 											value={String(block.data[fieldDef.name] ?? fieldDef.defaultValue ?? "")}
 											onchange={(val) => updateField(index, fieldDef.name, val)}
 										>
-											{#each fieldDef.options as opt}
+											{#each fieldDef.options as opt (opt.value)}
 												<option value={opt.value}>{opt.label}</option>
 											{/each}
 										</Select>
@@ -399,7 +399,7 @@
 				</div>
 
 				<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
-					{#each availableBlockTypes as def}
+					{#each availableBlockTypes as def (def.type)}
 						<button
 							type="button"
 							onclick={() => addBlock(def)}

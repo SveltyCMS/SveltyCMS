@@ -51,6 +51,7 @@ import TreeViewBoard from "@src/routes/(app)/config/collectionbuilder/nested-con
 // Stores
 import {
     contentStructure,
+    setCollection,
     setCollectionValue,
     setDraftContentStructure,
     setContentStructure,
@@ -104,6 +105,7 @@ onMount(() => {
 import ModalCategory from "./nested-content/modal-category.svelte";
 import ModalPreset from "./nested-content/modal-preset.svelte";
 import ModalQuickStart from "./nested-content/modal-quick-start.svelte";
+import ModalSchemaIngestion from "./nested-content/modal-schema-ingestion.svelte";
 import EmptyState from "./nested-content/empty-state.svelte";
 import { fade } from "svelte/transition";
 
@@ -673,6 +675,41 @@ function modalLoadPreset(): void {
         );
     }
 
+    function modalIntrospectSchema(): void {
+        modalState.trigger(
+            ModalSchemaIngestion as any,
+            {
+                title: "Schema Ingestion & Database Introspection",
+                size: "xl",
+            },
+            async (response: { schema: import('./nested-content/ddl-schema-parser').ParsedSchemaResult } | null) => {
+                if (!response || !response.schema) return;
+                const { schema } = response;
+                // Pre-populate collection in collection store
+                setCollection({
+                    name: schema.name,
+                    slug: schema.slug,
+                    icon: schema.icon || "bi:collection",
+                    status: "unpublish",
+                    description: `Auto-generated from schema ingestion (${schema.fields.length} fields)`,
+                    fields: schema.fields.map((f, i) => ({
+                        id: i + 1,
+                        label: f.label,
+                        db_fieldName: f.db_fieldName,
+                        required: !!f.required,
+                        widget: {
+                            Name: f.widgetKey.charAt(0).toUpperCase() + f.widgetKey.slice(1),
+                            key: f.widgetKey,
+                            ...(f.defaults),
+                        },
+                    })),
+                } as any);
+                toast.success(`Schema ingested: ${schema.name} (${schema.fields.length} fields)`);
+                goto(newCollectionHref);
+            },
+        );
+    }
+
     $effect(() => {
         untrack(() => {
             setRouteContext({ isCollectionBuilder: true });
@@ -708,9 +745,22 @@ function modalLoadPreset(): void {
     {#if currentConfig.length > 0}
         <AdminCard class="p-6 border border-surface-500/30 dark:border-surface-500/40 backdrop-blur-md shadow-xs">
         <div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
-        <Button onclick={() => modalQuickStart()} variant="secondary" rounded={true} size="lg" class="group w-52 justify-center" disabled={isLoading}>
+        <Button onclick={() => modalQuickStart()} variant="secondary" rounded={true} size="lg" class="group w-44 justify-center" disabled={isLoading}>
             <iconify-icon icon="mdi:magic-staff" width="24" class="transition-transform group-hover:rotate-12"></iconify-icon>
             <span>Quick Start</span>
+        </Button>
+
+        <Button
+            onclick={() => modalIntrospectSchema()}
+            variant="secondary"
+            rounded={true}
+            size="lg"
+            class="group w-52 justify-center"
+            disabled={isLoading}
+            data-testid="introspect-schema-button"
+        >
+            <iconify-icon icon="mdi:database-arrow-right" width="24" class="transition-transform group-hover:scale-110"></iconify-icon>
+            <span>Introspect / Ingest</span>
         </Button>
 
         <Button
@@ -718,7 +768,7 @@ function modalLoadPreset(): void {
             variant="tertiary"
             rounded={true}
             size="lg"
-            class="group w-52 justify-center"
+            class="group w-44 justify-center"
             disabled={isLoading}
             data-testid="add-category-button"
         >
@@ -733,7 +783,7 @@ function modalLoadPreset(): void {
             variant="error"
             rounded={true}
             size="lg"
-            class="group w-52 justify-center"
+            class="group w-44 justify-center"
             disabled={isLoading}
             data-testid="add-collection-button"
             aria-keyshortcuts="Mod+N"

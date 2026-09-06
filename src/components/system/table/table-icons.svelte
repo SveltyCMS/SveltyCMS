@@ -23,6 +23,7 @@
 <script lang="ts">
 	// Props
 	import { StatusTypes } from '@src/content/types';
+	import { app } from '@src/stores/ui-store.svelte.ts';
 
 	// Props
 	let { checked = false, iconStatus = undefined, onCheck = () => {}, cellClass = '' } = $props(); // optional classes applied to the root <td>

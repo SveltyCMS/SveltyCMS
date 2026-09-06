@@ -123,8 +123,35 @@ The Collection Builder board (`tree-view-board.svelte`) and admin sidebar (`coll
 
 - **Input**: A flat array of `ContentNode` objects from the API.
 - **Process**: A lightweight `buildTree` function groups nodes by `parentId`.
-- **Render**: The UI renders the hierarchical tree based on this computed logical structure.
-- **Interaction**: Drag-and-drop operations do **not** mutate the tree structure directly. Instead, they emit updates to the flat list (e.g., `updateNode(id, { parentId: newParent })`), which triggers a server save and a reactive re-render.
+- **Render**: The UI renders the hierarchical tree based on this computed logical structure using accessible card nodes (`tree-view-node.svelte`), token-based badges, category item counters, and a portal-based floating drag preview (`tree-drag-preview.svelte`).
+- **Interaction**: Drag-and-drop operations support nesting collections inside categories with real-time drop target feedback (`↳ Inside {category}`), RTL-safe coordinate mapping, and full keyboard navigation (roving tabindex and `Alt+Up/Down` reordering). Operations emit updates to the flat list (e.g., `updateNode(id, { parentId: newParent })`), persisting via `saveContentStructure()`.
+
+### 7. Advanced Builder Subsystems (Enterprise Extensions)
+
+#### Smart Type Inference (`smart-inference.ts`)
+
+A zero-dependency client-side heuristic engine that parses natural language field names into fully-typed SveltyCMS widgets.
+
+- **Pattern Matching**: Evaluates exact keywords and token prefixes/suffixes (e.g. `is_*`, `has_*`, `*_id`, `*_price`, `*_url`).
+- **Deterministic Field Naming**: Converts arbitrary inputs to sanitized snake_case `db_fieldName` identifiers.
+- **Fallback Resolution**: Queries available core/custom widgets in `widgetStore` to guarantee valid schema bindings.
+
+#### Real-Time TypeScript Code Generator (`collection-code-generator.ts`)
+
+Generates production-grade `defineCollection({ ... })` TypeScript source code in real time on the client.
+
+- **Bi-Directional Parity**: Produces an identical AST to the server-side compilation pipeline (`compilation/compile.ts`).
+- **Live Split-View**: Embedded in `collection-widget.svelte`, updating reactively as users reorder or edit fields.
+- **Zero Disk Overhead**: Operates entirely in-memory using Svelte 5 derived state runes.
+
+#### Database DDL & Schema Ingestion Engine (`ddl-schema-parser.ts`)
+
+Reverse-engineers existing database schemas and API payloads directly into collections.
+
+- **Multi-Dialect DDL Parsing**: Supports PostgreSQL, MySQL, MariaDB, and SQLite `CREATE TABLE` syntaxes.
+- **Relational Introspection**: Resolves `FOREIGN KEY ... REFERENCES table(id)` into target collection references.
+- **Enum & Check Constraints**: Translates `ENUM(...)` and `CHECK` values into populated `Select` dropdown options.
+- **JSON Payload Reverse-Engineering**: Synthesizes schema definitions and widget bindings from sample JSON objects/arrays.
 
 ## ⌨️ Keyboard-Driven UX
 

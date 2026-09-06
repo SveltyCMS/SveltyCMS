@@ -96,8 +96,18 @@ export default defineConfig({
         command: "bun run dev",
         port: 5173,
         timeout: 120_000,
+        env: {
+          PLAYWRIGHT_TEST: "1",
+          TEST_MODE: "true",
+          DB_TYPE: process.env.DB_TYPE || "sqlite",
+          DB_HOST: process.env.DB_HOST || "127.0.0.1",
+          DB_NAME: process.env.DB_NAME || "e2e_auth_test",
+          JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "Integration-Test-JWT-Secret-Key-2026",
+          ENCRYPTION_KEY:
+            process.env.ENCRYPTION_KEY ||
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        },
         reuseExistingServer: true,
-        env: { PLAYWRIGHT_TEST: "1", TEST_MODE: "true" },
       },
 
   globalSetup: "./tests/e2e/global.setup.ts",
