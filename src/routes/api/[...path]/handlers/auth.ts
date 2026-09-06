@@ -53,6 +53,8 @@ import { getClientIp } from "@utils/hook-utils";
 import { buildDeviceFingerprint, getTrustedDeviceCookieConfig } from "@src/databases/auth/totp";
 import { recordListQuery } from "@utils/list-query-metrics";
 
+const SSO_SECRET_MASK = "••••••••";
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 // 🛡️ HARDENING: rate-limit the API TOTP challenge per client. A 6-digit code
@@ -837,7 +839,7 @@ export async function handleSsoProvidersRoute(
     if (isAdmin(user)) {
       const providers = getAllSsoProviders().map((p) => ({
         ...p,
-        clientSecret: p.clientSecret ? "••••••••" : "",
+        clientSecret: p.clientSecret ? SSO_SECRET_MASK : "",
       }));
       return successResponse(event, providers);
     }
@@ -863,11 +865,7 @@ export async function handleSsoProvidersRoute(
       }
       const existing = currentMap.get(p.id);
       let secret = p.clientSecret;
-      const isRedactedSecret =
-        typeof secret === "string" &&
-        secret.length === 8 &&
-        Array.from(secret).every((character) => character.codePointAt(0) === 8226);
-      if (isRedactedSecret && existing?.clientSecret) {
+      if (secret === SSO_SECRET_MASK && existing?.clientSecret) {
         secret = existing.clientSecret;
       }
       return {
