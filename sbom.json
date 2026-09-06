@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:4e9f4415-8924-46f9-9edd-5504275d20b6",
+  "serialNumber": "urn:uuid:abc424ed-9f40-4ceb-88b6-a99a339c7452",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-04T18:08:14.072Z",
+    "timestamp": "2026-09-06T20:47:21.147Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -74,13 +74,13 @@
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1126.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1126.0",
+      "version": "3.1127.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1127.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-9v+D5TOnISyWDBkY5N+lSeQ3/pPNi1bltpd7wfY2nALO7GoGq9QbRQ8KyI4j/ctnnHq40otqV5KWKYARdYI0vg=="
+          "content": "sha512-0ZSAgmEda33xPqVPt+bx2KzrXV1cUCKRRVPGliLu+V7DzHPa04CqPSi1maGEM4O0LDP0iI6HRSW5ULloNwayNw=="
         }
       ]
     },
@@ -1842,13 +1842,13 @@
     {
       "type": "library",
       "name": "@maplibre/mlt",
-      "version": "1.2.0",
-      "purl": "pkg:npm/@maplibre/mlt@1.2.0",
+      "version": "1.2.1",
+      "purl": "pkg:npm/@maplibre/mlt@1.2.1",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-g45M8gEI4sMO3X9ib4K7n3ZKFf0qQOL+NMkHCnEK51lOrYFHiEssOuZncx1+miIgi1IEE2NcbRMcq8RBkL+QHA=="
+          "content": "sha512-5n5dgolE2EYxwCKgx8vlwURCB8A+kyfJJyThlYimjlGgOcOe2Bhw9VxxnnHC91OC9PgHg+nVdgVPTYPkIo62vg=="
         }
       ]
     },
@@ -2479,13 +2479,13 @@
     {
       "type": "library",
       "name": "@playwright/test",
-      "version": "1.62.1",
-      "purl": "pkg:npm/@playwright/test@1.62.1",
+      "version": "1.63.0",
+      "purl": "pkg:npm/@playwright/test@1.63.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-DTcUc8qii+cpHvtOwggMtBRMjKZHXYWdw8syRYu2vtzuq4Wxphqq4NfCs5Zt44L6mA8rfDfj+PHnxFc/FeK6mQ=="
+          "content": "sha512-oxMK4vllB9RK5NQ2l1pq1IfOf2AvnEuj/vYGDj0H2nMtmtZpKtCwt/l00GEO6xjGfpBNAvjovvYdCm50dRQkpQ=="
         }
       ]
     },
@@ -3935,13 +3935,13 @@
     {
       "type": "library",
       "name": "@types/bun",
-      "version": "1.4.0",
-      "purl": "pkg:npm/@types/bun@1.4.0",
+      "version": "1.4.1",
+      "purl": "pkg:npm/@types/bun@1.4.1",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="
+          "content": "sha512-0AVGiTXGajf1rgKom3N+c5L7CBxuoyyv1i44M0nX4UDK0G/fnRAMiri93nHuVPIb429KKtAgj7HatVmmOjeQLA=="
         }
       ]
     },
@@ -4702,13 +4702,13 @@
     {
       "type": "library",
       "name": "bidi-js",
-      "version": "1.0.3",
-      "purl": "pkg:npm/bidi-js@1.0.3",
+      "version": "1.1.0",
+      "purl": "pkg:npm/bidi-js@1.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-RKshQI1R3YQ+n9YJz2QQ147P66ELpa1FQEg20Dk8oW9t2KgLbpDLLp9aGZ7y8WHSshDknG0bknqGw5/tyCs5tw=="
+          "content": "sha512-fX1Onk0tdVPC7obPWB5EbJ1z7NVhLq4m2xZLq2YXBkxzMXIGRpNMU88n0EPgWseKl12J7zXs7qrDxPK4sRs2fg=="
         }
       ]
     },
@@ -4780,13 +4780,13 @@
     {
       "type": "library",
       "name": "bun-types",
-      "version": "1.4.1",
-      "purl": "pkg:npm/bun-types@1.4.1",
+      "version": "1.4.2",
+      "purl": "pkg:npm/bun-types@1.4.2",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-loKuVrAFZKfEv+JvWkHRS9GW5IqLuLRjVXN9p+vZvBN86O5hf/pBZQ5hSoyipsrMmWObZBDvWnlmKvjKTM0PdA=="
+          "content": "sha512-bxV1FgK7yBIzjRe5zBozIM4Bem11ZJcCXSrjWRG3YWLt8yFDePu4cLjpebO8OvPeIE9trbyPF4fuj3Cia4Fj3w=="
         }
       ]
     },
@@ -5352,13 +5352,13 @@
     {
       "type": "library",
       "name": "dompurify",
-      "version": "3.4.14",
-      "purl": "pkg:npm/dompurify@3.4.14",
+      "version": "3.4.15",
+      "purl": "pkg:npm/dompurify@3.4.15",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-dVoH9z+MY+C9IilgGCk3YfFqjLi3fChm2OiKJMzh6axrJ5qwxqWaZamgmHrpv22CN/KdbZJuGEGgfQoL00LTdg=="
+          "content": "sha512-EUBjM+B+lkDE41iE82DDSCfkoPGfXx8IxFxPMjNzm/Uk4xDet77rTN9wqlxlVg71kK7XGuUMv6wUxJUwwv+Xyw=="
         }
       ]
     },
@@ -5599,13 +5599,13 @@
     {
       "type": "library",
       "name": "esrap",
-      "version": "2.3.6",
-      "purl": "pkg:npm/esrap@2.3.6",
+      "version": "2.3.7",
+      "purl": "pkg:npm/esrap@2.3.7",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-yc0OC12UjPqLoc+fe+v5GNs4TOjAigUw3sTikfC+xeBPGUw7gDRz3DtYaqEhxyMVJojcSWJw7jT0QWR+CbuE/A=="
+          "content": "sha512-n2nf7fZR3c9yXf0BPEuHuXqT+KW0SJVj4cN5FMEkpCZ3scLjOQWpiccyCxVzCC2q1wubTghuEGzngJY/7Ah0Ow=="
         }
       ]
     },
@@ -5807,13 +5807,13 @@
     {
       "type": "library",
       "name": "fsevents",
-      "version": "2.3.2",
-      "purl": "pkg:npm/fsevents@2.3.2",
+      "version": "2.3.3",
+      "purl": "pkg:npm/fsevents@2.3.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA=="
+          "content": "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="
         }
       ]
     },
@@ -6704,13 +6704,13 @@
     {
       "type": "library",
       "name": "lint-staged",
-      "version": "17.4.1",
-      "purl": "pkg:npm/lint-staged@17.4.1",
+      "version": "17.5.0",
+      "purl": "pkg:npm/lint-staged@17.5.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-FmJeudcalbSfg1du+JCfvi5vS6Qt08KgbfLWiHinbef+2JJwUZwAWVoaO1AcJVUTWPfk0t30PMQNwPAeCzYQ+Q=="
+          "content": "sha512-ah2qsNtvKP1+Ak4rAvEEIvcXDLjjbr/xmxCvlequxqEOFYk0qINcZcRxD3Ic8wRn7/oQ8+wC9s0DfDrdMVCRFg=="
         }
       ]
     },
@@ -7107,13 +7107,13 @@
     {
       "type": "library",
       "name": "mongoose",
-      "version": "9.9.4",
-      "purl": "pkg:npm/mongoose@9.9.4",
+      "version": "9.9.5",
+      "purl": "pkg:npm/mongoose@9.9.5",
       "scope": "optional",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Gc7buf0ExrOZ3t8MD8tVzTek7Qr5d+tEwj4GRFmHCtTZvpaDb38EVsXgCkYacPL9ICAftgS+FGe+dQHLRLHhcw=="
+          "content": "sha512-t/kUoeDjlHmav7yCaq//YKU3wiIgUPaTj4GrluiTHUw4jQ77/CXtdMDSor4f1u3SKLhIK6NgCF+AzzUqU02Aag=="
         }
       ]
     },
@@ -7523,13 +7523,13 @@
     {
       "type": "library",
       "name": "playwright",
-      "version": "1.62.1",
-      "purl": "pkg:npm/playwright@1.62.1",
+      "version": "1.63.0",
+      "purl": "pkg:npm/playwright@1.63.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-0M+L3LAD8/nm554LOla9Ayx0j0tmFZ0FBcoQ7F1VuVHpM/XpiC8RcDzBQB8W5+hA8L22THxELzeF+2WcUzvcLg=="
+          "content": "sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg=="
         }
       ]
     },
@@ -8836,13 +8836,13 @@
     {
       "type": "library",
       "name": "undici",
-      "version": "8.10.1",
-      "purl": "pkg:npm/undici@8.10.1",
+      "version": "8.10.2",
+      "purl": "pkg:npm/undici@8.10.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-YQ3WlbqjYMmNpdvDH64jAgLjxuAR9+649calDWhbshYaeQGO2bR4nI94ORJmwI3J9YhoKQnpyGOK+0zlWS5N5Q=="
+          "content": "sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ=="
         }
       ]
     },
@@ -9655,13 +9655,13 @@
     {
       "type": "library",
       "name": "bun-types",
-      "version": "1.4.0",
-      "purl": "pkg:npm/bun-types@1.4.0",
+      "version": "1.4.1",
+      "purl": "pkg:npm/bun-types@1.4.1",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="
+          "content": "sha512-loKuVrAFZKfEv+JvWkHRS9GW5IqLuLRjVXN9p+vZvBN86O5hf/pBZQ5hSoyipsrMmWObZBDvWnlmKvjKTM0PdA=="
         }
       ]
     },
@@ -9758,6 +9758,19 @@
     },
     {
       "type": "library",
+      "name": "playwright-core",
+      "version": "1.63.0",
+      "purl": "pkg:npm/playwright-core@1.63.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg=="
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "ansi-regex",
       "version": "6.3.0",
       "purl": "pkg:npm/ansi-regex@6.3.0",
@@ -9792,32 +9805,6 @@
         {
           "alg": "SHA-512",
           "content": "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "fsevents",
-      "version": "2.3.3",
-      "purl": "pkg:npm/fsevents@2.3.3",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "name": "fsevents",
-      "version": "2.3.3",
-      "purl": "pkg:npm/fsevents@2.3.3",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-512",
-          "content": "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="
         }
       ]
     },

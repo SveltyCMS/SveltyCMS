@@ -15,6 +15,7 @@ Features:
 <script lang="ts">
 import SystemTooltip from "@src/components/system/system-tooltip.svelte";
 import { screen } from "@src/stores/screen-size-store.svelte.ts";
+import { collectionMetadata, getTagColor } from "@src/stores/collection-metadata-store.svelte";
 import type { TreeViewItem } from "./tree-view-board.svelte";
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
@@ -27,6 +28,7 @@ interface Props {
 	onDelete?: (item: TreeViewItem) => void;
 	onDuplicate?: (item: TreeViewItem) => void;
 	onEditCategory: (item: TreeViewItem) => void;
+	onEditTags?: (item: TreeViewItem) => void;
 	/** Called when category row is clicked (toggle selection for add-collection target). */
 	onSelectCategory?: () => void;
 	// Roving tabindex for keyboard navigation
@@ -40,11 +42,15 @@ let {
 	isSelectedCategory = false,
 	toggle,
 	onEditCategory,
+	onEditTags,
 	onDelete,
 	onDuplicate,
 	onSelectCategory,
 	tabindex = -1,
 }: Props = $props();
+
+const isFav = $derived(collectionMetadata.isFavorite(item.id));
+const tags = $derived(collectionMetadata.getTags(item.id));
 
 // Computed properties
 const name = $derived(item.name || "Untitled");
@@ -122,6 +128,26 @@ function handleKeyDown(e: KeyboardEvent) {
 		<div class="w-5" role="none"></div>
 	{/if}
 
+	<!-- Favorite Star Toggle -->
+	<SystemTooltip title={isFav ? 'Remove favorite' : 'Mark as favorite'}>
+		<Button
+			variant="transparent"
+			type="button"
+			onclick={(e: MouseEvent) => {
+				e.stopPropagation();
+				collectionMetadata.toggleFavorite(item.id);
+			}}
+			aria-label={isFav ? `Remove ${name} from favorites` : `Add ${name} to favorites`}
+			class="flex min-h-7 min-w-7 items-center justify-center p-0! transition-transform hover:scale-110"
+		>
+			<iconify-icon
+				icon={isFav ? 'bi:star-fill' : 'bi:star'}
+				width="18"
+				class={isFav ? 'text-warning-500' : 'text-surface-400 dark:text-surface-500 opacity-40 hover:opacity-100'}
+			></iconify-icon>
+		</Button>
+	</SystemTooltip>
+
 	<!-- Icon -->
 	<div class="relative"><iconify-icon {icon} width="24" class={iconClass} aria-hidden="true"></iconify-icon></div>
 
@@ -136,6 +162,17 @@ function handleKeyDown(e: KeyboardEvent) {
 				</span>
 			{:else}
 				<Badge variant="error" size="sm" rounded={false}>Collection</Badge>
+			{/if}
+
+			{#if tags.length > 0}
+				<div class="flex items-center gap-1 flex-wrap">
+					{#each tags as tag (tag)}
+						{@const color = getTagColor(tag)}
+						<span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full {color.bg} {color.text} border {color.border}">
+							{tag}
+						</span>
+					{/each}
+				</div>
 			{/if}
 
 			<!-- Slug - Hidden on mobile to save space -->
@@ -158,6 +195,22 @@ function handleKeyDown(e: KeyboardEvent) {
 
 	<!-- Action Buttons -->
 	<div class="ms-auto flex shrink-0 items-center gap-0.5">
+		<!-- Tags -->
+		<SystemTooltip title="Manage Tags">
+			<Button
+				variant="transparent"
+				type="button"
+				onclick={(e: MouseEvent) => {
+					e.stopPropagation();
+					onEditTags?.(item);
+				}}
+				aria-label="Manage tags for {name}"
+				class="flex min-h-8 min-w-8 items-center justify-center p-0! transition-opacity hover:opacity-80"
+			>
+				<iconify-icon icon="bi:tag" width={20} class="text-surface-500 hover:text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			</Button>
+		</SystemTooltip>
+
 		<SystemTooltip title="Edit">
 			{#if isCategory}
 				<Button variant="transparent"

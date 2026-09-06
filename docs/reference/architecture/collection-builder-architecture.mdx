@@ -153,6 +153,14 @@ Reverse-engineers existing database schemas and API payloads directly into colle
 - **Enum & Check Constraints**: Translates `ENUM(...)` and `CHECK` values into populated `Select` dropdown options.
 - **JSON Payload Reverse-Engineering**: Synthesizes schema definitions and widget bindings from sample JSON objects/arrays.
 
+#### Unified Metadata & Tagging Store (`collection-metadata-store.svelte.ts`)
+
+A cross-cutting reactive store that maintains favorites and tag metadata across all administrative views.
+
+- **Reactive State Sync**: Powered by Svelte 5 `$state` runes, immediately broadcasting favorite toggles and tag changes between the Collection Builder tree, the Collection Editor form, and the LeftSidebar navigation tree.
+- **Cross-Tab Storage Sync**: Listens to the `storage` event to propagate changes across concurrent browser tabs.
+- **Deterministic Color Hashing**: Maps tag names to WCAG 2.2 AA compliant status-shade tokens (`tertiary`, `primary`, `secondary`, `warning`, `success`) without requiring manual color picker configuration.
+
 ## ⌨️ Keyboard-Driven UX
 
 The Collection Builder is designed for rapid iteration using a unified hotkey system.

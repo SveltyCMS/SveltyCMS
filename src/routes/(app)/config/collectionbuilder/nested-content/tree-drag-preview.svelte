@@ -134,7 +134,7 @@ Features:
       aria-hidden="true"
     >
       <div
-        class="absolute top-0 start-0 flex flex-col justify-center gap-0.5 bg-surface-500/10 dark:bg-surface-800 border border-surface-500/30 border-s-4 border-s-primary-500 px-3 py-2 rounded shadow-lg min-w-37.5 max-w-65 will-change-transform"
+        class="absolute top-0 inset-s-0 flex flex-col justify-center gap-0.5 bg-surface-500/10 dark:bg-surface-800 border border-surface-500/30 border-s-4 border-s-primary-500 px-3 py-2 rounded shadow-lg min-w-37.5 max-w-65 will-change-transform"
         {style}
       >
         <span class="truncate font-medium text-sm text-surface-900 dark:text-surface-100">{snapName}</span>

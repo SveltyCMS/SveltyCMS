@@ -380,4 +380,66 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     await expect(fieldsList).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("widget-field-row").first()).toBeVisible({ timeout: 10_000 });
   });
+
+  /**
+   * Unified Favorites & Tagging Workflow — star & tag in builder reflects in filters and sidebar.
+   */
+  test("favorites & tagging: mark favorite and tag in builder reflects in filters", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+
+    const treeBoard = page.getByTestId("collection-builder-board");
+    await expect(treeBoard).toBeVisible({ timeout: 20_000 });
+
+    // Verify the sidebar quick-add link exists
+    const sidebarLink = page.getByTestId("sidebar-collection-builder-link");
+    await expect(sidebarLink).toBeVisible({ timeout: 10_000 });
+
+    // Look for any tree item
+    const firstItem = page.locator(".tree-item").first();
+    await expect(firstItem).toBeVisible({ timeout: 15_000 });
+
+    // Find and click the favorite star button on the row
+    const starBtn = firstItem.getByRole("button", { name: /favorite/i }).first();
+    await expect(starBtn).toBeVisible({ timeout: 5_000 });
+    await starBtn.click();
+
+    // Verify favorite icon has active warning-500 fill
+    const starIcon = starBtn.locator("iconify-icon");
+    await expect(starIcon).toHaveAttribute("icon", "bi:star-fill");
+
+    // Click "Manage Tags" button on the row
+    const tagBtn = firstItem.getByRole("button", { name: /manage tags/i }).first();
+    await expect(tagBtn).toBeVisible({ timeout: 5_000 });
+    await tagBtn.click();
+
+    // Fill tag in modal
+    const tagDialog = page.getByRole("dialog");
+    await expect(tagDialog).toBeVisible({ timeout: 5_000 });
+
+    const tagInput = tagDialog
+      .getByPlaceholder(/news, blog/i)
+      .or(tagDialog.getByRole("textbox"))
+      .first();
+    await expect(tagInput).toBeVisible({ timeout: 5_000 });
+    await tagInput.fill("alpha-tag");
+
+    // Click Save inside the dialog
+    const saveTagBtn = tagDialog.getByRole("button", { name: "Save" });
+    await saveTagBtn.click();
+
+    // Tag badge should be visible on the node
+    await expect(firstItem.getByText("alpha-tag")).toBeVisible({ timeout: 5_000 });
+
+    // Click Favorites filter chip in toolbar
+    const favFilterBtn = page.getByRole("button", { name: /filter by favorites/i });
+    await expect(favFilterBtn).toBeVisible({ timeout: 5_000 });
+    await favFilterBtn.click();
+
+    // Favorited item remains visible
+    await expect(firstItem).toBeVisible({ timeout: 5_000 });
+  });
 });

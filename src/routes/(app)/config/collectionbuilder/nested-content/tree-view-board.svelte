@@ -52,6 +52,10 @@ import TreeViewNode from "./tree-view-node.svelte";
 import TreeDragPreview from "./tree-drag-preview.svelte";
 import Button from "@components/ui/button.svelte";
 import FloatingInput from "@components/ui/floating-input.svelte";
+import Input from "@components/ui/input.svelte";
+import Select from "@components/ui/select.svelte";
+import AdminCard from "@components/admin-card.svelte";
+import { collectionMetadata, getTagColor } from "@src/stores/collection-metadata-store.svelte";
 
 export interface TreeViewItem extends Record<string, any> {
 	_id?: any;
@@ -101,6 +105,27 @@ const SORT_EDGE = 0.25;
 
 // --- Core state ---
 let searchText = $state("");
+let showOnlyFavorites = $state(false);
+let selectedTagFilter = $state("");
+let showTagModal = $state(false);
+let activeItemForTagging = $state<TreeViewItem | null>(null);
+let currentTagsInput = $state("");
+
+const allTags = $derived(collectionMetadata.getAllUniqueTags());
+const tagFilterOptions = $derived(allTags.map((t) => ({ value: t, label: t })));
+
+function clearAllFilters() {
+	searchText = "";
+	showOnlyFavorites = false;
+	selectedTagFilter = "";
+}
+
+function handleEditTags(item: TreeViewItem) {
+	activeItemForTagging = item;
+	currentTagsInput = collectionMetadata.getTags(item.id).join(", ");
+	showTagModal = true;
+}
+
 let treeRoots = $state<TreeNode[]>([]);
 let expandedNodes = $state(new SvelteSet<string>());
 let initialized = $state(false);
@@ -258,11 +283,28 @@ $effect(() => {
 	if (!rovingTabIndex && treeRoots.length > 0) rovingTabIndex = treeRoots[0].id;
 });
 
-// Auto-expand branches containing a search match.
+// Auto-expand branches containing a search match or filter match.
 $effect(() => {
 	const term = searchText.trim().toLowerCase();
-	if (!term) return;
-	collectIdsToExpand(treeRoots, term, expandedNodes);
+	if (term || showOnlyFavorites || selectedTagFilter) {
+		const expandMatches = (nodes: TreeNode[]): boolean => {
+			let anyMatch = false;
+			for (const node of nodes) {
+				if (node.children.length > 0) {
+					const childMatched = expandMatches(node.children);
+					if (childMatched) {
+						expandedNodes.add(node.id);
+						anyMatch = true;
+					}
+				}
+				if (isNodeVisible(node, searchText)) {
+					anyMatch = true;
+				}
+			}
+			return anyMatch;
+		};
+		expandMatches(treeRoots);
+	}
 });
 
 // ---------------------------------------------------------------------------
@@ -309,23 +351,19 @@ function getVisibleNodes(nodes: TreeNode[]): TreeNode[] {
 	return visible;
 }
 
-function collectIdsToExpand(nodes: TreeNode[], search: string, ids: Set<string>): boolean {
-	let hasMatch = false;
-	for (const node of nodes) {
-		const matches = node.name.toLowerCase().includes(search);
-		const childMatch = collectIdsToExpand(node.children, search, ids);
-		if (childMatch || (matches && node.children.length > 0)) {
-			ids.add(node.id);
-			hasMatch = true;
-		}
-		if (matches) hasMatch = true;
-	}
-	return hasMatch;
-}
 
 function isNodeVisible(node: TreeNode, search: string): boolean {
-	if (!search) return true;
-	return node.name.toLowerCase().includes(search.toLowerCase());
+	const term = search.trim().toLowerCase();
+	const matchesSearch = !term || node.name.toLowerCase().includes(term);
+	const matchesFav = !showOnlyFavorites || collectionMetadata.isFavorite(node.id);
+	const matchesTag = !selectedTagFilter || collectionMetadata.getTags(node.id).includes(selectedTagFilter);
+
+	if (matchesSearch && matchesFav && matchesTag) return true;
+
+	if (node.children && node.children.length > 0) {
+		return node.children.some((c) => isNodeVisible(c, search));
+	}
+	return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -902,7 +940,41 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 			</Button>
 		{/if}
 	</div>
-	<div class="flex gap-2">
+	<!-- Favorites Filter Chip -->
+	<Button
+		variant="outline"
+		type="button"
+		size="sm"
+		onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
+		class="flex items-center gap-1.5 rounded-full border text-xs font-semibold py-2 px-3 transition-all {showOnlyFavorites
+			? 'bg-warning-500/20 border-warning-500 text-warning-500 dark:text-warning-400'
+			: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
+		aria-label="Filter by favorites"
+	>
+		<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"></iconify-icon>
+		<span>Favorites</span>
+	</Button>
+
+	<!-- Tag Filter Dropdown -->
+	{#if allTags.length > 0}
+		<div class="relative min-w-36">
+			<Select
+				bind:value={selectedTagFilter}
+				options={tagFilterOptions}
+				placeholder="All Tags"
+				allowEmptySelection
+				size="sm"
+			/>
+		</div>
+	{/if}
+
+	{#if searchText || showOnlyFavorites || selectedTagFilter}
+		<Button variant="ghost" type="button" size="sm" onclick={clearAllFilters} class="text-xs">
+			Clear filters
+		</Button>
+	{/if}
+
+	<div class="flex gap-2 ms-auto">
 		<SystemTooltip title="Expand all categories">
 			<Button
 				variant="surface"
@@ -927,7 +999,7 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 				<span class="ms-1 uppercase text-xs font-bold">Collapse All</span>
 			</Button>
 		</SystemTooltip>
-		{#if treeRoots.length > 0}
+		{#if treeStats.collections > 0 || treeStats.categories > 0}
 			<div class="hidden sm:flex items-center px-2 py-1 rounded bg-surface-500/10 text-xs font-medium text-surface-600 dark:text-surface-400">
 				<span>{treeStats.collections} {treeStats.collections === 1 ? 'collection' : 'collections'}</span>
 				{#if treeStats.categories > 0}
@@ -989,6 +1061,7 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 		     this element's own midpoint, so it must never contain the subtree. -->
 		<div
 			class="tree-row"
+			role="none"
 			class:nest-target={dndState.isDragging && nestTargetId === item.id}
 			class:line-before={lineFor(item.id) === "before"}
 			class:line-after={lineFor(item.id) === "after"}
@@ -1019,6 +1092,7 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 				isSelectedCategory={item.nodeType === "category" && item.id === selectedCategoryId}
 				toggle={() => toggleNode(item.id)}
 				onEditCategory={() => onEditCategory(toPartialContentNode(item))}
+				onEditTags={() => handleEditTags(item)}
 				onDelete={() => handleDeleteNode(toPartialContentNode(item))}
 				onDuplicate={() => onDuplicateNode?.(toPartialContentNode(item))}
 				onSelectCategory={item.nodeType === "category" && onSelectCategory
@@ -1042,6 +1116,84 @@ const INTERACTIVE = ["button", "a[href]", "[data-no-drag]"];
 		{/if}
 	</div>
 {/snippet}
+
+<!-- Tag Modal for Collection Builder Board -->
+{#if showTagModal && activeItemForTagging}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="board-tag-modal-title"
+		tabindex="-1"
+		onkeydown={(e) => {
+			if (e.key === 'Escape') showTagModal = false;
+		}}
+	>
+		<AdminCard class="w-full max-w-md p-6 bg-surface-500/10 dark:bg-surface-900 border border-surface-500/30 dark:border-surface-500/40 shadow-2xl relative">
+			<Button
+				variant="ghost"
+				type="button"
+				onclick={() => (showTagModal = false)}
+				class="absolute top-4 inset-e-4 p-0! min-w-0 rounded-full text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-800"
+				aria-label="Close tag modal"
+			>
+				<iconify-icon icon="bi:x" width="20"></iconify-icon>
+			</Button>
+
+			<h3 id="board-tag-modal-title" class="text-lg font-bold text-surface-900 dark:text-white mb-2">Manage Tags</h3>
+			<p class="text-xs text-surface-500 dark:text-surface-400 mb-4">
+				Tags for <span class="font-semibold text-tertiary-500 dark:text-primary-500">{activeItemForTagging.name}</span>
+			</p>
+
+			<div class="space-y-4">
+				<Input
+					bind:value={currentTagsInput}
+					label="Tags"
+					placeholder="e.g. news, blog, featured"
+					aria-describedby="board-tags-help"
+					data-testid="board-tags-input"
+				/>
+				<span id="board-tags-help" class="text-[11px] text-surface-400 mt-1 block">Separate multiple tags with a comma.</span>
+
+				{#if collectionMetadata.getTags(activeItemForTagging.id).length}
+					<div class="flex flex-wrap gap-1.5 mt-3">
+						{#each collectionMetadata.getTags(activeItemForTagging.id) as tag (tag)}
+							{@const color = getTagColor(tag)}
+							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium {color.bg} {color.text} border {color.border}">
+								{tag}
+								<Button
+									variant="ghost"
+									size="sm"
+									type="button"
+									onclick={() => {
+										collectionMetadata.removeTag(activeItemForTagging!.id, tag);
+										currentTagsInput = collectionMetadata.getTags(activeItemForTagging!.id).join(', ');
+									}}
+									class="rounded-full p-0.5 hover:text-error-500"
+									aria-label="Remove tag {tag}"
+								>&times;</Button>
+							</span>
+						{/each}
+					</div>
+				{/if}
+
+				<div class="flex justify-end gap-2 mt-6">
+					<Button variant="outline" type="button" onclick={() => (showTagModal = false)}>Cancel</Button>
+					<Button
+						variant="tertiary"
+						type="button"
+						data-testid="board-tags-save-button"
+						onclick={() => {
+							const parsed = currentTagsInput.split(',').map((t) => t.trim()).filter(Boolean);
+							collectionMetadata.setTags(activeItemForTagging!.id, parsed);
+							showTagModal = false;
+						}}
+					>Save</Button>
+				</div>
+			</div>
+		</AdminCard>
+	</div>
+{/if}
 
 <style>
 	.hidden {

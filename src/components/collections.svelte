@@ -39,6 +39,7 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { logger } from '@utils/logger';
 	import { validateSchemaWidgets } from '@widgets/widget-validation';
+	import { collectionMetadata, getTagColor } from '@src/stores/collection-metadata-store.svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import type { Snippet } from 'svelte';
 	import { goto, refreshAll } from '$app/navigation';
@@ -92,9 +93,6 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 	let debouncedSearch = $state('');
 	let isSearching = $state(false);
 	let expandedNodes = new SvelteSet<string>();
-
-	let favorites = $state<string[]>([]);
-	let tagMap = $state<Record<string, string[]>>({});
 
 	// Filter state
 	let showOnlyFavorites = $state(false);
@@ -191,56 +189,24 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 		}
 	}
 
-	// Load favorites & tags from localStorage
 	$effect(() => {
-		if (typeof window === 'undefined') return;
-		try {
-			const favsData = localStorage.getItem(`sveltycms_favs_${userId}`);
-			favorites = favsData ? JSON.parse(favsData) : [];
-		} catch { favorites = []; }
-		try {
-			const tagsData = localStorage.getItem(`sveltycms_tags_${userId}`);
-			tagMap = tagsData ? JSON.parse(tagsData) : {};
-		} catch { tagMap = {}; }
-	});
-
-	// Persist favorites & tags
-	$effect(() => {
-		if (typeof window !== 'undefined') {
-			localStorage.setItem(`sveltycms_favs_${userId}`, JSON.stringify(favorites));
-		}
-	});
-	$effect(() => {
-		if (typeof window !== 'undefined') {
-			localStorage.setItem(`sveltycms_tags_${userId}`, JSON.stringify(tagMap));
-		}
+		collectionMetadata.setUserId(userId);
 	});
 
 	// Compute all unique tags for filter dropdown
-	const allTags = $derived.by(() => {
-		const set = new Set<string>();
-		Object.values(tagMap).forEach(tags => tags.forEach(t => set.add(t)));
-		return Array.from(set).sort();
-	});
-
+	const allTags = $derived(collectionMetadata.getAllUniqueTags());
 	const tagFilterOptions = $derived(allTags.map(t => ({ value: t, label: t })));
 
 	function openTagEditor(collectionId: string, label: string) {
 		activeCollectionIdForTagging = collectionId;
 		activeCollectionLabelForTagging = label;
-		currentTagsInput = (tagMap[collectionId] || []).join(', ');
+		currentTagsInput = collectionMetadata.getTags(collectionId).join(', ');
 		showTagModal = true;
 	}
 
 	function saveTags() {
 		const parsed = currentTagsInput.split(',').map(t => t.trim()).filter(Boolean);
-		if (parsed.length) {
-			tagMap = { ...tagMap, [activeCollectionIdForTagging]: parsed };
-		} else {
-			const m = { ...tagMap };
-			delete m[activeCollectionIdForTagging];
-			tagMap = m;
-		}
+		collectionMetadata.setTags(activeCollectionIdForTagging, parsed);
 		showTagModal = false;
 	}
 
@@ -336,38 +302,43 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 			}
 
 			const isPinned = pinnedStore.isPinned(node._id);
-			const isFav = favorites.includes(node._id);
+			const isFav = collectionMetadata.isFavorite(node._id);
 
-			const actions = isCategory ? undefined : [
-				{
-					icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
-					label: isPinned ? 'Unpin' : 'Pin Collection',
-					colorClass: isPinned ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500',
-					onClick: (_: any, e: MouseEvent) => {
-						e.stopPropagation();
-						pinnedStore.togglePin({
-							id: node._id,
-							name: label,
-							type: 'collection',
-							path: `/${currentLanguage}${node.path || `/${node._id}`}`,
-							icon: node.icon || 'bi:collection'
-						});
+			const actions = [
+				...(isCategory ? [] : [
+					{
+						icon: isPinned ? 'bi:pin-angle-fill' : 'bi:pin-angle',
+						label: isPinned ? 'Unpin' : 'Pin Collection',
+						colorClass: isPinned ? 'text-tertiary-500 dark:text-primary-500' : 'text-surface-500',
+						onClick: (_: any, e: MouseEvent) => {
+							e.stopPropagation();
+							pinnedStore.togglePin({
+								id: node._id,
+								name: label,
+								type: 'collection',
+								path: `/${currentLanguage}${node.path || `/${node._id}`}`,
+								icon: node.icon || 'bi:collection'
+							});
+						}
 					}
-				},
+				]),
 				{
 					icon: isFav ? 'bi:star-fill' : 'bi:star',
 					label: isFav ? 'Remove Favorite' : 'Add Favorite',
 					colorClass: isFav ? 'text-warning-500' : 'text-surface-500',
 					onClick: (_: any, e: MouseEvent) => {
 						e.stopPropagation();
-						favorites = isFav ? favorites.filter(id => id !== node._id) : [...favorites, node._id];
+						collectionMetadata.toggleFavorite(node._id);
 					}
 				},
 				{
 					icon: 'bi:tag',
 					label: 'Manage Tags',
 					colorClass: 'text-surface-500 hover:text-tertiary-500 dark:text-primary-500',
-					onClick: (_: any, e: MouseEvent) => { e.stopPropagation(); openTagEditor(node._id, label); }
+					onClick: (_: any, e: MouseEvent) => {
+						e.stopPropagation();
+						openTagEditor(node._id, label);
+					}
 				}
 			];
 
@@ -395,16 +366,23 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 		}
 
 		function filterNode(node: ExtendedContentNode): ExtendedContentNode | null {
+			const isFav = collectionMetadata.isFavorite(node._id);
+			const nodeTags = collectionMetadata.getTags(node._id);
+			const matchesTag = selectedTagFilter ? nodeTags.includes(selectedTagFilter) : true;
+			const matchesFav = showOnlyFavorites ? isFav : true;
+
 			if (node.nodeType === 'category') {
 				const filtered = (node.children ?? [])
 					.map(filterNode)
 					.filter((n): n is ExtendedContentNode => n !== null);
 				if (filtered.length) return { ...node, children: filtered };
+				if (showOnlyFavorites && isFav) return { ...node, children: [] };
+				if (selectedTagFilter && matchesTag) return { ...node, children: [] };
 				if (!showOnlyFavorites && !selectedTagFilter) return { ...node, children: [] };
 				return null;
 			}
-			if (showOnlyFavorites && !favorites.includes(node._id)) return null;
-			if (selectedTagFilter && !(tagMap[node._id] || []).includes(selectedTagFilter)) return null;
+			if (showOnlyFavorites && !isFav) return null;
+			if (selectedTagFilter && !matchesTag) return null;
 			return node;
 		}
 
@@ -659,6 +637,24 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 </script>
 
 <div class="mt-2 space-y-2" role="navigation" aria-label="Collections">
+	<!-- Collections Section Header with Quick-Add -->
+	{#if isFullSidebar}
+		<div class="flex items-center justify-between px-1 pb-0.5">
+			<span class="text-[11px] font-bold uppercase tracking-wider text-surface-500">Collections</span>
+			<SystemTooltip title="Manage Collections & Categories" positioning={{ placement: 'right' }}>
+				<a
+					href="/config/collectionbuilder"
+					data-sveltekit-preload-data="hover"
+					data-testid="sidebar-collection-builder-link"
+					class="flex h-5 w-5 items-center justify-center rounded hover:bg-surface-200 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-primary-500 transition-colors no-underline!"
+					aria-label="Manage Collections & Categories"
+				>
+					<iconify-icon icon="ic:round-add" width="16"></iconify-icon>
+				</a>
+			</SystemTooltip>
+		</div>
+	{/if}
+
 	<!-- Filters Row -->
 	{#if isFullSidebar}
 		<div class="flex flex-wrap items-center gap-2 px-1">
@@ -837,19 +833,19 @@ import { contentLanguage } from '@src/stores/locale-store.svelte';
 				<Input bind:value={currentTagsInput} label="Tags" placeholder="e.g. news, blog, features" aria-describedby="tags-help" />
 				<span id="tags-help" class="text-[11px] text-surface-400 mt-1 block">Separate multiple tags with a comma.</span>
 
-				{#if tagMap[activeCollectionIdForTagging]?.length}
+				{#if collectionMetadata.getTags(activeCollectionIdForTagging).length}
 					<div class="flex flex-wrap gap-1.5 mt-3">
-						{#each tagMap[activeCollectionIdForTagging] as tag, i (i)}
-							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-tertiary-500/10 text-tertiary-500">
+						{#each collectionMetadata.getTags(activeCollectionIdForTagging) as tag, i (i)}
+							{@const color = getTagColor(tag)}
+							<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium {color.bg} {color.text} border {color.border}">
 								{tag}
 								<Button
 									variant="ghost"
 									size="sm"
 									type="button"
 									onclick={() => {
-										const updated = tagMap[activeCollectionIdForTagging].filter(t => t !== tag);
-										tagMap = { ...tagMap, [activeCollectionIdForTagging]: updated };
-										currentTagsInput = updated.join(', ');
+										collectionMetadata.removeTag(activeCollectionIdForTagging, tag);
+										currentTagsInput = collectionMetadata.getTags(activeCollectionIdForTagging).join(', ');
 									}}
 									class="rounded-full p-0.5 hover:text-error-500"
 									aria-label="Remove tag {tag}"

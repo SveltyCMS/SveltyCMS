@@ -120,11 +120,13 @@ The Collection Builder has two main views:
    - Real-time drag-and-drop nesting with floating target preview (`↳ Inside {category}`)
    - Full keyboard reordering support (`Alt + Up/Down`) with roving tabindex
    - Live statistics counter (`X collections · Y categories`)
+   - **Unified Favorites & Tagging**: 1-click star toggle (★) and colorful tag pills directly on tree items
+   - **Dual Filter Toolbar**: Instant filtering by search text, `[★ Favorites]`, and `[All Tags ▼]` dropdown
    - Create, duplicate, edit, and delete categories and collections
 
 2. **Collection Editor View** (`/config/collectionbuilder/[action]/[collectionPath]`)
    - Edit or create individual collections
-   - Configure collection settings
+   - Configure collection settings, metadata, tags, and favorite status
    - Manage collection fields
 
 ## Category Management
@@ -226,6 +228,12 @@ The collection editor has **three tabs** for efficient workflow:
 
 - Brief description of collection purpose
 - Displayed in admin interface
+
+**Organization & Tags**:
+
+- **Collection Tags**: Comma-separated tag taxonomy for grouping collections
+- **Suggested Tags**: Auto-completion suggestions from existing workspace tags
+- **Favorite Status**: 1-click star toggle for rapid access
 
 #### Tab 2: Widgets & Fields
 
@@ -500,6 +508,28 @@ When you make changes to categories and collections, use the **"Save"** button t
 - All changes saved together
 - Atomic operations (all or nothing)
 - Rollback on errors
+
+## Unified Favorites & Tagging System
+
+The Collection Builder provides a centralized, cross-view tagging and favoriting workflow:
+
+### 1-Click Favorites (Starring)
+
+- **Direct on Tree Nodes**: Click the star icon (★) on any collection or category row to toggle favorite status.
+- **Cross-Component Sync**: Starring an item instantly reflects across the Builder tree board, the Collection Editor form, and the LeftSidebar navigation without requiring a page reload.
+- **Category Favoriting**: Whole categories can be favorited to highlight organizational workspaces.
+- **Dedicated Filter**: Click the `[★ Favorites]` toolbar chip in either the Collection Builder or the LeftSidebar to view starred items.
+
+### Color-Coded Tag Taxonomy
+
+- **Deterministic WCAG 2.2 AA Palette**: Tags are automatically assigned harmonious, token-based status-shade colors (`tertiary`, `primary`, `secondary`, `warning`, `success`), eliminating manual color management while keeping contrast high.
+- **Multi-View Tag Filtering**: Filter collections by tag in both the LeftSidebar and the Collection Builder toolbar.
+- **Modal & In-Form Editing**: Add or remove tags directly from any tree node action button or inside Tab 1 (Collection Definition) of the collection editor.
+
+### LeftSidebar Integration
+
+- **Quick-Add Shortcut**: The LeftSidebar Collections header includes an instant `+` shortcut that opens the Collection Builder directly.
+- **Live Reorder Reflection**: Any reorganization or tagging immediately synchronizes with the active sidebar tree.
 
 ## Widget System Integration
 
